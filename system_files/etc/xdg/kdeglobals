@@ -1,10 +1,27 @@
 # MoOS system-wide KDE defaults (M0 "Nova Seed")
 # New users inherit these unless they change them in System Settings.
-# Full Nova defaults (icons, cursors, fonts) land in Phase 3 via the
+# Full Nova defaults (cursors, Nova icon fork) land in Phase 3 via the
 # org.moos.nova Global Theme — see MOOS_BUILD_WORKFLOW.md.
+#
+# Font values use the Qt 6 QFont::toString() 16-field format that Plasma 6
+# writes (family,pointSize,pixelSize,styleHint,weight,style,underline,
+# strikeOut,fixedPitch,0,capitalization,letterSpacingType,letterSpacing,
+# wordSpacing,stretch,styleStrategy). Weight 400 = Normal on the OpenType
+# 1-1000 scale used by Qt 6 (a 10-field string would be parsed as legacy
+# Qt 5 weights instead).
 
 [General]
 ColorScheme=NovaDark
+font=IBM Plex Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+menuFont=IBM Plex Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+toolBarFont=IBM Plex Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+smallestReadableFont=IBM Plex Sans,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+fixed=JetBrains Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+
+# Papirus-Dark is the INTERIM icon theme until the Nova icon fork exists
+# (Phase 3) — see build_files/build.sh section (c4).
+[Icons]
+Theme=Papirus-Dark
 
 [KDE]
 LookAndFeelPackage=org.moos.nova

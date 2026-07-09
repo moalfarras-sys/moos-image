@@ -13,9 +13,16 @@ name=default
 [Wallpaper]
 Image=NovaHorizon
 
+[ksplashrc][KSplash]
+Theme=org.moos.nova
+Engine=KSplashQML
+
+# INTERIM: Papirus-Dark until the Nova icon fork exists (Phase 3) — then
+# switch Theme=Papirus-Dark to Theme=Nova. Installed in build.sh (c4).
+[kdeglobals][Icons]
+Theme=Papirus-Dark
+
 # --- Phase 3 additions (uncomment once the assets exist) -------------------
-# [kdeglobals][Icons]
-# Theme=Nova
 #
 # [kcminputrc][Mouse]
 # cursorTheme=NovaIce

@@ -113,6 +113,25 @@ ls /boot/efi/EFI >/dev/null   # hard-fail here if the EFI dir could not be provi
 dnf5 -y install qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia qt6-qtimageformats
 
 # -----------------------------------------------------------------------------
+# (c4) Brand fonts + interim icon theme
+# -----------------------------------------------------------------------------
+# MoOS brand typography (MOOS_DESIGN: IBM Plex Sans UI / JetBrains Mono code)
+# plus Arabic coverage, all from Fedora 44 repos (names verified on
+# https://packages.fedoraproject.org):
+# - ibm-plex-sans-fonts:        IBM Plex Sans (latin UI font)
+# - ibm-plex-sans-arabic-fonts: IBM Plex Sans Arabic (Arabic UI font,
+#                               subpackage of the ibm-plex-fonts source pkg)
+# - google-noto-sans-arabic-fonts: Noto Sans Arabic fallback (usually already
+#                               in Kinoite; explicit install is a no-op then)
+# - jetbrains-mono-fonts:       JetBrains Mono (terminal/code font)
+# - papirus-icon-theme:         INTERIM icon theme (Papirus-Dark) until the
+#                               Nova icon fork exists (Phase 3)
+# Fontconfig fallback order ships via system_files:
+#   /etc/fonts/conf.d/61-moos-brand.conf
+dnf5 -y install ibm-plex-sans-fonts ibm-plex-sans-arabic-fonts \
+    google-noto-sans-arabic-fonts jetbrains-mono-fonts papirus-icon-theme
+
+# -----------------------------------------------------------------------------
 # (d) Enable services
 # -----------------------------------------------------------------------------
 # uupd runs from a systemd timer; enabling it here bakes the symlink into the

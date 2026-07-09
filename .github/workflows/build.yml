@@ -12,12 +12,14 @@
 #   2. Add the private key as a repo Actions secret named SIGNING_SECRET:
 #        gh secret set SIGNING_SECRET < cosign.key
 #      (or GitHub UI: Settings -> Secrets and variables -> Actions).
-#   3. First successful push creates the GHCR package; set its visibility to
-#      Public (GitHub UI -> Packages -> moos -> Package settings).
+#   3. First successful push creates the GHCR packages; set their visibility to
+#      Public (GitHub UI -> Packages -> moos / moos-nvidia -> Package settings).
 #
-# Output: ghcr.io/<owner>/moos:latest + ghcr.io/<owner>/moos:YYYYMMDD, signed.
-# NVIDIA variant (moos-nvidia via BASE_IMAGE build-arg) is added as a build
-# matrix in Phase 4 — see MOOS_BUILD_WORKFLOW.md.
+# Output (one per matrix variant, each tagged latest + YYYYMMDD, signed):
+#   ghcr.io/<owner>/moos         (base: ghcr.io/ublue-os/kinoite-main:44)
+#   ghcr.io/<owner>/moos-nvidia  (base: ghcr.io/ublue-os/kinoite-nvidia:44)
+# Both variants build from the same Containerfile via the BASE_IMAGE build-arg
+# (see MOOS_BUILD_WORKFLOW.md).
 # =============================================================================
 
 name: Build MoOS image
@@ -32,17 +34,28 @@ on:
     - cron: "0 6 * * *"
   workflow_dispatch:
 
-env:
-  IMAGE_NAME: moos
-
+# Note on concurrency: both matrix variants (moos, moos-nvidia) run inside the
+# SAME workflow run, and this group is keyed per run context — so a newer run
+# cancels a superseded older run, while the two matrix jobs of one run never
+# cancel each other. Do NOT add per-job concurrency.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build-push-sign:
-    name: Build, push and sign
+    name: Build, push and sign (${{ matrix.image_name }})
     runs-on: ubuntu-latest
+    strategy:
+      # Build both variants to completion independently: an nvidia base-image
+      # failure must not kill the main image build (and vice versa).
+      fail-fast: false
+      matrix:
+        include:
+          - image_name: moos
+            base_image: ghcr.io/ublue-os/kinoite-main:44
+          - image_name: moos-nvidia
+            base_image: ghcr.io/ublue-os/kinoite-nvidia:44
     permissions:
       contents: read      # checkout
       packages: write     # push to GHCR
@@ -64,11 +77,12 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         with:
           containerfiles: ./Containerfile
-          image: ${{ env.IMAGE_NAME }}
+          image: ${{ matrix.image_name }}
           tags: latest ${{ steps.meta.outputs.date_tag }}
-          # BASE_IMAGE default (kinoite-main:44) is set in the Containerfile.
-          # The nvidia variant will pass:
-          #   build-args: BASE_IMAGE=ghcr.io/ublue-os/kinoite-nvidia:44
+          # Same Containerfile for both variants; the matrix selects the base
+          # (kinoite-main for moos, kinoite-nvidia for moos-nvidia).
+          build-args: |
+            BASE_IMAGE=${{ matrix.base_image }}
           oci: false
 
       - name: Log in to GHCR
@@ -90,12 +104,14 @@ jobs:
         uses: sigstore/cosign-installer@v3
 
       # Sign by digest (not tag) so the signature stays valid even if tags
-      # move. Verification:
+      # move. Verification (same key for both variants):
       #   cosign verify --key cosign.pub ghcr.io/<owner>/moos:latest
+      #   cosign verify --key cosign.pub ghcr.io/<owner>/moos-nvidia:latest
       - name: Sign image with cosign
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
           IMAGE_REGISTRY: ${{ steps.meta.outputs.registry }}
+          IMAGE_NAME: ${{ matrix.image_name }}
           DIGEST: ${{ steps.push.outputs.digest }}
         run: |
           cosign sign -y --key env://COSIGN_PRIVATE_KEY \
