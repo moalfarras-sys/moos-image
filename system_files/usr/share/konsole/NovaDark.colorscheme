@@ -1,0 +1,104 @@
+# NovaDark — MoOS Konsole color scheme (Nova palette)
+# Format verified verbatim against KDE/konsole master
+# data/color-schemes/Breeze.colorscheme (groups: Background/Foreground with
+# Faint+Intense variants, Color0..Color7 each with Faint+Intense, [General]).
+# Colors are R,G,B from the Nova brand palette:
+#   bg #0B1220  surface #111A2E  raised #1A2740  deepest #050A14
+#   text #E6EDF7  secondary #9FB0C9
+#   blue #2E7BFF  cyan #22D3EE  violet #8B5CF6
+#   red #F87171  green #34D399  yellow #FBBF24
+
+[Background]
+Color=11,18,32
+
+[BackgroundFaint]
+Color=17,26,46
+
+[BackgroundIntense]
+Color=5,10,20
+
+[Color0]
+Color=26,39,64
+
+[Color0Faint]
+Color=17,26,46
+
+[Color0Intense]
+Color=91,107,140
+
+[Color1]
+Color=248,113,113
+
+[Color1Faint]
+Color=154,70,70
+
+[Color1Intense]
+Color=252,165,165
+
+[Color2]
+Color=52,211,153
+
+[Color2Faint]
+Color=31,138,100
+
+[Color2Intense]
+Color=110,231,183
+
+[Color3]
+Color=251,191,36
+
+[Color3Faint]
+Color=163,126,28
+
+[Color3Intense]
+Color=252,211,77
+
+[Color4]
+Color=46,123,255
+
+[Color4Faint]
+Color=31,83,168
+
+[Color4Intense]
+Color=106,166,255
+
+[Color5]
+Color=139,92,246
+
+[Color5Faint]
+Color=93,62,166
+
+[Color5Intense]
+Color=167,139,250
+
+[Color6]
+Color=34,211,238
+
+[Color6Faint]
+Color=23,140,158
+
+[Color6Intense]
+Color=103,232,249
+
+[Color7]
+Color=199,211,232
+
+[Color7Faint]
+Color=126,140,166
+
+[Color7Intense]
+Color=255,255,255
+
+[Foreground]
+Color=230,237,247
+
+[ForegroundFaint]
+Color=159,176,201
+
+[ForegroundIntense]
+Color=255,255,255
+
+[General]
+Description=Nova Dark
+Opacity=1
+Wallpaper=

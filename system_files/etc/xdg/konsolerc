@@ -1,0 +1,8 @@
+# MoOS system default for Konsole (KConfig cascade — a user's
+# ~/.config/konsolerc always wins over this file).
+# Konsole reads [Desktop Entry] DefaultProfile from konsolerc (verified in
+# KDE/konsole master src/profile/ProfileManager.cpp); the value is the
+# profile FILE name, and /usr/share/konsole/MoOS.profile ships in this image.
+
+[Desktop Entry]
+DefaultProfile=MoOS.profile

@@ -1,3 +1,10 @@
+# CHANGELOG 2026-07-09: audited key-by-key against plymouth 24.004.60
+# (themes/spinner/spinner.plymouth.desktop + src/plugins/splash/two-step/plugin.c).
+# All keys/sections confirmed valid for this generation; watermark.png and
+# throbber-NNNN.png are picked up implicitly by filename (no keys needed).
+# Added UseEndAnimation=false to updates/upgrade/reset modes: we ship no
+# animation-*.png, so the plugin's compat path would otherwise consume
+# throbber-*.png as the end animation and free the spinner (plugin.c:346-353).
 [Plymouth Theme]
 Name=MoOS Nova
 Description=MoOS branded flicker-free boot splash: Nova comet spinner on deep navy with the MoOS emblem watermark.
@@ -33,6 +40,7 @@ UseEndAnimation=false
 UseEndAnimation=false
 
 [updates]
+UseEndAnimation=false
 SuppressMessages=true
 ProgressBarShowPercentComplete=true
 UseProgressBar=true
@@ -40,6 +48,7 @@ Title=Installing Updates...
 SubTitle=Do not turn off your computer
 
 [system-upgrade]
+UseEndAnimation=false
 SuppressMessages=true
 ProgressBarShowPercentComplete=true
 UseProgressBar=true
@@ -47,6 +56,7 @@ Title=Upgrading MoOS...
 SubTitle=Do not turn off your computer
 
 [firmware-upgrade]
+UseEndAnimation=false
 SuppressMessages=true
 ProgressBarShowPercentComplete=true
 UseProgressBar=true
@@ -54,6 +64,7 @@ Title=Upgrading Firmware...
 SubTitle=Do not turn off your computer
 
 [system-reset]
+UseEndAnimation=false
 SuppressMessages=true
 ProgressBarShowPercentComplete=true
 UseProgressBar=true

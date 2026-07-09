@@ -1,7 +1,8 @@
 # org.moos.nova — Look-and-Feel defaults (M0 "Nova Seed")
 # NovaDark color scheme + Nova Horizon wallpaper ship in this image already.
-# Nova icon theme, Nova Ice cursors and Klassy window decoration are produced
-# in Phase 3 from design/tokens.json (see MOOS_BUILD_WORKFLOW.md, Phase 3).
+# Nova icon theme is generated from Colloid in build.sh (c5); Nova Ice
+# cursors and Klassy window decoration are produced in Phase 3 from
+# design/tokens.json (see MOOS_BUILD_WORKFLOW.md, Phase 3).
 # KConfig group syntax: [file][group] followed by key=value lines.
 
 [kdeglobals][General]
@@ -17,10 +18,33 @@ Image=NovaHorizon
 Theme=org.moos.nova
 Engine=KSplashQML
 
-# INTERIM: Papirus-Dark until the Nova icon fork exists (Phase 3) — then
-# switch Theme=Papirus-Dark to Theme=Nova. Installed in build.sh (c4).
+# Nova icon theme — generated at image build time from Colloid in
+# build.sh section (c5). Inherits Colloid-Dark -> Papirus-Dark ->
+# breeze-dark -> hicolor, so every icon name still resolves.
 [kdeglobals][Icons]
-Theme=Papirus-Dark
+Theme=Nova
+
+# --- M0 polish: KWin blur ---------------------------------------------------
+# Key names VERIFIED against kwin master src/plugins/blur/blur.kcfg (config
+# group "Effect-blur", Int entries BlurStrength / NoiseStrength) and the
+# standard kwinrc [Plugins] <effectId>Enabled toggle (effect id: "blur").
+# NOTE: Plasma 6's LookAndFeelManager applies only a hardcoded set of entries
+# from a defaults file (upstream org.kde.breeze ships exactly that set) —
+# arbitrary [kwinrc] groups like these are currently IGNORED by it. They stay
+# here as theme documentation; the *operative* system default ships in
+# /etc/xdg/kwinrc (plain KConfig cascade), see that file in this repo.
+[kwinrc][Plugins]
+blurEnabled=true
+
+[kwinrc][Effect-blur]
+BlurStrength=8
+NoiseStrength=2
+
+# Lock screen wallpaper: when applying an L&F package, LookAndFeelManager only
+# writes kscreenlockerrc [Greeter] Theme= — nested groups like
+# [kscreenlockerrc][Greeter][Wallpaper][org.kde.image][General] in a defaults
+# file are NOT applied. The NovaHorizon lock screen wallpaper therefore ships
+# as /etc/xdg/kscreenlockerrc instead (same KConfig cascade as kwinrc above).
 
 # --- Phase 3 additions (uncomment once the assets exist) -------------------
 #

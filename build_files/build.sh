@@ -82,7 +82,11 @@ dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot \
 plymouth-set-default-theme moos-nova
 
 # Regenerate the initramfs with the live-boot dracut modules.
-kver=$(ls /usr/lib/modules | head -1)
+# Hard-fail if the kernel count is not exactly 1 — with multiple kernel dirs a
+# blind "head -1" could regenerate the WRONG initramfs and ship a stock one
+# without the MoOS theme/live modules (auditor finding, 2026-07-09).
+kver=$(ls /usr/lib/modules)
+[ "$(echo "$kver" | wc -l)" -eq 1 ] || { echo "ERROR: expected exactly 1 kernel in /usr/lib/modules, got: $kver"; exit 1; }
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
     --add "dmsquash-live dmsquash-live-autooverlay" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}"
@@ -124,12 +128,89 @@ dnf5 -y install qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia qt6-qtimageform
 # - google-noto-sans-arabic-fonts: Noto Sans Arabic fallback (usually already
 #                               in Kinoite; explicit install is a no-op then)
 # - jetbrains-mono-fonts:       JetBrains Mono (terminal/code font)
-# - papirus-icon-theme:         INTERIM icon theme (Papirus-Dark) until the
-#                               Nova icon fork exists (Phase 3)
+# - papirus-icon-theme:         kept installed as the Nova icon theme's first
+#                               inheritance fallback (see section (c5))
 # Fontconfig fallback order ships via system_files:
 #   /etc/fonts/conf.d/61-moos-brand.conf
 dnf5 -y install ibm-plex-sans-fonts ibm-plex-sans-arabic-fonts \
     google-noto-sans-arabic-fonts jetbrains-mono-fonts papirus-icon-theme
+
+# Full Arabic + English locale support (glibc locales, hunspell, input) —
+# MoOS is bilingual by design (MOOS_DESIGN_SYSTEM.md §7 RTL rules).
+dnf5 -y install langpacks-ar langpacks-en
+
+# -----------------------------------------------------------------------------
+# (c5) Nova icon theme (generated from Colloid at build time)
+# -----------------------------------------------------------------------------
+# The Nova icon theme is produced HERE, at image build time, from
+# vinceliuice/Colloid-icon-theme — no giant icon dumps live in git.
+# This section is deliberately fail-loud (no || true on clone/install):
+# a broken icon build must fail CI, not ship silently.
+#
+# install.sh flags (verified 2026-07-09 against the pinned commit below):
+#   -d DIR     destination directory
+#   -t VARIANT folder color [default|purple|pink|red|orange|yellow|green|teal|
+#              grey|all] — there is NO separate 'blue' option: 'default' IS
+#              the blue variant (theme_color '#5b9bf8' in colors_folder()),
+#              a good match for MoOS electric blue #2E7BFF.
+#   -s VARIANT folder colorscheme [default|nord|dracula|gruvbox|everforest|
+#              catppuccin|all] — 'default' = standard palette.
+# One run with '-t default -s default' installs THREE dirs into the dest:
+# Colloid-Light, Colloid-Dark and Colloid — Colloid-Dark symlinks into
+# Colloid-Light (apps/scalable etc.), so all three must stay installed.
+#
+# git-core: clone below (harmless if already in the base image).
+# gtk-update-icon-cache: Colloid's install.sh calls it per theme dir and this
+# section calls it for Nova; explicit install guarantees the binary exists
+# (Fedora 44 package "gtk-update-icon-cache", subpackage of gtk3 — verified
+# on packages.fedoraproject.org).
+dnf5 -y install git-core gtk-update-icon-cache
+
+# Pinned Colloid commit = head of the default branch ("main" — the repo
+# renamed master->main; raw "master" URLs still redirect) as of
+# 2025-12-27T02:21:31Z, verified 2026-07-09 via
+# https://api.github.com/repos/vinceliuice/Colloid-icon-theme/branches/main
+COLLOID_COMMIT=c9e702beb96f731e2b3bea2fa1c619fa94e79a9f
+git clone --depth 1 https://github.com/vinceliuice/Colloid-icon-theme.git /tmp/colloid
+# A shallow clone only holds the branch tip, so fetch the pinned commit
+# explicitly (same pattern actions/checkout uses); the pin then keeps
+# working after upstream moves on.
+git -C /tmp/colloid fetch --depth 1 origin "${COLLOID_COMMIT}"
+git -C /tmp/colloid checkout "${COLLOID_COMMIT}"
+
+bash /tmp/colloid/install.sh -d /usr/share/icons -t default -s default
+rm -rf /tmp/colloid
+
+# "Nova" = branded theme on top of Colloid-Dark.
+# VERIFIED: an Inherits-only index.theme is NOT enough —
+# - freedesktop icon-theme spec (File Formats, Table 1) marks Directories=
+#   as REQUIRED (Inherits is the optional one);
+# - KDE's KIconTheme only counts a directory that exists on disk
+#   (QFileInfo::exists check in the ctor before populating mDirs) and
+#   isValid() requires a non-empty mDirs/mScaledDirs — a dir-less theme is
+#   treated as invalid and Plasma would fall back / not stick.
+# So: copy Colloid-Dark's full index.theme (keeps Directories= plus all
+# per-directory sections; Name=/Comment=/Inherits= lines verified present in
+# src/index.theme at the pinned commit) and symlink Colloid-Dark's icon
+# dirs into Nova — cheap (no duplication), spec-valid, and Nova resolves
+# icons directly instead of relying purely on inheritance.
+mkdir -p /usr/share/icons/Nova
+cp /usr/share/icons/Colloid-Dark/index.theme /usr/share/icons/Nova/index.theme
+sed -i \
+    -e 's|^Name=.*|Name=Nova|' \
+    -e 's|^Comment=.*|Comment=MoOS Nova icons (based on Colloid)|' \
+    -e 's|^Inherits=.*|Inherits=Colloid-Dark,Papirus-Dark,breeze-dark,hicolor|' \
+    /usr/share/icons/Nova/index.theme
+# Symlink every icon subdir of Colloid-Dark (actions, apps, ..., plus the
+# @2x links) into Nova. Relative targets keep the links valid inside the
+# ostree/bootc image. The */ glob matches dirs and dir-symlinks only, so
+# index.theme / icon-theme.cache are skipped.
+test -d /usr/share/icons/Colloid-Dark/apps   # hard-fail if Colloid's layout ever changes
+for d in /usr/share/icons/Colloid-Dark/*/; do
+    b="$(basename "${d}")"
+    ln -snf "../Colloid-Dark/${b}" "/usr/share/icons/Nova/${b}"
+done
+gtk-update-icon-cache -f /usr/share/icons/Nova || true
 
 # -----------------------------------------------------------------------------
 # (d) Enable services

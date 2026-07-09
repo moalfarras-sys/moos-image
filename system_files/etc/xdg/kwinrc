@@ -1,0 +1,20 @@
+# MoOS system defaults for KWin (KConfig cascade — a user's ~/.config/kwinrc
+# always wins over this file, so user choices are never clobbered).
+#
+# Nova polish: enable + tune the blur effect for the "calm glass" look.
+# Key names verified against kwin master src/plugins/blur/blur.kcfg
+# (config group "Effect-blur", Int entries BlurStrength / NoiseStrength);
+# effects are toggled via [Plugins] <effectId>Enabled, blur's id is "blur".
+#
+# Safety: blur is enabled by default upstream anyway, and KWin only loads the
+# effect when the backend supports it (effect supported() check) — on weak
+# GPUs / software rendering this is simply ignored. No boot/compositing risk.
+
+[Plugins]
+blurEnabled=true
+
+[Effect-blur]
+# Upstream defaults: BlurStrength=15, NoiseStrength=5 (see blur.kcfg).
+# Nova uses a gentler blur with just a hint of noise banding suppression.
+BlurStrength=8
+NoiseStrength=2
