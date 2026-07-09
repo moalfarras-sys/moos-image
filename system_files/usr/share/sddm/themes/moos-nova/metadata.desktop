@@ -1,0 +1,31 @@
+; MoOS Nova — based on SilentSDDM by uiriansan
+; Upstream: https://github.com/uiriansan/SilentSDDM (GPL-3.0-or-later, see LICENSE)
+
+[SddmGreeterTheme]
+Name=MoOS Nova
+Type=sddm-theme
+Description=Premium Nova login screen for MoOS — dark navy, electric-blue accents, virtual keyboard with Arabic input. Based on SilentSDDM.
+License=GPL-3.0-or-later
+Version=1.5.0-moos.1
+Theme-Id=moos-nova
+Theme-API=2.0
+MainScript=Main.qml
+Screenshot=backgrounds/nova-dark.png
+TranslationsDirectory=translations
+QtVersion=6
+
+ConfigFile=configs/moos-nova.conf
+; Upstream presets kept for reference/testing:
+; ConfigFile=configs/default.conf
+; ConfigFile=configs/default-left.conf
+; ConfigFile=configs/default-right.conf
+; ConfigFile=configs/everforest.conf
+; ConfigFile=configs/catppuccin-latte.conf
+; ConfigFile=configs/catppuccin-frappe.conf
+; ConfigFile=configs/catppuccin-macchiato.conf
+; ConfigFile=configs/catppuccin-mocha.conf
+; ConfigFile=configs/nord.conf
+; ConfigFile=configs/gruvbox.conf
+; ConfigFile=configs/eldritch-cthulhu.conf
+; ConfigFile=configs/eldritch-abyss.conf
+; ConfigFile=configs/eldritch-dusk.conf

@@ -1,33 +1,49 @@
-# moos-nova — ثيم إقلاع Plymouth (placeholder — يُبنى في Phase 5)
+# moos-nova — ثيم إقلاع Plymouth الخاص بـ MoOS
 
-هذا المجلد يحجز مكان ثيم Plymouth الخاص بـ MoOS. الثيم الفعلي سيُبنى في Phase 5 (Boot & Installer) كثيم **two-step** (الـ plugin الموصى به في مسار flicker-free الخاص بـ Fedora) مع شعار Mo monogram متحرك كسلسلة إطارات PNG، على خلفية `nova.navy.deepest` (#050A14) من `branding/PALETTE.md`.
+ثيم إقلاع MoOS الرسمي (flicker-free) مبني على الـ plugin **two-step** — نفس الـ plugin الذي تستخدمه ثيمات Fedora الرسمية (bgrt/spinner) ضمن مسار Flicker-Free Boot.
 
-آخر تحديث: 2026-07-09
+آخر تحديث: 2026-07-09 — **الثيم مكتمل ومفعّل** (لم يعد placeholder).
 
-## البنية المستهدفة (Target layout)
+## المحتويات (Contents)
 
 ```
 moos-nova/
-├── moos-nova.plymouth        # ModuleName=two-step + مسارات الصور
-├── animation-0001.png ...    # سلسلة إطارات Mo monogram المتحركة (من branding/)
-├── watermark.png             # الشعار الثابت أسفل الشاشة
-└── background-tile.png       # لون/تدرج الخلفية
+├── moos-nova.plymouth        # الوصف: ModuleName=two-step + الألوان والمحاذاة
+├── throbber-0001.png ...     # 30 إطار spinner (64×64، شفاف): قوس "مذنّب" يدور
+│   throbber-0030.png         #   12°/إطار، رأس سماوي #22D3EE يتلاشى عبر #2E7BFF
+├── watermark.png             # شعار MoOS (200×200) أسفل الشاشة (محاذاة 0.96)
+└── README.md                 # هذا الملف
 ```
 
-التفعيل يتم في build.sh لاحقاً:
+الخلفية لون صلب `nova.navy.deepest` (#050A14) من `branding/PALETTE.md`
+(`BackgroundStartColor` = `BackgroundEndColor` — بلا تدرّج، بلا وميض).
+شريط التقدّم (التحديثات/الترقيات): خلفية #111A2E وتعبئة #2E7BFF.
+
+## التوليد (Asset generation)
+
+الإطارات و watermark وُلّدت برمجياً بـ Python + Pillow (رسم بدقة 4× ثم تصغير
+LANCZOS للحواف الناعمة). المصدر: شعار MoOS في
+`/usr/share/moos/moos-logo.png` (بشفافية أصلية — لا قصّ دائري مطلوب).
+
+## التفعيل (Activation)
+
+يتم في `build_files/build.sh` قسم (c2) قبل إعادة توليد initramfs:
 
 ```bash
-plymouth-set-default-theme moos-nova
+plymouth-set-default-theme moos-nova   # بدون -R
 ```
 
-المرجع: https://fedoraproject.org/wiki/Changes/FlickerFreeBoot — نستخدم two-step (وليس script plugin) لأنه مدعوم أفضل ويتكامل مع مسار flicker-free/BGRT.
+بدون `-R` عمداً: أمر dracut التالي في السكربت يعيد بناء initramfs أصلاً،
+وموديول plymouth في dracut يلتقط الثيم الحالي تلقائياً. حزمة
+`plymouth-plugin-two-step` تُثبَّت في نفس القسم (موجودة أصلاً في Kinoite
+عبر bgrt/spinner — التثبيت الصريح ضمانة غير ضارّة).
 
-## قيود معروفة (Known Issues)
+## الإسناد (Attribution)
 
-- placeholder فقط — لا يوجد ملف `.plymouth` بعد؛ النظام يستخدم ثيم bgrt/spinner الافتراضي حتى Phase 5.
-- تفعيل الثيم يتطلب إعادة توليد initramfs في مسار البناء — يوثَّق عند التنفيذ في Phase 5.
+بنية ملف `moos-nova.plymouth` والأسماء المتوقّعة للإطارات
+(`throbber-XXXX.png`, `watermark.png`) تتبع ثيم **spinner** المرجعي من مشروع
+Plymouth (freedesktop.org):
+https://gitlab.freedesktop.org/plymouth/plymouth/-/blob/main/themes/spinner/spinner.plymouth.desktop
+جميع الصور هنا أصلية (شعار MoOS + إطارات مولّدة) — لا أصول طرف ثالث.
 
-## الخطوات التالية (Next Actions)
-
-- Phase 3: توليد إطارات PNG المتحركة من أصول `branding/`.
-- Phase 5 (انظر `MOOS_BUILD_WORKFLOW.md`): كتابة `moos-nova.plymouth` وتفعيله في `build_files/build.sh`.
+المرجع العام: https://fedoraproject.org/wiki/Changes/FlickerFreeBoot

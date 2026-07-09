@@ -70,7 +70,16 @@ dnf5 -y copr disable ublue-os/packages
 # - grub2-efi-x64-cdboot: provides gcdx64.efi required for the ISO's EFI dir
 # The ISO config itself ships in system_files:
 #   /usr/lib/bootc-image-builder/iso.yaml
-dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot
+# plymouth-plugin-two-step: required by the moos-nova boot theme below
+# (Kinoite already ships it via the bgrt/spinner themes — explicit install
+# is a harmless guarantee).
+dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot \
+    plymouth-plugin-two-step
+
+# MoOS branded boot splash (flicker-free). No -R flag on purpose: the dracut
+# run right below regenerates the initramfs anyway, and the plymouth dracut
+# module picks up the theme selected here.
+plymouth-set-default-theme moos-nova
 
 # Regenerate the initramfs with the live-boot dracut modules.
 kver=$(ls /usr/lib/modules | head -1)
@@ -89,6 +98,19 @@ if ! cp -av /usr/lib/efi/*/*/EFI /boot/efi/ 2>/dev/null; then
     echo "NOTE: /usr/lib/efi layout not found — verifying /boot/efi/EFI already exists"
 fi
 ls /boot/efi/EFI >/dev/null   # hard-fail here if the EFI dir could not be provisioned
+
+# -----------------------------------------------------------------------------
+# (c3) SDDM login theme — moos-nova (based on SilentSDDM)
+# -----------------------------------------------------------------------------
+# The theme itself ships via system_files:
+#   /usr/share/sddm/themes/moos-nova   (selected by /etc/sddm.conf.d/moos.conf)
+# SilentSDDM runtime requirements (upstream README, Fedora names):
+# - qt6-qtsvg:             SVG icons used across the theme
+# - qt6-qtvirtualkeyboard: on-screen keyboard (Arabic input at login)
+# - qt6-qtmultimedia:      QtMultimedia import in the theme (video backgrounds)
+# - qt6-qtimageformats:    extra image format plugins for backgrounds
+# SDDM theme runtime deps (SilentSDDM/moos-nova)
+dnf5 -y install qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia qt6-qtimageformats
 
 # -----------------------------------------------------------------------------
 # (d) Enable services
