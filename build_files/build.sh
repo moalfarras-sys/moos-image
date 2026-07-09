@@ -61,6 +61,36 @@ dnf5 -y copr disable ublue-os/packages
 # moos-fonts, ...) arrive as first-party RPMs/COPR in Phase 3-4.
 
 # -----------------------------------------------------------------------------
+# (c2) Live-ISO support (container-native ISO contract v0.1.0 / Titanoboa)
+# -----------------------------------------------------------------------------
+# Recipe from the reference implementation for Kinoite bootc live ISOs:
+# https://github.com/ondrejbudai/bootc-isos (kinoite/src/build.sh)
+# - dracut-live: initramfs must contain dmsquash-live to boot from squashfs
+# - livesys-scripts: proper live session (no-ops on installed systems)
+# - grub2-efi-x64-cdboot: provides gcdx64.efi required for the ISO's EFI dir
+# The ISO config itself ships in system_files:
+#   /usr/lib/bootc-image-builder/iso.yaml
+dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot
+
+# Regenerate the initramfs with the live-boot dracut modules.
+kver=$(ls /usr/lib/modules | head -1)
+DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
+    --add "dmsquash-live dmsquash-live-autooverlay" \
+    "/usr/lib/modules/${kver}/initramfs.img" "${kver}"
+
+# Live session type = KDE Plasma; the services detect live boot and exit
+# cleanly on installed systems.
+sed -i "s/^livesys_session=.*/livesys_session=kde/" /etc/sysconfig/livesys
+systemctl enable livesys.service livesys-late.service
+
+# Titanoboa copies the ISO's EFI dir from /boot/efi/EFI inside the image.
+mkdir -p /boot/efi
+if ! cp -av /usr/lib/efi/*/*/EFI /boot/efi/ 2>/dev/null; then
+    echo "NOTE: /usr/lib/efi layout not found — verifying /boot/efi/EFI already exists"
+fi
+ls /boot/efi/EFI >/dev/null   # hard-fail here if the EFI dir could not be provisioned
+
+# -----------------------------------------------------------------------------
 # (d) Enable services
 # -----------------------------------------------------------------------------
 # uupd runs from a systemd timer; enabling it here bakes the symlink into the

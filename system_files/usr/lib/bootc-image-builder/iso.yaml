@@ -1,0 +1,12 @@
+# Titanoboa / container-native ISO contract v0.1.0
+# Consumed by build_iso.sh inside the Titanoboa work container.
+# Reference: https://github.com/ondrejbudai/bootc-isos (kinoite example)
+# NOTE: CDLABEL in the kernel args MUST match `label` exactly.
+label: "MoOS-Live"
+grub2:
+  timeout: 5
+  default: 0
+  entries:
+    - name: "MoOS Live (Nova Seed)"
+      linux: "/images/pxeboot/vmlinuz quiet rhgb root=live:CDLABEL=MoOS-Live enforcing=0 rd.live.image"
+      initrd: "/images/pxeboot/initrd.img"
