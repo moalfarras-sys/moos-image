@@ -7,6 +7,11 @@ grub2:
   timeout: 5
   default: 0
   entries:
+    # plymouth.use-simpledrm: force the graphical splash onto the firmware
+    # framebuffer from instant zero (simpledrm is builtin in the F44 kernel) —
+    # fixes the ugly grey text-mode fallback seen in VMs; harmless on real
+    # hardware (it is Fedora's own default for non-LUKS via UseSimpledrmNoLuks).
+    # vt.global_cursor_default=0: no blinking console cursor during handoffs.
     - name: "MoOS Live (Nova Seed)"
-      linux: "/images/pxeboot/vmlinuz quiet rhgb root=live:CDLABEL=MoOS-Live enforcing=0 rd.live.image"
+      linux: "/images/pxeboot/vmlinuz quiet rhgb plymouth.use-simpledrm vt.global_cursor_default=0 root=live:CDLABEL=MoOS-Live enforcing=0 rd.live.image"
       initrd: "/images/pxeboot/initrd.img"
