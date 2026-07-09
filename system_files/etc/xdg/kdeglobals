@@ -1,0 +1,10 @@
+# MoOS system-wide KDE defaults (M0 "Nova Seed")
+# New users inherit these unless they change them in System Settings.
+# Full Nova defaults (icons, cursors, fonts) land in Phase 3 via the
+# org.moos.nova Global Theme — see MOOS_BUILD_WORKFLOW.md.
+
+[General]
+ColorScheme=NovaDark
+
+[KDE]
+LookAndFeelPackage=org.moos.nova

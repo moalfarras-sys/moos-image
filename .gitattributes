@@ -1,0 +1,12 @@
+# Normalize all text files to LF — shell scripts and YAML break with CRLF
+# (this repo is edited on Windows; enforce LF in git regardless).
+* text=auto eol=lf
+
+# Binary assets — never touch line endings
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.iso binary
+*.gz binary
+*.zst binary

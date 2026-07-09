@@ -1,0 +1,14 @@
+{
+    "KPlugin": {
+        "Id": "NovaHorizon",
+        "Name": "Nova Horizon",
+        "Description": "MoOS Nova Horizon — time-of-day wallpaper (light day / dark night)",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Version": "0.1.0",
+        "License": "CC-BY-SA-4.0"
+    }
+}

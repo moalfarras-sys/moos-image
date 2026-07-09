@@ -1,0 +1,102 @@
+# =============================================================================
+# build.yml — build, push and sign the MoOS bootc image
+# =============================================================================
+# Pattern: redhat-actions buildah/push (one coherent pattern; do NOT mix with
+# docker/build-push-action). Modeled on ublue-os/image-template build.yml.
+#
+# REQUIRED ONE-TIME SETUP (before the first run):
+#   1. Generate a cosign keypair locally (WSL2 or any shell with cosign):
+#        cosign generate-key-pair
+#      -> produces cosign.key (PRIVATE — never commit; it is in .gitignore)
+#         and cosign.pub (COMMIT this to the repo root).
+#   2. Add the private key as a repo Actions secret named SIGNING_SECRET:
+#        gh secret set SIGNING_SECRET < cosign.key
+#      (or GitHub UI: Settings -> Secrets and variables -> Actions).
+#   3. First successful push creates the GHCR package; set its visibility to
+#      Public (GitHub UI -> Packages -> moos -> Package settings).
+#
+# Output: ghcr.io/<owner>/moos:latest + ghcr.io/<owner>/moos:YYYYMMDD, signed.
+# NVIDIA variant (moos-nvidia via BASE_IMAGE build-arg) is added as a build
+# matrix in Phase 4 — see MOOS_BUILD_WORKFLOW.md.
+# =============================================================================
+
+name: Build MoOS image
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    # Daily rebuild (06:00 UTC) to pick up Fedora/uBlue base security updates
+    # promptly — same cadence as ublue-os/image-template.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: moos
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-push-sign:
+    name: Build, push and sign
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read      # checkout
+      packages: write     # push to GHCR
+      id-token: write     # sigstore/cosign OIDC (kept for future keyless mode)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # GHCR requires a lowercase namespace; github.repository_owner may
+      # contain uppercase letters.
+      - name: Resolve registry and tags
+        id: meta
+        run: |
+          echo "registry=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+          echo "date_tag=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Build image (buildah)
+        id: build
+        uses: redhat-actions/buildah-build@v2
+        with:
+          containerfiles: ./Containerfile
+          image: ${{ env.IMAGE_NAME }}
+          tags: latest ${{ steps.meta.outputs.date_tag }}
+          # BASE_IMAGE default (kinoite-main:44) is set in the Containerfile.
+          # The nvidia variant will pass:
+          #   build-args: BASE_IMAGE=ghcr.io/ublue-os/kinoite-nvidia:44
+          oci: false
+
+      - name: Log in to GHCR
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to GHCR
+        id: push
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build.outputs.image }}
+          tags: ${{ steps.build.outputs.tags }}
+          registry: ${{ steps.meta.outputs.registry }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      # Sign by digest (not tag) so the signature stays valid even if tags
+      # move. Verification:
+      #   cosign verify --key cosign.pub ghcr.io/<owner>/moos:latest
+      - name: Sign image with cosign
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          IMAGE_REGISTRY: ${{ steps.meta.outputs.registry }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          cosign sign -y --key env://COSIGN_PRIVATE_KEY \
+            "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"

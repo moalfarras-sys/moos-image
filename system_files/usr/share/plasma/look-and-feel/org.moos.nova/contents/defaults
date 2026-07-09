@@ -1,0 +1,25 @@
+# org.moos.nova — Look-and-Feel defaults (M0 "Nova Seed")
+# NovaDark color scheme + Nova Horizon wallpaper ship in this image already.
+# Nova icon theme, Nova Ice cursors and Klassy window decoration are produced
+# in Phase 3 from design/tokens.json (see MOOS_BUILD_WORKFLOW.md, Phase 3).
+# KConfig group syntax: [file][group] followed by key=value lines.
+
+[kdeglobals][General]
+ColorScheme=NovaDark
+
+[plasmarc][Theme]
+name=default
+
+[Wallpaper]
+Image=NovaHorizon
+
+# --- Phase 3 additions (uncomment once the assets exist) -------------------
+# [kdeglobals][Icons]
+# Theme=Nova
+#
+# [kcminputrc][Mouse]
+# cursorTheme=NovaIce
+#
+# [kwinrc][org.kde.kdecoration2]
+# library=org.kde.klassy
+# theme=MoOS Nova

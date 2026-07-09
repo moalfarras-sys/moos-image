@@ -1,0 +1,10 @@
+# NEVER commit the cosign private key (public key cosign.pub IS committed)
+cosign.key
+
+# Build artifacts
+*.iso
+output/
+
+# OS noise
+.DS_Store
+Thumbs.db

@@ -1,0 +1,105 @@
+# =============================================================================
+# build-iso.yml — build the MoOS LIVE ISO from the published OCI image
+# =============================================================================
+# Uses ublue-os/titanoboa (the live-ISO builder Bazzite/Bluefin actually use):
+#   https://github.com/ublue-os/titanoboa
+# Structure modeled on projectbluefin/iso: https://github.com/projectbluefin/iso
+#
+# IMPORTANT:
+#   - ISO builds are CI-ONLY. NEVER attempt them in WSL2 — the osbuild/ISO
+#     tooling is explicitly unsupported on the WSL2 kernel. Offline fallback:
+#     a real Fedora VM in Hyper-V. See MOOS_BUILD_WORKFLOW.md (Phase 5).
+#   - Titanoboa is young (v0.1.x). We pin @main for now; TODO: pin a release
+#     tag (e.g. @v0.1.0 or a commit SHA) as soon as a stable tag is published.
+#     VERIFY the exact input names against the action's action.yml
+#     (https://github.com/ublue-os/titanoboa/blob/main/action.yml) before the
+#     first run — the "container-native ISO contract" may still change.
+#   - GitHub-hosted runners have only ~14 GB free disk; the free-disk-space
+#     step below is mandatory for multi-GB ISO jobs (uBlue does the same).
+#   - The ISO is uploaded as a workflow artifact for now. Real hosting moves
+#     to Cloudflare R2 later (GitHub Releases has a 2 GB/file limit) — see
+#     MOOS_BUILD_WORKFLOW.md (Phase 5/10).
+# =============================================================================
+
+name: Build MoOS Live ISO
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_ref:
+        description: "Container image ref to build the ISO from (empty = ghcr.io/<owner>/moos:latest)"
+        required: false
+        default: ""
+  schedule:
+    # Monthly rebuild (1st of the month, 04:00 UTC) — same cadence as Bluefin.
+    - cron: "0 4 1 * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-iso:
+    name: Build live ISO (Titanoboa)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Default image ref uses the lowercase owner (GHCR requirement).
+      # On scheduled runs `inputs` is empty, so the default branch is taken.
+      # The input is passed via an env var (never interpolated into the script
+      # body) per GitHub's security-hardening guidance against script injection.
+      - name: Resolve image ref
+        id: ref
+        env:
+          IMAGE_REF: ${{ inputs.image_ref }}
+        run: |
+          if [ -n "${IMAGE_REF}" ]; then
+            echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "image_ref=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/moos:latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Mandatory: reclaim ~25 GB on the runner before building a live ISO.
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      # TODO: pin to a release tag/SHA once Titanoboa publishes one (see header).
+      # Titanoboa's action.yml exposes exactly two inputs (image-ref, iso-dest)
+      # and one output (iso-dest). Flatpak preloading is NOT an action input —
+      # iso/flatpaks.list is consumed via the container image / Titanoboa hooks
+      # (see MOOS_BUILD_WORKFLOW.md Phase 5); do not add unsupported inputs here.
+      - name: Build live ISO with Titanoboa
+        id: titanoboa
+        uses: ublue-os/titanoboa@main
+        with:
+          image-ref: ${{ steps.ref.outputs.image_ref }}
+
+      - name: Locate ISO output
+        env:
+          ISO_DEST: ${{ steps.titanoboa.outputs.iso-dest }}
+        run: |
+          ls -lh "${ISO_DEST}" || find "${GITHUB_WORKSPACE}" -maxdepth 4 -name '*.iso' -printf '%p (%s bytes)\n' || true
+
+      # NOTE: artifacts are a temporary distribution channel (short retention,
+      # slow downloads). Cloudflare R2 upload replaces this step later.
+      - name: Upload ISO as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-live-iso
+          path: ${{ steps.titanoboa.outputs.iso-dest }}
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
