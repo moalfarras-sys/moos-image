@@ -76,6 +76,14 @@ jobs:
           docker-images: true
           swap-storage: true
 
+      # Titanoboa's main.sh mounts the image with `sudo podman run
+      # --mount type=image,source=$IMAGE` — image mounts do NOT auto-pull,
+      # so the image must already exist in ROOTFUL podman storage.
+      - name: Pull MoOS image into rootful podman storage
+        env:
+          IMAGE_REF: ${{ steps.ref.outputs.image_ref }}
+        run: sudo podman pull "${IMAGE_REF}"
+
       # TODO: pin to a release tag/SHA once Titanoboa publishes one (see header).
       # Titanoboa's action.yml exposes exactly two inputs (image-ref, iso-dest)
       # and one output (iso-dest). Flatpak preloading is NOT an action input —
