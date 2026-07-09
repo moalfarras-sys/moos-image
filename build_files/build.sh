@@ -32,8 +32,32 @@ sed -i 's|^PRETTY_NAME=.*|PRETTY_NAME="MoOS 0.1 (Nova Seed)"|' /usr/lib/os-relea
 # NOTE: VERSION_ID stays inherited from the base (Fedora 44) on purpose —
 # update tooling uses it to resolve the release.
 
+# Full UI branding for graphical about-pages (KInfoCenter "About this System",
+# Plasma system settings, GNOME Software style dialogs, ...).
+# LOGO= takes an ICON NAME, not a file path — os-release(5): "A string,
+# specifying the name of an icon as defined by freedesktop.org Icon Theme
+# Specification" (verified 2026-07-09 against the os-release(5) man page).
+# The "moos-logo" hicolor icons shipped via system_files
+# (/usr/share/icons/hicolor/{48x48,64x64,128x128,256x256}/apps/moos-logo.png)
+# satisfy exactly that icon-theme lookup.
+# osrel_set KEY VALUE: replace the key if present, else append — robust
+# whether or not the Fedora base defines the key, and idempotent on re-runs.
+osrel_set() {
+    local key="$1" value="$2"
+    if grep -q "^${key}=" /usr/lib/os-release; then
+        sed -i "s|^${key}=.*|${key}=${value}|" /usr/lib/os-release
+    else
+        echo "${key}=${value}" >> /usr/lib/os-release
+    fi
+}
+osrel_set LOGO              'moos-logo'
+osrel_set HOME_URL          '"https://github.com/moalfarras-sys/moos-image"'
+osrel_set DOCUMENTATION_URL '"https://github.com/moalfarras-sys/moos-image"'
+osrel_set SUPPORT_URL       '"https://github.com/moalfarras-sys/moos-image/issues"'
+osrel_set BUG_REPORT_URL    '"https://github.com/moalfarras-sys/moos-image/issues"'
+
 # Show the result in the CI log for quick verification.
-grep -E '^(NAME|PRETTY_NAME|ID|VERSION_ID)=' /usr/lib/os-release
+grep -E '^(NAME|PRETTY_NAME|ID|VERSION_ID|LOGO|HOME_URL|DOCUMENTATION_URL|SUPPORT_URL|BUG_REPORT_URL)=' /usr/lib/os-release
 
 # -----------------------------------------------------------------------------
 # (b) uupd — Universal Blue background updater (bootc + Flatpak + distrobox)
@@ -211,6 +235,53 @@ for d in /usr/share/icons/Colloid-Dark/*/; do
     ln -snf "../Colloid-Dark/${b}" "/usr/share/icons/Nova/${b}"
 done
 gtk-update-icon-cache -f /usr/share/icons/Nova || true
+
+# -----------------------------------------------------------------------------
+# (c6) NovaIce cursor theme (Bibata Modern Ice, rebranded at build time)
+# -----------------------------------------------------------------------------
+# Like the Nova icons (c5), the NovaIce cursors are produced HERE at image
+# build time — no binary cursor dump lives in git. Base theme:
+# ful1e5/Bibata_Cursor "Bibata-Modern-Ice" (GPL-3.0, license verified
+# 2026-07-09 via https://api.github.com/repos/ful1e5/Bibata_Cursor).
+# This section is deliberately fail-loud (no || true on curl/tar): a broken
+# cursor build must fail CI, not ship silently.
+#
+# Pinned release: v2.0.7 = the LATEST release (published 2024-06-18),
+# verified 2026-07-09 via
+# https://api.github.com/repos/ful1e5/Bibata_Cursor/releases/latest.
+# The asset extracts to a single top-level dir "Bibata-Modern-Ice/" holding
+# index.theme, cursor.theme and cursors/ (96 XCursor files plus alias
+# symlinks — layout verified against the downloaded v2.0.7 asset).
+# HiDPI: Bibata XCursor builds are multi-size (each cursor file embeds all
+# sizes up to 96px), so no separate HiDPI variant is needed.
+curl -Lf --retry 3 -o /tmp/bibata-modern-ice.tar.xz \
+    "https://github.com/ful1e5/Bibata_Cursor/releases/download/v2.0.7/Bibata-Modern-Ice.tar.xz"
+tar -xJf /tmp/bibata-modern-ice.tar.xz -C /usr/share/icons/
+rm -f /tmp/bibata-modern-ice.tar.xz
+test -d /usr/share/icons/Bibata-Modern-Ice/cursors   # hard-fail if the tarball layout ever changes
+
+# "NovaIce" = branded copy of Bibata-Modern-Ice (cp -a keeps the alias
+# symlinks inside cursors/ as symlinks). The unmodified upstream dir stays
+# installed alongside — harmless, and the copied cursor.theme still says
+# Inherits="Bibata-Modern-Ice", which keeps resolving through it.
+cp -a /usr/share/icons/Bibata-Modern-Ice /usr/share/icons/NovaIce
+sed -i 's|^Name=.*|Name=NovaIce|' /usr/share/icons/NovaIce/index.theme
+sed -i 's|^Name=.*|Name=NovaIce|' /usr/share/icons/NovaIce/cursor.theme
+sed -i 's|^Comment=.*|Comment=MoOS NovaIce cursors (Bibata Modern Ice by ful1e5, GPL-3.0)|' \
+    /usr/share/icons/NovaIce/index.theme
+
+# GPL-3.0 attribution notice (Bibata is GPL — keep credit next to the copy).
+cat > /usr/share/icons/NovaIce/MOOS-NOTICE.txt <<'EOF'
+NovaIce cursor theme — attribution notice
+=========================================
+NovaIce is a renamed build of "Bibata Modern Ice" v2.0.7 by
+Abdulkaiz Khatri (ful1e5) and contributors:
+    https://github.com/ful1e5/Bibata_Cursor
+License: GNU General Public License v3.0 (GPL-3.0).
+The only modification is the theme name in index.theme / cursor.theme;
+the cursor artwork itself is unmodified. The unmodified upstream theme is
+installed alongside at /usr/share/icons/Bibata-Modern-Ice.
+EOF
 
 # -----------------------------------------------------------------------------
 # (d) Enable services

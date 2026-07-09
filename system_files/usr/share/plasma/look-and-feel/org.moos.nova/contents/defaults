@@ -1,8 +1,9 @@
 # org.moos.nova — Look-and-Feel defaults (M0 "Nova Seed")
 # NovaDark color scheme + Nova Horizon wallpaper ship in this image already.
-# Nova icon theme is generated from Colloid in build.sh (c5); Nova Ice
-# cursors and Klassy window decoration are produced in Phase 3 from
-# design/tokens.json (see MOOS_BUILD_WORKFLOW.md, Phase 3).
+# Nova icon theme is generated from Colloid in build.sh (c5); NovaIce
+# cursors are generated from Bibata-Modern-Ice in build.sh (c6). Klassy
+# window decoration is produced in Phase 3 from design/tokens.json
+# (see MOOS_BUILD_WORKFLOW.md, Phase 3).
 # KConfig group syntax: [file][group] followed by key=value lines.
 
 [kdeglobals][General]
@@ -46,10 +47,16 @@ NoiseStrength=2
 # file are NOT applied. The NovaHorizon lock screen wallpaper therefore ships
 # as /etc/xdg/kscreenlockerrc instead (same KConfig cascade as kwinrc above).
 
+# NovaIce cursor theme — built at image build time from Bibata-Modern-Ice
+# (GPL-3.0) in build.sh section (c6). Unlike the arbitrary [kwinrc] groups
+# above, [kcminputrc][Mouse] cursorTheme IS part of the entry set
+# LookAndFeelManager applies (upstream org.kde.breeze ships exactly
+# "cursorTheme=breeze_cursors" in its defaults). The system-wide fallback
+# additionally ships in /etc/xdg/kcminputrc (plain KConfig cascade).
+[kcminputrc][Mouse]
+cursorTheme=NovaIce
+
 # --- Phase 3 additions (uncomment once the assets exist) -------------------
-#
-# [kcminputrc][Mouse]
-# cursorTheme=NovaIce
 #
 # [kwinrc][org.kde.kdecoration2]
 # library=org.kde.klassy

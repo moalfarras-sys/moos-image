@@ -48,60 +48,44 @@
  */
 
 // ---------------------------------------------------------------------------
-// Desktop containments: Nova Horizon wallpaper on every screen/desktop
+// SIMPLIFIED 2026-07-09 (v5): the first live test of the richer variant ended
+// with NO panel on screen — a mid-script exception aborts the whole layout in
+// plasmashell, so this file now mirrors KDE's own defaultPanel template as
+// closely as possible (no floating/hiding/lengthMode overrides, no
+// screenGeometry/formFactor probing, no reloadConfig calls — the template
+// uses none of them; Plasma 6 panels are floating by default anyway).
+// Ref: plasma-desktop layout-templates/org.kde.plasma.desktop.defaultPanel
 // ---------------------------------------------------------------------------
+
+// Desktop containments: Nova Horizon wallpaper on every screen/desktop
 var allDesktops = desktops();
 for (var i = 0; i < allDesktops.length; i++) {
     var d = allDesktops[i];
     d.wallpaperPlugin = "org.kde.image";
     d.currentConfigGroup = ["Wallpaper", "org.kde.image", "General"];
     d.writeConfig("Image", "file:///usr/share/wallpapers/NovaHorizon/");
-    d.reloadConfig();
 }
 
-// ---------------------------------------------------------------------------
-// ONE bottom panel — floating, 44 px, MoOS widget set
-// ---------------------------------------------------------------------------
+// ONE bottom panel, 44 px, MoOS widget set
 var panel = new Panel;
 panel.location = "bottom";
 panel.height = 44;
-panel.floating = true;      // verified scriptable, see fact (2)
-panel.hiding = "none";
-panel.lengthMode = "fill";
 
-// Mirror KDE's default-panel 21:9 cap so ultrawide screens do not get a
-// comically long floating bar (same math as fact (3) reference).
-var maximumAspectRatio = 21 / 9;
-if (panel.formFactor === "horizontal") {
-    var geo = screenGeometry(panel.screen);
-    var maximumWidth = Math.ceil(geo.height * maximumAspectRatio);
-    if (geo.width > maximumWidth) {
-        panel.alignment = "center";
-        panel.lengthMode = "custom";
-        panel.minimumLength = maximumWidth;
-        panel.maximumLength = maximumWidth;
-    }
-}
-
-// --- App launcher (Kickoff) with the MoOS logo ----------------------------
+// App launcher (Kickoff) with the MoOS logo. If the PNG were ever missing,
+// Kickoff just shows an empty button — nothing breaks.
 var kickoff = panel.addWidget("org.kde.plasma.kickoff");
 kickoff.currentConfigGroup = ["General"];
-// moos-logo.png ships in this image (build.sh installs system_files ->
-// /usr/share/moos/moos-logo.png). If it were ever missing, Kickoff just
-// shows an empty button — nothing breaks.
 kickoff.writeConfig("icon", "/usr/share/moos/moos-logo.png");
-kickoff.reloadConfig();
 
-// --- Icons-only task manager with MoOS default pins -----------------------
+// Icons-only task manager with MoOS default pins
 var tasks = panel.addWidget("org.kde.plasma.icontasks");
 tasks.currentConfigGroup = ["General"];
 tasks.writeConfig("launchers",
     "preferred://browser," +
     "applications:org.kde.dolphin.desktop," +
     "applications:org.kde.konsole.desktop");
-tasks.reloadConfig();
 
-// --- Right-hand cluster ----------------------------------------------------
+// Right-hand cluster
 panel.addWidget("org.kde.plasma.marginsseparator");
 panel.addWidget("org.kde.plasma.systemtray");
 panel.addWidget("org.kde.plasma.digitalclock");
