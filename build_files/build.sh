@@ -531,9 +531,15 @@ if [ -f "$_moos_src" ]; then
     for _px in fedora-logo.png fedora-logo-small.png fedora-gdm-logo.png; do
         [ -f "/usr/share/pixmaps/$_px" ] && cp -f "$_moos_src" "/usr/share/pixmaps/$_px" || true
     done
-    # anaconda-live's GTK sidebar logo (Fedora) — scrub to MoOS.
+    # anaconda-live's GTK sidebar logo (Fedora) — scrub to MoOS. Prefer the
+    # canonical TRANSPARENT sidebar asset (Codex ships it, alpha-checked) so
+    # the logo composites cleanly on the dark sidebar; the opaque navy master
+    # is only the fallback.
+    _sidebar_src=/usr/share/moos/branding/anaconda/sidebar-logo.png
+    [ -f "$_sidebar_src" ] || _sidebar_src="$_moos_src"
     [ -f /usr/share/anaconda/pixmaps/sidebar-logo.png ] && \
-        cp -f "$_moos_src" /usr/share/anaconda/pixmaps/sidebar-logo.png || true
+        cp -f "$_sidebar_src" /usr/share/anaconda/pixmaps/sidebar-logo.png || true
+    unset -v _sidebar_src
     # Rebuild every theme's icon cache so the swapped rasters take effect.
     for _themedir in /usr/share/icons/*/; do
         [ -f "${_themedir}index.theme" ] && gtk-update-icon-cache -f "$_themedir" 2>/dev/null || true

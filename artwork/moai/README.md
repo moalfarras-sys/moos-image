@@ -29,10 +29,17 @@ The launcher family has pixel-tuned `16/22/24/32` masters, full-detail
 mascot source is `mascot-master.svg`; `nova-companion-states.png` is the visual
 QA contact sheet.
 
-## NEEDS-CLAUDE-WIRING
+## WIRED (v19, 2026-07-10) — contract implemented in main.qml
 
 Claude owns `/usr/share/moos/apps/moai/main.qml`; Codex does not modify it.
-Wire the existing QML properties to the preloaded state stack as follows:
+All seven states are preloaded as stacked `Image` items with 160 ms
+opacity-only cross-fades, the idle breathe / thinking wobble run exactly per
+§2 (and stop when the window hides), the header shows the transparent mascot,
+assistant/typing bubbles carry the 24 px avatar (typing = thinking), the six
+quick actions resolve `moos-*` symbols by theme name, `LayoutMirroring`
+follows the application layout direction, bilingual text uses
+`font.families: ["IBM Plex Sans", "IBM Plex Sans Arabic"]`, and `queueAction`
+fires an attentive pulse only (no fake success — §7). The original contract:
 
 ```text
 !serverUp                         -> offline (local brain unavailable; not Internet status)

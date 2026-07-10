@@ -7,12 +7,11 @@
 # Style the system-wide default, so panels, dialogs, notification popups and the
 # volume/brightness OSD render as Nova navy glass instead of stock Breeze.
 #
-# IMPORTANT — see NEEDS-CLAUDE-WIRING: when the org.moos.nova Look-and-Feel
-# package is applied, Plasma's LookAndFeelManager writes [Theme] name=<value>
-# from that package's contents/defaults into the USER's ~/.config/plasmarc,
-# which then overrides this system default. org.moos.nova/contents/defaults
-# currently carries [plasmarc][Theme] name=default, so it must be changed to
-# name=Nova for Nova to actually win after the Global Theme is applied. This
-# /etc/xdg default still covers sessions/greeters where the L&F was not applied.
+# When the org.moos.nova Look-and-Feel package is applied, Plasma's
+# LookAndFeelManager writes [Theme] name=<value> from that package's
+# contents/defaults into the USER's ~/.config/plasmarc, overriding this system
+# default. org.moos.nova/contents/defaults carries [plasmarc][Theme] name=Nova
+# (wired in v14), so both paths agree. This /etc/xdg default still covers
+# sessions/greeters where the L&F was never applied.
 [Theme]
 name=Nova

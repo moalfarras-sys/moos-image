@@ -373,25 +373,27 @@ def draw_compat(image: Image.Image) -> None:
     left = Image.new("L", image.size, 0)
     right = Image.new("L", image.size, 0)
     dl, dr = ImageDraw.Draw(left), ImageDraw.Draw(right)
-    # Left: 2x2 grid of rounded tiles (desktop surface).
-    cell, gap, lx, ly = 92, 26, 262, 416
+    # Left: 2x2 grid of rounded tiles (desktop surface). Geometry upsized 22%
+    # after the v19 audit: the old group filled only ~55% of the tile and read
+    # thin at 16-32px next to its siblings.
+    cell, gap, lx, ly = 112, 32, 207, 394
     for gx in (0, 1):
         for gy in (0, 1):
             x0 = lx + gx * (cell + gap)
             y0 = ly + gy * (cell + gap)
-            dl.rounded_rectangle((x0, y0, x0 + cell, y0 + cell), radius=22, fill=255)
+            dl.rounded_rectangle((x0, y0, x0 + cell, y0 + cell), radius=26, fill=255)
     # Right: a single rounded app tile (mobile surface).
-    dr.rounded_rectangle((598, 430, 774, 606), radius=48, fill=255)
+    dr.rounded_rectangle((617, 411, 832, 626), radius=58, fill=255)
     image.alpha_composite(symbol_layer(left, [(0.0, P["ice"]), (0.5, P["cyan"]), (1.0, P["blue"])], P["cyan"]))
     image.alpha_composite(symbol_layer(right, [(0.0, P["blue"]), (1.0, P["violet"])], P["violet"]))
     d = ImageDraw.Draw(image)
     # Two-way bridge arrow between the panels = bidirectional compatibility.
     y = 518
-    d.line((500, y, 574, y), fill=rgba(P["text"], 245), width=22)
-    d.polygon([(486, y), (520, y - 30), (520, y + 30)], fill=rgba(P["text"], 245))
-    d.polygon([(588, y), (554, y - 30), (554, y + 30)], fill=rgba(P["text"], 245))
+    d.line((497, y, 588, y), fill=rgba(P["text"], 245), width=30)
+    d.polygon([(478, y), (520, y - 38), (520, y + 38)], fill=rgba(P["text"], 245))
+    d.polygon([(607, y), (565, y - 38), (565, y + 38)], fill=rgba(P["text"], 245))
     # A small run/play glyph inside the app tile hints "launch apps here".
-    d.polygon([(662, 486), (662, 550), (716, 518)], fill=rgba(P["white"], 235))
+    d.polygon([(695, 478), (695, 558), (761, 518)], fill=rgba(P["white"], 235))
 
 
 def draw_updater(image: Image.Image) -> None:

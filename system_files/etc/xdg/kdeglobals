@@ -27,3 +27,11 @@ Theme=Nova
 
 [KDE]
 LookAndFeelPackage=org.moos.nova
+
+# Nova event sounds — the original MoOS sound theme shipped at
+# /usr/share/sounds/moos-nova (freedesktop sound-theme-spec layout).
+# Plasma 6 reads the active theme from [Sounds] Theme (default "ocean");
+# without this the MoOS sounds would ship but never play.
+[Sounds]
+Enable=true
+Theme=moos-nova

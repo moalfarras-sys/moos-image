@@ -59,18 +59,47 @@ Kirigami.ApplicationWindow {
     readonly property color hairline: "#243350"
 
     // Quick actions — each pill copies its `cmd` to the clipboard (see queueAction).
+    // icon: MoOS action symbols shipped at hicolor/scalable/actions, resolved
+    // by NAME through the icon theme (contract §4 — no absolute paths).
     readonly property var quickActions: [
-        { ar: "تحديث النظام",   en: "Update",        cmd: "moai-do update",                accent: "#2E7BFF" },
-        { ar: "تثبيت تطبيق",    en: "Install app",   cmd: "moai-do install <flatpak-id>",  accent: "#22D3EE" },
-        { ar: "إصلاح الصوت",    en: "Fix audio",     cmd: "moai-do fix-audio",             accent: "#8B5CF6" },
-        { ar: "فحص التعريفات",  en: "Check drivers", cmd: "moai-do check-drivers",         accent: "#22D3EE" },
-        { ar: "تحسين وتنظيف",   en: "Optimize",      cmd: "moai-do optimize",              accent: "#2E7BFF" },
-        { ar: "تقرير الأجهزة",  en: "HW report",     cmd: "moai-do hw-report",             accent: "#8B5CF6" }
+        { ar: "تحديث النظام",   en: "Update",        cmd: "moai-do update",                accent: "#2E7BFF", icon: "moos-safe-update" },
+        { ar: "تثبيت تطبيق",    en: "Install app",   cmd: "moai-do install <flatpak-id>",  accent: "#22D3EE", icon: "moos-install" },
+        { ar: "إصلاح الصوت",    en: "Fix audio",     cmd: "moai-do fix-audio",             accent: "#8B5CF6", icon: "moos-audio" },
+        { ar: "فحص التعريفات",  en: "Check drivers", cmd: "moai-do check-drivers",         accent: "#22D3EE", icon: "moos-gpu" },
+        { ar: "تحسين وتنظيف",   en: "Optimize",      cmd: "moai-do optimize",              accent: "#2E7BFF", icon: "moos-optimize" },
+        { ar: "تقرير الأجهزة",  en: "HW report",     cmd: "moai-do hw-report",             accent: "#8B5CF6", icon: "moos-report" }
     ]
 
     property bool serverUp: false
     property bool busy: false
     property var history: []   // [{role, content}] user/assistant only, last 12
+
+    // ── Nova Companion state (artwork/moai/README.md wiring contract) ───────
+    // A 1400 ms success/error flash overrides the steady mapping:
+    //   !serverUp → offline (local brain, not Internet), busy → thinking,
+    //   focused + typed text → attentive, otherwise idle.
+    property string companionFlash: ""
+    readonly property string companionState:
+        companionFlash !== "" ? companionFlash
+        : !serverUp ? "offline"
+        : busy ? "thinking"
+        : (input.activeFocus && input.text.trim().length > 0) ? "attentive"
+        : "idle"
+
+    function flashCompanion(state) {
+        companionFlash = state
+        companionFlashTimer.restart()
+    }
+
+    Timer {
+        id: companionFlashTimer
+        interval: 1400
+        onTriggered: root.companionFlash = ""
+    }
+
+    // Bilingual type (contract §5): Latin shapes in IBM Plex Sans, Arabic
+    // falls back to IBM Plex Sans Arabic — both ship in the image (c4).
+    readonly property var uiFonts: ["IBM Plex Sans", "IBM Plex Sans Arabic"]
 
     title: "Mo AI"
     width: 460
@@ -130,6 +159,9 @@ Kirigami.ApplicationWindow {
         clip.copy()
         clip.deselect()
         toast.show(cmd)
+        // Contract §7: TextEdit.copy() has no success callback, so this must
+        // NOT trigger the success state — just an honest attentive pulse.
+        attentivePulse.restart()
     }
 
     function send() {
@@ -164,8 +196,10 @@ Kirigami.ApplicationWindow {
                 chatModel.append({ role: "assistant", text: reply })
                 root.history.push({ role: "assistant", content: reply })
                 root.trimHistory()
+                root.flashCompanion("success")   // real HTTP 200 + parsed reply
             } else {
                 chatModel.append({ role: "assistant", text: root.offlineHelp })
+                root.flashCompanion("error")     // failed request/parse
             }
         }
         xhr.send(JSON.stringify({
@@ -179,6 +213,11 @@ Kirigami.ApplicationWindow {
     pageStack.initialPage: Kirigami.Page {
         padding: 0
         background: Rectangle { color: root.brandBg }
+
+        // Full RTL mirroring for Arabic sessions (contract §5): follows the
+        // application layout direction and cascades to every child.
+        LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+        LayoutMirroring.childrenInherit: true
 
         ColumnLayout {
             anchors.fill: parent
@@ -211,27 +250,99 @@ Kirigami.ApplicationWindow {
                     anchors.rightMargin: 14
                     spacing: 11
 
-                    // Glass icon tile holding the Mo AI logo.
-                    Rectangle {
-                        Layout.preferredWidth: 42
-                        Layout.preferredHeight: 42
-                        radius: 12
-                        gradient: Gradient {
-                            GradientStop { position: 0.0; color: "#213152" }
-                            GradientStop { position: 1.0; color: "#141F38" }
-                        }
-                        border.width: 1
-                        border.color: "#2C3E63"
+                    // Nova Companion — the transparent Mo AI mascot replaces the
+                    // old square-in-square tile (contract §3). All seven states
+                    // stay PRELOADED as stacked Images; state changes cross-fade
+                    // opacity only over 160 ms (contract §1 — never swap source).
+                    Item {
+                        id: companion
+                        Layout.preferredWidth: 46
+                        Layout.preferredHeight: 46
 
-                        Image {
-                            anchors.centerIn: parent
-                            source: "file:///usr/share/icons/hicolor/128x128/apps/moos-moai.png"
-                            width: 34
-                            height: 34
-                            sourceSize.width: 128
-                            sourceSize.height: 128
-                            fillMode: Image.PreserveAspectFit
-                            smooth: true
+                        Repeater {
+                            model: ["idle", "attentive", "thinking", "success",
+                                    "warning", "error", "offline"]
+                            Image {
+                                required property string modelData
+                                anchors.fill: parent
+                                source: "file:///usr/share/moos/branding/moai/mascot/"
+                                        + modelData + ".png"
+                                sourceSize.width: 96
+                                sourceSize.height: 96
+                                fillMode: Image.PreserveAspectFit
+                                smooth: true
+                                opacity: root.companionState === modelData ? 1 : 0
+                                Behavior on opacity {
+                                    NumberAnimation { duration: 160 }
+                                }
+                            }
+                        }
+
+                        // Idle breathe: scale 1.0↔1.018 over 2800 ms; loop stops
+                        // when the window is hidden (contract §2) and yields to
+                        // the pulse so the two never fight over `scale`.
+                        SequentialAnimation {
+                            running: root.visible && root.companionState === "idle"
+                                     && !attentivePulse.running
+                            loops: Animation.Infinite
+                            onStopped: companion.scale = 1.0
+                            NumberAnimation {
+                                target: companion; property: "scale"
+                                from: 1.0; to: 1.018; duration: 1400
+                                easing.type: Easing.InOutSine
+                            }
+                            NumberAnimation {
+                                target: companion; property: "scale"
+                                from: 1.018; to: 1.0; duration: 1400
+                                easing.type: Easing.InOutSine
+                            }
+                        }
+
+                        // Thinking wobble: scale 1.0↔1.025 + rotation −1.2↔1.2°
+                        // over 1500 ms (contract §2).
+                        ParallelAnimation {
+                            running: root.visible && root.companionState === "thinking"
+                            loops: Animation.Infinite
+                            onStopped: { companion.scale = 1.0; companion.rotation = 0 }
+                            SequentialAnimation {
+                                NumberAnimation {
+                                    target: companion; property: "scale"
+                                    from: 1.0; to: 1.025; duration: 750
+                                    easing.type: Easing.InOutSine
+                                }
+                                NumberAnimation {
+                                    target: companion; property: "scale"
+                                    from: 1.025; to: 1.0; duration: 750
+                                    easing.type: Easing.InOutSine
+                                }
+                            }
+                            SequentialAnimation {
+                                NumberAnimation {
+                                    target: companion; property: "rotation"
+                                    from: -1.2; to: 1.2; duration: 750
+                                    easing.type: Easing.InOutSine
+                                }
+                                NumberAnimation {
+                                    target: companion; property: "rotation"
+                                    from: 1.2; to: -1.2; duration: 750
+                                    easing.type: Easing.InOutSine
+                                }
+                            }
+                        }
+
+                        // Honest attentive pulse for queueAction (contract §7).
+                        SequentialAnimation {
+                            id: attentivePulse
+                            NumberAnimation {
+                                target: companion; property: "scale"
+                                from: 1.0; to: 1.06; duration: 140
+                                easing.type: Easing.OutQuad
+                            }
+                            NumberAnimation {
+                                target: companion; property: "scale"
+                                from: 1.06; to: 1.0; duration: 200
+                                easing.type: Easing.InQuad
+                            }
                         }
                     }
 
@@ -240,14 +351,14 @@ Kirigami.ApplicationWindow {
                         Text {
                             text: "Mo AI"
                             color: root.brandText
-                            font.family: "IBM Plex Sans"
+                            font.families: root.uiFonts
                             font.pixelSize: 18
                             font.weight: Font.DemiBold
                         }
                         Text {
                             text: "مساعد MoOS | MoOS assistant"
                             color: root.brandSecondary
-                            font.family: "IBM Plex Sans"
+                            font.families: root.uiFonts
                             font.pixelSize: 11
                         }
                     }
@@ -288,7 +399,7 @@ Kirigami.ApplicationWindow {
                                                     : "غير متصل | offline"
                                 color: root.serverUp ? root.brandCyan
                                                      : root.brandSecondary
-                                font.family: "IBM Plex Sans"
+                                font.families: root.uiFonts
                                 font.pixelSize: 11
                             }
                         }
@@ -322,6 +433,25 @@ Kirigami.ApplicationWindow {
                     width: listView.width
                     height: bubble.height + 6
 
+                    // 24 px Nova Companion avatar on assistant/typing bubbles;
+                    // typing wears "thinking" (contract §3). Anchors flip under
+                    // LayoutMirroring for RTL.
+                    Image {
+                        visible: model.role !== "user"
+                        anchors.left: parent.left
+                        anchors.leftMargin: 10
+                        y: 4
+                        width: 24
+                        height: 24
+                        sourceSize.width: 48
+                        sourceSize.height: 48
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true
+                        source: "file:///usr/share/moos/branding/moai/mascot/"
+                                + (model.role === "typing" ? "thinking" : "idle")
+                                + ".png"
+                    }
+
                     Rectangle {
                         id: bubble
                         readonly property bool mine: model.role === "user"
@@ -330,7 +460,7 @@ Kirigami.ApplicationWindow {
                         anchors.right: mine ? parent.right : undefined
                         anchors.left: mine ? undefined : parent.left
                         anchors.rightMargin: 12
-                        anchors.leftMargin: 12
+                        anchors.leftMargin: mine ? 12 : 40
                         y: 3
                         radius: 12
                         // user: brand blue tint; assistant: raised surface — both
@@ -354,7 +484,7 @@ Kirigami.ApplicationWindow {
                             wrapMode: Text.Wrap
                             color: root.brandText
                             linkColor: root.brandCyan
-                            font.family: "IBM Plex Sans"
+                            font.families: root.uiFonts
                             font.pixelSize: 14
                             onLinkActivated: function (link) {
                                 Qt.openUrlExternally(link)
@@ -397,7 +527,7 @@ Kirigami.ApplicationWindow {
                     Text {
                         text: "أوامر سريعة | Quick actions"
                         color: root.brandSecondary
-                        font.family: "IBM Plex Sans"
+                        font.families: root.uiFonts
                         font.pixelSize: 11
                         font.weight: Font.DemiBold
                     }
@@ -428,17 +558,19 @@ Kirigami.ApplicationWindow {
                                     anchors.centerIn: parent
                                     spacing: 7
 
-                                    Rectangle {
-                                        width: 7
-                                        height: 7
-                                        radius: 3.5
+                                    // Themed MoOS action symbol, tinted with the
+                                    // pill accent (contract §4).
+                                    Kirigami.Icon {
+                                        source: pill.modelData.icon
                                         color: pill.modelData.accent
+                                        Layout.preferredWidth: 16
+                                        Layout.preferredHeight: 16
                                     }
 
                                     Text {
                                         text: pill.modelData.ar + "  |  " + pill.modelData.en
                                         color: root.brandText
-                                        font.family: "IBM Plex Sans"
+                                        font.families: root.uiFonts
                                         font.pixelSize: 12
                                     }
                                 }
@@ -483,7 +615,7 @@ Kirigami.ApplicationWindow {
                         placeholderText: "اسأل Mo AI... | Ask Mo AI..."
                         placeholderTextColor: root.brandSecondary
                         color: root.brandText
-                        font.family: "IBM Plex Sans"
+                        font.families: root.uiFonts
                         font.pixelSize: 14
                         leftPadding: 13
                         rightPadding: 13
@@ -522,7 +654,7 @@ Kirigami.ApplicationWindow {
                         contentItem: Text {
                             text: "إرسال | Send"
                             color: sendBtn.enabled ? "#FFFFFF" : root.brandSecondary
-                            font.family: "IBM Plex Sans"
+                            font.families: root.uiFonts
                             font.pixelSize: 13
                             font.weight: Font.DemiBold
                             horizontalAlignment: Text.AlignHCenter
@@ -575,7 +707,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     text: "نُسخ ✓ شغّله من الطرفية | Copied ✓ run it in a terminal:"
                     color: root.brandCyan
-                    font.family: "IBM Plex Sans"
+                    font.families: root.uiFonts
                     font.pixelSize: 11
                     font.weight: Font.DemiBold
                     wrapMode: Text.Wrap
@@ -584,7 +716,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     text: toast.cmd
                     color: root.brandText
-                    font.family: "JetBrains Mono, monospace"
+                    font.families: ["JetBrains Mono", "monospace"]
                     font.pixelSize: 13
                     wrapMode: Text.WrapAnywhere
                 }

@@ -30,6 +30,13 @@ Engine=KSplashQML
 [kdeglobals][Icons]
 Theme=Nova
 
+# Nova event sounds (original MoOS sound theme, /usr/share/sounds/moos-nova).
+# Mirrors the /etc/xdg/kdeglobals system default so re-applying the Global
+# Theme restores it too.
+[kdeglobals][Sounds]
+Enable=true
+Theme=moos-nova
+
 # --- M0 polish: KWin blur ---------------------------------------------------
 # Key names VERIFIED against kwin master src/plugins/blur/blur.kcfg (config
 # group "Effect-blur", Int entries BlurStrength / NoiseStrength) and the
