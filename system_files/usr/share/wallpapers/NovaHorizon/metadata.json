@@ -1,14 +1,14 @@
 {
     "KPlugin": {
         "Id": "NovaHorizon",
-        "Name": "Nova Horizon",
-        "Description": "MoOS Nova Horizon — time-of-day wallpaper (light day / dark night)",
+        "Name": "Nova Horizon — أفق نوفا",
+        "Description": "خلفية MoOS أصلية بدقة 4K للوضعين الفاتح والداكن | Original MoOS 4K light and dark wallpaper",
         "Authors": [
             {
                 "Name": "Moalfarras"
             }
         ],
-        "Version": "0.1.0",
+        "Version": "1.0.0",
         "License": "CC-BY-SA-4.0"
     }
 }

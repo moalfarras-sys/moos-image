@@ -6,7 +6,7 @@
 
 ## NOTICE / الإسناد (Attribution)
 
-**Based on [SilentSDDM](https://github.com/uiriansan/SilentSDDM) by uiriansan — GPL-3.0-or-later. The upstream license file is kept at `LICENSE` in this directory.** Bundled Red Hat Display fonts are licensed under the SIL Open Font License (see `fonts/OFL.txt`). MoOS changes: rebranded `metadata.desktop` (Theme-Id=moos-nova), added the `configs/moos-nova.conf` preset with Nova palette colors, and added `backgrounds/nova-dark.png` (the MoOS NovaHorizon dark wallpaper). Upstream demo videos, video presets (ken/rei/silvia) and docs/previews were excluded to keep the image small.
+**Based on [SilentSDDM](https://github.com/uiriansan/SilentSDDM) by uiriansan — GPL-3.0-or-later. The upstream license file is kept at `LICENSE` in this directory.** Bundled Red Hat Display fonts are licensed under the SIL Open Font License (see `fonts/OFL.txt`). MoOS changes: rebranded `metadata.desktop` (Theme-Id=moos-nova), added the `configs/moos-nova.conf` preset with Nova palette colors, and added `backgrounds/nova-dark.png` as dedicated, calm, native-4K login/lock artwork. Upstream demo videos, video presets (ken/rei/silvia) and docs/previews were excluded to keep the image small.
 
 ## البنية (Layout)
 
@@ -18,7 +18,7 @@ moos-nova/
 ├── components/                # QML components + QtQuick VirtualKeyboard style
 ├── configs/moos-nova.conf     # ألوان Nova: خلفية nova-dark.png، تمييز #2E7BFF،
 │                              # ثانوي #8B5CF6، نص #E6EDF7، أسطح #0B1220/#111A2E، blur مفعّل
-├── backgrounds/nova-dark.png  # خلفية MoOS (NovaHorizon dark)
+├── backgrounds/nova-dark.png  # خلفية دخول/قفل MoOS أصلية 3840×2160
 ├── fonts/ icons/              # Red Hat Display (OFL) + أيقونات الثيم
 └── LICENSE                    # GPL-3.0 (upstream SilentSDDM)
 ```

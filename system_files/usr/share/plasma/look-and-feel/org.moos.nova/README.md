@@ -1,35 +1,36 @@
-# org.moos.nova — MoOS Nova Global Theme (هيكل أولي)
+# org.moos.nova — MoOS Nova Global Theme
 
-هذا هو هيكل حزمة الـ Global Theme الداكن الافتراضي لـ MoOS على KDE Plasma 6.7+ (Wayland فقط). في M0 يحتوي `metadata.json` صالحاً + ملف `contents/defaults` هيكلياً فقط؛ القيم الحقيقية (ألوان NovaDark من `branding/PALETTE.md`، أيقونات Nova، مؤشر Nova Ice، Klassy decorations، splash) تُبنى في Phase 3.
+حزمة Look-and-Feel الداكنة الافتراضية لـ MoOS على KDE Plasma 6.7+ (Wayland فقط).
 
-آخر تحديث: 2026-07-09
+## Current surfaces
 
-## البنية المستهدفة (Target layout)
-
-```
+```text
 org.moos.nova/
-├── metadata.json            # KPlugin (Id=org.moos.nova) + KPackageStructure=Plasma/LookAndFeel  ✔ موجود
-├── contents/
-│   ├── defaults             # ColorScheme/Theme/Icons/Cursors defaults  ✔ هيكل موجود
-│   ├── previews/            # preview.png + fullscreenpreview.jpg      ← Phase 3
-│   ├── splash/              # شاشة splash QML بألوان Nova              ← Phase 3
-│   └── layouts/             # org.kde.plasma.desktop-layout.js         ← Phase 6
+├── metadata.json
+└── contents/
+    ├── defaults
+    ├── splash/
+    │   ├── Splash.qml
+    │   └── images/moos-logo.png
+    └── logout/
+        ├── Logout.qml
+        ├── NovaActionButton.qml
+        └── README.md
 ```
 
-النسخة الفاتحة `org.moos.nova.light` حزمة شقيقة منفصلة تُنشأ في Phase 3 بنفس البنية.
+- `defaults` يطبق NovaDark وNova icons وNovaIce وNova Horizon.
+- `splash` شاشة بدء MoOS المخصصة.
+- `logout` واجهة خروج/قفل/تعليق/إعادة تشغيل/إطفاء زجاجية، ثنائية اللغة، RTL-first، وتحافظ على عقد Plasma 6.7 وخيارات التحديثات offline.
 
-## اختبار محلي داخل VM
+## Verification
 
 ```bash
-kpackagetool6 --type Plasma/LookAndFeel --install org.moos.nova
 lookandfeeltool --apply org.moos.nova
+/usr/libexec/ksmserver-logout-greeter --windowed --lookandfeel org.moos.nova
 ```
 
-## قيود معروفة (Known Issues)
+التحقق النهائي يحتاج Plasma 6.7 داخل VM/ISO. لا يمكن تشغيل مضيف logout الخاص بـ Plasma على Windows.
 
-- `contents/defaults` يشير إلى ColorScheme باسم `NovaDark` لكن ملف الـ color scheme نفسه (`NovaDark.colors`) لم يُنشأ بعد — تطبيق الثيم الآن سيسقط إلى الافتراضي.
-- لا previews ولا splash بعد.
+## Known issue
 
-## الخطوات التالية (Next Actions)
-
-- Phase 3 (انظر `MOOS_BUILD_WORKFLOW.md`): توليد `NovaDark.colors` من `design/tokens.json`، إضافة previews، وإنشاء `org.moos.nova.light`.
+ملف `contents/defaults` يوثق إعدادات KWin إضافية لا يطبقها LookAndFeelManager تلقائيًا؛ القيم التشغيلية لها تبقى في `/etc/xdg` كما هو موضح في الملف نفسه. لم تُعدّل هذه الدفعة أي ملف يملكه Claude.

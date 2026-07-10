@@ -1,28 +1,35 @@
-# NovaHorizon — حزمة خلفيات MoOS (kpackage) — الهيكل فقط في M0
+# Nova Horizon — أفق نوفا
 
-هذا المجلد يحجز مكان حزمة الخلفيات الرسمية "Nova Horizon" بنمط time-of-day (فاتح نهاراً/داكن ليلاً). الصور تأتي من الأصول الموجودة في `branding/` بالمشروع (`moos-wallpaper-light.png` و`moos-wallpaper-dark.png` بدقة 4K)، وتُضاف مع `metadata.json` في Phase 3.
+الخلفية الرسمية لـ **MoOS Nova UI** بوضعين متكاملين: نهاري فاتح وليلي داكن. هذه الدفعة تعيد بناء الفن من الصفر بدل تكبير أصل 1672×941 القديم.
 
-آخر تحديث: 2026-07-09
+## Assets
 
-## البنية المستهدفة (kpackage layout)
-
+```text
+contents/
+├── images/                       # Light | فاتح
+│   ├── 3840x2160.png             # 16:9 — native 4K master
+│   ├── 3440x1440.png             # 21:9
+│   └── 2560x1600.png             # 16:10
+├── images_dark/                  # Dark | داكن
+│   ├── 3840x2160.png             # 16:9 — native 4K master
+│   ├── 3440x1440.png             # 21:9
+│   └── 2560x1600.png             # 16:10
+└── screenshot.png                # Plasma preview
 ```
-NovaHorizon/
-├── metadata.json                        # KPlugin Id=NovaHorizon (Phase 3)
-└── contents/
-    ├── images/
-    │   └── 3840x2160.png               # من branding/moos-wallpaper-light.png
-    └── images_dark/
-        └── 3840x2160.png               # من branding/moos-wallpaper-dark.png
-```
 
-- Plasma 6 يختار تلقائياً `images_dark/` في الوضع الداكن — هذا ما يعطي سلوك time-of-day/الوضعين بدون كود إضافي.
-- أحجام إضافية (2560x1440، 1920x1080) تُشتق من نفس الأصلين في Phase 3 لدعم 1080p/2K.
+## Art construction
 
-## قيود معروفة (Known Issues)
+- الحقل الضوئي مولّد حسابيًا مباشرة على canvas ‏3840×2160؛ لا توجد عملية upscale لمصدر صغير.
+- المنحنيات والحواف والجسيمات رُسمت عند 4× ثم صُغّرت مرة واحدة بـ LANCZOS.
+- شعار MoOS الأصلي 1024×1024 رُكّب بحجم أصغر من مصدره، بلا تكبير.
+- نسختا 21:9 و16:10 مشتقتان من master 4K بالقص الواعي ثم التصغير فقط.
+- كل PNG بصيغة sRGB وحجمه أقل من 8 MB.
+- الألوان محصورة في `branding/PALETTE.md`: `#050A14`, `#0B1220`, `#22D3EE`, `#2E7BFF`, `#8B5CF6`, `#EEF3FB`, `#FFFFFF`.
 
-- لا توجد صور ولا `metadata.json` بعد — المجلد هيكل فقط؛ إسقاط الصور بدون metadata لن يُظهر الخلفية في واجهة الإعدادات.
+## License
 
-## الخطوات التالية (Next Actions)
+فن MoOS أصلي، © Moalfarras، مرخّص بـ CC-BY-SA-4.0 كما هو محدد في `metadata.json`.
 
-- Phase 3 (انظر `MOOS_BUILD_WORKFLOW.md`): نسخ الصورتين من `branding/`، توليد الأحجام الإضافية، وكتابة `metadata.json` وضبطها كخلفية افتراضية في Global Theme `org.moos.nova`.
+## Verification
+
+تحقق محليًا من الأبعاد، ICC profile، وحجم الملفات، ثم افحص النسخ الست على Plasma عند 100% و150% و200% scaling. التحقق البصري النهائي داخل VM/ISO ما زال مطلوبًا.

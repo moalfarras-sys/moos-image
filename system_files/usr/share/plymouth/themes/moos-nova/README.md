@@ -1,49 +1,36 @@
 # moos-nova — ثيم إقلاع Plymouth الخاص بـ MoOS
 
-ثيم إقلاع MoOS الرسمي (flicker-free) مبني على الـ plugin **two-step** — نفس الـ plugin الذي تستخدمه ثيمات Fedora الرسمية (bgrt/spinner) ضمن مسار Flicker-Free Boot.
+ثيم إقلاع MoOS الرسمي المبني على plugin ‏`two-step` نفسه المستخدم في مسار Fedora flicker-free. عقد `.plymouth` بقي ثابتًا؛ هذه الدفعة تستبدل الأصول فقط.
 
-آخر تحديث: 2026-07-09 — **الثيم مكتمل ومفعّل** (لم يعد placeholder).
+## Contents
 
-## المحتويات (Contents)
-
-```
+```text
 moos-nova/
-├── moos-nova.plymouth        # الوصف: ModuleName=two-step + الألوان والمحاذاة
-├── throbber-0001.png ...     # 30 إطار spinner (64×64، شفاف): قوس "مذنّب" يدور
-│   throbber-0030.png         #   12°/إطار، رأس سماوي #22D3EE يتلاشى عبر #2E7BFF
-├── watermark.png             # شعار MoOS (200×200) أسفل الشاشة (محاذاة 0.96)
-└── README.md                 # هذا الملف
+├── moos-nova.plymouth
+├── throbber-0001.png … throbber-0060.png   # 96×96 RGBA
+├── watermark.png                           # 288×288 RGBA
+└── README.md
 ```
 
-الخلفية لون صلب `nova.navy.deepest` (#050A14) من `branding/PALETTE.md`
-(`BackgroundStartColor` = `BackgroundEndColor` — بلا تدرّج، بلا وميض).
-شريط التقدّم (التحديثات/الترقيات): خلفية #111A2E وتعبئة #2E7BFF.
+- الـ throbber حلقة مدتها ثانيتان من 60 صورة فريدة. Plymouth 24.004.60 يعرضها عند **30 FPS ثابتة**؛ لا يوجد مفتاح `FrameRate`، لذلك 60 صورة لا تعني 60 FPS.
+- كل إطار transparent RGBA، مرسوم عند 4× ثم مصغّر مرة واحدة بـ LANCZOS، مع glow وmotion trail وتدرج Mo الكامل.
+- الـ watermark يستخدم شعار MoOS الأصلي مع هالة مضبوطة، ويُعرض بحجمه الأصلي لأن `two-step` لا يغيّر حجمه.
+- كل PNG يحمل sRGB profile. الاستهلاك الخام للإطارات الستين يقارب 2.1 MiB فقط.
 
-## التوليد (Asset generation)
+## Contract verification
 
-الإطارات و watermark وُلّدت برمجياً بـ Python + Pillow (رسم بدقة 4× ثم تصغير
-LANCZOS للحواف الناعمة). المصدر: شعار MoOS في
-`/usr/share/moos/moos-logo.png` (بشفافية أصلية — لا قصّ دائري مطلوب).
+تم التحقق مقابل tag الرسمي `24.004.60`:
 
-## التفعيل (Activation)
+- plugin keys: <https://gitlab.freedesktop.org/plymouth/plymouth/-/blob/24.004.60/src/plugins/splash/two-step/plugin.c>
+- throbber loader and timing: <https://gitlab.freedesktop.org/plymouth/plymouth/-/blob/24.004.60/src/libply-splash-graphics/ply-throbber.c>
+- reference descriptor: <https://gitlab.freedesktop.org/plymouth/plymouth/-/blob/24.004.60/themes/spinner/spinner.plymouth.desktop>
 
-يتم في `build_files/build.sh` قسم (c2) قبل إعادة توليد initramfs:
+`throbber-` والامتداد lowercase `.png` ثابتان، والتحميل يتم بترتيب `versionsort`. يبقى `UseEndAnimation=false` إلزاميًا في كل وضع لأننا لا نشحن `animation-*`.
 
-```bash
-plymouth-set-default-theme moos-nova   # بدون -R
-```
+## Activation and testing
 
-بدون `-R` عمداً: أمر dracut التالي في السكربت يعيد بناء initramfs أصلاً،
-وموديول plymouth في dracut يلتقط الثيم الحالي تلقائياً. حزمة
-`plymouth-plugin-two-step` تُثبَّت في نفس القسم (موجودة أصلاً في Kinoite
-عبر bgrt/spinner — التثبيت الصريح ضمانة غير ضارّة).
+`build_files/build.sh` الموجود أصلًا يختار الثيم قبل إعادة بناء initramfs؛ لم تُعدّل هذه الدفعة أي wiring يملكه Claude. يلزم التحقق النهائي على عتاد/VM يوفّر DRM مبكرًا لأن QEMU الحالي قد يسقط إلى النص حتى مع ثيم صحيح.
 
-## الإسناد (Attribution)
+## Attribution
 
-بنية ملف `moos-nova.plymouth` والأسماء المتوقّعة للإطارات
-(`throbber-XXXX.png`, `watermark.png`) تتبع ثيم **spinner** المرجعي من مشروع
-Plymouth (freedesktop.org):
-https://gitlab.freedesktop.org/plymouth/plymouth/-/blob/main/themes/spinner/spinner.plymouth.desktop
-جميع الصور هنا أصلية (شعار MoOS + إطارات مولّدة) — لا أصول طرف ثالث.
-
-المرجع العام: https://fedoraproject.org/wiki/Changes/FlickerFreeBoot
+عقد التسمية والبنية من Plymouth الرسمي. كل الصور أصلية لـ MoOS ولا تحتوي أصولًا من طرف ثالث.

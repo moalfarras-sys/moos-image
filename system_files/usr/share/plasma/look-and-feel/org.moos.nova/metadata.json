@@ -1,14 +1,14 @@
 {
     "KPlugin": {
         "Id": "org.moos.nova",
-        "Name": "MoOS Nova",
-        "Description": "MoOS Nova UI — dark Global Theme for MoOS (KDE Plasma 6, Wayland)",
+        "Name": "MoOS Nova — نوفا",
+        "Description": "سمة MoOS Nova الداكنة لـ Plasma 6 | MoOS Nova dark Global Theme for Plasma 6",
         "Authors": [
             {
                 "Name": "Moalfarras"
             }
         ],
-        "Version": "0.1.0",
+        "Version": "0.2.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/moalfarras-sys/moos-image"
     },
