@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# moos-rollback — friendly bilingual recovery front-end for MoOS.
+#
+# THIN UX ONLY — no new recovery logic (MOOS_ARCHITECTURE.md §9 non-goals).
+# This is a thin wrapper over the three guaranteed rollback layers documented
+# in MOOS_ARCHITECTURE.md §3: (previous GRUB entry) -> `bootc rollback` ->
+# `ostree admin pin` for a known-good version. It invents nothing new.
+#
+# Privileged calls go through pkexec so a polkit GUI prompt appears — we make
+# NO sudo assumptions (a MoOS desktop user may not be a sudoer).
+#
+# CLI verified against https://bootc.dev/ man pages + ostree (2026-07-10):
+#   rpm-ostree status            -> list current + previous deployments
+#   bootc rollback               -> queue previous deployment as next boot
+#                                    (does NOT reboot on its own; applies on reboot)
+#   ostree admin pin 0           -> pin deployment index 0 (booted) against GC
+set -euo pipefail
+
+# ---- colors (MoOS brand-ish; disabled when stdout is not a terminal) --------
+if [ -t 1 ]; then
+    B=$'\033[1;34m'; C=$'\033[1;36m'; V=$'\033[1;35m'
+    G=$'\033[1;32m'; Y=$'\033[1;33m'; R=$'\033[1;31m'
+    D=$'\033[2m'; N=$'\033[0m'
+else
+    B=; C=; V=; G=; Y=; R=; D=; N=
+fi
+
+banner() {
+    printf '%s' "$B"
+    echo '  __  __        ___  ____  '
+    echo ' |  \/  | ___  / _ \/ ___| '
+    echo ' | |\/| |/ _ \| | | \___ \ '
+    echo ' | |  | | (_) | |_| |___) |'
+    echo ' |_|  |_|\___/ \___/|____/ '
+    printf '%s' "$N"
+    echo "${C}  MoOS Recovery  ·  استعادة MoOS${N}"
+    echo "${D}  الرجوع لنسخة سابقة أو تثبيت نسخة سليمة — ملفاتك تبقى كما هي${N}"
+    echo "${D}  Roll back to a previous version or pin a good one — your files stay untouched${N}"
+    echo
+}
+
+# Privileged run via polkit — no sudo assumption.
+run_priv() {
+    if command -v pkexec >/dev/null 2>&1; then
+        pkexec "$@"
+    else
+        echo "${Y}pkexec غير متوفّر — لا يمكن طلب صلاحية المسؤول.${N}" >&2
+        echo "${Y}pkexec not available — cannot request admin privileges.${N}" >&2
+        return 127
+    fi
+}
+
+show_deployments() {
+    echo "${C}▸ النسخ المتاحة | Available deployments${N}"
+    local out=""
+    if command -v rpm-ostree >/dev/null 2>&1 && out="$(rpm-ostree status 2>/dev/null)" && [ -n "$out" ]; then
+        echo "$out"
+    elif command -v bootc >/dev/null 2>&1 && out="$(bootc status 2>/dev/null)" && [ -n "$out" ]; then
+        echo "$out"
+    else
+        echo "${Y}  تعذّر قراءة النسخ (شغّل هذه الأداة داخل MoOS).${N}"
+        echo "${Y}  Deployments unavailable (run this tool on a MoOS system).${N}"
+    fi
+    echo
+    echo "${D}  ● = النسخة العاملة الآن | currently booted   ·   السطر الآخر = النسخة الاحتياطية | the other line = rollback target${N}"
+    echo
+}
+
+# read a yes/no confirmation; returns 0 only on an explicit yes.
+confirm() {
+    local prompt="$1" ans=""
+    printf '%s' "${Y}${prompt}${N}"
+    read -r ans || { echo; return 1; }
+    case "${ans:-}" in
+        y|Y|yes|YES|Yes|نعم|ن) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+offer_reboot() {
+    echo
+    if confirm "إعادة التشغيل الآن لتطبيق الرجوع؟ اكتب y | Reboot now to apply? type y: "; then
+        echo "${C}إعادة التشغيل… | rebooting…${N}"
+        systemctl reboot
+    else
+        echo "${D}تمام — سيسري الرجوع عند إعادة التشغيل القادمة. | ok — rollback applies at your next reboot.${N}"
+    fi
+}
+
+do_rollback() {
+    if ! command -v bootc >/dev/null 2>&1; then
+        echo "${R}bootc غير موجود على هذا النظام | bootc not found${N}"
+        return 1
+    fi
+    echo "${C}ماذا يفعل الرجوع؟ | What rollback does:${N}"
+    echo "  • يعيد النظام إلى الإصدار السابق الذي كان يعمل قبل آخر تحديث."
+    echo "    ${D}Returns the system to the previous version that worked before the last update.${N}"
+    echo "  • ملفاتك ومجلد /home تبقى كما هي تماماً — لا شيء يُحذف."
+    echo "    ${D}Your files and /home are completely untouched — nothing is deleted.${N}"
+    echo "  • يسري بعد إعادة التشغيل، ويمكنك التقدّم للأمام لاحقاً بنفس الطريقة."
+    echo "    ${D}Applies after reboot; you can move forward again later the same way.${N}"
+    echo
+    if confirm "متابعة الرجوع للنسخة السابقة؟ اكتب y للتأكيد | Roll back to the previous version? type y: "; then
+        echo "${C}قد يظهر طلب إذن المسؤول. | An admin prompt may appear.${N}"
+        if run_priv bootc rollback; then
+            echo "${G}✓ تم ترتيب الرجوع — سيُقلع النظام على النسخة السابقة عند إعادة التشغيل.${N}"
+            echo "${G}  Rollback queued — the system boots the previous version on next reboot.${N}"
+            offer_reboot
+        else
+            echo "${Y}لم يكتمل الرجوع. | rollback did not complete.${N}"
+        fi
+    else
+        echo "${D}أُلغِي الرجوع. | rollback cancelled.${N}"
+    fi
+}
+
+do_pin() {
+    if ! command -v ostree >/dev/null 2>&1; then
+        echo "${R}ostree غير موجود على هذا النظام | ostree not found${N}"
+        return 1
+    fi
+    echo "${C}ما هو التثبيت (pin)؟ | What is pinning?${N}"
+    echo "  • يحمي النسخة العاملة الآن من الحذف التلقائي عند التحديثات القادمة."
+    echo "    ${D}Protects the currently booted version from being cleaned up by future updates.${N}"
+    echo "  • مفيد قبل تجربة تحديث كبير — تبقى لديك نسخة سليمة مضمونة للرجوع إليها."
+    echo "    ${D}Useful before a big update — keeps a known-good version guaranteed available.${N}"
+    echo
+    if confirm "تثبيت النسخة الحالية؟ اكتب y للتأكيد | Pin the current version? type y: "; then
+        echo "${C}قد يظهر طلب إذن المسؤول. | An admin prompt may appear.${N}"
+        if run_priv ostree admin pin 0; then
+            echo "${G}✓ تم تثبيت النسخة الحالية (index 0).${N}"
+            echo "${G}  Current deployment pinned.${N}"
+            echo "${D}  لإلغاء التثبيت لاحقاً | to unpin later:  pkexec ostree admin pin --unpin 0${N}"
+        else
+            echo "${Y}لم يكتمل التثبيت. | pin did not complete.${N}"
+        fi
+    else
+        echo "${D}أُلغِي التثبيت. | pin cancelled.${N}"
+    fi
+}
+
+main() {
+    banner
+    show_deployments
+    while true; do
+        echo "${V}اختر | Choose:${N}"
+        echo "  1) الرجوع للنسخة السابقة        | Roll back to previous version"
+        echo "  2) تثبيت النسخة الحالية (حماية)  | Pin current version (protect)"
+        echo "  3) خروج                         | Exit"
+        printf '%s' "${V}> ${N}"
+        read -r choice || { echo; break; }
+        echo
+        case "${choice:-}" in
+            1) do_rollback || true ;;
+            2) do_pin || true ;;
+            3|q|Q) echo "${D}مع السلامة | bye${N}"; break ;;
+            *) echo "${Y}اختيار غير صحيح | invalid choice${N}" ;;
+        esac
+        echo
+    done
+}
+
+main "$@"

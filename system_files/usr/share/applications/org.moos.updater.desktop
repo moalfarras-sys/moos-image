@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=MoOS Updater
+Name[ar]=محدّث MoOS
+GenericName=System updates
+GenericName[ar]=تحديثات النظام
+Comment=Update MoOS safely — atomic, applies on reboot
+Comment[ar]=حدّث MoOS بأمان — تحديث ذرّي يكتمل عند إعادة التشغيل
+TryExec=moos-update
+Exec=moos-update
+Icon=moos-logo
+Terminal=true
+Categories=System;
+Keywords=update;upgrade;bootc;ostree;uupd;
+Keywords[ar]=تحديث;ترقية;

@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Hardware Center
+Name[ar]=مركز الأجهزة
+GenericName=Device overview & report
+GenericName[ar]=نظرة عامة على الأجهزة وتقرير
+Comment=See your CPU, memory, GPU, disks, network and system — and copy a full report
+Comment[ar]=اطّلع على المعالج والذاكرة وكرت الشاشة والأقراص والشبكة والنظام — وانسخ تقريراً كاملاً
+TryExec=moos-hardware
+Exec=moos-hardware
+Icon=moos-logo
+Terminal=false
+Categories=System;
+Keywords=hardware;cpu;memory;ram;gpu;graphics;disk;network;pci;lspci;report;nvidia;
+Keywords[ar]=عتاد;أجهزة;معالج;ذاكرة;كرت;شاشة;قرص;شبكة;تقرير;

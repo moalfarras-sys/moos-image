@@ -306,6 +306,15 @@ EOF
 # - btop          (1.4.7-1.fc44)      modern system monitor, nice default.
 # - fastfetch     (2.65.2-1.fc44)     system info — shows the MoOS os-release
 #                                     branding (section (a)) in the terminal.
+# - pciutils      (3.15.0-1.fc44)     provides lspci — the PCI enumerator the
+#                                     Hardware Center v0 collector reads for the
+#                                     GPU line (and NVIDIA detection). Its
+#                                     presence in the Kinoite BASE is NOT
+#                                     guaranteed (Fedora immutable variants such
+#                                     as IoT ship without it), so it is installed
+#                                     explicitly here; a reinstall is idempotent
+#                                     if the base already carries it. NVR verified
+#                                     2026-07-10 on packages.fedoraproject.org.
 # - qt6-qtdeclarative-devel (6.11.1-2.fc44) provides /usr/bin/qml-qt6 (symlink
 #                                     to /usr/lib64/qt6/bin/qml) — the QML
 #                                     runner for MoOS pure-QML "script apps"
@@ -324,6 +333,7 @@ dnf5 -y install \
     distrobox \
     btop \
     fastfetch \
+    pciutils \
     qt6-qtdeclarative-devel
 
 # System-wide Flathub remote so Discover/Bazaar work out of the box on first
@@ -350,7 +360,12 @@ curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
 # verified 2026-07-10).
 # moos-compat launches the Compatibility Hub v0 (pure-QML script app in
 # /usr/share/moos/apps/compathub) via the qml-qt6 runner installed in (c7).
-chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat
+# moos-hardware collects a read-only hardware snapshot to /tmp/moos-hw.json and
+# launches the Hardware Center v0 viewer (/usr/share/moos/apps/hardware) via the
+# same qml-qt6 runner.
+chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
+    /usr/bin/moos-hardware /usr/bin/moai /usr/bin/moai-start \
+    /usr/bin/moos-update /usr/bin/moos-rollback
 
 # -----------------------------------------------------------------------------
 # (d) Enable services
