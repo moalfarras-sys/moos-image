@@ -11,8 +11,9 @@ ColorScheme=NovaDark
 
 # Plasma Style (desktoptheme) = Nova — restyles notifications, the volume/
 # brightness OSD, and dialogs to MoOS navy glass. The Nova desktoptheme ships
-# at /usr/share/plasma/desktoptheme/Nova (colors-only; falls back to breeze-dark
-# SVGs). LookAndFeelManager writes this into ~/.config/plasmarc [Theme] name.
+# original identity glyphs and selected safe FrameSvg states; all remaining
+# paths fall back through breeze-dark to Breeze geometry while retaining Nova
+# colors. LookAndFeelManager writes this into ~/.config/plasmarc [Theme] name.
 [plasmarc][Theme]
 name=Nova
 

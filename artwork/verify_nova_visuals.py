@@ -79,6 +79,39 @@ def verify_icons() -> None:
         )
 
 
+def verify_symbolic_icons() -> None:
+    names = {
+        "moos-identity",
+        "moos-ai",
+        "moos-gaming",
+        "moos-android-apps",
+        "moos-safe-update",
+        "moos-nova-ui",
+        "moos-cpu",
+        "moos-memory",
+        "moos-gpu",
+        "moos-storage",
+        "moos-network",
+        "moos-system",
+        "moos-copy",
+        "moos-report",
+        "moos-warning",
+        "moos-phone",
+    }
+    root = SHARE / "icons" / "hicolor" / "scalable" / "actions"
+    actual = {path.stem for path in root.glob("moos-*.svg")}
+    require(actual == names, "Nova symbolic icon family is incomplete or contains stale output")
+    for name in names:
+        path = root / f"{name}.svg"
+        svg = ET.parse(path).getroot()
+        require(svg.attrib.get("viewBox") == "0 0 64 64", f"bad symbolic icon viewBox: {name}")
+        ids = [element.attrib["id"] for element in svg.iter() if "id" in element.attrib]
+        require(len(ids) == len(set(ids)), f"duplicate symbolic SVG id: {name}")
+        require({"current-color-scheme", "nova"}.issubset(ids), f"missing Nova SVG definitions: {name}")
+        tags = {element.tag.rsplit("}", 1)[-1] for element in svg.iter()}
+        require("text" not in tags and "image" not in tags, f"font/raster dependency in symbolic icon: {name}")
+
+
 def verify_installer_and_grub() -> None:
     authored = SHARE / "anaconda" / "pixmaps"
     canonical = SHARE / "moos" / "branding" / "anaconda"
@@ -121,15 +154,71 @@ def verify_previews() -> None:
 
 def verify_plasma_identity_svgs() -> None:
     theme = SHARE / "plasma" / "desktoptheme" / "Nova"
-    branding = ET.parse(theme / "widgets" / "branding.svg").getroot()
-    start = ET.parse(theme / "icons" / "start.svg").getroot()
-    branding_ids = {element.attrib.get("id") for element in branding.iter()}
-    start_ids = {element.attrib.get("id") for element in start.iter()}
+    metadata = json.loads((theme / "metadata.json").read_text(encoding="utf-8"))
+    require(metadata["KPlugin"]["Version"] == "0.3.0", "Plasma Style cache version was not bumped")
+    require("FallbackTheme=breeze-dark" in (theme / "plasmarc").read_text(encoding="utf-8"), "Plasma fallback changed")
+
+    parsed: dict[Path, set[str]] = {}
+    for path in sorted(theme.rglob("*.svg")):
+        root = ET.parse(path).getroot()
+        ids = [element.attrib["id"] for element in root.iter() if "id" in element.attrib]
+        require(len(ids) == len(set(ids)), f"duplicate SVG id: {path.relative_to(ROOT)}")
+        parsed[path] = set(ids)
+
+    branding_ids = parsed[theme / "widgets" / "branding.svg"]
+    start_ids = parsed[theme / "icons" / "start.svg"]
     require("brilliant" in branding_ids, "Plasma branding element id is missing")
     require(
         {"16-16-start-here-kde", "22-22-start-here-kde", "start-here-kde"}.issubset(start_ids),
         "Plasma 6.7 start icon element ids are missing",
     )
+
+    positions = {
+        "top",
+        "topright",
+        "right",
+        "bottomright",
+        "bottom",
+        "bottomleft",
+        "left",
+        "topleft",
+        "center",
+    }
+    viewitem_ids = parsed[theme / "widgets" / "viewitem.svg"]
+    expected_viewitem = {"hint-tile-center", "current-color-scheme"}
+    for prefix in ("normal", "hover", "selected", "selected+hover"):
+        expected_viewitem.update(f"{prefix}-{position}" for position in positions)
+    require(expected_viewitem.issubset(viewitem_ids), "Plasma 6.7 view-item FrameSvg contract is incomplete")
+
+    button_ids = parsed[theme / "widgets" / "button.svg"]
+    button_prefixes = (
+        "shadow",
+        "normal",
+        "mask-normal",
+        "hover",
+        "focus",
+        "pressed",
+        "toolbutton-hover",
+        "toolbutton-focus",
+        "toolbutton-pressed",
+    )
+    expected_button = {"current-color-scheme"}
+    for prefix in button_prefixes:
+        expected_button.update(f"{prefix}-{position}" for position in positions)
+    for prefix in button_prefixes:
+        if prefix == "mask-normal":
+            continue
+        expected_button.update(
+            f"{prefix}-hint-{direction}-margin"
+            for direction in ("top", "right", "bottom", "left")
+        )
+    expected_button.update(
+        {
+            "normal-hint-compose-over-border",
+            "pressed-hint-compose-over-border",
+        }
+    )
+    require(expected_button.issubset(button_ids), "Plasma 6.7 button FrameSvg contract is incomplete")
 
 
 def verify_sounds() -> None:
@@ -156,6 +245,9 @@ def verify_text_files() -> None:
     candidates += list((SHARE / "wallpapers").glob("Nova*/README.md"))
     candidates += list((SHARE / "sddm" / "themes" / "moos-nova").rglob("*.qml"))
     candidates += list((SHARE / "sddm" / "themes" / "moos-nova").rglob("*.conf"))
+    candidates += list((SHARE / "plasma" / "desktoptheme" / "Nova").rglob("*"))
+    candidates += [SHARE / "plasma" / "look-and-feel" / "org.moos.nova" / "contents" / "defaults"]
+    candidates += list((SHARE / "icons" / "hicolor" / "scalable" / "actions").glob("moos-*.svg"))
     for path in candidates:
         if not path.is_file() or path.suffix.lower() in {".png", ".jpg", ".jpeg"}:
             continue
@@ -167,6 +259,7 @@ def verify_text_files() -> None:
 def main() -> None:
     verify_wallpapers()
     verify_icons()
+    verify_symbolic_icons()
     verify_installer_and_grub()
     verify_sddm()
     verify_previews()

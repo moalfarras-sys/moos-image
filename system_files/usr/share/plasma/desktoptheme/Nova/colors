@@ -1,15 +1,14 @@
 # MoOS Nova — Plasma Style (desktoptheme) color stylesheet.
 #
-# This is the ONLY substantive file this theme ships. Plasma desktop-theme SVGs
-# are stylesheet-aware: they carry ColorScheme-* CSS classes that Plasma rewrites
-# at runtime from THIS file. Because this "Nova" theme ships no SVGs, Plasma's
-# SVG lookup falls through the theme fallback chain (Nova -> breeze-dark ->
-# "default", which is Breeze) and paints Breeze's dialog / notification / OSD
-# frames recolored with the palette below — exactly how breeze-dark itself is
-# built (it, too, ships only a `colors` file). VERIFIED against
+# This file is the runtime palette for Nova-owned SVGs and every SVG resolved
+# through Plasma's fallback chain. The theme now ships identity glyphs plus
+# original low-risk button/view-item FrameSvg states. Paths not yet overridden
+# fall through Nova -> breeze-dark -> "default" (Breeze geometry) while keeping
+# this Nova palette. VERIFIED against
 # plasma/libplasma src/desktoptheme/breeze-dark (colors + metadata.json.cmake +
 # plasmarc, no SVGs) and src/plasma/private/theme_p.cpp (setThemeName always
-# appends "default" to fallbackThemes; findInTheme walks that chain).
+# appends "default" to fallbackThemes; findInTheme walks that chain). The
+# FrameSvg state IDs are verified against libplasma v6.7.2.
 #
 # Palette is the MoOS Nova dark set, identical to /usr/share/color-schemes/
 # NovaDark.colors so popups match the rest of the desktop. The notification /

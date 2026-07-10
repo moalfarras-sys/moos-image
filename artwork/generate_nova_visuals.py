@@ -523,6 +523,254 @@ def generate_sddm() -> None:
         shutil.copyfile(source, target)
 
 
+FRAME_POSITIONS = (
+    "top",
+    "topright",
+    "right",
+    "bottomright",
+    "bottom",
+    "bottomleft",
+    "left",
+    "topleft",
+    "center",
+)
+
+
+def _frame_id(prefix: str, position: str) -> str:
+    return f"{prefix}-{position}" if prefix else position
+
+
+def _frame_gradients(
+    prefix: str,
+    x: int,
+    y: int,
+    fill: str,
+    fill_opacity: float,
+    border: str,
+    border_opacity: float,
+    border_size: int = 10,
+    center_size: int = 32,
+) -> list[str]:
+    """Return gradients for one rounded FrameSvg atlas frame.
+
+    Each edge fades from a one-pixel Nova accent into the glass surface. The
+    corner gradients are centered on the inner corner, so the accent follows
+    the actual rounded silhouette instead of producing a square neon block.
+    """
+
+    key = prefix.replace("+", "_plus_").replace("-", "_")
+    inner_left = x + border_size
+    inner_top = y + border_size
+    inner_right = inner_left + center_size
+    inner_bottom = inner_top + center_size
+    outer_right = inner_right + border_size
+    outer_bottom = inner_bottom + border_size
+    fo = f"{fill_opacity:.3f}"
+    bo = f"{border_opacity:.3f}"
+
+    def linear(name: str, x1: int, y1: int, x2: int, y2: int, reverse: bool = False) -> str:
+        stops = (
+            f'<stop offset="0" stop-color="{fill}" stop-opacity="{fo}"/>\n'
+            f'      <stop offset="0.72" stop-color="{fill}" stop-opacity="{fo}"/>\n'
+            f'      <stop offset="0.90" stop-color="{border}" stop-opacity="{bo}"/>\n'
+            f'      <stop offset="1" stop-color="{border}" stop-opacity="{bo}"/>'
+        )
+        if reverse:
+            stops = (
+                f'<stop offset="0" stop-color="{border}" stop-opacity="{bo}"/>\n'
+                f'      <stop offset="0.10" stop-color="{border}" stop-opacity="{bo}"/>\n'
+                f'      <stop offset="0.28" stop-color="{fill}" stop-opacity="{fo}"/>\n'
+                f'      <stop offset="1" stop-color="{fill}" stop-opacity="{fo}"/>'
+            )
+        return (
+            f'    <linearGradient id="{key}-{name}" gradientUnits="userSpaceOnUse" '
+            f'x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}">\n'
+            f"      {stops}\n"
+            "    </linearGradient>"
+        )
+
+    def radial(name: str, cx: int, cy: int) -> str:
+        return (
+            f'    <radialGradient id="{key}-{name}" gradientUnits="userSpaceOnUse" '
+            f'cx="{cx}" cy="{cy}" r="{border_size}">\n'
+            f'      <stop offset="0" stop-color="{fill}" stop-opacity="{fo}"/>\n'
+            f'      <stop offset="0.72" stop-color="{fill}" stop-opacity="{fo}"/>\n'
+            f'      <stop offset="0.90" stop-color="{border}" stop-opacity="{bo}"/>\n'
+            f'      <stop offset="1" stop-color="{border}" stop-opacity="{bo}"/>\n'
+            "    </radialGradient>"
+        )
+
+    return [
+        linear("top-gradient", inner_left, inner_top, inner_left, y, reverse=False),
+        linear("right-gradient", inner_right, inner_top, outer_right, inner_top, reverse=False),
+        linear("bottom-gradient", inner_left, inner_bottom, inner_left, outer_bottom, reverse=False),
+        linear("left-gradient", inner_left, inner_top, x, inner_top, reverse=False),
+        radial("topleft-gradient", inner_left, inner_top),
+        radial("topright-gradient", inner_right, inner_top),
+        radial("bottomright-gradient", inner_right, inner_bottom),
+        radial("bottomleft-gradient", inner_left, inner_bottom),
+    ]
+
+
+def _frame_elements(
+    prefix: str,
+    x: int,
+    y: int,
+    fill: str,
+    fill_opacity: float,
+    border: str,
+    border_opacity: float,
+    border_size: int = 10,
+    center_size: int = 32,
+) -> tuple[list[str], list[str]]:
+    """Create a complete rounded nine-part Plasma FrameSvg frame."""
+
+    key = prefix.replace("+", "_plus_").replace("-", "_")
+    b = border_size
+    c = center_size
+    il = x + b
+    it = y + b
+    ir = il + c
+    ib = it + c
+    right = ir + b
+    bottom = ib + b
+    fo = f"{fill_opacity:.3f}"
+    gradients = _frame_gradients(prefix, x, y, fill, fill_opacity, border, border_opacity, b, c)
+    elements = [
+        f'  <rect id="{_frame_id(prefix, "top")}" x="{il}" y="{y}" width="{c}" height="{b}" fill="url(#{key}-top-gradient)"/>',
+        f'  <path id="{_frame_id(prefix, "topright")}" d="M {ir},{y} A {b},{b} 0 0 1 {right},{it} L {ir},{it} Z" fill="url(#{key}-topright-gradient)"/>',
+        f'  <rect id="{_frame_id(prefix, "right")}" x="{ir}" y="{it}" width="{b}" height="{c}" fill="url(#{key}-right-gradient)"/>',
+        f'  <path id="{_frame_id(prefix, "bottomright")}" d="M {right},{ib} A {b},{b} 0 0 1 {ir},{bottom} L {ir},{ib} Z" fill="url(#{key}-bottomright-gradient)"/>',
+        f'  <rect id="{_frame_id(prefix, "bottom")}" x="{il}" y="{ib}" width="{c}" height="{b}" fill="url(#{key}-bottom-gradient)"/>',
+        f'  <path id="{_frame_id(prefix, "bottomleft")}" d="M {x},{ib} A {b},{b} 0 0 0 {il},{bottom} L {il},{ib} Z" fill="url(#{key}-bottomleft-gradient)"/>',
+        f'  <rect id="{_frame_id(prefix, "left")}" x="{x}" y="{it}" width="{b}" height="{c}" fill="url(#{key}-left-gradient)"/>',
+        f'  <path id="{_frame_id(prefix, "topleft")}" d="M {il},{y} L {il},{it} L {x},{it} A {b},{b} 0 0 1 {il},{y} Z" fill="url(#{key}-topleft-gradient)"/>',
+        f'  <rect id="{_frame_id(prefix, "center")}" x="{il}" y="{it}" width="{c}" height="{c}" fill="{fill}" fill-opacity="{fo}"/>',
+    ]
+    return gradients, elements
+
+
+def _margin_hints(prefix: str, x: int, y: int, margin: float) -> list[str]:
+    """Create the four exact FrameSvg margin hint IDs."""
+
+    value = f"{margin:g}"
+    return [
+        f'  <rect id="{prefix}-hint-top-margin" x="{x + 8}" y="{y}" width="2" height="{value}" fill="#FF00FF" fill-opacity="0.004"/>',
+        f'  <rect id="{prefix}-hint-right-margin" x="{x + 18}" y="{y + 8}" width="{value}" height="2" fill="#FF00FF" fill-opacity="0.004"/>',
+        f'  <rect id="{prefix}-hint-bottom-margin" x="{x + 8}" y="{y + 18}" width="2" height="{value}" fill="#FF00FF" fill-opacity="0.004"/>',
+        f'  <rect id="{prefix}-hint-left-margin" x="{x}" y="{y + 8}" width="{value}" height="2" fill="#FF00FF" fill-opacity="0.004"/>',
+    ]
+
+
+def _plasma_svg_document(width: int, height: int, gradients: list[str], elements: list[str]) -> str:
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">\n'
+        "  <!-- Original MoOS Nova art. Frame IDs follow the official Plasma 6.7.2 contract. -->\n"
+        "  <style id=\"current-color-scheme\" type=\"text/css\">\n"
+        f"    .ColorScheme-Background {{ color: {P['surface']}; }}\n"
+        f"    .ColorScheme-Highlight {{ color: {P['blue']}; }}\n"
+        f"    .ColorScheme-Text {{ color: {P['text']}; }}\n"
+        "  </style>\n"
+        "  <defs>\n"
+        + "\n".join(gradients)
+        + "\n  </defs>\n"
+        + "\n".join(elements)
+        + "\n</svg>\n"
+    )
+
+
+def generate_plasma_style() -> None:
+    """Generate the first low-risk original Nova Plasma FrameSvg surfaces.
+
+    Button and view-item contracts were verified against libplasma v6.7.2.
+    Top-level panel/dialog SVGs remain inherited until these state surfaces are
+    live-tested in Plasma; a malformed top-level mask can clip an entire popup.
+    """
+
+    widgets = SHARE / "plasma" / "desktoptheme" / "Nova" / "widgets"
+    widgets.mkdir(parents=True, exist_ok=True)
+
+    view_states = (
+        ("normal", P["surface"], 0.004, P["secondary"], 0.08),
+        ("hover", P["raised"], 0.88, P["cyan"], 0.62),
+        ("selected", P["blue_deep"], 0.72, P["ice"], 0.88),
+        ("selected+hover", P["violet_deep"], 0.78, P["cyan"], 0.96),
+    )
+    gradients: list[str] = []
+    elements: list[str] = []
+    for index, (prefix, fill, fill_opacity, border, border_opacity) in enumerate(view_states):
+        frame_gradients, frame_elements = _frame_elements(
+            prefix,
+            10 + index * 64,
+            10,
+            fill,
+            fill_opacity,
+            border,
+            border_opacity,
+        )
+        gradients.extend(frame_gradients)
+        elements.extend(frame_elements)
+    elements.append('  <rect id="hint-tile-center" x="270" y="10" width="1" height="1" fill="#FF00FF" fill-opacity="0.004"/>')
+    (widgets / "viewitem.svg").write_text(
+        _plasma_svg_document(282, 74, gradients, elements),
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    button_states = (
+        ("shadow", P["deepest"], 0.12, P["deepest"], 0.28),
+        ("normal", P["surface"], 0.94, P["secondary"], 0.24),
+        ("mask-normal", P["white"], 1.0, P["white"], 1.0),
+        ("hover", P["raised"], 0.96, P["cyan"], 0.74),
+        ("focus", P["surface"], 0.004, P["blue"], 0.98),
+        ("pressed", P["blue_deep"], 0.94, P["violet"], 0.96),
+        ("toolbutton-hover", P["raised"], 0.72, P["cyan"], 0.62),
+        ("toolbutton-focus", P["surface"], 0.004, P["blue"], 0.96),
+        ("toolbutton-pressed", P["violet_deep"], 0.80, P["cyan"], 0.90),
+    )
+    gradients = []
+    elements = []
+    for index, (prefix, fill, fill_opacity, border, border_opacity) in enumerate(button_states):
+        col = index % 3
+        row = index // 3
+        frame_gradients, frame_elements = _frame_elements(
+            prefix,
+            10 + col * 64,
+            10 + row * 64,
+            fill,
+            fill_opacity,
+            border,
+            border_opacity,
+        )
+        gradients.extend(frame_gradients)
+        elements.extend(frame_elements)
+
+    margins = {
+        "shadow": 3.0,
+        "normal": 6.0,
+        "hover": 0.001,
+        "focus": 2.0,
+        "pressed": 6.0,
+        "toolbutton-hover": 4.0,
+        "toolbutton-focus": 2.0,
+        "toolbutton-pressed": 4.0,
+    }
+    for index, (prefix, margin) in enumerate(margins.items()):
+        elements.extend(_margin_hints(prefix, 208 + (index % 2) * 30, 10 + (index // 2) * 38, margin))
+    elements.extend(
+        [
+            '  <rect id="normal-hint-compose-over-border" x="270" y="166" width="1" height="1" fill="#FF00FF" fill-opacity="0.004"/>',
+            '  <rect id="pressed-hint-compose-over-border" x="274" y="166" width="1" height="1" fill="#FF00FF" fill-opacity="0.004"/>',
+        ]
+    )
+    (widgets / "button.svg").write_text(
+        _plasma_svg_document(282, 202, gradients, elements),
+        encoding="utf-8",
+        newline="\n",
+    )
+
+
 def glass_panel(base: Image.Image, box: tuple[int, int, int, int], radius: int, opacity: int = 206) -> None:
     mask = Image.new("L", base.size, 0)
     ImageDraw.Draw(mask).rounded_rectangle(box, radius=radius, fill=opacity)
@@ -602,12 +850,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--grub", action="store_true", help="Generate GRUB artwork")
     parser.add_argument("--sddm", action="store_true", help="Generate safe SDDM fallback and session art")
     parser.add_argument("--previews", action="store_true", help="Generate Plasma Global Theme previews")
+    parser.add_argument("--plasma-style", action="store_true", help="Generate low-risk Nova Plasma FrameSvg surfaces")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    selected = args.icons or args.installer or args.wallpapers or args.grub or args.sddm or args.previews
+    selected = (
+        args.icons
+        or args.installer
+        or args.wallpapers
+        or args.grub
+        or args.sddm
+        or args.previews
+        or args.plasma_style
+    )
     if args.icons or not selected:
         generate_icons()
     if args.installer or not selected:
@@ -620,6 +877,8 @@ def main() -> None:
         generate_sddm()
     if args.previews or not selected:
         generate_previews()
+    if args.plasma_style or not selected:
+        generate_plasma_style()
 
 
 if __name__ == "__main__":

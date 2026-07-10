@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Original MoOS Nova symbol, © Moalfarras. No external logo or font glyph. -->
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Highlight { color: #2E7BFF; }
+    .ColorScheme-Text { color: #E6EDF7; }
+  </style>
+  <defs>
+    <linearGradient id="nova" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22D3EE"/><stop offset="0.52" stop-color="#2E7BFF"/><stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="58" height="58" rx="17" fill="#111A2E" fill-opacity=".20" stroke="#22D3EE" stroke-opacity=".14"/>
+  <g fill="none" stroke="url(#nova)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="32" cy="15" rx="18" ry="7" fill="url(#nova)" fill-opacity=".18"/>
+    <ellipse cx="32" cy="15" rx="18" ry="7"/><path d="M14 15v30c0 4 8 7 18 7s18-3 18-7V15M14 30c0 4 8 7 18 7s18-3 18-7"/>
+    <circle cx="43" cy="44" r="2" fill="#22D3EE" stroke="none"/>
+  </g>
+</svg>
