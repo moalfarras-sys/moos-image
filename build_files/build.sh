@@ -499,30 +499,59 @@ grep -E '^(NAME|PRETTY_NAME|ID|ID_LIKE|VERSION_ID|VARIANT|VARIANT_ID|LOGO|ANSI_C
 # fedora-logos, so overwriting them with the square master would only degrade
 # a known-good asset. Guards keep this fail-safe: it never breaks the build if
 # a path is absent. gtk-update-icon-cache exists (installed in section (c5)).
+# ROOT CAUSE (found via v14 live test): the ACTIVE icon theme is Nova, which
+# inherits Colloid-Dark -> Papirus-Dark -> breeze-dark -> hicolor. Papirus AND
+# Colloid ship their OWN org.fedoraproject.AnacondaInstaller / fedora-logo-icon
+# / anaconda icons, which WIN over the hicolor replacement (higher in the
+# inheritance chain). So scrubbing hicolor alone leaves the Fedora "f" visible
+# in plasma-welcome's install page and the "Install to Hard Drive" desktop
+# icon. FIX: scrub these names across EVERY installed icon theme directory
+# (Nova, Colloid*, Papirus*, breeze*, Adwaita, hicolor, ...), at every size
+# (apps + any scalable), replacing PNGs with the MoOS logo and DELETING SVGs
+# so the raster MoOS mark always resolves.
 _moos_src=/usr/share/moos/moos-logo.png
+_names="fedora-logo-icon org.fedoraproject.AnacondaInstaller anaconda \
+        fedora-logo fedora-logo-small start-here-fedora"
 if [ -f "$_moos_src" ]; then
-    for _appdir in /usr/share/icons/hicolor/*/apps; do
-        [ -d "$_appdir" ] || continue
+    # Every icon theme (both /usr/share/icons and /usr/share/icons/hicolor).
+    find /usr/share/icons -type d -name apps 2>/dev/null | while read -r _appdir; do
+        # Prefer a same-size moos-logo.png if this dir has one; else the master.
         _sized="$_appdir/moos-logo.png"
         [ -f "$_sized" ] || _sized="$_moos_src"
-        for _name in fedora-logo-icon org.fedoraproject.AnacondaInstaller anaconda; do
-            [ -f "$_appdir/$_name.png" ] && cp -f "$_sized" "$_appdir/$_name.png" || true
+        for _name in $_names; do
+            [ -f "$_appdir/$_name.png" ] && cp -f "$_sized" "$_appdir/$_name.png"
+            # scalable SVGs win over raster at large sizes -> remove them.
+            [ -f "$_appdir/$_name.svg" ] && rm -f "$_appdir/$_name.svg"
+            [ -f "$_appdir/$_name.svgz" ] && rm -f "$_appdir/$_name.svgz"
         done
-    done
-    # Scalable Fedora/anaconda marks -> remove so the raster MoOS PNG is used.
-    rm -f /usr/share/icons/hicolor/scalable/apps/fedora-logo-icon.svg \
-          /usr/share/icons/hicolor/scalable/apps/org.fedoraproject.AnacondaInstaller.svg
+    done || true
     # Legacy pixmap logo names read by hardcoded path in some about-dialogs.
-    # Only the ones system_files does NOT already ship as MoOS are re-asserted.
     for _px in fedora-logo.png fedora-logo-small.png fedora-gdm-logo.png; do
         [ -f "/usr/share/pixmaps/$_px" ] && cp -f "$_moos_src" "/usr/share/pixmaps/$_px" || true
     done
     # anaconda-live's GTK sidebar logo (Fedora) — scrub to MoOS.
     [ -f /usr/share/anaconda/pixmaps/sidebar-logo.png ] && \
         cp -f "$_moos_src" /usr/share/anaconda/pixmaps/sidebar-logo.png || true
-    gtk-update-icon-cache -f /usr/share/icons/hicolor || true
+    # Rebuild every theme's icon cache so the swapped rasters take effect.
+    for _themedir in /usr/share/icons/*/; do
+        [ -f "${_themedir}index.theme" ] && gtk-update-icon-cache -f "$_themedir" 2>/dev/null || true
+    done
 fi
-unset -v _moos_src _appdir _sized _name _px
+unset -v _moos_src _names _appdir _sized _name _px _themedir
+
+# Disable KDE's plasma-welcome autostart: its "install" page draws a computer
+# mock-up with the FEDORA logo on screen (not our AnacondaInstaller icon, and
+# not driven by os-release LOGO), so it is the one surface still leaking a
+# Fedora mark. MoOS ships its own premium Welcome (moos-welcome) + first-run
+# dialog + the "Install MoOS" desktop launcher, so plasma-welcome is redundant.
+# Mask its autostart everywhere it may live (guarded; harmless if absent).
+for _wl in /etc/xdg/autostart/plasma-welcome.desktop \
+           /usr/share/applications/org.kde.plasma.welcome.desktop; do
+    if [ -f "$_wl" ]; then
+        printf '\nHidden=true\nX-KDE-autostart-condition=\nNoDisplay=true\n' >> "$_wl"
+    fi
+done
+unset -v _wl
 
 # -----------------------------------------------------------------------------
 # (e) Cleanup — required for `bootc container lint` to pass
