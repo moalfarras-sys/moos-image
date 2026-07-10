@@ -112,6 +112,85 @@ def verify_symbolic_icons() -> None:
         require("text" not in tags and "image" not in tags, f"font/raster dependency in symbolic icon: {name}")
 
 
+def verify_no_foreign_visual_branding() -> None:
+    """Guard compatibility aliases that upstream still requests by old names.
+
+    The filenames must remain because Anaconda, icon themes, and SDDM request
+    them directly. Their *visible content* is required to be MoOS artwork. If
+    these aliases are deleted, the original package files can reappear later in
+    the image build, so equality checks are safer than filename cleanup.
+    """
+
+    hicolor = SHARE / "icons" / "hicolor"
+    for size in (48, 64, 128, 256):
+        apps = hicolor / f"{size}x{size}" / "apps"
+        canonical = apps / "moos-logo.png"
+        for alias in ("fedora-logo-icon.png", "org.fedoraproject.AnacondaInstaller.png", "anaconda.png"):
+            require(digest(apps / alias) == digest(canonical), f"foreign art returned in compatibility alias: {size}/{alias}")
+
+    legacy_pixmap = SHARE / "pixmaps" / "fedora_logo_med.png"
+    with Image.open(legacy_pixmap) as image:
+        image.load()
+        require(image.size == (279, 80) and image.mode == "RGBA", "bad legacy system-logo alias")
+        require(image.getchannel("A").getbbox() == (111, 9, 168, 68), "legacy system-logo alias is not the centered MoOS mark")
+    require(
+        digest(legacy_pixmap) == "3cd3e6ed5f79a4caedb9211b893d3b37f69f2793381755ec2ea8184479ec0e13",
+        "legacy system-logo alias is no longer the reviewed MoOS emblem",
+    )
+
+    session_source = (ROOT / "artwork" / "nova-session-icon.svg").read_bytes()
+    session_dir = SHARE / "sddm" / "themes" / "moos-nova" / "icons" / "sessions"
+    for path in session_dir.glob("*.svg"):
+        require(path.read_bytes() == session_source, f"foreign session logo returned: {path.name}")
+
+    liveinst = (SHARE / "applications" / "liveinst.desktop").read_text(encoding="utf-8")
+    require("Name=Install MoOS" in liveinst, "installer launcher name is not MoOS")
+    require("Icon=moos-logo" in liveinst, "installer launcher can expose an upstream icon")
+
+    # Any foreign-looking visual filename must be one of the intentional lookup
+    # aliases above, a neutralized SDDM session alias, or our non-logo Android
+    # app-grid symbol. This catches newly added stock art immediately.
+    markers = (
+        "fedora",
+        "kinoite",
+        "ubuntu",
+        "gnome",
+        "plasma",
+        "kde",
+        "breeze",
+        "xfce",
+        "cinnamon",
+        "hyprland",
+        "windows",
+        "apple",
+        "android",
+        "anaconda",
+    )
+    allowed_files = {
+        legacy_pixmap,
+        SHARE / "icons" / "hicolor" / "scalable" / "actions" / "moos-android-apps.svg",
+    }
+    for size in (48, 64, 128, 256):
+        apps = hicolor / f"{size}x{size}" / "apps"
+        allowed_files.update(
+            {
+                apps / "fedora-logo-icon.png",
+                apps / "org.fedoraproject.AnacondaInstaller.png",
+                apps / "anaconda.png",
+            }
+        )
+    visual_suffixes = {".png", ".jpg", ".jpeg", ".svg", ".svgz"}
+    for path in SHARE.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in visual_suffixes:
+            continue
+        if not any(marker in path.name.lower() for marker in markers):
+            continue
+        require(
+            path in allowed_files or path.parent == session_dir,
+            f"unreviewed foreign-named visual asset: {path.relative_to(ROOT)}",
+        )
+
+
 def verify_installer_and_grub() -> None:
     authored = SHARE / "anaconda" / "pixmaps"
     canonical = SHARE / "moos" / "branding" / "anaconda"
@@ -260,6 +339,7 @@ def main() -> None:
     verify_wallpapers()
     verify_icons()
     verify_symbolic_icons()
+    verify_no_foreign_visual_branding()
     verify_installer_and_grub()
     verify_sddm()
     verify_previews()
