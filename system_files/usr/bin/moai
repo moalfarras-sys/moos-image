@@ -8,13 +8,22 @@
 #     chain only as a just-in-case for other distros/future renames.
 # NOTE: the base qt6-qtdeclarative package does NOT contain the runtime;
 # the image must include qt6-qtdeclarative-devel for Mo AI to launch.
-set -euo pipefail
+set -uo pipefail
 
 MAIN_QML="/usr/share/moos/apps/moai/main.qml"
 
+# Log QML runtime output so a silent failure ("the app didn't open") is always
+# diagnosable at ~/.cache/moai.log instead of vanishing into the session.
+LOG="${XDG_CACHE_HOME:-$HOME/.cache}/moai.log"
+mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
+
 for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
     if command -v "$runner" >/dev/null 2>&1; then
-        exec "$runner" "$MAIN_QML" "$@"
+        {
+            echo "=== moai launch $(date -u '+%Y-%m-%dT%H:%M:%SZ') via $runner ==="
+        } >>"$LOG" 2>/dev/null || true
+        # tee stderr to the log while still showing it in the journal.
+        exec "$runner" "$MAIN_QML" "$@" 2> >(tee -a "$LOG" >&2)
     fi
 done
 

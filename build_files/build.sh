@@ -100,15 +100,34 @@ dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot \
 # module picks up the theme selected here.
 plymouth-set-default-theme moos-nova
 
-# Regenerate the initramfs with the live-boot dracut modules.
-# Hard-fail if the kernel count is not exactly 1 — with multiple kernel dirs a
-# blind "head -1" could regenerate the WRONG initramfs and ship a stock one
-# without the MoOS theme/live modules (auditor finding, 2026-07-09).
+# Regenerate the initramfs with BOTH the live-boot dracut modules AND the
+# ostree module.
+#
+# CRITICAL (root cause of the v19 "installed system drops to dracut emergency
+# mode" bug, found 2026-07-10 by decompressing the shipped initramfs): a naked
+# `dracut --force` inside the buildah/container build DROPS the `ostree` dracut
+# module, because that module's check() looks for a booted ostree deployment
+# (/run/ostree-booted etc.) which does not exist in a build container. The
+# result is an initramfs with erofs/overlay/dmsquash-live but NO
+# ostree-prepare-root — so the LIVE squashfs boot works (dmsquash-live), while
+# the INSTALLED disk boot cannot set up the ostree deployment root and lands in
+# emergency mode. We therefore force `ostree` in explicitly (and keep erofs +
+# overlay for composefs). The same single initramfs then boots BOTH paths.
+# Hard-fail if the kernel count is not exactly 1 — a blind "head -1" could ship
+# the wrong/stock initramfs.
 kver=$(ls /usr/lib/modules)
 [ "$(echo "$kver" | wc -l)" -eq 1 ] || { echo "ERROR: expected exactly 1 kernel in /usr/lib/modules, got: $kver"; exit 1; }
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
-    --add "dmsquash-live dmsquash-live-autooverlay" \
+    --add "ostree dmsquash-live dmsquash-live-autooverlay" \
+    --add-drivers "erofs overlay loop" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}"
+# Fail the build early if the ostree helper did NOT make it in — this is the
+# exact regression that shipped a non-booting installed system in v19.
+if ! lsinitrd "/usr/lib/modules/${kver}/initramfs.img" 2>/dev/null | grep -q "ostree-prepare-root"; then
+    echo "FATAL: initramfs is missing ostree-prepare-root — installed system would NOT boot. Aborting."
+    exit 1
+fi
+echo "OK: initramfs contains ostree-prepare-root (installed disk boot will work)"
 
 # Live session type = KDE Plasma; the services detect live boot and exit
 # cleanly on installed systems.
