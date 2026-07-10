@@ -117,17 +117,40 @@ plymouth-set-default-theme moos-nova
 # the wrong/stock initramfs.
 kver=$(ls /usr/lib/modules)
 [ "$(echo "$kver" | wc -l)" -eq 1 ] || { echo "ERROR: expected exactly 1 kernel in /usr/lib/modules, got: $kver"; exit 1; }
+
+# The 50ostree dracut module's check() includes itself ONLY if
+# /usr/lib/ostree/ostree-prepare-root is executable (-x). In a buildah build
+# container the exec bit can be missing, so check() returns "exclude" and a
+# plain `dracut --force` drops ostree support entirely (the v19 emergency-mode
+# bug). Make it executable so the module self-includes, THEN also force it via
+# both a config drop-in and --add so it cannot be dropped again.
+[ -e /usr/lib/ostree/ostree-prepare-root ] && chmod 0755 /usr/lib/ostree/ostree-prepare-root || true
+cat > /usr/lib/dracut/dracut.conf.d/99-moos-boot.conf <<'DRC'
+add_dracutmodules+=" ostree dmsquash-live dmsquash-live-autooverlay "
+add_drivers+=" erofs overlay loop "
+DRC
+
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
     --add "ostree dmsquash-live dmsquash-live-autooverlay" \
     --add-drivers "erofs overlay loop" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}"
-# Fail the build early if the ostree helper did NOT make it in — this is the
-# exact regression that shipped a non-booting installed system in v19.
-if ! lsinitrd "/usr/lib/modules/${kver}/initramfs.img" 2>/dev/null | grep -q "ostree-prepare-root"; then
+
+# Diagnostic + RELIABLE guard. Capture lsinitrd output FIRST (|| true) so
+# pipefail can't turn an lsinitrd warning into a false guard failure, then
+# grep the captured text. On failure dump what IS there so the log pinpoints
+# whether the module was dropped (many entries, no ostree) or lsinitrd itself
+# failed (zero entries).
+echo "=== initramfs boot-capability check ==="
+echo "  ostree-prepare-root on disk: $([ -x /usr/lib/ostree/ostree-prepare-root ] && echo executable || echo 'NOT -x')"
+_ilist="$(lsinitrd "/usr/lib/modules/${kver}/initramfs.img" 2>/dev/null || true)"
+echo "  initramfs entry count: $(printf '%s\n' "$_ilist" | grep -c .)"
+echo "  ostree entries in initramfs:"; printf '%s\n' "$_ilist" | grep -i ostree | sed 's/^/    /' | head || true
+if printf '%s\n' "$_ilist" | grep -q "ostree/ostree-prepare-root"; then
+    echo "OK: initramfs contains ostree-prepare-root — installed disk boot will work."
+else
     echo "FATAL: initramfs is missing ostree-prepare-root — installed system would NOT boot. Aborting."
     exit 1
 fi
-echo "OK: initramfs contains ostree-prepare-root (installed disk boot will work)"
 
 # Live session type = KDE Plasma; the services detect live boot and exit
 # cleanly on installed systems.
