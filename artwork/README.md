@@ -20,6 +20,18 @@ python artwork/verify_nova_visuals.py
 Or run one family with `--icons`, `--installer`, `--wallpapers`, `--grub`,
 `--sddm`, or `--previews`.
 
+The four optional sound-theme events use the separate synthesizer and
+PySoundFile 0.14.0 only at generation time:
+
+```powershell
+python -m pip install soundfile==0.14.0
+python artwork/generate_nova_sounds.py
+```
+
+Runtime outputs follow the freedesktop Sound Theme and Sound Naming
+specifications: Vorbis I in lowercase `.oga` files, 48 kHz stereo, under
+`/usr/share/sounds/moos-nova/stereo/`.
+
 All art in this generator is original MoOS artwork, © Moalfarras. Wallpaper
 package metadata licenses the wallpaper outputs under CC-BY-SA-4.0.
 

@@ -132,6 +132,24 @@ def verify_plasma_identity_svgs() -> None:
     )
 
 
+def verify_sounds() -> None:
+    root = SHARE / "sounds" / "moos-nova"
+    index = (root / "index.theme").read_text(encoding="utf-8")
+    require("[Sound Theme]" in index, "sound theme header is missing")
+    require("Directories=stereo" in index, "sound theme stereo directory is missing")
+    events = (
+        "desktop-login.oga",
+        "message-new-instant.oga",
+        "dialog-error.oga",
+        "complete-download.oga",
+    )
+    for name in events:
+        path = root / "stereo" / name
+        require(path.is_file(), f"missing sound: {name}")
+        require(path.read_bytes().startswith(b"OggS"), f"not an Ogg stream: {name}")
+        require(path.stat().st_size > 2_000, f"implausibly small sound: {name}")
+
+
 def verify_text_files() -> None:
     candidates = list((ROOT / "artwork").glob("*"))
     candidates += list((SHARE / "wallpapers").glob("Nova*/metadata.json"))
@@ -153,6 +171,7 @@ def main() -> None:
     verify_sddm()
     verify_previews()
     verify_plasma_identity_svgs()
+    verify_sounds()
     verify_text_files()
     print("PASS: Nova visual assets are complete and internally consistent")
 
