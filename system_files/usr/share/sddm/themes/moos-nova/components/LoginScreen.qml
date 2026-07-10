@@ -156,7 +156,7 @@ Item {
                     top: parent.top
                 }
                 width: parent.width
-                text: "SDDM could not find any user. Type your username below:"
+                text: "لم يُعثر على مستخدم؛ اكتب اسم المستخدم | No user was found; enter a username"
                 wrapMode: Text.Wrap
                 horizontalAlignment: {
                     if (Config.loginAreaPosition === "left") {

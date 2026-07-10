@@ -5,6 +5,10 @@ cosign.key
 *.iso
 output/
 
+# Local artwork tooling cache
+__pycache__/
+*.py[cod]
+
 # OS noise
 .DS_Store
 Thumbs.db

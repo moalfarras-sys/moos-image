@@ -1,0 +1,33 @@
+# MoOS Nova artwork sources
+
+`generate_nova_visuals.py` is the deterministic source for the original MoOS
+app icons, Anaconda artwork, additional wallpaper packages, and GRUB artwork.
+
+The generator consumes the canonical transparent emblem already shipped at
+`system_files/usr/share/moos/moos-logo.png`. Its palette values mirror
+`branding/PALETTE.md`, the project-wide source of truth. Runtime PNGs receive an
+embedded sRGB profile. App icons and installer assets are rendered at 4x and
+downsampled once with LANCZOS; wallpapers are composed directly on a native
+3840x2160 canvas and only downsampled for smaller aspect variants.
+
+Run all generators from the repository root:
+
+```powershell
+python artwork/generate_nova_visuals.py
+python artwork/verify_nova_visuals.py
+```
+
+Or run one family with `--icons`, `--installer`, `--wallpapers`, `--grub`,
+`--sddm`, or `--previews`.
+
+All art in this generator is original MoOS artwork, © Moalfarras. Wallpaper
+package metadata licenses the wallpaper outputs under CC-BY-SA-4.0.
+
+The installer assets are also mirrored under
+`system_files/usr/share/moos/branding/anaconda/`. That canonical location is
+not owned by Anaconda packages, so the build can restore the authored 200×160
+logo and companion backgrounds after `anaconda-live` writes its stock pixmaps.
+
+`nova-session-icon.svg` is the neutral MoOS session mark. The SDDM generator
+installs it under every compatibility filename that SilentSDDM can request, so
+an unexpected session name can never expose an upstream desktop logo.

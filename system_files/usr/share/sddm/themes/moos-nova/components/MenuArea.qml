@@ -36,7 +36,7 @@ Item {
                     popup.open();
                 }
             }
-            tooltipText: "Change session"
+            tooltipText: "تغيير الجلسة | Change session"
 
             Popup {
                 id: popup
@@ -130,7 +130,7 @@ Item {
                     popup.open();
                 }
             }
-            tooltipText: "Change keyboard layout"
+            tooltipText: "تغيير تخطيط لوحة المفاتيح | Change keyboard layout"
             // FIX: Array bounds checking for keyboard layouts
             label: showLabel ? (keyboard && keyboard.layouts && keyboard.currentLayout >= 0 && keyboard.currentLayout < keyboard.layouts.length ? keyboard.layouts[keyboard.currentLayout].shortName.toUpperCase() : "") : ""
 
@@ -235,7 +235,7 @@ Item {
             onClicked: {
                 loginScreen.showKeyboard = !loginScreen.showKeyboard;
             }
-            tooltipText: "Toggle virtual keyboard"
+            tooltipText: "لوحة المفاتيح الافتراضية | Virtual keyboard"
         }
     }
 
@@ -265,7 +265,7 @@ Item {
             onClicked: {
                 popup.open();
             }
-            tooltipText: "Power options"
+            tooltipText: "خيارات الطاقة | Power options"
 
             Popup {
                 id: popup

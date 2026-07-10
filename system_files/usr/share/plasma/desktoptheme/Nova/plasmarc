@@ -4,11 +4,10 @@
 # ThemePrivate::setThemeName() (plasma/libplasma src/plasma/private/theme_p.cpp)
 # reads configForTheme(<theme>) -> desktoptheme/<theme>/plasmarc, group
 # [Settings] key FallbackTheme, and follows the chain, then always appends the
-# built-in "default" theme (= Breeze). So Nova's SVG lookup order is:
-#   Nova (colors only)  ->  breeze-dark (colors only)  ->  default (Breeze SVGs)
-# Nova ships no SVGs on purpose; it only recolors the inherited Breeze frames via
-# ./colors. Declaring breeze-dark here just makes the "dark Breeze variant"
-# intent explicit — "default" would already supply the SVGs on its own.
+# built-in "default" theme (= Breeze). Nova now owns its identity-bearing
+# branding and start glyphs; the fallback chain supplies only elements that do
+# not yet have a Nova SVG. Lookup order remains:
+#   Nova SVGs/colors -> breeze-dark colors -> default geometry fallback
 [Settings]
 FallbackTheme=breeze-dark
 

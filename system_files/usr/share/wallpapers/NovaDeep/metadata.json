@@ -1,0 +1,14 @@
+{
+    "KPlugin": {
+        "Id": "NovaDeep",
+        "Name": "Nova Deep — عمق نوفا",
+        "Description": "مدارات هادئة وهوية MoOS عميقة للوضعين | Calm orbital depth with MoOS identity in both modes",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Version": "1.0.0",
+        "License": "CC-BY-SA-4.0"
+    }
+}

@@ -1,0 +1,14 @@
+{
+    "KPlugin": {
+        "Id": "NovaAurora",
+        "Name": "Nova Aurora — شفق نوفا",
+        "Description": "شفق زجاجي أصلي من MoOS للوضعين الفاتح والداكن | Original MoOS glass aurora in light and dark",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Version": "1.0.0",
+        "License": "CC-BY-SA-4.0"
+    }
+}

@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
- <path d="m345.79 465.98c0 22.103-11.052 44.206-88.413 44.206s-88.412-22.103-88.412-44.206c0-33.155 22.103-55.258 88.412-55.258 66.31 0 88.413 22.103 88.413 55.258z" fill="#fff"/>
- <path d="m168.97 1.814c44.206 0 221.03 132.62 221.03 243.13 0 74.591-34.96 107.23-65.555 121.51-23.177 10.819-29.598-3.608-16.707-25.815 8.661-14.922 15.953-32.98 15.953-51.487 0-33.155-11.051-55.258-33.155-77.361-22.103-22.103-50.494-33.155-66.309-33.155-22.103 0-33.155 64.966-33.155 99.464 0 27.489 8.205 52.243 16.452 70.18 7.777 16.917 1.266 28.537-16.176 22.121-19.056-7.008-41.906-20.84-55.534-48.095-22.103-44.206-11.051-107.82-11.051-165.77 0-88.413 0-154.72 44.206-154.72z" fill="#fff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="nova" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="0.52" stop-color="#2E7BFF"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect x="4.5" y="7" width="55" height="46" rx="13" fill="#0B1220" stroke="url(#nova)" stroke-width="3"/>
+  <path d="M15 42V21l12 14 10-14v21" fill="none" stroke="url(#nova)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M49 24c-3-5-11-4-11 2 0 6 12 4 12 11 0 7-10 9-14 3" fill="none" stroke="#7DEBFF" stroke-width="4" stroke-linecap="round"/>
+  <path d="M22 58h20" fill="none" stroke="#2E7BFF" stroke-width="3" stroke-linecap="round"/>
 </svg>
