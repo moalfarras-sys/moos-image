@@ -364,7 +364,7 @@ curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
 # launches the Hardware Center v0 viewer (/usr/share/moos/apps/hardware) via the
 # same qml-qt6 runner.
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
-    /usr/bin/moos-hardware /usr/bin/moai /usr/bin/moai-start \
+    /usr/bin/moos-hardware /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
     /usr/bin/moos-update /usr/bin/moos-rollback
 
 # -----------------------------------------------------------------------------

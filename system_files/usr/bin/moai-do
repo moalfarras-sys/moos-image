@@ -1,0 +1,295 @@
+#!/usr/bin/env bash
+# =============================================================================
+# moai-do — MoOS "Mo AI" safe action executor.
+# =============================================================================
+# Mo AI (the pure-QML assistant at /usr/share/moos/apps/moai/main.qml) cannot
+# execute commands itself, so it COPIES `moai-do <action>` commands for the user
+# to run in a terminal. THIS script is the safe, auditable executor behind those
+# suggestions: a small whitelist of actions, bilingual (AR|EN) prompts, explicit
+# confirmation before every state-changing step, and pkexec (a polkit GUI
+# prompt) for privileged calls — NEVER a passwordless sudo.
+#
+# External commands VERIFIED 2026-07-10:
+#   - bootc upgrade                  (bootc.dev man pages) stages update, applies on reboot
+#   - flatpak install -y REMOTE REF  (flatpak docs; -y/--assumeyes; flathub remote)
+#   - flatpak uninstall --unused -y  (flatpak-uninstall(1)) drop unused runtimes
+#   - fwupdmgr get-devices           (fwupd.github.io) READ-ONLY device list
+#   - podman image prune -f          (docs.podman.io; -f = no prompt)
+#   - journalctl --vacuum-time=7d    (systemd journalctl(1)) needs root -> pkexec
+#   - systemctl --user restart pipewire pipewire-pulse wireplumber
+#                                    (PipeWire user services) audio reset, no privilege
+# =============================================================================
+set -euo pipefail
+
+# lspci lives under /usr/sbin on Fedora — make sure it is reachable.
+export PATH="/usr/sbin:/sbin:${PATH}"
+
+# ---- colors (disabled when stdout is not a terminal) ------------------------
+if [ -t 1 ]; then
+    B=$'\033[1;34m'; C=$'\033[1;36m'; V=$'\033[1;35m'
+    G=$'\033[1;32m'; Y=$'\033[1;33m'; R=$'\033[1;31m'
+    D=$'\033[2m';    N=$'\033[0m'
+else
+    B=; C=; V=; G=; Y=; R=; D=; N=
+fi
+
+# hdr "AR title" "EN title" — bilingual section header.
+hdr() {
+    echo
+    echo "${C}▸ ${1}${N}"
+    echo "${C}  ${2}${N}"
+    echo
+}
+
+# confirm — read -rp prompt, default NO. Returns 0 only on an explicit yes.
+confirm() {
+    local ans=""
+    printf '%s' "${V}متابعة؟ | Continue? [y/N] ${N}"
+    read -r ans || return 1
+    case "${ans:-N}" in
+        [Yy]|[Yy][Ee][Ss]) return 0 ;;
+        *) echo "${D}أُلغي | Cancelled.${N}"; return 1 ;;
+    esac
+}
+
+# run_priv — privileged run via polkit (no sudo assumption).
+run_priv() {
+    if command -v pkexec >/dev/null 2>&1; then
+        pkexec "$@"
+    else
+        echo "${Y}pkexec غير متوفّر — لا يمكن طلب صلاحية المسؤول.${N}" >&2
+        echo "${Y}pkexec not available — cannot request admin privileges.${N}" >&2
+        return 127
+    fi
+}
+
+# need <cmd> — verify a command exists, else print a bilingual note.
+need() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo "${R}${1} غير موجود على هذا النظام | not found${N}" >&2
+        return 1
+    fi
+}
+
+# avail_bytes <path> — available bytes on the filesystem holding <path>.
+avail_bytes() {
+    df -B1 --output=avail "$1" 2>/dev/null | tail -n 1 | tr -d '[:space:]'
+}
+
+# human <bytes> — pretty size (IEC), falling back to a plain count.
+human() {
+    if command -v numfmt >/dev/null 2>&1; then
+        numfmt --to=iec --suffix=B "${1:-0}" 2>/dev/null || echo "${1:-0} B"
+    else
+        echo "${1:-0} B"
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# update — atomic system update via bootc (applies on reboot).
+# -----------------------------------------------------------------------------
+do_update() {
+    hdr "تحديث النظام (ذرّي عبر bootc)" "System update (atomic via bootc)"
+    echo "${D}يُنزّل ويُجهّز نسخة جديدة — تُطبَّق عند إعادة التشغيل. لا يمسّ ملفاتك.${N}"
+    echo "${D}Downloads & stages a new version — applies on reboot. Files untouched.${N}"
+    echo
+    need bootc || { echo "${Y}شغّل هذا داخل MoOS | run this on a MoOS system${N}"; return 1; }
+    confirm || return 0
+    echo "${C}قد يظهر طلب إذن المسؤول | an admin prompt may appear…${N}"
+    if run_priv bootc upgrade; then
+        echo "${G}✓ تم التجهيز — أعد التشغيل لإكمال التحديث.${N}"
+        echo "${G}  Staged — reboot to finish. ${D}(لا تغيير = محدّث بالفعل | no change = already up to date)${N}"
+    else
+        echo "${Y}لم يكتمل التحديث | update did not complete${N}"
+        return 1
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# install <flatpak-id> — install a Flatpak app from Flathub.
+# -----------------------------------------------------------------------------
+do_install() {
+    local id="${1:-}"
+    hdr "تثبيت تطبيق من Flathub" "Install an app from Flathub"
+    if [ -z "$id" ]; then
+        echo "${Y}حدّد معرّف التطبيق | provide an app id${N}"
+        echo "${D}مثال | e.g.:  moai-do install org.mozilla.firefox${N}"
+        return 2
+    fi
+    # Validate: letters, digits, dots, dashes, underscores only (reverse-DNS ids).
+    if ! printf '%s' "$id" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*$'; then
+        echo "${R}معرّف غير صالح | invalid app id:${N} ${id}"
+        echo "${D}يُسمح بالحروف والأرقام والنقاط والشرطات فقط | letters, digits, dots, dashes only${N}"
+        return 2
+    fi
+    need flatpak || return 1
+    echo "${C}التطبيق | App :${N} ${id}"
+    echo "${D}المصدر | From : flathub${N}"
+    confirm || return 0
+    if flatpak install -y flathub "$id"; then
+        echo "${G}✓ تم التثبيت | installed:${N} ${id}"
+    else
+        echo "${Y}لم يكتمل التثبيت (تحقّق من المعرّف على flathub.org).${N}"
+        echo "${Y}Install did not complete (check the id on flathub.org).${N}"
+        return 1
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# fix-audio — restart the user's PipeWire stack.
+# -----------------------------------------------------------------------------
+do_fix_audio() {
+    hdr "إصلاح الصوت (إعادة تشغيل PipeWire)" "Fix audio (restart PipeWire)"
+    echo "${D}يعيد تشغيل خدمات الصوت للمستخدم — سينقطع الصوت للحظة. بلا صلاحيات مسؤول.${N}"
+    echo "${D}Restarts your user audio services — sound blips briefly. No admin needed.${N}"
+    echo
+    need systemctl || return 1
+    confirm || return 0
+    if systemctl --user restart pipewire pipewire-pulse wireplumber; then
+        echo "${G}✓ أُعيد تشغيل الصوت | audio services restarted${N}"
+    else
+        echo "${Y}تعذّرت إعادة التشغيل — سجّل الخروج والدخول قد يساعد.${N}"
+        echo "${Y}Restart failed — logging out and back in may help.${N}"
+        return 1
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# check-drivers — READ-ONLY GPU + firmware report (no confirmation needed).
+# -----------------------------------------------------------------------------
+do_check_drivers() {
+    hdr "فحص التعريفات والعتاد (قراءة فقط)" "Check drivers & hardware (read-only)"
+
+    local gpu=""
+    if command -v lspci >/dev/null 2>&1; then
+        gpu="$(lspci | grep -Ei 'vga compatible controller|3d controller|display controller' || true)"
+    fi
+    echo "${B}كرت الشاشة | Graphics:${N}"
+    if [ -n "$gpu" ]; then
+        echo "$gpu" | sed 's/^/  /'
+    else
+        echo "  ${D}غير متاح (lspci) | unavailable${N}"
+    fi
+    echo
+
+    if printf '%s' "$gpu" | grep -qi nvidia; then
+        echo "${Y}⚠ كرت NVIDIA مكتشف — لأفضل تعريف انتقل إلى صورة MoOS الخاصة بـ NVIDIA:${N}"
+        echo "${Y}⚠ NVIDIA GPU detected — for the best driver, switch to the MoOS NVIDIA image:${N}"
+        echo "${C}  sudo bootc switch ghcr.io/moalfarras-sys/moos-nvidia:latest${N}"
+        echo "${D}  (يُطبَّق عند إعادة التشغيل | applies on reboot)${N}"
+        echo
+    fi
+
+    echo "${B}البرمجيات الثابتة | Firmware devices (fwupd):${N}"
+    if command -v fwupdmgr >/dev/null 2>&1; then
+        fwupdmgr get-devices || echo "  ${D}تعذّر الاستعلام | query failed${N}"
+    else
+        echo "  ${D}fwupdmgr غير مثبّت | not installed${N}"
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# optimize — clean unused Flatpak runtimes + container images + old logs.
+# -----------------------------------------------------------------------------
+do_optimize() {
+    hdr "تحسين وتنظيف" "Optimize & clean up"
+    echo "${D}يحذف أوقات تشغيل Flatpak غير المستخدمة، وصور الحاويات غير المستخدمة،${N}"
+    echo "${D}ويقلّص سجلّات النظام الأقدم من 7 أيام. لا يمسّ ملفاتك الشخصية.${N}"
+    echo "${D}Removes unused Flatpak runtimes and container images, and trims system${N}"
+    echo "${D}logs older than 7 days. Your personal files are untouched.${N}"
+    echo
+    confirm || return 0
+
+    local fs="/var"
+    [ -d /var ] || fs="/"
+    local before after freed
+    before="$(avail_bytes "$fs")"
+    before="${before:-0}"
+
+    echo "${C}› Flatpak: إزالة غير المستخدم | removing unused runtimes…${N}"
+    if command -v flatpak >/dev/null 2>&1; then
+        flatpak uninstall --unused -y || echo "  ${D}(لا شيء لإزالته | nothing to remove)${N}"
+    else
+        echo "  ${D}flatpak غير موجود | not present${N}"
+    fi
+
+    echo "${C}› Podman: تقليم الصور | pruning unused images…${N}"
+    if command -v podman >/dev/null 2>&1; then
+        podman image prune -f >/dev/null 2>&1 || true
+    else
+        echo "  ${D}podman غير موجود | not present${N}"
+    fi
+
+    echo "${C}› Journal: تقليص السجلّات (7 أيام) | vacuum logs (7d)…${N}"
+    run_priv journalctl --vacuum-time=7d || echo "  ${D}(تخطّي | skipped)${N}"
+
+    after="$(avail_bytes "$fs")"
+    after="${after:-0}"
+    freed=$(( after - before ))
+    if [ "$freed" -lt 0 ]; then
+        freed=0
+    fi
+    echo
+    echo "${G}✓ اكتمل | done — تحرّر تقريباً | freed ~$(human "$freed") على | on ${fs}${N}"
+}
+
+# -----------------------------------------------------------------------------
+# usage — bilingual help listing every subcommand.
+# -----------------------------------------------------------------------------
+usage() {
+    cat <<EOF
+${B}Mo AI · moai-do${N}  —  ${D}منفّذ أوامر MoOS الآمن | MoOS safe action runner${N}
+
+${V}الاستعمال | Usage:${N}  moai-do <command> [args]
+
+  ${C}update${N}            تحديث النظام (bootc، يُطبَّق عند إعادة التشغيل)
+                    Update the system (bootc, applies on reboot)
+  ${C}install <id>${N}      تثبيت تطبيق Flatpak من Flathub
+                    Install a Flatpak app from Flathub
+  ${C}fix-audio${N}         إعادة تشغيل خدمات الصوت (PipeWire)
+                    Restart audio services (PipeWire)
+  ${C}check-drivers${N}     عرض كرت الشاشة والبرمجيات الثابتة (قراءة فقط)
+                    Show GPU & firmware devices (read-only)
+  ${C}optimize${N}          تنظيف Flatpak/الحاويات/السجلّات وتحرير مساحة
+                    Clean Flatpak/containers/logs and free disk space
+  ${C}hw-report${N}         فتح مركز العتاد | open the Hardware Center
+  ${C}help${N}              عرض هذه المساعدة | show this help
+
+${D}كل إجراء مُغيِّر يطلب تأكيداً، والصلاحيات عبر pkexec (لا sudo بلا كلمة مرور).${N}
+${D}Every state-changing action asks to confirm; privileges go through pkexec.${N}
+EOF
+}
+
+# -----------------------------------------------------------------------------
+# dispatch
+# -----------------------------------------------------------------------------
+main() {
+    local cmd="${1:-help}"
+    if [ "$#" -gt 0 ]; then
+        shift
+    fi
+    case "$cmd" in
+        update)        do_update ;;
+        install)       do_install "${1:-}" ;;
+        fix-audio)     do_fix_audio ;;
+        check-drivers) do_check_drivers ;;
+        optimize)      do_optimize ;;
+        hw-report)
+            if command -v moos-hardware >/dev/null 2>&1; then
+                exec moos-hardware
+            else
+                echo "${R}moos-hardware غير موجود | not found${N}" >&2
+                return 1
+            fi
+            ;;
+        help|-h|--help) usage ;;
+        *)
+            echo "${R}أمر غير معروف | unknown command:${N} ${cmd}" >&2
+            echo >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+}
+
+main "$@"

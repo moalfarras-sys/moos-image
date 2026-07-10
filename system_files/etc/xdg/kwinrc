@@ -20,6 +20,14 @@ blurEnabled=true
 magiclampEnabled=true
 squashEnabled=false
 slideEnabled=true
+# Premium popup/menu transitions. Effect ids + EnabledByDefault=true VERIFIED
+# against kwin master: src/plugins/slidingpopups/metadata.json (id "slidingpopups")
+# and src/plugins/fadingpopups/package/metadata.json (id "fadingpopups"). Both
+# are stock, default-on effects — listed here to document intent and to keep
+# them on even if a future upstream default flips. Unsupported backends skip
+# them. Wobbly windows deliberately NOT enabled (too much for a premium feel).
+slidingpopupsEnabled=true
+fadingpopupsEnabled=true
 
 [Effect-blur]
 # Upstream defaults: BlurStrength=15, NoiseStrength=5 (see blur.kcfg).
@@ -32,3 +40,28 @@ NoiseStrength=2
 # rushed — "fast and smooth" per the design system. Users change this in
 # System Settings > General Behavior (their value wins over this default).
 AnimationDurationFactor=0.75
+
+# --- Window decoration: macOS-style traffic-light buttons on the LEFT ------
+# VERIFIED against kwin master (2026-07-10):
+#   src/decorations/decorationbridge.cpp — the config GROUP is still
+#   "org.kde.kdecoration2" in Plasma 6.7 (the plugin namespace moved to
+#   kdecoration3, but s_configKeyName = "org.kde.kdecoration2" is kept for
+#   backward compat); default plugin s_defaultPlugin = "org.kde.breeze".
+#   src/decorations/settings.cpp:140 — ButtonsOnLeft / ButtonsOnRight are read
+#   from that same "org.kde.kdecoration2" group.
+#   src/kcms/decoration/utils.cpp + settings.cpp — single-letter button codes:
+#     X=Close  I=Minimize  A=Maximize  M=Menu  N=ApplicationMenu
+#     S=OnAllDesktops  H=ContextHelp  F=KeepAbove  B=KeepBelow  _=Spacer
+# macOS puts close/min/max at the LEFT, nothing at the right → XIA / (empty).
+# An empty ButtonsOnRight= is read as "no buttons" (readEntry returns the empty
+# string when the key is present-but-empty, so the built-in HIAX default does
+# NOT apply). Users' ~/.config/kwinrc still overrides this system default.
+#
+# Rounded window corners: NO key needed — Plasma 6.5+ rounds Breeze windows by
+# default (top corners from the Breeze decoration, bottom corners drawn by KWin
+# automatically). Keeping library=org.kde.breeze preserves that premium look;
+# window shadows are on by default too.
+[org.kde.kdecoration2]
+library=org.kde.breeze
+ButtonsOnLeft=XIA
+ButtonsOnRight=
