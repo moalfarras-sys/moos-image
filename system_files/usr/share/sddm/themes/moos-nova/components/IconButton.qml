@@ -12,16 +12,16 @@ Item {
     readonly property bool isActive: active || focus || mouseArea.pressed || mouseArea.containsMouse
     property string icon: ""
     property int iconSize: 16
-    property color contentColor: "#FFFFFF"
-    property color activeContentColor: "#FFFFFF"
+    property color contentColor: Config.menuAreaPopupsContentColor
+    property color activeContentColor: Config.menuAreaPopupsActiveContentColor
     property string label: ""
     property bool showLabel: true
     property string fontFamily: "IBM Plex Sans"
     property int fontWeight: 400
     property int fontSize: 12
-    property color backgroundColor: "#FFFFFF"
+    property color backgroundColor: Config.menuAreaPopupsBackgroundColor
     property double backgroundOpacity: 0.0
-    property color activeBackgroundColor: "#FFFFFF"
+    property color activeBackgroundColor: Config.menuAreaPopupsActiveOptionBackgroundColor
     property double activeBackgroundOpacity: 0.15
     property string tooltipText: ""
     property int borderRadius: 10

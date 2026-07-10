@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -397,6 +398,17 @@ def verify_text_files() -> None:
         data = path.read_bytes()
         require(not data.startswith(b"\xef\xbb\xbf"), f"UTF-8 BOM: {path.relative_to(ROOT)}")
         require(b"\r\n" not in data, f"CRLF: {path.relative_to(ROOT)}")
+
+    tokenized_qml = list((SHARE / "sddm" / "themes" / "moos-nova").rglob("*.qml"))
+    tokenized_qml += list(
+        (SHARE / "plasma" / "look-and-feel" / "org.moos.nova" / "contents" / "splash").rglob("*.qml")
+    )
+    tokenized_qml += list(
+        (SHARE / "plasma" / "look-and-feel" / "org.moos.nova" / "contents" / "logout").rglob("*.qml")
+    )
+    direct_hex = re.compile(rb"#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?")
+    for path in tokenized_qml:
+        require(not direct_hex.search(path.read_bytes()), f"direct color literal in Nova QML: {path.relative_to(ROOT)}")
 
 
 def main() -> None:

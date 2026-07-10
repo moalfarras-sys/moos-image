@@ -7,6 +7,13 @@ import QtQuick
     https://github.com/sddm/sddm/wiki/Theming#new-explicitly-typed-api-since-sddm-020
 */
 QtObject {
+    // SDDM supplies every Nova color from moos-nova.conf. If a key is absent,
+    // fall back to Qt's active system palette instead of embedding a second,
+    // drifting color system in executable QML.
+    readonly property SystemPalette fallbackPalette: SystemPalette {
+        colorGroup: SystemPalette.Active
+    }
+
     // [General]
     property real generalScale: config.realValue("scale") || 1.0 // @desc:Overall scale of the UI. This option can cause the UI to break, so it is recommended to use the individual width/height/size options instead.
     property bool enableAnimations: config['enable-animations'] === "false" ? false : true // @desc:Enable or disable all animations.
@@ -21,7 +28,7 @@ QtObject {
     property int lockScreenPaddingLeft: config.intValue("LockScreen/padding-left") // @desc:Left padding of the lock screen. <br/>See also: <a href="#clockposition">Clock/position</a>, <a href="#lockmessageposition">Message/position</a>.
     property string lockScreenBackground: config.stringValue("LockScreen/background") || "default.jpg" // @possible:File in `backgrounds/` @desc:Background of the lock screen.<br/>Supported formats: jpg, png, avi, mp4, mov, mkv, m4v, webm. <strong>.gifs are not supported as they may cause SDDM to crash.</strong> <br/>See also: <a href="#animatedbackgroundplaceholder">animated-background-placeholder</a>
     property bool lockScreenUseBackgroundColor: config.boolValue('LockScreen/use-background-color') // @desc:Whether or not to use a plain color as background of the lock screen instead of an image/video file.
-    property color lockScreenBackgroundColor: config.stringValue("LockScreen/background-color") || "#000000" // @desc:The color to be used as background of the lock screen. <br/>See also: <a href="#lockscreenusebackgroundcolor">use-background-color<a>
+    property color lockScreenBackgroundColor: config.stringValue("LockScreen/background-color") || fallbackPalette.window // @desc:The color to be used as background of the lock screen. <br/>See also: <a href="#lockscreenusebackgroundcolor">use-background-color<a>
     property int lockScreenBlur: config.intValue("LockScreen/blur") // @desc:Amount of blur to be applied to the background of the lock screen. 0 means no blur.
     property real lockScreenBrightness: config.realValue("LockScreen/brightness") // @possible:-1.0 ≤ R ≤ 1.0 @desc:Brightness of the background of the lock screen. 0.0 leaves unchanged, -1.0 makes it black and 1.0 white.
     property real lockScreenSaturation: config.realValue("LockScreen/saturation") // @possible:-1.0 ≤ R ≤ 1.0 @desc:Saturation of the background of the lock screen. 0.0 leaves unchanged, -1.0 makes it grayscale and 1.0 very saturated.
@@ -34,7 +41,7 @@ QtObject {
     property string clockFontFamily: config.stringValue("LockScreen.Clock/font-family") || "IBM Plex Sans" // @desc:Font family used for the clock.
     property int clockFontSize: config.intValue("LockScreen.Clock/font-size") || 70 // @desc:Font size of the clock.
     property int clockFontWeight: config.intValue("LockScreen.Clock/font-weight") || 900 // @desc:Font weight of the clock. 400 = regular, 600 = bold, 800 = black
-    property color clockColor: config.stringValue("LockScreen.Clock/color") || "#FFFFFF" // @desc:Color of the clock.
+    property color clockColor: config.stringValue("LockScreen.Clock/color") || fallbackPalette.windowText // @desc:Color of the clock.
 
     // [LockScreen.Date]
     property bool dateDisplay: config['LockScreen.Date/display'] === "false" ? false : true // @desc:Whether or not to display the date in the lock screen.
@@ -43,7 +50,7 @@ QtObject {
     property string dateFontFamily: config.stringValue("LockScreen.Date/font-family") || "IBM Plex Sans Arabic" // @desc:Font family used for the date.
     property int dateFontSize: config.intValue("LockScreen.Date/font-size") || 14 // @desc:Font size of the date.
     property int dateFontWeight: config.intValue("LockScreen.Date/font-weight") || 400 // @desc:Font weight of the date. 400 = regular, 600 = bold, 800 = black
-    property color dateColor: config.stringValue("LockScreen.Date/color") || "#FFFFFF" // @desc:Color of the date.
+    property color dateColor: config.stringValue("LockScreen.Date/color") || fallbackPalette.windowText // @desc:Color of the date.
     property int dateMarginTop: config.intValue("LockScreen.Date/margin-top") // @desc:Top margin from the clock
 
     // [LockScreen.Message]
@@ -57,14 +64,14 @@ QtObject {
     property bool lockMessageDisplayIcon: config['LockScreen.Message/display-icon'] === "false" ? false : true // @desc:Show or hide the icon above the message.
     property string lockMessageIcon: config.stringValue("LockScreen.Message/icon") || "enter.svg" // @possible:File in `icons/` @desc:Icon above the custom message.
     property int lockMessageIconSize: config.intValue("LockScreen.Message/icon-size") || 16 // @desc:Size of the custom message's icon.
-    property color lockMessageColor: config.stringValue("LockScreen.Message/color") || "#FFFFFF" // @desc:Color of the custom message.
+    property color lockMessageColor: config.stringValue("LockScreen.Message/color") || fallbackPalette.windowText // @desc:Color of the custom message.
     property bool lockMessagePaintIcon: config['LockScreen.Message/paint-icon'] === "false" ? false : true // @desc:Whether or not to paint the icon with the same color as the text.
     property int lockMessageSpacing: config.intValue("LockScreen.Message/spacing") // @desc:Spacing between the icon and the text in the custom message.
 
     // [LoginScreen]
     property string loginScreenBackground: config.stringValue("LoginScreen/background") || "default.jpg" // @possible:File in `backgrounds/` @desc:Background of the login screen.<br/>Supported formats: jpg, png, avi, mp4, mov, mkv, m4v, webm. <strong>.gifs are not supported as they may cause SDDM to crash.</strong> <br/>See also: <a href="#animatedbackgroundplaceholder">animated-background-placeholder</a>
     property bool loginScreenUseBackgroundColor: config.boolValue('LoginScreen/use-background-color') // @desc:Whether or not to use a plain color as background of the login screen instead of an image/video file.
-    property color loginScreenBackgroundColor: config.stringValue("LoginScreen/background-color") || "#000000" // @desc:The color to be used as background of the login screen. <br/>See also: <a href="#loginscreenusebackgroundcolor">use-background-color<a>
+    property color loginScreenBackgroundColor: config.stringValue("LoginScreen/background-color") || fallbackPalette.window // @desc:The color to be used as background of the login screen. <br/>See also: <a href="#loginscreenusebackgroundcolor">use-background-color<a>
     property int loginScreenBlur: config.intValue("LoginScreen/blur") // @desc:Amount of blur to be applied to the background of the login screen. 0 means no blur.
     property real loginScreenBrightness: config.realValue("LoginScreen/brightness") // @possible:-1.0 ≤ R ≤ 1.0 @desc:Brightness of the background of the login screen. 0.0 leaves unchanged, -1.0 makes it black and 1.0 white.
     property real loginScreenSaturation: config.realValue("LoginScreen/saturation") // @possible:-1.0 ≤ R ≤ 1.0 @desc:Saturation of the background of the login screen. 0.0 leaves unchanged, -1.0 makes it grayscale and 1.0 very saturated.
@@ -81,15 +88,15 @@ QtObject {
     property real avatarInactiveOpacity: config.realValue("LoginScreen.LoginArea.Avatar/inactive-opacity") || 0.35 // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the non-selected avatars.
     property int avatarActiveBorderSize: config.intValue("LoginScreen.LoginArea.Avatar/active-border-size") // @desc:Border size of the selected user's avatar.
     property int avatarInactiveBorderSize: config.intValue("LoginScreen.LoginArea.Avatar/inactive-border-size") // @desc:Border size of the non-selected avatars.
-    property color avatarActiveBorderColor: config.stringValue("LoginScreen.LoginArea.Avatar/active-border-color") || "#FFFFFF" // @desc:Border color of the selected user's avatar.
-    property color avatarInactiveBorderColor: config.stringValue("LoginScreen.LoginArea.Avatar/inactive-border-color") || "#FFFFFF" // @desc:Border color of the non-selected avatars.
+    property color avatarActiveBorderColor: config.stringValue("LoginScreen.LoginArea.Avatar/active-border-color") || fallbackPalette.highlight // @desc:Border color of the selected user's avatar.
+    property color avatarInactiveBorderColor: config.stringValue("LoginScreen.LoginArea.Avatar/inactive-border-color") || fallbackPalette.mid // @desc:Border color of the non-selected avatars.
     property bool avatarAlwaysActive: config['LoginScreen.LoginArea.Avatar/always-active'] === "true" ? true : false // @desc:Whether or not to always show the user selector. @default:false
 
     // [LoginScreen.LoginArea.Username]
     property string usernameFontFamily: config.stringValue("LoginScreen.LoginArea.Username/font-family") || "IBM Plex Sans Arabic" // @desc:Font family used for the username.
     property int usernameFontSize: config.intValue("LoginScreen.LoginArea.Username/font-size") || 16 // @desc:Font size of the username.
     property int usernameFontWeight: config.intValue("LoginScreen.LoginArea.Username/font-weight") || 900 // @desc:Font weight of the username. 400 = regular, 600 = bold, 800 = black
-    property color usernameColor: config.stringValue("LoginScreen.LoginArea.Username/color") || "#FFFFFF" // @desc:Color of the username.
+    property color usernameColor: config.stringValue("LoginScreen.LoginArea.Username/color") || fallbackPalette.windowText // @desc:Color of the username.
     property int usernameMargin: config.intValue("LoginScreen.LoginArea.Username/margin") // @desc:Distance of the username from the avatar.
 
     // [LoginScreen.LoginArea.PasswordInput]
@@ -100,27 +107,27 @@ QtObject {
     property int passwordInputFontSize: config.intValue("LoginScreen.LoginArea.PasswordInput/font-size") || 12 // @desc:Font size of the password field.
     property string passwordInputIcon: config.stringValue("LoginScreen.LoginArea.PasswordInput/icon") || "password.svg" // @possible:File in `icons/` @desc:Icon in the password field.
     property int passwordInputIconSize: config.intValue("LoginScreen.LoginArea.PasswordInput/icon-size") || 16 // @desc:Size of the icon inside the password field.
-    property color passwordInputContentColor: config.stringValue("LoginScreen.LoginArea.PasswordInput/content-color") || "#FFFFFF" // @desc:Color of text/icon in the password field.
-    property color passwordInputBackgroundColor: config.stringValue("LoginScreen.LoginArea.PasswordInput/background-color") || "#FFFFFF" // @desc:Background color of the password field.
+    property color passwordInputContentColor: config.stringValue("LoginScreen.LoginArea.PasswordInput/content-color") || fallbackPalette.text // @desc:Color of text/icon in the password field.
+    property color passwordInputBackgroundColor: config.stringValue("LoginScreen.LoginArea.PasswordInput/background-color") || fallbackPalette.base // @desc:Background color of the password field.
     property real passwordInputBackgroundOpacity: config.realValue("LoginScreen.LoginArea.PasswordInput/background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the password field.
     property int passwordInputBorderSize: config.intValue("LoginScreen.LoginArea.PasswordInput/border-size") // @desc:Size of the border of the password field.
-    property color passwordInputBorderColor: config.stringValue("LoginScreen.LoginArea.PasswordInput/border-color") || "#FFFFFF" // @desc:Color of the border of the password field.
+    property color passwordInputBorderColor: config.stringValue("LoginScreen.LoginArea.PasswordInput/border-color") || fallbackPalette.mid // @desc:Color of the border of the password field.
     property int passwordInputBorderRadiusLeft: config.intValue("LoginScreen.LoginArea.PasswordInput/border-radius-left") // @desc:Left border radius of the password field.
     property int passwordInputBorderRadiusRight: config.intValue("LoginScreen.LoginArea.PasswordInput/border-radius-right") // @desc:Right border radius of the password field.
     property int passwordInputMarginTop: config.intValue("LoginScreen.LoginArea.PasswordInput/margin-top") // @desc:Distance of the password field/login button from the username.
     property string passwordInputMaskedCharacter: config.stringValue("LoginScreen.LoginArea.PasswordInput/masked-character") || "●" // @desc:Customized masked character of the password.
     
     // [LoginScreen.LoginArea.LoginButton]
-    property color loginButtonBackgroundColor: config.stringValue("LoginScreen.LoginArea.LoginButton/background-color") || "#FFFFFF" // @desc:Background color of the login button.
+    property color loginButtonBackgroundColor: config.stringValue("LoginScreen.LoginArea.LoginButton/background-color") || fallbackPalette.button // @desc:Background color of the login button.
     property real loginButtonBackgroundOpacity: config.realValue("LoginScreen.LoginArea.LoginButton/background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the login button.
-    property color loginButtonActiveBackgroundColor: config.stringValue("LoginScreen.LoginArea.LoginButton/active-background-color") || "#FFFFFF" // @desc:Background color of the login button when hovered/focused.
+    property color loginButtonActiveBackgroundColor: config.stringValue("LoginScreen.LoginArea.LoginButton/active-background-color") || fallbackPalette.highlight // @desc:Background color of the login button when hovered/focused.
     property real loginButtonActiveBackgroundOpacity: config.realValue("LoginScreen.LoginArea.LoginButton/active-background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the login button when hovered/focused.
     property string loginButtonIcon: config.stringValue("LoginScreen.LoginArea.LoginButton/icon") || "arrow-right.svg" // @possible:File in `icons/` @desc:Icon in the login button
     property int loginButtonIconSize: config.intValue("LoginScreen.LoginArea.LoginButton/icon-size") || 18 // @desc:Size of the icon in the login button.
-    property color loginButtonContentColor: config.stringValue("LoginScreen.LoginArea.LoginButton/content-color") || "#FFFFFF" // @desc:Color of the icon/text in the login button.
-    property color loginButtonActiveContentColor: config.stringValue("LoginScreen.LoginArea.LoginButton/active-content-color") || "#FFFFFF" // @desc:Color of the icon/text in the login button when hovered/focused.
+    property color loginButtonContentColor: config.stringValue("LoginScreen.LoginArea.LoginButton/content-color") || fallbackPalette.buttonText // @desc:Color of the icon/text in the login button.
+    property color loginButtonActiveContentColor: config.stringValue("LoginScreen.LoginArea.LoginButton/active-content-color") || fallbackPalette.highlightedText // @desc:Color of the icon/text in the login button when hovered/focused.
     property int loginButtonBorderSize: config.intValue("LoginScreen.LoginArea.LoginButton/border-size") // @desc:Border size of the login button.
-    property color loginButtonBorderColor: config.stringValue("LoginScreen.LoginArea.LoginButton/border-color") || "#FFFFFF" // @desc:Border color of the login button.
+    property color loginButtonBorderColor: config.stringValue("LoginScreen.LoginArea.LoginButton/border-color") || fallbackPalette.mid // @desc:Border color of the login button.
     property int loginButtonBorderRadiusLeft: config.intValue("LoginScreen.LoginArea.LoginButton/border-radius-left") // @desc:Left border radius of the login button.
     property int loginButtonBorderRadiusRight: config.intValue("LoginScreen.LoginArea.LoginButton/border-radius-right") // @desc:Right border radius of the login button.
     property int loginButtonMarginLeft: config.intValue("LoginScreen.LoginArea.LoginButton/margin-left") // @desc:Distance of the login button from the password field.
@@ -138,16 +145,16 @@ QtObject {
     property int spinnerFontSize: config.intValue("LoginScreen.LoginArea.Spinner/font-size") || 12 // @desc:Font size of the spinner's text.
     property int spinnerIconSize: config.intValue("LoginScreen.LoginArea.Spinner/icon-size") || 32 // @desc:Size of the spinning icon.
     property string spinnerIcon: config.stringValue("LoginScreen.LoginArea.Spinner/icon") || "spinner.svg" // @possible:File in `icons/` @desc:Spinning icon.
-    property color spinnerColor: config.stringValue("LoginScreen.LoginArea.Spinner/color") || "#FFFFFF" // @desc:Color of the spinning icon and its text.
+    property color spinnerColor: config.stringValue("LoginScreen.LoginArea.Spinner/color") || fallbackPalette.highlight // @desc:Color of the spinning icon and its text.
     property int spinnerSpacing: config.intValue("LoginScreen.LoginArea.Spinner/spacing") // @desc:Spacing between the spinning icon and its text.
 
     // [LoginScreen.LoginArea.WarningMessage]
     property string warningMessageFontFamily: config.stringValue("LoginScreen.LoginArea.WarningMessage/font-family") || "IBM Plex Sans Arabic" // @desc:Font family of the warning message.
     property int warningMessageFontSize: config.intValue("LoginScreen.LoginArea.WarningMessage/font-size") || 11 // @desc:Font size of the warning message.
     property int warningMessageFontWeight: config.intValue("LoginScreen.LoginArea.WarningMessage/font-weight") || 400 // @desc:Font weight of the warning message. 400 = regular, 600 = bold, 800 = black
-    property color warningMessageNormalColor: config.stringValue("LoginScreen.LoginArea.WarningMessage/normal-color") || "#FFFFFF" // @desc:Color of the warning message for normal messages.
-    property color warningMessageWarningColor: config.stringValue("LoginScreen.LoginArea.WarningMessage/warning-color") || "#FFFFFF" // @desc:Color of the warning message for warnings.
-    property color warningMessageErrorColor: config.stringValue("LoginScreen.LoginArea.WarningMessage/error-color") || "#FFFFFF" // @desc:Color of the warning message for error messages.
+    property color warningMessageNormalColor: config.stringValue("LoginScreen.LoginArea.WarningMessage/normal-color") || fallbackPalette.windowText // @desc:Color of the warning message for normal messages.
+    property color warningMessageWarningColor: config.stringValue("LoginScreen.LoginArea.WarningMessage/warning-color") || fallbackPalette.windowText // @desc:Color of the warning message for warnings.
+    property color warningMessageErrorColor: config.stringValue("LoginScreen.LoginArea.WarningMessage/error-color") || fallbackPalette.windowText // @desc:Color of the warning message for error messages.
     property int warningMessageMarginTop: config.intValue("LoginScreen.LoginArea.WarningMessage/margin-top") // @desc:Distance of the warning message from the password field/login button.
 
     // [LoginScreen.MenuArea.Buttons]
@@ -167,15 +174,15 @@ QtObject {
     property int menuAreaPopupsPadding: config.intValue("LoginScreen.MenuArea.Popups/padding") // @desc:Padding of the popups.
     property bool menuAreaPopupsDisplayScrollbar: config["LoginScreen.MenuArea.Popups/display-scrollbar"] === "false" ? false : true // @desc:Whether or not to display a scrollbar in the popups if its items don't fit.
     property int menuAreaPopupsMargin: config.intValue("LoginScreen.MenuArea.Popups/margin") // @desc:Distance of the popup from its button.
-    property color menuAreaPopupsBackgroundColor: config.stringValue("LoginScreen.MenuArea.Popups/background-color") || "#FFFFFF" // @desc:Background color of the popups.
+    property color menuAreaPopupsBackgroundColor: config.stringValue("LoginScreen.MenuArea.Popups/background-color") || fallbackPalette.window // @desc:Background color of the popups.
     property real menuAreaPopupsBackgroundOpacity: config.realValue("LoginScreen.MenuArea.Popups/background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the popups.
-    property color menuAreaPopupsActiveOptionBackgroundColor: config.stringValue("LoginScreen.MenuArea.Popups/active-option-background-color") || "#FFFFFF" // @desc:Background color of the hovered/focused item in the popup.
+    property color menuAreaPopupsActiveOptionBackgroundColor: config.stringValue("LoginScreen.MenuArea.Popups/active-option-background-color") || fallbackPalette.highlight // @desc:Background color of the hovered/focused item in the popup.
     property real menuAreaPopupsActiveOptionBackgroundOpacity: config.realValue("LoginScreen.MenuArea.Popups/active-option-background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the hovered/focused item in the popup.
-    property color menuAreaPopupsContentColor: config.stringValue("LoginScreen.MenuArea.Popups/content-color") || "#FFFFFF" // @desc:Color of the text of the non-selected items in the popup.
-    property color menuAreaPopupsActiveContentColor: config.stringValue("LoginScreen.MenuArea.Popups/active-content-color") || "#FFFFFF" // @desc:Color of the text of the hovered/focused item in the popup.
+    property color menuAreaPopupsContentColor: config.stringValue("LoginScreen.MenuArea.Popups/content-color") || fallbackPalette.windowText // @desc:Color of the text of the non-selected items in the popup.
+    property color menuAreaPopupsActiveContentColor: config.stringValue("LoginScreen.MenuArea.Popups/active-content-color") || fallbackPalette.highlightedText // @desc:Color of the text of the hovered/focused item in the popup.
     property string menuAreaPopupsFontFamily: config.stringValue("LoginScreen.MenuArea.Popups/font-family") || "IBM Plex Sans Arabic" // @desc:Font family of the popups.
     property int menuAreaPopupsBorderSize: config.intValue("LoginScreen.MenuArea.Popups/border-size") // @desc:Size of the border of the popups.
-    property color menuAreaPopupsBorderColor: config.stringValue("LoginScreen.MenuArea.Popups/border-color") || "#FFFFFF" // @desc:Color of the border of the popups.
+    property color menuAreaPopupsBorderColor: config.stringValue("LoginScreen.MenuArea.Popups/border-color") || fallbackPalette.mid // @desc:Color of the border of the popups.
     property int menuAreaPopupsFontSize: config.intValue("LoginScreen.MenuArea.Popups/font-size") || 11 // @desc:Font size of the popups.
     property int menuAreaPopupsIconSize: config.intValue("LoginScreen.MenuArea.Popups/icon-size") || 16 // @desc:Size of the icons in the popups.
 
@@ -188,11 +195,11 @@ QtObject {
     property bool sessionDisplaySessionName: config['LoginScreen.MenuArea.Session/display-session-name'] === "false" ? false : true // @desc:Whether or not to display the name of the current session in the session button.
     property int sessionButtonWidth: config.intValue("LoginScreen.MenuArea.Session/button-width") || 200 // @desc:Width of the session button. Set this to '-1' to make it the same as its contents. <br/>This option is not applied if 'display-session-name' is set to true.
     property int sessionPopupWidth: config.intValue("LoginScreen.MenuArea.Session/popup-width") || 200 // @desc:Width of the session popup.
-    property color sessionBackgroundColor: config.stringValue("LoginScreen.MenuArea.Session/background-color") || "#FFFFFF" // @desc:Background color of the session button.
+    property color sessionBackgroundColor: config.stringValue("LoginScreen.MenuArea.Session/background-color") || fallbackPalette.button // @desc:Background color of the session button.
     property real sessionBackgroundOpacity: config.realValue("LoginScreen.MenuArea.Session/background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the session button.
     property real sessionActiveBackgroundOpacity: config.realValue("LoginScreen.MenuArea.Session/active-background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the session button when hovered/focused.
-    property color sessionContentColor: config.stringValue("LoginScreen.MenuArea.Session/content-color") || "#FFFFFF" // @desc:Color of the icon and text in the session button.
-    property color sessionActiveContentColor: config.stringValue("LoginScreen.MenuArea.Session/active-content-color") || "#FFFFFF" // @desc:Color of the icon and text in the session button when hovered/focused.
+    property color sessionContentColor: config.stringValue("LoginScreen.MenuArea.Session/content-color") || fallbackPalette.buttonText // @desc:Color of the icon and text in the session button.
+    property color sessionActiveContentColor: config.stringValue("LoginScreen.MenuArea.Session/active-content-color") || fallbackPalette.highlightedText // @desc:Color of the icon and text in the session button when hovered/focused.
     property int sessionBorderSize: config.intValue("LoginScreen.MenuArea.Session/border-size") // @desc:Size of the border of the session button. The color of the border is defined by 'content-color' and 'active-content-color'.
     property int sessionFontSize: config.intValue("LoginScreen.MenuArea.Session/font-size") || 10 // @desc:Font size of the session button.
     property int sessionIconSize: config.intValue("LoginScreen.MenuArea.Session/icon-size") || 16 // @desc:Size of the icon in the session button.
@@ -205,11 +212,11 @@ QtObject {
     property string layoutPopupAlign: config.stringValue("LoginScreen.MenuArea.Layout/popup-align") || "center" // @possible:'start' | 'center' | 'end' @desc:Alignment of the session popup.
     property int layoutPopupWidth: config.intValue("LoginScreen.MenuArea.Layout/popup-width") || 180 // @desc:Width of the layout popup.
     property bool layoutDisplayLayoutName: config['LoginScreen.MenuArea.Layout/display-layout-name'] === "false" ? false : true // @desc:Whether or not to display the country code of the current layout in the layout button.
-    property color layoutBackgroundColor: config.stringValue("LoginScreen.MenuArea.Layout/background-color") || "#FFFFFF" // @desc:Background color of the layout button.
+    property color layoutBackgroundColor: config.stringValue("LoginScreen.MenuArea.Layout/background-color") || fallbackPalette.button // @desc:Background color of the layout button.
     property real layoutBackgroundOpacity: config.realValue("LoginScreen.MenuArea.Layout/background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the layout button.
     property real layoutActiveBackgroundOpacity: config.realValue("LoginScreen.MenuArea.Layout/active-background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the layout button when hovered/focused.
-    property color layoutContentColor: config.stringValue("LoginScreen.MenuArea.Layout/content-color") || "#FFFFFF" // @desc:Color of the icon and text in the layout button.
-    property color layoutActiveContentColor: config.stringValue("LoginScreen.MenuArea.Layout/active-content-color") || "#FFFFFF" // @desc:Color of the icon and text in the layout button when hovered/focused.
+    property color layoutContentColor: config.stringValue("LoginScreen.MenuArea.Layout/content-color") || fallbackPalette.buttonText // @desc:Color of the icon and text in the layout button.
+    property color layoutActiveContentColor: config.stringValue("LoginScreen.MenuArea.Layout/active-content-color") || fallbackPalette.highlightedText // @desc:Color of the icon and text in the layout button when hovered/focused.
     property int layoutBorderSize: config.intValue("LoginScreen.MenuArea.Layout/border-size") // @desc:Size of the border of the layouts button. The color of the border is defined by 'content-color' and 'active-content-color'.
     property int layoutFontSize: config.intValue("LoginScreen.MenuArea.Layout/font-size") || 10 // @desc:Font size of the layout button.
     property string layoutIcon: config.stringValue("LoginScreen.MenuArea.Layout/icon") || "language.svg" // @possible:File in `icons/` @desc:Icon in the layout button.
@@ -219,11 +226,11 @@ QtObject {
     property bool keyboardDisplay: config["LoginScreen.MenuArea.Keyboard/display"] === "false" ? false : true // @desc:Whether or not to display the virtual keyboard toggle button.
     property string keyboardPosition: config.stringValue("LoginScreen.MenuArea.Keyboard/position") // @possible:'top-left' | 'top-center' | 'top-right' | 'center-left' | 'center-right' | 'bottom-left' | 'bottom-center' | 'bottom-right' @default:bottom-right @desc:Position of the virtual keyboard toggle button.
     property int keyboardIndex: config.intValue("LoginScreen.MenuArea.Keyboard/index") // @default:2 @desc:This number is used to sort menu buttons placed in the same position.
-    property color keyboardBackgroundColor: config.stringValue("LoginScreen.MenuArea.Keyboard/background-color") || "#FFFFFF" // @desc:Background color of the virtual keyboard toggle button.
+    property color keyboardBackgroundColor: config.stringValue("LoginScreen.MenuArea.Keyboard/background-color") || fallbackPalette.button // @desc:Background color of the virtual keyboard toggle button.
     property real keyboardBackgroundOpacity: config.realValue("LoginScreen.MenuArea.Keyboard/background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the virtual keyboard toggle button
     property real keyboardActiveBackgroundOpacity: config.realValue("LoginScreen.MenuArea.Keyboard/active-background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the virtual keyboard toggle button when hovered/focused.
-    property color keyboardContentColor: config.stringValue("LoginScreen.MenuArea.Keyboard/content-color") || "#FFFFFF" // @desc:Color of the icon in the virtual keyboard toggle button.
-    property color keyboardActiveContentColor: config.stringValue("LoginScreen.MenuArea.Keyboard/active-content-color") || "#FFFFFF" // @desc:Color of the icon in the virtual keyboard toggle button when hovered/focused.
+    property color keyboardContentColor: config.stringValue("LoginScreen.MenuArea.Keyboard/content-color") || fallbackPalette.buttonText // @desc:Color of the icon in the virtual keyboard toggle button.
+    property color keyboardActiveContentColor: config.stringValue("LoginScreen.MenuArea.Keyboard/active-content-color") || fallbackPalette.highlightedText // @desc:Color of the icon in the virtual keyboard toggle button when hovered/focused.
     property int keyboardBorderSize: config.intValue("LoginScreen.MenuArea.Keyboard/border-size") // @desc:Border size of the virtual keyboard toggle button. The color of the border is defined by 'content-color' and 'active-content-color'.
     property string keyboardIcon: config.stringValue("LoginScreen.MenuArea.Keyboard/icon") || "keyboard.svg" // @possible:File in `icons/` @desc:Icon in the virtual keyboard toggle button.
     property int keyboardIconSize: config.intValue("LoginScreen.MenuArea.Keyboard/icon-size") || 16 // @desc:Size of the icon in the virtual keyboard toggle button.
@@ -235,11 +242,11 @@ QtObject {
     property string powerPopupDirection: config.stringValue("LoginScreen.MenuArea.Power/popup-direction") || "up" // @possible:'up' | 'down' | 'left' | 'right' @desc:Which direction to open the power popup to.
     property string powerPopupAlign: config.stringValue("LoginScreen.MenuArea.Power/popup-align") || "center" // @possible:'start' | 'center' | 'end' @Alignment of the power popup.
     property int powerPopupWidth: config.intValue("LoginScreen.MenuArea.Power/popup-width") || 90 // @desc:Width of the power popup.
-    property color powerBackgroundColor: config.stringValue("LoginScreen.MenuArea.Power/background-color") || "#FFFFFF" // @desc:Background color of the power button.
+    property color powerBackgroundColor: config.stringValue("LoginScreen.MenuArea.Power/background-color") || fallbackPalette.button // @desc:Background color of the power button.
     property real powerBackgroundOpacity: config.realValue("LoginScreen.MenuArea.Power/background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the power button.
     property real powerActiveBackgroundOpacity: config.realValue("LoginScreen.MenuArea.Power/active-background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the power button when hovered/focused.
-    property color powerContentColor: config.stringValue("LoginScreen.MenuArea.Power/content-color") || "#FFFFFF" // @desc:Color of the icon in the power button.
-    property color powerActiveContentColor: config.stringValue("LoginScreen.MenuArea.Power/active-content-color") || "#FFFFFF" // @desc:Color of the icon in the power button when hovered/focused.
+    property color powerContentColor: config.stringValue("LoginScreen.MenuArea.Power/content-color") || fallbackPalette.buttonText // @desc:Color of the icon in the power button.
+    property color powerActiveContentColor: config.stringValue("LoginScreen.MenuArea.Power/active-content-color") || fallbackPalette.highlightedText // @desc:Color of the icon in the power button when hovered/focused.
     property int powerBorderSize: config.intValue("LoginScreen.MenuArea.Power/border-size") // @desc:Border size of the power button. The color of the border is defined by 'content-color' and 'active-content-color'.
     property string powerIcon: config.stringValue("LoginScreen.MenuArea.Power/icon") || "power.svg" // @possible:File in `icons/` @desc:Icon in the power button.
     property int powerIconSize: config.intValue("LoginScreen.MenuArea.Power/icon-size") || 16 // @desc:Size of the icon in the power button.
@@ -248,26 +255,26 @@ QtObject {
     property real virtualKeyboardScale: config.realValue("LoginScreen.VirtualKeyboard/scale") || 1.0 // @desc:Scale of the virtual keyboard.
     property string virtualKeyboardPosition: config.stringValue("LoginScreen.VirtualKeyboard/position") || "login" // @possible: 'login' | 'top' | 'bottom' | 'left' | 'right' @desc:Initial position of the virtual keyboard. You can drag the keyboard using the middle mouse button.
     property bool virtualKeyboardStartHidden: config['LoginScreen.VirtualKeyboard/start-hidden'] === "false" ? false : true // @desc:Whether or not the virtual keyboard should start hidden.
-    property color virtualKeyboardBackgroundColor: config.stringValue("LoginScreen.VirtualKeyboard/background-color") || "#FFFFFF" // @desc:Color of the background of the virtual keyboard.
+    property color virtualKeyboardBackgroundColor: config.stringValue("LoginScreen.VirtualKeyboard/background-color") || fallbackPalette.window // @desc:Color of the background of the virtual keyboard.
     property real virtualKeyboardBackgroundOpacity: config.realValue("LoginScreen.VirtualKeyboard/background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the virtual keyboard.
-    property color virtualKeyboardKeyContentColor: config.stringValue("LoginScreen.VirtualKeyboard/key-content-color") || "#FFFFFF" // @desc:Color of the keys' text/icon in the virtual keyboard.
-    property color virtualKeyboardKeyColor: config.stringValue("LoginScreen.VirtualKeyboard/key-color") || "#FFFFFF" // @desc:Color of the background of the keys in the virtual keyboard.
+    property color virtualKeyboardKeyContentColor: config.stringValue("LoginScreen.VirtualKeyboard/key-content-color") || fallbackPalette.buttonText // @desc:Color of the keys' text/icon in the virtual keyboard.
+    property color virtualKeyboardKeyColor: config.stringValue("LoginScreen.VirtualKeyboard/key-color") || fallbackPalette.button // @desc:Color of the background of the keys in the virtual keyboard.
     property real virtualKeyboardKeyOpacity: config.realValue("LoginScreen.VirtualKeyboard/key-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the keys in the virtual keybaord.
-    property color virtualKeyboardKeyActiveBackgroundColor: config.stringValue("LoginScreen.VirtualKeyboard/key-active-background-color") || "#FFFFFF" // @desc:Color of the background of the special keys in the virtual keyboard.
+    property color virtualKeyboardKeyActiveBackgroundColor: config.stringValue("LoginScreen.VirtualKeyboard/key-active-background-color") || fallbackPalette.highlight // @desc:Color of the background of the special keys in the virtual keyboard.
     property real virtualKeyboardKeyActiveOpacity: config.realValue("LoginScreen.VirtualKeyboard/key-active-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the special keys in the virtual keyboard.
-    property color virtualKeyboardSelectionBackgroundColor: config.stringValue("LoginScreen.VirtualKeyboard/selection-background-color") || "#CCCCCC" // @desc:Color of the background of the selected character in the virtual keyboard.
-    property color virtualKeyboardSelectionContentColor: config.stringValue("LoginScreen.VirtualKeyboard/selection-content-color") || "#FFFFFF" // @desc:Color of the text of the selected character in the virtual keyboard.
-    property color virtualKeyboardPrimaryColor: config.stringValue("LoginScreen.VirtualKeyboard/primary-color") || "#000000" // @desc:Color of the icon/text in special keys when they're active.
+    property color virtualKeyboardSelectionBackgroundColor: config.stringValue("LoginScreen.VirtualKeyboard/selection-background-color") || fallbackPalette.highlight // @desc:Color of the background of the selected character in the virtual keyboard.
+    property color virtualKeyboardSelectionContentColor: config.stringValue("LoginScreen.VirtualKeyboard/selection-content-color") || fallbackPalette.highlightedText // @desc:Color of the text of the selected character in the virtual keyboard.
+    property color virtualKeyboardPrimaryColor: config.stringValue("LoginScreen.VirtualKeyboard/primary-color") || fallbackPalette.text // @desc:Color of the icon/text in special keys when they're active.
     property int virtualKeyboardBorderSize: config.intValue("LoginScreen.VirtualKeyboard/border-size") // @desc:Border size of the virtual keyboard and its keys.
-    property color virtualKeyboardBorderColor: config.stringValue("LoginScreen.VirtualKeyboard/border-color") || "#000000" // @desc:Color of the border of the virtual keyboard and its keys.
+    property color virtualKeyboardBorderColor: config.stringValue("LoginScreen.VirtualKeyboard/border-color") || fallbackPalette.mid // @desc:Color of the border of the virtual keyboard and its keys.
     property string virtualKeyboardRestrictInput: config.stringValue("LoginScreen.VirtualKeyboard/restrict-input") || "none" // @possible: 'none' | 'digits' @desc: Default layout of the virtual keyboard.<br/><br/>**Warning!** Make sure not to set this option to `digits` if you got a user whose password contains letters/symbols.
 
     // [Tooltips]
     property bool tooltipsEnable: config['Tooltips/enable'] === "false" ? false : true // @desc:Whether or not to show tooltips when hovering over buttons.
     property string tooltipsFontFamily: config.stringValue("Tooltips/font-family") || "IBM Plex Sans Arabic" // @desc:Font family of the tooltips.
     property int tooltipsFontSize: config.intValue("Tooltips/font-size") || 11 // @desc:Font size of the tooltips.
-    property color tooltipsContentColor: config.stringValue("Tooltips/content-color") || "#FFFFFF" // @desc:Color of the text in tooltips.
-    property color tooltipsBackgroundColor: config.stringValue("Tooltips/background-color") || "#FFFFFF" // @desc:Color of the background of the tooltips.
+    property color tooltipsContentColor: config.stringValue("Tooltips/content-color") || fallbackPalette.windowText // @desc:Color of the text in tooltips.
+    property color tooltipsBackgroundColor: config.stringValue("Tooltips/background-color") || fallbackPalette.window // @desc:Color of the background of the tooltips.
     property real tooltipsBackgroundOpacity: config.realValue("Tooltips/background-opacity") // @possible:0.0 ≤ R ≤ 1.0 @desc:Opacity of the background of the tooltips.
     property int tooltipsBorderRadius: config.intValue("Tooltips/border-radius") || 5 // @desc:Border radius of the tooltips.
     property bool tooltipsDisableUser: config.boolValue("Tooltips/disable-user") // @desc:If false, disables only the tooltip for the user selector.

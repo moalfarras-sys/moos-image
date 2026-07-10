@@ -22,10 +22,20 @@
 */
 
 import QtQuick
+import org.kde.kirigami as Kirigami
 
 Rectangle {
     id: root
-    color: "#050A14"
+    Kirigami.Theme.inherit: false
+    Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
+
+    readonly property color deepest: Kirigami.Theme.backgroundColor
+    readonly property color navy: Kirigami.Theme.alternateBackgroundColor
+    readonly property color electric: Kirigami.Theme.highlightColor
+    readonly property color cyan: Kirigami.Theme.hoverColor
+    readonly property color secondaryText: Kirigami.Theme.disabledTextColor
+
+    color: deepest
 
     property int stage
 
@@ -42,8 +52,8 @@ Rectangle {
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#050A14" }
-            GradientStop { position: 1.0; color: "#08152A" }
+            GradientStop { position: 0.0; color: root.deepest }
+            GradientStop { position: 1.0; color: root.navy }
         }
     }
 
@@ -75,11 +85,11 @@ Rectangle {
                 NumberAnimation { from: 1.0; to: 0.75; duration: 1700; easing.type: Easing.InOutSine }
             }
 
-            Rectangle { anchors.centerIn: parent; width: 360; height: 360; radius: 180; color: "#2E7BFF"; opacity: 0.030 }
-            Rectangle { anchors.centerIn: parent; width: 290; height: 290; radius: 145; color: "#2E7BFF"; opacity: 0.035 }
-            Rectangle { anchors.centerIn: parent; width: 220; height: 220; radius: 110; color: "#2E7BFF"; opacity: 0.040 }
-            Rectangle { anchors.centerIn: parent; width: 160; height: 160; radius: 80;  color: "#22D3EE"; opacity: 0.045 }
-            Rectangle { anchors.centerIn: parent; width: 100; height: 100; radius: 50;  color: "#22D3EE"; opacity: 0.055 }
+            Rectangle { anchors.centerIn: parent; width: 360; height: 360; radius: 180; color: root.electric; opacity: 0.030 }
+            Rectangle { anchors.centerIn: parent; width: 290; height: 290; radius: 145; color: root.electric; opacity: 0.035 }
+            Rectangle { anchors.centerIn: parent; width: 220; height: 220; radius: 110; color: root.electric; opacity: 0.040 }
+            Rectangle { anchors.centerIn: parent; width: 160; height: 160; radius: 80;  color: root.cyan; opacity: 0.045 }
+            Rectangle { anchors.centerIn: parent; width: 100; height: 100; radius: 50;  color: root.cyan; opacity: 0.055 }
         }
 
         Image {
@@ -112,7 +122,9 @@ Rectangle {
             width: 240
             height: 3
             radius: height / 2
-            color: "#16223C"
+            Kirigami.Theme.inherit: false
+            Kirigami.Theme.colorSet: Kirigami.Theme.Button
+            color: Kirigami.Theme.backgroundColor
             clip: true
 
             Rectangle {
@@ -124,9 +136,9 @@ Rectangle {
 
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: "#0022D3EE" }   // transparent cyan
-                    GradientStop { position: 0.5; color: "#22D3EE" }     // neon cyan core
-                    GradientStop { position: 1.0; color: "#002E7BFF" }   // transparent blue
+                    GradientStop { position: 0.0; color: Qt.rgba(root.cyan.r, root.cyan.g, root.cyan.b, 0) }
+                    GradientStop { position: 0.5; color: root.cyan }
+                    GradientStop { position: 1.0; color: Qt.rgba(root.electric.r, root.electric.g, root.electric.b, 0) }
                 }
 
                 NumberAnimation on x {
@@ -146,7 +158,7 @@ Rectangle {
             anchors.bottomMargin: 32
 
             text: "MoOS"
-            color: "#9FB0C9"
+            color: root.secondaryText
             font.family: "IBM Plex Sans"
             font.pixelSize: 14
             font.letterSpacing: 2
