@@ -284,6 +284,49 @@ installed alongside at /usr/share/icons/Bibata-Modern-Ice.
 EOF
 
 # -----------------------------------------------------------------------------
+# (c7) Core Power packages
+# -----------------------------------------------------------------------------
+# The MoOS "Core Power" layer: containers, gaming, local AI and terminal QoL.
+# ALL names verified on https://packages.fedoraproject.org against Fedora 44
+# stable (2026-07-10):
+# - waydroid      (1.6.3-1.fc44)      Android container layer. NOTE: no waydroid
+#                                     service is enabled here by default — Android
+#                                     support is OPT-IN via the Compatibility Hub
+#                                     (see MOOS_COMPATIBILITY_PLAN.md).
+# - ramalama      (0.21.0-1.fc44)     local AI model runner for Mo AI (binary
+#                                     package really is "ramalama", not
+#                                     python3-ramalama).
+# - gamemode      (1.8.2-4.fc44)      Feral GameMode daemon/lib — games request
+#                                     temporary host optimizations.
+# - mangohud      (0.8.3~rc1-2.fc44)  Vulkan/OpenGL overlay (FPS, temps, load).
+# - steam-devices (1.0.0.101^git20260625.22ec85e-1.fc44) udev rules/permissions
+#                                     for gamepads, joysticks and VR headsets.
+# - distrobox     (1.8.2.5-1.fc44)    containerized CLI environments; may already
+#                                     be in kinoite-main — reinstall is idempotent.
+# - btop          (1.4.7-1.fc44)      modern system monitor, nice default.
+# - fastfetch     (2.65.2-1.fc44)     system info — shows the MoOS os-release
+#                                     branding (section (a)) in the terminal.
+dnf5 -y install \
+    waydroid \
+    ramalama \
+    gamemode \
+    mangohud \
+    steam-devices \
+    distrobox \
+    btop \
+    fastfetch
+
+# System-wide Flathub remote so Discover/Bazaar work out of the box on first
+# boot. Path convention from the kinoite bootc reference implementation
+# (https://github.com/ondrejbudai/bootc-isos, kinoite/src/build.sh):
+#   /etc/flatpak/remotes.d/flathub.flatpakrepo
+# Fail-loud on purpose (-f fails on HTTP errors; no || true): an image without
+# Flathub is broken for app installs and must fail CI, not ship silently.
+mkdir -p /etc/flatpak/remotes.d
+curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
+    https://dl.flathub.org/repo/flathub.flatpakrepo
+
+# -----------------------------------------------------------------------------
 # (d) Enable services
 # -----------------------------------------------------------------------------
 # uupd runs from a systemd timer; enabling it here bakes the symlink into the

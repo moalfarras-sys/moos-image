@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# moos-setup — MoOS first-run power setup (user-consent, never automatic)
+# Installs the curated Flathub app set. Run from Konsole: moos-setup
+# Docs: MOOS_APP_CENTER_PLAN.md / MOOS_COMPATIBILITY_PLAN.md
+set -euo pipefail
+
+B='\033[1;34m'; G='\033[1;32m'; N='\033[0m'
+echo -e "${B}"
+echo "  __  __        ___  ____  "
+echo " |  \\/  | ___  / _ \\/ ___| "
+echo " | |\\/| |/ _ \\| | | \\___ \\ "
+echo " | |  | | (_) | |_| |___) |"
+echo " |_|  |_|\\___/ \\___/|____/ "
+echo -e "${N}"
+echo "MoOS Setup — إعداد تطبيقات القوة | Power apps setup"
+echo
+
+if ! flatpak remotes | grep -q flathub; then
+    echo "Adding Flathub remote..."
+    sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+fi
+
+declare -A APPS=(
+    ["com.valvesoftware.Steam"]="Steam — منصة الألعاب (تشغيل ألعاب Windows عبر Proton)"
+    ["com.usebottles.bottles"]="Bottles — تشغيل برامج Windows"
+    ["net.lutris.Lutris"]="Lutris — مدير الألعاب الشامل"
+    ["org.mozilla.firefox"]="Firefox — المتصفح"
+    ["org.videolan.VLC"]="VLC — مشغل الوسائط"
+    ["org.libreoffice.LibreOffice"]="LibreOffice — حزمة المكتب"
+    ["io.github.kolunmi.Bazaar"]="Bazaar — متجر تطبيقات MoOS"
+    ["com.github.tchx84.Flatseal"]="Flatseal — إدارة أذونات التطبيقات"
+)
+
+echo "التطبيقات المقترحة | Suggested apps:"
+i=1
+for app in "${!APPS[@]}"; do
+    echo "  [$i] ${APPS[$app]}"
+    ((i++))
+done
+echo
+read -rp "تثبيت الكل؟ Install all? [Y/n] " answer
+answer=${answer:-Y}
+
+if [[ "$answer" =~ ^[Yy] ]]; then
+    for app in "${!APPS[@]}"; do
+        echo -e "${B}Installing ${app}...${N}"
+        flatpak install -y --noninteractive flathub "$app" || echo "skipped: $app"
+    done
+    echo -e "${G}✓ اكتمل الإعداد — أهلاً بك في MoOS | Setup complete — welcome to MoOS${N}"
+else
+    echo "يمكنك التثبيت لاحقاً من Discover أو بإعادة تشغيل moos-setup"
+fi

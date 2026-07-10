@@ -12,9 +12,23 @@
 
 [Plugins]
 blurEnabled=true
+# Nova motion set (MOOS_DESIGN_SYSTEM.md §6: expressive but light):
+# - magiclamp: signature minimize animation (GPU-cheap deformation, the
+#   "premium" touch); replaces the default squash effect.
+# - slide: smooth desktop switching.
+# All are stock KWin effects — unsupported backends simply skip them.
+magiclampEnabled=true
+squashEnabled=false
+slideEnabled=true
 
 [Effect-blur]
 # Upstream defaults: BlurStrength=15, NoiseStrength=5 (see blur.kcfg).
 # Nova uses a gentler blur with just a hint of noise banding suppression.
 BlurStrength=8
 NoiseStrength=2
+
+[Compositing]
+# Nova motion timing: slightly snappier than stock (1.0) without feeling
+# rushed — "fast and smooth" per the design system. Users change this in
+# System Settings > General Behavior (their value wins over this default).
+AnimationDurationFactor=0.75
