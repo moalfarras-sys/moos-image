@@ -154,34 +154,36 @@ cat >> /usr/share/anaconda/interactive-defaults.ks <<KSEOF
 ostreecontainer --url=${MOOS_IMAGEREF}:${MOOS_IMAGETAG} --transport=registry --no-signature-verification
 KSEOF
 
-# Re-brand the installer AFTER anaconda-live is installed: the dnf install above
-# ships org.fedoraproject.AnacondaInstaller.desktop (Name="Install to Hard
-# Drive") and its own icons, which OVERWRITE the MoOS overrides that
-# system_files copied earlier (COPY happens before this RUN). So re-apply the
-# MoOS identity here — this is what makes the launcher say "Install MoOS" with
-# the MoOS logo instead of the Fedora mark.
-_anaconda_desktop=/usr/share/applications/org.fedoraproject.AnacondaInstaller.desktop
-if [ -f "$_anaconda_desktop" ]; then
+# Re-brand the installer AFTER anaconda-live is installed. GROUND TRUTH (verified
+# 2026-07-10 by extracting the v16 ISO squashfs, LiveOS/squashfs.img): the
+# launcher the user actually sees is /usr/share/applications/liveinst.desktop
+# (shipped by livesys-scripts) — this image does NOT ship
+# org.fedoraproject.AnacondaInstaller.desktop at all, so every earlier rebrand of
+# that name was a no-op. At live boot, livesys-kde copies liveinst.desktop
+# VERBATIM onto the Desktop and into the favourites menu (it only flips
+# NoDisplay), so rebranding THIS source file is what turns the "Install to Hard
+# Drive" icon into "Install MoOS" with the MoOS logo. liveinst.desktop's stock
+# Icon=org.fedoraproject.AnacondaInstaller resolves to the Fedora "f" in the
+# active Nova->Colloid->Papirus theme; we repoint it to Icon=moos-logo — a name
+# that exists ONLY as the MoOS mark (hicolor 48/64/128/256 + /usr/share/pixmaps)
+# and that no upstream theme overrides, so it ALWAYS resolves to MoOS. We also
+# strip every localized Name/GenericName/Comment so no locale (e.g. ar) still
+# reads "التثبيت على القرص الصلب".
+_liveinst=/usr/share/applications/liveinst.desktop
+if [ -f "$_liveinst" ]; then
     sed -i \
         -e 's|^Name=.*|Name=Install MoOS|' \
         -e '/^Name\[/d' \
         -e 's|^GenericName=.*|GenericName=Install MoOS to disk|' \
         -e '/^GenericName\[/d' \
+        -e 's|^Comment=.*|Comment=Install MoOS to your disk|' \
+        -e '/^Comment\[/d' \
         -e 's|^Icon=.*|Icon=moos-logo|' \
-        "$_anaconda_desktop"
-    # Add an Arabic name line right after the Name line.
-    sed -i '/^Name=Install MoOS$/a Name[ar]=تثبيت MoOS' "$_anaconda_desktop"
+        "$_liveinst"
+    # Arabic display name right after the (now single) Name line.
+    sed -i '/^Name=Install MoOS$/a Name[ar]=تثبيت MoOS' "$_liveinst"
 fi
-# Overwrite anaconda's installer icons with the MoOS logo (all sizes it ships).
-for _sz in 16 22 24 32 48 64 128 256; do
-    _dir="/usr/share/icons/hicolor/${_sz}x${_sz}/apps"
-    _src="/usr/share/moos/moos-logo.png"
-    [ -d "$_dir" ] && [ -f "$_src" ] && \
-        cp -f "$_src" "$_dir/org.fedoraproject.AnacondaInstaller.png" || true
-done
-# Remove anaconda's scalable SVG so the raster MoOS PNG is used instead.
-rm -f /usr/share/icons/hicolor/scalable/apps/org.fedoraproject.AnacondaInstaller.svg
-unset -v _anaconda_desktop _sz _dir _src
+unset -v _liveinst
 
 # -----------------------------------------------------------------------------
 # (c3) SDDM login theme — moos-nova (based on SilentSDDM)
@@ -539,19 +541,34 @@ if [ -f "$_moos_src" ]; then
 fi
 unset -v _moos_src _names _appdir _sized _name _px _themedir
 
-# Disable KDE's plasma-welcome autostart: its "install" page draws a computer
-# mock-up with the FEDORA logo on screen (not our AnacondaInstaller icon, and
-# not driven by os-release LOGO), so it is the one surface still leaking a
-# Fedora mark. MoOS ships its own premium Welcome (moos-welcome) + first-run
-# dialog + the "Install MoOS" desktop launcher, so plasma-welcome is redundant.
-# Mask its autostart everywhere it may live (guarded; harmless if absent).
-for _wl in /etc/xdg/autostart/plasma-welcome.desktop \
-           /usr/share/applications/org.kde.plasma.welcome.desktop; do
-    if [ -f "$_wl" ]; then
-        printf '\nHidden=true\nX-KDE-autostart-condition=\nNoDisplay=true\n' >> "$_wl"
-    fi
-done
-unset -v _wl
+# Kill KDE's plasma-welcome for the live session — it is the WINDOW that draws a
+# monitor mock-up with the Fedora distro logo (the second Fedora leak besides the
+# desktop launcher). GROUND TRUTH (v16 squashfs, verified 2026-07-10): the app is
+# org.kde.plasma-welcome (DASH, not the dotted name earlier code targeted, which
+# never existed here), binary /usr/bin/plasma-welcome. It AUTO-SHOWS because
+# livesys-kde writes ~/.config/plasma-welcomerc "[General] LiveEnvironment=true"
+# at boot — but ONLY when /etc/xdg/autostart/org.kde.plasma-welcome.desktop is
+# ABSENT. If that file is PRESENT, livesys-kde instead deletes it and writes NO
+# welcomerc. So we (1) PLANT that autostart file (Hidden) to force livesys-kde's
+# no-welcome branch, and (2) REMOVE the binary as a hard guarantee that nothing
+# can launch it regardless. MoOS ships its own premium Welcome (org.moos.welcome)
+# + first-run dialog + the rebranded "Install MoOS" launcher, so plasma-welcome
+# is fully redundant.
+rm -f /usr/bin/plasma-welcome
+mkdir -p /etc/xdg/autostart
+cat > /etc/xdg/autostart/org.kde.plasma-welcome.desktop <<'PWEOF'
+[Desktop Entry]
+Type=Application
+Name=Plasma Welcome (disabled by MoOS)
+Exec=/bin/true
+Hidden=true
+NoDisplay=true
+X-KDE-autostart-condition=
+PWEOF
+# Also mask the app entry so it never appears in menus/search.
+_pw=/usr/share/applications/org.kde.plasma-welcome.desktop
+[ -f "$_pw" ] && printf '\nHidden=true\nNoDisplay=true\n' >> "$_pw" || true
+unset -v _pw
 
 # -----------------------------------------------------------------------------
 # (e) Cleanup — required for `bootc container lint` to pass
