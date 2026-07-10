@@ -1,0 +1,28 @@
+# MoOS Nova — Plasma Style per-theme config.
+#
+# [Settings] FallbackTheme is the VERIFIED inheritance mechanism: Plasma's
+# ThemePrivate::setThemeName() (plasma/libplasma src/plasma/private/theme_p.cpp)
+# reads configForTheme(<theme>) -> desktoptheme/<theme>/plasmarc, group
+# [Settings] key FallbackTheme, and follows the chain, then always appends the
+# built-in "default" theme (= Breeze). So Nova's SVG lookup order is:
+#   Nova (colors only)  ->  breeze-dark (colors only)  ->  default (Breeze SVGs)
+# Nova ships no SVGs on purpose; it only recolors the inherited Breeze frames via
+# ./colors. Declaring breeze-dark here just makes the "dark Breeze variant"
+# intent explicit — "default" would already supply the SVGs on its own.
+[Settings]
+FallbackTheme=breeze-dark
+
+# Default wallpaper hint for this Plasma Style (matches the MoOS Nova Horizon
+# wallpaper shipped under /usr/share/wallpapers/NovaHorizon). This is only a
+# hint; the operative wallpaper is set by the org.moos.nova Look-and-Feel.
+[Wallpaper]
+defaultWallpaperTheme=NovaHorizon
+defaultFileSuffix=.png
+defaultWidth=1920
+defaultHeight=1080
+
+# Panels/dialogs go opaque when a window is maximised behind them (upstream
+# Breeze default). Floating popups (notifications, OSD) keep the translucent
+# blurred glass look from the inherited Breeze translucent dialog SVG + KWin blur.
+[AdaptiveTransparency]
+enabled=true

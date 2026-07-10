@@ -9,8 +9,12 @@
 [kdeglobals][General]
 ColorScheme=NovaDark
 
+# Plasma Style (desktoptheme) = Nova — restyles notifications, the volume/
+# brightness OSD, and dialogs to MoOS navy glass. The Nova desktoptheme ships
+# at /usr/share/plasma/desktoptheme/Nova (colors-only; falls back to breeze-dark
+# SVGs). LookAndFeelManager writes this into ~/.config/plasmarc [Theme] name.
 [plasmarc][Theme]
-name=default
+name=Nova
 
 [Wallpaper]
 Image=NovaHorizon

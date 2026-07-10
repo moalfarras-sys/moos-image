@@ -1,0 +1,17 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Category": "",
+        "Description": "MoOS Nova — dark navy glass Plasma Style. Recolors dialog, notification and volume/brightness OSD backgrounds to Nova navy.",
+        "Id": "Nova",
+        "License": "GPL-3.0-or-later",
+        "Name": "MoOS Nova",
+        "Version": "0.1.0",
+        "Website": "https://github.com/moalfarras-sys/moos-image"
+    },
+    "X-Plasma-API": "5.0"
+}

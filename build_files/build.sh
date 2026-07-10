@@ -469,6 +469,62 @@ osrel_set ANSI_COLOR  '"0;38;2;46;123;255"'
 grep -E '^(NAME|PRETTY_NAME|ID|ID_LIKE|VERSION_ID|VARIANT|VARIANT_ID|LOGO|ANSI_COLOR)=' /usr/lib/os-release
 
 # -----------------------------------------------------------------------------
+# (z2) Belt-and-suspenders logo scrub — MUST run after ALL dnf installs
+# -----------------------------------------------------------------------------
+# system_files (COPY, before this RUN) already ships MoOS versions of the
+# obvious Fedora logo files, but two gaps survive into the final image and are
+# USER-VISIBLE, so they are closed here — LAST, after every dnf install so no
+# package can drop a Fedora mark back in afterwards:
+#
+#   1. fedora-logos ships /usr/share/icons/hicolor/<size>/apps/fedora-logo-icon.png
+#      at MORE sizes than system_files overrides (system_files only replaces
+#      48/64/128/256). The 16/22/24/32 rasters therefore remain the genuine
+#      Fedora glyph, and any surface that hardcodes the icon NAME
+#      "fedora-logo-icon" (rather than reading os-release LOGO=moos-logo) picks
+#      them up. It also ships a scalable fedora-logo-icon.svg that icon-theme
+#      lookup can prefer over the raster at large sizes.
+#   2. anaconda-live (installed in section (c2b), i.e. AFTER the COPY) re-ships
+#      its own Fedora /usr/share/anaconda/pixmaps/sidebar-logo.png, overwriting
+#      the MoOS one from system_files (GTK installer path; the Kinoite WebUI
+#      path is branded separately via cockpit + moos.css, unaffected).
+#
+# Strategy: force the MoOS logo over every Fedora/anaconda app-icon NAME at
+# EVERY hicolor size present (using that size's own moos-logo.png when it
+# exists, so 48/64/128/256 stay crisp; the 1024px master covers the rest),
+# drop the scalable Fedora/anaconda SVGs so the raster MoOS PNG always wins,
+# and re-assert the Fedora-named pixmaps that system_files does NOT already
+# ship a MoOS version of. fedora_logo_med.png and system-logo-white.png are
+# deliberately LEFT ALONE: system_files ships correctly-proportioned MoOS
+# versions of them (verified 2026-07-10) and nothing above reinstalls
+# fedora-logos, so overwriting them with the square master would only degrade
+# a known-good asset. Guards keep this fail-safe: it never breaks the build if
+# a path is absent. gtk-update-icon-cache exists (installed in section (c5)).
+_moos_src=/usr/share/moos/moos-logo.png
+if [ -f "$_moos_src" ]; then
+    for _appdir in /usr/share/icons/hicolor/*/apps; do
+        [ -d "$_appdir" ] || continue
+        _sized="$_appdir/moos-logo.png"
+        [ -f "$_sized" ] || _sized="$_moos_src"
+        for _name in fedora-logo-icon org.fedoraproject.AnacondaInstaller anaconda; do
+            [ -f "$_appdir/$_name.png" ] && cp -f "$_sized" "$_appdir/$_name.png" || true
+        done
+    done
+    # Scalable Fedora/anaconda marks -> remove so the raster MoOS PNG is used.
+    rm -f /usr/share/icons/hicolor/scalable/apps/fedora-logo-icon.svg \
+          /usr/share/icons/hicolor/scalable/apps/org.fedoraproject.AnacondaInstaller.svg
+    # Legacy pixmap logo names read by hardcoded path in some about-dialogs.
+    # Only the ones system_files does NOT already ship as MoOS are re-asserted.
+    for _px in fedora-logo.png fedora-logo-small.png fedora-gdm-logo.png; do
+        [ -f "/usr/share/pixmaps/$_px" ] && cp -f "$_moos_src" "/usr/share/pixmaps/$_px" || true
+    done
+    # anaconda-live's GTK sidebar logo (Fedora) — scrub to MoOS.
+    [ -f /usr/share/anaconda/pixmaps/sidebar-logo.png ] && \
+        cp -f "$_moos_src" /usr/share/anaconda/pixmaps/sidebar-logo.png || true
+    gtk-update-icon-cache -f /usr/share/icons/hicolor || true
+fi
+unset -v _moos_src _appdir _sized _name _px
+
+# -----------------------------------------------------------------------------
 # (e) Cleanup — required for `bootc container lint` to pass
 # -----------------------------------------------------------------------------
 # bootc images must not ship content in /var (it is machine-local state).
