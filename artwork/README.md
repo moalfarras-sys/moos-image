@@ -9,6 +9,9 @@ The generator consumes the canonical transparent emblem already shipped at
 embedded sRGB profile. App icons and installer assets are rendered at 4x and
 downsampled once with LANCZOS; wallpapers are composed directly on a native
 3840x2160 canvas and only downsampled for smaller aspect variants.
+The generated sRGB profile uses a fixed ICC header date, so repeated exports are
+byte-for-byte rather than changing solely because LittleCMS wrote the wall-clock
+second into otherwise identical PNG metadata.
 
 Run all generators from the repository root:
 

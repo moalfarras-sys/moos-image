@@ -13,6 +13,7 @@ import argparse
 import math
 import random
 import shutil
+import struct
 from pathlib import Path
 
 import numpy as np
@@ -45,7 +46,22 @@ P = {
 }
 
 RESAMPLE = Image.Resampling.LANCZOS
-SRGB = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+
+
+def stable_srgb_profile() -> bytes:
+    """Return Pillow's standard sRGB profile with a fixed ICC creation date.
+
+    LittleCMS writes the current second into bytes 24..35 of an otherwise
+    identical profile. Normalizing only that ICC header field keeps every PNG
+    standards-compliant while making repeated generator runs byte-for-byte.
+    """
+
+    profile = bytearray(ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes())
+    profile[24:36] = struct.pack(">6H", 2026, 1, 1, 0, 0, 0)
+    return bytes(profile)
+
+
+SRGB = stable_srgb_profile()
 
 
 def rgb(value: str) -> tuple[int, int, int]:
@@ -350,18 +366,32 @@ def draw_hardware(image: Image.Image) -> None:
 
 
 def draw_compat(image: Image.Image) -> None:
-    cyan = Image.new("L", image.size, 0)
-    violet = Image.new("L", image.size, 0)
-    dc, dv = ImageDraw.Draw(cyan), ImageDraw.Draw(violet)
-    dc.arc((250, 270, 760, 690), 204, 348, fill=255, width=76)
-    dc.polygon([(745, 304), (814, 386), (702, 402)], fill=255)
-    dv.arc((264, 342, 774, 762), 24, 168, fill=255, width=76)
-    dv.polygon([(279, 730), (210, 648), (322, 632)], fill=255)
-    image.alpha_composite(symbol_layer(cyan, [(0.0, P["ice"]), (1.0, P["blue"])], P["cyan"]))
-    image.alpha_composite(symbol_layer(violet, [(0.0, P["blue"]), (1.0, P["violet"])], P["violet"]))
+    # Cross-platform compatibility: a desktop "tiles" panel (left) bridged by a
+    # two-way arrow to a rounded "app" panel (right, mobile) carrying a run
+    # glyph. Reads as interop/"run Windows & Android apps", and its silhouette
+    # is deliberately UNLIKE the updater's circular loop so the two never blur.
+    left = Image.new("L", image.size, 0)
+    right = Image.new("L", image.size, 0)
+    dl, dr = ImageDraw.Draw(left), ImageDraw.Draw(right)
+    # Left: 2x2 grid of rounded tiles (desktop surface).
+    cell, gap, lx, ly = 92, 26, 262, 416
+    for gx in (0, 1):
+        for gy in (0, 1):
+            x0 = lx + gx * (cell + gap)
+            y0 = ly + gy * (cell + gap)
+            dl.rounded_rectangle((x0, y0, x0 + cell, y0 + cell), radius=22, fill=255)
+    # Right: a single rounded app tile (mobile surface).
+    dr.rounded_rectangle((598, 430, 774, 606), radius=48, fill=255)
+    image.alpha_composite(symbol_layer(left, [(0.0, P["ice"]), (0.5, P["cyan"]), (1.0, P["blue"])], P["cyan"]))
+    image.alpha_composite(symbol_layer(right, [(0.0, P["blue"]), (1.0, P["violet"])], P["violet"]))
     d = ImageDraw.Draw(image)
-    d.rounded_rectangle((410, 432, 614, 596), radius=54, outline=rgba(P["text"], 235), width=20)
-    d.line((452, 514, 572, 514), fill=rgba(P["text"], 235), width=18)
+    # Two-way bridge arrow between the panels = bidirectional compatibility.
+    y = 518
+    d.line((500, y, 574, y), fill=rgba(P["text"], 245), width=22)
+    d.polygon([(486, y), (520, y - 30), (520, y + 30)], fill=rgba(P["text"], 245))
+    d.polygon([(588, y), (554, y - 30), (554, y + 30)], fill=rgba(P["text"], 245))
+    # A small run/play glyph inside the app tile hints "launch apps here".
+    d.polygon([(662, 486), (662, 550), (716, 518)], fill=rgba(P["white"], 235))
 
 
 def draw_updater(image: Image.Image) -> None:

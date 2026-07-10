@@ -63,13 +63,30 @@ def verify_wallpapers() -> None:
 def verify_icons() -> None:
     names = ("moos-hardware", "moos-compat", "moos-updater", "moos-recovery", "moos-welcome")
     sizes = (16, 22, 24, 32, 48, 64, 128, 256)
+    icon_profiles: set[str] = set()
+    icon_profile_dates: set[bytes] = set()
     for name in names:
         seen: set[str] = set()
         for size in sizes:
             path = SHARE / "icons" / "hicolor" / f"{size}x{size}" / "apps" / f"{name}.png"
             inspect_image(path, (size, size), ("RGBA",), alpha=True)
             seen.add(digest(path))
+            with Image.open(path) as image:
+                profile = image.info["icc_profile"]
+                icon_profiles.add(hashlib.sha256(profile).hexdigest())
+                icon_profile_dates.add(profile[24:36])
         require(len(seen) == len(sizes), f"duplicate size exports: {name}")
+    require(len(icon_profiles) == 1, "Nova app icons do not share one canonical sRGB profile")
+    require(
+        icon_profile_dates == {bytes.fromhex("07ea00010001000000000000")},
+        "Nova app icon ICC profile date is not deterministic",
+    )
+    for size in sizes:
+        apps = SHARE / "icons" / "hicolor" / f"{size}x{size}" / "apps"
+        require(
+            digest(apps / "moos-compat.png") != digest(apps / "moos-updater.png"),
+            f"Compatibility and Updater icons collapsed at {size}px",
+        )
     for size in (16, 22, 24, 32):
         inspect_image(
             SHARE / "icons" / "hicolor" / f"{size}x{size}" / "apps" / "moos-moai.png",
