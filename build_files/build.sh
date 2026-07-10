@@ -130,27 +130,30 @@ add_dracutmodules+=" ostree dmsquash-live dmsquash-live-autooverlay "
 add_drivers+=" erofs overlay loop "
 DRC
 
+# Capture dracut's OWN verbose log — the reliable source of truth. (The v20
+# attempt proved `lsinitrd` is unusable inside the nested buildah container: it
+# terminated the build step even though dracut had already logged
+# "*** Including module: ostree ***". So we gate on dracut's log, not lsinitrd.)
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
     --add "ostree dmsquash-live dmsquash-live-autooverlay" \
     --add-drivers "erofs overlay loop" \
-    "/usr/lib/modules/${kver}/initramfs.img" "${kver}"
+    "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tee /tmp/moos-dracut.log
 
-# Diagnostic + RELIABLE guard. Capture lsinitrd output FIRST (|| true) so
-# pipefail can't turn an lsinitrd warning into a false guard failure, then
-# grep the captured text. On failure dump what IS there so the log pinpoints
-# whether the module was dropped (many entries, no ostree) or lsinitrd itself
-# failed (zero entries).
+# RELIABLE guard: dracut logs "Including module: ostree" iff the ostree module
+# (which installs /usr/lib/ostree/ostree-prepare-root into the initramfs) was
+# added. No ostree module => installed disk boot lands in emergency mode (the
+# v19 bug). This guard can never be silently regressed again.
 echo "=== initramfs boot-capability check ==="
 echo "  ostree-prepare-root on disk: $([ -x /usr/lib/ostree/ostree-prepare-root ] && echo executable || echo 'NOT -x')"
-_ilist="$(lsinitrd "/usr/lib/modules/${kver}/initramfs.img" 2>/dev/null || true)"
-echo "  initramfs entry count: $(printf '%s\n' "$_ilist" | grep -c .)"
-echo "  ostree entries in initramfs:"; printf '%s\n' "$_ilist" | grep -i ostree | sed 's/^/    /' | head || true
-if printf '%s\n' "$_ilist" | grep -q "ostree/ostree-prepare-root"; then
-    echo "OK: initramfs contains ostree-prepare-root — installed disk boot will work."
+if grep -q "Including module: ostree" /tmp/moos-dracut.log; then
+    echo "OK: dracut included the ostree module -> ostree-prepare-root is in the initramfs (installed disk boot will work)."
+    echo "  dracut -v ostree-prepare-root mentions: $(grep -c 'ostree-prepare-root' /tmp/moos-dracut.log)"
 else
-    echo "FATAL: initramfs is missing ostree-prepare-root — installed system would NOT boot. Aborting."
+    echo "FATAL: dracut did NOT include the ostree module — installed system would NOT boot. Aborting."
+    grep -iE "ostree|omitting module" /tmp/moos-dracut.log | tail -20
     exit 1
 fi
+rm -f /tmp/moos-dracut.log
 
 # Live session type = KDE Plasma; the services detect live boot and exit
 # cleanly on installed systems.
