@@ -123,6 +123,33 @@ fi
 ls /boot/efi/EFI >/dev/null   # hard-fail here if the EFI dir could not be provisioned
 
 # -----------------------------------------------------------------------------
+# (c2b) Installer — Anaconda live (so the user can INSTALL MoOS to disk)
+# -----------------------------------------------------------------------------
+# Titanoboa builds a LIVE ISO but does NOT bundle an installer — the image must
+# provide one. This mirrors the ESSENTIAL subset of Bazzite's proven Titanoboa
+# hook (examples/bazzite/src/titanoboa_hook_postrootfs.sh): install anaconda-
+# live + firefox (the WebUI browser engine) + libblockdev backends, then write
+# an interactive-defaults kickstart telling Anaconda to deploy THIS container
+# image from the live environment's container storage.
+# Branding (profile.d/moos.conf, /etc/system-release, pixmaps, cockpit) ships
+# via system_files. The MoOS image ref the installer deploys:
+MOOS_IMAGEREF="ghcr.io/moalfarras-sys/moos"
+MOOS_IMAGETAG="latest"
+
+dnf5 -y install --setopt=install_weak_deps=False \
+    anaconda-live firefox libblockdev-btrfs libblockdev-lvm libblockdev-dm
+mkdir -p /var/lib/rpm-state   # Anaconda Web UI needs this to exist
+
+# interactive-defaults.ks: deploy the MoOS container image to the target disk.
+# --transport=containers-storage pulls the image already embedded in the live
+# ISO (no network needed); --no-signature-verification because the local live
+# copy is already trusted. Verified directive from the Bazzite hook (line 182).
+cat >> /usr/share/anaconda/interactive-defaults.ks <<KSEOF
+
+ostreecontainer --url=${MOOS_IMAGEREF}:${MOOS_IMAGETAG} --transport=containers-storage --no-signature-verification
+KSEOF
+
+# -----------------------------------------------------------------------------
 # (c3) SDDM login theme — moos-nova (based on SilentSDDM)
 # -----------------------------------------------------------------------------
 # The theme itself ships via system_files:
