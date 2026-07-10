@@ -154,6 +154,35 @@ cat >> /usr/share/anaconda/interactive-defaults.ks <<KSEOF
 ostreecontainer --url=${MOOS_IMAGEREF}:${MOOS_IMAGETAG} --transport=registry --no-signature-verification
 KSEOF
 
+# Re-brand the installer AFTER anaconda-live is installed: the dnf install above
+# ships org.fedoraproject.AnacondaInstaller.desktop (Name="Install to Hard
+# Drive") and its own icons, which OVERWRITE the MoOS overrides that
+# system_files copied earlier (COPY happens before this RUN). So re-apply the
+# MoOS identity here — this is what makes the launcher say "Install MoOS" with
+# the MoOS logo instead of the Fedora mark.
+_anaconda_desktop=/usr/share/applications/org.fedoraproject.AnacondaInstaller.desktop
+if [ -f "$_anaconda_desktop" ]; then
+    sed -i \
+        -e 's|^Name=.*|Name=Install MoOS|' \
+        -e '/^Name\[/d' \
+        -e 's|^GenericName=.*|GenericName=Install MoOS to disk|' \
+        -e '/^GenericName\[/d' \
+        -e 's|^Icon=.*|Icon=moos-logo|' \
+        "$_anaconda_desktop"
+    # Add an Arabic name line right after the Name line.
+    sed -i '/^Name=Install MoOS$/a Name[ar]=تثبيت MoOS' "$_anaconda_desktop"
+fi
+# Overwrite anaconda's installer icons with the MoOS logo (all sizes it ships).
+for _sz in 16 22 24 32 48 64 128 256; do
+    _dir="/usr/share/icons/hicolor/${_sz}x${_sz}/apps"
+    _src="/usr/share/moos/moos-logo.png"
+    [ -d "$_dir" ] && [ -f "$_src" ] && \
+        cp -f "$_src" "$_dir/org.fedoraproject.AnacondaInstaller.png" || true
+done
+# Remove anaconda's scalable SVG so the raster MoOS PNG is used instead.
+rm -f /usr/share/icons/hicolor/scalable/apps/org.fedoraproject.AnacondaInstaller.svg
+unset -v _anaconda_desktop _sz _dir _src
+
 # -----------------------------------------------------------------------------
 # (c3) SDDM login theme — moos-nova (based on SilentSDDM)
 # -----------------------------------------------------------------------------
