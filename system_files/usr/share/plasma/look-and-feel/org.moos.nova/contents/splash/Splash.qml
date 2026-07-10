@@ -1,14 +1,22 @@
 /*
     MoOS Nova splash screen (org.moos.nova)
 
-    Stage contract modeled on Breeze's Splash.qml
-    (plasma-workspace/lookandfeel/org.kde.breeze/contents/splash/Splash.qml):
-    ksplashqml sets the incrementing `stage` property; stage 2 fades the
-    content in, stage 5 fades the progress indicator out before the
-    desktop appears.
+    Stage contract VERIFIED against Breeze's Splash.qml
+    (plasma-workspace/lookandfeel/org.kde.breeze/contents/splash/Splash.qml,
+    checked 2026-07-10): ksplashqml increments the `stage` property; only
+    stage 2 and stage 5 are handled — stage 2 fades the content in, stage 5
+    fades the progress indicator out before the desktop appears (max stage 5).
+    We must not change those two triggers or the session hands off with a
+    frozen splash.
 
-    Deliberately lightweight: no blur, no shaders, no Kirigami dependency —
-    scene-graph animators only, so it renders instantly on weak GPUs.
+    Premium intro, kept deliberately GPU-LIGHT:
+      • logo fade + scale entrance (OutCubic, ~500ms) via render-thread Animators
+      • a soft brand glow that "breathes" — faked with concentric translucent
+        discs (NO blur, NO shader, no Qt5Compat/GraphicalEffects dependency)
+      • a neon cyan→blue light that sweeps the progress line, timed fast
+    Everything is transforms + opacity only, so it renders instantly on weak
+    GPUs. RTL-safe: the layout is centre-anchored (mirror-neutral) and the only
+    horizontal motion is a symmetric light sweep, not directional text.
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */
@@ -29,10 +37,50 @@ Rectangle {
         }
     }
 
+    // Subtle vertical brand wash (plain linear gradient — no shader) so the
+    // black field reads as deep navy, not flat.
+    Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#050A14" }
+            GradientStop { position: 1.0; color: "#08152A" }
+        }
+    }
+
     Item {
         id: content
         anchors.fill: parent
         opacity: 0
+
+        // ── Ambient glow behind the logo ────────────────────────────────────
+        // Concentric low-opacity discs approximate a radial glow WITHOUT any
+        // blur/shader: alpha stacks toward the centre, so the middle is brighter
+        // than the rim. A gentle scale+opacity breathe makes it feel alive.
+        Item {
+            id: glow
+            anchors.centerIn: logo
+            width: 360
+            height: 360
+
+            SequentialAnimation on scale {
+                running: true
+                loops: Animation.Infinite
+                NumberAnimation { from: 0.95; to: 1.06; duration: 1700; easing.type: Easing.InOutSine }
+                NumberAnimation { from: 1.06; to: 0.95; duration: 1700; easing.type: Easing.InOutSine }
+            }
+            SequentialAnimation on opacity {
+                running: true
+                loops: Animation.Infinite
+                NumberAnimation { from: 0.75; to: 1.0; duration: 1700; easing.type: Easing.InOutSine }
+                NumberAnimation { from: 1.0; to: 0.75; duration: 1700; easing.type: Easing.InOutSine }
+            }
+
+            Rectangle { anchors.centerIn: parent; width: 360; height: 360; radius: 180; color: "#2E7BFF"; opacity: 0.030 }
+            Rectangle { anchors.centerIn: parent; width: 290; height: 290; radius: 145; color: "#2E7BFF"; opacity: 0.035 }
+            Rectangle { anchors.centerIn: parent; width: 220; height: 220; radius: 110; color: "#2E7BFF"; opacity: 0.040 }
+            Rectangle { anchors.centerIn: parent; width: 160; height: 160; radius: 80;  color: "#22D3EE"; opacity: 0.045 }
+            Rectangle { anchors.centerIn: parent; width: 100; height: 100; radius: 50;  color: "#22D3EE"; opacity: 0.055 }
+        }
 
         Image {
             id: logo
@@ -47,36 +95,44 @@ Rectangle {
             sourceSize.width: 220
             sourceSize.height: 220
 
-            // gentle settle-in: 0.96 -> 1.0
-            scale: 0.96
+            // Pre-scaled; the intro ScaleAnimator settles it to 1.0.
+            scale: 0.92
         }
 
-        // Indeterminate progress line
+        // ── Neon progress line ──────────────────────────────────────────────
+        // A dim track with a bright cyan→blue light pill sweeping across it. The
+        // pill's gradient fades to transparent at both ends so it reads as a
+        // moving glow, not a hard bar.
         Rectangle {
             id: progressTrack
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: logo.bottom
-            anchors.topMargin: 48
+            anchors.topMargin: 46
 
             width: 240
             height: 3
             radius: height / 2
-            color: "#2E7BFF"
-            opacity: 0.35
+            color: "#16223C"
             clip: true
 
             Rectangle {
-                id: progressHighlight
-                width: 72
+                id: sweep
+                width: 96
                 height: parent.height
                 radius: height / 2
-                color: "#22D3EE"
                 x: -width
 
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: "#0022D3EE" }   // transparent cyan
+                    GradientStop { position: 0.5; color: "#22D3EE" }     // neon cyan core
+                    GradientStop { position: 1.0; color: "#002E7BFF" }   // transparent blue
+                }
+
                 NumberAnimation on x {
-                    from: -progressHighlight.width
+                    from: -sweep.width
                     to: progressTrack.width
-                    duration: 1200
+                    duration: 900
                     loops: Animation.Infinite
                     easing.type: Easing.InOutQuad
                     running: true
@@ -100,6 +156,9 @@ Rectangle {
         }
     }
 
+    // Entrance: fade the whole scene in while the logo settles up to full size.
+    // Render-thread Animators (OpacityAnimator/ScaleAnimator) so weak GPUs stay
+    // smooth. ~500ms OutCubic = quick, premium, never sluggish.
     ParallelAnimation {
         id: introAnimation
         running: false
@@ -108,23 +167,24 @@ Rectangle {
             target: content
             from: 0
             to: 1
-            duration: 600
+            duration: 500
             easing.type: Easing.OutCubic
         }
         ScaleAnimator {
             target: logo
-            from: 0.96
+            from: 0.92
             to: 1.0
-            duration: 600
+            duration: 520
             easing.type: Easing.OutCubic
         }
     }
 
+    // Stage 5: fade the progress line out before the desktop takes over. No
+    // `from` so it eases down from whatever its current opacity is (no snap).
     OpacityAnimator {
         id: outroAnimation
         running: false
         target: progressTrack
-        from: 0.35
         to: 0
         duration: 300
         easing.type: Easing.OutCubic

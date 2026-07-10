@@ -1,67 +1,141 @@
-# MoOS system defaults for KWin (KConfig cascade — a user's ~/.config/kwinrc
-# always wins over this file, so user choices are never clobbered).
+# ============================================================================
+#  MoOS — "Nova Motion System"  (KWin system defaults)
+# ============================================================================
+# This is a KConfig cascade default. A user's ~/.config/kwinrc ALWAYS wins over
+# this file, so nothing here clobbers a user's own choices.
 #
-# Nova polish: enable + tune the blur effect for the "calm glass" look.
-# Key names verified against kwin master src/plugins/blur/blur.kcfg
-# (config group "Effect-blur", Int entries BlurStrength / NoiseStrength);
-# effects are toggled via [Plugins] <effectId>Enabled, blur's id is "blur".
+# GOAL: a cohesive, premium, macOS-caliber motion system that stays LIGHT.
+# Every effect below is a stock KWin plugin. KWin only loads an effect when the
+# active backend passes the effect's supported() check, so on weak GPUs or
+# software rendering the GPU-touching effects are simply skipped — no boot or
+# compositing risk. Users who want minimal motion can drop
+# [Compositing] AnimationDurationFactor toward 0, uncheck "Desktop Effects", or
+# toggle individual effects in System Settings; their cascade always wins.
 #
-# Safety: blur is enabled by default upstream anyway, and KWin only loads the
-# effect when the backend supports it (effect supported() check) — on weak
-# GPUs / software rendering this is simply ignored. No boot/compositing risk.
+# ---------------------------------------------------------------------------
+#  HOW KWIN TOGGLES EFFECTS  (verified in kwin master, 2026-07-10)
+# ---------------------------------------------------------------------------
+# src/effect/effecthandler.cpp EffectsHandler::configChanged() reads keys from
+# the [Plugins] group, strips the "Enabled" suffix, and treats the remainder as
+# the plugin id: key "<id>Enabled" -> findEffect("<id>"). It also UNLOADS
+# effects before loading, "to ensure that switching between mutually exclusive
+# effects works as expected" — so exclusive-group siblings never double up.
+#
+#  EXCLUSIVE SLOTS (only one member of each group ever runs). Verified via each
+#  plugin's metadata "X-KWin-Exclusive-Category" / "exclusiveGroup":
+#    minimize                       : squash(default on) vs magiclamp(default off)
+#    toplevel-open-close-animation  : scale(default on) vs glide/fade(default off)
+#    desktop-animations             : slide(default on) vs fadedesktop(default off)
+#  MoOS keeps EXACTLY ONE per slot enabled (magiclamp / scale / slide), so there
+#  is never a conflicting double animation.
+#
+# ---------------------------------------------------------------------------
+#  THE SYSTEM, EFFECT BY EFFECT  (id | source | GPU cost | what it does)
+# ---------------------------------------------------------------------------
+#  blur          | plugins/blur/metadata.json (C++)         | MODERATE | the one
+#                  frosted-glass pass behind panels/menus. Tuned calm below.
+#  magiclamp     | plugins/magiclamp/metadata.json (C++)    | LIGHT    | genie
+#                  minimize toward the task manager — the signature premium move.
+#                  Replaces squash (both are the "minimize" slot).
+#  scale         | plugins/scale/package/metadata.json (JS) | LIGHT    | gentle
+#                  scale+fade on window open/close. The one open/close animation.
+#  slide         | plugins/slide/metadata.json (C++)        | LIGHT    | smooth
+#                  virtual-desktop switch.
+#  slidingpopups | plugins/slidingpopups/metadata.json (C++)| LIGHT    | menus /
+#                  tooltips / notifications slide in from their screen edge.
+#  fadingpopups  | plugins/fadingpopups/package (JS)        | LIGHT    | fades the
+#                  popups slidingpopups doesn't slide (combo boxes, etc.).
+#                  Complementary — different targets, so both stay on.
+#  dimscreen     | plugins/dimscreen/package (JS)           | LIGHT    | on a
+#                  polkit/kdesu/pinentry auth prompt, smoothly dims + desaturates
+#                  everything EXCEPT the auth window (brightness/saturation 0.67,
+#                  250ms). The macOS-style "spotlight the password box" moment.
+#  dialogparent  | plugins/dialogparent/package (JS)        | LIGHT    | darkens a
+#                  parent window while its modal child dialog is open. Subtle
+#                  focus cue. Different trigger from dimscreen, so both coexist.
+#  fullscreen    | plugins/fullscreen/package (JS)          | LIGHT    | soft scale
+#                  as a window enters/leaves full screen.
+#  startupfeedback| plugins/startupfeedback (C++)           | LIGHT    | busy-cursor
+#                  launch feedback — "the click registered" responsiveness.
+#  overview      | plugins/overview (C++/QML)               | ON-DEMAND| macOS
+#                  Mission-Control: desktops + windows grid. Stock shortcut Meta+W.
+#                  Costs nothing until invoked. No hot corner set (user choice).
+#  windowview    | plugins/windowview (C++/QML)             | ON-DEMAND| the
+#                  Present-Windows-style "expose all windows" grid (stock, default
+#                  on). Left at upstream default; noted here for completeness.
+#
+#  DELIBERATELY OFF (cheap-looking or heavy — do not enable):
+#    translucency (per-window live blending, expensive), glide/fade (would fight
+#    scale), squash/fadedesktop (exclusive-slot losers), wobbly/cube/fall-apart.
+# ============================================================================
 
 [Plugins]
+# --- Frosted glass ---------------------------------------------------------
+# blur: id "blur", default-on (plugins/blur/metadata.json EnabledByDefault=true).
 blurEnabled=true
-# Nova motion set (MOOS_DESIGN_SYSTEM.md §6: expressive but light):
-# - magiclamp: signature minimize animation (GPU-cheap deformation, the
-#   "premium" touch); replaces the default squash effect.
-# - slide: smooth desktop switching.
-# All are stock KWin effects — unsupported backends simply skip them.
+
+# --- Minimize slot (exactly one) ------------------------------------------
+# magiclamp is default-OFF upstream (metadata EnabledByDefault=false); MoOS opts
+# in for the premium genie minimize and turns squash (the default) off so the
+# "minimize" exclusive slot holds exactly one animation.
 magiclampEnabled=true
 squashEnabled=false
-slideEnabled=true
-# Smooth window open/close: the "scale" effect (windows gently scale in and out
-# when shown/hidden). Id "scale" + Category "Window Open/Close Animation" +
-# EnabledByDefault=true VERIFIED against kwin master
-# src/plugins/scale/package/metadata.json (2026-07-10). It is a SCRIPTED effect
-# (X-Plasma-API=javascript) → GPU-light and degrades on weak HW (KWin skips it on
-# unsupported/soft-rendered backends). It is already the modern default open/close
-# animation in Plasma 6.7 — the settings UI moved these into a dedicated
-# "Animation" category (KDE Discuss #37407), the effect itself still ships. Listed
-# explicitly to document intent and keep it on if a future upstream default flips.
-# CONFLICT NOTE: "scale" and "glide" are BOTH "Window Open/Close Animation"
-# effects — only ONE may run at a time. We keep glide OFF (VERIFIED
-# EnabledByDefault=false in src/plugins/glide/metadata.json) so there is no
-# double open/close animation. magiclamp above is a MINIMIZE effect, so it pairs
-# with scale (open/close) without conflict; squash (the other minimize effect) is
-# already off above, so the minimize slot has exactly one animation too.
+
+# --- Open/close slot (exactly one) ----------------------------------------
+# scale is already the upstream default open/close (EnabledByDefault=true) and is
+# a scripted (GPU-light) effect. Listed to document intent and survive a future
+# upstream default flip. glide + fade share scale's exclusive group and are left
+# OFF (both EnabledByDefault=false) so there is no competing open/close animation.
 scaleEnabled=true
-# Heavy effects pinned OFF for the light, GPU-friendly Nova feel:
-# - translucency: Id "translucency", Category "Appearance", VERIFIED in
-#   src/plugins/translucency/package/metadata.json — it has NO EnabledByDefault
-#   key, so it is OFF by default; we pin it OFF anyway (per-window live blending
-#   is expensive). "dimscreen" deliberately NOT enabled either (it only dims the
-#   screen behind modal prompts — not wanted, and off by default).
-translucencyEnabled=false
-# Premium popup/menu transitions. Effect ids + EnabledByDefault=true VERIFIED
-# against kwin master: src/plugins/slidingpopups/metadata.json (id "slidingpopups")
-# and src/plugins/fadingpopups/package/metadata.json (id "fadingpopups"). Both
-# are stock, default-on effects — listed here to document intent and to keep
-# them on even if a future upstream default flips. Unsupported backends skip
-# them. Wobbly windows deliberately NOT enabled (too much for a premium feel).
+
+# --- Desktop switch slot (exactly one) ------------------------------------
+slideEnabled=true
+
+# --- Popups / menus (complementary, both default-on) ----------------------
 slidingpopupsEnabled=true
 fadingpopupsEnabled=true
 
+# --- Focus / auth polish (scripted, GPU-light, both default-on) -----------
+# dimscreen: spotlight-the-auth-prompt dim. dialogparent: dim parent behind a
+# modal dialog. Both default-on upstream; pinned here so MoOS's premium auth/
+# modal feel is explicit and stays on if an upstream default ever flips.
+dimscreenEnabled=true
+dialogparentEnabled=true
+
+# --- Responsiveness feedback (light, default-on) --------------------------
+fullscreenEnabled=true
+startupfeedbackEnabled=true
+
+# --- Mission-Control (on-demand, default-on; NO hot corner set) -----------
+overviewEnabled=true
+
+# --- Heavy / conflicting effects pinned OFF -------------------------------
+# translucency has NO EnabledByDefault key -> off by default; pinned off because
+# live per-window blending is expensive and un-macOS. (Verified
+# plugins/translucency/package/metadata.json.)
+translucencyEnabled=false
+
 [Effect-blur]
-# Upstream defaults: BlurStrength=15, NoiseStrength=5 (see blur.kcfg).
-# Nova uses a gentler blur with just a hint of noise banding suppression.
+# Keys verified against plugins/blur/blur.kcfg (group "Effect-blur"):
+#   BlurStrength (Int, upstream default 15)
+#   NoiseStrength (Int, upstream default 5)
+#   Saturation    (Int, upstream default 150)  <- left at default; not set here.
+# Nova uses a gentler blur so glass over the navy palette reads calm, not muddy;
+# a touch of noise suppresses banding on large blurred fills. Saturation stays at
+# the upstream 150 (keeps colors crisp behind glass rather than washing to grey).
+# Note: there is NO separate background-contrast plugin in kwin master — blur's
+# own Saturation is the only "contrast"-style control, hence nothing more to set.
 BlurStrength=8
 NoiseStrength=2
 
 [Compositing]
-# Nova motion timing: slightly snappier than stock (1.0) without feeling
-# rushed — "fast and smooth" per the design system. Users change this in
-# System Settings > General Behavior (their value wins over this default).
+# Nova timing: a hair snappier than stock (1.0) without feeling rushed. macOS
+# window motion is quick (~200-250ms); this shortens KWin's base durations
+# uniformly. 0.75 is the shipped value (well-tested/safe). 0.70 is a slightly
+# snappier alternative worth trying on-device — both are low-risk (they only
+# scale duration, never geometry). Read from [Compositing] AnimationDurationFactor
+# by Options::animationTimeFactor(). Users override in System Settings > General
+# Behavior (their value wins).
 AnimationDurationFactor=0.75
 
 # --- Window decoration: macOS-style traffic-light buttons on the LEFT ------
@@ -75,7 +149,7 @@ AnimationDurationFactor=0.75
 #   src/kcms/decoration/utils.cpp + settings.cpp — single-letter button codes:
 #     X=Close  I=Minimize  A=Maximize  M=Menu  N=ApplicationMenu
 #     S=OnAllDesktops  H=ContextHelp  F=KeepAbove  B=KeepBelow  _=Spacer
-# macOS puts close/min/max at the LEFT, nothing at the right → XIA / (empty).
+# macOS puts close/min/max at the LEFT, nothing at the right -> XIA / (empty).
 # An empty ButtonsOnRight= is read as "no buttons" (readEntry returns the empty
 # string when the key is present-but-empty, so the built-in HIAX default does
 # NOT apply). Users' ~/.config/kwinrc still overrides this system default.
