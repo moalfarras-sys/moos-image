@@ -20,6 +20,29 @@ blurEnabled=true
 magiclampEnabled=true
 squashEnabled=false
 slideEnabled=true
+# Smooth window open/close: the "scale" effect (windows gently scale in and out
+# when shown/hidden). Id "scale" + Category "Window Open/Close Animation" +
+# EnabledByDefault=true VERIFIED against kwin master
+# src/plugins/scale/package/metadata.json (2026-07-10). It is a SCRIPTED effect
+# (X-Plasma-API=javascript) → GPU-light and degrades on weak HW (KWin skips it on
+# unsupported/soft-rendered backends). It is already the modern default open/close
+# animation in Plasma 6.7 — the settings UI moved these into a dedicated
+# "Animation" category (KDE Discuss #37407), the effect itself still ships. Listed
+# explicitly to document intent and keep it on if a future upstream default flips.
+# CONFLICT NOTE: "scale" and "glide" are BOTH "Window Open/Close Animation"
+# effects — only ONE may run at a time. We keep glide OFF (VERIFIED
+# EnabledByDefault=false in src/plugins/glide/metadata.json) so there is no
+# double open/close animation. magiclamp above is a MINIMIZE effect, so it pairs
+# with scale (open/close) without conflict; squash (the other minimize effect) is
+# already off above, so the minimize slot has exactly one animation too.
+scaleEnabled=true
+# Heavy effects pinned OFF for the light, GPU-friendly Nova feel:
+# - translucency: Id "translucency", Category "Appearance", VERIFIED in
+#   src/plugins/translucency/package/metadata.json — it has NO EnabledByDefault
+#   key, so it is OFF by default; we pin it OFF anyway (per-window live blending
+#   is expensive). "dimscreen" deliberately NOT enabled either (it only dims the
+#   screen behind modal prompts — not wanted, and off by default).
+translucencyEnabled=false
 # Premium popup/menu transitions. Effect ids + EnabledByDefault=true VERIFIED
 # against kwin master: src/plugins/slidingpopups/metadata.json (id "slidingpopups")
 # and src/plugins/fadingpopups/package/metadata.json (id "fadingpopups"). Both

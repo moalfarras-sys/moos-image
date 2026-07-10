@@ -1,0 +1,50 @@
+/* ===========================================================================
+ * MoOS Anaconda GTK product stylesheet
+ *   -> /usr/share/anaconda/pixmaps/moos.css
+ *   referenced by profile.d/moos.conf  [User Interface] custom_stylesheet
+ * ---------------------------------------------------------------------------
+ * This is the LEGACY GTK branding path. Modern Anaconda's base anaconda-gtk.css
+ * ships empty `.logo` / `.product-logo` placeholders "intended to be overridden
+ * by a stylesheet in product.img" (verified in rhinstaller/anaconda
+ * data/anaconda-gtk.css). A custom_stylesheet is loaded as a GTK CSS provider
+ * at higher priority (pyanaconda/ui/gui/__init__.py), so these rules win.
+ *
+ * Fedora 44 KDE/Kinoite installs via the PatternFly WEB UI, which does NOT read
+ * this file — its branding lives in /usr/share/cockpit/branding/moos/. These
+ * rules only take effect if the installer ever runs the GTK UI.
+ *
+ * Nova palette: navy #0B1220  surface #111A2E  raised #1A2740
+ *               blue #2E7BFF  cyan #22D3EE      text #E6EDF7
+ * =========================================================================== */
+
+/* Base sidebar fill colour (shows through the PNG's transparent areas and
+ * fills any region the non-scaling PNG does not cover). */
+@define-color anaconda_bg_color #0B1220;
+
+.logo-sidebar {
+    background-image: url('/usr/share/anaconda/pixmaps/sidebar-bg.png');
+    background-color: #0B1220;
+    background-repeat: no-repeat;
+    background-position: left top;
+}
+
+/* Product-specific logo, drawn 20px from the top, horizontally centred. */
+.logo {
+    background-image: url('/usr/share/anaconda/pixmaps/sidebar-logo.png');
+    background-position: 50% 20px;
+    background-repeat: no-repeat;
+    background-color: transparent;
+}
+
+.product-logo {
+    background-image: none;
+    background-color: transparent;
+}
+
+/* Top navigation bar. */
+AnacondaSpokeWindow #nav-box {
+    background-image: url('/usr/share/anaconda/pixmaps/topbar-bg.png');
+    background-color: #111A2E;
+    background-repeat: no-repeat;
+    color: #E6EDF7;
+}

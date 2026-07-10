@@ -1,0 +1,24 @@
+[Desktop Entry]
+# MoOS override of anaconda-live's /usr/share/applications/liveinst.desktop
+# (upstream: Name="Install to Hard Drive", Icon=org.fedoraproject.AnacondaInstaller,
+#  NoDisplay=true). This is the launcher the live session runs to start the
+# installer; Exec=liveinst sets ANACONDA_PRODUCTNAME from /etc/system-release
+# ("MoOS ...") so the installer titles itself "Install MoOS".
+# Verified id/keys against rhinstaller/anaconda data/liveinst/liveinst.desktop
+# + data/liveinst/Makefile.am (installs to $(datadir)/applications).
+Type=Application
+Name=Install MoOS
+Name[ar]=تثبيت MoOS
+GenericName=Install to Hard Drive
+GenericName[ar]=التثبيت على القرص الصلب
+Comment=Install MoOS to your hard drive
+Comment[ar]=ثبّت نظام MoOS على القرص الصلب
+Exec=liveinst
+Terminal=false
+Icon=moos-logo
+StartupNotify=true
+StartupWMClass=liveinst
+Categories=System;Utility;X-Red-Hat-Base;X-Fedora;Qt;KDE;
+Keywords=install;installer;anaconda;moos;
+Keywords[ar]=تثبيت;مثبت;نظام;
+NoDisplay=false

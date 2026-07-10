@@ -1,0 +1,47 @@
+/* ===========================================================================
+ * MoOS Anaconda Web UI branding  ->  /usr/share/cockpit/branding/moos/branding.css
+ * ---------------------------------------------------------------------------
+ * This is the REAL branding surface for Fedora 44 KDE/Kinoite, whose Anaconda
+ * runs the PatternFly/Cockpit Web UI. cockpit-ws resolves the branding
+ * directory from the live environment's os-release. Verified lookup order in
+ * cockpit-project/cockpit src/ws/cockpitbranding.c:
+ *     {ID}-{VARIANT_ID}  ->  {ID}  ->  each {ID_LIKE}  ->  default
+ * MoOS os-release (ID=moos, VARIANT_ID=nova, ID_LIKE="fedora") therefore tries:
+ *     moos-nova  ->  moos  ->  fedora  ->  default
+ * so this "moos" directory is matched before Fedora's.
+ *
+ * The anaconda-webui app compiles `@import "../branding/fedora"` at build time,
+ * but its colours and logo come from THIS runtime CSS via the `--brand-default*`
+ * custom properties, the `#badge` rule and the `.anaconda .logo` rule (verified
+ * in rhinstaller/anaconda-webui src/branding/fedora.scss and the working
+ * override in ublue-os/bazzite .../cockpit/branding/fedora/branding.css).
+ *
+ * Nova palette: navy #0B1220  blue #2E7BFF  cyan #22D3EE  violet #8B5CF6
+ * =========================================================================== */
+
+/* Brand mark shown in the installer header. background-size:contain fits the
+ * (transparent) logo.png into this box; sits next to the "Install MoOS" title. */
+#badge {
+    inline-size: 240px;
+    block-size: 80px;
+    background-image: url("logo.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: left center;
+}
+
+.anaconda {
+    /* Nova palette. --brand-default is the primary accent (buttons, current
+     * wizard step); the header uses a radial gradient from --brand-default-light
+     * (glow centre) to --brand-default. */
+    --brand-default-light: #22D3EE;   /* cyan glow */
+    --brand-default: #2E7BFF;         /* MoOS electric blue (primary accent) */
+    --brand-default-dark: #0B1220;    /* navy */
+
+    /* Our logo.png is already full-colour on transparent, so drop the
+     * on-dark invert filter that fedora.scss applies to the mono Fedora glyph. */
+    .logo {
+        background-image: url("logo.png");
+        filter: unset;
+    }
+}
