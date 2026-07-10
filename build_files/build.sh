@@ -141,12 +141,17 @@ dnf5 -y install --setopt=install_weak_deps=False \
 mkdir -p /var/lib/rpm-state   # Anaconda Web UI needs this to exist
 
 # interactive-defaults.ks: deploy the MoOS container image to the target disk.
-# --transport=containers-storage pulls the image already embedded in the live
-# ISO (no network needed); --no-signature-verification because the local live
-# copy is already trusted. Verified directive from the Bazzite hook (line 182).
+# TRANSPORT = registry (network pull), NOT containers-storage: verified that
+# Titanoboa's build_iso.sh only squashfs-es /rootfs and does NOT embed the
+# image into the live /var/lib/containers/storage (no skopeo/payload copy) —
+# so containers-storage would fail at install time. Registry pull always works
+# as long as there is internet (the install guide requires it) and the image
+# is public on GHCR. --no-signature-verification for the install-time pull;
+# the installed system's /etc/containers/policy.json still enforces cosign
+# signatures for all future `bootc upgrade`s.
 cat >> /usr/share/anaconda/interactive-defaults.ks <<KSEOF
 
-ostreecontainer --url=${MOOS_IMAGEREF}:${MOOS_IMAGETAG} --transport=containers-storage --no-signature-verification
+ostreecontainer --url=${MOOS_IMAGEREF}:${MOOS_IMAGETAG} --transport=registry --no-signature-verification
 KSEOF
 
 # -----------------------------------------------------------------------------
