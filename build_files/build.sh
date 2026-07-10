@@ -13,24 +13,19 @@ set -euxo pipefail
 # /etc/os-release is a symlink to /usr/lib/os-release on Fedora Atomic,
 # so we edit the real file in /usr/lib.
 #
-# M0 deliberately changes ONLY NAME and PRETTY_NAME. Changing ID= away from
-# "fedora" can break tooling that keys on ID (dnf/copr repo URL templating,
-# Anaconda, third-party install scripts), so the full identity switch
-# (ID=moos + ID_LIKE="fedora" + VARIANT="Nova") is deferred to Phase 4
-# after testing. See MOOS_DECISIONS.md ADR-015 and
-# MOOS_BUILD_WORKFLOW.md (Phase 4).
+# Section (a) sets only the SAFE, early os-release fields — the ones that do
+# NOT influence package tooling: NAME, PRETTY_NAME, LOGO and the *_URL fields.
+# The IDENTITY switch (ID=moos + ID_LIKE="fedora" + VARIANT/VARIANT_ID) is
+# deliberately NOT done here. dnf5/COPR build the COPR chroot name from
+# os-release ID + VERSION_ID (e.g. ID=fedora + VERSION_ID=44 -> the
+# "fedora-44-$arch" chroot), so 'dnf5 copr enable ublue-os/packages' in
+# section (b) needs ID=fedora to resolve the fedora-44 chroot. Flipping ID
+# here would make every COPR/dnf operation below look for a non-existent
+# "moos-44" chroot and fail the build. The full identity switch therefore
+# runs LAST, in section (z), once all dnf/copr work is finished.
+# See MOOS_DECISIONS.md ADR-015 and MOOS_BUILD_WORKFLOW.md.
 sed -i 's|^NAME=.*|NAME="MoOS"|' /usr/lib/os-release
 sed -i 's|^PRETTY_NAME=.*|PRETTY_NAME="MoOS 0.1 (Nova Seed)"|' /usr/lib/os-release
-
-# TODO(Phase 4, MOOS_DECISIONS.md ADR-015): enable the full identity switch once
-# COPR/Anaconda behavior with ID=moos is verified in a VM:
-#   sed -i 's|^ID=.*|ID=moos|' /usr/lib/os-release
-#   grep -q '^ID_LIKE=' /usr/lib/os-release \
-#     || echo 'ID_LIKE="fedora"' >> /usr/lib/os-release
-#   sed -i 's|^VARIANT=.*|VARIANT="Nova"|' /usr/lib/os-release
-#   sed -i 's|^VARIANT_ID=.*|VARIANT_ID=nova|' /usr/lib/os-release
-# NOTE: VERSION_ID stays inherited from the base (Fedora 44) on purpose —
-# update tooling uses it to resolve the release.
 
 # Full UI branding for graphical about-pages (KInfoCenter "About this System",
 # Plasma system settings, GNOME Software style dialogs, ...).
@@ -365,7 +360,7 @@ curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
 # same qml-qt6 runner.
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
-    /usr/bin/moos-update /usr/bin/moos-rollback
+    /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome
 
 # -----------------------------------------------------------------------------
 # (d) Enable services
@@ -373,6 +368,44 @@ chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
 # uupd runs from a systemd timer; enabling it here bakes the symlink into the
 # image so every deployment gets background updates by default.
 systemctl enable uupd.timer
+
+# -----------------------------------------------------------------------------
+# (z) Full identity switch — MUST BE LAST, after ALL dnf/copr operations
+# -----------------------------------------------------------------------------
+# WHY THIS RUNS LAST (do not move it earlier in the script):
+# dnf5/COPR derive the build chroot name from os-release ID + VERSION_ID —
+# e.g. ID=fedora + VERSION_ID=44 selects the "fedora-44-$arch" COPR chroot.
+# Every 'dnf5 copr enable' / 'dnf5 install' above (sections (b)-(c7)) needs
+# ID=fedora so COPR resolves the EXISTING fedora-44 chroot; flipping ID before
+# them would make COPR look for a non-existent "moos-44" chroot and fail the
+# build. All dnf/copr work is complete by this point, so it is finally safe to
+# assume the full MoOS identity.
+#
+# WHY THIS IS SAFE FOR bootc UPDATES: bootc pulls upgrades by the container
+# image REFERENCE recorded at install time (e.g.
+# ghcr.io/moalfarras-sys/moos-image), NOT by os-release ID — so changing ID
+# has no effect on 'bootc upgrade' (verified against bootc.dev install docs,
+# 2026-07-10).
+#
+# WHY ID_LIKE="fedora": this is the standard Fedora-derivative pattern — e.g.
+# Bazzite ships ID=bazzite + ID_LIKE="fedora" + VARIANT_ID=..., and
+# Nobara/Ultramarine do the same. Runtime tooling that asks "am I Fedora-like?"
+# reads ID_LIKE, so package managers, install scripts and language toolchains
+# keep treating MoOS as a Fedora derivative even though ID=moos.
+#
+# osrel_set (defined in section (a)) is a shell FUNCTION, so it stays in scope
+# for the whole script run and is reused here. VERSION_ID is deliberately left
+# untouched — release/update tooling resolves the Fedora release from it.
+osrel_set ID          'moos'
+osrel_set ID_LIKE     '"fedora"'
+osrel_set VARIANT     '"Nova"'
+osrel_set VARIANT_ID  'nova'
+osrel_set PRETTY_NAME '"MoOS 0.1 (Nova)"'
+# MoOS electric blue (#2E7BFF -> truecolor SGR "R;G;B") for systemd/fastfetch.
+osrel_set ANSI_COLOR  '"0;38;2;46;123;255"'
+
+# Show the FINAL identity in the CI log for verification.
+grep -E '^(NAME|PRETTY_NAME|ID|ID_LIKE|VERSION_ID|VARIANT|VARIANT_ID|LOGO|ANSI_COLOR)=' /usr/lib/os-release
 
 # -----------------------------------------------------------------------------
 # (e) Cleanup — required for `bootc container lint` to pass

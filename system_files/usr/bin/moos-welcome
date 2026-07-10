@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# moos-welcome — launch the premium MoOS Welcome (replaces plasma-welcome).
+# Pure-QML script app; tries the Fedora qml runner names in order.
+set -euo pipefail
+QML="/usr/share/moos/apps/welcome/main.qml"
+export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
+for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
+    if command -v "$runner" >/dev/null 2>&1 || [ -x "$runner" ]; then
+        exec "$runner" "$QML"
+    fi
+done
+echo "MoOS Welcome: no Qt6 QML runtime found (install qt6-qtdeclarative-devel). | لا يوجد محرّك QML." >&2
+exit 127

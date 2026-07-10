@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Welcome to MoOS
+Name[ar]=أهلاً بك في MoOS
+GenericName=Welcome
+GenericName[ar]=الترحيب
+Comment=Get started with MoOS
+Comment[ar]=ابدأ مع MoOS
+Exec=moos-welcome
+TryExec=moos-welcome
+Icon=moos-logo
+Terminal=false
+Categories=System;Utility;
+Keywords=welcome;start;moos;mo;
+Keywords[ar]=ترحيب;بداية;

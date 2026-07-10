@@ -1,0 +1,26 @@
+[Desktop Entry]
+# MoOS session-name override for the login/session picker (SDDM/GDM).
+# This SHADOWS the base plasma-workspace file of the same name
+# (/usr/share/wayland-sessions/plasma.desktop, generated from
+# plasmawayland.desktop.cmake). The picker shows the "Name" key, so the base
+# "Plasma (Wayland)" label is replaced with "MoOS" to remove the visible KDE
+# trace. CAVEAT: because this file has the same path as the RPM's, upstream
+# changes to the base session file (incl. any Exec path change) are shadowed
+# and must be reconciled here on Plasma updates. See MOOS_DECISIONS.md ADR-015.
+#
+# Exec/TryExec/DesktopNames are copied verbatim from the resolved base file:
+#   - Exec paths resolve on Fedora to /usr/libexec and /usr/bin (confirmed
+#     against SDDM's own session log, 2026-07-10).
+#   - DesktopNames=KDE is FUNCTIONAL, not cosmetic: it sets
+#     XDG_CURRENT_DESKTOP=KDE, which KDE portals/apps key on. It is NOT shown
+#     in the picker, so it stays as-is to avoid breaking desktop integration.
+# The localized Name[xx]/Comment[xx] lines from the base are intentionally
+# dropped: with no per-locale override, every locale falls back to the base
+# Name= ("MoOS"), so no language leaks the "Plasma (Wayland)" string.
+Exec=/usr/libexec/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland
+TryExec=/usr/bin/startplasma-wayland
+DesktopNames=KDE
+Name=MoOS
+Name[ar]=MoOS
+Comment=MoOS (Wayland)
+Comment[ar]=MoOS (Wayland)
