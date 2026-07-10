@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# moos-compat — MoOS Compatibility Hub launcher (pure-QML "script app", v0)
+# App:  /usr/share/moos/apps/compathub/main.qml
+# Docs: MOOS_COMPATIBILITY_PLAN.md §7 (v0 = honest router, no privileged exec)
+set -euo pipefail
+
+APP="/usr/share/moos/apps/compathub/main.qml"
+
+# Deterministic QQC2 style: the app styles its own controls, so the pure-QML
+# "Basic" style is enough and needs no QWidget/QStyle dependency (org.kde.desktop
+# would require a widgets QApplication, which the qml runner does not create by
+# default). Users/sessions can still override via the environment.
+export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
+
+# QML runner fallback chain.
+# Fedora ships the Qt6 QML runner as /usr/bin/qml-qt6 — a symlink from the
+# qt6-qtdeclarative-devel package to /usr/lib64/qt6/bin/qml (verified
+# 2026-07-10 on packages.fedoraproject.org; the base qt6-qtdeclarative package
+# carries libraries only, no binaries). 'qml6' (Arch) and plain 'qml' are kept
+# as fallbacks for other layouts.
+for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
+    if command -v "$runner" >/dev/null 2>&1; then
+        exec "$runner" "$APP" "$@"
+    fi
+done
+
+echo "moos-compat: no Qt6 QML runner found (expected qml-qt6 from qt6-qtdeclarative-devel)." >&2
+echo "moos-compat: لم يتم العثور على مشغّل QML — ثبّت qt6-qtdeclarative-devel." >&2
+exit 127

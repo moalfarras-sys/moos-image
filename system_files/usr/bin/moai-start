@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# moai-start — start the Mo AI local brain (RamaLama server, consent first).
+#
+# VERIFIED against RamaLama docs (github.com/containers/ramalama, 2026-07-10):
+#   - `ramalama serve` default port is 8080 ("The default serving port will
+#     be 8080 if available") — we still pass --port explicitly so it always
+#     matches the `api` constant in the Mo AI app
+#     (/usr/share/moos/apps/moai/main.qml).
+#   - The serving backend is llama.cpp's llama-server → OpenAI-compatible
+#     REST API (/v1/chat/completions), which the Mo AI app talks to.
+#   - Model transports: ollama:// | hf:// (huggingface://) | oci:// |
+#     modelscope://; unprefixed short names default to the Ollama registry.
+#   - ollama://qwen3:4b-instruct = Qwen3-4B-Instruct, Q4_K_M quant, ~2.5 GB
+#     (tag + size verified on ollama.com/library/qwen3/tags).
+set -euo pipefail
+
+PORT="${MOAI_PORT:-8080}"
+MODEL="${MOAI_MODEL:-ollama://qwen3:4b-instruct}"
+
+B='\033[1;34m'; C='\033[1;36m'; N='\033[0m'
+
+if ! command -v ramalama >/dev/null 2>&1; then
+    echo -e "${B}Mo AI${N}: RamaLama غير مثبّت | RamaLama is not installed."
+    echo "ثبّته أولاً ثم أعد التشغيل | Install it first, then reboot:"
+    echo "    sudo rpm-ostree install ramalama"
+    exit 1
+fi
+
+echo -e "${B}Mo AI${N} — تشغيل العقل المحلي | Starting the local brain"
+echo
+echo -e "  النموذج | Model : ${C}${MODEL}${N}"
+echo -e "  المنفذ  | Port  : ${C}${PORT}${N}"
+echo
+echo "أول تشغيل سيُحمّل النموذج (~2.5 GB) — قد يستغرق وقتاً حسب سرعة الإنترنت."
+echo "First run downloads the model (~2.5 GB) — may take a while."
+echo "كل شيء يبقى على جهازك، لا سحابة. | Everything stays on your device, no cloud."
+echo
+read -rp "متابعة؟ | Continue? [Y/n] " answer
+answer=${answer:-Y}
+case "$answer" in
+    [Yy]*) ;;
+    *) echo "أُلغي | Cancelled."; exit 0 ;;
+esac
+
+echo -e "${B}Mo AI${N}: ramalama serve --port ${PORT} ${MODEL}"
+exec ramalama serve --port "$PORT" "$MODEL"

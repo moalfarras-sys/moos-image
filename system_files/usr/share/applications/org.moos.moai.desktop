@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Mo AI
+Name[ar]=مساعد Mo AI
+GenericName=AI Assistant
+GenericName[ar]=المساعد الذكي
+Comment=Local-first AI assistant for MoOS (runs on your device via RamaLama)
+Comment[ar]=مساعد ذكاء اصطناعي محلي لنظام MoOS — يعمل على جهازك
+Exec=moai
+TryExec=moai
+Icon=moos-logo
+Terminal=false
+Categories=Utility;
+Keywords=AI;assistant;chat;local;llm;
+Keywords[ar]=ذكاء;مساعد;محادثة;محلي;

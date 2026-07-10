@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# moai — launch the Mo AI assistant (pure-QML script app, no compilation).
+#
+# QML runtime on Fedora (VERIFIED 2026-07-10 via packages.fedoraproject.org):
+#   - /usr/bin/qml-qt6 is the Qt6 QML runtime (symlink shipped by
+#     qt6-qtdeclarative-devel; the real binary is /usr/lib64/qt6/bin/qml).
+#   - Fedora ships NO plain 'qml6' binary — it is kept in the fallback
+#     chain only as a just-in-case for other distros/future renames.
+# NOTE: the base qt6-qtdeclarative package does NOT contain the runtime;
+# the image must include qt6-qtdeclarative-devel for Mo AI to launch.
+set -euo pipefail
+
+MAIN_QML="/usr/share/moos/apps/moai/main.qml"
+
+for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
+    if command -v "$runner" >/dev/null 2>&1; then
+        exec "$runner" "$MAIN_QML" "$@"
+    fi
+done
+
+echo "moai: لم يتم العثور على مشغّل QML | no QML runtime found" >&2
+echo "moai: tried: qml-qt6, /usr/lib64/qt6/bin/qml, qml6, qml" >&2
+echo "moai: ثبّته | install it:  sudo rpm-ostree install qt6-qtdeclarative-devel" >&2
+exit 1

@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# moos-firstrun — one-shot first-login welcome (installed systems AND live).
+# Launched by /etc/xdg/autostart/org.moos.firstrun.desktop (OnlyShowIn=KDE).
+# Offers to run moos-setup (the curated Flathub app installer) in Konsole.
+# Runs at most once per user: guarded by ~/.config/moos-firstrun-done.
+# The live user sees it too — that is intentional (it doubles as a demo of
+# the MoOS out-of-box experience; livesys home is ephemeral anyway).
+# Docs: MOOS_APP_CENTER_PLAN.md (AC-1) / MOOS_COMPATIBILITY_PLAN.md
+set -euo pipefail
+
+marker_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
+marker="${marker_dir}/moos-firstrun-done"
+
+# Already ran once for this user — never prompt again.
+[ -e "$marker" ] && exit 0
+
+# Mark done BEFORE showing any UI, so a crash/logout mid-dialog can never
+# turn this into a nag loop.
+mkdir -p "$marker_dir"
+touch "$marker"
+
+# kdialog ships in Fedora Kinoite (workstation-ostree-config packages/kinoite.yaml
+# lists "kdialog"; verified 2026-07-10) — but if a derived image drops it,
+# exit quietly instead of erroring on the user's first login.
+command -v kdialog >/dev/null 2>&1 || exit 0
+
+msg=$'أهلاً بك في MoOS! هل تريد تثبيت التطبيقات الأساسية الآن؟ (Steam, Bottles, Firefox...)\nWelcome to MoOS! Install the essential apps now?'
+
+# kdialog --yesno exits 0 on Yes, 1 on No — keep it inside `if` so set -e
+# does not treat "No" as a failure.
+if kdialog \
+    --title "أهلاً بك في MoOS | Welcome to MoOS" \
+    --icon moos-logo \
+    --yes-label "تثبيت | Install" \
+    --no-label "لاحقاً | Later" \
+    --yesno "$msg"; then
+    # konsole ships in Kinoite (same verified package list); guard anyway.
+    if command -v konsole >/dev/null 2>&1; then
+        konsole -e moos-setup
+    else
+        kdialog --sorry $'لتثبيت التطبيقات شغّل moos-setup من أي طرفية.\nTo install the apps, run moos-setup from any terminal.' || true
+    fi
+fi
+
+exit 0

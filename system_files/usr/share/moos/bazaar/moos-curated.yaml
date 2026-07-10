@@ -1,0 +1,73 @@
+# =============================================================================
+# moos-curated.yaml — MoOS App Center (Bazaar) curated content, initial cut.
+# AC-1 groundwork — see MOOS_APP_CENTER_PLAN.md sections 2 and 8.
+# =============================================================================
+# SCHEMA (verified 2026-07-10 against bazaar-org/bazaar master):
+#   - docs/overview.md  -> "Curated Section" + "Translations in YAML Configs"
+#   - docs/example.yaml -> canonical rows/section/appids layout
+#   Top level is `rows:`, a vertical list rendered top-to-bottom. Row types:
+#   `banner`, `section`, `articles`, `featured-carousel`. A `section` takes
+#   `title`, `subtitle` (plain string, `{string: ...}` markdown, or a
+#   locale map `{en: ..., ar: ...}`), `list-type: rich` (cards with inline
+#   install buttons — recommended for small sections), `overflow-count`,
+#   `enable-bulk-install`, and `appids: {list: [...]}`.
+#
+# WIRING STILL NEEDED (this file is honest groundwork, not yet live):
+#   Bazaar does NOT auto-discover this file. It must be listed under
+#   `curated-config-paths:` in Bazaar's MAIN config, whose location is fixed
+#   at Bazaar build time (`hardcoded_main_config_path` meson option):
+#     * Flathub flatpak (io.github.kolunmi.Bazaar): reads /etc/bazaar
+#       (= /run/host/etc/bazaar inside the sandbox) and needs the host-etc
+#       permission, which Flathub does not grant by default — Bluefin/Aurora
+#       ship a systemd-tmpfiles symlink into
+#       /var/lib/flatpak/overrides/io.github.kolunmi.Bazaar to add it.
+#       Reference implementations:
+#       https://github.com/projectbluefin/common (system_files/bluefin/etc/bazaar)
+#       https://github.com/get-aurora-dev/common (system_files/shared/etc/bazaar)
+#     * RPM build (Terra/COPR, preferred per MOOS_APP_CENTER_PLAN.md 1.4):
+#       main-config path depends on how that package was compiled — check the
+#       package, then point its curated-config-paths at this file.
+#   When wiring, either reference this path directly (RPM) or symlink it to
+#   /etc/bazaar/moos-curated.yaml (flatpak sandbox sees /run/host/etc/bazaar).
+#
+# CURATION RULES (MOOS_APP_CENTER_PLAN.md 2.4): maintained apps only, no
+# paid/ad-funded apps in MoOS Picks, every id re-checked at each milestone
+# with `flatpak remote-info flathub <id>`.
+# All app ids below verified live on Flathub (HTTP 200 from
+# https://flathub.org/api/v2/summary/<id>) on 2026-07-10.
+#
+# NOTE on titles: plain bilingual strings (Arabic first) are used because the
+# locale-map fallback behavior for locales missing from the map is not
+# documented upstream (pre-1.0). Once verified in a VM, switch to real
+# locale maps, e.g.:
+#   title:
+#     ar: "مختارات MoOS"
+#     en: "MoOS Picks"
+
+rows:
+  - section:
+      title: "مختارات MoOS | MoOS Picks"
+      subtitle:
+        string: |
+          تطبيقات نثق بها لكل جهاز MoOS — Apps we trust on every MoOS machine.
+      list-type: rich
+      appids:
+        list:
+          - org.mozilla.firefox          # Firefox — المتصفح
+          - org.videolan.VLC             # VLC — مشغل الوسائط
+          - org.libreoffice.LibreOffice  # LibreOffice — حزمة المكتب (RTL ممتاز)
+          - org.kde.kcalc                # KCalc — الآلة الحاسبة
+          - com.github.tchx84.Flatseal   # Flatseal — أذونات Flatpak
+
+  - section:
+      title: "للألعاب | Gaming"
+      subtitle:
+        string: |
+          شغّل ألعاب Windows عبر Proton — Play Windows games via Proton.
+      list-type: rich
+      appids:
+        list:
+          - com.valvesoftware.Steam      # Steam — منصة الألعاب
+          - com.usebottles.bottles       # Bottles — تشغيل برامج Windows
+          - net.lutris.Lutris            # Lutris — مدير الألعاب الشامل
+          - net.davidotek.pupgui2        # ProtonUp-Qt — إدارة Proton-GE

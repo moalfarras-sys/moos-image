@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Compatibility Hub
+Name[ar]=مركز التوافق
+GenericName=Windows, Android & iPhone compatibility
+GenericName[ar]=توافق Windows وAndroid وiPhone
+Comment=Run Windows apps & games, Android apps, pair your iPhone and start local AI — honestly
+Comment[ar]=شغّل برامج وألعاب Windows وتطبيقات Android واربط iPhone وابدأ الذكاء المحلي — بصدق
+TryExec=moos-compat
+Exec=moos-compat
+Icon=moos-logo
+Terminal=false
+Categories=System;
+Keywords=compatibility;windows;android;iphone;waydroid;proton;wine;steam;bottles;kdeconnect;moai;
+Keywords[ar]=توافق;ويندوز;أندرويد;آيفون;ألعاب;

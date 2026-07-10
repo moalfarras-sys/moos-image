@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=MoOS First Run
+Name[ar]=التشغيل الأول لـ MoOS
+Comment=Welcome prompt on first login — offers the essential apps setup
+Comment[ar]=رسالة ترحيب عند أول تسجيل دخول — تعرض تثبيت التطبيقات الأساسية
+Exec=/usr/bin/moos-firstrun
+Icon=moos-logo
+Terminal=false
+OnlyShowIn=KDE;
+X-KDE-StartupNotify=false

@@ -306,6 +306,15 @@ EOF
 # - btop          (1.4.7-1.fc44)      modern system monitor, nice default.
 # - fastfetch     (2.65.2-1.fc44)     system info — shows the MoOS os-release
 #                                     branding (section (a)) in the terminal.
+# - qt6-qtdeclarative-devel (6.11.1-2.fc44) provides /usr/bin/qml-qt6 (symlink
+#                                     to /usr/lib64/qt6/bin/qml) — the QML
+#                                     runner for MoOS pure-QML "script apps"
+#                                     (moos-compat / Compatibility Hub v0). The
+#                                     base qt6-qtdeclarative package ships
+#                                     libraries only, NO binaries (verified
+#                                     2026-07-10 on packages.fedoraproject.org).
+#                                     Swapped for compiled Kirigami apps in a
+#                                     later phase.
 dnf5 -y install \
     waydroid \
     ramalama \
@@ -314,7 +323,8 @@ dnf5 -y install \
     steam-devices \
     distrobox \
     btop \
-    fastfetch
+    fastfetch \
+    qt6-qtdeclarative-devel
 
 # System-wide Flathub remote so Discover/Bazaar work out of the box on first
 # boot. Path convention from the kinoite bootc reference implementation
@@ -325,6 +335,22 @@ dnf5 -y install \
 mkdir -p /etc/flatpak/remotes.d
 curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
     https://dl.flathub.org/repo/flathub.flatpakrepo
+
+# -----------------------------------------------------------------------------
+# (c8) First-boot experience — permissions safety net
+# -----------------------------------------------------------------------------
+# /usr/bin/moos-setup and /usr/bin/moos-firstrun ship via system_files (COPY
+# preserves whatever mode the build context has). This repo is edited on
+# Windows, where the git executable bit is easy to lose (same reason the
+# Containerfile invokes this script via `bash` instead of ./build.sh) — so
+# guarantee the mode here instead of trusting the checkout.
+# moos-firstrun is started by /etc/xdg/autostart/org.moos.firstrun.desktop
+# and offers to run moos-setup in Konsole (kdialog + konsole are both in the
+# Kinoite base package set — workstation-ostree-config packages/kinoite.yaml,
+# verified 2026-07-10).
+# moos-compat launches the Compatibility Hub v0 (pure-QML script app in
+# /usr/share/moos/apps/compathub) via the qml-qt6 runner installed in (c7).
+chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat
 
 # -----------------------------------------------------------------------------
 # (d) Enable services
