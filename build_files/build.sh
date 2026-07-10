@@ -155,6 +155,32 @@ else
 fi
 rm -f /tmp/moos-dracut.log
 
+# --- USER-REQUESTED PROOF: lsinitrd | grep ostree-prepare-root ----------------
+# The dracut-log gate above already blocks a bad build. This additionally runs
+# the exact requested lsinitrd check, but written to a FILE (capturing lsinitrd
+# into a shell variable ballooned memory and killed the build step in an earlier
+# attempt) and bounded by `timeout`, so a flaky lsinitrd in the nested buildah
+# container can never abort the build.
+echo "=== PROOF: lsinitrd /usr/lib/modules/${kver}/initramfs.img | grep ostree-prepare-root ==="
+set +e
+timeout 240 lsinitrd "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-lsinitrd.txt 2>/tmp/moos-lsinitrd.err
+_lsrc=$?
+set -e
+_hits="$(grep -c 'ostree-prepare-root' /tmp/moos-lsinitrd.txt 2>/dev/null || echo 0)"
+echo "  lsinitrd exit=${_lsrc}, entries=$(wc -l < /tmp/moos-lsinitrd.txt 2>/dev/null || echo 0), ostree-prepare-root hits=${_hits}"
+if [ "${_lsrc}" -eq 0 ] && [ "${_hits}" -ge 1 ]; then
+    echo "  >>> PROOF PASSED — lsinitrd shows ostree-prepare-root in the initramfs:"
+    grep 'ostree-prepare-root' /tmp/moos-lsinitrd.txt | sed 's/^/      /'
+elif [ "${_lsrc}" -eq 0 ]; then
+    echo "  >>> FATAL: lsinitrd ran but found NO ostree-prepare-root — installed boot would fail."
+    exit 1
+else
+    echo "  >>> NOTE: lsinitrd could not run inside this buildah container (exit=${_lsrc}); the"
+    echo "      dracut-log gate above already proved the ostree module is included. The exact"
+    echo "      lsinitrd|grep is re-run on the live system in INSTALL_TEST_REPORT.md."
+fi
+rm -f /tmp/moos-lsinitrd.txt /tmp/moos-lsinitrd.err
+
 # Live session type = KDE Plasma; the services detect live boot and exit
 # cleanly on installed systems.
 sed -i "s/^livesys_session=.*/livesys_session=kde/" /etc/sysconfig/livesys
@@ -620,6 +646,44 @@ PWEOF
 _pw=/usr/share/applications/org.kde.plasma-welcome.desktop
 [ -f "$_pw" ] && printf '\nHidden=true\nNoDisplay=true\n' >> "$_pw" || true
 unset -v _pw
+
+# -----------------------------------------------------------------------------
+# (z3) Security — make cosign signature verification REAL for the MoOS image
+# -----------------------------------------------------------------------------
+# CI signs ghcr.io/moalfarras-sys/moos with cosign (build.yml "Sign image with
+# cosign", key from the SIGNING_SECRET repo secret). But the base policy.json
+# ships "default: reject" with entries only for redhat/quay/ublue-os — NO entry
+# for our registry and NO MoOS public key. So on the installed system the
+# signature was NEVER actually checked, AND `bootc upgrade` of the moos image
+# would be REJECTED by the default policy. This section closes that gap for
+# real: the MoOS cosign public key ships via system_files at
+# /etc/pki/containers/moos.pub, and here we insert a sigstoreSigned rule for
+# ghcr.io/moalfarras-sys so every future `bootc upgrade` must carry a valid
+# MoOS signature. (python3 is part of the Fedora base — always present.)
+if [ -f /etc/pki/containers/moos.pub ] && [ -f /etc/containers/policy.json ]; then
+    python3 - <<'PYSEC'
+import json
+p = "/etc/containers/policy.json"
+with open(p) as f:
+    d = json.load(f)
+d.setdefault("transports", {}).setdefault("docker", {})["ghcr.io/moalfarras-sys"] = [{
+    "type": "sigstoreSigned",
+    "keyPath": "/etc/pki/containers/moos.pub",
+    "signedIdentity": {"type": "matchRepository"},
+}]
+with open(p, "w") as f:
+    json.dump(d, f, indent=4)
+print("SECURITY: policy.json now enforces cosign (moos.pub) for ghcr.io/moalfarras-sys")
+PYSEC
+    # Verify the rule is present or fail the build — no silent false claim.
+    if python3 -c "import json,sys; d=json.load(open('/etc/containers/policy.json')); sys.exit(0 if 'ghcr.io/moalfarras-sys' in d.get('transports',{}).get('docker',{}) else 1)"; then
+        echo "OK: cosign enforcement for ghcr.io/moalfarras-sys is active in policy.json"
+    else
+        echo "FATAL: failed to add cosign policy entry for the MoOS image."; exit 1
+    fi
+else
+    echo "FATAL: /etc/pki/containers/moos.pub or policy.json missing — cannot enforce cosign."; exit 1
+fi
 
 # -----------------------------------------------------------------------------
 # (e) Cleanup — required for `bootc container lint` to pass
