@@ -32,12 +32,12 @@ SYMBOLS = {
     <circle cx="15" cy="47" r="1.8" fill="#8B5CF6" stroke="none"/>
     """,
     "moos-ai": """
-    <path d="M32 17V10m0 0 4-3m-4 3-4-3"/>
-    <rect x="13" y="17" width="38" height="33" rx="12" fill="url(#nova)" fill-opacity=".16"/>
-    <rect x="13" y="17" width="38" height="33" rx="12"/>
-    <circle cx="25" cy="32" r="3.4" fill="#22D3EE" stroke="none"/>
-    <circle cx="39" cy="32" r="3.4" fill="#8B5CF6" stroke="none"/>
-    <path d="M24 42c5 3 11 3 16 0"/>
+    <path d="M13 42a22 22 0 0 1 0-20M51 42a22 22 0 0 0 0-20"/>
+    <rect x="15" y="13" width="34" height="40" rx="13" fill="url(#nova)" fill-opacity=".18"/>
+    <rect x="15" y="13" width="34" height="40" rx="13"/>
+    <rect x="20" y="24" width="24" height="12" rx="6"/>
+    <path d="M24 30h3m10 0h3M25 42c4 3 10 3 14 0"/>
+    <path d="m32 45 2.5 3-2.5 3-2.5-3Z" fill="#7DEBFF" stroke="none"/>
     """,
     "moos-gaming": """
     <path d="M20 22h24c5 0 8 5 9 13l1 8c1 5-4 8-8 4l-7-6H25l-7 6c-4 4-9 1-8-4l1-8c1-8 4-13 9-13Z" fill="url(#nova)" fill-opacity=".14"/>
@@ -106,6 +106,24 @@ SYMBOLS = {
     "moos-phone": """
     <rect x="16" y="6" width="32" height="52" rx="10" fill="url(#nova)" fill-opacity=".12"/><rect x="16" y="6" width="32" height="52" rx="10"/>
     <path d="M27 13h10M27 51h10M25 29c3-4 7-4 10-1l3 3m1 4c-3 4-7 4-10 1l-3-3"/>
+    """,
+    "moos-install": """
+    <rect x="10" y="10" width="44" height="44" rx="13" fill="url(#nova)" fill-opacity=".13"/>
+    <rect x="10" y="10" width="44" height="44" rx="13"/>
+    <path d="M32 18v19m-8-8 8 8 8-8M21 45h22"/>
+    <circle cx="46" cy="18" r="3" fill="#22D3EE" stroke="none"/>
+    """,
+    "moos-audio": """
+    <path d="M12 27h9l11-9v28l-11-9h-9Z" fill="url(#nova)" fill-opacity=".16"/>
+    <path d="M12 27h9l11-9v28l-11-9h-9Zm27 1c4 4 4 8 0 12m6-18c8 7 8 17 0 24"/>
+    <path d="m40 46 4 4 9-10"/>
+    """,
+    "moos-optimize": """
+    <path d="M12 22h40M12 42h40M22 14v16M42 34v16"/>
+    <circle cx="22" cy="22" r="6" fill="url(#nova)" fill-opacity=".18"/>
+    <circle cx="22" cy="22" r="6"/><circle cx="42" cy="42" r="6" fill="url(#nova)" fill-opacity=".18"/>
+    <circle cx="42" cy="42" r="6"/>
+    <path d="m49 10 1.6 4.4L55 16l-4.4 1.6L49 22l-1.6-4.4L43 16l4.4-1.6Z" fill="#7DEBFF" stroke="none"/>
     """,
 }
 

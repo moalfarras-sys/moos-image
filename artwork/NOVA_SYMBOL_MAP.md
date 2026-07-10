@@ -27,8 +27,19 @@ Do not keep the emoji beside the icon. Replace each emoji prefix with a
 | Hardware — Full report | `📄` | `moos-report` |
 | Warning callouts | `⚠` | `moos-warning` |
 | Compatibility — iPhone Companion | `📱` | `moos-phone` |
+| Mo AI — Update | action pill | `moos-safe-update` |
+| Mo AI — Install app | action pill | `moos-install` |
+| Mo AI — Fix audio | action pill | `moos-audio` |
+| Mo AI — Check drivers | action pill | `moos-gpu` |
+| Mo AI — Optimize | action pill | `moos-optimize` |
+| Mo AI — Hardware report | action pill | `moos-report` |
 
 Use a logical 24 px icon beside button labels and 30–36 px inside feature/card
 headers. Preserve the Arabic/English text after removing only the leading
 emoji. Welcome currently imports plain QtQuick only, so Claude must add the
 verified icon component/import rather than hardcoding absolute file paths.
+
+For Mo AI, the six pill icons above pair with the visual states under
+`/usr/share/moos/branding/moai/mascot/`. The action remains explicitly a
+clipboard command until Claude provides a typed daemon/MCP + polkit execution
+path; the icon must not imply that an unimplemented action already ran.

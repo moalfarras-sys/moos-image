@@ -463,11 +463,9 @@ def generate_icons() -> None:
             icon = master.resize((size, size), RESAMPLE)
             save_png(icon, SHARE / "icons" / "hicolor" / f"{size}x{size}" / "apps" / f"{name}.png")
 
-    # Fill the small-size gap for the existing Mo AI icon without changing its
-    # approved 48/64/128/256 artwork.
-    moai = Image.open(SHARE / "icons" / "hicolor" / "256x256" / "apps" / "moos-moai.png").convert("RGBA")
-    for size in (16, 22, 24, 32):
-        save_png(moai.resize((size, size), RESAMPLE), SHARE / "icons" / "hicolor" / f"{size}x{size}" / "apps" / "moos-moai.png")
+    # Mo AI has a separate state-aware source and pixel-tuned small masters.
+    # Keep it owned by generate_moai_companion.py so a general icon refresh
+    # cannot collapse the 16/22/24/32 px exports back to a naive resize.
 
 
 def generate_installer() -> None:

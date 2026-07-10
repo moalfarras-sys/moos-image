@@ -12,11 +12,8 @@
   </defs>
   <rect x="3" y="3" width="58" height="58" rx="17" fill="#111A2E" fill-opacity=".20" stroke="#22D3EE" stroke-opacity=".14"/>
   <g fill="none" stroke="url(#nova)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
-<path d="M13 42a22 22 0 0 1 0-20M51 42a22 22 0 0 0 0-20"/>
-    <rect x="15" y="13" width="34" height="40" rx="13" fill="url(#nova)" fill-opacity=".18"/>
-    <rect x="15" y="13" width="34" height="40" rx="13"/>
-    <rect x="20" y="24" width="24" height="12" rx="6"/>
-    <path d="M24 30h3m10 0h3M25 42c4 3 10 3 14 0"/>
-    <path d="m32 45 2.5 3-2.5 3-2.5-3Z" fill="#7DEBFF" stroke="none"/>
+<path d="M12 27h9l11-9v28l-11-9h-9Z" fill="url(#nova)" fill-opacity=".16"/>
+    <path d="M12 27h9l11-9v28l-11-9h-9Zm27 1c4 4 4 8 0 12m6-18c8 7 8 17 0 24"/>
+    <path d="m40 46 4 4 9-10"/>
   </g>
 </svg>

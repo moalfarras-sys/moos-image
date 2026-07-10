@@ -61,7 +61,7 @@ def verify_wallpapers() -> None:
 
 
 def verify_icons() -> None:
-    names = ("moos-hardware", "moos-compat", "moos-updater", "moos-recovery", "moos-welcome")
+    names = ("moos-hardware", "moos-compat", "moos-updater", "moos-recovery", "moos-welcome", "moos-moai")
     sizes = (16, 22, 24, 32, 48, 64, 128, 256)
     icon_profiles: set[str] = set()
     icon_profile_dates: set[bytes] = set()
@@ -87,13 +87,57 @@ def verify_icons() -> None:
             digest(apps / "moos-compat.png") != digest(apps / "moos-updater.png"),
             f"Compatibility and Updater icons collapsed at {size}px",
         )
-    for size in (16, 22, 24, 32):
-        inspect_image(
-            SHARE / "icons" / "hicolor" / f"{size}x{size}" / "apps" / "moos-moai.png",
-            (size, size),
-            ("RGBA",),
-            alpha=True,
-        )
+    scalable = SHARE / "icons" / "hicolor" / "scalable" / "apps" / "moos-moai.svg"
+    svg = ET.parse(scalable).getroot()
+    require(svg.attrib.get("viewBox") == "0 0 1024 1024", "bad scalable Mo AI viewBox")
+    tags = {element.tag.rsplit("}", 1)[-1] for element in svg.iter()}
+    require("text" not in tags and "image" not in tags, "Mo AI scalable icon has a font/raster dependency")
+
+
+def verify_moai_companion() -> None:
+    states = {
+        "idle",
+        "attentive",
+        "thinking",
+        "success",
+        "warning",
+        "error",
+        "offline",
+    }
+    root = SHARE / "moos" / "branding" / "moai" / "mascot"
+    require({path.stem for path in root.glob("*.png")} == states, "Mo AI state family is incomplete or stale")
+    bounds: set[tuple[int, int, int, int] | None] = set()
+    hashes: set[str] = set()
+    for state in states:
+        path = root / f"{state}.png"
+        inspect_image(path, (512, 512), ("RGBA",), alpha=True, max_bytes=512 * 1024)
+        hashes.add(digest(path))
+        with Image.open(path) as image:
+            bounds.add(image.getchannel("A").getbbox())
+    require(len(hashes) == len(states), "duplicate Mo AI expression states")
+    require(len(bounds) == 1, "Mo AI states do not share one stable alpha footprint")
+
+    semantic = {
+        "success": (52, 211, 153),
+        "warning": (251, 191, 36),
+        "error": (248, 113, 113),
+    }
+    for state, expected in semantic.items():
+        with Image.open(root / f"{state}.png") as image:
+            colors = {color for _, color in image.convert("RGB").getcolors(maxcolors=512 * 512) or []}
+            require(expected in colors, f"Mo AI {state} omits its canonical semantic color")
+
+    source = ROOT / "artwork" / "moai" / "mascot-master.svg"
+    svg = ET.parse(source).getroot()
+    require(svg.attrib.get("viewBox") == "0 0 1024 1024", "bad Mo AI mascot source viewBox")
+    tags = {element.tag.rsplit("}", 1)[-1] for element in svg.iter()}
+    require("text" not in tags and "image" not in tags, "Mo AI mascot source has a font/raster dependency")
+    inspect_image(
+        ROOT / "artwork" / "moai" / "nova-companion-states.png",
+        (1960, 410),
+        ("RGBA",),
+        max_bytes=2 * 1024 * 1024,
+    )
 
 
 def verify_symbolic_icons() -> None:
@@ -114,6 +158,9 @@ def verify_symbolic_icons() -> None:
         "moos-report",
         "moos-warning",
         "moos-phone",
+        "moos-install",
+        "moos-audio",
+        "moos-optimize",
     }
     root = SHARE / "icons" / "hicolor" / "scalable" / "actions"
     actual = {path.stem for path in root.glob("moos-*.svg")}
@@ -355,6 +402,7 @@ def verify_text_files() -> None:
 def main() -> None:
     verify_wallpapers()
     verify_icons()
+    verify_moai_companion()
     verify_symbolic_icons()
     verify_no_foreign_visual_branding()
     verify_installer_and_grub()

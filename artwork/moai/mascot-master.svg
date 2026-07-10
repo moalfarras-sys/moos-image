@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Original Mo AI Nova Companion, © Moalfarras. -->
+  <defs>
+    <linearGradient id="nova" x1="160" y1="150" x2="850" y2="840" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/><stop offset=".52" stop-color="#2E7BFF"/><stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="face" x1="512" y1="220" x2="512" y2="790" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1A2740"/><stop offset=".48" stop-color="#111A2E"/><stop offset="1" stop-color="#050A14"/>
+    </linearGradient>
+    <linearGradient id="appShell" x1="110" y1="70" x2="900" y2="960" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7DEBFF"/><stop offset=".22" stop-color="#22D3EE"/><stop offset=".58" stop-color="#2E7BFF"/><stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="appPanel" x1="512" y1="132" x2="512" y2="902" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1A2740"/><stop offset=".52" stop-color="#111A2E"/><stop offset="1" stop-color="#050A14"/>
+    </linearGradient>
+  </defs>
+
+  <g>
+    <path d="M168 748A384 384 0 0 1 155 342" fill="none" stroke="#22D3EE" stroke-opacity=".78" stroke-width="13" stroke-linecap="round"/>
+    <path d="M856 748A384 384 0 0 0 869 342" fill="none" stroke="#8B5CF6" stroke-opacity=".78" stroke-width="13" stroke-linecap="round"/>
+    <rect x="130" y="392" width="94" height="228" rx="46" fill="url(#face)" stroke="#22D3EE" stroke-width="7"/>
+    <rect x="800" y="392" width="94" height="228" rx="46" fill="url(#face)" stroke="#8B5CF6" stroke-width="7"/>
+    <rect x="182" y="188" width="660" height="634" rx="202" fill="url(#nova)"/>
+    <rect x="211" y="221" width="602" height="569" rx="174" fill="url(#face)"/>
+    <path d="M295 301C384 230 640 230 729 301" fill="none" stroke="url(#nova)" stroke-width="15" stroke-linecap="round"/>
+    <rect x="264" y="342" width="496" height="216" rx="104" fill="#050A14" stroke="#22D3EE" stroke-opacity=".66" stroke-width="6"/>
+    <rect x="332" y="430" width="92" height="46" rx="22" fill="#22D3EE"/>
+    <rect x="600" y="430" width="92" height="46" rx="22" fill="#8B5CF6"/>
+    <rect x="350" y="439" width="32" height="12" rx="6" fill="#FFFFFF" fill-opacity=".82"/>
+    <rect x="618" y="439" width="32" height="12" rx="6" fill="#FFFFFF" fill-opacity=".82"/>
+    <path d="M386 588C438 664 586 664 638 588" fill="none" stroke="url(#nova)" stroke-width="12" stroke-linecap="round"/>
+    <path d="M512 670 540 704 512 738 484 704Z" fill="url(#nova)"/>
+  </g>
+</svg>
