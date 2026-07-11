@@ -54,6 +54,9 @@ require('c.get("cloud_key")' not in gateway,
         "Mo AI gateway must not read plaintext cloud_key from JSON")
 require("secret-tool" in control and "secret-tool" in gateway,
         "Mo AI cloud credentials must use Secret Service")
+require('had_legacy_key = "cloud_key" in data' in control and
+        "elif had_legacy_key:" in control,
+        "Mo AI must remove even an empty legacy cloud_key field")
 
 # The v4 migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")

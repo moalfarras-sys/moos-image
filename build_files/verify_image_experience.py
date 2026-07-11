@@ -54,6 +54,8 @@ require('"cloud_key":' not in control, "Mo AI persists cloud credentials in JSON
 require('c.get("cloud_key")' not in gateway, "Mo AI reads plaintext credentials")
 require("secret-tool" in control and "secret-tool" in gateway,
         "Mo AI does not use Secret Service")
+require('had_legacy_key = "cloud_key" in data' in control,
+        "Mo AI does not fully migrate legacy credential fields")
 
 if errors:
     raise SystemExit("MoOS image-experience gate failed:\n - " + "\n - ".join(errors))
