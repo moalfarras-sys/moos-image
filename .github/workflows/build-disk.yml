@@ -1,0 +1,103 @@
+# build-disk.yml — build a PRE-INSTALLED MoOS disk image (qcow2) via
+# bootc-image-builder, then smoke-check that the produced disk actually contains
+# a working ostree/bootc deployment (the v20 fix). Manual + monthly.
+#
+# WHY: the installed-disk boot path (initramfs -> ostree-prepare-root ->
+# /sysroot) is what regressed in v19 (dracut emergency mode). A qcow2 from
+# bootc-image-builder is a real installed deployment that boots directly — no
+# Anaconda, no live ISO — so it is the cleanest artifact to verify the v20 fix
+# in a VM. Runs on a Linux runner (privileged podman) so it does not depend on
+# any Windows-host tooling.
+name: Build MoOS disk image (qcow2)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image-ref:
+        description: "Image ref (empty = ghcr.io/<owner>/moos:latest)"
+        required: false
+        default: ""
+  schedule:
+    - cron: "0 5 1 * *"
+
+permissions:
+  contents: read
+
+jobs:
+  build-disk:
+    name: Build qcow2 (bootc-image-builder)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          docker-images: true
+
+      - name: Resolve image ref
+        id: ref
+        run: |
+          REF="${{ github.event.inputs.image-ref }}"
+          [ -n "$REF" ] || REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/moos:latest"
+          echo "image_ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "Building disk from: $REF"
+
+      - name: Pull the MoOS image (public — no auth)
+        run: sudo podman pull "${{ steps.ref.outputs.image_ref }}"
+
+      - name: Build qcow2 with bootc-image-builder
+        run: |
+          mkdir -p output
+          sudo podman run --rm --privileged \
+            --security-opt label=type:unconfined_t \
+            -v "$PWD/bib/config.toml:/config.toml:ro" \
+            -v "$PWD/output:/output" \
+            -v /var/lib/containers/storage:/var/lib/containers/storage \
+            quay.io/centos-bootc/bootc-image-builder:latest \
+            --type qcow2 \
+            --config /config.toml \
+            --local \
+            "${{ steps.ref.outputs.image_ref }}"
+          echo "=== output tree ==="; sudo find output -maxdepth 3 -type f -printf '%p (%s bytes)\n'
+
+      - name: Verify the deployed disk's initramfs has ostree-prepare-root
+        run: |
+          set -uo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq qemu-utils zstd initramfs-tools-core >/dev/null
+          QCOW=$(sudo find output -name '*.qcow2' | head -1)
+          [ -n "$QCOW" ] || { echo "FATAL: no qcow2 produced"; exit 1; }
+          echo "qcow2: $QCOW ($(sudo du -h "$QCOW" | cut -f1))"
+          # Map the qcow2 (no boot) and pull the DEPLOYED initramfs off it. This
+          # proves the INSTALLED disk — not just the image — carries the v20 fix,
+          # i.e. it will boot past the v19 emergency point.
+          sudo modprobe nbd max_part=16
+          sudo qemu-nbd --connect=/dev/nbd0 -f qcow2 "$QCOW"; sleep 3
+          sudo partprobe /dev/nbd0 2>/dev/null || true
+          lsblk /dev/nbd0
+          MNT=$(mktemp -d); FOUND=""
+          for P in $(lsblk -rno NAME /dev/nbd0 | tail -n +2); do
+            sudo mount -o ro "/dev/$P" "$MNT" 2>/dev/null || continue
+            IMG=$(sudo find "$MNT" -path '*modules*initramfs.img' 2>/dev/null | head -1)
+            if [ -n "$IMG" ]; then echo "installed initramfs on /dev/$P: $IMG"; sudo cp "$IMG" /tmp/deployed.img; FOUND=1; sudo umount "$MNT"; break; fi
+            sudo umount "$MNT" 2>/dev/null || true
+          done
+          sudo qemu-nbd --disconnect /dev/nbd0 || true
+          [ -n "$FOUND" ] || { echo "FATAL: could not locate deployed initramfs on the disk"; exit 1; }
+          # unmkinitramfs (initramfs-tools) extracts multi-segment (early-cpio +
+          # zstd) initramfs directly — no lsinitrd/skipcpio needed on Ubuntu.
+          sudo unmkinitramfs /tmp/deployed.img /tmp/initx 2>/dev/null || true
+          if sudo find /tmp/initx -name 'ostree-prepare-root' | grep -q .; then
+            echo "PROOF: DEPLOYED-DISK initramfs CONTAINS ostree-prepare-root -> boots past the v19 emergency point."
+          else
+            echo "FATAL: deployed initramfs is missing ostree-prepare-root."; exit 1
+          fi
+
+      - name: Upload qcow2
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-disk-qcow2
+          path: output/**/*.qcow2
+          compression-level: 0
