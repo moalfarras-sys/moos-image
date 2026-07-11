@@ -11,6 +11,8 @@ APP="/usr/share/moos/apps/compathub/main.qml"
 # would require a widgets QApplication, which the qml runner does not create by
 # default). Users/sessions can still override via the environment.
 export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
+# OSTree fixes mtimes → Qt's QML disk cache never invalidates across upgrades.
+export QML_DISABLE_DISK_CACHE=1
 
 # QML runner fallback chain.
 # Fedora ships the Qt6 QML runner as /usr/bin/qml-qt6 — a symlink from the

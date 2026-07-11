@@ -179,6 +179,8 @@ fi
 # from qt6-qtdeclarative-devel — installed by build.sh (c7)).
 # -----------------------------------------------------------------------------
 export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
+# OSTree fixes mtimes → Qt's QML disk cache never invalidates across upgrades.
+export QML_DISABLE_DISK_CACHE=1
 
 for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
     if command -v "$runner" >/dev/null 2>&1; then

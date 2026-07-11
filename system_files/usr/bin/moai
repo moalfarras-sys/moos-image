@@ -10,6 +10,13 @@
 # the image must include qt6-qtdeclarative-devel for Mo AI to launch.
 set -uo pipefail
 
+# OSTree normalizes file mtimes, so Qt's QML disk cache (~/.cache/qmlcache) is
+# NOT invalidated when a `bootc upgrade` ships a new main.qml — the app would
+# keep rendering the STALE compiled QML from the user's first install. That is
+# why Mo AI "never changed" across updates. Disable the disk cache so the
+# current source is always compiled and used.
+export QML_DISABLE_DISK_CACHE=1
+
 MAIN_QML="/usr/share/moos/apps/moai/main.qml"
 
 # Log QML runtime output so a silent failure ("the app didn't open") is always
