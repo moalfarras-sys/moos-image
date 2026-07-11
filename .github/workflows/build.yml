@@ -91,6 +91,7 @@ jobs:
           # (kinoite-main for moos, kinoite-nvidia for moos-nvidia).
           build-args: |
             BASE_IMAGE=${{ matrix.base_image }}
+            IMAGE_NAME=${{ matrix.image_name }}
           oci: false
 
       - name: Log in to GHCR

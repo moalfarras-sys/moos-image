@@ -40,6 +40,12 @@ RUN dotnet publish agent-linux/MoRemoteLinux.csproj -c Release -r linux-x64 \
 # -----------------------------------------------------------------------------
 FROM ${BASE_IMAGE}
 
+# IMAGE_NAME (moos | moos-nvidia) so build.sh can bake the matching install ref
+# into the Anaconda kickstart — a moos-nvidia image must deploy moos-nvidia, not
+# moos (installing the wrong edition is what forced the user's manual bootc
+# switch that bricked the machine). Passed as a build-arg by build.yml's matrix.
+ARG IMAGE_NAME=moos
+
 LABEL org.opencontainers.image.title="MoOS" \
       org.opencontainers.image.description="MoOS — atomic desktop with the Nova experience" \
       org.opencontainers.image.vendor="Moalfarras" \
@@ -65,7 +71,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
-    bash /ctx/build.sh
+    MOOS_IMAGE_NAME="${IMAGE_NAME}" bash /ctx/build.sh
 
 # Final gate: validate that the result is a well-formed bootc container
 # (clean /var, valid ostree layout, kernel present, ...). The build FAILS

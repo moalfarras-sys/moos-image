@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       image-ref:
-        description: "Image ref (empty = ghcr.io/<owner>/moos:latest)"
+        description: "Image ref (empty = ghcr.io/<owner>/moos-nvidia:latest — the edition the user runs)"
         required: false
         default: ""
   schedule:
@@ -41,7 +41,7 @@ jobs:
         id: ref
         run: |
           REF="${{ github.event.inputs.image-ref }}"
-          [ -n "$REF" ] || REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/moos:latest"
+          [ -n "$REF" ] || REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/moos-nvidia:latest"
           echo "image_ref=$REF" >> "$GITHUB_OUTPUT"
           echo "Building disk from: $REF"
 
@@ -51,8 +51,8 @@ jobs:
       - name: Build qcow2 with bootc-image-builder
         run: |
           mkdir -p output
-          # --rootfs xfs: the kinoite-main base does not declare a DefaultRootFs,
-          # so bootc-image-builder needs it explicitly (Silverblue/Kinoite use xfs).
+          # --rootfs btrfs matches the real-hardware Anaconda install (and the
+          # 00-moos.toml default), so this qcow2 boots the SAME on-disk layout.
           sudo podman run --rm --privileged \
             --security-opt label=type:unconfined_t \
             -v "$PWD/bib/config.toml:/config.toml:ro" \
@@ -60,7 +60,7 @@ jobs:
             -v /var/lib/containers/storage:/var/lib/containers/storage \
             quay.io/centos-bootc/bootc-image-builder:latest \
             --type qcow2 \
-            --rootfs xfs \
+            --rootfs btrfs \
             --config /config.toml \
             --local \
             "${{ steps.ref.outputs.image_ref }}"
@@ -96,6 +96,54 @@ jobs:
             echo "PROOF: DEPLOYED-DISK initramfs CONTAINS ostree-prepare-root -> boots past the v19 emergency point."
           else
             echo "FATAL: deployed initramfs is missing ostree-prepare-root."; exit 1
+          fi
+
+      - name: Boot the qcow2 in QEMU UEFI — real boot test (the v-boot regression gate)
+        run: |
+          set -uo pipefail
+          sudo apt-get install -y -qq qemu-system-x86 ovmf >/dev/null
+          QCOW=$(sudo find output -name '*.qcow2' | head -1)
+          [ -n "$QCOW" ] || { echo "FATAL: no qcow2"; exit 1; }
+          # Make the boot observable: add a serial console and drop quiet/rhgb on
+          # the installed BLS entries (via the nbd mapping used above).
+          sudo qemu-nbd --connect=/dev/nbd0 -f qcow2 "$QCOW"; sleep 3
+          sudo partprobe /dev/nbd0 2>/dev/null || true
+          MNT=$(mktemp -d)
+          for P in $(lsblk -rno NAME /dev/nbd0 | tail -n +2); do
+            sudo mount "/dev/$P" "$MNT" 2>/dev/null || continue
+            if sudo test -d "$MNT/loader/entries"; then
+              echo "boot partition: /dev/$P"
+              sudo sed -i -E 's/\bquiet\b//g; s/\brhgb\b//g; /^options /{/console=ttyS0/!s/$/ console=ttyS0,115200/}' "$MNT"/loader/entries/*.conf
+              sudo grep -h '^options' "$MNT"/loader/entries/*.conf | head
+              sudo umount "$MNT"; break
+            fi
+            sudo umount "$MNT" 2>/dev/null || true
+          done
+          sudo qemu-nbd --disconnect /dev/nbd0 || true
+          OVMF_CODE=$(ls /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd 2>/dev/null | head -1)
+          OVMF_VARS=$(ls /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd 2>/dev/null | head -1)
+          cp "$OVMF_VARS" /tmp/vars.fd
+          echo "OVMF: $OVMF_CODE ; boot (TCG, no KVM on GH runners — allow time)…"
+          # Never exits on its own (boots to a login); timeout stops it, then we
+          # analyse the captured serial console.
+          sudo timeout 600 qemu-system-x86_64 \
+            -machine q35 -cpu Haswell -m 4096 -smp 2 \
+            -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
+            -drive if=pflash,format=raw,file=/tmp/vars.fd \
+            -drive file="$QCOW",format=qcow2,if=virtio \
+            -device virtio-gpu-pci -nic none \
+            -serial file:/tmp/serial.log -display none -no-reboot 2>/tmp/qemu.err || true
+          echo "=== serial console (tail) ==="; tail -80 /tmp/serial.log 2>/dev/null || true
+          # Negative gate: any boot failure signature fails the build.
+          if grep -qiE "Kernel panic|Entering emergency|emergency mode|Cannot open root device|Failed to mount /sysroot|unable to allocate memory|out of memory|can't allocate|ostree-prepare-root: .*(fail|error)" /tmp/serial.log; then
+            echo "FATAL: boot failure detected in the QEMU serial log."; exit 1
+          fi
+          # Positive gate: reached a systemd target => GRUB+kernel+initramfs+ostree
+          # +root+systemd all worked (the exact chain that failed on real hardware).
+          if grep -qiE "Reached target (Graphical|Multi-User|Login Prompts|Basic System)|Startup finished|Started .*Display Manager|Welcome to MoOS|sddm-greeter" /tmp/serial.log; then
+            echo "PASS: MoOS-nvidia booted in QEMU UEFI to a systemd target with no emergency/panic."
+          else
+            echo "FATAL: boot did not reach a systemd target within the timeout."; tail -120 /tmp/serial.log; exit 1
           fi
 
       - name: Upload qcow2

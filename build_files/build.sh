@@ -160,7 +160,7 @@ echo "=== dracut.conf.d before MoOS override ==="
 ls -la /usr/lib/dracut/dracut.conf.d/ /etc/dracut.conf.d/ 2>/dev/null || true
 grep -rilE "force_drivers.*nvidia|add_drivers.*nvidia" /usr/lib/dracut/dracut.conf.d/ /etc/dracut.conf.d/ 2>/dev/null | while read -r f; do
     echo "  stripping NVIDIA-forcing dracut conf: $f"; rm -f "$f"
-done
+done || true   # grep returns 1 (no match) on the generic base — must not abort (set -e + pipefail)
 rm -f /usr/lib/dracut/dracut.conf.d/*nvidia*.conf /etc/dracut.conf.d/*nvidia*.conf 2>/dev/null || true
 
 cat > /usr/lib/dracut/dracut.conf.d/99-moos-boot.conf <<'DRC'
@@ -251,8 +251,11 @@ ls /boot/efi/EFI >/dev/null   # hard-fail here if the EFI dir could not be provi
 # an interactive-defaults kickstart telling Anaconda to deploy THIS container
 # image from the live environment's container storage.
 # Branding (profile.d/moos.conf, /etc/system-release, pixmaps, cockpit) ships
-# via system_files. The MoOS image ref the installer deploys:
-MOOS_IMAGEREF="ghcr.io/moalfarras-sys/moos"
+# via system_files. The MoOS image ref the installer deploys — EDITION-AWARE:
+# a moos-nvidia image bakes a moos-nvidia install ref (MOOS_IMAGE_NAME is passed
+# from the Containerfile ARG IMAGE_NAME), so ISO installs deploy the same edition
+# and the user never has to `bootc switch` (which is what bricked the machine).
+MOOS_IMAGEREF="ghcr.io/moalfarras-sys/${MOOS_IMAGE_NAME:-moos}"
 MOOS_IMAGETAG="latest"
 
 dnf5 -y install --setopt=install_weak_deps=False \
