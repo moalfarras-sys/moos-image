@@ -648,41 +648,42 @@ _pw=/usr/share/applications/org.kde.plasma-welcome.desktop
 unset -v _pw
 
 # -----------------------------------------------------------------------------
-# (z3) Security — make cosign signature verification REAL for the MoOS image
+# (z3) Container policy — ALLOW the MoOS registry (install + upgrade)
 # -----------------------------------------------------------------------------
-# CI signs ghcr.io/moalfarras-sys/moos with cosign (build.yml "Sign image with
-# cosign", key from the SIGNING_SECRET repo secret). But the base policy.json
-# ships "default: reject" with entries only for redhat/quay/ublue-os — NO entry
-# for our registry and NO MoOS public key. So on the installed system the
-# signature was NEVER actually checked, AND `bootc upgrade` of the moos image
-# would be REJECTED by the default policy. This section closes that gap for
-# real: the MoOS cosign public key ships via system_files at
-# /etc/pki/containers/moos.pub, and here we insert a sigstoreSigned rule for
-# ghcr.io/moalfarras-sys so every future `bootc upgrade` must carry a valid
-# MoOS signature. (python3 is part of the Fedora base — always present.)
-if [ -f /etc/pki/containers/moos.pub ] && [ -f /etc/containers/policy.json ]; then
+# HONEST STATUS: CI DOES sign ghcr.io/moalfarras-sys/moos with cosign (build.yml
+# "Sign image with cosign"). An earlier v20 attempt added a `sigstoreSigned`
+# policy rule to ENFORCE that signature — but that BROKE real-hardware install:
+# `ostree container image deploy ... --no-signature-verification` failed with
+# "A signature was required, but no signature exists", because enforcing
+# sigstore also requires a registries.d `use-sigstore-attachments` lookaside +
+# a working verification path, which was not wired/tested. Rather than ship an
+# installer that fails, we add an `insecureAcceptAnything` rule so the base
+# "default: reject" policy does not block the MoOS registry on install OR
+# `bootc upgrade`. The MoOS public key still ships at /etc/pki/containers/moos.pub
+# for the future. TRUTH: the installed system does NOT yet verify the cosign
+# signature — do not claim otherwise. Enabling real verification (sigstoreSigned
+# + use-sigstore-attachments) is deferred until it can be tested end-to-end
+# without breaking install.
+if [ -f /etc/containers/policy.json ]; then
     python3 - <<'PYSEC'
 import json
 p = "/etc/containers/policy.json"
 with open(p) as f:
     d = json.load(f)
-d.setdefault("transports", {}).setdefault("docker", {})["ghcr.io/moalfarras-sys"] = [{
-    "type": "sigstoreSigned",
-    "keyPath": "/etc/pki/containers/moos.pub",
-    "signedIdentity": {"type": "matchRepository"},
-}]
+d.setdefault("transports", {}).setdefault("docker", {})["ghcr.io/moalfarras-sys"] = [
+    {"type": "insecureAcceptAnything"}
+]
 with open(p, "w") as f:
     json.dump(d, f, indent=4)
-print("SECURITY: policy.json now enforces cosign (moos.pub) for ghcr.io/moalfarras-sys")
+print("POLICY: ghcr.io/moalfarras-sys is allowed (insecureAcceptAnything) — install + bootc upgrade work; signature is NOT verified yet.")
 PYSEC
-    # Verify the rule is present or fail the build — no silent false claim.
     if python3 -c "import json,sys; d=json.load(open('/etc/containers/policy.json')); sys.exit(0 if 'ghcr.io/moalfarras-sys' in d.get('transports',{}).get('docker',{}) else 1)"; then
-        echo "OK: cosign enforcement for ghcr.io/moalfarras-sys is active in policy.json"
+        echo "OK: MoOS registry policy entry present (deploy + upgrade will not be rejected)."
     else
-        echo "FATAL: failed to add cosign policy entry for the MoOS image."; exit 1
+        echo "FATAL: failed to add MoOS registry policy entry."; exit 1
     fi
 else
-    echo "FATAL: /etc/pki/containers/moos.pub or policy.json missing — cannot enforce cosign."; exit 1
+    echo "FATAL: /etc/containers/policy.json missing."; exit 1
 fi
 
 # -----------------------------------------------------------------------------
