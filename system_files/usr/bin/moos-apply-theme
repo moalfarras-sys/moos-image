@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# moos-apply-theme — apply the full MoOS Nova Global Theme once per user.
+#
+# WHY: /etc/xdg/kdeglobals sets [KDE] LookAndFeelPackage=org.moos.nova, but
+# Plasma 6 only AUTO-applies a subset of a default Global Theme (color scheme,
+# icons) on a fresh login — it does NOT apply the wallpaper, splash, or the
+# rest of the "look". So a freshly-created INSTALLED user lands on a half-Breeze
+# desktop that does not look like MoOS. This runs once on first login and
+# explicitly applies the whole thing (colors + wallpaper + splash).
+#
+# Separate marker from moos-firstrun on purpose: a system that was already
+# installed (and whose user already saw moos-firstrun) still gets the theme
+# applied on the first login AFTER a `bootc upgrade` that ships this file.
+set -uo pipefail
+
+marker="${XDG_STATE_HOME:-$HOME/.local/state}/moos-nova-theme-applied"
+[ -e "$marker" ] && exit 0
+mkdir -p "$(dirname "$marker")" 2>/dev/null || true
+
+log="${XDG_CACHE_HOME:-$HOME/.cache}/moos-apply-theme.log"
+mkdir -p "$(dirname "$log")" 2>/dev/null || true
+echo "=== moos-apply-theme $(date -u '+%FT%TZ') ===" >>"$log" 2>/dev/null || true
+
+# Autostart can fire before the Plasma shell / session D-Bus is ready. Wait for
+# plasmashell so the apply tools actually take effect.
+for _ in $(seq 1 40); do
+    qdbus org.kde.plasmashell /PlasmaShell >/dev/null 2>&1 && break
+    sleep 1
+done
+
+applied=0
+
+# The whole Global Theme (colors, wallpaper, splash, cursor). Do NOT reset the
+# panel layout — the MoOS dock is provided by the defaultPanel template.
+if command -v plasma-apply-lookandfeel >/dev/null 2>&1; then
+    if plasma-apply-lookandfeel -a org.moos.nova >>"$log" 2>&1; then
+        applied=1
+    fi
+fi
+
+# Belt-and-suspenders: force the Nova wallpaper + dark scheme directly, in case
+# the L&F apply skips them (Plasma has historically been inconsistent here).
+if command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
+    for wp in \
+        /usr/share/wallpapers/NovaHorizon/contents/images_dark/3840x2160.png \
+        /usr/share/wallpapers/NovaHorizon/contents/images/3840x2160.png; do
+        [ -f "$wp" ] && { plasma-apply-wallpaperimage "$wp" >>"$log" 2>&1 && applied=1; break; }
+    done
+fi
+command -v plasma-apply-colorscheme >/dev/null 2>&1 && \
+    plasma-apply-colorscheme NovaDark >>"$log" 2>&1 || true
+
+# Only mark done if something actually applied — otherwise retry next login.
+if [ "$applied" = "1" ]; then
+    touch "$marker" 2>/dev/null || true
+    echo "applied OK" >>"$log" 2>/dev/null || true
+else
+    echo "apply tools unavailable/failed — will retry next login" >>"$log" 2>/dev/null || true
+fi
+exit 0

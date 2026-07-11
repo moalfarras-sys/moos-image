@@ -1,0 +1,15 @@
+# MoOS GRUB defaults. On bootc/ostree the kernel args come from the BLS loader
+# entries (NOT GRUB_CMDLINE_LINUX), and grub.cfg is not always regenerated from
+# this file — so treat the theme/gfx lines as best-effort branding for the boot
+# menu. GRUB_DISTRIBUTOR makes any generated menu title say "MoOS", never
+# "Fedora". The boot SPLASH itself is Plymouth (moos-nova), set separately.
+GRUB_TIMEOUT=1
+GRUB_TIMEOUT_STYLE=hidden
+GRUB_DISTRIBUTOR="MoOS"
+GRUB_DEFAULT=saved
+GRUB_DISABLE_SUBMENU=true
+GRUB_TERMINAL_OUTPUT="gfxterm"
+GRUB_GFXMODE="auto"
+GRUB_THEME="/usr/share/moos/grub-theme/theme.txt"
+GRUB_ENABLE_BLSCFG=true
+GRUB_DISABLE_RECOVERY="true"
