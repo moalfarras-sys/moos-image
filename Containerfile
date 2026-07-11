@@ -4,11 +4,11 @@
 # Modeled on ublue-os/image-template conventions:
 #   https://github.com/ublue-os/image-template
 #
-# M0 "Nova Seed" scope:
-#   - Base: ghcr.io/ublue-os/kinoite-main:44 (Fedora 44 Atomic, KDE Plasma 6.7+)
-#   - os-release branding (NAME/PRETTY_NAME -> MoOS)
-#   - uupd background updater installed + timer enabled
-#   - Skeleton system_files (theme/SDDM/Plymouth/wallpaper placeholders)
+# Current image scope:
+#   - Base: ghcr.io/ublue-os/kinoite-main:44 (Fedora Atomic + Plasma)
+#   - Complete MoOS identity and Nova desktop/boot/install experience
+#   - MoOS system applications, local-first Mo AI and compatibility tooling
+#   - Automatic atomic/Flatpak updates and guarded rollback
 #
 # NVIDIA variant: build with
 #   podman build --build-arg BASE_IMAGE=ghcr.io/ublue-os/kinoite-nvidia:44 \
@@ -33,7 +33,7 @@ COPY build_files /
 FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.title="MoOS" \
-      org.opencontainers.image.description="MoOS — Fedora Atomic (Kinoite lineage) bootc image with the Nova UI identity" \
+      org.opencontainers.image.description="MoOS — atomic desktop with the Nova experience" \
       org.opencontainers.image.vendor="Moalfarras" \
       org.opencontainers.image.source="https://github.com/moalfarras-sys/moos-image"
 

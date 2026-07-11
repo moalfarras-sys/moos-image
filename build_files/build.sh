@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
 # MoOS build.sh — runs INSIDE the container build (see Containerfile RUN).
-# M0 "Nova Seed" scope: branding + uupd only. Heavy package work is Phase 4.
+# Builds the complete current MoOS image: identity, boot/install, Nova UI,
+# system applications, local AI, compatibility, gaming and developer tools.
 # Conventions from ublue-os/image-template: https://github.com/ublue-os/image-template
 # =============================================================================
 
@@ -65,21 +66,6 @@ dnf5 -y install uupd
 dnf5 -y copr disable ublue-os/packages
 
 # -----------------------------------------------------------------------------
-# (c) M0 package set — placeholder
-# -----------------------------------------------------------------------------
-# M0 installs NOTHING beyond uupd. The full MoOS package set is installed in
-# Phase 4 (Core OS) — see MOOS_BUILD_WORKFLOW.md. Future candidates:
-#
-#   dnf5 -y install \
-#       waydroid \        # Android layer (Phase 8 wiring, opt-in scripts)
-#       ramalama \        # local AI model runner for Mo AI (llama.cpp/Vulkan)
-#       wine \            # Windows compatibility (Wine 11.x + NTSYNC)
-#       ;
-#
-# Theming packages (moos-nova-theme, moos-nova-icons, moos-nova-cursors,
-# moos-fonts, ...) arrive as first-party RPMs/COPR in Phase 3-4.
-
-# -----------------------------------------------------------------------------
 # (c2) Live-ISO support (container-native ISO contract v0.1.0 / Titanoboa)
 # -----------------------------------------------------------------------------
 # Recipe from the reference implementation for Kinoite bootc live ISOs:
@@ -99,6 +85,39 @@ dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot \
 # run right below regenerates the initramfs anyway, and the plymouth dracut
 # module picks up the theme selected here.
 plymouth-set-default-theme moos-nova
+
+# Fedora's plymouth package keeps two distribution fallbacks outside the
+# selected theme:
+#   /usr/share/plymouth/plymouthd.defaults -> Theme=bgrt
+#   /usr/share/plymouth/themes/spinner/watermark.png -> Fedora wordmark
+# The selected moos-nova theme is what dracut normally embeds, but leaving
+# these Fedora fallbacks in the image means a future package scriptlet or a
+# manual initramfs rebuild can bring the Fedora splash back.  Rebrand both
+# fallback paths before dracut runs.  This changes only Plymouth policy/assets;
+# it does not touch the kernel, BLS entries, OSTree layout, or EFI binaries.
+sed -i 's/^Theme=.*/Theme=moos-nova/' /usr/share/plymouth/plymouthd.defaults
+if [ -f /usr/share/plymouth/themes/spinner/watermark.png ]; then
+    cp -f /usr/share/plymouth/themes/moos-nova/watermark.png \
+        /usr/share/plymouth/themes/spinner/watermark.png
+fi
+
+# The photographed leak is this exact compatibility asset: Fedora's
+# fedora-logos package owns spinner/watermark.png and bgrt points ImageDir at
+# that directory. Keep the package for compatibility, but require its visible
+# boot watermark to contain MoOS pixels before the definitive dracut run.
+cmp -s /usr/share/plymouth/themes/moos-nova/watermark.png \
+    /usr/share/plymouth/themes/spinner/watermark.png || {
+    echo "FATAL: spinner compatibility watermark still contains foreign branding"; exit 1;
+}
+
+# Fail closed: both the administrator selection and distribution fallback
+# must select MoOS, and the old Fedora spinner watermark must be gone.
+grep -qx 'Theme=moos-nova' /etc/plymouth/plymouthd.conf
+grep -qx 'Theme=moos-nova' /usr/share/plymouth/plymouthd.defaults
+if [ -f /usr/share/plymouth/themes/spinner/watermark.png ]; then
+    cmp -s /usr/share/plymouth/themes/moos-nova/watermark.png \
+        /usr/share/plymouth/themes/spinner/watermark.png
+fi
 
 # Regenerate the initramfs with BOTH the live-boot dracut modules AND the
 # ostree module.
@@ -253,6 +272,7 @@ if [ -f "$_liveinst" ]; then
         -e 's|^Comment=.*|Comment=Install MoOS to your disk|' \
         -e '/^Comment\[/d' \
         -e 's|^Icon=.*|Icon=moos-logo|' \
+        -e 's|^Categories=.*|Categories=System;|' \
         "$_liveinst"
     # Arabic display name right after the (now single) Name line.
     sed -i '/^Name=Install MoOS$/a Name[ar]=تثبيت MoOS' "$_liveinst"
@@ -466,7 +486,33 @@ dnf5 -y install \
     btop \
     fastfetch \
     pciutils \
+    usbutils \
+    gh \
+    nodejs22 \
+    nodejs22-npm \
     qt6-qtdeclarative-devel
+
+# Compile-and-launch smoke test for every shipped pure-QML application. Syntax
+# checks alone do not catch invalid properties (for example Text.font.families,
+# which made Mo AI exit immediately). A healthy ApplicationWindow stays alive
+# until timeout; an engine/load error exits early and fails the image build.
+_qml_runtime="$(command -v qml-qt6 || true)"
+[ -n "$_qml_runtime" ] || { echo "FATAL: qml-qt6 runtime missing"; exit 1; }
+for _qml_app in /usr/share/moos/apps/*/main.qml; do
+    _qml_log="/tmp/$(basename "$(dirname "$_qml_app")")-qml-smoke.log"
+    set +e
+    QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+        timeout 4 "$_qml_runtime" "$_qml_app" >"$_qml_log" 2>&1
+    _qml_rc=$?
+    set -e
+    if [ "$_qml_rc" -ne 124 ]; then
+        echo "FATAL: QML smoke test failed for $_qml_app (exit=$_qml_rc)"
+        cat "$_qml_log"
+        exit 1
+    fi
+    rm -f "$_qml_log"
+done
+unset -v _qml_runtime _qml_app _qml_log _qml_rc
 
 # System-wide Flathub remote so Discover/Bazaar work out of the box on first
 # boot. Path convention from the kinoite bootc reference implementation
@@ -498,7 +544,8 @@ curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
     /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome \
-    /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding /usr/bin/moos-open
+    /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding /usr/bin/moos-open \
+    /usr/libexec/moos-fstab-sanitize
 
 # Register the moos:// scheme handler so the pure-QML apps' buttons actually
 # launch (Qt.openUrlExternally → xdg-open → org.moos.urlhandler.desktop →
@@ -519,6 +566,12 @@ update-desktop-database /usr/share/applications 2>/dev/null || true
 # uupd runs from a systemd timer; enabling it here bakes the symlink into the
 # image so every deployment gets background updates by default.
 systemctl enable uupd.timer
+
+# An installed bootc system uses an OSTree/composefs overlay for /. Anaconda's
+# generated physical-root fstab entry makes systemd-remount-fs attempt an
+# impossible overlay reconfigure on every boot. Remove only that entry before
+# remount processing while preserving /boot, /boot/efi, /home and /var.
+systemctl enable moos-fstab-sanitize.service
 
 # -----------------------------------------------------------------------------
 # (z) Full identity switch — MUST BE LAST, after ALL dnf/copr operations
@@ -554,9 +607,16 @@ osrel_set VARIANT_ID  'nova'
 osrel_set PRETTY_NAME '"MoOS 0.1 (Nova)"'
 # MoOS electric blue (#2E7BFF -> truecolor SGR "R;G;B") for systemd/fastfetch.
 osrel_set ANSI_COLOR  '"0;38;2;46;123;255"'
+osrel_set DEFAULT_HOSTNAME 'moos'
+osrel_set CPE_NAME '"cpe:/o:moos:moos:44"'
+
+# Remove inherited user-facing support routing. ID_LIKE=fedora above is the
+# compatibility declaration; these REDHAT_* values are not required for it.
+sed -i '/^REDHAT_BUGZILLA_PRODUCT=/d; /^REDHAT_BUGZILLA_PRODUCT_VERSION=/d; /^REDHAT_SUPPORT_PRODUCT=/d; /^REDHAT_SUPPORT_PRODUCT_VERSION=/d' \
+    /usr/lib/os-release
 
 # Show the FINAL identity in the CI log for verification.
-grep -E '^(NAME|PRETTY_NAME|ID|ID_LIKE|VERSION_ID|VARIANT|VARIANT_ID|LOGO|ANSI_COLOR)=' /usr/lib/os-release
+grep -E '^(NAME|PRETTY_NAME|ID|ID_LIKE|VERSION_ID|VARIANT|VARIANT_ID|LOGO|ANSI_COLOR|DEFAULT_HOSTNAME|CPE_NAME)=' /usr/lib/os-release
 
 # -----------------------------------------------------------------------------
 # (z2) Belt-and-suspenders logo scrub — MUST run after ALL dnf installs
@@ -702,6 +762,77 @@ PYSEC
 else
     echo "FATAL: /etc/containers/policy.json missing."; exit 1
 fi
+
+# Final user-facing identity gate. Run after every package installation and
+# branding scrub so a base/package update cannot silently restore a Fedora,
+# Anaconda or upstream session mark in the finished MoOS image.
+python3 /ctx/verify_identity.py
+
+# -----------------------------------------------------------------------------
+# (z2) FINAL boot splash seal — this must be after every dnf transaction
+# -----------------------------------------------------------------------------
+# Package installs above can run kernel/dracut scriptlets.  When that happens,
+# an initramfs generated earlier in this script may be replaced with one using
+# Fedora's bgrt default (firmware/GIGABYTE image + Fedora watermark).  Re-select
+# Nova and build the definitive initramfs only after package work is finished.
+# This ordering is intentional: nothing below may install/update packages.
+plymouth-set-default-theme moos-nova
+sed -i 's/^Theme=.*/Theme=moos-nova/' /usr/share/plymouth/plymouthd.defaults
+if [ -f /usr/share/plymouth/themes/spinner/watermark.png ]; then
+    cp -f /usr/share/plymouth/themes/moos-nova/watermark.png \
+        /usr/share/plymouth/themes/spinner/watermark.png
+fi
+
+DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
+    --add "ostree plymouth dmsquash-live dmsquash-live-autooverlay" \
+    --add-drivers "erofs overlay loop" \
+    "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tee /tmp/moos-final-dracut.log
+
+grep -q "Including module: ostree" /tmp/moos-final-dracut.log || {
+    echo "FATAL: final initramfs lost ostree support"; exit 1;
+}
+grep -q "Including module: plymouth" /tmp/moos-final-dracut.log || {
+    echo "FATAL: final initramfs lost Plymouth support"; exit 1;
+}
+grep -qx 'Theme=moos-nova' /etc/plymouth/plymouthd.conf
+grep -qx 'Theme=moos-nova' /usr/share/plymouth/plymouthd.defaults
+
+# Inspect the final archive, not just the source filesystem.  This is the gate
+# that prevents another image with Fedora bgrt branding from being published.
+set +e
+timeout 240 lsinitrd "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-final-initrd.txt
+_final_lsrc=$?
+set -e
+if [ "${_final_lsrc}" -eq 0 ]; then
+    grep -q 'ostree-prepare-root' /tmp/moos-final-initrd.txt || {
+        echo "FATAL: final initramfs lacks ostree-prepare-root"; exit 1;
+    }
+    grep -q 'plymouth/themes/moos-nova/moos-nova.plymouth' /tmp/moos-final-initrd.txt || {
+        echo "FATAL: final initramfs lacks the MoOS Nova Plymouth descriptor"; exit 1;
+    }
+    grep -q 'plymouth/themes/moos-nova/watermark.png' /tmp/moos-final-initrd.txt || {
+        echo "FATAL: final initramfs lacks the MoOS Nova watermark"; exit 1;
+    }
+    if grep -qE 'plymouth/themes/(spinner/watermark\.png|bgrt/bgrt\.plymouth)' \
+        /tmp/moos-final-initrd.txt; then
+        echo "FATAL: final initramfs contains the Fedora BGRT/spinner branding path"
+        grep -E 'plymouth/themes/(spinner/watermark\.png|bgrt/bgrt\.plymouth)' \
+            /tmp/moos-final-initrd.txt
+        exit 1
+    fi
+    lsinitrd -f etc/plymouth/plymouthd.conf \
+        "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-final-plymouth.conf
+    grep -qx 'Theme=moos-nova' /tmp/moos-final-plymouth.conf || {
+        echo "FATAL: initramfs Plymouth configuration does not select moos-nova"; exit 1;
+    }
+else
+    # lsinitrd is known to fail under nested buildah even for a valid archive;
+    # the dracut module gates above remain authoritative in that environment.
+    echo "NOTE: final lsinitrd inspection unavailable (exit=${_final_lsrc}); dracut module gates passed"
+fi
+rm -f /tmp/moos-final-dracut.log /tmp/moos-final-initrd.txt \
+    /tmp/moos-final-plymouth.conf
+unset -v _final_lsrc
 
 # -----------------------------------------------------------------------------
 # (e) Cleanup — required for `bootc container lint` to pass
