@@ -1,0 +1,10 @@
+{
+  "_comment": "Copy/rename to settings.json in %LOCALAPPDATA%\\MoRemotePersonal to override. The app also creates this file automatically on first run. The PIN is NOT stored here — it is hashed (Argon2id) and DPAPI-encrypted in config.dat.",
+  "port": 8765,
+  "allowLan": false,
+  "jpegQuality": 60,
+  "maxFps": 18,
+  "tokenTtlMinutes": 60,
+  "idleTimeoutMinutes": 20,
+  "showRemoteCursor": true
+}

@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>MoRemote</RootNamespace>
+    <AssemblyName>MoRemotePersonal</AssemblyName>
+    <Product>Mo Remote Personal</Product>
+    <Company>Mo Remote Personal</Company>
+    <Version>1.0.0</Version>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- DPI awareness is set in app.manifest (applied at process load — required so the
+         very first screen capture uses physical pixels). Silence the WinForms API-preference hint. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+    <!-- Publish settings: a single self-contained folder the user can run with no .NET install. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Konscious.Security.Cryptography.Argon2" Version="1.3.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.9" />
+    <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
+  </ItemGroup>
+
+  <!-- Ship the built PWA (controller/dist copied to wwwroot) inside the published app. -->
+  <ItemGroup>
+    <Content Include="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" Condition="Exists('wwwroot')" />
+    <!-- Ship app.ico beside the exe so shortcuts can point straight at a .ico file. -->
+    <Content Include="app.ico" CopyToOutputDirectory="PreserveNewest" Condition="Exists('app.ico')" />
+  </ItemGroup>
+
+</Project>

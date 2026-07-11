@@ -1,0 +1,2 @@
+# Grant only the active local graphical user access to uinput via logind ACLs.
+KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", MODE="0660", GROUP="input"

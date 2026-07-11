@@ -27,6 +27,14 @@ ARG BASE_IMAGE=ghcr.io/ublue-os/kinoite-main:44
 FROM scratch AS ctx
 COPY build_files /
 
+# Build Mo Remote from source. The final MoOS image receives only the
+# self-contained runtime, not the SDK or build caches.
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS moremote-build
+WORKDIR /src
+COPY moremote/ ./
+RUN dotnet publish agent-linux/MoRemoteLinux.csproj -c Release -r linux-x64 \
+    --self-contained true -o /out
+
 # -----------------------------------------------------------------------------
 # Main image
 # -----------------------------------------------------------------------------
@@ -42,6 +50,8 @@ LABEL org.opencontainers.image.title="MoOS" \
 # and boot/install configuration. build_files/build.sh performs the package-
 # dependent wiring and final validation.
 COPY system_files/ /
+COPY --from=moremote-build /out/ /usr/lib/mo-remote/
+COPY moremote/Logo.png /usr/share/icons/hicolor/512x512/apps/mo-remote-personal.png
 
 # Run the build script:
 #   - /ctx is the bind-mounted build_files stage (see above)

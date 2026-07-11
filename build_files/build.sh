@@ -492,6 +492,17 @@ dnf5 -y install \
     nodejs22-npm \
     qt6-qtdeclarative-devel
 
+# Mo Remote: private phone-to-MoOS control. KDE's RemoteDesktop portal is the
+# primary Wayland input backend; ydotoold is a narrowly scoped absolute-pointer
+# fallback. Tailscale keeps access private without exposing the control port.
+curl -fsSL --retry 3 https://pkgs.tailscale.com/stable/fedora/tailscale.repo \
+    -o /etc/yum.repos.d/tailscale.repo
+dnf5 -y install tailscale ydotool wl-clipboard spectacle python3-gobject
+systemctl enable tailscaled.service
+systemctl --global enable ydotoold-moremote.service mo-remote-personal.service
+chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
+    /usr/lib/mo-remote/mo-remote-input-portal.py
+
 # Compile-and-launch smoke test for every shipped pure-QML application. Syntax
 # checks alone do not catch invalid properties (for example Text.font.families,
 # which made Mo AI exit immediately). A healthy ApplicationWindow stays alive

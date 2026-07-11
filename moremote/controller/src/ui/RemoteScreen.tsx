@@ -1,0 +1,786 @@
+import { useEffect, useRef, useState } from "react";
+import { RemoteConnection } from "../lib/ws";
+import { GestureController } from "../lib/gestures";
+import {normalizeContentPoint} from "../lib/coordinates";
+import { decodeFrame, drawableSize, type Drawable } from "../lib/decode";
+import {
+  getClipboard, setClipboard, setClipboardImage, listFiles, fileDownloadUrl, uploadFile, powerAction,
+  type ClipResult, type FileListing, type FileEntry, type PowerAction,
+} from "../lib/api";
+import { QUALITY_PRESETS, MODE_LABEL, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
+import {
+  IconAltTab, IconActual, IconChevronDown, IconClipboard, IconCopy, IconEnter, IconEsc, IconFit,
+  IconFolder, IconFullscreen, IconKeyboard, IconLock, IconMore, IconMouse, IconPaste, IconPower,
+  IconRefresh, IconSend, IconShield, IconTrackpad, IconUpload, IconWindows, IconZoomIn, IconZoomOut,
+} from "./icons";
+
+type Conn = "connecting" | "live" | "paused" | "stopped" | "reconnecting" | "idle";
+type Sheet = null | "view" | "more" | "clip" | "files";
+interface Layout { dispW: number; dispH: number; ox: number; oy: number; }
+
+// Copy text to the phone's clipboard. navigator.clipboard only exists in a *secure context*
+// (HTTPS / localhost) — over Tailscale we're served on plain http://100.x, so it's undefined
+// and the old code failed silently. Fall back to a legacy selection + execCommand("copy"),
+// written the iOS-Safari-compatible way (contentEditable + Range) so it works on iPhone too.
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* fall through to the legacy path */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.contentEditable = "true";
+    ta.readOnly = false;
+    ta.style.position = "fixed";
+    ta.style.top = "0";
+    ta.style.left = "0";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    const range = document.createRange();
+    range.selectNodeContents(ta);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+export function RemoteScreen({ token, onExit }: { token: string; onExit: () => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const kbbarRef = useRef<HTMLDivElement>(null);
+  const connRef = useRef<RemoteConnection | null>(null);
+  const gestureRef = useRef<GestureController | null>(null);
+
+  const frameRef = useRef<Drawable | null>(null);
+  const decodingRef = useRef(false);
+  const pendingRef = useRef<ArrayBuffer | null>(null);
+  const view = useRef({ zoom: 1, panX: 0, panY: 0 });
+  const fpsCount = useRef(0);
+  const lastVal = useRef("");
+  const cursorNorm = useRef({ x: 0.5, y: 0.5 });
+  const hideTimer = useRef<number | null>(null);
+
+  const [status, setStatus] = useState<Conn>("connecting");
+  const [mode, setMode] = useState<GestureMode>("trackpad");
+  const [viewMode, setViewMode] = useState<ViewMode>("fit");
+  const [presetIdx, setPresetIdx] = useState(1);
+  const [auto, setAuto] = useState(false);
+  const latRef = useRef(0);
+  const [kbOpen, setKbOpen] = useState(false);
+  const [sheet, setSheet] = useState<Sheet>(null);
+  const [mods, setMods] = useState<Set<string>>(new Set());
+  const [fps, setFps] = useState(0);
+  const [latency, setLatency] = useState(0);
+  const [toast, setToast] = useState<string | null>(null);
+  const [toolbar, setToolbar] = useState(true);
+  const [screenOk, setScreenOk] = useState(true);
+  const [inputOk, setInputOk] = useState(false);
+  const [clipboardOk, setClipboardOk] = useState(false);
+  const [mouseSensitivity,setMouseSensitivity]=useState(1);
+  const [scrollSensitivity,setScrollSensitivity]=useState(1);
+  const [naturalScroll,setNaturalScroll]=useState(true);
+  const [haptics,setHaptics]=useState(true);
+  const mouseSensitivityRef=useRef(mouseSensitivity);mouseSensitivityRef.current=mouseSensitivity;
+  const scrollSensitivityRef=useRef(scrollSensitivity);scrollSensitivityRef.current=scrollSensitivity;
+  const naturalScrollRef=useRef(naturalScroll);naturalScrollRef.current=naturalScroll;
+  const hapticsRef=useRef(haptics);hapticsRef.current=haptics;
+  const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
+  const [selMonitor, setSelMonitor] = useState(0);
+  const [pcClip, setPcClip] = useState<ClipResult>({ kind: "empty" });
+  const [sendText, setSendText] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [fileList, setFileList] = useState<FileListing | null>(null);
+  const [fileBusy, setFileBusy] = useState(false);
+  const fileUpRef = useRef<HTMLInputElement>(null);
+
+  const modeRef = useRef(mode); modeRef.current = mode;
+  const viewModeRef = useRef(viewMode); viewModeRef.current = viewMode;
+
+  const showToast = (m: string) => {
+    setToast(m);
+    window.setTimeout(() => setToast((t) => (t === m ? null : t)), 1900);
+  };
+
+  // ---------- toolbar auto-hide ----------
+  const bumpToolbar = () => {
+    setToolbar(true);
+    if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    hideTimer.current = window.setTimeout(() => setToolbar(false), 4500);
+  };
+
+  // ---------- layout / mapping ----------
+  const computeLayout = (): Layout | null => {
+    const c = canvasRef.current, f = frameRef.current;
+    if (!c || !f) return null;
+    const cssW = c.clientWidth, cssH = c.clientHeight;
+    const { w: iw, h: ih } = drawableSize(f);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    const base = viewModeRef.current === "actual" ? 1 / dpr : Math.min(cssW / iw, cssH / ih);
+    const z = view.current.zoom;
+    const dispW = iw * base * z, dispH = ih * base * z;
+    const ox = (cssW - dispW) / 2 + view.current.panX;
+    const oy = (cssH - dispH) / 2 + view.current.panY;
+    return { dispW, dispH, ox, oy };
+  };
+
+  const toNorm = (clientX: number, clientY: number) => {
+    const c = canvasRef.current, l = computeLayout();
+    if (!c || !l) return { x: 0.5, y: 0.5 };
+    const r = c.getBoundingClientRect();
+    return normalizeContentPoint(clientX,clientY,{left:r.left+l.ox,top:r.top+l.oy,width:l.dispW,height:l.dispH});
+  };
+
+  const minZoom = () => (viewModeRef.current === "actual" ? 0.4 : 1);
+  const clampPan = () => {
+    const l = computeLayout(), c = canvasRef.current;
+    if (!l || !c) return;
+    if (view.current.zoom < minZoom()) view.current.zoom = minZoom();
+    const maxX = Math.max(0, (l.dispW - c.clientWidth) / 2);
+    const maxY = Math.max(0, (l.dispH - c.clientHeight) / 2);
+    view.current.panX = Math.min(maxX, Math.max(-maxX, view.current.panX));
+    view.current.panY = Math.min(maxY, Math.max(-maxY, view.current.panY));
+  };
+
+  // ---------- setup ----------
+  useEffect(() => {
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d", { alpha: false })!;
+    let raf = 0, disposed = false;
+
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      canvas.width = Math.round(canvas.clientWidth * dpr);
+      canvas.height = Math.round(canvas.clientHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    window.addEventListener("orientationchange", resize);
+
+    const draw = () => {
+      if (disposed) return;
+      const f = frameRef.current;
+      ctx.fillStyle = "#05070d";
+      ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+      const l = computeLayout();
+      if (f && l) {
+        ctx.imageSmoothingEnabled = view.current.zoom <= 1.05;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(f, l.ox, l.oy, l.dispW, l.dispH);
+        const dot = cursorRef.current;
+        if (dot) {
+          dot.style.transform =
+            `translate(${l.ox + cursorNorm.current.x * l.dispW}px, ${l.oy + cursorNorm.current.y * l.dispH}px)`;
+        }
+      }
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+
+    const decodeNext = async (buf: ArrayBuffer) => {
+      decodingRef.current = true;
+      const d = await decodeFrame(buf);
+      if (!d) decodingRef.current = false;
+      else if (disposed) { if ("close" in d) (d as ImageBitmap).close(); decodingRef.current = false; return; }
+      else {
+        const old = frameRef.current;
+        frameRef.current = d; fpsCount.current++;
+        if (old && "close" in old) (old as ImageBitmap).close();
+        decodingRef.current = false;
+      }
+      const next = pendingRef.current; pendingRef.current = null;
+      if (next) decodeNext(next);
+    };
+
+    const conn = new RemoteConnection(token, {
+      onHello: (h) => {
+        setStatus(h.paused ? "paused" : "live");
+        setMonitors(h.monitors ?? []);
+        setSelMonitor(h.monitor ?? 0);
+        setInputOk(!!h.input?.ready);
+        setClipboardOk(!!h.clipboard?.ready);
+        pushSettings();
+      },
+      onStatus: (paused) => setStatus(paused ? "paused" : "live"),
+      onFrame: (buf) => { if (decodingRef.current) pendingRef.current = buf; else decodeNext(buf); },
+      onStopped: () => setStatus("stopped"),
+      onAuthFail: () => onExit(),
+      onClose: () => { lastVal.current = ""; setMods(new Set()); setStatus((s) => (s === "stopped" || s === "idle" ? s : "reconnecting")); },
+      onPong: (rtt) => { const v = Math.round(rtt); setLatency(v); latRef.current = v; },
+      onIdle: () => setStatus("idle"),
+      onScreen: (avail) => setScreenOk(avail),
+      onInputState: (ready,error) => { setInputOk(ready); if(error)showToast(`Input: ${error}`); },
+    }, () => {
+      const c=canvasRef.current, l=computeLayout(), f=frameRef.current;
+      if(!c||!l||!f)return {};
+      const r=c.getBoundingClientRect(), s=drawableSize(f);
+      return { content:{left:l.ox,top:l.oy,width:l.dispW,height:l.dispH},
+        canvas:{left:r.left,top:r.top,width:r.width,height:r.height}, source:s };
+    });
+    connRef.current = conn;
+    conn.connect();
+
+    const gest = new GestureController(canvas, toNorm, () => view.current.zoom, {
+      click: (b, x, y) => conn.click(b, x, y),
+      doubleClick: (x, y) => conn.dblclick(x, y),
+      moveCursor: (x, y) => conn.move(x, y),
+      moveRelative: (dx, dy) => conn.moveRelative(dx*mouseSensitivityRef.current, dy*mouseSensitivityRef.current),
+      dragStart: (x, y) => conn.down("left", x, y),
+      dragMove: (x, y) => conn.move(x, y),
+      dragEnd: (x, y) => conn.up("left", x, y),
+      scroll: (dx, dy) => conn.scroll(dx*scrollSensitivityRef.current, dy*scrollSensitivityRef.current*(naturalScrollRef.current?1:-1)),
+      zoomAt: (factor, fx, fy) => {
+        const before = toNorm(fx, fy);
+        view.current.zoom = Math.min(5, Math.max(minZoom(), view.current.zoom * factor));
+        const l = computeLayout(), c = canvasRef.current;
+        if (l && c) {
+          const r = c.getBoundingClientRect();
+          view.current.panX += (fx - r.left) - (l.ox + before.x * l.dispW);
+          view.current.panY += (fy - r.top) - (l.oy + before.y * l.dispH);
+        }
+        clampPan();
+      },
+      panBy: (dx, dy) => { view.current.panX += dx; view.current.panY += dy; clampPan(); },
+      cursorAt: (x, y) => { cursorNorm.current = { x, y }; },
+      haptic: () => {if(hapticsRef.current)navigator.vibrate?.(8);},
+    });
+    gest.setMode(modeRef.current);
+    gestureRef.current = gest;
+
+    const fpsTimer = window.setInterval(() => { setFps(fpsCount.current); fpsCount.current = 0; }, 1000);
+    bumpToolbar();
+
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(raf);
+      window.clearInterval(fpsTimer);
+      if (hideTimer.current) window.clearTimeout(hideTimer.current);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("orientationchange", resize);
+      gest.destroy();
+      conn.disconnect();
+      const f = frameRef.current;
+      if (f && "close" in f) (f as ImageBitmap).close();
+      frameRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  useEffect(() => { gestureRef.current?.setMode(mode); connRef.current?.setInputMode(mode); }, [mode]);
+
+  // Load the file listing whenever the Files sheet opens (avoids a race with the sheet mount).
+  useEffect(() => {
+    if (sheet !== "files") return;
+    let cancelled = false;
+    setFileBusy(true);
+    listFiles(token, fileList?.path ?? null)
+      .then((l) => { if (!cancelled) setFileList(l); })
+      .catch(() => { if (!cancelled) showToast("Can't open that folder"); })
+      .finally(() => { if (!cancelled) setFileBusy(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheet, token]);
+
+  // When the iOS keyboard opens, shrink the screen view so it sits right above the
+  // keyboard bar (no big black gap), and pin the bar just above the on-screen keyboard.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const bar = kbbarRef.current;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      if (bar) bar.style.transform = kbOpen ? `translateY(${-kb}px)` : "";
+      const barH = bar?.offsetHeight ?? 92;
+      canvas.style.height = kbOpen ? Math.max(140, vv.height - barH) + "px" : "";
+      // resize the backing store to the new visible area + let the draw loop refit
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      canvas.width = Math.round(canvas.clientWidth * dpr);
+      canvas.height = Math.round(canvas.clientHeight * dpr);
+      canvas.getContext("2d")?.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
+    return () => { vv.removeEventListener("resize", update); vv.removeEventListener("scroll", update); };
+  }, [kbOpen]);
+
+  // ---------- settings (quality + view) ----------
+  const pushSettings = () => {
+    const p = QUALITY_PRESETS[presetIdx];
+    const scale = viewModeRef.current === "actual" ? 1.0 : p.scale;
+    connRef.current?.settings(p.quality, p.fps, scale);
+  };
+  useEffect(() => { pushSettings(); /* eslint-disable-next-line */ }, [presetIdx, viewMode]);
+
+  // Auto quality: adapt to the network using round-trip latency (RTT). We deliberately do NOT
+  // use fps — with identical-frame skipping, a still screen sends few frames, which is not lag.
+  useEffect(() => {
+    if (!auto) return;
+    const id = window.setInterval(() => {
+      const lat = latRef.current;
+      setPresetIdx((idx) => {
+        if (lat > 250 && idx > 0) return idx - 1;             // laggy → lighter preset
+        if (lat > 0 && lat < 120 && idx < QUALITY_PRESETS.length - 1) return idx + 1; // healthy → richer
+        return idx;
+      });
+    }, 2500);
+    return () => window.clearInterval(id);
+  }, [auto]);
+
+  const selectPreset = (i: number) => { setPresetIdx(i); showToast(`Quality: ${QUALITY_PRESETS[i].label}`); };
+  const chooseView = (m: ViewMode) => {
+    setViewMode(m);
+    view.current = { zoom: m === "actual" ? 1 : 1, panX: 0, panY: 0 };
+    showToast(m === "fit" ? "Fit to screen" : "Original size (100%)");
+  };
+  const zoomBy = (f: number) => { view.current.zoom = Math.min(5, Math.max(minZoom(), view.current.zoom * f)); clampPan(); };
+  const resetZoom = () => { view.current = { zoom: 1, panX: 0, panY: 0 }; };
+
+  // ---------- keyboard ----------
+  // A real visible input. Tapping it raises the iOS keyboard; we diff its value so typing
+  // AND Backspace both work (the field must hold text for iOS to fire delete events).
+  const openKeyboard = () => {
+    setKbOpen(true);
+    const el = inputRef.current;
+    if (el) { el.value = ""; lastVal.current = ""; el.focus(); }
+  };
+  const closeKeyboard = () => {
+    const el = inputRef.current;
+    if (el) el.value = "";
+    lastVal.current = "";
+    setMods(new Set());
+    setKbOpen(false);
+    el?.blur();
+  };
+  const sendKey = (key: string) => {
+    const c = connRef.current; if (!c) return;
+    if (mods.size > 0) { c.combo([...mods, key]); setMods(new Set()); } else c.keyTap(key);
+  };
+  const toggleMod = (m: string) => setMods((s) => { const n = new Set(s); n.has(m) ? n.delete(m) : n.add(m); return n; });
+
+  // Diff the field value into keystrokes (handles text, Backspace, Arabic, autocorrect).
+  const onInput = () => {
+    const el = inputRef.current!, v = el.value, last = lastVal.current, c = connRef.current;
+    if (!c) { lastVal.current = v; return; }
+    if (v.length > last.length && v.startsWith(last)) {
+      const added = v.slice(last.length);
+      if (mods.size > 0) { for (const ch of added) c.combo([...mods, ch]); setMods(new Set()); el.value = ""; lastVal.current = ""; return; }
+      c.text(added);
+    } else if (v.length < last.length && last.startsWith(v)) {
+      for (let i = 0; i < last.length - v.length; i++) c.keyTap("Backspace");
+    } else {
+      // replaced (autocorrect): delete the old, type the new
+      for (let i = 0; i < last.length; i++) c.keyTap("Backspace");
+      if (v) c.text(v);
+    }
+    lastVal.current = v;
+    // resync only if the line gets very long (Backspace-on-empty is handled in onKeyDown)
+    if (v.length > 300) { el.value = ""; lastVal.current = ""; }
+  };
+  const onInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      sendKey("Enter");
+      const el = inputRef.current; if (el) el.value = "";
+      lastVal.current = "";
+    } else if (e.key === "Backspace" && (inputRef.current?.value.length ?? 0) === 0) {
+      // field already empty — still forward the delete
+      e.preventDefault();
+      sendKey("Backspace");
+    }
+  };
+
+  // ---------- clipboard (text + images) ----------
+  const getPcClip = async () => {
+    try {
+      const r = await getClipboard(token);
+      setPcClip(r);
+      showToast(r.kind === "image" ? "Got PC image" : r.kind === "text" ? "Got PC text" : "PC clipboard is empty");
+    } catch { showToast("Failed to read PC clipboard"); }
+  };
+  const sendToPc = async () => {
+    if (!sendText) return;
+    try { await setClipboard(token, sendText); showToast("Text sent to PC"); }
+    catch { showToast("Failed to set PC clipboard"); }
+  };
+  const copyToPhone = async () => {
+    if (pcClip.kind !== "text" || !pcClip.text) return;
+    if (await copyTextToClipboard(pcClip.text)) showToast("Copied on phone");
+    else showToast("Long-press the text to copy");
+  };
+  const uploadImage = async (blob: Blob) => {
+    if (!blob) return;
+    if (blob.size > 24_000_000) { showToast("Image too large (max ~24MB)"); return; }
+    try { await setClipboardImage(token, blob); showToast("Image sent to PC — press Paste"); }
+    catch { showToast("Failed to send image"); }
+  };
+  const onPickPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) uploadImage(f);
+    e.target.value = "";
+  };
+  const onPasteBox = async (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const box = e.currentTarget;
+    const items = e.clipboardData?.items;
+    let handled = false;
+    if (items) {
+      for (const it of items) {
+        if (it.type.startsWith("image/")) {
+          const f = it.getAsFile();
+          if (f) { e.preventDefault(); await uploadImage(f); handled = true; }
+        }
+      }
+      if (!handled) {
+        const text = e.clipboardData.getData("text");
+        if (text) { e.preventDefault(); await setClipboard(token, text); showToast("Text sent to PC"); handled = true; }
+      }
+    }
+    // Fallback: iOS often inserts the image into the box without exposing it above.
+    if (!handled) setTimeout(() => scanPasteBox(box), 80);
+  };
+  // iOS may insert a pasted image asynchronously — scan the box and upload any <img>.
+  const scanPasteBox = async (box: HTMLDivElement | null) => {
+    if (!box) return;
+    const img = box.querySelector("img");
+    if (img?.src) {
+      try { const blob = await (await fetch(img.src)).blob(); if (blob.type.startsWith("image/")) await uploadImage(blob); } catch { /* */ }
+      box.innerHTML = "";
+      return;
+    }
+    const txt = box.innerText.trim();
+    if (txt) { try { await setClipboard(token, txt); showToast("Text sent to PC"); } catch { /* */ } box.innerHTML = ""; }
+  };
+  const onPasteBoxInput = (e: React.FormEvent<HTMLDivElement>) => {
+    const box = e.currentTarget;
+    setTimeout(() => scanPasteBox(box), 40);
+  };
+
+  // ---------- file transfer ----------
+  const fmtSize = (n: number) =>
+    n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : n < 1073741824 ? `${(n / 1048576).toFixed(1)} MB` : `${(n / 1073741824).toFixed(2)} GB`;
+  const navFiles = async (path: string | null) => {
+    setFileBusy(true);
+    try { setFileList(await listFiles(token, path)); }
+    catch { showToast("Can't open that folder"); }
+    setFileBusy(false);
+  };
+  const openFiles = () => setSheet("files"); // the effect below loads the listing on open
+  const downloadFile = (en: FileEntry) => {
+    const a = document.createElement("a");
+    a.href = fileDownloadUrl(token, en.path);
+    a.download = en.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    showToast("Downloading " + en.name);
+  };
+  const onUploadFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files; const dir = fileList?.path;
+    if (!files || !dir) { e.target.value = ""; return; }
+    setFileBusy(true);
+    try { for (const f of Array.from(files)) await uploadFile(token, dir, f); showToast(`Uploaded ${files.length} to PC`); await navFiles(dir); }
+    catch { showToast("Upload failed"); }
+    setFileBusy(false);
+    e.target.value = "";
+  };
+
+  // ---------- toolbar actions ----------
+  const c = () => connRef.current;
+  const cycleMode = () => {
+    const order: GestureMode[] = ["touch", "trackpad", "direct"];
+    const next = order[(order.indexOf(mode) + 1) % order.length];
+    setMode(next); showToast(`Mouse: ${MODE_LABEL[next]}`);
+  };
+  const taskMgr = () => { c()?.combo(["Control", "Shift", "Escape"]); showToast("Task Manager (safe Ctrl+Alt+Del)"); };
+  const fullscreen = () => {
+    const el = document.documentElement as any;
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    else if (el.requestFullscreen) el.requestFullscreen().catch(() => showToast("Add to Home Screen for fullscreen"));
+    else showToast("Safari ▸ Add to Home Screen for fullscreen");
+  };
+  const refreshStream = () => { setStatus("connecting"); connRef.current?.disconnect(); setTimeout(() => connRef.current?.connect(), 120); showToast("Refreshing…"); };
+  const reconnect = () => { setStatus("connecting"); connRef.current?.connect(); };
+  const disconnect = () => { connRef.current?.disconnect(); onExit(); };
+
+  const chooseMonitor = (i: number) => {
+    if (i === selMonitor) return;
+    setSelMonitor(i);
+    connRef.current?.selectMonitor(i);
+    view.current = { zoom: 1, panX: 0, panY: 0 }; // reset zoom/pan; the new screen may differ in size
+    showToast(`Screen ${i + 1}`);
+  };
+
+  const doPower = async (action: PowerAction, label: string, needConfirm = false) => {
+    if (needConfirm && !window.confirm(`${label} the PC?`)) return;
+    setSheet(null);
+    const ok = await powerAction(token, action);
+    showToast(ok ? `${label}…` : `${label} failed`);
+  };
+
+  const statusInfo = {
+    connecting: { cls: "warn", text: "Connecting…" },
+    live: { cls: "", text: "Connected" },
+    paused: { cls: "warn", text: "Paused on PC" },
+    reconnecting: { cls: "warn", text: "Reconnecting…" },
+    stopped: { cls: "bad", text: "Ended on PC" },
+    idle: { cls: "bad", text: "Idle timeout" },
+  }[status];
+
+  const overlay = status === "stopped" || status === "idle";
+
+  return (
+    <div className="remote" onPointerDown={bumpToolbar}>
+      <canvas ref={canvasRef} className="screen-canvas" />
+      <div ref={cursorRef} className={`cursor-dot${mode === "trackpad" ? " hidden" : ""}`} />
+
+      <div className="topbar">
+        <span className={"dot " + statusInfo.cls} />
+        <b>{statusInfo.text}</b>
+        <span>· Video {screenOk ? "✓" : "!"}</span>
+        <span>· Mouse {inputOk ? "✓" : "!"}</span>
+        <span>· Keys {inputOk ? "✓" : "!"}</span>
+        <span>· Clip {clipboardOk ? "✓" : "!"}</span>
+        {status === "live" && <span>· {fps}fps · {latency}ms · {MODE_LABEL[mode]}</span>}
+      </div>
+
+      {overlay && (
+        <div className="center-msg">
+          <IconPower className="" />
+          <div>
+            <b style={{ color: "var(--text)", fontSize: 17 }}>
+              {status === "idle" ? "Disconnected — idle timeout" : "Session ended on the PC"}
+            </b>
+          </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button className="btn" onClick={reconnect}>Reconnect</button>
+            <button className="btn ghost" onClick={onExit}>Sign out</button>
+          </div>
+        </div>
+      )}
+
+      {status === "paused" && (
+        <div className="center-msg" style={{ background: "rgba(5,7,13,0.5)" }}>
+          <b style={{ color: "var(--text)", fontSize: 16 }}>⏸ Paused on the PC</b>
+          <div>Resume from the PC tray or banner.</div>
+        </div>
+      )}
+
+      {!screenOk && status === "live" && (
+        <div className="center-msg" style={{ background: "rgba(5,7,13,0.62)" }}>
+          <IconLock className="" />
+          <div>
+            <b style={{ color: "var(--text)", fontSize: 16 }}>PC is locked</b>
+            <div style={{ marginTop: 6, maxWidth: 300 }}>
+              Windows hides the lock screen from every app. Unlock the PC once, then on the PC
+              tray icon turn on <b>“Never lock — stay reachable”</b> so it stays reachable from now on.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* keyboard bar: a shortcuts row + a visible input (so typing AND Backspace work). */}
+      <div className={"kbbar" + (kbOpen ? " open" : "")} ref={kbbarRef}>
+        <div className="keyrow" onMouseDown={(e) => e.preventDefault()}>
+          {(["Control", "Alt", "Shift"] as const).map((m) => (
+            <button key={m} className={"kkey" + (mods.has(m) ? " on" : "")} onClick={() => toggleMod(m)}>
+              {m === "Control" ? "Ctrl" : m}
+            </button>
+          ))}
+          <button className="kkey" onClick={() => c()?.keyTap("Win")}>Win</button>
+          <span className="kdiv" />
+          <button className="kkey" onClick={() => c()?.combo(["Control", "A"])}>⌃A</button>
+          <button className="kkey" onClick={() => c()?.combo(["Control", "C"])}>⌃C</button>
+          <button className="kkey" onClick={() => c()?.combo(["Control", "X"])}>⌃X</button>
+          <button className="kkey" onClick={() => c()?.combo(["Control", "V"])}>⌃V</button>
+          <button className="kkey" onClick={() => c()?.combo(["Control", "Z"])}>⌃Z</button>
+          <button className="kkey" onClick={() => c()?.combo(["Alt", "Tab"])}>Alt·Tab</button>
+          <span className="kdiv" />
+          <button className="kkey" onClick={() => sendKey("Escape")}>Esc</button>
+          <button className="kkey" onClick={() => sendKey("Tab")}>Tab</button>
+          <button className="kkey" onClick={() => sendKey("ArrowLeft")}>←</button>
+          <button className="kkey" onClick={() => sendKey("ArrowUp")}>↑</button>
+          <button className="kkey" onClick={() => sendKey("ArrowDown")}>↓</button>
+          <button className="kkey" onClick={() => sendKey("ArrowRight")}>→</button>
+        </div>
+        <div className="kbinput-row">
+          <input
+            ref={inputRef} className="kbinput" type="text" inputMode="text"
+            autoCapitalize="off" autoCorrect="off" autoComplete="off" spellCheck={false}
+            placeholder="اكتب هنا — tap & type"
+            onInput={onInput} onKeyDown={onInputKeyDown}
+          />
+          <button className="kbicon" onMouseDown={(e) => e.preventDefault()} onClick={() => sendKey("Backspace")} aria-label="Backspace">⌫</button>
+          <button className="kbicon" onMouseDown={(e) => e.preventDefault()} onClick={() => sendKey("Enter")} aria-label="Enter">↵</button>
+          <button className="kbdone" onMouseDown={(e) => e.preventDefault()} onClick={closeKeyboard}>Done</button>
+        </div>
+      </div>
+
+      {/* small affordance: when keyboard closed, the toolbar "Keys" button opens it */}
+
+      {/* floating toolbar */}
+      {!kbOpen && (
+        <div className={"toolbar" + (toolbar || sheet ? "" : " fade-toolbar")}>
+          <button className="tbtn" onClick={openKeyboard}><IconKeyboard /><span>Keys</span></button>
+          <button className="tbtn" onClick={() => { setSheet("clip"); getPcClip(); }}><IconClipboard /><span>Clip</span></button>
+          <button className="tbtn" onClick={cycleMode}>
+            {mode === "trackpad" ? <IconTrackpad /> : <IconMouse />}<span>{MODE_LABEL[mode]}</span>
+          </button>
+          <button className="tbtn" onClick={() => setSheet("view")}>
+            {viewMode === "fit" ? <IconFit /> : <IconActual />}<span>View</span>
+          </button>
+          <button className="tbtn" onClick={fullscreen}><IconFullscreen /><span>Full</span></button>
+          <button className="tbtn accent" onClick={() => setSheet("more")}><IconMore /><span>More</span></button>
+        </div>
+      )}
+
+      {/* sheets */}
+      {sheet && <div className="sheet-backdrop" onClick={() => setSheet(null)} />}
+
+      {sheet === "view" && (
+        <div className="sheet">
+          <div className="grip" /><h3>Display</h3>
+          <div className="row-label">Screen</div>
+          <div className="seg">
+            <button className={viewMode === "fit" ? "on" : ""} onClick={() => chooseView("fit")}><IconFit /> Fit</button>
+            <button className={viewMode === "actual" ? "on" : ""} onClick={() => chooseView("actual")}><IconActual /> 100%</button>
+          </div>
+          {monitors.length > 1 && (
+            <>
+              <div className="row-label">Monitor</div>
+              <div className="seg">
+                {monitors.map((m, i) => (
+                  <button key={m.index} className={selMonitor === i ? "on" : ""} onClick={() => chooseMonitor(i)}>
+                    {m.primary ? "Main" : `Screen ${i + 1}`}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          <div className="row-label">Zoom</div>
+          <div className="zoomrow">
+            <button className="cell" onClick={() => zoomBy(0.77)}><IconZoomOut /> Out</button>
+            <button className="cell" onClick={resetZoom}>Reset</button>
+            <button className="cell" onClick={() => zoomBy(1.3)}><IconZoomIn /> In</button>
+          </div>
+          <div className="row-label">Quality</div>
+          <div className="seg">
+            <button className={auto ? "on" : ""} onClick={() => { setAuto(true); showToast("Auto quality — adapts to your network"); }}>Auto</button>
+            {QUALITY_PRESETS.map((p, i) => (
+              <button key={p.label} className={!auto && presetIdx === i ? "on" : ""} onClick={() => { setAuto(false); selectPreset(i); }}>{p.label}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {sheet === "more" && (
+        <div className="sheet">
+          <div className="grip" /><h3>Controls</h3>
+          <div className="row-label">Pointer mode</div>
+          <div className="seg">
+            <button className={mode === "touch" ? "on" : ""} onClick={() => setMode("touch")}><IconMouse /> Touch</button>
+            <button className={mode === "trackpad" ? "on" : ""} onClick={() => setMode("trackpad")}><IconTrackpad /> Trackpad</button>
+            <button className={mode === "direct" ? "on" : ""} onClick={() => setMode("direct")}><IconMouse /> Direct</button>
+          </div>
+          <div className="row-label">Mouse sensitivity · {mouseSensitivity.toFixed(1)}</div>
+          <input type="range" min="0.4" max="2.5" step="0.1" value={mouseSensitivity} onChange={e=>setMouseSensitivity(Number(e.target.value))}/>
+          <div className="row-label">Scroll sensitivity · {scrollSensitivity.toFixed(1)}</div>
+          <input type="range" min="0.4" max="2.5" step="0.1" value={scrollSensitivity} onChange={e=>setScrollSensitivity(Number(e.target.value))}/>
+          <div className="seg"><button className={naturalScroll?"on":""} onClick={()=>setNaturalScroll(v=>!v)}>Natural scroll</button><button className={haptics?"on":""} onClick={()=>setHaptics(v=>!v)}>Haptics</button></div>
+          <div className="row-label">Actions</div>
+          <div className="grid">
+            <button className="cell" onClick={openFiles}><IconFolder /> Files</button>
+            <button className="cell" onClick={() => { taskMgr(); setSheet(null); }}><IconShield /> Ctrl+Alt+Del</button>
+            <button className="cell" onClick={() => c()?.combo(["Control", "C"])}><IconCopy /> Copy</button>
+            <button className="cell" onClick={() => c()?.combo(["Control", "V"])}><IconPaste /> Paste</button>
+            <button className="cell" onClick={() => { refreshStream(); setSheet(null); }}><IconRefresh /> Refresh</button>
+            <button className="cell" onClick={() => { fullscreen(); setSheet(null); }}><IconFullscreen /> Fullscreen</button>
+            <button className="cell danger" onClick={disconnect}><IconPower /> Disconnect</button>
+          </div>
+          <div className="row-label">Power</div>
+          <div className="grid">
+            <button className="cell" onClick={() => doPower("lock", "Lock")}><IconLock /> Lock</button>
+            <button className="cell" onClick={() => doPower("sleep", "Sleep")}><IconPower /> Sleep</button>
+            <button className="cell" onClick={() => doPower("signout", "Sign out", true)}><IconLock /> Sign out</button>
+            <button className="cell" onClick={() => doPower("restart", "Restart", true)}><IconRefresh /> Restart</button>
+            <button className="cell danger" onClick={() => doPower("shutdown", "Shut down", true)}><IconPower /> Shut down</button>
+          </div>
+          <div className="credit">Mo Remote Personal · by Moalfarras</div>
+        </div>
+      )}
+
+      {sheet === "files" && (
+        <div className="sheet">
+          <div className="grip" />
+          <h3>Files · {fileList?.title ?? "…"}</h3>
+          <div className="file-actions">
+            {fileList?.path && <button className="cell" onClick={() => navFiles(fileList.parent)}>⬆ Up</button>}
+            {fileList?.path && <button className="cell" onClick={() => fileUpRef.current?.click()}><IconUpload /> Upload here</button>}
+            <button className="cell" onClick={() => navFiles(fileList?.path ?? null)}><IconRefresh /> Refresh</button>
+          </div>
+          <input ref={fileUpRef} type="file" multiple hidden onChange={onUploadFiles} />
+          <div className="file-list">
+            {fileBusy && <div className="hintline">Loading…</div>}
+            {!fileBusy && fileList && fileList.entries.length === 0 && <div className="hintline">Empty folder</div>}
+            {!fileBusy && fileList?.entries.map((en) => (
+              <button key={en.path} className="file-row" onClick={() => (en.isDir ? navFiles(en.path) : downloadFile(en))}>
+                <span className="file-ic">{en.isDir ? "📁" : "📄"}</span>
+                <span className="file-name">{en.name}</span>
+                <span className="file-meta">{en.isDir ? "›" : fmtSize(en.size)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {sheet === "clip" && (
+        <div className="sheet">
+          <div className="grip" /><h3>Clipboard sync</h3>
+
+          <div className="row-label">PC → Phone</div>
+          {pcClip.kind === "image" ? (
+            <img className="clip-img" src={pcClip.dataUrl} alt="PC clipboard" />
+          ) : (
+            <textarea className="clip-area" readOnly value={pcClip.text ?? ""} placeholder="Press Get to fetch the PC clipboard" />
+          )}
+          <div className="cliprow">
+            <button className="cell" onClick={getPcClip}><IconRefresh /> Get PC Clipboard</button>
+            <button className="cell" onClick={copyToPhone} disabled={pcClip.kind !== "text"}><IconCopy /> Copy</button>
+          </div>
+          {pcClip.kind === "image" && <div className="hintline">Long-press the image to Save / Copy on your iPhone.</div>}
+
+          <div className="row-label">Phone → PC · text</div>
+          <textarea className="clip-area" value={sendText} onChange={(e) => setSendText(e.target.value)} placeholder="Type or paste text…" />
+          <button className="cell wide" onClick={sendToPc}><IconSend /> Set PC text</button>
+
+          <div className="row-label">Phone → PC · image</div>
+          <button className="cell wide primary" onClick={() => fileRef.current?.click()}><IconClipboard /> Send a photo / screenshot</button>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
+          <div
+            className="paste-box"
+            contentEditable
+            suppressContentEditableWarning
+            onPaste={onPasteBox}
+            onInput={onPasteBoxInput}
+            data-ph="…or long-press here → Paste a copied image"
+          />
+        </div>
+      )}
+
+      {!toolbar && !kbOpen && !sheet && !overlay && (
+        <button className="show-tab" onClick={bumpToolbar}><IconChevronDown /></button>
+      )}
+
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
