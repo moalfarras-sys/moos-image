@@ -1,7 +1,8 @@
 # Mo AI CLOUD gateway — user service (opt-in; enabled by moai-config when the
 # user selects the cloud brain). Runs the localhost proxy that holds the API key
-# and forwards to the configured provider, so the pure-QML app can use a cloud
-# model via 127.0.0.1:8071 without ever seeing the key.
+# (Secret Service) and forwards to the configured provider, so the pure-QML app
+# uses a cloud model via 127.0.0.1:8080 without ever seeing the key. (moai-config
+# stops the local brain first — both share 8080.)
 [Unit]
 Description=Mo AI cloud gateway (localhost OpenAI-compatible proxy)
 After=graphical-session.target
