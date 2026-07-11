@@ -148,6 +148,21 @@ kver=$(basename "$(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d)")
 # bug). Make it executable so the module self-includes, THEN also force it via
 # both a config drop-in and --add so it cannot be dropped again.
 [ -e /usr/lib/ostree/ostree-prepare-root ] && chmod 0755 /usr/lib/ostree/ostree-prepare-root || true
+
+# The kinoite-nvidia base ships a dracut drop-in that force_drivers+= the NVIDIA
+# modules (and pulls their large GSP firmware) into the initramfs. force_drivers
+# OVERRIDES our omit_drivers, so it is the ~118MB that kept the nvidia initramfs
+# oversized (242MB) even after omit. NVIDIA is NOT boot-critical (loads from the
+# root fs post-boot; early display = simpledrm), so strip any NVIDIA-forcing
+# dracut drop-in from the base before we regenerate. Runtime nvidia loading
+# (udev/modprobe from the root fs) is unaffected. Diagnostic listing first.
+echo "=== dracut.conf.d before MoOS override ==="
+ls -la /usr/lib/dracut/dracut.conf.d/ /etc/dracut.conf.d/ 2>/dev/null || true
+grep -rilE "force_drivers.*nvidia|add_drivers.*nvidia" /usr/lib/dracut/dracut.conf.d/ /etc/dracut.conf.d/ 2>/dev/null | while read -r f; do
+    echo "  stripping NVIDIA-forcing dracut conf: $f"; rm -f "$f"
+done
+rm -f /usr/lib/dracut/dracut.conf.d/*nvidia*.conf /etc/dracut.conf.d/*nvidia*.conf 2>/dev/null || true
+
 cat > /usr/lib/dracut/dracut.conf.d/99-moos-boot.conf <<'DRC'
 add_dracutmodules+=" ostree dmsquash-live dmsquash-live-autooverlay "
 add_drivers+=" erofs overlay loop "
