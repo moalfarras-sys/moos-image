@@ -7,7 +7,7 @@
 # 127.0.0.1:8079 via XHR. The API KEY is only ever RECEIVED (POST) and stored
 # chmod 600 in ~/.config/moai/config.json; GET never returns it (only has_key).
 # Stdlib only.
-import json, os, subprocess, urllib.request
+import json, os, shutil, subprocess, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CFG_DIR = os.path.expanduser("~/.config/moai")
@@ -43,6 +43,50 @@ def brain_online():
             "http://127.0.0.1:8080/v1/models", timeout=1).status == 200
     except Exception:
         return False
+
+
+def _first_line(path, prefix):
+    try:
+        with open(path) as f:
+            for line in f:
+                if line.startswith(prefix):
+                    return line.split(":", 1)[1].strip() if ":" in line else \
+                           line.split("=", 1)[1].strip().strip('"')
+    except Exception:
+        pass
+    return ""
+
+
+def scan():
+    """Read-only system snapshot for Mo AI's 'Scan' action."""
+    info = {"os": _first_line("/etc/os-release", "PRETTY_NAME=") or "MoOS",
+            "cpu": _first_line("/proc/cpuinfo", "model name"),
+            "cores": os.cpu_count()}
+    try:
+        info["kernel"] = os.uname().release
+    except Exception:
+        info["kernel"] = ""
+    try:
+        kb = _first_line("/proc/meminfo", "MemTotal")  # "16384000 kB"
+        info["mem_gb"] = round(int(kb.split()[0]) / 1024 / 1024) if kb else 0
+    except Exception:
+        info["mem_gb"] = 0
+    try:
+        du = shutil.disk_usage("/")
+        info["disk"] = {"total_gb": du.total // (1024 ** 3),
+                        "free_gb": du.free // (1024 ** 3)}
+    except Exception:
+        info["disk"] = {}
+    try:
+        out = subprocess.run(
+            ["bash", "-lc", "lspci 2>/dev/null | grep -iE 'vga|3d|display' || true"],
+            capture_output=True, text=True, timeout=6).stdout.strip()
+        info["gpu"] = "; ".join(l.split(":", 2)[-1].strip()
+                                for l in out.splitlines()) if out else ""
+    except Exception:
+        info["gpu"] = ""
+    info["desktop"] = os.environ.get("XDG_CURRENT_DESKTOP", "")
+    return info
 
 
 class H(BaseHTTPRequestHandler):
@@ -94,6 +138,8 @@ class H(BaseHTTPRequestHandler):
             })
         elif self.path.startswith("/status"):
             self._send(200, {"online": brain_online()})
+        elif self.path.startswith("/scan"):
+            self._send(200, scan())
         else:
             self._send(404, {"error": "not found"})
 

@@ -143,6 +143,7 @@ Kirigami.ApplicationWindow {
     // icon: MoOS action symbols shipped at hicolor/scalable/actions, resolved
     // by NAME through the icon theme (contract §4 — no absolute paths).
     readonly property var quickActions: [
+        { ar: "افحص نظامي",     en: "Scan",          url: "", action: "scan",        accent: "#22D3EE", icon: "moos-report" },
         { ar: "تحديث النظام",   en: "Update",        url: "moos://do/update",        accent: "#2E7BFF", icon: "moos-safe-update" },
         { ar: "تثبيت تطبيقات",  en: "Install apps",  url: "moos://app/setup",        accent: "#22D3EE", icon: "moos-install" },
         { ar: "إصلاح الصوت",    en: "Fix audio",     url: "moos://do/fix-audio",     accent: "#8B5CF6", icon: "moos-audio" },
@@ -217,14 +218,18 @@ Kirigami.ApplicationWindow {
 
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.None
 
-    Component.onCompleted: chatModel.append({
-        role: "assistant",
-        text: "مرحباً! أنا **Mo AI** — مساعدك في MoOS. أقدر أساعدك تتحكّم بالنظام: " +
-              "التحديث، تثبيت التطبيقات، إصلاح الصوت والمزيد.\n\n" +
-              "Hi! I'm **Mo AI** — your MoOS assistant. I can help you control the " +
-              "system: updates, installing apps, fixing audio and more.\n\n" +
-              "_جرّب الأزرار السريعة بالأسفل | try the quick actions below._"
-    })
+    readonly property string greetingText:
+        "مرحباً! أنا **Mo AI** — مساعدك في MoOS. أقدر أساعدك تتحكّم بالنظام: " +
+        "التحديث، تثبيت التطبيقات، إصلاح الصوت والمزيد.\n\n" +
+        "Hi! I'm **Mo AI** — your MoOS assistant. I can help you control the " +
+        "system: updates, installing apps, fixing audio and more.\n\n" +
+        "_جرّب الأزرار السريعة بالأسفل | try the quick actions below._"
+
+    // Actions the model suggested in its last reply (parsed moai-do commands),
+    // surfaced as one-click "Run" chips above the input.
+    property var pendingRuns: []
+
+    Component.onCompleted: chatModel.append({ role: "assistant", text: greetingText })
 
     ListModel { id: chatModel }
 
@@ -263,7 +268,68 @@ Kirigami.ApplicationWindow {
     // Launch a quick action for real via the moos:// handler (moos-open), which
     // runs the auditable moai-do action in a visible terminal (confirm + pkexec).
     // Pure QML can't exec, but Qt.openUrlExternally reaches the scheme handler.
+    // Detect safe moai-do actions the model mentioned so we can offer to run
+    // them with one click (the actual run still goes through moai-do's own
+    // confirmation + pkexec).
+    function extractRuns(text) {
+        const out = []
+        const re = /moai-do\s+(update|fix-audio|check-drivers|optimize|hw-report)/g
+        let m
+        while ((m = re.exec(text)) !== null)
+            if (out.indexOf(m[1]) === -1)
+                out.push(m[1])
+        return out
+    }
+
+    // Start a fresh conversation.
+    function newChat() {
+        chatModel.clear()
+        history = []
+        pendingRuns = []
+        stopGenerating()
+        chatModel.append({ role: "assistant", text: greetingText })
+    }
+
+    // Read-only system scan via moai-control; show it in chat and give the model
+    // the context so follow-up "how do I improve this?" answers are grounded.
+    function doScan() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", controlApi + "/scan")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            if (xhr.status !== 200) {
+                chatModel.append({ role: "assistant",
+                    text: "تعذّر فحص النظام | couldn't scan the system." })
+                return
+            }
+            try {
+                const s = JSON.parse(xhr.responseText)
+                const disk = s.disk && s.disk.total_gb
+                    ? (s.disk.free_gb + "/" + s.disk.total_gb + " GB free") : "?"
+                const md = "**فحص النظام | System scan**\n\n"
+                    + "- 🖥️ " + (s.os || "MoOS") + "\n"
+                    + "- ⚙️ " + (s.cpu || "?") + "  (" + (s.cores || "?") + " cores)\n"
+                    + "- 🧠 " + (s.mem_gb || "?") + " GB RAM\n"
+                    + "- 💾 " + disk + "\n"
+                    + "- 🎮 " + (s.gpu || "?") + "\n"
+                    + "- 🐧 kernel " + (s.kernel || "?")
+                chatModel.append({ role: "assistant", text: md })
+                root.history.push({ role: "assistant", content: md })
+                root.trimHistory()
+                input.text = "بناءً على هذا الفحص، كيف أحسّن أداء وأمان نظامي؟ | Based on this scan, how do I improve my system's performance and security?"
+                input.forceActiveFocus()
+            } catch (e) {}
+        }
+        xhr.send()
+    }
+
     function runAction(a) {
+        if (a.action === "scan") {
+            doScan()
+            return
+        }
         Qt.openUrlExternally(a.url)
         toast.show(a.ar + "  |  " + a.en)
         // No success state here: launching != the action succeeding — just an
@@ -297,6 +363,7 @@ Kirigami.ApplicationWindow {
         chatModel.append({ role: "typing", text: "…" })
         const idx = chatModel.count - 1
         busy = true
+        pendingRuns = []   // clear last reply's suggested actions
 
         let acc = ""          // accumulated reply text
         let sawData = false    // did we get any streamed delta?
@@ -351,6 +418,7 @@ Kirigami.ApplicationWindow {
                 chatModel.set(idx, { role: "assistant", text: acc })
                 root.history.push({ role: "assistant", content: acc })
                 root.trimHistory()
+                root.pendingRuns = root.extractRuns(acc)
                 root.flashCompanion("success")
                 return
             }
@@ -366,6 +434,7 @@ Kirigami.ApplicationWindow {
                 chatModel.set(idx, { role: "assistant", text: reply })
                 root.history.push({ role: "assistant", content: reply })
                 root.trimHistory()
+                root.pendingRuns = root.extractRuns(reply)
                 root.flashCompanion("success")
             } else {
                 const help = !root.serverUp
@@ -538,7 +607,31 @@ Kirigami.ApplicationWindow {
 
                     Item { Layout.fillWidth: true }
 
-                    // Settings ⚙ — choose the local or cloud brain (moai-config).
+                    // New conversation
+                    Rectangle {
+                        Layout.preferredWidth: 28
+                        Layout.preferredHeight: 24
+                        radius: 8
+                        color: newMouse.containsMouse ? "#1C2A47" : "transparent"
+                        border.width: 1
+                        border.color: newMouse.containsMouse ? "#3A4E76" : "#26334F"
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Text {
+                            anchors.centerIn: parent
+                            text: "＋"
+                            color: root.brandSecondary
+                            font.pixelSize: 16
+                        }
+                        MouseArea {
+                            id: newMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.newChat()
+                        }
+                    }
+
+                    // Settings ⚙ — opens the in-app Settings overlay (local/cloud).
                     Rectangle {
                         Layout.preferredWidth: 28
                         Layout.preferredHeight: 24
@@ -895,6 +988,64 @@ Kirigami.ApplicationWindow {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: root.runAction(pill.modelData)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Suggested actions from the last reply → one-click Run ───────
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: runsFlow.implicitHeight + 16
+                visible: root.pendingRuns.length > 0
+                color: "#0D1526"
+                Rectangle {
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.top: parent.top; height: 1; color: root.hairline
+                }
+                Flow {
+                    id: runsFlow
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    spacing: 8
+                    Repeater {
+                        model: root.pendingRuns
+                        delegate: Rectangle {
+                            id: runChip
+                            required property string modelData
+                            radius: 15
+                            height: 32
+                            width: runRow.implicitWidth + 22
+                            color: runMouse.pressed ? "#1F6F3A"
+                                 : runMouse.containsMouse ? Qt.lighter("#1E7E45", 1.12)
+                                 : "#1E7E45"
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                            RowLayout {
+                                id: runRow
+                                anchors.centerIn: parent
+                                spacing: 6
+                                Text { text: "▶"; color: "white"; font.pixelSize: 11 }
+                                Text {
+                                    text: "نفّذ " + runChip.modelData + " | Run"
+                                    color: "white"
+                                    font.family: root.uiFont
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+                            MouseArea {
+                                id: runMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Qt.openUrlExternally("moos://do/" + runChip.modelData)
+                                    toast.show("moai-do " + runChip.modelData)
                                 }
                             }
                         }
