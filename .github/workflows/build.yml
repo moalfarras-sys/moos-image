@@ -79,6 +79,14 @@ jobs:
           containerfiles: ./Containerfile
           image: ${{ matrix.image_name }}
           tags: latest ${{ steps.meta.outputs.date_tag }}
+          # Give OUR image a version that actually changes every build. The base
+          # (kinoite) version label is inherited and only bumps when the base
+          # rebuilds, so `bootc status` would otherwise show the same number
+          # after every MoOS update — making real updates look like no-ops.
+          labels: |
+            org.opencontainers.image.version=44.${{ steps.meta.outputs.date_tag }}.${{ github.run_number }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.title=MoOS
           # Same Containerfile for both variants; the matrix selects the base
           # (kinoite-main for moos, kinoite-nvidia for moos-nvidia).
           build-args: |
