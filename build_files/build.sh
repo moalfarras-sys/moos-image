@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+python3 /ctx/verify_image_experience.py
 # =============================================================================
 # MoOS build.sh — runs INSIDE the container build (see Containerfile RUN).
 # Builds the complete current MoOS image: identity, boot/install, Nova UI,
