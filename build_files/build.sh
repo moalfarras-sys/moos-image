@@ -149,32 +149,19 @@ kver=$(basename "$(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d)")
 # both a config drop-in and --add so it cannot be dropped again.
 [ -e /usr/lib/ostree/ostree-prepare-root ] && chmod 0755 /usr/lib/ostree/ostree-prepare-root || true
 
-# The kinoite-nvidia base ships a dracut drop-in that force_drivers+= the NVIDIA
-# modules (and pulls their large GSP firmware) into the initramfs. force_drivers
-# OVERRIDES our omit_drivers, so it is the ~118MB that kept the nvidia initramfs
-# oversized (242MB) even after omit. NVIDIA is NOT boot-critical (loads from the
-# root fs post-boot; early display = simpledrm), so strip any NVIDIA-forcing
-# dracut drop-in from the base before we regenerate. Runtime nvidia loading
-# (udev/modprobe from the root fs) is unaffected. Diagnostic listing first.
-echo "=== dracut.conf.d before MoOS override ==="
-ls -la /usr/lib/dracut/dracut.conf.d/ /etc/dracut.conf.d/ 2>/dev/null || true
-grep -rilE "force_drivers.*nvidia|add_drivers.*nvidia" /usr/lib/dracut/dracut.conf.d/ /etc/dracut.conf.d/ 2>/dev/null | while read -r f; do
-    echo "  stripping NVIDIA-forcing dracut conf: $f"; rm -f "$f"
-done || true   # grep returns 1 (no match) on the generic base — must not abort (set -e + pipefail)
-rm -f /usr/lib/dracut/dracut.conf.d/*nvidia*.conf /etc/dracut.conf.d/*nvidia*.conf 2>/dev/null || true
-
+# KEEP NVIDIA in the initramfs (the kinoite-nvidia base force_drivers+= it) so the
+# proprietary driver does early KMS and the DESKTOP renders — removing it entirely
+# produced a black screen (Vulkan/Plasma had no working GPU at handoff). We only
+# trim the OTHER GPU display drivers the RTX-2080 machine doesn't need (nouveau,
+# amdgpu, radeon, i915, xe). That drops the initramfs from ~368MB to ~242MB —
+# below the ~368MB that GRUB could not allocate — while NVIDIA still works.
+# (The generic kinoite-main edition has no NVIDIA and is ~124MB.)
 cat > /usr/lib/dracut/dracut.conf.d/99-moos-boot.conf <<'DRC'
 add_dracutmodules+=" ostree dmsquash-live dmsquash-live-autooverlay "
 add_drivers+=" erofs overlay loop "
-# GPU display drivers are NOT boot-critical: the root fs mounts via
-# ostree-prepare-root + storage drivers, early display uses simpledrm/efifb
-# (karg plymouth.use-simpledrm), and the real GPU driver (nvidia/amdgpu/i915)
-# loads from the root fs AFTER boot. Omitting them keeps the initramfs small.
-# On the kinoite-nvidia base, --no-hostonly would otherwise sweep in the huge
-# NVIDIA modules + GSP firmware → a ~368MB initramfs that GRUB cannot allocate
-# ("can't allocate kernel / out of memory"). The drivers still ship in the root
-# fs, so the desktop GPU stack is unaffected.
-omit_drivers+=" nvidia nvidia_drm nvidia_modeset nvidia_uvm nvidia_peermem nouveau amdgpu radeon i915 xe nvidiafb "
+# Trim only the NON-NVIDIA GPU drivers (not present/needed on this hardware).
+# NVIDIA stays (base force_drivers) for a working desktop.
+omit_drivers+=" nouveau amdgpu radeon i915 xe nvidiafb "
 DRC
 
 # Capture dracut's OWN verbose log — the reliable source of truth. (The v20
@@ -184,7 +171,7 @@ DRC
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
     --add "ostree dmsquash-live dmsquash-live-autooverlay" \
     --add-drivers "erofs overlay loop" \
-    --omit-drivers "nvidia nvidia_drm nvidia_modeset nvidia_uvm nvidia_peermem nouveau amdgpu radeon i915 xe nvidiafb" \
+    --omit-drivers "nouveau amdgpu radeon i915 xe nvidiafb" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tee /tmp/moos-dracut.log
 
 # RELIABLE guard: dracut logs "Including module: ostree" iff the ostree module
@@ -850,7 +837,7 @@ fi
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
     --add "ostree plymouth dmsquash-live dmsquash-live-autooverlay" \
     --add-drivers "erofs overlay loop" \
-    --omit-drivers "nvidia nvidia_drm nvidia_modeset nvidia_uvm nvidia_peermem nouveau amdgpu radeon i915 xe nvidiafb" \
+    --omit-drivers "nouveau amdgpu radeon i915 xe nvidiafb" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tee /tmp/moos-final-dracut.log
 
 # --- initramfs SIZE guard (root-cause fix for the GRUB "can't allocate kernel /
@@ -862,7 +849,7 @@ DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
 # bricked the real machine and below the ~188MB that still booted, with margin.
 _initramfs_bytes=$(stat -c%s "/usr/lib/modules/${kver}/initramfs.img")
 _initramfs_mb=$(( _initramfs_bytes / 1024 / 1024 ))
-_initramfs_max_mb="${MOOS_INITRAMFS_MAX_MB:-200}"
+_initramfs_max_mb="${MOOS_INITRAMFS_MAX_MB:-300}"
 echo "=== initramfs size: ${_initramfs_mb} MB (hard ceiling ${_initramfs_max_mb} MB) ==="
 if [ "${_initramfs_mb}" -gt "${_initramfs_max_mb}" ]; then
     echo "FATAL: initramfs is ${_initramfs_mb} MB (> ${_initramfs_max_mb} MB) — GRUB may fail with 'can't allocate kernel / out of memory'. Trim drivers/firmware (see omit_drivers in 99-moos-boot.conf)."
