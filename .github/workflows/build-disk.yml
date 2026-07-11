@@ -41,7 +41,7 @@ jobs:
         id: ref
         run: |
           REF="${{ github.event.inputs.image-ref }}"
-          [ -n "$REF" ] || REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/moos-nvidia:latest"
+          [ -n "$REF" ] || REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/moos:latest"
           echo "image_ref=$REF" >> "$GITHUB_OUTPUT"
           echo "Building disk from: $REF"
 

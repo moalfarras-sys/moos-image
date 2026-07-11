@@ -27,7 +27,7 @@ on:
   workflow_dispatch:
     inputs:
       image_ref:
-        description: "Container image ref to build the ISO from (empty = ghcr.io/<owner>/moos-nvidia:latest — the user's edition)"
+        description: "Container image ref to build the ISO from (empty = ghcr.io/<owner>/moos:latest — the generic/nouveau edition that boots + displays reliably; the proprietary moos-nvidia needs nvidia in the initramfs)"
         required: false
         default: ""
   schedule:
@@ -61,7 +61,7 @@ jobs:
           if [ -n "${IMAGE_REF}" ]; then
             echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
           else
-            echo "image_ref=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/moos-nvidia:latest" >> "$GITHUB_OUTPUT"
+            echo "image_ref=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/moos:latest" >> "$GITHUB_OUTPUT"
           fi
 
       # Mandatory: reclaim ~25 GB on the runner before building a live ISO.
