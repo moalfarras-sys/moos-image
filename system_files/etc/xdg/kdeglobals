@@ -1,7 +1,6 @@
-# MoOS system-wide KDE defaults (M0 "Nova Seed")
+# MoOS system-wide KDE defaults
 # New users inherit these unless they change them in System Settings.
-# Remaining Nova defaults (cursors, window decoration) land in Phase 3 via
-# the org.moos.nova Global Theme — see MOOS_BUILD_WORKFLOW.md.
+# Remaining Nova defaults are supplied by the org.moos.nova Global Theme.
 #
 # Font values use the Qt 6 QFont::toString() 16-field format that Plasma 6
 # writes (family,pointSize,pixelSize,styleHint,weight,style,underline,

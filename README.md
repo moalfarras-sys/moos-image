@@ -1,6 +1,6 @@
 # moos-image — مستودع بناء صورة MoOS
 
-هذا هو مستودع البناء (build repo) لنظام **MoOS**: صورة bootc/OCI مبنية فوق `ghcr.io/ublue-os/kinoite-main:44` (Fedora 44 Atomic + KDE Plasma 6.7 Wayland) على نمط `ublue-os/image-template`. GitHub Actions يبني الصورة ويوقعها بـ cosign ويدفعها إلى GHCR، وTitanoboa يبني منها live ISO — كل ذلك مجاناً لأن المستودع عام (public). هذا المجلد جاهز للرفع كمستودع GitHub مستقل. نطاق M0 "Nova Seed": صورة موقّعة على GHCR تُظهر "MoOS" في os-release ويمكن عمل rebase إليها من VM.
+هذا هو مستودع المصدر والبناء لنظام **MoOS**: صورة bootc/OCI مبنية تقنياً فوق `ghcr.io/ublue-os/kinoite-main:44` مع Plasma Wayland. GitHub Actions يبني الصورة ويوقعها بـcosign ويدفعها إلى GHCR. كل تغيير دائم في النظام يبدأ هنا، يمر عبر CI، ثم يُنشر إلى الأجهزة بواسطة bootc.
 
 آخر تحديث: 2026-07-11
 
@@ -46,7 +46,7 @@ gh repo create moos-image --public --source=. --push
 
 ## 2) إعداد مفتاح التوقيع (SIGNING_SECRET) — إلزامي قبل أول بناء
 
-كل صور MoOS موقعة بـ cosign (قرار أمني غير قابل للتفاوض — انظر `../MOOS_SECURITY_PLAN.md`):
+كل صور MoOS موقعة بـcosign، والمفتاح العام المتعقب هو `cosign.pub`:
 
 ```bash
 # 1. توليد زوج المفاتيح (اترك passphrase فارغة لسهولة الاستخدام في CI)
@@ -76,7 +76,7 @@ just build-nvidia
 just lint
 ```
 
-> **تحذير:** بناء الـ ISO لا يعمل في WSL2 إطلاقاً (نواة WSL2 غير مدعومة من أدوات osbuild). الـ ISO يُبنى فقط عبر `build-iso.yml` في GitHub Actions، أو في VM Fedora حقيقي داخل Hyper-V كخيار طوارئ. انظر `../MOOS_BUILD_WORKFLOW.md` — Phase 5.
+> **تحذير:** بناء ISO غير مدعوم في WSL2. مساره الرسمي هو `build-iso.yml`، لكنه خارج مهمة إصلاح وتحديث النظام المثبّت الحالية.
 
 ## 4) تجربة الصورة في VM (rebase عبر bootc switch)
 
@@ -95,7 +95,7 @@ sudo bootc switch ghcr.io/moalfarras-sys/moos:latest
 sudo systemctl reboot
 ```
 
-بعد الإقلاع تحقق من نجاح M0:
+بعد الإقلاع تحقق من deployment الفعلي:
 
 ```bash
 cat /etc/os-release        # NAME="MoOS" و PRETTY_NAME="MoOS 0.1 (Nova Seed)"

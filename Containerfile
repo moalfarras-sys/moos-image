@@ -37,11 +37,10 @@ LABEL org.opencontainers.image.title="MoOS" \
       org.opencontainers.image.vendor="Moalfarras" \
       org.opencontainers.image.source="https://github.com/moalfarras-sys/moos-image"
 
-# System files are copied verbatim onto / of the image.
-# M0: skeleton dirs for org.moos.nova Global Theme, moos-nova SDDM theme,
-# moos-nova Plymouth theme, NovaHorizon wallpaper kpackage, /etc/moos.
-# Real assets land in Phase 3 (Design) and Phase 5 (Boot & Installer) —
-# see ../MOOS_BUILD_WORKFLOW.md.
+# System files are copied verbatim onto / of the image. This tree contains the
+# MoOS identity, Nova desktop/login/boot themes, applications, service units,
+# and boot/install configuration. build_files/build.sh performs the package-
+# dependent wiring and final validation.
 COPY system_files/ /
 
 # Run the build script:
