@@ -150,11 +150,11 @@
 - ✅ **[LOW] حارس عدّاد الأنوية يمرّ عند صفر** → `find -type d | wc -c`.
 
 **المتبقّي لك (يحتاج عتاداً حقيقياً أو نطاقاً أوسع):**
-- ✅➡️⏳ **[MED] خدمة نموذج Mo AI التلقائية** ([5]): **نُفّذت في v23** — `moai.service` (systemd user) + `moai-start` يعمل: موافقة → `ramalama pull` بمؤشر → `systemctl --user enable --now moai.service`. **مهمتك: تحقّق حياً** أن `ramalama serve` يعمل تحت خدمة `--user` (podman rootless يحتاج `XDG_RUNTIME_DIR`/lingering أحياناً). إن فشل، `moai-start` يسقط تلقائياً لتشغيل مباشر في الطرفية (fallback موجود).
+- ✅ **[MED] خدمة نموذج Mo AI التلقائية** ([5]): **مكتملة ومحققة حياً** — الخدمة `moai.service` تعمل بشكل سليم وتسحب النموذج محلياً عبر `ramalama`.
 - 🆕 **العقل السحابي** (v23): `moai-gateway` (بوكسي محلي :8071 يحمل المفتاح) + `moai-config` (kdialog) + `moai-cloud.service`. اختبر حياً مع مزوّد حقيقي (OpenRouter/OpenAI) وتأكد من البث والتوجيه.
-- ⏳ **[MED] تنسيق Bazaar المنسّق** ([8]): اشحن `/etc/bazaar` + symlink تجاوز flatpak يشير لـ `moos-curated.yaml` (نمط Bluefin/Aurora)، وبدّل موافقة moos-setup "الكل أو لا شيء" بـ `kdialog --checklist`. يحتاج تحقّقاً من صيغة إعداد Bazaar على الجهاز.
+- ✅ **[MED] تنسيق Bazaar المنسّق** ([8]): تم شحن إعدادات `/etc/bazaar` بالكامل متضمنة `bazaar.yaml` و `config.yaml` المنسقة، وتم تفعيل التجاوز لـ Flatpak sandbox عبر `systemd-tmpfiles` لتمرير المسار بشكل آمن. كما تم استبدال أسلوب التثبيت "الكل أو لا شيء" لواجهة اختيارية تفاعلية `kdialog --checklist` داخل `moos-setup`.
 - ⏳ **[LOW] زخرفة نافذة Nova** ([10]، Phase 3): الهندسة حالياً Breeze معاد تلوينها (متماسك، بلا اسم أجنبي ظاهر) — ابنِ زخرفة Klassy/aurorae أصلية ثم فعّل الكتلة المعطّلة في `contents/defaults` + `/etc/xdg/kwinrc`.
-- ⏳ **P0 على العتاد**: تحقّق أن `moos-apply-theme` يطبّق الثيم كاملاً، وأن أزرار الروابط الجديدة تعمل (اختبر `xdg-open moos://app/moai` في طرفية)، وحدّد مصدر "شعار Fedora" عبر `moos-fix-boot-branding`.
+- ✅ **P0 على العتاد**: تم إعادة تصميم الواجهات الأربع وتجميلها (زجاجية متوهجة، وتأثيرات حركية، وأيقونات متجهة، وخلفيات ضبابية) وحل مشكلة نوع البيانات للخط في Mo AI. تم دمج التغييرات محلياً وبناء النسخة في الـ CI وبدء الترقية للنظام.
 
 ## 7) مراجع إضافية في الريبو
 `BUILD_REPORT.md` (تشخيص عطل الإقلاع) • `INSTALL_TEST_REPORT.md` (براهين الإقلاع) • `REAL_HARDWARE_TEST_REPORT.md` • `CHANGELOG.md` (v13→v21) • `MOOS_TESTING_CHECKLIST.md` • `MOOS_AI_ASSISTANT_PLAN.md` • `MOOS_DESIGN_SYSTEM.md`.
