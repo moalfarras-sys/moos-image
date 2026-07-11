@@ -18,7 +18,14 @@ PORT = int(os.environ.get("MOAI_CONTROL_PORT", "8079"))
 def load():
     try:
         with open(CFG, encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            # One-time migration from the pre-v3 plaintext format. Store the
+            # credential in Secret Service, then immediately rewrite config
+            # without it. Never log the value.
+            legacy = data.pop("cloud_key", "")
+            if legacy and store_secret(legacy):
+                save(data)
+            return data
     except Exception:
         return {}
 
@@ -28,6 +35,27 @@ def save(d):
     with open(CFG, "w", encoding="utf-8") as f:
         json.dump(d, f, ensure_ascii=False, indent=2)
     os.chmod(CFG, 0o600)
+
+
+def secret_tool(*args, value=None):
+    try:
+        return subprocess.run(
+            ["secret-tool", *args], input=value, capture_output=True,
+            text=True, timeout=10, check=False)
+    except Exception:
+        return None
+
+
+def get_secret():
+    result = secret_tool("lookup", "service", "org.moos.MoAI", "account", "cloud")
+    return result.stdout.rstrip("\n") if result and result.returncode == 0 else ""
+
+
+def store_secret(value):
+    result = secret_tool(
+        "store", "--label=Mo AI cloud API key",
+        "service", "org.moos.MoAI", "account", "cloud", value=value)
+    return bool(result and result.returncode == 0)
 
 
 def sysctl(*args):
@@ -134,7 +162,7 @@ class H(BaseHTTPRequestHandler):
                 "mode": c.get("mode", "local"),
                 "cloud_base": c.get("cloud_base", ""),
                 "cloud_model": c.get("cloud_model", ""),
-                "has_key": bool(c.get("cloud_key")),
+                "has_key": bool(get_secret()),
             })
         elif self.path.startswith("/status"):
             self._send(200, {"online": brain_online()})
@@ -159,12 +187,13 @@ class H(BaseHTTPRequestHandler):
             return self._send(400, {"error": "bad json"})
         cur = load()
         mode = "cloud" if data.get("mode") == "cloud" else "local"
+        key = data.get("cloud_key") or ""
+        if key and not store_secret(key):
+            return self._send(503, {"error": "Secret Service is unavailable"})
         out = {
             "mode": mode,
             "cloud_base": data.get("cloud_base", cur.get("cloud_base", "")),
             "cloud_model": data.get("cloud_model", cur.get("cloud_model", "")),
-            # Keep the existing key when the form leaves the field blank.
-            "cloud_key": data.get("cloud_key") or cur.get("cloud_key", ""),
         }
         save(out)
         # Local and cloud both serve on 8080 — only one may run.

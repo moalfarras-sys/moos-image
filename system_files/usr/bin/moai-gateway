@@ -9,7 +9,7 @@
 # ~/.config/moai/config.json (chmod 600). The KEY never leaves this process — the
 # pure-QML app never sees it. SSE streaming is piped through untouched. Stdlib
 # only (no pip deps).
-import json, os, sys, urllib.request, urllib.error
+import json, os, subprocess, sys, urllib.request, urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CONFIG = os.path.expanduser("~/.config/moai/config.json")
@@ -24,6 +24,17 @@ def load_cfg():
         return {}
 
 
+def load_secret():
+    try:
+        result = subprocess.run(
+            ["secret-tool", "lookup", "service", "org.moos.MoAI",
+             "account", "cloud"], capture_output=True, text=True,
+            timeout=10, check=False)
+        return result.stdout.rstrip("\n") if result.returncode == 0 else ""
+    except Exception:
+        return ""
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -33,7 +44,7 @@ class Handler(BaseHTTPRequestHandler):
     def _cfg(self):
         c = load_cfg()
         base = (c.get("cloud_base") or "").rstrip("/")
-        key = c.get("cloud_key") or ""
+        key = load_secret()
         model = c.get("cloud_model") or ""
         return base, key, model
 

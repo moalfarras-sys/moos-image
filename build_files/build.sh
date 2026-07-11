@@ -311,6 +311,10 @@ dnf5 -y install qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia qt6-qtimageform
 dnf5 -y install ibm-plex-sans-fonts ibm-plex-sans-arabic-fonts \
     google-noto-sans-arabic-fonts jetbrains-mono-fonts papirus-icon-theme
 
+# Secret Service CLI used by Mo AI. On Plasma this talks to KWallet through
+# the freedesktop Secret Service API; cloud credentials never enter JSON files.
+dnf5 -y install libsecret
+
 # Full Arabic + English locale support (glibc locales, hunspell, input) —
 # MoOS is bilingual by design (MOOS_DESIGN_SYSTEM.md §7 RTL rules).
 dnf5 -y install langpacks-ar langpacks-en
