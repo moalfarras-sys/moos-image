@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# moos-open — MoOS internal URL handler for the "moos:" scheme.
+#
+# WHY: the MoOS apps (Welcome, Mo AI, Compatibility Hub) are pure-QML script
+# apps. Pure QML has NO Process API and cannot exec, so historically their
+# buttons only COPIED a command to the clipboard ("run it in a terminal") — a
+# premium UI whose buttons did nothing. QML *can* call Qt.openUrlExternally(),
+# which on Linux routes through xdg-open to the registered scheme handler. So
+# the buttons now open "moos://…" URLs and THIS handler runs the matching MoOS
+# command. Registered as x-scheme-handler/moos via org.moos.urlhandler.desktop.
+#
+# SECURITY: strict whitelist. It never execs arbitrary input from the URL — only
+# the fixed set of MoOS actions below. Terminal/privileged actions run in a
+# visible Konsole (--hold) so the user sees every prompt (moai-do uses pkexec).
+set -uo pipefail
+
+url="${1:-}"
+# moos://CAT/TGT  ->  cat=CAT tgt=TGT  (tolerate moos:CAT/TGT and trailing bits)
+path="${url#moos:}"; path="${path#//}"; path="${path%%[?#]*}"; path="${path%/}"
+cat="${path%%/*}"
+tgt="${path#*/}"; [ "$tgt" = "$cat" ] && tgt=""
+
+notify() { command -v kdialog >/dev/null 2>&1 && kdialog --title "MoOS" --passivepopup "$1" 5 >/dev/null 2>&1 || true; }
+
+# Launch a GUI app fully detached from this short-lived handler process.
+gui() { setsid "$@" >/dev/null 2>&1 & }
+
+# Run an interactive command in a held terminal so its output/prompts/errors
+# stay visible after it exits (moos-setup, moai-start, moai-do).
+term() {
+    if command -v konsole >/dev/null 2>&1; then
+        setsid konsole --hold -e "$@" >/dev/null 2>&1 &
+    elif command -v x-terminal-emulator >/dev/null 2>&1; then
+        setsid x-terminal-emulator -e "$@" >/dev/null 2>&1 &
+    else
+        notify "لا توجد طرفية | no terminal available: $*"
+    fi
+}
+
+case "${cat}/${tgt}" in
+    app/moai)      gui moai ;;
+    app/setup)     term moos-setup ;;
+    app/compat)    gui moos-compat ;;
+    app/hardware)  gui moos-hardware ;;
+    app/welcome)   gui moos-welcome ;;
+    brain/start)   term moai-start ;;
+    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report)
+                   term moai-do "$tgt" ;;
+    *)
+        notify "أمر MoOS غير معروف | unknown MoOS action: ${path}"
+        exit 2 ;;
+esac
+exit 0

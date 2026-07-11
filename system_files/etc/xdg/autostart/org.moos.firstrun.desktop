@@ -9,3 +9,4 @@ Icon=moos-logo
 Terminal=false
 OnlyShowIn=KDE;
 X-KDE-StartupNotify=false
+X-KDE-autostart-phase=2

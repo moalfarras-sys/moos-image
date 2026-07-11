@@ -1,0 +1,13 @@
+# MoOS default keyboard layouts — bilingual out of the box.
+# MoOS brands itself Arabic/English; without this the installed desktop ships a
+# single layout and an Arabic user cannot type Arabic until they add one by hand
+# in System Settings. This system default (KConfig cascade, /etc/xdg) gives every
+# new session an EN + AR pair with an Alt+Shift toggle; users can still change it
+# in System Settings > Keyboard (their ~/.config/kxkbrc overrides this).
+[Layout]
+Use=true
+LayoutList=us,ara
+VariantList=,
+DisplayNames=EN,ع
+Options=grp:alt_shift_toggle
+SwitchMode=Global

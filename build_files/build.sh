@@ -115,8 +115,11 @@ plymouth-set-default-theme moos-nova
 # overlay for composefs). The same single initramfs then boots BOTH paths.
 # Hard-fail if the kernel count is not exactly 1 — a blind "head -1" could ship
 # the wrong/stock initramfs.
-kver=$(ls /usr/lib/modules)
-[ "$(echo "$kver" | wc -l)" -eq 1 ] || { echo "ERROR: expected exactly 1 kernel in /usr/lib/modules, got: $kver"; exit 1; }
+# Count directories explicitly so BOTH 0 and >1 hard-fail (a plain `ls | wc -l`
+# passes on empty because echo "" still emits one line).
+kcount=$(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d -printf '.' | wc -c)
+[ "$kcount" -eq 1 ] || { echo "ERROR: expected exactly 1 kernel in /usr/lib/modules, got $kcount"; exit 1; }
+kver=$(basename "$(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d)")
 
 # The 50ostree dracut module's check() includes itself ONLY if
 # /usr/lib/ostree/ostree-prepare-root is executable (-x). In a buildah build
@@ -495,7 +498,20 @@ curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
     /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome \
-    /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding
+    /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding /usr/bin/moos-open
+
+# Register the moos:// scheme handler so the pure-QML apps' buttons actually
+# launch (Qt.openUrlExternally → xdg-open → org.moos.urlhandler.desktop →
+# /usr/bin/moos-open). Set it as the system DEFAULT for x-scheme-handler/moos by
+# appending to /etc/xdg/mimeapps.list (create-or-append; never clobber existing
+# associations), then rebuild the desktop/MIME cache.
+mimeapps=/etc/xdg/mimeapps.list
+mkdir -p /etc/xdg
+[ -f "$mimeapps" ] || printf '' > "$mimeapps"
+grep -q '^\[Default Applications\]' "$mimeapps" || printf '\n[Default Applications]\n' >> "$mimeapps"
+grep -q '^x-scheme-handler/moos=' "$mimeapps" \
+    || sed -i '/^\[Default Applications\]/a x-scheme-handler/moos=org.moos.urlhandler.desktop' "$mimeapps"
+update-desktop-database /usr/share/applications 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
 # (d) Enable services

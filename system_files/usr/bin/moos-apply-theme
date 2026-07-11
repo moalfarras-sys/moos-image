@@ -13,20 +13,43 @@
 # applied on the first login AFTER a `bootc upgrade` that ships this file.
 set -uo pipefail
 
-marker="${XDG_STATE_HOME:-$HOME/.local/state}/moos-nova-theme-applied"
+# Versioned marker: bump THEME_REV whenever the Nova assets change so a later
+# `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
+# fixed marker would skip every revision after the first). Old markers are
+# cleaned up so they don't accumulate.
+THEME_REV=2
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
+marker="${state_dir}/moos-nova-theme-applied.v${THEME_REV}"
 [ -e "$marker" ] && exit 0
-mkdir -p "$(dirname "$marker")" 2>/dev/null || true
+mkdir -p "$state_dir" 2>/dev/null || true
+rm -f "${state_dir}"/moos-nova-theme-applied "${state_dir}"/moos-nova-theme-applied.v* 2>/dev/null || true
 
 log="${XDG_CACHE_HOME:-$HOME/.cache}/moos-apply-theme.log"
 mkdir -p "$(dirname "$log")" 2>/dev/null || true
 echo "=== moos-apply-theme $(date -u '+%FT%TZ') ===" >>"$log" 2>/dev/null || true
 
 # Autostart can fire before the Plasma shell / session D-Bus is ready. Wait for
-# plasmashell so the apply tools actually take effect.
-for _ in $(seq 1 40); do
-    qdbus org.kde.plasmashell /PlasmaShell >/dev/null 2>&1 && break
-    sleep 1
-done
+# plasmashell so the apply tools actually take effect. Do NOT rely on `qdbus`:
+# Qt6 renamed it (qdbus6/qdbus-qt6) and Plasma 6 no longer pulls the Qt5 one, so
+# a plain `qdbus` probe can be permanently absent → the loop would burn the full
+# 40 s on EVERY first login and lose the readiness guarantee. Prefer busctl
+# (ships with systemd) / gdbus (ships with glib2), which are always present.
+plasma_ready() {
+    if command -v busctl >/dev/null 2>&1; then
+        busctl --user call org.kde.plasmashell /PlasmaShell \
+            org.freedesktop.DBus.Peer Ping >/dev/null 2>&1 && return 0
+    fi
+    if command -v gdbus >/dev/null 2>&1; then
+        gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+            -m org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1 && return 0
+    fi
+    for q in qdbus6 qdbus-qt6 qdbus; do
+        command -v "$q" >/dev/null 2>&1 \
+            && "$q" org.kde.plasmashell /PlasmaShell >/dev/null 2>&1 && return 0
+    done
+    return 1
+}
+for _ in $(seq 1 40); do plasma_ready && break; sleep 1; done
 
 applied=0
 

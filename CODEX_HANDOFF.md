@@ -134,5 +134,26 @@
 
 ---
 
+## 7.5) نتيجة التدقيق الشامل (14 نقصاً مؤكَّداً) — ما أُصلح وما تبقّى لك
+
+تدقيق متعدد الوكلاء (6 أبعاد + تحقّق خصومي) كشف 14 نقصاً. **Claude أصلح 11 منها في الريبو** (v22):
+- ✅ **[HIGH] أزرار Welcome/Mo AI كانت تنسخ للحافظة بدل التشغيل** ("افتح Mo AI" ينسخ "moai"!) → معالج `moos://` حقيقي (`/usr/bin/moos-open` + `org.moos.urlhandler.desktop` + تسجيله default في build.sh). الآن الأزرار **تشغّل التطبيقات فعلاً** عبر `Qt.openUrlExternally`.
+- ✅ **[MED] Mo AI بلا طريقة تشغيل من الواجهة** → زر **«شغّل العقل المحلي»** يظهر عند offline ويشغّل `moai-start` في طرفية (`moos://brain/start`).
+- ✅ **[MED] لا حالة تحميل** → خاصية `brainStarting` + شارة "يبدأ…" + رسالة "أول مرة يُحمّل ~2.5GB" بدل "غير متصل" المضلّلة.
+- ✅ **[MED] `qdbus` غير مضمون على Plasma 6** (توقّف 40 ثانية + سباق الثيم) → `busctl`/`gdbus` في `moos-apply-theme` و`moos-firstrun`.
+- ✅ **[MED] عربي/RTL غير مفعّل** → `/etc/xdg/kxkbrc` (تخطيط us,ara + تبديل Alt+Shift).
+- ✅ **[MED] الترحيب الفاخر لا يظهر تلقائياً** → `moos-firstrun` يشغّل `moos-welcome` (الواجهة الفاخرة) بعد جهوز plasmashell، مرة واحدة.
+- ✅ **[LOW] كلمة "Plasma" في أوصاف الثيم** → أُزيلت من الـ metadata.
+- ✅ **[LOW] علامة الثيم غير مُصدَّرة** → `moos-nova-theme-applied.v${THEME_REV}` (تُعاد مع تحديثات الثيم).
+- ✅ **[LOW] `konsole -e` بلا `--hold`** → الأخطاء لم تعد تختفي.
+- ✅ **[LOW] الترحيب بلا phase/انتظار** → `X-KDE-autostart-phase=2` + انتظار plasmashell.
+- ✅ **[LOW] حارس عدّاد الأنوية يمرّ عند صفر** → `find -type d | wc -c`.
+
+**المتبقّي لك (يحتاج عتاداً حقيقياً أو نطاقاً أوسع):**
+- ⏳ **[MED] خدمة نموذج Mo AI التلقائية** ([5]): وحدة systemd user لـ `ramalama serve` (غير مفعّلة افتراضياً، خلف موافقة أول تشغيل + تنزيل بواجهة تقدّم). حالياً `moai-start` يدوي (لكن صار بضغطة زر). صمّمها واختبرها حياً.
+- ⏳ **[MED] تنسيق Bazaar المنسّق** ([8]): اشحن `/etc/bazaar` + symlink تجاوز flatpak يشير لـ `moos-curated.yaml` (نمط Bluefin/Aurora)، وبدّل موافقة moos-setup "الكل أو لا شيء" بـ `kdialog --checklist`. يحتاج تحقّقاً من صيغة إعداد Bazaar على الجهاز.
+- ⏳ **[LOW] زخرفة نافذة Nova** ([10]، Phase 3): الهندسة حالياً Breeze معاد تلوينها (متماسك، بلا اسم أجنبي ظاهر) — ابنِ زخرفة Klassy/aurorae أصلية ثم فعّل الكتلة المعطّلة في `contents/defaults` + `/etc/xdg/kwinrc`.
+- ⏳ **P0 على العتاد**: تحقّق أن `moos-apply-theme` يطبّق الثيم كاملاً، وأن أزرار الروابط الجديدة تعمل (اختبر `xdg-open moos://app/moai` في طرفية)، وحدّد مصدر "شعار Fedora" عبر `moos-fix-boot-branding`.
+
 ## 7) مراجع إضافية في الريبو
 `BUILD_REPORT.md` (تشخيص عطل الإقلاع) • `INSTALL_TEST_REPORT.md` (براهين الإقلاع) • `REAL_HARDWARE_TEST_REPORT.md` • `CHANGELOG.md` (v13→v21) • `MOOS_TESTING_CHECKLIST.md` • `MOOS_AI_ASSISTANT_PLAN.md` • `MOOS_DESIGN_SYSTEM.md`.

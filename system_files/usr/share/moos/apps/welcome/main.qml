@@ -25,15 +25,15 @@ ApplicationWindow {
     readonly property color txt:     "#E6EDF7"
     readonly property color txt2:    "#9FB0C9"
 
-    function runCmd(cmd) {
-        // QML cannot exec directly; copy the command and show a hint.
-        hintText.text = "شغّله من الطرفية | run in a terminal:  " + cmd
-        clip.text = cmd; clip.selectAll(); clip.copy()
+    // Launch a MoOS app/action for real. Pure QML has no Process API, but
+    // Qt.openUrlExternally routes "moos://…" through xdg-open to the whitelisted
+    // handler /usr/bin/moos-open (registered as x-scheme-handler/moos). So these
+    // buttons actually OPEN the app instead of copying text to the clipboard.
+    function openApp(url, label) {
+        Qt.openUrlExternally(url)
+        toastLabel.text = "جارٍ الفتح… | Opening…  " + label
         toast.visible = true; toastTimer.restart()
     }
-
-    // hidden clipboard helper
-    TextEdit { id: clip; visible: false }
 
     // ---- ambient background glow ----
     Rectangle {
@@ -131,15 +131,15 @@ ApplicationWindow {
                 MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: parent.onTap() }
                 Behavior on color { ColorAnimation { duration: 120 } }
             }
-            NavButton { label: "ثبّت الأساسيات | Install essentials"; accent: win.blue;   onTap: function(){ win.runCmd("moos-setup") } }
-            NavButton { label: "افتح Mo AI | Open Mo AI";            accent: win.violet; onTap: function(){ win.runCmd("moai") } }
-            NavButton { label: "مركز التوافق | Compatibility";       accent: win.raised; onTap: function(){ win.runCmd("moos-compat") } }
+            NavButton { label: "ثبّت الأساسيات | Install essentials"; accent: win.blue;   onTap: function(){ win.openApp("moos://app/setup",  "التطبيقات | apps") } }
+            NavButton { label: "افتح Mo AI | Open Mo AI";            accent: win.violet; onTap: function(){ win.openApp("moos://app/moai",   "Mo AI") } }
+            NavButton { label: "مركز التوافق | Compatibility";       accent: win.raised; onTap: function(){ win.openApp("moos://app/compat", "التوافق | compat") } }
         }
 
         Text {
             id: hintText
             Layout.fillWidth: true
-            text: "نصيحة: كل الأوامر تُنسخ تلقائياً — الصقها في الطرفية.  |  Tip: commands are auto-copied — paste in a terminal."
+            text: "كل شيء محلي وآمن — بهوية MoOS بالكامل.  |  Everything local and safe — fully MoOS."
             color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12; wrapMode: Text.WordWrap
         }
     }
@@ -152,7 +152,7 @@ ApplicationWindow {
         anchors.bottomMargin: 18
         width: toastLabel.implicitWidth + 32; height: 40; radius: 20
         color: win.raised; border.width: 1; border.color: win.cyan
-        Text { id: toastLabel; anchors.centerIn: parent; text: "نُسخ ✓ | Copied ✓"; color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 13 }
+        Text { id: toastLabel; anchors.centerIn: parent; text: "MoOS"; color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 13 }
         Timer { id: toastTimer; interval: 2200; onTriggered: toast.visible = false }
     }
 }

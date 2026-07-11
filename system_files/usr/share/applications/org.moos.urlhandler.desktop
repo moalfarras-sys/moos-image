@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=MoOS
+Comment=Internal handler for moos:// links from the MoOS apps
+NoDisplay=true
+Exec=/usr/bin/moos-open %u
+Icon=moos-logo
+Terminal=false
+MimeType=x-scheme-handler/moos;

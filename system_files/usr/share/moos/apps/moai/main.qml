@@ -39,13 +39,20 @@ Kirigami.ApplicationWindow {
         "suggest the exact moai-do command in a code block and briefly explain. " +
         "Never suggest destructive commands. Answer concisely in the user's language."
 
-    // Rendered as Markdown → the code block shows monospace.
+    // Rendered as Markdown. Points at the real "Start local brain" button below.
     readonly property string offlineHelp:
-        "لا أستطيع الوصول إلى العقل المحلي.\n" +
-        "I can't reach the local brain.\n\n" +
-        "شغّل العقل أولاً | Start the brain first:\n\n" +
-        "`moai-start`\n\n" +
+        "العقل المحلي غير مشغّل.\n" +
+        "The local brain is off.\n\n" +
+        "اضغط **«شغّل العقل المحلي»** بالأسفل — أو شغّل `moai-start` في الطرفية.\n" +
+        "Tap **“Start local brain”** below — or run `moai-start` in a terminal.\n\n" +
         "ثم أعد المحاولة | then try again."
+
+    // Shown while the brain is starting (first-run ~2.5 GB download), so the app
+    // never says "offline" at the user who just started it.
+    readonly property string startingHelp:
+        "العقل المحلي يبدأ الآن… أول تشغيل يُحمّل النموذج (~2.5GB) وقد يأخذ دقائق.\n" +
+        "The local brain is starting… first run downloads the model (~2.5 GB) and may take a few minutes.\n\n" +
+        "سأصبح جاهزاً تلقائياً عند الانتهاء. | I'll be ready automatically once it finishes."
 
     // Nova dark brand palette (MOOS_DESIGN)
     readonly property color brandBg: "#0B1220"
@@ -58,21 +65,37 @@ Kirigami.ApplicationWindow {
     readonly property color brandSecondary: "#9FB0C9"
     readonly property color hairline: "#243350"
 
-    // Quick actions — each pill copies its `cmd` to the clipboard (see queueAction).
+    // Quick actions — each pill LAUNCHES its `url` for real via the moos://
+    // scheme handler (/usr/bin/moos-open), which runs the auditable moai-do
+    // action in a visible terminal (confirmation + pkexec). No more clipboard.
     // icon: MoOS action symbols shipped at hicolor/scalable/actions, resolved
     // by NAME through the icon theme (contract §4 — no absolute paths).
     readonly property var quickActions: [
-        { ar: "تحديث النظام",   en: "Update",        cmd: "moai-do update",                accent: "#2E7BFF", icon: "moos-safe-update" },
-        { ar: "تثبيت تطبيق",    en: "Install app",   cmd: "moai-do install <flatpak-id>",  accent: "#22D3EE", icon: "moos-install" },
-        { ar: "إصلاح الصوت",    en: "Fix audio",     cmd: "moai-do fix-audio",             accent: "#8B5CF6", icon: "moos-audio" },
-        { ar: "فحص التعريفات",  en: "Check drivers", cmd: "moai-do check-drivers",         accent: "#22D3EE", icon: "moos-gpu" },
-        { ar: "تحسين وتنظيف",   en: "Optimize",      cmd: "moai-do optimize",              accent: "#2E7BFF", icon: "moos-optimize" },
-        { ar: "تقرير الأجهزة",  en: "HW report",     cmd: "moai-do hw-report",             accent: "#8B5CF6", icon: "moos-report" }
+        { ar: "تحديث النظام",   en: "Update",        url: "moos://do/update",        accent: "#2E7BFF", icon: "moos-safe-update" },
+        { ar: "تثبيت تطبيقات",  en: "Install apps",  url: "moos://app/setup",        accent: "#22D3EE", icon: "moos-install" },
+        { ar: "إصلاح الصوت",    en: "Fix audio",     url: "moos://do/fix-audio",     accent: "#8B5CF6", icon: "moos-audio" },
+        { ar: "فحص التعريفات",  en: "Check drivers", url: "moos://do/check-drivers", accent: "#22D3EE", icon: "moos-gpu" },
+        { ar: "تحسين وتنظيف",   en: "Optimize",      url: "moos://do/optimize",      accent: "#2E7BFF", icon: "moos-optimize" },
+        { ar: "تقرير الأجهزة",  en: "HW report",     url: "moos://do/hw-report",     accent: "#8B5CF6", icon: "moos-report" }
     ]
 
     property bool serverUp: false
     property bool busy: false
+    // True from when the user asks to start the local brain until the server is
+    // up. The first run downloads ~2.5 GB, so without this the app would keep
+    // saying "offline / start the brain" for minutes even though it IS starting.
+    property bool brainStarting: false
     property var history: []   // [{role, content}] user/assistant only, last 12
+
+    function startBrain() {
+        Qt.openUrlExternally("moos://brain/start")
+        brainStarting = true
+        brainStartGuard.restart()   // clears if the server never comes up
+    }
+
+    // Safety net: if starting fails or the user cancels, stop claiming "starting"
+    // after a generous window (first-run download can be slow).
+    Timer { id: brainStartGuard; interval: 720000; onTriggered: root.brainStarting = false }
 
     // ── Nova Companion state (artwork/moai/README.md wiring contract) ───────
     // A 1400 ms success/error flash overrides the steady mapping:
@@ -81,7 +104,7 @@ Kirigami.ApplicationWindow {
     property string companionFlash: ""
     readonly property string companionState:
         companionFlash !== "" ? companionFlash
-        : !serverUp ? "offline"
+        : !serverUp ? (brainStarting ? "thinking" : "offline")
         : busy ? "thinking"
         : (input.activeFocus && input.text.trim().length > 0) ? "attentive"
         : "idle"
@@ -132,8 +155,11 @@ Kirigami.ApplicationWindow {
             const xhr = new XMLHttpRequest()
             xhr.open("GET", root.api.replace("/chat/completions", "/models"))
             xhr.onreadystatechange = function () {
-                if (xhr.readyState === XMLHttpRequest.DONE)
-                    root.serverUp = (xhr.status === 200)
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    const up = (xhr.status === 200)
+                    root.serverUp = up
+                    if (up) root.brainStarting = false   // it's ready now
+                }
             }
             xhr.send()
         }
@@ -150,17 +176,14 @@ Kirigami.ApplicationWindow {
             chatModel.remove(chatModel.count - 1)
     }
 
-    // Copy a `moai-do ...` command to the clipboard + surface the toast.
-    // Pure QML has no clipboard API, so we route through a hidden TextEdit's
-    // copy() — the same trick the Hardware Center uses for its NVIDIA hint.
-    function queueAction(cmd) {
-        clip.text = cmd
-        clip.selectAll()
-        clip.copy()
-        clip.deselect()
-        toast.show(cmd)
-        // Contract §7: TextEdit.copy() has no success callback, so this must
-        // NOT trigger the success state — just an honest attentive pulse.
+    // Launch a quick action for real via the moos:// handler (moos-open), which
+    // runs the auditable moai-do action in a visible terminal (confirm + pkexec).
+    // Pure QML can't exec, but Qt.openUrlExternally reaches the scheme handler.
+    function runAction(a) {
+        Qt.openUrlExternally(a.url)
+        toast.show(a.ar + "  |  " + a.en)
+        // No success state here: launching != the action succeeding — just an
+        // honest attentive pulse (contract §7).
         attentivePulse.restart()
     }
 
@@ -198,8 +221,13 @@ Kirigami.ApplicationWindow {
                 root.trimHistory()
                 root.flashCompanion("success")   // real HTTP 200 + parsed reply
             } else {
-                chatModel.append({ role: "assistant", text: root.offlineHelp })
-                root.flashCompanion("error")     // failed request/parse
+                // Distinguish "brain not started" vs "starting/downloading" vs
+                // "reachable but returned nothing" so the message is never wrong.
+                const help = !root.serverUp
+                    ? (root.brainStarting ? root.startingHelp : root.offlineHelp)
+                    : "لم أستطع توليد رد، حاول مجدداً. | I couldn't generate a reply — please try again."
+                chatModel.append({ role: "assistant", text: help })
+                root.flashCompanion(root.serverUp ? "warning" : "error")
             }
         }
         xhr.send(JSON.stringify({
@@ -330,7 +358,7 @@ Kirigami.ApplicationWindow {
                             }
                         }
 
-                        // Honest attentive pulse for queueAction (contract §7).
+                        // Honest attentive pulse for runAction (contract §7).
                         SequentialAnimation {
                             id: attentivePulse
                             NumberAnimation {
@@ -385,9 +413,10 @@ Kirigami.ApplicationWindow {
                                 height: 7
                                 radius: 3.5
                                 color: root.serverUp ? root.brandCyan
-                                                     : root.brandSecondary
+                                     : root.brainStarting ? root.brandBlue
+                                     : root.brandSecondary
                                 SequentialAnimation on opacity {
-                                    running: root.serverUp
+                                    running: root.serverUp || root.brainStarting
                                     loops: Animation.Infinite
                                     NumberAnimation { from: 1.0; to: 0.35; duration: 900 }
                                     NumberAnimation { from: 0.35; to: 1.0; duration: 900 }
@@ -396,9 +425,11 @@ Kirigami.ApplicationWindow {
 
                             Text {
                                 text: root.serverUp ? "محلي | local"
-                                                    : "غير متصل | offline"
+                                     : root.brainStarting ? "يبدأ… | starting…"
+                                     : "غير متصل | offline"
                                 color: root.serverUp ? root.brandCyan
-                                                     : root.brandSecondary
+                                     : root.brainStarting ? root.brandBlue
+                                     : root.brandSecondary
                                 font.families: root.uiFonts
                                 font.pixelSize: 11
                             }
@@ -524,6 +555,68 @@ Kirigami.ApplicationWindow {
                     anchors.margins: 10
                     spacing: 8
 
+                    // ── Offline → a REAL "start the local brain" control. Opens
+                    //    moos://brain/start (runs moai-start in a terminal: consent
+                    //    + ~2.5 GB first-run download). While starting it shows a
+                    //    distinct "downloading/warming up" state instead of the flat
+                    //    "offline — run a command" dead-end.
+                    Rectangle {
+                        Layout.fillWidth: true
+                        visible: !root.serverUp
+                        radius: 12
+                        Layout.preferredHeight: startCol.implicitHeight + 18
+                        color: root.brainStarting ? "#152447" : "#161F38"
+                        border.width: 1
+                        border.color: root.brainStarting ? root.brandBlue : root.brandViolet
+
+                        ColumnLayout {
+                            id: startCol
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 12
+                            spacing: 7
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: root.brainStarting
+                                      ? "العقل المحلي يبدأ… أول مرة يُحمّل ~2.5GB وقد يأخذ دقائق.\nLocal brain starting… first run downloads ~2.5 GB, may take minutes."
+                                      : "العقل المحلي غير مشغّل — شغّله محلياً بضغطة (يحتاج إنترنت أول مرة).\nThe local brain is off — start it locally in one click (needs Internet the first time)."
+                                color: root.brandSecondary
+                                font.families: root.uiFonts
+                                font.pixelSize: 11
+                                wrapMode: Text.Wrap
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 36
+                                visible: !root.brainStarting
+                                radius: 10
+                                color: startMouse.pressed ? "#2568D9"
+                                     : startMouse.containsMouse ? Qt.lighter(root.brandBlue, 1.1)
+                                     : root.brandBlue
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "شغّل العقل المحلي  |  Start local brain"
+                                    color: "white"
+                                    font.families: root.uiFonts
+                                    font.pixelSize: 13
+                                    font.weight: Font.DemiBold
+                                }
+                                MouseArea {
+                                    id: startMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.startBrain()
+                                }
+                            }
+                        }
+                    }
+
                     Text {
                         text: "أوامر سريعة | Quick actions"
                         color: root.brandSecondary
@@ -580,7 +673,7 @@ Kirigami.ApplicationWindow {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.queueAction(pill.modelData.cmd)
+                                    onClicked: root.runAction(pill.modelData)
                                 }
                             }
                         }
@@ -705,7 +798,7 @@ Kirigami.ApplicationWindow {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "نُسخ ✓ شغّله من الطرفية | Copied ✓ run it in a terminal:"
+                    text: "جارٍ التنفيذ في الطرفية ✓ | Running in a terminal ✓"
                     color: root.brandCyan
                     font.families: root.uiFonts
                     font.pixelSize: 11
@@ -716,7 +809,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     text: toast.cmd
                     color: root.brandText
-                    font.families: ["JetBrains Mono", "monospace"]
+                    font.families: root.uiFonts
                     font.pixelSize: 13
                     wrapMode: Text.WrapAnywhere
                 }
