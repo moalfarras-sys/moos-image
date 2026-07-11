@@ -44,6 +44,7 @@ case "${cat}/${tgt}" in
     app/hardware)  gui moos-hardware ;;
     app/welcome)   gui moos-welcome ;;
     brain/start)   term moai-start ;;
+    ai/config)     gui moai-config ;;
     do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report)
                    term moai-do "$tgt" ;;
     *)

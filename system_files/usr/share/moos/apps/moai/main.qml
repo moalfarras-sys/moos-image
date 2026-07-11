@@ -25,9 +25,20 @@ import org.kde.kirigami as Kirigami
 Kirigami.ApplicationWindow {
     id: root
 
-    // ── The single API constant — change the port here if you serve elsewhere.
-    //    (QML property names must start lowercase, hence `api` not `API`.)
-    readonly property string api: "http://127.0.0.1:8080/v1/chat/completions"
+    // ── The brain endpoint. The `moai` launcher passes it as an argument: local
+    //    = RamaLama on :8080, cloud = the moai-gateway proxy on :8071 (which
+    //    holds the API key — this app never sees it). Falls back to local.
+    readonly property string api: {
+        var a = Qt.application.arguments
+        for (var i = 0; i < a.length; i++)
+            if (a[i].indexOf("http") === 0 && a[i].indexOf("/v1/") > 0)
+                return a[i]
+        return "http://127.0.0.1:8080/v1/chat/completions"
+    }
+    readonly property bool cloudBrain: api.indexOf(":8071") > 0
+
+    // The active streaming request, so the Stop button can abort it.
+    property var activeXhr: null
 
     // System prompt (Mo AI v1 — system-control aware).
     readonly property string systemPrompt:
@@ -54,6 +65,13 @@ Kirigami.ApplicationWindow {
         "The local brain is starting… first run downloads the model (~2.5 GB) and may take a few minutes.\n\n" +
         "سأصبح جاهزاً تلقائياً عند الانتهاء. | I'll be ready automatically once it finishes."
 
+    // Cloud brain selected but the gateway/provider isn't answering.
+    readonly property string cloudHelp:
+        "لا أصل إلى العقل السحابي.\n" +
+        "Can't reach the cloud brain.\n\n" +
+        "افتح الإعدادات ⚙ وتحقّق من المفتاح والنموذج، أو بدّل للعقل المحلي.\n" +
+        "Open settings ⚙ and check your key/model, or switch to the local brain."
+
     // Nova dark brand palette (MOOS_DESIGN)
     readonly property color brandBg: "#0B1220"
     readonly property color brandSurface: "#111A2E"
@@ -77,6 +95,14 @@ Kirigami.ApplicationWindow {
         { ar: "فحص التعريفات",  en: "Check drivers", url: "moos://do/check-drivers", accent: "#22D3EE", icon: "moos-gpu" },
         { ar: "تحسين وتنظيف",   en: "Optimize",      url: "moos://do/optimize",      accent: "#2E7BFF", icon: "moos-optimize" },
         { ar: "تقرير الأجهزة",  en: "HW report",     url: "moos://do/hw-report",     accent: "#8B5CF6", icon: "moos-report" }
+    ]
+
+    // Clickable example prompts shown on a fresh conversation (empty history).
+    readonly property var starters: [
+        { emoji: "🚀", ar: "حدّث نظامي",    en: "Update my system", send: "حدّث نظام MoOS من فضلك" },
+        { emoji: "🖥️", ar: "مواصفات جهازي", en: "My specs",         send: "ما مواصفات جهازي؟" },
+        { emoji: "🔊", ar: "صلّح الصوت",     en: "Fix audio",        send: "الصوت لا يعمل عندي، ساعدني" },
+        { emoji: "⚡", ar: "سرّع MoOS",      en: "Speed up MoOS",    send: "أعطني نصائح لتسريع وتحسين MoOS" }
     ]
 
     property bool serverUp: false
@@ -187,6 +213,19 @@ Kirigami.ApplicationWindow {
         attentivePulse.restart()
     }
 
+    function sendPrompt(msg) {
+        input.text = msg
+        send()
+    }
+
+    function stopGenerating() {
+        if (activeXhr) {
+            try { activeXhr.abort() } catch (e) {}
+            activeXhr = null
+        }
+        busy = false
+    }
+
     function send() {
         const msg = input.text.trim()
         if (msg === "" || busy)
@@ -195,38 +234,87 @@ Kirigami.ApplicationWindow {
         chatModel.append({ role: "user", text: msg })
         history.push({ role: "user", content: msg })
         trimHistory()
-        chatModel.append({ role: "typing", text: "..." })
+        // One growing bubble: starts as a "typing" pulse, becomes the assistant
+        // reply and extends token-by-token as the stream arrives.
+        chatModel.append({ role: "typing", text: "…" })
+        const idx = chatModel.count - 1
         busy = true
 
+        let acc = ""          // accumulated reply text
+        let sawData = false    // did we get any streamed delta?
+        let processed = 0      // chars of responseText already parsed
+
         const xhr = new XMLHttpRequest()
+        activeXhr = xhr
         xhr.open("POST", api)
         xhr.setRequestHeader("Content-Type", "application/json")
         xhr.onreadystatechange = function () {
+            // Parse newly-arrived SSE lines during LOADING (live) and DONE.
+            if (xhr.readyState === XMLHttpRequest.LOADING
+                    || xhr.readyState === XMLHttpRequest.DONE) {
+                const full = xhr.responseText
+                // Consume only COMPLETE lines: a `data:` line can split across
+                // two ticks, so keep any trailing partial line buffered until
+                // its newline arrives. At DONE, consume the remainder too.
+                let end = full.lastIndexOf("\n") + 1     // 0 if no newline yet
+                if (xhr.readyState === XMLHttpRequest.DONE)
+                    end = full.length
+                const fresh = end > processed ? full.substring(processed, end) : ""
+                processed = end > processed ? end : processed
+                const lines = fresh.split("\n")
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim()
+                    if (line.indexOf("data:") !== 0)
+                        continue
+                    const payload = line.substring(5).trim()
+                    if (payload === "" || payload === "[DONE]")
+                        continue
+                    try {
+                        const j = JSON.parse(payload)
+                        const ch = j.choices && j.choices[0]
+                        const delta = ch
+                            ? (ch.delta ? ch.delta.content
+                               : (ch.message ? ch.message.content : ""))
+                            : ""
+                        if (delta) {
+                            acc += delta
+                            sawData = true
+                            chatModel.set(idx, { role: "assistant", text: acc })
+                        }
+                    } catch (e) { /* partial JSON line — completes next tick */ }
+                }
+            }
             if (xhr.readyState !== XMLHttpRequest.DONE)
                 return
             root.busy = false
-            root.removeTypingBubble()
+            root.activeXhr = null
+
+            if (sawData && acc.trim() !== "") {
+                chatModel.set(idx, { role: "assistant", text: acc })
+                root.history.push({ role: "assistant", content: acc })
+                root.trimHistory()
+                root.flashCompanion("success")
+                return
+            }
+            // No stream (older server or error) — try a whole-response parse.
             let reply = ""
             if (xhr.status === 200) {
                 try {
                     reply = JSON.parse(xhr.responseText)
                                 .choices[0].message.content.trim()
-                } catch (e) {
-                    reply = ""
-                }
+                } catch (e) { reply = "" }
             }
             if (reply !== "") {
-                chatModel.append({ role: "assistant", text: reply })
+                chatModel.set(idx, { role: "assistant", text: reply })
                 root.history.push({ role: "assistant", content: reply })
                 root.trimHistory()
-                root.flashCompanion("success")   // real HTTP 200 + parsed reply
+                root.flashCompanion("success")
             } else {
-                // Distinguish "brain not started" vs "starting/downloading" vs
-                // "reachable but returned nothing" so the message is never wrong.
                 const help = !root.serverUp
-                    ? (root.brainStarting ? root.startingHelp : root.offlineHelp)
+                    ? (root.brainStarting ? root.startingHelp
+                       : (root.cloudBrain ? root.cloudHelp : root.offlineHelp))
                     : "لم أستطع توليد رد، حاول مجدداً. | I couldn't generate a reply — please try again."
-                chatModel.append({ role: "assistant", text: help })
+                chatModel.set(idx, { role: "assistant", text: help })
                 root.flashCompanion(root.serverUp ? "warning" : "error")
             }
         }
@@ -234,7 +322,7 @@ Kirigami.ApplicationWindow {
             model: "default",
             messages: [{ role: "system", content: systemPrompt }]
                           .concat(history),
-            stream: false
+            stream: true
         }))
     }
 
@@ -393,6 +481,30 @@ Kirigami.ApplicationWindow {
 
                     Item { Layout.fillWidth: true }
 
+                    // Settings ⚙ — choose the local or cloud brain (moai-config).
+                    Rectangle {
+                        Layout.preferredWidth: 28
+                        Layout.preferredHeight: 24
+                        radius: 8
+                        color: gearMouse.containsMouse ? "#1C2A47" : "transparent"
+                        border.width: 1
+                        border.color: gearMouse.containsMouse ? "#3A4E76" : "#26334F"
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Text {
+                            anchors.centerIn: parent
+                            text: "⚙"
+                            color: root.brandSecondary
+                            font.pixelSize: 14
+                        }
+                        MouseArea {
+                            id: gearMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Qt.openUrlExternally("moos://ai/config")
+                        }
+                    }
+
                     // Live status badge (pulses when the local brain is up).
                     Rectangle {
                         Layout.preferredHeight: 24
@@ -424,7 +536,7 @@ Kirigami.ApplicationWindow {
                             }
 
                             Text {
-                                text: root.serverUp ? "محلي | local"
+                                text: root.serverUp ? (root.cloudBrain ? "سحابي | cloud" : "محلي | local")
                                      : root.brainStarting ? "يبدأ… | starting…"
                                      : "غير متصل | offline"
                                 color: root.serverUp ? root.brandCyan
@@ -524,9 +636,61 @@ Kirigami.ApplicationWindow {
                             SequentialAnimation on opacity {
                                 running: model.role === "typing"
                                 loops: Animation.Infinite
+                                // Value-source animations don't restore on stop;
+                                // when typing→assistant flips, force full opacity
+                                // so the streamed reply isn't left dimmed.
+                                onRunningChanged: if (!running) msgText.opacity = 1
                                 NumberAnimation { from: 1.0; to: 0.25; duration: 450 }
                                 NumberAnimation { from: 0.25; to: 1.0; duration: 450 }
                             }
+                        }
+                    }
+                }
+            }
+
+            // ── Starter prompts — only on a fresh conversation ──────────────
+            Flow {
+                Layout.fillWidth: true
+                Layout.leftMargin: 12
+                Layout.rightMargin: 12
+                Layout.topMargin: 2
+                Layout.bottomMargin: 2
+                spacing: 8
+                // chatModel.count notifies (unlike history.push); only the
+                // greeting present → count 1 → fresh conversation.
+                visible: chatModel.count <= 1
+
+                Repeater {
+                    model: root.starters
+                    delegate: Rectangle {
+                        id: chip
+                        required property var modelData
+                        radius: 14
+                        height: 30
+                        width: chipRow.implicitWidth + 22
+                        color: chipMouse.containsMouse ? "#1C2A47" : "#131D33"
+                        border.width: 1
+                        border.color: chipMouse.containsMouse ? "#3A4E76" : "#26334F"
+                        Behavior on color { ColorAnimation { duration: 120 } }
+
+                        RowLayout {
+                            id: chipRow
+                            anchors.centerIn: parent
+                            spacing: 6
+                            Text { text: chip.modelData.emoji; font.pixelSize: 13 }
+                            Text {
+                                text: chip.modelData.ar + "  |  " + chip.modelData.en
+                                color: root.brandText
+                                font.families: root.uiFonts
+                                font.pixelSize: 11.5
+                            }
+                        }
+                        MouseArea {
+                            id: chipMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.sendPrompt(chip.modelData.send)
                         }
                     }
                 }
@@ -562,7 +726,7 @@ Kirigami.ApplicationWindow {
                     //    "offline — run a command" dead-end.
                     Rectangle {
                         Layout.fillWidth: true
-                        visible: !root.serverUp
+                        visible: !root.serverUp && !root.cloudBrain
                         radius: 12
                         Layout.preferredHeight: startCol.implicitHeight + 18
                         color: root.brainStarting ? "#152447" : "#161F38"
@@ -726,26 +890,30 @@ Kirigami.ApplicationWindow {
                         id: sendBtn
                         Layout.fillHeight: true
                         Layout.preferredWidth: 100
-                        enabled: !root.busy && input.text.trim().length > 0
+                        // While streaming, this becomes a Stop button (always
+                        // enabled); otherwise it sends when there's text.
+                        enabled: root.busy || input.text.trim().length > 0
                         background: Rectangle {
                             radius: 10
                             gradient: Gradient {
                                 orientation: Gradient.Horizontal
                                 GradientStop {
                                     position: 0.0
-                                    color: !sendBtn.enabled ? "#1E3A66"
+                                    color: root.busy ? "#B23A6B"
+                                         : !sendBtn.enabled ? "#1E3A66"
                                          : sendBtn.pressed ? "#2568D9" : root.brandBlue
                                 }
                                 GradientStop {
                                     position: 1.0
-                                    color: !sendBtn.enabled ? "#1E3A66"
+                                    color: root.busy ? "#8B2E8B"
+                                         : !sendBtn.enabled ? "#1E3A66"
                                          : sendBtn.pressed ? "#4A46C8"
                                          : Qt.rgba(0.35, 0.36, 0.9, 1.0)
                                 }
                             }
                         }
                         contentItem: Text {
-                            text: "إرسال | Send"
+                            text: root.busy ? "إيقاف | Stop" : "إرسال | Send"
                             color: sendBtn.enabled ? "#FFFFFF" : root.brandSecondary
                             font.families: root.uiFonts
                             font.pixelSize: 13
@@ -753,7 +921,7 @@ Kirigami.ApplicationWindow {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
-                        onClicked: root.send()
+                        onClicked: root.busy ? root.stopGenerating() : root.send()
                     }
                 }
             }

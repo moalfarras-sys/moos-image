@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+# moai-gateway — optional CLOUD brain for Mo AI.
+#
+# Mo AI's local brain is RamaLama on 127.0.0.1:8080 (the app talks to it
+# directly). This gateway is the CLOUD path: a tiny localhost proxy on
+# 127.0.0.1:8071 that forwards OpenAI-compatible requests to any cloud provider
+# (OpenAI, OpenRouter, Together, a Claude-compatible endpoint, …) reading the
+# base URL + model + API KEY from ~/.config/moai/config.json (chmod 600). The
+# KEY never leaves this process — the pure-QML app never sees it; it just points
+# at 127.0.0.1:8071 when the user selects the cloud brain. SSE streaming is piped
+# through untouched. Stdlib only (no pip deps).
+import json, os, sys, urllib.request, urllib.error
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+CONFIG = os.path.expanduser("~/.config/moai/config.json")
+PORT = int(os.environ.get("MOAI_GATEWAY_PORT", "8071"))
+
+
+def load_cfg():
+    try:
+        with open(CONFIG, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *a):  # keep the journal quiet
+        pass
+
+    def _cfg(self):
+        c = load_cfg()
+        base = (c.get("cloud_base") or "").rstrip("/")
+        key = c.get("cloud_key") or ""
+        model = c.get("cloud_model") or ""
+        return base, key, model
+
+    def _url(self, base):
+        # cloud_base already carries the version (…/v1) and the app's path also
+        # starts with /v1/, so drop one to avoid a doubled /v1 → 404.
+        tail = self.path
+        if base.endswith("/v1") and tail.startswith("/v1/"):
+            tail = tail[3:]
+        return base + tail
+
+    def do_GET(self):
+        base, key, _ = self._cfg()
+        if not base or not key:
+            return self._err(503, "cloud brain not configured")
+        # A cheap reachability probe for the app's status badge.
+        self._proxy("GET", self._url(base), key, None)
+
+    def do_POST(self):
+        # Drain the request body FIRST — an early error must not leave unread
+        # bytes in the keep-alive socket (they would desync the next request).
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        body = self.rfile.read(length) if length else b""
+        base, key, model = self._cfg()
+        if not base or not key:
+            return self._err(503, "cloud brain not configured")
+        # Force the configured cloud model if the app sent the local placeholder.
+        if model and body:
+            try:
+                obj = json.loads(body)
+                obj["model"] = model
+                body = json.dumps(obj).encode("utf-8")
+            except Exception:
+                pass
+        self._proxy("POST", self._url(base), key, body)
+
+    def _proxy(self, method, url, key, body):
+        req = urllib.request.Request(url, data=body, method=method)
+        req.add_header("Authorization", "Bearer " + key)
+        req.add_header("Content-Type", "application/json")
+        try:
+            up = urllib.request.urlopen(req, timeout=120)
+        except urllib.error.HTTPError as e:
+            return self._err(e.code, e.read().decode("utf-8", "replace"))
+        except Exception as e:
+            return self._err(502, "cloud request failed: %s" % e)
+        self.send_response(up.status)
+        ctype = up.headers.get("Content-Type", "application/json")
+        self.send_header("Content-Type", ctype)
+        self.send_header("Transfer-Encoding", "chunked")
+        self.end_headers()
+        # Stream (SSE or plain) through so the app renders live. read1() returns
+        # as soon as ANY bytes are available (read() would block until the buffer
+        # fills or the stream ends, defeating live streaming).
+        try:
+            while True:
+                chunk = up.read1(65536)
+                if not chunk:
+                    break
+                self.wfile.write(b"%X\r\n%s\r\n" % (len(chunk), chunk))
+                self.wfile.flush()
+            self.wfile.write(b"0\r\n\r\n")
+        except Exception:
+            pass
+
+    def _err(self, code, msg):
+        payload = json.dumps({"error": {"message": msg}}).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Connection", "close")   # don't reuse a poisoned socket
+        self.close_connection = True
+        self.end_headers()
+        try:
+            self.wfile.write(payload)
+        except Exception:
+            pass
+
+
+def main():
+    srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    sys.stderr.write("moai-gateway: cloud proxy on 127.0.0.1:%d\n" % PORT)
+    srv.serve_forever()
+
+
+if __name__ == "__main__":
+    main()

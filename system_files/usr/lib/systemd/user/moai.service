@@ -1,0 +1,22 @@
+# Mo AI local brain — user service (opt-in; enabled by moai-start after the
+# first model pull). Runs the RamaLama → llama.cpp OpenAI-compatible server so
+# Mo AI is ready on every login without keeping a terminal open.
+#   Port 8080 matches the `api` endpoint in the Mo AI app (main.qml).
+#   Enable/disable:  systemctl --user enable --now moai.service  /  disable --now
+[Unit]
+Description=Mo AI local brain (RamaLama OpenAI-compatible server)
+After=graphical-session.target
+
+[Service]
+Type=simple
+Environment=MOAI_PORT=8080
+Environment=MOAI_MODEL=ollama://qwen3:4b-instruct
+# RamaLama serves llama.cpp's OpenAI REST API; --port matches the app.
+ExecStart=/usr/bin/ramalama serve --port ${MOAI_PORT} ${MOAI_MODEL}
+Restart=on-failure
+RestartSec=4
+# Give the model time to load before systemd considers a restart storm.
+TimeoutStartSec=0
+
+[Install]
+WantedBy=default.target

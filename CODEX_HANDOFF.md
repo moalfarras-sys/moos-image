@@ -150,7 +150,8 @@
 - ✅ **[LOW] حارس عدّاد الأنوية يمرّ عند صفر** → `find -type d | wc -c`.
 
 **المتبقّي لك (يحتاج عتاداً حقيقياً أو نطاقاً أوسع):**
-- ⏳ **[MED] خدمة نموذج Mo AI التلقائية** ([5]): وحدة systemd user لـ `ramalama serve` (غير مفعّلة افتراضياً، خلف موافقة أول تشغيل + تنزيل بواجهة تقدّم). حالياً `moai-start` يدوي (لكن صار بضغطة زر). صمّمها واختبرها حياً.
+- ✅➡️⏳ **[MED] خدمة نموذج Mo AI التلقائية** ([5]): **نُفّذت في v23** — `moai.service` (systemd user) + `moai-start` يعمل: موافقة → `ramalama pull` بمؤشر → `systemctl --user enable --now moai.service`. **مهمتك: تحقّق حياً** أن `ramalama serve` يعمل تحت خدمة `--user` (podman rootless يحتاج `XDG_RUNTIME_DIR`/lingering أحياناً). إن فشل، `moai-start` يسقط تلقائياً لتشغيل مباشر في الطرفية (fallback موجود).
+- 🆕 **العقل السحابي** (v23): `moai-gateway` (بوكسي محلي :8071 يحمل المفتاح) + `moai-config` (kdialog) + `moai-cloud.service`. اختبر حياً مع مزوّد حقيقي (OpenRouter/OpenAI) وتأكد من البث والتوجيه.
 - ⏳ **[MED] تنسيق Bazaar المنسّق** ([8]): اشحن `/etc/bazaar` + symlink تجاوز flatpak يشير لـ `moos-curated.yaml` (نمط Bluefin/Aurora)، وبدّل موافقة moos-setup "الكل أو لا شيء" بـ `kdialog --checklist`. يحتاج تحقّقاً من صيغة إعداد Bazaar على الجهاز.
 - ⏳ **[LOW] زخرفة نافذة Nova** ([10]، Phase 3): الهندسة حالياً Breeze معاد تلوينها (متماسك، بلا اسم أجنبي ظاهر) — ابنِ زخرفة Klassy/aurorae أصلية ثم فعّل الكتلة المعطّلة في `contents/defaults` + `/etc/xdg/kwinrc`.
 - ⏳ **P0 على العتاد**: تحقّق أن `moos-apply-theme` يطبّق الثيم كاملاً، وأن أزرار الروابط الجديدة تعمل (اختبر `xdg-open moos://app/moai` في طرفية)، وحدّد مصدر "شعار Fedora" عبر `moos-fix-boot-branding`.

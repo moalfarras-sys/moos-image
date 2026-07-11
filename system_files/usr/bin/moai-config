@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# moai-config — choose Mo AI's brain and (optionally) configure a cloud provider.
+#
+# Writes ~/.config/moai/config.json (chmod 600):
+#   { "mode": "local"|"cloud", "cloud_base": "...", "cloud_model": "...",
+#     "cloud_key": "..." }
+# The KEY is entered by the USER in a kdialog password field and is read only by
+# moai-gateway (the localhost cloud proxy) — never by the pure-QML app. Selecting
+# cloud enables moai-cloud.service; selecting local disables it. The app reads
+# only `mode` (via its launcher) to pick the endpoint; it never reads the key.
+set -uo pipefail
+
+cfg_dir="${XDG_CONFIG_HOME:-$HOME/.config}/moai"
+cfg="${cfg_dir}/config.json"
+mkdir -p "$cfg_dir" 2>/dev/null || true
+
+command -v kdialog >/dev/null 2>&1 || { echo "kdialog required"; exit 1; }
+
+mode=$(kdialog --title "Mo AI — العقل | Brain" \
+    --menu "اختر عقل Mo AI | Choose Mo AI's brain:" \
+        local "محلي وخاص (RamaLama) | Local & private" \
+        cloud "سحابي (مفتاحك الخاص) | Cloud (your own API key)" 2>/dev/null) || exit 0
+
+write_cfg() {  # write_cfg mode base model key
+    MOAI_MODE="$1" MOAI_BASE="$2" MOAI_MODEL="$3" MOAI_KEY="$4" python3 - "$cfg" <<'PY'
+import json, os, sys
+p = sys.argv[1]
+json.dump({
+    "mode": os.environ.get("MOAI_MODE", "local"),
+    "cloud_base": os.environ.get("MOAI_BASE", ""),
+    "cloud_model": os.environ.get("MOAI_MODEL", ""),
+    "cloud_key": os.environ.get("MOAI_KEY", ""),
+}, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+PY
+    chmod 600 "$cfg" 2>/dev/null || true
+}
+
+if [ "$mode" = "cloud" ]; then
+    base=$(kdialog --title "Mo AI — Cloud" \
+        --inputbox $'عنوان الخدمة (OpenAI-compatible) | API base URL:\nمثال | e.g.  https://openrouter.ai/api/v1' \
+        "https://openrouter.ai/api/v1" 2>/dev/null) || exit 0
+    model=$(kdialog --title "Mo AI — Cloud" \
+        --inputbox $'اسم النموذج | Model name:\nمثال | e.g.  anthropic/claude-sonnet-5  ·  openai/gpt-4o-mini' \
+        "anthropic/claude-sonnet-5" 2>/dev/null) || exit 0
+    key=$(kdialog --title "Mo AI — Cloud" \
+        --password $'مفتاح الـ API الخاص بك (يُحفظ محلياً فقط) | Your API key (stored locally only):' 2>/dev/null) || exit 0
+    if [ -z "$key" ]; then
+        kdialog --sorry "لم تُدخل مفتاحاً — بقي العقل محلياً. | No key entered — staying local." || true
+        write_cfg local "" "" ""
+        systemctl --user disable --now moai-cloud.service 2>/dev/null || true
+        exit 0
+    fi
+    write_cfg cloud "$base" "$model" "$key"
+    systemctl --user enable --now moai-cloud.service 2>/dev/null || true
+    kdialog --title "Mo AI" --msgbox $'تم ضبط العقل السحابي ✓ أعد فتح Mo AI.\nCloud brain set ✓ Reopen Mo AI.' || true
+else
+    write_cfg local "" "" ""
+    systemctl --user disable --now moai-cloud.service 2>/dev/null || true
+    kdialog --title "Mo AI" --msgbox $'العقل المحلي مفعّل ✓ أعد فتح Mo AI.\nLocal brain set ✓ Reopen Mo AI.' || true
+fi
+exit 0
