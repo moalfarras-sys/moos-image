@@ -1,0 +1,30 @@
+# =============================================================================
+# config.yaml — MoOS App Center (Bazaar) curated content.
+# =============================================================================
+rows:
+  - section:
+      title: "مختارات MoOS | MoOS Picks"
+      subtitle:
+        string: |
+          تطبيقات نثق بها لكل جهاز MoOS — Apps we trust on every MoOS machine.
+      list-type: rich
+      appids:
+        list:
+          - org.mozilla.firefox          # Firefox — المتصفح
+          - org.videolan.VLC             # VLC — مشغل الوسائط
+          - org.libreoffice.LibreOffice  # LibreOffice — حزمة المكتب (RTL ممتاز)
+          - org.kde.kcalc                # KCalc — الآلة الحاسبة
+          - com.github.tchx84.Flatseal   # Flatseal — أذونات Flatpak
+
+  - section:
+      title: "للألعاب | Gaming"
+      subtitle:
+        string: |
+          شغّل ألعاب Windows عبر Proton — Play Windows games via Proton.
+      list-type: rich
+      appids:
+        list:
+          - com.valvesoftware.Steam      # Steam — منصة الألعاب
+          - com.usebottles.bottles       # Bottles — تشغيل برامج Windows
+          - net.lutris.Lutris            # Lutris — مدير الألعاب الشامل
+          - net.davidotek.pupgui2        # ProtonUp-Qt — إدارة Proton-GE

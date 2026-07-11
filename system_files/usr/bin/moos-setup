@@ -20,33 +20,31 @@ if ! flatpak remotes | grep -q flathub; then
     sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 fi
 
-declare -A APPS=(
-    ["com.valvesoftware.Steam"]="Steam — منصة الألعاب (تشغيل ألعاب Windows عبر Proton)"
-    ["com.usebottles.bottles"]="Bottles — تشغيل برامج Windows"
-    ["net.lutris.Lutris"]="Lutris — مدير الألعاب الشامل"
-    ["org.mozilla.firefox"]="Firefox — المتصفح"
-    ["org.videolan.VLC"]="VLC — مشغل الوسائط"
-    ["org.libreoffice.LibreOffice"]="LibreOffice — حزمة المكتب"
-    ["io.github.kolunmi.Bazaar"]="Bazaar — متجر تطبيقات MoOS"
-    ["com.github.tchx84.Flatseal"]="Flatseal — إدارة أذونات التطبيقات"
-)
+if [ -n "${DISPLAY:-}" ]; then
+    CHOICES=$(kdialog --title "إعداد تطبيقات القوة | Power apps setup" \
+        --checklist "اختر التطبيقات لتثبيتها | Select apps to install:" \
+        "org.mozilla.firefox" "Firefox — المتصفح (Web Browser)" on \
+        "org.videolan.VLC" "VLC — مشغل الوسائط (Media Player)" on \
+        "org.libreoffice.LibreOffice" "LibreOffice — حزمة المكتب (Office Suite)" on \
+        "io.github.kolunmi.Bazaar" "Bazaar — متجر تطبيقات MoOS (App Store)" on \
+        "com.github.tchx84.Flatseal" "Flatseal — إدارة أذونات التطبيقات (Flatpak Permissions)" on \
+        "com.valvesoftware.Steam" "Steam — منصة الألعاب (Steam Gaming)" on \
+        "com.usebottles.bottles" "Bottles — تشغيل برامج Windows (Run Windows Apps)" on \
+        "net.lutris.Lutris" "Lutris — مدير الألعاب الشامل (Lutris Games Manager)" on 2>/dev/null)
 
-echo "التطبيقات المقترحة | Suggested apps:"
-i=1
-for app in "${!APPS[@]}"; do
-    echo "  [$i] ${APPS[$app]}"
-    ((i++))
-done
-echo
-read -rp "تثبيت الكل؟ Install all? [Y/n] " answer
-answer=${answer:-Y}
+    if [ $? -ne 0 ]; then
+        echo "أُلغي | Cancelled."
+        exit 0
+    fi
 
-if [[ "$answer" =~ ^[Yy] ]]; then
-    for app in "${!APPS[@]}"; do
-        echo -e "${B}Installing ${app}...${N}"
-        flatpak install -y --noninteractive flathub "$app" || echo "skipped: $app"
-    done
-    echo -e "${G}✓ اكتمل الإعداد — أهلاً بك في MoOS | Setup complete — welcome to MoOS${N}"
+    eval "SELECTED=($CHOICES)"
 else
-    echo "يمكنك التثبيت لاحقاً من Discover أو بإعادة تشغيل moos-setup"
+    SELECTED=("org.mozilla.firefox" "org.videolan.VLC" "org.libreoffice.LibreOffice" "io.github.kolunmi.Bazaar" "com.github.tchx84.Flatseal" "com.valvesoftware.Steam" "com.usebottles.bottles" "net.lutris.Lutris")
+    echo "No graphical display detected. Installing all recommended apps: ${SELECTED[*]}"
 fi
+
+for app in "${SELECTED[@]}"; do
+    echo -e "${B}Installing ${app}...${N}"
+    flatpak install -y --noninteractive flathub "$app" || echo "skipped: $app"
+done
+echo -e "${G}✓ اكتمل الإعداد — أهلاً بك في MoOS | Setup complete — welcome to MoOS${N}"
