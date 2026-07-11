@@ -509,28 +509,16 @@ chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
 # until timeout; an engine/load error exits early and fails the image build.
 _qml_runtime="$(command -v qml-qt6 || true)"
 [ -n "$_qml_runtime" ] || { echo "FATAL: qml-qt6 runtime missing"; exit 1; }
-
-# TEMP DIAGNOSTIC (remove after fixing): qml-qt6 only prints "Did not load any
-# objects" for moai, not the offending line. qmllint does static analysis and
-# reports file:line:col. Print it (non-fatal) so the exact error shows in CI.
-echo "===== TEMP qmllint diagnostic: moai ====="
-for _ql in qmllint-qt6 /usr/lib64/qt6/bin/qmllint qmllint; do
-    if command -v "$_ql" >/dev/null 2>&1 || [ -x "$_ql" ]; then
-        echo "--- using $_ql ---"
-        "$_ql" /usr/share/moos/apps/moai/main.qml 2>&1 | head -40 || true
-        break
-    fi
-done
-echo "--- verbose qml-qt6 (QT_LOGGING_RULES) ---"
-QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
-    QT_LOGGING_RULES="qt.qml.*=true" \
-    timeout 4 "$_qml_runtime" /usr/share/moos/apps/moai/main.qml 2>&1 | head -40 || true
-echo "===== END TEMP diagnostic ====="
-
 for _qml_app in /usr/share/moos/apps/*/main.qml; do
     _qml_log="/tmp/$(basename "$(dirname "$_qml_app")")-qml-smoke.log"
     set +e
+    # QT_QUICK_CONTROLS_STYLE=Basic is REQUIRED: Mo AI uses Kirigami, whose
+    # default org.kde.desktop QQC2 style needs Plasma integration that is absent
+    # in the offscreen build container — without a pure-QML style the Kirigami
+    # window fails to instantiate ("Did not load any objects") even when the QML
+    # is valid. Basic has no platform deps, so this validates the QML loads.
     QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+        QT_QUICK_CONTROLS_STYLE=Basic \
         timeout 4 "$_qml_runtime" "$_qml_app" >"$_qml_log" 2>&1
     _qml_rc=$?
     set -e
