@@ -2,9 +2,10 @@
 # Declares the default root filesystem so `bootc install to-disk` and
 # bootc-image-builder can build a disk image from this fork. The kinoite-main
 # base leaves DefaultRootFs unset, and because MoOS sets ID=moos (not fedora)
-# the builder cannot fall back to a distro default — so it must be declared
-# here. Silverblue/Kinoite use xfs. This does NOT affect the Anaconda install
-# path (kickstart does its own partitioning) or the boot; it only enables the
-# bootc-native disk-install/build path.
+# the builder cannot fall back to a distro default — so it must be declared here.
+# btrfs matches the real-hardware Anaconda install (subvolumes root/home/var) so
+# the bootc-image-builder qcow2 that CI boot-tests exercises the SAME on-disk
+# layout the user runs — not a different xfs layout. Does not affect the Anaconda
+# path (kickstart partitions itself); it drives the bootc-native disk-install/build.
 [install.filesystem.root]
-type = "xfs"
+type = "btrfs"

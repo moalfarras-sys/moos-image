@@ -151,6 +151,15 @@ kver=$(basename "$(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d)")
 cat > /usr/lib/dracut/dracut.conf.d/99-moos-boot.conf <<'DRC'
 add_dracutmodules+=" ostree dmsquash-live dmsquash-live-autooverlay "
 add_drivers+=" erofs overlay loop "
+# GPU display drivers are NOT boot-critical: the root fs mounts via
+# ostree-prepare-root + storage drivers, early display uses simpledrm/efifb
+# (karg plymouth.use-simpledrm), and the real GPU driver (nvidia/amdgpu/i915)
+# loads from the root fs AFTER boot. Omitting them keeps the initramfs small.
+# On the kinoite-nvidia base, --no-hostonly would otherwise sweep in the huge
+# NVIDIA modules + GSP firmware → a ~368MB initramfs that GRUB cannot allocate
+# ("can't allocate kernel / out of memory"). The drivers still ship in the root
+# fs, so the desktop GPU stack is unaffected.
+omit_drivers+=" nvidia nvidia_drm nvidia_modeset nvidia_uvm nvidia_peermem nouveau amdgpu radeon i915 xe nvidiafb "
 DRC
 
 # Capture dracut's OWN verbose log — the reliable source of truth. (The v20
@@ -160,6 +169,7 @@ DRC
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
     --add "ostree dmsquash-live dmsquash-live-autooverlay" \
     --add-drivers "erofs overlay loop" \
+    --omit-drivers "nvidia nvidia_drm nvidia_modeset nvidia_uvm nvidia_peermem nouveau amdgpu radeon i915 xe nvidiafb" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tee /tmp/moos-dracut.log
 
 # RELIABLE guard: dracut logs "Including module: ostree" iff the ostree module
@@ -822,7 +832,24 @@ fi
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
     --add "ostree plymouth dmsquash-live dmsquash-live-autooverlay" \
     --add-drivers "erofs overlay loop" \
+    --omit-drivers "nvidia nvidia_drm nvidia_modeset nvidia_uvm nvidia_peermem nouveau amdgpu radeon i915 xe nvidiafb" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tee /tmp/moos-final-dracut.log
+
+# --- initramfs SIZE guard (root-cause fix for the GRUB "can't allocate kernel /
+# out of memory" boot failure). An oversized initramfs — e.g. the ~368MB
+# moos-nvidia build that swept in the NVIDIA modules + GSP firmware — exceeds what
+# GRUB can allocate in UEFI memory on some boards, so every OSTree entry fails.
+# Fail the build HARD if the definitive initramfs is too large; print the size
+# always so CI records before/after. Ceiling chosen well below the ~368MB that
+# bricked the real machine and below the ~188MB that still booted, with margin.
+_initramfs_bytes=$(stat -c%s "/usr/lib/modules/${kver}/initramfs.img")
+_initramfs_mb=$(( _initramfs_bytes / 1024 / 1024 ))
+_initramfs_max_mb="${MOOS_INITRAMFS_MAX_MB:-200}"
+echo "=== initramfs size: ${_initramfs_mb} MB (hard ceiling ${_initramfs_max_mb} MB) ==="
+if [ "${_initramfs_mb}" -gt "${_initramfs_max_mb}" ]; then
+    echo "FATAL: initramfs is ${_initramfs_mb} MB (> ${_initramfs_max_mb} MB) — GRUB may fail with 'can't allocate kernel / out of memory'. Trim drivers/firmware (see omit_drivers in 99-moos-boot.conf)."
+    exit 1
+fi
 
 grep -q "Including module: ostree" /tmp/moos-final-dracut.log || {
     echo "FATAL: final initramfs lost ostree support"; exit 1;
