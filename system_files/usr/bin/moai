@@ -17,24 +17,16 @@ MAIN_QML="/usr/share/moos/apps/moai/main.qml"
 LOG="${XDG_CACHE_HOME:-$HOME/.cache}/moai.log"
 mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
 
-# Pick the brain endpoint from the user's config (moai-config writes it). Local =
-# RamaLama on 8080 (direct); cloud = the moai-gateway proxy on 8071 (holds the
-# key). We pass only the URL to the app — never the key. Pure QML can't read the
-# config file reliably, so the launcher resolves it here.
-API_URL="http://127.0.0.1:8080/v1/chat/completions"
-CFG="${XDG_CONFIG_HOME:-$HOME/.config}/moai/config.json"
-if [ -f "$CFG" ]; then
-    mode=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('mode','local'))" "$CFG" 2>/dev/null || echo local)
-    [ "$mode" = "cloud" ] && API_URL="http://127.0.0.1:8071/v1/chat/completions"
-fi
-
+# The app always talks to 127.0.0.1:8080; whichever brain is active (local
+# RamaLama service or the cloud gateway) owns that port, so the launcher passes
+# nothing brain-specific and the app never sees the API key.
 for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
     if command -v "$runner" >/dev/null 2>&1; then
         {
-            echo "=== moai launch $(date -u '+%Y-%m-%dT%H:%M:%SZ') via $runner ($API_URL) ==="
+            echo "=== moai launch $(date -u '+%Y-%m-%dT%H:%M:%SZ') via $runner ==="
         } >>"$LOG" 2>/dev/null || true
         # tee stderr to the log while still showing it in the journal.
-        exec "$runner" "$MAIN_QML" -- "$API_URL" 2> >(tee -a "$LOG" >&2)
+        exec "$runner" "$MAIN_QML" 2> >(tee -a "$LOG" >&2)
     fi
 done
 

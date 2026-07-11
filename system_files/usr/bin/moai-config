@@ -51,6 +51,8 @@ if [ "$mode" = "cloud" ]; then
         exit 0
     fi
     write_cfg cloud "$base" "$model" "$key"
+    # Cloud and local both serve on 8080 — stop local before starting the gateway.
+    systemctl --user disable --now moai.service 2>/dev/null || true
     systemctl --user enable --now moai-cloud.service 2>/dev/null || true
     kdialog --title "Mo AI" --msgbox $'تم ضبط العقل السحابي ✓ أعد فتح Mo AI.\nCloud brain set ✓ Reopen Mo AI.' || true
 else

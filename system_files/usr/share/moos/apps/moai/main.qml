@@ -25,17 +25,12 @@ import org.kde.kirigami as Kirigami
 Kirigami.ApplicationWindow {
     id: root
 
-    // ── The brain endpoint. The `moai` launcher passes it as an argument: local
-    //    = RamaLama on :8080, cloud = the moai-gateway proxy on :8071 (which
-    //    holds the API key — this app never sees it). Falls back to local.
-    readonly property string api: {
-        var a = Qt.application.arguments
-        for (var i = 0; i < a.length; i++)
-            if (a[i].indexOf("http") === 0 && a[i].indexOf("/v1/") > 0)
-                return a[i]
-        return "http://127.0.0.1:8080/v1/chat/completions"
-    }
-    readonly property bool cloudBrain: api.indexOf(":8071") > 0
+    // ── The brain endpoint is ALWAYS 127.0.0.1:8080. Whichever brain is active
+    //    owns that port: the local RamaLama service (moai.service) OR the cloud
+    //    gateway (moai-cloud.service, which holds the API key). moai-config
+    //    switches which one runs, so this app stays simple and never needs to
+    //    know the mode or read a config/argv.
+    readonly property string api: "http://127.0.0.1:8080/v1/chat/completions"
 
     // The active streaming request, so the Stop button can abort it.
     property var activeXhr: null
@@ -314,8 +309,7 @@ Kirigami.ApplicationWindow {
                 root.flashCompanion("success")
             } else {
                 const help = !root.serverUp
-                    ? (root.brainStarting ? root.startingHelp
-                       : (root.cloudBrain ? root.cloudHelp : root.offlineHelp))
+                    ? (root.brainStarting ? root.startingHelp : root.offlineHelp)
                     : "لم أستطع توليد رد، حاول مجدداً. | I couldn't generate a reply — please try again."
                 chatModel.set(idx, { role: "assistant", text: help })
                 root.flashCompanion(root.serverUp ? "warning" : "error")
@@ -539,13 +533,13 @@ Kirigami.ApplicationWindow {
                             }
 
                             Text {
-                                text: root.serverUp ? (root.cloudBrain ? "سحابي | cloud" : "محلي | local")
+                                text: root.serverUp ? "متصل | online"
                                      : root.brainStarting ? "يبدأ… | starting…"
                                      : "غير متصل | offline"
                                 color: root.serverUp ? root.brandCyan
                                      : root.brainStarting ? root.brandBlue
                                      : root.brandSecondary
-                                font.families: root.uiFonts
+                                font.family: root.uiFont
                                 font.pixelSize: 11
                             }
                         }
@@ -684,7 +678,7 @@ Kirigami.ApplicationWindow {
                             Text {
                                 text: chip.modelData.ar + "  |  " + chip.modelData.en
                                 color: root.brandText
-                                font.families: root.uiFonts
+                                font.family: root.uiFont
                                 font.pixelSize: 11.5
                             }
                         }
@@ -729,7 +723,7 @@ Kirigami.ApplicationWindow {
                     //    "offline — run a command" dead-end.
                     Rectangle {
                         Layout.fillWidth: true
-                        visible: !root.serverUp && !root.cloudBrain
+                        visible: !root.serverUp
                         radius: 12
                         Layout.preferredHeight: startCol.implicitHeight + 18
                         color: root.brainStarting ? "#152447" : "#161F38"
@@ -751,7 +745,7 @@ Kirigami.ApplicationWindow {
                                       ? "العقل المحلي يبدأ… أول مرة يُحمّل ~2.5GB وقد يأخذ دقائق.\nLocal brain starting… first run downloads ~2.5 GB, may take minutes."
                                       : "العقل المحلي غير مشغّل — شغّله محلياً بضغطة (يحتاج إنترنت أول مرة).\nThe local brain is off — start it locally in one click (needs Internet the first time)."
                                 color: root.brandSecondary
-                                font.families: root.uiFonts
+                                font.family: root.uiFont
                                 font.pixelSize: 11
                                 wrapMode: Text.Wrap
                             }
@@ -769,7 +763,7 @@ Kirigami.ApplicationWindow {
                                     anchors.centerIn: parent
                                     text: "شغّل العقل المحلي  |  Start local brain"
                                     color: "white"
-                                    font.families: root.uiFonts
+                                    font.family: root.uiFont
                                     font.pixelSize: 13
                                     font.weight: Font.DemiBold
                                 }
@@ -980,7 +974,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     text: toast.cmd
                     color: root.brandText
-                    font.families: root.uiFonts
+                    font.family: root.uiFont
                     font.pixelSize: 13
                     wrapMode: Text.WrapAnywhere
                 }

@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 # moai-gateway — optional CLOUD brain for Mo AI.
 #
-# Mo AI's local brain is RamaLama on 127.0.0.1:8080 (the app talks to it
-# directly). This gateway is the CLOUD path: a tiny localhost proxy on
-# 127.0.0.1:8071 that forwards OpenAI-compatible requests to any cloud provider
-# (OpenAI, OpenRouter, Together, a Claude-compatible endpoint, …) reading the
-# base URL + model + API KEY from ~/.config/moai/config.json (chmod 600). The
-# KEY never leaves this process — the pure-QML app never sees it; it just points
-# at 127.0.0.1:8071 when the user selects the cloud brain. SSE streaming is piped
-# through untouched. Stdlib only (no pip deps).
+# The Mo AI app always talks to 127.0.0.1:8080. In LOCAL mode the RamaLama
+# service owns that port; in CLOUD mode moai-config stops the local service and
+# runs THIS gateway on 8080 instead — a tiny localhost proxy that forwards
+# OpenAI-compatible requests to any cloud provider (OpenAI, OpenRouter, Together,
+# a Claude-compatible endpoint, …) reading the base URL + model + API KEY from
+# ~/.config/moai/config.json (chmod 600). The KEY never leaves this process — the
+# pure-QML app never sees it. SSE streaming is piped through untouched. Stdlib
+# only (no pip deps).
 import json, os, sys, urllib.request, urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CONFIG = os.path.expanduser("~/.config/moai/config.json")
-PORT = int(os.environ.get("MOAI_GATEWAY_PORT", "8071"))
+PORT = int(os.environ.get("MOAI_GATEWAY_PORT", "8080"))
 
 
 def load_cfg():
