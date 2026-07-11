@@ -56,11 +56,17 @@ Kirigami.ApplicationWindow {
         property string command: ""
         property string noteText: ""
         property color accent: root.novaBlue
+        property string iconName: ""
 
-        radius: 14
-        color: root.novaSurface
+        radius: 16
+        color: cardHover.hovered ? Qt.rgba(26/255, 39/255, 64/255, 0.75) : Qt.rgba(17/255, 26/255, 46/255, 0.45)
         border.width: cardHover.hovered ? 2 : 1
-        border.color: cardHover.hovered ? root.novaBlue : root.novaEdge
+        border.color: cardHover.hovered ? card.accent : root.novaEdge
+        scale: cardHover.hovered ? 1.015 : 1.0
+
+        Behavior on color { ColorAnimation { duration: 150 } }
+        Behavior on border.color { ColorAnimation { duration: 150 } }
+        Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
 
         implicitHeight: cardInner.implicitHeight + 36
         implicitWidth: 320
@@ -71,24 +77,35 @@ Kirigami.ApplicationWindow {
             id: cardInner
             anchors.fill: parent
             anchors.margins: 18
-            spacing: 10
+            spacing: 12
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: 12
 
                 Rectangle {
-                    implicitWidth: 5
-                    implicitHeight: 22
-                    radius: 2.5
-                    color: card.accent
+                    width: 40
+                    height: 40
+                    radius: 10
+                    color: Qt.rgba(card.accent.r, card.accent.g, card.accent.b, 0.15)
+                    border.width: 1
+                    border.color: Qt.rgba(card.accent.r, card.accent.g, card.accent.b, 0.3)
+                    Layout.alignment: Qt.AlignVCenter
+                    visible: card.iconName !== ""
+
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        source: card.iconName
+                        implicitWidth: 24
+                        implicitHeight: 24
+                    }
                 }
 
                 Text {
                     text: card.titleText
                     color: root.novaText
                     font.family: root.uiFont
-                    font.pixelSize: 17
+                    font.pixelSize: 16
                     font.bold: true
                     wrapMode: Text.Wrap
                     Layout.fillWidth: true
@@ -151,19 +168,30 @@ Kirigami.ApplicationWindow {
 
                         QQC2.Button {
                             id: copyBtn
-                            text: "📋 نسخ الأمر | Copy"
+                            text: "نسخ الأمر | Copy"
                             leftPadding: 14
                             rightPadding: 14
                             topPadding: 7
                             bottomPadding: 7
-                            contentItem: Text {
-                                text: copyBtn.text
-                                color: "#FFFFFF"
-                                font.family: root.uiFont
-                                font.pixelSize: 12
-                                font.bold: true
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                            contentItem: RowLayout {
+                                spacing: 6
+                                LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+                                Kirigami.Icon {
+                                    source: "moos-copy"
+                                    implicitWidth: 16
+                                    implicitHeight: 16
+                                    color: "white"
+                                }
+                                Text {
+                                    text: copyBtn.text
+                                    color: "#FFFFFF"
+                                    font.family: root.uiFont
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    Layout.fillWidth: true
+                                }
                             }
                             background: Rectangle {
                                 radius: 8
@@ -219,7 +247,16 @@ Kirigami.ApplicationWindow {
 
     pageStack.initialPage: Kirigami.Page {
         padding: 0
-        background: Rectangle { color: root.novaBg }
+        background: Rectangle {
+            color: root.novaBg
+            Image {
+                source: "file:///usr/share/wallpapers/NovaHorizon/contents/images_dark/3840x2160.png"
+                anchors.fill: parent
+                fillMode: Image.PreserveAspectCrop
+                opacity: 0.22
+                smooth: true
+            }
+        }
 
         ColumnLayout {
             anchors.fill: parent
@@ -290,7 +327,8 @@ Kirigami.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.preferredWidth: 100
                         accent: root.novaBlue
-                        titleText: "🎮 ألعاب وبرامج Windows | Windows apps & games"
+                        iconName: "moos-gaming"
+                        titleText: "ألعاب وبرامج Windows | Windows apps & games"
                         bodyText: "ألعابك تعمل عبر Steam + Proton، وبرامج Windows عبر Bottles (Wine). أمر واحد في Konsole يثبّت الحزمة كاملة مع Lutris. | Games run via Steam + Proton, Windows programs via Bottles (Wine). One Konsole command installs the full set, Lutris included."
                         command: "moos-setup"
                         noteText: "⚠ صدق أولاً: ألعاب anti-cheat التنافسية (Valorant وأشباهها) لا تعمل على Linux — تحقق من protondb.com قبل الشراء. | Honesty first: competitive anti-cheat titles (Valorant & co.) do not run on Linux — check protondb.com before buying."
@@ -304,7 +342,8 @@ Kirigami.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.preferredWidth: 100
                         accent: root.novaCyan
-                        titleText: "🤖 تطبيقات Android | Android apps"
+                        iconName: "moos-android-apps"
+                        titleText: "تطبيقات Android | Android apps"
                         bodyText: "Waydroid يشغّل Android 13 (LineageOS) في حاوية أصلية — اختياري بالكامل، لا شيء يعمل قبل أن تفعّله بنفسك. المتجر المقترح: F-Droid. | Waydroid runs Android 13 (LineageOS) in a native container — fully opt-in, nothing runs until you enable it yourself. Suggested store: F-Droid."
                         command: "sudo waydroid init -s VANILLA\nsudo systemctl enable --now waydroid-container.service\nwaydroid show-full-ui"
                         noteText: "⚠ حدود صادقة: الكاميرا والمايكروفون لا يعملان، تطبيقات البنوك (Play Integrity) لن تعمل أبداً، ولا يوجد Google Play — إضافته خيار متقدم على مسؤوليتك. | Honest limits: no camera/mic, banking apps (Play Integrity) will never work, and there is no Google Play — adding it is an advanced opt-in at your own risk."
@@ -319,7 +358,8 @@ Kirigami.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.preferredWidth: 100
                         accent: root.novaViolet
-                        titleText: "📱 مرافق iPhone | iPhone Companion"
+                        iconName: "moos-phone"
+                        titleText: "مرافق iPhone | iPhone Companion"
                         bodyText: "تطبيقات iOS لا تعمل على Linux — قيد من Apple لا من MoOS. المتاح فعلاً: KDE Connect (مثبّت مسبقاً) للإشعارات والملفات والحافظة. ثبّت KDE Connect على iPhone من App Store، اتصل بنفس شبكة Wi-Fi، ثم افتح: | iOS apps cannot run on Linux — Apple's restriction, not MoOS. What genuinely works: KDE Connect (preinstalled) for notifications, files and clipboard. Install KDE Connect on the iPhone from the App Store, join the same Wi-Fi, then open:"
                         command: "kdeconnect-app"
                         noteText: "مرآة شاشة iPhone عبر UxPlay (AirPlay) تصل في تحديث قادم. | UxPlay (AirPlay) screen mirroring arrives in a later update."
@@ -331,7 +371,8 @@ Kirigami.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.preferredWidth: 100
                         accent: root.novaBlue
-                        titleText: "🧠 Mo AI — الذكاء المحلي | Local AI"
+                        iconName: "moos-ai"
+                        titleText: "Mo AI — الذكاء المحلي | Local AI"
                         bodyText: "مساعد MoOS يعمل محلياً عبر RamaLama — النموذج على جهازك وبياناتك لا تغادره. الأمر الأول يجهّز النموذج، والثاني يبدأ المحادثة. | The MoOS assistant runs locally via RamaLama — the model lives on your machine and your data never leaves it. The first command prepares the model, the second starts the chat."
                         command: "moai-start\nmoai"
                         noteText: "إن لم يكن الأمر متوفراً بعد فهو يصل مع تحديث Mo AI القادم — انظر MOOS_AI_ASSISTANT_PLAN. | If the command is not available yet, it ships with the upcoming Mo AI update — see MOOS_AI_ASSISTANT_PLAN."

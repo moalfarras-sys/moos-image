@@ -94,11 +94,17 @@ Kirigami.ApplicationWindow {
         property string value: "unavailable"
         property color accent: root.novaBlue
         property bool showNvidia: false
+        property string iconName: ""
 
-        radius: 14
-        color: root.novaSurface
+        radius: 16
+        color: cardHover.hovered ? Qt.rgba(26/255, 39/255, 64/255, 0.75) : Qt.rgba(17/255, 26/255, 46/255, 0.45)
         border.width: cardHover.hovered ? 2 : 1
-        border.color: cardHover.hovered ? root.novaBlue : root.novaEdge
+        border.color: cardHover.hovered ? card.accent : root.novaEdge
+        scale: cardHover.hovered ? 1.015 : 1.0
+
+        Behavior on color { ColorAnimation { duration: 150 } }
+        Behavior on border.color { ColorAnimation { duration: 150 } }
+        Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
 
         implicitHeight: cardInner.implicitHeight + 36
         implicitWidth: 320
@@ -109,24 +115,35 @@ Kirigami.ApplicationWindow {
             id: cardInner
             anchors.fill: parent
             anchors.margins: 18
-            spacing: 10
+            spacing: 12
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: 12
 
                 Rectangle {
-                    implicitWidth: 5
-                    implicitHeight: 22
-                    radius: 2.5
-                    color: card.accent
+                    width: 40
+                    height: 40
+                    radius: 10
+                    color: Qt.rgba(card.accent.r, card.accent.g, card.accent.b, 0.15)
+                    border.width: 1
+                    border.color: Qt.rgba(card.accent.r, card.accent.g, card.accent.b, 0.3)
+                    Layout.alignment: Qt.AlignVCenter
+                    visible: card.iconName !== ""
+
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        source: card.iconName
+                        implicitWidth: 24
+                        implicitHeight: 24
+                    }
                 }
 
                 Text {
                     text: card.titleText
                     color: root.novaText
                     font.family: root.uiFont
-                    font.pixelSize: 16
+                    font.pixelSize: 15
                     font.bold: true
                     wrapMode: Text.Wrap
                     Layout.fillWidth: true
@@ -149,15 +166,28 @@ Kirigami.ApplicationWindow {
             }
 
             // --- amber NVIDIA hint (GPU card only) --------------------------
-            Text {
+            RowLayout {
                 visible: card.showNvidia
-                text: "⚠ كرت NVIDIA مكتشف. لأفضل تعريف، انتقل إلى صورة MoOS الخاصة بـ NVIDIA — انسخ ونفّذ في Konsole:\n⚠ NVIDIA GPU detected. For the best driver, switch to the NVIDIA MoOS image — copy & run in Konsole:"
-                color: root.novaAmber
-                font.family: root.uiFont
-                font.pixelSize: 12
-                wrapMode: Text.Wrap
-                lineHeight: 1.25
+                spacing: 8
                 Layout.fillWidth: true
+                
+                Kirigami.Icon {
+                    source: "moos-warning"
+                    implicitWidth: 20
+                    implicitHeight: 20
+                    color: root.novaAmber
+                    Layout.alignment: Qt.AlignTop
+                }
+                
+                Text {
+                    text: "كرت NVIDIA مكتشف. لأفضل تعريف، انتقل إلى صورة MoOS الخاصة بـ NVIDIA — انسخ ونفّذ في Konsole:\nNVIDIA GPU detected. For the best driver, switch to the NVIDIA MoOS image — copy & run in Konsole:"
+                    color: root.novaAmber
+                    font.family: root.uiFont
+                    font.pixelSize: 12
+                    wrapMode: Text.Wrap
+                    lineHeight: 1.25
+                    Layout.fillWidth: true
+                }
             }
 
             Rectangle {
@@ -196,19 +226,30 @@ Kirigami.ApplicationWindow {
 
                         QQC2.Button {
                             id: nvCopyBtn
-                            text: "📋 نسخ الأمر | Copy"
+                            text: "نسخ الأمر | Copy"
                             leftPadding: 14
                             rightPadding: 14
                             topPadding: 7
                             bottomPadding: 7
-                            contentItem: Text {
-                                text: nvCopyBtn.text
-                                color: "#FFFFFF"
-                                font.family: root.uiFont
-                                font.pixelSize: 12
-                                font.bold: true
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                            contentItem: RowLayout {
+                                spacing: 6
+                                LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+                                Kirigami.Icon {
+                                    source: "moos-copy"
+                                    implicitWidth: 16
+                                    implicitHeight: 16
+                                    color: "white"
+                                }
+                                Text {
+                                    text: nvCopyBtn.text
+                                    color: "#FFFFFF"
+                                    font.family: root.uiFont
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    Layout.fillWidth: true
+                                }
                             }
                             background: Rectangle {
                                 radius: 8
@@ -252,7 +293,16 @@ Kirigami.ApplicationWindow {
 
     pageStack.initialPage: Kirigami.Page {
         padding: 0
-        background: Rectangle { color: root.novaBg }
+        background: Rectangle {
+            color: root.novaBg
+            Image {
+                source: "file:///usr/share/wallpapers/NovaHorizon/contents/images_dark/3840x2160.png"
+                anchors.fill: parent
+                fillMode: Image.PreserveAspectCrop
+                opacity: 0.22
+                smooth: true
+            }
+        }
 
         ColumnLayout {
             anchors.fill: parent
@@ -322,7 +372,8 @@ Kirigami.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.preferredWidth: 100
                         accent: root.novaBlue
-                        titleText: "🧠 المعالج | CPU"
+                        iconName: "moos-cpu"
+                        titleText: "المعالج | CPU"
                         value: root.fieldOr(root.hw.cpu)
                     }
 
@@ -331,7 +382,8 @@ Kirigami.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.preferredWidth: 100
                         accent: root.novaCyan
-                        titleText: "🧮 الذاكرة | Memory"
+                        iconName: "moos-memory"
+                        titleText: "الذاكرة | Memory"
                         value: root.fieldOr(root.hw.memory)
                     }
 
@@ -340,7 +392,8 @@ Kirigami.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.preferredWidth: 100
                         accent: root.novaViolet
-                        titleText: "🎨 كرت الشاشة | GPU"
+                        iconName: "moos-gpu"
+                        titleText: "كرت الشاشة | GPU"
                         value: root.fieldOr(root.hw.gpu)
                         showNvidia: root.gpuIsNvidia
                     }
@@ -350,7 +403,8 @@ Kirigami.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.preferredWidth: 100
                         accent: root.novaBlue
-                        titleText: "💾 الأقراص | Disks"
+                        iconName: "moos-storage"
+                        titleText: "الأقراص | Disks"
                         value: root.fieldOr(root.hw.disks)
                     }
 
@@ -359,7 +413,8 @@ Kirigami.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.preferredWidth: 100
                         accent: root.novaCyan
-                        titleText: "🌐 الشبكة | Network"
+                        iconName: "moos-network"
+                        titleText: "الشبكة | Network"
                         value: root.fieldOr(root.hw.network)
                     }
 
@@ -368,7 +423,8 @@ Kirigami.ApplicationWindow {
                         Layout.fillHeight: true
                         Layout.preferredWidth: 100
                         accent: root.novaViolet
-                        titleText: "🖥 النظام | System"
+                        iconName: "moos-system"
+                        titleText: "النظام | System"
                         value: root.fieldOr(root.hw.os)
                     }
                 }
@@ -385,15 +441,26 @@ Kirigami.ApplicationWindow {
                     rightPadding: 16
                     topPadding: 9
                     bottomPadding: 9
-                    text: "📄 نسخ تقرير كامل | Copy full report"
-                    contentItem: Text {
-                        text: reportBtn.text
-                        color: "#FFFFFF"
-                        font.family: root.uiFont
-                        font.pixelSize: 13
-                        font.bold: true
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
+                    text: "نسخ تقرير كامل | Copy full report"
+                    contentItem: RowLayout {
+                        spacing: 6
+                        LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+                        Kirigami.Icon {
+                            source: "moos-report"
+                            implicitWidth: 16
+                            implicitHeight: 16
+                            color: "white"
+                        }
+                        Text {
+                            text: reportBtn.text
+                            color: "#FFFFFF"
+                            font.family: root.uiFont
+                            font.pixelSize: 13
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            Layout.fillWidth: true
+                        }
                     }
                     background: Rectangle {
                         radius: 8

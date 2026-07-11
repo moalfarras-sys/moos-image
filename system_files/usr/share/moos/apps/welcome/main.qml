@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import org.kde.kirigami as Kirigami
 
 ApplicationWindow {
     id: win
@@ -43,6 +44,13 @@ ApplicationWindow {
             GradientStop { position: 1.0; color: "#0A1B33" }
         }
     }
+    Image {
+        source: "file:///usr/share/wallpapers/NovaHorizon/contents/images_dark/3840x2160.png"
+        anchors.fill: parent
+        fillMode: Image.PreserveAspectCrop
+        opacity: 0.28
+        smooth: true
+    }
     Rectangle {  // soft radial-ish accent top-right
         width: 460; height: 460; radius: 230
         anchors.right: parent.right; anchors.top: parent.top
@@ -54,6 +62,10 @@ ApplicationWindow {
         anchors.fill: parent
         anchors.margins: 28
         spacing: 18
+
+        // RTL/LTR layout direction settings based on session locale
+        LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+        LayoutMirroring.childrenInherit: true
 
         // ---- hero ----
         RowLayout {
@@ -87,27 +99,72 @@ ApplicationWindow {
 
             Repeater {
                 model: [
-                    { i: "✦", t: "هوية كاملة | Full identity", d: "من الإقلاع حتى سطح المكتب" , c: win.blue },
-                    { i: "🧠", t: "Mo AI", d: "مساعد يتحكم بالنظام محلياً", c: win.violet },
-                    { i: "🎮", t: "ألعاب | Gaming", d: "Steam · Proton · Bottles", c: win.cyan },
-                    { i: "🤖", t: "Android", d: "تطبيقات أندرويد عبر Waydroid", c: win.blue },
-                    { i: "🛡️", t: "تحديثات آمنة | Safe updates", d: "rollback بضغطة", c: win.violet },
-                    { i: "🎨", t: "Nova UI", d: "زجاج تعبيري وألوان نيون", c: win.cyan }
+                    { i: "moos-identity", t: "هوية كاملة | Full identity", d: "من الإقلاع حتى سطح المكتب", c: win.blue },
+                    { i: "moos-ai", t: "Mo AI", d: "مساعد يتحكم بالنظام محلياً", c: win.violet },
+                    { i: "moos-gaming", t: "ألعاب | Gaming", d: "Steam · Proton · Bottles", c: win.cyan },
+                    { i: "moos-android-apps", t: "Android", d: "تطبيقات أندرويد عبر Waydroid", c: win.blue },
+                    { i: "moos-safe-update", t: "تحديثات آمنة | Safe updates", d: "rollback بضغطة واحدة", c: win.violet },
+                    { i: "moos-nova-ui", t: "Nova UI", d: "زجاج تعبيري وألوان نيون", c: win.cyan }
                 ]
                 delegate: Rectangle {
+                    id: cardItem
                     Layout.fillWidth: true
                     Layout.preferredHeight: 96
-                    radius: 14
-                    color: win.surface
-                    border.width: 1; border.color: Qt.rgba(1,1,1,0.06)
-                    ColumnLayout {
-                        anchors.fill: parent; anchors.margins: 14; spacing: 4
-                        RowLayout {
-                            spacing: 8
-                            Rectangle { width: 8; height: 8; radius: 4; color: modelData.c }
-                            Text { text: modelData.t; color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 15; font.bold: true }
+                    radius: 16
+                    color: cardHover.hovered ? Qt.rgba(26/255, 39/255, 64/255, 0.75) : Qt.rgba(17/255, 26/255, 46/255, 0.45)
+                    border.width: 1.5
+                    border.color: cardHover.hovered ? modelData.c : Qt.rgba(1, 1, 1, 0.08)
+                    scale: cardHover.hovered ? 1.025 : 1.0
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                    Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
+
+                    HoverHandler {
+                        id: cardHover
+                    }
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 14
+
+                        Rectangle {
+                            width: 48
+                            height: 48
+                            radius: 12
+                            color: Qt.rgba(modelData.c.r, modelData.c.g, modelData.c.b, 0.15)
+                            border.width: 1
+                            border.color: Qt.rgba(modelData.c.r, modelData.c.g, modelData.c.b, 0.3)
+                            Layout.alignment: Qt.AlignVCenter
+
+                            Kirigami.Icon {
+                                anchors.centerIn: parent
+                                source: modelData.i
+                                implicitWidth: 28
+                                implicitHeight: 28
+                            }
                         }
-                        Text { text: modelData.d; color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+                            Text {
+                                text: modelData.t
+                                color: win.txt
+                                font.family: "IBM Plex Sans"
+                                font.pixelSize: 15
+                                font.bold: true
+                            }
+                            Text {
+                                text: modelData.d
+                                color: win.txt2
+                                font.family: "IBM Plex Sans"
+                                font.pixelSize: 12
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
                     }
                 }
             }
@@ -121,19 +178,39 @@ ApplicationWindow {
             spacing: 12
             component NavButton: Rectangle {
                 property string label
+                property string iconName
                 property color accent: win.blue
                 property var onTap
                 Layout.fillWidth: true
                 Layout.preferredHeight: 52
                 radius: 12
                 color: ma.containsMouse ? Qt.lighter(accent, 1.1) : accent
-                Text { anchors.centerIn: parent; text: parent.label; color: "white"; font.family: "IBM Plex Sans"; font.pixelSize: 15; font.bold: true }
+                
+                RowLayout {
+                    anchors.centerIn: parent
+                    spacing: 8
+                    Kirigami.Icon {
+                        source: parent.parent.iconName
+                        implicitWidth: 20
+                        implicitHeight: 20
+                        color: "white"
+                        visible: parent.parent.iconName !== ""
+                    }
+                    Text {
+                        text: parent.parent.label
+                        color: "white"
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: 15
+                        font.bold: true
+                    }
+                }
+                
                 MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: parent.onTap() }
                 Behavior on color { ColorAnimation { duration: 120 } }
             }
-            NavButton { label: "ثبّت الأساسيات | Install essentials"; accent: win.blue;   onTap: function(){ win.openApp("moos://app/setup",  "التطبيقات | apps") } }
-            NavButton { label: "افتح Mo AI | Open Mo AI";            accent: win.violet; onTap: function(){ win.openApp("moos://app/moai",   "Mo AI") } }
-            NavButton { label: "مركز التوافق | Compatibility";       accent: win.raised; onTap: function(){ win.openApp("moos://app/compat", "التوافق | compat") } }
+            NavButton { label: "ثبّت الأساسيات | Install essentials"; iconName: "moos-install"; accent: win.blue;   onTap: function(){ win.openApp("moos://app/setup",  "التطبيقات | apps") } }
+            NavButton { label: "افتح Mo AI | Open Mo AI";            iconName: "moos-ai"; accent: win.violet; onTap: function(){ win.openApp("moos://app/moai",   "Mo AI") } }
+            NavButton { label: "مركز التوافق | Compatibility";       iconName: "moos-gaming"; accent: win.raised; onTap: function(){ win.openApp("moos://app/compat", "التوافق | compat") } }
         }
 
         Text {

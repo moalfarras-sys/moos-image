@@ -454,7 +454,16 @@ Kirigami.ApplicationWindow {
 
     pageStack.initialPage: Kirigami.Page {
         padding: 0
-        background: Rectangle { color: root.brandBg }
+        background: Rectangle {
+            color: root.brandBg
+            Image {
+                source: "file:///usr/share/wallpapers/NovaHorizon/contents/images_dark/3840x2160.png"
+                anchors.fill: parent
+                fillMode: Image.PreserveAspectCrop
+                opacity: 0.18
+                smooth: true
+            }
+        }
 
         // Full RTL mirroring for Arabic sessions (contract §5): follows the
         // application layout direction and cascades to every child.
@@ -832,7 +841,7 @@ Kirigami.ApplicationWindow {
                                 text: chip.modelData.ar + "  |  " + chip.modelData.en
                                 color: root.brandText
                                 font.family: root.uiFont
-                                font.pixelSize: 11.5
+                                font.pixelSize: 12
                             }
                         }
                         MouseArea {
