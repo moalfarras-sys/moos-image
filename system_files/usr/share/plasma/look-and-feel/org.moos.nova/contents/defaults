@@ -1,9 +1,7 @@
-# org.moos.nova — Look-and-Feel defaults (M0 "Nova Seed")
+# org.moos.nova — Look-and-Feel defaults
 # NovaDark color scheme + Nova Horizon wallpaper ship in this image already.
 # Nova icon theme is generated from Colloid in build.sh (c5); NovaIce
-# cursors are generated from Bibata-Modern-Ice in build.sh (c6). Klassy
-# window decoration is produced in Phase 3 from design/tokens.json
-# (see MOOS_BUILD_WORKFLOW.md, Phase 3).
+# cursors are generated from Bibata-Modern-Ice in build.sh (c6).
 # KConfig group syntax: [file][group] followed by key=value lines.
 
 [kdeglobals][General]
@@ -37,7 +35,7 @@ Theme=Nova
 Enable=true
 Theme=moos-nova
 
-# --- M0 polish: KWin blur ---------------------------------------------------
+# --- KWin blur ---------------------------------------------------------------
 # Key names VERIFIED against kwin master src/plugins/blur/blur.kcfg (config
 # group "Effect-blur", Int entries BlurStrength / NoiseStrength) and the
 # standard kwinrc [Plugins] <effectId>Enabled toggle (effect id: "blur").
@@ -67,9 +65,3 @@ NoiseStrength=2
 # additionally ships in /etc/xdg/kcminputrc (plain KConfig cascade).
 [kcminputrc][Mouse]
 cursorTheme=NovaIce
-
-# --- Phase 3 additions (uncomment once the assets exist) -------------------
-#
-# [kwinrc][org.kde.kdecoration2]
-# library=org.kde.klassy
-# theme=MoOS Nova

@@ -1,0 +1,24 @@
+[Unit]
+Description=Mo Remote Personal
+After=graphical-session.target network-online.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+# Keep the desktop awake while remote access is enabled. Screen capture is not
+# possible after KDE locks the Wayland session.
+ExecStart=/usr/bin/systemd-inhibit --what=sleep:idle --who=MoRemotePersonal --why=Remote-access-availability --mode=block @APP@/MoRemotePersonal
+Restart=on-failure
+RestartSec=3
+Environment=DOTNET_EnableDiagnostics=0
+Environment=YDOTOOL_SOCKET=/tmp/.ydotool_socket
+# A user service does not reliably inherit the graphical-session environment.
+# Spectacle and wl-clipboard need these values to connect to KDE Wayland/DBus;
+# without them Qt falls back to XCB and screen capture crashes.
+Environment=XDG_RUNTIME_DIR=%t
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=QT_QPA_PLATFORM=wayland
+
+[Install]
+WantedBy=default.target

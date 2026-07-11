@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Mo Remote Personal
+Name[ar]=Mo Remote
+Comment=Private remote control for this computer
+Comment[ar]=تحكم خاص وآمن بهذا الكمبيوتر
+Exec=@APP@/MoRemotePersonal
+Icon=mo-remote-personal
+Terminal=false
+Categories=Network;RemoteAccess;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true

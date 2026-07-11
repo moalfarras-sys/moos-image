@@ -4,11 +4,11 @@
 # Modeled on ublue-os/image-template conventions:
 #   https://github.com/ublue-os/image-template
 #
-# M0 "Nova Seed" scope:
-#   - Base: ghcr.io/ublue-os/kinoite-main:44 (Fedora 44 Atomic, KDE Plasma 6.7+)
-#   - os-release branding (NAME/PRETTY_NAME -> MoOS)
-#   - uupd background updater installed + timer enabled
-#   - Skeleton system_files (theme/SDDM/Plymouth/wallpaper placeholders)
+# Current image scope:
+#   - Base: ghcr.io/ublue-os/kinoite-main:44 (Fedora Atomic + Plasma)
+#   - Complete MoOS identity and Nova desktop/boot/install experience
+#   - MoOS system applications, local-first Mo AI and compatibility tooling
+#   - Automatic atomic/Flatpak updates and guarded rollback
 #
 # NVIDIA variant: build with
 #   podman build --build-arg BASE_IMAGE=ghcr.io/ublue-os/kinoite-nvidia:44 \
@@ -27,22 +27,31 @@ ARG BASE_IMAGE=ghcr.io/ublue-os/kinoite-main:44
 FROM scratch AS ctx
 COPY build_files /
 
+# Build Mo Remote from source. The final MoOS image receives only the
+# self-contained runtime, not the SDK or build caches.
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS moremote-build
+WORKDIR /src
+COPY moremote/ ./
+RUN dotnet publish agent-linux/MoRemoteLinux.csproj -c Release -r linux-x64 \
+    --self-contained true -o /out
+
 # -----------------------------------------------------------------------------
 # Main image
 # -----------------------------------------------------------------------------
 FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.title="MoOS" \
-      org.opencontainers.image.description="MoOS — Fedora Atomic (Kinoite lineage) bootc image with the Nova UI identity" \
+      org.opencontainers.image.description="MoOS — atomic desktop with the Nova experience" \
       org.opencontainers.image.vendor="Moalfarras" \
       org.opencontainers.image.source="https://github.com/moalfarras-sys/moos-image"
 
-# System files are copied verbatim onto / of the image.
-# M0: skeleton dirs for org.moos.nova Global Theme, moos-nova SDDM theme,
-# moos-nova Plymouth theme, NovaHorizon wallpaper kpackage, /etc/moos.
-# Real assets land in Phase 3 (Design) and Phase 5 (Boot & Installer) —
-# see ../MOOS_BUILD_WORKFLOW.md.
+# System files are copied verbatim onto / of the image. This tree contains the
+# MoOS identity, Nova desktop/login/boot themes, applications, service units,
+# and boot/install configuration. build_files/build.sh performs the package-
+# dependent wiring and final validation.
 COPY system_files/ /
+COPY --from=moremote-build /out/ /usr/lib/mo-remote/
+COPY moremote/Logo.png /usr/share/icons/hicolor/512x512/apps/mo-remote-personal.png
 
 # Run the build script:
 #   - /ctx is the bind-mounted build_files stage (see above)

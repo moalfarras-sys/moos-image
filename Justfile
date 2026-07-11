@@ -5,7 +5,7 @@
 # ISO/disk-image recipes are deliberately ABSENT: ISO builds are CI-only
 # (.github/workflows/build-iso.yml) because the osbuild/ISO tooling does not
 # work on the WSL2 kernel. Offline fallback: a real Fedora VM in Hyper-V.
-# See MOOS_BUILD_WORKFLOW.md (Phase 5).
+# CI owns ISO and disk-image production; these recipes are the local OCI loop.
 # =============================================================================
 
 image_name := "moos"

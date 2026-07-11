@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Remove only the obsolete physical-root fstab entry on composefs/overlay boots.
+set -euo pipefail
+
+fstab="${MOOS_FSTAB:-/etc/fstab}"
+[ -f "$fstab" ] || exit 0
+[ "${MOOS_OSTREE_BOOTED:-0}" = 1 ] || [ -e /run/ostree-booted ] || exit 0
+root_fstype="${MOOS_ROOT_FSTYPE:-$(findmnt -n -o FSTYPE / 2>/dev/null || true)}"
+[ "$root_fstype" = overlay ] || exit 0
+
+# bootc/ostree already assembled / in the initramfs. Asking systemd-remount-fs
+# to reconfigure that overlay as the backing Btrfs filesystem fails with
+# "overlay: No changes allowed in reconfigure". Other mounts remain untouched.
+rc=0
+awk '
+    /^[[:space:]]*#/ || NF == 0 { print; next }
+    $2 == "/" { removed = 1; next }
+    { print }
+    END { if (!removed) exit 3 }
+' "$fstab" >"${fstab}.moos-new" || rc=$?
+
+if [ "$rc" -eq 3 ]; then
+    rm -f "${fstab}.moos-new"
+    exit 0
+fi
+[ "$rc" -eq 0 ] || { rm -f "${fstab}.moos-new"; exit "$rc"; }
+
+cp -a "$fstab" "${fstab}.moos-backup"
+chmod --reference="$fstab" "${fstab}.moos-new"
+chown --reference="$fstab" "${fstab}.moos-new"
+mv -f "${fstab}.moos-new" "$fstab"
+echo "MoOS: removed obsolete / entry from fstab for OSTree overlay root"

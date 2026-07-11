@@ -1,0 +1,66 @@
+import { useEffect, useState } from "react";
+import { getStatus, tokenStore } from "./lib/api";
+import { SetupScreen, LoginScreen } from "./ui/AuthScreens";
+import { RemoteScreen } from "./ui/RemoteScreen";
+
+type View =
+  | { name: "loading" }
+  | { name: "setup" }
+  | { name: "login"; lockout: number }
+  | { name: "remote"; token: string }
+  | { name: "error"; message: string };
+
+export default function App() {
+  const [view, setView] = useState<View>({ name: "loading" });
+
+  const decide = async () => {
+    try {
+      const s = await getStatus();
+      if (s.firstRun) return setView({ name: "setup" });
+      const tok = tokenStore.get();
+      if (tok) return setView({ name: "remote", token: tok });
+      return setView({ name: "login", lockout: s.locked ? s.lockoutSeconds : 0 });
+    } catch {
+      setView({ name: "error", message: "Cannot reach the PC. Is the agent running and Tailscale connected?" });
+    }
+  };
+
+  useEffect(() => {
+    decide();
+  }, []);
+
+  const enterRemote = (token: string) => {
+    tokenStore.set(token);
+    setView({ name: "remote", token });
+  };
+
+  const exitToLogin = async () => {
+    tokenStore.clear();
+    setView({ name: "loading" });
+    await decide();
+  };
+
+  switch (view.name) {
+    case "loading":
+      return (
+        <div className="center-msg" style={{ position: "fixed", inset: 0 }}>
+          <div className="spinner" />
+          <div>Connecting…</div>
+        </div>
+      );
+    case "error":
+      return (
+        <div className="center-msg" style={{ position: "fixed", inset: 0 }}>
+          <div style={{ fontSize: 40 }}>🔌</div>
+          <div style={{ maxWidth: 300 }}>{view.message}</div>
+          <button className="btn" onClick={decide}>Retry</button>
+        </div>
+      );
+    case "setup":
+      return <SetupScreen onDone={enterRemote} />;
+    case "login":
+      return <LoginScreen onDone={enterRemote} lockoutSeconds={view.lockout} />;
+    case "remote":
+      return <RemoteScreen token={view.token} onExit={exitToLogin} />;
+  }
+}

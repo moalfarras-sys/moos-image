@@ -1,7 +1,7 @@
 # MoOS Nova GRUB theme (minimal, fast, 1080p-safe; scales on other resolutions)
 # Wired on INSTALLED systems only via GRUB_THEME=/usr/share/moos/grub-theme/theme.txt
-# (see MOOS_BUILD_WORKFLOW.md Phase 5 — activation requires a tested
-# grub2-mkconfig run on the target; menu is hidden with 1s timeout by default,
+# Activation requires a tested grub2-mkconfig run on the target. The menu is
+# hidden with a 1s timeout by default,
 # so this theme mostly shows during rollback selection.)
 # Colors from branding/PALETTE.md.
 

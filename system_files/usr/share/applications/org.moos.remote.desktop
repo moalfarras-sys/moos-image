@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Mo Remote
+Name[ar]=تحكم Mo عن بعد
+Comment=Control MoOS securely from your phone
+Comment[ar]=تحكم بنظام MoOS بأمان من هاتفك
+Exec=xdg-open http://127.0.0.1:8765/
+Icon=mo-remote-personal
+Terminal=false
+Categories=Network;RemoteAccess;

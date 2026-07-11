@@ -73,6 +73,14 @@ fi
 command -v plasma-apply-colorscheme >/dev/null 2>&1 && \
     plasma-apply-colorscheme NovaDark >>"$log" 2>&1 || true
 
+# KSplash is user configuration, so a system default alone cannot override an
+# already-created user's previous Breeze/Fedora choice.  Write the two exact
+# Plasma 6 keys explicitly during this versioned migration.
+if command -v kwriteconfig6 >/dev/null 2>&1; then
+    kwriteconfig6 --file ksplashrc --group KSplash --key Theme org.moos.nova
+    kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML
+fi
+
 # Only mark done if something actually applied — otherwise retry next login.
 if [ "$applied" = "1" ]; then
     touch "$marker" 2>/dev/null || true
