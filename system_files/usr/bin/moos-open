@@ -39,6 +39,7 @@ term() {
 
 case "${cat}/${tgt}" in
     app/moai)      gui moai ;;
+    app/remote)    systemctl --user enable --now mo-remote-personal.service && gui xdg-open http://127.0.0.1:8765/ ;;
     app/setup)     term moos-setup ;;
     app/compat)    gui moos-compat ;;
     app/hardware)  gui moos-hardware ;;

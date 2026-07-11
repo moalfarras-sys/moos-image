@@ -57,6 +57,7 @@ Kirigami.ApplicationWindow {
         property string noteText: ""
         property color accent: root.novaBlue
         property string iconName: ""
+        property string launchUrl: ""
 
         radius: 16
         color: cardHover.hovered ? Qt.rgba(26/255, 39/255, 64/255, 0.75) : Qt.rgba(17/255, 26/255, 46/255, 0.45)
@@ -208,6 +209,45 @@ Kirigami.ApplicationWindow {
                             }
                         }
 
+                        QQC2.Button {
+                            id: launchBtn
+                            visible: card.launchUrl.length > 0
+                            text: "تشغيل | Launch"
+                            leftPadding: 14
+                            rightPadding: 14
+                            topPadding: 7
+                            bottomPadding: 7
+                            contentItem: RowLayout {
+                                spacing: 6
+                                LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+                                Kirigami.Icon {
+                                    source: "moos-open"
+                                    implicitWidth: 16
+                                    implicitHeight: 16
+                                    color: "white"
+                                }
+                                Text {
+                                    text: launchBtn.text
+                                    color: "#FFFFFF"
+                                    font.family: root.uiFont
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    Layout.fillWidth: true
+                                }
+                            }
+                            background: Rectangle {
+                                radius: 8
+                                color: launchBtn.down ? Qt.darker(root.novaCyan, 1.25)
+                                     : launchBtn.hovered ? Qt.lighter(root.novaCyan, 1.12)
+                                     : root.novaCyan
+                            }
+                            onClicked: {
+                                Qt.openUrlExternally(card.launchUrl)
+                            }
+                        }
+
                         Text {
                             id: copiedTag
                             text: "✓ نُسخ إلى الحافظة | Copied"
@@ -349,20 +389,18 @@ Kirigami.ApplicationWindow {
                         noteText: "⚠ حدود صادقة: الكاميرا والمايكروفون لا يعملان، تطبيقات البنوك (Play Integrity) لن تعمل أبداً، ولا يوجد Google Play — إضافته خيار متقدم على مسؤوليتك. | Honest limits: no camera/mic, banking apps (Play Integrity) will never work, and there is no Google Play — adding it is an advanced opt-in at your own risk."
                     }
 
-                    // (c) iPhone Companion — KDE Connect is PREINSTALLED on
-                    // Kinoite (kde-connect is a default package of the Fedora 44
-                    // comps group kde-desktop — verified 2026-07-10), so this
-                    // card explains pairing instead of installing.
+                    // (c) Mo Remote — control this PC from your phone (PWA over Tailscale)
                     CompatCard {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         Layout.preferredWidth: 100
                         accent: root.novaViolet
                         iconName: "moos-phone"
-                        titleText: "مرافق iPhone | iPhone Companion"
-                        bodyText: "تطبيقات iOS لا تعمل على Linux — قيد من Apple لا من MoOS. المتاح فعلاً: KDE Connect (مثبّت مسبقاً) للإشعارات والملفات والحافظة. ثبّت KDE Connect على iPhone من App Store، اتصل بنفس شبكة Wi-Fi، ثم افتح: | iOS apps cannot run on Linux — Apple's restriction, not MoOS. What genuinely works: KDE Connect (preinstalled) for notifications, files and clipboard. Install KDE Connect on the iPhone from the App Store, join the same Wi-Fi, then open:"
-                        command: "kdeconnect-app"
-                        noteText: "مرآة شاشة iPhone عبر UxPlay (AirPlay) تصل في تحديث قادم. | UxPlay (AirPlay) screen mirroring arrives in a later update."
+                        launchUrl: "moos://app/remote"
+                        titleText: "التحكم عن بعد | Mo Remote (PC Control)"
+                        bodyText: "تحكم بنظامك بالكامل وبأمان من هاتف iPhone أو Android عبر شبكة Tailscale الخاصة بك. شاهد الشاشة، وحرّك الماوس واكتب باللمس، وأدر الطاقة (إغلاق، إسبات، قفل). لتشغيل الخدمة وفتح رابط التحكم: | Control your PC securely from your iPhone or Android over your private Tailscale network. View screen, control keyboard/mouse by touch, and manage remote power. To start the service and open the link:"
+                        command: "systemctl --user enable --now mo-remote-personal.service && xdg-open http://127.0.0.1:8765/"
+                        noteText: "تأكد من تفعيل تطبيق Tailscale وتسجيل الدخول بنفس الحساب على جهازك وهاتفك للتوصيل الآمن P2P. | Make sure Tailscale is enabled and logged into the same account on both device and phone for secure P2P connection."
                     }
 
                     // (d) Mo AI — local assistant (RamaLama backend)
@@ -372,6 +410,7 @@ Kirigami.ApplicationWindow {
                         Layout.preferredWidth: 100
                         accent: root.novaBlue
                         iconName: "moos-ai"
+                        launchUrl: "moos://app/moai"
                         titleText: "Mo AI — الذكاء المحلي | Local AI"
                         bodyText: "مساعد MoOS يعمل محلياً عبر RamaLama — النموذج على جهازك وبياناتك لا تغادره. الأمر الأول يجهّز النموذج، والثاني يبدأ المحادثة. | The MoOS assistant runs locally via RamaLama — the model lives on your machine and your data never leaves it. The first command prepares the model, the second starts the chat."
                         command: "moai-start\nmoai"
