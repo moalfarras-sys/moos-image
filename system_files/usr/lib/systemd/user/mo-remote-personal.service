@@ -1,8 +1,9 @@
 [Unit]
-Description=Mo Remote Personal
-After=graphical-session.target network-online.target ydotoold-moremote.service
+Description=Mo Remote
+ConditionUser=!@system
+After=plasma-workspace.target network-online.target ydotoold-moremote.service
 Wants=network-online.target ydotoold-moremote.service
-PartOf=graphical-session.target
+PartOf=plasma-workspace.target
 
 [Service]
 Type=simple
@@ -13,8 +14,6 @@ Environment=DOTNET_EnableDiagnostics=0
 Environment=YDOTOOL_SOCKET=%t/.ydotool_socket
 Environment=XDG_RUNTIME_DIR=%t
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
-Environment=WAYLAND_DISPLAY=wayland-0
-Environment=QT_QPA_PLATFORM=wayland
 
 [Install]
-WantedBy=default.target
+WantedBy=plasma-workspace.target
