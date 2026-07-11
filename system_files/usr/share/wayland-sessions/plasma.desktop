@@ -1,4 +1,5 @@
 [Desktop Entry]
+Type=Application
 # MoOS session-name override for the login/session picker (SDDM/GDM).
 # This SHADOWS the base plasma-workspace file of the same name
 # (/usr/share/wayland-sessions/plasma.desktop, generated from

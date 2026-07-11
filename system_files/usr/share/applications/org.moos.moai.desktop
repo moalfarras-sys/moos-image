@@ -13,3 +13,9 @@ Terminal=false
 Categories=Utility;
 Keywords=AI;assistant;chat;local;llm;
 Keywords[ar]=ذكاء;مساعد;محادثة;محلي;
+Actions=StartBrain;
+
+[Desktop Action StartBrain]
+Name=Start local brain
+Name[ar]=تشغيل العقل المحلي
+Exec=konsole -e moai-start

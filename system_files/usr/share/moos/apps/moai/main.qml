@@ -122,7 +122,10 @@ Kirigami.ApplicationWindow {
 
     // Bilingual type (contract §5): Latin shapes in IBM Plex Sans, Arabic
     // falls back to IBM Plex Sans Arabic — both ship in the image (c4).
-    readonly property var uiFonts: ["IBM Plex Sans", "IBM Plex Sans Arabic"]
+    // QML Text exposes font.family (singular), not a font.families list.
+    // Qt/fontconfig automatically falls back to IBM Plex Sans Arabic for
+    // Arabic glyphs that are not present in the primary Latin family.
+    readonly property string uiFont: "IBM Plex Sans"
 
     title: "Mo AI"
     width: 460
@@ -379,14 +382,14 @@ Kirigami.ApplicationWindow {
                         Text {
                             text: "Mo AI"
                             color: root.brandText
-                            font.families: root.uiFonts
+                            font.family: root.uiFont
                             font.pixelSize: 18
                             font.weight: Font.DemiBold
                         }
                         Text {
                             text: "مساعد MoOS | MoOS assistant"
                             color: root.brandSecondary
-                            font.families: root.uiFonts
+                            font.family: root.uiFont
                             font.pixelSize: 11
                         }
                     }
@@ -515,7 +518,7 @@ Kirigami.ApplicationWindow {
                             wrapMode: Text.Wrap
                             color: root.brandText
                             linkColor: root.brandCyan
-                            font.families: root.uiFonts
+                            font.family: root.uiFont
                             font.pixelSize: 14
                             onLinkActivated: function (link) {
                                 Qt.openUrlExternally(link)
@@ -620,7 +623,7 @@ Kirigami.ApplicationWindow {
                     Text {
                         text: "أوامر سريعة | Quick actions"
                         color: root.brandSecondary
-                        font.families: root.uiFonts
+                        font.family: root.uiFont
                         font.pixelSize: 11
                         font.weight: Font.DemiBold
                     }
@@ -663,7 +666,7 @@ Kirigami.ApplicationWindow {
                                     Text {
                                         text: pill.modelData.ar + "  |  " + pill.modelData.en
                                         color: root.brandText
-                                        font.families: root.uiFonts
+                                        font.family: root.uiFont
                                         font.pixelSize: 12
                                     }
                                 }
@@ -708,7 +711,7 @@ Kirigami.ApplicationWindow {
                         placeholderText: "اسأل Mo AI... | Ask Mo AI..."
                         placeholderTextColor: root.brandSecondary
                         color: root.brandText
-                        font.families: root.uiFonts
+                        font.family: root.uiFont
                         font.pixelSize: 14
                         leftPadding: 13
                         rightPadding: 13
@@ -747,7 +750,7 @@ Kirigami.ApplicationWindow {
                         contentItem: Text {
                             text: "إرسال | Send"
                             color: sendBtn.enabled ? "#FFFFFF" : root.brandSecondary
-                            font.families: root.uiFonts
+                            font.family: root.uiFont
                             font.pixelSize: 13
                             font.weight: Font.DemiBold
                             horizontalAlignment: Text.AlignHCenter
@@ -800,7 +803,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     text: "جارٍ التنفيذ في الطرفية ✓ | Running in a terminal ✓"
                     color: root.brandCyan
-                    font.families: root.uiFonts
+                    font.family: root.uiFont
                     font.pixelSize: 11
                     font.weight: Font.DemiBold
                     wrapMode: Text.Wrap

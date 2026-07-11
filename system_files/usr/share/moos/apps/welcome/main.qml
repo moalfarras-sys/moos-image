@@ -107,7 +107,7 @@ ApplicationWindow {
                             Rectangle { width: 8; height: 8; radius: 4; color: modelData.c }
                             Text { text: modelData.t; color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 15; font.bold: true }
                         }
-                        Text { text: modelData.d; color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12.5; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                        Text { text: modelData.d; color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 13; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                     }
                 }
             }

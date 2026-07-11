@@ -1,0 +1,22 @@
+[Unit]
+Description=Mo AI local brain
+Documentation=https://github.com/moalfarras-sys/moos-image
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=MOAI_PORT=8080
+Environment=MOAI_MODEL=ollama://qwen3:4b-instruct
+EnvironmentFile=-%h/.config/moos/moai.env
+ExecStart=/usr/bin/ramalama serve --port ${MOAI_PORT} ${MOAI_MODEL}
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=20s
+
+# The model server is unprivileged and bound to localhost by RamaLama. Rootless
+# Podman needs the normal user mount namespace plus container config/storage;
+# systemd filesystem/mount namespace sandbox directives break that backend.
+
+[Install]
+WantedBy=default.target

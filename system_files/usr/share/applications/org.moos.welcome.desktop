@@ -10,6 +10,6 @@ Exec=moos-welcome
 TryExec=moos-welcome
 Icon=moos-welcome
 Terminal=false
-Categories=System;Utility;
+Categories=Utility;
 Keywords=welcome;start;moos;mo;
 Keywords[ar]=ترحيب;بداية;

@@ -1,46 +1,92 @@
 #!/usr/bin/env bash
-# moai-start — start the Mo AI local brain (RamaLama server, consent first).
-#
-# VERIFIED against RamaLama docs (github.com/containers/ramalama, 2026-07-10):
-#   - `ramalama serve` default port is 8080 ("The default serving port will
-#     be 8080 if available") — we still pass --port explicitly so it always
-#     matches the `api` constant in the Mo AI app
-#     (/usr/share/moos/apps/moai/main.qml).
-#   - The serving backend is llama.cpp's llama-server → OpenAI-compatible
-#     REST API (/v1/chat/completions), which the Mo AI app talks to.
-#   - Model transports: ollama:// | hf:// (huggingface://) | oci:// |
-#     modelscope://; unprefixed short names default to the Ollama registry.
-#   - ollama://qwen3:4b-instruct = Qwen3-4B-Instruct, Q4_K_M quant, ~2.5 GB
-#     (tag + size verified on ollama.com/library/qwen3/tags).
+# moai-start — manage Mo AI's opt-in, unprivileged local-brain service.
 set -euo pipefail
 
 PORT="${MOAI_PORT:-8080}"
 MODEL="${MOAI_MODEL:-ollama://qwen3:4b-instruct}"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/moos"
+ENV_FILE="$CONFIG_DIR/moai.env"
+CONSENT_FILE="$CONFIG_DIR/moai-local-consent"
+SERVICE="moai.service"
 
-B='\033[1;34m'; C='\033[1;36m'; N='\033[0m'
+if [ -t 1 ]; then
+    B=$'\033[1;34m'; C=$'\033[1;36m'; G=$'\033[1;32m'; Y=$'\033[1;33m'; N=$'\033[0m'
+else
+    B=; C=; G=; Y=; N=
+fi
+
+status() {
+    if systemctl --user is-active --quiet "$SERVICE"; then
+        echo "${G}● Mo AI يعمل | local brain is running${N}"
+        echo "  http://127.0.0.1:${PORT}"
+    else
+        echo "${Y}○ Mo AI متوقف | local brain is stopped${N}"
+        systemctl --user status "$SERVICE" --no-pager 2>/dev/null | tail -n 8 || true
+    fi
+}
+
+case "${1:-start}" in
+    status)
+        status
+        exit 0
+        ;;
+    stop)
+        systemctl --user disable --now "$SERVICE"
+        echo "${G}تم إيقاف العقل المحلي وتعطيل تشغيله التلقائي.${N}"
+        echo "${G}Local brain stopped and autostart disabled.${N}"
+        exit 0
+        ;;
+    logs)
+        exec journalctl --user -u "$SERVICE" -f
+        ;;
+    start) ;;
+    *)
+        echo "Usage: moai-start [start|stop|status|logs]" >&2
+        exit 2
+        ;;
+esac
 
 if ! command -v ramalama >/dev/null 2>&1; then
-    echo -e "${B}Mo AI${N}: RamaLama غير مثبّت | RamaLama is not installed."
-    echo "ثبّته أولاً ثم أعد التشغيل | Install it first, then reboot:"
-    echo "    sudo rpm-ostree install ramalama"
+    echo "${Y}RamaLama غير مثبّت | RamaLama is not installed.${N}" >&2
     exit 1
 fi
 
-echo -e "${B}Mo AI${N} — تشغيل العقل المحلي | Starting the local brain"
-echo
-echo -e "  النموذج | Model : ${C}${MODEL}${N}"
-echo -e "  المنفذ  | Port  : ${C}${PORT}${N}"
-echo
-echo "أول تشغيل سيُحمّل النموذج (~2.5 GB) — قد يستغرق وقتاً حسب سرعة الإنترنت."
-echo "First run downloads the model (~2.5 GB) — may take a while."
-echo "كل شيء يبقى على جهازك، لا سحابة. | Everything stays on your device, no cloud."
-echo
-read -rp "متابعة؟ | Continue? [Y/n] " answer
-answer=${answer:-Y}
-case "$answer" in
-    [Yy]*) ;;
-    *) echo "أُلغي | Cancelled."; exit 0 ;;
-esac
+mkdir -p "$CONFIG_DIR"
+chmod 700 "$CONFIG_DIR"
+mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/ramalama" \
+         "${XDG_DATA_HOME:-$HOME/.local/share}/containers" \
+         "${XDG_CACHE_HOME:-$HOME/.cache}/ramalama"
 
-echo -e "${B}Mo AI${N}: ramalama serve --port ${PORT} ${MODEL}"
-exec ramalama serve --port "$PORT" "$MODEL"
+# Consent is requested once because the first start downloads a multi-gigabyte
+# model. Subsequent logins start only the already-approved user service; no
+# password, sudo or system-wide privilege is involved.
+if [ ! -f "$CONSENT_FILE" ]; then
+    echo "${B}Mo AI — العقل المحلي | Local brain${N}"
+    echo
+    echo "  ${C}النموذج | Model:${N} $MODEL"
+    echo "  ${C}المنفذ | Port:${N}  $PORT (localhost only)"
+    echo
+    echo "أول تشغيل يحمّل النموذج (~2.5 GB). البيانات والمحادثة تبقيان على جهازك."
+    echo "First start downloads the model (~2.5 GB). Data and chat stay on this device."
+    echo
+    read -rp "تفعيل وتشغيل Mo AI تلقائياً بعد تسجيل الدخول؟ | Enable at login? [y/N] " answer
+    case "${answer:-N}" in
+        [Yy]|[Yy][Ee][Ss]) ;;
+        *) echo "أُلغي | Cancelled."; exit 0 ;;
+    esac
+    printf 'approved=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$CONSENT_FILE"
+    chmod 600 "$CONSENT_FILE"
+fi
+
+cat >"$ENV_FILE" <<EOF
+MOAI_PORT=$PORT
+MOAI_MODEL=$MODEL
+EOF
+chmod 600 "$ENV_FILE"
+
+systemctl --user daemon-reload
+systemctl --user enable --now "$SERVICE"
+echo "${G}✓ Mo AI يعمل كخدمة مستخدم وسيبدأ تلقائياً بعد تسجيل الدخول.${N}"
+echo "${G}  Mo AI is running as a user service and will start automatically at login.${N}"
+echo "  moai-start status | moai-start logs | moai-start stop"
+status

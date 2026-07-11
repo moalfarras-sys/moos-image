@@ -1,0 +1,15 @@
+[Unit]
+Description=Sanitize fstab for the MoOS OSTree overlay root
+Documentation=https://github.com/moalfarras-sys/moos-image
+DefaultDependencies=no
+ConditionPathExists=/run/ostree-booted
+Before=systemd-remount-fs.service local-fs-pre.target
+Wants=local-fs-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/moos-fstab-sanitize
+RemainAfterExit=yes
+
+[Install]
+WantedBy=local-fs-pre.target

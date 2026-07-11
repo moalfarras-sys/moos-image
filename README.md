@@ -2,7 +2,11 @@
 
 هذا هو مستودع البناء (build repo) لنظام **MoOS**: صورة bootc/OCI مبنية فوق `ghcr.io/ublue-os/kinoite-main:44` (Fedora 44 Atomic + KDE Plasma 6.7 Wayland) على نمط `ublue-os/image-template`. GitHub Actions يبني الصورة ويوقعها بـ cosign ويدفعها إلى GHCR، وTitanoboa يبني منها live ISO — كل ذلك مجاناً لأن المستودع عام (public). هذا المجلد جاهز للرفع كمستودع GitHub مستقل. نطاق M0 "Nova Seed": صورة موقّعة على GHCR تُظهر "MoOS" في os-release ويمكن عمل rebase إليها من VM.
 
-آخر تحديث: 2026-07-09
+آخر تحديث: 2026-07-11
+
+> حالة التنفيذ الحالية وبوابات الوصول إلى إصدار كامل موثقة في
+> [`MOOS_ROADMAP.md`](MOOS_ROADMAP.md). هذه الصورة تجاوزت نطاق هيكل M0 القديم:
+> هوية Nova وتطبيقات MoOS وMo AI ومسارا ISO/NVIDIA موجودة فعلياً الآن.
 
 > استبدل `moalfarras-sys` في كل الأوامر أدناه باسم مستخدمك على GitHub.
 
@@ -112,20 +116,22 @@ sudo bootc rollback && sudo systemctl reboot
 
 ## أين هذا من الخطة الكاملة؟
 
-هذا المستودع هو مخرج **Phase 2 (Architecture)** وبوابة الخروج هي milestone **M0 "Nova Seed"**. المراحل العشر كاملة بالأوامر في `../MOOS_BUILD_WORKFLOW.md`، والقرارات المعمارية في `../MOOS_DECISIONS.md`، وألوان Nova في `../branding/PALETTE.md`.
+المستودع أصبح صورة MoOS وظيفية تتجاوز M0: يبني الهوية، الثيمات، المثبت،
+تطبيقات النظام، Mo AI، وصورة NVIDIA. استخدم `MOOS_ROADMAP.md` كمصدر الحقيقة
+للحالة والبوابات المتبقية، ولا تعتمد على أرقام المراحل التاريخية وحدها.
 
 ## قيود معروفة (Known Issues)
 
 - أسماء مدخلات Titanoboa action في `build-iso.yml` مفترضة من توثيق v0.1.x — يجب التحقق من `action.yml` في https://github.com/ublue-os/titanoboa قبل أول تشغيل، والتثبيت على وسم إصدار فور توفره.
-- `os-release` في M0 يغيّر `NAME`/`PRETTY_NAME` فقط؛ `ID=moos` مؤجل لـ Phase 4 حتى لا تنكسر أدوات تعتمد على `ID=fedora` (انظر TODO في `build_files/build.sh` و`../MOOS_DECISIONS.md`).
-- workflow واحد يبني `moos` فقط — متغير `moos-nvidia` يُضاف كـ build matrix في Phase 4.
-- ملفات `system_files/` هياكل placeholder (الثيمات الفعلية في Phase 3/5) — الصورة الحالية تبدو Kinoite عادياً باستثناء os-release وuupd.
+- سياسة الحاويات تسمح حالياً بسجل MoOS لكنها لا تفرض تحقق cosign أثناء
+  التثبيت/التحديث؛ يجب إكمال واختبار مسار sigstore قبل جعله إلزامياً.
+- يلزم اختبار SDDM/Plymouth/المثبت على عتاد حقيقي وبمقاييس عرض متعددة.
+- تصنيفات Bazaar المنسقة موجودة، لكن ربطها الكامل بالمتجر ما زال مطلوباً.
 - artifacts الـ ISO تنتهي صلاحيتها خلال 7 أيام — R2 hosting لم يُفعّل بعد.
 
 ## الخطوات التالية (Next Actions)
 
-1. رفع المستودع + إعداد `SIGNING_SECRET` (الخطوتان 1 و2 أعلاه).
-2. أول بناء ناجح في Actions + جعل حزمة GHCR عامة.
-3. rebase أول Hyper-V VM والتحقق من `NAME="MoOS"` — هذا يحقق نصف M0.
-4. تشغيل `build-iso.yml` يدوياً والتحقق من إقلاع الـ ISO في Hyper-V — اكتمال M0.
-5. Phase 3: ملء `system_files/` بأصول Nova الحقيقية (انظر `../MOOS_BUILD_WORKFLOW.md`).
+1. تشغيل CI على الدفعة الحالية والتحقق من صورتي MoOS وMoOS NVIDIA.
+2. اختبار صورة NVIDIA على RTX 2080 SUPER ثم التحقق من Wayland/Vulkan والصوت.
+3. اختبار خدمة Mo AI الاختيارية وتنزيل النموذج وحالات الفشل على الجهاز الحقيقي.
+4. تنفيذ مصفوفة الهوية المرئية والعتاد والأمان في `MOOS_ROADMAP.md`.
