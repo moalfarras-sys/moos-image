@@ -495,7 +495,7 @@ curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
     /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome \
-    /usr/bin/moos-apply-theme
+    /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding
 
 # -----------------------------------------------------------------------------
 # (d) Enable services

@@ -46,9 +46,10 @@
 **مهمتك (على النظام الحي — أنت تقدر تشوف):**
 - افحص "About this System" (kinfocenter) → لازم MoOS + شعار moos-logo.
 - افحص القوائم/الأيقونات/الحوارات بحثاً عن أي "Fedora/KDE/Breeze".
-- **"شعار Fedora عند الإقلاع"** (شكوى المستخدم): حدّد مصدره حياً:
-  - `sudo cat /boot/grub2/grub.cfg | grep -i theme` — هل ثيم GRUB مطبَّق؟ (أضفت `GRUB_THEME` + `GRUB_DISTRIBUTOR=MoOS` في `/etc/default/grub`، لكن bootc قد لا يعيد توليد grub.cfg — قد تحتاج `grub2-mkconfig -o /boot/grub2/grub.cfg` أو مكافئه على bootc).
-  - Plymouth أصلاً moos-nova؛ إن ظهر شعار غريب فتحقق `plymouth-set-default-theme -R moos-nova` وأعد بناء initramfs على الجهاز، أو أنه شعار اللوحة الأم (BGRT firmware — خارج سيطرتنا).
+- **"شعار Fedora عند الإقلاع"** (شكوى المستخدم المتكررة): أثبتُّ أن **الصورة نظيفة** (Plymouth=moos-nova، لا ثيم GRUB فيه Fedora، لا شعار fedora في الصورة). الأثر المتبقي يُنشأ **وقت التثبيت** (إدخال UEFI باسم "Fedora" في الـ NVRAM + مسار shim‏ `EFI/fedora` + grub.cfg المولّد)، فلا يُصلَح من الصورة بل **على النظام الحي**. شحنتُ لهذا سكربتاً جاهزاً:
+  - شخّص (آمن، للقراءة فقط): `sudo moos-fix-boot-branding`
+  - أصلح (يعيد تسمية إدخال UEFI لـ MoOS + يثبّت Plymouth + يطبّق ثيم GRUB، كله محروس): `sudo moos-fix-boot-branding --apply`
+  - **اطلب من المستخدم صورة للشاشة بالضبط** وطابقها مع أقسام السكربت: قسم 2 = اسم إدخال الإقلاع في الـ firmware، قسم 3 = شاشة GRUB، ولا شيء منهما = شعار اللوحة الأم (BGRT — خارج سيطرتنا).
 
 ### أولوية P2 — Mo AI شغّال محلياً بالكامل (v1 حالياً)
 **الحالة الحقيقية:** الواجهة (Kirigami/QML) تفتح + `moai-start` موجود، **لكن يحتاج تحميل موديل يدوياً + RamaLama، وليس auto-start كامل**.

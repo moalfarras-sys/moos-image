@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# fix-boot-branding.sh — RUN ON THE INSTALLED MoOS SYSTEM (real hardware).
+# Pinpoints and fixes the "Fedora logo on reboot". The MoOS IMAGE is already
+# clean (Plymouth=moos-nova, no Fedora GRUB theme) — the residual "Fedora" is
+# created at INSTALL time (UEFI NVRAM entry + shim path EFI/fedora + generated
+# grub.cfg), so it can only be fixed here, not in the image.
+#
+# Usage (after `sudo bootc upgrade` so this file is present):
+#   sudo moos-fix-boot-branding            # diagnose only (safe, read-only)
+#   sudo moos-fix-boot-branding --apply    # apply the safe fixes
+set -uo pipefail
+APPLY="${1:-}"
+
+echo "======================================================================"
+echo " MoOS boot-branding diagnostic  ($([ "$APPLY" = "--apply" ] && echo APPLY || echo DIAGNOSE-ONLY))"
+echo "======================================================================"
+
+echo; echo "### 1) Plymouth (boot splash) — must be moos-nova"
+grep -i '^Theme' /etc/plymouth/plymouthd.conf 2>/dev/null || echo "  (no Theme in plymouthd.conf)"
+echo -n "  active default: "; plymouth-set-default-theme 2>/dev/null || echo "?"
+
+echo; echo "### 2) UEFI firmware boot entries — a 'Fedora' label here shows in the firmware menu"
+efibootmgr 2>/dev/null | grep -iE "fedora|moos" || echo "  (efibootmgr unavailable)"
+
+echo; echo "### 3) GRUB config — any Fedora theme/background/logo?"
+for cfg in /boot/grub2/grub.cfg /boot/efi/EFI/fedora/grub.cfg; do
+    [ -f "$cfg" ] && { echo "  $cfg:"; grep -iE "theme|background|fedora|gfxmenu" "$cfg" 2>/dev/null | head -5 | sed 's/^/    /'; }
+done
+echo "  BLS entry titles:"; grep -h '^title' /boot/loader/entries/*.conf 2>/dev/null | head | sed 's/^/    /'
+
+echo; echo "### 4) os-release (should be MoOS)"
+grep -iE '^(NAME|ID|PRETTY_NAME)=' /etc/os-release | sed 's/^/  /'
+
+if [ "$APPLY" != "--apply" ]; then
+    echo; echo ">>> Diagnose only. Re-run with --apply to fix. Photograph the exact"
+    echo ">>> boot screen showing the Fedora logo and match it to a section above:"
+    echo ">>>   section 2 -> firmware boot-menu label   (fixed below: rename to MoOS)"
+    echo ">>>   section 3 -> GRUB screen                 (fixed below: apply MoOS theme)"
+    echo ">>>   none of the above -> motherboard BGRT logo (firmware, not MoOS's — cannot change)"
+    exit 0
+fi
+
+echo; echo "======================================================================"
+echo " APPLYING SAFE FIXES"
+echo "======================================================================"
+
+# --- Fix A: rename the UEFI 'Fedora' boot entry label to 'MoOS' -------------
+# efibootmgr cannot rename in place; we create a MoOS entry pointing at the SAME
+# loader (\EFI\fedora\shimx64.efi), set it first, then remove the old Fedora
+# one. The loader PATH stays EFI/fedora (shim requirement) — only the visible
+# label changes. Guarded so a missing disk/part never bricks boot.
+fedline="$(efibootmgr 2>/dev/null | grep -iE "Boot[0-9A-F]{4}\*? +Fedora$" | head -1)"
+if [ -n "$fedline" ]; then
+    num="$(echo "$fedline" | sed -E 's/^Boot([0-9A-Fa-f]{4}).*/\1/')"
+    disk="$(lsblk -no PKNAME "$(findmnt -no SOURCE /boot/efi)" 2>/dev/null | head -1)"
+    part="$(findmnt -no SOURCE /boot/efi | grep -oE '[0-9]+$')"
+    if [ -n "$disk" ] && [ -n "$part" ]; then
+        echo "  creating 'MoOS' UEFI entry (loader unchanged: EFI/fedora/shimx64.efi)"
+        efibootmgr -c -d "/dev/$disk" -p "$part" -L "MoOS" -l '\EFI\fedora\shimx64.efi' >/dev/null 2>&1 \
+            && echo "  removing old 'Fedora' entry Boot$num" \
+            && efibootmgr -b "$num" -B >/dev/null 2>&1 \
+            && echo "  UEFI entry renamed to MoOS" \
+            || echo "  WARN: efibootmgr change failed — left as-is (boot still safe)"
+    else
+        echo "  WARN: could not resolve ESP disk/part — skipped UEFI rename"
+    fi
+else
+    echo "  no 'Fedora' UEFI entry found (good, or already renamed)"
+fi
+
+# --- Fix B: make sure Plymouth is moos-nova + regenerate initramfs ----------
+echo "  ensuring Plymouth = moos-nova"
+plymouth-set-default-theme -R moos-nova >/dev/null 2>&1 \
+    && echo "  Plymouth set to moos-nova (initramfs regenerated)" \
+    || echo "  WARN: plymouth-set-default-theme failed"
+
+# --- Fix C: apply the MoOS GRUB theme --------------------------------------
+# /etc/default/grub already has GRUB_THEME + GRUB_DISTRIBUTOR=MoOS (v21). On
+# ostree, regenerate grub.cfg so the theme takes effect. Non-fatal.
+if [ -f /usr/share/moos/grub-theme/theme.txt ]; then
+    echo "  regenerating grub.cfg with the MoOS theme"
+    if command -v grub2-mkconfig >/dev/null 2>&1; then
+        grub2-mkconfig -o /boot/grub2/grub.cfg >/dev/null 2>&1 \
+            && echo "  grub.cfg regenerated" \
+            || echo "  WARN: grub2-mkconfig failed — GRUB theme not applied (boot still safe)"
+    fi
+fi
+
+echo; echo ">>> Done. Reboot and check. If a logo still shows BEFORE the MoOS Nova"
+echo ">>> splash, it is the motherboard firmware (BGRT) — not under MoOS control."
