@@ -570,7 +570,7 @@ chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
     /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome \
     /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding /usr/bin/moos-open \
-    /usr/bin/moai-config /usr/bin/moai-gateway \
+    /usr/bin/moai-config /usr/bin/moai-gateway /usr/bin/moai-control /usr/bin/moai-code \
     /usr/libexec/moos-fstab-sanitize
 
 # Register the moos:// scheme handler so the pure-QML apps' buttons actually
@@ -592,6 +592,11 @@ update-desktop-database /usr/share/applications 2>/dev/null || true
 # uupd runs from a systemd timer; enabling it here bakes the symlink into the
 # image so every deployment gets background updates by default.
 systemctl enable uupd.timer
+
+# Mo AI in-app Settings backend: a tiny per-user control API. --global enables it
+# for every user's session (bakes the default.target.wants symlink under
+# /etc/systemd/user) without needing a running user manager at build time.
+systemctl --global enable moai-control.service
 
 # An installed bootc system uses an OSTree/composefs overlay for /. Anaconda's
 # generated physical-root fstab entry makes systemd-remount-fs attempt an

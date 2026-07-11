@@ -1,0 +1,15 @@
+# Mo AI control API — always-on tiny localhost service that backs the in-app
+# Settings page (read/write brain config, switch local/cloud model services).
+# Enabled by default for every user (build.sh: systemctl --global enable).
+[Unit]
+Description=Mo AI control API (in-app settings backend)
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/moai-control
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

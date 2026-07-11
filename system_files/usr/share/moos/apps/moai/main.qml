@@ -35,6 +35,65 @@ Kirigami.ApplicationWindow {
     // The active streaming request, so the Stop button can abort it.
     property var activeXhr: null
 
+    // ── In-app Settings (backed by the moai-control service on :8079) ───────
+    readonly property string controlApi: "http://127.0.0.1:8079"
+    property bool settingsOpen: false
+    property bool settingsCloud: false
+    property bool settingsSaving: false
+    property string settingsError: ""
+
+    function loadConfig() {
+        settingsError = ""
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", controlApi + "/config")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            if (xhr.status === 200) {
+                try {
+                    const c = JSON.parse(xhr.responseText)
+                    root.settingsCloud = (c.mode === "cloud")
+                    fBase.text = c.cloud_base || ""
+                    fModel.text = c.cloud_model || ""
+                    fKey.text = ""
+                    fKey.placeholderText = c.has_key
+                        ? "•••• محفوظ | saved (اتركه فارغاً للإبقاء)"
+                        : "sk-…  مفتاحك | your API key"
+                } catch (e) {}
+            } else {
+                root.settingsError = "خدمة الإعدادات غير متاحة | settings service unavailable"
+            }
+        }
+        xhr.send()
+    }
+
+    function saveConfig() {
+        const body = {
+            mode: settingsCloud ? "cloud" : "local",
+            cloud_base: fBase.text.trim(),
+            cloud_model: fModel.text.trim()
+        }
+        if (fKey.text.length > 0)
+            body.cloud_key = fKey.text
+        root.settingsError = ""
+        root.settingsSaving = true
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", controlApi + "/config")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            root.settingsSaving = false
+            if (xhr.status === 200)
+                root.settingsOpen = false
+            else
+                root.settingsError = "تعذّر الحفظ | couldn't save"
+        }
+        xhr.send(JSON.stringify(body))
+    }
+
     // System prompt (Mo AI v1 — system-control aware).
     readonly property string systemPrompt:
         "You are Mo AI, the built-in assistant of MoOS (a premium Arabic/English " +
@@ -89,7 +148,8 @@ Kirigami.ApplicationWindow {
         { ar: "إصلاح الصوت",    en: "Fix audio",     url: "moos://do/fix-audio",     accent: "#8B5CF6", icon: "moos-audio" },
         { ar: "فحص التعريفات",  en: "Check drivers", url: "moos://do/check-drivers", accent: "#22D3EE", icon: "moos-gpu" },
         { ar: "تحسين وتنظيف",   en: "Optimize",      url: "moos://do/optimize",      accent: "#2E7BFF", icon: "moos-optimize" },
-        { ar: "تقرير الأجهزة",  en: "HW report",     url: "moos://do/hw-report",     accent: "#8B5CF6", icon: "moos-report" }
+        { ar: "تقرير الأجهزة",  en: "HW report",     url: "moos://do/hw-report",     accent: "#8B5CF6", icon: "moos-report" },
+        { ar: "برمجة (Claude/Codex)", en: "Code",    url: "moos://dev/code",         accent: "#22D3EE", icon: "moos-optimize" }
     ]
 
     // Clickable example prompts shown on a fresh conversation (empty history).
@@ -498,7 +558,7 @@ Kirigami.ApplicationWindow {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: Qt.openUrlExternally("moos://ai/config")
+                            onClicked: { root.loadConfig(); root.settingsOpen = true }
                         }
                     }
 
@@ -977,6 +1037,203 @@ Kirigami.ApplicationWindow {
                     font.family: root.uiFont
                     font.pixelSize: 13
                     wrapMode: Text.WrapAnywhere
+                }
+            }
+        }
+
+        // ── In-app Settings overlay (modern glass card) ─────────────────────
+        Rectangle {
+            id: settingsOverlay
+            anchors.fill: parent
+            z: 300
+            visible: root.settingsOpen
+            color: "#D0060B16"
+
+            // Backdrop click closes; the card's own MouseArea blocks pass-through.
+            MouseArea { anchors.fill: parent; onClicked: root.settingsOpen = false }
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: Math.min(parent.width - 32, 400)
+                height: Math.min(parent.height - 36, setCol.implicitHeight + 40)
+                radius: 18
+                color: root.brandSurface
+                border.width: 1
+                border.color: root.hairline
+                MouseArea { anchors.fill: parent }   // swallow clicks on the card
+
+                ColumnLayout {
+                    id: setCol
+                    anchors.fill: parent
+                    anchors.margins: 20
+                    spacing: 13
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "إعدادات Mo AI | Settings"
+                            color: root.brandText
+                            font.family: root.uiFont
+                            font.pixelSize: 17
+                            font.weight: Font.DemiBold
+                        }
+                        Item { Layout.fillWidth: true }
+                        Rectangle {
+                            Layout.preferredWidth: 28
+                            Layout.preferredHeight: 28
+                            radius: 8
+                            color: closeMouse.containsMouse ? "#26334F" : "transparent"
+                            Text { anchors.centerIn: parent; text: "✕"; color: root.brandSecondary; font.pixelSize: 14 }
+                            MouseArea {
+                                id: closeMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.settingsOpen = false
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "العقل | Brain"
+                        color: root.brandSecondary
+                        font.family: root.uiFont
+                        font.pixelSize: 12
+                    }
+
+                    // Segmented Local / Cloud toggle
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 44
+                        radius: 12
+                        color: "#0E1830"
+                        border.width: 1
+                        border.color: root.hairline
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 4
+                            spacing: 4
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                radius: 9
+                                color: !root.settingsCloud ? root.brandBlue : "transparent"
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "محلي | Local"
+                                    color: !root.settingsCloud ? "white" : root.brandSecondary
+                                    font.family: root.uiFont
+                                    font.pixelSize: 13
+                                    font.weight: Font.DemiBold
+                                }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.settingsCloud = false }
+                            }
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                radius: 9
+                                color: root.settingsCloud ? root.brandViolet : "transparent"
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "سحابي | Cloud"
+                                    color: root.settingsCloud ? "white" : root.brandSecondary
+                                    font.family: root.uiFont
+                                    font.pixelSize: 13
+                                    font.weight: Font.DemiBold
+                                }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.settingsCloud = true }
+                            }
+                        }
+                    }
+
+                    // Cloud provider fields
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        visible: root.settingsCloud
+                        spacing: 7
+
+                        Text { text: "المزوّد | Provider (OpenAI-compatible base URL)"; color: root.brandSecondary; font.family: root.uiFont; font.pixelSize: 11 }
+                        QQC2.TextField {
+                            id: fBase
+                            Layout.fillWidth: true
+                            placeholderText: "https://openrouter.ai/api/v1"
+                            placeholderTextColor: root.brandSecondary
+                            color: root.brandText
+                            font.family: root.uiFont
+                            background: Rectangle { color: root.brandRaised; radius: 8; border.width: 1; border.color: fBase.activeFocus ? root.brandBlue : root.hairline }
+                        }
+                        Text { text: "النموذج | Model"; color: root.brandSecondary; font.family: root.uiFont; font.pixelSize: 11 }
+                        QQC2.TextField {
+                            id: fModel
+                            Layout.fillWidth: true
+                            placeholderText: "anthropic/claude-sonnet-5"
+                            placeholderTextColor: root.brandSecondary
+                            color: root.brandText
+                            font.family: root.uiFont
+                            background: Rectangle { color: root.brandRaised; radius: 8; border.width: 1; border.color: fModel.activeFocus ? root.brandBlue : root.hairline }
+                        }
+                        Text { text: "مفتاح API | API key (يُحفظ محلياً | stored locally)"; color: root.brandSecondary; font.family: root.uiFont; font.pixelSize: 11 }
+                        QQC2.TextField {
+                            id: fKey
+                            Layout.fillWidth: true
+                            echoMode: TextInput.Password
+                            placeholderText: "sk-…"
+                            placeholderTextColor: root.brandSecondary
+                            color: root.brandText
+                            font.family: root.uiFont
+                            background: Rectangle { color: root.brandRaised; radius: 8; border.width: 1; border.color: fKey.activeFocus ? root.brandBlue : root.hairline }
+                        }
+                    }
+
+                    // Local note
+                    Text {
+                        Layout.fillWidth: true
+                        visible: !root.settingsCloud
+                        text: "العقل المحلي خاص بالكامل (RamaLama) — لا إنترنت بعد التحميل الأول.\nThe local brain is fully private — no Internet after the first download."
+                        color: root.brandSecondary
+                        font.family: root.uiFont
+                        font.pixelSize: 11
+                        wrapMode: Text.Wrap
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        visible: root.settingsError !== ""
+                        text: root.settingsError
+                        color: "#FF6B8B"
+                        font.family: root.uiFont
+                        font.pixelSize: 11
+                        wrapMode: Text.Wrap
+                    }
+
+                    // Save
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 44
+                        radius: 12
+                        opacity: root.settingsSaving ? 0.6 : 1
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: root.brandBlue }
+                            GradientStop { position: 1.0; color: root.brandViolet }
+                        }
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.settingsSaving ? "جارٍ الحفظ… | Saving…" : "حفظ | Save"
+                            color: "white"
+                            font.family: root.uiFont
+                            font.pixelSize: 14
+                            font.weight: Font.DemiBold
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            enabled: !root.settingsSaving
+                            onClicked: root.saveConfig()
+                        }
+                    }
                 }
             }
         }

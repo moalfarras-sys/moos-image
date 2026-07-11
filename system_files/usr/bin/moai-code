@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# moai-code — open an AI coding agent (Claude Code / Codex) from Mo AI.
+#
+# Mo AI's "Code" action launches this so the user can program apps — or MoOS
+# itself — with an agentic coder in a real terminal. Picks whichever agent is
+# installed; if both, asks. Opens in the given folder (default: ~/Projects, else
+# $HOME). Nothing privileged; the agent runs as the user.
+set -uo pipefail
+
+workdir="${1:-}"
+if [ -z "$workdir" ]; then
+    [ -d "$HOME/Projects" ] && workdir="$HOME/Projects" || workdir="$HOME"
+fi
+cd "$workdir" 2>/dev/null || cd "$HOME"
+
+have() { command -v "$1" >/dev/null 2>&1; }
+notify() { command -v kdialog >/dev/null 2>&1 && kdialog --title "Mo AI — Code" --msgbox "$1" >/dev/null 2>&1 || echo "$1"; }
+
+claude_ok=false; codex_ok=false
+have claude && claude_ok=true
+have codex && codex_ok=true
+
+agent=""
+if $claude_ok && $codex_ok; then
+    agent=$(kdialog --title "Mo AI — Code" --menu "اختر مساعد البرمجة | Choose a coding agent:" \
+        claude "Claude Code" codex "Codex" 2>/dev/null) || exit 0
+elif $claude_ok; then
+    agent=claude
+elif $codex_ok; then
+    agent=codex
+else
+    notify $'لا يوجد مساعد برمجة مثبّت.\nNo coding agent installed.\n\nثبّت أحدهما | install one:\n  npm i -g @anthropic-ai/claude-code\n  npm i -g @openai/codex'
+    exit 1
+fi
+
+echo "Mo AI — starting ${agent} in ${workdir}"
+exec "$agent"
