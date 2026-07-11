@@ -11,7 +11,7 @@
 #   kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
 #     --group org.kde.image --group General --key Image <value>
 #
-# Image points at the NovaHorizon wallpaper *package* directory: the
+# Image points at the NovaHorizonII wallpaper *package* directory: the
 # org.kde.image plugin normalizes schemeless absolute paths via
 # QUrl::fromUserInput, detects the directory as a kpackage, and automatically
 # prefers contents/images_dark/ under dark color schemes (NovaDark).
@@ -20,4 +20,4 @@
 WallpaperPlugin=org.kde.image
 
 [Greeter][Wallpaper][org.kde.image][General]
-Image=/usr/share/wallpapers/NovaHorizon
+Image=/usr/share/wallpapers/NovaHorizonII

@@ -17,7 +17,7 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=3
+THEME_REV=4
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 marker="${state_dir}/moos-nova-theme-applied.v${THEME_REV}"
 [ -e "$marker" ] && exit 0
@@ -65,8 +65,8 @@ fi
 # the L&F apply skips them (Plasma has historically been inconsistent here).
 if command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
     for wp in \
-        /usr/share/wallpapers/NovaHorizon/contents/images_dark/3840x2160.png \
-        /usr/share/wallpapers/NovaHorizon/contents/images/3840x2160.png; do
+        /usr/share/wallpapers/NovaHorizonII/contents/images_dark/3840x2160.png \
+        /usr/share/wallpapers/NovaHorizonII/contents/images/3840x2160.png; do
         [ -f "$wp" ] && { plasma-apply-wallpaperimage "$wp" >>"$log" 2>&1 && applied=1; break; }
     done
 fi

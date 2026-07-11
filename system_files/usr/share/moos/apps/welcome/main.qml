@@ -45,7 +45,7 @@ ApplicationWindow {
         }
     }
     Image {
-        source: "file:///usr/share/wallpapers/NovaHorizon/contents/images_dark/3840x2160.png"
+        source: "file:///usr/share/wallpapers/NovaHorizonII/contents/images_dark/3840x2160.png"
         anchors.fill: parent
         fillMode: Image.PreserveAspectCrop
         opacity: 0.28

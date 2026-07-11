@@ -17,7 +17,7 @@ FallbackTheme=breeze-dark
 # wallpaper shipped under /usr/share/wallpapers/NovaHorizon). This is only a
 # hint; the operative wallpaper is set by the org.moos.nova Look-and-Feel.
 [Wallpaper]
-defaultWallpaperTheme=NovaHorizon
+defaultWallpaperTheme=NovaHorizonII
 defaultFileSuffix=.png
 defaultWidth=1920
 defaultHeight=1080

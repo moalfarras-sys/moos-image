@@ -16,7 +16,7 @@ ColorScheme=NovaDark
 name=Nova
 
 [Wallpaper]
-Image=NovaHorizon
+Image=NovaHorizonII
 
 [ksplashrc][KSplash]
 Theme=org.moos.nova
@@ -54,7 +54,7 @@ NoiseStrength=2
 # Lock screen wallpaper: when applying an L&F package, LookAndFeelManager only
 # writes kscreenlockerrc [Greeter] Theme= — nested groups like
 # [kscreenlockerrc][Greeter][Wallpaper][org.kde.image][General] in a defaults
-# file are NOT applied. The NovaHorizon lock screen wallpaper therefore ships
+# file are NOT applied. The NovaHorizonII lock screen wallpaper therefore ships
 # as /etc/xdg/kscreenlockerrc instead (same KConfig cascade as kwinrc above).
 
 # NovaIce cursor theme — built at image build time from Bibata-Modern-Ice

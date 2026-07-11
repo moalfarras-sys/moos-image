@@ -1,0 +1,10 @@
+{
+    "KPlugin": {
+        "Id": "NovaHorizonII",
+        "Name": "Nova Horizon II — أفق نوفا ٢",
+        "Description": "MoOS Nova's original layered horizon for desktop, login, and lock screens",
+        "Authors": [{ "Name": "MoOS Project" }],
+        "Version": "2.0.0",
+        "License": "CC0-1.0"
+    }
+}
