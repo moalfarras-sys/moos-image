@@ -51,6 +51,8 @@ jobs:
       - name: Build qcow2 with bootc-image-builder
         run: |
           mkdir -p output
+          # --rootfs xfs: the kinoite-main base does not declare a DefaultRootFs,
+          # so bootc-image-builder needs it explicitly (Silverblue/Kinoite use xfs).
           sudo podman run --rm --privileged \
             --security-opt label=type:unconfined_t \
             -v "$PWD/bib/config.toml:/config.toml:ro" \
@@ -58,6 +60,7 @@ jobs:
             -v /var/lib/containers/storage:/var/lib/containers/storage \
             quay.io/centos-bootc/bootc-image-builder:latest \
             --type qcow2 \
+            --rootfs xfs \
             --config /config.toml \
             --local \
             "${{ steps.ref.outputs.image_ref }}"
