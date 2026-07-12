@@ -13,3 +13,10 @@ Terminal=false
 Categories=System;
 Keywords=hardware;cpu;memory;ram;gpu;graphics;disk;network;pci;lspci;report;nvidia;
 Keywords[ar]=عتاد;أجهزة;معالج;ذاكرة;كرت;شاشة;قرص;شبكة;تقرير;
+
+# Merged into Mo AI. The Hardware Centre and the Compatibility Hub were separate windows onto
+# the same device JSON that Mo AI already reads — and only Mo AI can explain a problem and
+# offer the repair. Mo AI is the single door now: its "جهازي | My device" view shows the
+# problems and their fixes, and opens this detailed report from there (moos://app/hardware,
+# moos://app/compat). The app is NOT removed — only taken out of the menu.
+NoDisplay=true

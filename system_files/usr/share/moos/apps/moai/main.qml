@@ -164,6 +164,7 @@ Kirigami.ApplicationWindow {
     // icon: MoOS action symbols shipped at hicolor/scalable/actions, resolved
     // by NAME through the icon theme (contract §4 — no absolute paths).
     readonly property var quickActions: [
+        { ar: "جهازي",          en: "My device",     url: "", action: "device",      accent: "#FFB45C", icon: "moos-gpu" },
         { ar: "افحص نظامي",     en: "Scan",          url: "", action: "scan",        accent: "#22D3EE", icon: "moos-report" },
         { ar: "تحديث النظام",   en: "Update",        url: "moos://do/update",        accent: "#2E7BFF", icon: "moos-safe-update" },
         { ar: "تثبيت تطبيقات",  en: "Install apps",  url: "moos://app/setup",        accent: "#22D3EE", icon: "moos-install" },
@@ -259,6 +260,10 @@ Kirigami.ApplicationWindow {
         // Learn the machine before the user's first message, so the very first answer is
         // grounded in their actual hardware instead of a generic one.
         root.refreshMachineContext()
+        // `moai --device` (what moos-hardware and moos-compat now run) opens straight onto
+        // the device view.
+        if (Qt.application.arguments.indexOf("--device") !== -1)
+            root.openDevicePage()
     }
 
     // Hardware changes (a firmware update lands, the NVIDIA edition gets deployed, a device
@@ -381,6 +386,51 @@ Kirigami.ApplicationWindow {
         xhr.send()
     }
 
+    // ── The device view ─────────────────────────────────────────────────────────
+    //
+    // This is the Hardware Centre and the Compatibility Hub, folded into Mo AI. They were two
+    // separate windows onto the same JSON that Mo AI already reads, sitting next to the one
+    // app that can actually explain what is wrong and fix it — so they are views here now,
+    // and /usr/bin/moos-hardware and /usr/bin/moos-compat open Mo AI on this page.
+    //
+    // Every repair below is an ID from the fixed moai-do allowlist, launched through the
+    // moos:// handler exactly like the quick actions: visible terminal, confirmation, Polkit.
+    // Nothing here can run a command the assistant made up.
+    property var devicePlan: ({})
+    property bool devicePageOpen: false
+
+    function openDevicePage() {
+        root.refreshMachineContext()   // the page and the model read the same source
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", controlApi + "/scan")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            try {
+                const s = JSON.parse(xhr.responseText)
+                s.device_plan = s.device_plan || {}
+                s.device_plan._os = s.os
+                s.device_plan._kernel = s.kernel
+                s.device_plan._cpu = s.cpu
+                s.device_plan._mem = s.mem_gb
+                root.devicePlan = s.device_plan
+            } catch (e) {
+                root.devicePlan = {}
+            }
+            root.devicePageOpen = true
+        }
+        xhr.send()
+    }
+
+    /** Ask Mo AI about a specific problem, with the problem already stated. */
+    function askAbout(title, detail) {
+        root.devicePageOpen = false
+        input.text = "اشرح لي هذه المشكلة وكيف أصلحها: " + title + " — " + detail
+                   + "\nExplain this problem and how to fix it."
+        input.forceActiveFocus()
+    }
+
     // Read-only system scan via moai-control; show it in chat and give the model
     // the context so follow-up "how do I improve this?" answers are grounded.
     function doScan() {
@@ -419,6 +469,10 @@ Kirigami.ApplicationWindow {
     function runAction(a) {
         if (a.action === "scan") {
             doScan()
+            return
+        }
+        if (a.action === "device") {
+            root.openDevicePage()
             return
         }
         Qt.openUrlExternally(a.url)
@@ -1298,6 +1352,185 @@ Kirigami.ApplicationWindow {
                     font.family: root.uiFont
                     font.pixelSize: 13
                     wrapMode: Text.WrapAnywhere
+                }
+            }
+        }
+
+        // ── Device overlay — the Hardware Centre and Compatibility Hub, merged in ──
+        //
+        // Same JSON Mo AI reads for its own context, so the page and the assistant can never
+        // disagree about the machine. Each repair is a fixed moai-do action id launched
+        // through moos:// (visible terminal, confirmation, Polkit) — the model cannot invent
+        // one. "اسأل Mo AI" hands the problem to the chat with the problem already stated.
+        Rectangle {
+            id: deviceOverlay
+            anchors.fill: parent
+            z: 310
+            visible: root.devicePageOpen
+            color: "#D0060B16"
+
+            MouseArea { anchors.fill: parent; onClicked: root.devicePageOpen = false }
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: Math.min(parent.width - 32, 560)
+                height: Math.min(parent.height - 36, devCol.implicitHeight + 44)
+                radius: 18
+                color: root.brandSurface
+                border.width: 1
+                border.color: root.hairline
+                MouseArea { anchors.fill: parent }
+
+                readonly property var plan: root.devicePlan
+                readonly property var acts: (root.devicePlan.actions || [])
+                readonly property bool healthy: (root.devicePlan.health || "ready") === "ready"
+
+                ColumnLayout {
+                    id: devCol
+                    anchors.fill: parent
+                    anchors.margins: 22
+                    spacing: 12
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        Rectangle {
+                            width: 10; height: 10; radius: 5
+                            color: parent.parent.parent.healthy ? "#3DDC97" : "#FFB45C"
+                        }
+                        QQC2.Label {
+                            text: "جهازي  |  My device"
+                            color: root.textHi
+                            font.pixelSize: 18
+                            font.bold: true
+                            Layout.fillWidth: true
+                        }
+                        QQC2.Button {
+                            text: "✕"
+                            flat: true
+                            onClicked: root.devicePageOpen = false
+                        }
+                    }
+
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: root.textLo
+                        font.pixelSize: 12
+                        text: {
+                            const p = root.devicePlan
+                            let l = (p._os || "MoOS") + " · kernel " + (p._kernel || "?")
+                                  + " · " + (p._mem || "?") + " GB RAM"
+                            if (p.driver_status) l += "\n" + p.driver_status
+                            return l
+                        }
+                    }
+
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        visible: parent.parent.healthy && (root.devicePlan.actions || []).length === 0
+                        color: "#3DDC97"
+                        font.pixelSize: 13
+                        text: "لا توجد مشاكل في الأجهزة أو التعريفات.\nNo hardware or driver problems found."
+                    }
+
+                    // Every problem the detector actually found, each with its real repair.
+                    Repeater {
+                        model: root.devicePlan.actions || []
+                        delegate: Rectangle {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            radius: 12
+                            color: root.brandRaised
+                            border.width: 1
+                            border.color: root.hairline
+                            implicitHeight: itemCol.implicitHeight + 22
+
+                            ColumnLayout {
+                                id: itemCol
+                                anchors.fill: parent
+                                anchors.margins: 11
+                                spacing: 5
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    Rectangle {
+                                        width: 7; height: 7; radius: 4
+                                        color: modelData.severity === "important" ? "#FF6B7A" : "#FFB45C"
+                                    }
+                                    QQC2.Label {
+                                        text: modelData.title
+                                        color: root.textHi
+                                        font.pixelSize: 13
+                                        font.bold: true
+                                        Layout.fillWidth: true
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                                QQC2.Label {
+                                    Layout.fillWidth: true
+                                    text: modelData.detail
+                                    color: root.textLo
+                                    font.pixelSize: 11
+                                    wrapMode: Text.WordWrap
+                                }
+                                RowLayout {
+                                    spacing: 8
+                                    QQC2.Button {
+                                        visible: String(modelData.url || "").length > 0
+                                        text: "أصلحها الآن  |  Fix it"
+                                        onClicked: {
+                                            root.devicePageOpen = false
+                                            Qt.openUrlExternally(modelData.url)
+                                            toast.show(modelData.title)
+                                        }
+                                    }
+                                    QQC2.Button {
+                                        flat: true
+                                        text: "اسأل Mo AI  |  Ask"
+                                        onClicked: root.askAbout(modelData.title, modelData.detail)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    QQC2.Button {
+                        Layout.fillWidth: true
+                        text: "تحديث البرامج الثابتة  |  Update firmware"
+                        onClicked: {
+                            root.devicePageOpen = false
+                            Qt.openUrlExternally("moos://do/update-firmware")
+                        }
+                    }
+
+                    // The detailed report and the compatibility tools are still there — they
+                    // are just reached from here now, instead of being separate apps in the
+                    // menu competing with the one that can actually fix things.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        QQC2.Button {
+                            Layout.fillWidth: true
+                            flat: true
+                            text: "التقرير الكامل  |  Full report"
+                            onClicked: {
+                                root.devicePageOpen = false
+                                Qt.openUrlExternally("moos://app/hardware")
+                            }
+                        }
+                        QQC2.Button {
+                            Layout.fillWidth: true
+                            flat: true
+                            text: "التوافق  |  Compatibility"
+                            onClicked: {
+                                root.devicePageOpen = false
+                                Qt.openUrlExternally("moos://app/compat")
+                            }
+                        }
+                    }
                 }
             }
         }

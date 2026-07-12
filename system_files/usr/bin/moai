@@ -42,7 +42,10 @@ for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
             echo "=== moai launch $(date -u '+%Y-%m-%dT%H:%M:%SZ') via $runner ==="
         } >>"$LOG" 2>/dev/null || true
         # tee stderr to the log while still showing it in the journal.
-        exec "$runner" "$MAIN_QML" 2> >(tee -a "$LOG" >&2)
+        # Forward argv after `--` so `moai --device` can open straight onto the device
+        # page. That is how moos-hardware / moos-compat now land inside Mo AI instead of
+        # being separate windows onto the same data.
+        exec "$runner" "$MAIN_QML" -- "$@" 2> >(tee -a "$LOG" >&2)
     fi
 done
 
