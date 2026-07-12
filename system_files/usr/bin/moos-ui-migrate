@@ -9,6 +9,37 @@ cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
 log_dir="$state_dir/migrations"
 marker="$state_dir/ui-theme-${MOOS_THEME_REV}-moai-${MOAI_UI_REV}.done"
 mkdir -p "$log_dir" 2>/dev/null || exit 0
+
+# --- GStreamer registry: keyed on the DEPLOYMENT, not on the revisions above ----------------
+#
+# GStreamer decides whether to rescan a plugin by looking at its mtime — and OSTree pins every
+# mtime under /usr to the epoch, where they stay. So the registry is never invalidated by a
+# bootc upgrade: not when the plugins change, and far worse, not when the DRIVER does.
+#
+# Switching from moos to moos-nvidia therefore leaves the user carrying a registry that was
+# built on a machine with no NVIDIA driver, and what that registry cached is the answer
+# "nvcodec provides zero elements". Measured on this hardware right after exactly that switch:
+# libnvidia-encode.so present, libgstnvcodec.so present, driver loaded, nvidia-smi happy — and
+# gst-inspect-1.0 had never heard of nvh264enc. Deleting the registry made nvh264enc, nvh265enc
+# and nvautogpuh264enc appear immediately. Mo PC Remote's hardware encode path is gated on this,
+# and the roadmap's assumption that the encoder "registers as soon as the driver loads" is only
+# true on a machine that has never cached the answer no.
+#
+# Keyed on the booted deployment because that is what actually invalidates it; a hand-bumped
+# constant would have to be remembered on every image change, and would not be. The deployment
+# checksum is already on the kernel command line, so this costs one read and needs no root.
+#
+# Runs BEFORE the revision gate below on purpose: that gate is an apply-once marker, and an
+# apply-once marker cannot notice that the machine has since booted a different image.
+deployment="$(tr ' ' '\n' < /proc/cmdline 2>/dev/null | sed -n 's|^ostree=||p' | awk -F/ 'NF>1{print $(NF-1)}')"
+if [ -n "${deployment:-}" ] && [ ! -e "$state_dir/gst-registry-${deployment}.done" ]; then
+    rm -rf "$cache_dir/gstreamer-1.0"
+    rm -f "$state_dir"/gst-registry-*.done
+    touch "$state_dir/gst-registry-${deployment}.done"
+    echo "$(date -u '+%FT%TZ') dropped the GStreamer registry for deployment ${deployment}" \
+        >>"$log_dir/gst-registry.log" 2>/dev/null || true
+fi
+
 [ -e "$marker" ] && exit 0
 log="$log_dir/ui-theme-${MOOS_THEME_REV}-moai-${MOAI_UI_REV}.log"
 exec >>"$log" 2>&1

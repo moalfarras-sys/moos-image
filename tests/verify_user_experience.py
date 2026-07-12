@@ -142,6 +142,23 @@ require("MOOS_THEME_REV=7" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
         "UI cache and Mo AI migrations must be explicitly revisioned")
 require('rm -rf "$HOME/.cache"' not in ui_migrate,
         "UI migration must never erase the whole user cache")
+
+# GStreamer keys its registry on plugin mtimes, and OSTree pins every mtime under /usr to the
+# epoch — so the registry never invalidates itself across a bootc upgrade, including one that
+# changes the DRIVER. A moos -> moos-nvidia switch leaves the user with a registry that cached
+# "nvcodec provides zero elements", and the hardware H.264 encoder Mo PC Remote needs does not
+# exist as far as GStreamer is concerned. Measured on real hardware: dropping it made
+# nvh264enc / nvh265enc / nvautogpuh264enc appear at once, at 4.3 Mbit/s against JPEG's 79.
+#
+# It must be keyed on the booted deployment, not on the revision constants — those are bumped
+# by hand, and nobody bumps one because an image changed — and it must run BEFORE the
+# apply-once marker gate, which by construction cannot notice a different image.
+require("gstreamer-1.0" in ui_migrate and "gst-registry-" in ui_migrate,
+        "the GStreamer registry must be dropped after an image change, or a moos-nvidia "
+        "upgrade keeps caching the answer that the NVENC encoder does not exist")
+require(ui_migrate.index("gst-registry-") < ui_migrate.index('[ -e "$marker" ] && exit 0'),
+        "the GStreamer registry drop must run BEFORE the once-per-revision marker gate; "
+        "an apply-once marker cannot notice that the machine booted a different image")
 require("secret-tool" not in ui_migrate,
         "UI migration must never inspect or mutate Mo AI credentials")
 
