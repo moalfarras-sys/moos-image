@@ -519,9 +519,10 @@ curl -fsSL --retry 3 https://pkgs.tailscale.com/stable/fedora/tailscale.repo \
     -o /etc/yum.repos.d/tailscale.repo
 dnf5 -y install tailscale ydotool wl-clipboard spectacle python3-gobject
 systemctl enable tailscaled.service
-systemctl --global enable ydotoold-moremote.service mo-remote-personal.service
+systemctl --global disable mo-remote-personal.service || true
 chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
-    /usr/lib/mo-remote/mo-remote-input-portal.py
+    /usr/lib/mo-remote/mo-remote-input-portal.py \
+    /usr/bin/mo-pc-remote
 
 # Compile-and-launch smoke test for every shipped pure-QML application. Syntax
 # checks alone do not catch invalid properties (for example Text.font.families,
@@ -587,7 +588,7 @@ curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
 # launches the Hardware Center v0 viewer (/usr/share/moos/apps/hardware) via the
 # same qml-qt6 runner.
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
-    /usr/bin/moos-hardware /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
+    /usr/bin/moos-hardware /usr/bin/moos-device-plan /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
     /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome \
     /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding /usr/bin/moos-open \
     /usr/bin/moai-config /usr/bin/moai-gateway /usr/bin/moai-control /usr/bin/moai-code \

@@ -27,10 +27,19 @@ desktop_dir = Path("/usr/share/applications")
 remote_launchers = []
 for path in desktop_dir.glob("*.desktop"):
     value = path.read_text(encoding="utf-8", errors="replace")
-    if re.search(r"^Name=Mo Remote(?: Personal)?$", value, re.MULTILINE):
+    if re.search(r"^Name=Mo (?:PC )?Remote(?: Personal)?$", value, re.MULTILINE):
         remote_launchers.append(path.name)
 require(remote_launchers == ["org.moos.remote.desktop"],
         f"expected one Mo Remote launcher, found {remote_launchers}")
+native = text("/usr/bin/mo-pc-remote")
+require('UNIT = "mo-remote-personal.service"' in native,
+        "Mo PC Remote does not manage its MoPC backend")
+plan = text("/usr/bin/moos-device-plan")
+require('"missing_recommended_apps"' in plan and '"nvidia-image"' in plan,
+        "hardware-aware first-boot plan is missing")
+router = text("/usr/bin/moos-open")
+require("do/smart-setup" in router and "do/install-nvidia" in router,
+        "smart setup routes are missing")
 
 selectors = {
     "SDDM": text("/etc/sddm.conf.d/moos.conf"),

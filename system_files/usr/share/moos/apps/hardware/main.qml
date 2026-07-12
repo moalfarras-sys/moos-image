@@ -59,6 +59,7 @@ Kirigami.ApplicationWindow {
     readonly property bool gpuIsNvidia:
         root.hw.gpu !== undefined
         && String(root.hw.gpu).toUpperCase().indexOf("NVIDIA") !== -1
+    readonly property bool needsAction: root.hw.health === "action-needed"
 
     // -------------------------------------------------------------------------
     // Read the collector output. file:// XHR on a local path usually reports
@@ -343,7 +344,9 @@ Kirigami.ApplicationWindow {
                     }
 
                     Text {
-                        text: "نظرة عامة على عتادك — قراءة فقط، بلا أوامر | A read-only overview of your hardware"
+                        text: root.needsAction
+                            ? "اكتمل الفحص — يوجد إجراء موصى به | Scan complete — action recommended"
+                            : "اكتمل الفحص — الجهاز جاهز | Scan complete — this device is ready"
                         color: root.novaMuted
                         font.family: root.uiFont
                         font.pixelSize: 12
@@ -434,6 +437,28 @@ Kirigami.ApplicationWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12
+
+                QQC2.Button {
+                    id: smartBtn
+                    visible: root.needsAction
+                    text: "إصلاح التعريف | Apply driver fix"
+                    leftPadding: 16
+                    rightPadding: 16
+                    topPadding: 9
+                    bottomPadding: 9
+                    contentItem: Text {
+                        text: smartBtn.text
+                        color: "white"
+                        font.family: root.uiFont
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                    background: Rectangle {
+                        radius: 8
+                        color: smartBtn.hovered ? Qt.lighter(root.novaAmber, 1.1) : root.novaAmber
+                    }
+                    onClicked: Qt.openUrlExternally("moos://do/install-nvidia")
+                }
 
                 QQC2.Button {
                     id: reportBtn

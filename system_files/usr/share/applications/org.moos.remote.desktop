@@ -1,10 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=Mo Remote
-Name[ar]=تحكم Mo عن بعد
+Name=Mo PC Remote
+Name[ar]=تحكم Mo PC عن بعد
 Comment=Control MoOS securely from your phone
 Comment[ar]=تحكم بنظام MoOS بأمان من هاتفك
-Exec=/usr/bin/moos-open moos://app/remote
+Exec=/usr/bin/mo-pc-remote
 Icon=mo-remote-personal
 Terminal=false
 Categories=Network;RemoteAccess;
+StartupNotify=true

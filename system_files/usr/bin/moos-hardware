@@ -156,6 +156,13 @@ data = {
     "os": os_pretty(),
 }
 
+try:
+    plan_raw = run(["/usr/bin/moos-device-plan", "--compact"])
+    if plan_raw:
+        data.update(json.loads(plan_raw))
+except (ValueError, TypeError):
+    pass
+
 # Every value is a plain string by construction; belt-and-braces coerce anyway.
 for k in list(data):
     if not isinstance(data[k], str) or not data[k]:

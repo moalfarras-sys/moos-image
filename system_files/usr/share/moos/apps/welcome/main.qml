@@ -208,7 +208,7 @@ ApplicationWindow {
                 MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: parent.onTap() }
                 Behavior on color { ColorAnimation { duration: 120 } }
             }
-            NavButton { label: "ثبّت الأساسيات | Install essentials"; iconName: "moos-install"; accent: win.blue;   onTap: function(){ win.openApp("moos://app/setup",  "التطبيقات | apps") } }
+            NavButton { label: "ثبّت الأساسيات | Install essentials"; iconName: "moos-install"; accent: win.blue;   onTap: function(){ win.openApp("moos://do/smart-setup",  "التطبيقات | apps") } }
             NavButton { label: "افتح Mo AI | Open Mo AI";            iconName: "moos-ai"; accent: win.violet; onTap: function(){ win.openApp("moos://app/moai",   "Mo AI") } }
             NavButton { label: "مركز التوافق | Compatibility";       iconName: "moos-gaming"; accent: win.raised; onTap: function(){ win.openApp("moos://app/compat", "التوافق | compat") } }
         }

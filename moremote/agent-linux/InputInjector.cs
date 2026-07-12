@@ -130,7 +130,7 @@ public sealed class InputInjector : IDisposable
     public void KeyDown(string k){if(Keys.TryGetValue(k,out var c))Set(c,true);}
     public void KeyUp(string k){if(Keys.TryGetValue(k,out var c))Set(c,false);}
     public void Combo(IReadOnlyList<string> keys){var codes=keys.Select(k=>Keys.TryGetValue(k,out var c)?c:(ushort)0).Where(c=>c>0).ToArray();foreach(var c in codes)Set(c,true);foreach(var c in codes.Reverse())Set(c,false);}
-    public void TypeText(string text){if(string.IsNullOrEmpty(text))return;if(_portalReady){foreach(var rune in text.EnumerateRunes()){int sym=rune.Value<128?rune.Value:0x01000000|rune.Value;Portal(new{type="keysym",keysym=sym,down=true});Portal(new{type="keysym",keysym=sym,down=false});}return;}ClipboardBridge.SetText(text);Combo(["Control","V"]);}
+    public void TypeText(string text){if(string.IsNullOrEmpty(text))return;ClipboardBridge.SetText(text);Combo(["Control","V"]);}
     public void ReleaseAll(){ushort[] pressed;lock(_gate)pressed=_pressed.ToArray();foreach(var code in pressed)Set(code,false);}
     public void Dispose(){ReleaseAll();lock(_gate){try{_portalInput?.Close();}catch{}try{if(_portal is{HasExited:false})_portal.Kill(true);}catch{} _socket?.Dispose();_socket=null;}}
 }

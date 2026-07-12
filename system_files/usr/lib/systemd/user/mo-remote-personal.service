@@ -7,13 +7,14 @@ PartOf=plasma-workspace.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/systemd-inhibit --what=sleep:idle --who=MoRemotePersonal --why=Remote-access-availability --mode=block /usr/lib/mo-remote/MoRemotePersonal
+ExecStart=/bin/sh -c 'export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-$(basename "$(find "%t" -maxdepth 1 -type s -name "wayland-*" -print -quit)")}"; exec /usr/bin/systemd-inhibit --what=sleep:idle --who=MoRemotePersonal --why=Remote-access-availability --mode=block /usr/lib/mo-remote/MoRemotePersonal'
 Restart=on-failure
 RestartSec=3
 Environment=DOTNET_EnableDiagnostics=0
 Environment=YDOTOOL_SOCKET=%t/.ydotool_socket
 Environment=XDG_RUNTIME_DIR=%t
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+Environment=QT_QPA_PLATFORM=wayland
 
 [Install]
 WantedBy=plasma-workspace.target

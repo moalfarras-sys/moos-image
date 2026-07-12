@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # moos-setup — MoOS first-run power setup (user-consent, never automatic)
-# Installs the curated Flathub app set. Run from Konsole: moos-setup
+# Installs a hardware-aware curated Flatpak set. Run: moos-setup [--smart]
 # Docs: MOOS_APP_CENTER_PLAN.md / MOOS_COMPATIBILITY_PLAN.md
 set -euo pipefail
 
@@ -20,8 +20,25 @@ if ! flatpak remotes | grep -q flathub; then
     sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 fi
 
-if [ -n "${DISPLAY:-}" ]; then
-    CHOICES=$(kdialog --title "إعداد تطبيقات القوة | Power apps setup" \
+MODE="${1:---interactive}"
+SMART=()
+if [ -x /usr/bin/moos-device-plan ]; then
+    mapfile -t SMART < <(python3 -c 'import json,subprocess; d=json.loads(subprocess.check_output(["/usr/bin/moos-device-plan","--compact"])); print("\n".join(d["missing_recommended_apps"]))' 2>/dev/null || true)
+fi
+
+if [ "$MODE" = "--gaming" ]; then
+    SELECTED=("com.valvesoftware.Steam" "com.usebottles.bottles" "net.lutris.Lutris" "net.davidotek.pupgui2")
+    MISSING=()
+    for app in "${SELECTED[@]}"; do
+        flatpak info "$app" >/dev/null 2>&1 || MISSING+=("$app")
+    done
+    SELECTED=("${MISSING[@]}")
+    echo "Gaming compatibility selected ${#SELECTED[@]} missing app(s)."
+elif [ "$MODE" = "--smart" ]; then
+    SELECTED=("${SMART[@]}")
+    echo "Hardware-aware plan selected ${#SELECTED[@]} missing essential app(s)."
+elif [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+    if ! CHOICES=$(kdialog --title "إعداد تطبيقات القوة | Power apps setup" \
         --checklist "اختر التطبيقات لتثبيتها | Select apps to install:" \
         "org.mozilla.firefox" "Firefox — المتصفح (Web Browser)" on \
         "org.videolan.VLC" "VLC — مشغل الوسائط (Media Player)" on \
@@ -30,21 +47,22 @@ if [ -n "${DISPLAY:-}" ]; then
         "com.github.tchx84.Flatseal" "Flatseal — إدارة أذونات التطبيقات (Flatpak Permissions)" on \
         "com.valvesoftware.Steam" "Steam — منصة الألعاب (Steam Gaming)" on \
         "com.usebottles.bottles" "Bottles — تشغيل برامج Windows (Run Windows Apps)" on \
-        "net.lutris.Lutris" "Lutris — مدير الألعاب الشامل (Lutris Games Manager)" on 2>/dev/null)
-
-    if [ $? -ne 0 ]; then
+        "net.lutris.Lutris" "Lutris — مدير الألعاب الشامل (Lutris Games Manager)" on 2>/dev/null); then
         echo "أُلغي | Cancelled."
         exit 0
     fi
-
-    eval "SELECTED=($CHOICES)"
+    CHOICES="${CHOICES//\"/}"
+    read -r -a SELECTED <<< "$CHOICES"
 else
-    SELECTED=("org.mozilla.firefox" "org.videolan.VLC" "org.libreoffice.LibreOffice" "io.github.kolunmi.Bazaar" "com.github.tchx84.Flatseal" "com.valvesoftware.Steam" "com.usebottles.bottles" "net.lutris.Lutris")
-    echo "No graphical display detected. Installing all recommended apps: ${SELECTED[*]}"
+    SELECTED=("${SMART[@]}")
+    echo "No graphical display detected. Installing the smart essential set: ${SELECTED[*]:-already complete}"
 fi
 
 for app in "${SELECTED[@]}"; do
     echo -e "${B}Installing ${app}...${N}"
     flatpak install -y --noninteractive flathub "$app" || echo "skipped: $app"
 done
+if [ "${#SELECTED[@]}" -eq 0 ]; then
+    echo -e "${G}✓ التطبيقات الأساسية موجودة بالفعل | Essential apps are already installed${N}"
+fi
 echo -e "${G}✓ اكتمل الإعداد — أهلاً بك في MoOS | Setup complete — welcome to MoOS${N}"

@@ -125,7 +125,7 @@ Kirigami.ApplicationWindow {
 
             // --- command box (monospace, selectable, copy-to-clipboard) -----
             Rectangle {
-                visible: card.command.length > 0
+                visible: card.command.length > 0 || card.launchUrl.length > 0
                 Layout.fillWidth: true
                 radius: 8
                 color: root.novaRaised
@@ -151,6 +151,7 @@ Kirigami.ApplicationWindow {
                     TextEdit {
                         id: cmdEdit
                         text: card.command
+                        visible: card.command.length > 0
                         readOnly: true
                         selectByMouse: true
                         textFormat: TextEdit.PlainText
@@ -169,6 +170,7 @@ Kirigami.ApplicationWindow {
 
                         QQC2.Button {
                             id: copyBtn
+                            visible: card.command.length > 0
                             text: "نسخ الأمر | Copy"
                             leftPadding: 14
                             rightPadding: 14
@@ -369,8 +371,8 @@ Kirigami.ApplicationWindow {
                         accent: root.novaBlue
                         iconName: "moos-gaming"
                         titleText: "ألعاب وبرامج Windows | Windows apps & games"
-                        bodyText: "ألعابك تعمل عبر Steam + Proton، وبرامج Windows عبر Bottles (Wine). أمر واحد في Konsole يثبّت الحزمة كاملة مع Lutris. | Games run via Steam + Proton, Windows programs via Bottles (Wine). One Konsole command installs the full set, Lutris included."
-                        command: "moos-setup"
+                        bodyText: "ألعابك تعمل عبر Steam + Proton، وبرامج Windows عبر Bottles. المثبت الذكي يحمّل المكونات الناقصة فقط. | Games run through Steam + Proton and Windows apps through Bottles. Smart setup downloads only missing components."
+                        launchUrl: "moos://do/setup-gaming"
                         noteText: "⚠ صدق أولاً: ألعاب anti-cheat التنافسية (Valorant وأشباهها) لا تعمل على Linux — تحقق من protondb.com قبل الشراء. | Honesty first: competitive anti-cheat titles (Valorant & co.) do not run on Linux — check protondb.com before buying."
                     }
 
@@ -385,7 +387,7 @@ Kirigami.ApplicationWindow {
                         iconName: "moos-android-apps"
                         titleText: "تطبيقات Android | Android apps"
                         bodyText: "Waydroid يشغّل Android 13 (LineageOS) في حاوية أصلية — اختياري بالكامل، لا شيء يعمل قبل أن تفعّله بنفسك. المتجر المقترح: F-Droid. | Waydroid runs Android 13 (LineageOS) in a native container — fully opt-in, nothing runs until you enable it yourself. Suggested store: F-Droid."
-                        command: "sudo waydroid init -s VANILLA\nsudo systemctl enable --now waydroid-container.service\nwaydroid show-full-ui"
+                        launchUrl: "moos://do/setup-waydroid"
                         noteText: "⚠ حدود صادقة: الكاميرا والمايكروفون لا يعملان، تطبيقات البنوك (Play Integrity) لن تعمل أبداً، ولا يوجد Google Play — إضافته خيار متقدم على مسؤوليتك. | Honest limits: no camera/mic, banking apps (Play Integrity) will never work, and there is no Google Play — adding it is an advanced opt-in at your own risk."
                     }
 
@@ -399,7 +401,7 @@ Kirigami.ApplicationWindow {
                         launchUrl: "moos://app/remote"
                         titleText: "التحكم عن بعد | Mo Remote (PC Control)"
                         bodyText: "تحكم بنظامك بالكامل وبأمان من هاتف iPhone أو Android عبر شبكة Tailscale الخاصة بك. شاهد الشاشة، وحرّك الماوس واكتب باللمس، وأدر الطاقة (إغلاق، إسبات، قفل). لتشغيل الخدمة وفتح رابط التحكم: | Control your PC securely from your iPhone or Android over your private Tailscale network. View screen, control keyboard/mouse by touch, and manage remote power. To start the service and open the link:"
-                        command: "systemctl --user enable --now mo-remote-personal.service && xdg-open http://127.0.0.1:8765/"
+                        command: "Mo PC Remote is built into MoOS; Start enables it only for your desktop user."
                         noteText: "تأكد من تفعيل تطبيق Tailscale وتسجيل الدخول بنفس الحساب على جهازك وهاتفك للتوصيل الآمن P2P. | Make sure Tailscale is enabled and logged into the same account on both device and phone for secure P2P connection."
                     }
 

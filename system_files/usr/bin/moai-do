@@ -188,6 +188,32 @@ do_check_drivers() {
     fi
 }
 
+do_install_nvidia() {
+    hdr "تثبيت تعريف NVIDIA الأمثل" "Install the optimized NVIDIA driver"
+    local gpu
+    gpu="$(lspci 2>/dev/null | grep -Ei 'vga compatible controller|3d controller|display controller' || true)"
+    if ! printf '%s' "$gpu" | grep -qi nvidia; then
+        echo "${Y}لم تُكتشف بطاقة NVIDIA — لن يتغير النظام | No NVIDIA GPU detected — nothing changed${N}"
+        return 0
+    fi
+    echo "${D}ينتقل إلى صورة MoOS NVIDIA الذرية ويُبقي النشر السابق للرجوع.${N}"
+    echo "${D}Switches to the atomic NVIDIA image and keeps the previous deployment for rollback.${N}"
+    confirm || return 0
+    run_priv bootc switch ghcr.io/moalfarras-sys/moos-nvidia:latest
+    echo "${G}✓ تم التجهيز — أعد التشغيل لتفعيل التعريف | Staged — reboot to activate${N}"
+}
+
+do_setup_waydroid() {
+    hdr "تجهيز Android عبر Waydroid" "Set up Android through Waydroid"
+    need waydroid || return 1
+    echo "${D}ينزّل صورة Android الحرة ويشغّل الحاوية. لا يتضمن Google Play.${N}"
+    echo "${D}Downloads the free Android image and starts its container. Google Play is not included.${N}"
+    confirm || return 0
+    run_priv waydroid init -s VANILLA
+    run_priv systemctl enable --now waydroid-container.service
+    waydroid show-full-ui >/dev/null 2>&1 &
+}
+
 # -----------------------------------------------------------------------------
 # optimize — clean unused Flatpak runtimes + container images + old logs.
 # -----------------------------------------------------------------------------
@@ -270,6 +296,10 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Restart audio services (PipeWire)
   ${C}check-drivers${N}     عرض كرت الشاشة والبرمجيات الثابتة (قراءة فقط)
                     Show GPU & firmware devices (read-only)
+  ${C}install-nvidia${N}    تجهيز صورة NVIDIA الصحيحة بأمان
+                    Stage the correct NVIDIA image safely
+  ${C}setup-waydroid${N}    تنزيل وتجهيز Android الاختياري
+                    Download and configure optional Android support
   ${C}optimize${N}          تنظيف Flatpak/الحاويات/السجلّات وتحرير مساحة
                     Clean Flatpak/containers/logs and free disk space
   ${C}hw-report${N}         فتح مركز العتاد | open the Hardware Center
@@ -297,6 +327,8 @@ main() {
         install)       do_install "${1:-}" ;;
         fix-audio)     do_fix_audio ;;
         check-drivers) do_check_drivers ;;
+        install-nvidia) do_install_nvidia ;;
+        setup-waydroid) do_setup_waydroid ;;
         optimize)      do_optimize ;;
         diagnose-services) do_diagnose_services ;;
         inspect-boot)  do_inspect_boot ;;

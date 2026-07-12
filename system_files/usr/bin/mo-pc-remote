@@ -1,0 +1,70 @@
+#!/usr/bin/python3
+"""Native MoOS control panel for Mo PC Remote. Never embeds or opens a browser."""
+import json, os, socket, subprocess, urllib.request
+import gi
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, GLib
+
+UNIT = "mo-remote-personal.service"
+PORT = 8765
+
+def run(*args):
+    return subprocess.run(args, text=True, capture_output=True, timeout=5)
+
+def active(unit):
+    return run("systemctl", "--user", "is-active", "--quiet", unit).returncode == 0
+
+def lan_ip():
+    try:
+        s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.connect(("192.0.2.1",9))
+        value=s.getsockname()[0]; s.close(); return value
+    except OSError: return "unavailable"
+
+class App(Gtk.Application):
+    def __init__(self): super().__init__(application_id="org.moos.MoPCRemote")
+    def do_activate(self):
+        self.win=Gtk.ApplicationWindow(application=self,title="Mo PC Remote")
+        self.win.set_default_size(720,620)
+        outer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14,margin_top=22,margin_bottom=22,margin_start=24,margin_end=24)
+        title=Gtk.Label(label="Mo PC Remote",xalign=0); title.add_css_class("title-1"); outer.append(title)
+        sub=Gtk.Label(label="Native MoOS control center · مركز تحكم MoOS الأصلي",xalign=0); sub.add_css_class("dim-label"); outer.append(sub)
+        self.status=Gtk.Label(xalign=0); self.status.set_wrap(True); outer.append(self.status)
+        buttons=Gtk.Box(spacing=8)
+        for label,cb,style in (("Start / تشغيل",self.start,"suggested-action"),("Stop / إيقاف",self.stop,"destructive-action"),("Refresh / تحديث",self.refresh,None)):
+            b=Gtk.Button(label=label); b.connect("clicked",cb)
+            if style:b.add_css_class(style)
+            buttons.append(b)
+        outer.append(buttons)
+        self.address=Gtk.Label(xalign=0,selectable=True); self.address.set_wrap(True); outer.append(self.address)
+        self.grid=Gtk.Grid(column_spacing=18,row_spacing=10)
+        outer.append(self.grid)
+        log_title=Gtk.Label(label="Recent errors / آخر الأخطاء",xalign=0); log_title.add_css_class("heading"); outer.append(log_title)
+        scroll=Gtk.ScrolledWindow(vexpand=True); self.log=Gtk.TextView(editable=False,monospace=True,wrap_mode=Gtk.WrapMode.WORD_CHAR)
+        scroll.set_child(self.log); outer.append(scroll)
+        self.win.set_child(outer); self.win.present(); self.refresh()
+        GLib.timeout_add_seconds(3,self.refresh)
+    def row(self,n,label,value,ok):
+        a=Gtk.Label(label=label,xalign=0); b=Gtk.Label(label=("● " if ok else "○ ")+value,xalign=0)
+        b.add_css_class("success" if ok else "error"); self.grid.attach(a,0,n,1,1); self.grid.attach(b,1,n,1,1)
+    def start(self,*_): run("systemctl","--user","enable","--now",UNIT); self.refresh()
+    def stop(self,*_): run("systemctl","--user","disable","--now",UNIT); self.refresh()
+    def refresh(self,*_):
+        on=active(UNIT); ip=lan_ip(); url=f"http://{ip}:{PORT}/"
+        self.status.set_markup(f"<b>Service:</b> {'Running' if on else 'Stopped'}    <b>Device:</b> {GLib.markup_escape_text(socket.gethostname())}")
+        self.address.set_text(("Mo PC Remote phone address: http://"+ip+":8765") if on else "Remote control is off. Press Start to enable it.")
+        while c:=self.grid.get_first_child(): self.grid.remove(c)
+        portal=active("xdg-desktop-portal.service")
+        pipe=active("pipewire.service")
+        sock=os.path.exists(f"/run/user/{os.getuid()}/.ydotool_socket")
+        fw=run("systemctl","is-active","--quiet","firewalld.service").returncode==0
+        self.row(0,"Firewall", "active" if fw else "inactive",fw)
+        self.row(1,"PipeWire", "active" if pipe else "inactive",pipe)
+        self.row(2,"Desktop portal", "active" if portal else "inactive",portal)
+        self.row(3,"Input permission", "private user socket" if sock else "not ready",sock)
+        self.row(4,"MoPC backend", "touch/keyboard/desktop service" if on else "stopped",on)
+        path=os.path.expanduser("~/.local/share/MoRemotePersonal/log.txt")
+        try: lines=open(path,errors="replace").read().splitlines()[-30:]; self.log.get_buffer().set_text("\n".join(lines))
+        except OSError: self.log.get_buffer().set_text("No log yet.")
+        return True
+
+App().run()

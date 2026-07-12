@@ -24,7 +24,7 @@ def require(condition: bool, message: str) -> None:
 launchers = []
 for path in (ROOT / "system_files/usr/share/applications").glob("*.desktop"):
     text = path.read_text(encoding="utf-8")
-    if re.search(r"^Name=Mo Remote(?: Personal)?$", text, re.MULTILINE):
+    if re.search(r"^Name=Mo (?:PC )?Remote(?: Personal)?$", text, re.MULTILINE):
         launchers.append(path.name)
 require(launchers == ["org.moos.remote.desktop"],
         f"Mo Remote must have exactly one launcher; found {launchers}")
@@ -39,6 +39,34 @@ require("WantedBy=default.target" not in unit,
         "Mo Remote must not be globally attached to default.target")
 require("WAYLAND_DISPLAY=wayland-0" not in unit,
         "Mo Remote must not guess the Wayland socket name")
+require('find "%t" -maxdepth 1 -type s -name "wayland-*"' in unit,
+        "Mo Remote must discover the active Wayland socket")
+
+remote_desktop = read("system_files/usr/share/applications/org.moos.remote.desktop")
+require("Exec=/usr/bin/mo-pc-remote" in remote_desktop,
+        "Mo PC Remote must launch its native control center")
+require("xdg-open" not in remote_desktop and "http://" not in remote_desktop,
+        "Mo PC Remote launcher must never open an external browser")
+native_remote = read("system_files/usr/bin/mo-pc-remote")
+require("Gtk.Application" in native_remote,
+        "Mo PC Remote control center must be a native GTK application")
+require('UNIT = "mo-remote-personal.service"' in native_remote,
+        "Mo PC Remote must manage the MoPC backend")
+
+device_plan = read("system_files/usr/bin/moos-device-plan")
+require('"missing_recommended_apps"' in device_plan and '"actions"' in device_plan,
+        "hardware detection must produce an actionable installation plan")
+setup = read("system_files/usr/bin/moos-setup")
+require('MODE="${1:---interactive}"' in setup and "missing_recommended_apps" in setup,
+        "first-run setup must support a hardware-aware smart mode")
+router = read("system_files/usr/bin/moos-open")
+for route in ("do/smart-setup", "do/setup-gaming", "do/install-nvidia", "do/setup-waydroid"):
+    require(route in router, f"missing safe MoOS action route: {route}")
+compat = read("system_files/usr/share/moos/apps/compathub/main.qml")
+require("sudo waydroid init" not in compat,
+        "Compatibility Hub must use the confirmed workflow, not copy sudo commands")
+require('launchUrl: "moos://do/setup-gaming"' in compat,
+        "Compatibility Hub must expose the focused gaming installer")
 
 capture = read("moremote/agent-linux/ScreenCapture.cs")
 require("File.Exists(socket)" in capture,

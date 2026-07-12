@@ -1,0 +1,98 @@
+#!/usr/bin/python3
+"""Produce a deterministic, read-only hardware plan for MoOS first boot."""
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+
+
+def run(*args, timeout=12):
+    try:
+        p = subprocess.run(args, text=True, capture_output=True, timeout=timeout)
+        return (p.stdout or "").strip() if p.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def flatpak_installed(app_id):
+    return subprocess.run(
+        ["flatpak", "info", app_id], stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL).returncode == 0 if shutil.which("flatpak") else False
+
+
+def detect():
+    pci = run("lspci", "-nnk")
+    blocks = re.split(r"\n(?=\S)", pci)
+    gpu_blocks = [block for block in blocks
+                  if re.search(r"VGA compatible|3D controller|Display controller", block, re.I)]
+    gpu_lines = [block.splitlines()[0].strip() for block in gpu_blocks]
+    gpu = "\n".join(gpu_lines) or "unavailable"
+    vendor = "nvidia" if "NVIDIA" in gpu.upper() else "amd" if re.search(r"AMD|ATI", gpu, re.I) else "intel" if "INTEL" in gpu.upper() else "unknown"
+    driver_hits = re.findall(r"Kernel driver in use:\s*(\S+)", "\n".join(gpu_blocks))
+    driver = ", ".join(dict.fromkeys(driver_hits)) or "unavailable"
+    os_release = {}
+    try:
+        for line in open("/etc/os-release", encoding="utf-8"):
+            if "=" in line:
+                k, v = line.rstrip().split("=", 1); os_release[k] = v.strip('"')
+    except OSError:
+        pass
+    image = run("bootc", "status", "--format=json")
+    nvidia_image = "moos-nvidia" in image
+    mem_kib = 0
+    try:
+        mem_kib = int(next(line.split()[1] for line in open("/proc/meminfo") if line.startswith("MemTotal:")))
+    except (OSError, StopIteration, ValueError):
+        pass
+    memory_gib = round(mem_kib / 1024 / 1024, 1)
+    kvm = os.access("/dev/kvm", os.R_OK | os.W_OK)
+    secure_boot = run("mokutil", "--sb-state") or "unavailable"
+    actions = []
+    health = "ready"
+    if vendor == "nvidia" and "nvidia" not in driver:
+        health = "action-needed"
+        actions.append({
+            "id": "nvidia-image", "severity": "important",
+            "title": "تعريف NVIDIA الرسمي | NVIDIA driver",
+            "detail": "Switch atomically to the MoOS NVIDIA image; applies after reboot.",
+            "url": "moos://do/install-nvidia"
+        })
+    if vendor == "nvidia" and "nvidia" in driver and nvidia_image:
+        driver_status = "NVIDIA proprietary driver active"
+    elif vendor == "nvidia":
+        driver_status = "NVIDIA detected; optimized image required"
+    else:
+        driver_status = f"{vendor.title()} graphics using {driver}"
+    if not kvm:
+        actions.append({"id": "kvm", "severity": "info", "title": "Android emulator acceleration", "detail": "Enable CPU virtualization in firmware and grant KVM access.", "url": ""})
+    if memory_gib and memory_gib < 15:
+        actions.append({"id": "memory", "severity": "info", "title": "Development memory", "detail": "16 GiB or more is recommended for Android development.", "url": ""})
+    recommended = [
+        "org.mozilla.firefox", "org.videolan.VLC", "org.libreoffice.LibreOffice",
+        "io.github.kolunmi.Bazaar", "com.github.tchx84.Flatseal"
+    ]
+    if kvm and memory_gib >= 15:
+        recommended.append("com.google.AndroidStudio")
+    installed = [app for app in recommended if flatpak_installed(app)]
+    return {
+        "schema": 1, "health": health, "gpu_vendor": vendor, "gpu": gpu,
+        "driver": driver, "driver_status": driver_status,
+        "nvidia_image": nvidia_image, "memory_gib": memory_gib, "kvm": kvm,
+        "secure_boot": secure_boot, "os": os_release.get("PRETTY_NAME", "MoOS"),
+        "recommended_apps": recommended, "installed_recommended_apps": installed,
+        "missing_recommended_apps": [x for x in recommended if x not in installed],
+        "actions": actions,
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--compact", action="store_true")
+    args = parser.parse_args()
+    print(json.dumps(detect(), ensure_ascii=False, indent=None if args.compact else 2))
+
+
+if __name__ == "__main__":
+    main()

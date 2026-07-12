@@ -5,6 +5,28 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
+# Wait for /dev/uinput to actually be WRITABLE before launching ydotoold.
+#
+# 70-mo-remote-uinput.rules tags uinput with `uaccess`, which means logind grants
+# the active graphical user an ACL on the device — but it does that when the
+# SESSION becomes active, which is a moment or two after this unit is first
+# eligible to run. ydotoold cannot open /dev/uinput before the ACL lands, so it
+# died instantly with status=2/INVALIDARGUMENT and only came back on its 3-second
+# restart. Measured on this hardware:
+#
+#   02:24:44  ydotoold started
+#   02:24:44  main process exited, status=2/INVALIDARGUMENT
+#   02:24:48  restarted, succeeded
+#
+# Those four seconds are not harmless. Type=simple means systemd considers
+# ydotoold "started" the instant it is exec'd, so mo-remote-personal's
+# After=ydotoold-moremote.service was satisfied by the run that immediately DIED
+# — the agent came up, found no socket, and logged "Input backend unavailable".
+# Every boot began with remote input broken until something re-triggered it.
+#
+# `test -w` goes through access(2), which honours the ACL, so this is an exact
+# test of "can ydotoold open this device" and not a guess. Poll for up to 15s.
+ExecStartPre=/usr/bin/bash -c 'for _ in $(seq 1 150); do [ -w /dev/uinput ] && exit 0; sleep 0.1; done; echo "uinput never became writable" >&2; exit 1'
 ExecStart=/usr/bin/ydotoold --socket-path=%t/.ydotool_socket --socket-perm=0600
 Restart=on-failure
 RestartSec=3

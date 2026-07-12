@@ -25,9 +25,10 @@ if(args.Contains("--unicode")){input.KeyTap("Meta");Pause(500);input.TypeText("k
 if(args.Contains("--unicode-file")){
  const string path="/tmp/moremote-unicode-input.txt";
  File.Delete(path);
- input.Combo(["Control","Alt","T"]);Thread.Sleep(1800);
- input.TypeText("printf 'مرحباً Grüße English' > /tmp/moremote-unicode-input.txt");
- input.KeyTap("Enter");Thread.Sleep(1200);
+ using var terminal=System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("konsole",$"--separate -e sh -c \"cat > {path}\"") { UseShellExecute=false });
+ Thread.Sleep(2200);
+ input.TypeText("مرحباً Grüße English");
+ input.Combo(["Control","D"]);Thread.Sleep(1200);
  var actual=File.Exists(path)?File.ReadAllText(path):"";
  if(actual!="مرحباً Grüße English")throw new Exception($"Unicode input mismatch: '{actual}'");
  Console.WriteLine("UNICODE_FILE_TEST=PASS");return;
