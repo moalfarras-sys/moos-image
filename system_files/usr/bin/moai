@@ -16,6 +16,11 @@ set -uo pipefail
 # why Mo AI "never changed" across updates. Disable the disk cache so the
 # current source is always compiled and used.
 export QML_DISABLE_DISK_CACHE=1
+# QML_DISABLE_DISK_CACHE alone did NOT stop qml-qt6 from loading the STALE
+# compiled cache on this build (launching from the panel showed the OLD Mo AI UI
+# while a fresh run showed the new one). Also wipe the cache dir on every launch
+# so the CURRENT main.qml is always what renders.
+rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/qmlcache" 2>/dev/null || true
 
 MAIN_QML="/usr/share/moos/apps/moai/main.qml"
 

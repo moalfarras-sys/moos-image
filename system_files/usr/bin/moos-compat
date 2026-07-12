@@ -13,6 +13,7 @@ APP="/usr/share/moos/apps/compathub/main.qml"
 export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
 # OSTree fixes mtimes → Qt's QML disk cache never invalidates across upgrades.
 export QML_DISABLE_DISK_CACHE=1
+rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/qmlcache" 2>/dev/null || true
 
 # QML runner fallback chain.
 # Fedora ships the Qt6 QML runner as /usr/bin/qml-qt6 — a symlink from the
