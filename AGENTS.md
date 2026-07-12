@@ -101,10 +101,11 @@ gh auth refresh -h github.com -s workflow
 
 Being honest about this list is more useful than shrinking it.
 
-- **Install-time signatures are not verified.** The Anaconda kickstart still passes
-  `--no-signature-verification`, so a *fresh install* deploys an unverified origin until it is
-  rebased onto the signed transport. Updates on this machine are enforced; new installs are not.
-  Closing this needs an end-to-end ISO install test that has not been run.
+- **The signed install path has not been exercised on real hardware.** The kickstart now
+  verifies the signature at install time (and therefore deploys a signed origin, so updates stay
+  verified for life). The policy, the key and the sigstore attachment config were each verified
+  against the real registry — but nobody has yet run an actual ISO install end to end. If an
+  install fails with a signature error, that is where to look.
 - **Qt WebEngine spell-check dictionaries are empty.** `qwebengine_convert_dict` crashes inside
   the build container, so `/usr/share/qt6/qtwebengine_dictionaries/` ships with zero `.bdic`
   files.

@@ -382,12 +382,25 @@ mkdir -p /var/lib/rpm-state   # Anaconda Web UI needs this to exist
 # image into the live /var/lib/containers/storage (no skopeo/payload copy) —
 # so containers-storage would fail at install time. Registry pull always works
 # as long as there is internet (the install guide requires it) and the image
-# is public on GHCR. --no-signature-verification for the install-time pull;
-# the installed system's /etc/containers/policy.json still enforces cosign
-# signatures for all future `bootc upgrade`s.
+# is public on GHCR.
+#
+# The install-time pull IS verified. This previously passed --no-signature-verification,
+# with a comment claiming the installed system "still enforces cosign signatures for all
+# future bootc upgrades" — it did not, in two ways: the policy listed the MoOS registry as
+# insecureAcceptAnything, and the flag also makes the INSTALLED origin an unverified one, so
+# every future update on that machine skipped the policy too. A fresh install was unverified
+# for life.
+#
+# Verifying here works because the live installer environment IS this image: it carries the
+# MoOS public key (/etc/pki/containers/moos.pub), the policy that requires it, and the
+# registries.d entry that tells the verifier the signature is a sigstore attachment. Dropping
+# the flag also makes the deployed origin ostree-image-signed, so the machine keeps verifying
+# every update for the rest of its life.
+#
+# A signature failure here is a clean, loud install failure — not a broken system.
 cat >> /usr/share/anaconda/interactive-defaults.ks <<KSEOF
 
-ostreecontainer --url=${MOOS_IMAGEREF}:${MOOS_IMAGETAG} --transport=registry --no-signature-verification
+ostreecontainer --url=${MOOS_IMAGEREF}:${MOOS_IMAGETAG} --transport=registry
 KSEOF
 
 # Re-brand the installer AFTER anaconda-live is installed. GROUND TRUTH (verified
