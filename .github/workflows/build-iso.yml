@@ -24,10 +24,6 @@
 name: Build MoOS Live ISO
 
 on:
-  workflow_run:
-    workflows: ["Build MoOS image"]
-    branches: [main]
-    types: [completed]
   workflow_dispatch:
     inputs:
       image_ref:
@@ -47,7 +43,6 @@ concurrency:
 
 jobs:
   build-iso:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     name: Build live ISO (Titanoboa)
     runs-on: ubuntu-latest
     steps:
