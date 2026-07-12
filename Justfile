@@ -15,10 +15,10 @@ base_main := "ghcr.io/ublue-os/kinoite-main:44"
 default:
     @just --list
 
-# Build the main MoOS image
+# Build the main MoOS image. The base is pinned in the Containerfile on purpose — both
+# editions must share it (see the comment there); it is not a build-arg any more.
 build:
     podman build \
-        --build-arg BASE_IMAGE={{ base_main }} \
         --build-arg IMAGE_NAME={{ image_name }} \
         -t {{ image_name }}:latest \
         .
@@ -34,7 +34,6 @@ build-nvidia:
     kernel="$(skopeo inspect docker://{{ base_main }} | jq -er '.Labels["ostree.linux"]')"
     echo "base kernel: ${kernel}"
     podman build \
-        --build-arg BASE_IMAGE={{ base_main }} \
         --build-arg IMAGE_NAME={{ image_name }}-nvidia \
         --build-arg "AKMODS_IMAGE=ghcr.io/ublue-os/akmods-nvidia-open:main-44-${kernel}" \
         -t {{ image_name }}-nvidia:latest \

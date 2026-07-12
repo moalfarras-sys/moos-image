@@ -16,26 +16,33 @@
 #     -t moos-nvidia:latest .
 # =============================================================================
 
-# BOTH editions build from the SAME base.
+# BOTH editions build from the SAME base. This is deliberately NOT a build-arg.
 #
-# moos-nvidia used to build FROM ghcr.io/ublue-os/kinoite-nvidia:44. That tag is dead
-# upstream — its last build was 2026-05-27 on kernel 7.0.9, while kinoite-main:44 is rebuilt
-# daily (kernel 7.1.3 as of this commit). Building on it therefore produced an image that was
-# ~589 packages OLDER than the generic edition, on an older kernel. That is not an "NVIDIA
-# image", it is a six-week-old system with NVIDIA in it.
+# moos-nvidia used to build FROM ghcr.io/ublue-os/kinoite-nvidia:44, selected by a BASE_IMAGE
+# arg. That tag is dead upstream — its last build was 2026-05-27 on kernel 7.0.9, while
+# kinoite-main:44 is rebuilt daily (7.1.3 as of this commit). So the "NVIDIA image" was really
+# a six-week-old system that happened to contain NVIDIA: ~589 packages behind the generic
+# edition, on an older kernel. rpm-ostree said exactly that on every boot.
 #
-# Instead the driver is layered onto the identical kinoite-main base, exactly the way
-# Bazzite/Bluefin do it: ublue publishes an akmods container per (kernel, driver) pair, and
-# its own nvidia-install.sh installs the kmod + userspace from it. Same base, same kernel,
-# zero downgrades — the only difference between the two editions is the driver.
-ARG BASE_IMAGE=ghcr.io/ublue-os/kinoite-main:44
+# A shared base is not a knob, it is the invariant that keeps the two editions from silently
+# drifting apart, so it is pinned here rather than passed in. The driver is layered on top the
+# way Bazzite/Bluefin do it: ublue publishes an akmods container per (kernel, driver) pair and
+# ships its own installer inside it. Same base, same kernel, zero downgrades — the only
+# difference between the editions is the driver.
+#
+# (A BASE_IMAGE build-arg passed by an older caller is simply unused; buildah warns and moves
+# on. Nothing can quietly reintroduce a divergent base.)
+FROM ghcr.io/ublue-os/kinoite-main:44 AS base
 
-# The akmods container holding kmod-nvidia built against the base image's EXACT kernel, plus
-# the matching userspace driver. CI resolves the kernel from the base image label and pins the
-# tag, so a kmod can never be paired with a kernel it was not built for (that pairing is a
-# black screen at boot). The generic edition passes AKMODS_IMAGE=scratch and never touches it,
-# so an upstream akmods hiccup can never block the main image.
-ARG AKMODS_IMAGE=scratch
+# The akmods container: kmod-nvidia built against a specific kernel, plus the matching
+# userspace driver.
+#
+# The kmod and the kernel MUST agree — a module built for another kernel does not load, and
+# the machine boots to a black screen. This floating tag tracks the same kernel ublue builds
+# kinoite-main against, and build.sh refuses to continue if the two ever disagree, so a drift
+# fails the build loudly instead of shipping an unbootable image. Callers that can resolve the
+# base image's exact kernel (CI, the Justfile) should pin the exact tag instead.
+ARG AKMODS_IMAGE=ghcr.io/ublue-os/akmods-nvidia-open:main-44-x86_64
 
 # -----------------------------------------------------------------------------
 # Stage "ctx": build scripts live here and are bind-mounted (NOT copied) into
@@ -47,8 +54,9 @@ COPY build_files /
 
 # -----------------------------------------------------------------------------
 # Stage "akmods": ublue's NVIDIA kmod + driver RPMs, bind-mounted (not copied) at
-# /akmods during the build. `scratch` for the generic edition — an empty mount that
-# build.sh simply never reads.
+# /akmods during the build. The generic edition mounts it and never reads it —
+# build.sh only touches it when IMAGE_NAME is moos-nvidia, so nothing NVIDIA ever
+# lands in the generic image.
 # -----------------------------------------------------------------------------
 FROM ${AKMODS_IMAGE} AS akmods
 
@@ -61,9 +69,9 @@ RUN dotnet publish agent-linux/MoRemoteLinux.csproj -c Release -r linux-x64 \
     --self-contained true -o /out
 
 # -----------------------------------------------------------------------------
-# Main image
+# Main image — the shared base pinned at the top of this file.
 # -----------------------------------------------------------------------------
-FROM ${BASE_IMAGE}
+FROM base
 
 # IMAGE_NAME (moos | moos-nvidia) so build.sh can bake the matching install ref
 # into the Anaconda kickstart — a moos-nvidia image must deploy moos-nvidia, not

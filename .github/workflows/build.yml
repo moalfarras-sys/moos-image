@@ -17,7 +17,7 @@
 #
 # Output (one per matrix variant, each tagged latest + YYYYMMDD, signed):
 #   ghcr.io/<owner>/moos         (base: ghcr.io/ublue-os/kinoite-main:44)
-#   ghcr.io/<owner>/moos-nvidia  (base: ghcr.io/ublue-os/kinoite-nvidia:44)
+#   ghcr.io/<owner>/moos-nvidia  (same kinoite-main base + layered NVIDIA open driver)
 # Both variants build from the same Containerfile via the BASE_IMAGE build-arg
 # (see MOOS_BUILD_WORKFLOW.md).
 # =============================================================================
@@ -51,11 +51,16 @@ jobs:
       # failure must not kill the main image build (and vice versa).
       fail-fast: false
       matrix:
+        # Both editions build from the SAME base, which is pinned in the Containerfile (it is
+        # an invariant, not a knob — see the comment there). moos-nvidia used to build from
+        # ghcr.io/ublue-os/kinoite-nvidia:44, which upstream abandoned in May, so the "NVIDIA
+        # image" was really a six-week-old system, ~589 packages behind the generic one.
+        # The only thing that differs here now is whether the NVIDIA driver is layered on.
         include:
           - image_name: moos
-            base_image: ghcr.io/ublue-os/kinoite-main:44
+            nvidia: "false"
           - image_name: moos-nvidia
-            base_image: ghcr.io/ublue-os/kinoite-nvidia:44
+            nvidia: "true"
     permissions:
       contents: read      # checkout
       packages: write     # push to GHCR
@@ -72,6 +77,37 @@ jobs:
           echo "registry=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
           echo "date_tag=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
 
+      # The NVIDIA kmod is compiled against ONE exact kernel. Pin the akmods image to the
+      # kernel the base image actually ships (its `ostree.linux` label) rather than to the
+      # floating tag the Containerfile falls back to — a kmod paired with a kernel it was not
+      # built for does not load, and the machine boots to a black screen. If ublue has not
+      # published an akmod for this kernel yet, the build fails HERE rather than shipping an
+      # unbootable image. (build.sh independently refuses to continue on a mismatch, so this
+      # is defence in depth, not the only guard.)
+      #
+      # The generic edition resolves to `scratch`: it never pulls the akmods image at all, so
+      # an upstream NVIDIA hiccup can never block the main image.
+      - name: Resolve NVIDIA akmods image
+        id: akmods
+        env:
+          # Must match the base pinned in the Containerfile.
+          BASE_IMAGE: ghcr.io/ublue-os/kinoite-main:44
+        run: |
+          if [ "${{ matrix.nvidia }}" != "true" ]; then
+            echo "image=scratch" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          KERNEL=$(skopeo inspect "docker://${BASE_IMAGE}" | jq -er '.Labels["ostree.linux"]')
+          AKMODS="ghcr.io/ublue-os/akmods-nvidia-open:main-44-${KERNEL}"
+          echo "base kernel: ${KERNEL}"
+          echo "akmods     : ${AKMODS}"
+          if ! skopeo inspect "docker://${AKMODS}" >/dev/null 2>&1; then
+            echo "::error::No NVIDIA akmod published for kernel ${KERNEL}. Refusing to build a" \
+                 "moos-nvidia image whose kmod does not match its kernel (that is a black screen)."
+            exit 1
+          fi
+          echo "image=${AKMODS}" >> "$GITHUB_OUTPUT"
+
       - name: Build image (buildah)
         id: build
         uses: redhat-actions/buildah-build@v2
@@ -87,11 +123,12 @@ jobs:
             org.opencontainers.image.version=44.${{ steps.meta.outputs.date_tag }}.${{ github.run_number }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.title=MoOS
-          # Same Containerfile for both variants; the matrix selects the base
-          # (kinoite-main for moos, kinoite-nvidia for moos-nvidia).
+          # Same Containerfile and the same (Containerfile-pinned) base for both variants; the
+          # only difference is whether the akmods stage carries a driver (moos-nvidia) or is
+          # `scratch` (moos). build.sh keys the NVIDIA work off IMAGE_NAME.
           build-args: |
-            BASE_IMAGE=${{ matrix.base_image }}
             IMAGE_NAME=${{ matrix.image_name }}
+            AKMODS_IMAGE=${{ steps.akmods.outputs.image }}
           oci: false
 
       - name: Log in to GHCR
