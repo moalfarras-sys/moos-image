@@ -86,16 +86,41 @@ router = text("/usr/bin/moos-open")
 require("do/smart-setup" in router and "do/install-nvidia" in router,
         "smart setup routes are missing")
 
+# The LOGIN SCREEN. Gate the display manager that is actually installed, not the one we wish
+# were.
+#
+# Fedora Kinoite 44 replaced SDDM with plasma-login-manager: `sddm` is not installed at all
+# and display-manager.service points at plasmalogin.service. MoOS still shipped an SDDM theme
+# and an SDDM config, and this gate asserted "Current=moos-nova" in that config — and passed.
+# Meanwhile the real login screen showed Plasma's default wallpaper. A green check on a file
+# nobody reads is worse than no check: it buys false confidence.
+#
+# So: find the display manager, then assert on ITS configuration.
+dm = Path("/etc/systemd/system/display-manager.service")
+dm_target = os.path.realpath(dm) if dm.exists() else ""
+require(dm_target != "", "no display manager is enabled — the system would boot to a console")
+
+if "plasmalogin" in dm_target:
+    drop_ins = list(Path("/usr/lib/plasmalogin/plasmalogin.conf.d").glob("*.conf")) \
+        if Path("/usr/lib/plasmalogin/plasmalogin.conf.d").exists() else []
+    login_conf = "".join(p.read_text(encoding="utf-8") for p in drop_ins)
+    require("WallpaperPluginId" in login_conf,
+            "the login screen has no MoOS wallpaper configured — it would show Plasma's default")
+    require("NovaHorizon" in login_conf,
+            "the login screen does not use a MoOS wallpaper")
+elif "sddm" in dm_target:
+    sddm = text("/etc/sddm.conf.d/moos.conf")
+    require("Current=moos-nova" in sddm, "SDDM does not select MoOS Nova")
+else:
+    require(False, f"unknown display manager: {dm_target} — its branding is unverified")
+
 selectors = {
-    "SDDM": text("/etc/sddm.conf.d/moos.conf"),
     "lock screen": text("/etc/xdg/kscreenlockerrc"),
     "look and feel": text("/usr/share/plasma/look-and-feel/org.moos.nova/contents/defaults"),
 }
 for surface, value in selectors.items():
     require(re.search(r"fedora|bgrt|spinner", value, re.IGNORECASE) is None,
             f"foreign branding is active in {surface}")
-
-require("Current=moos-nova" in selectors["SDDM"], "SDDM does not select MoOS Nova")
 require("NovaHorizonII" in selectors["lock screen"], "lock screen uses old wallpaper")
 require(Path("/usr/share/wallpapers/NovaHorizonII/contents/images_dark/3840x2160.png").is_file(),
         "Nova Horizon II dark master is missing")
