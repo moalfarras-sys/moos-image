@@ -37,9 +37,7 @@ panel.height = Math.round(gridUnit * 2.6);   // ~46px premium dock
 try { panel.floating = true; } catch (e) { /* keep the dock, lose the gap */ }
 
 /* App launcher wears the MoOS emblem instead of the KDE logo. */
-var launcher = panel.addWidget("org.kde.plasma.kickoff");
-launcher.currentConfigGroup = ["General"];
-launcher.writeConfig("icon", "/usr/share/moos/moos-logo.png");
+var launcher = panel.addWidget("org.moos.nova.launcher");
 
 /* Icons-Only Task Manager — Mo AI (robot icon) pinned FIRST, then browser,
  * files, the MoOS hubs, System Settings and the terminal. icontasks silently
@@ -70,9 +68,6 @@ tasks.writeConfig("showOnlyCurrentDesktop", false);
 panel.addWidget("org.kde.plasma.marginsseparator");
 panel.addWidget("org.kde.plasma.systemtray");
 
-var clock = panel.addWidget("org.kde.plasma.digitalclock");
-clock.currentConfigGroup = ["Appearance"];
-clock.writeConfig("showDate", true);
-clock.writeConfig("dateDisplayFormat", 1);
+panel.addWidget("org.moos.nova.clock");
 
 /* Wallpaper (NovaHorizon) ships via the org.moos.nova Look-and-Feel defaults. */

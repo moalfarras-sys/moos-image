@@ -17,7 +17,7 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=6
+THEME_REV=7
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 marker="${state_dir}/moos-nova-theme-applied.v${THEME_REV}"
 [ -e "$marker" ] && exit 0
@@ -116,15 +116,21 @@ if command -v gdbus >/dev/null 2>&1; then
                 var p = ps[i];
                 if (p.location != "bottom") { continue; }
                 try { if ("floating" in p) { p.floating = true; } } catch (e) {}
+                try { p.height = 44; } catch (e) {}
                 var ws = p.widgets();
                 for (var j = 0; j < ws.length; j++) {
                     var w = ws[j];
                     try {
-                        if (w.type == "org.kde.plasma.digitalclock") {
-                            w.currentConfigGroup = ["Appearance"];
-                            w.writeConfig("showDate", true);
-                            w.writeConfig("dateDisplayFormat", 1);
-                            w.reloadConfig();
+                        if (w.type == "org.kde.plasma.kickoff") {
+                            var launcherIndex = w.index;
+                            w.remove();
+                            var novaLauncher = p.addWidget("org.moos.nova.launcher");
+                            try { novaLauncher.index = launcherIndex; } catch (e) {}
+                        } else if (w.type == "org.kde.plasma.digitalclock") {
+                            var clockIndex = w.index;
+                            w.remove();
+                            var novaClock = p.addWidget("org.moos.nova.clock");
+                            try { novaClock.index = clockIndex; } catch (e) {}
                         } else if (w.type == "org.kde.plasma.showdesktop") {
                             w.remove();
                         }

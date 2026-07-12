@@ -1,0 +1,13 @@
+{
+  "KPackageStructure": "Plasma/Applet",
+  "KPlugin": {
+    "Id": "org.moos.nova.clock",
+    "Name": "MoOS Nova Clock",
+    "Name[ar]": "ساعة MoOS Nova",
+    "Description": "Compact, scale-safe Nova time and date",
+    "Icon": "preferences-system-time",
+    "Version": "1.0"
+  },
+  "X-Plasma-API-Minimum-Version": "6.0",
+  "X-Plasma-Provides": ["org.kde.plasma.time", "org.kde.plasma.date"]
+}

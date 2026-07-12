@@ -1,0 +1,12 @@
+{
+  "KPackageStructure": "Plasma/Applet",
+  "KPlugin": {
+    "Id": "org.moos.nova.launcher",
+    "Name": "MoOS Nova Launcher",
+    "Name[ar]": "مشغّل MoOS Nova",
+    "Description": "The focused application home for MoOS",
+    "Icon": "moos-logo",
+    "Version": "1.0"
+  },
+  "X-Plasma-API-Minimum-Version": "6.0"
+}

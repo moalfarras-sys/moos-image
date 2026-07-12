@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Scoped, once-per-revision UI migration for immutable MoOS images.
+set -uo pipefail
+
+MOOS_THEME_REV=7
+MOAI_UI_REV=3
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/moos"
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
+log_dir="$state_dir/migrations"
+marker="$state_dir/ui-theme-${MOOS_THEME_REV}-moai-${MOAI_UI_REV}.done"
+mkdir -p "$log_dir" 2>/dev/null || exit 0
+[ -e "$marker" ] && exit 0
+log="$log_dir/ui-theme-${MOOS_THEME_REV}-moai-${MOAI_UI_REV}.log"
+exec >>"$log" 2>&1
+echo "$(date -u '+%FT%TZ') starting scoped UI migration"
+
+# Remove only the known 2026-07-11 development copy. It shadows the immutable
+# application through PATH and KService. Never touch conversations, config,
+# models, Secret Service items, or any other user data.
+legacy_qml="$HOME/.local/share/moos/apps/moai/main.qml"
+legacy_bin="$HOME/.local/bin/moai"
+legacy_desktop="$HOME/.local/share/applications/org.moos.moai.desktop"
+if [ -f "$legacy_bin" ] && grep -Fq '$HOME/.local/share/moos/apps/moai/main.qml' "$legacy_bin"; then
+    rm -f "$legacy_bin"
+    echo "removed obsolete local Mo AI launcher"
+fi
+if [ -f "$legacy_desktop" ] && grep -Fq 'Exec=/var/home/mo/.local/bin/moai' "$legacy_desktop"; then
+    rm -f "$legacy_desktop"
+    echo "removed obsolete local Mo AI desktop override"
+fi
+if [ -f "$legacy_qml" ] && [ "$(grep -c settingsOpen "$legacy_qml" 2>/dev/null || true)" = 0 ]; then
+    rm -f "$legacy_qml"
+    rmdir "$HOME/.local/share/moos/apps/moai" "$HOME/.local/share/moos/apps" 2>/dev/null || true
+    echo "removed obsolete local Mo AI QML bundle"
+fi
+
+# OSTree normalises mtimes. Remove only caches capable of retaining MoOS QML,
+# Plasma theme SVGs, service metadata, or the retired desktop entry.
+rm -rf "$cache_dir/qmlcache" "$cache_dir/qml-qt6" \
+       "$cache_dir/kwin/qmlcache" "$cache_dir/plasmashell/qmlcache" \
+       "$cache_dir/ksvg-elements" "$cache_dir"/plasma_theme_*.kcache \
+       "$cache_dir"/plasma-svgelements* "$cache_dir/icon-cache.kcache" \
+       "$cache_dir"/ksycoca6_* 2>/dev/null || true
+find "$cache_dir" -mindepth 2 -maxdepth 2 -type d -name qmlcache \
+    -exec rm -rf -- {} + 2>/dev/null || true
+
+command -v update-desktop-database >/dev/null 2>&1 && \
+    update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 --noincremental || true
+
+touch "$marker"
+echo "$(date -u '+%FT%TZ') migration complete"

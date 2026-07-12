@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=MoOS UI migration
+Name[ar]=ترحيل واجهة MoOS
+Comment=Refreshes versioned MoOS UI caches once after an upgrade
+Exec=/usr/bin/moos-ui-migrate
+Terminal=false
+OnlyShowIn=KDE;
+X-KDE-StartupNotify=false
+X-KDE-autostart-phase=1

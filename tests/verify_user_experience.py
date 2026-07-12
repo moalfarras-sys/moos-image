@@ -58,9 +58,17 @@ require('had_legacy_key = "cloud_key" in data' in control and
         "elif had_legacy_key:" in control,
         "Mo AI must remove even an empty legacy cloud_key field")
 
-# The v6 migration is what makes the redesign visible to existing users.
+# The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
-require("THEME_REV=6" in apply_theme, "Nova visual schema must be revision 6")
+require("THEME_REV=7" in apply_theme, "Nova visual schema must be revision 7")
+
+ui_migrate = read("system_files/usr/bin/moos-ui-migrate")
+require("MOOS_THEME_REV=7" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
+        "UI cache and Mo AI migrations must be explicitly revisioned")
+require('rm -rf "$HOME/.cache"' not in ui_migrate,
+        "UI migration must never erase the whole user cache")
+require("secret-tool" not in ui_migrate,
+        "UI migration must never inspect or mutate Mo AI credentials")
 
 # Windows must wear the Nova decoration, not Breeze. Breeze here means Breeze's
 # X / v / ^ title-bar glyphs on every window — the loudest remaining "this is
@@ -119,6 +127,15 @@ for svg in ("panel-background.svg", "tasks.svg"):
 layout = read("system_files/usr/share/plasma/layout-templates/"
               "org.kde.plasma.desktop.defaultPanel/contents/layout.js")
 require("panel.floating = true" in layout, "the MoOS dock must float")
+require('addWidget("org.moos.nova.launcher")' in layout,
+        "new users must receive the original Nova launcher, not Kickoff")
+require('addWidget("org.moos.nova.clock")' in layout,
+        "new users must receive the compact Nova clock")
+for package in ("org.moos.nova.launcher", "org.moos.nova.clock"):
+    root = ROOT / "system_files/usr/share/plasma/plasmoids" / package
+    require((root / "metadata.json").is_file() and
+            (root / "contents/ui/main.qml").is_file(),
+            f"missing complete Plasma package: {package}")
 require("try {" in layout,
         "the floating setter must be guarded -- a throw in the layout template "
         "leaves the session with NO panel")
