@@ -10,23 +10,33 @@
 
 image_name := "moos"
 base_main := "ghcr.io/ublue-os/kinoite-main:44"
-base_nvidia := "ghcr.io/ublue-os/kinoite-nvidia:44"
 
 # List available recipes
 default:
     @just --list
 
-# Build the main MoOS image (kinoite-main base)
+# Build the main MoOS image
 build:
     podman build \
         --build-arg BASE_IMAGE={{ base_main }} \
+        --build-arg IMAGE_NAME={{ image_name }} \
         -t {{ image_name }}:latest \
         .
 
-# Build the NVIDIA variant (kinoite-nvidia base, proprietary drivers baked in)
+# Build the NVIDIA edition: the SAME base, with the driver layered on from ublue's akmods
+# container. (It used to build FROM ghcr.io/ublue-os/kinoite-nvidia:44 — a tag upstream
+# abandoned in May, which silently made the "NVIDIA image" ~589 packages older than the
+# generic one.) The akmods tag is pinned to the base image's exact kernel: a kmod built for
+# a different kernel does not load, and the machine boots to a black screen.
 build-nvidia:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    kernel="$(skopeo inspect docker://{{ base_main }} | jq -er '.Labels["ostree.linux"]')"
+    echo "base kernel: ${kernel}"
     podman build \
-        --build-arg BASE_IMAGE={{ base_nvidia }} \
+        --build-arg BASE_IMAGE={{ base_main }} \
+        --build-arg IMAGE_NAME={{ image_name }}-nvidia \
+        --build-arg "AKMODS_IMAGE=ghcr.io/ublue-os/akmods-nvidia-open:main-44-${kernel}" \
         -t {{ image_name }}-nvidia:latest \
         .
 

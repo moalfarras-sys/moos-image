@@ -1,0 +1,3 @@
+docker:
+  ghcr.io/moalfarras-sys:
+    use-sigstore-attachments: true

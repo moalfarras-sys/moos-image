@@ -67,6 +67,71 @@ dnf5 -y install uupd
 dnf5 -y copr disable ublue-os/packages
 
 # -----------------------------------------------------------------------------
+# (b2) NVIDIA driver — moos-nvidia edition only
+# -----------------------------------------------------------------------------
+# This MUST run before the initramfs is regenerated below: dracut has to see the
+# nvidia modules and the force_drivers config, or the machine boots to a black
+# screen (early KMS never hands a working GPU to Plasma).
+#
+# The driver is layered onto the SAME kinoite-main base as the generic edition,
+# from ublue's akmods container, using ublue's own installer. See the Containerfile
+# for why the old kinoite-nvidia base was abandoned.
+#
+# It runs before section (z) rebrands os-release on purpose: dnf5/COPR derive the
+# chroot name from ID+VERSION_ID, and nvidia-install.sh enables a COPR.
+if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
+    echo "=== NVIDIA edition: layering the driver onto the shared base ==="
+    if [ ! -d /akmods/rpms ]; then
+        echo "FATAL: the moos-nvidia build has no NVIDIA RPMs mounted at /akmods."
+        echo "       The caller must pass --build-arg AKMODS_IMAGE=<ublue akmods-nvidia-open image>"
+        echo "       pinned to this image's kernel. See .github/workflows/build.yml (step"
+        echo "       'Resolve NVIDIA akmods image') and the Justfile's build-nvidia recipe."
+        echo "       Refusing to build an 'NVIDIA' image with no driver in it."
+        exit 1
+    fi
+
+    # The kmod is compiled against ONE kernel. If the base image has moved to a newer
+    # kernel than the akmods container was built for, the module will not load and the
+    # machine black-screens. Refuse to build that image at all.
+    kver_image=$(basename "$(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d | head -1)")
+    # shellcheck source=/dev/null
+    . /akmods/rpms/kmods/nvidia-vars
+    if [ "${KERNEL_VERSION}" != "${kver_image}" ]; then
+        echo "FATAL: akmods kmod was built for kernel ${KERNEL_VERSION}, but this image ships ${kver_image}."
+        echo "       Pairing them would produce a black screen. Waiting for ublue to publish a matching akmod."
+        exit 1
+    fi
+    echo "OK: kmod and image agree on kernel ${kver_image}."
+
+    AKMODNV_PATH=/akmods/rpms IMAGE_NAME=kinoite MULTILIB=1 \
+        bash /akmods/rpms/ublue-os/nvidia-install.sh
+
+    # Prove the driver actually landed, rather than trusting the installer's exit code.
+    rpm -q kmod-nvidia nvidia-driver >/dev/null || { echo "FATAL: NVIDIA packages are not installed."; exit 1; }
+    find "/usr/lib/modules/${kver_image}" -name 'nvidia*.ko*' | grep -q . \
+        || { echo "FATAL: no nvidia kernel modules under /usr/lib/modules/${kver_image}."; exit 1; }
+    grep -rq "force_drivers" /usr/lib/dracut/dracut.conf.d/99-nvidia.conf \
+        || { echo "FATAL: 99-nvidia.conf does not force the driver into the initramfs (black screen at boot)."; exit 1; }
+
+    # ublue's installer also force-loads i915 and amdgpu. Here that is counter-productive:
+    # this image already trims every non-NVIDIA GPU driver out of the initramfs because GRUB
+    # could not allocate the ~368MB image that results from keeping them (see the dracut
+    # section below). Forcing them back in re-inflates it, and buys nothing — i915/amdgpu are
+    # loaded normally by udev from the real root a moment later; only NVIDIA needs to be
+    # present early, for the KMS handoff that keeps the desktop from coming up black.
+    sed -i 's@ i915 amdgpu nvidia @ nvidia @' /usr/lib/dracut/dracut.conf.d/99-nvidia.conf
+
+    # dracut resolves force_drivers entries BY NAME through modules.dep. Without a fresh
+    # depmod the map has no entry for the just-installed out-of-tree modules, dracut silently
+    # finds nothing to force, and the initramfs comes out with no nvidia in it at all.
+    depmod -a "${kver_image}"
+
+    echo "OK: NVIDIA $(rpm -q --qf '%{VERSION}' nvidia-driver) installed."
+    echo "    modules: $(find "/usr/lib/modules/${kver_image}" -name 'nvidia*.ko*' -printf '%f ' )"
+    echo "    dracut : $(grep -h force_drivers /usr/lib/dracut/dracut.conf.d/99-nvidia.conf)"
+fi
+
+# -----------------------------------------------------------------------------
 # (c2) Live-ISO support (container-native ISO contract v0.1.0 / Titanoboa)
 # -----------------------------------------------------------------------------
 # Recipe from the reference implementation for Kinoite bootc live ISOs:
@@ -149,13 +214,14 @@ kver=$(basename "$(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d)")
 # both a config drop-in and --add so it cannot be dropped again.
 [ -e /usr/lib/ostree/ostree-prepare-root ] && chmod 0755 /usr/lib/ostree/ostree-prepare-root || true
 
-# KEEP NVIDIA in the initramfs (the kinoite-nvidia base force_drivers+= it) so the
-# proprietary driver does early KMS and the DESKTOP renders — removing it entirely
-# produced a black screen (Vulkan/Plasma had no working GPU at handoff). We only
-# trim the OTHER GPU display drivers the RTX-2080 machine doesn't need (nouveau,
-# amdgpu, radeon, i915, xe). That drops the initramfs from ~368MB to ~242MB —
-# below the ~368MB that GRUB could not allocate — while NVIDIA still works.
-# (The generic kinoite-main edition has no NVIDIA and is ~124MB.)
+# KEEP NVIDIA in the initramfs (section (b2) force_drivers+= it) so the driver does
+# early KMS and the DESKTOP renders — removing it entirely produced a black screen
+# (Vulkan/Plasma had no working GPU at handoff). We only trim the OTHER GPU display
+# drivers the NVIDIA machine doesn't need (nouveau, amdgpu, radeon, i915, xe). That
+# drops the initramfs from ~368MB to ~242MB — below the ~368MB that GRUB could not
+# allocate — while NVIDIA still works. Those drivers are not lost: udev loads them
+# from the real root during normal boot.
+# (The generic edition has no NVIDIA and is ~124MB.)
 cat > /usr/lib/dracut/dracut.conf.d/99-moos-boot.conf <<'DRC'
 add_dracutmodules+=" ostree dmsquash-live dmsquash-live-autooverlay "
 add_drivers+=" erofs overlay loop "
@@ -188,6 +254,12 @@ else
     grep -iE "ostree|omitting module" /tmp/moos-dracut.log | tail -20
     exit 1
 fi
+
+if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
+    # Informational only. The binding gate is the lsinitrd proof further down, which reads the
+    # initramfs that was actually produced instead of trusting dracut's log wording.
+    echo "=== dracut nvidia mentions: $(grep -ciE 'nvidia' /tmp/moos-dracut.log || true) ==="
+fi
 rm -f /tmp/moos-dracut.log
 
 # --- USER-REQUESTED PROOF: lsinitrd | grep ostree-prepare-root ----------------
@@ -213,6 +285,27 @@ else
     echo "  >>> NOTE: lsinitrd could not run inside this buildah container (exit=${_lsrc}); the"
     echo "      dracut-log gate above already proved the ostree module is included. The exact"
     echo "      lsinitrd|grep is re-run on the live system in INSTALL_TEST_REPORT.md."
+fi
+
+# The binding NVIDIA gate: the module must be INSIDE the initramfs that was just built.
+# An nvidia image whose initramfs has no nvidia module hands Plasma a dead GPU and comes up
+# to a black screen — which is exactly how this machine got bricked before. Read the real
+# initramfs listing; do not infer it from dracut's log wording.
+if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
+    echo "=== PROOF: nvidia modules inside the initramfs ==="
+    _nv="$(grep -cE 'nvidia.*\.ko' /tmp/moos-lsinitrd.txt 2>/dev/null || echo 0)"
+    if [ "${_lsrc}" -eq 0 ] && [ "${_nv}" -ge 1 ]; then
+        echo "  >>> PROOF PASSED — ${_nv} nvidia module(s) in the initramfs:"
+        grep -E 'nvidia.*\.ko' /tmp/moos-lsinitrd.txt | sed 's/^/      /' | head -6
+    elif [ "${_lsrc}" -eq 0 ]; then
+        echo "  >>> FATAL: the NVIDIA edition's initramfs contains NO nvidia module."
+        echo "      It would boot to a black screen. Refusing to ship it."
+        exit 1
+    else
+        echo "  >>> FATAL: could not read the initramfs to verify nvidia (lsinitrd exit=${_lsrc})."
+        echo "      An unverifiable nvidia image is not shippable."
+        exit 1
+    fi
 fi
 rm -f /tmp/moos-lsinitrd.txt /tmp/moos-lsinitrd.err
 
@@ -244,6 +337,40 @@ ls /boot/efi/EFI >/dev/null   # hard-fail here if the EFI dir could not be provi
 # and the user never has to `bootc switch` (which is what bricked the machine).
 MOOS_IMAGEREF="ghcr.io/moalfarras-sys/${MOOS_IMAGE_NAME:-moos}"
 MOOS_IMAGETAG="latest"
+
+# -----------------------------------------------------------------------------
+# Enforce the cosign signature on MoOS's own images.
+#
+# Every image CI publishes is signed (build.yml, `cosign sign`), the public key ships at
+# /etc/pki/containers/moos.pub, and the base policy already ENFORCES signatures for ublue's
+# images. MoOS's own registry, however, was listed as "insecureAcceptAnything" — so the one
+# registry whose contents become the running OS was the only one nobody checked. Anyone who
+# could push to it, or MITM the pull, owned the machine.
+#
+# This makes the signature binding: an image that is not signed by the MoOS key is refused,
+# and a refusal is a clean failure (no deployment is created) rather than a broken system.
+python3 - <<'POLICY'
+import json
+path = "/etc/containers/policy.json"
+with open(path) as f:
+    policy = json.load(f)
+policy["transports"]["docker"]["ghcr.io/moalfarras-sys"] = [{
+    "type": "sigstoreSigned",
+    "keyPath": "/etc/pki/containers/moos.pub",
+    "signedIdentity": {"type": "matchRepository"},
+}]
+with open(path, "w") as f:
+    json.dump(policy, f, indent=4)
+print("OK: policy.json now enforces the cosign signature on ghcr.io/moalfarras-sys.")
+POLICY
+
+# The signature is a sigstore attachment, not a detached simple-signing file; without this
+# the verifier looks in the wrong place and every image reads as unsigned.
+# (registries.d/moalfarras-sys.yaml ships via system_files.)
+grep -q "use-sigstore-attachments" /etc/containers/registries.d/moalfarras-sys.yaml \
+    || { echo "FATAL: registries.d entry for the MoOS registry is missing — signatures would never be found."; exit 1; }
+[ -s /etc/pki/containers/moos.pub ] \
+    || { echo "FATAL: the MoOS cosign public key is not in the image; signature enforcement would fail closed on every update."; exit 1; }
 
 dnf5 -y install --setopt=install_weak_deps=False \
     anaconda-live firefox libblockdev-btrfs libblockdev-lvm libblockdev-dm
