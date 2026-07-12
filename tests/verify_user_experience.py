@@ -58,9 +58,41 @@ require('had_legacy_key = "cloud_key" in data' in control and
         "elif had_legacy_key:" in control,
         "Mo AI must remove even an empty legacy cloud_key field")
 
-# The v5 migration is what makes the redesign visible to existing users.
+# The v6 migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
-require("THEME_REV=5" in apply_theme, "Nova visual schema must be revision 5")
+require("THEME_REV=6" in apply_theme, "Nova visual schema must be revision 6")
+
+# Windows must wear the Nova decoration, not Breeze. Breeze here means Breeze's
+# X / v / ^ title-bar glyphs on every window — the loudest remaining "this is
+# stock KDE" tell after the dock.
+kwinrc = read("system_files/etc/xdg/kwinrc")
+require("library=org.kde.kwin.aurorae" in kwinrc,
+        "KWin must load the Aurorae engine, not Breeze")
+require("theme=__aurorae__svg__MoOSNova" in kwinrc,
+        "KWin must use the MoOS Nova decoration; the __aurorae__svg__ prefix is "
+        "what routes the theme to the Aurorae SVG engine")
+
+aurorae = ROOT / "system_files/usr/share/aurorae/themes/MoOSNova"
+for name in ("decoration.svg", "close.svg", "minimize.svg", "maximize.svg",
+             "restore.svg", "MoOSNovarc"):
+    require((aurorae / name).is_file(),
+            f"the Nova decoration must ship {name}")
+
+# The shadow is the theme's own job — Aurorae paints the decoration SVG across
+# its Padding* region, and a decoration with no padding has no drop shadow, which
+# lands windows flat on the wallpaper and looks WORSE than the Breeze it
+# replaced. Guard the padding so a future edit cannot quietly delete the shadow.
+themerc = read("system_files/usr/share/aurorae/themes/MoOSNova/MoOSNovarc")
+for pad in ("PaddingLeft", "PaddingRight", "PaddingTop", "PaddingBottom"):
+    match = re.search(rf"^{pad}=(\d+)$", themerc, re.MULTILINE)
+    require(match is not None and int(match.group(1)) > 0,
+            f"{pad} must be > 0 or the window decoration ships with no shadow")
+
+# Same fill-only invariant as the Plasma Style: a stroke inflates the FrameSvg
+# element bbox and the stretch factor magnifies the overflow.
+for svg in sorted(aurorae.glob("*.svg")):
+    require("stroke" not in svg.read_text(encoding="utf-8"),
+            f"{svg.name} must be fill-only (stroke inflates the FrameSvg bbox)")
 
 # Nova must own the panel and the task buttons. Without these two FrameSvgs the
 # Plasma Style falls back down the chain to breeze-dark for the dock background
