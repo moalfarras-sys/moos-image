@@ -24,7 +24,17 @@ fixed=JetBrains Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 [Icons]
 Theme=Nova
 
+# AutomaticLookAndFeel is Plasma's day/night switch between two Look and Feel
+# packages, named in Default{Light,Dark}LookAndFeel. MoOS ships exactly ONE
+# (org.moos.nova), so the switch has no second theme of ours to land on — it can
+# only ever swap Nova out for somebody else's. Worse, it resolves its target BY
+# NAME at switch time: point it at a package that is not installed and Plasma does
+# not fall back to LookAndFeelPackage below, it falls back to Breeze and writes
+# that into the user's own kdeglobals, which then outranks this file forever.
+# That is not a theory — it is what removing Fedora's look-and-feel packages did
+# to an existing user. Off, explicitly, for every new user.
 [KDE]
+AutomaticLookAndFeel=false
 LookAndFeelPackage=org.moos.nova
 
 # Nova event sounds — the original MoOS sound theme shipped at

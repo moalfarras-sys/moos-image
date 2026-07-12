@@ -113,7 +113,29 @@ require('had_legacy_key = "cloud_key" in data' in control and
 
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
-require("THEME_REV=7" in apply_theme, "Nova visual schema must be revision 7")
+require("THEME_REV=8" in apply_theme, "Nova visual schema must be revision 8")
+
+# Nova must survive Plasma, not just reach it.
+#
+# Plasma's automatic day/night switch resolves Default{Light,Dark}LookAndFeel BY NAME
+# when it fires. If the named package is not installed it does NOT fall back to the
+# configured LookAndFeelPackage — it falls back to Breeze and PERSISTS that into the
+# user's kdeglobals, which then outranks /etc/xdg for good. Removing Fedora's
+# look-and-feel packages did exactly this to an existing user: the image was right, the
+# system default was right, and the desktop still came up Breeze Dark.
+#
+# Two things have to hold, so both are gated. The switch must be off for new users, and
+# an apply-once marker must never outrank what the desktop is ACTUALLY wearing — a
+# script that trusts its own marker on a desktop that has silently reverted is the thing
+# that keeps it reverted.
+require("defuse_automatic_lookandfeel" in apply_theme,
+        "moos-apply-theme must disarm Plasma's automatic look-and-feel switch")
+require("current_lookandfeel" in apply_theme and "SELF-HEAL" in apply_theme,
+        "moos-apply-theme must re-apply when the desktop is no longer wearing Nova")
+
+xdg_kdeglobals = read("system_files/etc/xdg/kdeglobals")
+require("AutomaticLookAndFeel=false" in xdg_kdeglobals,
+        "MoOS ships one Look and Feel; Plasma's day/night switch can only swap Nova out")
 
 ui_migrate = read("system_files/usr/bin/moos-ui-migrate")
 require("MOOS_THEME_REV=7" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
@@ -132,6 +154,35 @@ require("library=org.kde.kwin.aurorae" in kwinrc,
 require("theme=__aurorae__svg__MoOSNova" in kwinrc,
         "KWin must use the MoOS Nova decoration; the __aurorae__svg__ prefix is "
         "what routes the theme to the Aurorae SVG engine")
+
+# …and the two checks above are NOT enough on their own. They were green for the
+# entire life of this project while every window wore Breeze.
+#
+# XDG_CONFIG_DIRS is "~/.config/kdedefaults:/etc/xdg:…", and LookAndFeelManager writes
+# the applied theme's defaults into kdedefaults/ — which therefore SHADOWS the
+# /etc/xdg/kwinrc gated above. A user created under Breeze gets
+# kdedefaults/kwinrc = org.kde.breeze, and Nova's defaults never declared a decoration,
+# so applying Nova never overwrote it. The system default could not win, and the gate
+# on it could not see that.
+#
+# Gate the file that actually decides: the Look-and-Feel defaults (correct for new
+# users) and the explicit user-config write in the migration (correct for existing
+# ones, since ~/.config outranks kdedefaults outright).
+lnf_defaults = read("system_files/usr/share/plasma/look-and-feel/org.moos.nova/contents/defaults")
+require("[kwinrc][org.kde.kdecoration2]" in lnf_defaults
+        and "theme=__aurorae__svg__MoOSNova" in lnf_defaults,
+        "org.moos.nova's defaults must declare the window decoration, or Breeze's entry "
+        "in ~/.config/kdedefaults/kwinrc permanently shadows /etc/xdg/kwinrc")
+require("--group org.kde.kdecoration2 --key theme __aurorae__svg__MoOSNova" in apply_theme,
+        "the theme migration must pin the Nova decoration into an existing user's own "
+        "kwinrc; a system default cannot reach past kdedefaults")
+
+# Same trap, third instance: [Sounds] is not in the entry set LookAndFeelManager applies,
+# so a user carrying Theme=freedesktop from the defaults they were created under keeps it,
+# and the MoOS sound theme ships without ever playing.
+require("--group Sounds --key Theme moos-nova" in apply_theme,
+        "the theme migration must pin the Nova sound theme into an existing user's own "
+        "kdeglobals; Plasma never writes [Sounds] when applying a Global Theme")
 
 aurorae = ROOT / "system_files/usr/share/aurorae/themes/MoOSNova"
 for name in ("decoration.svg", "close.svg", "minimize.svg", "maximize.svg",

@@ -17,16 +17,77 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=7
+THEME_REV=8
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 marker="${state_dir}/moos-nova-theme-applied.v${THEME_REV}"
-[ -e "$marker" ] && exit 0
-mkdir -p "$state_dir" 2>/dev/null || true
-rm -f "${state_dir}"/moos-nova-theme-applied "${state_dir}"/moos-nova-theme-applied.v* 2>/dev/null || true
 
 log="${XDG_CACHE_HOME:-$HOME/.cache}/moos-apply-theme.log"
 mkdir -p "$(dirname "$log")" 2>/dev/null || true
-echo "=== moos-apply-theme $(date -u '+%FT%TZ') ===" >>"$log" 2>/dev/null || true
+
+# What the desktop is ACTUALLY wearing right now. Empty (or no kreadconfig6) means
+# "cannot tell" — say so, and let the caller fall back to trusting the marker rather
+# than re-applying the theme on every single login.
+current_lookandfeel() {
+    command -v kreadconfig6 >/dev/null 2>&1 || return 1
+    kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage 2>/dev/null
+}
+
+# The marker means "this revision was applied once". It does NOT mean the desktop still
+# LOOKS like MoOS, and those two came apart the moment Plasma started rewriting
+# LookAndFeelPackage behind our back (see defuse_automatic_lookandfeel below). An
+# apply-once marker on a desktop that has silently reverted to Breeze is precisely the
+# thing that keeps it Breeze: the repair exists, and its own marker disables it.
+#
+# So the marker is honoured only while the look is intact. If it is not, this run repairs
+# it however many times it has run before — that is the whole point.
+if [ -e "$marker" ]; then
+    lnf="$(current_lookandfeel)" || exit 0   # cannot tell → trust the marker, as before
+    [ "$lnf" = "org.moos.nova" ] && exit 0
+    echo "=== moos-apply-theme $(date -u '+%FT%TZ') === SELF-HEAL: look-and-feel is '${lnf:-unset}', not org.moos.nova" >>"$log" 2>/dev/null || true
+else
+    echo "=== moos-apply-theme $(date -u '+%FT%TZ') ===" >>"$log" 2>/dev/null || true
+fi
+
+mkdir -p "$state_dir" 2>/dev/null || true
+rm -f "${state_dir}"/moos-nova-theme-applied "${state_dir}"/moos-nova-theme-applied.v* 2>/dev/null || true
+
+# Disarm Plasma's day/night Look-and-Feel switch BEFORE applying anything — otherwise it
+# is free to undo this run's work at the next sunrise.
+#
+# The switch keeps its two targets in [KDE] Default{Light,Dark}LookAndFeel and resolves
+# them BY NAME when it fires. If the named package is not installed, Plasma does not fall
+# back to the configured LookAndFeelPackage — it falls back to BREEZE, and it persists
+# that choice into the user's kdeglobals, which outranks /etc/xdg for good.
+#
+# This is not hypothetical, it is the bug this revision exists for. Users created under
+# Fedora's kde-settings carried AutomaticLookAndFeel=true with
+# DefaultLightLookAndFeel=org.fedoraproject.fedora.desktop. MoOS then removed Fedora's
+# look-and-feel packages (a machine called MoOS should not offer another distribution's
+# themes). The system default still said org.moos.nova and the image still shipped it —
+# but on the first boot after that upgrade the switch resolved a package that no longer
+# existed, and the desktop came up Breeze Dark.
+#
+# MoOS ships exactly ONE Look and Feel, so there is no second theme of ours to switch to:
+# any target here can only ever be somebody else's. Drop the targets, turn the switch off.
+defuse_automatic_lookandfeel() {
+    command -v kreadconfig6 >/dev/null 2>&1 || return 0
+    command -v kwriteconfig6 >/dev/null 2>&1 || return 0
+    local changed=0 key val
+    for key in DefaultLightLookAndFeel DefaultDarkLookAndFeel; do
+        val="$(kreadconfig6 --file kdeglobals --group KDE --key "$key" 2>/dev/null)"
+        [ -n "$val" ] || continue
+        [ "$val" = "org.moos.nova" ] && [ -d "/usr/share/plasma/look-and-feel/$val" ] && continue
+        kwriteconfig6 --file kdeglobals --group KDE --key "$key" --delete 2>/dev/null \
+            && { changed=1; echo "dropped dangling ${key}=${val}" >>"$log" 2>/dev/null; }
+    done
+    if [ "$(kreadconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel 2>/dev/null)" = "true" ]; then
+        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null \
+            && { changed=1; echo "turned off AutomaticLookAndFeel" >>"$log" 2>/dev/null; }
+    fi
+    [ "$changed" = "1" ] && echo "defused Plasma's automatic look-and-feel switch" >>"$log" 2>/dev/null
+    return 0
+}
+defuse_automatic_lookandfeel
 
 # Autostart can fire before the Plasma shell / session D-Bus is ready. Wait for
 # plasmashell so the apply tools actually take effect. Do NOT rely on `qdbus`:
@@ -151,6 +212,43 @@ fi
 if command -v kwriteconfig6 >/dev/null 2>&1; then
     kwriteconfig6 --file ksplashrc --group KSplash --key Theme org.moos.nova
     kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML
+fi
+
+# The window decoration, for the same reason — and this one is worse than KSplash,
+# because MoOS's system default could never have won on its own.
+#
+# XDG_CONFIG_DIRS is "~/.config/kdedefaults:/etc/xdg:…". LookAndFeelManager writes the
+# applied Global Theme's defaults into kdedefaults/, which therefore OUTRANKS the
+# /etc/xdg/kwinrc this image ships. A user created under Breeze got
+# kdedefaults/kwinrc = org.kde.breeze on day one, and because Nova's own defaults file
+# never declared a decoration, applying Nova did not overwrite it. MoOS's Aurorae
+# decoration has been shadowed on every install since — Breeze's X / v / ^ glyphs on
+# every window, with the /etc/xdg gate green the whole time.
+#
+# Nova's defaults now declares it (so a fresh apply writes kdedefaults correctly), but
+# an existing user needs the value put somewhere that beats kdedefaults outright.
+# ~/.config/kwinrc — the user's own config, XDG_CONFIG_HOME — does exactly that.
+#
+# ButtonsOnLeft mirrors /etc/xdg/kwinrc: X=Close I=Minimize A=Maximize.
+if command -v kwriteconfig6 >/dev/null 2>&1; then
+    kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae
+    kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme __aurorae__svg__MoOSNova
+    kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft XIA
+    echo "pinned the Nova window decoration into the user's kwinrc" >>"$log" 2>/dev/null || true
+    # KWin only re-reads kwinrc when told to. Without this the decoration changes on the
+    # next login instead of now, which reads as "the fix did not work".
+    if command -v gdbus >/dev/null 2>&1; then
+        gdbus call --session -d org.kde.KWin -o /KWin -m org.kde.KWin.reconfigure \
+            >>"$log" 2>&1 || echo "kwin reconfigure skipped" >>"$log" 2>&1
+    fi
+
+    # The event sounds, third instance of the same trap. [Sounds] is NOT in the entry set
+    # LookAndFeelManager applies, so it writes nothing to kdedefaults — and the user's own
+    # kdeglobals, carrying Theme=freedesktop from the Breeze/Fedora defaults they were
+    # created under, outranks both the Nova theme's declaration and /etc/xdg/kdeglobals.
+    # The MoOS sound theme has shipped since day one and has never once played.
+    kwriteconfig6 --file kdeglobals --group Sounds --key Theme moos-nova
+    kwriteconfig6 --file kdeglobals --group Sounds --key Enable true
 fi
 
 # Only mark done if something actually applied — otherwise retry next login.

@@ -35,6 +35,28 @@ Theme=Nova
 Enable=true
 Theme=moos-nova
 
+# --- Window decoration -------------------------------------------------------
+# This one MUST be here, and /etc/xdg/kwinrc cannot do it instead.
+#
+# On apply, LookAndFeelManager writes the theme's defaults into
+# ~/.config/kdedefaults/<file> — and kdedefaults comes BEFORE /etc/xdg in
+# XDG_CONFIG_DIRS. So whatever lands there outranks the system default for good.
+#
+# org.kde.breeze ships exactly this group (which is also the proof that the
+# decoration IS in the hardcoded entry set LookAndFeelManager applies, unlike the
+# arbitrary [kwinrc] groups below). Nova did not ship it. The consequence was not
+# that Nova's decoration merely failed to apply — it was that Breeze's, written to
+# kdedefaults/kwinrc when the user was created under Breeze, was never overwritten
+# by anything, and permanently shadowed MoOS's /etc/xdg/kwinrc. Every window on
+# every MoOS install has been wearing Breeze's X / v / ^ glyphs since day one,
+# while the gate on /etc/xdg/kwinrc stayed green.
+#
+# Applying the Global Theme now rewrites that file, which is the only way an
+# EXISTING user's decoration can be corrected.
+[kwinrc][org.kde.kdecoration2]
+library=org.kde.kwin.aurorae
+theme=__aurorae__svg__MoOSNova
+
 # --- KWin blur ---------------------------------------------------------------
 # Key names VERIFIED against kwin master src/plugins/blur/blur.kcfg (config
 # group "Effect-blur", Int entries BlurStrength / NoiseStrength) and the
