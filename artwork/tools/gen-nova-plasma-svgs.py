@@ -365,6 +365,107 @@ def tasks() -> str:
     return "\n".join(p) + "\n"
 
 
+def simple_rounded_frame(prefix: str, y: int, fill: str, opacity: float,
+                         rim: str, rim_opacity: float, radius: int = 12,
+                         edge: int = 24) -> list[str]:
+    """One fill-only FrameSvg state laid out in a horizontal-safe 9-patch."""
+    x0, x1, x2 = 0, radius, radius + edge
+    y0, y1, y2 = y, y + radius, y + radius + edge
+    attr = f'fill="{fill}" fill-opacity="{opacity}"'
+    out: list[str] = []
+    for which, (x, yy) in (("topleft", (x0, y0)), ("topright", (x2, y0)),
+                            ("bottomleft", (x0, y2)), ("bottomright", (x2, y2))):
+        out.append(f'  <g id="{prefix}{which}">')
+        out.append(f'    <path d="{corner_fill(x, yy, radius, which)}" {attr}/>')
+        out.append(f'    <path d="{corner_ring(x, yy, radius, which)}" fill="{rim}" fill-opacity="{rim_opacity}"/>')
+        out.append("  </g>")
+    out.extend([
+        f'  <g id="{prefix}top"><rect x="{x1}" y="{y0}" width="{edge}" height="{radius}" {attr}/><rect x="{x1}" y="{y0}" width="{edge}" height="1" fill="{rim}" fill-opacity="{rim_opacity}"/></g>',
+        f'  <g id="{prefix}bottom"><rect x="{x1}" y="{y2}" width="{edge}" height="{radius}" {attr}/><rect x="{x1}" y="{y2+radius-1}" width="{edge}" height="1" fill="{rim}" fill-opacity="{rim_opacity * .55}"/></g>',
+        f'  <g id="{prefix}left"><rect x="0" y="{y1}" width="{radius}" height="{edge}" {attr}/><rect x="0" y="{y1}" width="1" height="{edge}" fill="{rim}" fill-opacity="{rim_opacity * .7}"/></g>',
+        f'  <g id="{prefix}right"><rect x="{x2}" y="{y1}" width="{radius}" height="{edge}" {attr}/><rect x="{x2+radius-1}" y="{y1}" width="1" height="{edge}" fill="{rim}" fill-opacity="{rim_opacity * .7}"/></g>',
+        f'  <rect id="{prefix}center" x="{x1}" y="{y1}" width="{edge}" height="{edge}" {attr}/>',
+    ])
+    return out
+
+
+def kickoff_popup_background() -> str:
+    """Nova glass popup used by Kickoff and other expanded panel applets."""
+    p = ['<?xml version="1.0" encoding="UTF-8"?>',
+         '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="72" viewBox="0 0 120 72">',
+         '  <!-- MoOS Nova overlay: opaque enough without blur, luminous with it. -->', STYLE]
+    p += simple_rounded_frame("", 0, "#0B1220", .965, "#76DDF7", .24, 18, 28)
+    for side, x, y, w, h in (("top", 86, 0, 4, 12), ("bottom", 86, 16, 4, 12),
+                              ("left", 82, 32, 12, 4), ("right", 98, 32, 12, 4)):
+        p.append(hint(f"hint-{side}-margin", x, y, w, h))
+    p.append(hint("hint-stretch-borders", 86, 44, 4, 4))
+    p.append('</svg>')
+    return "\n".join(p) + "\n"
+
+
+def kickoff_lineedit() -> str:
+    """Search field states consumed by PlasmaExtras.SearchField."""
+    p = ['<?xml version="1.0" encoding="UTF-8"?>',
+         '<svg xmlns="http://www.w3.org/2000/svg" width="112" height="180" viewBox="0 0 112 180">', STYLE]
+    states = (("base-", "#111A2E", .94, "#4B6287", .55),
+              ("hover-", "#162743", .98, CYAN, .62),
+              ("focus-", "#13213A", 1.0, "#4FC3FF", .98),
+              ("focusframe-", "#13213A", .01, "#8B5CF6", .92))
+    for i, state in enumerate(states):
+        prefix, fill, opacity, rim, rim_opacity = state
+        p += simple_rounded_frame(prefix, i * 44, fill, opacity, rim,
+                                  rim_opacity, radius=10, edge=24)
+    for prefix in ("base-", "hover-", "focus-"):
+        for side, x, y, w, h in (("top", 80, 0, 4, 8), ("bottom", 80, 10, 4, 8),
+                                  ("left", 76, 20, 10, 4), ("right", 90, 20, 10, 4)):
+            p.append(hint(f"{prefix}hint-{side}-margin", x, y, w, h))
+    p.append(hint("hint-tile-center", 104, 0, 1, 1))
+    p.append('</svg>')
+    return "\n".join(p) + "\n"
+
+
+def kickoff_heading() -> str:
+    """Quiet translucent header/footer bands with a Nova separator glow."""
+    p = ['<?xml version="1.0" encoding="UTF-8"?>',
+         '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="96" viewBox="0 0 128 96">', STYLE]
+    p += simple_rounded_frame("header-", 0, "#111A2E", .72, "#4FC3FF", .13, 8, 32)
+    p += simple_rounded_frame("footer-", 48, "#0E1728", .78, "#8B5CF6", .14, 8, 32)
+    for side, x, y, w, h in (("top", 100, 0, 4, 6), ("bottom", 100, 8, 4, 6),
+                              ("left", 96, 16, 8, 4), ("right", 108, 16, 8, 4)):
+        p.append(hint(f"hint-{side}-margin", x, y, w, h))
+    p.append(hint("hint-stretch-borders", 100, 28, 4, 4))
+    p.append('</svg>')
+    return "\n".join(p) + "\n"
+
+
+def kickoff_listitem() -> str:
+    p = ['<?xml version="1.0" encoding="UTF-8"?>',
+         '<svg xmlns="http://www.w3.org/2000/svg" width="112" height="148" viewBox="0 0 112 148">', STYLE]
+    for i, state in enumerate((("normal-", "#111A2E", .01, "#9FB0C9", .01),
+                               ("pressed-", "#163059", .94, "#4FC3FF", .82),
+                               ("section-", "#111A2E", .01, "#9FB0C9", .01))):
+        prefix, fill, opacity, rim, rim_opacity = state
+        p += simple_rounded_frame(prefix, i * 44, fill, opacity, rim,
+                                  rim_opacity, radius=9, edge=24)
+        for side, x, y, w, h in (("top", 80, 0, 4, 5), ("bottom", 80, 7, 4, 5),
+                                  ("left", 76, 14, 7, 4), ("right", 87, 14, 7, 4)):
+            p.append(hint(f"{prefix}hint-{side}-margin", x, y + i * 24, w, h))
+    p.append('  <rect id="separator" x="0" y="140" width="32" height="1" fill="#7F94B5" fill-opacity="0.24"/>')
+    p.append(hint("hint-tile-center", 104, 0, 1, 1))
+    p.append('</svg>')
+    return "\n".join(p) + "\n"
+
+
+def kickoff_line() -> str:
+    return f'''<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+{STYLE}
+  <rect id="horizontal-line" x="0" y="8" width="32" height="1" fill="#7F94B5" fill-opacity="0.24"/>
+  <rect id="vertical-line" x="8" y="0" width="1" height="32" fill="#7F94B5" fill-opacity="0.24"/>
+</svg>
+'''
+
+
 def assert_no_strokes(name: str, body: str) -> None:
     """Guard the bounding-box invariant that cost a long debug session.
 
@@ -384,11 +485,22 @@ def assert_no_strokes(name: str, body: str) -> None:
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for name, body in (("panel-background.svg", panel_background()),
-                       ("tasks.svg", tasks())):
+                       ("tasks.svg", tasks()),
+                       ("lineedit.svg", kickoff_lineedit()),
+                       ("plasmoidheading.svg", kickoff_heading()),
+                       ("listitem.svg", kickoff_listitem()),
+                       ("line.svg", kickoff_line())):
         assert_no_strokes(name, body)
         path = OUT / name
         path.write_text(body, encoding="utf-8")
         print(f"wrote {path.relative_to(REPO)}  ({len(body)} bytes)")
+    dialogs = OUT.parent / "dialogs"
+    dialogs.mkdir(parents=True, exist_ok=True)
+    popup = kickoff_popup_background()
+    assert_no_strokes("dialogs/background.svg", popup)
+    path = dialogs / "background.svg"
+    path.write_text(popup, encoding="utf-8")
+    print(f"wrote {path.relative_to(REPO)}  ({len(popup)} bytes)")
 
 
 if __name__ == "__main__":

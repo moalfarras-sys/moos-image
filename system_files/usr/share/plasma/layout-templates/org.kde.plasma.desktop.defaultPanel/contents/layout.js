@@ -42,6 +42,21 @@ try { panel.floating = true; } catch (e) { /* keep the dock, lose the gap */ }
 var launcher = panel.addWidget("org.kde.plasma.kickoff");
 launcher.currentConfigGroup = ["General"];
 launcher.writeConfig("icon", "/usr/share/moos/moos-logo.png");
+launcher.writeConfig("appNameFormat", 0);
+launcher.writeConfig("favoritesDisplay", 0);
+launcher.writeConfig("applicationsDisplay", 1);
+launcher.writeConfig("primaryActions", 3);
+launcher.writeConfig("showActionButtonCaptions", true);
+launcher.writeConfig("switchCategoryOnHover", true);
+launcher.writeConfig("favorites", [
+    "org.moos.moai.desktop",
+    "preferred://browser",
+    "org.kde.dolphin.desktop",
+    "systemsettings.desktop",
+    "org.moos.updater.desktop",
+    "org.moos.recovery.desktop",
+    "org.kde.konsole.desktop"
+].join(","));
 
 /* Icons-Only Task Manager — Mo AI (robot icon) pinned FIRST, then browser,
  * files, the MoOS hubs, System Settings and the terminal. icontasks silently

@@ -122,6 +122,25 @@ for svg in ("panel-background.svg", "tasks.svg"):
                 f"{svg} must be fill-only; a stroke inflates the FrameSvg "
                 f"element bbox and tears a gap in the stretched edge")
 
+# Kickoff remains KDE's integrated plugin, but every presentation surface it
+# asks Plasma Style for must be owned by Nova rather than falling back to Breeze.
+kickoff_surfaces = {
+    "dialogs/background.svg",
+    "widgets/lineedit.svg",
+    "widgets/plasmoidheading.svg",
+    "widgets/viewitem.svg",
+    "widgets/listitem.svg",
+    "widgets/line.svg",
+    "widgets/button.svg",
+}
+nova_theme = ROOT / "system_files/usr/share/plasma/desktoptheme/Nova"
+for relative in kickoff_surfaces:
+    path = nova_theme / relative
+    require(path.is_file(), f"Nova Kickoff surface must exist: {relative}")
+    if path.is_file():
+        require("stroke" not in path.read_text(encoding="utf-8"),
+                f"{relative} must remain fill-only for FrameSvg geometry")
+
 # The dock has to actually leave the screen edge, or none of the rounded glass
 # reads as floating.
 layout = read("system_files/usr/share/plasma/layout-templates/"
