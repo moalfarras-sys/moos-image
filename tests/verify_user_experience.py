@@ -99,6 +99,25 @@ require("mo-remote-input-portal.py" not in build,
 require("pipewire-gstreamer" in build,
         "build.sh must guarantee the capture pipeline's GStreamer/PipeWire packages")
 
+# Remote control that only works inside the house is not remote control.
+#
+# Mo PC Remote was always reachable from anywhere — Tailscale is a mesh, and NetworkGuard has
+# always allowed the tailnet's 100.64.0.0/10. What defeated it was the ADDRESS the panel handed
+# the user: it took the default route's source IP, printed http://192.168.x.x:8765, and that
+# address stops existing the moment the phone is on mobile data. The panel must offer the
+# MagicDNS HTTPS name, which works anywhere on the tailnet AND is a secure context — without
+# which the browser will not give Mo PC Remote WebCodecs, the clipboard, or a real PWA install.
+panel = read("system_files/usr/bin/mo-pc-remote")
+require("tailscale" in panel and "serve" in panel,
+        "the Mo PC Remote panel must offer the Tailscale address; a LAN IP over http dies the "
+        "moment the phone leaves the house")
+require("qrencode" in panel and "qrencode" in build,
+        "the panel must render its address as a QR code, and the image must ship qrencode — an "
+        "address a user has to retype is an address they get wrong")
+require("remote-anywhere" in read("system_files/usr/bin/moai-do"),
+        "enabling access from anywhere touches Tailscale's operator bit, which is privileged, "
+        "so it must be a moai-do action and not something the panel does behind the user's back")
+
 control = read("system_files/usr/bin/moai-control")
 gateway = read("system_files/usr/bin/moai-gateway")
 require('"cloud_key":' not in control,

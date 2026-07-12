@@ -20,6 +20,59 @@ def lan_ip():
         value=s.getsockname()[0]; s.close(); return value
     except OSError: return "unavailable"
 
+
+# --- the address that still works once the phone leaves the house ---------------------------
+#
+# Mo PC Remote was already reachable from anywhere — Tailscale is a mesh, not a LAN thing, and
+# NetworkGuard has always allowed the tailnet's 100.64.0.0/10. The only thing standing between
+# the user and remote access was the address this panel handed them: it took the *default
+# route's* source IP, which is the LAN, printed http://192.168.x.x:8765, and that address stops
+# existing the moment the phone is on cellular.
+#
+# `tailscale serve` gives the machine a real HTTPS name instead. That fixes two things at once:
+#
+#   - it works from anywhere on the tailnet, with no port and no IP to remember, and
+#   - it is a SECURE CONTEXT, which is what the browser demands before it will hand Mo PC Remote
+#     WebCodecs (hardware video decode), the clipboard, or a properly installable PWA. Over plain
+#     http none of those exist, no matter how good the stream is.
+#
+# Nothing is published to the public internet: serve is tailnet-only. (`tailscale funnel` is the
+# public one. MoOS does not use it.)
+def tailscale_url():
+    """The MagicDNS HTTPS address, but only if serve is really proxying to our port."""
+    try:
+        st = json.loads(run("tailscale", "status", "--json").stdout or "{}")
+    except (ValueError, OSError, subprocess.SubprocessError):
+        return None
+    if st.get("BackendState") != "Running":
+        return None
+    name = ((st.get("Self") or {}).get("DNSName") or "").rstrip(".")
+    if not name:
+        return None
+    # Claim "from anywhere" only when it is true — a name with no proxy behind it is a dead link.
+    try:
+        served = run("tailscale", "serve", "status").stdout or ""
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if f"127.0.0.1:{PORT}" not in served and f"localhost:{PORT}" not in served:
+        return None
+    return f"https://{name}/"
+
+
+def enable_anywhere():
+    """Point serve at the agent. Needs no root once the user is Tailscale's operator."""
+    r = run("tailscale", "serve", "--bg", "--https=443", f"http://127.0.0.1:{PORT}")
+    return (r.returncode == 0, (r.stderr or r.stdout or "").strip())
+
+
+def qr_png(url, path):
+    """A code the phone can scan beats an address it has to be told over the phone."""
+    try:
+        r = run("qrencode", "-o", path, "-s", "8", "-m", "2", "-t", "PNG", url)
+        return r.returncode == 0 and os.path.exists(path)
+    except (OSError, subprocess.SubprocessError):
+        return False
+
 class App(Gtk.Application):
     def __init__(self): super().__init__(application_id="org.moos.MoPCRemote")
     def do_activate(self):
@@ -35,7 +88,21 @@ class App(Gtk.Application):
             if style:b.add_css_class(style)
             buttons.append(b)
         outer.append(buttons)
-        self.address=Gtk.Label(xalign=0,selectable=True); self.address.set_wrap(True); outer.append(self.address)
+
+        # Address block: the one that works anywhere first, the house-only one second, and a QR
+        # so the phone never has to be told an address at all.
+        addr=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=16)
+        addr_text=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=4,hexpand=True)
+        self.address=Gtk.Label(xalign=0,selectable=True); self.address.set_wrap(True); self.address.set_selectable(True)
+        addr_text.append(self.address)
+        self.anywhere_btn=Gtk.Button(label="Enable access from anywhere / تفعيل الوصول من أي مكان")
+        self.anywhere_btn.connect("clicked",self.on_enable_anywhere); self.anywhere_btn.set_visible(False)
+        addr_text.append(self.anywhere_btn)
+        addr.append(addr_text)
+        self.qr=Gtk.Picture(); self.qr.set_size_request(168,168); self.qr.set_visible(False)
+        addr.append(self.qr)
+        outer.append(addr)
+
         self.grid=Gtk.Grid(column_spacing=18,row_spacing=10)
         outer.append(self.grid)
         log_title=Gtk.Label(label="Recent errors / آخر الأخطاء",xalign=0); log_title.add_css_class("heading"); outer.append(log_title)
@@ -48,10 +115,49 @@ class App(Gtk.Application):
         b.add_css_class("success" if ok else "error"); self.grid.attach(a,0,n,1,1); self.grid.attach(b,1,n,1,1)
     def start(self,*_): run("systemctl","--user","enable","--now",UNIT); self.refresh()
     def stop(self,*_): run("systemctl","--user","disable","--now",UNIT); self.refresh()
+
+    def on_enable_anywhere(self,*_):
+        ok,err=enable_anywhere()
+        if not ok:
+            # The only thing serve needs that the user may not have is Tailscale's operator
+            # bit, and that is a privileged change — so it goes through moai-do, not through us.
+            self.address.set_markup(
+                "<b>Could not enable it from here / تعذّر التفعيل من هنا</b>\n"
+                +GLib.markup_escape_text(err[:200])
+                +"\n\nRun once in a terminal / نفّذ مرة واحدة:  <tt>moai-do remote-anywhere</tt>")
+        self.refresh()
+
     def refresh(self,*_):
-        on=active(UNIT); ip=lan_ip(); url=f"http://{ip}:{PORT}/"
+        on=active(UNIT)
+        ip=lan_ip()
+        far=tailscale_url() if on else None
+        home=f"http://{ip}:{PORT}/"
         self.status.set_markup(f"<b>Service:</b> {'Running' if on else 'Stopped'}    <b>Device:</b> {GLib.markup_escape_text(socket.gethostname())}")
-        self.address.set_text(("Mo PC Remote phone address: http://"+ip+":8765") if on else "Remote control is off. Press Start to enable it.")
+
+        if not on:
+            self.address.set_text("Remote control is off. Press Start to enable it.\nالتحكم عن بُعد متوقف. اضغط تشغيل.")
+            self.anywhere_btn.set_visible(False); self.qr.set_visible(False)
+        elif far:
+            # The address that survives leaving the house. Say so plainly — the whole failure
+            # mode here was a user who had one address and did not know it was the wrong one.
+            self.address.set_markup(
+                "<b>From anywhere / من أي مكان</b>  ·  works on mobile data\n"
+                f"<tt>{GLib.markup_escape_text(far)}</tt>\n\n"
+                "<small>Home network only / الشبكة المنزلية فقط\n"
+                f"<tt>{GLib.markup_escape_text(home)}</tt></small>")
+            self.anywhere_btn.set_visible(False)
+            path=os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp",f"mo-remote-qr-{os.getuid()}.png")
+            if qr_png(far,path):
+                self.qr.set_filename(path); self.qr.set_visible(True)
+            else:
+                self.qr.set_visible(False)
+        else:
+            self.address.set_markup(
+                f"<b>Home network only / الشبكة المنزلية فقط</b>\n<tt>{GLib.markup_escape_text(home)}</tt>\n\n"
+                "<small>This address stops working once the phone leaves the house.\n"
+                "هذا العنوان يتوقف عن العمل فور خروج الجوال من البيت.</small>")
+            self.anywhere_btn.set_visible(True)
+            self.qr.set_visible(False)
         while c:=self.grid.get_first_child(): self.grid.remove(c)
         portal=active("xdg-desktop-portal.service")
         pipe=active("pipewire.service")

@@ -237,6 +237,51 @@ do_setup_waydroid() {
 }
 
 # -----------------------------------------------------------------------------
+# remote-anywhere — make Mo PC Remote reachable once the phone leaves the house.
+#
+# It already is, in every way that matters: Tailscale is a mesh, not a LAN trick, and the agent
+# has always accepted the tailnet. What was missing is a NAME and a CERTIFICATE. Without them
+# the only address anyone can be handed is the LAN IP over plain http — an address that stops
+# existing on mobile data, and that the browser also refuses to treat as a secure context, which
+# in turn locks Mo PC Remote out of hardware video decode, the clipboard and PWA install.
+#
+# `tailscale serve` supplies both: TLS on this machine's MagicDNS name with a real, auto-renewing
+# certificate, proxied to the agent on loopback. It is tailnet-only — nothing is exposed to the
+# public internet. (`tailscale funnel` is the one that would be. MoOS does not use it.)
+#
+# The privileged half is one line: make this user Tailscale's operator, so serve — and every
+# later change to it — needs no root at all.
+# -----------------------------------------------------------------------------
+do_remote_anywhere() {
+    hdr "الوصول إلى Mo PC Remote من أي مكان" "Reach Mo PC Remote from anywhere"
+    need tailscale || return 1
+
+    local state
+    state="$(tailscale status --json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("BackendState",""))' 2>/dev/null || true)"
+    if [ "$state" != "Running" ]; then
+        echo "${R}Tailscale ليس متصلاً | Tailscale is not connected${N}" >&2
+        echo "${D}شغّله أولاً | connect it first:  tailscale up${N}" >&2
+        return 1
+    fi
+
+    echo "${D}يمنح هذا الجهاز اسماً وشهادة HTTPS حقيقية على شبكتك الخاصة، فيعمل التحكم من بيانات الجوال.${N}"
+    echo "${D}لا شيء يُنشر على الإنترنت العام — الوصول محصور بأجهزتك.${N}"
+    echo "${D}Gives this machine a real HTTPS name on your private tailnet, so the phone works on"
+    echo "mobile data. Nothing is published to the public internet — your devices only.${N}"
+    confirm || return 0
+
+    run_priv tailscale set --operator="$USER"
+    tailscale serve --bg --https=443 http://127.0.0.1:8765 || {
+        echo "${R}فشل tailscale serve | tailscale serve failed${N}" >&2
+        echo "${D}تحتاج تفعيل شهادات HTTPS في لوحة Tailscale (DNS ← HTTPS Certificates).${N}" >&2
+        echo "${D}HTTPS certificates must be enabled for your tailnet (DNS -> HTTPS Certificates).${N}" >&2
+        return 1
+    }
+    echo
+    tailscale serve status
+}
+
+# -----------------------------------------------------------------------------
 # optimize — clean unused Flatpak runtimes + container images + old logs.
 # -----------------------------------------------------------------------------
 do_optimize() {
@@ -327,6 +372,8 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
   ${C}optimize${N}          تنظيف Flatpak/الحاويات/السجلّات وتحرير مساحة
                     Clean Flatpak/containers/logs and free disk space
   ${C}hw-report${N}         فتح مركز العتاد | open the Hardware Center
+  ${C}remote-anywhere${N}   تشغيل Mo PC Remote من خارج البيت (Tailscale HTTPS)
+                    Reach Mo PC Remote from outside the house
   ${C}diagnose-services${N} عرض الخدمات الفاشلة (قراءة فقط)
                     Show failed services (read-only)
   ${C}inspect-boot${N}      عرض حالة النشر وأخطاء الإقلاع (قراءة فقط)
@@ -354,6 +401,7 @@ main() {
         install-nvidia) do_install_nvidia ;;
         update-firmware) do_update_firmware ;;
         setup-waydroid) do_setup_waydroid ;;
+        remote-anywhere) do_remote_anywhere ;;
         optimize)      do_optimize ;;
         diagnose-services) do_diagnose_services ;;
         inspect-boot)  do_inspect_boot ;;
