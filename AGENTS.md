@@ -72,7 +72,40 @@ kargs at all, so the MoOS splash appeared only if the installer happened to add 
 
 **Repoint configs before deleting what they point at.** Removing Fedora's look-and-feel packages
 without first fixing the kde-settings profile that named them would leave Plasma silently
-falling back to Breeze.
+falling back to Breeze. This was written as a warning and then came true anyway — see below,
+because the config that still named Fedora was not one this repo ships.
+
+**A theme this image ships is not a theme the user gets.** Four separate Nova surfaces were
+shipped, gated green, and never once reached the desktop. Every one of them lost to a config
+that outranks `/etc/xdg`, and no gate on a file in `system_files/` can see any of it:
+
+- `~/.config/*` — the user's own config, and the strongest. Existing users carry keys from the
+  defaults they were *created* under, and those keys never expire. One user's `kdeglobals` still
+  had `AutomaticLookAndFeel=true` + `DefaultLightLookAndFeel=org.fedoraproject.fedora.desktop`;
+  the day the Fedora packages were removed, Plasma's day/night switch resolved a name that no
+  longer existed, fell back to **Breeze**, and persisted it. Plasma does not fall back to your
+  `LookAndFeelPackage` — it falls back to Breeze, and it writes that down.
+- `~/.config/kdedefaults/*` — **comes BEFORE `/etc/xdg` in `XDG_CONFIG_DIRS`.** This is where
+  `LookAndFeelManager` writes the applied Global Theme's defaults. Anything Nova's `defaults`
+  file does not declare is simply left there from the last theme, forever. Nova declared no
+  window decoration, so Breeze's — written when the user was created — shadowed the repo's
+  `/etc/xdg/kwinrc` on *every install since day one*, while the gate on that file stayed green.
+- `LookAndFeelManager` applies only a **hardcoded subset** of a defaults file. `[Sounds]` is not
+  in it, so the MoOS sound theme shipped for months and never played. Arbitrary `[kwinrc]`
+  groups are not in it either. `[kwinrc][org.kde.kdecoration2]` *is* — upstream
+  `org.kde.breeze`'s defaults is the list of what actually works.
+- **GTK reads three sources, and `settings.ini` is the weakest.** Wayland apps take
+  `gtk-theme-name` from GSettings, X11/XWayland apps from the running `xsettingsd`, and
+  `settings.ini` only answers when neither does. Writing just the ini changes nothing and looks
+  like it worked. Plasma's `gtkconfig` module fills in icons, cursor and font in all three and
+  leaves the theme *name* empty — which means Adwaita, which ignores the 84 Nova colours the
+  same module faithfully regenerates into `colors.css` for a Breeze stylesheet that references
+  them 965 times.
+
+The rule: **ship the default, then pin it in the user's own config from `moos-apply-theme`, then
+read it back from the running desktop.** `kreadconfig6`, `gsettings get`, and
+`Gtk.Settings.get_default()` answer what the user actually has. A file in `system_files/` does
+not, and neither does a gate that reads one.
 
 **Boot the image and look at it.** `podman build` + `bootc-image-builder --type qcow2` + qemu
 with `screendump` takes about half an hour and is the only thing that found any of the above.
