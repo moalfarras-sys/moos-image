@@ -168,6 +168,10 @@ Kirigami.ApplicationWindow {
         { ar: "فحص التعريفات",  en: "Check drivers", url: "moos://do/check-drivers", accent: "#22D3EE", icon: "moos-gpu" },
         { ar: "تحسين وتنظيف",   en: "Optimize",      url: "moos://do/optimize",      accent: "#2E7BFF", icon: "moos-optimize" },
         { ar: "تقرير الأجهزة",  en: "HW report",     url: "moos://do/hw-report",     accent: "#8B5CF6", icon: "moos-report" },
+        { ar: "الخدمات الفاشلة", en: "Failed services", url: "moos://do/diagnose-services", accent: "#FFB45C", icon: "moos-system" },
+        { ar: "مشاكل الإقلاع", en: "Boot problems", url: "moos://do/inspect-boot", accent: "#FF6B7A", icon: "moos-warning" },
+        { ar: "افتح المحدّث", en: "Open updater", url: "moos://app/updater", accent: "#2E7BFF", icon: "moos-safe-update" },
+        { ar: "افتح الاستعادة", en: "Open recovery", url: "moos://app/recovery", accent: "#8B5CF6", icon: "moos-system" },
         { ar: "برمجة (Claude/Codex)", en: "Code",    url: "moos://dev/code",         accent: "#22D3EE", icon: "moos-optimize" }
     ]
 
@@ -966,14 +970,23 @@ Kirigami.ApplicationWindow {
                         font.weight: Font.DemiBold
                     }
 
-                    Flow {
+                    Flickable {
                         Layout.fillWidth: true
-                        spacing: 8
+                        Layout.preferredHeight: 38
+                        contentWidth: actionsRow.implicitWidth
+                        contentHeight: height
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        flickableDirection: Flickable.HorizontalFlick
 
-                        Repeater {
-                            model: root.quickActions
+                        Row {
+                            id: actionsRow
+                            spacing: 8
 
-                            delegate: Rectangle {
+                            Repeater {
+                                model: root.quickActions
+
+                                delegate: Rectangle {
                                 id: pill
                                 required property var modelData
                                 radius: 15
@@ -1015,6 +1028,7 @@ Kirigami.ApplicationWindow {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: root.runAction(pill.modelData)
+                                }
                                 }
                             }
                         }

@@ -233,6 +233,26 @@ do_optimize() {
     echo "${G}✓ اكتمل | done — تحرّر تقريباً | freed ~$(human "$freed") على | on ${fs}${N}"
 }
 
+# Read-only diagnostics. These deliberately collect bounded status summaries;
+# they never restart a unit, edit boot configuration, or request privileges.
+do_diagnose_services() {
+    hdr "تشخيص الخدمات الفاشلة (قراءة فقط)" "Diagnose failed services (read-only)"
+    echo "${B}System units:${N}"
+    systemctl --failed --no-pager || true
+    echo
+    echo "${B}User units:${N}"
+    systemctl --user --failed --no-pager || true
+}
+
+do_inspect_boot() {
+    hdr "فحص مشاكل الإقلاع (قراءة فقط)" "Inspect boot problems (read-only)"
+    echo "${B}Boot deployment:${N}"
+    bootc status 2>/dev/null || ostree admin status 2>/dev/null || true
+    echo
+    echo "${B}Current-boot errors:${N}"
+    journalctl -b -p err --no-pager -n 80 2>/dev/null || true
+}
+
 # -----------------------------------------------------------------------------
 # usage — bilingual help listing every subcommand.
 # -----------------------------------------------------------------------------
@@ -253,6 +273,10 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
   ${C}optimize${N}          تنظيف Flatpak/الحاويات/السجلّات وتحرير مساحة
                     Clean Flatpak/containers/logs and free disk space
   ${C}hw-report${N}         فتح مركز العتاد | open the Hardware Center
+  ${C}diagnose-services${N} عرض الخدمات الفاشلة (قراءة فقط)
+                    Show failed services (read-only)
+  ${C}inspect-boot${N}      عرض حالة النشر وأخطاء الإقلاع (قراءة فقط)
+                    Show deployment and boot errors (read-only)
   ${C}help${N}              عرض هذه المساعدة | show this help
 
 ${D}كل إجراء مُغيِّر يطلب تأكيداً، والصلاحيات عبر pkexec (لا sudo بلا كلمة مرور).${N}
@@ -274,6 +298,8 @@ main() {
         fix-audio)     do_fix_audio ;;
         check-drivers) do_check_drivers ;;
         optimize)      do_optimize ;;
+        diagnose-services) do_diagnose_services ;;
+        inspect-boot)  do_inspect_boot ;;
         hw-report)
             if command -v moos-hardware >/dev/null 2>&1; then
                 exec moos-hardware

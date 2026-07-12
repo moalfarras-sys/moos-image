@@ -43,11 +43,18 @@ case "${cat}/${tgt}" in
     app/setup)     term moos-setup ;;
     app/compat)    gui moos-compat ;;
     app/hardware)  gui moos-hardware ;;
+    app/updater)   term moos-update ;;
+    app/recovery)  term moos-rollback ;;
     app/welcome)   gui moos-welcome ;;
     brain/start)   term moai-start ;;
     ai/config)     gui moai-config ;;
     dev/code)      term moai-code ;;
-    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report)
+    search/*)      query="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1]))' "$tgt" 2>/dev/null)";
+                   [ -n "$query" ] && gui krunner "$query" ;;
+    session/lock)  loginctl lock-session ;;
+    session/logout) command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logout || true ;;
+    session/power) command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown || true ;;
+    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot)
                    term moai-do "$tgt" ;;
     *)
         notify "أمر MoOS غير معروف | unknown MoOS action: ${path}"
