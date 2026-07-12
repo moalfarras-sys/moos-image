@@ -338,39 +338,11 @@ ls /boot/efi/EFI >/dev/null   # hard-fail here if the EFI dir could not be provi
 MOOS_IMAGEREF="ghcr.io/moalfarras-sys/${MOOS_IMAGE_NAME:-moos}"
 MOOS_IMAGETAG="latest"
 
-# -----------------------------------------------------------------------------
-# Enforce the cosign signature on MoOS's own images.
-#
-# Every image CI publishes is signed (build.yml, `cosign sign`), the public key ships at
-# /etc/pki/containers/moos.pub, and the base policy already ENFORCES signatures for ublue's
-# images. MoOS's own registry, however, was listed as "insecureAcceptAnything" — so the one
-# registry whose contents become the running OS was the only one nobody checked. Anyone who
-# could push to it, or MITM the pull, owned the machine.
-#
-# This makes the signature binding: an image that is not signed by the MoOS key is refused,
-# and a refusal is a clean failure (no deployment is created) rather than a broken system.
-python3 - <<'POLICY'
-import json
-path = "/etc/containers/policy.json"
-with open(path) as f:
-    policy = json.load(f)
-policy["transports"]["docker"]["ghcr.io/moalfarras-sys"] = [{
-    "type": "sigstoreSigned",
-    "keyPath": "/etc/pki/containers/moos.pub",
-    "signedIdentity": {"type": "matchRepository"},
-}]
-with open(path, "w") as f:
-    json.dump(policy, f, indent=4)
-print("OK: policy.json now enforces the cosign signature on ghcr.io/moalfarras-sys.")
-POLICY
-
-# The signature is a sigstore attachment, not a detached simple-signing file; without this
-# the verifier looks in the wrong place and every image reads as unsigned.
-# (registries.d/moalfarras-sys.yaml ships via system_files.)
-grep -q "use-sigstore-attachments" /etc/containers/registries.d/moalfarras-sys.yaml \
-    || { echo "FATAL: registries.d entry for the MoOS registry is missing — signatures would never be found."; exit 1; }
-[ -s /etc/pki/containers/moos.pub ] \
-    || { echo "FATAL: the MoOS cosign public key is not in the image; signature enforcement would fail closed on every update."; exit 1; }
+# The container signature policy is set ONCE, in section (z) near the end of this script —
+# after every package install, so nothing can quietly restore a permissive rule afterwards.
+# (An earlier version of this change patched the policy here as well, and the pre-existing
+# block at the end silently overwrote it with insecureAcceptAnything. The image built clean
+# and shipped unverified. One writer only.)
 
 dnf5 -y install --setopt=install_weak_deps=False \
     anaconda-live firefox libblockdev-btrfs libblockdev-lvm libblockdev-dm
@@ -474,6 +446,59 @@ dnf5 -y install libsecret
 # Full Arabic + English locale support (glibc locales, hunspell, input) —
 # MoOS is bilingual by design (MOOS_DESIGN_SYSTEM.md §7 RTL rules).
 dnf5 -y install langpacks-ar langpacks-en
+
+# Qt WebEngine spell-check dictionaries.
+#
+# hunspell dictionaries are not readable by QtWebEngine — it needs them converted to its own
+# .bdic format. The qt6-qtwebengine RPM runs that converter from a scriptlet, and the
+# converter SIGTRAPs inside the build container (visible on the host as a pile of
+# qwebengine_convert_dict coredumps during every image build). The scriptlet swallows it, so
+# the image shipped with an EMPTY /usr/share/qt6/qtwebengine_dictionaries and spell-check
+# silently did not exist in any QtWebEngine app — in a bilingual OS, including Arabic.
+#
+# Running the converter ourselves works (the crash is in how the scriptlet invokes it, not in
+# the tool), so do that and assert the result instead of trusting a scriptlet that fails
+# quietly.
+_convert_dict=/usr/lib64/qt6/libexec/qwebengine_convert_dict
+if [ -x "$_convert_dict" ]; then
+    mkdir -p /usr/share/qt6/qtwebengine_dictionaries /tmp/dicts
+    _bdic=0
+    for _dic in /usr/share/hunspell/*.dic; do
+        [ -e "$_dic" ] || continue
+        _name="$(basename "$_dic" .dic)"
+        _aff="/usr/share/hunspell/${_name}.aff"
+        _src="$_dic"
+
+        # Chromium's converter aborts on the hunspell IGNORE command
+        # ("We don't support the IGNORE command yet", aff_reader.cc) — and the Arabic
+        # dictionaries use it, to ignore tashkeel. That single unsupported directive is why a
+        # bilingual OS shipped with no Arabic spell-check at all.
+        #
+        # Convert from a copy with IGNORE removed. The honest cost: diacritics are no longer
+        # ignored, so a *fully vocalised* Arabic word can be flagged as misspelled. Ordinary
+        # undiacritised Arabic — which is nearly all of it — checks correctly. A dictionary
+        # that is right about the common case beats no dictionary at all.
+        if [ -f "$_aff" ] && grep -q "^IGNORE" "$_aff" 2>/dev/null; then
+            grep -v "^IGNORE" "$_aff" > "/tmp/dicts/${_name}.aff"
+            cp -L "$_dic" "/tmp/dicts/${_name}.dic"
+            _src="/tmp/dicts/${_name}.dic"
+        fi
+
+        if QTWEBENGINE_DISABLE_SANDBOX=1 QT_QPA_PLATFORM=offscreen "$_convert_dict" "$_src" \
+            "/usr/share/qt6/qtwebengine_dictionaries/${_name}.bdic" >/dev/null 2>&1; then
+            _bdic=$((_bdic + 1))
+        fi
+    done
+    rm -rf /tmp/dicts
+    echo "OK: built ${_bdic} Qt WebEngine spell-check dictionaries."
+
+    # Arabic and English are the two languages this OS promises. Shipping the directory empty
+    # is the silent regression this whole block exists to stop, so assert on both.
+    ls /usr/share/qt6/qtwebengine_dictionaries/en_US.bdic >/dev/null 2>&1 \
+        || { echo "FATAL: no English spell-check dictionary was produced."; exit 1; }
+    ls /usr/share/qt6/qtwebengine_dictionaries/ar_*.bdic >/dev/null 2>&1 \
+        || { echo "FATAL: no Arabic spell-check dictionary was produced."; exit 1; }
+fi
 
 # -----------------------------------------------------------------------------
 # (c5) Nova icon theme (generated from Colloid at build time)
@@ -943,39 +968,63 @@ _pw=/usr/share/applications/org.kde.plasma-welcome.desktop
 unset -v _pw
 
 # -----------------------------------------------------------------------------
-# (z3) Container policy — ALLOW the MoOS registry (install + upgrade)
+# (z3) Container policy — ENFORCE the cosign signature on the MoOS registry
 # -----------------------------------------------------------------------------
-# HONEST STATUS: CI DOES sign ghcr.io/moalfarras-sys/moos with cosign (build.yml
-# "Sign image with cosign"). An earlier v20 attempt added a `sigstoreSigned`
-# policy rule to ENFORCE that signature — but that BROKE real-hardware install:
-# `ostree container image deploy ... --no-signature-verification` failed with
-# "A signature was required, but no signature exists", because enforcing
-# sigstore also requires a registries.d `use-sigstore-attachments` lookaside +
-# a working verification path, which was not wired/tested. Rather than ship an
-# installer that fails, we add an `insecureAcceptAnything` rule so the base
-# "default: reject" policy does not block the MoOS registry on install OR
-# `bootc upgrade`. The MoOS public key still ships at /etc/pki/containers/moos.pub
-# for the future. TRUTH: the installed system does NOT yet verify the cosign
-# signature — do not claim otherwise. Enabling real verification (sigstoreSigned
-# + use-sigstore-attachments) is deferred until it can be tested end-to-end
-# without breaking install.
+# CI signs every image (build.yml, "Sign image with cosign") and the public key ships at
+# /etc/pki/containers/moos.pub. The base policy already enforces signatures for ublue's
+# images — but MoOS's own registry, the one whose contents literally become the running OS,
+# was listed as insecureAcceptAnything. It was the only one nobody checked.
+#
+# A v20 attempt at sigstoreSigned broke real-hardware install ("A signature was required,
+# but no signature exists") and was reverted to insecureAcceptAnything. That failure had a
+# specific cause, now fixed: cosign publishes the signature as a **sigstore attachment**, and
+# without a registries.d entry saying `use-sigstore-attachments: true` the verifier looks in
+# the wrong place and every image reads as unsigned. That entry now ships
+# (system_files/etc/containers/registries.d/moalfarras-sys.yaml), and the whole path was
+# verified against the real registry before this was turned back on:
+#
+#     wrong key -> refused: "cryptographic signature verification failed"
+#     right key -> accepted; deployment moved to ostree-image-signed:registry
+#
+# The install-time pull is verified too (the kickstart no longer passes
+# --no-signature-verification), which also makes the deployed origin a signed one — so an
+# installed machine keeps verifying every update for the rest of its life.
+#
+# This runs in section (z), after all package installs, so nothing can restore a permissive
+# rule afterwards. There must be exactly ONE writer of this file; an earlier iteration of
+# this change had two, and the permissive one won.
+#
+# A refusal is a clean failure — no deployment is created — not a broken system.
 if [ -f /etc/containers/policy.json ]; then
+    grep -q "use-sigstore-attachments" /etc/containers/registries.d/moalfarras-sys.yaml 2>/dev/null \
+        || { echo "FATAL: registries.d entry for the MoOS registry is missing — the signature"; \
+             echo "       would never be found and EVERY update would be refused."; exit 1; }
+    [ -s /etc/pki/containers/moos.pub ] \
+        || { echo "FATAL: the MoOS cosign public key is not in the image; enforcement would"; \
+             echo "       fail closed on every update and install."; exit 1; }
     python3 - <<'PYSEC'
 import json
 p = "/etc/containers/policy.json"
 with open(p) as f:
     d = json.load(f)
-d.setdefault("transports", {}).setdefault("docker", {})["ghcr.io/moalfarras-sys"] = [
-    {"type": "insecureAcceptAnything"}
-]
+d.setdefault("transports", {}).setdefault("docker", {})["ghcr.io/moalfarras-sys"] = [{
+    "type": "sigstoreSigned",
+    "keyPath": "/etc/pki/containers/moos.pub",
+    "signedIdentity": {"type": "matchRepository"},
+}]
 with open(p, "w") as f:
     json.dump(d, f, indent=4)
-print("POLICY: ghcr.io/moalfarras-sys is allowed (insecureAcceptAnything) — install + bootc upgrade work; signature is NOT verified yet.")
+print("POLICY: ghcr.io/moalfarras-sys now requires a valid MoOS cosign signature.")
 PYSEC
-    if python3 -c "import json,sys; d=json.load(open('/etc/containers/policy.json')); sys.exit(0 if 'ghcr.io/moalfarras-sys' in d.get('transports',{}).get('docker',{}) else 1)"; then
-        echo "OK: MoOS registry policy entry present (deploy + upgrade will not be rejected)."
+    if python3 -c "
+import json, sys
+d = json.load(open('/etc/containers/policy.json'))
+e = d.get('transports', {}).get('docker', {}).get('ghcr.io/moalfarras-sys') or [{}]
+sys.exit(0 if e[0].get('type') == 'sigstoreSigned' else 1)"; then
+        echo "OK: the MoOS registry is signature-enforced (install + every future upgrade)."
     else
-        echo "FATAL: failed to add MoOS registry policy entry."; exit 1
+        echo "FATAL: the MoOS registry policy is not enforcing — refusing to ship an image"
+        echo "       that silently accepts unsigned updates."; exit 1
     fi
 else
     echo "FATAL: /etc/containers/policy.json missing."; exit 1

@@ -56,6 +56,14 @@ fork the base.
 `ID`+`VERSION_ID`. `build.sh` keeps `ID=fedora` until the very last section for exactly this
 reason. Anything that needs a COPR must run before section (z).
 
+**An `ARG` used in a `FROM` must be declared before the first `FROM`.** Declared after it, the
+arg belongs to that stage, `FROM ${ARG}` expands to nothing, and buildah fails the whole build
+with the unhelpful `no FROM statement found`. This has already cost one red CI run.
+
+**Build locally before you push.** `podman build` runs every gate CI runs. The `no FROM` failure
+above, and an NVIDIA image whose initramfs contained no NVIDIA, were both caught by a local
+build — one of them only because someone bothered to run it.
+
 **`/var` must be clean.** `bootc container lint` is the final build stage and it will reject
 content in `/var`.
 

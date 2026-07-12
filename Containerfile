@@ -32,8 +32,6 @@
 #
 # (A BASE_IMAGE build-arg passed by an older caller is simply unused; buildah warns and moves
 # on. Nothing can quietly reintroduce a divergent base.)
-FROM ghcr.io/ublue-os/kinoite-main:44 AS base
-
 # The akmods container: kmod-nvidia built against a specific kernel, plus the matching
 # userspace driver.
 #
@@ -42,7 +40,13 @@ FROM ghcr.io/ublue-os/kinoite-main:44 AS base
 # kinoite-main against, and build.sh refuses to continue if the two ever disagree, so a drift
 # fails the build loudly instead of shipping an unbootable image. Callers that can resolve the
 # base image's exact kernel (CI, the Justfile) should pin the exact tag instead.
+#
+# Declared BEFORE the first FROM on purpose: an ARG used in a FROM must be in the global
+# scope. Declared after it, it belongs to that stage, `FROM ${AKMODS_IMAGE}` expands to
+# nothing, and buildah fails with "no FROM statement found".
 ARG AKMODS_IMAGE=ghcr.io/ublue-os/akmods-nvidia-open:main-44-x86_64
+
+FROM ghcr.io/ublue-os/kinoite-main:44 AS base
 
 # -----------------------------------------------------------------------------
 # Stage "ctx": build scripts live here and are bind-mounted (NOT copied) into
