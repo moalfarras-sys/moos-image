@@ -64,6 +64,15 @@ with the unhelpful `no FROM statement found`. This has already cost one red CI r
 above, and an NVIDIA image whose initramfs contained no NVIDIA, were both caught by a local
 build — one of them only because someone bothered to run it.
 
+**`pgrep -f <name>` matches your own shell.** `until ! pgrep -f bootc-image-builder; do sleep 30;
+done` never exits: the waiting shell's own command line contains the string, so pgrep finds
+itself and the loop waits forever on a process that already finished — or, worse, on one that
+never started. Wait on the actual thing (a PID, a container name, an output file), not on a
+substring of your own command.
+
+**Disk images do not fit in a tmpfs.** A qcow2 of this image is ~10GB and `/tmp` here is a 7.8GB
+tmpfs. Build them somewhere on real disk.
+
 **`/var` must be clean.** `bootc container lint` is the final build stage and it will reject
 content in `/var`.
 
