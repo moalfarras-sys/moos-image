@@ -241,6 +241,20 @@ public sealed class PortalBridge : IDisposable
                 VideoHeight = GetInt(root, "height", VideoHeight);
                 LogicalWidth = GetInt(root, "logical_width", LogicalWidth);
                 LogicalHeight = GetInt(root, "logical_height", LogicalHeight);
+                // The helper reports what it ACTUALLY got running, not what it was asked for: an
+                // encoder that exists can still refuse to open (NVENC wants VRAM it may not get),
+                // in which case the helper falls down the list and lands on JPEG. Believing the
+                // request rather than the report is how a client ends up decoding the wrong codec.
+                if (root.TryGetProperty("codec", out var cv) && cv.ValueKind == JsonValueKind.String)
+                {
+                    var codec = cv.GetString() == "h264" ? "h264" : "jpeg";
+                    if (codec != Codec)
+                    {
+                        Codec = codec;
+                        lock (_gate) { _frame = null; }   // a JPEG left over from before is not an H.264 frame
+                        Log.Info($"Video codec: {codec} ({(root.TryGetProperty("encoder", out var ev) ? ev.GetString() : "?")}).");
+                    }
+                }
                 Log.Info($"Video stream: {VideoWidth}x{VideoHeight} " +
                          $"(source {GetInt(root, "source_width", 0)}x{GetInt(root, "source_height", 0)}).");
                 break;
@@ -257,6 +271,18 @@ public sealed class PortalBridge : IDisposable
     private static int GetInt(JsonElement e, string name, int fallback) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : fallback;
 
+    /// <summary>What the helper's encoder is producing right now: "jpeg" or "h264".</summary>
+    public string Codec { get; private set; } = "jpeg";
+
+    /// <summary>
+    /// Every H.264 access unit, in order, as it arrives. JPEG keeps the single-slot model below —
+    /// a JPEG is a whole picture, so keeping only the newest is exactly right and a late one is
+    /// worth nothing. H.264 is the opposite: a P-frame is a diff against its predecessor, so a
+    /// frame that is skipped is not a frame that is missed, it is every frame after it corrupted
+    /// until the next IDR. So H.264 is pushed, and every subscriber gets all of it.
+    /// </summary>
+    public event Action<byte[]>? H264Frame;
+
     private void ReadFrames(Socket listener)
     {
         try
@@ -270,10 +296,17 @@ public sealed class PortalBridge : IDisposable
                 if (len <= 0 || len > 32 * 1024 * 1024) break; // desync — drop the connection
                 var buf = new byte[len];
                 if (!ReadExact(conn, buf, len)) break;
-                lock (_gate)
+                if (Codec == "h264")
                 {
-                    _frame = buf;
-                    _version++;
+                    H264Frame?.Invoke(buf);
+                }
+                else
+                {
+                    lock (_gate)
+                    {
+                        _frame = buf;
+                        _version++;
+                    }
                 }
                 Interlocked.Increment(ref _framesReceived);
             }

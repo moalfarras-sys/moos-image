@@ -69,6 +69,15 @@ public sealed class ScreenCapture : IDisposable
     /// On Linux this caps the PipeWire encoder so it never produces frames the client won't take.</summary>
     public void SetFps(int fps) { }
 
+    // The hardware H.264 path lives in the Linux capture (PipeWire + GStreamer). The DXGI path
+    // here has no encoder behind it, so it says so plainly and StreamSession takes the JPEG road.
+    // These exist because StreamSession is shared, not because Windows is expected to grow them.
+    public string Codec => "jpeg";
+    public IDisposable? SubscribeH264(Action<byte[]> onFrame) => null;
+    public void RequestKeyframe() { }
+    public void SessionCodec(Guid id, bool canH264) { }
+    public void SessionGone(Guid id) { }
+
     public void SelectMonitor(int index)
     {
         lock (_gate)

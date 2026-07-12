@@ -1,5 +1,7 @@
 import type { Hello, MouseButton } from "../types";
 
+import { canDecodeH264 } from "./decode";
+
 interface Handlers {
   onOpen?: () => void;
   onHello?: (h: Hello) => void;
@@ -12,6 +14,9 @@ interface Handlers {
   onClose?: () => void;
   onPong?: (rttMs: number) => void;
   onInputState?: (ready: boolean, error?: string) => void;
+  /** Which codec the agent is producing right now. It can change mid-session: the helper drops to
+   *  JPEG on its own if the hardware encoder will not open, and climbs back when it will. */
+  onCodec?: (codec: "jpeg" | "h264") => void;
 }
 
 /**
@@ -45,6 +50,10 @@ export class RemoteConnection {
     ws.onopen = () => {
       this.backoff = 500;
       ws.send(JSON.stringify({ type: "auth", token: this.token }));
+    // Tell the agent what this browser can actually decode, before it picks an encoder. We never
+    // let it guess: WebCodecs is absent outside a secure context, so a phone on the old plain-http
+    // LAN address answers false here and correctly keeps the JPEG stream it can read.
+    ws.send(JSON.stringify({ type: "video", h264: canDecodeH264() }));
       this.h.onOpen?.();
       this.startPing();
     };
@@ -76,6 +85,9 @@ export class RemoteConnection {
             break;
           case "screen":
             this.h.onScreen?.(!!m.available);
+            break;
+          case "codec":
+            this.h.onCodec?.(m.codec === "h264" ? "h264" : "jpeg");
             break;
           case "pong":
             if (typeof m.t === "number") this.h.onPong?.(Math.max(0, performance.now() - m.t));
@@ -129,6 +141,12 @@ export class RemoteConnection {
   private stopPing() {
     if (this.pingTimer) window.clearInterval(this.pingTimer);
     this.pingTimer = null;
+  }
+
+  /** Re-declare what this client can decode. Used when the decoder gives up mid-session: the agent
+   *  needs to know, or it keeps sending a codec nobody in the room can read. */
+  setH264(can: boolean) {
+    this.send({ type: "video", h264: can });
   }
 
   private send(obj: unknown) {

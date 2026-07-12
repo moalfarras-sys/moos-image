@@ -28,6 +28,12 @@ public sealed class StreamSession
     private readonly InputSequenceGuard _sequenceGuard=new();
     private long _legacySequence;
     private bool _legacyLogged;
+
+    // H.264, when the client says it can decode it. The id is what lets the capture know this
+    // session is gone — a phone that closed must not keep the whole room on JPEG forever.
+    private readonly Guid _id = Guid.NewGuid();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<byte[]> _encoded = new();
+    private string _sentCodec = "";
     private bool _inputConfirmed;
     private int _moveLogCounter;
 
@@ -58,6 +64,24 @@ public sealed class StreamSession
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(requestAborted, handle.Token);
         var ct = linked.Token;
 
+        // Every H.264 access unit for THIS session, in order. Per-session and not shared: two
+        // phones draining one queue would each get half a stream, which decodes to nothing.
+        //
+        // The bound is a backstop, not a policy. If a phone falls this far behind (~3s at 30fps)
+        // the backlog is worthless — it would arrive late and still be behind — so it is dropped
+        // whole and a fresh IDR is requested, which is the one point where discarding H.264 is
+        // right: not a hole in the middle of a stream, but a clean restart of it.
+        using var h264 = _svc.Capture.SubscribeH264(au =>
+        {
+            _encoded.Enqueue(au);
+            if (_encoded.Count > 90)
+            {
+                while (_encoded.TryDequeue(out _)) { }
+                _svc.Capture.RequestKeyframe();
+                Log.Warn("Phone fell behind; dropped the H.264 backlog and asked for a keyframe.");
+            }
+        });
+
         var (sw, sh) = _svc.Capture.ScreenSize;
         await SendJson(new
         {
@@ -85,7 +109,7 @@ public sealed class StreamSession
         await CloseQuietly(WebSocketCloseStatus.NormalClosure, "bye");
         _ = finished;
       }
-      finally { _svc.Input.ReleaseAll(); _sendLock.Dispose(); }
+      finally { _svc.Capture.SessionGone(_id); _svc.Input.ReleaseAll(); _sendLock.Dispose(); }
     }
 
     // ---------------- send: frames + status ----------------
@@ -117,7 +141,42 @@ public sealed class StreamSession
                 int fps = Math.Clamp(_fps, 1, 30);
                 var frameStart = Environment.TickCount64;
 
-                if (!paused)
+                // The codec can change under a live session — the helper falls back to JPEG on its
+                // own when NVENC will not open, and back up again when it will. The client cannot
+                // infer that from the bytes (it would have to guess a container from a byte
+                // stream), so it is told, every time it changes, before the first frame of the new
+                // kind arrives.
+                var codec = _svc.Capture.Codec;
+                if (codec != _sentCodec)
+                {
+                    _sentCodec = codec;
+                    while (_encoded.TryDequeue(out _)) { }   // whatever is queued is the old codec
+                    await SendJson(new { type = "codec", codec }, ct);
+                }
+
+                if (!paused && _svc.Capture.Codec == "h264")
+                {
+                    // H.264 is a stream, not a series of pictures, and every trick the JPEG path
+                    // below relies on is poison here.
+                    //
+                    //   - skipping an unchanged frame:  there are none; the encoder already spends
+                    //     almost nothing on a still desktop, which is the entire point of it.
+                    //   - dropping a frame when the client is slow:  a P-frame is a diff against
+                    //     its predecessor, so a hole does not cost one frame, it corrupts every
+                    //     frame after it until the next IDR.
+                    //   - resending the last frame to refresh a client:  a decoder handed the same
+                    //     access unit twice does not redraw, it desynchronises.
+                    //
+                    // So this drains, in order, and never decides. The dropping happens where it is
+                    // safe — upstream of the encoder, in the helper's videorate.
+                    if (!_screenOk) { _screenOk = true; await SendJson(new { type = "screen", available = true }, ct); }
+                    while (_encoded.TryDequeue(out var au))
+                    {
+                        await SendBinary(au, ct);
+                        _lastFrameSent = Environment.TickCount64;
+                    }
+                }
+                else if (!paused)
                 {
                     var frame = _svc.Capture.Capture(_quality, _scale, _svc.Config.ShowRemoteCursor);
                     if (!frame.Available)
@@ -200,6 +259,15 @@ public sealed class StreamSession
                 case "settings":
                     if (TryGetInt(root, "quality", out var q)) _quality = Math.Clamp(q, 10, 95);
                     if (TryGetInt(root, "fps", out var f)) { _fps = Math.Clamp(f, 1, 30); _svc.Capture.SetFps(_fps); }
+                    // The client tells us what it can decode; we never guess. WebCodecs needs a
+                    // secure context, so a phone on the old http LAN address will say false here
+                    // and correctly stay on JPEG.
+                    if (root.TryGetProperty("h264", out var hv) &&
+                        (hv.ValueKind == JsonValueKind.True || hv.ValueKind == JsonValueKind.False))
+                    {
+                        _svc.Capture.SessionCodec(_id, hv.GetBoolean());
+                        if (hv.GetBoolean()) _svc.Capture.RequestKeyframe();
+                    }
                     if (root.TryGetProperty("scale", out var sc) && sc.ValueKind == JsonValueKind.Number)
                         _scale = Math.Clamp(sc.GetDouble(), 0.3, 1.0);
                     return;

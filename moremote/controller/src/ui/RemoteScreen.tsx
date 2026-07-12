@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { RemoteConnection } from "../lib/ws";
 import { GestureController } from "../lib/gestures";
 import {normalizeContentPoint} from "../lib/coordinates";
-import { decodeFrame, drawableSize, type Drawable } from "../lib/decode";
+import { decodeJpeg, drawableSize, closeDrawable, H264Stream, type Drawable } from "../lib/decode";
 import {
   getClipboard, setClipboard, setClipboardImage, listFiles, fileDownloadUrl, uploadFile, powerAction,
   type ClipResult, type FileListing, type FileEntry, type PowerAction,
@@ -64,6 +64,10 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const frameRef = useRef<Drawable | null>(null);
   const decodingRef = useRef(false);
   const pendingRef = useRef<ArrayBuffer | null>(null);
+  // What the agent is sending right now. A ref because the frame handler runs outside React's
+  // render and must never route a frame to the decoder we have just left.
+  const codecRef = useRef<"jpeg" | "h264">("jpeg");
+  const h264Ref = useRef<H264Stream | null>(null);
   const view = useRef({ zoom: 1, panX: 0, panY: 0 });
   const fpsCount = useRef(0);
   const lastVal = useRef("");
@@ -84,6 +88,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const [toast, setToast] = useState<string | null>(null);
   const [toolbar, setToolbar] = useState(true);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [codec, setCodec] = useState<"jpeg" | "h264">("jpeg");
   const [screenOk, setScreenOk] = useState(true);
   const [inputOk, setInputOk] = useState(false);
   const [clipboardOk, setClipboardOk] = useState(false);
@@ -189,20 +194,38 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     };
     raf = requestAnimationFrame(draw);
 
+    // One place where a new picture becomes THE picture, whichever codec produced it. The old one
+    // is closed here and only here: an ImageBitmap or a VideoFrame that is never closed is a leak
+    // the phone pays for in memory, thirty times a second.
+    const show = (d: Drawable) => {
+      if (disposed) { closeDrawable(d); return; }
+      const old = frameRef.current;
+      frameRef.current = d;
+      fpsCount.current++;
+      closeDrawable(old);
+    };
+
     const decodeNext = async (buf: ArrayBuffer) => {
       decodingRef.current = true;
-      const d = await decodeFrame(buf);
-      if (!d) decodingRef.current = false;
-      else if (disposed) { if ("close" in d) (d as ImageBitmap).close(); decodingRef.current = false; return; }
-      else {
-        const old = frameRef.current;
-        frameRef.current = d; fpsCount.current++;
-        if (old && "close" in old) (old as ImageBitmap).close();
-        decodingRef.current = false;
-      }
+      const d = await decodeJpeg(buf);
+      if (d) show(d);
+      decodingRef.current = false;
       const next = pendingRef.current; pendingRef.current = null;
       if (next) decodeNext(next);
     };
+
+    // H.264 decodes synchronously into the decoder's own output callback — there is no promise to
+    // await and no "still decoding" state to guard, because the frames must go in IN ORDER and the
+    // decoder is what paces them.
+    const h264 = new H264Stream(show, (why) => {
+      // A phone whose decoder gave up must not be left looking at a frozen desktop. Tell the agent
+      // this client can no longer take H.264 and it will put the whole room back on JPEG.
+      console.warn("H.264 decode failed, falling back to JPEG:", why);
+      codecRef.current = "jpeg";
+      connRef.current?.setH264(false);
+      showToast("Video fell back to JPEG");
+    });
+    h264Ref.current = h264;
 
     const conn = new RemoteConnection(token, {
       onHello: (h) => {
@@ -214,7 +237,18 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
         pushSettings();
       },
       onStatus: (paused) => setStatus(paused ? "paused" : "live"),
-      onFrame: (buf) => { if (decodingRef.current) pendingRef.current = buf; else decodeNext(buf); },
+      onFrame: (buf) => {
+        if (codecRef.current === "h264") { h264Ref.current?.push(buf); return; }
+        if (decodingRef.current) pendingRef.current = buf; else decodeNext(buf);
+      },
+      onCodec: (codec) => {
+        if (codec === codecRef.current) return;
+        codecRef.current = codec;
+        // Whatever is half-decoded belongs to the codec we just left.
+        h264Ref.current?.reset();
+        pendingRef.current = null;
+        setCodec(codec);
+      },
       onStopped: () => setStatus("stopped"),
       onAuthFail: () => onExit(),
       onClose: () => { lastVal.current = ""; setMods(new Set()); setStatus((s) => (s === "stopped" || s === "idle" ? s : "reconnecting")); },
@@ -262,6 +296,8 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
     return () => {
       disposed = true;
+      h264Ref.current?.reset();
+      h264Ref.current = null;
       cancelAnimationFrame(raf);
       window.clearInterval(fpsTimer);
       if (hideTimer.current) window.clearTimeout(hideTimer.current);
@@ -598,7 +634,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
             {!screenOk && <span className="bad">· No video</span>}
             {!inputOk && <span className="bad">· No input</span>}
             {!clipboardOk && <span className="bad">· No clipboard</span>}
-            {status === "live" && <span>· {fps}fps · {latency}ms · {MODE_LABEL[mode]}</span>}
+            {status === "live" && <span>· {fps}fps · {latency}ms · {codec === "h264" ? "H.264" : "JPEG"} · {MODE_LABEL[mode]}</span>}
           </>
         )}
       </div>

@@ -99,6 +99,31 @@ require("mo-remote-input-portal.py" not in build,
 require("pipewire-gstreamer" in build,
         "build.sh must guarantee the capture pipeline's GStreamer/PipeWire packages")
 
+# JPEG has no temporal compression: every frame is a whole picture, so merely LOOKING at a desktop
+# costs as much as scrubbing through it. Measured on real hardware at 1080p — 79 Mbit/s against
+# H.264's 4.3. Nobody notices that on a home LAN and nobody survives it on mobile data, which is
+# the entire reason this feature exists.
+#
+# The hardware encoders cannot be relied on. NVENC opens a session against the GPU and refuses when
+# VRAM is gone — measured here, with a local LLM holding 6 of 8 GB, nvh264enc failed to open at
+# 7748/8192 MiB and worked again at 7625. So a software encoder is not a nicety, it is the floor
+# under H.264 itself, and the helper must be able to walk DOWN to it rather than die on the way.
+portal = read("moremote/agent-linux/mo-remote-portal.py")
+require("gstreamer1-plugin-openh264" in build,
+        "the image must ship a software H.264 encoder: NVENC is not guaranteed to open (VRAM), and "
+        "without a fallback the stream drops to JPEG — 79 Mbit/s, unusable on mobile data")
+require("h264parse" in portal and "byte-stream" in portal,
+        "the H.264 stream must be Annex-B with repeated SPS/PPS, or a phone that joins mid-stream "
+        "(the only way anyone joins a live stream) has nothing to start decoding from")
+require("_h264_blacklist" in portal,
+        "an encoder that exists can still refuse to start; the helper must fall to the next one "
+        "instead of leaving the user with no desktop")
+
+session = read("moremote/agent/Web/StreamSession.cs")
+require("_encoded" in session and "TryDequeue" in session,
+        "H.264 access units must be queued and drained in order — the JPEG path keeps only the "
+        "newest frame, and a hole in an H.264 stream corrupts every frame until the next IDR")
+
 # Remote control that only works inside the house is not remote control.
 #
 # Mo PC Remote was always reachable from anywhere — Tailscale is a mesh, and NetworkGuard has

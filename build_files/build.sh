@@ -705,16 +705,43 @@ chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
 
 # Fail the build if the capture pipeline's GStreamer elements are missing: a shipped image
 # whose remote control silently falls back to 700ms-per-frame spectacle is a broken image.
+#
+# h264parse and a software H.264 encoder are now part of that floor.
+#
+# JPEG has no temporal compression: every frame is a whole picture. Measured on real hardware at
+# 1080p, that is 79 Mbit/s against H.264's 4.3 — a difference nobody notices on a home LAN and
+# nobody survives on mobile data, which is exactly where this feature is supposed to earn its
+# keep. So H.264 is the point of the stream, not a bonus.
+#
+# The hardware encoders take care of themselves: nvcodec ships nvh264enc in the NVIDIA image, and
+# the `va` plugin registers vah264enc on any Intel/AMD machine that has a VA-API device. Neither
+# can be RELIED on. NVENC opens a session against the GPU and can simply refuse when VRAM is gone
+# — measured on the maintainer's machine, where a local LLM holds 6 of 8 GB, nvh264enc failed to
+# open at 7748/8192 MiB used and worked again at 7625. A remote desktop must not depend on how
+# much VRAM some other program happens to be holding.
+#
+# openh264 is therefore not a nicety, it is the floor under H.264 itself: software, always
+# available, ~a fifth of a core at 1080p30 — which is less than the JPEG path already burns doing
+# eighteen times worse. (Cisco's build; the repo ships enabled in Fedora.)
+dnf5 -y install gstreamer1-plugin-openh264 gstreamer1-plugins-bad-free
+
 python3 - <<'EOF'
 import gi, sys
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst
 Gst.init(None)
 missing = [e for e in ("pipewiresrc", "videorate", "videoscale", "videoconvert",
-                       "jpegenc", "appsink") if not Gst.ElementFactory.find(e)]
+                       "jpegenc", "h264parse", "appsink") if not Gst.ElementFactory.find(e)]
 if missing:
     sys.exit(f"FATAL: Mo Remote capture pipeline is missing GStreamer elements: {missing}")
-print("OK: Mo Remote GStreamer capture pipeline elements all present.")
+
+# At least one H.264 encoder that runs on ANY machine, with no GPU and no luck. The hardware ones
+# are checked at runtime, not here, because "installed" and "will open a session" are different
+# claims and only the second one matters.
+if not any(Gst.ElementFactory.find(e) for e in ("openh264enc", "x264enc")):
+    sys.exit("FATAL: no software H.264 encoder. NVENC is not guaranteed to open (VRAM), and "
+             "without a fallback the stream drops to JPEG — 79 Mbit/s, unusable on mobile data.")
+print("OK: Mo Remote GStreamer capture pipeline elements all present (incl. software H.264).")
 EOF
 
 # Compile-and-launch smoke test for every shipped pure-QML application. Syntax

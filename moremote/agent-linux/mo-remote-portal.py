@@ -15,7 +15,8 @@ import json, os, socket, struct, sys, threading, uuid
 import gi
 gi.require_version("Gio", "2.0")
 gi.require_version("Gst", "1.0")
-from gi.repository import Gio, GLib, Gst
+gi.require_version("GstVideo", "1.0")   # force-key-unit events, for a phone that joins mid-stream
+from gi.repository import Gio, GLib, Gst, GstVideo
 
 BUS = "org.freedesktop.portal.Desktop"
 PATH = "/org/freedesktop/portal/desktop"
@@ -224,9 +225,56 @@ def send_frame(data):
 Gst.init(None)
 
 MAX_WIDTH = 1920
-state = {"sw": 0, "sh": 0, "scale": 1.0, "quality": 70, "fps": 30, "out": (0, 0)}
+state = {"sw": 0, "sh": 0, "scale": 1.0, "quality": 70, "fps": 30, "out": (0, 0),
+         "codec": "jpeg", "want": "jpeg"}
 pipeline = None
 enc = rate = None
+
+
+# ---------------------------------------------------------------- codec selection
+#
+# JPEG has no temporal compression at all: every frame is a whole picture, so a desktop that is
+# merely *being looked at* costs the same as one being scrubbed through. Measured on this machine,
+# 1080p: JPEG 79 Mbit/s against H.264's 4.3. On a home LAN that is merely wasteful. On mobile
+# data — which is the entire point of reaching the machine from outside the house — 79 Mbit/s is
+# not a stream, it is a stall.
+#
+# Best encoder first. nvh264enc is NVENC and costs the CPU nothing; vah264enc is the same deal on
+# Intel/AMD; openh264enc is software and costs perhaps a fifth of a core at 1080p30 — still a
+# trade worth making, because the bandwidth saved is 18x and the JPEG path already burns ~9% of a
+# core doing worse.
+#
+# Every one of these can be present and still refuse to start. NVENC in particular needs free VRAM
+# to open a session, and on a machine that also runs a local LLM there may be none: measured here,
+# nvh264enc failed with "Failed to open encoder" at 7748/8192 MiB used and worked again at 7625.
+# So the encoder is not chosen by what is *installed* — it is chosen by what actually reaches
+# PLAYING, and anything that does not falls through to the next one. JPEG is the floor, and the
+# floor never fails.
+H264_ENCODERS = [
+    ("nvh264enc",   "bitrate={kbps} gop-size={gop} bframes=0 zerolatency=true rc-mode=cbr"),
+    ("vah264enc",   "bitrate={kbps} key-int-max={gop} rate-control=cbr"),
+    ("vah264lpenc", "bitrate={kbps} key-int-max={gop} rate-control=cbr"),
+    ("x264enc",     "bitrate={kbps} key-int-max={gop} tune=zerolatency speed-preset=veryfast"),
+    ("openh264enc", "bitrate={bps} gop-size={gop} complexity=low rate-control=bitrate"),
+]
+_h264_blacklist = set()   # elements that were present and then failed to start
+
+
+def pick_h264():
+    """The best H.264 encoder that is installed and has not already failed on us."""
+    reg = Gst.Registry.get()
+    for name, props in H264_ENCODERS:
+        if name in _h264_blacklist:
+            continue
+        if reg.lookup_feature(name) is not None:
+            return name, props
+    return None, None
+
+
+def h264_bitrate():
+    """Reuse the existing 10..95 quality slider. The phone already has one; a second control that
+    means almost the same thing is a worse UI than a single one that means both."""
+    return max(800, min(8000, int(state["quality"] * 60)))
 
 
 def target_size():
@@ -268,6 +316,21 @@ def on_bus(_b, msg):
     # restart, stream torn down). Die so the agent respawns us instead of serving a frozen frame.
     if msg.type == Gst.MessageType.ERROR:
         err, dbg = msg.parse_error()
+        # …unless it is the H.264 encoder giving up mid-stream, which is a thing NVENC really does:
+        # the LLM on this machine can grow into the VRAM the encode session was holding. Losing the
+        # hardware encoder should cost the user some bandwidth, not their remote desktop. Blacklist
+        # it, rebuild on the next one down, and keep the session alive.
+        if state["codec"] == "h264":
+            elem = msg.src.get_name() if msg.src else ""
+            emit(type="warn", warn=f"h264 encoder failed mid-stream ({err.message}); falling back")
+            for name, _ in H264_ENCODERS:
+                if name in elem:
+                    _h264_blacklist.add(name)
+            if not pick_h264():
+                state["want"] = "jpeg"
+            state["out"] = (0, 0)          # force a real rebuild rather than a no-op
+            GLib.idle_add(rebuild)
+            return True
         die(EXIT_LOST, f"gstreamer: {err.message} ({dbg or ''})")
     elif msg.type == Gst.MessageType.EOS:
         die(EXIT_LOST, "gstreamer: stream ended")
@@ -302,46 +365,125 @@ def build(w, h):
     global pipeline, enc, rate
 
     # Scale BEFORE the colour convert: on a 4K source, converting every pixel to I420 and only
-    # then shrinking costs more than the encode itself. max-buffers=1 + drop keeps us on the
-    # newest frame instead of building a backlog when the network is slow.
+    # then shrinking costs more than the encode itself.
     caps = f"! video/x-raw,width={w},height={h} " if w else ""
-    pipeline = Gst.parse_launch(
+    head = (
         f"pipewiresrc fd={open_pipewire_fd()} path={node_id} do-timestamp=true keepalive-time=1000 "
         f"! videorate drop-only=true max-rate={state['fps']} name=rate "
         f"! videoscale method=bilinear {caps}"
-        f"! videoconvert ! jpegenc quality={state['quality']} idct-method=ifast name=enc "
-        "! appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false"
+        f"! videoconvert "
     )
+
+    codec, elem = "jpeg", None
+    if state["want"] == "h264":
+        elem, props = pick_h264()
+        if elem:
+            codec = "h264"
+
+    if codec == "h264":
+        gop = max(15, state["fps"] * 2)   # an IDR every ~2s, so a phone that joins mid-stream syncs
+        tail = (
+            f"! {elem} " + props.format(kbps=h264_bitrate(), bps=h264_bitrate() * 1000, gop=gop)
+            + " name=enc "
+            # config-interval=-1 repeats SPS/PPS before every keyframe: a decoder that joins late
+            # needs them, and on a live stream "late" is the only way anyone ever joins.
+            # byte-stream (Annex-B) is what WebCodecs takes with no `description` — the alternative,
+            # AVCC, would mean shipping an avcC box out of band for no gain.
+            "! h264parse config-interval=-1 "
+            "! video/x-h264,stream-format=byte-stream,alignment=au "
+            # drop=false, unlike JPEG. Every JPEG is a whole picture, so dropping one costs one
+            # frame; an H.264 P-frame is a diff against its predecessor, so dropping one corrupts
+            # everything after it until the next IDR. Raw frames are already dropped upstream by
+            # videorate — once a frame is ENCODED it is delivered, or the stream is a mess.
+            "! appsink name=sink emit-signals=true max-buffers=8 drop=false sync=false"
+        )
+    else:
+        tail = (
+            f"! jpegenc quality={state['quality']} idct-method=ifast name=enc "
+            "! appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false"
+        )
+
+    pipeline = Gst.parse_launch(head + tail)
     enc = pipeline.get_by_name("enc")
     rate = pipeline.get_by_name("rate")
     pipeline.get_by_name("sink").connect("new-sample", on_sample)
     bus_ = pipeline.get_bus()
     bus_.add_signal_watch()
     bus_.connect("message", on_bus)
-    pipeline.set_state(Gst.State.PLAYING)
 
+    # An encoder that exists is not an encoder that runs. NVENC opens a session against the GPU and
+    # can simply refuse — out of VRAM, out of sessions — and it refuses at PREROLL, not at
+    # parse time, so the only honest test is to wait for PLAYING and see. If it will not start we
+    # blacklist that element and come back through here with the next one; JPEG is the floor.
+    pipeline.set_state(Gst.State.PLAYING)
+    ok, _st, _pending = pipeline.get_state(4 * Gst.SECOND)
+    if ok == Gst.StateChangeReturn.FAILURE:
+        pipeline.set_state(Gst.State.NULL)
+        pipeline = None
+        if codec == "h264":
+            emit(type="warn", warn=f"{elem} would not start; falling back")
+            _h264_blacklist.add(elem)
+            if not pick_h264():
+                state["want"] = "jpeg"
+            return build(w, h)
+        die(EXIT_LOST, "the JPEG pipeline would not start")
+
+    state["codec"] = codec
     state["out"] = (w, h)
     if w:
-        emit(type="video", width=w, height=h, source_width=state["sw"], source_height=state["sh"],
+        emit(type="video", codec=codec, encoder=(elem or "jpegenc"),
+             width=w, height=h, source_width=state["sw"], source_height=state["sh"],
              logical_width=logical_w, logical_height=logical_h, node=node_id)
     return False  # one-shot idle
+
+
+def force_keyframe():
+    """A phone that has just connected holds no reference frames, so every P-frame it receives is
+    noise until an IDR arrives. Rather than make it wait up to a GOP, ask for one now."""
+    if pipeline is None or state["codec"] != "h264":
+        return
+    try:
+        pipeline.send_event(
+            GstVideo.video_event_new_upstream_force_key_unit(Gst.CLOCK_TIME_NONE, True, 0))
+    except Exception:
+        pass
 
 
 rebuild()
 
 
 # ---------------------------------------------------------------- input loop
+def set_prop(el, name, value):
+    """Set a property only if this encoder actually has it. The two encoders share one slider but
+    not one property: jpegenc has `quality`, the H.264 family has `bitrate` — and openh264enc
+    counts it in bits while everyone else counts kilobits. Setting a property an element does not
+    have raises, and this runs on the pipeline thread."""
+    if el is not None and el.find_property(name) is not None:
+        el.set_property(name, value)
+        return True
+    return False
+
+
 def set_video(m):
     # quality and fps are plain element properties — safe to change on a running pipeline.
-    # scale changes the negotiated caps, which is not, so it goes through rebuild().
+    # scale and codec change the pipeline itself, which is not, so they go through rebuild().
     if "quality" in m:
         state["quality"] = max(10, min(95, int(m["quality"])))
-        if enc is not None:
-            enc.set_property("quality", state["quality"])
+        if state["codec"] == "h264":
+            if not set_prop(enc, "bitrate", h264_bitrate()):
+                set_prop(enc, "bitrate", h264_bitrate() * 1000)   # openh264enc counts bits
+        else:
+            set_prop(enc, "quality", state["quality"])
     if "fps" in m:
         state["fps"] = max(1, min(60, int(m["fps"])))
         if rate is not None:
             rate.set_property("max-rate", state["fps"])
+    if "codec" in m:
+        want = "h264" if str(m["codec"]).lower() == "h264" else "jpeg"
+        if want != state["want"]:
+            state["want"] = want
+            state["out"] = (0, 0)   # the pipeline is different, not merely differently sized
+            rebuild()
     if "scale" in m:
         state["scale"] = max(0.2, min(1.0, float(m["scale"])))
         rebuild()
@@ -368,6 +510,10 @@ def handle(m):
         notify("NotifyKeyboardKeycode", "(oa{sv}iu)", (session, empty, int(m["code"]), 1 if m["down"] else 0))
     elif t == "keysym":
         notify("NotifyKeyboardKeysym", "(oa{sv}iu)", (session, empty, int(m["keysym"]), 1 if m["down"] else 0))
+    elif t == "keyframe":
+        # A phone that just connected has no reference frame. Asking costs one larger frame;
+        # not asking costs it up to a whole GOP of garbage.
+        GLib.idle_add(lambda: (force_keyframe(), False)[1])
     elif t == "video":
         GLib.idle_add(set_video, m)
     elif t == "ping":

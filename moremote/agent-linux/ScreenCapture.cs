@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
@@ -88,6 +89,58 @@ public sealed class ScreenCapture : IDisposable
         if (fps == _fps && _settingsGeneration == _portal.Generation) return;
         _fps = fps;
         _portal.Send(new { type = "video", fps });
+    }
+
+    // ---------------------------------------------------------------- codec
+
+    /// <summary>What the helper is producing right now — reported by it, never assumed.</summary>
+    public string Codec => _portal.Codec;
+
+    /// <summary>All H.264 access units, in order. Returns null when the codec is JPEG.</summary>
+    public IDisposable? SubscribeH264(Action<byte[]> onFrame)
+    {
+        _portal.H264Frame += onFrame;
+        return new Unsubscriber(() => _portal.H264Frame -= onFrame);
+    }
+
+    /// <summary>A phone that just joined has no reference frame; without this it watches garbage
+    /// until the next scheduled IDR.</summary>
+    public void RequestKeyframe() => _portal.Send(new { type = "keyframe" });
+
+    private readonly ConcurrentDictionary<Guid, bool> _sessionH264 = new();
+
+    /// <summary>
+    /// One pipeline feeds every phone, so the codec is a property of the ROOM, not of a session.
+    /// H.264 is therefore only safe when every connected client can decode it: a client handed
+    /// bytes it cannot decode does not degrade, it shows nothing. One old browser and everyone
+    /// stays on JPEG — which is the honest trade, and the reason this is a vote and not a setting.
+    /// </summary>
+    public void SessionCodec(Guid id, bool canH264)
+    {
+        _sessionH264[id] = canH264;
+        Reconcile();
+    }
+
+    public void SessionGone(Guid id)
+    {
+        _sessionH264.TryRemove(id, out _);
+        Reconcile();
+    }
+
+    private void Reconcile()
+    {
+        bool all = !_sessionH264.IsEmpty && _sessionH264.Values.All(v => v);
+        var want = all ? "h264" : "jpeg";
+        if (want == _wantCodec) return;
+        _wantCodec = want;
+        _portal.Send(new { type = "video", codec = want });
+    }
+
+    private string _wantCodec = "jpeg";
+
+    private sealed class Unsubscriber(Action dispose) : IDisposable
+    {
+        public void Dispose() => dispose();
     }
 
     // ---------------------------------------------------------------- fallback
