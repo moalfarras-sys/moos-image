@@ -83,6 +83,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const [latency, setLatency] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [toolbar, setToolbar] = useState(true);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [screenOk, setScreenOk] = useState(true);
   const [inputOk, setInputOk] = useState(false);
   const [clipboardOk, setClipboardOk] = useState(false);
@@ -505,9 +506,22 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const taskMgr = () => { c()?.combo(["Control", "Shift", "Escape"]); showToast("Task Manager (safe Ctrl+Alt+Del)"); };
   const fullscreen = () => {
     const el = document.documentElement as any;
-    if (document.fullscreenElement) document.exitFullscreen?.();
-    else if (el.requestFullscreen) el.requestFullscreen().catch(() => showToast("Add to Home Screen for fullscreen"));
-    else showToast("Safari ▸ Add to Home Screen for fullscreen");
+    if (document.fullscreenElement) { document.exitFullscreen?.(); return; }
+    if (el.requestFullscreen) {
+      el.requestFullscreen()
+        .then(() => {
+          // A desktop is a landscape thing. Fitted into a portrait phone it becomes a stamp with
+          // black bars swallowing most of the display — turning the phone is worth more than any
+          // amount of pinch-zooming. The lock only exists in an installed/fullscreen context and
+          // is absent on iOS entirely, so it is attempted, never depended on.
+          (screen.orientation as any)?.lock?.("landscape").catch(() => {});
+        })
+        .catch(() => showToast("Add to Home Screen for fullscreen"));
+    } else {
+      // iOS has no Fullscreen API at all. Installing it is the only route, and it is the better
+      // one anyway: standalone means no address bar and no Safari toolbar to reclaim the screen.
+      showToast("Safari ▸ Share ▸ Add to Home Screen");
+    }
   };
   const refreshStream = () => { setStatus("connecting"); connRef.current?.disconnect(); setTimeout(() => connRef.current?.connect(), 120); showToast("Refreshing…"); };
   const reconnect = () => { setStatus("connecting"); connRef.current?.connect(); };
@@ -539,6 +553,12 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
   const overlay = status === "stopped" || status === "idle";
 
+  // Healthy means: there is nothing to tell the user. The bar collapses to a dot, and hides with
+  // the toolbar. Tapping it opens the numbers (fps / latency / mode) for anyone who wants them;
+  // anything actually broken overrides both and keeps the bar open until it is fixed.
+  const healthy = status === "live" && screenOk && inputOk && clipboardOk;
+  const compactBar = healthy && !statsOpen;
+
   return (
     <div className="remote" onPointerDown={bumpToolbar}>
       <canvas ref={canvasRef} className="screen-canvas" />
@@ -553,14 +573,34 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
         </svg>
       </div>
 
-      <div className="topbar">
+      {/* The status bar has to earn the space it takes, and on a phone it was not earning it.
+          It sat across the top of the desktop permanently, spelling out "Connected · Video ✓ ·
+          Mouse ✓ · Keys ✓ · Clip ✓" — four ticks that say nothing you did not already know from
+          the fact that the screen is moving, over the part of the screen you are trying to see.
+
+          So: when everything works it shrinks to a single dot and then fades out with the
+          toolbar, and the desktop gets the whole display. Touch anything and it is back.
+
+          When something is actually wrong it does the opposite — it stays put, refuses to hide,
+          and names ONLY the thing that broke. A list of ticks is noise; "No video" is news. */}
+      <div
+        className={
+          "topbar"
+          + (compactBar ? " mini" : "")
+          + (compactBar && !toolbar ? " gone" : "")
+        }
+        onClick={() => setStatsOpen((v) => !v)}
+      >
         <span className={"dot " + statusInfo.cls} />
-        <b>{statusInfo.text}</b>
-        <span>· Video {screenOk ? "✓" : "!"}</span>
-        <span>· Mouse {inputOk ? "✓" : "!"}</span>
-        <span>· Keys {inputOk ? "✓" : "!"}</span>
-        <span>· Clip {clipboardOk ? "✓" : "!"}</span>
-        {status === "live" && <span>· {fps}fps · {latency}ms · {MODE_LABEL[mode]}</span>}
+        {!compactBar && (
+          <>
+            <b>{statusInfo.text}</b>
+            {!screenOk && <span className="bad">· No video</span>}
+            {!inputOk && <span className="bad">· No input</span>}
+            {!clipboardOk && <span className="bad">· No clipboard</span>}
+            {status === "live" && <span>· {fps}fps · {latency}ms · {MODE_LABEL[mode]}</span>}
+          </>
+        )}
       </div>
 
       {overlay && (

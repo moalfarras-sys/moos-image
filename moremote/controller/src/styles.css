@@ -213,12 +213,34 @@ button {
   z-index: 20;
   transition: opacity 0.3s, transform 0.3s;
 }
+/* Collapsed: a single dot, nothing else. Expanded only when it has something to say.
+   The transition is what keeps it from feeling like a glitch — it shrinks and fades, it
+   does not blink out. */
+.topbar {
+  cursor: pointer;
+  transition: opacity 0.22s ease, transform 0.22s ease, padding 0.18s ease, gap 0.18s ease;
+}
+.topbar.mini {
+  gap: 0;
+  padding: 7px;
+}
+.topbar.gone {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-10px);
+  pointer-events: none;   /* a tap here reaches the desktop, and brings the bar back with it */
+}
+.topbar .bad {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 .topbar .dot {
   width: 9px;
   height: 9px;
   border-radius: 50%;
   background: var(--ok);
   box-shadow: 0 0 8px var(--ok);
+  flex: none;
 }
 .topbar .dot.warn {
   background: var(--warn);

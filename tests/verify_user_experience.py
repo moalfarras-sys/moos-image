@@ -118,6 +118,25 @@ require("remote-anywhere" in read("system_files/usr/bin/moai-do"),
         "enabling access from anywhere touches Tailscale's operator bit, which is privileged, "
         "so it must be a moai-do action and not something the panel does behind the user's back")
 
+# The phone UI that ships is the COMMITTED build output. MoRemoteLinux.csproj copies
+# ../agent/wwwroot/** into the image; nothing in the image build ever runs vite. So editing
+# controller/src and not rebuilding ships the OLD interface, silently, with a perfectly green
+# build — the same shape as every other bug found tonight, where the source was right and the
+# thing that reached the user was stale.
+#
+# These are canaries: strings that exist in the current source and must therefore exist in the
+# bundle. If they do not, wwwroot was not rebuilt.
+#     cd moremote/controller && npm ci && npm run build   # then commit agent/wwwroot
+bundle = "".join(p.read_text(errors="replace")
+                 for p in (ROOT / "moremote/agent/wwwroot/assets").glob("*.js"))
+manifest = read("moremote/agent/wwwroot/manifest.webmanifest")
+require("No video" in bundle,
+        "the shipped phone UI is stale: controller/src has strings the built bundle does not. "
+        "Rebuild moremote/controller and commit moremote/agent/wwwroot")
+require('"orientation":"landscape"' in manifest.replace(" ", ""),
+        "the shipped web app manifest is stale, or no longer asks for landscape — a desktop "
+        "fitted into a portrait phone is a stamp between two black bars")
+
 control = read("system_files/usr/bin/moai-control")
 gateway = read("system_files/usr/bin/moai-gateway")
 require('"cloud_key":' not in control,
