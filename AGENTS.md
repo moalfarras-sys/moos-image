@@ -44,6 +44,39 @@ These are not conventions, they are gates. The image build fails if you break th
 - **Remote control must ship the PipeWire path.** If `mo-remote-portal.py` is missing or is not
   the PipeWire one, the build fails — the old screenshot-per-frame path was ~1 fps.
 
+## A green build proves nothing about what the user sees
+
+Everything in this section shipped while every gate passed.
+
+**The identity gate ran before `set -e` and its failure was ignored.** It was the second line of
+`build.sh`; `set -euxo pipefail` is the tenth. A build in this repo printed
+`MoOS image-experience gate failed` and went on to `Successfully tagged`. It also ran before
+build.sh did any work, so it could only see what `COPY` had put in place. The gate that exists
+to keep another distribution's branding away from the user had never stopped anything. It runs
+last now. If you add a gate, make sure it runs where it can actually fail the build.
+
+**Gate the system that exists, not the one you remember.** Fedora Kinoite 44 replaced SDDM with
+`plasma-login-manager` — `sddm` is not installed at all. MoOS was still shipping a full SDDM
+theme and an SDDM config, and the gate asserted `Current=moos-nova` in that config and *passed*,
+while the real login screen showed Plasma's default wallpaper. A green check on a file nobody
+reads is worse than no check: it buys false confidence. The gate now resolves
+`display-manager.service` and asserts on whatever it actually points at.
+
+**The first screen was another desktop's.** `plasma-setup.service` runs
+`Before=display-manager.service` and holds the screen, so a fresh install greeted the user with
+"Welcome to Plasma Desktop". Hiding the plasma-welcome *app* did nothing — the *service* draws
+the wizard.
+
+**Plymouth needs `rhgb` on the kernel command line, or it draws nothing.** The image set no
+kargs at all, so the MoOS splash appeared only if the installer happened to add them.
+
+**Repoint configs before deleting what they point at.** Removing Fedora's look-and-feel packages
+without first fixing the kde-settings profile that named them would leave Plasma silently
+falling back to Breeze.
+
+**Boot the image and look at it.** `podman build` + `bootc-image-builder --type qcow2` + qemu
+with `screendump` takes about half an hour and is the only thing that found any of the above.
+
 ## Things that are easy to get wrong here
 
 **Never build an edition on a different base.** `moos-nvidia` used to build `FROM
