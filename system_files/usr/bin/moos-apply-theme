@@ -17,7 +17,7 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=8
+THEME_REV=9
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 marker="${state_dir}/moos-nova-theme-applied.v${THEME_REV}"
 
@@ -32,6 +32,15 @@ current_lookandfeel() {
     kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage 2>/dev/null
 }
 
+# The decoration is checked separately because it can be wrong on its own: it lives in a
+# different file, and ~/.config/kdedefaults/kwinrc can hold Breeze's while the Global
+# Theme still reads org.moos.nova. A "Nova" desktop wearing Breeze title bars is exactly
+# the state every install shipped in, and it must count as drift.
+current_decoration() {
+    command -v kreadconfig6 >/dev/null 2>&1 || return 1
+    kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme 2>/dev/null
+}
+
 # The marker means "this revision was applied once". It does NOT mean the desktop still
 # LOOKS like MoOS, and those two came apart the moment Plasma started rewriting
 # LookAndFeelPackage behind our back (see defuse_automatic_lookandfeel below). An
@@ -42,8 +51,11 @@ current_lookandfeel() {
 # it however many times it has run before — that is the whole point.
 if [ -e "$marker" ]; then
     lnf="$(current_lookandfeel)" || exit 0   # cannot tell → trust the marker, as before
-    [ "$lnf" = "org.moos.nova" ] && exit 0
-    echo "=== moos-apply-theme $(date -u '+%FT%TZ') === SELF-HEAL: look-and-feel is '${lnf:-unset}', not org.moos.nova" >>"$log" 2>/dev/null || true
+    deco="$(current_decoration)" || exit 0
+    if [ "$lnf" = "org.moos.nova" ] && [ "$deco" = "__aurorae__svg__MoOSNova" ]; then
+        exit 0
+    fi
+    echo "=== moos-apply-theme $(date -u '+%FT%TZ') === SELF-HEAL: look-and-feel='${lnf:-unset}' decoration='${deco:-unset}'" >>"$log" 2>/dev/null || true
 else
     echo "=== moos-apply-theme $(date -u '+%FT%TZ') ===" >>"$log" 2>/dev/null || true
 fi
@@ -250,6 +262,80 @@ if command -v kwriteconfig6 >/dev/null 2>&1; then
     kwriteconfig6 --file kdeglobals --group Sounds --key Theme moos-nova
     kwriteconfig6 --file kdeglobals --group Sounds --key Enable true
 fi
+
+# GTK apps — Firefox and every other non-Qt window on the system.
+#
+# Plasma's gtkconfig kded module already does the hard half of this correctly: on every
+# theme change it regenerates ~/.config/gtk-3.0/colors.css from the ACTIVE KDE colour
+# scheme, so those 84 colours are Nova's navy, and it syncs the Nova icon and NovaIce
+# cursor into the GTK settings. What it never sets is gtk-theme-name, which on this system
+# is the empty string.
+#
+# Empty means GTK falls back to its built-in Adwaita — and Adwaita has never heard of the
+# variables in colors.css. They are named borders_breeze, content_view_bg_breeze, …
+# because they exist for the Breeze GTK theme, whose stylesheet references them 965 times.
+# So the bridge that carries Nova's colours into GTK has been running, correctly, into a
+# theme that ignores every one of them. Naming the theme is the entire fix: Breeze's GTK
+# stylesheet is KDE's (which MoOS keeps, like the widget style), and it is what the
+# generated Nova palette is written for. Geometry from Breeze, colour from Nova — exactly
+# the deal the Nova Plasma style already makes.
+#
+# The sound theme has to be written here too: the module syncs icons and cursors from
+# kdeglobals but NOT [Sounds], so GTK keeps freedesktop while Plasma plays moos-nova.
+#
+# Verified to survive: gtkconfig rewrites these files on every theme change and preserves
+# both keys — it only ever fills in the ones it owns.
+# settings.ini is the WEAKEST of the three places GTK looks, and writing only it changes
+# nothing. Probed live on this hardware, with settings.ini already saying Breeze:
+#
+#   GDK_BACKEND=wayland → gtk-theme-name = 'Adwaita'   (from GSettings)
+#   GDK_BACKEND=x11     → gtk-theme-name = ''          (from xsettingsd, which is running)
+#
+# Wayland apps read GSettings; X11/XWayland apps read the XSETTINGS daemon; settings.ini is
+# only the fallback when neither answers. gtkconfig keeps all three in sync and fills in
+# what it owns — Net/IconThemeName "Nova", Gtk/CursorThemeName "NovaIce", the Plex font —
+# and leaves exactly the two keys below unset. So all three have to be written, or the
+# desktop keeps rendering GTK apps in Adwaita grey while insisting the theme is Breeze.
+pin_gtk() {
+    local ini
+    if command -v kwriteconfig6 >/dev/null 2>&1; then
+        for ini in "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/settings.ini" \
+                   "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"; do
+            [ -f "$ini" ] || continue
+            kwriteconfig6 --file "$ini" --group Settings --key gtk-theme-name Breeze
+            kwriteconfig6 --file "$ini" --group Settings --key gtk-sound-theme-name moos-nova
+        done
+    fi
+
+    # GTK2 is not KConfig — plain `key="value"` lines, no group header.
+    local rc="$HOME/.gtkrc-2.0"
+    if [ -f "$rc" ]; then
+        sed -i -e 's/^gtk-theme-name=.*/gtk-theme-name="Breeze"/' \
+               -e 's/^gtk-sound-theme-name=.*/gtk-sound-theme-name="moos-nova"/' "$rc" 2>/dev/null || true
+        grep -q '^gtk-theme-name=' "$rc" 2>/dev/null || echo 'gtk-theme-name="Breeze"' >>"$rc"
+        grep -q '^gtk-sound-theme-name=' "$rc" 2>/dev/null || echo 'gtk-sound-theme-name="moos-nova"' >>"$rc"
+    fi
+
+    # Wayland GTK apps. Takes effect immediately — GSettings notifies live.
+    if command -v gsettings >/dev/null 2>&1; then
+        gsettings set org.gnome.desktop.interface gtk-theme Breeze 2>/dev/null || true
+        gsettings set org.gnome.desktop.sound theme-name moos-nova 2>/dev/null || true
+    fi
+
+    # X11 / XWayland GTK apps. xsettingsd re-reads its config on SIGHUP and pushes the new
+    # values to every running client, so this does not wait for a re-login either.
+    local xs="${XDG_CONFIG_HOME:-$HOME/.config}/xsettingsd/xsettingsd.conf"
+    if [ -f "$xs" ]; then
+        sed -i -e 's|^Net/ThemeName .*|Net/ThemeName "Breeze"|' \
+               -e 's|^Net/SoundThemeName .*|Net/SoundThemeName "moos-nova"|' "$xs" 2>/dev/null || true
+        grep -q '^Net/ThemeName ' "$xs" 2>/dev/null || echo 'Net/ThemeName "Breeze"' >>"$xs"
+        grep -q '^Net/SoundThemeName ' "$xs" 2>/dev/null || echo 'Net/SoundThemeName "moos-nova"' >>"$xs"
+        pkill -HUP -x xsettingsd 2>/dev/null || true
+    fi
+
+    echo "pinned the GTK theme (Breeze stylesheet, Nova palette) and sound theme in all three sources" >>"$log" 2>/dev/null || true
+}
+pin_gtk
 
 # Only mark done if something actually applied — otherwise retry next login.
 if [ "$applied" = "1" ]; then

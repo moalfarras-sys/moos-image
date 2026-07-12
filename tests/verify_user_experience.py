@@ -113,7 +113,7 @@ require('had_legacy_key = "cloud_key" in data' in control and
 
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
-require("THEME_REV=8" in apply_theme, "Nova visual schema must be revision 8")
+require("THEME_REV=9" in apply_theme, "Nova visual schema must be revision 9")
 
 # Nova must survive Plasma, not just reach it.
 #
@@ -183,6 +183,19 @@ require("--group org.kde.kdecoration2 --key theme __aurorae__svg__MoOSNova" in a
 require("--group Sounds --key Theme moos-nova" in apply_theme,
         "the theme migration must pin the Nova sound theme into an existing user's own "
         "kdeglobals; Plasma never writes [Sounds] when applying a Global Theme")
+
+# GTK apps are the last non-Qt surface, and the one place where MoOS was generating the
+# right answer and throwing it away. Plasma's gtkconfig module regenerates
+# ~/.config/gtk-3.0/colors.css from the active KDE scheme — those colours ARE Nova's — but
+# it never sets gtk-theme-name. Empty means GTK uses built-in Adwaita, which does not read
+# a single one of the borders_breeze / content_view_bg_breeze variables that file defines.
+# Only the Breeze GTK stylesheet does (965 references). Naming it is what connects the two.
+require("--key gtk-theme-name Breeze" in apply_theme,
+        "GTK apps must name the Breeze stylesheet, or the Nova palette Plasma generates "
+        "into colors.css is read by nothing")
+require("--key gtk-sound-theme-name moos-nova" in apply_theme,
+        "GTK's sound theme must be pinned too; gtkconfig syncs icons and cursors from "
+        "kdeglobals but never [Sounds]")
 
 aurorae = ROOT / "system_files/usr/share/aurorae/themes/MoOSNova"
 for name in ("decoration.svg", "close.svg", "minimize.svg", "maximize.svg",
