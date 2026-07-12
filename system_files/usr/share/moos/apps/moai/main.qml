@@ -105,6 +105,9 @@ Kirigami.ApplicationWindow {
         "• Fix & maintain: `moai-do update` (atomic system update), `moai-do " +
         "fix-audio`, `moai-do check-drivers`, `moai-do optimize` (clean + speed up), " +
         "`moai-do hw-report`.\n" +
+        "• Drivers & firmware: `moai-do install-nvidia` (atomically switch to the MoOS " +
+        "NVIDIA edition — applies on reboot, previous system kept for rollback), " +
+        "`moai-do update-firmware` (device firmware via fwupd).\n" +
         "• Install software: `moai-do install <flatpak-id>` (a Flathub app). Prefer " +
         "Flatpaks over layering rpm-ostree packages; for browsing, open the MoOS App " +
         "Center (Bazaar).\n" +
@@ -251,7 +254,21 @@ Kirigami.ApplicationWindow {
     // surfaced as one-click "Run" chips above the input.
     property var pendingRuns: []
 
-    Component.onCompleted: chatModel.append({ role: "assistant", text: greetingText })
+    Component.onCompleted: {
+        chatModel.append({ role: "assistant", text: greetingText })
+        // Learn the machine before the user's first message, so the very first answer is
+        // grounded in their actual hardware instead of a generic one.
+        root.refreshMachineContext()
+    }
+
+    // Hardware changes (a firmware update lands, the NVIDIA edition gets deployed, a device
+    // is plugged in), so the context must not be a one-shot read taken at launch.
+    Timer {
+        interval: 180000
+        running: true
+        repeat: true
+        onTriggered: root.refreshMachineContext()
+    }
 
     ListModel { id: chatModel }
 
@@ -310,6 +327,58 @@ Kirigami.ApplicationWindow {
         pendingRuns = []
         stopGenerating()
         chatModel.append({ role: "assistant", text: greetingText })
+    }
+
+    // The machine Mo AI is actually running on, appended to the system prompt on every
+    // request. Without this it is a chat box that has to be *told* what hardware it is on;
+    // with it, it opens the conversation already knowing that this machine has an NVIDIA
+    // card on nouveau, or firmware the kernel could not load — and can say so first.
+    //
+    // It carries only the facts and the fixed action ids that repair them. The model never
+    // gains the ability to run anything: it can name a `moai-do <action>` from the allowlist,
+    // which the UI turns into a Run button that still goes through confirmation + Polkit.
+    property string machineContext: ""
+
+    function refreshMachineContext() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", controlApi + "/scan")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200)
+                return
+            try {
+                const s = JSON.parse(xhr.responseText)
+                const p = s.device_plan || {}
+                let c = "\n\nTHIS MACHINE (live, read-only — do not ask the user for it):\n"
+                c += "• " + (s.os || "MoOS") + ", kernel " + (s.kernel || "?")
+                   + ", " + (s.mem_gb || "?") + " GB RAM, " + (s.cores || "?") + " cores\n"
+                if (p.gpu)
+                    c += "• GPU: " + String(p.gpu).split("\n")[0] + "\n"
+                if (p.driver_status)
+                    c += "• Graphics driver: " + p.driver_status + "\n"
+                if (p.driver_gaps && p.driver_gaps.length)
+                    c += "• Devices with NO driver bound: " + p.driver_gaps.join("; ") + "\n"
+                if (p.missing_firmware && p.missing_firmware.length)
+                    c += "• Firmware the kernel could not load: " + p.missing_firmware.join(", ") + "\n"
+                if (p.firmware_updates && p.firmware_updates.length)
+                    c += "• Pending firmware updates: " + p.firmware_updates.join("; ") + "\n"
+                if (p.missing_recommended_apps && p.missing_recommended_apps.length)
+                    c += "• Recommended apps not installed: " + p.missing_recommended_apps.join(", ") + "\n"
+                if (p.actions && p.actions.length) {
+                    c += "• Repairs available right now (each maps to an allowed action):\n"
+                    for (let i = 0; i < p.actions.length; i++) {
+                        const a = p.actions[i]
+                        const cmd = a.url ? String(a.url).replace("moos://do/", "moai-do ") : ""
+                        c += "   - [" + a.severity + "] " + a.title
+                           + (cmd ? "  ->  `" + cmd + "`" : "") + "\n"
+                    }
+                }
+                c += "If something above is broken, say so first and offer the exact action. "
+                   + "Never invent hardware facts that are not in this list.\n"
+                root.machineContext = c
+            } catch (e) { /* keep the previous context rather than a half-parsed one */ }
+        }
+        xhr.send()
     }
 
     // Read-only system scan via moai-control; show it in chat and give the model
@@ -468,7 +537,7 @@ Kirigami.ApplicationWindow {
         }
         xhr.send(JSON.stringify({
             model: "default",
-            messages: [{ role: "system", content: systemPrompt }]
+            messages: [{ role: "system", content: systemPrompt + root.machineContext }]
                           .concat(history),
             stream: true
         }))

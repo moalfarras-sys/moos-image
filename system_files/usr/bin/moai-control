@@ -121,6 +121,22 @@ def scan():
     except Exception:
         info["gpu"] = ""
     info["desktop"] = os.environ.get("XDG_CURRENT_DESKTOP", "")
+
+    # The device plan is the same detector the Hardware Center uses: GPU + driver status,
+    # PCI devices with no driver bound, firmware the kernel failed to load, pending fwupd
+    # updates, and the missing recommended apps — each already paired with the ONE allowed
+    # moai-do action that fixes it.
+    #
+    # Folding it in here is what lets Mo AI actually be the device centre instead of a chat
+    # box next to one: it can open a conversation already knowing that this machine has an
+    # NVIDIA card running nouveau, rather than waiting to be asked to look.
+    try:
+        plan = subprocess.run(["moos-device-plan", "--compact"],
+                              capture_output=True, text=True, timeout=45)
+        if plan.returncode == 0 and plan.stdout.strip():
+            info["device_plan"] = json.loads(plan.stdout)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        pass  # a machine without the detector still gets the generic scan above
     return info
 
 
