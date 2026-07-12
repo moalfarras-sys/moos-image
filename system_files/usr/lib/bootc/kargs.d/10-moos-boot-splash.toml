@@ -1,0 +1,15 @@
+# MoOS owns its own boot appearance.
+#
+# Plymouth only draws its graphical splash when the kernel command line asks for it: without
+# `rhgb` it falls back to the text/details theme, and the user watches systemd scroll past
+# instead of seeing MoOS. The image was not setting this at all — it inherited whatever the
+# installer happened to write, so the MoOS splash was at the mercy of Anaconda's defaults and
+# could silently not appear at all. Booting the built disk in a VM showed exactly that: raw
+# systemd text, no splash.
+#
+# bootc kargs.d makes these part of the IMAGE, so every install and every update gets them and
+# the boot looks like MoOS on every machine.
+#
+#   rhgb  — "red hat graphical boot": the flag Plymouth keys off to draw the splash at all
+#   quiet — suppress the kernel log so the splash is not overwritten by scrolling text
+kargs = ["rhgb", "quiet"]

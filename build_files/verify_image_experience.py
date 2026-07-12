@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fail the image build when active user-facing MoOS selectors regress."""
 
+import os
 from pathlib import Path
 import re
 
@@ -16,6 +17,35 @@ def require(ok: bool, message: str) -> None:
     if not ok:
         errors.append(message)
 
+
+# The boot splash must actually appear. Plymouth only draws its graphical theme when the
+# kernel command line carries `rhgb`; without it, it falls back to text and the user watches
+# systemd scroll past instead of seeing MoOS. The image shipped no kargs at all, so the splash
+# depended on whatever the installer happened to write — booting the built disk in a VM showed
+# raw systemd text and no splash. bootc kargs.d makes it part of the image.
+kargs = list(Path("/usr/lib/bootc/kargs.d").glob("*.toml")) if Path("/usr/lib/bootc/kargs.d").exists() else []
+kargs_text = "".join(p.read_text(encoding="utf-8") for p in kargs)
+require("rhgb" in kargs_text,
+        "the image does not request rhgb — Plymouth would not draw the MoOS splash")
+require("quiet" in kargs_text,
+        "the image does not request quiet — kernel logs would scroll over the splash")
+
+# The splash it draws must be MoOS's, in the initramfs as well as on disk — the initramfs is
+# what owns the screen before the root filesystem is even mounted.
+require("Theme=moos-nova" in text("/usr/share/plymouth/plymouthd.defaults"),
+        "Plymouth's default theme is not moos-nova")
+
+# The first screen a new MoOS user sees must be MoOS. plasma-setup.service is Plasma's
+# out-of-box wizard; it runs Before=display-manager.service and holds the screen, so it — not
+# the MoOS SDDM theme — was what greeted every fresh install: a full-screen "Welcome to Plasma
+# Desktop" on Plasma's default wallpaper. Hiding the plasma-welcome *app* did nothing; the
+# service is what shows it.
+if Path("/usr/lib/systemd/system/plasma-setup.service").exists():
+    require(Path("/etc/plasma-setup-done").exists(),
+            "the Plasma out-of-box wizard would run and greet the user as 'Plasma Desktop'")
+    require(Path("/etc/systemd/system/plasma-setup.service").is_symlink()
+            and os.readlink("/etc/systemd/system/plasma-setup.service") == "/dev/null",
+            "plasma-setup.service is not masked")
 
 unit = text("/usr/lib/systemd/user/mo-remote-personal.service")
 require("ConditionUser=!@system" in unit, "Mo Remote can start for system users")

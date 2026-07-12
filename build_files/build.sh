@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-python3 /ctx/verify_image_experience.py
 # =============================================================================
 # MoOS build.sh — runs INSIDE the container build (see Containerfile RUN).
 # Builds the complete current MoOS image: identity, boot/install, Nova UI,
@@ -968,6 +967,46 @@ _pw=/usr/share/applications/org.kde.plasma-welcome.desktop
 unset -v _pw
 
 # -----------------------------------------------------------------------------
+# (z2b) Kill the Plasma out-of-box wizard — it was the FIRST screen of MoOS
+# -----------------------------------------------------------------------------
+# plasma-setup.service is Plasma's own OOBE:
+#
+#     Description=Plasma Setup - Out-of-Box / First-Run setup wizard
+#     Before=display-manager.service
+#     ConditionPathExists=!/etc/plasma-setup-done
+#
+# It runs BEFORE the display manager and holds the screen, so on a fresh install the very
+# first thing a MoOS user saw was a full-screen "Welcome to Plasma Desktop" on Plasma's
+# default wallpaper — another desktop's branding, on the most visible screen there is — and
+# the MoOS SDDM theme behind it was never reached. Caught by booting the built disk image in
+# a VM and looking at it; every gate had passed.
+#
+# The app entry was already hidden above; the SERVICE was not, and the service is the one
+# that actually shows the wizard.
+#
+# It is redundant as well as off-brand: MoOS ships its own first-run (moos-firstrun ->
+# moos-welcome), and the user account is created by the installer, so there is nothing left
+# for Plasma's wizard to ask.
+#
+# Belt and braces: mask the unit AND lay down the flag file the unit itself checks, so the
+# wizard cannot come back if a base update re-enables the preset.
+systemctl mask plasma-setup.service 2>/dev/null || true
+: > /etc/plasma-setup-done
+
+# The gate. This is a first-impression regression, so it fails the build, not a lint.
+if [ -e /usr/lib/systemd/system/plasma-setup.service ]; then
+    if [ ! -e /etc/plasma-setup-done ]; then
+        echo "FATAL: plasma-setup would run — the first screen of MoOS would say 'Welcome to Plasma Desktop'."
+        exit 1
+    fi
+    if [ "$(readlink -f /etc/systemd/system/plasma-setup.service 2>/dev/null)" != "/dev/null" ]; then
+        echo "FATAL: plasma-setup.service is not masked."
+        exit 1
+    fi
+    echo "OK: the Plasma out-of-box wizard is masked and flagged done — MoOS boots to its own SDDM."
+fi
+
+# -----------------------------------------------------------------------------
 # (z3) Container policy — ENFORCE the cosign signature on the MoOS registry
 # -----------------------------------------------------------------------------
 # CI signs every image (build.yml, "Sign image with cosign") and the public key ships at
@@ -1131,5 +1170,27 @@ mountpoint -q /var/cache || { dnf5 clean all; find /var/cache -mindepth 1 -delet
 find /var/log -mindepth 1 -delete 2>/dev/null || true
 mkdir -p /var/tmp
 chmod 1777 /var/tmp
+
+# -----------------------------------------------------------------------------
+# The user-experience gate. LAST, and it actually gates.
+# -----------------------------------------------------------------------------
+# This used to be the FIRST line of this script — line 2, eight lines above
+# `set -euxo pipefail`. Two consequences, both bad:
+#
+#   1. Running before `set -e` meant its failure was IGNORED. The gate could fail and the
+#      image would build, tag and ship anyway. Proven: a build in which it printed
+#      "MoOS image-experience gate failed" still ended in "Successfully tagged".
+#
+#   2. Running before any of build.sh's work meant it could only ever inspect what COPY had
+#      already put in place. Everything this script creates — the masked Plasma wizard, the
+#      signature policy, the spell-check dictionaries — was invisible to it.
+#
+# So the gate that exists to stop another desktop's branding reaching the user had never
+# gated anything, and a fresh MoOS install greeted every user with a full-screen
+# "Welcome to Plasma Desktop". Found by booting the built disk in a VM and looking at it.
+#
+# It runs here now: after every package, every rebrand, every mask — and under `set -e`, so
+# a failure stops the build.
+python3 /ctx/verify_image_experience.py
 
 echo "MoOS build.sh finished OK"
