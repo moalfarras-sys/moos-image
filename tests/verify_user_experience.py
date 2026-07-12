@@ -68,11 +68,36 @@ require("sudo waydroid init" not in compat,
 require('launchUrl: "moos://do/setup-gaming"' in compat,
         "Compatibility Hub must expose the focused gaming installer")
 
+# Screen capture. The original implementation spawned `spectacle` once per frame (~630ms,
+# i.e. ~1 fps) and shelled out to `kscreen-doctor` to guess the desktop geometry — the two
+# things that made remote control feel broken. Capture is now a PipeWire stream from the
+# portal, which also *tells* us the geometry, so both of those probes are gone. Guard the
+# new invariants rather than the old workarounds.
 capture = read("moremote/agent-linux/ScreenCapture.cs")
-require("File.Exists(socket)" in capture,
-        "KScreen probing must be guarded by Wayland socket readiness")
-require("public ScreenCapture() { }" in capture,
-        "KScreen must not run from the service constructor")
+require("kscreen-doctor" not in capture,
+        "Screen geometry must come from the portal, not an external kscreen probe")
+require("PortalBridge" in capture,
+        "Capture must be backed by the PipeWire portal stream")
+require("public ScreenCapture(PortalBridge portal)" in capture,
+        "Capture must not do blocking work in its constructor")
+require("CaptureFallback" in capture,
+        "spectacle must remain a fallback, never the primary capture path")
+
+# The portal helper is what actually produces frames and injects input.
+portal = read("moremote/agent-linux/mo-remote-portal.py")
+require("pipewiresrc" in portal, "Remote capture must run on PipeWire")
+require("NotifyPointerMotionAbsolute" in portal,
+        "The pointer must be positioned absolutely, so a tap lands where it was tapped")
+require("CURSOR_HIDDEN" in portal,
+        "The stream must be able to hide the cursor — drawing it re-encodes a full frame per move")
+
+# build.sh installs into the image by name; a stale filename here fails the image build.
+build = read("build_files/build.sh")
+require("mo-remote-portal.py" in build, "build.sh must ship the PipeWire portal helper")
+require("mo-remote-input-portal.py" not in build,
+        "build.sh still references the removed input-only helper")
+require("pipewire-gstreamer" in build,
+        "build.sh must guarantee the capture pipeline's GStreamer/PipeWire packages")
 
 control = read("system_files/usr/bin/moai-control")
 gateway = read("system_files/usr/bin/moai-gateway")

@@ -512,17 +512,43 @@ dnf5 -y install \
     nodejs22-npm \
     qt6-qtdeclarative-devel
 
-# Mo Remote: private phone-to-MoOS control. KDE's RemoteDesktop portal is the
-# primary Wayland input backend; ydotoold is a narrowly scoped absolute-pointer
-# fallback. Tailscale keeps access private without exposing the control port.
+# Mo Remote: private phone-to-MoOS control. One XDG RemoteDesktop+ScreenCast portal
+# session carries BOTH halves of remote control:
+#   - video: a PipeWire stream, encoded to JPEG by GStreamer (mo-remote-portal.py)
+#   - input: absolute pointer + keysym keyboard, injected through the same portal
+# ydotoold is a narrowly scoped fallback for when the portal is unavailable; spectacle
+# is the (slow) fallback capture path. Tailscale keeps access private without exposing
+# the control port.
+#
+# The GStreamer/PipeWire packages below are what the capture pipeline is actually built
+# from — pipewiresrc ! videorate ! videoscale ! videoconvert ! jpegenc ! appsink, driven
+# from Python via GObject introspection. Kinoite happens to ship them today, but naming
+# them here is the difference between "remote control breaks silently if the base image
+# drops a package" and "the image build fails loudly". They are cheap and already pulled
+# in by Plasma, so this is a no-op in practice.
 curl -fsSL --retry 3 https://pkgs.tailscale.com/stable/fedora/tailscale.repo \
     -o /etc/yum.repos.d/tailscale.repo
-dnf5 -y install tailscale ydotool wl-clipboard spectacle python3-gobject
+dnf5 -y install tailscale ydotool wl-clipboard spectacle python3-gobject \
+    gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good pipewire-gstreamer
 systemctl enable tailscaled.service
 systemctl --global disable mo-remote-personal.service || true
 chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
-    /usr/lib/mo-remote/mo-remote-input-portal.py \
+    /usr/lib/mo-remote/mo-remote-portal.py \
     /usr/bin/mo-pc-remote
+
+# Fail the build if the capture pipeline's GStreamer elements are missing: a shipped image
+# whose remote control silently falls back to 700ms-per-frame spectacle is a broken image.
+python3 - <<'EOF'
+import gi, sys
+gi.require_version("Gst", "1.0")
+from gi.repository import Gst
+Gst.init(None)
+missing = [e for e in ("pipewiresrc", "videorate", "videoscale", "videoconvert",
+                       "jpegenc", "appsink") if not Gst.ElementFactory.find(e)]
+if missing:
+    sys.exit(f"FATAL: Mo Remote capture pipeline is missing GStreamer elements: {missing}")
+print("OK: Mo Remote GStreamer capture pipeline elements all present.")
+EOF
 
 # Compile-and-launch smoke test for every shipped pure-QML application. Syntax
 # checks alone do not catch invalid properties (for example Text.font.families,

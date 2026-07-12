@@ -1,5 +1,5 @@
 // Bump this on each frontend change so you can confirm the phone loaded the latest build.
-export const BUILD = "v7 · reliable Wayland input";
+export const BUILD = "v8 · PipeWire stream + instant touch";
 
 export interface ServerStatus {
   name: string;
@@ -30,13 +30,17 @@ export interface Hello {
 
 export type MouseButton = "left" | "right" | "middle";
 
-/** touch = touchscreen (swipe scrolls, tap clicks); trackpad = relative; direct = press-drag */
+/**
+ * touch    = phone-native: tap clicks, swipe scrolls, hold = right-click, hold+move = drag
+ * direct   = one-finger drag really drags (move windows, select text); two fingers scroll
+ * trackpad = laptop trackpad: the finger moves the cursor relatively
+ */
 export type GestureMode = "touch" | "trackpad" | "direct";
 
 export const MODE_LABEL: Record<GestureMode, string> = {
   touch: "Touch",
   trackpad: "Trackpad",
-  direct: "Direct",
+  direct: "Drag",
 };
 
 /** fit = scale whole screen into the view; actual = 1:1 device pixels (pan around) */
@@ -49,8 +53,11 @@ export interface QualityPreset {
   scale: number;
 }
 
+// Frames are only produced when the screen actually changes, so a high fps cap costs nothing on
+// a still desktop. scale is a fraction of the encoder's target width (1920), so it is the real
+// resolution knob: 0.5 -> 960px wide, 1.0 -> 1920px.
 export const QUALITY_PRESETS: QualityPreset[] = [
-  { label: "Low", quality: 40, fps: 24, scale: 0.55 },
-  { label: "Balanced", quality: 62, fps: 18, scale: 0.8 },
-  { label: "High", quality: 85, fps: 12, scale: 1.0 },
+  { label: "Low", quality: 45, fps: 30, scale: 0.5 },
+  { label: "Balanced", quality: 62, fps: 30, scale: 0.7 },
+  { label: "High", quality: 80, fps: 30, scale: 1.0 },
 ];

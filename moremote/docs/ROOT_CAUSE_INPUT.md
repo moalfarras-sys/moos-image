@@ -71,15 +71,5 @@ Date: 2026-07-11
 - Network middleware permits loopback/Tailscale by default and PIN-authenticates WebSocket input.
 - SDDM autologin is not required for correct operation and has been removed.
 
-10. **Synthetic uinput success did not guarantee real KDE interaction.** The fallback could move
-    the cursor while button/key handling remained compositor-sensitive. The final repair routes
-    relative motion, buttons, wheel events, keycodes and Unicode keysyms through KDE's supported
-    RemoteDesktop portal; ydotoold remains only for direct-touch absolute positioning.
-11. **The phone displayed a fake trackpad cursor.** Its normalized position was not derived from
-    KWin's real cursor, so it diverged after local input or relative movement. It is now hidden in
-    trackpad mode; the streamed KDE cursor is the sole source of truth.
-12. **Trackpad double-tap-drag was unreachable.** The second-tap flag was cleared before the
-    branch that starts a held drag. The branch now snapshots the flag before clearing it.
-
-This report contains the confirmed final causes. Architecture and verification are documented in
-`docs/INPUT_REPAIR.md`.
+This report is the pre-implementation baseline. Final architecture and verification results are
+documented in `docs/INPUT_REPAIR.md`.

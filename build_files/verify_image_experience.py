@@ -23,6 +23,21 @@ require("WantedBy=plasma-workspace.target" in unit, "Mo Remote is not Plasma-sco
 require("WantedBy=default.target" not in unit, "Mo Remote is attached to default.target")
 require("WAYLAND_DISPLAY=wayland-0" not in unit, "Mo Remote guesses a Wayland socket")
 
+# Remote control must ship the PipeWire capture path. The old implementation spawned
+# spectacle once per frame — 630ms a frame, i.e. ~1fps, which is what made the phone feel
+# broken. If the helper is missing, or is not the PipeWire one, the image would silently
+# regress to that. Assert on the real artifacts, not on their absence.
+agent = Path("/usr/lib/mo-remote/MoRemotePersonal")
+require(agent.is_file(), "Mo Remote agent binary is missing from the image")
+helper = Path("/usr/lib/mo-remote/mo-remote-portal.py")
+require(helper.is_file(), "Mo Remote portal helper is missing from the image")
+if helper.is_file():
+    portal = helper.read_text(encoding="utf-8")
+    require("pipewiresrc" in portal, "Mo Remote does not capture through PipeWire")
+    require("NotifyPointerMotionAbsolute" in portal,
+            "Mo Remote does not position the pointer absolutely")
+    require("cursor_mode" in portal, "Mo Remote does not control the stream cursor mode")
+
 desktop_dir = Path("/usr/share/applications")
 remote_launchers = []
 for path in desktop_dir.glob("*.desktop"):

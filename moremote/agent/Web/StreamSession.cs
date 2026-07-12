@@ -107,6 +107,9 @@ public sealed class StreamSession
                 bool paused = _svc.State.IsPaused;
                 if (paused != lastPaused)
                 {
+                    // Pausing drops all further input, so a drag in flight would never get its
+                    // mouse-up and the button would stay physically held down on the desktop.
+                    if (paused) _svc.Input.ReleaseAll();
                     await SendJson(new { type = "status", paused, active = _svc.State.ActiveCount }, ct);
                     lastPaused = paused;
                 }
@@ -196,7 +199,7 @@ public sealed class StreamSession
                     return;
                 case "settings":
                     if (TryGetInt(root, "quality", out var q)) _quality = Math.Clamp(q, 10, 95);
-                    if (TryGetInt(root, "fps", out var f)) _fps = Math.Clamp(f, 1, 30);
+                    if (TryGetInt(root, "fps", out var f)) { _fps = Math.Clamp(f, 1, 30); _svc.Capture.SetFps(_fps); }
                     if (root.TryGetProperty("scale", out var sc) && sc.ValueKind == JsonValueKind.Number)
                         _scale = Math.Clamp(sc.GetDouble(), 0.3, 1.0);
                     return;

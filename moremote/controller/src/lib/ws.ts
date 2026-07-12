@@ -145,6 +145,9 @@ export class RemoteConnection {
   }
 
   // ---- input API ----
+  // Every mode is absolute now: the phone tracks the cursor itself (even in trackpad mode, where
+  // it integrates finger deltas) and sends a normalized point. The agent positions the pointer
+  // via the portal, so the click lands exactly under the drawn cursor — no drift to accumulate.
   move(x: number, y: number) {
     this.input({ type: "move", x, y });
   }
@@ -152,16 +155,16 @@ export class RemoteConnection {
     this.input({ type: "moveRelative", dx, dy });
   }
   down(button: MouseButton, x: number, y: number) {
-    this.input(this.mode === "trackpad" ? { type: "downCurrent", button } : { type: "down", button, x, y });
+    this.input({ type: "down", button, x, y });
   }
   up(button: MouseButton, x: number, y: number) {
-    this.input(this.mode === "trackpad" ? { type: "upCurrent", button } : { type: "up", button, x, y });
+    this.input({ type: "up", button, x, y });
   }
   click(button: MouseButton, x: number, y: number) {
-    this.input(this.mode === "trackpad" ? { type: "clickCurrent", button } : { type: "click", button, x, y });
+    this.input({ type: "click", button, x, y });
   }
   dblclick(x: number, y: number) {
-    this.input(this.mode === "trackpad" ? { type: "dblclickCurrent" } : { type: "dblclick", x, y });
+    this.input({ type: "dblclick", x, y });
   }
   scroll(dx: number, dy: number) {
     this.input({ type: "scroll", dx, dy });

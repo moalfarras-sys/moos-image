@@ -71,7 +71,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const hideTimer = useRef<number | null>(null);
 
   const [status, setStatus] = useState<Conn>("connecting");
-  const [mode, setMode] = useState<GestureMode>("trackpad");
+  const [mode, setMode] = useState<GestureMode>("touch");
   const [viewMode, setViewMode] = useState<ViewMode>("fit");
   const [presetIdx, setPresetIdx] = useState(1);
   const [auto, setAuto] = useState(false);
@@ -105,6 +105,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
   const modeRef = useRef(mode); modeRef.current = mode;
   const viewModeRef = useRef(viewMode); viewModeRef.current = viewMode;
+  const presetIdxRef = useRef(presetIdx); presetIdxRef.current = presetIdx;
 
   const showToast = (m: string) => {
     setToast(m);
@@ -232,9 +233,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
     const gest = new GestureController(canvas, toNorm, () => view.current.zoom, {
       click: (b, x, y) => conn.click(b, x, y),
-      doubleClick: (x, y) => conn.dblclick(x, y),
       moveCursor: (x, y) => conn.move(x, y),
-      moveRelative: (dx, dy) => conn.moveRelative(dx*mouseSensitivityRef.current, dy*mouseSensitivityRef.current),
       dragStart: (x, y) => conn.down("left", x, y),
       dragMove: (x, y) => conn.move(x, y),
       dragEnd: (x, y) => conn.up("left", x, y),
@@ -253,7 +252,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       panBy: (dx, dy) => { view.current.panX += dx; view.current.panY += dy; clampPan(); },
       cursorAt: (x, y) => { cursorNorm.current = { x, y }; },
       haptic: () => {if(hapticsRef.current)navigator.vibrate?.(8);},
-    });
+    }, () => mouseSensitivityRef.current);
     gest.setMode(modeRef.current);
     gestureRef.current = gest;
 
@@ -317,8 +316,10 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   }, [kbOpen]);
 
   // ---------- settings (quality + view) ----------
+  // Read the preset through a ref: onHello is wired once, so closing over presetIdx directly
+  // would make every reconnect re-send the preset that was selected on first render.
   const pushSettings = () => {
-    const p = QUALITY_PRESETS[presetIdx];
+    const p = QUALITY_PRESETS[presetIdxRef.current] ?? QUALITY_PRESETS[1];
     const scale = viewModeRef.current === "actual" ? 1.0 : p.scale;
     connRef.current?.settings(p.quality, p.fps, scale);
   };
@@ -541,7 +542,16 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   return (
     <div className="remote" onPointerDown={bumpToolbar}>
       <canvas ref={canvasRef} className="screen-canvas" />
-      <div ref={cursorRef} className={`cursor-dot${mode === "trackpad" ? " hidden" : ""}`} />
+      {/* The video stream carries no cursor (drawing one would re-encode a full frame on every
+          pointer move), so this *is* the cursor. It sits exactly where the next click will land. */}
+      <div ref={cursorRef} className="remote-cursor">
+        <svg width="20" height="24" viewBox="0 0 20 24" aria-hidden="true">
+          <path
+            d="M0 0 L0 17.4 L4.4 13.3 L7.4 19.8 L10.3 18.5 L7.2 12.2 L12.8 11.9 Z"
+            fill="#fff" stroke="#0b0f1a" strokeWidth="1.4" strokeLinejoin="round"
+          />
+        </svg>
+      </div>
 
       <div className="topbar">
         <span className={"dot " + statusInfo.cls} />

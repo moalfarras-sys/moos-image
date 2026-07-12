@@ -12,11 +12,22 @@ public sealed class AppConfig
     public int IdleTimeoutMinutes { get; set; } = 20;
     public int FailedAttempts { get; set; }
     public long LockoutUntilUnix { get; set; }
-    public int JpegQuality { get; set; } = 60;
-    public int MaxFps { get; set; } = 8;
+    public int JpegQuality { get; set; } = 62;
+    public int MaxFps { get; set; } = 30;
     public bool ShowRemoteCursor { get; set; } = true;
+
+    /// <summary>
+    /// Paint the real cursor into the video. Costs a full-frame re-encode on every pointer move
+    /// (~8 Mbit/s of pure cursor), so by default we hide it and the phone draws its own at the
+    /// position it commanded — which is both free and instant.
+    /// </summary>
+    public bool EmbedCursor { get; set; }
+
     public bool NeverLock { get; set; }
     [JsonIgnore] public bool FirstRun => string.IsNullOrEmpty(PinHash);
+
+    /// <summary>The config the process started with — read by PortalBridge when it spawns the helper.</summary>
+    [JsonIgnore] public static AppConfig Current { get; private set; } = new();
     private static readonly object Gate = new();
     private static readonly JsonSerializerOptions Opts = new() { WriteIndented = true };
 
@@ -24,9 +35,13 @@ public sealed class AppConfig
     {
         lock (Gate)
         {
-            try { if (File.Exists(Paths.ConfigFile)) return JsonSerializer.Deserialize<AppConfig>(File.ReadAllBytes(Paths.ConfigFile), Opts) ?? new(); }
+            try
+            {
+                if (File.Exists(Paths.ConfigFile))
+                    return Current = JsonSerializer.Deserialize<AppConfig>(File.ReadAllBytes(Paths.ConfigFile), Opts) ?? new();
+            }
             catch (Exception ex) { Log.Error("Failed to load config.", ex); }
-            var cfg = new AppConfig(); cfg.Save(); return cfg;
+            var cfg = new AppConfig(); cfg.Save(); return Current = cfg;
         }
     }
     public void Save()

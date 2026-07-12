@@ -21,6 +21,7 @@ public sealed class UserSettings
     [JsonPropertyName("tokenTtlMinutes")] public int tokenTtlMinutes { get; set; }
     [JsonPropertyName("idleTimeoutMinutes")] public int idleTimeoutMinutes { get; set; }
     [JsonPropertyName("showRemoteCursor")] public bool showRemoteCursor { get; set; }
+    [JsonPropertyName("embedCursor")] public bool embedCursor { get; set; }
 
     private static string FilePath => Path.Combine(Paths.DataDir, "settings.json");
 
@@ -48,6 +49,7 @@ public sealed class UserSettings
                     if (s.tokenTtlMinutes is >= 5 and <= 1440) cfg.TokenTtlMinutes = s.tokenTtlMinutes;
                     if (s.idleTimeoutMinutes is >= 1 and <= 1440) cfg.IdleTimeoutMinutes = s.idleTimeoutMinutes;
                     cfg.ShowRemoteCursor = s.showRemoteCursor;
+                    cfg.EmbedCursor = s.embedCursor;
                     Log.Info($"Applied settings.json (port={cfg.Port}, allowLan={cfg.AllowLan}).");
                 }
             }
@@ -74,6 +76,7 @@ public sealed class UserSettings
             tokenTtlMinutes = cfg.TokenTtlMinutes,
             idleTimeoutMinutes = cfg.IdleTimeoutMinutes,
             showRemoteCursor = cfg.ShowRemoteCursor,
+            embedCursor = cfg.EmbedCursor,
         };
         File.WriteAllText(FilePath, JsonSerializer.Serialize(s, new JsonSerializerOptions { WriteIndented = true }));
     }

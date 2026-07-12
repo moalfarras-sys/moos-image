@@ -56,7 +56,7 @@ case "${cat}/${tgt}" in
     session/lock)  loginctl lock-session ;;
     session/logout) command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logout || true ;;
     session/power) command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown || true ;;
-    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/setup-waydroid)
+    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid)
                    term moai-do "$tgt" ;;
     *)
         notify "أمر MoOS غير معروف | unknown MoOS action: ${path}"

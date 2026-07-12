@@ -188,6 +188,28 @@ do_check_drivers() {
     fi
 }
 
+do_update_firmware() {
+    hdr "تحديث البرامج الثابتة" "Update device firmware"
+    if ! command -v fwupdmgr >/dev/null 2>&1; then
+        echo "${R}fwupd غير متوفر | fwupd is not available${N}" >&2
+        return 1
+    fi
+    # Refresh the metadata first, otherwise "no updates" can simply mean "never checked".
+    # --force lets a same-day re-check through instead of erroring on the cache age.
+    fwupdmgr refresh --force >/dev/null 2>&1 || true
+    echo "${D}البرامج الثابتة المتاحة | Available firmware updates:${N}"
+    if ! fwupdmgr get-updates 2>/dev/null; then
+        echo "${G}✓ لا توجد تحديثات برامج ثابتة | No firmware updates available${N}"
+        return 0
+    fi
+    echo
+    echo "${Y}تحديث البرامج الثابتة قد يتطلب إعادة تشغيل ولا يمكن التراجع عنه.${N}"
+    echo "${Y}Firmware updates may require a reboot and cannot be rolled back.${N}"
+    confirm || return 0
+    run_priv fwupdmgr update
+    echo "${G}✓ اكتمل | Done${N}"
+}
+
 do_install_nvidia() {
     hdr "تثبيت تعريف NVIDIA الأمثل" "Install the optimized NVIDIA driver"
     local gpu
@@ -298,6 +320,8 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Show GPU & firmware devices (read-only)
   ${C}install-nvidia${N}    تجهيز صورة NVIDIA الصحيحة بأمان
                     Stage the correct NVIDIA image safely
+  ${C}update-firmware${N}   تحديث البرامج الثابتة للأجهزة عبر fwupd
+                    Update device firmware through fwupd
   ${C}setup-waydroid${N}    تنزيل وتجهيز Android الاختياري
                     Download and configure optional Android support
   ${C}optimize${N}          تنظيف Flatpak/الحاويات/السجلّات وتحرير مساحة
@@ -328,6 +352,7 @@ main() {
         fix-audio)     do_fix_audio ;;
         check-drivers) do_check_drivers ;;
         install-nvidia) do_install_nvidia ;;
+        update-firmware) do_update_firmware ;;
         setup-waydroid) do_setup_waydroid ;;
         optimize)      do_optimize ;;
         diagnose-services) do_diagnose_services ;;

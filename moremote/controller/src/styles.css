@@ -673,22 +673,18 @@ button {
 }
 
 /* ---- cursor indicator (small) ---- */
-.cursor-dot {
+/* The remote cursor is drawn here, not in the video — the arrow tip sits on the transform
+   origin, so translate(x,y) puts the tip exactly on the point that will be clicked. */
+.remote-cursor {
   position: absolute;
   top: 0;
   left: 0;
-  width: 9px;
-  height: 9px;
-  margin: -4.5px 0 0 -4.5px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(120, 165, 255, 0.95);
-  background: rgba(120, 165, 255, 0.25);
-  box-shadow: 0 0 5px rgba(91, 140, 255, 0.6);
   pointer-events: none;
   z-index: 15;
   will-change: transform;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
 }
-.cursor-dot.hidden { display: none; }
+.remote-cursor svg { display: block; }
 
 /* ---- reveal-toolbar handle ---- */
 .show-tab {

@@ -22,6 +22,64 @@ def flatpak_installed(app_id):
         stderr=subprocess.DEVNULL).returncode == 0 if shutil.which("flatpak") else False
 
 
+# PCI classes where "no kernel driver bound" means the device is genuinely unusable.
+# Deliberately NOT every driverless device: a host bridge, a chipset SRAM window or an ISA
+# bridge legitimately have no driver, and reporting those as "missing drivers" would be a
+# fake warning on a perfectly healthy machine. Only these classes are actionable.
+DRIVER_CRITICAL = re.compile(
+    r"VGA compatible|3D controller|Display controller|Network controller|Ethernet controller|"
+    r"Audio device|Multimedia audio|USB controller|SATA controller|Non-Volatile memory",
+    re.I)
+
+
+def driver_gaps():
+    """Devices the user would actually notice as broken: no driver bound, in a class that needs one."""
+    blocks = re.split(r"\n(?=\S)", run("lspci", "-nnk"))
+    gaps = []
+    for block in blocks:
+        head = block.splitlines()[0].strip() if block.strip() else ""
+        if not head or not DRIVER_CRITICAL.search(head):
+            continue
+        if "Kernel driver in use:" not in block:
+            gaps.append(head)
+    return gaps
+
+
+def firmware_report():
+    """Read-only fwupd view: pending firmware updates, and firmware the kernel failed to load.
+
+    fwupdmgr exits non-zero when there is simply nothing to do, so returncode is not a useful
+    signal here — parse the output instead.
+    """
+    updates = []
+    if shutil.which("fwupdmgr"):
+        try:
+            p = subprocess.run(["fwupdmgr", "get-updates", "--json"],
+                               text=True, capture_output=True, timeout=25)
+            data = json.loads(p.stdout or "{}")
+            for dev in data.get("Devices", []):
+                name = dev.get("Name") or "device"
+                latest = ""
+                for rel in dev.get("Releases", []) or []:
+                    latest = rel.get("Version", "")
+                    break
+                updates.append(f"{name} {dev.get('Version','')} → {latest}".strip())
+        except (OSError, subprocess.SubprocessError, ValueError):
+            pass
+
+    missing = []
+    try:
+        p = subprocess.run(["journalctl", "-b", "-k", "--no-pager", "-o", "cat"],
+                           text=True, capture_output=True, timeout=20)
+        for line in (p.stdout or "").splitlines():
+            m = re.search(r"[Dd]irect firmware load for (\S+) failed", line)
+            if m and m.group(1) not in missing:
+                missing.append(m.group(1))
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return updates, missing[:8]
+
+
 def detect():
     pci = run("lspci", "-nnk")
     blocks = re.split(r"\n(?=\S)", pci)
@@ -65,6 +123,38 @@ def detect():
         driver_status = "NVIDIA detected; optimized image required"
     else:
         driver_status = f"{vendor.title()} graphics using {driver}"
+    # Real driver/firmware gaps — the Hardware Center's whole job is to say "this device of
+    # yours does not work and here is why", instead of only ever talking about the GPU.
+    gaps = driver_gaps()
+    if gaps:
+        health = "action-needed"
+        actions.append({
+            "id": "driver-gap", "severity": "important",
+            "title": "أجهزة بدون تعريف | Devices without a driver",
+            "detail": "No kernel driver is bound to: " + "; ".join(gaps[:4]),
+            "url": ""
+        })
+
+    firmware_updates, missing_firmware = firmware_report()
+    if missing_firmware:
+        if health == "ready":
+            health = "attention"
+        actions.append({
+            "id": "firmware-missing", "severity": "important",
+            "title": "برامج ثابتة ناقصة | Missing firmware",
+            "detail": "The kernel could not load: " + ", ".join(missing_firmware),
+            "url": ""
+        })
+    if firmware_updates:
+        if health == "ready":
+            health = "attention"
+        actions.append({
+            "id": "firmware-update", "severity": "info",
+            "title": "تحديث البرامج الثابتة | Firmware updates",
+            "detail": "; ".join(firmware_updates[:4]),
+            "url": "moos://do/update-firmware"
+        })
+
     if not kvm:
         actions.append({"id": "kvm", "severity": "info", "title": "Android emulator acceleration", "detail": "Enable CPU virtualization in firmware and grant KVM access.", "url": ""})
     if memory_gib and memory_gib < 15:
@@ -81,6 +171,9 @@ def detect():
         "driver": driver, "driver_status": driver_status,
         "nvidia_image": nvidia_image, "memory_gib": memory_gib, "kvm": kvm,
         "secure_boot": secure_boot, "os": os_release.get("PRETTY_NAME", "MoOS"),
+        "driver_gaps": gaps,
+        "firmware_updates": firmware_updates,
+        "missing_firmware": missing_firmware,
         "recommended_apps": recommended, "installed_recommended_apps": installed,
         "missing_recommended_apps": [x for x in recommended if x not in installed],
         "actions": actions,

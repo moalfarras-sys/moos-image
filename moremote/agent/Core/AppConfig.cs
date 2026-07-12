@@ -34,6 +34,11 @@ public sealed class AppConfig
     public int MaxFps { get; set; } = 18;              // capture cap
     public bool ShowRemoteCursor { get; set; } = true;
 
+    /// <summary>Linux/Wayland only: paint the real cursor into the captured video (see the
+    /// Linux AppConfig for why that is expensive). Ignored on Windows, where DXGI draws the
+    /// cursor cheaply and ShowRemoteCursor already covers it.</summary>
+    public bool EmbedCursor { get; set; }
+
     // ---- Convenience ----
     /// <summary>"Never lock — stay reachable" toggle (tray). Applied on startup when true.</summary>
     public bool NeverLock { get; set; } = false;

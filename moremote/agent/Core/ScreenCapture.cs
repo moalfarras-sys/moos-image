@@ -65,6 +65,10 @@ public sealed class ScreenCapture : IDisposable
 
     public (int w, int h) ScreenSize { get { var b = SelectedBounds; return (b.Width, b.Height); } }
 
+    /// <summary>No-op here: DXGI is pulled on demand, so there is no upstream encoder to throttle.
+    /// On Linux this caps the PipeWire encoder so it never produces frames the client won't take.</summary>
+    public void SetFps(int fps) { }
+
     public void SelectMonitor(int index)
     {
         lock (_gate)

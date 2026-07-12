@@ -27,6 +27,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="../agent/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="mo-remote-input-portal.py" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="mo-remote-portal.py" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

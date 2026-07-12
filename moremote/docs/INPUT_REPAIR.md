@@ -7,11 +7,10 @@ timestamp, mode, normalized coordinates (when applicable), viewport/DPR/orientat
 content rectangle, video source dimensions, and display id. The server rejects stale, duplicate,
 non-finite, out-of-range, wrong-display, or geometry-less packets.
 
-On KDE Wayland the primary backend is one persistent session with KDE's official
-`org.freedesktop.portal.RemoteDesktop` portal. A small Python/GIO helper sends relative motion,
-buttons, horizontal/vertical axes, keycodes and Unicode keysyms. A user-scoped `ydotoold` remains
-only for absolute direct-touch positioning. The web server and helper stay unprivileged. On
-disconnect, all tracked buttons and keys are released.
+On KDE Wayland the server keeps one Unix datagram connection to the persistent system
+`ydotoold` service and sends Linux `input_event` records directly. It does not spawn `ydotool`
+for pointer movement. `ydotoold` alone owns the persistent uinput device. The web server remains
+an unprivileged user process. On disconnect, all tracked buttons and keys are released.
 
 Direct mode maps the phone point within the actual rendered content rectangle to normalized
 coordinates, then into KWin's logical virtual desktop geometry. Trackpad mode sends real relative
@@ -24,8 +23,8 @@ calibrates with bounded relative motion to the bottom-right and then uses tracke
 
 ## Services
 
-- `ydotoold-moremote.service` (user, MoOS image): persistent minimal uinput helper, private socket
-  `%t/.ydotool_socket` mode 0600. Active-seat `/dev/uinput` access uses a udev `uaccess` ACL.
+- `ydotool.service` (system): persistent minimal uinput helper, socket `/tmp/.ydotool_socket`,
+  mode 0660, owner `mo:mo`.
 - `mo-remote-personal.service` (user): unprivileged ASP.NET server after the graphical session,
   restart-on-failure, correct Wayland/DBus/runtime environment, and a sleep/idle inhibitor.
 - No SDDM/autologin change is required or installed.
@@ -76,8 +75,7 @@ Stop the service, extract that archive into a separate directory, review it, the
   long press to right-click; double tap to double-click; double-tap then drag to hold/drag; two
   fingers scroll horizontally/vertically.
 - Direct: touch maps to the corresponding desktop point; drag holds the left button.
-- Touch: tap and one-finger movement target the corresponding real desktop point; two-finger
-  movement scrolls.
+- Touch: tap targets directly and one-finger swipes scroll.
 - Keys opens the phone keyboard. Shortcut buttons provide modifiers, clipboard shortcuts,
   arrows, Escape, Tab, and desktop shortcuts.
 - Clipboard is explicit in both directions; there is no background clipboard polling.
@@ -102,12 +100,10 @@ the independent input receive path.
 - `libinput debug-events` observed real KWin events from the final backend: pointer motion plus
   `BTN_RIGHT pressed/released`. A real Meta event visibly opened Plasma's launcher. A real
   keyboard sequence opened Firefox, focused its address bar and entered `https://example.com`.
-  Portal pointer input visibly focused Firefox's address field by clicking it, and Unicode
-  `مرحباً Grüße English` appeared correctly in a real focused application. The same multilingual
-  text was then received from the phone in the active Codex session, confirming phone-to-MoOS
-  keyboard delivery.
   The relative-calibration algorithm was compared against the official client and visibly opened
   Konsole's context menu at a non-corner location. Corner paths, slow/fast circles, scroll, drag press/release and Alt-Tab paths completed
   with a final release-all.
-- Tailscale ping to the paired iPhone passed (8 ms at final check), and the phone established
-  authenticated sessions during the repair. Destructive reboot/Wi-Fi-loss tests remain pending.
+- Tailscale ping to the paired iPhone passed (8 ms at final check), and the phone had established
+  authenticated sessions during the repair. A post-final-build hands-on phone gesture and the
+  destructive reboot/Wi-Fi-loss tests still require the owner to perform/confirm them; they are not
+  represented as completed here.
