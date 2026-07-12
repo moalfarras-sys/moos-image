@@ -36,8 +36,12 @@ panel.height = Math.round(gridUnit * 2.6);   // ~46px premium dock
  * the property, the catch keeps the dock. */
 try { panel.floating = true; } catch (e) { /* keep the dock, lose the gap */ }
 
-/* App launcher wears the MoOS emblem instead of the KDE logo. */
-var launcher = panel.addWidget("org.moos.nova.launcher");
+/* Keep Plasma's fully integrated Kickoff (search, KAStats, favorites, recent
+ * usage, keyboard and session models) and skin it through the Nova Plasma
+ * Style. MoOS does not ship a competing launcher implementation. */
+var launcher = panel.addWidget("org.kde.plasma.kickoff");
+launcher.currentConfigGroup = ["General"];
+launcher.writeConfig("icon", "/usr/share/moos/moos-logo.png");
 
 /* Icons-Only Task Manager — Mo AI (robot icon) pinned FIRST, then browser,
  * files, the MoOS hubs, System Settings and the terminal. icontasks silently

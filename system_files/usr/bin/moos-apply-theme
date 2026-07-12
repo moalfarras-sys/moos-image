@@ -121,12 +121,7 @@ if command -v gdbus >/dev/null 2>&1; then
                 for (var j = 0; j < ws.length; j++) {
                     var w = ws[j];
                     try {
-                        if (w.type == "org.kde.plasma.kickoff") {
-                            var launcherIndex = w.index;
-                            w.remove();
-                            var novaLauncher = p.addWidget("org.moos.nova.launcher");
-                            try { novaLauncher.index = launcherIndex; } catch (e) {}
-                        } else if (w.type == "org.kde.plasma.digitalclock") {
+                        if (w.type == "org.kde.plasma.digitalclock") {
                             var clockIndex = w.index;
                             w.remove();
                             var novaClock = p.addWidget("org.moos.nova.clock");

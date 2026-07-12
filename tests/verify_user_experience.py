@@ -127,11 +127,13 @@ for svg in ("panel-background.svg", "tasks.svg"):
 layout = read("system_files/usr/share/plasma/layout-templates/"
               "org.kde.plasma.desktop.defaultPanel/contents/layout.js")
 require("panel.floating = true" in layout, "the MoOS dock must float")
-require('addWidget("org.moos.nova.launcher")' in layout,
-        "new users must receive the original Nova launcher, not Kickoff")
+require('addWidget("org.kde.plasma.kickoff")' in layout,
+        "MoOS must preserve the integrated Kickoff launcher")
+require("org.moos.nova.launcher" not in layout,
+        "MoOS must not ship a competing launcher in the panel")
 require('addWidget("org.moos.nova.clock")' in layout,
         "new users must receive the compact Nova clock")
-for package in ("org.moos.nova.launcher", "org.moos.nova.clock"):
+for package in ("org.moos.nova.clock",):
     root = ROOT / "system_files/usr/share/plasma/plasmoids" / package
     require((root / "metadata.json").is_file() and
             (root / "contents/ui/main.qml").is_file(),
