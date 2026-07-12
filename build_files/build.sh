@@ -967,6 +967,44 @@ _pw=/usr/share/applications/org.kde.plasma-welcome.desktop
 unset -v _pw
 
 # -----------------------------------------------------------------------------
+# (z2a) Remove the OTHER distribution's themes and wallpapers
+# -----------------------------------------------------------------------------
+# MoOS's own Look and Feel wins (/etc/xdg/kdeglobals outranks the kde-settings profile), so
+# the desktop looks right — but Fedora's theme packages and wallpapers were still sitting in
+# the pickers. Open Appearance or Wallpaper on a "MoOS" machine and you were offered
+# "Fedora". A picker is a user-facing screen like any other.
+#
+# Repoint every config that names a Fedora theme FIRST, so nothing is left referring to a
+# package that is about to disappear; then remove them. Breeze stays: it is KDE's, not another
+# distribution's, and Plasma falls back to it.
+_kde_profile=/usr/share/kde-settings/kde-profile/default/xdg
+if [ -f "${_kde_profile}/kdeglobals" ]; then
+    sed -i 's|^LookAndFeelPackage=.*|LookAndFeelPackage=org.moos.nova|' "${_kde_profile}/kdeglobals"
+fi
+if [ -f "${_kde_profile}/kscreenlockerrc" ]; then
+    sed -i 's|/usr/share/backgrounds/fedora-workstation.*|/usr/share/wallpapers/NovaHorizonII|' \
+        "${_kde_profile}/kscreenlockerrc"
+    sed -i 's|/usr/share/wallpapers/Fedora.*|/usr/share/wallpapers/NovaHorizonII|' \
+        "${_kde_profile}/kscreenlockerrc"
+fi
+
+rm -rf /usr/share/plasma/look-and-feel/org.fedoraproject.fedora.desktop \
+       /usr/share/plasma/look-and-feel/org.fedoraproject.fedoradark.desktop \
+       /usr/share/plasma/look-and-feel/org.fedoraproject.fedoralight.desktop \
+       /usr/share/wallpapers/Fedora \
+       /usr/share/backgrounds/fedora-workstation
+
+# Gate: nothing may still POINT at what we just deleted, or Plasma silently falls back.
+if grep -rqE "org\.fedoraproject\.fedora|backgrounds/fedora-workstation|wallpapers/Fedora" \
+        /etc/xdg /usr/share/kde-settings /usr/share/plasma 2>/dev/null; then
+    echo "FATAL: a config still points at a Fedora theme/wallpaper that was removed:"
+    grep -rlE "org\.fedoraproject\.fedora|backgrounds/fedora-workstation|wallpapers/Fedora" \
+        /etc/xdg /usr/share/kde-settings /usr/share/plasma 2>/dev/null | sed 's/^/       /'
+    exit 1
+fi
+echo "OK: Fedora's themes and wallpapers are gone, and nothing references them."
+
+# -----------------------------------------------------------------------------
 # (z2b) Kill the Plasma out-of-box wizard — it was the FIRST screen of MoOS
 # -----------------------------------------------------------------------------
 # plasma-setup.service is Plasma's own OOBE:

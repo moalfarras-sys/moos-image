@@ -114,6 +114,16 @@ elif "sddm" in dm_target:
 else:
     require(False, f"unknown display manager: {dm_target} — its branding is unverified")
 
+# The pickers are user-facing screens too. MoOS's own Look and Feel wins, so the desktop looked
+# right — but Appearance and Wallpaper still OFFERED "Fedora" on a machine called MoOS.
+for gone in ("/usr/share/plasma/look-and-feel/org.fedoraproject.fedora.desktop",
+             "/usr/share/plasma/look-and-feel/org.fedoraproject.fedoradark.desktop",
+             "/usr/share/plasma/look-and-feel/org.fedoraproject.fedoralight.desktop",
+             "/usr/share/wallpapers/Fedora",
+             "/usr/share/backgrounds/fedora-workstation"):
+    require(not Path(gone).exists(),
+            f"another distribution's theme/wallpaper is still offered to the user: {gone}")
+
 selectors = {
     "lock screen": text("/etc/xdg/kscreenlockerrc"),
     "look and feel": text("/usr/share/plasma/look-and-feel/org.moos.nova/contents/defaults"),
