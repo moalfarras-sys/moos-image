@@ -12,3 +12,6 @@ __pycache__/
 # OS noise
 .DS_Store
 Thumbs.db
+
+# Local agent settings (Claude Code) — machine-local, never shipped
+.claude/

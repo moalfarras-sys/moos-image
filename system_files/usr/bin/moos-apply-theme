@@ -17,7 +17,7 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=4
+THEME_REV=5
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 marker="${state_dir}/moos-nova-theme-applied.v${THEME_REV}"
 [ -e "$marker" ] && exit 0
@@ -51,6 +51,18 @@ plasma_ready() {
 }
 for _ in $(seq 1 40); do plasma_ready && break; sleep 1; done
 
+# Drop the rendered-SVG caches BEFORE applying. Plasma memoises every FrameSvg
+# element it has ever rasterised, keyed by theme name — and on an OSTree system
+# the shipped SVG's mtime does not move when the file's content changes across a
+# `bootc upgrade`, so a stale cache can outlive the artwork it was baked from and
+# the user keeps seeing the OLD dock. Same class of bug as the qmlcache freeze
+# the launchers already work around. Cheap to rebuild, so just delete them.
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
+rm -rf "${cache_dir}/ksvg-elements" \
+       "${cache_dir}"/plasma_theme_*.kcache \
+       "${cache_dir}"/plasma-svgelements* \
+       "${cache_dir}/icon-cache.kcache" 2>/dev/null || true
+
 applied=0
 
 # The whole Global Theme (colors, wallpaper, splash, cursor). Do NOT reset the
@@ -72,6 +84,55 @@ if command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
 fi
 command -v plasma-apply-colorscheme >/dev/null 2>&1 && \
     plasma-apply-colorscheme NovaDark >>"$log" 2>&1 || true
+
+# Float the dock for users who already exist.
+#
+# plasma/layout-templates/.../layout.js only ever runs when Plasma builds a
+# desktop for a user that has no panel yet, so on an upgrade the existing user
+# keeps the edge-to-edge dock the old template gave them. `floating` is a real
+# property on Plasma 6's scripting Panel object (probed live on this hardware:
+# `"floating" in panels()[0]` -> true), and setting it is what lifts the dock off
+# the screen edge so the Nova glass reads as a floating slab.
+#
+# Guarded on every side: only touches BOTTOM panels, never creates or removes
+# one, and a failure here is logged and ignored — a dock that is merely flush is
+# a cosmetic regression, whereas a script that throws mid-layout can leave the
+# session with no panel at all, which is a broken desktop.
+#
+# The same pass also applies the two dock-polish decisions the layout template
+# makes for NEW users, so an upgraded user and a fresh user end up with the same
+# dock: the clock puts its date beside the time instead of stacking it into two
+# cramped lines, and the show-desktop applet (which renders as an empty bordered
+# box at the end of the dock) is dropped.
+#
+# NOTE: escaping. gdbus unescapes its argument, so a literal \n inside the script
+# string becomes a real newline and truncates the JS string it sits in. Keep this
+# script free of backslash escapes.
+if command -v gdbus >/dev/null 2>&1; then
+    gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var ps = panels();
+            for (var i = 0; i < ps.length; i++) {
+                var p = ps[i];
+                if (p.location != "bottom") { continue; }
+                try { if ("floating" in p) { p.floating = true; } } catch (e) {}
+                var ws = p.widgets();
+                for (var j = 0; j < ws.length; j++) {
+                    var w = ws[j];
+                    try {
+                        if (w.type == "org.kde.plasma.digitalclock") {
+                            w.currentConfigGroup = ["Appearance"];
+                            w.writeConfig("showDate", true);
+                            w.writeConfig("dateDisplayFormat", 1);
+                            w.reloadConfig();
+                        } else if (w.type == "org.kde.plasma.showdesktop") {
+                            w.remove();
+                        }
+                    } catch (e) {}
+                }
+            }
+        ' >>"$log" 2>&1 || echo "panel polish migration skipped" >>"$log" 2>&1
+fi
 
 # KSplash is user configuration, so a system default alone cannot override an
 # already-created user's previous Breeze/Fedora choice.  Write the two exact

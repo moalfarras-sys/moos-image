@@ -58,9 +58,38 @@ require('had_legacy_key = "cloud_key" in data' in control and
         "elif had_legacy_key:" in control,
         "Mo AI must remove even an empty legacy cloud_key field")
 
-# The v4 migration is what makes the redesign visible to existing users.
+# The v5 migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
-require("THEME_REV=4" in apply_theme, "Nova visual schema must be revision 4")
+require("THEME_REV=5" in apply_theme, "Nova visual schema must be revision 5")
+
+# Nova must own the panel and the task buttons. Without these two FrameSvgs the
+# Plasma Style falls back down the chain to breeze-dark for the dock background
+# and the task indicator, and the desktop reads as stock KDE with a repaint --
+# which is the exact complaint the Nova redesign exists to answer.
+widgets = ROOT / "system_files/usr/share/plasma/desktoptheme/Nova/widgets"
+for svg in ("panel-background.svg", "tasks.svg"):
+    require((widgets / svg).is_file(),
+            f"Nova Plasma Style must ship its own {svg}, not inherit Breeze's")
+
+# 9-patch pieces must be fill-only. A stroke inflates the element's bounding box
+# by half the stroke width, and FrameSvg multiplies that overflow by the stretch
+# factor -- on a 4K dock a 0.5px overhang became a 50px transparent band punched
+# through the panel. Verified on hardware; keep the art strokeless.
+for svg in ("panel-background.svg", "tasks.svg"):
+    path = widgets / svg
+    if path.is_file():
+        require("stroke" not in path.read_text(encoding="utf-8"),
+                f"{svg} must be fill-only; a stroke inflates the FrameSvg "
+                f"element bbox and tears a gap in the stretched edge")
+
+# The dock has to actually leave the screen edge, or none of the rounded glass
+# reads as floating.
+layout = read("system_files/usr/share/plasma/layout-templates/"
+              "org.kde.plasma.desktop.defaultPanel/contents/layout.js")
+require("panel.floating = true" in layout, "the MoOS dock must float")
+require("try {" in layout,
+        "the floating setter must be guarded -- a throw in the layout template "
+        "leaves the session with NO panel")
 require("NovaHorizonII/contents/images_dark/3840x2160.png" in apply_theme,
         "Existing users must migrate to Nova Horizon II")
 

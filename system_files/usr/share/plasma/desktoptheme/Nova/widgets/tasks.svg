@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="160" viewBox="0 0 80 160">
+  <!-- MoOS Nova — task tiles. Original art. -->
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Background { color: #111A2E; }
+    .ColorScheme-Highlight  { color: #2E7BFF; }
+    .ColorScheme-Text       { color: #E6EDF7; }
+  </style>
+  <defs>
+    <linearGradient id="nova-accent" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="32" y2="0">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#2E7BFF"/>
+    </linearGradient>
+  </defs>
+  <g id="normal-topleft">
+    <path d="M 0,10 A 10,10 0 0 1 10,0 L 10,10 Z" fill="none"/>
+    <path d="M 0,10 A 10,10 0 0 1 10,0 L 10,1.0 A 9.0,9.0 0 0 0 1.0,10 Z" fill="none"/>
+  </g>
+  <g id="normal-topright">
+    <path d="M 22,0 A 10,10 0 0 1 32,10 L 22,10 Z" fill="none"/>
+    <path d="M 22,0 A 10,10 0 0 1 32,10 L 31.0,10 A 9.0,9.0 0 0 0 22,1.0 Z" fill="none"/>
+  </g>
+  <g id="normal-bottomleft">
+    <path d="M 10,32 A 10,10 0 0 1 0,22 L 10,22 Z" fill="none"/>
+    <path d="M 10,32 A 10,10 0 0 1 0,22 L 1.0,22 A 9.0,9.0 0 0 0 10,31.0 Z" fill="none"/>
+  </g>
+  <g id="normal-bottomright">
+    <path d="M 32,22 A 10,10 0 0 1 22,32 L 22,22 Z" fill="none"/>
+    <path d="M 32,22 A 10,10 0 0 1 22,32 L 22,31.0 A 9.0,9.0 0 0 0 31.0,22 Z" fill="none"/>
+  </g>
+  <g id="normal-top">
+    <rect x="10" y="0" width="12" height="10" fill="none"/>
+    <rect x="10" y="0" width="12" height="1" fill="none"/>
+  </g>
+  <g id="normal-bottom">
+    <rect x="10" y="22" width="12" height="10" fill="none"/>
+    <rect x="10" y="31" width="12" height="1" fill="none"/>
+  </g>
+  <g id="normal-left">
+    <rect x="0" y="10" width="10" height="12" fill="none"/>
+    <rect x="0" y="10" width="1" height="12" fill="none"/>
+  </g>
+  <g id="normal-right">
+    <rect x="22" y="10" width="10" height="12" fill="none"/>
+    <rect x="31" y="10" width="1" height="12" fill="none"/>
+  </g>
+  <rect id="normal-center" x="10" y="10" width="12" height="12" fill="none"/>
+  <g id="hover-topleft">
+    <path d="M 0,42 A 10,10 0 0 1 10,32 L 10,42 Z" fill="#FFFFFF" fill-opacity="0.09"/>
+    <path d="M 0,42 A 10,10 0 0 1 10,32 L 10,33.0 A 9.0,9.0 0 0 0 1.0,42 Z" fill="none"/>
+  </g>
+  <g id="hover-topright">
+    <path d="M 22,32 A 10,10 0 0 1 32,42 L 22,42 Z" fill="#FFFFFF" fill-opacity="0.09"/>
+    <path d="M 22,32 A 10,10 0 0 1 32,42 L 31.0,42 A 9.0,9.0 0 0 0 22,33.0 Z" fill="none"/>
+  </g>
+  <g id="hover-bottomleft">
+    <path d="M 10,64 A 10,10 0 0 1 0,54 L 10,54 Z" fill="#FFFFFF" fill-opacity="0.09"/>
+    <path d="M 10,64 A 10,10 0 0 1 0,54 L 1.0,54 A 9.0,9.0 0 0 0 10,63.0 Z" fill="none"/>
+  </g>
+  <g id="hover-bottomright">
+    <path d="M 32,54 A 10,10 0 0 1 22,64 L 22,54 Z" fill="#FFFFFF" fill-opacity="0.09"/>
+    <path d="M 32,54 A 10,10 0 0 1 22,64 L 22,63.0 A 9.0,9.0 0 0 0 31.0,54 Z" fill="none"/>
+  </g>
+  <g id="hover-top">
+    <rect x="10" y="32" width="12" height="10" fill="#FFFFFF" fill-opacity="0.09"/>
+    <rect x="10" y="32" width="12" height="1" fill="none"/>
+  </g>
+  <g id="hover-bottom">
+    <rect x="10" y="54" width="12" height="10" fill="#FFFFFF" fill-opacity="0.09"/>
+    <rect x="10" y="63" width="12" height="1" fill="none"/>
+  </g>
+  <g id="hover-left">
+    <rect x="0" y="42" width="10" height="12" fill="#FFFFFF" fill-opacity="0.09"/>
+    <rect x="0" y="42" width="1" height="12" fill="none"/>
+  </g>
+  <g id="hover-right">
+    <rect x="22" y="42" width="10" height="12" fill="#FFFFFF" fill-opacity="0.09"/>
+    <rect x="31" y="42" width="1" height="12" fill="none"/>
+  </g>
+  <rect id="hover-center" x="10" y="42" width="12" height="12" fill="#FFFFFF" fill-opacity="0.09"/>
+  <g id="focus-topleft">
+    <path d="M 0,74 A 10,10 0 0 1 10,64 L 10,74 Z" fill="#FFFFFF" fill-opacity="0.06"/>
+    <path d="M 0,74 A 10,10 0 0 1 10,64 L 10,65.0 A 9.0,9.0 0 0 0 1.0,74 Z" fill="none"/>
+  </g>
+  <g id="focus-topright">
+    <path d="M 22,64 A 10,10 0 0 1 32,74 L 22,74 Z" fill="#FFFFFF" fill-opacity="0.06"/>
+    <path d="M 22,64 A 10,10 0 0 1 32,74 L 31.0,74 A 9.0,9.0 0 0 0 22,65.0 Z" fill="none"/>
+  </g>
+  <g id="focus-bottomleft">
+    <path d="M 10,96 A 10,10 0 0 1 0,86 L 10,86 Z" fill="#FFFFFF" fill-opacity="0.06"/>
+    <path d="M 10,96 A 10,10 0 0 1 0,86 L 1.0,86 A 9.0,9.0 0 0 0 10,95.0 Z" fill="none"/>
+    <path d="M 3,93.0 H 10 V 96.0 H 3 A 1.5,1.5 0 0 1 3,93.0 Z" fill="url(#nova-accent)"/>
+  </g>
+  <g id="focus-bottomright">
+    <path d="M 32,86 A 10,10 0 0 1 22,96 L 22,86 Z" fill="#FFFFFF" fill-opacity="0.06"/>
+    <path d="M 32,86 A 10,10 0 0 1 22,96 L 22,95.0 A 9.0,9.0 0 0 0 31.0,86 Z" fill="none"/>
+    <path d="M 22,93.0 H 29 A 1.5,1.5 0 0 1 29,96.0 H 22 V 93.0 Z" fill="url(#nova-accent)"/>
+  </g>
+  <g id="focus-top">
+    <rect x="10" y="64" width="12" height="10" fill="#FFFFFF" fill-opacity="0.06"/>
+    <rect x="10" y="64" width="12" height="1" fill="none"/>
+  </g>
+  <g id="focus-bottom">
+    <rect x="10" y="86" width="12" height="10" fill="#FFFFFF" fill-opacity="0.06"/>
+    <rect x="10" y="95" width="12" height="1" fill="none"/>
+    <rect x="10" y="93.0" width="12" height="3.0" fill="url(#nova-accent)"/>
+  </g>
+  <g id="focus-left">
+    <rect x="0" y="74" width="10" height="12" fill="#FFFFFF" fill-opacity="0.06"/>
+    <rect x="0" y="74" width="1" height="12" fill="none"/>
+  </g>
+  <g id="focus-right">
+    <rect x="22" y="74" width="10" height="12" fill="#FFFFFF" fill-opacity="0.06"/>
+    <rect x="31" y="74" width="1" height="12" fill="none"/>
+  </g>
+  <rect id="focus-center" x="10" y="74" width="12" height="12" fill="#FFFFFF" fill-opacity="0.06"/>
+  <g id="minimized-topleft">
+    <path d="M 0,106 A 10,10 0 0 1 10,96 L 10,106 Z" fill="#FFFFFF" fill-opacity="0.04"/>
+    <path d="M 0,106 A 10,10 0 0 1 10,96 L 10,97.0 A 9.0,9.0 0 0 0 1.0,106 Z" fill="none"/>
+  </g>
+  <g id="minimized-topright">
+    <path d="M 22,96 A 10,10 0 0 1 32,106 L 22,106 Z" fill="#FFFFFF" fill-opacity="0.04"/>
+    <path d="M 22,96 A 10,10 0 0 1 32,106 L 31.0,106 A 9.0,9.0 0 0 0 22,97.0 Z" fill="none"/>
+  </g>
+  <g id="minimized-bottomleft">
+    <path d="M 10,128 A 10,10 0 0 1 0,118 L 10,118 Z" fill="#FFFFFF" fill-opacity="0.04"/>
+    <path d="M 10,128 A 10,10 0 0 1 0,118 L 1.0,118 A 9.0,9.0 0 0 0 10,127.0 Z" fill="none"/>
+  </g>
+  <g id="minimized-bottomright">
+    <path d="M 32,118 A 10,10 0 0 1 22,128 L 22,118 Z" fill="#FFFFFF" fill-opacity="0.04"/>
+    <path d="M 32,118 A 10,10 0 0 1 22,128 L 22,127.0 A 9.0,9.0 0 0 0 31.0,118 Z" fill="none"/>
+  </g>
+  <g id="minimized-top">
+    <rect x="10" y="96" width="12" height="10" fill="#FFFFFF" fill-opacity="0.04"/>
+    <rect x="10" y="96" width="12" height="1" fill="none"/>
+  </g>
+  <g id="minimized-bottom">
+    <rect x="10" y="118" width="12" height="10" fill="#FFFFFF" fill-opacity="0.04"/>
+    <rect x="10" y="127" width="12" height="1" fill="none"/>
+  </g>
+  <g id="minimized-left">
+    <rect x="0" y="106" width="10" height="12" fill="#FFFFFF" fill-opacity="0.04"/>
+    <rect x="0" y="106" width="1" height="12" fill="none"/>
+  </g>
+  <g id="minimized-right">
+    <rect x="22" y="106" width="10" height="12" fill="#FFFFFF" fill-opacity="0.04"/>
+    <rect x="31" y="106" width="1" height="12" fill="none"/>
+  </g>
+  <rect id="minimized-center" x="10" y="106" width="12" height="12" fill="#FFFFFF" fill-opacity="0.04"/>
+  <g id="attention-topleft">
+    <path d="M 0,138 A 10,10 0 0 1 10,128 L 10,138 Z" fill="#FBBF24" fill-opacity="0.16"/>
+    <path d="M 0,138 A 10,10 0 0 1 10,128 L 10,129.0 A 9.0,9.0 0 0 0 1.0,138 Z" fill="#FBBF24" fill-opacity="0.4"/>
+  </g>
+  <g id="attention-topright">
+    <path d="M 22,128 A 10,10 0 0 1 32,138 L 22,138 Z" fill="#FBBF24" fill-opacity="0.16"/>
+    <path d="M 22,128 A 10,10 0 0 1 32,138 L 31.0,138 A 9.0,9.0 0 0 0 22,129.0 Z" fill="#FBBF24" fill-opacity="0.4"/>
+  </g>
+  <g id="attention-bottomleft">
+    <path d="M 10,160 A 10,10 0 0 1 0,150 L 10,150 Z" fill="#FBBF24" fill-opacity="0.16"/>
+    <path d="M 10,160 A 10,10 0 0 1 0,150 L 1.0,150 A 9.0,9.0 0 0 0 10,159.0 Z" fill="#FBBF24" fill-opacity="0.4"/>
+  </g>
+  <g id="attention-bottomright">
+    <path d="M 32,150 A 10,10 0 0 1 22,160 L 22,150 Z" fill="#FBBF24" fill-opacity="0.16"/>
+    <path d="M 32,150 A 10,10 0 0 1 22,160 L 22,159.0 A 9.0,9.0 0 0 0 31.0,150 Z" fill="#FBBF24" fill-opacity="0.4"/>
+  </g>
+  <g id="attention-top">
+    <rect x="10" y="128" width="12" height="10" fill="#FBBF24" fill-opacity="0.16"/>
+    <rect x="10" y="128" width="12" height="1" fill="#FBBF24" fill-opacity="0.4"/>
+  </g>
+  <g id="attention-bottom">
+    <rect x="10" y="150" width="12" height="10" fill="#FBBF24" fill-opacity="0.16"/>
+    <rect x="10" y="159" width="12" height="1" fill="#FBBF24" fill-opacity="0.4"/>
+  </g>
+  <g id="attention-left">
+    <rect x="0" y="138" width="10" height="12" fill="#FBBF24" fill-opacity="0.16"/>
+    <rect x="0" y="138" width="1" height="12" fill="#FBBF24" fill-opacity="0.4"/>
+  </g>
+  <g id="attention-right">
+    <rect x="22" y="138" width="10" height="12" fill="#FBBF24" fill-opacity="0.16"/>
+    <rect x="31" y="138" width="1" height="12" fill="#FBBF24" fill-opacity="0.4"/>
+  </g>
+  <rect id="attention-center" x="10" y="138" width="12" height="12" fill="#FBBF24" fill-opacity="0.16"/>
+  <rect id="normal-hint-top-margin" x="60" y="0" width="4" height="4" fill="none" opacity="0"/>
+  <rect id="normal-hint-bottom-margin" x="60" y="8" width="4" height="4" fill="none" opacity="0"/>
+  <rect id="normal-hint-left-margin" x="60" y="16" width="4" height="4" fill="none" opacity="0"/>
+  <rect id="normal-hint-right-margin" x="60" y="24" width="4" height="4" fill="none" opacity="0"/>
+  <rect id="normal-hint-stretch-borders" x="60" y="32" width="4" height="4" fill="none" opacity="0"/>
+  <rect id="hover-hint-stretch-borders" x="60" y="32" width="4" height="4" fill="none" opacity="0"/>
+  <rect id="focus-hint-stretch-borders" x="60" y="32" width="4" height="4" fill="none" opacity="0"/>
+  <rect id="minimized-hint-stretch-borders" x="60" y="32" width="4" height="4" fill="none" opacity="0"/>
+  <rect id="attention-hint-stretch-borders" x="60" y="32" width="4" height="4" fill="none" opacity="0"/>
+</svg>

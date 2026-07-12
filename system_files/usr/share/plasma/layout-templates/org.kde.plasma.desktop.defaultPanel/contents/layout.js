@@ -22,6 +22,20 @@
 var panel = new Panel;
 panel.height = Math.round(gridUnit * 2.6);   // ~46px premium dock
 
+/* Float the dock off the screen edge.
+ *
+ * `floating` IS a real property of Plasma 6's scripting Panel — verified live on
+ * this hardware before it was written here (`"floating" in panels()[0]` -> true,
+ * and setting it visibly lifted the dock). It is the setter that turns the Nova
+ * glass into a floating slab with a gap and rounded corners on all four sides,
+ * instead of a bar welded to the bottom of the screen.
+ *
+ * Wrapped anyway. The header above is not paranoia: a throw inside this template
+ * leaves the session with NO PANEL, which is a broken desktop. A flush dock is a
+ * cosmetic regression; a missing dock is a bug report. If a future Plasma drops
+ * the property, the catch keeps the dock. */
+try { panel.floating = true; } catch (e) { /* keep the dock, lose the gap */ }
+
 /* App launcher wears the MoOS emblem instead of the KDE logo. */
 var launcher = panel.addWidget("org.kde.plasma.kickoff");
 launcher.currentConfigGroup = ["General"];
@@ -43,10 +57,22 @@ tasks.writeConfig("launchers", [
 ].join(","));
 tasks.writeConfig("showOnlyCurrentDesktop", false);
 
-/* Right-hand cluster: separator, system tray, clock, show-desktop. */
+/* Right-hand cluster: separator, system tray, clock.
+ *
+ * The clock puts the date BESIDE the time rather than stacked under it
+ * (dateDisplayFormat: 0 = below, 1 = beside — checked on-device, not guessed).
+ * Stacked, it renders as two cramped lines that dominate the right end of the
+ * dock; beside, it is one calm line.
+ *
+ * No show-desktop button. It rendered as an empty bordered box at the end of the
+ * dock — it reads as a broken widget, and a dock of this kind has no such button
+ * anyway. Users who want it back: right-click the dock -> Add Widgets. */
 panel.addWidget("org.kde.plasma.marginsseparator");
 panel.addWidget("org.kde.plasma.systemtray");
-panel.addWidget("org.kde.plasma.digitalclock");
-panel.addWidget("org.kde.plasma.showdesktop");
+
+var clock = panel.addWidget("org.kde.plasma.digitalclock");
+clock.currentConfigGroup = ["Appearance"];
+clock.writeConfig("showDate", true);
+clock.writeConfig("dateDisplayFormat", 1);
 
 /* Wallpaper (NovaHorizon) ships via the org.moos.nova Look-and-Feel defaults. */
