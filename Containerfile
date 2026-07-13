@@ -73,6 +73,50 @@ RUN dotnet publish agent-linux/MoRemoteLinux.csproj -c Release -r linux-x64 \
     --self-contained true -o /out
 
 # -----------------------------------------------------------------------------
+# Build MoPlayer from source — same pattern as Mo Remote above: the SDK and the
+# build tree stay in this stage, and the final image receives only the ~40 MB
+# Flutter bundle.
+#
+# The builder is **Fedora 44**, and that is not incidental. MoPlayer links the
+# system's libmpv (`mpv-libs`, which the image already ships for haruna) rather
+# than bundling a codec stack of its own — that is the entire reason a video
+# player is allowed into the image at all. A binary compiled against Ubuntu's
+# libmpv and glibc, then dropped into a Fedora /usr, is a coin flip on a symbol
+# version; built against the same Fedora the image is made of, it is not.
+#
+# Only the *headers* (mpv-libs-devel) are needed here. The library itself is the
+# one already in the image, and nothing from this stage but the bundle ships.
+FROM registry.fedoraproject.org/fedora:44 AS moplayer-build
+ARG FLUTTER_VERSION=3.35.1
+RUN dnf -y install --setopt=install_weak_deps=False \
+        clang cmake ninja-build pkgconf-pkg-config \
+        gtk3-devel mpv-libs-devel libsecret-devel \
+        xz zip unzip git curl file which findutils \
+    && dnf clean all
+RUN curl -fL --retry 3 -o /tmp/flutter.tar.xz \
+        "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
+    && tar -xJf /tmp/flutter.tar.xz -C /opt \
+    && rm -f /tmp/flutter.tar.xz
+ENV PATH="/opt/flutter/bin:${PATH}"
+# The SDK is a git checkout owned by another uid inside the container; without
+# this, every flutter command stops to complain about "dubious ownership".
+RUN git config --global --add safe.directory /opt/flutter \
+    && flutter config --no-analytics --enable-linux-desktop >/dev/null \
+    && flutter --version
+WORKDIR /src
+COPY moplayer/ ./
+RUN flutter pub get \
+    && flutter build linux --release \
+    && mkdir -p /out \
+    && cp -r build/linux/x64/release/bundle/. /out/
+# A bundle that cannot find its own libraries is a black window, and it fails at
+# *run* time, on the user's machine, after the image has shipped. Catch it here.
+RUN test -x /out/moplayer \
+    && test -f /out/data/icudtl.dat \
+    && test -d /out/data/flutter_assets \
+    || { echo "GATE FAIL: the MoPlayer bundle is incomplete"; exit 1; }
+
+# -----------------------------------------------------------------------------
 # Main image — the shared base pinned at the top of this file.
 # -----------------------------------------------------------------------------
 FROM base
@@ -95,6 +139,13 @@ LABEL org.opencontainers.image.title="MoOS" \
 COPY system_files/ /
 COPY --from=moremote-build /out/ /usr/lib/mo-remote/
 COPY moremote/Logo.png /usr/share/icons/hicolor/512x512/apps/mo-remote-personal.png
+
+# MoPlayer's Flutter bundle: one ELF binary plus the data/ directory it must sit
+# beside. /usr/lib/moplayer, and *not* /usr/share/moos/apps/ — build.sh globs
+# that directory for `main.qml` and headlessly smoke-tests every app it finds, and
+# a Flutter binary swept into that loop breaks it. /usr/bin/moplayer (from
+# system_files) is the launcher that runs this bundle from the right cwd.
+COPY --from=moplayer-build /out/ /usr/lib/moplayer/
 
 # Run the build script:
 #   - /ctx is the bind-mounted build_files stage (see above)

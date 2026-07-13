@@ -529,7 +529,38 @@ dnf5 -y install libsecret
 
 # Full Arabic + English locale support (glibc locales, hunspell, input) —
 # MoOS is bilingual by design (MOOS_DESIGN_SYSTEM.md §7 RTL rules).
-dnf5 -y install langpacks-ar langpacks-en
+#
+# German joins them because MoPlayer ships an ar/en/de interface AND an ar/en/de
+# launcher, and a translated app on a system with no German locale falls back to
+# English the moment it formats a date.
+dnf5 -y install langpacks-ar langpacks-en langpacks-de
+
+# --- fcitx5 must not be on this machine --------------------------------------
+# It is an input-method framework MoOS does not need — Arabic and German are xkb
+# LAYOUTS, which KWin handles natively; fcitx exists for CJK input methods, and it
+# arrives here only as a dependency of fcitx5-mozc (a JAPANESE IME) that the base
+# image happens to pull in.
+#
+# And it is not merely useless, it is destructive. It ships a launcher entry, so it is
+# one click away in the app menu — and the moment it starts it TAKES OVER the keyboard
+# and rewrites the user's ~/.config/kxkbrc to `LayoutList=us`, wiping whatever they had.
+# That happened on the maintainer's machine on 2026-07-13: fcitx5 was launched once, and
+# the German+Arabic pair MoOS ships (/etc/xdg/kxkbrc) was replaced by a lone US layout.
+# The user could no longer type Arabic OR German, there was no error and no notification,
+# and nothing in MoOS noticed — moos-selfcheck was reading localectl, i.e. the SYSTEM
+# default, which was still perfectly correct while the session used something else. A
+# user-level file outranking the image, silently: the same trap as every other one in
+# this repo (AGENTS.md).
+#
+# So it does not ship. mozc goes with it — a Japanese IME on a bilingual Arabic/German
+# desktop was never a feature — and the gate below keeps them out.
+dnf5 -y remove fcitx5-mozc fcitx5 fcitx5-data fcitx5-configtool 2>/dev/null || true
+for pkg in fcitx5 fcitx5-mozc; do
+    rpm -q "$pkg" >/dev/null 2>&1 \
+        && { echo "GATE FAIL: ${pkg} is still in the image — it hijacks the keyboard layout the first time anyone launches it"; exit 1; }
+done
+test ! -e /usr/share/applications/org.fcitx.Fcitx5.desktop \
+    || { echo "GATE FAIL: fcitx5 still has a launcher entry — one click and the user's layouts are gone"; exit 1; }
 
 # Qt WebEngine spell-check dictionaries.
 #
@@ -815,6 +846,69 @@ dnf5 -y install \
     ffmpegthumbs \
     kdegraphics-thumbnailers
 
+# MoPlayer's runtime, named explicitly.
+#
+# Every one of these is *already* in the image today — but by accident. libmpv
+# arrives because haruna drags it in; gtk3 because Firefox does; libEGL because
+# Plasma does. MoPlayer is a GTK application that links libmpv directly, and an
+# app whose dependencies are supplied by unrelated packages is an app that breaks
+# the day one of them is dropped, with no build failure and no warning: it simply
+# stops opening, on the users' machines, after the image has shipped.
+#
+# So they are named here, and the gate below fails the build if they are missing.
+# This is the same argument this file already makes for the GStreamer codecs.
+dnf5 -y install mpv-libs gtk3 libepoxy mesa-libEGL mesa-libGLESv2
+
+for lib in mpv-libs gtk3 libepoxy; do
+    rpm -q "${lib}" >/dev/null \
+        || { echo "GATE FAIL: MoPlayer runtime dependency ${lib} is missing"; exit 1; }
+done
+
+# MoPlayer itself: the bundle comes from the moplayer-build stage (see the
+# Containerfile), the launcher and the .desktop from system_files. Neither half is
+# any use without the other, so both are checked here.
+#
+# MoOS's own AGENTS.md is blunt about why: "a gate that cannot fail is worse than
+# no gate". Each line below is a way MoPlayer has actually broken, or a way the
+# QML apps did before it.
+test -x /usr/lib/moplayer/moplayer \
+    || { echo "GATE FAIL: the MoPlayer binary is missing"; exit 1; }
+test -d /usr/lib/moplayer/data/flutter_assets \
+    || { echo "GATE FAIL: MoPlayer has no flutter_assets — it would open to a blank window"; exit 1; }
+test -f /usr/lib/moplayer/data/icudtl.dat \
+    || { echo "GATE FAIL: MoPlayer has no ICU data — it would abort on the first frame"; exit 1; }
+test -x /usr/bin/moplayer \
+    || { echo "GATE FAIL: the MoPlayer launcher is missing or not executable"; exit 1; }
+
+# Every shared library the bundle needs must resolve *inside the image*. This is
+# the check that catches "built against a library the final image does not have" —
+# which fails at run time, on the user's machine, as a window that never appears.
+if ldd /usr/lib/moplayer/moplayer | grep -q 'not found'; then
+    echo "GATE FAIL: MoPlayer has unresolved shared libraries:"
+    ldd /usr/lib/moplayer/moplayer | grep 'not found'
+    exit 1
+fi
+
+# The app_id is written in four places that cannot see each other (Dart, CMake,
+# the .desktop file, the MPRIS bus name). When they drift, the app still builds
+# and still runs — and quietly wears a generic icon, with media keys that raise
+# nothing. Plasma matches window→launcher by this string and nothing else.
+grep -qx 'StartupWMClass=org.moos.moplayer' /usr/share/applications/org.moos.moplayer.desktop \
+    || { echo "GATE FAIL: MoPlayer's StartupWMClass drifted — Plasma will show a generic icon"; exit 1; }
+grep -q 'org\.moos\.moplayer' /usr/lib/moplayer/moplayer \
+    || { echo "GATE FAIL: the app_id is not baked into the MoPlayer binary"; exit 1; }
+
+desktop-file-validate /usr/share/applications/org.moos.moplayer.desktop \
+    || { echo "GATE FAIL: MoPlayer's .desktop file is not valid"; exit 1; }
+
+# The launcher's jump list promises six sections. MoOS shipped eleven buttons once
+# that opened routes nobody had implemented; the app parses these, and this is the
+# cheap half of making sure it still does.
+for action in Live Movies Series Search Favorites Settings; do
+    grep -qx "\[Desktop Action ${action}\]" /usr/share/applications/org.moos.moplayer.desktop \
+        || { echo "GATE FAIL: MoPlayer's launcher lost its ${action} action"; exit 1; }
+done
+
 # Mo Remote: private phone-to-MoOS control. One XDG RemoteDesktop+ScreenCast portal
 # session carries BOTH halves of remote control:
 #   - video: a PipeWire stream, encoded to JPEG by GStreamer (mo-remote-portal.py)
@@ -946,6 +1040,7 @@ curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
 # moos-hardware collects a read-only hardware snapshot to /tmp/moos-hw.json and
 # launches the Hardware Center v0 viewer (/usr/share/moos/apps/hardware) via the
 # same qml-qt6 runner.
+chmod 0755 /usr/bin/moplayer
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moos-device-plan /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
     /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome \

@@ -1,0 +1,71 @@
+name: Build MoPlayer for MoOS
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.1"
+          channel: stable
+          cache: true
+
+      # libmpv is not bundled. media_kit links the system one, which on MoOS is
+      # `mpv-libs` — already in the image. Here we only need the headers to
+      # compile against; libsecret backs flutter_secure_storage (KWallet on MoOS).
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config libgtk-3-dev \
+            libmpv-dev mpv libsecret-1-dev
+
+      - run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      # The identity test is the one that matters most here: it is the only thing
+      # standing between a rename and an app that ships with the wrong icon and
+      # dead media keys.
+      - name: Test
+        run: flutter test
+
+      - name: Build release bundle
+        run: flutter build linux --release
+
+      - name: Package
+        run: |
+          cd build/linux/x64/release
+          mv bundle moplayer
+          tar -czf moplayer-linux-x64.tar.gz moplayer
+          sha256sum moplayer-linux-x64.tar.gz | tee moplayer-linux-x64.tar.gz.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moplayer-linux-x64
+          path: |
+            build/linux/x64/release/moplayer-linux-x64.tar.gz
+            build/linux/x64/release/moplayer-linux-x64.tar.gz.sha256
+          retention-days: 30
+
+      # A release tarball is what `moos-image`'s Containerfile pulls from. Until
+      # one exists at a stable URL, MoPlayer cannot be part of the image.
+      - name: Attach to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/linux/x64/release/moplayer-linux-x64.tar.gz
+            build/linux/x64/release/moplayer-linux-x64.tar.gz.sha256

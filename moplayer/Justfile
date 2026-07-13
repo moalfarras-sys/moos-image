@@ -1,0 +1,47 @@
+# MoPlayer for MoOS — build commands.
+#
+# MoOS is an atomic desktop: it has no compiler and never will. Every build here
+# runs inside the `moplayer-dev` distrobox, which is where the Flutter SDK and
+# the GTK/mpv headers live. `just setup` creates it.
+
+box := "moplayer-dev"
+flutter := "$HOME/.local/flutter/bin/flutter"
+
+default:
+    @just --list
+
+# Create the build container and install the toolchain + Flutter SDK.
+setup:
+    ./tool/setup-dev-box.sh
+
+# Compile a release bundle -> build/linux/x64/release/bundle/
+build:
+    distrobox enter --name {{box}} -- bash -lc '{{flutter}} build linux --release'
+
+debug:
+    distrobox enter --name {{box}} -- bash -lc '{{flutter}} build linux --debug'
+
+# Run from source, on the real desktop session.
+run:
+    distrobox enter --name {{box}} -- bash -lc '{{flutter}} run -d linux'
+
+analyze:
+    distrobox enter --name {{box}} -- bash -lc '{{flutter}} analyze'
+
+test:
+    distrobox enter --name {{box}} -- bash -lc '{{flutter}} test'
+
+# Regenerate the icon set from the brand mark.
+icons:
+    python3 artwork/generate_icons.py
+
+# Install into ~/.local so it appears in Kickoff on this machine.
+install: build
+    ./packaging/moos/install-local.sh
+
+uninstall:
+    ./packaging/moos/install-local.sh --uninstall
+
+# Everything the CI gate runs, in the order it runs it.
+check: analyze test
+    @echo "OK"

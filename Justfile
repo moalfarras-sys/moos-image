@@ -63,3 +63,26 @@ lint:
 # Remove locally built MoOS images
 clean:
     -podman rmi -f {{ image_name }}:latest {{ image_name }}-nvidia:latest
+
+# Re-vendor MoPlayer's source from its own repository.
+#
+# The image builds MoPlayer from source in a Containerfile stage (see
+# `moplayer/VENDORED.md`), so this directory has to be a faithful copy of the app's
+# tree. It copies exactly what MoPlayer's git tracks — never the 40 MB build
+# output, never .dart_tool, never linux/flutter/ephemeral.
+sync-moplayer:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    SRC="${MOPLAYER_SRC:-$(pwd)/../MoPlayerMoOS}"
+    [ -f "$SRC/pubspec.yaml" ] || { echo "sync-moplayer: no MoPlayer tree at $SRC" >&2; exit 1; }
+    echo "==> syncing from $SRC"
+    rm -rf moplayer.tmp && mkdir -p moplayer.tmp
+    (cd "$SRC" && git ls-files) | while read -r f; do
+        mkdir -p "moplayer.tmp/$(dirname "$f")"
+        cp "$SRC/$f" "moplayer.tmp/$f"
+    done
+    cp moplayer/VENDORED.md moplayer.tmp/VENDORED.md
+    rm -rf moplayer && mv moplayer.tmp moplayer
+    echo "==> vendored $(find moplayer -type f | wc -l) files ($(du -sh moplayer | cut -f1))"
+    echo "    Also copy the launcher/desktop/icons into system_files if they changed:"
+    echo "      install -D -m0755 moplayer/packaging/moos/moplayer system_files/usr/bin/moplayer"

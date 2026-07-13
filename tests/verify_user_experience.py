@@ -218,6 +218,39 @@ require("recommended" in moai_qml and "hit.note" in moai_qml,
         "Mo AI must render the pick and the warning (recommended / note) on each search hit — "
         "ranking them in the backend and not showing them changes nothing for the user")
 
+# ── A first-party app must not be killed by the first-party brain ────────────
+# MoOS ships a local LLM and a video player, and on an 8 GB card they cannot both have the
+# memory. With the brain loaded (~6 GB held) MoPlayer could not create an EGL context —
+# `eglMakeCurrent failed`, then libepoxy asserts and the process ABORTS. The user's own OS
+# killed its own player on launch, with no message, because its own assistant was holding
+# the graphics card. Core dumps on the maintainer's machine, 2026-07-13.
+#
+# moos-gpu-headroom unloads ONLY the brain (which reloads itself on the next message) and
+# only when the card is nearly full. If either half of this drops out, the crash comes back
+# and it looks exactly like a broken app.
+headroom = code(read("system_files/usr/bin/moos-gpu-headroom"))
+require("moai.service" in headroom and "nvidia-smi" in headroom,
+        "moos-gpu-headroom must free the local brain — and nothing else — when the GPU is "
+        "too full for an app to make a context")
+require("moos-gpu-headroom" in code(read("system_files/usr/bin/moplayer")),
+        "MoPlayer's launcher must ask for GPU headroom before starting: with the brain loaded "
+        "it aborts on eglMakeCurrent, which reads to the user as a broken app")
+
+# ── fcitx5 must not ship ─────────────────────────────────────────────────────
+# It is a CJK input-method framework MoOS has no use for (Arabic and German are xkb layouts,
+# which KWin handles natively), it arrives only as a dependency of a JAPANESE IME, and it has
+# a launcher entry — so it is one click away. The moment it starts it rewrites the user's
+# ~/.config/kxkbrc to `LayoutList=us` and their Arabic and German layouts are gone, silently.
+# That happened on this machine: the maintainer could not type Arabic for two hours.
+require("dnf5 -y remove fcitx5-mozc fcitx5" in code(read("build_files/build.sh")),
+        "build.sh must remove fcitx5 — one launch of it wipes the user's keyboard layouts and "
+        "nothing in the system notices")
+selfcheck = code(read("system_files/usr/bin/moos-selfcheck"))
+require("KeyboardLayouts.getLayoutsList" in selfcheck,
+        "moos-selfcheck must read the layouts KWin ACTUALLY loaded, not localectl's system "
+        "default — the system default stayed a perfect 'de,ara' while the session typed US, "
+        "and the check reported green throughout")
+
 # ── The third agent is the one that needs nobody's cloud ─────────────────────
 # Codex and Claude Code are both somebody else's subscription. OpenCode is provider-agnostic,
 # so on a machine that ships its own brain it can be pointed at THAT — a coding agent that

@@ -1,0 +1,82 @@
+[Desktop Entry]
+Type=Application
+Name=MoPlayer
+GenericName=IPTV Player
+GenericName[ar]=مشغّل IPTV
+GenericName[de]=IPTV-Player
+Comment=Watch live TV, movies and series from your IPTV source — built for MoOS
+Comment[ar]=شاهد البث المباشر والأفلام والمسلسلات من مصدر IPTV الخاص بك — مبني لنظام MoOS
+Comment[de]=Live-TV, Filme und Serien aus Ihrer IPTV-Quelle — für MoOS gebaut
+Exec=moplayer %U
+TryExec=moplayer
+
+# `moos-moplayer`, not `org.moos.moplayer`.
+#
+# MoOS gates its own applications: build_files/verify_identity.py requires every
+# first-party launcher's Icon= to begin with `moos-`, which is how the image proves
+# at build time that no app is quietly wearing an inherited Fedora icon. An icon
+# named after the app id passes nothing.
+#
+# The icon name and the Wayland app_id are independent: Plasma matches a window to
+# this file by app_id (StartupWMClass, below), and only then reads Icon= out of it.
+# So the app keeps its id — which is also its MPRIS bus name — and the icon takes
+# the name the gate can see.
+Icon=moos-moplayer
+Terminal=false
+Categories=AudioVideo;Video;Player;TV;
+Keywords=iptv;tv;live;stream;m3u;xtream;movies;series;player;video;
+Keywords[ar]=تلفزيون;بث;مباشر;قنوات;أفلام;مسلسلات;مشغل;فيديو;
+Keywords[de]=iptv;fernsehen;live;stream;m3u;xtream;filme;serien;abspieler;video;
+MimeType=application/x-mpegurl;application/vnd.apple.mpegurl;audio/x-mpegurl;video/mp2t;
+SingleMainWindow=true
+
+# Plasma matches a window to this launcher by its Wayland app_id (X11: WM_CLASS).
+# The runner sets it from APPLICATION_ID in linux/CMakeLists.txt. If these two
+# strings ever drift apart, the taskbar shows a generic icon and the MPRIS applet
+# loses its way back to the app — which is exactly the failure MoOS's own
+# moos-qml-shell exists to prevent for the QML apps. test/app_identity_test.dart is
+# what stops them drifting.
+StartupWMClass=org.moos.moplayer
+StartupNotify=true
+
+# Every one of these resolves to real behaviour in lib/app/launch_args.dart, and
+# the identity test asserts that it still does. MoOS's own AGENTS.md records what
+# happens otherwise: eleven buttons once shipped that opened routes nobody had
+# implemented, popped an error, and did nothing. Every gate was green.
+Actions=Live;Movies;Series;Search;Favorites;Settings;
+
+[Desktop Action Live]
+Name=Live TV
+Name[ar]=البث المباشر
+Name[de]=Live-TV
+Exec=moplayer --section live
+
+[Desktop Action Movies]
+Name=Movies
+Name[ar]=الأفلام
+Name[de]=Filme
+Exec=moplayer --section movies
+
+[Desktop Action Series]
+Name=Series
+Name[ar]=المسلسلات
+Name[de]=Serien
+Exec=moplayer --section series
+
+[Desktop Action Search]
+Name=Search
+Name[ar]=بحث
+Name[de]=Suche
+Exec=moplayer --section search
+
+[Desktop Action Favorites]
+Name=Favorites
+Name[ar]=المفضلة
+Name[de]=Favoriten
+Exec=moplayer --section favorites
+
+[Desktop Action Settings]
+Name=Settings
+Name[ar]=الإعدادات
+Name[de]=Einstellungen
+Exec=moplayer --section settings

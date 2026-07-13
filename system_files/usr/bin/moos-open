@@ -63,6 +63,7 @@ remote_ctl() {
 
 case "${cat}/${tgt}" in
     app/moai)      gui moai ;;
+    app/moplayer)  gui moplayer ;;
     app/remote)    gui mo-pc-remote ;;
     app/setup)     term moos-setup ;;
     do/smart-setup) term moos-setup --smart ;;

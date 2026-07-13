@@ -627,6 +627,29 @@ pin_default_apps() {
         done
     fi
 
+    # --- IPTV playlists open in MoPlayer -------------------------------------
+    # Shipping the default in /etc/xdg is not the same as the user getting it: a
+    # user's own ~/.config/mimeapps.list outranks the system one, and Plasma writes
+    # to that file the first time anyone touches "Open With" on anything. On an
+    # existing MoOS install, an .m3u therefore still opens in haruna — which plays
+    # it as a *file*, one stream at a time, with no categories, no guide and no
+    # favourites, which is not what the user asked for by double-clicking it.
+    #
+    # Only claim the type when it is unset or currently pointing at something that
+    # is a dead end for a playlist. A user who has deliberately chosen VLC keeps VLC.
+    if [ -f /usr/share/applications/org.moos.moplayer.desktop ]; then
+        for mime in application/x-mpegurl application/vnd.apple.mpegurl audio/x-mpegurl; do
+            current="$(kreadconfig6 --file "$mimeapps" --group "Default Applications" --key "$mime" 2>/dev/null)"
+            case "$current" in
+                ""|*haruna*|*chrome*|*chromium*|*firefox*)
+                    kwriteconfig6 --file "$mimeapps" --group "Default Applications" \
+                        --key "$mime" org.moos.moplayer.desktop
+                    ;;
+            esac
+        done
+        echo "pinned MoPlayer as the IPTV playlist handler in the user's mimeapps.list" >>"$log" 2>/dev/null || true
+    fi
+
     # --- Windows .exe and Android .apk open in the MoOS runner --------------------
     # The runner is what turns "MoOS supports Windows apps" into "the .exe you just
     # downloaded runs when you double-click it": it forwards to Bottles/Waydroid when they

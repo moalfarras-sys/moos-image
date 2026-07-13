@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# moos-gpu-headroom — make sure a GPU app can actually get a GPU.
+#
+# THE BUG THIS EXISTS FOR. MoOS ships a local LLM and a video player, and on an 8 GB card
+# they cannot both have the memory. The brain (`moai.service`, RamaLama → llama-server)
+# holds ~6 GB for as long as it is loaded, and when MoPlayer then starts, EGL cannot make a
+# context:
+#
+#     Gdk-WARNING: eglMakeCurrent failed
+#     moplayer: epoxy_get_proc_address: assertion "Couldn't find current GLX or EGL context"
+#     → SIGABRT, core dumped
+#
+# The user sees a first-party app of their own operating system die on launch, with no
+# message, while a chat window they opened an hour ago quietly owns the graphics card.
+# Verified on the maintainer's RTX 2080 SUPER on 2026-07-13: with the brain loaded (1055 MiB
+# free) MoPlayer is already on the edge, and at the ~280 MiB the brain usually leaves it
+# aborts every time. With the brain unloaded (5.8 GB free) it opens instantly.
+#
+# THE FIX, and why it is this one. The brain is the only thing here that is safe to take
+# away: `moai-gateway` reloads it automatically on the next message (`ensure_local`), and
+# `moai-idle` already unloads it on its own after 15 idle minutes — so this is not a new
+# behaviour, it is the same unload, triggered by need instead of by time. Nothing else on
+# the card is touched: if the memory is held by a game, a browser or the compositor, this
+# does nothing at all and the app takes its chances, because MoOS does not get to kill the
+# user's programs to make room for its own.
+#
+# Silent and non-fatal by design: it runs in front of an app launch, so a failure here must
+# never be the reason the app did not start.
+set -uo pipefail
+
+MIN_FREE_MIB="${MOOS_MIN_VRAM_MIB:-900}"
+
+# NVIDIA only, and deliberately: this is a discrete-VRAM problem. AMD and Intel integrated
+# graphics allocate from system RAM, where the kernel can page and nothing aborts on a
+# failed context for want of 200 MiB.
+command -v nvidia-smi >/dev/null 2>&1 || exit 0
+
+free_mib() {
+    nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d '[:space:]'
+}
+
+free="$(free_mib)"
+[ -n "${free:-}" ] || exit 0
+[ "$free" -ge "$MIN_FREE_MIB" ] 2>/dev/null && exit 0
+
+# Not enough room — but only OUR brain is ours to unload.
+systemctl --user is-active --quiet moai.service 2>/dev/null || exit 0
+
+echo "moos-gpu-headroom: ${free} MiB free on the GPU (< ${MIN_FREE_MIB}); unloading the local brain so this app can start" >&2
+systemctl --user stop moai.service 2>/dev/null || exit 0
+
+# The driver does not hand the memory back the instant systemd returns, and starting the app
+# into a card that is still being freed is how the crash happened in the first place.
+for _ in $(seq 1 24); do
+    free="$(free_mib)"
+    [ -n "${free:-}" ] && [ "$free" -ge "$MIN_FREE_MIB" ] 2>/dev/null && break
+    sleep 0.5
+done
+echo "moos-gpu-headroom: ${free:-?} MiB free now — the brain comes back by itself on your next Mo AI message" >&2
+exit 0

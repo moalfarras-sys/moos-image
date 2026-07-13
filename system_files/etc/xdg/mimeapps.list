@@ -47,6 +47,14 @@ image/heif=org.kde.gwenview.desktop
 image/jxl=org.kde.gwenview.desktop
 image/x-icon=org.kde.gwenview.desktop
 
+# Playlists are MoPlayer's, not haruna's. haruna claims the whole video/* family
+# and would otherwise take an IPTV playlist too — and open it as a *file*, one
+# stream at a time, with no categories, no EPG and no favourites. Double-clicking
+# an .m3u in Dolphin should open the IPTV player the system ships.
+application/x-mpegurl=org.moos.moplayer.desktop
+application/vnd.apple.mpegurl=org.moos.moplayer.desktop
+audio/x-mpegurl=org.moos.moplayer.desktop
+
 video/mp4=org.kde.haruna.desktop
 video/x-matroska=org.kde.haruna.desktop
 video/webm=org.kde.haruna.desktop
