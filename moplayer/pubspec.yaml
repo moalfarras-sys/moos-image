@@ -39,6 +39,11 @@ dependencies:
   flutter_secure_storage: ^9.2.2
   shared_preferences: ^2.3.3
 
+  # XMLTV. The panel's own `get_short_epg` returns an empty list on the
+  # maintainer's subscription while `xmltv.php` returns a full 1.1 MB guide, so
+  # the guide — and every match in it — is parsed from XML, not from the API.
+  xml: ^6.5.0
+
   # Images
   cached_network_image: ^3.4.1
 

@@ -1,31 +1,30 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/routes.dart';
-import '../../core/theme/app_typography.dart';
 import '../../core/theme/nova.dart';
-import '../../models/library_items.dart';
-import '../../models/live_channel.dart';
 import '../../models/media_kind.dart';
-import '../../models/series.dart';
-import '../../models/vod_movie.dart';
+import '../../providers/core_providers.dart';
 import '../../providers/library_providers.dart';
-import '../../providers/playback_providers.dart';
 import '../../providers/system_providers.dart';
-import '../../widgets/media_card.dart';
-import '../../widgets/media_rail.dart';
+import '../../widgets/buttons.dart';
 import '../../widgets/state_views.dart';
-import '../../widgets/tiles.dart';
+import 'favorites_hero.dart';
+import 'favorites_shelves.dart';
 
-/// Everything the user kept, grouped the way they think about it: channels,
-/// films, shows.
+/// Everything the user kept — a shelf, not a report.
 ///
-/// A favourite carries the payload it was made from, so a row can be played
-/// without going back to the panel for it — which is what makes this screen
-/// work when the provider is down.
+/// The old screen was a `ListView` of sections with a grid inside each one, and
+/// it read like an inventory. This one leads with the thing they kept *last*, at
+/// the size of a poster on a wall, and puts the rest underneath it in the same
+/// cards the rest of the app is built from. Favourites is the one screen where
+/// every single item is something the user chose on purpose, and it should look
+/// like it.
+///
+/// A favourite carries the payload it was made from, so a card here can be
+/// played without going back to the panel for it — which is what makes this
+/// screen work when the provider is down.
 class FavoritesScreen extends ConsumerWidget {
   const FavoritesScreen({super.key});
 
@@ -33,193 +32,72 @@ class FavoritesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final favorites = ref.watch(favoritesProvider);
+    final compact = ref.watch(settingsProvider).compactGrids;
 
+    if (favorites.isEmpty) {
+      return EmptyView(
+        title: s.favorites,
+        message: s.emptyFavorites,
+        icon: Icons.favorite_border_rounded,
+        // An empty state with no way out is a dead end with better type.
+        action: EmberButton(
+          label: s.emptyFavoritesAction,
+          icon: Icons.explore_outlined,
+          onPressed: () => context.go(Routes.home),
+        ),
+      );
+    }
+
+    // The repository hands these back newest first, which is the only order a
+    // hero can honestly be picked from: it is *the last thing you kept*, not a
+    // recommendation the app invented.
+    final hero = favorites.first;
     final live = favorites.where((f) => f.kind == MediaKind.live).toList();
     final movies = favorites.where((f) => f.kind == MediaKind.movie).toList();
     final series = favorites.where((f) => f.kind == MediaKind.series).toList();
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        Nova.space6,
-        Nova.space6,
-        Nova.space6,
-        0,
+    return ListView(
+      // The dock floats over the foot of the window and the shell hands this
+      // screen its height. A list that ignores it hides its own last row under
+      // the glass.
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.paddingOf(context).bottom + Nova.space5,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionHeader(title: s.favorites),
-          const SizedBox(height: Nova.space5),
-          Expanded(
-            child: favorites.isEmpty
-                ? EmptyView(
-                    message: s.emptyFavorites,
-                    icon: Icons.favorite_border_rounded,
-                  )
-                : ListView(
-                    padding: const EdgeInsets.only(bottom: Nova.space6),
-                    children: [
-                      if (live.isNotEmpty) _ChannelSection(items: live),
-                      if (movies.isNotEmpty)
-                        _PosterSection(title: s.movies, items: movies),
-                      if (series.isNotEmpty)
-                        _PosterSection(title: s.series, items: series),
-                    ],
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Favourited channels, as rows.
-///
-/// Not poster cards: a channel is found by reading its name, and the tile is the
-/// same one the Live section uses — a favourite should not look like a different
-/// kind of thing to the channel it was made from.
-class _ChannelSection extends ConsumerWidget {
-  const _ChannelSection({required this.items});
-
-  final List<FavoriteItem> items;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(stringsProvider);
-    final actions = ref.read(libraryActionsProvider);
-    final now = ref.watch(playbackProvider);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Nova.space6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionTitle(title: s.channels, count: items.length),
-          const SizedBox(height: Nova.space3),
-          for (final item in items)
-            ChannelTile(
-              name: item.title,
-              logoUrl: item.imageUrl,
-              selected:
-                  now != null &&
-                  now.kind == MediaKind.live &&
-                  now.refId == item.refId,
-              isFavorite: true,
-              onToggleFavorite: () =>
-                  actions.removeFavorite(item.kind, item.refId),
-              onTap: () => ref
-                  .read(playbackProvider.notifier)
-                  .playLive(LiveChannel.fromPayload(item.payload)),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Favourited films and shows, as a poster grid that reflows to the window.
-class _PosterSection extends ConsumerWidget {
-  const _PosterSection({required this.title, required this.items});
-
-  final String title;
-  final List<FavoriteItem> items;
-
-  void _open(BuildContext context, WidgetRef ref, FavoriteItem item) {
-    switch (item.kind) {
-      case MediaKind.movie:
-        ref
-            .read(playbackProvider.notifier)
-            .playMovie(VodMovie.fromPayload(item.payload));
-      case MediaKind.series:
-        // A series is a folder, not a stream: it opens, it does not play.
-        context.push(
-          Routes.seriesDetail,
-          extra: SeriesItem.fromPayload(item.payload),
-        );
-      case MediaKind.live:
-      case MediaKind.episode:
-        // Neither reaches this grid: channels have their own section, and an
-        // episode is favourited as its series. Opening one off the wrong payload
-        // would build the wrong URL, so this does nothing rather than something
-        // wrong.
-        break;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final actions = ref.read(libraryActionsProvider);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Nova.space6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionTitle(title: title, count: items.length),
-          const SizedBox(height: Nova.space3),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              const spacing = Nova.space4;
-              const maxItemWidth = 180.0;
-              final columns = math.max(
-                2,
-                (constraints.maxWidth / (maxItemWidth + spacing)).floor(),
-              );
-              final itemWidth =
-                  (constraints.maxWidth - spacing * (columns - 1)) / columns;
-              // The card is artwork plus two lines of type; the grid has to be
-              // told about those lines or the last one clips.
-              final extent = itemWidth * 1.5 + 48;
-
-              return GridView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columns,
-                  mainAxisSpacing: spacing,
-                  crossAxisSpacing: spacing,
-                  mainAxisExtent: extent,
-                ),
-                itemCount: items.length,
-                itemBuilder: (context, i) {
-                  final item = items[i];
-
-                  return PosterCard(
-                    title: item.title,
-                    subtitle: item.subtitle,
-                    imageUrl: item.imageUrl,
-                    isFavorite: true,
-                    onToggleFavorite: () =>
-                        actions.removeFavorite(item.kind, item.refId),
-                    onTap: () => _open(context, ref, item),
-                    onPlay: item.kind == MediaKind.movie
-                        ? () => _open(context, ref, item)
-                        : null,
-                  );
-                },
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, required this.count});
-
-  final String title;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
       children: [
-        Text(title, style: AppText.section),
-        const SizedBox(width: Nova.space3),
-        Text('$count', style: AppText.caption, textDirection: TextDirection.ltr),
+        // Full bleed: the hero runs to the edges of the window, and only the
+        // shelves under it take the page's gutter.
+        FavoriteHero(item: hero),
+        const SizedBox(height: Nova.space6),
+        Padding(
+          padding: const EdgeInsetsDirectional.symmetric(
+            horizontal: Nova.space6,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (live.isNotEmpty) ...[
+                ChannelShelf(items: live),
+                const SizedBox(height: Nova.space6),
+              ],
+              if (movies.isNotEmpty) ...[
+                PosterShelf(
+                  title: s.movies,
+                  subtitle: s.moviesCount(movies.length),
+                  items: movies,
+                  compact: compact,
+                ),
+                const SizedBox(height: Nova.space6),
+              ],
+              if (series.isNotEmpty)
+                PosterShelf(
+                  title: s.series,
+                  subtitle: s.seriesCount(series.length),
+                  items: series,
+                  compact: compact,
+                ),
+            ],
+          ),
+        ),
       ],
     );
   }

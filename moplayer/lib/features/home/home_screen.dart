@@ -10,8 +10,10 @@ import '../../core/theme/app_typography.dart';
 import '../../core/theme/glass.dart';
 import '../../core/theme/nova.dart';
 import '../../models/category.dart';
+import '../../core/l10n/strings.dart';
 import '../../models/library_items.dart';
 import '../../models/live_channel.dart';
+import '../../models/live_match.dart';
 import '../../models/media_kind.dart';
 import '../../models/series.dart';
 import '../../models/vod_movie.dart';
@@ -20,12 +22,15 @@ import '../../providers/core_providers.dart';
 import '../../providers/library_providers.dart';
 import '../../providers/playback_providers.dart';
 import '../../providers/system_providers.dart';
+import '../../services/weather/weather_service.dart';
 import '../../widgets/buttons.dart';
+import '../../widgets/match_strip.dart';
 import '../../widgets/media_card.dart';
 import '../../widgets/media_rail.dart';
 import '../../widgets/network_poster.dart';
 import '../../widgets/state_views.dart';
 import '../../widgets/tiles.dart';
+import '../../widgets/weather_tile.dart';
 
 /// The landing page: one hero, then rails.
 ///
@@ -56,6 +61,21 @@ class HomeScreen extends ConsumerWidget {
               const <SeriesItem>[]
         : const <SeriesItem>[];
 
+    // The newest twenty of each, by the panel's own `added` stamp — the rails a
+    // returning viewer actually opens the app for.
+    final newestMovies = (repo?.supportsVod ?? false)
+        ? ref.watch(newestMoviesProvider).valueOrNull ?? const <VodMovie>[]
+        : const <VodMovie>[];
+    final newestSeries = (repo?.supportsSeries ?? false)
+        ? ref.watch(newestSeriesProvider).valueOrNull ?? const <SeriesItem>[]
+        : const <SeriesItem>[];
+
+    // Both widgets are *absent* until they have something true to say. A match
+    // strip with a spinner in it, or a weather tile reading "—°", is worse than
+    // no widget: it is a promise the page has not kept.
+    final matches = ref.watch(matchesTodayProvider).valueOrNull ?? const [];
+    final weather = ref.watch(weatherProvider).valueOrNull;
+
     final resumable = ref.watch(continueWatchingProvider);
     final favorites = ref.watch(favoritesProvider);
     final playlistId = ref.watch(activePlaylistProvider)?.id ?? '';
@@ -82,7 +102,6 @@ class HomeScreen extends ConsumerWidget {
           );
         }
 
-        final recent = _recentlyAdded(movies);
         final top = _topRated(movies);
         final playback = ref.read(playbackProvider.notifier);
         final actions = ref.read(libraryActionsProvider);
@@ -93,6 +112,9 @@ class HomeScreen extends ConsumerWidget {
         final resumeHero = resumable.isEmpty ? null : resumable.first;
         final movieHero = resumeHero == null && top.isNotEmpty
             ? top.first
+            : null;
+        final liveHero = resumeHero == null && movieHero == null
+            ? pickLiveHero(live)
             : null;
 
         return ListView(
@@ -130,6 +152,18 @@ class HomeScreen extends ConsumerWidget {
                 infoLabel: s.moreInfo,
                 onInfo: () => context.push(Routes.movieDetail, extra: movieHero),
                 motion: motion,
+              )
+            else if (liveHero != null)
+              _Hero(
+                eyebrow: s.onAir,
+                title: liveHero.name,
+                meta: s.liveChannelsAvailable(live.length),
+                logoUrl: liveHero.logo,
+                playLabel: s.play,
+                onPlay: () => playback.playLive(liveHero),
+                infoLabel: s.channels,
+                onInfo: () => context.go(Routes.live),
+                motion: motion,
               ),
 
             Padding(
@@ -138,6 +172,25 @@ class HomeScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: Nova.space6,
                 children: [
+                  // What is on, and what it is like outside — the two things a
+                  // person glances at before choosing what to watch. They share
+                  // a row because they answer the same question, and because
+                  // the weather does not deserve a rail of its own.
+                  if (matches.isNotEmpty || weather != null)
+                    _WidgetRow(
+                      title: s.todaysMatches,
+                      matches: matches,
+                      weather: weather,
+                      strings: s,
+                      onPlayMatch: (match) {
+                        final channel = live.firstWhere(
+                          (c) => c.streamId == match.streamId,
+                          orElse: () => live.first,
+                        );
+                        playback.playLive(channel);
+                      },
+                    ),
+
                   if (resumable.isNotEmpty)
                     MediaRail(
                       title: s.continueWatching,
@@ -170,21 +223,46 @@ class HomeScreen extends ConsumerWidget {
                       itemBuilder: (context, i) => _LiveCard(channel: live[i]),
                     ),
 
-                  if (recent.isNotEmpty)
+                  // Newest first, and *only* newest. The old page carried a
+                  // "recently added" rail and a "top rated" rail built from the
+                  // same twenty-thousand-film list, which meant two rails of
+                  // whatever the panel happened to sort first. What a returning
+                  // viewer opens the app to see is what turned up since they
+                  // last looked.
+                  if (newestMovies.isNotEmpty)
                     MediaRail(
-                      title: s.recentlyAdded,
+                      title: s.newestMovies,
                       subtitle: s.movies,
-                      itemCount: recent.length,
+                      itemCount: newestMovies.length,
                       itemWidth: 170,
                       height: 300,
                       seeAllLabel: s.more,
                       onSeeAll: () => context.go(Routes.movies),
                       itemBuilder: (context, i) => _MovieCard(
-                        movie: recent[i],
+                        movie: newestMovies[i],
                         playlistId: playlistId,
                         isFavorite: isFavorite(
                           MediaKind.movie,
-                          recent[i].streamId,
+                          newestMovies[i].streamId,
+                        ),
+                      ),
+                    ),
+
+                  if (newestSeries.isNotEmpty)
+                    MediaRail(
+                      title: s.newestSeries,
+                      subtitle: s.series,
+                      itemCount: newestSeries.length,
+                      itemWidth: 170,
+                      height: 300,
+                      seeAllLabel: s.more,
+                      onSeeAll: () => context.go(Routes.series),
+                      itemBuilder: (context, i) => _SeriesCard(
+                        series: newestSeries[i],
+                        playlistId: playlistId,
+                        isFavorite: isFavorite(
+                          MediaKind.series,
+                          newestSeries[i].seriesId,
                         ),
                       ),
                     ),
@@ -204,24 +282,6 @@ class HomeScreen extends ConsumerWidget {
                         isFavorite: isFavorite(MediaKind.movie, top[i].streamId),
                       ),
                     ),
-
-                  if (series.isNotEmpty)
-                    MediaRail(
-                      title: s.series,
-                      itemCount: math.min(series.length, 24),
-                      itemWidth: 170,
-                      height: 300,
-                      seeAllLabel: s.more,
-                      onSeeAll: () => context.go(Routes.series),
-                      itemBuilder: (context, i) => _SeriesCard(
-                        series: series[i],
-                        playlistId: playlistId,
-                        isFavorite: isFavorite(
-                          MediaKind.series,
-                          series[i].seriesId,
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -230,6 +290,82 @@ class HomeScreen extends ConsumerWidget {
       },
     );
   }
+}
+
+/// The match strip and the weather, side by side.
+///
+/// The weather is given a fixed width and the football takes the rest: on a
+/// narrow window it is the *fixtures* that need the room, and a tile that says
+/// "26°" reads at any size.
+class _WidgetRow extends StatelessWidget {
+  const _WidgetRow({
+    required this.title,
+    required this.matches,
+    required this.weather,
+    required this.strings,
+    required this.onPlayMatch,
+  });
+
+  final String title;
+  final List<LiveMatch> matches;
+  final WeatherNow? weather;
+  final S strings;
+  final void Function(LiveMatch) onPlayMatch;
+
+  @override
+  Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 900;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (matches.isNotEmpty) ...[
+          SectionHeader(title: title),
+          const SizedBox(height: Nova.space4),
+        ],
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (matches.isNotEmpty)
+              Expanded(
+                child: MatchStrip(
+                  matches: matches,
+                  strings: strings,
+                  onPlay: onPlayMatch,
+                ),
+              ),
+            if (matches.isNotEmpty && weather != null)
+              const SizedBox(width: Nova.space4),
+            if (weather != null)
+              WeatherTile(
+                weather: weather!,
+                strings: strings,
+                width: narrow ? 200 : 260,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// The channel that opens the page when nothing else can.
+///
+/// An M3U source is live-only — no VOD, no series — and on a first run there is
+/// no history either, so both of the heroes above it are null. That is the most
+/// common IPTV source there is, and it was landing on a single rail above a
+/// screenful of black.
+///
+/// A channel that has a logo is preferred: the hero shows the mark, and a hero
+/// whose mark is a monogram of the channel's initials looks like a page that
+/// failed to load rather than one that was designed.
+@visibleForTesting
+LiveChannel? pickLiveHero(List<LiveChannel> live) {
+  if (live.isEmpty) return null;
+  return live.firstWhere(
+    (c) => c.logo != null && c.logo!.trim().isNotEmpty,
+    orElse: () => live.first,
+  );
 }
 
 int _minutesLeft(ContinueWatchingItem item) {
@@ -242,15 +378,6 @@ String _movieMeta(VodMovie movie) {
     if (movie.year != null && movie.year!.isNotEmpty) movie.year!,
     if ((movie.rating ?? 0) > 0) '★ ${movie.rating!.toStringAsFixed(1)}',
   ].join('  ·  ');
-}
-
-/// Newest first — but a panel that reports no `added` timestamps at all would
-/// otherwise lose the rail entirely, and a panel's own list order is already
-/// newest-first, so that is what is trusted when the dates are missing.
-List<VodMovie> _recentlyAdded(List<VodMovie> all) {
-  final dated = all.where((m) => m.added != null).toList()
-    ..sort((a, b) => b.added!.compareTo(a.added!));
-  return (dated.isEmpty ? all : dated).take(24).toList();
 }
 
 List<VodMovie> _topRated(List<VodMovie> all) {
@@ -275,6 +402,7 @@ class _Hero extends StatelessWidget {
     required this.infoLabel,
     required this.motion,
     this.imageUrl,
+    this.logoUrl,
     this.progress,
     this.onInfo,
   });
@@ -287,19 +415,33 @@ class _Hero extends StatelessWidget {
   final String infoLabel;
   final bool motion;
   final String? imageUrl;
+
+  /// A channel's logo, when the hero is a live channel. It is drawn as a mark
+  /// above the copy — *not* as the backdrop. A logo is a transparent PNG of
+  /// unknowable aspect (see [NetworkPoster.logoMode]); stretched to fill a
+  /// 1400×345 hero it is beheaded, and the one picture the channel has is the
+  /// one thing the hero must not ruin.
+  final String? logoUrl;
+
   final double? progress;
   final VoidCallback? onInfo;
 
   @override
   Widget build(BuildContext context) {
     final height = math.max(320.0, MediaQuery.sizeOf(context).height * 0.44);
+    final hasLogo = logoUrl != null && logoUrl!.trim().isNotEmpty;
 
     return SizedBox(
       height: height,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          NetworkPoster(url: imageUrl, title: title, radius: 0),
+          if (hasLogo)
+            const DecoratedBox(
+              decoration: BoxDecoration(gradient: AppColors.heroPlate),
+            )
+          else
+            NetworkPoster(url: imageUrl, title: title, radius: 0),
           const DecoratedBox(
             decoration: BoxDecoration(gradient: AppColors.heroScrim),
           ),
@@ -329,6 +471,21 @@ class _Hero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (hasLogo) ...[
+                      SizedBox(
+                        width: 148,
+                        height: 84,
+                        child: NetworkPoster(
+                          url: logoUrl,
+                          title: title,
+                          logoMode: true,
+                          width: 148,
+                          radius: Nova.radiusControl,
+                          background: AppColors.surface2,
+                        ),
+                      ),
+                      const SizedBox(height: Nova.space4),
+                    ],
                     Text(
                       eyebrow.toUpperCase(),
                       style: AppText.label.copyWith(

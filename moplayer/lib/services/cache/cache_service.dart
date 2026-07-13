@@ -65,6 +65,33 @@ class CacheService {
     }
   }
 
+  /// A document that is not a list of rows — the XMLTV guide, which is ~1 MB of
+  /// XML. Stored as text and parsed by the caller (on a background isolate), so
+  /// that re-encoding it into JSON just to satisfy [putList] is not the cost of
+  /// having a programme guide.
+  Future<void> putText(String key, String value) async {
+    await _cache!.put(
+      key,
+      jsonEncode({'ts': DateTime.now().millisecondsSinceEpoch, 'text': value}),
+    );
+  }
+
+  String? getText(String key, {Duration? ttl}) {
+    final raw = _cache!.get(key);
+    if (raw == null) return null;
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      if (ttl != null) {
+        final ts = (map['ts'] as num?)?.toInt() ?? 0;
+        final age = DateTime.now().millisecondsSinceEpoch - ts;
+        if (age > ttl.inMilliseconds) return null;
+      }
+      return map['text'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> putJson(String key, Map<String, dynamic> data) =>
       _cache!.put(key, jsonEncode(data));
 

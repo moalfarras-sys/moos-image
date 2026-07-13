@@ -74,17 +74,24 @@ Future<Boot> bootstrap(LaunchArgs launch) async {
     }
   }
 
-  // A playlist opened from the file manager wins over whatever was active: the
-  // user just double-clicked it, so it is what they want to see.
+  // A source opened from the command line — a double-clicked playlist, or a
+  // subscription link handed to `moplayer <link>` — wins over whatever was
+  // active: the user just opened it, so it is what they want to see.
   var active = await secure.readActivePlaylist();
-  if (launch.playlist != null) {
+  final opened = launch.playlist;
+  if (opened != null) {
     final saved = await secure.readPlaylists();
+    // Deduped on identityKey, not on m3uUrl. An Xtream account has **no**
+    // m3uUrl — it is the empty string — so comparing that field would have made
+    // every saved Xtream source look like the one being opened and dropped all
+    // of them. identityKey is the field that answers "is this the same source",
+    // and it is the panel+account for Xtream and the URL for a playlist.
     await secure.writePlaylists([
-      ...saved.where((p) => p.m3uUrl != launch.playlist!.m3uUrl),
-      launch.playlist!,
+      ...saved.where((p) => p.identityKey != opened.identityKey),
+      opened,
     ]);
-    await secure.writeActivePlaylist(launch.playlist);
-    active = launch.playlist;
+    await secure.writeActivePlaylist(opened);
+    active = opened;
   }
 
   log.i(

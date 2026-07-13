@@ -53,7 +53,7 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
   /// Owned here, not by the dock: F6 has to move focus onto the *selected*
   /// destination, and the dock is rebuilt on every navigation.
   final List<FocusNode> _dockNodes = List.generate(
-    6,
+    7,
     (i) => FocusNode(debugLabel: 'dock-$i'),
   );
 
@@ -148,15 +148,26 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
   List<DockDestination> _destinations(WidgetRef ref) {
     final s = ref.watch(stringsProvider);
 
-    // Exactly six, in this order, and Home is not one of them — it is the logo
-    // in the caption bar. A seventh "Home" slot is what turns a dock into a
-    // website's navigation bar.
+    // Seven, in this order, and Home is one of them.
+    //
+    // It was not, once: the logo in the caption bar went home, on the argument
+    // that a seventh slot turns a dock into a website's navigation bar. That
+    // argument lost to the owner of the app watching people use it — a corner
+    // logo is a thing you *learn*, and a dock is a thing you *see*. The way back
+    // to the front page must be the same size and in the same place as the way to
+    // everywhere else.
     return [
       DockDestination(
         icon: MoIcon.search,
         label: s.search,
         route: Routes.search,
         shortcut: 'Ctrl+F',
+      ),
+      DockDestination(
+        icon: MoIcon.home,
+        label: s.home,
+        route: Routes.home,
+        shortcut: 'Ctrl+1',
       ),
       DockDestination(
         icon: MoIcon.live,

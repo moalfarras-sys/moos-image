@@ -70,12 +70,35 @@ clean:
 # `moplayer/VENDORED.md`), so this directory has to be a faithful copy of the app's
 # tree. It copies exactly what MoPlayer's git tracks — never the 40 MB build
 # output, never .dart_tool, never linux/flutter/ephemeral.
+#
+# And "what git tracks" is exactly why the working tree has to be clean first.
+# `git ls-files` lists tracked files, so a NEW file that has not been committed is
+# copied by nobody: the vendored tree gets the imports and not the file they point
+# at, and the failure surfaces twenty minutes later, inside a container, as a Dart
+# compile error about a URI that does not exist. That happened. A modified-but-
+# uncommitted file is worse in a quieter way — the image would ship a build of
+# source that exists on no branch, and nothing could ever reproduce it.
 sync-moplayer:
     #!/usr/bin/env bash
     set -euo pipefail
     SRC="${MOPLAYER_SRC:-$(pwd)/../MoPlayerMoOS}"
     [ -f "$SRC/pubspec.yaml" ] || { echo "sync-moplayer: no MoPlayer tree at $SRC" >&2; exit 1; }
-    echo "==> syncing from $SRC"
+
+    DIRT="$(cd "$SRC" && git status --porcelain)"
+    if [ -n "$DIRT" ]; then
+        echo "sync-moplayer: MoPlayer's tree is not clean — refusing to vendor it." >&2
+        echo "" >&2
+        echo "$DIRT" >&2
+        echo "" >&2
+        echo "  A vendored copy is built from 'git ls-files'. An untracked file is" >&2
+        echo "  copied by NOBODY, and the image then compiles source with a missing" >&2
+        echo "  import; a modified one would ship a build of code that exists on no" >&2
+        echo "  branch. Commit (or stash) in $SRC first." >&2
+        exit 1
+    fi
+
+    REV="$(cd "$SRC" && git rev-parse --short HEAD)"
+    echo "==> syncing from $SRC @ $REV"
     rm -rf moplayer.tmp && mkdir -p moplayer.tmp
     (cd "$SRC" && git ls-files) | while read -r f; do
         mkdir -p "moplayer.tmp/$(dirname "$f")"
@@ -83,6 +106,24 @@ sync-moplayer:
     done
     cp moplayer/VENDORED.md moplayer.tmp/VENDORED.md
     rm -rf moplayer && mv moplayer.tmp moplayer
-    echo "==> vendored $(find moplayer -type f | wc -l) files ($(du -sh moplayer | cut -f1))"
-    echo "    Also copy the launcher/desktop/icons into system_files if they changed:"
-    echo "      install -D -m0755 moplayer/packaging/moos/moplayer system_files/usr/bin/moplayer"
+
+    # The launcher, the desktop entry and the icons are the app's, not the image's
+    # — they live in MoPlayer's packaging/ and the image only carries a copy. Copy
+    # it here rather than printing a reminder: a reminder is a step someone skips,
+    # and the step that gets skipped is the one that drops the GPU-headroom guard
+    # out of the launcher and lets the player abort on a full graphics card.
+    install -D -m0755 moplayer/packaging/moos/moplayer system_files/usr/bin/moplayer
+    install -D -m0644 moplayer/packaging/moos/org.moos.moplayer.desktop \
+        system_files/usr/share/applications/org.moos.moplayer.desktop
+    install -D -m0644 moplayer/packaging/moos/org.moos.moplayer.metainfo.xml \
+        system_files/usr/share/metainfo/org.moos.moplayer.metainfo.xml
+    for png in moplayer/packaging/moos/icons/hicolor/*/apps/*.png; do
+        size="$(basename "$(dirname "$(dirname "$png")")")"
+        install -D -m0644 "$png" "system_files/usr/share/icons/hicolor/$size/apps/$(basename "$png")"
+    done
+    for svg in moplayer/packaging/moos/icons/hicolor/scalable/apps/*.svg; do
+        [ -e "$svg" ] || continue
+        install -D -m0644 "$svg" "system_files/usr/share/icons/hicolor/scalable/apps/$(basename "$svg")"
+    done
+
+    echo "==> vendored $(find moplayer -type f | wc -l) files ($(du -sh moplayer | cut -f1)) and installed its packaging"

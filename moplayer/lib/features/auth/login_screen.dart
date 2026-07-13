@@ -17,6 +17,7 @@ import '../../providers/core_providers.dart';
 import '../../providers/library_providers.dart';
 import '../../providers/system_providers.dart';
 import '../../services/activation/activation_service.dart';
+import '../../services/source/source_link.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/backdrop.dart';
 import '../../widgets/buttons.dart';
@@ -147,13 +148,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // ── M3U ────────────────────────────────────────────────────────────────────
 
   Future<void> _submitM3u() async {
+    final link = _urlCtrl.text.trim();
     final name = _nameCtrl.text.trim();
-    final config = PlaylistConfig(
-      id: _newId(),
-      type: PlaylistType.m3u,
-      name: name.isEmpty ? _s.m3u : name,
-      m3uUrl: _urlCtrl.text.trim(),
-    );
 
     setState(() {
       _busy = true;
@@ -161,7 +157,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _status = null;
     });
 
-    final result = await ref.read(authRepositoryProvider).testM3u(config);
+    // The link is read for what it *is*, not for the field it was typed into.
+    //
+    // A subscription is sold as one URL, and it is nearly always
+    // `…/get.php?username=U&password=P&type=m3u_plus`. That URL works in this
+    // field — and that is the trap it is worth writing code to avoid. Taken as a
+    // playlist it yields live channels and nothing else: no films, no series, no
+    // guide. Taken as what it is — a panel and an account — it opens the whole
+    // API. On the maintainer's own subscription that is the difference between
+    // 12,653 channels and 12,653 channels *plus* 20,187 films and 10,550 series,
+    // from the same string of text.
+    final detected = SourceLink.parse(link, id: _newId());
+
+    if (detected != null && detected.isXtream) {
+      final upgraded = name.isEmpty
+          ? detected
+          : detected.copyWith(name: name);
+
+      final probe = await ref
+          .read(authRepositoryProvider)
+          .testXtream(upgraded);
+      if (!mounted) return;
+
+      if (probe is Ok<XtreamAccountInfo>) {
+        setState(() => _status = _s.connected);
+        await _activate(upgraded);
+        return;
+      }
+      // The link carried credentials and the panel rejected them. Falling back
+      // to importing it as a playlist would hide a wrong password behind a
+      // half-working source, so the failure is reported as what it is.
+      _fail((probe as Err<XtreamAccountInfo>).failure);
+      return;
+    }
+
+    final config =
+        detected ??
+        PlaylistConfig(
+          id: _newId(),
+          type: PlaylistType.m3u,
+          name: name.isEmpty ? _s.m3u : name,
+          m3uUrl: link,
+        );
+
+    final result = await ref
+        .read(authRepositoryProvider)
+        .testM3u(name.isEmpty ? config : config.copyWith(name: name));
     if (!mounted) return;
 
     if (result is Err<int>) {
@@ -169,7 +210,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
     setState(() => _status = _s.channelsFound((result as Ok<int>).value));
-    await _activate(config);
+    await _activate(name.isEmpty ? config : config.copyWith(name: name));
   }
 
   // ── Activation ─────────────────────────────────────────────────────────────

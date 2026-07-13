@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/playlist_config.dart';
+import '../services/source/source_link.dart';
 import 'routes.dart';
 
 /// What the desktop asked for when it launched us.
@@ -55,12 +56,15 @@ class LaunchArgs {
         section = _route(arg.substring('--section='.length));
         continue;
       }
-      if (_looksLikePlaylist(arg)) {
-        playlist = _playlistFrom(arg);
-        continue;
-      }
+      // A stream is checked first. `.m3u8` is an HLS manifest — one stream — and
+      // SourceLink would happily import it as a playlist containing itself.
       if (_looksLikeStream(arg)) {
         playUrl = arg;
+        continue;
+      }
+      final source = SourceLink.parse(arg);
+      if (source != null) {
+        playlist = source;
       }
     }
 
@@ -92,37 +96,11 @@ class LaunchArgs {
     _ => null,
   };
 
-  static bool _looksLikePlaylist(String arg) {
-    if (arg.startsWith('-')) return false;
-    final path = arg.split('?').first.toLowerCase();
-    // Only `.m3u`. An `.m3u8` on a command line is an HLS manifest — one
-    // stream — and importing it as a "playlist" would produce a source with a
-    // single unnamed channel in it instead of just playing the thing.
-    return path.endsWith('.m3u');
-  }
-
-  static PlaylistConfig _playlistFrom(String arg) {
-    final uri = Uri.tryParse(arg);
-    final name = (uri?.pathSegments.isNotEmpty ?? false)
-        ? uri!.pathSegments.last
-        : arg;
-
-    return PlaylistConfig(
-      id: 'file_${DateTime.now().microsecondsSinceEpoch}',
-      type: PlaylistType.m3u,
-      name: name,
-      // Normalised to an *absolute* file URI. Two reasons, and the second one
-      // cost a debugging round: a bare relative path ("./tv.m3u") matches
-      // neither the `file://` nor the `/` branch in `_readM3uBody`, so it fell
-      // through to the HTTP client, which dutifully tried to resolve it as a
-      // hostname and reported "could not reach the network". And the playlist is
-      // *persisted* — a path relative to whatever directory the app happened to
-      // be launched from stops resolving the moment it is launched from Kickoff.
-      m3uUrl: arg.contains('://')
-          ? arg
-          : Uri.file(File(arg).absolute.path).toString(),
-    );
-  }
+  // What a playlist *is* now lives in SourceLink, which the login screen uses
+  // too. It also normalises a bare relative path ("./tv.m3u") to an absolute
+  // file URI — a path relative to the directory the app happened to be launched
+  // from stops resolving the moment it is launched from Kickoff, and the config
+  // is persisted.
 }
 
 /// Overridden in `main()`. Read by the router for its initial location.

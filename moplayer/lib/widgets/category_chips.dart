@@ -1,112 +1,115 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/app_colors.dart';
-import '../core/theme/app_typography.dart';
+import '../core/theme/motion.dart';
 import '../core/theme/nova.dart';
 import '../models/category.dart';
+import 'tiles.dart';
 
 /// The category filter above a grid.
 ///
-/// An IPTV panel will happily return 300 categories, so this scrolls rather than
-/// wraps: a wrapping chip cloud 300 items deep would push the actual content off
-/// the screen.
-class CategoryChips extends StatelessWidget {
+/// An IPTV panel will happily return three hundred categories, so this scrolls
+/// rather than wraps: a chip cloud three hundred items deep would push the
+/// actual content off the bottom of the window. It is also virtualised, for the
+/// same reason.
+///
+/// The selected chip pulls itself into view when the selection changes from
+/// elsewhere — a search that lands in a category, a deep link — because a filter
+/// bar that is *lit* somewhere off screen is a filter bar that looks broken.
+class CategoryChips extends StatefulWidget {
   const CategoryChips({
     super.key,
     required this.categories,
     required this.selectedId,
     required this.onSelect,
+    this.height = 40,
+    this.spacing = Nova.space2,
+    this.padding = EdgeInsets.zero,
+    this.showCounts = true,
   });
 
   final List<Category> categories;
   final String selectedId;
   final ValueChanged<String> onSelect;
+  final double height;
+  final double spacing;
+  final EdgeInsetsGeometry padding;
+
+  /// Counts are only ever drawn when the source actually reported one — an
+  /// Xtream panel does not, and a made-up number is worse than none.
+  final bool showCounts;
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 34,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        separatorBuilder: (_, _) => const SizedBox(width: Nova.space2),
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          return _Chip(
-            label: category.name,
-            count: category.count,
-            selected: category.id == selectedId,
-            onTap: () => onSelect(category.id),
-          );
-        },
-      ),
+  State<CategoryChips> createState() => _CategoryChipsState();
+}
+
+class _CategoryChipsState extends State<CategoryChips> {
+  final ScrollController _controller = ScrollController();
+  final Map<String, GlobalKey> _keys = {};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _revealSelected());
+  }
+
+  @override
+  void didUpdateWidget(CategoryChips old) {
+    super.didUpdateWidget(old);
+    if (old.selectedId != widget.selectedId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _revealSelected());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _revealSelected() {
+    if (!mounted) return;
+    final key = _keys[widget.selectedId];
+    final context = key?.currentContext;
+    // Off-screen chips are not built at all — the list is virtualised — and a
+    // chip that was never built cannot be scrolled to. That is fine: it can only
+    // happen when the selection is far from the viewport, and the correct answer
+    // there is to leave the scroll alone rather than to jump the user.
+    if (context == null) return;
+    Scrollable.ensureVisible(
+      context,
+      alignment: 0.5,
+      duration: Motion.duration(this.context, Nova.panel),
+      curve: Ease.enter,
     );
   }
-}
-
-class _Chip extends StatefulWidget {
-  const _Chip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.count,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final int? count;
-
-  @override
-  State<_Chip> createState() => _ChipState();
-}
-
-class _ChipState extends State<_Chip> {
-  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: Nova.fast,
-          padding: const EdgeInsets.symmetric(horizontal: Nova.space4),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: widget.selected
-                ? AppColors.primary.withValues(alpha: 0.14)
-                : (_hovered ? AppColors.surface3 : AppColors.surface2),
-            borderRadius: BorderRadius.circular(Nova.radiusControl),
-            border: Border.all(
-              color: widget.selected
-                  ? AppColors.primary.withValues(alpha: 0.55)
-                  : AppColors.borderSubtle,
+    if (widget.categories.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: widget.height,
+      child: ListView.separated(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        padding: widget.padding,
+        clipBehavior: Clip.none,
+        itemCount: widget.categories.length,
+        separatorBuilder: (_, _) => SizedBox(width: widget.spacing),
+        itemBuilder: (context, index) {
+          final category = widget.categories[index];
+          final key = _keys.putIfAbsent(category.id, GlobalKey.new);
+
+          return KeyedSubtree(
+            key: key,
+            child: CategoryPill(
+              label: category.name,
+              count: widget.showCounts ? category.count : null,
+              selected: category.id == widget.selectedId,
+              onTap: () => widget.onSelect(category.id),
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.label,
-                style: AppText.control.copyWith(
-                  fontSize: 13.5,
-                  color: widget.selected
-                      ? AppColors.primary
-                      : AppColors.textSecondary,
-                  fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w500,
-                ),
-              ),
-              if (widget.count != null) ...[
-                const SizedBox(width: Nova.space2),
-                Text('${widget.count}', style: AppText.caption),
-              ],
-            ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }

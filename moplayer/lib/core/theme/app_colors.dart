@@ -198,6 +198,17 @@ class AppColors {
     stops: [0.0, 0.62, 1.0],
   );
 
+  /// The backdrop of a hero that has no artwork to show — a live channel, whose
+  /// only picture is a transparent logo that must never be stretched to fill.
+  /// Warm graphite with an ember lean, so the plate reads as *the brand's*
+  /// surface rather than as a poster that failed to load.
+  static const LinearGradient heroPlate = LinearGradient(
+    begin: Alignment.topRight,
+    end: Alignment.bottomLeft,
+    colors: [surfaceWarm, surface1, surface0],
+    stops: [0.0, 0.55, 1.0],
+  );
+
   /// A soft radial bloom. Behind the logo, under a focused dock item, around
   /// the hero's ambient light.
   static RadialGradient glow(Color color, {double opacity = 0.35}) {

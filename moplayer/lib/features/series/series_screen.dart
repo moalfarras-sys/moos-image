@@ -6,7 +6,6 @@ import '../../app/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/nova.dart';
-import '../../models/category.dart';
 import '../../models/library_items.dart';
 import '../../models/media_kind.dart';
 import '../../models/series.dart';
@@ -14,11 +13,11 @@ import '../../providers/content_providers.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/library_providers.dart';
 import '../../providers/system_providers.dart';
+import '../../widgets/browse_panes.dart';
 import '../../widgets/buttons.dart';
 import '../../widgets/media_card.dart';
 import '../../widgets/media_rail.dart';
 import '../../widgets/state_views.dart';
-import '../../widgets/tiles.dart';
 
 /// See `movies_screen.dart` for why the ratio runs short of the arithmetic: the
 /// two lines of text under a poster are a fixed height, and the tile the grid
@@ -28,7 +27,6 @@ const double _tileWidthCompact = 150;
 const double _tileRatio = 0.54;
 const double _tileRatioCompact = 0.53;
 const double _filterWidth = 280;
-const double _stripHeight = 38;
 const int _skeletonCount = 18;
 
 /// The series catalogue. The movie wall's shape, one action lighter: a series is
@@ -43,6 +41,12 @@ class SeriesScreen extends ConsumerStatefulWidget {
 class _SeriesScreenState extends ConsumerState<SeriesScreen> {
   final TextEditingController _filter = TextEditingController();
   String _query = '';
+
+  /// What the preview pane is showing. A series carries its plot, genre and
+  /// rating in the *list* response, so the pane can be complete without a second
+  /// request — which is the difference between a preview that appears instantly
+  /// on hover and one that spins.
+  SeriesItem? _previewed;
 
   @override
   void dispose() {
@@ -59,65 +63,113 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     final compact = ref.watch(settingsProvider).compactGrids;
     final loaded = series.valueOrNull;
 
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(
-        Nova.space6,
-        Nova.space5,
-        Nova.space6,
-        0,
+    ref.watch(libraryRefreshProvider);
+    final library = ref.read(libraryActionsProvider);
+    final playlistId = ref.watch(activePlaylistProvider)?.id;
+    final item = _previewed;
+
+    return BrowseLayout(
+      groups: GroupPane(
+        categories: categories.valueOrNull ?? const [],
+        selectedId: categoryId,
+        strings: s,
+        onSelect: (id) {
+          setState(() => _previewed = null);
+          ref.read(selectedSeriesCategoryProvider.notifier).state = id;
+        },
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionHeader(
-            title: s.series,
-            subtitle: loaded == null ? null : s.seriesCount(loaded.length),
-            trailing: _FilterField(
-              controller: _filter,
-              hint: s.searchSeries,
-              clearTooltip: s.clearSearch,
-              onChanged: (value) => setState(() => _query = value.trim()),
-            ),
-          ),
-          const SizedBox(height: Nova.space5),
-          _CategoryStrip(
-            categories: categories.valueOrNull ?? const [],
-            selectedId: categoryId,
-            allLabel: s.all,
-            onSelect: (id) =>
-                ref.read(selectedSeriesCategoryProvider.notifier).state = id,
-          ),
-          const SizedBox(height: Nova.space5),
-          Expanded(
-            child: series.when(
-              // A skeleton in the grid's own geometry, not a spinner: the wall
-              // must not jump the moment the data lands.
-              loading: () => _PosterSkeletonGrid(compact: compact),
-              error: (error, _) => ErrorView(
-                strings: s,
-                error: error,
-                onRetry: () => ref.invalidate(seriesListProvider(categoryId)),
+      preview: PreviewPane(
+        strings: s,
+        title: item?.name,
+        imageUrl: item?.cover,
+        meta: item == null ? null : _seriesMeta(item),
+        plot: item?.plot,
+        rating: item?.rating,
+        isFavorite:
+            item != null && library.isFavorite(MediaKind.series, item.seriesId),
+        // A series is not a thing you press play on — it is a thing you open,
+        // and *then* press play on an episode. The pane's primary action says so.
+        onOpen: item == null
+            ? null
+            : () => context.push(Routes.seriesDetail, extra: item),
+        openLabel: s.episodes,
+        onToggleFavorite: (item == null || playlistId == null)
+            ? null
+            : () => library.toggleFavorite(
+                FavoriteItem(
+                  playlistId: playlistId,
+                  kind: MediaKind.series,
+                  refId: item.seriesId,
+                  title: item.name,
+                  imageUrl: item.cover,
+                  payload: item.toPayload(),
+                ),
               ),
-              data: (all) =>
-                  _SeriesGrid(series: all, query: _query, compact: compact),
+      ),
+      wall: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          Nova.space5,
+          Nova.space5,
+          Nova.space5,
+          0,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(
+              title: s.series,
+              subtitle: loaded == null ? null : s.seriesCount(loaded.length),
+              trailing: _FilterField(
+                controller: _filter,
+                hint: s.searchSeries,
+                clearTooltip: s.clearSearch,
+                onChanged: (value) => setState(() => _query = value.trim()),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: Nova.space5),
+            Expanded(
+              child: series.when(
+                // A skeleton in the grid's own geometry, not a spinner: the wall
+                // must not jump the moment the data lands.
+                loading: () => _PosterSkeletonGrid(compact: compact),
+                error: (error, _) => ErrorView(
+                  strings: s,
+                  error: error,
+                  onRetry: () => ref.invalidate(seriesListProvider(categoryId)),
+                ),
+                data: (all) => _SeriesGrid(
+                  series: all,
+                  query: _query,
+                  compact: compact,
+                  onPreview: (item) => setState(() => _previewed = item),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+
+String _seriesMeta(SeriesItem item) => [
+  if (item.releaseDate != null && item.releaseDate!.isNotEmpty)
+    item.releaseDate!,
+  if (item.genre != null && item.genre!.isNotEmpty) item.genre!,
+].join('  ·  ');
 
 class _SeriesGrid extends ConsumerWidget {
   const _SeriesGrid({
     required this.series,
     required this.query,
     required this.compact,
+    required this.onPreview,
   });
 
   final List<SeriesItem> series;
   final String query;
   final bool compact;
+  final ValueChanged<SeriesItem> onPreview;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -175,6 +227,7 @@ class _SeriesGrid extends ConsumerWidget {
                   ),
                 ),
           onTap: () => context.push(Routes.seriesDetail, extra: item),
+          onPreview: () => onPreview(item),
         );
       },
     );
@@ -233,46 +286,6 @@ class _FilterField extends StatelessWidget {
 /// The category filter. It scrolls rather than wraps: a panel will happily
 /// return three hundred genres, and a chip cloud that deep would push the grid
 /// off the bottom of the window.
-class _CategoryStrip extends StatelessWidget {
-  const _CategoryStrip({
-    required this.categories,
-    required this.selectedId,
-    required this.allLabel,
-    required this.onSelect,
-  });
-
-  final List<Category> categories;
-  final String selectedId;
-  final String allLabel;
-  final ValueChanged<String> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    // The height is held while the categories load, so the grid underneath does
-    // not slide up and then back down again.
-    return SizedBox(
-      height: _stripHeight,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        separatorBuilder: (_, _) => const SizedBox(width: Nova.space2),
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          // The synthetic "All" row is built in English by the provider; only
-          // the panel's own categories carry a name worth showing.
-          final isAll = category.id == Category.allId;
-          return CategoryPill(
-            label: isAll ? allLabel : category.name,
-            count: category.count,
-            selected: category.id == selectedId,
-            onTap: () => onSelect(category.id),
-          );
-        },
-      ),
-    );
-  }
-}
-
 class _PosterSkeletonGrid extends StatelessWidget {
   const _PosterSkeletonGrid({required this.compact});
 

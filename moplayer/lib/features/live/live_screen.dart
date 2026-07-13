@@ -29,16 +29,34 @@ import '../../widgets/tiles.dart';
 /// of this screen. That is intended — the player is a mode of the shell, not a
 /// place you navigate to (see `app/routes.dart`), so dismissing it drops the
 /// user back here with the stream still running.
-class LiveScreen extends ConsumerWidget {
+///
+/// **Looking is not tuning.** The third pane follows the channel the cursor (or
+/// the keyboard) is on, not the one that is playing — the way a receiver's guide
+/// does. Without that, finding out what is on a channel costs a tune: on an
+/// account limited to one connection, browsing the list by clicking it is how a
+/// viewer knocks their own stream off the air.
+class LiveScreen extends ConsumerStatefulWidget {
   const LiveScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return const Row(
+  ConsumerState<LiveScreen> createState() => _LiveScreenState();
+}
+
+class _LiveScreenState extends ConsumerState<LiveScreen> {
+  LiveChannel? _previewed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
       children: [
-        _Pane(width: 260, child: _CategoryPane()),
-        _Pane(width: 360, child: _ChannelPane()),
-        Expanded(child: _NowPlayingPane()),
+        const _Pane(width: 260, child: _CategoryPane()),
+        _Pane(
+          width: 360,
+          child: _ChannelPane(
+            onPreview: (channel) => setState(() => _previewed = channel),
+          ),
+        ),
+        Expanded(child: _NowPlayingPane(previewed: _previewed)),
       ],
     );
   }
@@ -218,7 +236,9 @@ class _CategoryRowState extends State<_CategoryRow> {
 }
 
 class _ChannelPane extends ConsumerStatefulWidget {
-  const _ChannelPane();
+  const _ChannelPane({required this.onPreview});
+
+  final ValueChanged<LiveChannel> onPreview;
 
   @override
   ConsumerState<_ChannelPane> createState() => _ChannelPaneState();
@@ -310,6 +330,7 @@ class _ChannelPaneState extends ConsumerState<_ChannelPane> {
                           f.kind == MediaKind.live &&
                           f.refId == channel.streamId,
                     ),
+                    onPreview: () => widget.onPreview(channel),
                   );
                 },
               );
@@ -333,12 +354,14 @@ class _ChannelRow extends ConsumerWidget {
     required this.playlistId,
     required this.selected,
     required this.isFavorite,
+    required this.onPreview,
   });
 
   final LiveChannel channel;
   final String playlistId;
   final bool selected;
   final bool isFavorite;
+  final VoidCallback onPreview;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -346,12 +369,22 @@ class _ChannelRow extends ConsumerWidget {
     // A `ListView.builder` only builds the rows the user can see, so only those
     // rows ask the panel for a programme. Hoisting this one line into the list
     // would turn opening a 900-channel category into 900 `get_short_epg` calls.
-    final now = _liveNow(ref.watch(epgProvider(channel.streamId)).valueOrNull);
+    final now = _liveNow(
+      ref
+          .watch(
+            epgProvider((
+              streamId: channel.streamId,
+              epgChannelId: channel.epgChannelId,
+            )),
+          )
+          .valueOrNull,
+    );
 
     return ChannelTile(
       name: channel.name,
       logoUrl: channel.logo,
       selected: selected,
+      onPreview: onPreview,
       nowTitle: now?.title,
       nowProgress: now?.progress,
       isFavorite: isFavorite,
@@ -372,17 +405,40 @@ class _ChannelRow extends ConsumerWidget {
   }
 }
 
+/// What is on the channel the user is *looking at* — which is not necessarily
+/// the one that is playing.
+///
+/// The previewed channel wins when there is one. That is the receiver behaviour
+/// the owner asked for, and on this subscription it is also the safe one: the
+/// account allows a single connection, so a viewer who has to tune a channel to
+/// find out what is on it knocks their own stream off the air to read the guide.
 class _NowPlayingPane extends ConsumerWidget {
-  const _NowPlayingPane();
+  const _NowPlayingPane({this.previewed});
+
+  final LiveChannel? previewed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final playing = ref.watch(playbackProvider);
+    final live = playing != null && playing.kind == MediaKind.live;
 
-    if (playing == null || playing.kind != MediaKind.live) {
+    final channel = previewed;
+    if (channel == null && !live) {
       return EmptyView(icon: Icons.live_tv_rounded, message: s.pickChannel);
     }
+
+    final title = channel?.name ?? playing!.media.title;
+    final logo = channel?.logo ?? playing!.imageUrl;
+    final streamId = channel?.streamId ?? playing!.refId;
+    final epgChannelId =
+        channel?.epgChannelId ?? playing!.payload['epgChannelId'] as String?;
+
+    // Is the pane looking at the thing that is playing, or at something else?
+    // The answer decides the button: uncovering a running stream and starting a
+    // new one are not the same action, and offering the wrong one is how a
+    // viewer loses the match they were watching.
+    final isPlayingThis = live && playing.refId == streamId;
 
     return Padding(
       padding: const EdgeInsets.all(Nova.space6),
@@ -399,8 +455,8 @@ class _NowPlayingPane extends ConsumerWidget {
                   width: 96,
                   height: 96,
                   child: NetworkPoster(
-                    url: playing.imageUrl,
-                    title: playing.media.title,
+                    url: logo,
+                    title: title,
                     logoMode: true,
                     radius: Nova.radiusCard,
                   ),
@@ -411,23 +467,34 @@ class _NowPlayingPane extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      LiveBadge(label: s.onAir),
-                      const SizedBox(height: Nova.space3),
+                      if (isPlayingThis) LiveBadge(label: s.onAir),
+                      if (isPlayingThis) const SizedBox(height: Nova.space3),
                       Text(
-                        playing.media.title,
+                        title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.title,
                       ),
                       const SizedBox(height: Nova.space4),
-                      EmberButton(
-                        label: s.watchFullscreen,
-                        icon: Icons.fullscreen_rounded,
-                        // The stream is already running behind this screen; the
-                        // player only has to be uncovered, never reopened.
-                        onPressed: () =>
-                            ref.read(playerViewProvider.notifier).expand(),
-                      ),
+                      if (isPlayingThis)
+                        EmberButton(
+                          label: s.watchFullscreen,
+                          icon: Icons.fullscreen_rounded,
+                          // The stream is already running behind this screen; the
+                          // player only has to be uncovered, never reopened.
+                          onPressed: () =>
+                              ref.read(playerViewProvider.notifier).expand(),
+                        )
+                      else
+                        EmberButton(
+                          label: s.play,
+                          icon: Icons.play_arrow_rounded,
+                          onPressed: channel == null
+                              ? null
+                              : () => ref
+                                    .read(playbackProvider.notifier)
+                                    .playLive(channel),
+                        ),
                     ],
                   ),
                 ),
@@ -435,7 +502,9 @@ class _NowPlayingPane extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: Nova.space5),
-          Expanded(child: _Guide(streamId: playing.refId)),
+          Expanded(
+            child: _Guide(streamId: streamId, epgChannelId: epgChannelId),
+          ),
         ],
       ),
     );
@@ -443,14 +512,17 @@ class _NowPlayingPane extends ConsumerWidget {
 }
 
 class _Guide extends ConsumerWidget {
-  const _Guide({required this.streamId});
+  const _Guide({required this.streamId, this.epgChannelId});
 
   final String streamId;
+  final String? epgChannelId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final epg = ref.watch(epgProvider(streamId));
+    final epg = ref.watch(
+      epgProvider((streamId: streamId, epgChannelId: epgChannelId)),
+    );
 
     // A guide that fails to load is not an error worth a red icon and a retry
     // button: most IPTV channels simply carry no EPG at all, and the two cases

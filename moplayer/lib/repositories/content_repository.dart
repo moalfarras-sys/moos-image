@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/services.dart';
 
 import '../core/config/app_config.dart';
@@ -14,9 +15,34 @@ import '../models/playlist_config.dart';
 import '../models/series.dart';
 import '../models/vod_movie.dart';
 import '../services/cache/cache_service.dart';
+import '../services/epg/xmltv_guide.dart';
 import '../services/m3u/m3u_parser.dart';
 import '../services/xtream/xtream_api.dart';
 import '../services/xtream/xtream_url_builder.dart';
+
+/// Newest first, by whatever timestamp the panel stamped the item with.
+///
+/// This is the order the catalogue is *served* in, not a view preference, and it
+/// is here because of what the panel's own order actually is. Asked for all
+/// 20,187 films, this subscription answers with its recorded football matches
+/// first — thirty-two of them, every one carrying the identical FIFA artwork. A
+/// user opening the film wall met a grid of the same picture repeated, and
+/// concluded the app had failed to load. Sorted by `added`, the same request
+/// opens on *The Real Charlie Chaplin*, *48 Hrs.*, *Remi Nobody's Boy*.
+///
+/// A panel that stamps nothing keeps its own order, which is already
+/// newest-first by convention — sorting undated items to the bottom would empty
+/// the wall on exactly the panels that need it most.
+List<T> newestFirst<T>(List<T> items, DateTime? Function(T) stamp) {
+  final dated = <T>[];
+  final undated = <T>[];
+  for (final item in items) {
+    (stamp(item) == null ? undated : dated).add(item);
+  }
+  if (dated.isEmpty) return items;
+  dated.sort((a, b) => stamp(b)!.compareTo(stamp(a)!));
+  return [...dated, ...undated];
+}
 
 /// Unified content access for the active playlist. For Xtream it talks to the
 /// panel; for M3U it parses the playlist once and serves everything from the
@@ -72,11 +98,59 @@ class ContentRepository {
     return _filterByCategory(m3u.channels, categoryId, (c) => c.categoryId);
   }
 
-  Future<List<EpgEntry>> epg(String streamId) async {
+  /// The guide for one channel.
+  ///
+  /// The panel's own `get_short_epg` is asked first — a panel that implements it
+  /// answers per-channel and answers fast. When it comes back empty (and there
+  /// are panels where it *always* does, while `xmltv.php` returns thousands of
+  /// programmes), the channel is looked up in the XMLTV guide instead. The
+  /// [epgChannelId] is what XMLTV keys on; a channel without one has no guide,
+  /// and that is a fact about the channel, not a failure.
+  Future<List<EpgEntry>> epg(String streamId, {String? epgChannelId}) async {
     final api = _api;
     if (api == null) return const [];
-    return api.getShortEpg(streamId);
+
+    final short = await api.getShortEpg(streamId);
+    if (short.isNotEmpty) return short;
+
+    if (epgChannelId == null || epgChannelId.trim().isEmpty) return const [];
+    final guide = await this.guide();
+    return guide.forChannel(epgChannelId);
   }
+
+  /// The whole XMLTV guide, cached and parsed off the UI isolate.
+  ///
+  /// Memoised in the repository for the process's lifetime as well as on disk:
+  /// the live screen asks for it once per visible row, and re-reading a
+  /// megabyte out of Hive forty times while the user scrolls is a stutter with
+  /// no cause anyone would look for.
+  Future<EpgGuide> guide({bool forceRefresh = false}) async {
+    if (!config.isXtream) return EpgGuide.empty;
+    if (!forceRefresh && _guideMemo != null) return _guideMemo!;
+
+    final key = '${_ns}_xmltv';
+    if (!forceRefresh) {
+      final cached = _cache.getText(key, ttl: CacheTtl.categories);
+      if (cached != null) {
+        final parsed = await compute(EpgGuide.parse, cached);
+        _guideMemo = parsed;
+        return parsed;
+      }
+    }
+
+    final xml = await _api!.getXmltv();
+    if (xml.trim().isEmpty) {
+      _guideMemo = EpgGuide.empty;
+      return EpgGuide.empty;
+    }
+
+    await _cache.putText(key, xml);
+    final parsed = await compute(EpgGuide.parse, xml);
+    _guideMemo = parsed;
+    return parsed;
+  }
+
+  EpgGuide? _guideMemo;
 
   // --- Movies --------------------------------------------------------------
 
@@ -98,7 +172,10 @@ class ContentRepository {
       categoryId: categoryId,
       forceRefresh: forceRefresh,
     );
-    return _filterByCategory(all, categoryId, (m) => m.categoryId);
+    return newestFirst(
+      _filterByCategory(all, categoryId, (m) => m.categoryId),
+      (m) => m.added,
+    );
   }
 
   Future<MovieDetail> movieInfo(VodMovie base) {
@@ -127,7 +204,10 @@ class ContentRepository {
       categoryId: categoryId,
       forceRefresh: forceRefresh,
     );
-    return _filterByCategory(all, categoryId, (s) => s.categoryId);
+    return newestFirst(
+      _filterByCategory(all, categoryId, (s) => s.categoryId),
+      (s) => s.lastModified,
+    );
   }
 
   Future<SeriesDetail> seriesInfo(SeriesItem base) {

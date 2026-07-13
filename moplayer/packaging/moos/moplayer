@@ -59,6 +59,20 @@ fi
 
 cd "$BUNDLE" || exit 1
 
+# Make sure there is a GPU left to render on.
+#
+# MoOS ships a local LLM that holds ~6 GB of an 8 GB card for as long as it is loaded, and
+# with that little memory left EGL cannot create a context: `eglMakeCurrent failed`, then
+# libepoxy asserts and the process ABORTS. The user's own operating system kills its own
+# video player, silently, because its own assistant is holding the graphics card. Measured
+# on the maintainer's machine on 2026-07-13 — core dumps and all.
+#
+# moos-gpu-headroom unloads ONLY the local brain, and only when the card is nearly full;
+# the brain reloads itself on the next Mo AI message. It never touches anything else, and it
+# can never stop this launch: it is advisory, and a failure inside it is ignored. On a
+# machine without MoOS the command does not exist and this line is a no-op.
+command -v moos-gpu-headroom >/dev/null 2>&1 && moos-gpu-headroom || true
+
 # The log is opt-in, and that is a security decision rather than a tidiness one.
 #
 # This launcher used to tee stderr into ~/.cache/moplayer.log on every start. An

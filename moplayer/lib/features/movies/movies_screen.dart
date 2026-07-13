@@ -6,7 +6,6 @@ import '../../app/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/nova.dart';
-import '../../models/category.dart';
 import '../../models/library_items.dart';
 import '../../models/media_kind.dart';
 import '../../models/vod_movie.dart';
@@ -15,11 +14,11 @@ import '../../providers/core_providers.dart';
 import '../../providers/library_providers.dart';
 import '../../providers/playback_providers.dart';
 import '../../providers/system_providers.dart';
+import '../../widgets/browse_panes.dart';
 import '../../widgets/buttons.dart';
 import '../../widgets/media_card.dart';
 import '../../widgets/media_rail.dart';
 import '../../widgets/state_views.dart';
-import '../../widgets/tiles.dart';
 
 /// A cell is a 2:3 poster *plus* a title line and a subtitle line — some 41 px
 /// of text that does not scale with the artwork. At the 180 px cap the
@@ -33,7 +32,6 @@ const double _tileWidthCompact = 150;
 const double _tileRatio = 0.54;
 const double _tileRatioCompact = 0.53;
 const double _filterWidth = 280;
-const double _stripHeight = 38;
 const int _skeletonCount = 18;
 
 /// The movie catalogue: a category strip over a wall of posters.
@@ -47,6 +45,11 @@ class MoviesScreen extends ConsumerStatefulWidget {
 class _MoviesScreenState extends ConsumerState<MoviesScreen> {
   final TextEditingController _filter = TextEditingController();
   String _query = '';
+
+  /// The film the preview pane is showing: whatever the cursor or the keyboard
+  /// last landed on. Local state, not a provider — it is worth nothing to any
+  /// other screen and it changes on every hover.
+  VodMovie? _previewed;
 
   @override
   void dispose() {
@@ -63,66 +66,114 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
     final compact = ref.watch(settingsProvider).compactGrids;
     final loaded = movies.valueOrNull;
 
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(
-        Nova.space6,
-        Nova.space5,
-        Nova.space6,
-        0,
+    ref.watch(libraryRefreshProvider);
+    final library = ref.read(libraryActionsProvider);
+    final playlistId = ref.watch(activePlaylistProvider)?.id;
+    final movie = _previewed;
+
+    return BrowseLayout(
+      groups: GroupPane(
+        categories: categories.valueOrNull ?? const [],
+        selectedId: categoryId,
+        strings: s,
+        onSelect: (id) {
+          // The preview belongs to the wall it was picked from. Leaving it up
+          // while a different group loads behind it shows a film that is no
+          // longer on screen.
+          setState(() => _previewed = null);
+          ref.read(selectedMovieCategoryProvider.notifier).state = id;
+        },
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionHeader(
-            title: s.movies,
-            subtitle: loaded == null ? null : s.moviesCount(loaded.length),
-            trailing: _FilterField(
-              controller: _filter,
-              hint: s.searchMovies,
-              clearTooltip: s.clearSearch,
-              onChanged: (value) => setState(() => _query = value.trim()),
-            ),
-          ),
-          const SizedBox(height: Nova.space5),
-          _CategoryStrip(
-            categories: categories.valueOrNull ?? const [],
-            selectedId: categoryId,
-            allLabel: s.all,
-            onSelect: (id) =>
-                ref.read(selectedMovieCategoryProvider.notifier).state = id,
-          ),
-          const SizedBox(height: Nova.space5),
-          Expanded(
-            child: movies.when(
-              // Not a spinner: the grid has to hold its final geometry while it
-              // loads, or the first real poster lands under a cursor that was
-              // already aimed somewhere else.
-              loading: () => _PosterSkeletonGrid(compact: compact),
-              error: (error, _) => ErrorView(
-                strings: s,
-                error: error,
-                onRetry: () => ref.invalidate(moviesProvider(categoryId)),
+      preview: PreviewPane(
+        strings: s,
+        title: movie?.name,
+        imageUrl: movie?.poster,
+        meta: movie == null ? null : _movieMeta(movie),
+        rating: movie?.rating,
+        isFavorite:
+            movie != null && library.isFavorite(MediaKind.movie, movie.streamId),
+        onPlay: movie == null
+            ? null
+            : () => ref.read(playbackProvider.notifier).playMovie(movie),
+        onOpen: movie == null
+            ? null
+            : () => context.push(Routes.movieDetail, extra: movie),
+        onToggleFavorite: (movie == null || playlistId == null)
+            ? null
+            : () => library.toggleFavorite(
+                FavoriteItem(
+                  playlistId: playlistId,
+                  kind: MediaKind.movie,
+                  refId: movie.streamId,
+                  title: movie.name,
+                  imageUrl: movie.poster,
+                  payload: movie.toPayload(),
+                ),
               ),
-              data: (all) =>
-                  _MovieGrid(movies: all, query: _query, compact: compact),
+      ),
+      wall: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          Nova.space5,
+          Nova.space5,
+          Nova.space5,
+          0,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(
+              title: s.movies,
+              subtitle: loaded == null ? null : s.moviesCount(loaded.length),
+              trailing: _FilterField(
+                controller: _filter,
+                hint: s.searchMovies,
+                clearTooltip: s.clearSearch,
+                onChanged: (value) => setState(() => _query = value.trim()),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: Nova.space5),
+            Expanded(
+              child: movies.when(
+                // Not a spinner: the grid has to hold its final geometry while
+                // it loads, or the first real poster lands under a cursor that
+                // was already aimed somewhere else.
+                loading: () => _PosterSkeletonGrid(compact: compact),
+                error: (error, _) => ErrorView(
+                  strings: s,
+                  error: error,
+                  onRetry: () => ref.invalidate(moviesProvider(categoryId)),
+                ),
+                data: (all) => _MovieGrid(
+                  movies: all,
+                  query: _query,
+                  compact: compact,
+                  onPreview: (m) => setState(() => _previewed = m),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+
+String _movieMeta(VodMovie movie) => [
+  if (movie.year != null && movie.year!.isNotEmpty) movie.year!,
+].join('  ·  ');
 
 class _MovieGrid extends ConsumerWidget {
   const _MovieGrid({
     required this.movies,
     required this.query,
     required this.compact,
+    required this.onPreview,
   });
 
   final List<VodMovie> movies;
   final String query;
   final bool compact;
+  final ValueChanged<VodMovie> onPreview;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -185,6 +236,7 @@ class _MovieGrid extends ConsumerWidget {
                 ),
           onTap: () => context.push(Routes.movieDetail, extra: movie),
           onPlay: () => ref.read(playbackProvider.notifier).playMovie(movie),
+          onPreview: () => onPreview(movie),
         );
       },
     );
@@ -243,46 +295,6 @@ class _FilterField extends StatelessWidget {
 /// The category filter. It scrolls rather than wraps: a panel will happily
 /// return three hundred genres, and a chip cloud that deep pushes the grid off
 /// the bottom of the window.
-class _CategoryStrip extends StatelessWidget {
-  const _CategoryStrip({
-    required this.categories,
-    required this.selectedId,
-    required this.allLabel,
-    required this.onSelect,
-  });
-
-  final List<Category> categories;
-  final String selectedId;
-  final String allLabel;
-  final ValueChanged<String> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    // The height is held even while the categories are still loading, so the
-    // grid underneath does not slide up and then back down again.
-    return SizedBox(
-      height: _stripHeight,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        separatorBuilder: (_, _) => const SizedBox(width: Nova.space2),
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          // Only the panel's own categories carry a name worth showing: the
-          // synthetic "All" row is built in English, by the provider.
-          final isAll = category.id == Category.allId;
-          return CategoryPill(
-            label: isAll ? allLabel : category.name,
-            count: category.count,
-            selected: category.id == selectedId,
-            onTap: () => onSelect(category.id),
-          );
-        },
-      ),
-    );
-  }
-}
-
 class _PosterSkeletonGrid extends StatelessWidget {
   const _PosterSkeletonGrid({required this.compact});
 

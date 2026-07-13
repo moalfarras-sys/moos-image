@@ -236,6 +236,36 @@ require("moos-gpu-headroom" in code(read("system_files/usr/bin/moplayer")),
         "MoPlayer's launcher must ask for GPU headroom before starting: with the brain loaded "
         "it aborts on eglMakeCurrent, which reads to the user as a broken app")
 
+# ── The image's copy of MoPlayer's launcher must BE MoPlayer's launcher ───────
+# The launcher is the app's file (moplayer/packaging/moos/moplayer). The image only carries
+# a copy of it at system_files/usr/bin/moplayer, and for two hours those two files silently
+# disagreed: the GPU-headroom guard above existed ONLY in the image's copy. One `install -D`
+# from the app's packaging — exactly what `just sync-moplayer` prints — and the guard is gone,
+# with nothing to notice. `sync-moplayer` now performs that install itself; this is what
+# catches it if the two ever drift again.
+require(read("system_files/usr/bin/moplayer") == read("moplayer/packaging/moos/moplayer"),
+        "system_files/usr/bin/moplayer must be byte-identical to moplayer/packaging/moos/moplayer "
+        "— the launcher belongs to the app, and a divergent copy is one `install -D` away from "
+        "dropping the GPU guard (run `just sync-moplayer`)")
+
+# ── The vendored app must be the app that was committed ───────────────────────
+# The vendored tree is built from `git ls-files`, so an UNTRACKED file in MoPlayer's working
+# tree is copied by nobody: the image compiles source with an import pointing at a file that
+# is not there, and the build fails twenty minutes in, inside a container. `sync-moplayer`
+# refuses a dirty tree for that reason. Here we check the result: every Dart file the vendored
+# source imports from its own lib/ has to exist in the vendored tree.
+vendor_lib = ROOT / "moplayer" / "lib"
+missing_imports: list[str] = []
+for dart in vendor_lib.rglob("*.dart"):
+    for target in re.findall(r"""import\s+['"]((?:\.{1,2}/)[^'"]+\.dart)['"]""",
+                             dart.read_text(encoding="utf-8")):
+        if not (dart.parent / target).resolve().exists():
+            missing_imports.append(f"{dart.relative_to(ROOT)} -> {target}")
+require(not missing_imports,
+        "the vendored MoPlayer source imports files that were not vendored — its working tree "
+        "had uncommitted files when it was synced, and the image build will fail on a missing "
+        f"URI: {missing_imports[:3]}")
+
 # ── fcitx5 must not ship ─────────────────────────────────────────────────────
 # It is a CJK input-method framework MoOS has no use for (Arabic and German are xkb layouts,
 # which KWin handles natively), it arrives only as a dependency of a JAPANESE IME, and it has

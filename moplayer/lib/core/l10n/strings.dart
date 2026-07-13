@@ -2,6 +2,8 @@ import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/widgets.dart';
 
+import '../../services/weather/weather_service.dart' show WeatherKind;
+
 /// Trilingual UI copy — Arabic, English, German — Arabic first.
 ///
 /// Every user-visible MoOS surface (Mo AI, Welcome, the `.desktop` files, the
@@ -171,6 +173,23 @@ class S {
   String get recentChannels =>
       _('قنوات شاهدتها مؤخراً', 'Recent channels', 'Zuletzt gesehene Sender');
   String minutesLeft(int n) => _('بقيت $n دقيقة', '$n min left', 'Noch $n Min.');
+  /// Arabic counts nouns by number, and "5 قناة" is simply wrong — the singular
+  /// after 3–10 is the mistake that marks an interface as machine-translated.
+  /// One is a word, two is a dual, 3–10 takes the plural, and 11+ goes back to
+  /// the singular (تمييز مفرد). English and German only ever need the two.
+  String liveChannelsAvailable(int n) {
+    final ar = switch (n) {
+      1 => 'قناة واحدة متاحة',
+      2 => 'قناتان متاحتان',
+      >= 3 && <= 10 => '$n قنوات متاحة',
+      _ => '$n قناة متاحة',
+    };
+    return _(
+      ar,
+      n == 1 ? '1 channel available' : '$n channels available',
+      n == 1 ? '1 Sender verfügbar' : '$n Sender verfügbar',
+    );
+  }
   String greeting(String name) => _('أهلاً، $name', 'Hello, $name', 'Hallo, $name');
   String get goodMorning => _('صباح الخير', 'Good morning', 'Guten Morgen');
   String get goodAfternoon => _('مساء الخير', 'Good afternoon', 'Guten Tag');
@@ -188,6 +207,25 @@ class S {
   String get channelCount => _('قناة', 'channels', 'Sender');
   String get movieCount => _('فيلم', 'movies', 'Filme');
   String get seriesCountLabel => _('مسلسل', 'series', 'Serien');
+
+  // ── Home widgets: what is on, and what it is like outside ─────────────────
+  String get todaysMatches => _('مباريات اليوم', 'Today\'s matches', 'Spiele heute');
+  String get newestMovies => _('أحدث الأفلام', 'Newest films', 'Neueste Filme');
+  String get newestSeries =>
+      _('أحدث المسلسلات', 'Newest series', 'Neueste Serien');
+
+  /// The WMO code table collapses to seven pictures, and this is what each one
+  /// is called. Kept next to the rest of the copy rather than in the weather
+  /// service: it is a *phrase*, and a phrase is translated.
+  String weatherPhrase(WeatherKind kind) => switch (kind) {
+    WeatherKind.clear => _('صحو', 'Clear', 'Klar'),
+    WeatherKind.partlyCloudy => _('غائم جزئياً', 'Partly cloudy', 'Teils bewölkt'),
+    WeatherKind.cloudy => _('غائم', 'Cloudy', 'Bewölkt'),
+    WeatherKind.fog => _('ضباب', 'Fog', 'Nebel'),
+    WeatherKind.rain => _('ممطر', 'Rain', 'Regen'),
+    WeatherKind.snow => _('ثلوج', 'Snow', 'Schnee'),
+    WeatherKind.storm => _('عواصف رعدية', 'Thunderstorms', 'Gewitter'),
+  };
 
   // ── Live ───────────────────────────────────────────────────────────────────
   String get categories => _('التصنيفات', 'Categories', 'Kategorien');
@@ -388,6 +426,38 @@ class S {
   String get notDetected => _('غير متوفر', 'Not detected', 'Nicht erkannt');
 
   String get version => _('الإصدار', 'Version', 'Version');
+
+  /// The vertical list of a panel's own categories, down the side of a browse
+  /// page. Called "groups" and not "categories" because that is what an M3U
+  /// calls them (`group-title`) and what the panels themselves show.
+  String get groups => _('المجموعات', 'Groups', 'Gruppen');
+
+  // ── Update centre ─────────────────────────────────────────────────────────
+  String get updates => _('التحديثات', 'Updates', 'Updates');
+  String get checkForUpdates =>
+      _('التحقق من التحديثات', 'Check for updates', 'Nach Updates suchen');
+  String get checkingForUpdates =>
+      _('جارٍ التحقق…', 'Checking…', 'Wird geprüft…');
+  String get upToDate => _(
+    'لديك أحدث إصدار',
+    'You have the latest version',
+    'Sie haben die neueste Version',
+  );
+  String updateAvailable(String version) => _(
+    'الإصدار $version متاح',
+    'Version $version is available',
+    'Version $version ist verfügbar',
+  );
+
+  /// MoPlayer ships *inside* the image. It is not a Flatpak and it does not
+  /// self-update — `bootc` replaces the whole operating system, MoPlayer with
+  /// it, atomically. Saying so is the honest thing; offering an "Update" button
+  /// that cannot update anything is not.
+  String get updatesViaSystem => _(
+    'يأتي MoPlayer مع نظام MoOS ويُحدَّث معه. تحديث النظام يحدّث التطبيق.',
+    'MoPlayer ships with MoOS and updates with it. Updating the system updates the app.',
+    'MoPlayer wird mit MoOS ausgeliefert und mit ihm aktualisiert.',
+  );
   String get device => _('الجهاز', 'Device', 'Gerät');
   String get playbackEngine =>
       _('محرك التشغيل', 'Playback engine', 'Wiedergabe-Engine');

@@ -59,16 +59,6 @@ fi
 
 cd "$BUNDLE" || exit 1
 
-# The log is opt-in, and that is a security decision rather than a tidiness one.
-#
-# This launcher used to tee stderr into ~/.cache/moplayer.log on every start. An
-# Xtream source is a URL with the username and the password in its query string,
-# and any stream error that quotes the URL it failed on would have written the
-# user's credentials to a plain file, on every run, forever — a log nobody asked
-# for and nobody would think to clear.
-#
-# `MOPLAYER_LOG=info moplayer` turns it on when someone is actually debugging,
-# which is the only time it was ever read.
 # Make sure there is a GPU left to render on.
 #
 # MoOS ships a local LLM that holds ~6 GB of an 8 GB card for as long as it is loaded, and
@@ -79,9 +69,20 @@ cd "$BUNDLE" || exit 1
 #
 # moos-gpu-headroom unloads ONLY the local brain, and only when the card is nearly full;
 # the brain reloads itself on the next Mo AI message. It never touches anything else, and it
-# can never stop this launch: it is advisory, and a failure inside it is ignored.
+# can never stop this launch: it is advisory, and a failure inside it is ignored. On a
+# machine without MoOS the command does not exist and this line is a no-op.
 command -v moos-gpu-headroom >/dev/null 2>&1 && moos-gpu-headroom || true
 
+# The log is opt-in, and that is a security decision rather than a tidiness one.
+#
+# This launcher used to tee stderr into ~/.cache/moplayer.log on every start. An
+# Xtream source is a URL with the username and the password in its query string,
+# and any stream error that quotes the URL it failed on would have written the
+# user's credentials to a plain file, on every run, forever — a log nobody asked
+# for and nobody would think to clear.
+#
+# `MOPLAYER_LOG=info moplayer` turns it on when someone is actually debugging,
+# which is the only time it was ever read.
 if [ -n "${MOPLAYER_LOG:-}" ]; then
     LOG="${XDG_CACHE_HOME:-$HOME/.cache}/moplayer.log"
     mkdir -p "$(dirname "$LOG")" 2>/dev/null || true

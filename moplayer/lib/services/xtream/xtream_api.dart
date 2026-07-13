@@ -134,6 +134,26 @@ class XtreamApi {
     return const [];
   }
 
+  /// The raw XMLTV document, or an empty string.
+  ///
+  /// Not parsed here: the parse is ~1 MB of XML and belongs on a background
+  /// isolate, and this layer's job is transport. Panels that do not publish a
+  /// guide answer with an HTML error page — which is why the caller parses
+  /// defensively rather than this method validating the payload.
+  Future<String> getXmltv() async {
+    try {
+      final res = await _dio.getUri<dynamic>(
+        urls.xmltv(),
+        options: Options(responseType: ResponseType.plain),
+      );
+      final body = res.data;
+      return body is String ? body : '';
+    } catch (e) {
+      log.d('XMLTV guide unavailable: $e');
+      return '';
+    }
+  }
+
   // --- Internals -----------------------------------------------------------
 
   Future<List<Category>> _categories(String action) async {
