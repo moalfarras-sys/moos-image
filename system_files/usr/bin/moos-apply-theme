@@ -418,15 +418,37 @@ pin_gtk() {
 }
 pin_gtk
 
+# --- The sensor daemon the monitors cannot live without ------------------------
+# Every system-monitor widget in Plasma reads from ksystemstats, and on this image
+# it was simply NOT RUNNING. The widget does not say so: its face fails to build
+# (Plasmoid.faceController.fullRepresentation is null) and it draws an empty grey
+# rectangle. A monitor showing nothing looks exactly like a monitor reading zero.
+#
+# Started explicitly, before the widgets are placed, rather than trusted to come up
+# on demand — it did not.
+systemctl --user start plasma-ksystemstats.service >>"$log" 2>&1 || true
+
 # --- The desktop itself -------------------------------------------------------
 # MoOS shipped a desktop with nothing on it: no clock, no widgets, nothing. The
 # panel clock is a PANEL applet — its full representation is a calendar popup — so
 # it cannot double as the desktop clock. org.moos.nova.deskclock is the desktop one.
 #
-# Guarded and idempotent: it checks for the widget before adding it, so a user who
-# deletes the clock does not get it forced back on the next login. A Folder View
-# containment will NOT place a scripted widget for you — pass an explicit rectangle
-# or the applet exists with zero geometry and never paints (learned the hard way).
+# ONE widget, carrying the clock AND the three system rings. It was two, briefly,
+# and Plasma would not have it: a desktop applet's position lives in a
+# resolution-keyed ItemGeometries string on the CONTAINMENT, not on the applet, and
+# the x/y/w/h passed to addWidget() is transient. After the first shell restart the
+# monitor was auto-placed at 0,0 on top of the folder icons while the clock stayed
+# put. Two widgets that must sit together cannot be two widgets.
+#
+# org.kde.plasma.systemmonitor is deliberately NOT used: it draws an opaque card
+# with a title bar and a legend, a slab of UI competing with the wallpaper. The Nova
+# rings have no background at all and go green / amber / red, so the state of the
+# machine reads from across the room without a digit being read.
+#
+# Guarded and idempotent: it checks before adding, so a user who deletes the widget
+# does not get it forced back on the next login. And a Folder View containment will
+# NOT place a scripted widget for you — pass an explicit rectangle, or the applet
+# exists with zero geometry and never paints.
 if command -v gdbus >/dev/null 2>&1; then
     gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
         -m org.kde.PlasmaShell.evaluateScript '
@@ -438,23 +460,59 @@ if command -v gdbus >/dev/null 2>&1; then
                 for (var j = 0; j < ws.length; j++) { have[ws[j].type] = true; }
                 try {
                     if (!have["org.moos.nova.deskclock"]) {
-                        d.addWidget("org.moos.nova.deskclock", 80, 80, 420, 220);
-                    }
-                } catch (e) {}
-                try {
-                    if (!have["org.kde.plasma.systemmonitor"]) {
-                        var m = d.addWidget("org.kde.plasma.systemmonitor", 80, 330, 420, 260);
-                        m.currentConfigGroup = ["Appearance"];
-                        m.writeConfig("chartFace", "org.kde.ksysguard.linechart");
-                        m.writeConfig("title", "MoOS");
-                        m.currentConfigGroup = ["Sensors"];
-                        m.writeConfig("highPrioritySensorIds",
-                            "[\"cpu/all/usage\",\"memory/physical/usedPercent\",\"gpu/gpu0/usage\"]");
-                        m.reloadConfig();
+                        d.addWidget("org.moos.nova.deskclock", 80, 70, 430, 340);
                     }
                 } catch (e) {}
             }
         ' >>"$log" 2>&1 || echo "desktop widget migration skipped" >>"$log" 2>&1
+fi
+
+# --- The system tray: two icons, not sixteen -----------------------------------
+# The tray was a wall of indicators — notifications, disc burner, printer, vault,
+# camera, clipboard, KDE Connect, the Xwayland video bridge, the portal's
+# remote-control icon — all of them permanently out, none of them ever looked at.
+# MoOS shows TWO: the keyboard layout and the volume. Everything else lives behind
+# the collapse arrow, one click away.
+#
+# StatusNotifierItems are matched on their OWN Id, not on a plasmoid id, which is
+# why the portal and the video bridge survived the first attempt: they are not
+# plasmoids. Their Id is also the app's *translated* name on some builds
+# ("Xwayland-Video-Brücke" on this German session), so the variants are all listed.
+#
+# The portal's item is the "your screen is being controlled remotely" indicator.
+# Collapsing it is not the same as removing it — it is one click away, and it still
+# lights up. But it IS a security indicator, so it is called out here rather than
+# quietly folded in with the printer.
+if command -v gdbus >/dev/null 2>&1; then
+    gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var HIDE = [
+                "org.kde.kdeconnect", "org.kde.plasma.vault", "org.kde.kscreen",
+                "org.kde.plasma.battery", "org.kde.plasma.bluetooth",
+                "org.kde.plasma.brightness", "org.kde.plasma.cameraindicator",
+                "org.kde.plasma.clipboard", "org.kde.plasma.devicenotifier",
+                "org.kde.plasma.keyboardindicator", "org.kde.plasma.manage-inputmethod",
+                "org.kde.plasma.mediacontroller", "org.kde.plasma.networkmanagement",
+                "org.kde.plasma.notifications", "org.kde.plasma.printmanager",
+                "org.kde.plasma.weather",
+                "xdg-desktop-portal-kde", "xwaylandvideobridge",
+                "Xwayland Video Bridge", "Xwayland-Video-Bruecke"
+            ];
+            var SHOW = ["org.kde.plasma.keyboardlayout", "org.kde.plasma.volume"];
+            var ps = panels();
+            for (var i = 0; i < ps.length; i++) {
+                var ws = ps[i].widgets();
+                for (var j = 0; j < ws.length; j++) {
+                    if (ws[j].type != "org.kde.plasma.systemtray") { continue; }
+                    try {
+                        ws[j].currentConfigGroup = ["General"];
+                        ws[j].writeConfig("shownItems", SHOW.join(","));
+                        ws[j].writeConfig("hiddenItems", HIDE.join(","));
+                        ws[j].reloadConfig();
+                    } catch (e) {}
+                }
+            }
+        ' >>"$log" 2>&1 || echo "system tray migration skipped" >>"$log" 2>&1
 fi
 
 # --- Photos and video ---------------------------------------------------------

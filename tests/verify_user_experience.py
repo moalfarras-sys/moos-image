@@ -837,6 +837,59 @@ for asset in (
 require('addWidget("org.moos.nova.deskclock"' in apply_theme_code,
         "new and existing users must both receive the desktop clock")
 
+# The clock and the rings are ONE applet, and they have to stay one. A desktop
+# applet's position lives in a resolution-keyed ItemGeometries string on the
+# CONTAINMENT, not on the applet, and the geometry passed to addWidget() is
+# transient — so two applets that must sit together drift apart the first time the
+# shell restarts, and the second one lands on top of the folder icons.
+deskclock = code(
+    read("system_files/usr/share/plasma/plasmoids/org.moos.nova.deskclock/contents/ui/main.qml"),
+    "slash",
+)
+require("org.moos.nova.sysmon" not in apply_theme_code
+        and not (ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.nova.sysmon").exists(),
+        "the system rings must live INSIDE the desk clock, not as a second applet — "
+        "Plasma does not persist a scripted applet's position, so they will not stay together")
+
+# Every sensor id in a shipped widget must be one that exists. These three were
+# INVENTED the first time, and they looked exactly as plausible as the real ones:
+# the widget drew an empty box and reported nothing, forever. A monitor showing
+# nothing is indistinguishable from a monitor reading zero, which is why nothing
+# else in this build would ever have caught it.
+#
+# Ground truth is `kstatsviewer --list` on real hardware. If a sensor id changes
+# upstream, this gate is a stale list too — but a stale list that someone has to
+# look at beats a widget that fails silently.
+KNOWN_SENSORS = {
+    "cpu/all/usage",
+    "memory/physical/usedPercent",
+    "gpu/gpu0/usage",
+}
+for sensor in re.findall(r'sensorId:\s*"([^"]+)"', deskclock):
+    require(sensor in KNOWN_SENSORS,
+            f"the desk clock reads sensor '{sensor}', which is not in the verified list "
+            f"{sorted(KNOWN_SENSORS)}. Check it against `kstatsviewer --list` — an invented "
+            f"sensor id draws an empty ring and never says why")
+require(len(re.findall(r'sensorId:\s*"', deskclock)) >= 3,
+        "the desk clock must show CPU, memory and GPU")
+
+# Sensors are useless if nothing serves them. ksystemstats was NOT running on this
+# image and nothing started it, so every monitor widget drew an empty grey box.
+require("systemctl --user start plasma-ksystemstats.service" in apply_theme_code,
+        "the sensor daemon must be started explicitly — it does not come up on demand, "
+        "and without it every system monitor silently draws nothing")
+
+# ── The tray shows two things, not sixteen ────────────────────────────────────
+require('writeConfig("shownItems"' in apply_theme_code
+        and "org.kde.plasma.keyboardlayout" in apply_theme_code
+        and "org.kde.plasma.volume" in apply_theme_code,
+        "the tray must show exactly the keyboard layout and the volume; everything else "
+        "belongs behind the collapse arrow")
+require("xdg-desktop-portal-kde" in apply_theme_code,
+        "StatusNotifierItems are matched on their OWN Id, not a plasmoid id — the portal's "
+        "remote-control icon and the Xwayland bridge are not plasmoids and survive a "
+        "hiddenItems list that only names plasmoids")
+
 # The panel clock must declare its width to the panel layout. implicitWidth alone is
 # NOT enough: Plasma lays the panel out from the Layout attached properties, and
 # without them it allocated the clock less width than it painted — so the system tray
