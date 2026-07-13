@@ -194,7 +194,11 @@ Kirigami.ApplicationWindow {
         "(idempotent — safe to re-run); afterwards Android apps appear in the launcher " +
         "like any other app, and an APK installs by double-clicking it (or " +
         "`waydroid app install <file>`).\n" +
-        "• Coding agents: `moai-do install-codex`, `moai-do install-claude` — they " +
+        "• Coding agents, and ONE OF THEM NEEDS NO ACCOUNT: `moai-do install-opencode` " +
+        "installs OpenCode wired to THIS MACHINE'S OWN brain — it codes with no cloud, no " +
+        "login and no internet, and MoOS writes its provider config for the user. Recommend " +
+        "it FIRST to anyone who has no AI subscription. The other two are cloud agents and " +
+        "each needs its vendor account: `moai-do install-codex`, `moai-do install-claude` — they " +
         "install into ~/.local and run as the user, with no admin rights.\n" +
         "• Diagnose: explain the likely cause in plain language, then give the " +
         "SMALLEST safe repair.\n\n" +
@@ -1222,7 +1226,7 @@ Kirigami.ApplicationWindow {
                                     case "apps":   return "ابحث وثبّت أي تطبيق | search and install anything"
                                     case "compat": return "Windows · Android · الألعاب"
                                     case "remote": return "تحكّم بجهازك من هاتفك | control this PC from your phone"
-                                    case "dev":    return "Codex · Claude Code"
+                                    case "dev":    return "OpenCode · Claude Code · Codex"
                                     default:       return "مساعد MoOS | MoOS assistant"
                                     }
                                 }
@@ -2425,16 +2429,31 @@ Kirigami.ApplicationWindow {
 
                             SectionNote {
                                 Layout.fillWidth: true
-                                text: "وكلاء برمجة يشتغلون داخل مشروعك كمستخدم عادي — يُثبَّتون في ~/.local، بلا صلاحيات مسؤول ولا مساس بالنظام.\n"
-                                    + "Coding agents that run in your project as your user — installed into ~/.local, with no admin rights and no changes to the system."
+                                text: "‏وكلاء برمجة يشتغلون داخل مشروعك كمستخدم عادي — يُثبَّتون في ~/.local، بلا صلاحيات مسؤول ولا مساس بالنظام.\n"
+                                    + "‎Coding agents that run in your project as your user — installed into ~/.local, with no admin rights and no changes to the system."
                             }
 
                             Repeater {
+                                // Two of these are somebody else's cloud, and one is not — which is
+                                // the only distinction that matters on a machine that ships its own
+                                // brain, so the card says it out loud. `local: true` earns the
+                                // "works offline" badge and the cyan frame; the other two carry the
+                                // account they need, because "why is it asking me to log in?" is the
+                                // first thing a user hits otherwise.
                                 model: [
-                                    { key: "claude", title: "Claude Code", ar: "وكيل Anthropic البرمجي", en: "Anthropic's coding agent",
+                                    { key: "opencode", title: "OpenCode", local: true,
+                                      ar: "وكيل يعمل على عقل MoOS المحلي", en: "Runs on the MoOS local brain",
+                                      needs: "بلا حساب وبلا إنترنت  |  no account, no internet",
+                                      pkg: "opencode-ai",
+                                      install: "moos://do/install-opencode", run: "moos://dev/opencode" },
+                                    { key: "claude", title: "Claude Code", local: false,
+                                      ar: "وكيل Anthropic البرمجي", en: "Anthropic's coding agent",
+                                      needs: "يحتاج حساب Anthropic  |  needs an Anthropic account",
                                       pkg: "@anthropic-ai/claude-code",
                                       install: "moos://do/install-claude", run: "moos://dev/claude" },
-                                    { key: "codex", title: "Codex", ar: "وكيل OpenAI البرمجي", en: "OpenAI's coding agent",
+                                    { key: "codex", title: "Codex", local: false,
+                                      ar: "وكيل OpenAI البرمجي", en: "OpenAI's coding agent",
+                                      needs: "يحتاج حساب OpenAI  |  needs an OpenAI account",
                                       pkg: "@openai/codex",
                                       install: "moos://do/install-codex", run: "moos://dev/codex" }
                                 ]
@@ -2442,7 +2461,16 @@ Kirigami.ApplicationWindow {
                                     id: ag
                                     required property var modelData
                                     readonly property bool have: !!root.agentState[modelData.key]
+                                    readonly property bool onDevice: !!modelData.local
                                     Layout.fillWidth: true
+
+                                    // The local agent is the one MoOS is actually proud of, so it
+                                    // reads as first-party: a cyan hairline instead of the default.
+                                    // Card IS a Rectangle, so this overrides its border binding —
+                                    // there is no borderColor property to invent.
+                                    border.color: ag.onDevice
+                                                  ? Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.42)
+                                                  : root.hairline
 
                                     RowLayout {
                                         width: parent.width
@@ -2452,12 +2480,17 @@ Kirigami.ApplicationWindow {
                                             Layout.preferredWidth: 40
                                             Layout.preferredHeight: 40
                                             radius: 11
-                                            color: ag.have ? Qt.rgba(0.21, 0.83, 0.60, 0.13) : root.surface2
+                                            color: ag.have
+                                                   ? Qt.rgba(0.21, 0.83, 0.60, 0.13)
+                                                   : (ag.onDevice
+                                                      ? Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.12)
+                                                      : root.surface2)
                                             Kirigami.Icon {
                                                 anchors.centerIn: parent
                                                 width: 21; height: 21
-                                                source: "utilities-terminal"
-                                                color: ag.have ? root.okColor : root.textMute
+                                                source: ag.onDevice ? "moos-ai" : "utilities-terminal"
+                                                color: ag.have ? root.okColor
+                                                               : (ag.onDevice ? root.novaCyan : root.textMute)
                                             }
                                         }
                                         ColumnLayout {
@@ -2477,6 +2510,29 @@ Kirigami.ApplicationWindow {
                                                     goodText: "مثبّت | Installed"
                                                     badText: "غير مثبّت | Not installed"
                                                 }
+                                                // The badge that is the whole point of shipping a
+                                                // local brain: an agent that keeps working when the
+                                                // network does not.
+                                                Rectangle {
+                                                    visible: ag.onDevice
+                                                    Layout.preferredHeight: 18
+                                                    Layout.preferredWidth: offlineText.width + 14
+                                                    radius: 6
+                                                    color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
+                                                                   root.novaCyan.b, 0.14)
+                                                    border.width: 1
+                                                    border.color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
+                                                                          root.novaCyan.b, 0.45)
+                                                    Text {
+                                                        id: offlineText
+                                                        anchors.centerIn: parent
+                                                        text: "يعمل بلا إنترنت  |  offline"
+                                                        color: root.novaCyan
+                                                        font.family: root.uiFont
+                                                        font.pixelSize: 9
+                                                        font.weight: Font.DemiBold
+                                                    }
+                                                }
                                             }
                                             Text {
                                                 Layout.fillWidth: true
@@ -2484,6 +2540,14 @@ Kirigami.ApplicationWindow {
                                                 color: root.textLo
                                                 font.family: root.uiFont
                                                 font.pixelSize: 11
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: ag.modelData.needs
+                                                color: ag.onDevice ? root.novaCyan : root.textMute
+                                                opacity: ag.onDevice ? 0.95 : 0.8
+                                                font.family: root.uiFont
+                                                font.pixelSize: 10
                                             }
                                             Text {
                                                 text: ag.modelData.pkg
@@ -2508,7 +2572,11 @@ Kirigami.ApplicationWindow {
                                 Layout.topMargin: 4
                                 label: "افتح وكيلاً في مشروع  |  Open an agent in a project"
                                 icon: "utilities-terminal"
+                                // Enabled when ANY agent is installed — moai-code builds its picker
+                                // from what is actually on the machine, so a third agent must not
+                                // be forgotten here (the old condition named two by hand).
                                 enabled_: !!root.agentState.claude || !!root.agentState.codex
+                                          || !!root.agentState.opencode
                                 onClicked: root.launch("moos://dev/code", "Code")
                             }
                         }

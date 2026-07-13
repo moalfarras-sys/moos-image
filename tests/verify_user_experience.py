@@ -218,6 +218,35 @@ require("recommended" in moai_qml and "hit.note" in moai_qml,
         "Mo AI must render the pick and the warning (recommended / note) on each search hit — "
         "ranking them in the backend and not showing them changes nothing for the user")
 
+# ── The third agent is the one that needs nobody's cloud ─────────────────────
+# Codex and Claude Code are both somebody else's subscription. OpenCode is provider-agnostic,
+# so on a machine that ships its own brain it can be pointed at THAT — a coding agent that
+# works with no account, no login and no internet. Verified end-to-end on the hardware:
+# `moai-do install-opencode` installed it, wrote the provider config, and with the brain
+# STOPPED, `opencode run` woke it through moai-gateway and got an answer back.
+#
+# The install is gated as a whole because the npm package alone is not the feature: an agent
+# that lands with no provider configured opens, asks for a model the user does not have, and
+# is indistinguishable from broken. If the config write is dropped, the button still "works"
+# and the user still cannot code.
+control_code = code(read("system_files/usr/bin/moai-control"))
+require('"opencode": command_exists("opencode")' in control_code,
+        "moai-control must report whether OpenCode is installed, or Mo AI's Developer panel "
+        "cannot tell Install from Run")
+do_code = code(read("system_files/usr/bin/moai-do"))
+require("do_install_opencode" in do_code and "opencode-ai" in do_code,
+        "moai-do must be able to install OpenCode — the only coding agent on MoOS that needs "
+        "no account")
+require("opencode.json" in do_code and "127.0.0.1:8080/v1" in do_code,
+        "moai-do install-opencode must WRITE the provider config pointing at moai-gateway — "
+        "an agent installed with no provider is indistinguishable from a broken one")
+require("agentState.opencode" in moai_qml,
+        "Mo AI's Developer panel must know about OpenCode — an agent the system can install "
+        "and the UI cannot show is an agent nobody finds")
+code_runner = code(read("system_files/usr/bin/moai-code"))
+require("claude|codex|opencode" in code_runner,
+        "moai-code must accept opencode as an agent, or moos://dev/opencode opens nothing")
+
 # ── An Arabic assistant that speaks English must not mangle it ───────────────
 # Qt gives a whole Text ONE base direction, taken from its first strong character, and in
 # Markdown a single "\n" is a soft wrap rather than a paragraph break. So Mo AI's greeting —

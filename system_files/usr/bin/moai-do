@@ -480,6 +480,62 @@ do_install_claude() {
 }
 
 # -----------------------------------------------------------------------------
+# install-opencode — the coding agent that runs on MoOS's OWN brain.
+#
+# Codex and Claude Code are excellent, and they are both somebody else's cloud: each
+# needs an account, a subscription and a network. OpenCode is provider-agnostic, so on
+# MoOS it can be pointed at the machine's own model — a real coding agent that works on
+# a plane, on a train, and on a laptop that has never been logged in to anything. That
+# is why it is the third agent rather than a second cloud one.
+#
+# Which means the install cannot stop at `npm install`. An agent that lands with no
+# provider configured opens, asks for a model the user does not have, and is
+# indistinguishable from broken. So this WRITES the provider config — pointed at
+# moai-gateway on 127.0.0.1:8080, which is already OpenAI-compatible and already routes
+# `local:` to the brain (and wakes it on demand) — but only when the user has none of
+# their own. A config the user wrote is theirs; MoOS does not overwrite it.
+#
+# Verified end-to-end on this hardware: brain stopped, `opencode run "Reply with exactly
+# one word: ready"` → the gateway woke it and OpenCode printed `ready`.
+# -----------------------------------------------------------------------------
+do_install_opencode() {
+    install_agent "opencode-ai" "opencode" "OpenCode" || return 1
+
+    local cfg_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+    local cfg="${cfg_dir}/opencode.json"
+
+    if [ -e "$cfg" ]; then
+        echo "${D}إعدادك موجود — لم يُغيَّر. | You already have a config — left untouched.${N}"
+        return 0
+    fi
+
+    mkdir -p "$cfg_dir" 2>/dev/null || return 0
+    cat > "$cfg" <<'JSON'
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "moos": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "MoOS local brain",
+      "options": {
+        "baseURL": "http://127.0.0.1:8080/v1",
+        "apiKey": "moos"
+      },
+      "models": {
+        "local:qwen3:4b-instruct": { "name": "MoOS local (qwen3 4b)" }
+      }
+    }
+  },
+  "model": "moos/local:qwen3:4b-instruct"
+}
+JSON
+    echo "${G}✓ مضبوط على عقل MoOS المحلي — بلا حساب وبلا إنترنت.${N}"
+    echo "${G}  Pointed at the MoOS local brain — no account, no internet.${N}"
+    echo "${D}العقل يصحو تلقائياً عند أول سؤال (~دقيقة في أول مرة).${N}"
+    echo "${D}The brain wakes on the first question (~a minute the first time).${N}"
+}
+
+# -----------------------------------------------------------------------------
 # usage — bilingual help listing every subcommand.
 # -----------------------------------------------------------------------------
 usage() {
@@ -513,6 +569,8 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Install the Codex agent into ~/.local (no privileges)
   ${C}install-claude${N}    تثبيت وكيل Claude Code في ~/.local (بلا صلاحيات)
                     Install the Claude Code agent into ~/.local (no privileges)
+  ${C}install-opencode${N}  تثبيت OpenCode — وكيل برمجة يعمل على عقلك المحلي (بلا حساب)
+                    Install OpenCode — a coding agent on your LOCAL brain (no account)
   ${C}remote-anywhere${N}   تشغيل Mo PC Remote من خارج البيت (Tailscale HTTPS)
                     Reach Mo PC Remote from outside the house
   ${C}diagnose-services${N} عرض الخدمات الفاشلة (قراءة فقط)
@@ -547,6 +605,7 @@ main() {
         remote-anywhere) do_remote_anywhere ;;
         install-codex) do_install_codex ;;
         install-claude) do_install_claude ;;
+        install-opencode) do_install_opencode ;;
         optimize)      do_optimize ;;
         diagnose-services) do_diagnose_services ;;
         inspect-boot)  do_inspect_boot ;;

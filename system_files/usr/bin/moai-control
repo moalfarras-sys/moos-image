@@ -416,7 +416,9 @@ def remote_state():
 
 
 def agent_state():
-    return {"codex": command_exists("codex"), "claude": command_exists("claude")}
+    return {"codex": command_exists("codex"),
+            "claude": command_exists("claude"),
+            "opencode": command_exists("opencode")}
 
 
 def quick():

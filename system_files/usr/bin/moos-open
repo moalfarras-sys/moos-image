@@ -84,6 +84,7 @@ case "${cat}/${tgt}" in
     dev/code)      term moai-code ;;
     dev/codex)     term moai-code --agent codex ;;
     dev/claude)    term moai-code --agent claude ;;
+    dev/opencode)  term moai-code --agent opencode ;;
 
     # ── App Centre: install a Flathub app by id ──────────────────────────────
     # The id is free-form (it comes from a Flathub search), so validate the
@@ -125,7 +126,7 @@ case "${cat}/${tgt}" in
     session/lock)  loginctl lock-session ;;
     session/logout) command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logout || true ;;
     session/power) command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown || true ;;
-    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/setup-windows|do/install-codex|do/install-claude|do/remote-anywhere)
+    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/setup-windows|do/install-codex|do/install-claude|do/install-opencode|do/remote-anywhere)
                    term moai-do "$tgt" ;;
     *)
         notify "أمر MoOS غير معروف | unknown MoOS action: ${path}"
