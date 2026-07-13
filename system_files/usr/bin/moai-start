@@ -1,13 +1,25 @@
 #!/usr/bin/env bash
-# moai-start — manage Mo AI's opt-in, unprivileged local-brain service.
+# moai-start — manage Mo AI's unprivileged local-brain service.
+#
+# The local brain listens on 8081. 8080 belongs to moai-gateway, the always-on
+# front door that routes each request to the local brain or to the cloud — see
+# /usr/bin/moai-gateway. Running the brain on 8080 would fight the front door for
+# the port, so the port is NOT taken from the existing moai.env here: every file
+# written before this change says 8080, and that file (an EnvironmentFile)
+# outranks the unit. The MODEL, on the other hand, IS preserved — the user may
+# have switched it from Mo AI's picker, and rewriting it back to the default
+# would silently undo their choice.
 set -euo pipefail
 
-PORT="${MOAI_PORT:-8080}"
-MODEL="${MOAI_MODEL:-ollama://qwen3:4b-instruct}"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/moos"
 ENV_FILE="$CONFIG_DIR/moai.env"
 CONSENT_FILE="$CONFIG_DIR/moai-local-consent"
 SERVICE="moai.service"
+
+PORT="${MOAI_PORT:-8081}"
+prev_model=""
+[ -f "$ENV_FILE" ] && prev_model="$(sed -n 's/^MOAI_MODEL=//p' "$ENV_FILE" | tail -n1)"
+MODEL="${MOAI_MODEL:-${prev_model:-ollama://qwen3:4b-instruct}}"
 
 if [ -t 1 ]; then
     B=$'\033[1;34m'; C=$'\033[1;36m'; G=$'\033[1;32m'; Y=$'\033[1;33m'; N=$'\033[0m'
@@ -34,6 +46,8 @@ case "${1:-start}" in
         systemctl --user disable --now "$SERVICE"
         echo "${G}تم إيقاف العقل المحلي وتعطيل تشغيله التلقائي.${N}"
         echo "${G}Local brain stopped and autostart disabled.${N}"
+        echo "  Mo AI لا يزال يعمل — سيوقظ العقل المحلي عند الطلب أو يستخدم السحابة."
+        echo "  Mo AI still works — the gateway wakes this on demand, or uses the cloud."
         exit 0
         ;;
     logs)

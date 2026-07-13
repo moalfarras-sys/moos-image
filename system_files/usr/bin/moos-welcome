@@ -8,6 +8,16 @@ export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
 # freezing the app at its first-installed version. Always compile the current source.
 export QML_DISABLE_DISK_CACHE=1
 rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/qmlcache" 2>/dev/null || true
+# moos-qml-shell, not the bare runtime: qml-qt6 names every window it hosts
+# org.qt-project.qml-qt6, so Plasma cannot match this window to
+# org.moos.welcome.desktop and shows the generic green Qt icon. The shell sets the
+# real app_id. (Same fix as /usr/bin/moai — see build_files/moos-qml-shell.cpp.)
+if [ -x /usr/bin/moos-qml-shell ]; then
+    exec /usr/bin/moos-qml-shell \
+        --app-id org.moos.welcome --icon moos-welcome --qml "$QML"
+fi
+
+# Fallback: wrong icon beats no window.
 for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
     if command -v "$runner" >/dev/null 2>&1 || [ -x "$runner" ]; then
         exec "$runner" "$QML"

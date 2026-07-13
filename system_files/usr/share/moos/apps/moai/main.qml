@@ -51,20 +51,61 @@ Kirigami.ApplicationWindow {
     readonly property string uiFont: "IBM Plex Sans"
 
     // ── Endpoints ───────────────────────────────────────────────────────────
-    // The brain is ALWAYS 127.0.0.1:8080. Whichever brain is active owns that
-    // port: the local RamaLama service (moai.service) or the cloud gateway
-    // (moai-cloud.service, which alone holds the API key). This app never learns
-    // the mode and never sees the key.
+    // 8080 is Mo AI's FRONT DOOR (moai-gateway) and nothing else. It is always
+    // on, and it routes each REQUEST: to the local RamaLama brain on 8081 (which
+    // it starts on demand) or to the configured cloud provider — whose API key it
+    // alone ever sees. This app names the route it wants in the request's `model`
+    // field and never learns the key, the provider, or the port behind the door.
+    //
+    // It used to be an either/or: the local brain and the cloud proxy both
+    // listened on 8080, so only one could run, the choice was a global setting,
+    // and changing it meant bouncing systemd units. That is why `route` below
+    // exists at all.
     readonly property string api: "http://127.0.0.1:8080/v1/chat/completions"
     readonly property string controlApi: "http://127.0.0.1:8079"
 
     property var activeXhr: null
-    property bool serverUp: false
     property bool busy: false
     property bool brainStarting: false
     property var history: []            // [{role, content}] — last 12 turns
     property var pendingRuns: []        // moai-do actions the model just named
     property string panel: "chat"       // chat|device|apps|compat|remote|dev
+
+    // ── Which brain answers THIS conversation ───────────────────────────────
+    // `route` is exactly what goes in the POST's `model` field, and it is the
+    // whole contract with moai-gateway:
+    //     "local" | "local:<model>" | "cloud" | "cloud:<model-id>"
+    // Empty means "the configured default" — which is what we send until
+    // /models tells us what that default resolves to.
+    property string route: ""
+    property string defaultRoute: ""
+    property var localModels: []        // moai-control /models — from `ramalama list`
+    property var cloudModels: []        // …and from the PROVIDER's own /v1/models
+    property string modelsError: ""
+    property bool modelsLoading: false
+    property bool pickerOpen: false
+
+    readonly property bool routeIsCloud: root.route.indexOf("cloud") === 0
+    readonly property bool routeIsLocal: root.route.indexOf("local") === 0
+    // The part after the FIRST colon — a model id may contain colons of its own
+    // ("local:qwen3:4b-instruct").
+    readonly property string routeModel: {
+        const i = root.route.indexOf(":")
+        return i === -1 ? "" : root.route.substring(i + 1)
+    }
+
+    // ── Is the brain we are actually pointed at able to answer? ─────────────
+    // Not "is something listening on 8080" — the gateway is ALWAYS listening, so
+    // that question now answers yes on behalf of nobody. It depends on which
+    // route the user picked, and only this app knows that.
+    property var brains: ({})           // /quick: {gateway, local, cloud}
+    property bool brainsKnown: false
+    property bool defaultOnline: false  // /quick: can the DEFAULT brain answer
+    readonly property bool serverUp:
+          !root.brains.gateway ? false
+        : root.routeIsLocal ? !!root.brains.local
+        : root.routeIsCloud ? !!root.brains.cloud
+        : root.defaultOnline
 
     // Live system state from moai-control.
     property var snap: ({})             // /scan
@@ -143,6 +184,11 @@ Kirigami.ApplicationWindow {
         "install into ~/.local and run as the user, with no admin rights.\n" +
         "• Diagnose: explain the likely cause in plain language, then give the " +
         "SMALLEST safe repair.\n\n" +
+        "WHICH BRAIN YOU ARE: the user picks it per conversation, from the chip next " +
+        "to the message box — a LOCAL model that runs on this machine and never " +
+        "leaves it, or a CLOUD model through their own API key. If they ask how to " +
+        "change model or make you stronger/more private, point them at that chip; " +
+        "the provider and the key live behind it, in Settings.\n\n" +
         "HOW TO BEHAVE: understand the goal → briefly diagnose → propose the smallest " +
         "safe action → show the exact command → one line on what it does. Always " +
         "confirm before anything that updates, installs, removes, reboots or rolls " +
@@ -217,6 +263,7 @@ Kirigami.ApplicationWindow {
     Component.onCompleted: {
         chatModel.append({ role: "assistant", text: greetingText })
         refreshScan()
+        loadModels()
         // Open straight onto a panel. This is how the old centres survive as
         // commands: moos-hardware runs `moai --panel device`, moos-compat runs
         // `moai --panel compat`. `--device` is kept as an alias.
@@ -248,12 +295,15 @@ Kirigami.ApplicationWindow {
                 if (xhr.readyState !== XMLHttpRequest.DONE)
                     return
                 if (xhr.status !== 200) {
-                    root.serverUp = false
+                    root.brains = {}
+                    root.defaultOnline = false
                     return
                 }
                 try {
                     const q = JSON.parse(xhr.responseText)
-                    root.serverUp = !!q.online
+                    root.brains = q.brains || {}
+                    root.brainsKnown = true
+                    root.defaultOnline = !!q.online
                     if (root.serverUp)
                         root.brainStarting = false
                     // Merge the live bits into the snapshot so the Remote and
@@ -535,11 +585,64 @@ Kirigami.ApplicationWindow {
             }
         }
         xhr.send(JSON.stringify({
-            model: "default",
+            // THE ROUTE. moai-gateway reads this and sends the request to the
+            // local brain or to the cloud provider accordingly; "default" (or an
+            // empty route, before /models has answered) means "whatever
+            // ~/.config/moai/config.json says", which is the old behaviour.
+            model: root.route !== "" ? root.route : "default",
             messages: [{ role: "system", content: systemPrompt + root.machineContext }]
                           .concat(history),
             stream: true
         }))
+    }
+
+    // ── The brain picker ────────────────────────────────────────────────────
+    // The real models this machine can reach: the local ones RamaLama has pulled,
+    // and the ones the CONFIGURED PROVIDER says it serves — asked for by
+    // moai-control, never guessed at here. There is no tier table in this app,
+    // because there is no way to know what a private endpoint offers except to
+    // ask it.
+    function loadModels() {
+        if (root.modelsLoading)
+            return
+        root.modelsLoading = true
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", controlApi + "/models")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            root.modelsLoading = false
+            if (xhr.status !== 200) {
+                root.modelsError = "تعذّر جلب النماذج | couldn't reach the model list"
+                return
+            }
+            try {
+                const m = JSON.parse(xhr.responseText)
+                root.localModels = m.local || []
+                root.cloudModels = m.cloud || []
+                root.modelsError = m.cloud_error || ""
+                root.defaultRoute = m.default || ""
+                // Start on the configured default; the user's pick then sticks
+                // for the rest of the session.
+                if (root.route === "" && root.defaultRoute !== "")
+                    root.route = root.defaultRoute
+            } catch (e) {
+                root.modelsError = "تعذّر قراءة النماذج | couldn't read the model list"
+            }
+        }
+        xhr.send()
+    }
+
+    function openPicker() {
+        root.pickerOpen = true
+        root.loadModels()
+    }
+
+    function pickRoute(id) {
+        root.route = id
+        root.pickerOpen = false
+        root.flashMood("attentive")
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1245,13 +1348,18 @@ Kirigami.ApplicationWindow {
                             }
                         }
 
-                        // Offline → a real control, not a dead end.
+                        // The chosen brain cannot answer → a real control, not a
+                        // dead end. WHICH control depends on the route: a cloud
+                        // route needs a provider and a key, a local route needs
+                        // the model server. Offering "Start local brain" to
+                        // someone whose conversation is routed to the cloud would
+                        // be a button that fixes nothing.
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.leftMargin: 16
                             Layout.rightMargin: 16
                             Layout.bottomMargin: 8
-                            visible: !root.serverUp
+                            visible: root.brainsKnown && !root.serverUp
                             radius: 12
                             implicitHeight: startCol.implicitHeight + 22
                             color: root.brainStarting ? Qt.rgba(0.18, 0.48, 1.0, 0.10) : root.surface1
@@ -1269,9 +1377,13 @@ Kirigami.ApplicationWindow {
 
                                 Text {
                                     Layout.fillWidth: true
-                                    text: root.brainStarting
+                                    text: !root.brains.gateway
+                                        ? "بوابة Mo AI متوقفة — شغّلها:  systemctl --user start moai-gateway\nMo AI's gateway is not running — start it:  systemctl --user start moai-gateway"
+                                        : root.routeIsCloud
+                                        ? "العقل السحابي غير مضبوط — أضف المزوّد والمفتاح.\nThe cloud brain is not set up — add the provider and your API key."
+                                        : root.brainStarting
                                         ? "العقل المحلي يبدأ… أول مرة يُحمّل ~2.5GB وقد يأخذ دقائق.\nLocal brain starting… the first run downloads ~2.5 GB."
-                                        : "العقل المحلي غير مشغّل — شغّله بضغطة (يحتاج إنترنت أول مرة).\nThe local brain is off — start it in one click (needs Internet the first time)."
+                                        : "العقل المحلي متوقف — سأشغّله تلقائياً عند أول رسالة، أو شغّله الآن لتراه.\nThe local brain is off — I'll start it on your first message, or start it now and watch it."
                                     color: root.textLo
                                     font.family: root.uiFont
                                     font.pixelSize: 11
@@ -1279,10 +1391,19 @@ Kirigami.ApplicationWindow {
                                 }
                                 MoButton {
                                     Layout.fillWidth: true
-                                    visible: !root.brainStarting
+                                    visible: !!root.brains.gateway && !root.routeIsCloud
+                                             && !root.brainStarting
                                     label: "شغّل العقل المحلي  |  Start local brain"
                                     primary: true
                                     onClicked: root.startBrain()
+                                }
+                                MoButton {
+                                    Layout.fillWidth: true
+                                    visible: !!root.brains.gateway && root.routeIsCloud
+                                    label: "اضبط العقل السحابي  |  Set up the cloud brain"
+                                    icon: "configure"
+                                    primary: true
+                                    onClicked: { root.loadConfig(); root.settingsOpen = true }
                                 }
                             }
                         }
@@ -1322,6 +1443,79 @@ Kirigami.ApplicationWindow {
                                 anchors.fill: parent
                                 anchors.margins: 14
                                 spacing: 10
+
+                                // ── Which brain answers this conversation ──────
+                                // The choice used to live in a settings sheet, be
+                                // global, and require bouncing two systemd units.
+                                // It is one tap from the message box now, and it
+                                // is per conversation.
+                                Rectangle {
+                                    id: routeChip
+                                    Layout.fillHeight: true
+                                    Layout.preferredWidth: chipRow.implicitWidth + 20
+                                    Layout.maximumWidth: 200
+                                    radius: 11
+                                    color: chipMa.containsMouse ? root.surface2 : root.surface1
+                                    border.width: 1
+                                    border.color: root.pickerOpen ? root.novaBlue : root.hairline
+                                    Behavior on color { ColorAnimation { duration: 120 } }
+
+                                    RowLayout {
+                                        id: chipRow
+                                        anchors.centerIn: parent
+                                        spacing: 7
+
+                                        // Green when the chosen brain can answer
+                                        // right now — read from the machine, not
+                                        // asserted.
+                                        Rectangle {
+                                            Layout.preferredWidth: 8
+                                            Layout.preferredHeight: 8
+                                            Layout.alignment: Qt.AlignVCenter
+                                            radius: 4
+                                            color: !root.serverUp ? root.textMute
+                                                 : root.routeIsCloud ? root.novaViolet
+                                                 : root.okColor
+                                            Behavior on color { ColorAnimation { duration: 160 } }
+                                        }
+
+                                        ColumnLayout {
+                                            spacing: 0
+                                            Text {
+                                                text: root.routeIsCloud ? "سحابي | Cloud"
+                                                                        : "محلي | Local"
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: 11
+                                                font.weight: Font.DemiBold
+                                            }
+                                            Text {
+                                                Layout.maximumWidth: 118
+                                                visible: root.routeModel !== ""
+                                                text: root.routeModel
+                                                color: root.textLo
+                                                font.family: root.uiFont
+                                                font.pixelSize: 9
+                                                elide: Text.ElideRight
+                                            }
+                                        }
+
+                                        Text {
+                                            text: "▾"
+                                            color: root.textMute
+                                            font.family: root.uiFont
+                                            font.pixelSize: 10
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: chipMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.openPicker()
+                                    }
+                                }
 
                                 QQC2.TextField {
                                     id: input
@@ -2256,6 +2450,249 @@ Kirigami.ApplicationWindow {
             }
         }
 
+        // ── The brain picker ────────────────────────────────────────────────
+        // Every entry here is REAL: the local models come from `ramalama list`,
+        // the cloud ones from the provider's own /v1/models. Nothing is invented,
+        // and a provider that has no model list says so instead of being given a
+        // made-up menu.
+        Rectangle {
+            anchors.fill: parent
+            z: 250
+            visible: root.pickerOpen
+            color: "#B0060B16"
+            MouseArea { anchors.fill: parent; onClicked: root.pickerOpen = false }
+
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 86
+                width: Math.min(parent.width - 40, 430)
+                height: Math.min(parent.height - 130, pickCol.implicitHeight + 32)
+                radius: 16
+                color: root.surface1
+                border.width: 1
+                border.color: root.hairline
+                MouseArea { anchors.fill: parent }   // swallow clicks on the card
+
+                ColumnLayout {
+                    id: pickCol
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    spacing: 9
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        SectionTitle {
+                            Layout.fillWidth: true
+                            text: "العقل والقوة  |  Brain & power"
+                            font.pixelSize: 15
+                        }
+                        MoButton {
+                            label: root.modelsLoading ? "…" : "تحديث | Refresh"
+                            enabled_: !root.modelsLoading
+                            onClicked: root.loadModels()
+                        }
+                    }
+
+                    SectionNote {
+                        Layout.fillWidth: true
+                        text: "اختيارك يسري على هذه المحادثة فقط.  |  Applies to this conversation."
+                        font.pixelSize: 10
+                    }
+
+                    Flickable {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.minimumHeight: 90
+                        contentWidth: width
+                        contentHeight: choiceCol.implicitHeight
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+
+                        ColumnLayout {
+                            id: choiceCol
+                            width: parent.width
+                            spacing: 3
+
+                            // ── Local ──────────────────────────────────────
+                            Text {
+                                Layout.topMargin: 2
+                                text: "محلي وخاص  |  Local & private"
+                                color: root.textMute
+                                font.family: root.uiFont
+                                font.pixelSize: 10
+                                font.weight: Font.DemiBold
+                            }
+
+                            Repeater {
+                                model: root.localModels
+                                delegate: Rectangle {
+                                    id: locRow
+                                    required property var modelData
+                                    readonly property bool on_: root.route === locRow.modelData.id
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 40
+                                    radius: 10
+                                    color: locRow.on_ ? Qt.rgba(0.21, 0.83, 0.60, 0.14)
+                                         : locMa.containsMouse ? root.surface2 : "transparent"
+                                    border.width: 1
+                                    border.color: locRow.on_ ? root.okColor : "transparent"
+                                    Behavior on color { ColorAnimation { duration: 110 } }
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        spacing: 9
+
+                                        Kirigami.Icon {
+                                            source: "moos-system"
+                                            color: root.okColor
+                                            Layout.preferredWidth: 15
+                                            Layout.preferredHeight: 15
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 0
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: locRow.modelData.label
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: 12
+                                                font.weight: locRow.on_ ? Font.DemiBold : Font.Normal
+                                                elide: Text.ElideRight
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: !locRow.modelData.pulled
+                                                        ? "يحتاج تحميلاً أول مرة | needs a first download"
+                                                        : locRow.modelData.serving
+                                                        ? "جاهز | ready"
+                                                        : "محمَّل — يُعاد تشغيل العقل | downloaded — restarts the brain"
+                                                color: root.textMute
+                                                font.family: root.uiFont
+                                                font.pixelSize: 9
+                                                elide: Text.ElideRight
+                                            }
+                                        }
+                                        Text {
+                                            visible: locRow.on_
+                                            text: "✓"
+                                            color: root.okColor
+                                            font.family: root.uiFont
+                                            font.pixelSize: 13
+                                            font.weight: Font.DemiBold
+                                        }
+                                    }
+                                    MouseArea {
+                                        id: locMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.pickRoute(locRow.modelData.id)
+                                    }
+                                }
+                            }
+
+                            // ── Cloud ──────────────────────────────────────
+                            Text {
+                                Layout.topMargin: 8
+                                text: "سحابي  |  Cloud"
+                                color: root.textMute
+                                font.family: root.uiFont
+                                font.pixelSize: 10
+                                font.weight: Font.DemiBold
+                            }
+
+                            Repeater {
+                                model: root.cloudModels
+                                delegate: Rectangle {
+                                    id: cldRow
+                                    required property var modelData
+                                    readonly property bool on_: root.route === cldRow.modelData.id
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 34
+                                    radius: 10
+                                    color: cldRow.on_ ? Qt.rgba(0.55, 0.36, 0.96, 0.18)
+                                         : cldMa.containsMouse ? root.surface2 : "transparent"
+                                    border.width: 1
+                                    border.color: cldRow.on_ ? root.novaViolet : "transparent"
+                                    Behavior on color { ColorAnimation { duration: 110 } }
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        spacing: 9
+
+                                        Rectangle {
+                                            Layout.preferredWidth: 7
+                                            Layout.preferredHeight: 7
+                                            Layout.alignment: Qt.AlignVCenter
+                                            radius: 4
+                                            color: root.novaViolet
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: cldRow.modelData.label
+                                            color: root.textHi
+                                            font.family: root.uiFont
+                                            font.pixelSize: 12
+                                            font.weight: cldRow.on_ ? Font.DemiBold : Font.Normal
+                                            elide: Text.ElideRight
+                                        }
+                                        Text {
+                                            visible: cldRow.on_
+                                            text: "✓"
+                                            color: root.novaViolet
+                                            font.family: root.uiFont
+                                            font.pixelSize: 13
+                                            font.weight: Font.DemiBold
+                                        }
+                                    }
+                                    MouseArea {
+                                        id: cldMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.pickRoute(cldRow.modelData.id)
+                                    }
+                                }
+                            }
+
+                            // A provider with no /v1/models is not a failure — it
+                            // just means the model is whatever the user typed into
+                            // Settings, and that free-text field is still there.
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 4
+                                visible: root.modelsError !== ""
+                                text: root.modelsError
+                                color: root.textMute
+                                font.family: root.uiFont
+                                font.pixelSize: 10
+                                wrapMode: Text.Wrap
+                            }
+                        }
+                    }
+
+                    MoButton {
+                        Layout.fillWidth: true
+                        label: "المزوّد والمفتاح  |  Provider & API key"
+                        icon: "configure"
+                        onClicked: {
+                            root.pickerOpen = false
+                            root.loadConfig()
+                            root.settingsOpen = true
+                        }
+                    }
+                }
+            }
+        }
+
         // ── Settings ────────────────────────────────────────────────────────
         Rectangle {
             anchors.fill: parent
@@ -2678,10 +3115,16 @@ Kirigami.ApplicationWindow {
             if (xhr.readyState !== XMLHttpRequest.DONE)
                 return
             root.settingsSaving = false
-            if (xhr.status === 200)
+            if (xhr.status === 200) {
                 root.settingsOpen = false
-            else
+                // The provider may have changed under the picker: re-ask for the
+                // real model list, and re-resolve the default route.
+                root.route = ""
+                root.defaultRoute = ""
+                root.loadModels()
+            } else {
                 root.settingsError = "تعذّر الحفظ | couldn't save"
+            }
         }
         xhr.send(JSON.stringify(body))
     }

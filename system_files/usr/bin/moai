@@ -46,22 +46,40 @@ fi
 LOG="${CACHE}/moai.log"
 mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
 
-# The app always talks to 127.0.0.1:8080; whichever brain is active (the local
-# RamaLama service or the cloud gateway) owns that port, so the launcher passes
-# nothing brain-specific and the app never sees the API key.
+# The app always talks to 127.0.0.1:8080, which is moai-gateway — the always-on
+# front door, and the ONLY thing on that port. It routes each request to the local
+# RamaLama brain on 8081 (starting it on demand) or to the configured cloud
+# provider, whose API key it alone ever sees. The app names the brain it wants in
+# the request itself, so the launcher passes nothing brain-specific and no service
+# has to be bounced to change brain.
+#
+# Run under moos-qml-shell, NOT the bare qml-qt6 runtime. The runtime derives the
+# Wayland app_id from its own executable name — org.qt-project.qml-qt6 — and
+# Plasma, unable to match that to org.moos.moai.desktop, drew the generic green Qt
+# diamond in the taskbar instead of the Mo AI orb. moos-qml-shell exists purely to
+# call QGuiApplication::setDesktopFileName() before the window is created; the
+# runtime offers no flag for it. Keep --app-id equal to the .desktop file's base
+# name or the icon silently reverts to the Qt one.
+if [ -x /usr/bin/moos-qml-shell ]; then
+    echo "=== moai launch $(date -u '+%Y-%m-%dT%H:%M:%SZ') via moos-qml-shell ===" >>"$LOG" 2>/dev/null || true
+    # Forward argv after `--` so `moai --panel device` reaches the app. That is how
+    # moos-hardware and moos-compat land inside Mo AI instead of being separate
+    # windows onto the same data.
+    exec /usr/bin/moos-qml-shell \
+        --app-id org.moos.moai --icon moos-moai --qml "$MAIN_QML" \
+        -- "$@" 2> >(tee -a "$LOG" >&2)
+fi
+
+# Fallback: the app still opens, it just wears the wrong icon. Better a Mo AI with
+# a Qt logo than no Mo AI.
 for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
     if command -v "$runner" >/dev/null 2>&1; then
-        {
-            echo "=== moai launch $(date -u '+%Y-%m-%dT%H:%M:%SZ') via $runner ==="
-        } >>"$LOG" 2>/dev/null || true
-        # Forward argv after `--` so `moai --panel device` reaches the app. That
-        # is how moos-hardware and moos-compat land inside Mo AI instead of being
-        # separate windows onto the same data.
+        echo "=== moai launch $(date -u '+%Y-%m-%dT%H:%M:%SZ') via $runner (no moos-qml-shell: icon will be wrong) ===" >>"$LOG" 2>/dev/null || true
         exec "$runner" "$MAIN_QML" -- "$@" 2> >(tee -a "$LOG" >&2)
     fi
 done
 
 echo "moai: لم يتم العثور على مشغّل QML | no QML runtime found" >&2
-echo "moai: tried: qml-qt6, /usr/lib64/qt6/bin/qml, qml6, qml" >&2
+echo "moai: tried: moos-qml-shell, qml-qt6, /usr/lib64/qt6/bin/qml, qml6, qml" >&2
 echo "moai: ثبّته | install it:  sudo rpm-ostree install qt6-qtdeclarative-devel" >&2
 exit 1

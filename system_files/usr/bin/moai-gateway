@@ -1,30 +1,80 @@
 #!/usr/bin/env python3
-# moai-gateway — the CLOUD brain for Mo AI.
+# moai-gateway — Mo AI's FRONT DOOR. One port, two brains, chosen PER REQUEST.
 #
-# The Mo AI app always talks to 127.0.0.1:8080 and always speaks ONE dialect:
-# OpenAI chat/completions with SSE deltas. In LOCAL mode the RamaLama service owns
-# that port; in CLOUD mode moai-control stops it and runs THIS gateway instead.
+# WHY THIS EXISTS IN THIS SHAPE (read before you touch a port number)
+#   Mo AI used to have a hard either/or. moai.service (RamaLama, the local brain)
+#   and this gateway (the cloud proxy) BOTH listened on 8080, so only one of them
+#   could ever run, and switching brain meant `systemctl disable --now` one and
+#   `enable --now` the other — a global, service-bouncing setting buried in a
+#   settings sheet. Choosing a brain per conversation was not possible at all.
 #
-# This process is the only thing that ever sees the API key. It reads the provider
-# (base URL + model + wire protocol) from ~/.config/moai/config.json and the KEY
-# from Secret Service, translates if the provider does not speak OpenAI, and pipes
-# the stream back. The pure-QML app never sees the key and never learns which
-# provider is behind it — which is what lets us add providers without touching the
-# UI's request path. Stdlib only (no pip deps).
+#   Now there is one door:
 #
-# WIRE PROTOCOLS
-#   openai     — OpenAI, OpenRouter, Google Gemini (its OpenAI-compatible endpoint),
-#                Groq, Together, a local vLLM, and any private OpenAI-compatible
-#                gateway. Passed through almost untouched.
+#       8080   moai-gateway   ALWAYS ON. The only thing the app ever talks to.
+#       8081   moai.service   the local brain (RamaLama). Started ON DEMAND.
+#
+#   The app still speaks exactly ONE dialect — OpenAI /v1/chat/completions with
+#   SSE deltas — and still never sees the API key. What is new is that it may say
+#   WHICH brain it wants, in the request's `model` field:
+#
+#   ┌─ THE ROUTING CONTRACT ───────────────────────────────────────────────────┐
+#   │  "local"              → the local brain, whatever model it is serving     │
+#   │  "local:<model>"      → the local brain, serving <model>                  │
+#   │  "cloud"              → the configured provider + its configured model    │
+#   │  "cloud:<model-id>"   → the configured provider, <model-id> upstream      │
+#   │  absent / anything    → the default in ~/.config/moai/config.json         │
+#   │                         (mode=local|cloud) — the pre-split behaviour, so   │
+#   │                         an older client keeps working unchanged.           │
+#   └──────────────────────────────────────────────────────────────────────────┘
+#
+#   The split is on the FIRST colon, so a model id may contain colons of its own
+#   ("local:qwen3:4b-instruct" → local, "qwen3:4b-instruct").
+#
+# WHY `local:<model>` RESTARTS THE UNIT INSTEAD OF PASSING THE NAME THROUGH
+#   llama.cpp — which is what RamaLama serves behind — IGNORES the request's
+#   `model` field. VERIFIED on this machine: a request for "totally-made-up" was
+#   answered, without complaint, by the loaded weights. So a picker that listed
+#   three local models and simply forwarded the name would be a lie: all three
+#   would be answered by the same model. The only honest way to serve a different
+#   local model is to point the unit at it and restart, which is what ensure_local
+#   does — and only for a model that is ALREADY pulled, because a chat message
+#   must never be able to start a multi-gigabyte download behind the user's back.
+#
+# WIRE PROTOCOLS (the cloud side, unchanged)
+#   openai     — OpenAI, OpenRouter, Google Gemini (its OpenAI-compatible
+#                endpoint), Groq, Together, a local vLLM, and any private
+#                OpenAI-compatible gateway. Passed through almost untouched.
 #   anthropic  — Claude's NATIVE API (/v1/messages). A genuinely different shape:
 #                the system prompt is a top-level field, max_tokens is required,
 #                auth is x-api-key, and the stream is content_block_delta events.
 #                Translated in both directions here so the app stays unchanged.
-import json, os, re, subprocess, sys, urllib.error, urllib.request
+#
+# This process is the only thing that ever sees the API key: it reads the provider
+# (base URL + model + wire) from ~/.config/moai/config.json and the KEY from Secret
+# Service. Stdlib only (no pip deps).
+import json, os, re, subprocess, sys, threading, time
+import urllib.error, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CONFIG = os.path.expanduser("~/.config/moai/config.json")
+MOOS_DIR = os.path.expanduser("~/.config/moos")
+ENV_FILE = os.path.join(MOOS_DIR, "moai.env")
+
 PORT = int(os.environ.get("MOAI_GATEWAY_PORT", "8080"))
+LOCAL_PORT = int(os.environ.get("MOAI_LOCAL_PORT", "8081"))
+LOCAL_UNIT = os.environ.get("MOAI_LOCAL_UNIT", "moai.service")
+LOCAL_BASE = "http://127.0.0.1:%d" % LOCAL_PORT
+
+# How long to wait for the local brain after starting it. A model that is already
+# pulled loads in well under a minute; the FIRST ever start downloads ~2.5 GB and
+# can take far longer than any HTTP request should be held open, which is why the
+# timeout answers with an instruction instead of hanging forever.
+LOCAL_TIMEOUT = float(os.environ.get("MOAI_LOCAL_TIMEOUT", "180"))
+
+# Must stay in step with Environment=MOAI_MODEL in moai.service. This is only the
+# fallback: ~/.config/moos/moai.env is an EnvironmentFile and therefore OUTRANKS
+# the unit's Environment=, so env_model() reads the file that actually decides.
+DEFAULT_LOCAL_MODEL = "ollama://qwen3:4b-instruct"
 
 # Identify ourselves. Python's urllib defaults to "Python-urllib/3.x", and
 # Cloudflare — which fronts a large share of AI providers — answers that with
@@ -38,6 +88,9 @@ DEFAULT_MAX_TOKENS = 2048
 
 # A base URL is expected to carry its API version ("…/v1", "…/v1beta/openai").
 VERSIONED = re.compile(r"/v\d[\w.]*(/|$)")
+
+# "ollama://library/qwen3:4b-instruct" — strip the transport, keep the name.
+SCHEME = re.compile(r"^[a-z0-9+.-]+://")
 
 
 def load_cfg():
@@ -59,6 +112,217 @@ def load_secret():
         return ""
 
 
+# ── The local brain ──────────────────────────────────────────────────────────
+
+def short_model(name):
+    """`ollama://library/qwen3:4b-instruct` → `qwen3:4b-instruct`.
+
+    RamaLama normalises `ollama://qwen3:4b` to `ollama://library/qwen3:4b`, so the
+    string in moai.env and the string in `ramalama list` name the same weights and
+    do not match. Compare the short form, or every request would look like a
+    request to switch models and pointlessly restart the unit.
+    """
+    n = SCHEME.sub("", (name or "").strip())
+    if n.startswith("library/"):
+        n = n[len("library/"):]
+    return n
+
+
+def env_model():
+    """The model the local unit will ACTUALLY serve.
+
+    moai.env is the unit's EnvironmentFile, so it outranks the unit's own
+    Environment= line. Reading the shipped default here instead of this file is
+    the exact mistake that let a stale moai.env keep the local brain on 8080.
+    """
+    try:
+        with open(ENV_FILE, encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("MOAI_MODEL="):
+                    value = line.split("=", 1)[1].strip()
+                    if value:
+                        return value
+    except Exception:
+        pass
+    return DEFAULT_LOCAL_MODEL
+
+
+def env_port():
+    """The port the local unit will ACTUALLY bind, or None if the file says nothing.
+
+    Same trap as env_model(), and it is the one that actually bit: moai.env is the
+    unit's EnvironmentFile, and systemd applies an EnvironmentFile AFTER the unit's
+    own Environment= lines — so this file wins. A moai.env left over from the old
+    single-port layout still says MOAI_PORT=8080.
+    """
+    try:
+        with open(ENV_FILE, encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("MOAI_PORT="):
+                    return int(line.split("=", 1)[1].strip())
+    except Exception:
+        pass
+    return None
+
+
+def set_env_model(model):
+    """Point the local unit at `model`.
+
+    The port is rewritten too, and never taken from the old file: 8080 is the
+    gateway's and a rewrite that carried a stale MOAI_PORT forward would put the
+    local brain back on top of the front door.
+    """
+    os.makedirs(MOOS_DIR, exist_ok=True)
+    os.chmod(MOOS_DIR, 0o700)
+    tmp = ENV_FILE + ".new"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write("MOAI_PORT=%d\nMOAI_MODEL=%s\n" % (LOCAL_PORT, model))
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, ENV_FILE)
+
+
+_pulled_lock = threading.Lock()
+_pulled_cache = {"names": [], "ts": 0.0}
+PULLED_TTL = 30.0
+
+
+def pulled_models():
+    """The models RamaLama has already downloaded. Cached — it is a subprocess."""
+    with _pulled_lock:
+        if _pulled_cache["names"] and time.monotonic() - _pulled_cache["ts"] < PULLED_TTL:
+            return list(_pulled_cache["names"])
+    names = []
+    try:
+        result = subprocess.run(["ramalama", "list", "--json"],
+                                capture_output=True, text=True, timeout=25, check=False)
+        if result.returncode == 0:
+            for item in json.loads(result.stdout or "[]"):
+                name = (item.get("name") or "").strip()
+                if name:
+                    names.append(name)
+    except Exception:
+        pass
+    with _pulled_lock:
+        _pulled_cache["names"] = list(names)
+        _pulled_cache["ts"] = time.monotonic()
+    return names
+
+
+def local_online(timeout=1.5):
+    try:
+        with urllib.request.urlopen(LOCAL_BASE + "/v1/models", timeout=timeout) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
+def systemctl(verb):
+    try:
+        result = subprocess.run(["systemctl", "--user", verb, LOCAL_UNIT],
+                                capture_output=True, text=True, timeout=60, check=False)
+    except Exception as e:
+        return "systemctl --user %s %s: %s" % (verb, LOCAL_UNIT, e)
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()[:200]
+        return "systemctl --user %s %s: %s" % (verb, LOCAL_UNIT, detail)
+    return ""
+
+
+_local_lock = threading.Lock()
+
+
+def ensure_local(want):
+    """Bring the local brain up, serving `want` ("" = whatever it already serves).
+
+    Returns "" on success, or a message meant for the user. Serialised: two chats
+    that both wake the brain must not race two `systemctl start`s at it, and the
+    second one should wait for the first rather than start a parallel download.
+    """
+    with _local_lock:
+        current = env_model()
+        switching = bool(want) and short_model(want) != short_model(current)
+
+        # Reconcile the PORT on every start, not only when the model changes.
+        #
+        # This is the bug that made the very first `local` request fail. moai.env is
+        # the unit's EnvironmentFile and therefore outranks the unit's own
+        # Environment=MOAI_PORT=8081. A file written under the old single-port layout
+        # still says 8080. Rewriting it only on the model-switch path meant the plain
+        # "local" path started the brain with the STALE port — so RamaLama bound the
+        # wrong one, this gateway polled 8081, found nothing, and timed out after
+        # three minutes with the model loaded and sitting idle. Measured, exactly
+        # that: the unit went active, the model loaded, and the chat returned 502.
+        stale_port = env_port() != LOCAL_PORT
+
+        if not switching and not stale_port and local_online():
+            return ""
+
+        target = current
+        if switching:
+            target = ""
+            for name in pulled_models():
+                if short_model(name) == short_model(want):
+                    target = name
+                    break
+            if not target:
+                # Never start a multi-gigabyte download from a chat message.
+                return ("النموذج «%s» غير محمّل على هذا الجهاز.\n"
+                        "The local model \"%s\" is not downloaded. Pull it first:\n"
+                        "    ramalama pull %s" % (want, want, want))
+
+        if switching or stale_port:
+            # A running brain on the wrong port has to be restarted, not started:
+            # systemd will not re-read the EnvironmentFile for a unit it considers
+            # already up.
+            set_env_model(target)
+            error = systemctl("restart")
+        else:
+            error = systemctl("start")
+        if error:
+            return ("تعذّر تشغيل العقل المحلي | could not start the local brain\n"
+                    + error)
+
+        deadline = time.monotonic() + LOCAL_TIMEOUT
+        while time.monotonic() < deadline:
+            if local_online():
+                return ""
+            time.sleep(1.5)
+        return ("العقل المحلي لم يجب خلال %d ثانية — أول تشغيل يحمّل النموذج (~2.5GB) "
+                "ويكمل في الخلفية.\n"
+                "The local brain did not answer within %ds. The first start downloads "
+                "the model (~2.5 GB) and keeps going in the background — watch it with "
+                "`moai-start logs`, then ask again."
+                % (int(LOCAL_TIMEOUT), int(LOCAL_TIMEOUT)))
+
+
+# ── Routing ──────────────────────────────────────────────────────────────────
+
+def parse_model(field):
+    """The request's `model` field → (brain, model). ("", "") means: use the default."""
+    raw = (field or "").strip()
+    low = raw.lower()
+    if low == "local":
+        return "local", ""
+    if low.startswith("local:"):
+        return "local", raw.split(":", 1)[1].strip()
+    if low == "cloud":
+        return "cloud", ""
+    if low.startswith("cloud:"):
+        return "cloud", raw.split(":", 1)[1].strip()
+    return "", ""
+
+
+def resolve(field, cfg):
+    """(brain, model) for this request, falling back to the configured default."""
+    brain, model = parse_model(field)
+    if not brain:
+        brain = "cloud" if cfg.get("mode") == "cloud" else "local"
+        model = ""
+    if brain == "cloud" and not model:
+        model = cfg.get("cloud_model") or ""
+    return brain, model
+
+
 def upstream_url(base, path, wire):
     """Map the app's /v1/<endpoint> onto the provider's base URL."""
     b = base.rstrip("/")
@@ -68,7 +332,7 @@ def upstream_url(base, path, wire):
         b += "/v1"
     endpoint = path[len("/v1"):] if path.startswith("/v1/") else path
     if wire == "anthropic":
-        # Claude has no /chat/completions and no /models list we need.
+        # Claude has no /chat/completions.
         return b + ("/messages" if endpoint.startswith("/chat/completions") else endpoint)
     return b + endpoint
 
@@ -172,63 +436,128 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):  # keep the journal quiet
         pass
 
-    def _cfg(self):
-        c = load_cfg()
-        return ((c.get("cloud_base") or "").rstrip("/"),
+    def _cloud_cfg(self, cfg):
+        return ((cfg.get("cloud_base") or "").rstrip("/"),
                 load_secret(),
-                c.get("cloud_model") or "",
-                (c.get("cloud_wire") or "openai").lower())
+                (cfg.get("cloud_wire") or "openai").lower())
+
+    # ── GET ──────────────────────────────────────────────────────────────────
 
     def do_GET(self):
-        base, key, _, wire = self._cfg()
+        cfg = load_cfg()
+
+        # The liveness probe. Cheap on purpose — moai-control polls it every few
+        # seconds and must never make it reach out to a provider to answer.
+        if self.path.startswith("/healthz"):
+            return self._send_json(200, {
+                "ok": True,
+                "service": "moai-gateway",
+                "port": PORT,
+                "local_port": LOCAL_PORT,
+                "local_unit": LOCAL_UNIT,
+                "default_mode": "cloud" if cfg.get("mode") == "cloud" else "local",
+            })
+
+        # What this door will actually route. Every id here is a real route; a
+        # `cloud:<id>` for any other model the provider knows is accepted too —
+        # moai-control's /models asks the provider for that list.
+        if self.path.startswith("/v1/models"):
+            data = [{"id": "default", "object": "model", "owned_by": "moos"}]
+            served = short_model(env_model())
+            names = [short_model(n) for n in pulled_models()] or [served]
+            if served not in names:
+                names.insert(0, served)
+            for name in names:
+                data.append({"id": "local:" + name, "object": "model",
+                             "owned_by": "ramalama"})
+            base, key, _ = self._cloud_cfg(cfg)
+            model = (cfg.get("cloud_model") or "").strip()
+            if base and key and model:
+                data.append({"id": "cloud:" + model, "object": "model",
+                             "owned_by": "cloud"})
+            return self._send_json(200, {"object": "list", "data": data})
+
+        # Anything else is a provider endpoint (embeddings, etc.) — cloud only.
+        base, key, wire = self._cloud_cfg(cfg)
         if not base or not key:
             return self._err(503, "cloud brain not configured")
-        if wire == "anthropic":
-            # Claude has no /v1/models the app can poll. The badge only needs to
-            # know a brain is reachable, and it is: we hold a key and a base URL.
-            return self._send_json(200, {"object": "list", "data": [{"id": "claude"}]})
-        self._proxy("GET", upstream_url(base, self.path, wire), key, wire, None, False)
+        self._proxy("GET", upstream_url(base, self.path, wire),
+                    auth_headers(key, wire), None, wire, False)
+
+    # ── POST ─────────────────────────────────────────────────────────────────
 
     def do_POST(self):
         # Drain the request body FIRST — an early error must not leave unread
         # bytes in the keep-alive socket (they would desync the next request).
         length = int(self.headers.get("Content-Length", 0) or 0)
-        body = self.rfile.read(length) if length else b""
-        base, key, model, wire = self._cfg()
-        if not base or not key:
-            return self._err(503, "cloud brain not configured")
+        raw = self.rfile.read(length) if length else b""
 
-        streaming = False
+        cfg = load_cfg()
+        try:
+            req = json.loads(raw) if raw else {}
+        except Exception:
+            req = {}
+        if not isinstance(req, dict):
+            req = {}
+
+        brain, model = resolve(req.get("model", ""), cfg)
+        if brain == "local":
+            return self._to_local(req, model)
+        return self._to_cloud(req, raw, model, cfg)
+
+    def _to_local(self, req, model):
+        error = ensure_local(model)
+        if error:
+            return self._err(503, error)
+        body, streaming = b"", False
+        if req:
+            out = dict(req)
+            # llama.cpp ignores this, but send something coherent rather than the
+            # routing token: a proxy that forwards "local:qwen3" as a model name
+            # is lying to whatever it is talking to.
+            out["model"] = model or "default"
+            streaming = bool(out.get("stream"))
+            body = json.dumps(out).encode("utf-8")
+        self._proxy("POST", LOCAL_BASE + self.path, {}, body, "openai", streaming)
+
+    def _to_cloud(self, req, raw, model, cfg):
+        base, key, wire = self._cloud_cfg(cfg)
+        if not base or not key:
+            return self._err(503,
+                             "العقل السحابي غير مضبوط — أضف مزوّداً ومفتاحاً في إعدادات Mo AI.\n"
+                             "The cloud brain is not configured — add a provider and an "
+                             "API key in Mo AI's settings.")
         if wire == "anthropic":
             try:
-                body, streaming = to_anthropic(body, model)
+                body, streaming = to_anthropic(raw, model)
             except Exception as e:
                 return self._err(400, "could not translate the request: %s" % e)
-        elif body:
-            try:
-                obj = json.loads(body)
-                # Force the configured model if the app sent the local placeholder.
+        else:
+            body, streaming = raw, False
+            if req:
+                out = dict(req)
                 if model:
-                    obj["model"] = model
-                streaming = bool(obj.get("stream"))
-                body = json.dumps(obj).encode("utf-8")
-            except Exception:
-                pass
+                    out["model"] = model
+                streaming = bool(out.get("stream"))
+                body = json.dumps(out).encode("utf-8")
 
-        self._proxy("POST", upstream_url(base, self.path, wire), key, wire, body, streaming)
+        self._proxy("POST", upstream_url(base, self.path, wire),
+                    auth_headers(key, wire), body, wire, streaming)
 
-    def _proxy(self, method, url, key, wire, body, streaming):
+    # ── The pipe ─────────────────────────────────────────────────────────────
+
+    def _proxy(self, method, url, headers, body, wire, streaming):
         req = urllib.request.Request(url, data=body, method=method)
         req.add_header("Content-Type", "application/json")
         req.add_header("User-Agent", USER_AGENT)     # or Cloudflare answers 403/1010
-        for name, value in auth_headers(key, wire).items():
+        for name, value in (headers or {}).items():
             req.add_header(name, value)
         try:
             up = urllib.request.urlopen(req, timeout=180)
         except urllib.error.HTTPError as e:
             return self._err(e.code, e.read().decode("utf-8", "replace"))
         except Exception as e:
-            return self._err(502, "cloud request failed: %s" % e)
+            return self._err(502, "request failed: %s" % e)
 
         self.send_response(up.status)
         ctype = up.headers.get("Content-Type", "application/json")
@@ -263,7 +592,7 @@ class Handler(BaseHTTPRequestHandler):
             pass
 
     def _send_json(self, code, obj):
-        payload = json.dumps(obj).encode("utf-8")
+        payload = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
@@ -274,7 +603,8 @@ class Handler(BaseHTTPRequestHandler):
             pass
 
     def _err(self, code, msg):
-        payload = json.dumps({"error": {"message": msg}}).encode("utf-8")
+        payload = json.dumps({"error": {"message": msg}},
+                             ensure_ascii=False).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
@@ -289,7 +619,10 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    sys.stderr.write("moai-gateway: cloud proxy on 127.0.0.1:%d\n" % PORT)
+    sys.stderr.write("moai-gateway: front door on 127.0.0.1:%d "
+                     "(local brain: %s on 127.0.0.1:%d)\n"
+                     % (PORT, LOCAL_UNIT, LOCAL_PORT))
+    sys.stderr.flush()
     srv.serve_forever()
 
 

@@ -1,12 +1,22 @@
 [Unit]
-Description=Mo AI local brain
+Description=Mo AI local brain (RamaLama)
 Documentation=https://github.com/moalfarras-sys/moos-image
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-Environment=MOAI_PORT=8080
+# 8081, NOT 8080. 8080 belongs to moai-gateway — the single always-on front door,
+# which routes each request and starts THIS unit on demand when a conversation
+# picks the local brain. Both brains sharing 8080 is the architecture this
+# replaced: it made the choice of brain a global setting that could only be
+# changed by bouncing systemd units.
+#
+# ~/.config/moos/moai.env is read AFTER these lines and therefore OUTRANKS them.
+# Every machine that has ever run `moai-start` carries one that says 8080, so
+# correcting the unit alone changes nothing — moai-control's ensure_front_door()
+# rewrites that file on every start. Fix the file that decides, not the one we ship.
+Environment=MOAI_PORT=8081
 Environment=MOAI_MODEL=ollama://qwen3:4b-instruct
 EnvironmentFile=-%h/.config/moos/moai.env
 ExecStart=/usr/bin/ramalama serve --port ${MOAI_PORT} ${MOAI_MODEL}
@@ -18,5 +28,10 @@ TimeoutStopSec=20s
 # Podman needs the normal user mount namespace plus container config/storage;
 # systemd filesystem/mount namespace sandbox directives break that backend.
 
+# [Install] exists so `moai-start` can enable the brain for a user who wants it
+# warm at login. The IMAGE never enables it (no `systemctl --global enable` for
+# this unit in build.sh): it is on demand. A machine whose owner only ever talks
+# to the cloud must not load 2.5 GB of weights into VRAM at every login — on this
+# hardware the local model already holds 6 of 8 GB.
 [Install]
 WantedBy=default.target

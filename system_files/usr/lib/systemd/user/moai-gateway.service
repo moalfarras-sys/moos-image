@@ -1,0 +1,34 @@
+# Mo AI's FRONT DOOR — always on, for every user (build.sh: systemctl --global
+# enable). This is the only thing that listens on 127.0.0.1:8080, and the only
+# thing Mo AI ever talks to.
+#
+# It replaces moai-cloud.service, which was an OPT-IN cloud proxy: local and cloud
+# both wanted 8080, so only one could run and switching brain meant disabling one
+# unit and enabling the other. The gateway now routes each REQUEST — the local
+# brain on 8081 (moai.service, started on demand) or the configured cloud
+# provider — so a conversation can choose its own brain and model without a single
+# service being bounced.
+#
+# It is also the only process that ever sees the API key (Secret Service). The
+# pure-QML app cannot read the keyring and never learns which provider is behind
+# the door.
+[Unit]
+Description=Mo AI gateway (localhost front door: routes local ⇄ cloud per request)
+Documentation=https://github.com/moalfarras-sys/moos-image
+After=graphical-session.target
+
+# A machine upgrading from the old layout may still have the local brain holding
+# 8080 when this first tries to bind. moai-control moves it to 8081 and starts us
+# again — so keep retrying rather than giving up after the default burst.
+# (These two live in [Unit], not [Service]: systemd moved them in v229.)
+StartLimitIntervalSec=120
+StartLimitBurst=30
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/moai-gateway
+Restart=on-failure
+RestartSec=4
+
+[Install]
+WantedBy=default.target

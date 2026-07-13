@@ -12,11 +12,12 @@
 # never returns it (only has_key). Stdlib only.
 #
 #   GET  /config   brain config (mode, base, model, has_key)
-#   GET  /status   {"online": bool}  — is a brain answering on :8080
-#   GET  /quick    CHEAP poll: brain + remote + agents. Safe every few seconds.
+#   GET  /status   {"online": bool}  — can the DEFAULT brain answer right now
+#   GET  /quick    CHEAP poll: brains + remote + agents. Safe every few seconds.
+#   GET  /models   the REAL models this machine can route to (see below)
 #   GET  /scan     full snapshot incl. the cached device plan.
 #   GET  /search?q=…  Flathub app search (this is Mo AI's App Centre).
-#   POST /config   set mode/base/model/key; switches the brain services.
+#   POST /config   set the DEFAULT mode/base/model/key.
 import json, os, re, shutil, subprocess, threading, time
 import urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -24,9 +25,25 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 # A base URL is expected to carry its API version ("…/v1", "…/v1beta/openai").
 VERSIONED = re.compile(r"/v\d[\w.]*(/|$)")
 
+# "ollama://library/qwen3:4b-instruct" — strip the transport, keep the name.
+SCHEME = re.compile(r"^[a-z0-9+.-]+://")
+
 CFG_DIR = os.path.expanduser("~/.config/moai")
 CFG = os.path.join(CFG_DIR, "config.json")
+MOOS_DIR = os.path.expanduser("~/.config/moos")
+ENV_FILE = os.path.join(MOOS_DIR, "moai.env")
 PORT = int(os.environ.get("MOAI_CONTROL_PORT", "8079"))
+
+# The brain lives behind ONE always-on front door on 8080 (moai-gateway), which
+# routes each request to the local brain on 8081 or to the cloud provider. See
+# moai-gateway for the contract; these two numbers must agree with it.
+GATEWAY_PORT = int(os.environ.get("MOAI_GATEWAY_PORT", "8080"))
+LOCAL_PORT = int(os.environ.get("MOAI_LOCAL_PORT", "8081"))
+GATEWAY_UNIT = "moai-gateway.service"
+LOCAL_UNIT = "moai.service"
+DEFAULT_LOCAL_MODEL = "ollama://qwen3:4b-instruct"   # == moai.service's default
+
+ANTHROPIC_VERSION = "2023-06-01"
 
 REMOTE_UNIT = "mo-remote-personal.service"
 
@@ -131,12 +148,144 @@ def sysctl(*args):
         pass
 
 
-def brain_online():
+def http_ok(url, timeout=1.5):
     try:
-        return urllib.request.urlopen(
-            "http://127.0.0.1:8080/v1/models", timeout=1).status == 200
+        with urllib.request.urlopen(url, timeout=timeout) as r:
+            return r.status == 200
     except Exception:
         return False
+
+
+def gateway_online():
+    """Is the front door up? /healthz answers from local knowledge only — it must
+    never reach out to a provider, because this is polled every few seconds."""
+    return http_ok("http://127.0.0.1:%d/healthz" % GATEWAY_PORT)
+
+
+def local_online():
+    """Is the local brain actually serving? Ask it, on ITS port — not 8080, which
+    now belongs to the gateway and would answer yes on behalf of nobody."""
+    return http_ok("http://127.0.0.1:%d/v1/models" % LOCAL_PORT)
+
+
+# get_secret() is a subprocess, and /quick runs every few seconds. Cache the
+# yes/no (never the value).
+_cloud_lock = threading.Lock()
+_cloud_cache = {"ready": False, "ts": 0.0}
+CLOUD_TTL = 6.0
+
+
+def cloud_ready():
+    """A cloud brain is configured: a base URL and a key in the keyring.
+
+    Deliberately NOT a live call to the provider. The old probe made a real
+    network round trip to /v1/models with a 1-second timeout, every 4 seconds,
+    from a poll loop — most providers do not answer that fast, so a perfectly
+    good cloud brain reported itself offline. "Test connection" in Settings is
+    the honest liveness check, and it is the one that sends a real request.
+    """
+    with _cloud_lock:
+        if time.monotonic() - _cloud_cache["ts"] < CLOUD_TTL:
+            return _cloud_cache["ready"]
+    ready = bool((load().get("cloud_base") or "").strip()) and bool(get_secret())
+    with _cloud_lock:
+        _cloud_cache["ready"] = ready
+        _cloud_cache["ts"] = time.monotonic()
+    return ready
+
+
+def brain_online():
+    """Can the DEFAULT brain answer right now?"""
+    return cloud_ready() if load().get("mode") == "cloud" else local_online()
+
+
+def short_model(name):
+    """`ollama://library/qwen3:4b-instruct` → `qwen3:4b-instruct`. Same rule as
+    moai-gateway's — RamaLama rewrites `ollama://x` to `ollama://library/x`, so a
+    raw string compare says two names for the same weights are different."""
+    n = SCHEME.sub("", (name or "").strip())
+    if n.startswith("library/"):
+        n = n[len("library/"):]
+    return n
+
+
+def env_model():
+    """The model the local unit will actually serve. moai.env is the unit's
+    EnvironmentFile and outranks its Environment= line, so read the file that
+    decides rather than the default we ship."""
+    try:
+        with open(ENV_FILE, encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("MOAI_MODEL="):
+                    value = line.split("=", 1)[1].strip()
+                    if value:
+                        return value
+    except Exception:
+        pass
+    return DEFAULT_LOCAL_MODEL
+
+
+def ensure_front_door():
+    """8080 is the gateway's, 8081 is the local brain's — on every machine, always.
+
+    Shipping the corrected unit file is NOT enough, and this is the whole reason
+    this function exists:
+
+      • ~/.config/moos/moai.env is moai.service's EnvironmentFile, so its
+        MOAI_PORT OUTRANKS the unit's Environment=. Every machine that has ever
+        run `moai-start` carries one that says 8080 — the port the front door now
+        owns. Left alone, the local brain would come up on top of the gateway and
+        one of the two would fail to bind.
+      • the gateway used to be OPT-IN (moai-cloud.service, enabled only while the
+        user was in cloud mode). It is the only door now, so it must be on for
+        everybody, including the users who once turned it off.
+
+    Repaired here — in the always-on service, on every start — rather than behind
+    a once-per-revision migration marker: a marker cannot notice that the state it
+    fixed has drifted back.
+    """
+    fixed_port = False
+    try:
+        if os.path.isfile(ENV_FILE):
+            with open(ENV_FILE, encoding="utf-8") as f:
+                lines = f.read().splitlines()
+            out, seen = [], False
+            for line in lines:
+                if line.startswith("MOAI_PORT="):
+                    seen = True
+                    if line.strip() != "MOAI_PORT=%d" % LOCAL_PORT:
+                        line = "MOAI_PORT=%d" % LOCAL_PORT
+                        fixed_port = True
+                out.append(line)
+            if not seen:
+                out.insert(0, "MOAI_PORT=%d" % LOCAL_PORT)
+                fixed_port = True
+            if fixed_port:
+                tmp = ENV_FILE + ".new"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    f.write("\n".join(out) + "\n")
+                os.chmod(tmp, 0o600)
+                os.replace(tmp, ENV_FILE)
+    except Exception:
+        pass
+
+    # A local brain that is RUNNING on the old port is still holding 8080. Move it
+    # before asking the gateway to bind there.
+    if fixed_port and user_unit_active(LOCAL_UNIT):
+        sysctl("restart", LOCAL_UNIT)
+
+    # The retired opt-in unit. Its enable symlink survives an image update and
+    # would leave systemd complaining about a unit that no longer exists.
+    try:
+        stale = os.path.expanduser(
+            "~/.config/systemd/user/default.target.wants/moai-cloud.service")
+        if os.path.islink(stale):
+            os.remove(stale)
+            sysctl("daemon-reload")
+    except Exception:
+        pass
+
+    sysctl("enable", "--now", GATEWAY_UNIT)
 
 
 def command_exists(name):
@@ -271,9 +420,20 @@ def agent_state():
 
 
 def quick():
-    """The cheap poll. No subprocess that can block — safe every few seconds."""
+    """The cheap poll. No subprocess that can block — safe every few seconds.
+
+    `online` still means "the DEFAULT brain can answer", which is what it always
+    meant. `brains` is what the per-conversation picker needs: the app chooses a
+    route per request now, so whether it is "online" depends on WHICH route the
+    user has chosen, and only the app knows that.
+    """
     return {
         "online": brain_online(),
+        "brains": {
+            "gateway": gateway_online(),
+            "local": local_online(),
+            "cloud": cloud_ready(),
+        },
         "remote": remote_state(),
         "agents": agent_state(),
     }
@@ -338,6 +498,140 @@ def scan():
     else:
         info["device_plan_pending"] = True   # first refresh still running
     return info
+
+
+# ── The models Mo AI can actually route to ───────────────────────────────────
+#
+# THERE IS NO TIER TABLE HERE, AND THERE MUST NEVER BE ONE. The user's provider is
+# whatever they configured — right now a private endpoint — and the only way to
+# know what it serves is to ASK IT: GET <base>/v1/models with the stored key
+# (Anthropic's native API answers the same path with x-api-key + anthropic-version).
+# A hardcoded "small / medium / large" list would be an invented menu of models
+# that may not exist on the user's account, and picking one would 404 in their face.
+#
+# If the provider does not implement /models we return an EMPTY cloud list and say
+# why. The UI then falls back to the model the user typed into Settings, which is
+# the one model we do know is real.
+
+MODELS_TTL = 60.0
+_models_lock = threading.Lock()
+_models_cache = {"data": None, "ts": 0.0, "sig": None}
+
+
+def local_models():
+    """Every model RamaLama has pulled, and which one the local brain serves.
+
+    llama.cpp ignores the request's `model` field — VERIFIED: it answers a request
+    for a model that does not exist with the weights it happens to have loaded. So
+    exactly ONE of these can answer at a time, and moai-gateway restarts the unit
+    to switch between them. `serving` is which one is loaded right now; the picker
+    must not pretend the others are live.
+    """
+    served = short_model(env_model())
+    out, seen = [], set()
+    try:
+        result = subprocess.run(["ramalama", "list", "--json"],
+                                capture_output=True, text=True, timeout=25, check=False)
+        if result.returncode == 0:
+            for item in json.loads(result.stdout or "[]"):
+                name = short_model(item.get("name") or "")
+                if not name or name in seen:
+                    continue
+                seen.add(name)
+                out.append({"id": "local:" + name, "label": name,
+                            "pulled": True, "serving": name == served,
+                            "size_gb": round((item.get("size") or 0) / 1e9, 1)})
+    except Exception:
+        pass
+    if served and served not in seen:
+        # The configured model has not been downloaded yet. Say so — it is still a
+        # valid route, it just costs a download the first time.
+        out.insert(0, {"id": "local:" + served, "label": served,
+                       "pulled": False, "serving": True, "size_gb": 0})
+    return out
+
+
+def cloud_models(cfg):
+    """Ask the CONFIGURED PROVIDER what it serves. Returns (models, error)."""
+    base = (cfg.get("cloud_base") or "").strip().rstrip("/")
+    wire = (cfg.get("cloud_wire") or "openai").lower()
+    configured = (cfg.get("cloud_model") or "").strip()
+    key = get_secret()
+    if not base or not key:
+        return [], "لا يوجد مزوّد أو مفتاح | no provider or API key configured"
+    if not VERSIONED.search(base):
+        base += "/v1"
+
+    req = urllib.request.Request(base + "/models", method="GET")
+    req.add_header("User-Agent", USER_AGENT)
+    for name, value in (
+            {"x-api-key": key, "anthropic-version": ANTHROPIC_VERSION}
+            if wire == "anthropic" else {"Authorization": "Bearer " + key}).items():
+        req.add_header(name, value)
+
+    try:
+        with urllib.request.urlopen(req, timeout=12) as r:
+            data = json.loads(r.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as e:
+        return [], ("المزوّد لا يقدّم قائمة نماذج (%d) | this provider has no model "
+                    "list (%d) — اكتب اسم النموذج في الإعدادات | type the model name "
+                    "in Settings" % (e.code, e.code))
+    except Exception as e:
+        return [], "تعذّر جلب قائمة النماذج | could not fetch the model list: %s" % e
+
+    items = data.get("data") if isinstance(data, dict) else data
+    if not isinstance(items, list):
+        return [], "ردّ غير مفهوم من المزوّد | unexpected reply from the provider"
+
+    out, seen = [], set()
+    for item in items:
+        if isinstance(item, dict):
+            model_id = (item.get("id") or item.get("name") or "").strip()
+            label = (item.get("display_name") or "").strip() or model_id
+        else:
+            model_id = str(item).strip()
+            label = model_id
+        if not model_id or model_id in seen:
+            continue
+        seen.add(model_id)
+        out.append({"id": "cloud:" + model_id, "label": label,
+                    "serving": model_id == configured})
+    return out, ""
+
+
+def models():
+    cfg = load()
+    mode = "cloud" if cfg.get("mode") == "cloud" else "local"
+    configured = (cfg.get("cloud_model") or "").strip()
+
+    # Bust the cache when the provider changes, not only when the clock runs out.
+    sig = (mode, cfg.get("cloud_base", ""), cfg.get("cloud_wire", ""), configured)
+    with _models_lock:
+        if (_models_cache["data"] is not None and _models_cache["sig"] == sig
+                and time.monotonic() - _models_cache["ts"] < MODELS_TTL):
+            return _models_cache["data"]
+
+    local = local_models()
+    cloud, cloud_error = cloud_models(cfg)
+
+    # A provider with no /models still has the model the user configured, and we
+    # know that one is real because they typed it and can Test it. Offer it.
+    if configured and not any(m["id"] == "cloud:" + configured for m in cloud):
+        cloud.insert(0, {"id": "cloud:" + configured, "label": configured,
+                         "serving": True})
+
+    if mode == "cloud":
+        default = "cloud:" + configured if configured else "cloud"
+    else:
+        default = next((m["id"] for m in local if m["serving"]), "local")
+
+    out = {"local": local, "cloud": cloud, "cloud_error": cloud_error,
+           "default": default, "mode": mode}
+    with _models_lock:
+        _models_cache["data"] = out
+        _models_cache["ts"] = time.monotonic()
+        _models_cache["sig"] = sig
+    return out
 
 
 # ── App search — this is Mo AI's App Centre ──────────────────────────────────
@@ -540,6 +834,8 @@ class H(BaseHTTPRequestHandler):
             self._send(200, {"online": brain_online()})
         elif route.startswith("/quick"):
             self._send(200, quick())
+        elif route.startswith("/models"):
+            self._send(200, models())
         elif route.startswith("/scan"):
             self._send(200, scan())
         elif route.startswith("/search"):
@@ -585,15 +881,22 @@ class H(BaseHTTPRequestHandler):
             "cloud_wire": data.get("cloud_wire", cur.get("cloud_wire", "openai")),
         }
         save(out)
-        # Local and cloud both serve on 8080 — only one may run.
-        if mode == "cloud":
-            sysctl("disable", "--now", "moai.service")
-            sysctl("enable", "--now", "moai-cloud.service")
-        else:
-            sysctl("disable", "--now", "moai-cloud.service")
+
+        # This used to `systemctl disable --now` one brain and `enable --now` the
+        # other, because both listened on 8080. They no longer do: the gateway owns
+        # 8080 and routes each REQUEST, so `mode` is now only the DEFAULT for a
+        # request that does not name a brain. Nothing is bounced, nothing is torn
+        # down mid-conversation, and the local brain is left exactly as the user
+        # left it — the gateway starts it on demand if a request routes to it.
+        with _models_lock:                 # the provider may have changed
+            _models_cache["data"] = None
+        with _cloud_lock:
+            _cloud_cache["ts"] = 0.0
+        sysctl("enable", "--now", GATEWAY_UNIT)
         self._send(200, {"ok": True, "mode": mode})
 
 
 if __name__ == "__main__":
+    ensure_front_door()
     threading.Thread(target=plan_worker, daemon=True).start()
     ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()

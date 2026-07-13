@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
-# moai-config — choose Mo AI's brain and (optionally) configure a cloud provider.
+# moai-config — choose Mo AI's DEFAULT brain and (optionally) configure a cloud
+# provider. The terminal twin of Mo AI's Settings sheet.
 #
 # Writes non-secret provider settings to ~/.config/moai/config.json (chmod 600).
-# The API key is stored only in Secret Service (KWallet on Plasma).
-# The KEY is entered by the USER in a kdialog password field and is read only by
-# moai-gateway (the localhost cloud proxy) — never by the pure-QML app. Selecting
-# cloud enables moai-cloud.service; selecting local disables it. The app reads
-# only `mode` (via its launcher) to pick the endpoint; it never reads the key.
+# The API key is stored only in Secret Service (KWallet on Plasma), entered by the
+# USER in a kdialog password field, and read only by moai-gateway — never by the
+# pure-QML app.
+#
+# `mode` is only the DEFAULT now. moai-gateway is a single always-on front door on
+# 8080 and routes each REQUEST: Mo AI's chat picker chooses local or cloud per
+# conversation, and only a request that names no brain falls back to what is set
+# here. So nothing is enabled or disabled below — the days of stopping one brain
+# to start the other are over; that is what made this a global setting in the
+# first place.
 set -uo pipefail
 
 cfg_dir="${XDG_CONFIG_HOME:-$HOME/.config}/moai"
@@ -20,18 +26,37 @@ mode=$(kdialog --title "Mo AI — العقل | Brain" \
         local "محلي وخاص (RamaLama) | Local & private" \
         cloud "سحابي (مفتاحك الخاص) | Cloud (your own API key)" 2>/dev/null) || exit 0
 
-write_cfg() {  # write_cfg mode base model
-    MOAI_MODE="$1" MOAI_BASE="$2" MOAI_MODEL="$3" python3 - "$cfg" <<'PY'
+# MERGE, never overwrite. Choosing "local" used to write {"cloud_base": "",
+# "cloud_model": ""} over the file and throw the user's provider away — which was
+# survivable only while local and cloud were mutually exclusive. They are not any
+# more: a default of local and a working cloud provider is now an ordinary state,
+# and picking a default must not delete the other brain.
+write_cfg() {  # write_cfg <mode> [base] [model]
+    MOAI_MODE="$1" MOAI_BASE="${2-}" MOAI_MODEL="${3-}" python3 - "$cfg" <<'PY'
 import json, os, sys
 p = sys.argv[1]
-json.dump({
-    "mode": os.environ.get("MOAI_MODE", "local"),
-    "cloud_base": os.environ.get("MOAI_BASE", ""),
-    "cloud_model": os.environ.get("MOAI_MODEL", ""),
-}, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+try:
+    with open(p, encoding="utf-8") as f:
+        cur = json.load(f)
+except Exception:
+    cur = {}
+cur.pop("cloud_key", None)          # the key lives in Secret Service, nowhere else
+cur["mode"] = os.environ.get("MOAI_MODE") or "local"
+for field, var in (("cloud_base", "MOAI_BASE"), ("cloud_model", "MOAI_MODEL")):
+    value = os.environ.get(var) or ""
+    if value:
+        cur[field] = value
+    cur.setdefault(field, "")
+cur.setdefault("cloud_wire", "openai")
+with open(p, "w", encoding="utf-8") as f:
+    json.dump(cur, f, ensure_ascii=False, indent=2)
 PY
     chmod 600 "$cfg" 2>/dev/null || true
 }
+
+# The front door must be up whichever brain is the default — it is the only thing
+# on 8080 and the only thing Mo AI talks to.
+systemctl --user enable --now moai-gateway.service 2>/dev/null || true
 
 if [ "$mode" = "cloud" ]; then
     base=$(kdialog --title "Mo AI — Cloud" \
@@ -44,8 +69,7 @@ if [ "$mode" = "cloud" ]; then
         --password $'مفتاح الـ API الخاص بك (يُحفظ محلياً فقط) | Your API key (stored locally only):' 2>/dev/null) || exit 0
     if [ -z "$key" ]; then
         kdialog --sorry "لم تُدخل مفتاحاً — بقي العقل محلياً. | No key entered — staying local." || true
-        write_cfg local "" ""
-        systemctl --user disable --now moai-cloud.service 2>/dev/null || true
+        write_cfg local
         exit 0
     fi
     if ! command -v secret-tool >/dev/null 2>&1 || ! \
@@ -56,13 +80,11 @@ if [ "$mode" = "cloud" ]; then
     fi
     key=""
     write_cfg cloud "$base" "$model"
-    # Cloud and local both serve on 8080 — stop local before starting the gateway.
-    systemctl --user disable --now moai.service 2>/dev/null || true
-    systemctl --user enable --now moai-cloud.service 2>/dev/null || true
-    kdialog --title "Mo AI" --msgbox $'تم ضبط العقل السحابي ✓ أعد فتح Mo AI.\nCloud brain set ✓ Reopen Mo AI.' || true
+    kdialog --title "Mo AI" --msgbox $'العقل السحابي هو الافتراضي ✓ (بإمكانك اختيار العقل لكل محادثة من داخل Mo AI)\nCloud is now the default brain ✓ (pick a brain per conversation inside Mo AI)' || true
 else
-    write_cfg local "" ""
-    systemctl --user disable --now moai-cloud.service 2>/dev/null || true
-    kdialog --title "Mo AI" --msgbox $'العقل المحلي مفعّل ✓ أعد فتح Mo AI.\nLocal brain set ✓ Reopen Mo AI.' || true
+    # Keep the cloud provider on file. It is the DEFAULT that changed, not the
+    # user's account — and the chat picker can still route a message to it.
+    write_cfg local
+    kdialog --title "Mo AI" --msgbox $'العقل المحلي هو الافتراضي ✓ (بإمكانك اختيار العقل لكل محادثة من داخل Mo AI)\nLocal is now the default brain ✓ (pick a brain per conversation inside Mo AI)' || true
 fi
 exit 0
