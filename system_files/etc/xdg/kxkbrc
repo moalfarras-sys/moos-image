@@ -1,13 +1,26 @@
 # MoOS default keyboard layouts — bilingual out of the box.
-# MoOS brands itself Arabic/English; without this the installed desktop ships a
-# single layout and an Arabic user cannot type Arabic until they add one by hand
-# in System Settings. This system default (KConfig cascade, /etc/xdg) gives every
-# new session an EN + AR pair with an Alt+Shift toggle; users can still change it
-# in System Settings > Keyboard (their ~/.config/kxkbrc overrides this).
+#
+# German + Arabic, toggled with Alt+Shift (the switch every Windows user already
+# has in their fingers). The layout pair is what a MoOS user actually types in:
+# German is the physical keyboard and the system locale (de_DE.UTF-8, VC keymap
+# de-nodeadkeys), Arabic is the language MoOS brands itself in.
+#
+# This used to be us,ara. That pairing was wrong in both halves: it put a US
+# layout under a German keyboard — every umlaut and every 'z'/'y' in the wrong
+# place — and it did it silently, because a layout mismatch produces wrong
+# characters, never an error.
+#
+# nodeadkeys on the German half is deliberate: the default German layout makes
+# ^ ` ´ dead keys, which is a trap in a terminal and in code.
+#
+# System default via the KConfig cascade (/etc/xdg). A user's own
+# ~/.config/kxkbrc still outranks this, so System Settings > Keyboard keeps
+# working as the last word.
 [Layout]
 Use=true
-LayoutList=us,ara
-VariantList=,
-DisplayNames=EN,ع
+LayoutList=de,ara
+VariantList=nodeadkeys,
+DisplayNames=DE,ع
 Options=grp:alt_shift_toggle
 SwitchMode=Global
+ResetOldOptions=true
