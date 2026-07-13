@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
@@ -14,20 +13,29 @@ export 'section_header.dart';
 
 /// A horizontal shelf of cards.
 ///
-/// A touch app can let you flick a rail. A desktop cannot, and the three ways a
-/// desktop actually drives one are all here:
+/// **The wheel belongs to the page.** This rail used to turn a vertical wheel
+/// into sideways movement and only hand the event back at the end of the shelf —
+/// which is a clever idea and a bad one. The home page is a *column* of shelves:
+/// wherever the cursor happens to rest, it is resting on a rail, so every attempt
+/// to scroll the page dragged a shelf sideways instead and the page below the
+/// fold could not be reached at all. The owner reported it as "I cannot scroll
+/// down", which is exactly what it was.
+///
+/// So the four ways a desktop drives a shelf, and the one it does not:
 ///
 ///  * **The arrows.** A mouse with a vertical wheel has no other way to move a
-///    horizontal list. They appear on hover, they hide at the ends, and they do
+///    horizontal list. They appear on hover, they dim at the ends, and they do
 ///    not appear at all if the whole shelf already fits.
-///  * **The wheel.** A vertical wheel over the shelf scrolls it sideways —
-///    *until it hits the end*, at which point the event is left alone and the
-///    page scrolls instead. That last clause is the difference between a
-///    convenience and a trap: without it, a shelf under the cursor swallows
-///    every attempt to scroll the page past it.
+///  * **Shift + wheel.** The desktop convention for "scroll the other axis", and
+///    the one gesture that says *sideways* explicitly. Flutter flips the axis for
+///    this itself; the rail only has to not get in the way.
+///  * **A trackpad's horizontal pan** arrives already on the right axis, and the
+///    list handles it natively.
 ///  * **The keyboard and the D-pad.** Nothing to do here — the cards are
 ///    [FocusSurface]s, and a focused one pulls itself into view through every
 ///    scrollable it sits inside, this one included.
+///  * **A plain wheel does nothing to the shelf.** It scrolls the page, like it
+///    does everywhere else in every application the user has ever used.
 ///
 /// A rail with nothing in it does not render. Not an empty state, not a header
 /// with a gap under it: nothing. An empty shelf is the single clearest way to
@@ -45,7 +53,6 @@ class MediaRail extends StatefulWidget {
     this.seeAllLabel,
     this.spacing = Nova.space4,
     this.padding = EdgeInsets.zero,
-    this.wheelScrolls = true,
     this.header = true,
   });
 
@@ -66,8 +73,6 @@ class MediaRail extends StatefulWidget {
   /// Leading/trailing inset on the scrolling list, for a rail that runs to the
   /// edge of a full-bleed page.
   final EdgeInsetsGeometry padding;
-
-  final bool wheelScrolls;
 
   /// Off for a shelf that already sits under a [SectionHeader] of its own.
   final bool header;
@@ -141,27 +146,6 @@ class _MediaRailState extends State<MediaRail> {
     );
   }
 
-  void _onPointerSignal(PointerSignalEvent event) {
-    if (!widget.wheelScrolls) return;
-    if (event is! PointerScrollEvent) return;
-    if (!_controller.hasClients) return;
-
-    // A trackpad's horizontal gesture already arrives on the right axis; only a
-    // wheel's vertical delta needs turning.
-    final delta = event.scrollDelta.dy;
-    if (delta == 0 || event.scrollDelta.dx != 0) return;
-
-    final position = _controller.position;
-    final target = (position.pixels + delta).clamp(0.0, position.maxScrollExtent);
-    // At the end of the shelf we do *not* register: the event goes on to the
-    // page, and the wheel keeps scrolling the thing the user is looking at.
-    if ((target - position.pixels).abs() < 0.5) return;
-
-    GestureBinding.instance.pointerSignalResolver.register(event, (_) {
-      position.pointerScroll(delta);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.itemCount == 0) return const SizedBox.shrink();
@@ -227,19 +211,22 @@ class _MediaRailState extends State<MediaRail> {
             ),
           SizedBox(
             height: widget.height,
-            child: Listener(
-              onPointerSignal: _onPointerSignal,
-              child: ListView.separated(
-                controller: _controller,
-                scrollDirection: Axis.horizontal,
-                padding: widget.padding,
-                clipBehavior: Clip.none,
-                itemCount: widget.itemCount,
-                separatorBuilder: (_, _) => SizedBox(width: widget.spacing),
-                itemBuilder: (context, index) => SizedBox(
-                  width: widget.itemWidth,
-                  child: widget.itemBuilder(context, index),
-                ),
+            // No Listener, and no custom pointer-signal handling. A horizontal
+            // Scrollable in Flutter already ignores a plain vertical wheel — it
+            // reads `scrollDelta.dx`, which a wheel does not produce — and it
+            // already flips its own axis for shift+wheel. Everything the shelf
+            // needs is what Flutter does when nothing interferes; the bug was the
+            // interference.
+            child: ListView.separated(
+              controller: _controller,
+              scrollDirection: Axis.horizontal,
+              padding: widget.padding,
+              clipBehavior: Clip.none,
+              itemCount: widget.itemCount,
+              separatorBuilder: (_, _) => SizedBox(width: widget.spacing),
+              itemBuilder: (context, index) => SizedBox(
+                width: widget.itemWidth,
+                child: widget.itemBuilder(context, index),
               ),
             ),
           ),

@@ -32,6 +32,17 @@ import '../../widgets/state_views.dart';
 import '../../widgets/tiles.dart';
 import '../../widgets/weather_tile.dart';
 
+/// A poster on the home page is a *glance*, not a choice: the choosing happens on
+/// the film wall, where the same artwork is 180 px wide and there are forty of it.
+/// The rails were built at that same 170x300 and the owner's verdict was the right
+/// one — on a 1396-logical window that is five cards and almost no page. At 148 it
+/// is seven, the shelves below the fold come into view, and the hero above them
+/// still leads.
+const double _railPoster = 148;
+
+/// The artwork at 2:3, plus the two lines of type under it — which do not scale.
+const double _railPosterHeight = 266;
+
 /// The landing page: one hero, then rails.
 ///
 /// The page is assembled from catalogues that arrive independently, and only
@@ -216,8 +227,8 @@ class HomeScreen extends ConsumerWidget {
                     MediaRail(
                       title: s.liveNow,
                       itemCount: math.min(live.length, 20),
-                      itemWidth: 220,
-                      height: 172,
+                      itemWidth: 196,
+                      height: 156,
                       seeAllLabel: s.more,
                       onSeeAll: () => context.go(Routes.live),
                       itemBuilder: (context, i) => _LiveCard(channel: live[i]),
@@ -234,8 +245,8 @@ class HomeScreen extends ConsumerWidget {
                       title: s.newestMovies,
                       subtitle: s.movies,
                       itemCount: newestMovies.length,
-                      itemWidth: 170,
-                      height: 300,
+                      itemWidth: _railPoster,
+                      height: _railPosterHeight,
                       seeAllLabel: s.more,
                       onSeeAll: () => context.go(Routes.movies),
                       itemBuilder: (context, i) => _MovieCard(
@@ -253,8 +264,8 @@ class HomeScreen extends ConsumerWidget {
                       title: s.newestSeries,
                       subtitle: s.series,
                       itemCount: newestSeries.length,
-                      itemWidth: 170,
-                      height: 300,
+                      itemWidth: _railPoster,
+                      height: _railPosterHeight,
                       seeAllLabel: s.more,
                       onSeeAll: () => context.go(Routes.series),
                       itemBuilder: (context, i) => _SeriesCard(
@@ -272,8 +283,8 @@ class HomeScreen extends ConsumerWidget {
                       title: s.topRated,
                       subtitle: s.movies,
                       itemCount: top.length,
-                      itemWidth: 170,
-                      height: 300,
+                      itemWidth: _railPoster,
+                      height: _railPosterHeight,
                       seeAllLabel: s.more,
                       onSeeAll: () => context.go(Routes.movies),
                       itemBuilder: (context, i) => _MovieCard(
