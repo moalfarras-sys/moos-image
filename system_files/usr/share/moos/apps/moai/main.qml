@@ -1,42 +1,2435 @@
-// Mo AI v1 — MoOS built-in assistant (premium glass redesign + system control)
+// Mo AI — the MoOS assistant, and the one place the system is managed from.
 // Launched by /usr/bin/moai (qml-qt6 runtime — pure QML, no compilation).
 //
-// Backend: `ramalama serve` → llama.cpp llama-server, an OpenAI-compatible
-// REST API. RamaLama's default serving port is 8080 (ramalama-serve docs:
-// "The default serving port will be 8080 if available") and moai-start passes
-// --port 8080 explicitly so it always matches the `api` constant below.
+// WHAT THIS IS
+//   The Hardware Centre, the Compatibility Hub and the App Centre used to be
+//   separate windows onto the same JSON that Mo AI already read, sitting next to
+//   the one app that could actually explain what was wrong and repair it. They
+//   are panels in here now, and /usr/bin/moos-hardware and /usr/bin/moos-compat
+//   are shims that open `moai --device`.
 //
-// SYSTEM CONTROL — the honest design:
-//   Pure QML has NO Process API and its XMLHttpRequest cannot WRITE local files
-//   (VERIFIED 2026-07-10, doc.qt.io/qt-6/qml-qtqml-xmlhttprequest.html: local
-//   files can be READ with QML_XHR_ALLOW_FILE_READ but not written), so this
-//   window cannot exec anything itself. Instead the Quick-Actions pills COPY an
-//   exact `moai-do <action>` command to the clipboard (the same hidden-TextEdit
-//   .copy() trick the Hardware Center uses) and show a bilingual toast telling
-//   the user to run it in a terminal. The real, auditable work happens in the
-//   whitelisted helper /usr/bin/moai-do (confirmation + pkexec). The model can
-//   ALSO suggest the same `moai-do ...` commands in chat.
-
+// HOW IT REACHES THE SYSTEM — the honest design, do not widen it
+//   Pure QML has NO Process API and its XMLHttpRequest cannot write local files,
+//   so this window CANNOT execute anything. It has exactly two channels:
+//
+//     1. moai-control on 127.0.0.1:8079 — READ-ONLY state (/quick, /scan,
+//        /search) plus its own brain config (/config). It changes nothing else.
+//     2. Qt.openUrlExternally("moos://…") — the scheme handler /usr/bin/moos-open,
+//        a strict whitelist, which runs the matching /usr/bin/moai-do action in a
+//        VISIBLE terminal with a confirmation and a Polkit prompt.
+//
+//   The model can NAME an action from that fixed allowlist; the UI turns it into
+//   a Run button; the user still confirms and still authenticates. The model
+//   never executes anything, and neither does this file. Every moos:// URL below
+//   must have a case in moos-open — tests/verify_user_experience.py cross-checks
+//   the two, because three buttons once shipped pointing at routes that did not
+//   exist and silently did nothing.
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
+import QtQuick.Shapes
 import org.kde.kirigami as Kirigami
 
 Kirigami.ApplicationWindow {
     id: root
 
-    // ── The brain endpoint is ALWAYS 127.0.0.1:8080. Whichever brain is active
-    //    owns that port: the local RamaLama service (moai.service) OR the cloud
-    //    gateway (moai-cloud.service, which holds the API key). moai-config
-    //    switches which one runs, so this app stays simple and never needs to
-    //    know the mode or read a config/argv.
+    // ── Nova design tokens (MOOS_NOVA_DESIGN_TOKENS.md) ─────────────────────
+    readonly property color surface0: "#0B1220"   // canvas
+    readonly property color surface1: "#111A2E"   // primary surface
+    readonly property color surface2: "#16233A"   // raised control
+    readonly property color surface3: "#263A5C"   // hover / selected
+    readonly property color hairline: "#263852"
+    readonly property color textHi:   "#F4F8FF"
+    readonly property color textLo:   "#9FB0C9"
+    readonly property color textMute: "#7F94B5"
+    readonly property color novaCyan:   "#22D3EE"
+    readonly property color novaBlue:   "#2E7BFF"
+    readonly property color novaViolet: "#8B5CF6"
+    readonly property color okColor:   "#35D39A"
+    readonly property color warnColor: "#F4B860"
+    readonly property color badColor:  "#FF6B7A"
+    readonly property string uiFont: "IBM Plex Sans"
+
+    // ── Endpoints ───────────────────────────────────────────────────────────
+    // The brain is ALWAYS 127.0.0.1:8080. Whichever brain is active owns that
+    // port: the local RamaLama service (moai.service) or the cloud gateway
+    // (moai-cloud.service, which alone holds the API key). This app never learns
+    // the mode and never sees the key.
     readonly property string api: "http://127.0.0.1:8080/v1/chat/completions"
-
-    // The active streaming request, so the Stop button can abort it.
-    property var activeXhr: null
-
-    // ── In-app Settings (backed by the moai-control service on :8079) ───────
     readonly property string controlApi: "http://127.0.0.1:8079"
+
+    property var activeXhr: null
+    property bool serverUp: false
+    property bool busy: false
+    property bool brainStarting: false
+    property var history: []            // [{role, content}] — last 12 turns
+    property var pendingRuns: []        // moai-do actions the model just named
+    property string panel: "chat"       // chat|device|apps|compat|remote|dev
+
+    // Live system state from moai-control.
+    property var snap: ({})             // /scan
+    property var plan: ({})             // snap.device_plan
+    property bool scanning: false
+    property string machineContext: ""
+
+    title: "Mo AI"
+    width: 940
+    height: 700
+    minimumWidth: 720
+    minimumHeight: 540
+    color: surface0
+    pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.None
+
+    // ── Health, derived from the detector rather than asserted ──────────────
+    //
+    // planReady matters: moai-control refreshes the device plan on a background
+    // thread and reports device_plan_pending until the first one lands. Without
+    // this the panel would read "no problems" from an EMPTY action list and tell
+    // the user their device was healthy before anything had looked at it.
+    readonly property bool planReady: !snap.device_plan_pending && !!snap.device_plan
+    readonly property var actions: (plan.actions || [])
+    readonly property int problemCount: actions.length
+    readonly property bool healthy: planReady && problemCount === 0
+    readonly property bool hasImportant: {
+        for (let i = 0; i < actions.length; i++)
+            if (actions[i].severity === "important")
+                return true
+        return false
+    }
+
+    readonly property var remoteState: (snap.remote || {})
+    readonly property var agentState: (snap.agents || {})
+    readonly property var compatState: (snap.compatibility || {})
+    readonly property var appState: (snap.apps || {})
+
+    // ── The companion's mood ────────────────────────────────────────────────
+    property string moodFlash: ""
+    readonly property string mood:
+          moodFlash !== "" ? moodFlash
+        : !serverUp ? (brainStarting ? "thinking" : "offline")
+        : busy ? "thinking"
+        : (input.activeFocus && input.text.trim().length > 0) ? "attentive"
+        : "idle"
+
+    function flashMood(m) {
+        moodFlash = m
+        moodTimer.restart()
+    }
+    Timer { id: moodTimer; interval: 1400; onTriggered: root.moodFlash = "" }
+
+    // ── The system prompt ───────────────────────────────────────────────────
+    readonly property string systemPrompt:
+        "You are Mo AI, the built-in assistant of MoOS — a premium Arabic/English " +
+        "(RTL) Linux desktop by Moalfarras, based on Fedora Atomic (bootc/OSTree, " +
+        "atomic updates) + KDE Plasma 6. You are not a chat box beside the system; " +
+        "you ARE its repair, update, cleanup and setup centre.\n\n" +
+        "WHAT YOU CAN DO — put the EXACT command in a fenced code block and the app " +
+        "turns it into a one-click Run button (it still asks the user to confirm and " +
+        "still prompts for a password where one is needed):\n" +
+        "• Repair & maintain: `moai-do update` (atomic system update), `moai-do " +
+        "fix-audio`, `moai-do check-drivers`, `moai-do optimize` (clean + speed up), " +
+        "`moai-do diagnose-services`, `moai-do inspect-boot`, `moai-do hw-report`.\n" +
+        "• Drivers & firmware: `moai-do install-nvidia` (atomically switch to the MoOS " +
+        "NVIDIA edition — applies on reboot, the previous system is kept for " +
+        "rollback), `moai-do update-firmware` (device firmware via fwupd).\n" +
+        "• Install ANY app: `moai-do install <flatpak-id>` — e.g. `moai-do install " +
+        "org.blender.Blender`. Prefer Flatpaks over layering rpm-ostree packages. If " +
+        "you are not certain of an app id, tell the user to search it in the Apps " +
+        "panel rather than guessing one.\n" +
+        "• Compatibility: `moai-do setup-waydroid` (Android apps), `moai-do " +
+        "install com.valvesoftware.Steam` (Windows games via Proton), `moai-do " +
+        "install com.usebottles.bottles` (Windows apps).\n" +
+        "• Coding agents: `moai-do install-codex`, `moai-do install-claude` — they " +
+        "install into ~/.local and run as the user, with no admin rights.\n" +
+        "• Diagnose: explain the likely cause in plain language, then give the " +
+        "SMALLEST safe repair.\n\n" +
+        "HOW TO BEHAVE: understand the goal → briefly diagnose → propose the smallest " +
+        "safe action → show the exact command → one line on what it does. Always " +
+        "confirm before anything that updates, installs, removes, reboots or rolls " +
+        "back. NEVER suggest a destructive command, a raw root shell, or a way around " +
+        "a confirmation. If you are offline or unsure, say so plainly.\n" +
+        "STYLE: concise and friendly, in the user's language (العربية RTL or English), " +
+        "short bullets, code blocks for commands."
+
+    readonly property string offlineHelp:
+        "العقل المحلي غير مشغّل.\nThe local brain is off.\n\n" +
+        "اضغط **«شغّل العقل المحلي»** بالأسفل — أو شغّل `moai-start` في الطرفية.\n" +
+        "Tap **“Start local brain”** below — or run `moai-start` in a terminal.\n\n" +
+        "ثم أعد المحاولة | then try again."
+
+    readonly property string startingHelp:
+        "العقل المحلي يبدأ الآن… أول تشغيل يُحمّل النموذج (~2.5GB) وقد يأخذ دقائق.\n" +
+        "The local brain is starting… the first run downloads the model (~2.5 GB) and may take a few minutes.\n\n" +
+        "سأصبح جاهزاً تلقائياً عند الانتهاء. | I'll be ready automatically once it finishes."
+
+    readonly property string greetingText:
+        "مرحباً! أنا **Mo AI** — مساعد MoOS.\n" +
+        "Hi! I'm **Mo AI** — your MoOS assistant.\n\n" +
+        "أقدر أصلّح التعريفات، أحدّث النظام، أثبّت أي تطبيق، أنظّف الجهاز، وأشغّل Mo PC Remote.\n" +
+        "I can fix drivers, update the system, install any app, clean things up, and run Mo PC Remote.\n\n" +
+        "_اسألني، أو استخدم الشريط الجانبي. | Ask me, or use the side rail._"
+
+    readonly property var starters: [
+        { ar: "حدّث نظامي",     en: "Update my system", send: "حدّث نظام MoOS من فضلك" },
+        { ar: "افحص جهازي",     en: "Check my device",  send: "افحص جهازي وقل لي إذا في مشاكل تعريفات أو تحديثات" },
+        { ar: "سرّع ونظّف",      en: "Speed up & clean", send: "نظّف النظام وسرّعه من فضلك" },
+        { ar: "صلّح الصوت",      en: "Fix audio",        send: "الصوت لا يعمل عندي، ساعدني" }
+    ]
+
+    // ── The rail ────────────────────────────────────────────────────────────
+    readonly property var navItems: [
+        { id: "chat",   icon: "moos-ai",           ar: "المحادثة", en: "Chat" },
+        { id: "device", icon: "moos-gpu",          ar: "الجهاز",   en: "Device" },
+        { id: "apps",   icon: "moos-install",      ar: "التطبيقات", en: "Apps" },
+        { id: "compat", icon: "moos-gaming",       ar: "التوافق",  en: "Compat" },
+        { id: "remote", icon: "moos-phone",        ar: "التحكّم",   en: "Remote" },
+        { id: "dev",    icon: "utilities-terminal", ar: "المطوّر",  en: "Dev" }
+    ]
+
+    // Compatibility targets. `key` matches moai-control's /scan compatibility
+    // map, so "Ready" is read from the machine, never assumed.
+    readonly property var compatCatalog: [
+        { key: "steam",      title: "Steam + Proton", ar: "ألعاب Windows", en: "Windows games",
+          url: "moos://do/setup-gaming", icon: "moos-gaming" },
+        { key: "bottles",    title: "Bottles", ar: "تطبيقات Windows", en: "Windows apps",
+          url: "moos://apps/install/com.usebottles.bottles", icon: "moos-system" },
+        { key: "waydroid",   title: "Waydroid", ar: "تطبيقات Android", en: "Android apps",
+          url: "moos://do/setup-waydroid", icon: "moos-android-apps" },
+        { key: "kdeconnect", title: "KDE Connect", ar: "ربط الهاتف", en: "Phone integration",
+          url: "moos://apps/install/org.kde.kdeconnect", icon: "moos-phone" }
+    ]
+
+    // The apps we recommend. Anything else is found by searching Flathub.
+    readonly property var appCatalog: [
+        { id: "io.github.kolunmi.Bazaar", title: "App Center (Bazaar)", ar: "تصفّح كل التطبيقات", en: "Browse everything" },
+        { id: "org.mozilla.firefox",      title: "Firefox",     ar: "متصفح ويب",      en: "Web browser" },
+        { id: "org.videolan.VLC",         title: "VLC",         ar: "مشغل وسائط",     en: "Media player" },
+        { id: "org.libreoffice.LibreOffice", title: "LibreOffice", ar: "حزمة مكتبية", en: "Office suite" },
+        { id: "com.github.tchx84.Flatseal", title: "Flatseal",  ar: "صلاحيات التطبيقات", en: "App permissions" }
+    ]
+
+    ListModel { id: chatModel }
+    ListModel { id: searchModel }
+    property bool searching: false
+    property string searchNote: ""
+
+    // ── Startup ─────────────────────────────────────────────────────────────
+    Component.onCompleted: {
+        chatModel.append({ role: "assistant", text: greetingText })
+        refreshScan()
+        // Open straight onto a panel. This is how the old centres survive as
+        // commands: moos-hardware runs `moai --panel device`, moos-compat runs
+        // `moai --panel compat`. `--device` is kept as an alias.
+        const argv = Qt.application.arguments
+        if (argv.indexOf("--device") !== -1) {
+            root.panel = "device"
+        } else {
+            const i = argv.indexOf("--panel")
+            if (i !== -1 && i + 1 < argv.length) {
+                const p = argv[i + 1]
+                if (["chat", "device", "apps", "compat", "remote", "dev"].indexOf(p) !== -1)
+                    root.panel = p
+            }
+        }
+    }
+
+    // Cheap poll: brain + remote + agents. moai-control serves this without
+    // touching the device plan, so it is safe at this interval.
+    Timer {
+        interval: 4000
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: {
+            const xhr = new XMLHttpRequest()
+            xhr.open("GET", root.controlApi + "/quick")
+            xhr.setRequestHeader("X-Moai-Control", "1")
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== XMLHttpRequest.DONE)
+                    return
+                if (xhr.status !== 200) {
+                    root.serverUp = false
+                    return
+                }
+                try {
+                    const q = JSON.parse(xhr.responseText)
+                    root.serverUp = !!q.online
+                    if (root.serverUp)
+                        root.brainStarting = false
+                    // Merge the live bits into the snapshot so the Remote and
+                    // Developer panels update without a full rescan.
+                    const s = root.snap || {}
+                    s.remote = q.remote || {}
+                    s.agents = q.agents || {}
+                    root.snap = s
+                    root.snapChanged()
+                } catch (e) {}
+            }
+            xhr.send()
+        }
+    }
+
+    // The full scan is heavier (it carries the cached device plan), so it runs
+    // on a slow beat and on demand.
+    Timer {
+        interval: 180000
+        running: true
+        repeat: true
+        onTriggered: root.refreshScan()
+    }
+
+    function refreshScan() {
+        root.scanning = true
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", controlApi + "/scan")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            root.scanning = false
+            if (xhr.status !== 200)
+                return
+            try {
+                const s = JSON.parse(xhr.responseText)
+                root.snap = s
+                root.plan = s.device_plan || {}
+                root.machineContext = root.buildContext(s)
+            } catch (e) { /* keep the last good snapshot, not a half-parsed one */ }
+        }
+        xhr.send()
+    }
+
+    // What the model is told about this machine, on every request. Without it,
+    // Mo AI is a chat box that has to be TOLD what hardware it is on; with it,
+    // it opens already knowing this machine has an NVIDIA card on nouveau, and
+    // can say so first. Facts and allowed action ids only — naming an action
+    // does not grant the power to run it.
+    function buildContext(s) {
+        const p = s.device_plan || {}
+        let c = "\n\nTHIS MACHINE (live, read-only — do not ask the user for it):\n"
+        c += "• " + (s.os || "MoOS") + ", kernel " + (s.kernel || "?")
+           + ", " + (s.mem_gb || "?") + " GB RAM, " + (s.cores || "?") + " cores\n"
+        if (s.cpu) c += "• CPU: " + s.cpu + "\n"
+        if (p.gpu) c += "• GPU: " + String(p.gpu).split("\n")[0] + "\n"
+        if (p.driver_status) c += "• Graphics driver: " + p.driver_status + "\n"
+        if (p.driver_gaps && p.driver_gaps.length)
+            c += "• Devices with NO driver bound: " + p.driver_gaps.join("; ") + "\n"
+        if (p.missing_firmware && p.missing_firmware.length)
+            c += "• Firmware the kernel could not load: " + p.missing_firmware.join(", ") + "\n"
+        if (p.firmware_updates && p.firmware_updates.length)
+            c += "• Pending firmware updates: " + p.firmware_updates.join("; ") + "\n"
+        const r = s.remote || {}
+        c += "• Mo PC Remote: " + (r.active ? "running" : "stopped") + "\n"
+        const a = s.agents || {}
+        c += "• Coding agents installed: codex=" + (a.codex ? "yes" : "no")
+           + ", claude=" + (a.claude ? "yes" : "no") + "\n"
+        const acts = p.actions || []
+        if (acts.length) {
+            c += "• Repairs available right now (each maps to an allowed action):\n"
+            for (let i = 0; i < acts.length; i++) {
+                const act = acts[i]
+                const cmd = act.url ? String(act.url).replace("moos://do/", "moai-do ") : ""
+                c += "   - [" + act.severity + "] " + act.title
+                   + (cmd ? "  ->  `" + cmd + "`" : "") + "\n"
+            }
+            c += "If something above is broken, say so first and offer the exact action.\n"
+        } else {
+            c += "• No hardware or driver problems detected.\n"
+        }
+        c += "Never invent hardware facts that are not in this list.\n"
+        return c
+    }
+
+    // ── Actions ─────────────────────────────────────────────────────────────
+    function launch(url, label) {
+        Qt.openUrlExternally(url)
+        toast.show(label || url)
+        orbPulse.restart()
+    }
+
+    function startBrain() {
+        Qt.openUrlExternally("moos://brain/start")
+        brainStarting = true
+        brainStartGuard.restart()
+    }
+    Timer { id: brainStartGuard; interval: 720000; onTriggered: root.brainStarting = false }
+
+    function askAbout(title, detail) {
+        root.panel = "chat"
+        input.text = "اشرح لي هذه المشكلة وكيف أصلحها: " + title + " — " + detail
+                   + "\nExplain this problem and how to fix it."
+        input.forceActiveFocus()
+    }
+
+    // Search Flathub through moai-control (which falls back to the local
+    // appstream index when offline). Searching is read-only; INSTALLING hands
+    // the id to moos://apps/install/<id> -> moai-do install, which validates it
+    // again and asks for confirmation. The two never share a code path.
+    function searchApps(q) {
+        const query = (q || "").trim()
+        if (query === "") {
+            searchModel.clear()
+            root.searchNote = ""
+            return
+        }
+        root.searching = true
+        root.searchNote = ""
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", controlApi + "/search?q=" + encodeURIComponent(query))
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            root.searching = false
+            searchModel.clear()
+            if (xhr.status !== 200) {
+                root.searchNote = "تعذّر البحث | search failed"
+                return
+            }
+            try {
+                const r = JSON.parse(xhr.responseText)
+                const list = r.results || []
+                for (let i = 0; i < list.length; i++)
+                    searchModel.append(list[i])
+                if (list.length === 0)
+                    root.searchNote = "لا نتائج | no results"
+                else if (r.source === "local")
+                    root.searchNote = "بدون إنترنت — نتائج محلية | offline — local results"
+            } catch (e) {
+                root.searchNote = "تعذّر قراءة النتائج | couldn't read results"
+            }
+        }
+        xhr.send()
+    }
+
+    // The moai-do actions the model named in its last reply, surfaced as Run
+    // chips. Only ids from the fixed allowlist are matched — a command the model
+    // invents does not become a button.
+    function extractRuns(text) {
+        const out = []
+        const re = /moai-do\s+(update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|update-firmware|install-nvidia|setup-waydroid|install-codex|install-claude)\b/g
+        let m
+        while ((m = re.exec(text)) !== null)
+            if (out.indexOf(m[1]) === -1)
+                out.push(m[1])
+        return out
+    }
+
+    function newChat() {
+        chatModel.clear()
+        history = []
+        pendingRuns = []
+        stopGenerating()
+        chatModel.append({ role: "assistant", text: greetingText })
+    }
+
+    function trimHistory() {
+        if (history.length > 12)
+            history = history.slice(-12)
+    }
+
+    function stopGenerating() {
+        if (activeXhr) {
+            try { activeXhr.abort() } catch (e) {}
+            activeXhr = null
+        }
+        busy = false
+    }
+
+    function sendPrompt(msg) {
+        root.panel = "chat"
+        input.text = msg
+        send()
+    }
+
+    function send() {
+        const msg = input.text.trim()
+        if (msg === "" || busy)
+            return
+        root.panel = "chat"
+        input.text = ""
+        chatModel.append({ role: "user", text: msg })
+        history.push({ role: "user", content: msg })
+        trimHistory()
+        chatModel.append({ role: "typing", text: "…" })
+        const idx = chatModel.count - 1
+        busy = true
+        pendingRuns = []
+
+        let acc = ""
+        let sawData = false
+        let processed = 0
+
+        const xhr = new XMLHttpRequest()
+        activeXhr = xhr
+        xhr.open("POST", api)
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            // Parse newly-arrived SSE lines during LOADING (live) and at DONE.
+            if (xhr.readyState === XMLHttpRequest.LOADING
+                    || xhr.readyState === XMLHttpRequest.DONE) {
+                const full = xhr.responseText
+                // Consume only COMPLETE lines: a `data:` line can split across
+                // two ticks, so keep a trailing partial buffered until its
+                // newline arrives. At DONE, consume the remainder too.
+                let end = full.lastIndexOf("\n") + 1
+                if (xhr.readyState === XMLHttpRequest.DONE)
+                    end = full.length
+                const fresh = end > processed ? full.substring(processed, end) : ""
+                processed = end > processed ? end : processed
+                const lines = fresh.split("\n")
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim()
+                    if (line.indexOf("data:") !== 0)
+                        continue
+                    const payload = line.substring(5).trim()
+                    if (payload === "" || payload === "[DONE]")
+                        continue
+                    try {
+                        const j = JSON.parse(payload)
+                        const ch = j.choices && j.choices[0]
+                        const delta = ch
+                            ? (ch.delta ? ch.delta.content
+                               : (ch.message ? ch.message.content : ""))
+                            : ""
+                        if (delta) {
+                            acc += delta
+                            sawData = true
+                            chatModel.set(idx, { role: "assistant", text: acc })
+                        }
+                    } catch (e) { /* partial JSON — completes next tick */ }
+                }
+            }
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            root.busy = false
+            root.activeXhr = null
+
+            if (sawData && acc.trim() !== "") {
+                chatModel.set(idx, { role: "assistant", text: acc })
+                root.history.push({ role: "assistant", content: acc })
+                root.trimHistory()
+                root.pendingRuns = root.extractRuns(acc)
+                root.flashMood("success")
+                return
+            }
+            // No stream (older server or an error) — try a whole-response parse.
+            let reply = ""
+            if (xhr.status === 200) {
+                try {
+                    reply = JSON.parse(xhr.responseText).choices[0].message.content.trim()
+                } catch (e) { reply = "" }
+            }
+            if (reply !== "") {
+                chatModel.set(idx, { role: "assistant", text: reply })
+                root.history.push({ role: "assistant", content: reply })
+                root.trimHistory()
+                root.pendingRuns = root.extractRuns(reply)
+                root.flashMood("success")
+            } else {
+                const help = !root.serverUp
+                    ? (root.brainStarting ? root.startingHelp : root.offlineHelp)
+                    : "لم أستطع توليد رد، حاول مجدداً. | I couldn't generate a reply — please try again."
+                chatModel.set(idx, { role: "assistant", text: help })
+                root.flashMood(root.serverUp ? "warning" : "error")
+            }
+        }
+        xhr.send(JSON.stringify({
+            model: "default",
+            messages: [{ role: "system", content: systemPrompt + root.machineContext }]
+                          .concat(history),
+            stream: true
+        }))
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Reusable pieces
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // The Nova orb. Drawn with QtQuick.Shapes: a conical-gradient annulus that
+    // turns, a soft radial halo, and a core that breathes.
+    //
+    // No MultiEffect blur on purpose. This machine's GPU memory is mostly held
+    // by the local model (llama-server sits at ~6 of 8 GB), and an offscreen
+    // render target for a 44 px icon is not a trade worth making. A radial
+    // gradient costs nothing and reads the same.
+    component NovaOrb: Item {
+        id: orb
+        property string mood: "idle"
+        property real ringAngle: 0
+        property real coreScale: 1.0
+        property real haloScale: 1.0
+
+        readonly property bool alive: mood !== "offline"
+        readonly property color accent:
+              mood === "success" ? root.okColor
+            : mood === "warning" ? root.warnColor
+            : mood === "error"   ? root.badColor
+            : mood === "offline" ? "#4A5B75"
+            : root.novaBlue
+
+        implicitWidth: 44
+        implicitHeight: 44
+
+        // Halo
+        Shape {
+            anchors.centerIn: parent
+            width: orb.width * 1.75
+            height: orb.height * 1.75
+            scale: orb.haloScale
+            opacity: orb.alive ? 0.5 : 0.16
+            Behavior on opacity { NumberAnimation { duration: 260 } }
+            ShapePath {
+                strokeWidth: -1
+                fillGradient: RadialGradient {
+                    centerX: orb.width * 0.875; centerY: orb.height * 0.875
+                    centerRadius: orb.width * 0.875
+                    focalX: centerX; focalY: centerY
+                    GradientStop { position: 0.55; color: Qt.rgba(orb.accent.r, orb.accent.g, orb.accent.b, 0.42) }
+                    GradientStop { position: 1.00; color: Qt.rgba(orb.accent.r, orb.accent.g, orb.accent.b, 0.0) }
+                }
+                PathAngleArc {
+                    centerX: orb.width * 0.875; centerY: orb.height * 0.875
+                    radiusX: orb.width * 0.875; radiusY: orb.height * 0.875
+                    startAngle: 0; sweepAngle: 360
+                }
+            }
+        }
+
+        // The turning ring — an annulus (odd-even fill) with a conical gradient.
+        Shape {
+            id: ring
+            anchors.fill: parent
+            scale: orb.coreScale
+            opacity: orb.alive ? 1.0 : 0.42
+            Behavior on opacity { NumberAnimation { duration: 260 } }
+            ShapePath {
+                fillRule: ShapePath.OddEvenFill
+                strokeWidth: -1
+                fillGradient: ConicalGradient {
+                    centerX: orb.width / 2; centerY: orb.height / 2
+                    angle: orb.ringAngle
+                    GradientStop { position: 0.00; color: orb.alive ? root.novaCyan : "#41506A" }
+                    GradientStop { position: 0.34; color: orb.alive ? root.novaBlue : "#4A5B75" }
+                    GradientStop { position: 0.67; color: orb.alive ? root.novaViolet : "#3B4860" }
+                    GradientStop { position: 1.00; color: orb.alive ? root.novaCyan : "#41506A" }
+                }
+                PathAngleArc {
+                    moveToStart: true
+                    centerX: orb.width / 2; centerY: orb.height / 2
+                    radiusX: orb.width / 2; radiusY: orb.height / 2
+                    startAngle: 0; sweepAngle: 360
+                }
+                PathAngleArc {
+                    moveToStart: true
+                    centerX: orb.width / 2; centerY: orb.height / 2
+                    radiusX: orb.width * 0.335; radiusY: orb.height * 0.335
+                    startAngle: 0; sweepAngle: 360
+                }
+            }
+        }
+
+        // The core, and the spark that says which mood we are in.
+        Rectangle {
+            anchors.centerIn: parent
+            width: orb.width * 0.63
+            height: width
+            radius: width / 2
+            scale: orb.coreScale
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "#16233A" }
+                GradientStop { position: 1.0; color: "#080D18" }
+            }
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: parent.width * (orb.mood === "thinking" ? 0.30 : 0.24)
+                height: width
+                radius: width / 2
+                color: orb.accent
+                opacity: orb.alive ? 1.0 : 0.55
+                Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                Behavior on color { ColorAnimation { duration: 240 } }
+            }
+        }
+
+        // Idle: a slow breath.
+        SequentialAnimation {
+            running: root.visible && orb.mood === "idle" && !orbPulse.running
+            loops: Animation.Infinite
+            onStopped: { orb.coreScale = 1.0; orb.haloScale = 1.0 }
+            ParallelAnimation {
+                NumberAnimation { target: orb; property: "coreScale"; to: 1.03; duration: 1500; easing.type: Easing.InOutSine }
+                NumberAnimation { target: orb; property: "haloScale"; to: 1.10; duration: 1500; easing.type: Easing.InOutSine }
+            }
+            ParallelAnimation {
+                NumberAnimation { target: orb; property: "coreScale"; to: 1.0; duration: 1500; easing.type: Easing.InOutSine }
+                NumberAnimation { target: orb; property: "haloScale"; to: 1.0; duration: 1500; easing.type: Easing.InOutSine }
+            }
+        }
+
+        // Thinking: the ring turns and the halo throbs.
+        NumberAnimation {
+            running: root.visible && orb.mood === "thinking"
+            target: orb; property: "ringAngle"
+            from: 0; to: 360; duration: 2600
+            loops: Animation.Infinite
+            onStopped: orb.ringAngle = 0
+        }
+        SequentialAnimation {
+            running: root.visible && orb.mood === "thinking"
+            loops: Animation.Infinite
+            onStopped: orb.haloScale = 1.0
+            NumberAnimation { target: orb; property: "haloScale"; to: 1.16; duration: 620; easing.type: Easing.InOutSine }
+            NumberAnimation { target: orb; property: "haloScale"; to: 0.98; duration: 620; easing.type: Easing.InOutSine }
+        }
+
+        // Attentive: leans in and holds.
+        NumberAnimation {
+            running: root.visible && orb.mood === "attentive"
+            target: orb; property: "coreScale"
+            to: 1.07; duration: 220; easing.type: Easing.OutBack
+            onStopped: if (orb.mood !== "attentive") orb.coreScale = 1.0
+        }
+
+        // An honest pulse when the user launches something: launching is not
+        // the same as succeeding, so this says "heard you", not "done".
+        SequentialAnimation {
+            id: orbPulse
+            NumberAnimation { target: orb; property: "coreScale"; from: 1.0; to: 1.13; duration: 140; easing.type: Easing.OutQuad }
+            NumberAnimation { target: orb; property: "coreScale"; to: 1.0; duration: 240; easing.type: Easing.InQuad }
+        }
+    }
+
+    // A card.
+    component Card: Rectangle {
+        default property alias content: inner.data
+        property alias pad: inner.anchors.margins
+        radius: 14
+        color: root.surface1
+        border.width: 1
+        border.color: root.hairline
+        implicitHeight: inner.childrenRect.height + 2 * inner.anchors.margins
+        Item {
+            id: inner
+            anchors.fill: parent
+            anchors.margins: 14
+        }
+    }
+
+    // The one button style in the app.
+    component MoButton: Rectangle {
+        id: btn
+        property string label: ""
+        property string icon: ""
+        property bool primary: false
+        property bool danger: false
+        property bool enabled_: true
+        signal clicked()
+
+        readonly property color base:
+              !enabled_ ? "#16233A"
+            : danger ? "#7E2B38"
+            : primary ? root.novaBlue
+            : root.surface2
+
+        implicitHeight: 34
+        implicitWidth: row.implicitWidth + 26
+        radius: 10
+        color: !enabled_ ? base
+             : ma.pressed ? Qt.darker(base, 1.12)
+             : ma.containsMouse ? Qt.lighter(base, 1.16)
+             : base
+        border.width: 1
+        border.color: primary || danger ? "transparent"
+                    : ma.containsMouse ? "#3A4E76" : root.hairline
+        opacity: enabled_ ? 1.0 : 0.45
+        Behavior on color { ColorAnimation { duration: 120 } }
+
+        RowLayout {
+            id: row
+            anchors.centerIn: parent
+            spacing: 7
+            Kirigami.Icon {
+                visible: btn.icon !== ""
+                source: btn.icon
+                color: btn.primary || btn.danger ? "#FFFFFF" : root.textLo
+                Layout.preferredWidth: 15
+                Layout.preferredHeight: 15
+            }
+            Text {
+                text: btn.label
+                color: btn.primary || btn.danger ? "#FFFFFF" : root.textHi
+                font.family: root.uiFont
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
+            }
+        }
+        MouseArea {
+            id: ma
+            anchors.fill: parent
+            hoverEnabled: true
+            enabled: btn.enabled_
+            cursorShape: Qt.PointingHandCursor
+            onClicked: btn.clicked()
+        }
+    }
+
+    // A status pill: reads state from the machine, never asserts it.
+    component StatusPill: Rectangle {
+        property bool good: false
+        property string goodText: ""
+        property string badText: ""
+        implicitHeight: 22
+        implicitWidth: pillText.implicitWidth + 20
+        radius: 11
+        color: good ? Qt.rgba(0.21, 0.83, 0.60, 0.14) : Qt.rgba(0.62, 0.71, 0.85, 0.10)
+        border.width: 1
+        border.color: good ? Qt.rgba(0.21, 0.83, 0.60, 0.45) : root.hairline
+        Text {
+            id: pillText
+            anchors.centerIn: parent
+            text: parent.good ? parent.goodText : parent.badText
+            color: parent.good ? root.okColor : root.textMute
+            font.family: root.uiFont
+            font.pixelSize: 11
+            font.weight: Font.DemiBold
+        }
+    }
+
+    component SectionTitle: Text {
+        color: root.textHi
+        font.family: root.uiFont
+        font.pixelSize: 17
+        font.weight: Font.DemiBold
+    }
+
+    component SectionNote: Text {
+        color: root.textLo
+        font.family: root.uiFont
+        font.pixelSize: 12
+        wrapMode: Text.Wrap
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  The window
+    // ═══════════════════════════════════════════════════════════════════════
+    pageStack.initialPage: Kirigami.Page {
+        id: page
+        padding: 0
+
+        // Painted, not photographed. The old build loaded a 3840×2160 wallpaper
+        // PNG and scaled it into a 460 px window — a 4K decode and its memory on
+        // every launch, for a texture nobody could see at 18% opacity. Two
+        // gradients cost nothing and look better.
+        background: Rectangle {
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "#0C1424" }
+                GradientStop { position: 0.55; color: root.surface0 }
+                GradientStop { position: 1.0; color: "#070C16" }
+            }
+            Shape {
+                anchors.right: parent.right
+                anchors.top: parent.top
+                width: 520; height: 520
+                opacity: 0.16
+                ShapePath {
+                    strokeWidth: -1
+                    fillGradient: RadialGradient {
+                        centerX: 380; centerY: 90; centerRadius: 340
+                        focalX: centerX; focalY: centerY
+                        GradientStop { position: 0.0; color: root.novaBlue }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
+                    PathAngleArc {
+                        centerX: 380; centerY: 90; radiusX: 340; radiusY: 340
+                        startAngle: 0; sweepAngle: 360
+                    }
+                }
+            }
+        }
+
+        // Full RTL mirroring for Arabic sessions; cascades to every child.
+        LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+        LayoutMirroring.childrenInherit: true
+
+        RowLayout {
+            anchors.fill: parent
+            spacing: 0
+
+            // ── The rail ────────────────────────────────────────────────────
+            Rectangle {
+                Layout.preferredWidth: 76
+                Layout.fillHeight: true
+                color: "#0A1120"
+
+                Rectangle {
+                    anchors.right: parent.right
+                    width: 1; height: parent.height
+                    color: root.hairline
+                }
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.topMargin: 14
+                    anchors.bottomMargin: 12
+                    spacing: 4
+
+                    NovaOrb {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredWidth: 42
+                        Layout.preferredHeight: 42
+                        Layout.bottomMargin: 4
+                        mood: root.mood
+                    }
+
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.bottomMargin: 8
+                        text: root.serverUp ? "متصل" : root.brainStarting ? "يبدأ…" : "غير متصل"
+                        color: root.serverUp ? root.okColor
+                             : root.brainStarting ? root.novaBlue : root.textMute
+                        font.family: root.uiFont
+                        font.pixelSize: 9
+                        font.weight: Font.DemiBold
+                    }
+
+                    Repeater {
+                        model: root.navItems
+                        delegate: Item {
+                            id: nav
+                            required property var modelData
+                            readonly property bool active: root.panel === modelData.id
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 54
+
+                            Rectangle {   // active indicator
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 3
+                                height: nav.active ? 26 : 0
+                                radius: 2
+                                color: root.novaCyan
+                                Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+                            }
+
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 54; height: 46
+                                radius: 12
+                                color: nav.active ? Qt.rgba(0.18, 0.48, 1.0, 0.16)
+                                     : navMa.containsMouse ? "#16233A" : "transparent"
+                                Behavior on color { ColorAnimation { duration: 130 } }
+
+                                ColumnLayout {
+                                    anchors.centerIn: parent
+                                    spacing: 3
+                                    Kirigami.Icon {
+                                        Layout.alignment: Qt.AlignHCenter
+                                        Layout.preferredWidth: 20
+                                        Layout.preferredHeight: 20
+                                        source: nav.modelData.icon
+                                        color: nav.active ? root.novaCyan : root.textMute
+                                    }
+                                    Text {
+                                        Layout.alignment: Qt.AlignHCenter
+                                        text: nav.modelData.ar
+                                        color: nav.active ? root.textHi : root.textMute
+                                        font.family: root.uiFont
+                                        font.pixelSize: 9
+                                        font.weight: nav.active ? Font.DemiBold : Font.Normal
+                                    }
+                                }
+                            }
+
+                            // A dot on Device when the detector found something.
+                            Rectangle {
+                                visible: nav.modelData.id === "device" && root.problemCount > 0
+                                anchors.top: parent.top
+                                anchors.topMargin: 6
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.horizontalCenterOffset: 15
+                                width: 8; height: 8; radius: 4
+                                color: root.hasImportant ? root.badColor : root.warnColor
+                                border.width: 2
+                                border.color: "#0A1120"
+                            }
+
+                            MouseArea {
+                                id: navMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.panel = nav.modelData.id
+                            }
+                        }
+                    }
+
+                    Item { Layout.fillHeight: true }
+
+                    // Settings
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 46
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 54; height: 40
+                            radius: 12
+                            color: gearMa.containsMouse ? "#16233A" : "transparent"
+                            Behavior on color { ColorAnimation { duration: 130 } }
+                            Kirigami.Icon {
+                                anchors.centerIn: parent
+                                width: 19; height: 19
+                                source: "configure"
+                                color: root.textMute
+                            }
+                        }
+                        MouseArea {
+                            id: gearMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: { root.loadConfig(); root.settingsOpen = true }
+                        }
+                    }
+                }
+            }
+
+            // ── The panel ───────────────────────────────────────────────────
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 0
+
+                // Header
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 3
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: root.novaCyan }
+                        GradientStop { position: 0.5; color: root.novaBlue }
+                        GradientStop { position: 1.0; color: root.novaViolet }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 56
+                    color: "#0C1526"
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 20
+                        anchors.rightMargin: 16
+                        spacing: 10
+
+                        ColumnLayout {
+                            spacing: 0
+                            Text {
+                                text: {
+                                    switch (root.panel) {
+                                    case "device": return "جهازي  |  My device"
+                                    case "apps":   return "التطبيقات  |  Apps"
+                                    case "compat": return "التوافق  |  Compatibility"
+                                    case "remote": return "Mo PC Remote"
+                                    case "dev":    return "المطوّر  |  Developer"
+                                    default:       return "Mo AI"
+                                    }
+                                }
+                                color: root.textHi
+                                font.family: root.uiFont
+                                font.pixelSize: 16
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                text: {
+                                    switch (root.panel) {
+                                    case "device": return !root.planReady ? "جارٍ الفحص… | scanning…"
+                                        : root.healthy ? "لا مشاكل | no problems"
+                                        : root.problemCount + " مشكلة | issue(s)"
+                                    case "apps":   return "ابحث وثبّت أي تطبيق | search and install anything"
+                                    case "compat": return "Windows · Android · الألعاب"
+                                    case "remote": return "تحكّم بجهازك من هاتفك | control this PC from your phone"
+                                    case "dev":    return "Codex · Claude Code"
+                                    default:       return "مساعد MoOS | MoOS assistant"
+                                    }
+                                }
+                                color: root.textLo
+                                font.family: root.uiFont
+                                font.pixelSize: 11
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        MoButton {
+                            visible: root.panel === "chat"
+                            label: "محادثة جديدة | New"
+                            onClicked: root.newChat()
+                        }
+                        MoButton {
+                            visible: root.panel === "device"
+                            label: root.scanning ? "جارٍ… | Scanning" : "أعد الفحص | Rescan"
+                            enabled_: !root.scanning
+                            icon: "moos-report"
+                            onClicked: root.refreshScan()
+                        }
+                    }
+
+                    Rectangle {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: root.hairline
+                    }
+                }
+
+                // ── Panels ──────────────────────────────────────────────────
+                StackLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    currentIndex: {
+                        const i = ["chat", "device", "apps", "compat", "remote", "dev"].indexOf(root.panel)
+                        return i < 0 ? 0 : i
+                    }
+
+                    // ══ CHAT ════════════════════════════════════════════════
+                    ColumnLayout {
+                        spacing: 0
+
+                        ListView {
+                            id: listView
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            spacing: 4
+                            topMargin: 14
+                            bottomMargin: 10
+                            leftMargin: 16
+                            rightMargin: 16
+                            model: chatModel
+                            onCountChanged: Qt.callLater(listView.positionViewAtEnd)
+                            QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+
+                            delegate: Item {
+                                id: msg
+                                required property int index
+                                required property string role
+                                required property string text
+                                width: ListView.view.width - 32
+                                height: bubble.height + 8
+
+                                NovaOrb {
+                                    visible: msg.role !== "user"
+                                    anchors.left: parent.left
+                                    y: 4
+                                    width: 26; height: 26
+                                    mood: msg.role === "typing" ? "thinking" : "idle"
+                                }
+
+                                Rectangle {
+                                    id: bubble
+                                    readonly property bool mine: msg.role === "user"
+                                    anchors.right: mine ? parent.right : undefined
+                                    anchors.left: mine ? undefined : parent.left
+                                    anchors.leftMargin: mine ? 0 : 36
+                                    y: 3
+                                    radius: 14
+                                    color: mine ? Qt.rgba(0.18, 0.48, 1.0, 0.16) : root.surface1
+                                    border.width: 1
+                                    border.color: mine ? Qt.rgba(0.18, 0.48, 1.0, 0.38) : root.hairline
+                                    width: body.width + 28
+                                    height: body.implicitHeight + 22
+
+                                    Text {
+                                        id: body
+                                        x: 14
+                                        y: 11
+                                        width: Math.min(implicitWidth, (msg.width * 0.80) - 28)
+                                        text: msg.text
+                                        textFormat: msg.role === "assistant"
+                                                    ? Text.MarkdownText : Text.PlainText
+                                        wrapMode: Text.Wrap
+                                        color: root.textHi
+                                        linkColor: root.novaCyan
+                                        font.family: root.uiFont
+                                        font.pixelSize: 14
+                                        onLinkActivated: function (link) { Qt.openUrlExternally(link) }
+
+                                        SequentialAnimation on opacity {
+                                            running: msg.role === "typing"
+                                            loops: Animation.Infinite
+                                            // A value-source animation does not restore on stop; when
+                                            // typing → assistant flips, force full opacity so the
+                                            // streamed reply is not left dimmed.
+                                            onRunningChanged: if (!running) body.opacity = 1
+                                            NumberAnimation { from: 1.0; to: 0.30; duration: 460 }
+                                            NumberAnimation { from: 0.30; to: 1.0; duration: 460 }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // The device banner — Mo AI opens already knowing.
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 16
+                            Layout.rightMargin: 16
+                            Layout.bottomMargin: 8
+                            visible: root.problemCount > 0 && chatModel.count <= 1
+                            radius: 12
+                            implicitHeight: bannerRow.implicitHeight + 22
+                            color: Qt.rgba(0.96, 0.72, 0.38, 0.09)
+                            border.width: 1
+                            border.color: Qt.rgba(0.96, 0.72, 0.38, 0.38)
+
+                            RowLayout {
+                                id: bannerRow
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.leftMargin: 14
+                                anchors.rightMargin: 14
+                                spacing: 12
+
+                                Kirigami.Icon {
+                                    source: "moos-warning"
+                                    color: root.warnColor
+                                    Layout.preferredWidth: 22
+                                    Layout.preferredHeight: 22
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Text {
+                                        text: "وجدت " + root.problemCount + " مشكلة في جهازك  |  Found " + root.problemCount + " issue(s)"
+                                        color: root.textHi
+                                        font.family: root.uiFont
+                                        font.pixelSize: 13
+                                        font.weight: Font.DemiBold
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: (root.actions[0] || {}).title || ""
+                                        color: root.textLo
+                                        font.family: root.uiFont
+                                        font.pixelSize: 11
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                                MoButton {
+                                    label: "افتح | Open"
+                                    primary: true
+                                    onClicked: root.panel = "device"
+                                }
+                            }
+                        }
+
+                        // Starters — only on a fresh conversation.
+                        Flow {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 16
+                            Layout.rightMargin: 16
+                            Layout.bottomMargin: 6
+                            spacing: 8
+                            visible: chatModel.count <= 1
+                            Repeater {
+                                model: root.starters
+                                delegate: MoButton {
+                                    required property var modelData
+                                    label: modelData.ar + "  ·  " + modelData.en
+                                    onClicked: root.sendPrompt(modelData.send)
+                                }
+                            }
+                        }
+
+                        // Offline → a real control, not a dead end.
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 16
+                            Layout.rightMargin: 16
+                            Layout.bottomMargin: 8
+                            visible: !root.serverUp
+                            radius: 12
+                            implicitHeight: startCol.implicitHeight + 22
+                            color: root.brainStarting ? Qt.rgba(0.18, 0.48, 1.0, 0.10) : root.surface1
+                            border.width: 1
+                            border.color: root.brainStarting ? root.novaBlue : root.novaViolet
+
+                            ColumnLayout {
+                                id: startCol
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.leftMargin: 14
+                                anchors.rightMargin: 14
+                                spacing: 9
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: root.brainStarting
+                                        ? "العقل المحلي يبدأ… أول مرة يُحمّل ~2.5GB وقد يأخذ دقائق.\nLocal brain starting… the first run downloads ~2.5 GB."
+                                        : "العقل المحلي غير مشغّل — شغّله بضغطة (يحتاج إنترنت أول مرة).\nThe local brain is off — start it in one click (needs Internet the first time)."
+                                    color: root.textLo
+                                    font.family: root.uiFont
+                                    font.pixelSize: 11
+                                    wrapMode: Text.Wrap
+                                }
+                                MoButton {
+                                    Layout.fillWidth: true
+                                    visible: !root.brainStarting
+                                    label: "شغّل العقل المحلي  |  Start local brain"
+                                    primary: true
+                                    onClicked: root.startBrain()
+                                }
+                            }
+                        }
+
+                        // Run chips for the actions the model just named.
+                        Flow {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 16
+                            Layout.rightMargin: 16
+                            Layout.bottomMargin: 8
+                            spacing: 8
+                            visible: root.pendingRuns.length > 0
+                            Repeater {
+                                model: root.pendingRuns
+                                delegate: MoButton {
+                                    required property string modelData
+                                    label: "نفّذ  moai-do " + modelData
+                                    icon: "moos-safe-update"
+                                    primary: true
+                                    onClicked: root.launch("moos://do/" + modelData, "moai-do " + modelData)
+                                }
+                            }
+                        }
+
+                        // Input
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 68
+                            color: "#0C1526"
+                            Rectangle {
+                                anchors.left: parent.left; anchors.right: parent.right
+                                anchors.top: parent.top
+                                height: 1
+                                color: root.hairline
+                            }
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: 14
+                                spacing: 10
+
+                                QQC2.TextField {
+                                    id: input
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    placeholderText: "اسأل Mo AI أي شيء… | Ask Mo AI anything…"
+                                    placeholderTextColor: root.textMute
+                                    color: root.textHi
+                                    font.family: root.uiFont
+                                    font.pixelSize: 14
+                                    leftPadding: 14
+                                    rightPadding: 14
+                                    background: Rectangle {
+                                        color: root.surface1
+                                        radius: 11
+                                        border.width: 1
+                                        border.color: input.activeFocus ? root.novaBlue : root.hairline
+                                        Behavior on border.color { ColorAnimation { duration: 130 } }
+                                    }
+                                    onAccepted: root.send()
+                                }
+
+                                Rectangle {
+                                    Layout.fillHeight: true
+                                    Layout.preferredWidth: 106
+                                    radius: 11
+                                    readonly property bool on_: root.busy || input.text.trim().length > 0
+                                    opacity: on_ ? 1.0 : 0.45
+                                    gradient: Gradient {
+                                        orientation: Gradient.Horizontal
+                                        GradientStop {
+                                            position: 0.0
+                                            color: root.busy ? "#B23A6B" : root.novaBlue
+                                        }
+                                        GradientStop {
+                                            position: 1.0
+                                            color: root.busy ? "#8B2E8B" : root.novaViolet
+                                        }
+                                    }
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: root.busy ? "إيقاف | Stop" : "إرسال | Send"
+                                        color: "#FFFFFF"
+                                        font.family: root.uiFont
+                                        font.pixelSize: 13
+                                        font.weight: Font.DemiBold
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        enabled: parent.on_
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.busy ? root.stopGenerating() : root.send()
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ══ DEVICE — the Hardware Centre and the drivers ════════
+                    Flickable {
+                        contentWidth: width
+                        contentHeight: devCol.implicitHeight + 32
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+
+                        ColumnLayout {
+                            id: devCol
+                            width: parent.width - 32
+                            x: 16
+                            y: 16
+                            spacing: 12
+
+                            // Verdict.
+                            Card {
+                                Layout.fillWidth: true
+                                RowLayout {
+                                    width: parent.width
+                                    spacing: 14
+
+                                    Rectangle {
+                                        Layout.preferredWidth: 44
+                                        Layout.preferredHeight: 44
+                                        radius: 22
+                                        color: root.healthy ? Qt.rgba(0.21, 0.83, 0.60, 0.14)
+                                             : root.hasImportant ? Qt.rgba(1.0, 0.42, 0.48, 0.14)
+                                             : Qt.rgba(0.96, 0.72, 0.38, 0.14)
+                                        Kirigami.Icon {
+                                            anchors.centerIn: parent
+                                            width: 24; height: 24
+                                            source: root.healthy ? "moos-system" : "moos-warning"
+                                            color: root.healthy ? root.okColor
+                                                 : root.hasImportant ? root.badColor : root.warnColor
+                                        }
+                                    }
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 3
+                                        Text {
+                                            text: !root.planReady ? "جارٍ فحص جهازك…  |  Checking your device…"
+                                                : root.healthy ? "جهازك سليم  |  Your device is healthy"
+                                                : "وجدت " + root.problemCount + " مشكلة  |  " + root.problemCount + " issue(s) found"
+                                            color: root.textHi
+                                            font.family: root.uiFont
+                                            font.pixelSize: 16
+                                            font.weight: Font.DemiBold
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: !root.planReady
+                                                ? "أقرأ التعريفات والبرامج الثابتة والأجهزة المتصلة…\nReading drivers, firmware and attached devices…"
+                                                : root.healthy
+                                                ? "لا توجد مشاكل في الأجهزة أو التعريفات.\nNo hardware or driver problems found."
+                                                : "كل مشكلة بالأسفل معها الإصلاح الذي يناسبها.\nEach problem below comes with the repair that fixes it."
+                                            color: root.textLo
+                                            font.family: root.uiFont
+                                            font.pixelSize: 11
+                                            wrapMode: Text.Wrap
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Specs.
+                            Card {
+                                Layout.fillWidth: true
+                                GridLayout {
+                                    width: parent.width
+                                    columns: 2
+                                    columnSpacing: 18
+                                    rowSpacing: 9
+
+                                    Repeater {
+                                        model: [
+                                            { icon: "moos-identity", ar: "النظام", v: (root.snap.os || "MoOS") },
+                                            { icon: "moos-cpu",      ar: "المعالج", v: (root.snap.cpu || "?") + " · " + (root.snap.cores || "?") + " cores" },
+                                            { icon: "moos-memory",   ar: "الذاكرة", v: (root.snap.mem_gb || "?") + " GB RAM" },
+                                            { icon: "moos-gpu",      ar: "الرسوميات", v: (root.snap.gpu || "?") },
+                                            { icon: "moos-storage",  ar: "التخزين", v: (root.snap.disk && root.snap.disk.total_gb)
+                                                 ? (root.snap.disk.free_gb + " / " + root.snap.disk.total_gb + " GB حرّ") : "?" },
+                                            { icon: "moos-system",   ar: "النواة", v: (root.snap.kernel || "?") }
+                                        ]
+                                        delegate: RowLayout {
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            spacing: 9
+                                            Kirigami.Icon {
+                                                source: modelData.icon
+                                                color: root.novaCyan
+                                                Layout.preferredWidth: 16
+                                                Layout.preferredHeight: 16
+                                            }
+                                            Text {
+                                                text: modelData.ar
+                                                color: root.textMute
+                                                font.family: root.uiFont
+                                                font.pixelSize: 11
+                                                Layout.preferredWidth: 54
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: modelData.v
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: 12
+                                                elide: Text.ElideRight
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // The driver line, when the detector has one.
+                            Card {
+                                Layout.fillWidth: true
+                                visible: !!root.plan.driver_status
+                                RowLayout {
+                                    width: parent.width
+                                    spacing: 10
+                                    Kirigami.Icon {
+                                        source: "moos-gpu"
+                                        color: root.novaViolet
+                                        Layout.preferredWidth: 18
+                                        Layout.preferredHeight: 18
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: root.plan.driver_status || ""
+                                        color: root.textHi
+                                        font.family: root.uiFont
+                                        font.pixelSize: 12
+                                        wrapMode: Text.Wrap
+                                    }
+                                }
+                            }
+
+                            // Every problem the detector actually found, each with its real repair.
+                            Repeater {
+                                model: root.actions
+                                delegate: Card {
+                                    id: issue
+                                    required property var modelData
+                                    Layout.fillWidth: true
+
+                                    ColumnLayout {
+                                        width: parent.width
+                                        spacing: 8
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 9
+                                            Rectangle {
+                                                Layout.preferredWidth: 8
+                                                Layout.preferredHeight: 8
+                                                radius: 4
+                                                color: issue.modelData.severity === "important"
+                                                       ? root.badColor : root.warnColor
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: issue.modelData.title || ""
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: 13
+                                                font.weight: Font.DemiBold
+                                                elide: Text.ElideRight
+                                            }
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: issue.modelData.detail || ""
+                                            color: root.textLo
+                                            font.family: root.uiFont
+                                            font.pixelSize: 11
+                                            wrapMode: Text.Wrap
+                                        }
+                                        RowLayout {
+                                            spacing: 8
+                                            MoButton {
+                                                visible: String(issue.modelData.url || "").length > 0
+                                                label: "أصلحها الآن  |  Fix it"
+                                                primary: true
+                                                icon: "moos-safe-update"
+                                                onClicked: root.launch(issue.modelData.url, issue.modelData.title)
+                                            }
+                                            MoButton {
+                                                label: "اسأل Mo AI  |  Ask"
+                                                onClicked: root.askAbout(issue.modelData.title, issue.modelData.detail || "")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Maintenance — the whole of the old Hardware Centre's action list.
+                            SectionTitle { text: "الصيانة  |  Maintenance"; Layout.topMargin: 6 }
+
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                Repeater {
+                                    model: [
+                                        { ar: "تحديث النظام", en: "Update", url: "moos://do/update", icon: "moos-safe-update" },
+                                        { ar: "فحص التعريفات", en: "Drivers", url: "moos://do/check-drivers", icon: "moos-gpu" },
+                                        { ar: "تحديث البرامج الثابتة", en: "Firmware", url: "moos://do/update-firmware", icon: "moos-system" },
+                                        { ar: "تحسين وتنظيف", en: "Optimize", url: "moos://do/optimize", icon: "moos-optimize" },
+                                        { ar: "إصلاح الصوت", en: "Fix audio", url: "moos://do/fix-audio", icon: "moos-audio" },
+                                        { ar: "تقرير كامل", en: "Report", url: "moos://do/hw-report", icon: "moos-report" },
+                                        { ar: "الخدمات الفاشلة", en: "Services", url: "moos://do/diagnose-services", icon: "moos-system" },
+                                        { ar: "مشاكل الإقلاع", en: "Boot", url: "moos://do/inspect-boot", icon: "moos-warning" },
+                                        { ar: "المحدّث", en: "Updater", url: "moos://app/updater", icon: "moos-safe-update" },
+                                        { ar: "الاستعادة", en: "Recovery", url: "moos://app/recovery", icon: "moos-system" }
+                                    ]
+                                    delegate: MoButton {
+                                        required property var modelData
+                                        label: modelData.ar + "  ·  " + modelData.en
+                                        icon: modelData.icon
+                                        onClicked: root.launch(modelData.url, modelData.ar)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ══ APPS — the App Centre, with real Flathub search ═════
+                    ColumnLayout {
+                        spacing: 0
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 62
+                            color: "transparent"
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 16
+                                anchors.rightMargin: 16
+                                anchors.topMargin: 14
+                                spacing: 10
+
+                                QQC2.TextField {
+                                    id: searchField
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 40
+                                    placeholderText: "ابحث في Flathub… (مثلاً blender) | Search Flathub…"
+                                    placeholderTextColor: root.textMute
+                                    color: root.textHi
+                                    font.family: root.uiFont
+                                    font.pixelSize: 13
+                                    leftPadding: 14
+                                    rightPadding: 14
+                                    background: Rectangle {
+                                        color: root.surface1
+                                        radius: 11
+                                        border.width: 1
+                                        border.color: searchField.activeFocus ? root.novaBlue : root.hairline
+                                    }
+                                    onAccepted: root.searchApps(text)
+                                }
+                                MoButton {
+                                    Layout.preferredHeight: 40
+                                    label: root.searching ? "…" : "ابحث | Search"
+                                    icon: "moos-install"
+                                    primary: true
+                                    enabled_: !root.searching
+                                    onClicked: root.searchApps(searchField.text)
+                                }
+                            }
+                        }
+
+                        Flickable {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            contentWidth: width
+                            contentHeight: appsCol.implicitHeight + 28
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+
+                            ColumnLayout {
+                                id: appsCol
+                                width: parent.width - 32
+                                x: 16
+                                y: 6
+                                spacing: 10
+
+                                Text {
+                                    visible: root.searchNote !== ""
+                                    text: root.searchNote
+                                    color: root.textMute
+                                    font.family: root.uiFont
+                                    font.pixelSize: 12
+                                }
+
+                                // Search results.
+                                Repeater {
+                                    model: searchModel
+                                    delegate: Card {
+                                        id: hit
+                                        required property string id
+                                        required property string name
+                                        required property string summary
+                                        required property bool installed
+                                        required property bool verified
+                                        Layout.fillWidth: true
+
+                                        RowLayout {
+                                            width: parent.width
+                                            spacing: 12
+
+                                            Rectangle {
+                                                Layout.preferredWidth: 38
+                                                Layout.preferredHeight: 38
+                                                radius: 10
+                                                color: root.surface2
+                                                Kirigami.Icon {
+                                                    anchors.centerIn: parent
+                                                    width: 20; height: 20
+                                                    source: "moos-install"
+                                                    color: root.novaCyan
+                                                }
+                                            }
+
+                                            ColumnLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 2
+                                                RowLayout {
+                                                    spacing: 6
+                                                    Text {
+                                                        text: hit.name
+                                                        color: root.textHi
+                                                        font.family: root.uiFont
+                                                        font.pixelSize: 13
+                                                        font.weight: Font.DemiBold
+                                                    }
+                                                    Text {
+                                                        visible: hit.verified
+                                                        text: "✓"
+                                                        color: root.novaCyan
+                                                        font.pixelSize: 12
+                                                        font.weight: Font.Bold
+                                                    }
+                                                }
+                                                Text {
+                                                    Layout.fillWidth: true
+                                                    text: hit.summary
+                                                    color: root.textLo
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: 11
+                                                    elide: Text.ElideRight
+                                                }
+                                                Text {
+                                                    text: hit.id
+                                                    color: root.textMute
+                                                    font.family: "JetBrains Mono"
+                                                    font.pixelSize: 10
+                                                }
+                                            }
+
+                                            MoButton {
+                                                label: hit.installed ? "مثبّت ✓ | Installed" : "ثبّت | Install"
+                                                primary: !hit.installed
+                                                enabled_: !hit.installed
+                                                onClicked: root.launch("moos://apps/install/" + hit.id, hit.name)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                SectionTitle {
+                                    text: "موصى بها  |  Recommended"
+                                    Layout.topMargin: 4
+                                    visible: searchModel.count === 0
+                                }
+
+                                Repeater {
+                                    model: searchModel.count === 0 ? root.appCatalog : []
+                                    delegate: Card {
+                                        id: rec
+                                        required property var modelData
+                                        readonly property bool installed: !!root.appState[modelData.id]
+                                        Layout.fillWidth: true
+
+                                        RowLayout {
+                                            width: parent.width
+                                            spacing: 12
+
+                                            Rectangle {
+                                                Layout.preferredWidth: 38
+                                                Layout.preferredHeight: 38
+                                                radius: 10
+                                                color: root.surface2
+                                                Kirigami.Icon {
+                                                    anchors.centerIn: parent
+                                                    width: 20; height: 20
+                                                    source: "moos-install"
+                                                    color: root.novaViolet
+                                                }
+                                            }
+                                            ColumnLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 2
+                                                Text {
+                                                    text: rec.modelData.title
+                                                    color: root.textHi
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: 13
+                                                    font.weight: Font.DemiBold
+                                                }
+                                                Text {
+                                                    Layout.fillWidth: true
+                                                    text: rec.modelData.ar + "  |  " + rec.modelData.en
+                                                    color: root.textLo
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: 11
+                                                }
+                                            }
+                                            MoButton {
+                                                label: rec.installed ? "مثبّت ✓ | Installed" : "ثبّت | Install"
+                                                primary: !rec.installed
+                                                enabled_: !rec.installed
+                                                onClicked: root.launch("moos://apps/install/" + rec.modelData.id,
+                                                                       rec.modelData.title)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    Layout.topMargin: 4
+                                    visible: searchModel.count === 0
+                                    text: "أو اطلب من Mo AI مباشرة: «ثبّت لي Blender».\nOr just ask Mo AI: “install Blender for me”."
+                                }
+                            }
+                        }
+                    }
+
+                    // ══ COMPATIBILITY ══════════════════════════════════════
+                    Flickable {
+                        contentWidth: width
+                        contentHeight: compatCol.implicitHeight + 32
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+
+                        ColumnLayout {
+                            id: compatCol
+                            width: parent.width - 32
+                            x: 16
+                            y: 16
+                            spacing: 12
+
+                            SectionNote {
+                                Layout.fillWidth: true
+                                text: "شغّل تطبيقات وألعاب Windows و Android على MoOS. الحالة مقروءة من جهازك، لا مفترضة.\n"
+                                    + "Run Windows and Android apps and games on MoOS. Status is read from your machine, not assumed."
+                            }
+
+                            Repeater {
+                                model: root.compatCatalog
+                                delegate: Card {
+                                    id: compat
+                                    required property var modelData
+                                    readonly property bool ready: !!root.compatState[modelData.key]
+                                    Layout.fillWidth: true
+
+                                    RowLayout {
+                                        width: parent.width
+                                        spacing: 12
+
+                                        Rectangle {
+                                            Layout.preferredWidth: 40
+                                            Layout.preferredHeight: 40
+                                            radius: 11
+                                            color: compat.ready ? Qt.rgba(0.21, 0.83, 0.60, 0.13) : root.surface2
+                                            Kirigami.Icon {
+                                                anchors.centerIn: parent
+                                                width: 21; height: 21
+                                                source: compat.modelData.icon
+                                                color: compat.ready ? root.okColor : root.novaCyan
+                                            }
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 3
+                                            RowLayout {
+                                                spacing: 8
+                                                Text {
+                                                    text: compat.modelData.title
+                                                    color: root.textHi
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: 14
+                                                    font.weight: Font.DemiBold
+                                                }
+                                                StatusPill {
+                                                    good: compat.ready
+                                                    goodText: "جاهز | Ready"
+                                                    badText: "غير مثبّت | Not set up"
+                                                }
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: compat.modelData.ar + "  |  " + compat.modelData.en
+                                                color: root.textLo
+                                                font.family: root.uiFont
+                                                font.pixelSize: 11
+                                            }
+                                        }
+                                        MoButton {
+                                            label: compat.ready ? "جاهز ✓" : "إعداد | Set up"
+                                            primary: !compat.ready
+                                            enabled_: !compat.ready
+                                            onClicked: root.launch(compat.modelData.url, compat.modelData.title)
+                                        }
+                                    }
+                                }
+                            }
+
+                            Card {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 4
+                                RowLayout {
+                                    width: parent.width
+                                    spacing: 12
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 3
+                                        Text {
+                                            text: "المحاكاة الافتراضية | Virtualisation (KVM)"
+                                            color: root.textHi
+                                            font.family: root.uiFont
+                                            font.pixelSize: 13
+                                            font.weight: Font.DemiBold
+                                        }
+                                        Text {
+                                            text: "يحتاجه Waydroid والأجهزة الافتراضية.\nNeeded by Waydroid and virtual machines."
+                                            color: root.textLo
+                                            font.family: root.uiFont
+                                            font.pixelSize: 11
+                                        }
+                                    }
+                                    StatusPill {
+                                        good: !!root.compatState.kvm
+                                        goodText: "مفعّل | Enabled"
+                                        badText: "غير متاح | Unavailable"
+                                    }
+                                }
+                            }
+
+                            MoButton {
+                                Layout.topMargin: 4
+                                label: "تثبيت ذكي حسب جهازي  |  Smart setup for my hardware"
+                                icon: "moos-optimize"
+                                onClicked: root.launch("moos://do/smart-setup", "Smart setup")
+                            }
+                        }
+                    }
+
+                    // ══ REMOTE ═════════════════════════════════════════════
+                    Flickable {
+                        contentWidth: width
+                        contentHeight: remoteCol.implicitHeight + 32
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+
+                        ColumnLayout {
+                            id: remoteCol
+                            width: parent.width - 32
+                            x: 16
+                            y: 16
+                            spacing: 12
+
+                            Card {
+                                Layout.fillWidth: true
+                                RowLayout {
+                                    width: parent.width
+                                    spacing: 14
+
+                                    Rectangle {
+                                        Layout.preferredWidth: 46
+                                        Layout.preferredHeight: 46
+                                        radius: 23
+                                        color: root.remoteState.active
+                                               ? Qt.rgba(0.21, 0.83, 0.60, 0.14) : root.surface2
+                                        Kirigami.Icon {
+                                            anchors.centerIn: parent
+                                            width: 24; height: 24
+                                            source: "moos-phone"
+                                            color: root.remoteState.active ? root.okColor : root.textMute
+                                        }
+                                        // A live ring while it is actually serving.
+                                        Rectangle {
+                                            anchors.centerIn: parent
+                                            width: parent.width; height: parent.height
+                                            radius: width / 2
+                                            color: "transparent"
+                                            border.width: 2
+                                            border.color: root.okColor
+                                            visible: !!root.remoteState.active
+                                            SequentialAnimation on opacity {
+                                                running: !!root.remoteState.active
+                                                loops: Animation.Infinite
+                                                NumberAnimation { from: 0.7; to: 0.0; duration: 1200 }
+                                                NumberAnimation { from: 0.0; to: 0.0; duration: 200 }
+                                            }
+                                            SequentialAnimation on scale {
+                                                running: !!root.remoteState.active
+                                                loops: Animation.Infinite
+                                                NumberAnimation { from: 1.0; to: 1.45; duration: 1200 }
+                                                NumberAnimation { from: 1.0; to: 1.0; duration: 200 }
+                                            }
+                                        }
+                                    }
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 4
+                                        Text {
+                                            text: root.remoteState.active
+                                                  ? "يعمل الآن  |  Running"
+                                                  : "متوقف  |  Stopped"
+                                            color: root.remoteState.active ? root.okColor : root.textHi
+                                            font.family: root.uiFont
+                                            font.pixelSize: 16
+                                            font.weight: Font.DemiBold
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: root.remoteState.active
+                                                ? "افتح اللوحة لمسح رمز QR من هاتفك.\nOpen the panel to scan the QR code from your phone."
+                                                : "شغّله ليتحكّم هاتفك بهذا الجهاز.\nStart it to control this PC from your phone."
+                                            color: root.textLo
+                                            font.family: root.uiFont
+                                            font.pixelSize: 11
+                                            wrapMode: Text.Wrap
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Start / Stop / Reconnect. These are user services — no
+                            // password, no terminal. moos-open runs systemctl --user
+                            // directly and Mo AI shows the result on the next poll.
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                MoButton {
+                                    label: "تشغيل  |  Start"
+                                    icon: "moos-phone"
+                                    primary: true
+                                    enabled_: !root.remoteState.active
+                                    onClicked: root.launch("moos://remote/start", "Mo PC Remote — start")
+                                }
+                                MoButton {
+                                    label: "إيقاف  |  Stop"
+                                    danger: true
+                                    enabled_: !!root.remoteState.active
+                                    onClicked: root.launch("moos://remote/stop", "Mo PC Remote — stop")
+                                }
+                                MoButton {
+                                    label: "إعادة الاتصال  |  Reconnect"
+                                    icon: "moos-network"
+                                    onClicked: root.launch("moos://remote/restart", "Mo PC Remote — reconnect")
+                                }
+                                MoButton {
+                                    label: "افتح اللوحة  |  Open panel"
+                                    onClicked: root.launch("moos://app/remote", "Mo PC Remote")
+                                }
+                            }
+
+                            // The pieces it depends on — read from the machine.
+                            Card {
+                                Layout.fillWidth: true
+                                ColumnLayout {
+                                    width: parent.width
+                                    spacing: 9
+                                    Text {
+                                        text: "المتطلّبات  |  Requirements"
+                                        color: root.textHi
+                                        font.family: root.uiFont
+                                        font.pixelSize: 13
+                                        font.weight: Font.DemiBold
+                                    }
+                                    Repeater {
+                                        model: [
+                                            { ar: "التقاط الشاشة (PipeWire)", en: "Screen capture", k: "pipewire" },
+                                            { ar: "بوابة سطح المكتب (Portal)", en: "Desktop portal", k: "portal" }
+                                        ]
+                                        delegate: RowLayout {
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            spacing: 10
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: modelData.ar + "  |  " + modelData.en
+                                                color: root.textLo
+                                                font.family: root.uiFont
+                                                font.pixelSize: 12
+                                            }
+                                            StatusPill {
+                                                good: !!root.remoteState[modelData.k]
+                                                goodText: "يعمل | OK"
+                                                badText: "متوقف | Down"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            MoButton {
+                                label: "الوصول من خارج المنزل  |  Reach it from outside"
+                                icon: "moos-network"
+                                onClicked: root.launch("moos://do/remote-anywhere", "Remote anywhere")
+                            }
+                        }
+                    }
+
+                    // ══ DEVELOPER — Codex and Claude ═══════════════════════
+                    Flickable {
+                        contentWidth: width
+                        contentHeight: devsCol.implicitHeight + 32
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+
+                        ColumnLayout {
+                            id: devsCol
+                            width: parent.width - 32
+                            x: 16
+                            y: 16
+                            spacing: 12
+
+                            SectionNote {
+                                Layout.fillWidth: true
+                                text: "وكلاء برمجة يشتغلون داخل مشروعك كمستخدم عادي — يُثبَّتون في ~/.local، بلا صلاحيات مسؤول ولا مساس بالنظام.\n"
+                                    + "Coding agents that run in your project as your user — installed into ~/.local, with no admin rights and no changes to the system."
+                            }
+
+                            Repeater {
+                                model: [
+                                    { key: "claude", title: "Claude Code", ar: "وكيل Anthropic البرمجي", en: "Anthropic's coding agent",
+                                      pkg: "@anthropic-ai/claude-code",
+                                      install: "moos://do/install-claude", run: "moos://dev/claude" },
+                                    { key: "codex", title: "Codex", ar: "وكيل OpenAI البرمجي", en: "OpenAI's coding agent",
+                                      pkg: "@openai/codex",
+                                      install: "moos://do/install-codex", run: "moos://dev/codex" }
+                                ]
+                                delegate: Card {
+                                    id: ag
+                                    required property var modelData
+                                    readonly property bool have: !!root.agentState[modelData.key]
+                                    Layout.fillWidth: true
+
+                                    RowLayout {
+                                        width: parent.width
+                                        spacing: 12
+
+                                        Rectangle {
+                                            Layout.preferredWidth: 40
+                                            Layout.preferredHeight: 40
+                                            radius: 11
+                                            color: ag.have ? Qt.rgba(0.21, 0.83, 0.60, 0.13) : root.surface2
+                                            Kirigami.Icon {
+                                                anchors.centerIn: parent
+                                                width: 21; height: 21
+                                                source: "utilities-terminal"
+                                                color: ag.have ? root.okColor : root.textMute
+                                            }
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 3
+                                            RowLayout {
+                                                spacing: 8
+                                                Text {
+                                                    text: ag.modelData.title
+                                                    color: root.textHi
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: 14
+                                                    font.weight: Font.DemiBold
+                                                }
+                                                StatusPill {
+                                                    good: ag.have
+                                                    goodText: "مثبّت | Installed"
+                                                    badText: "غير مثبّت | Not installed"
+                                                }
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: ag.modelData.ar + "  |  " + ag.modelData.en
+                                                color: root.textLo
+                                                font.family: root.uiFont
+                                                font.pixelSize: 11
+                                            }
+                                            Text {
+                                                text: ag.modelData.pkg
+                                                color: root.textMute
+                                                font.family: "JetBrains Mono"
+                                                font.pixelSize: 10
+                                            }
+                                        }
+                                        MoButton {
+                                            label: ag.have ? "شغّل | Run" : "ثبّت | Install"
+                                            primary: true
+                                            icon: ag.have ? "utilities-terminal" : "moos-install"
+                                            onClicked: root.launch(
+                                                ag.have ? ag.modelData.run : ag.modelData.install,
+                                                ag.modelData.title)
+                                        }
+                                    }
+                                }
+                            }
+
+                            MoButton {
+                                Layout.topMargin: 4
+                                label: "افتح وكيلاً في مشروع  |  Open an agent in a project"
+                                icon: "utilities-terminal"
+                                enabled_: !!root.agentState.claude || !!root.agentState.codex
+                                onClicked: root.launch("moos://dev/code", "Code")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Toast ───────────────────────────────────────────────────────────
+        Rectangle {
+            id: toast
+            property string msg: ""
+            z: 100
+            opacity: 0
+            visible: opacity > 0
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 90
+            radius: 12
+            width: Math.min(parent.width - 40, toastCol.implicitWidth + 30)
+            height: toastCol.implicitHeight + 20
+            color: "#16233C"
+            border.width: 1
+            border.color: Qt.rgba(0.13, 0.83, 0.93, 0.5)
+            Behavior on opacity { NumberAnimation { duration: 220 } }
+
+            Timer { id: toastTimer; interval: 2800; onTriggered: toast.opacity = 0 }
+            function show(m) {
+                msg = m
+                opacity = 1
+                toastTimer.restart()
+            }
+
+            ColumnLayout {
+                id: toastCol
+                anchors.centerIn: parent
+                spacing: 3
+                Text {
+                    text: "جارٍ التنفيذ ✓  |  Running ✓"
+                    color: root.novaCyan
+                    font.family: root.uiFont
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    text: toast.msg
+                    color: root.textHi
+                    font.family: root.uiFont
+                    font.pixelSize: 13
+                }
+            }
+        }
+
+        // ── Settings ────────────────────────────────────────────────────────
+        Rectangle {
+            anchors.fill: parent
+            z: 300
+            visible: root.settingsOpen
+            color: "#D0060B16"
+            MouseArea { anchors.fill: parent; onClicked: root.settingsOpen = false }
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: Math.min(parent.width - 40, 440)
+                height: Math.min(parent.height - 40, setCol.implicitHeight + 40)
+                radius: 18
+                color: root.surface1
+                border.width: 1
+                border.color: root.hairline
+                MouseArea { anchors.fill: parent }   // swallow clicks on the card
+
+                ColumnLayout {
+                    id: setCol
+                    anchors.fill: parent
+                    anchors.margins: 20
+                    spacing: 13
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        SectionTitle { text: "إعدادات Mo AI  |  Settings" }
+                        Item { Layout.fillWidth: true }
+                        MoButton {
+                            label: "✕"
+                            onClicked: root.settingsOpen = false
+                        }
+                    }
+
+                    Text {
+                        text: "العقل | Brain"
+                        color: root.textLo
+                        font.family: root.uiFont
+                        font.pixelSize: 12
+                    }
+
+                    // Local / Cloud
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 46
+                        radius: 12
+                        color: "#0E1830"
+                        border.width: 1
+                        border.color: root.hairline
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 4
+                            spacing: 4
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                radius: 9
+                                color: !root.settingsCloud ? root.novaBlue : "transparent"
+                                Behavior on color { ColorAnimation { duration: 130 } }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "محلي | Local"
+                                    color: !root.settingsCloud ? "#FFFFFF" : root.textLo
+                                    font.family: root.uiFont
+                                    font.pixelSize: 13
+                                    font.weight: Font.DemiBold
+                                }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.settingsCloud = false }
+                            }
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                radius: 9
+                                color: root.settingsCloud ? root.novaViolet : "transparent"
+                                Behavior on color { ColorAnimation { duration: 130 } }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "سحابي | Cloud"
+                                    color: root.settingsCloud ? "#FFFFFF" : root.textLo
+                                    font.family: root.uiFont
+                                    font.pixelSize: 13
+                                    font.weight: Font.DemiBold
+                                }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.settingsCloud = true }
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        visible: root.settingsCloud
+                        spacing: 7
+
+                        Text { text: "المزوّد | Provider (OpenAI-compatible base URL)"; color: root.textLo; font.family: root.uiFont; font.pixelSize: 11 }
+                        QQC2.TextField {
+                            id: fBase
+                            Layout.fillWidth: true
+                            placeholderText: "https://openrouter.ai/api/v1"
+                            placeholderTextColor: root.textMute
+                            color: root.textHi
+                            font.family: root.uiFont
+                            background: Rectangle { color: root.surface2; radius: 8; border.width: 1; border.color: fBase.activeFocus ? root.novaBlue : root.hairline }
+                        }
+                        Text { text: "النموذج | Model"; color: root.textLo; font.family: root.uiFont; font.pixelSize: 11 }
+                        QQC2.TextField {
+                            id: fModel
+                            Layout.fillWidth: true
+                            placeholderText: "anthropic/claude-sonnet-5"
+                            placeholderTextColor: root.textMute
+                            color: root.textHi
+                            font.family: root.uiFont
+                            background: Rectangle { color: root.surface2; radius: 8; border.width: 1; border.color: fModel.activeFocus ? root.novaBlue : root.hairline }
+                        }
+                        Text { text: "مفتاح API | API key (يُحفظ في خزنة النظام | stored in the system keyring)"; color: root.textLo; font.family: root.uiFont; font.pixelSize: 11 }
+                        QQC2.TextField {
+                            id: fKey
+                            Layout.fillWidth: true
+                            echoMode: TextInput.Password
+                            placeholderText: "sk-…"
+                            placeholderTextColor: root.textMute
+                            color: root.textHi
+                            font.family: root.uiFont
+                            background: Rectangle { color: root.surface2; radius: 8; border.width: 1; border.color: fKey.activeFocus ? root.novaBlue : root.hairline }
+                        }
+                    }
+
+                    SectionNote {
+                        Layout.fillWidth: true
+                        visible: !root.settingsCloud
+                        text: "العقل المحلي خاص بالكامل (RamaLama) — لا إنترنت بعد التحميل الأول.\n"
+                            + "The local brain is fully private — no Internet after the first download."
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        visible: root.settingsError !== ""
+                        text: root.settingsError
+                        color: root.badColor
+                        font.family: root.uiFont
+                        font.pixelSize: 11
+                        wrapMode: Text.Wrap
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 44
+                        radius: 12
+                        opacity: root.settingsSaving ? 0.6 : 1
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: root.novaBlue }
+                            GradientStop { position: 1.0; color: root.novaViolet }
+                        }
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.settingsSaving ? "جارٍ الحفظ… | Saving…" : "حفظ | Save"
+                            color: "#FFFFFF"
+                            font.family: root.uiFont
+                            font.pixelSize: 14
+                            font.weight: Font.DemiBold
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            enabled: !root.settingsSaving
+                            onClicked: root.saveConfig()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Settings plumbing ───────────────────────────────────────────────────
     property bool settingsOpen: false
     property bool settingsCloud: false
     property bool settingsSaving: false
@@ -92,1656 +2485,5 @@ Kirigami.ApplicationWindow {
                 root.settingsError = "تعذّر الحفظ | couldn't save"
         }
         xhr.send(JSON.stringify(body))
-    }
-
-    // System prompt (Mo AI v2 — an intelligent MoOS assistant).
-    readonly property string systemPrompt:
-        "You are Mo AI, the intelligent built-in assistant of MoOS — a premium " +
-        "Arabic/English (RTL) Linux desktop by Moalfarras, based on Fedora Atomic " +
-        "(bootc/OSTree, atomic updates) + KDE Plasma 6. Be genuinely helpful, " +
-        "precise and proactive.\n\n" +
-        "WHAT YOU CAN DO (put the EXACT command in a fenced code block — the app " +
-        "shows a one-click Run button for moai-do actions):\n" +
-        "• Fix & maintain: `moai-do update` (atomic system update), `moai-do " +
-        "fix-audio`, `moai-do check-drivers`, `moai-do optimize` (clean + speed up), " +
-        "`moai-do hw-report`.\n" +
-        "• Drivers & firmware: `moai-do install-nvidia` (atomically switch to the MoOS " +
-        "NVIDIA edition — applies on reboot, previous system kept for rollback), " +
-        "`moai-do update-firmware` (device firmware via fwupd).\n" +
-        "• Install software: `moai-do install <flatpak-id>` (a Flathub app). Prefer " +
-        "Flatpaks over layering rpm-ostree packages; for browsing, open the MoOS App " +
-        "Center (Bazaar).\n" +
-        "• Diagnose: explain the likely cause in plain language, then give a clear " +
-        "step-by-step repair plan (services: `systemctl --user status <svc>`, logs: " +
-        "`journalctl`).\n" +
-        "• Program apps or MoOS itself: tell the user to use the “برمجة | Code” quick " +
-        "action — it launches Claude Code or Codex in a terminal on their project.\n" +
-        "• Ground advice in real hardware via the “افحص نظامي | Scan” action.\n\n" +
-        "HOW TO BEHAVE: understand the goal → briefly diagnose → propose the SMALLEST " +
-        "safe action → show the exact command → one line on what it does. Always " +
-        "confirm before anything that updates, installs, removes, reboots or rolls " +
-        "back. NEVER suggest destructive/unsafe commands, a raw root shell, or " +
-        "bypassing confirmations. If offline or unsure, say so honestly.\n" +
-        "STYLE: concise, friendly, in the user's language (العربية RTL أو English), " +
-        "with short bullets and code blocks."
-
-    // Rendered as Markdown. Points at the real "Start local brain" button below.
-    readonly property string offlineHelp:
-        "العقل المحلي غير مشغّل.\n" +
-        "The local brain is off.\n\n" +
-        "اضغط **«شغّل العقل المحلي»** بالأسفل — أو شغّل `moai-start` في الطرفية.\n" +
-        "Tap **“Start local brain”** below — or run `moai-start` in a terminal.\n\n" +
-        "ثم أعد المحاولة | then try again."
-
-    // Shown while the brain is starting (first-run ~2.5 GB download), so the app
-    // never says "offline" at the user who just started it.
-    readonly property string startingHelp:
-        "العقل المحلي يبدأ الآن… أول تشغيل يُحمّل النموذج (~2.5GB) وقد يأخذ دقائق.\n" +
-        "The local brain is starting… first run downloads the model (~2.5 GB) and may take a few minutes.\n\n" +
-        "سأصبح جاهزاً تلقائياً عند الانتهاء. | I'll be ready automatically once it finishes."
-
-    // Cloud brain selected but the gateway/provider isn't answering.
-    readonly property string cloudHelp:
-        "لا أصل إلى العقل السحابي.\n" +
-        "Can't reach the cloud brain.\n\n" +
-        "افتح الإعدادات ⚙ وتحقّق من المفتاح والنموذج، أو بدّل للعقل المحلي.\n" +
-        "Open settings ⚙ and check your key/model, or switch to the local brain."
-
-    // Nova dark brand palette (MOOS_DESIGN)
-    readonly property color brandBg: "#0B1220"
-    readonly property color brandSurface: "#111A2E"
-    readonly property color brandRaised: "#1A2740"
-    readonly property color brandBlue: "#2E7BFF"
-    readonly property color brandCyan: "#22D3EE"
-    readonly property color brandViolet: "#8B5CF6"
-    readonly property color brandText: "#E6EDF7"
-    readonly property color brandSecondary: "#9FB0C9"
-    readonly property color hairline: "#243350"
-
-    // Quick actions — each pill LAUNCHES its `url` for real via the moos://
-    // scheme handler (/usr/bin/moos-open), which runs the auditable moai-do
-    // action in a visible terminal (confirmation + pkexec). No more clipboard.
-    // icon: MoOS action symbols shipped at hicolor/scalable/actions, resolved
-    // by NAME through the icon theme (contract §4 — no absolute paths).
-    readonly property var quickActions: [
-        { ar: "جهازي",          en: "My device",     url: "", action: "device",      accent: "#FFB45C", icon: "moos-gpu" },
-        { ar: "افحص نظامي",     en: "Scan",          url: "", action: "scan",        accent: "#22D3EE", icon: "moos-report" },
-        { ar: "تحديث النظام",   en: "Update",        url: "moos://do/update",        accent: "#2E7BFF", icon: "moos-safe-update" },
-        { ar: "تثبيت تطبيقات",  en: "Install apps",  url: "moos://app/setup",        accent: "#22D3EE", icon: "moos-install" },
-        { ar: "إصلاح الصوت",    en: "Fix audio",     url: "moos://do/fix-audio",     accent: "#8B5CF6", icon: "moos-audio" },
-        { ar: "فحص التعريفات",  en: "Check drivers", url: "moos://do/check-drivers", accent: "#22D3EE", icon: "moos-gpu" },
-        { ar: "تحسين وتنظيف",   en: "Optimize",      url: "moos://do/optimize",      accent: "#2E7BFF", icon: "moos-optimize" },
-        { ar: "تقرير الأجهزة",  en: "HW report",     url: "moos://do/hw-report",     accent: "#8B5CF6", icon: "moos-report" },
-        { ar: "الخدمات الفاشلة", en: "Failed services", url: "moos://do/diagnose-services", accent: "#FFB45C", icon: "moos-system" },
-        { ar: "مشاكل الإقلاع", en: "Boot problems", url: "moos://do/inspect-boot", accent: "#FF6B7A", icon: "moos-warning" },
-        { ar: "افتح المحدّث", en: "Open updater", url: "moos://app/updater", accent: "#2E7BFF", icon: "moos-safe-update" },
-        { ar: "افتح الاستعادة", en: "Open recovery", url: "moos://app/recovery", accent: "#8B5CF6", icon: "moos-system" },
-        { ar: "برمجة (Claude/Codex)", en: "Code",    url: "moos://dev/code",         accent: "#22D3EE", icon: "moos-optimize" }
-    ]
-
-    // Clickable example prompts shown on a fresh conversation (empty history).
-    readonly property var starters: [
-        { emoji: "🚀", ar: "حدّث نظامي",    en: "Update my system", send: "حدّث نظام MoOS من فضلك" },
-        { emoji: "🖥️", ar: "مواصفات جهازي", en: "My specs",         send: "ما مواصفات جهازي؟" },
-        { emoji: "🔊", ar: "صلّح الصوت",     en: "Fix audio",        send: "الصوت لا يعمل عندي، ساعدني" },
-        { emoji: "⚡", ar: "سرّع MoOS",      en: "Speed up MoOS",    send: "أعطني نصائح لتسريع وتحسين MoOS" }
-    ]
-
-    property bool serverUp: false
-    property bool busy: false
-    // True from when the user asks to start the local brain until the server is
-    // up. The first run downloads ~2.5 GB, so without this the app would keep
-    // saying "offline / start the brain" for minutes even though it IS starting.
-    property bool brainStarting: false
-    property var history: []   // [{role, content}] user/assistant only, last 12
-
-    function startBrain() {
-        Qt.openUrlExternally("moos://brain/start")
-        brainStarting = true
-        brainStartGuard.restart()   // clears if the server never comes up
-    }
-
-    // Safety net: if starting fails or the user cancels, stop claiming "starting"
-    // after a generous window (first-run download can be slow).
-    Timer { id: brainStartGuard; interval: 720000; onTriggered: root.brainStarting = false }
-
-    // ── Nova Companion state (artwork/moai/README.md wiring contract) ───────
-    // A 1400 ms success/error flash overrides the steady mapping:
-    //   !serverUp → offline (local brain, not Internet), busy → thinking,
-    //   focused + typed text → attentive, otherwise idle.
-    property string companionFlash: ""
-    readonly property string companionState:
-        companionFlash !== "" ? companionFlash
-        : !serverUp ? (brainStarting ? "thinking" : "offline")
-        : busy ? "thinking"
-        : (input.activeFocus && input.text.trim().length > 0) ? "attentive"
-        : "idle"
-
-    function flashCompanion(state) {
-        companionFlash = state
-        companionFlashTimer.restart()
-    }
-
-    Timer {
-        id: companionFlashTimer
-        interval: 1400
-        onTriggered: root.companionFlash = ""
-    }
-
-    // Bilingual type (contract §5): Latin shapes in IBM Plex Sans, Arabic
-    // falls back to IBM Plex Sans Arabic — both ship in the image (c4).
-    // QML Text exposes font.family (singular), not a font.families list.
-    // Qt/fontconfig automatically falls back to IBM Plex Sans Arabic for
-    // Arabic glyphs that are not present in the primary Latin family.
-    readonly property string uiFont: "IBM Plex Sans"
-
-    title: "Mo AI"
-    width: 460
-    height: 720
-    minimumWidth: 380
-    minimumHeight: 520
-    color: brandBg
-
-    pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.None
-
-    readonly property string greetingText:
-        "مرحباً! أنا **Mo AI** — مساعدك في MoOS. أقدر أساعدك تتحكّم بالنظام: " +
-        "التحديث، تثبيت التطبيقات، إصلاح الصوت والمزيد.\n\n" +
-        "Hi! I'm **Mo AI** — your MoOS assistant. I can help you control the " +
-        "system: updates, installing apps, fixing audio and more.\n\n" +
-        "_جرّب الأزرار السريعة بالأسفل | try the quick actions below._"
-
-    // Actions the model suggested in its last reply (parsed moai-do commands),
-    // surfaced as one-click "Run" chips above the input.
-    property var pendingRuns: []
-
-    Component.onCompleted: {
-        chatModel.append({ role: "assistant", text: greetingText })
-        // Learn the machine before the user's first message, so the very first answer is
-        // grounded in their actual hardware instead of a generic one.
-        root.refreshMachineContext()
-        // `moai --device` (what moos-hardware and moos-compat now run) opens straight onto
-        // the device view.
-        if (Qt.application.arguments.indexOf("--device") !== -1)
-            root.openDevicePage()
-    }
-
-    // Hardware changes (a firmware update lands, the NVIDIA edition gets deployed, a device
-    // is plugged in), so the context must not be a one-shot read taken at launch.
-    Timer {
-        interval: 180000
-        running: true
-        repeat: true
-        onTriggered: root.refreshMachineContext()
-    }
-
-    ListModel { id: chatModel }
-
-    // Poll the server so the header badge stays honest. /v1/models is a cheap
-    // llama-server endpoint that exists whenever chat/completions does.
-    Timer {
-        interval: 4000
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: {
-            const xhr = new XMLHttpRequest()
-            xhr.open("GET", root.api.replace("/chat/completions", "/models"))
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState === XMLHttpRequest.DONE) {
-                    const up = (xhr.status === 200)
-                    root.serverUp = up
-                    if (up) root.brainStarting = false   // it's ready now
-                }
-            }
-            xhr.send()
-        }
-    }
-
-    function trimHistory() {
-        if (history.length > 12)
-            history = history.slice(-12)
-    }
-
-    function removeTypingBubble() {
-        if (chatModel.count > 0
-                && chatModel.get(chatModel.count - 1).role === "typing")
-            chatModel.remove(chatModel.count - 1)
-    }
-
-    // Launch a quick action for real via the moos:// handler (moos-open), which
-    // runs the auditable moai-do action in a visible terminal (confirm + pkexec).
-    // Pure QML can't exec, but Qt.openUrlExternally reaches the scheme handler.
-    // Detect safe moai-do actions the model mentioned so we can offer to run
-    // them with one click (the actual run still goes through moai-do's own
-    // confirmation + pkexec).
-    function extractRuns(text) {
-        const out = []
-        const re = /moai-do\s+(update|fix-audio|check-drivers|optimize|hw-report)/g
-        let m
-        while ((m = re.exec(text)) !== null)
-            if (out.indexOf(m[1]) === -1)
-                out.push(m[1])
-        return out
-    }
-
-    // Start a fresh conversation.
-    function newChat() {
-        chatModel.clear()
-        history = []
-        pendingRuns = []
-        stopGenerating()
-        chatModel.append({ role: "assistant", text: greetingText })
-    }
-
-    // The machine Mo AI is actually running on, appended to the system prompt on every
-    // request. Without this it is a chat box that has to be *told* what hardware it is on;
-    // with it, it opens the conversation already knowing that this machine has an NVIDIA
-    // card on nouveau, or firmware the kernel could not load — and can say so first.
-    //
-    // It carries only the facts and the fixed action ids that repair them. The model never
-    // gains the ability to run anything: it can name a `moai-do <action>` from the allowlist,
-    // which the UI turns into a Run button that still goes through confirmation + Polkit.
-    property string machineContext: ""
-
-    function refreshMachineContext() {
-        const xhr = new XMLHttpRequest()
-        xhr.open("GET", controlApi + "/scan")
-        xhr.setRequestHeader("X-Moai-Control", "1")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200)
-                return
-            try {
-                const s = JSON.parse(xhr.responseText)
-                const p = s.device_plan || {}
-                let c = "\n\nTHIS MACHINE (live, read-only — do not ask the user for it):\n"
-                c += "• " + (s.os || "MoOS") + ", kernel " + (s.kernel || "?")
-                   + ", " + (s.mem_gb || "?") + " GB RAM, " + (s.cores || "?") + " cores\n"
-                if (p.gpu)
-                    c += "• GPU: " + String(p.gpu).split("\n")[0] + "\n"
-                if (p.driver_status)
-                    c += "• Graphics driver: " + p.driver_status + "\n"
-                if (p.driver_gaps && p.driver_gaps.length)
-                    c += "• Devices with NO driver bound: " + p.driver_gaps.join("; ") + "\n"
-                if (p.missing_firmware && p.missing_firmware.length)
-                    c += "• Firmware the kernel could not load: " + p.missing_firmware.join(", ") + "\n"
-                if (p.firmware_updates && p.firmware_updates.length)
-                    c += "• Pending firmware updates: " + p.firmware_updates.join("; ") + "\n"
-                if (p.missing_recommended_apps && p.missing_recommended_apps.length)
-                    c += "• Recommended apps not installed: " + p.missing_recommended_apps.join(", ") + "\n"
-                if (p.actions && p.actions.length) {
-                    c += "• Repairs available right now (each maps to an allowed action):\n"
-                    for (let i = 0; i < p.actions.length; i++) {
-                        const a = p.actions[i]
-                        const cmd = a.url ? String(a.url).replace("moos://do/", "moai-do ") : ""
-                        c += "   - [" + a.severity + "] " + a.title
-                           + (cmd ? "  ->  `" + cmd + "`" : "") + "\n"
-                    }
-                }
-                c += "If something above is broken, say so first and offer the exact action. "
-                   + "Never invent hardware facts that are not in this list.\n"
-                root.machineContext = c
-            } catch (e) { /* keep the previous context rather than a half-parsed one */ }
-        }
-        xhr.send()
-    }
-
-    // ── The device view ─────────────────────────────────────────────────────────
-    //
-    // This is the Hardware Centre and the Compatibility Hub, folded into Mo AI. They were two
-    // separate windows onto the same JSON that Mo AI already reads, sitting next to the one
-    // app that can actually explain what is wrong and fix it — so they are views here now,
-    // and /usr/bin/moos-hardware and /usr/bin/moos-compat open Mo AI on this page.
-    //
-    // Every repair below is an ID from the fixed moai-do allowlist, launched through the
-    // moos:// handler exactly like the quick actions: visible terminal, confirmation, Polkit.
-    // Nothing here can run a command the assistant made up.
-    property var devicePlan: ({})
-    property bool devicePageOpen: false
-
-    function openDevicePage() {
-        root.refreshMachineContext()   // the page and the model read the same source
-        const xhr = new XMLHttpRequest()
-        xhr.open("GET", controlApi + "/scan")
-        xhr.setRequestHeader("X-Moai-Control", "1")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
-            try {
-                const s = JSON.parse(xhr.responseText)
-                s.device_plan = s.device_plan || {}
-                s.device_plan._os = s.os
-                s.device_plan._kernel = s.kernel
-                s.device_plan._cpu = s.cpu
-                s.device_plan._mem = s.mem_gb
-                root.devicePlan = s.device_plan
-            } catch (e) {
-                root.devicePlan = {}
-            }
-            root.devicePageOpen = true
-        }
-        xhr.send()
-    }
-
-    /** Ask Mo AI about a specific problem, with the problem already stated. */
-    function askAbout(title, detail) {
-        root.devicePageOpen = false
-        input.text = "اشرح لي هذه المشكلة وكيف أصلحها: " + title + " — " + detail
-                   + "\nExplain this problem and how to fix it."
-        input.forceActiveFocus()
-    }
-
-    // Read-only system scan via moai-control; show it in chat and give the model
-    // the context so follow-up "how do I improve this?" answers are grounded.
-    function doScan() {
-        const xhr = new XMLHttpRequest()
-        xhr.open("GET", controlApi + "/scan")
-        xhr.setRequestHeader("X-Moai-Control", "1")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
-            if (xhr.status !== 200) {
-                chatModel.append({ role: "assistant",
-                    text: "تعذّر فحص النظام | couldn't scan the system." })
-                return
-            }
-            try {
-                const s = JSON.parse(xhr.responseText)
-                const disk = s.disk && s.disk.total_gb
-                    ? (s.disk.free_gb + "/" + s.disk.total_gb + " GB free") : "?"
-                const md = "**فحص النظام | System scan**\n\n"
-                    + "- 🖥️ " + (s.os || "MoOS") + "\n"
-                    + "- ⚙️ " + (s.cpu || "?") + "  (" + (s.cores || "?") + " cores)\n"
-                    + "- 🧠 " + (s.mem_gb || "?") + " GB RAM\n"
-                    + "- 💾 " + disk + "\n"
-                    + "- 🎮 " + (s.gpu || "?") + "\n"
-                    + "- 🐧 kernel " + (s.kernel || "?")
-                chatModel.append({ role: "assistant", text: md })
-                root.history.push({ role: "assistant", content: md })
-                root.trimHistory()
-                input.text = "بناءً على هذا الفحص، كيف أحسّن أداء وأمان نظامي؟ | Based on this scan, how do I improve my system's performance and security?"
-                input.forceActiveFocus()
-            } catch (e) {}
-        }
-        xhr.send()
-    }
-
-    function runAction(a) {
-        if (a.action === "scan") {
-            doScan()
-            return
-        }
-        if (a.action === "device") {
-            root.openDevicePage()
-            return
-        }
-        Qt.openUrlExternally(a.url)
-        toast.show(a.ar + "  |  " + a.en)
-        // No success state here: launching != the action succeeding — just an
-        // honest attentive pulse (contract §7).
-        attentivePulse.restart()
-    }
-
-    function sendPrompt(msg) {
-        input.text = msg
-        send()
-    }
-
-    function stopGenerating() {
-        if (activeXhr) {
-            try { activeXhr.abort() } catch (e) {}
-            activeXhr = null
-        }
-        busy = false
-    }
-
-    function send() {
-        const msg = input.text.trim()
-        if (msg === "" || busy)
-            return
-        input.text = ""
-        chatModel.append({ role: "user", text: msg })
-        history.push({ role: "user", content: msg })
-        trimHistory()
-        // One growing bubble: starts as a "typing" pulse, becomes the assistant
-        // reply and extends token-by-token as the stream arrives.
-        chatModel.append({ role: "typing", text: "…" })
-        const idx = chatModel.count - 1
-        busy = true
-        pendingRuns = []   // clear last reply's suggested actions
-
-        let acc = ""          // accumulated reply text
-        let sawData = false    // did we get any streamed delta?
-        let processed = 0      // chars of responseText already parsed
-
-        const xhr = new XMLHttpRequest()
-        activeXhr = xhr
-        xhr.open("POST", api)
-        xhr.setRequestHeader("Content-Type", "application/json")
-        xhr.onreadystatechange = function () {
-            // Parse newly-arrived SSE lines during LOADING (live) and DONE.
-            if (xhr.readyState === XMLHttpRequest.LOADING
-                    || xhr.readyState === XMLHttpRequest.DONE) {
-                const full = xhr.responseText
-                // Consume only COMPLETE lines: a `data:` line can split across
-                // two ticks, so keep any trailing partial line buffered until
-                // its newline arrives. At DONE, consume the remainder too.
-                let end = full.lastIndexOf("\n") + 1     // 0 if no newline yet
-                if (xhr.readyState === XMLHttpRequest.DONE)
-                    end = full.length
-                const fresh = end > processed ? full.substring(processed, end) : ""
-                processed = end > processed ? end : processed
-                const lines = fresh.split("\n")
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim()
-                    if (line.indexOf("data:") !== 0)
-                        continue
-                    const payload = line.substring(5).trim()
-                    if (payload === "" || payload === "[DONE]")
-                        continue
-                    try {
-                        const j = JSON.parse(payload)
-                        const ch = j.choices && j.choices[0]
-                        const delta = ch
-                            ? (ch.delta ? ch.delta.content
-                               : (ch.message ? ch.message.content : ""))
-                            : ""
-                        if (delta) {
-                            acc += delta
-                            sawData = true
-                            chatModel.set(idx, { role: "assistant", text: acc })
-                        }
-                    } catch (e) { /* partial JSON line — completes next tick */ }
-                }
-            }
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
-            root.busy = false
-            root.activeXhr = null
-
-            if (sawData && acc.trim() !== "") {
-                chatModel.set(idx, { role: "assistant", text: acc })
-                root.history.push({ role: "assistant", content: acc })
-                root.trimHistory()
-                root.pendingRuns = root.extractRuns(acc)
-                root.flashCompanion("success")
-                return
-            }
-            // No stream (older server or error) — try a whole-response parse.
-            let reply = ""
-            if (xhr.status === 200) {
-                try {
-                    reply = JSON.parse(xhr.responseText)
-                                .choices[0].message.content.trim()
-                } catch (e) { reply = "" }
-            }
-            if (reply !== "") {
-                chatModel.set(idx, { role: "assistant", text: reply })
-                root.history.push({ role: "assistant", content: reply })
-                root.trimHistory()
-                root.pendingRuns = root.extractRuns(reply)
-                root.flashCompanion("success")
-            } else {
-                const help = !root.serverUp
-                    ? (root.brainStarting ? root.startingHelp : root.offlineHelp)
-                    : "لم أستطع توليد رد، حاول مجدداً. | I couldn't generate a reply — please try again."
-                chatModel.set(idx, { role: "assistant", text: help })
-                root.flashCompanion(root.serverUp ? "warning" : "error")
-            }
-        }
-        xhr.send(JSON.stringify({
-            model: "default",
-            messages: [{ role: "system", content: systemPrompt + root.machineContext }]
-                          .concat(history),
-            stream: true
-        }))
-    }
-
-    pageStack.initialPage: Kirigami.Page {
-        padding: 0
-        background: Rectangle {
-            color: root.brandBg
-            Image {
-                source: "file:///usr/share/wallpapers/NovaHorizonII/contents/images_dark/3840x2160.png"
-                anchors.fill: parent
-                fillMode: Image.PreserveAspectCrop
-                opacity: 0.18
-                smooth: true
-            }
-        }
-
-        // Full RTL mirroring for Arabic sessions (contract §5): follows the
-        // application layout direction and cascades to every child.
-        LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
-        LayoutMirroring.childrenInherit: true
-
-        ColumnLayout {
-            anchors.fill: parent
-            spacing: 0
-
-            // ── Thin brand gradient bar (cyan → blue → violet) ──────────────
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 3
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: root.brandCyan }
-                    GradientStop { position: 0.5; color: root.brandBlue }
-                    GradientStop { position: 1.0; color: root.brandViolet }
-                }
-            }
-
-            // ── Header (glass) ──────────────────────────────────────────────
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 64
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: "#151F38" }
-                    GradientStop { position: 1.0; color: "#0D1526" }
-                }
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: 14
-                    anchors.rightMargin: 14
-                    spacing: 11
-
-                    // Nova Companion — the transparent Mo AI mascot replaces the
-                    // old square-in-square tile (contract §3). All seven states
-                    // stay PRELOADED as stacked Images; state changes cross-fade
-                    // opacity only over 160 ms (contract §1 — never swap source).
-                    Item {
-                        id: companion
-                        Layout.preferredWidth: 46
-                        Layout.preferredHeight: 46
-
-                        Repeater {
-                            model: ["idle", "attentive", "thinking", "success",
-                                    "warning", "error", "offline"]
-                            Image {
-                                required property string modelData
-                                anchors.fill: parent
-                                source: "file:///usr/share/moos/branding/moai/mascot/"
-                                        + modelData + ".png"
-                                sourceSize.width: 96
-                                sourceSize.height: 96
-                                fillMode: Image.PreserveAspectFit
-                                smooth: true
-                                opacity: root.companionState === modelData ? 1 : 0
-                                Behavior on opacity {
-                                    NumberAnimation { duration: 160 }
-                                }
-                            }
-                        }
-
-                        // Idle breathe: scale 1.0↔1.018 over 2800 ms; loop stops
-                        // when the window is hidden (contract §2) and yields to
-                        // the pulse so the two never fight over `scale`.
-                        SequentialAnimation {
-                            running: root.visible && root.companionState === "idle"
-                                     && !attentivePulse.running
-                            loops: Animation.Infinite
-                            onStopped: companion.scale = 1.0
-                            NumberAnimation {
-                                target: companion; property: "scale"
-                                from: 1.0; to: 1.018; duration: 1400
-                                easing.type: Easing.InOutSine
-                            }
-                            NumberAnimation {
-                                target: companion; property: "scale"
-                                from: 1.018; to: 1.0; duration: 1400
-                                easing.type: Easing.InOutSine
-                            }
-                        }
-
-                        // Thinking wobble: scale 1.0↔1.025 + rotation −1.2↔1.2°
-                        // over 1500 ms (contract §2).
-                        ParallelAnimation {
-                            running: root.visible && root.companionState === "thinking"
-                            loops: Animation.Infinite
-                            onStopped: { companion.scale = 1.0; companion.rotation = 0 }
-                            SequentialAnimation {
-                                NumberAnimation {
-                                    target: companion; property: "scale"
-                                    from: 1.0; to: 1.025; duration: 750
-                                    easing.type: Easing.InOutSine
-                                }
-                                NumberAnimation {
-                                    target: companion; property: "scale"
-                                    from: 1.025; to: 1.0; duration: 750
-                                    easing.type: Easing.InOutSine
-                                }
-                            }
-                            SequentialAnimation {
-                                NumberAnimation {
-                                    target: companion; property: "rotation"
-                                    from: -1.2; to: 1.2; duration: 750
-                                    easing.type: Easing.InOutSine
-                                }
-                                NumberAnimation {
-                                    target: companion; property: "rotation"
-                                    from: 1.2; to: -1.2; duration: 750
-                                    easing.type: Easing.InOutSine
-                                }
-                            }
-                        }
-
-                        // Honest attentive pulse for runAction (contract §7).
-                        SequentialAnimation {
-                            id: attentivePulse
-                            NumberAnimation {
-                                target: companion; property: "scale"
-                                from: 1.0; to: 1.06; duration: 140
-                                easing.type: Easing.OutQuad
-                            }
-                            NumberAnimation {
-                                target: companion; property: "scale"
-                                from: 1.06; to: 1.0; duration: 200
-                                easing.type: Easing.InQuad
-                            }
-                        }
-                    }
-
-                    ColumnLayout {
-                        spacing: 1
-                        Text {
-                            text: "Mo AI"
-                            color: root.brandText
-                            font.family: root.uiFont
-                            font.pixelSize: 18
-                            font.weight: Font.DemiBold
-                        }
-                        Text {
-                            text: "مساعد MoOS | MoOS assistant"
-                            color: root.brandSecondary
-                            font.family: root.uiFont
-                            font.pixelSize: 11
-                        }
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    // New conversation
-                    Rectangle {
-                        Layout.preferredWidth: 28
-                        Layout.preferredHeight: 24
-                        radius: 8
-                        color: newMouse.containsMouse ? "#1C2A47" : "transparent"
-                        border.width: 1
-                        border.color: newMouse.containsMouse ? "#3A4E76" : "#26334F"
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                        Text {
-                            anchors.centerIn: parent
-                            text: "＋"
-                            color: root.brandSecondary
-                            font.pixelSize: 16
-                        }
-                        MouseArea {
-                            id: newMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.newChat()
-                        }
-                    }
-
-                    // Settings ⚙ — opens the in-app Settings overlay (local/cloud).
-                    Rectangle {
-                        Layout.preferredWidth: 28
-                        Layout.preferredHeight: 24
-                        radius: 8
-                        color: gearMouse.containsMouse ? "#1C2A47" : "transparent"
-                        border.width: 1
-                        border.color: gearMouse.containsMouse ? "#3A4E76" : "#26334F"
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                        Text {
-                            anchors.centerIn: parent
-                            text: "⚙"
-                            color: root.brandSecondary
-                            font.pixelSize: 14
-                        }
-                        MouseArea {
-                            id: gearMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: { root.loadConfig(); root.settingsOpen = true }
-                        }
-                    }
-
-                    // Live status badge (pulses when the local brain is up).
-                    Rectangle {
-                        Layout.preferredHeight: 24
-                        Layout.preferredWidth: badgeRow.implicitWidth + 20
-                        radius: 12
-                        color: "#141F38"
-                        border.width: 1
-                        border.color: root.serverUp ? Qt.rgba(0.13, 0.83, 0.93, 0.55)
-                                                    : "#26334F"
-
-                        RowLayout {
-                            id: badgeRow
-                            anchors.centerIn: parent
-                            spacing: 6
-
-                            Rectangle {
-                                width: 7
-                                height: 7
-                                radius: 3.5
-                                color: root.serverUp ? root.brandCyan
-                                     : root.brainStarting ? root.brandBlue
-                                     : root.brandSecondary
-                                SequentialAnimation on opacity {
-                                    running: root.serverUp || root.brainStarting
-                                    loops: Animation.Infinite
-                                    NumberAnimation { from: 1.0; to: 0.35; duration: 900 }
-                                    NumberAnimation { from: 0.35; to: 1.0; duration: 900 }
-                                }
-                            }
-
-                            Text {
-                                text: root.serverUp ? "متصل | online"
-                                     : root.brainStarting ? "يبدأ… | starting…"
-                                     : "غير متصل | offline"
-                                color: root.serverUp ? root.brandCyan
-                                     : root.brainStarting ? root.brandBlue
-                                     : root.brandSecondary
-                                font.family: root.uiFont
-                                font.pixelSize: 11
-                            }
-                        }
-                    }
-                }
-
-                Rectangle {   // hairline under the header
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: 1
-                    color: root.hairline
-                }
-            }
-
-            // ── Chat ────────────────────────────────────────────────────────
-            ListView {
-                id: listView
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                clip: true
-                spacing: 3
-                topMargin: 10
-                bottomMargin: 10
-                model: chatModel
-                onCountChanged: Qt.callLater(listView.positionViewAtEnd)
-
-                QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
-
-                delegate: Item {
-                    width: listView.width
-                    height: bubble.height + 6
-
-                    // 24 px Nova Companion avatar on assistant/typing bubbles;
-                    // typing wears "thinking" (contract §3). Anchors flip under
-                    // LayoutMirroring for RTL.
-                    Image {
-                        visible: model.role !== "user"
-                        anchors.left: parent.left
-                        anchors.leftMargin: 10
-                        y: 4
-                        width: 24
-                        height: 24
-                        sourceSize.width: 48
-                        sourceSize.height: 48
-                        fillMode: Image.PreserveAspectFit
-                        smooth: true
-                        source: "file:///usr/share/moos/branding/moai/mascot/"
-                                + (model.role === "typing" ? "thinking" : "idle")
-                                + ".png"
-                    }
-
-                    Rectangle {
-                        id: bubble
-                        readonly property bool mine: model.role === "user"
-                        // anchors (not x:) so locale LayoutMirroring (RTL) flips
-                        // the bubbles correctly.
-                        anchors.right: mine ? parent.right : undefined
-                        anchors.left: mine ? undefined : parent.left
-                        anchors.rightMargin: 12
-                        anchors.leftMargin: mine ? 12 : 40
-                        y: 3
-                        radius: 12
-                        // user: brand blue tint; assistant: raised surface — both
-                        // with a soft 1px border for the glass look.
-                        color: mine ? "#242E7BFF" : root.brandRaised
-                        border.width: 1
-                        border.color: mine ? Qt.rgba(0.18, 0.48, 1.0, 0.38)
-                                           : "#27344F"
-                        width: msgText.width + 26
-                        height: msgText.implicitHeight + 20
-
-                        Text {
-                            id: msgText
-                            x: 13
-                            y: 10
-                            width: Math.min(implicitWidth,
-                                            (listView.width * 0.82) - 26)
-                            text: model.text
-                            textFormat: model.role === "assistant"
-                                        ? Text.MarkdownText : Text.PlainText
-                            wrapMode: Text.Wrap
-                            color: root.brandText
-                            linkColor: root.brandCyan
-                            font.family: root.uiFont
-                            font.pixelSize: 14
-                            onLinkActivated: function (link) {
-                                Qt.openUrlExternally(link)
-                            }
-
-                            SequentialAnimation on opacity {
-                                running: model.role === "typing"
-                                loops: Animation.Infinite
-                                // Value-source animations don't restore on stop;
-                                // when typing→assistant flips, force full opacity
-                                // so the streamed reply isn't left dimmed.
-                                onRunningChanged: if (!running) msgText.opacity = 1
-                                NumberAnimation { from: 1.0; to: 0.25; duration: 450 }
-                                NumberAnimation { from: 0.25; to: 1.0; duration: 450 }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── Starter prompts — only on a fresh conversation ──────────────
-            Flow {
-                Layout.fillWidth: true
-                Layout.leftMargin: 12
-                Layout.rightMargin: 12
-                Layout.topMargin: 2
-                Layout.bottomMargin: 2
-                spacing: 8
-                // chatModel.count notifies (unlike history.push); only the
-                // greeting present → count 1 → fresh conversation.
-                visible: chatModel.count <= 1
-
-                Repeater {
-                    model: root.starters
-                    delegate: Rectangle {
-                        id: chip
-                        required property var modelData
-                        radius: 14
-                        height: 30
-                        width: chipRow.implicitWidth + 22
-                        color: chipMouse.containsMouse ? "#1C2A47" : "#131D33"
-                        border.width: 1
-                        border.color: chipMouse.containsMouse ? "#3A4E76" : "#26334F"
-                        Behavior on color { ColorAnimation { duration: 120 } }
-
-                        RowLayout {
-                            id: chipRow
-                            anchors.centerIn: parent
-                            spacing: 6
-                            Text { text: chip.modelData.emoji; font.pixelSize: 13 }
-                            Text {
-                                text: chip.modelData.ar + "  |  " + chip.modelData.en
-                                color: root.brandText
-                                font.family: root.uiFont
-                                font.pixelSize: 12
-                            }
-                        }
-                        MouseArea {
-                            id: chipMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.sendPrompt(chip.modelData.send)
-                        }
-                    }
-                }
-            }
-
-            // ── Quick actions (the system-control bar) ──────────────────────
-            Rectangle {
-                id: quickBar
-                Layout.fillWidth: true
-                Layout.preferredHeight: quickCol.implicitHeight + 20
-                color: "#0D1526"
-
-                Rectangle {   // top hairline
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    height: 1
-                    color: root.hairline
-                }
-
-                ColumnLayout {
-                    id: quickCol
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 10
-                    spacing: 8
-
-                    // ── Offline → a REAL "start the local brain" control. Opens
-                    //    moos://brain/start (runs moai-start in a terminal: consent
-                    //    + ~2.5 GB first-run download). While starting it shows a
-                    //    distinct "downloading/warming up" state instead of the flat
-                    //    "offline — run a command" dead-end.
-                    Rectangle {
-                        Layout.fillWidth: true
-                        visible: !root.serverUp
-                        radius: 12
-                        Layout.preferredHeight: startCol.implicitHeight + 18
-                        color: root.brainStarting ? "#152447" : "#161F38"
-                        border.width: 1
-                        border.color: root.brainStarting ? root.brandBlue : root.brandViolet
-
-                        ColumnLayout {
-                            id: startCol
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.leftMargin: 12
-                            anchors.rightMargin: 12
-                            spacing: 7
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: root.brainStarting
-                                      ? "العقل المحلي يبدأ… أول مرة يُحمّل ~2.5GB وقد يأخذ دقائق.\nLocal brain starting… first run downloads ~2.5 GB, may take minutes."
-                                      : "العقل المحلي غير مشغّل — شغّله محلياً بضغطة (يحتاج إنترنت أول مرة).\nThe local brain is off — start it locally in one click (needs Internet the first time)."
-                                color: root.brandSecondary
-                                font.family: root.uiFont
-                                font.pixelSize: 11
-                                wrapMode: Text.Wrap
-                            }
-
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 36
-                                visible: !root.brainStarting
-                                radius: 10
-                                color: startMouse.pressed ? "#2568D9"
-                                     : startMouse.containsMouse ? Qt.lighter(root.brandBlue, 1.1)
-                                     : root.brandBlue
-                                Behavior on color { ColorAnimation { duration: 120 } }
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "شغّل العقل المحلي  |  Start local brain"
-                                    color: "white"
-                                    font.family: root.uiFont
-                                    font.pixelSize: 13
-                                    font.weight: Font.DemiBold
-                                }
-                                MouseArea {
-                                    id: startMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.startBrain()
-                                }
-                            }
-                        }
-                    }
-
-                    Text {
-                        text: "أوامر سريعة | Quick actions"
-                        color: root.brandSecondary
-                        font.family: root.uiFont
-                        font.pixelSize: 11
-                        font.weight: Font.DemiBold
-                    }
-
-                    Flickable {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 38
-                        contentWidth: actionsRow.implicitWidth
-                        contentHeight: height
-                        clip: true
-                        boundsBehavior: Flickable.StopAtBounds
-                        flickableDirection: Flickable.HorizontalFlick
-
-                        Row {
-                            id: actionsRow
-                            spacing: 8
-
-                            Repeater {
-                                model: root.quickActions
-
-                                delegate: Rectangle {
-                                id: pill
-                                required property var modelData
-                                radius: 15
-                                height: 32
-                                width: pillRow.implicitWidth + 24
-                                color: pillMouse.pressed ? "#101A30"
-                                     : pillMouse.containsMouse ? "#1C2A47"
-                                     : "#141F38"
-                                border.width: 1
-                                border.color: pillMouse.containsMouse ? "#3A4E76"
-                                                                      : "#26334F"
-                                Behavior on color { ColorAnimation { duration: 120 } }
-
-                                RowLayout {
-                                    id: pillRow
-                                    anchors.centerIn: parent
-                                    spacing: 7
-
-                                    // Themed MoOS action symbol, tinted with the
-                                    // pill accent (contract §4).
-                                    Kirigami.Icon {
-                                        source: pill.modelData.icon
-                                        color: pill.modelData.accent
-                                        Layout.preferredWidth: 16
-                                        Layout.preferredHeight: 16
-                                    }
-
-                                    Text {
-                                        text: pill.modelData.ar + "  |  " + pill.modelData.en
-                                        color: root.brandText
-                                        font.family: root.uiFont
-                                        font.pixelSize: 12
-                                    }
-                                }
-
-                                MouseArea {
-                                    id: pillMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.runAction(pill.modelData)
-                                }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── Suggested actions from the last reply → one-click Run ───────
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: runsFlow.implicitHeight + 16
-                visible: root.pendingRuns.length > 0
-                color: "#0D1526"
-                Rectangle {
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.top: parent.top; height: 1; color: root.hairline
-                }
-                Flow {
-                    id: runsFlow
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 12
-                    anchors.rightMargin: 12
-                    spacing: 8
-                    Repeater {
-                        model: root.pendingRuns
-                        delegate: Rectangle {
-                            id: runChip
-                            required property string modelData
-                            radius: 15
-                            height: 32
-                            width: runRow.implicitWidth + 22
-                            color: runMouse.pressed ? "#1F6F3A"
-                                 : runMouse.containsMouse ? Qt.lighter("#1E7E45", 1.12)
-                                 : "#1E7E45"
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                            RowLayout {
-                                id: runRow
-                                anchors.centerIn: parent
-                                spacing: 6
-                                Text { text: "▶"; color: "white"; font.pixelSize: 11 }
-                                Text {
-                                    text: "نفّذ " + runChip.modelData + " | Run"
-                                    color: "white"
-                                    font.family: root.uiFont
-                                    font.pixelSize: 12
-                                    font.weight: Font.DemiBold
-                                }
-                            }
-                            MouseArea {
-                                id: runMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Qt.openUrlExternally("moos://do/" + runChip.modelData)
-                                    toast.show("moai-do " + runChip.modelData)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── Input row ───────────────────────────────────────────────────
-            Rectangle {
-                id: inputBar
-                Layout.fillWidth: true
-                Layout.preferredHeight: 66
-                color: "#0D1526"
-
-                Rectangle {   // top hairline
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    height: 1
-                    color: root.hairline
-                }
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 8
-
-                    QQC2.TextField {
-                        id: input
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        placeholderText: "اسأل Mo AI... | Ask Mo AI..."
-                        placeholderTextColor: root.brandSecondary
-                        color: root.brandText
-                        font.family: root.uiFont
-                        font.pixelSize: 14
-                        leftPadding: 13
-                        rightPadding: 13
-                        background: Rectangle {
-                            color: root.brandRaised
-                            radius: 10
-                            border.width: 1
-                            border.color: input.activeFocus ? root.brandBlue
-                                                            : "#243350"
-                        }
-                        onAccepted: root.send()
-                    }
-
-                    QQC2.Button {
-                        id: sendBtn
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: 100
-                        // While streaming, this becomes a Stop button (always
-                        // enabled); otherwise it sends when there's text.
-                        enabled: root.busy || input.text.trim().length > 0
-                        background: Rectangle {
-                            radius: 10
-                            gradient: Gradient {
-                                orientation: Gradient.Horizontal
-                                GradientStop {
-                                    position: 0.0
-                                    color: root.busy ? "#B23A6B"
-                                         : !sendBtn.enabled ? "#1E3A66"
-                                         : sendBtn.pressed ? "#2568D9" : root.brandBlue
-                                }
-                                GradientStop {
-                                    position: 1.0
-                                    color: root.busy ? "#8B2E8B"
-                                         : !sendBtn.enabled ? "#1E3A66"
-                                         : sendBtn.pressed ? "#4A46C8"
-                                         : Qt.rgba(0.35, 0.36, 0.9, 1.0)
-                                }
-                            }
-                        }
-                        contentItem: Text {
-                            text: root.busy ? "إيقاف | Stop" : "إرسال | Send"
-                            color: sendBtn.enabled ? "#FFFFFF" : root.brandSecondary
-                            font.family: root.uiFont
-                            font.pixelSize: 13
-                            font.weight: Font.DemiBold
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        onClicked: root.busy ? root.stopGenerating() : root.send()
-                    }
-                }
-            }
-        }
-
-        // ── Toast (floats above the quick-actions bar) ──────────────────────
-        Rectangle {
-            id: toast
-            property string cmd: ""
-            z: 100
-            opacity: 0
-            visible: opacity > 0
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: inputBar.height + quickBar.height + 12
-            radius: 12
-            width: Math.min(parent.width - 28, toastCol.implicitWidth + 28)
-            height: toastCol.implicitHeight + 20
-            color: "#16223C"
-            border.width: 1
-            border.color: Qt.rgba(0.13, 0.83, 0.93, 0.5)
-
-            Behavior on opacity { NumberAnimation { duration: 220 } }
-
-            Timer {
-                id: toastTimer
-                interval: 2800
-                onTriggered: toast.opacity = 0
-            }
-
-            function show(c) {
-                cmd = c
-                opacity = 1
-                toastTimer.restart()
-            }
-
-            ColumnLayout {
-                id: toastCol
-                anchors.centerIn: parent
-                width: parent.width - 28
-                spacing: 4
-
-                Text {
-                    Layout.fillWidth: true
-                    text: "جارٍ التنفيذ في الطرفية ✓ | Running in a terminal ✓"
-                    color: root.brandCyan
-                    font.family: root.uiFont
-                    font.pixelSize: 11
-                    font.weight: Font.DemiBold
-                    wrapMode: Text.Wrap
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: toast.cmd
-                    color: root.brandText
-                    font.family: root.uiFont
-                    font.pixelSize: 13
-                    wrapMode: Text.WrapAnywhere
-                }
-            }
-        }
-
-        // ── Device overlay — the Hardware Centre and Compatibility Hub, merged in ──
-        //
-        // Same JSON Mo AI reads for its own context, so the page and the assistant can never
-        // disagree about the machine. Each repair is a fixed moai-do action id launched
-        // through moos:// (visible terminal, confirmation, Polkit) — the model cannot invent
-        // one. "اسأل Mo AI" hands the problem to the chat with the problem already stated.
-        Rectangle {
-            id: deviceOverlay
-            anchors.fill: parent
-            z: 310
-            visible: root.devicePageOpen
-            color: "#D0060B16"
-
-            MouseArea { anchors.fill: parent; onClicked: root.devicePageOpen = false }
-
-            Rectangle {
-                anchors.centerIn: parent
-                width: Math.min(parent.width - 32, 560)
-                height: Math.min(parent.height - 36, devCol.implicitHeight + 44)
-                radius: 18
-                color: root.brandSurface
-                border.width: 1
-                border.color: root.hairline
-                MouseArea { anchors.fill: parent }
-
-                readonly property var plan: root.devicePlan
-                readonly property var acts: (root.devicePlan.actions || [])
-                readonly property bool healthy: (root.devicePlan.health || "ready") === "ready"
-
-                ColumnLayout {
-                    id: devCol
-                    anchors.fill: parent
-                    anchors.margins: 22
-                    spacing: 12
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 10
-                        Rectangle {
-                            width: 10; height: 10; radius: 5
-                            color: parent.parent.parent.healthy ? "#3DDC97" : "#FFB45C"
-                        }
-                        QQC2.Label {
-                            text: "جهازي  |  My device"
-                            color: root.textHi
-                            font.pixelSize: 18
-                            font.bold: true
-                            Layout.fillWidth: true
-                        }
-                        QQC2.Button {
-                            text: "✕"
-                            flat: true
-                            onClicked: root.devicePageOpen = false
-                        }
-                    }
-
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        color: root.textLo
-                        font.pixelSize: 12
-                        text: {
-                            const p = root.devicePlan
-                            let l = (p._os || "MoOS") + " · kernel " + (p._kernel || "?")
-                                  + " · " + (p._mem || "?") + " GB RAM"
-                            if (p.driver_status) l += "\n" + p.driver_status
-                            return l
-                        }
-                    }
-
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        visible: parent.parent.healthy && (root.devicePlan.actions || []).length === 0
-                        color: "#3DDC97"
-                        font.pixelSize: 13
-                        text: "لا توجد مشاكل في الأجهزة أو التعريفات.\nNo hardware or driver problems found."
-                    }
-
-                    // Every problem the detector actually found, each with its real repair.
-                    Repeater {
-                        model: root.devicePlan.actions || []
-                        delegate: Rectangle {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            radius: 12
-                            color: root.brandRaised
-                            border.width: 1
-                            border.color: root.hairline
-                            implicitHeight: itemCol.implicitHeight + 22
-
-                            ColumnLayout {
-                                id: itemCol
-                                anchors.fill: parent
-                                anchors.margins: 11
-                                spacing: 5
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 8
-                                    Rectangle {
-                                        width: 7; height: 7; radius: 4
-                                        color: modelData.severity === "important" ? "#FF6B7A" : "#FFB45C"
-                                    }
-                                    QQC2.Label {
-                                        text: modelData.title
-                                        color: root.textHi
-                                        font.pixelSize: 13
-                                        font.bold: true
-                                        Layout.fillWidth: true
-                                        elide: Text.ElideRight
-                                    }
-                                }
-                                QQC2.Label {
-                                    Layout.fillWidth: true
-                                    text: modelData.detail
-                                    color: root.textLo
-                                    font.pixelSize: 11
-                                    wrapMode: Text.WordWrap
-                                }
-                                RowLayout {
-                                    spacing: 8
-                                    QQC2.Button {
-                                        visible: String(modelData.url || "").length > 0
-                                        text: "أصلحها الآن  |  Fix it"
-                                        onClicked: {
-                                            root.devicePageOpen = false
-                                            Qt.openUrlExternally(modelData.url)
-                                            toast.show(modelData.title)
-                                        }
-                                    }
-                                    QQC2.Button {
-                                        flat: true
-                                        text: "اسأل Mo AI  |  Ask"
-                                        onClicked: root.askAbout(modelData.title, modelData.detail)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    QQC2.Button {
-                        Layout.fillWidth: true
-                        text: "تحديث البرامج الثابتة  |  Update firmware"
-                        onClicked: {
-                            root.devicePageOpen = false
-                            Qt.openUrlExternally("moos://do/update-firmware")
-                        }
-                    }
-
-                    // The detailed report and the compatibility tools are still there — they
-                    // are just reached from here now, instead of being separate apps in the
-                    // menu competing with the one that can actually fix things.
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        QQC2.Button {
-                            Layout.fillWidth: true
-                            flat: true
-                            text: "التقرير الكامل  |  Full report"
-                            onClicked: {
-                                root.devicePageOpen = false
-                                Qt.openUrlExternally("moos://app/hardware")
-                            }
-                        }
-                        QQC2.Button {
-                            Layout.fillWidth: true
-                            flat: true
-                            text: "التوافق  |  Compatibility"
-                            onClicked: {
-                                root.devicePageOpen = false
-                                Qt.openUrlExternally("moos://app/compat")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // ── In-app Settings overlay (modern glass card) ─────────────────────
-        Rectangle {
-            id: settingsOverlay
-            anchors.fill: parent
-            z: 300
-            visible: root.settingsOpen
-            color: "#D0060B16"
-
-            // Backdrop click closes; the card's own MouseArea blocks pass-through.
-            MouseArea { anchors.fill: parent; onClicked: root.settingsOpen = false }
-
-            Rectangle {
-                anchors.centerIn: parent
-                width: Math.min(parent.width - 32, 400)
-                height: Math.min(parent.height - 36, setCol.implicitHeight + 40)
-                radius: 18
-                color: root.brandSurface
-                border.width: 1
-                border.color: root.hairline
-                MouseArea { anchors.fill: parent }   // swallow clicks on the card
-
-                ColumnLayout {
-                    id: setCol
-                    anchors.fill: parent
-                    anchors.margins: 20
-                    spacing: 13
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text {
-                            text: "إعدادات Mo AI | Settings"
-                            color: root.brandText
-                            font.family: root.uiFont
-                            font.pixelSize: 17
-                            font.weight: Font.DemiBold
-                        }
-                        Item { Layout.fillWidth: true }
-                        Rectangle {
-                            Layout.preferredWidth: 28
-                            Layout.preferredHeight: 28
-                            radius: 8
-                            color: closeMouse.containsMouse ? "#26334F" : "transparent"
-                            Text { anchors.centerIn: parent; text: "✕"; color: root.brandSecondary; font.pixelSize: 14 }
-                            MouseArea {
-                                id: closeMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.settingsOpen = false
-                            }
-                        }
-                    }
-
-                    Text {
-                        text: "العقل | Brain"
-                        color: root.brandSecondary
-                        font.family: root.uiFont
-                        font.pixelSize: 12
-                    }
-
-                    // Segmented Local / Cloud toggle
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 44
-                        radius: 12
-                        color: "#0E1830"
-                        border.width: 1
-                        border.color: root.hairline
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 4
-                            spacing: 4
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                radius: 9
-                                color: !root.settingsCloud ? root.brandBlue : "transparent"
-                                Behavior on color { ColorAnimation { duration: 120 } }
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "محلي | Local"
-                                    color: !root.settingsCloud ? "white" : root.brandSecondary
-                                    font.family: root.uiFont
-                                    font.pixelSize: 13
-                                    font.weight: Font.DemiBold
-                                }
-                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.settingsCloud = false }
-                            }
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                radius: 9
-                                color: root.settingsCloud ? root.brandViolet : "transparent"
-                                Behavior on color { ColorAnimation { duration: 120 } }
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "سحابي | Cloud"
-                                    color: root.settingsCloud ? "white" : root.brandSecondary
-                                    font.family: root.uiFont
-                                    font.pixelSize: 13
-                                    font.weight: Font.DemiBold
-                                }
-                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.settingsCloud = true }
-                            }
-                        }
-                    }
-
-                    // Cloud provider fields
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        visible: root.settingsCloud
-                        spacing: 7
-
-                        Text { text: "المزوّد | Provider (OpenAI-compatible base URL)"; color: root.brandSecondary; font.family: root.uiFont; font.pixelSize: 11 }
-                        QQC2.TextField {
-                            id: fBase
-                            Layout.fillWidth: true
-                            placeholderText: "https://openrouter.ai/api/v1"
-                            placeholderTextColor: root.brandSecondary
-                            color: root.brandText
-                            font.family: root.uiFont
-                            background: Rectangle { color: root.brandRaised; radius: 8; border.width: 1; border.color: fBase.activeFocus ? root.brandBlue : root.hairline }
-                        }
-                        Text { text: "النموذج | Model"; color: root.brandSecondary; font.family: root.uiFont; font.pixelSize: 11 }
-                        QQC2.TextField {
-                            id: fModel
-                            Layout.fillWidth: true
-                            placeholderText: "anthropic/claude-sonnet-5"
-                            placeholderTextColor: root.brandSecondary
-                            color: root.brandText
-                            font.family: root.uiFont
-                            background: Rectangle { color: root.brandRaised; radius: 8; border.width: 1; border.color: fModel.activeFocus ? root.brandBlue : root.hairline }
-                        }
-                        Text { text: "مفتاح API | API key (يُحفظ محلياً | stored locally)"; color: root.brandSecondary; font.family: root.uiFont; font.pixelSize: 11 }
-                        QQC2.TextField {
-                            id: fKey
-                            Layout.fillWidth: true
-                            echoMode: TextInput.Password
-                            placeholderText: "sk-…"
-                            placeholderTextColor: root.brandSecondary
-                            color: root.brandText
-                            font.family: root.uiFont
-                            background: Rectangle { color: root.brandRaised; radius: 8; border.width: 1; border.color: fKey.activeFocus ? root.brandBlue : root.hairline }
-                        }
-                    }
-
-                    // Local note
-                    Text {
-                        Layout.fillWidth: true
-                        visible: !root.settingsCloud
-                        text: "العقل المحلي خاص بالكامل (RamaLama) — لا إنترنت بعد التحميل الأول.\nThe local brain is fully private — no Internet after the first download."
-                        color: root.brandSecondary
-                        font.family: root.uiFont
-                        font.pixelSize: 11
-                        wrapMode: Text.Wrap
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        visible: root.settingsError !== ""
-                        text: root.settingsError
-                        color: "#FF6B8B"
-                        font.family: root.uiFont
-                        font.pixelSize: 11
-                        wrapMode: Text.Wrap
-                    }
-
-                    // Save
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 44
-                        radius: 12
-                        opacity: root.settingsSaving ? 0.6 : 1
-                        gradient: Gradient {
-                            orientation: Gradient.Horizontal
-                            GradientStop { position: 0.0; color: root.brandBlue }
-                            GradientStop { position: 1.0; color: root.brandViolet }
-                        }
-                        Text {
-                            anchors.centerIn: parent
-                            text: root.settingsSaving ? "جارٍ الحفظ… | Saving…" : "حفظ | Save"
-                            color: "white"
-                            font.family: root.uiFont
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            enabled: !root.settingsSaving
-                            onClicked: root.saveConfig()
-                        }
-                    }
-                }
-            }
-        }
-
-        // ── Clipboard helper (pure-QML has no clipboard API) ────────────────
-        // Kept in the scene and RENDERED (opacity 0, 1x1, behind everything) —
-        // not visible:false — so TextEdit.copy() reliably reaches the system
-        // clipboard, exactly like the Hardware Center's copy button.
-        TextEdit {
-            id: clip
-            width: 1
-            height: 1
-            opacity: 0
-            z: -1
-        }
     }
 }

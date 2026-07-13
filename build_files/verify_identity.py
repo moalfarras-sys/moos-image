@@ -67,9 +67,13 @@ def main() -> None:
     require(installer.get("Name") == "Install MoOS", "installer name is not MoOS")
     require(installer.get("Icon") == "moos-logo", "installer icon is not moos-logo")
 
-    for app in ("moai", "welcome", "hardware", "compathub", "updater", "recovery"):
+    # "hardware" and "compathub" are gone on purpose: the Hardware Centre and the
+    # Compatibility Hub are panels inside Mo AI now, reached by `moai --panel …`.
+    # They have no launchers of their own to check.
+    for app in ("moai", "welcome", "updater", "recovery", "remote"):
         entry = desktop(f"/usr/share/applications/org.moos.{app}.desktop")
-        require(entry.get("Icon", "").startswith("moos-"),
+        require(entry.get("Icon", "").startswith("moos-")
+                or entry.get("Icon", "").startswith("mo-remote"),
                 f"org.moos.{app} does not use a MoOS icon")
 
     aliases = (

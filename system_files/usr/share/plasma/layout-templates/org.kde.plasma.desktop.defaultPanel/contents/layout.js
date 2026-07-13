@@ -58,17 +58,21 @@ launcher.writeConfig("favorites", [
     "org.kde.konsole.desktop"
 ].join(","));
 
-/* Icons-Only Task Manager — Mo AI (robot icon) pinned FIRST, then browser,
- * files, the MoOS hubs, System Settings and the terminal. icontasks silently
- * skips any launcher URL it cannot resolve (no crash). */
+/* Icons-Only Task Manager — Mo AI pinned FIRST, then browser, files, Mo PC
+ * Remote, System Settings and the terminal.
+ *
+ * org.moos.compathub and org.moos.hardware used to be pinned here. Those apps no
+ * longer exist — the Hardware Centre and the Compatibility Hub are panels inside
+ * Mo AI. They must not be listed: icontasks silently SKIPS a launcher URL it
+ * cannot resolve, so a stale entry does not fail loudly, it just leaves a hole in
+ * the dock that nothing explains. */
 var tasks = panel.addWidget("org.kde.plasma.icontasks");
 tasks.currentConfigGroup = ["General"];
 tasks.writeConfig("launchers", [
     "applications:org.moos.moai.desktop",
     "preferred://browser",
     "applications:org.kde.dolphin.desktop",
-    "applications:org.moos.compathub.desktop",
-    "applications:org.moos.hardware.desktop",
+    "applications:org.moos.remote.desktop",
     "applications:systemsettings.desktop",
     "applications:org.kde.konsole.desktop"
 ].join(","));

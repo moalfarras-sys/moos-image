@@ -107,6 +107,29 @@ read it back from the running desktop.** `kreadconfig6`, `gsettings get`, and
 `Gtk.Settings.get_default()` answer what the user actually has. A file in `system_files/` does
 not, and neither does a gate that reads one.
 
+**A button is only as real as its route.** Mo AI is pure QML: it cannot exec, so every button
+is a `Qt.openUrlExternally("moos://…")` that lands in `moos-open`'s `case`, which runs the
+matching `moai-do` action. Nothing checked that the two agreed. Eleven buttons once shipped —
+every Install button, Mo PC Remote's Start/Stop/Reconnect, Install/Run for Codex and Claude —
+opening `moos://` routes `moos-open` had no case for. They fell through to the default arm,
+popped "unknown MoOS action", and did nothing. Every gate was green: one asserted four route
+strings existed, none compared the routes the UI *opens* against the routes the router
+*declares*. `verify_user_experience.py` now cross-checks both directions — every `moos://` URL
+in every QML app must have a case, and every route `moos-open` hands to `moai-do` must be an
+action `moai-do` implements.
+
+When you write that kind of gate, **exclude the default arm**. The first version of this one
+collected `*)` as a route, and `startswith("")` is true for every string on earth — so the gate
+passed everything, including the dead buttons it was written to catch. A gate that cannot fail
+is worse than no gate. Prove a new gate bites by breaking the thing it guards and watching it
+go red.
+
+**`/` is not the disk.** On bootc/OSTree, `/` is a read-only composefs overlay; `statvfs` reports
+it as a ~60 MB filesystem that is 100% full. `shutil.disk_usage("/")` therefore returns 0 total,
+0 free, and the Hardware Centre showed "?" for storage on every MoOS machine it ever ran on.
+The real filesystem is the one under `/sysroot` (`/var` is part of it). `moai-do` already knew
+this — `do_optimize` measures `/var` — and `moai-control` did not.
+
 **Boot the image and look at it.** `podman build` + `bootc-image-builder --type qcow2` + qemu
 with `screendump` takes about half an hour and is the only thing that found any of the above.
 
@@ -147,6 +170,15 @@ confirmation and Polkit. Mo AI can *name* an action from that list — the UI tu
 button — but the model never executes anything itself. Do not add a path that lets a model, or a
 web page, run a command. If you add an action, add it to `moai-do`, to `moos-open`'s case
 statement, and to Mo AI's system prompt.
+
+`moos:` is a **registered URL scheme**, so any web page the user visits can hand `moos-open` a
+URL. That is survivable only because every route is a fixed action: the one route that carries a
+free-form value (`apps/install/<id>`, whose id comes from a Flathub search) validates the
+reverse-DNS shape in `moos-open` *and* again in `moai-do`, which then refuses to install without
+an explicit `y`. Keep it that way — a drive-by page must never be able to do more than raise a
+prompt the user has to answer. Coding agents (`moai-do install-codex` / `install-claude`) take
+**no privilege at all**: `/usr` is read-only here, so they `npm install --prefix ~/.local` and run
+as the user. Do not "fix" that by reaching for pkexec.
 
 ## Layout
 

@@ -1,39 +1,52 @@
 #!/usr/bin/env bash
-# moai — launch the Mo AI assistant (pure-QML script app, no compilation).
+# moai — launch Mo AI (pure-QML script app, no compilation).
+#
+#   moai                  the assistant
+#   moai --panel device   open straight onto a panel (device|apps|compat|remote|dev|chat)
+#   moai --device         alias for --panel device
 #
 # QML runtime on Fedora (VERIFIED 2026-07-10 via packages.fedoraproject.org):
 #   - /usr/bin/qml-qt6 is the Qt6 QML runtime (symlink shipped by
 #     qt6-qtdeclarative-devel; the real binary is /usr/lib64/qt6/bin/qml).
-#   - Fedora ships NO plain 'qml6' binary — it is kept in the fallback
-#     chain only as a just-in-case for other distros/future renames.
-# NOTE: the base qt6-qtdeclarative package does NOT contain the runtime;
-# the image must include qt6-qtdeclarative-devel for Mo AI to launch.
+#   - Fedora ships NO plain 'qml6' binary — it is kept in the fallback chain
+#     only as a just-in-case for other distros/future renames.
+# NOTE: the base qt6-qtdeclarative package does NOT contain the runtime; the
+# image must include qt6-qtdeclarative-devel for Mo AI to launch.
 set -uo pipefail
 
-# OSTree normalizes file mtimes, so Qt's QML disk cache (~/.cache/qmlcache) is
-# NOT invalidated when a `bootc upgrade` ships a new main.qml — the app would
-# keep rendering the STALE compiled QML from the user's first install. That is
-# why Mo AI "never changed" across updates. Disable the disk cache so the
-# current source is always compiled and used.
-export QML_DISABLE_DISK_CACHE=1
-
-# Cache invalidation is revisioned by moos-ui-migrate at login.  Do not erase
-# every QML cache on every launch: that penalises unrelated Qt applications and
-# was only a workaround for the obsolete per-user Mo AI bundle.
-# QML_DISABLE_DISK_CACHE alone did NOT stop qml-qt6 from loading the STALE
-# compiled cache on this build (launching from the panel showed the OLD Mo AI UI
-# while a fresh run showed the new one). Also wipe the cache dir on every launch
-# so the CURRENT main.qml is always what renders.
-rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/qmlcache" 2>/dev/null || true
-
 MAIN_QML="/usr/share/moos/apps/moai/main.qml"
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}"
 
-# Log QML runtime output so a silent failure ("the app didn't open") is always
-# diagnosable at ~/.cache/moai.log instead of vanishing into the session.
-LOG="${XDG_CACHE_HOME:-$HOME/.cache}/moai.log"
+# ── Why this is not just `rm -rf qmlcache` ───────────────────────────────────
+# OSTree pins every mtime under /usr to the epoch, so Qt's QML disk cache — which
+# invalidates on mtime — is NEVER invalidated when a `bootc upgrade` ships a new
+# main.qml. Mo AI would keep rendering the STALE compiled QML from the user's
+# first install; that is why it "never changed" across updates.
+#
+# The previous fix was to delete the whole cache on every launch, which cured the
+# staleness by throwing away the cache entirely: every start paid a full QML
+# recompile, forever. Key it on the CONTENT of the file instead. A content hash
+# is immune to the epoch-mtime problem, so the cache is dropped exactly once —
+# the first launch after the UI actually changed — and every later start is warm.
+if command -v sha256sum >/dev/null 2>&1 && [ -r "$MAIN_QML" ]; then
+    stamp_file="${CACHE}/moai.qmlstamp"
+    current="$(sha256sum "$MAIN_QML" 2>/dev/null | cut -c1-32)"
+    if [ -n "$current" ] && [ "$(cat "$stamp_file" 2>/dev/null)" != "$current" ]; then
+        rm -rf "${CACHE}/qmlcache" 2>/dev/null || true
+        mkdir -p "$CACHE" 2>/dev/null || true
+        printf '%s\n' "$current" > "$stamp_file" 2>/dev/null || true
+    fi
+else
+    # No way to hash it — fall back to the old, always-correct, always-slow path.
+    export QML_DISABLE_DISK_CACHE=1
+fi
+
+# Log QML output so a silent failure ("the app didn't open") is diagnosable at
+# ~/.cache/moai.log instead of vanishing into the session.
+LOG="${CACHE}/moai.log"
 mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
 
-# The app always talks to 127.0.0.1:8080; whichever brain is active (local
+# The app always talks to 127.0.0.1:8080; whichever brain is active (the local
 # RamaLama service or the cloud gateway) owns that port, so the launcher passes
 # nothing brain-specific and the app never sees the API key.
 for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
@@ -41,10 +54,9 @@ for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
         {
             echo "=== moai launch $(date -u '+%Y-%m-%dT%H:%M:%SZ') via $runner ==="
         } >>"$LOG" 2>/dev/null || true
-        # tee stderr to the log while still showing it in the journal.
-        # Forward argv after `--` so `moai --device` can open straight onto the device
-        # page. That is how moos-hardware / moos-compat now land inside Mo AI instead of
-        # being separate windows onto the same data.
+        # Forward argv after `--` so `moai --panel device` reaches the app. That
+        # is how moos-hardware and moos-compat land inside Mo AI instead of being
+        # separate windows onto the same data.
         exec "$runner" "$MAIN_QML" -- "$@" 2> >(tee -a "$LOG" >&2)
     fi
 done

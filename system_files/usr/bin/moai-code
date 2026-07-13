@@ -1,13 +1,38 @@
 #!/usr/bin/env bash
 # moai-code — open an AI coding agent (Claude Code / Codex) from Mo AI.
 #
-# Mo AI's "Code" action launches this so the user can program apps — or MoOS
-# itself — with an agentic coder in a real terminal. Picks whichever agent is
-# installed; if both, asks. Opens in the given folder (default: ~/Projects, else
-# $HOME). Nothing privileged; the agent runs as the user.
+# Mo AI's Developer panel launches this so the user can program apps — or MoOS
+# itself — with an agentic coder in a real terminal. Nothing privileged: the
+# agent runs as the user, in a project folder, exactly as if they had typed it.
+#
+#   moai-code                      pick an agent (asks if both are installed)
+#   moai-code --agent claude       run a specific one (Mo AI's Run buttons)
+#   moai-code --agent codex ~/src  …in a specific folder
 set -uo pipefail
 
-workdir="${1:-}"
+agent=""
+workdir=""
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --agent)
+            agent="${2:-}"; shift 2 || shift ;;
+        --agent=*)
+            agent="${1#--agent=}"; shift ;;
+        *)
+            workdir="$1"; shift ;;
+    esac
+done
+
+# Only ever run one of the two agents we ship a path for. `--agent` reaches this
+# script from the moos:// handler, which any web page can invoke, so it must not
+# become a way to exec an arbitrary binary name.
+case "$agent" in
+    claude|codex|"") : ;;
+    *)
+        echo "moai-code: وكيل غير معروف | unknown agent: ${agent}" >&2
+        exit 2 ;;
+esac
+
 if [ -z "$workdir" ]; then
     [ -d "$HOME/Projects" ] && workdir="$HOME/Projects" || workdir="$HOME"
 fi
@@ -20,8 +45,18 @@ claude_ok=false; codex_ok=false
 have claude && claude_ok=true
 have codex && codex_ok=true
 
-agent=""
-if $claude_ok && $codex_ok; then
+# An explicit --agent that is not installed is a real error, not a reason to
+# silently run the other one: Mo AI only shows "Run X" when X is present, so if
+# we get here it means the state changed underneath.
+if [ -n "$agent" ]; then
+    if ! have "$agent"; then
+        notify "الوكيل '${agent}' غير مثبّت.
+The '${agent}' agent is not installed.
+
+ثبّته من Mo AI ← المطوّر | install it from Mo AI → Developer"
+        exit 1
+    fi
+elif $claude_ok && $codex_ok; then
     agent=$(kdialog --title "Mo AI — Code" --menu "اختر مساعد البرمجة | Choose a coding agent:" \
         claude "Claude Code" codex "Codex" 2>/dev/null) || exit 0
 elif $claude_ok; then
@@ -29,7 +64,7 @@ elif $claude_ok; then
 elif $codex_ok; then
     agent=codex
 else
-    notify $'لا يوجد مساعد برمجة مثبّت.\nNo coding agent installed.\n\nثبّت أحدهما | install one:\n  npm i -g @anthropic-ai/claude-code\n  npm i -g @openai/codex'
+    notify $'لا يوجد مساعد برمجة مثبّت.\nNo coding agent installed.\n\nثبّته بضغطة من Mo AI ← المطوّر.\nInstall one in a click from Mo AI → Developer.'
     exit 1
 fi
 

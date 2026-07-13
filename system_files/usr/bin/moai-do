@@ -347,6 +347,54 @@ do_inspect_boot() {
 }
 
 # -----------------------------------------------------------------------------
+# install-codex / install-claude — the AI coding agents, as the USER.
+# -----------------------------------------------------------------------------
+# These are the only actions here that take NO privilege at all, and that is the
+# point: /usr is read-only on an OSTree system, so a plain `npm i -g` would try
+# to write there and fail. Installing under ~/.local instead means the agent runs
+# as the user, owns only what the user owns, and needs no pkexec, no polkit and
+# no rpm-ostree layer. Fedora already puts ~/.local/bin on PATH.
+#
+# nodejs22 + nodejs22-npm ship in the image (build.sh), so this works offline of
+# any extra setup — it only needs the network to fetch the package itself.
+install_agent() {
+    local pkg="$1" bin="$2" label="$3"
+    hdr "تثبيت ${label} (كمستخدم، بلا صلاحيات مسؤول)" \
+        "Install ${label} (as your user — no admin rights)"
+    echo "${D}يُثبَّت في ~/.local — لا يلمس النظام ولا يحتاج كلمة مرور.${N}"
+    echo "${D}Installs into ~/.local — never touches the system, no password needed.${N}"
+    echo "${D}الحزمة | Package: ${pkg}${N}"
+    echo
+    need npm || {
+        echo "${Y}npm غير موجود | npm not found${N}"
+        return 1
+    }
+    confirm || return 0
+
+    # --prefix keeps the global install inside the user's home. Without it npm
+    # targets /usr (read-only here) and fails with EROFS.
+    if npm install -g --prefix "$HOME/.local" "$pkg"; then
+        echo "${G}✓ تم تثبيت ${label} | ${label} installed${N}"
+        if ! command -v "$bin" >/dev/null 2>&1; then
+            echo "${Y}ملاحظة: أعد فتح الطرفية ليصبح '${bin}' في PATH.${N}"
+            echo "${Y}Note: reopen your terminal so '${bin}' lands on PATH.${N}"
+        fi
+        echo "${D}شغّله من Mo AI ← المطوّر | run it from Mo AI → Developer${N}"
+    else
+        echo "${Y}لم يكتمل التثبيت | install did not complete${N}"
+        return 1
+    fi
+}
+
+do_install_codex() {
+    install_agent "@openai/codex" "codex" "Codex"
+}
+
+do_install_claude() {
+    install_agent "@anthropic-ai/claude-code" "claude" "Claude Code"
+}
+
+# -----------------------------------------------------------------------------
 # usage — bilingual help listing every subcommand.
 # -----------------------------------------------------------------------------
 usage() {
@@ -371,7 +419,11 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Download and configure optional Android support
   ${C}optimize${N}          تنظيف Flatpak/الحاويات/السجلّات وتحرير مساحة
                     Clean Flatpak/containers/logs and free disk space
-  ${C}hw-report${N}         فتح مركز العتاد | open the Hardware Center
+  ${C}hw-report${N}         فتح مركز الجهاز داخل Mo AI | open the device centre in Mo AI
+  ${C}install-codex${N}     تثبيت وكيل Codex في ~/.local (بلا صلاحيات)
+                    Install the Codex agent into ~/.local (no privileges)
+  ${C}install-claude${N}    تثبيت وكيل Claude Code في ~/.local (بلا صلاحيات)
+                    Install the Claude Code agent into ~/.local (no privileges)
   ${C}remote-anywhere${N}   تشغيل Mo PC Remote من خارج البيت (Tailscale HTTPS)
                     Reach Mo PC Remote from outside the house
   ${C}diagnose-services${N} عرض الخدمات الفاشلة (قراءة فقط)
@@ -402,14 +454,19 @@ main() {
         update-firmware) do_update_firmware ;;
         setup-waydroid) do_setup_waydroid ;;
         remote-anywhere) do_remote_anywhere ;;
+        install-codex) do_install_codex ;;
+        install-claude) do_install_claude ;;
         optimize)      do_optimize ;;
         diagnose-services) do_diagnose_services ;;
         inspect-boot)  do_inspect_boot ;;
         hw-report)
-            if command -v moos-hardware >/dev/null 2>&1; then
-                exec moos-hardware
+            # The Hardware Centre is a panel inside Mo AI now, not a separate
+            # window. Open it directly rather than bouncing through the
+            # moos-hardware compatibility shim.
+            if command -v moai >/dev/null 2>&1; then
+                exec moai --device
             else
-                echo "${R}moos-hardware غير موجود | not found${N}" >&2
+                echo "${R}moai غير موجود | not found${N}" >&2
                 return 1
             fi
             ;;

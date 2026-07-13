@@ -62,11 +62,103 @@ require('MODE="${1:---interactive}"' in setup and "missing_recommended_apps" in 
 router = read("system_files/usr/bin/moos-open")
 for route in ("do/smart-setup", "do/setup-gaming", "do/install-nvidia", "do/setup-waydroid"):
     require(route in router, f"missing safe MoOS action route: {route}")
-compat = read("system_files/usr/share/moos/apps/compathub/main.qml")
-require("sudo waydroid init" not in compat,
-        "Compatibility Hub must use the confirmed workflow, not copy sudo commands")
-require('launchUrl: "moos://do/setup-gaming"' in compat,
-        "Compatibility Hub must expose the focused gaming installer")
+
+# The Hardware Centre and the Compatibility Hub are panels inside Mo AI now, so
+# their guarantees are asserted against Mo AI's QML. They still hold.
+moai_qml = read("system_files/usr/share/moos/apps/moai/main.qml")
+require("sudo waydroid init" not in moai_qml,
+        "Mo AI must use the confirmed workflow, not copy sudo commands")
+require('moos://do/setup-gaming' in moai_qml,
+        "Mo AI's Compatibility panel must expose the focused gaming installer")
+require('moos://do/setup-waydroid' in moai_qml,
+        "Mo AI's Compatibility panel must expose the Android (Waydroid) setup")
+
+# The old centres must keep opening — as commands, into their panel in Mo AI.
+for shim, panel in (("moos-hardware", "device"), ("moos-compat", "compat")):
+    text = read(f"system_files/usr/bin/{shim}")
+    require(f"moai --panel {panel}" in text,
+            f"{shim} must open Mo AI on the {panel} panel")
+
+# ── Every moos:// URL a QML app opens must have a route in moos-open ─────────
+#
+# THIS is the gate that was missing. Mo AI once shipped with Start/Stop/Reconnect
+# buttons for Mo PC Remote, an Install button on every app, and Install/Run for
+# Codex and Claude — eleven buttons in total, opening moos:// URLs that moos-open
+# had no case for. Every one of them popped "unknown MoOS action" and did
+# nothing, and every gate stayed green, because no gate compared the two files.
+# A button that opens a route that does not exist is not a cosmetic bug; it is a
+# feature that does not exist.
+def routes_declared(router_text: str) -> set[str]:
+    """The case labels in moos-open's dispatch, e.g. {'do/update', 'remote/start'}.
+
+    The bare `*)` default arm is EXCLUDED. It is the "unknown MoOS action" error
+    path, not a route — counting it would make `startswith("")` true for every
+    URL on earth and quietly turn this whole gate into a no-op. (It did, on the
+    first version of this function.)
+    """
+    declared: set[str] = set()
+    for match in re.finditer(r"^\s{4}([a-z0-9/*|-]+)\)", router_text, re.MULTILINE):
+        for label in match.group(1).split("|"):
+            label = label.strip()
+            if label != "*":
+                declared.add(label)
+    return declared
+
+
+def route_is_covered(url_path: str, declared: set[str]) -> bool:
+    if url_path in declared:
+        return True
+    # A wildcard case such as `apps/install/*` covers everything under its prefix.
+    return any(
+        pattern.endswith("*") and pattern != "*"
+        and url_path.startswith(pattern[:-1])
+        for pattern in declared
+    )
+
+
+declared_routes = routes_declared(router)
+require("*" not in declared_routes, "the default arm must not count as a route")
+require("apps/install/*" in declared_routes,
+        "moos-open must accept an app id to install (apps/install/*)")
+
+for qml_path in sorted((ROOT / "system_files/usr/share/moos/apps").glob("*/main.qml")):
+    qml_text = qml_path.read_text(encoding="utf-8")
+    for url in sorted(set(re.findall(r'moos://([a-z0-9/._-]+)', qml_text))):
+        # A URL the app builds at runtime ("moos://do/" + action) shows up here as
+        # the bare prefix "do/". It is not a route; the values substituted into it
+        # are checked below, against the allowlist the app actually draws from.
+        if url.endswith("/"):
+            continue
+        require(route_is_covered(url, declared_routes),
+                f"{qml_path.parent.name} opens moos://{url}, "
+                f"which moos-open has no case for — that button does nothing")
+
+# The Run chips are built from the actions Mo AI parses out of a model reply, so
+# their URLs never appear as literals. Check the allowlist that feeds them.
+runs = re.search(r"const re = /moai-do\\s\+\(([a-z|-]+)\)", moai_qml)
+require(runs is not None, "Mo AI must match suggested actions against a fixed allowlist")
+if runs:
+    for action in runs.group(1).split("|"):
+        require(route_is_covered(f"do/{action}", declared_routes),
+                f"Mo AI can offer to run `moai-do {action}`, "
+                f"but moos-open has no do/{action} route")
+
+# …and the other half of the same contract: every do/* route that moos-open hands
+# to moai-do must be an action moai-do actually implements. (Not every do/* route
+# goes there — do/smart-setup and do/setup-gaming are dispatched to moos-setup by
+# moos-open itself — so assert against the arm that really calls moai-do, rather
+# than assuming.)
+moai_do = read("system_files/usr/bin/moai-do")
+moai_do_arm = re.search(
+    r"^\s{4}((?:do/[a-z-]+\|)*do/[a-z-]+)\)\s*\n\s*term moai-do",
+    router, re.MULTILINE)
+require(moai_do_arm is not None,
+        "moos-open must dispatch its moai-do actions from a single case arm")
+if moai_do_arm:
+    for label in moai_do_arm.group(1).split("|"):
+        action = label.split("/", 1)[1]
+        require(f"{action})" in moai_do,
+                f"moos-open routes {label} to moai-do, which does not implement it")
 
 # Screen capture. The original implementation spawned `spectacle` once per frame (~630ms,
 # i.e. ~1 fps) and shelled out to `kscreen-doctor` to guess the desktop geometry — the two

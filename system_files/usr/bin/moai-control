@@ -1,18 +1,30 @@
 #!/usr/bin/env python3
-# moai-control — tiny localhost control API for Mo AI's IN-APP settings.
+# moai-control — localhost state + control API for Mo AI.
 #
-# The pure-QML app can't write files, so this small always-on user service lets
-# the in-app Settings page read and change the brain config (local vs cloud,
-# provider base URL, model, API key) and switch the model services — all over
-# 127.0.0.1:8079 via XHR. The API KEY is only ever RECEIVED (POST) and stored
-# chmod 600 in ~/.config/moai/config.json; GET never returns it (only has_key).
-# Stdlib only.
-import json, os, shutil, subprocess, urllib.request
+# Mo AI is a pure-QML app: it has no Process API, cannot exec, and cannot write
+# files. This small always-on user service is its ONLY way to learn about the
+# machine and change its own config. It is deliberately not a general-purpose
+# bridge — it exposes a fixed set of read-only reads plus one config write. Any
+# action that CHANGES the system goes through moos-open -> moai-do instead, so
+# it keeps its confirmation + Polkit prompt.
+#
+# The API KEY is only ever RECEIVED (POST) and stored in Secret Service; GET
+# never returns it (only has_key). Stdlib only.
+#
+#   GET  /config   brain config (mode, base, model, has_key)
+#   GET  /status   {"online": bool}  — is a brain answering on :8080
+#   GET  /quick    CHEAP poll: brain + remote + agents. Safe every few seconds.
+#   GET  /scan     full snapshot incl. the cached device plan.
+#   GET  /search?q=…  Flathub app search (this is Mo AI's App Centre).
+#   POST /config   set mode/base/model/key; switches the brain services.
+import json, os, shutil, subprocess, threading, time, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CFG_DIR = os.path.expanduser("~/.config/moai")
 CFG = os.path.join(CFG_DIR, "config.json")
 PORT = int(os.environ.get("MOAI_CONTROL_PORT", "8079"))
+
+REMOTE_UNIT = "mo-remote-personal.service"
 
 
 def load():
@@ -80,6 +92,104 @@ def brain_online():
         return False
 
 
+def command_exists(name):
+    return shutil.which(name) is not None
+
+
+def user_unit_active(name):
+    try:
+        return subprocess.run(
+            ["systemctl", "--user", "is-active", "--quiet", name],
+            timeout=4, check=False).returncode == 0
+    except Exception:
+        return False
+
+
+# ── Installed Flatpaks ───────────────────────────────────────────────────────
+# One `flatpak list` instead of one `flatpak info` per app: the per-app form was
+# ~9 subprocesses (5s timeout each) on every /scan, which is what made the panel
+# feel slow. Cached for a few seconds so a burst of requests costs one call.
+_apps_lock = threading.Lock()
+_apps_cache = {"ids": set(), "ts": 0.0}
+APPS_TTL = 8.0
+
+
+def installed_apps():
+    with _apps_lock:
+        if time.monotonic() - _apps_cache["ts"] < APPS_TTL:
+            return _apps_cache["ids"]
+    ids = set()
+    try:
+        out = subprocess.run(
+            ["flatpak", "list", "--app", "--columns=application"],
+            capture_output=True, text=True, timeout=15, check=False)
+        if out.returncode == 0:
+            ids = {line.strip() for line in out.stdout.splitlines() if line.strip()}
+    except Exception:
+        pass
+    with _apps_lock:
+        _apps_cache["ids"] = ids
+        _apps_cache["ts"] = time.monotonic()
+    return ids
+
+
+# ── The device plan ──────────────────────────────────────────────────────────
+# moos-device-plan shells out to lspci/fwupdmgr/flatpak and can take tens of
+# seconds. Calling it inline made /scan a 45-second endpoint, so the UI could
+# not poll it and every panel that needed hardware state blocked on it. It is
+# refreshed on a background thread instead, and every request is served from
+# cache — stale data for a few minutes is correct here (hardware does not change
+# faster than that), a 45-second UI freeze never is.
+_plan_lock = threading.Lock()
+_plan_cache = {"data": None, "ts": 0.0}
+PLAN_INTERVAL = 180.0
+
+
+def refresh_plan():
+    try:
+        plan = subprocess.run(["moos-device-plan", "--compact"],
+                              capture_output=True, text=True, timeout=90)
+        if plan.returncode == 0 and plan.stdout.strip():
+            data = json.loads(plan.stdout)
+            with _plan_lock:
+                _plan_cache["data"] = data
+                _plan_cache["ts"] = time.monotonic()
+    except (OSError, subprocess.SubprocessError, ValueError):
+        pass  # a machine without the detector still gets the generic scan
+
+
+def plan_worker():
+    while True:
+        refresh_plan()
+        time.sleep(PLAN_INTERVAL)
+
+
+def cached_plan():
+    with _plan_lock:
+        return _plan_cache["data"]
+
+
+def disk_usage():
+    """Free space on the filesystem that actually holds the data.
+
+    NOT "/" — on a bootc/OSTree system "/" is a read-only composefs overlay and
+    statvfs reports it as a ~60 MB filesystem that is 100% full, so the old code
+    here reported 0 GB of 0 GB and the Hardware Centre showed "?" for storage on
+    every MoOS machine it ever ran on. The real filesystem is the one mounted at
+    /sysroot, which /var is part of. moai-do already knew this (`fs="/var"` in
+    do_optimize); this did not.
+    """
+    for path in ("/sysroot", "/var", "/"):
+        try:
+            du = shutil.disk_usage(path)
+        except Exception:
+            continue
+        if du.total > 0:
+            return {"total_gb": du.total // (1024 ** 3),
+                    "free_gb": du.free // (1024 ** 3)}
+    return {}
+
+
 def _first_line(path, prefix):
     try:
         with open(path) as f:
@@ -92,8 +202,38 @@ def _first_line(path, prefix):
     return ""
 
 
+def remote_state():
+    """Mo PC Remote and the two services it cannot work without.
+
+    ONE definition, used by both /quick and /scan. They must agree: the UI polls
+    /quick every few seconds and merges the result into the snapshot it got from
+    /scan, so a /quick that answered with a smaller dict than /scan would silently
+    ERASE the missing keys a few seconds after the panel opened. It did exactly
+    that — Mo AI showed PipeWire and the portal as "Down" on a machine where both
+    were plainly running.
+    """
+    return {
+        "active": user_unit_active(REMOTE_UNIT),
+        "pipewire": user_unit_active("pipewire.service"),
+        "portal": user_unit_active("xdg-desktop-portal.service"),
+    }
+
+
+def agent_state():
+    return {"codex": command_exists("codex"), "claude": command_exists("claude")}
+
+
+def quick():
+    """The cheap poll. No subprocess that can block — safe every few seconds."""
+    return {
+        "online": brain_online(),
+        "remote": remote_state(),
+        "agents": agent_state(),
+    }
+
+
 def scan():
-    """Read-only system snapshot for Mo AI's 'Scan' action."""
+    """Read-only system snapshot. The device plan comes from cache (see above)."""
     info = {"os": _first_line("/etc/os-release", "PRETTY_NAME=") or "MoOS",
             "cpu": _first_line("/proc/cpuinfo", "model name"),
             "cores": os.cpu_count()}
@@ -106,12 +246,7 @@ def scan():
         info["mem_gb"] = round(int(kb.split()[0]) / 1024 / 1024) if kb else 0
     except Exception:
         info["mem_gb"] = 0
-    try:
-        du = shutil.disk_usage("/")
-        info["disk"] = {"total_gb": du.total // (1024 ** 3),
-                        "free_gb": du.free // (1024 ** 3)}
-    except Exception:
-        info["disk"] = {}
+    info["disk"] = disk_usage()
     try:
         out = subprocess.run(
             ["bash", "-lc", "lspci 2>/dev/null | grep -iE 'vga|3d|display' || true"],
@@ -122,22 +257,112 @@ def scan():
         info["gpu"] = ""
     info["desktop"] = os.environ.get("XDG_CURRENT_DESKTOP", "")
 
-    # The device plan is the same detector the Hardware Center uses: GPU + driver status,
-    # PCI devices with no driver bound, firmware the kernel failed to load, pending fwupd
-    # updates, and the missing recommended apps — each already paired with the ONE allowed
-    # moai-do action that fixes it.
+    # One read-only inventory powers the Device, Apps, Compatibility, Remote and
+    # Developer panels in Mo AI. Keep it factual: the UI must not infer
+    # "installed" from an icon or from a package we merely recommend.
+    have = installed_apps()
+    info["apps"] = {app_id: (app_id in have) for app_id in (
+        "io.github.kolunmi.Bazaar", "org.mozilla.firefox", "org.videolan.VLC",
+        "org.libreoffice.LibreOffice", "com.github.tchx84.Flatseal",
+        "com.valvesoftware.Steam", "com.usebottles.bottles",
+        "org.kde.kdeconnect", "com.google.AndroidStudio",
+    )}
+    info["compatibility"] = {
+        "waydroid": command_exists("waydroid"),
+        "kvm": os.access("/dev/kvm", os.R_OK | os.W_OK),
+        "steam": "com.valvesoftware.Steam" in have,
+        "bottles": "com.usebottles.bottles" in have,
+        "kdeconnect": "org.kde.kdeconnect" in have,
+    }
+    info["remote"] = remote_state()
+    info["agents"] = agent_state()
+
+    # The device plan is the same detector the old Hardware Centre used: GPU +
+    # driver status, PCI devices with no driver bound, firmware the kernel failed
+    # to load, pending fwupd updates, and the missing recommended apps — each
+    # already paired with the ONE allowed moai-do action that repairs it.
     #
-    # Folding it in here is what lets Mo AI actually be the device centre instead of a chat
-    # box next to one: it can open a conversation already knowing that this machine has an
+    # Folding it in here is what lets Mo AI be the device centre instead of a chat
+    # box next to one: it opens a conversation already knowing this machine has an
     # NVIDIA card running nouveau, rather than waiting to be asked to look.
-    try:
-        plan = subprocess.run(["moos-device-plan", "--compact"],
-                              capture_output=True, text=True, timeout=45)
-        if plan.returncode == 0 and plan.stdout.strip():
-            info["device_plan"] = json.loads(plan.stdout)
-    except (OSError, subprocess.SubprocessError, ValueError):
-        pass  # a machine without the detector still gets the generic scan above
+    plan = cached_plan()
+    if plan is not None:
+        info["device_plan"] = plan
+    else:
+        info["device_plan_pending"] = True   # first refresh still running
     return info
+
+
+# ── App search — this is Mo AI's App Centre ──────────────────────────────────
+# Flathub's public search API, with `flatpak search` as the offline fallback.
+# Returns app ids only; INSTALLING one is not done here — the UI hands the id to
+# moos://apps/install/<id>, which runs `moai-do install <id>`: confirmation,
+# Polkit, and the same id validation. Searching is read-only and unprivileged;
+# installing is not, and the two must not share a code path.
+FLATHUB_SEARCH = "https://flathub.org/api/v2/search"
+
+
+def flathub_search(query):
+    body = json.dumps({"query": query, "filters": []}).encode("utf-8")
+    req = urllib.request.Request(
+        FLATHUB_SEARCH, data=body, method="POST",
+        headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=8) as r:
+        hits = json.loads(r.read().decode("utf-8")).get("hits", [])
+    out = []
+    for h in hits[:24]:
+        app_id = h.get("app_id") or ""
+        if not app_id:
+            continue
+        out.append({
+            "id": app_id,
+            "name": h.get("name") or app_id,
+            "summary": h.get("summary") or "",
+            "icon": h.get("icon") or "",
+            "verified": bool(h.get("verification_verified")),
+            "installs": h.get("installs_last_month") or 0,
+        })
+    return out
+
+
+def flatpak_search(query):
+    """Offline fallback: the local appstream index."""
+    out = []
+    try:
+        r = subprocess.run(
+            ["flatpak", "search", "--columns=application,name,description", query],
+            capture_output=True, text=True, timeout=20, check=False)
+        if r.returncode != 0:
+            return out
+        for line in r.stdout.splitlines():
+            parts = line.split("\t")
+            if len(parts) < 2 or not parts[0].strip():
+                continue
+            out.append({
+                "id": parts[0].strip(),
+                "name": parts[1].strip() or parts[0].strip(),
+                "summary": (parts[2].strip() if len(parts) > 2 else ""),
+                "icon": "", "verified": False, "installs": 0,
+            })
+    except Exception:
+        pass
+    return out[:24]
+
+
+def search_apps(query):
+    query = (query or "").strip()
+    if not query:
+        return {"results": [], "source": "none"}
+    source = "flathub"
+    try:
+        results = flathub_search(query)
+    except Exception:
+        results = flatpak_search(query)
+        source = "local"
+    have = installed_apps()
+    for r in results:
+        r["installed"] = r["id"] in have
+    return {"results": results, "source": source}
 
 
 class H(BaseHTTPRequestHandler):
@@ -161,11 +386,11 @@ class H(BaseHTTPRequestHandler):
             pass
 
     def _guard(self):
-        # CSRF/cross-origin defense for this state-changing localhost API. A
-        # browser cannot set a custom header without a CORS preflight, which we
-        # never approve (no OPTIONS handler, no ACAO) — so requiring this header
-        # blocks any web page the user visits from driving the service. The QML
-        # client sets it directly (not subject to CORS).
+        # CSRF/cross-origin defense for this localhost API. A browser cannot set
+        # a custom header without a CORS preflight, which we never approve (no
+        # OPTIONS handler, no ACAO) — so requiring this header blocks any web
+        # page the user visits from driving the service. The QML client sets it
+        # directly (not subject to CORS).
         if self.headers.get("X-Moai-Control") != "1":
             self._send(403, {"error": "forbidden"})
             return False
@@ -179,7 +404,9 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self._guard():
             return
-        if self.path.startswith("/config"):
+        path = urllib.parse.urlparse(self.path)
+        route = path.path
+        if route.startswith("/config"):
             c = load()
             self._send(200, {
                 "mode": c.get("mode", "local"),
@@ -187,10 +414,15 @@ class H(BaseHTTPRequestHandler):
                 "cloud_model": c.get("cloud_model", ""),
                 "has_key": bool(get_secret()),
             })
-        elif self.path.startswith("/status"):
+        elif route.startswith("/status"):
             self._send(200, {"online": brain_online()})
-        elif self.path.startswith("/scan"):
+        elif route.startswith("/quick"):
+            self._send(200, quick())
+        elif route.startswith("/scan"):
             self._send(200, scan())
+        elif route.startswith("/search"):
+            q = urllib.parse.parse_qs(path.query).get("q", [""])[0]
+            self._send(200, search_apps(q))
         else:
             self._send(404, {"error": "not found"})
 
@@ -229,4 +461,5 @@ class H(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    threading.Thread(target=plan_worker, daemon=True).start()
     ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()

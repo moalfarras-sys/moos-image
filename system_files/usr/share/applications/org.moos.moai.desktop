@@ -2,18 +2,36 @@
 Type=Application
 Name=Mo AI
 Name[ar]=مساعد Mo AI
-GenericName=AI Assistant
-GenericName[ar]=المساعد الذكي
-Comment=Local-first AI assistant for MoOS (runs on your device via RamaLama)
-Comment[ar]=مساعد ذكاء اصطناعي محلي لنظام MoOS — يعمل على جهازك
+GenericName=AI Assistant & Device Centre
+GenericName[ar]=المساعد الذكي ومركز الجهاز
+Comment=Fix drivers, update MoOS, install any app, and control this PC — with a local or cloud AI
+Comment[ar]=أصلح التعريفات، حدّث MoOS، ثبّت أي تطبيق، وتحكّم بجهازك — بذكاء محلي أو سحابي
 Exec=moai
 TryExec=moai
 Icon=moos-moai
 Terminal=false
-Categories=Utility;
-Keywords=AI;assistant;chat;local;llm;
-Keywords[ar]=ذكاء;مساعد;محادثة;محلي;
-Actions=StartBrain;
+Categories=Utility;System;
+Keywords=AI;assistant;chat;local;llm;drivers;hardware;update;install;apps;remote;compatibility;
+Keywords[ar]=ذكاء;مساعد;محادثة;محلي;تعريفات;أجهزة;تحديث;تثبيت;تطبيقات;توافق;
+Actions=Device;Apps;Remote;StartBrain;
+
+[Desktop Action Device]
+Name=My device
+Name[ar]=جهازي
+Exec=moai --panel device
+
+[Desktop Action Apps]
+Name=Install apps
+Name[ar]=تثبيت التطبيقات
+Exec=moai --panel apps
+
+# NOT "Mo PC Remote": there must be exactly one launcher by that name
+# (org.moos.remote.desktop), and verify_user_experience.py enforces it. This is a
+# shortcut into Mo AI's Remote panel, not a second launcher for the app.
+[Desktop Action Remote]
+Name=Remote control
+Name[ar]=التحكّم عن بعد
+Exec=moai --panel remote
 
 [Desktop Action StartBrain]
 Name=Start local brain

@@ -1,17 +1,28 @@
 #!/usr/bin/env bash
 # moos-open — MoOS internal URL handler for the "moos:" scheme.
 #
-# WHY: the MoOS apps (Welcome, Mo AI, Compatibility Hub) are pure-QML script
-# apps. Pure QML has NO Process API and cannot exec, so historically their
-# buttons only COPIED a command to the clipboard ("run it in a terminal") — a
-# premium UI whose buttons did nothing. QML *can* call Qt.openUrlExternally(),
-# which on Linux routes through xdg-open to the registered scheme handler. So
-# the buttons now open "moos://…" URLs and THIS handler runs the matching MoOS
-# command. Registered as x-scheme-handler/moos via org.moos.urlhandler.desktop.
+# WHY: the MoOS apps (Welcome, Mo AI) are pure-QML script apps. Pure QML has NO
+# Process API and cannot exec, so historically their buttons only COPIED a
+# command to the clipboard ("run it in a terminal") — a premium UI whose buttons
+# did nothing. QML *can* call Qt.openUrlExternally(), which on Linux routes
+# through xdg-open to the registered scheme handler. So the buttons open
+# "moos://…" URLs and THIS handler runs the matching MoOS command. Registered as
+# x-scheme-handler/moos via org.moos.urlhandler.desktop.
 #
 # SECURITY: strict whitelist. It never execs arbitrary input from the URL — only
 # the fixed set of MoOS actions below. Terminal/privileged actions run in a
 # visible Konsole (--hold) so the user sees every prompt (moai-do uses pkexec).
+#
+# Because "moos:" is a registered scheme, ANY web page can hand this script a
+# URL. That is why the only route carrying a free-form value (apps/install/<id>)
+# re-validates the id here AND hands it to moai-do, which validates it again and
+# will not install anything without an explicit confirmation. A drive-by page can
+# at worst raise a terminal prompt the user has to answer "y" to.
+#
+# EVERY moos:// URL emitted by a MoOS QML app must have a case below. Three
+# buttons once shipped opening routes that did not exist here; they popped
+# "unknown MoOS action" and did nothing. tests/verify_user_experience.py now
+# cross-checks the QML against this file so that cannot happen again.
 set -uo pipefail
 
 url="${1:-}"
@@ -37,26 +48,62 @@ term() {
     fi
 }
 
+# Mo PC Remote is a user service, so start/stop/reconnect need no privilege and
+# no terminal — they are instant and Mo AI shows the resulting state. `enable
+# --now` / `disable --now` (not plain start/stop) to match the Mo PC Remote
+# panel, so the two never disagree about whether it comes back after a reboot.
+REMOTE_UNIT="mo-remote-personal.service"
+remote_ctl() {
+    if systemctl --user "$@" "$REMOTE_UNIT" >/dev/null 2>&1; then
+        notify "Mo PC Remote ✓"
+    else
+        notify "Mo PC Remote: تعذّر التنفيذ | action failed"
+    fi
+}
+
 case "${cat}/${tgt}" in
     app/moai)      gui moai ;;
     app/remote)    gui mo-pc-remote ;;
     app/setup)     term moos-setup ;;
     do/smart-setup) term moos-setup --smart ;;
     do/setup-gaming) term moos-setup --gaming ;;
-    app/compat)    gui moos-compat ;;
-    app/hardware)  gui moos-hardware ;;
+    app/compat)    gui moai --device ;;
+    app/hardware)  gui moai --device ;;
     app/updater)   term moos-update ;;
     app/recovery)  term moos-rollback ;;
     app/welcome)   gui moos-welcome ;;
     brain/start)   term moai-start ;;
     ai/config)     gui moai-config ;;
+
+    # ── Mo PC Remote: start / stop / reconnect, from inside Mo AI ────────────
+    remote/start)   remote_ctl enable --now ;;
+    remote/stop)    remote_ctl disable --now ;;
+    remote/restart) remote_ctl restart ;;
+
+    # ── Coding agents: run the one the user picked, or install it ────────────
     dev/code)      term moai-code ;;
+    dev/codex)     term moai-code --agent codex ;;
+    dev/claude)    term moai-code --agent claude ;;
+
+    # ── App Centre: install a Flathub app by id ──────────────────────────────
+    # The id is free-form (it comes from a Flathub search), so validate the
+    # reverse-DNS shape here before it reaches moai-do, which validates it again
+    # and asks for confirmation.
+    apps/install/*)
+        id="${tgt#install/}"
+        if printf '%s' "$id" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{2,254}$'; then
+            term moai-do install "$id"
+        else
+            notify "معرّف تطبيق غير صالح | invalid app id"
+            exit 2
+        fi ;;
+
     search/*)      query="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1]))' "$tgt" 2>/dev/null)";
                    [ -n "$query" ] && gui krunner "$query" ;;
     session/lock)  loginctl lock-session ;;
     session/logout) command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logout || true ;;
     session/power) command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown || true ;;
-    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid)
+    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/install-codex|do/install-claude|do/remote-anywhere)
                    term moai-do "$tgt" ;;
     *)
         notify "أمر MoOS غير معروف | unknown MoOS action: ${path}"
