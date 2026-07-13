@@ -4,6 +4,12 @@ This repo builds a **real operating system that is installed on a real machine**
 sandbox, and there is no staging environment between a merge and someone's desktop failing to
 boot. Read this before changing anything.
 
+> **New here?** Read **[PROJECT_STATE.md](PROJECT_STATE.md)** as well, and read it *first* if
+> you are about to touch MoPlayer, the vendoring, the gates or anything visual. It is the map:
+> what exists, what is load-bearing, and the five traps that have already shipped — each one a
+> case where **the gate was green while the thing was broken**. This file is the rules;
+> `PROJECT_STATE.md` is the terrain.
+
 ## The one fact that changes how you work
 
 **The maintainer's daily-driver PC runs this image.** `main` is built by CI, published to
