@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+# moos-theme — switch MoOS between its light and dark look.
+#
+#   moos-theme            show which one is active
+#   moos-theme dark       MoOS Nova (navy glass) — the default
+#   moos-theme light      MoOS Nova Light (porcelain)
+#   moos-theme toggle     the other one
+#   moos-theme auto       follow sunrise/sunset, between the two MoOS themes
+#
+# WHY A SCRIPT AND NOT JUST SYSTEM SETTINGS
+#
+# Applying a Global Theme is necessary but NOT sufficient — three things it does
+# not carry have to be written alongside it, and each of them has bitten this
+# image before:
+#
+#   * Konsole. Its colour scheme is not a KDE colour scheme and does not follow
+#     one, so a light desktop keeps a black terminal until konsolerc is told.
+#   * GTK. gtkconfig regenerates the GTK palette from the active KDE scheme, but
+#     it never sets gtk-application-prefer-dark-theme — so Firefox stays dark on
+#     a light desktop, and it reads three sources, of which settings.ini is the
+#     weakest (Wayland -> GSettings, X11 -> xsettingsd).
+#   * The day/night switch. Plasma resolves DefaultLight/DefaultDarkLookAndFeel
+#     BY NAME, and if the named package is missing it falls back to BREEZE and
+#     persists that. Both targets are pinned to MoOS themes here, so the switch
+#     can only ever land on MoOS.
+#
+# See AGENTS.md, "A theme this image ships is not a theme the user gets".
+set -uo pipefail
+
+DARK_LNF="org.moos.nova"
+LIGHT_LNF="org.moos.nova.light"
+
+usage() {
+    cat <<'EOF'
+moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switch MoOS light/dark
+
+  moos-theme            الحالي | show the active theme
+  moos-theme dark       داكن   | MoOS Nova (navy glass, the default)
+  moos-theme light      فاتح   | MoOS Nova Light (porcelain)
+  moos-theme toggle     بدّل   | switch to the other one
+  moos-theme auto       تلقائي | follow sunrise/sunset
+EOF
+}
+
+current() {
+    kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage 2>/dev/null
+}
+
+apply() {
+    local lnf="$1" scheme konsole_profile prefer_dark icons deco wallpaper
+    if [ "$lnf" = "$LIGHT_LNF" ]; then
+        scheme=NovaLight
+        konsole_profile=MoOSLight.profile
+        icons=NovaLight
+        deco=__aurorae__svg__MoOSNovaLight
+        wallpaper=/usr/share/wallpapers/NovaAurora/contents/images/3840x2160.png
+        prefer_dark=false
+    else
+        scheme=NovaDark
+        konsole_profile=MoOS.profile
+        icons=Nova
+        deco=__aurorae__svg__MoOSNova
+        wallpaper=/usr/share/wallpapers/NovaHorizonII/contents/images_dark/3840x2160.png
+        prefer_dark=true
+    fi
+
+    plasma-apply-lookandfeel -a "$lnf" >/dev/null 2>&1 \
+        || { echo "moos-theme: could not apply $lnf" >&2; return 1; }
+
+    # The Global Theme carries the colour scheme, but applying it again directly is
+    # cheap and closes the window where LookAndFeelManager skips it.
+    plasma-apply-colorscheme "$scheme" >/dev/null 2>&1 || true
+
+    # The wallpaper is NOT reliably carried by the Global Theme — measured: applying
+    # org.moos.nova.light left the navy Horizon wallpaper in place, so the light
+    # desktop came up with a dark background and the desk clock's now-dark text
+    # went invisible against it. Set it directly.
+    if command -v plasma-apply-wallpaperimage >/dev/null 2>&1 && [ -f "$wallpaper" ]; then
+        plasma-apply-wallpaperimage "$wallpaper" >/dev/null 2>&1 || true
+    fi
+
+    # The icon theme is not colour-scheme aware: Nova's symbolics are drawn light so
+    # they read on a dark panel, and they disappear on porcelain.
+    if command -v kwriteconfig6 >/dev/null 2>&1; then
+        kwriteconfig6 --file kdeglobals --group Icons --key Theme "$icons"
+        kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae
+        kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "$deco"
+        kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft XIA
+    fi
+
+    # Konsole. konsolerc names a profile FILE; both profiles ship in
+    # /usr/share/konsole. A user's own ~/.config/konsolerc outranks /etc/xdg, which
+    # is exactly why this writes the user's copy and not the system default.
+    if command -v kwriteconfig6 >/dev/null 2>&1; then
+        kwriteconfig6 --file konsolerc --group "Desktop Entry" \
+            --key DefaultProfile "$konsole_profile"
+    fi
+
+    # GTK: the one key Plasma's gtkconfig module never sets. Written to all three
+    # sources because Wayland apps read GSettings, X11/XWayland apps read
+    # xsettingsd, and settings.ini is only consulted when neither answers.
+    if command -v gsettings >/dev/null 2>&1; then
+        gsettings set org.gnome.desktop.interface color-scheme \
+            "$([ "$prefer_dark" = true ] && echo prefer-dark || echo prefer-light)" 2>/dev/null || true
+    fi
+    if command -v kwriteconfig6 >/dev/null 2>&1; then
+        for ini in "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/settings.ini" \
+                   "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"; do
+            [ -f "$ini" ] || continue
+            kwriteconfig6 --file "$ini" --group Settings \
+                --key gtk-application-prefer-dark-theme "$prefer_dark"
+        done
+    fi
+    local xs="${XDG_CONFIG_HOME:-$HOME/.config}/xsettingsd/xsettingsd.conf"
+    if [ -f "$xs" ]; then
+        local v=0; [ "$prefer_dark" = true ] && v=1
+        if grep -q '^Net/PreferDarkTheme ' "$xs" 2>/dev/null; then
+            sed -i "s|^Net/PreferDarkTheme .*|Net/PreferDarkTheme ${v}|" "$xs"
+        else
+            echo "Net/PreferDarkTheme ${v}" >>"$xs"
+        fi
+        pkill -HUP -x xsettingsd 2>/dev/null || true
+    fi
+
+    # KWin has to be told, or the new decoration only appears at the next login and
+    # the switch reads as broken.
+    command -v gdbus >/dev/null 2>&1 && \
+        gdbus call --session -d org.kde.KWin -o /KWin -m org.kde.KWin.reconfigure >/dev/null 2>&1 || true
+
+    echo "MoOS: $([ "$lnf" = "$LIGHT_LNF" ] && echo 'فاتح | light' || echo 'داكن | dark')"
+}
+
+# Both targets are MoOS themes. That is the entire safety property: Plasma resolves
+# these by name when the switch fires, and a name it cannot resolve sends it to
+# Breeze — permanently, in the user's own kdeglobals.
+pin_switch_targets() {
+    command -v kwriteconfig6 >/dev/null 2>&1 || return 0
+    kwriteconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel "$LIGHT_LNF"
+    kwriteconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel "$DARK_LNF"
+}
+
+case "${1:-status}" in
+    dark)
+        pin_switch_targets
+        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
+        apply "$DARK_LNF"
+        ;;
+    light)
+        pin_switch_targets
+        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
+        apply "$LIGHT_LNF"
+        ;;
+    toggle)
+        pin_switch_targets
+        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
+        if [ "$(current)" = "$LIGHT_LNF" ]; then apply "$DARK_LNF"; else apply "$LIGHT_LNF"; fi
+        ;;
+    auto)
+        pin_switch_targets
+        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel true
+        echo "MoOS: تلقائي | auto (light by day, dark by night — both MoOS)"
+        ;;
+    status)
+        case "$(current)" in
+            "$LIGHT_LNF") echo "فاتح | light  ($LIGHT_LNF)" ;;
+            "$DARK_LNF")  echo "داكن | dark   ($DARK_LNF)" ;;
+            "")           echo "غير محدّد | unset" ;;
+            *)            echo "ليس MoOS | not a MoOS theme: $(current)" ;;
+        esac
+        ;;
+    -h|--help|help) usage ;;
+    *) usage; exit 2 ;;
+esac

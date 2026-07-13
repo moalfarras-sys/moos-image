@@ -17,9 +17,18 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=9
+THEME_REV=10
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 marker="${state_dir}/moos-nova-theme-applied.v${THEME_REV}"
+
+# MoOS now ships TWO looks, and they are equally legitimate. Everything below that
+# asks "is the desktop still MoOS?" must accept either — a user who chose Light and
+# gets dragged back to Dark on every login has not been protected, they have been
+# overruled.
+DARK_LNF="org.moos.nova"
+LIGHT_LNF="org.moos.nova.light"
+DARK_DECO="__aurorae__svg__MoOSNova"
+LIGHT_DECO="__aurorae__svg__MoOSNovaLight"
 
 log="${XDG_CACHE_HOME:-$HOME/.cache}/moos-apply-theme.log"
 mkdir -p "$(dirname "$log")" 2>/dev/null || true
@@ -49,10 +58,29 @@ current_decoration() {
 #
 # So the marker is honoured only while the look is intact. If it is not, this run repairs
 # it however many times it has run before — that is the whole point.
+# Which MoOS look is the user wearing, if any? "Intact" means the look-and-feel is
+# one of ours AND the decoration is the one that belongs to it. A Nova Light
+# desktop wearing the dark decoration is drift just as much as a Breeze one is.
+theme_intact() {
+    local lnf="$1" deco="$2"
+    [ "$lnf" = "$DARK_LNF"  ] && [ "$deco" = "$DARK_DECO"  ] && return 0
+    [ "$lnf" = "$LIGHT_LNF" ] && [ "$deco" = "$LIGHT_DECO" ] && return 0
+    return 1
+}
+
+# Which one should a repair restore? Whichever the user last chose. Only when the
+# desktop has drifted to something that is not MoOS at all do we impose the
+# default. Re-applying Dark to someone who deliberately picked Light would make
+# this script the bug it exists to fix.
+target_lnf() {
+    [ "$(current_lookandfeel)" = "$LIGHT_LNF" ] && { echo "$LIGHT_LNF"; return; }
+    echo "$DARK_LNF"
+}
+
 if [ -e "$marker" ]; then
     lnf="$(current_lookandfeel)" || exit 0   # cannot tell → trust the marker, as before
     deco="$(current_decoration)" || exit 0
-    if [ "$lnf" = "org.moos.nova" ] && [ "$deco" = "__aurorae__svg__MoOSNova" ]; then
+    if theme_intact "$lnf" "$deco"; then
         exit 0
     fi
     echo "=== moos-apply-theme $(date -u '+%FT%TZ') === SELF-HEAL: look-and-feel='${lnf:-unset}' decoration='${deco:-unset}'" >>"$log" 2>/dev/null || true
@@ -81,25 +109,44 @@ rm -f "${state_dir}"/moos-nova-theme-applied "${state_dir}"/moos-nova-theme-appl
 #
 # MoOS ships exactly ONE Look and Feel, so there is no second theme of ours to switch to:
 # any target here can only ever be somebody else's. Drop the targets, turn the switch off.
-defuse_automatic_lookandfeel() {
+# MoOS used to have exactly one theme, so there was no safe target to give the
+# switch and the only correct move was to disarm it. That is no longer true: MoOS
+# now ships a matched light/dark pair, so the switch gets POINTED AT THEM instead
+# of being deleted. Whichever way it fires, it lands on MoOS.
+#
+# The danger it poses is unchanged, and it is why this still runs before anything
+# else applies: any target that is not an installed package sends Plasma to Breeze
+# — not to the configured LookAndFeelPackage — and it persists that choice into the
+# user's kdeglobals, which outranks /etc/xdg for good.
+#
+# AutomaticLookAndFeel itself is left exactly as the user set it. Arming it is the
+# user's call (`moos-theme auto`); all this guarantees is that if it IS armed, it
+# cannot reach a non-MoOS theme.
+pin_lookandfeel_switch_targets() {
     command -v kreadconfig6 >/dev/null 2>&1 || return 0
     command -v kwriteconfig6 >/dev/null 2>&1 || return 0
-    local changed=0 key val
+
+    local want key val
     for key in DefaultLightLookAndFeel DefaultDarkLookAndFeel; do
+        if [ "$key" = "DefaultLightLookAndFeel" ]; then want="$LIGHT_LNF"; else want="$DARK_LNF"; fi
+
+        # Never point the switch at a package that is not on disk — that is the
+        # exact failure that put every MoOS desktop into Breeze Dark.
+        if [ ! -d "/usr/share/plasma/look-and-feel/$want" ]; then
+            val="$(kreadconfig6 --file kdeglobals --group KDE --key "$key" 2>/dev/null)"
+            [ -n "$val" ] && kwriteconfig6 --file kdeglobals --group KDE --key "$key" --delete 2>/dev/null \
+                && echo "dropped ${key}=${val}: ${want} is not installed" >>"$log" 2>/dev/null
+            continue
+        fi
+
         val="$(kreadconfig6 --file kdeglobals --group KDE --key "$key" 2>/dev/null)"
-        [ -n "$val" ] || continue
-        [ "$val" = "org.moos.nova" ] && [ -d "/usr/share/plasma/look-and-feel/$val" ] && continue
-        kwriteconfig6 --file kdeglobals --group KDE --key "$key" --delete 2>/dev/null \
-            && { changed=1; echo "dropped dangling ${key}=${val}" >>"$log" 2>/dev/null; }
+        [ "$val" = "$want" ] && continue
+        kwriteconfig6 --file kdeglobals --group KDE --key "$key" "$want" 2>/dev/null \
+            && echo "pinned ${key}=${want} (was '${val:-unset}')" >>"$log" 2>/dev/null
     done
-    if [ "$(kreadconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel 2>/dev/null)" = "true" ]; then
-        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null \
-            && { changed=1; echo "turned off AutomaticLookAndFeel" >>"$log" 2>/dev/null; }
-    fi
-    [ "$changed" = "1" ] && echo "defused Plasma's automatic look-and-feel switch" >>"$log" 2>/dev/null
     return 0
 }
-defuse_automatic_lookandfeel
+pin_lookandfeel_switch_targets
 
 # Autostart can fire before the Plasma shell / session D-Bus is ready. Wait for
 # plasmashell so the apply tools actually take effect. Do NOT rely on `qdbus`:
@@ -138,25 +185,47 @@ rm -rf "${cache_dir}/ksvg-elements" \
 
 applied=0
 
+# Repair the look the user is ACTUALLY on. Dark is only the default, not the
+# verdict — see target_lnf().
+want_lnf="$(target_lnf)"
+if [ "$want_lnf" = "$LIGHT_LNF" ]; then
+    want_scheme=NovaLight
+    want_deco="$LIGHT_DECO"
+    want_icons=NovaLight
+    want_konsole=MoOSLight.profile
+    want_wallpaper=/usr/share/wallpapers/NovaAurora/contents/images/3840x2160.png
+    want_gtk_dark=false
+else
+    want_scheme=NovaDark
+    want_deco="$DARK_DECO"
+    want_icons=Nova
+    want_konsole=MoOS.profile
+    want_wallpaper=/usr/share/wallpapers/NovaHorizonII/contents/images_dark/3840x2160.png
+    want_gtk_dark=true
+fi
+echo "repairing to ${want_lnf} (${want_scheme})" >>"$log" 2>/dev/null || true
+
 # The whole Global Theme (colors, wallpaper, splash, cursor). Do NOT reset the
 # panel layout — the MoOS dock is provided by the defaultPanel template.
 if command -v plasma-apply-lookandfeel >/dev/null 2>&1; then
-    if plasma-apply-lookandfeel -a org.moos.nova >>"$log" 2>&1; then
+    if plasma-apply-lookandfeel -a "$want_lnf" >>"$log" 2>&1; then
         applied=1
     fi
 fi
 
-# Belt-and-suspenders: force the Nova wallpaper + dark scheme directly, in case
-# the L&F apply skips them (Plasma has historically been inconsistent here).
+# Belt-and-suspenders: force the wallpaper + colour scheme directly, in case the
+# L&F apply skips them (Plasma has historically been inconsistent here).
 if command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
-    for wp in \
-        /usr/share/wallpapers/NovaHorizonII/contents/images_dark/3840x2160.png \
-        /usr/share/wallpapers/NovaHorizonII/contents/images/3840x2160.png; do
-        [ -f "$wp" ] && { plasma-apply-wallpaperimage "$wp" >>"$log" 2>&1 && applied=1; break; }
-    done
+    [ -f "$want_wallpaper" ] \
+        && { plasma-apply-wallpaperimage "$want_wallpaper" >>"$log" 2>&1 && applied=1; }
 fi
 command -v plasma-apply-colorscheme >/dev/null 2>&1 && \
-    plasma-apply-colorscheme NovaDark >>"$log" 2>&1 || true
+    plasma-apply-colorscheme "$want_scheme" >>"$log" 2>&1 || true
+
+# Konsole's colour scheme is NOT a KDE colour scheme and follows nothing. Without
+# this, a Nova Light desktop keeps a black terminal.
+command -v kwriteconfig6 >/dev/null 2>&1 && \
+    kwriteconfig6 --file konsolerc --group "Desktop Entry" --key DefaultProfile "$want_konsole"
 
 # Float the dock for users who already exist.
 #
@@ -244,9 +313,12 @@ fi
 # ButtonsOnLeft mirrors /etc/xdg/kwinrc: X=Close I=Minimize A=Maximize.
 if command -v kwriteconfig6 >/dev/null 2>&1; then
     kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae
-    kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme __aurorae__svg__MoOSNova
+    kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "$want_deco"
     kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft XIA
-    echo "pinned the Nova window decoration into the user's kwinrc" >>"$log" 2>/dev/null || true
+    # The icon theme is not colour-scheme aware: Nova's symbolics are drawn light
+    # for a dark panel and disappear on porcelain. The light look needs NovaLight.
+    kwriteconfig6 --file kdeglobals --group Icons --key Theme "$want_icons"
+    echo "pinned the ${want_deco} decoration and the ${want_icons} icons into the user's config" >>"$log" 2>/dev/null || true
     # KWin only re-reads kwinrc when told to. Without this the decoration changes on the
     # next login instead of now, which reads as "the fix did not work".
     if command -v gdbus >/dev/null 2>&1; then
@@ -304,6 +376,11 @@ pin_gtk() {
             [ -f "$ini" ] || continue
             kwriteconfig6 --file "$ini" --group Settings --key gtk-theme-name Breeze
             kwriteconfig6 --file "$ini" --group Settings --key gtk-sound-theme-name moos-nova
+            # gtkconfig regenerates the GTK palette from the active KDE scheme but
+            # never touches this key — so on a Nova Light desktop Firefox stayed
+            # dark, because nothing had told GTK the desktop was light.
+            kwriteconfig6 --file "$ini" --group Settings \
+                --key gtk-application-prefer-dark-theme "$want_gtk_dark"
         done
     fi
 
@@ -320,6 +397,10 @@ pin_gtk() {
     if command -v gsettings >/dev/null 2>&1; then
         gsettings set org.gnome.desktop.interface gtk-theme Breeze 2>/dev/null || true
         gsettings set org.gnome.desktop.sound theme-name moos-nova 2>/dev/null || true
+        # The freedesktop "which side of the day are we on" setting. GTK4/libadwaita
+        # apps read ONLY this; they ignore gtk-theme-name entirely.
+        gsettings set org.gnome.desktop.interface color-scheme \
+            "$([ "$want_gtk_dark" = true ] && echo prefer-dark || echo prefer-light)" 2>/dev/null || true
     fi
 
     # X11 / XWayland GTK apps. xsettingsd re-reads its config on SIGHUP and pushes the new
@@ -336,6 +417,147 @@ pin_gtk() {
     echo "pinned the GTK theme (Breeze stylesheet, Nova palette) and sound theme in all three sources" >>"$log" 2>/dev/null || true
 }
 pin_gtk
+
+# --- The desktop itself -------------------------------------------------------
+# MoOS shipped a desktop with nothing on it: no clock, no widgets, nothing. The
+# panel clock is a PANEL applet — its full representation is a calendar popup — so
+# it cannot double as the desktop clock. org.moos.nova.deskclock is the desktop one.
+#
+# Guarded and idempotent: it checks for the widget before adding it, so a user who
+# deletes the clock does not get it forced back on the next login. A Folder View
+# containment will NOT place a scripted widget for you — pass an explicit rectangle
+# or the applet exists with zero geometry and never paints (learned the hard way).
+if command -v gdbus >/dev/null 2>&1; then
+    gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var ds = desktops();
+            for (var i = 0; i < ds.length; i++) {
+                var d = ds[i];
+                var have = {};
+                var ws = d.widgets();
+                for (var j = 0; j < ws.length; j++) { have[ws[j].type] = true; }
+                try {
+                    if (!have["org.moos.nova.deskclock"]) {
+                        d.addWidget("org.moos.nova.deskclock", 80, 80, 420, 220);
+                    }
+                } catch (e) {}
+                try {
+                    if (!have["org.kde.plasma.systemmonitor"]) {
+                        var m = d.addWidget("org.kde.plasma.systemmonitor", 80, 330, 420, 260);
+                        m.currentConfigGroup = ["Appearance"];
+                        m.writeConfig("chartFace", "org.kde.ksysguard.linechart");
+                        m.writeConfig("title", "MoOS");
+                        m.currentConfigGroup = ["Sensors"];
+                        m.writeConfig("highPrioritySensorIds",
+                            "[\"cpu/all/usage\",\"memory/physical/usedPercent\",\"gpu/gpu0/usage\"]");
+                        m.reloadConfig();
+                    }
+                } catch (e) {}
+            }
+        ' >>"$log" 2>&1 || echo "desktop widget migration skipped" >>"$log" 2>&1
+fi
+
+# --- Photos and video ---------------------------------------------------------
+# MoOS now ships gwenview and haruna and declares them in /etc/xdg/mimeapps.list.
+# That is only half the fix: ~/.config/mimeapps.list OUTRANKS /etc/xdg, and Plasma
+# WRITES that file the first time anyone picks "Open With". A user who ever opened
+# a photo in Chrome — which every MoOS user did, because the image had no viewer at
+# all — has Chrome recorded there, and the system default will never reach them.
+#
+# So pin it in the user's own config. Only for the types a browser has hijacked,
+# only when the viewer is actually installed, and never overwriting a choice that
+# is already a real image viewer — if the user prefers something else, that is
+# theirs to keep.
+pin_default_apps() {
+    command -v kwriteconfig6 >/dev/null 2>&1 || return 0
+    local mimeapps="${XDG_CONFIG_HOME:-$HOME/.config}/mimeapps.list"
+    local mime current
+
+    if [ -f /usr/share/applications/org.kde.gwenview.desktop ]; then
+        for mime in image/png image/jpeg image/gif image/webp image/tiff image/bmp \
+                    image/avif image/heif image/jxl; do
+            current="$(kreadconfig6 --file "$mimeapps" --group "Default Applications" --key "$mime" 2>/dev/null)"
+            case "$current" in
+                ""|*chrome*|*chromium*|*firefox*)
+                    kwriteconfig6 --file "$mimeapps" --group "Default Applications" \
+                        --key "$mime" org.kde.gwenview.desktop
+                    ;;
+            esac
+        done
+        echo "pinned gwenview as the image viewer in the user's mimeapps.list" >>"$log" 2>/dev/null || true
+    fi
+
+    if [ -f /usr/share/applications/org.kde.haruna.desktop ]; then
+        for mime in video/mp4 video/x-matroska video/webm video/quicktime video/mpeg; do
+            current="$(kreadconfig6 --file "$mimeapps" --group "Default Applications" --key "$mime" 2>/dev/null)"
+            case "$current" in
+                ""|*chrome*|*chromium*|*firefox*)
+                    kwriteconfig6 --file "$mimeapps" --group "Default Applications" \
+                        --key "$mime" org.kde.haruna.desktop
+                    ;;
+            esac
+        done
+    fi
+
+    command -v update-desktop-database >/dev/null 2>&1 && \
+        update-desktop-database "${XDG_DATA_HOME:-$HOME/.local/share}/applications" 2>/dev/null || true
+    return 0
+}
+pin_default_apps
+
+# --- Retire the hand-installed Kawkab Mono ------------------------------------
+# The Arabic terminal font was first proven on this machine by dropping the TTFs
+# into ~/.local/share/fonts with a matching ~/.config/fontconfig override, because
+# the fix had to be visible before the image could carry it. The image carries it
+# now (/usr/share/fonts/kawkab-mono + /etc/fonts/conf.d/61-moos-brand.conf), and a
+# user-level copy of a font policy is precisely the kind of shadow that outranks
+# the image and freezes it at whatever it said the day it was written.
+#
+# So: once the system font is present, remove the stand-in. Narrowly scoped to the
+# exact files that were staged — nothing else under the user's fonts is touched.
+if [ -f /usr/share/fonts/kawkab-mono/KawkabMono-Regular.ttf ]; then
+    stale_conf="${XDG_CONFIG_HOME:-$HOME/.config}/fontconfig/conf.d/99-moos-kawkab-test.conf"
+    if [ -f "$stale_conf" ]; then
+        rm -f "$stale_conf"
+        rm -f "${XDG_DATA_HOME:-$HOME/.local/share}"/fonts/KawkabMono-*.ttf
+        command -v fc-cache >/dev/null 2>&1 && fc-cache -f >/dev/null 2>&1
+        echo "removed the user-level Kawkab Mono stand-in; the image ships it now" >>"$log" 2>/dev/null || true
+    fi
+fi
+
+# --- Retire user-level copies of MoOS's own theme assets ------------------------
+# Same trap, several directories. Anything under ~/.local/share SHADOWS the copy in
+# /usr, so a MoOS asset staged there freezes at whatever it said the day it was
+# written and no later image can fix it. Every one of these paths is MoOS-owned by
+# name; nothing that belongs to the user is touched.
+#
+# They exist because a fix has to be PROVEN on the running desktop before the image
+# can carry it (AGENTS.md: read it back from the running system). Staging is the
+# right way to prove it. Leaving the stage up afterwards is how the image loses.
+user_share="${XDG_DATA_HOME:-$HOME/.local/share}"
+for rel in \
+    "plasma/plasmoids/org.moos.nova.clock" \
+    "plasma/plasmoids/org.moos.nova.deskclock" \
+    "plasma/look-and-feel/org.moos.nova" \
+    "plasma/look-and-feel/org.moos.nova.light" \
+    "plasma/desktoptheme/Nova" \
+    "plasma/desktoptheme/NovaLight" \
+    "aurorae/themes/MoOSNova" \
+    "aurorae/themes/MoOSNovaLight" \
+    "color-schemes/NovaDark.colors" \
+    "color-schemes/NovaLight.colors" \
+    "konsole/NovaDark.colorscheme" \
+    "konsole/NovaLight.colorscheme" \
+    "konsole/MoOS.profile" \
+    "konsole/MoOSLight.profile" \
+    "icons/Nova" \
+    "icons/NovaLight" \
+; do
+    if [ -e "/usr/share/$rel" ] && [ -e "${user_share}/$rel" ]; then
+        rm -rf "${user_share:?}/$rel"
+        echo "removed the user-level copy of $rel; it shadows the image" >>"$log" 2>/dev/null || true
+    fi
+done
 
 # Only mark done if something actually applied — otherwise retry next login.
 if [ "$applied" = "1" ]; then

@@ -1,0 +1,17 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Category": "",
+        "Description": "زجاج Nova الفاتح وهوية MoOS للنظام | Nova light glass and MoOS identity for the desktop",
+        "Id": "NovaLight",
+        "License": "GPL-3.0-or-later",
+        "Name": "MoOS Nova Light",
+        "Version": "0.1.0",
+        "Website": "https://github.com/moalfarras-sys/moos-image"
+    },
+    "X-Plasma-API": "5.0"
+}

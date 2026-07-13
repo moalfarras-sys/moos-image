@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=MoOS Nova Light
+Comment=Nova navy glass window decoration for MoOS
+X-KDE-PluginInfo-Author=Moalfarras
+X-KDE-PluginInfo-Name=MoOSNovaLight
+X-KDE-PluginInfo-Version=1.0
+X-KDE-PluginInfo-License=GPL-3.0-or-later
+X-KDE-ServiceTypes=KWin/Decoration
+Type=Service
