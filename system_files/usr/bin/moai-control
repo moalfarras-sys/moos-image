@@ -416,7 +416,9 @@ def remote_state():
 
 
 def agent_state():
-    return {"codex": command_exists("codex"), "claude": command_exists("claude")}
+    return {"codex": command_exists("codex"),
+            "claude": command_exists("claude"),
+            "opencode": command_exists("opencode")}
 
 
 def quick():
@@ -690,6 +692,84 @@ def flatpak_search(query):
     return out[:24]
 
 
+# ── The need → known-good-app decision layer ─────────────────────────────────
+# Flathub's ranking answers "what is popular", not "what works on THIS desktop", and on
+# MoOS those are different questions. Searching "camera" puts
+# io.github.cosmic_utils.camera on top: it installs cleanly, then panics on Plasma
+# (it hunts com.system76.Cosmic* D-Bus services that do not exist here). The user's
+# camera "did not work" while the webcam, libcamera and the install were all fine.
+#
+# That is a whole bug family — a desktop-mismatched Flatpak (COSMIC/GNOME-only) that
+# installs and then crashes on KDE — and it is invisible to a search that only reads
+# popularity. So MoOS answers the NEED, not the keyword: a small table of apps that are
+# native to this desktop, ranked first and labelled, plus an honest warning on the ones
+# built for another desktop entirely.
+#
+# The bar for a row here: KDE/Qt-native (no other desktop's D-Bus or shell to miss), and
+# `note` says WHY, so the pick is auditable rather than a matter of taste. `verified`
+# means it was launched on this hardware and held.
+KNOWN_GOOD = [
+    {"keywords": ["camera", "webcam", "كاميرا", "ويب كام", "تصوير"],
+     "id": "org.kde.kamoso", "name": "Kamoso", "verified": True,
+     "note": "كاميرا KDE الأصلية — مُختبَرة على هذا الجهاز | KDE-native camera, verified on this machine"},
+    {"keywords": ["video player", "media player", "movie", "mkv", "فيديو", "مشغل", "أفلام"],
+     "id": "org.kde.haruna", "name": "Haruna", "verified": True,
+     "note": "مشغّل KDE الأصلي (mpv) — يشحن مع MoOS | KDE-native player (mpv), ships with MoOS"},
+    {"keywords": ["image viewer", "photo", "picture", "صور", "عارض"],
+     "id": "org.kde.gwenview", "name": "Gwenview", "verified": True,
+     "note": "عارض صور KDE — يشحن مع MoOS | KDE's image viewer, ships with MoOS"},
+    {"keywords": ["music", "audio player", "موسيقى", "أغاني"],
+     "id": "org.kde.elisa", "name": "Elisa", "verified": False,
+     "note": "مشغّل موسيقى KDE أصلي (Qt) | KDE-native music player (Qt)"},
+    {"keywords": ["text editor", "code editor", "محرر", "نصوص"],
+     "id": "org.kde.kate", "name": "Kate", "verified": False,
+     "note": "محرّر KDE الأصلي | KDE's own editor (Qt)"},
+    {"keywords": ["paint", "draw", "رسم", "تصميم"],
+     "id": "org.kde.krita", "name": "Krita", "verified": False,
+     "note": "رسم رقمي KDE أصلي (Qt) | KDE-native digital painting (Qt)"},
+    {"keywords": ["video edit", "montage", "مونتاج", "تحرير فيديو"],
+     "id": "org.kde.kdenlive", "name": "Kdenlive", "verified": False,
+     "note": "محرّر فيديو KDE أصلي (Qt) | KDE-native video editor (Qt)"},
+]
+
+# Not a blocklist — the user may still install any of these. It is a label, because an app
+# that is going to crash the moment it opens should say so BEFORE the download, not after.
+# The rule is the app's own targeting, not a judgement about its quality: a COSMIC app is
+# built against System76's shell services, and they do not exist on Plasma.
+def desktop_mismatch(app_id):
+    low = app_id.lower()
+    if "cosmic" in low:
+        return ("مصمّم لسطح COSMIC — قد ينهار على MoOS (KDE) | "
+                "built for the COSMIC desktop — may crash on MoOS (KDE)")
+    return ""
+
+
+def decide(results, query, have):
+    """Rank the desktop-native answer to the user's NEED first, and label the mismatches."""
+    low = " " + query.lower() + " "
+    pick = next((e for e in KNOWN_GOOD
+                 if any(k in low for k in e["keywords"])), None)
+
+    for r in results:
+        r["recommended"] = False
+        r["note"] = desktop_mismatch(r["id"])
+
+    if not pick:
+        return results
+
+    # Prefer Flathub's own metadata for the pick when the search already found it —
+    # a hand-written summary would go stale.
+    existing = next((r for r in results if r["id"] == pick["id"]), None)
+    rec = existing or {
+        "id": pick["id"], "name": pick["name"], "summary": "",
+        "icon": "", "verified": False, "installs": 0,
+    }
+    rec["installed"] = pick["id"] in have
+    rec["recommended"] = True
+    rec["note"] = pick["note"]
+    return [rec] + [r for r in results if r["id"] != pick["id"]]
+
+
 def search_apps(query):
     query = (query or "").strip()
     if not query:
@@ -703,6 +783,7 @@ def search_apps(query):
     have = installed_apps()
     for r in results:
         r["installed"] = r["id"] in have
+    results = decide(results, query, have)
     return {"results": results, "source": source}
 
 

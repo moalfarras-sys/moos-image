@@ -111,10 +111,34 @@ for key in DefaultDarkLookAndFeel DefaultLightLookAndFeel; do
 done
 
 # ── The keyboard ─────────────────────────────────────────────────────────────
+# Ask the SESSION what it is typing with, not the system what it was told to type with.
+#
+# This check used to read `localectl`, which reports the SYSTEM default — and that is
+# not what the compositor uses. On 2026-07-13 the maintainer could not type Arabic or
+# German for two hours: fcitx5 had been launched once, and it had rewritten
+# ~/.config/kxkbrc to `LayoutList=us`, which outranks the image's /etc/xdg/kxkbrc. The
+# system default was still a flawless "de,ara", so this check stayed GREEN throughout,
+# reporting a keyboard the user did not have. (fcitx5 no longer ships — build.sh removes
+# it — but a user file can still shadow the image, and that is the thing to detect.)
+#
+# So: three layers, in order of authority — what KWin actually loaded, then the effective
+# config after the XDG cascade, then the system default. The first one that answers wins.
 head_ "الكيبورد | Keyboard"
-layouts="$(localectl status 2>/dev/null | grep -oP 'X11 Layout: \K.*')"
+live_layouts="$(gdbus call --session --dest org.kde.KWin --object-path /Layouts \
+                --method org.kde.KeyboardLayouts.getLayoutsList 2>/dev/null \
+              | grep -oP "\('\K[a-z]+" | paste -sd, -)"
+conf_layouts="$(kreadconfig6 --file kxkbrc --group Layout --key LayoutList 2>/dev/null)"
+sys_layouts="$(localectl status 2>/dev/null | grep -oP 'X11 Layout: \K.*')"
 opts="$(kreadconfig6 --file kxkbrc --group Layout --key Options 2>/dev/null)"
-[ "$layouts" = "de,ara" ] && ok "layouts: ${layouts}" || bad "layouts are '${layouts:-unset}', expected de,ara"
+
+layouts="${live_layouts:-${conf_layouts:-$sys_layouts}}"
+if [ "$layouts" = "de,ara" ]; then
+    ok "layouts: ${layouts}${live_layouts:+ (live, from KWin)}"
+else
+    bad "layouts are '${layouts:-unset}', expected de,ara — you cannot type Arabic"
+    [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/kxkbrc" ] && \
+        bad "  cause: ~/.config/kxkbrc overrides the image (delete it, then log out and back in)"
+fi
 case "$opts" in *alt_shift_toggle*) ok "Alt+Shift switches the layout" ;;
                 *) bad "the Alt+Shift toggle is not set (Options='${opts:-unset}')" ;; esac
 

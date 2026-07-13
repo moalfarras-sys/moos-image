@@ -27,7 +27,7 @@ done
 # script from the moos:// handler, which any web page can invoke, so it must not
 # become a way to exec an arbitrary binary name.
 case "$agent" in
-    claude|codex|"") : ;;
+    claude|codex|opencode|"") : ;;
     *)
         echo "moai-code: وكيل غير معروف | unknown agent: ${agent}" >&2
         exit 2 ;;
@@ -41,13 +41,9 @@ cd "$workdir" 2>/dev/null || cd "$HOME"
 have() { command -v "$1" >/dev/null 2>&1; }
 notify() { command -v kdialog >/dev/null 2>&1 && kdialog --title "Mo AI — Code" --msgbox "$1" >/dev/null 2>&1 || echo "$1"; }
 
-claude_ok=false; codex_ok=false
-have claude && claude_ok=true
-have codex && codex_ok=true
-
 # An explicit --agent that is not installed is a real error, not a reason to
-# silently run the other one: Mo AI only shows "Run X" when X is present, so if
-# we get here it means the state changed underneath.
+# silently run another one: Mo AI only shows "Run X" when X is present, so if we
+# get here it means the state changed underneath.
 if [ -n "$agent" ]; then
     if ! have "$agent"; then
         notify "الوكيل '${agent}' غير مثبّت.
@@ -56,16 +52,25 @@ The '${agent}' agent is not installed.
 ثبّته من Mo AI ← المطوّر | install it from Mo AI → Developer"
         exit 1
     fi
-elif $claude_ok && $codex_ok; then
-    agent=$(kdialog --title "Mo AI — Code" --menu "اختر مساعد البرمجة | Choose a coding agent:" \
-        claude "Claude Code" codex "Codex" 2>/dev/null) || exit 0
-elif $claude_ok; then
-    agent=claude
-elif $codex_ok; then
-    agent=codex
 else
-    notify $'لا يوجد مساعد برمجة مثبّت.\nNo coding agent installed.\n\nثبّته بضغطة من Mo AI ← المطوّر.\nInstall one in a click from Mo AI → Developer.'
-    exit 1
+    # No agent named: offer the ones that are actually here. The menu is BUILT from
+    # what is installed rather than hardcoded — a picker that lists an agent the user
+    # does not have is a picker that hands them an error.
+    menu=()
+    have opencode && menu+=(opencode "OpenCode — عقلك المحلي | your local brain")
+    have claude   && menu+=(claude   "Claude Code")
+    have codex    && menu+=(codex    "Codex")
+
+    case "${#menu[@]}" in
+        0)
+            notify $'لا يوجد مساعد برمجة مثبّت.\nNo coding agent installed.\n\nثبّته بضغطة من Mo AI ← المطوّر.\nInstall one in a click from Mo AI → Developer.'
+            exit 1 ;;
+        2)
+            agent="${menu[0]}" ;;   # exactly one installed — do not ask a question with one answer
+        *)
+            agent=$(kdialog --title "Mo AI — Code" \
+                --menu "اختر مساعد البرمجة | Choose a coding agent:" "${menu[@]}" 2>/dev/null) || exit 0 ;;
+    esac
 fi
 
 echo "Mo AI — starting ${agent} in ${workdir}"

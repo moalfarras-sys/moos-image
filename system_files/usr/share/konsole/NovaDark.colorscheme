@@ -100,5 +100,9 @@ Color=255,255,255
 
 [General]
 Description=Nova Dark
+# Solid, by choice: the terminal stays a fully opaque #0B1220 slab — no translucency,
+# no blur — so text is maximally legible and the surface reads as a deliberate deep-navy
+# panel, not a window into the wallpaper.
 Opacity=1
+Blur=false
 Wallpaper=

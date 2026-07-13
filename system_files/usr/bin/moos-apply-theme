@@ -17,7 +17,7 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=10
+THEME_REV=12
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 marker="${state_dir}/moos-nova-theme-applied.v${THEME_REV}"
 
@@ -90,6 +90,9 @@ fi
 
 mkdir -p "$state_dir" 2>/dev/null || true
 rm -f "${state_dir}"/moos-nova-theme-applied "${state_dir}"/moos-nova-theme-applied.v* 2>/dev/null || true
+# Drop tray-collapse markers from older revisions too, so a new THEME_REV restarts the
+# shell once to re-collapse the tray. Only the current v${THEME_REV} marker is kept below.
+find "${state_dir}" -maxdepth 1 -name 'moos-tray-collapsed.v*' ! -name "moos-tray-collapsed.v${THEME_REV}" -delete 2>/dev/null || true
 
 # Disarm Plasma's day/night Look-and-Feel switch BEFORE applying anything — otherwise it
 # is free to undo this run's work at the next sunrise.
@@ -183,6 +186,20 @@ rm -rf "${cache_dir}/ksvg-elements" \
        "${cache_dir}"/plasma-svgelements* \
        "${cache_dir}/icon-cache.kcache" 2>/dev/null || true
 
+# The QML disk cache is the same trap, and it hides a WIDGET rather than a colour.
+#
+# OSTree pins every mtime under /usr to the epoch, and Qt's qmlcache is keyed on mtime — so
+# a rebuilt plasmoid whose QML changed byte for byte still looks "unchanged" to the cache,
+# and plasmashell keeps executing the compiled OLD widget after the upgrade. moos-ui-migrate
+# purges these, but only once, behind a permanent marker: it will never run again on this
+# machine, so it cannot carry a new widget in. This runs once per THEME_REV, which is exactly
+# the cadence at which MoOS's own QML changes.
+rm -rf "${cache_dir}/qmlcache" \
+       "${cache_dir}/plasmashell/qmlcache" \
+       "${cache_dir}/kwin/qmlcache" 2>/dev/null || true
+find "${cache_dir}" -mindepth 2 -maxdepth 2 -type d -name qmlcache \
+    -exec rm -rf -- {} + 2>/dev/null || true
+
 applied=0
 
 # Repair the look the user is ACTUALLY on. Dark is only the default, not the
@@ -226,6 +243,55 @@ command -v plasma-apply-colorscheme >/dev/null 2>&1 && \
 # this, a Nova Light desktop keeps a black terminal.
 command -v kwriteconfig6 >/dev/null 2>&1 && \
     kwriteconfig6 --file konsolerc --group "Desktop Entry" --key DefaultProfile "$want_konsole"
+
+# A terminal with no chrome — and the ONLY way to ship it.
+#
+# konsolerc kills the menu bar and the single-tab tab strip, but Konsole's two toolbars
+# (mainToolBar, sessionToolbar) are not config keys at all: KMainWindow restores them from
+# the Qt `State=` blob in ~/.local/state/konsolestaterc, and that state file is NOT part of
+# the XDG config cascade, so /etc/xdg cannot reach it. Proven on this hardware: writing
+# [MainWindow][Toolbar mainToolBar] Hidden=true into every candidate file leaves the toolbar
+# on screen, while flipping the visibility byte inside the blob removes it.
+#
+# So seed the user's state file. In the blob each toolbar is a UTF-16BE name followed by a
+# 1-byte visible flag; set it to 0. If the user has no blob yet, there is nothing to patch —
+# Konsole writes one on first exit, and the next login catches it. Guarded by a one-shot
+# marker: a user who turns the toolbar back on keeps it.
+konsole_chrome_marker="${state_dir}/moos-konsole-chrome.v1"
+if [ ! -e "$konsole_chrome_marker" ] && command -v python3 >/dev/null 2>&1; then
+    if python3 - "${state_dir}/konsolestaterc" <<'PY' >>"$log" 2>&1
+import base64, re, sys
+path = sys.argv[1]
+try:
+    text = open(path).read()
+except OSError:
+    sys.exit("konsole chrome: no state file yet — will hide the toolbars next login")
+m = re.search(r"^State=(.*)$", text, re.M)
+if not m:
+    sys.exit("konsole chrome: state file carries no State blob yet")
+raw = bytearray(base64.b64decode(m.group(1)))
+changed = False
+for name in ("mainToolBar", "sessionToolbar"):
+    i = raw.find(name.encode("utf-16-be"))
+    if i < 0:
+        continue
+    flag = i + len(name) * 2          # the visible flag sits right after the name
+    if flag < len(raw) and raw[flag] == 1:
+        raw[flag] = 0
+        changed = True
+if changed:
+    open(path, "w").write(re.sub(r"^State=.*$",
+                                 "State=" + base64.b64encode(bytes(raw)).decode(),
+                                 text, count=1, flags=re.M))
+    print("konsole chrome: toolbars hidden")
+else:
+    print("konsole chrome: toolbars already hidden")
+PY
+    then
+        touch "$konsole_chrome_marker" 2>/dev/null || true
+        applied=1
+    fi
+fi
 
 # Float the dock for users who already exist.
 #
@@ -512,8 +578,12 @@ if command -v gdbus >/dev/null 2>&1; then
                     } catch (e) {}
                 }
             }
-        ' >>"$log" 2>&1 || echo "system tray migration skipped" >>"$log" 2>&1
+        ' >>"$log" 2>&1 && tray_applied=1 || echo "system tray migration skipped" >>"$log" 2>&1
 fi
+# reloadConfig() above writes the FILE but does NOT rebuild the systray's shown/hidden
+# model in Plasma 6.7 — proven on 6.7.2: the file said "2 shown" while the tray kept
+# drawing 8 across reboots. The shell only re-reads it on a full restart, which happens
+# near the end of this script (once per THEME_REV, never on a steady-state login).
 
 # --- Photos and video ---------------------------------------------------------
 # MoOS now ships gwenview and haruna and declares them in /etc/xdg/mimeapps.list.
@@ -555,6 +625,55 @@ pin_default_apps() {
                     ;;
             esac
         done
+    fi
+
+    # --- IPTV playlists open in MoPlayer -------------------------------------
+    # Shipping the default in /etc/xdg is not the same as the user getting it: a
+    # user's own ~/.config/mimeapps.list outranks the system one, and Plasma writes
+    # to that file the first time anyone touches "Open With" on anything. On an
+    # existing MoOS install, an .m3u therefore still opens in haruna — which plays
+    # it as a *file*, one stream at a time, with no categories, no guide and no
+    # favourites, which is not what the user asked for by double-clicking it.
+    #
+    # Only claim the type when it is unset or currently pointing at something that
+    # is a dead end for a playlist. A user who has deliberately chosen VLC keeps VLC.
+    if [ -f /usr/share/applications/org.moos.moplayer.desktop ]; then
+        for mime in application/x-mpegurl application/vnd.apple.mpegurl audio/x-mpegurl; do
+            current="$(kreadconfig6 --file "$mimeapps" --group "Default Applications" --key "$mime" 2>/dev/null)"
+            case "$current" in
+                ""|*haruna*|*chrome*|*chromium*|*firefox*)
+                    kwriteconfig6 --file "$mimeapps" --group "Default Applications" \
+                        --key "$mime" org.moos.moplayer.desktop
+                    ;;
+            esac
+        done
+        echo "pinned MoPlayer as the IPTV playlist handler in the user's mimeapps.list" >>"$log" 2>/dev/null || true
+    fi
+
+    # --- Windows .exe and Android .apk open in the MoOS runner --------------------
+    # The runner is what turns "MoOS supports Windows apps" into "the .exe you just
+    # downloaded runs when you double-click it": it forwards to Bottles/Waydroid when they
+    # are there, and offers the one-time setup when they are not (moos-run-foreign).
+    #
+    # Pin it for existing users too, because the two defaults they already have are both
+    # dead ends: a raw Bottles association fails silently before Bottles is installed, and
+    # Waydroid's own .apk handler runs `waydroid app install` with no window at all — on a
+    # machine where Android was never initialised, that double-click does nothing.
+    # Never overrule a real third-party choice: only claim the type when it is unset or
+    # still points at one of those two.
+    if [ -f /usr/share/applications/org.moos.runforeign.desktop ]; then
+        for mime in application/x-msdownload application/x-ms-dos-executable \
+                    application/vnd.microsoft.portable-executable application/x-msi \
+                    application/vnd.android.package-archive; do
+            current="$(kreadconfig6 --file "$mimeapps" --group "Default Applications" --key "$mime" 2>/dev/null)"
+            case "$current" in
+                ""|*bottles*|*waydroid*|*runforeign*)
+                    kwriteconfig6 --file "$mimeapps" --group "Default Applications" \
+                        --key "$mime" org.moos.runforeign.desktop
+                    ;;
+            esac
+        done
+        echo "pinned the MoOS app runner for .exe/.msi/.apk in the user's mimeapps.list" >>"$log" 2>/dev/null || true
     fi
 
     command -v update-desktop-database >/dev/null 2>&1 && \
@@ -616,6 +735,25 @@ for rel in \
         echo "removed the user-level copy of $rel; it shadows the image" >>"$log" 2>/dev/null || true
     fi
 done
+
+# Make the collapsed tray actually take effect. Plasma 6.7's writeConfig+reloadConfig set
+# the config file but never rebuild the running systray's shown/hidden model, so the tray
+# keeps drawing every indicator until the shell is restarted (verified on 6.7.2: file said
+# "2 shown", tray drew 8, survived reboots). A full plasmashell restart re-reads the file we
+# just wrote. This whole apply body only runs on a REAL apply (marker missing after a
+# THEME_REV bump, or a self-heal), never on a steady-state login, so this is not a per-login
+# flicker; the per-revision marker also stops a repeated self-heal from thrashing the shell.
+tray_marker="${state_dir}/moos-tray-collapsed.v${THEME_REV}"
+if [ "${tray_applied:-0}" = "1" ] && [ ! -e "$tray_marker" ]; then
+    if ! systemctl --user restart plasma-plasmashell.service >>"$log" 2>&1; then
+        kquitapp6 plasmashell >>"$log" 2>&1 || true
+        sleep 1
+        setsid kstart plasmashell >>"$log" 2>&1 &
+    fi
+    touch "$tray_marker" 2>/dev/null || true
+    applied=1
+    echo "restarted plasmashell so the collapsed tray takes hold" >>"$log" 2>/dev/null || true
+fi
 
 # Only mark done if something actually applied — otherwise retry next login.
 if [ "$applied" = "1" ]; then

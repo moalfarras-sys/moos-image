@@ -17,6 +17,24 @@
 [Default Applications]
 x-scheme-handler/moos=org.moos.urlhandler.desktop
 
+# Double-click a Windows .exe or an Android .apk and it RUNS (moos-run-foreign).
+#
+# All four types are needed, and none of them is guesswork — this is what the mime database
+# on this image actually says (`/usr/share/mime/globs2`, `aliases`, `subclasses`):
+#   *.exe wins on x-msdownload (weight 50), of which x-ms-dos-executable — the type Bottles
+#   itself claims — is only an ALIAS, while vnd.microsoft.portable-executable is a SUBCLASS
+#   that a real PE binary sniffs as and that NOTHING on the image handled: that .exe opened
+#   in a text editor.
+# The .apk type already had a handler (waydroid.app.install.desktop) and it is worse than
+# nothing: it shells out to `waydroid app install` with no window, so on a machine where
+# Android was never initialised the double-click silently does nothing at all. Ours explains,
+# offers the one-time setup, starts the container, and shows the install in a real terminal.
+application/x-msdownload=org.moos.runforeign.desktop
+application/x-ms-dos-executable=org.moos.runforeign.desktop
+application/vnd.microsoft.portable-executable=org.moos.runforeign.desktop
+application/x-msi=org.moos.runforeign.desktop
+application/vnd.android.package-archive=org.moos.runforeign.desktop
+
 image/png=org.kde.gwenview.desktop
 image/jpeg=org.kde.gwenview.desktop
 image/gif=org.kde.gwenview.desktop
@@ -28,6 +46,14 @@ image/avif=org.kde.gwenview.desktop
 image/heif=org.kde.gwenview.desktop
 image/jxl=org.kde.gwenview.desktop
 image/x-icon=org.kde.gwenview.desktop
+
+# Playlists are MoPlayer's, not haruna's. haruna claims the whole video/* family
+# and would otherwise take an IPTV playlist too — and open it as a *file*, one
+# stream at a time, with no categories, no EPG and no favourites. Double-clicking
+# an .m3u in Dolphin should open the IPTV player the system ships.
+application/x-mpegurl=org.moos.moplayer.desktop
+application/vnd.apple.mpegurl=org.moos.moplayer.desktop
+audio/x-mpegurl=org.moos.moplayer.desktop
 
 video/mp4=org.kde.haruna.desktop
 video/x-matroska=org.kde.haruna.desktop

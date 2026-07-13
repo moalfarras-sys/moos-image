@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AppStream metadata for MoPlayer.
+
+  Without this file the app has a launcher and nothing else: no entry in Discover
+  or Bazaar, no description in the software centre, and `appstream-compose` —
+  which the image runs over /usr/share/applications — has nothing to compose. A
+  first-party application that the OS's own software list cannot describe is not
+  really part of the OS.
+-->
+<component type="desktop-application">
+  <id>org.moos.moplayer</id>
+  <launchable type="desktop-id">org.moos.moplayer.desktop</launchable>
+
+  <name>MoPlayer</name>
+  <name xml:lang="ar">MoPlayer</name>
+  <name xml:lang="de">MoPlayer</name>
+
+  <summary>Live TV, movies and series from your IPTV source</summary>
+  <summary xml:lang="ar">البث المباشر والأفلام والمسلسلات من مصدر IPTV الخاص بك</summary>
+  <summary xml:lang="de">Live-TV, Filme und Serien aus Ihrer IPTV-Quelle</summary>
+
+  <description>
+    <p>
+      MoPlayer is the media player MoOS ships with: a cinematic IPTV client for
+      live television, films and series. It connects to an Xtream Codes account
+      or an M3U playlist, and it plays through libmpv — the same engine the
+      system already provides — so it adds no codec stack of its own.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Live television with a programme guide, categories and favourites</li>
+      <li>Films and series, with seasons, episodes and resume</li>
+      <li>Continue watching, watch history and a global search</li>
+      <li>Media keys and the Plasma media applet, over MPRIS</li>
+      <li>Arabic, English and German, with a full right-to-left interface</li>
+    </ul>
+
+    <p xml:lang="ar">
+      MoPlayer هو مشغّل الوسائط الذي يأتي مع نظام MoOS: تطبيق IPTV سينمائي للبث
+      المباشر والأفلام والمسلسلات. يتصل بحساب Xtream Codes أو بقائمة M3U، ويشغّل
+      عبر libmpv — المحرّك الذي يوفّره النظام أصلاً — فلا يضيف أي حزمة ترميز خاصة به.
+    </p>
+    <p xml:lang="de">
+      MoPlayer ist der Medienplayer, den MoOS mitliefert: ein kinoreifer
+      IPTV-Client für Live-Fernsehen, Filme und Serien. Er verbindet sich mit
+      einem Xtream-Codes-Konto oder einer M3U-Playlist und spielt über libmpv ab —
+      die Engine, die das System ohnehin bereitstellt.
+    </p>
+  </description>
+
+  <categories>
+    <category>AudioVideo</category>
+    <category>Video</category>
+    <category>Player</category>
+    <category>TV</category>
+  </categories>
+
+  <keywords>
+    <keyword>iptv</keyword>
+    <keyword>tv</keyword>
+    <keyword>m3u</keyword>
+    <keyword>xtream</keyword>
+    <keyword>stream</keyword>
+  </keywords>
+
+  <icon type="stock">moos-moplayer</icon>
+
+  <developer id="space.moalfarras">
+    <name>Moalfarras</name>
+  </developer>
+
+  <project_license>LicenseRef-proprietary</project_license>
+  <metadata_license>CC0-1.0</metadata_license>
+
+  <!--
+    MoPlayer plays whatever the user's own IPTV source serves it. It ships no
+    content of its own, and it cannot vouch for what a third-party panel carries —
+    so the rating describes the application, and the source is the user's choice.
+  -->
+  <content_rating type="oars-1.1"/>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+    <control>gamepad</control>
+  </supports>
+
+  <recommends>
+    <display_length compare="ge">1280</display_length>
+  </recommends>
+
+  <releases>
+    <release version="1.0.0" date="2026-07-13">
+      <description>
+        <p>The first release that ships inside the MoOS image.</p>
+      </description>
+    </release>
+  </releases>
+</component>

@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# moplayer — launch MoPlayer on MoOS.
+#
+# The app is a Flutter bundle: one ELF binary plus its data directory, which must
+# be its working directory's sibling. Installing the binary alone into /usr/bin
+# and running it from anywhere is the single most common way to get
+# "Failed to load resources" — so the real bundle lives in /usr/lib/moplayer and
+# this launcher is what /usr/bin/moplayer actually is.
+set -uo pipefail
+
+BUNDLE="${MOPLAYER_BUNDLE:-/usr/lib/moplayer}"
+BIN="$BUNDLE/moplayer"
+
+if [ ! -x "$BIN" ]; then
+    echo "moplayer: bundle not found at $BUNDLE" >&2
+    echo "moplayer: لم يتم العثور على التطبيق | reinstall MoPlayer" >&2
+    exit 1
+fi
+
+# libmpv is the playback engine (media_kit binds it). MoOS ships it as mpv-libs;
+# on another distro it may simply not be there, and the failure would otherwise be
+# a black window rather than a message.
+#
+# `ldconfig` lives in /usr/sbin, which is NOT on a normal user's PATH on Fedora —
+# calling it bare made this check fail on the very system that *does* have libmpv,
+# and the app told its own users to install a library they already had. Call it by
+# path, and fall back to looking for the file.
+has_libmpv() {
+    for ldc in /usr/sbin/ldconfig /sbin/ldconfig ldconfig; do
+        if command -v "$ldc" >/dev/null 2>&1; then
+            "$ldc" -p 2>/dev/null | grep -q 'libmpv\.so' && return 0
+        fi
+    done
+    compgen -G '/usr/lib64/libmpv.so*' >/dev/null 2>&1 && return 0
+    compgen -G '/usr/lib/*/libmpv.so*' >/dev/null 2>&1 && return 0
+    return 1
+}
+
+# A hard failure, not a warning.
+#
+# The app links libmpv; without it the dynamic loader kills the process before
+# main() with "error while loading shared libraries", and the user sees a window
+# that never appears. Warning and then exec-ing into that is strictly worse than
+# saying so: it turns a legible message into a silent non-start.
+if ! has_libmpv; then
+    echo "moplayer: libmpv not found — MoPlayer cannot play anything without it." >&2
+    echo "moplayer: لم يُعثر على libmpv — ثبّته | install it:" >&2
+    echo "moplayer: libmpv nicht gefunden — installieren:" >&2
+    echo "    sudo rpm-ostree install mpv-libs" >&2
+    exit 1
+fi
+
+# Prefer the Wayland backend. Flutter's GTK embedder will happily fall back to
+# XWayland, where it loses fractional scaling and hands KWin an X11 window that
+# the Wayland app_id rules above do not apply to.
+if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] && [ -z "${GDK_BACKEND:-}" ]; then
+    export GDK_BACKEND=wayland
+fi
+
+cd "$BUNDLE" || exit 1
+
+# Make sure there is a GPU left to render on.
+#
+# MoOS ships a local LLM that holds ~6 GB of an 8 GB card for as long as it is loaded, and
+# with that little memory left EGL cannot create a context: `eglMakeCurrent failed`, then
+# libepoxy asserts and the process ABORTS. The user's own operating system kills its own
+# video player, silently, because its own assistant is holding the graphics card. Measured
+# on the maintainer's machine on 2026-07-13 — core dumps and all.
+#
+# moos-gpu-headroom unloads ONLY the local brain, and only when the card is nearly full;
+# the brain reloads itself on the next Mo AI message. It never touches anything else, and it
+# can never stop this launch: it is advisory, and a failure inside it is ignored. On a
+# machine without MoOS the command does not exist and this line is a no-op.
+command -v moos-gpu-headroom >/dev/null 2>&1 && moos-gpu-headroom || true
+
+# The log is opt-in, and that is a security decision rather than a tidiness one.
+#
+# This launcher used to tee stderr into ~/.cache/moplayer.log on every start. An
+# Xtream source is a URL with the username and the password in its query string,
+# and any stream error that quotes the URL it failed on would have written the
+# user's credentials to a plain file, on every run, forever — a log nobody asked
+# for and nobody would think to clear.
+#
+# `MOPLAYER_LOG=info moplayer` turns it on when someone is actually debugging,
+# which is the only time it was ever read.
+if [ -n "${MOPLAYER_LOG:-}" ]; then
+    LOG="${XDG_CACHE_HOME:-$HOME/.cache}/moplayer.log"
+    mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
+    echo "=== moplayer launch $(date -u '+%Y-%m-%dT%H:%M:%SZ') ===" >>"$LOG" 2>/dev/null || true
+    exec "$BIN" "$@" 2> >(tee -a "$LOG" >&2)
+fi
+
+exec "$BIN" "$@"

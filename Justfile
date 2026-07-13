@@ -15,9 +15,25 @@ base_main := "ghcr.io/ublue-os/kinoite-main:44"
 default:
     @just --list
 
+# The repo gates — the ones that read what is ABOUT to be shipped.
+#
+# These existed and nothing ran them. build.sh runs verify_image_experience.py inside the
+# container, but the three tests under tests/ were honour-system: not in `just build`, not in
+# the CI workflow. Every gate a session added ("a gate now guards this") could go red for
+# weeks and no build would notice — which is the same failure AGENTS.md documents for the
+# identity gate that ran before `set -e`. A gate that cannot fail a build is a comment.
+#
+# They run in seconds and need no container, so they go FIRST: a typo in a Konsole group name
+# or a Mo AI button pointing at a command that does not exist should cost you 3 seconds, not a
+# 20-minute image build.
+check:
+    python3 tests/verify_user_experience.py
+    python3 tests/test_device_plan.py
+    python3 tests/test_moai_do.py
+
 # Build the main MoOS image. The base is pinned in the Containerfile on purpose — both
 # editions must share it (see the comment there); it is not a build-arg any more.
-build:
+build: check
     podman build \
         --build-arg IMAGE_NAME={{ image_name }} \
         -t {{ image_name }}:latest \
@@ -28,7 +44,7 @@ build:
 # abandoned in May, which silently made the "NVIDIA image" ~589 packages older than the
 # generic one.) The akmods tag is pinned to the base image's exact kernel: a kmod built for
 # a different kernel does not load, and the machine boots to a black screen.
-build-nvidia:
+build-nvidia: check
     #!/usr/bin/env bash
     set -euo pipefail
     kernel="$(skopeo inspect docker://{{ base_main }} | jq -er '.Labels["ostree.linux"]')"
@@ -47,3 +63,67 @@ lint:
 # Remove locally built MoOS images
 clean:
     -podman rmi -f {{ image_name }}:latest {{ image_name }}-nvidia:latest
+
+# Re-vendor MoPlayer's source from its own repository.
+#
+# The image builds MoPlayer from source in a Containerfile stage (see
+# `moplayer/VENDORED.md`), so this directory has to be a faithful copy of the app's
+# tree. It copies exactly what MoPlayer's git tracks — never the 40 MB build
+# output, never .dart_tool, never linux/flutter/ephemeral.
+#
+# And "what git tracks" is exactly why the working tree has to be clean first.
+# `git ls-files` lists tracked files, so a NEW file that has not been committed is
+# copied by nobody: the vendored tree gets the imports and not the file they point
+# at, and the failure surfaces twenty minutes later, inside a container, as a Dart
+# compile error about a URI that does not exist. That happened. A modified-but-
+# uncommitted file is worse in a quieter way — the image would ship a build of
+# source that exists on no branch, and nothing could ever reproduce it.
+sync-moplayer:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    SRC="${MOPLAYER_SRC:-$(pwd)/../MoPlayerMoOS}"
+    [ -f "$SRC/pubspec.yaml" ] || { echo "sync-moplayer: no MoPlayer tree at $SRC" >&2; exit 1; }
+
+    DIRT="$(cd "$SRC" && git status --porcelain)"
+    if [ -n "$DIRT" ]; then
+        echo "sync-moplayer: MoPlayer's tree is not clean — refusing to vendor it." >&2
+        echo "" >&2
+        echo "$DIRT" >&2
+        echo "" >&2
+        echo "  A vendored copy is built from 'git ls-files'. An untracked file is" >&2
+        echo "  copied by NOBODY, and the image then compiles source with a missing" >&2
+        echo "  import; a modified one would ship a build of code that exists on no" >&2
+        echo "  branch. Commit (or stash) in $SRC first." >&2
+        exit 1
+    fi
+
+    REV="$(cd "$SRC" && git rev-parse --short HEAD)"
+    echo "==> syncing from $SRC @ $REV"
+    rm -rf moplayer.tmp && mkdir -p moplayer.tmp
+    (cd "$SRC" && git ls-files) | while read -r f; do
+        mkdir -p "moplayer.tmp/$(dirname "$f")"
+        cp "$SRC/$f" "moplayer.tmp/$f"
+    done
+    cp moplayer/VENDORED.md moplayer.tmp/VENDORED.md
+    rm -rf moplayer && mv moplayer.tmp moplayer
+
+    # The launcher, the desktop entry and the icons are the app's, not the image's
+    # — they live in MoPlayer's packaging/ and the image only carries a copy. Copy
+    # it here rather than printing a reminder: a reminder is a step someone skips,
+    # and the step that gets skipped is the one that drops the GPU-headroom guard
+    # out of the launcher and lets the player abort on a full graphics card.
+    install -D -m0755 moplayer/packaging/moos/moplayer system_files/usr/bin/moplayer
+    install -D -m0644 moplayer/packaging/moos/org.moos.moplayer.desktop \
+        system_files/usr/share/applications/org.moos.moplayer.desktop
+    install -D -m0644 moplayer/packaging/moos/org.moos.moplayer.metainfo.xml \
+        system_files/usr/share/metainfo/org.moos.moplayer.metainfo.xml
+    for png in moplayer/packaging/moos/icons/hicolor/*/apps/*.png; do
+        size="$(basename "$(dirname "$(dirname "$png")")")"
+        install -D -m0644 "$png" "system_files/usr/share/icons/hicolor/$size/apps/$(basename "$png")"
+    done
+    for svg in moplayer/packaging/moos/icons/hicolor/scalable/apps/*.svg; do
+        [ -e "$svg" ] || continue
+        install -D -m0644 "$svg" "system_files/usr/share/icons/hicolor/scalable/apps/$(basename "$svg")"
+    done
+
+    echo "==> vendored $(find moplayer -type f | wc -l) files ($(du -sh moplayer | cut -f1)) and installed its packaging"

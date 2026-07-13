@@ -51,6 +51,7 @@ launcher.writeConfig("switchCategoryOnHover", true);
 launcher.writeConfig("favorites", [
     "org.moos.moai.desktop",
     "preferred://browser",
+    "org.moos.moplayer.desktop",
     "org.kde.dolphin.desktop",
     "systemsettings.desktop",
     "org.moos.updater.desktop",
@@ -71,6 +72,7 @@ tasks.currentConfigGroup = ["General"];
 tasks.writeConfig("launchers", [
     "applications:org.moos.moai.desktop",
     "preferred://browser",
+    "applications:org.moos.moplayer.desktop",
     "applications:org.kde.dolphin.desktop",
     "applications:org.moos.remote.desktop",
     "applications:systemsettings.desktop",

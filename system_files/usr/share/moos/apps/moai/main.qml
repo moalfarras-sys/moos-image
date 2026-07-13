@@ -174,13 +174,31 @@ Kirigami.ApplicationWindow {
         "NVIDIA edition — applies on reboot, the previous system is kept for " +
         "rollback), `moai-do update-firmware` (device firmware via fwupd).\n" +
         "• Install ANY app: `moai-do install <flatpak-id>` — e.g. `moai-do install " +
-        "org.blender.Blender`. Prefer Flatpaks over layering rpm-ostree packages. If " +
-        "you are not certain of an app id, tell the user to search it in the Apps " +
-        "panel rather than guessing one.\n" +
-        "• Compatibility: `moai-do setup-waydroid` (Android apps), `moai-do " +
-        "install com.valvesoftware.Steam` (Windows games via Proton), `moai-do " +
-        "install com.usebottles.bottles` (Windows apps).\n" +
-        "• Coding agents: `moai-do install-codex`, `moai-do install-claude` — they " +
+        "org.blender.Blender`. It DOWNLOADS the app AND OPENS it when done, so a " +
+        "request like “install a camera” ends with the camera on screen. Prefer " +
+        "Flatpaks over layering rpm-ostree packages, and prefer apps built for KDE " +
+        "Plasma / Wayland — an app made for another desktop can install fine and then " +
+        "crash on launch. For a CAMERA use `org.kde.kamoso` (KDE-native, works here); " +
+        "NEVER `io.github.cosmic_utils.camera` — it is a COSMIC-desktop app and panics " +
+        "on KDE. If you are not certain of an app id, tell the user to search it in " +
+        "the Apps panel rather than guessing one.\n" +
+        "• Run apps from OTHER systems, for real:\n" +
+        "   – DOUBLE-CLICK IS ENOUGH. A downloaded .exe or .apk runs when the user opens " +
+        "it in Files: MoOS hands it to the right layer, and if that layer is not installed " +
+        "yet it offers the one-time setup right there. Say that FIRST — the setup commands " +
+        "below are for someone who wants to prepare the machine in advance.\n" +
+        "   – Windows programs: `moai-do setup-windows` installs Bottles (managed Wine) " +
+        "and opens it, so any .exe runs. For games use `moai-do setup-gaming` (Steam + " +
+        "Proton + Lutris); `moai-do install net.lutris.Lutris` manages both.\n" +
+        "   – Android apps: `moai-do setup-waydroid` boots a real Android container " +
+        "(idempotent — safe to re-run); afterwards Android apps appear in the launcher " +
+        "like any other app, and an APK installs by double-clicking it (or " +
+        "`waydroid app install <file>`).\n" +
+        "• Coding agents, and ONE OF THEM NEEDS NO ACCOUNT: `moai-do install-opencode` " +
+        "installs OpenCode wired to THIS MACHINE'S OWN brain — it codes with no cloud, no " +
+        "login and no internet, and MoOS writes its provider config for the user. Recommend " +
+        "it FIRST to anyone who has no AI subscription. The other two are cloud agents and " +
+        "each needs its vendor account: `moai-do install-codex`, `moai-do install-claude` — they " +
         "install into ~/.local and run as the user, with no admin rights.\n" +
         "• Diagnose: explain the likely cause in plain language, then give the " +
         "SMALLEST safe repair.\n\n" +
@@ -197,23 +215,41 @@ Kirigami.ApplicationWindow {
         "STYLE: concise and friendly, in the user's language (العربية RTL or English), " +
         "short bullets, code blocks for commands."
 
+    // Every bilingual message below is written as ONE PARAGRAPH PER LANGUAGE, and each
+    // paragraph is stamped with its own directional mark (‏ = RLM, ‎ = LRM).
+    //
+    // Both halves of that are load-bearing, and the greeting — the first thing a new user
+    // reads — proved it. These are Markdown, and in Markdown a single "\n" is a soft wrap,
+    // not a paragraph break: the Arabic sentence and the English one merged into a single
+    // bidi paragraph, whose base direction comes from its first strong character (Arabic).
+    // So the English sentence was laid out right-to-left and its full stop jumped to the
+    // front — the user's first impression of MoOS's assistant was ".the system, install any
+    // app, clean things up, and run Mo PC Remote". A blank line makes each language its own
+    // paragraph; the mark then pins that paragraph's direction instead of leaving it to
+    // whatever character happens to come first (an English line that opens with "Mo AI"
+    // would still resolve fine, but one that opens with a digit or "«" would not).
     readonly property string offlineHelp:
-        "العقل المحلي غير مشغّل.\nThe local brain is off.\n\n" +
-        "اضغط **«شغّل العقل المحلي»** بالأسفل — أو شغّل `moai-start` في الطرفية.\n" +
-        "Tap **“Start local brain”** below — or run `moai-start` in a terminal.\n\n" +
-        "ثم أعد المحاولة | then try again."
+        "‏العقل المحلي غير مشغّل.\n\n" +
+        "‎The local brain is off.\n\n" +
+        "‏اضغط **«شغّل العقل المحلي»** بالأسفل — أو شغّل `moai-start` في الطرفية.\n\n" +
+        "‎Tap **“Start local brain”** below — or run `moai-start` in a terminal.\n\n" +
+        "‏ثم أعد المحاولة | then try again."
 
     readonly property string startingHelp:
-        "العقل المحلي يبدأ الآن… أول تشغيل يُحمّل النموذج (~2.5GB) وقد يأخذ دقائق.\n" +
-        "The local brain is starting… the first run downloads the model (~2.5 GB) and may take a few minutes.\n\n" +
-        "سأصبح جاهزاً تلقائياً عند الانتهاء. | I'll be ready automatically once it finishes."
+        "‏العقل المحلي يبدأ الآن… أول تشغيل يُحمّل النموذج (~2.5GB) وقد يأخذ دقائق.\n\n" +
+        "‎The local brain is starting… the first run downloads the model (~2.5 GB) and may take a few minutes.\n\n" +
+        "‏سأصبح جاهزاً تلقائياً عند الانتهاء. | I'll be ready automatically once it finishes."
 
     readonly property string greetingText:
-        "مرحباً! أنا **Mo AI** — مساعد MoOS.\n" +
-        "Hi! I'm **Mo AI** — your MoOS assistant.\n\n" +
-        "أقدر أصلّح التعريفات، أحدّث النظام، أثبّت أي تطبيق، أنظّف الجهاز، وأشغّل Mo PC Remote.\n" +
-        "I can fix drivers, update the system, install any app, clean things up, and run Mo PC Remote.\n\n" +
-        "_اسألني، أو استخدم الشريط الجانبي. | Ask me, or use the side rail._"
+        "‏مرحباً! أنا **Mo AI** — مساعد MoOS.\n\n" +
+        "‎Hi! I'm **Mo AI** — your MoOS assistant.\n\n" +
+        "‏أقدر أصلّح التعريفات، أحدّث النظام، أثبّت أي تطبيق، أنظّف الجهاز، وأشغّل Mo PC Remote.\n\n" +
+        "‎I can fix drivers, update the system, install any app, clean things up, and run Mo PC Remote.\n\n" +
+        // The mark goes INSIDE the emphasis: Markdown needs the "_" to open the run, and a
+        // directional mark in front of it turns the whole thing into literal underscores
+        // (seen on screen). Inside, it still sets the paragraph's direction.
+        "_‏اسألني، أو استخدم الشريط الجانبي._\n\n" +
+        "_‎Ask me, or use the side rail._"
 
     readonly property var starters: [
         { ar: "حدّث نظامي",     en: "Update my system", send: "حدّث نظام MoOS من فضلك" },
@@ -238,12 +274,47 @@ Kirigami.ApplicationWindow {
         { key: "steam",      title: "Steam + Proton", ar: "ألعاب Windows", en: "Windows games",
           url: "moos://do/setup-gaming", icon: "moos-gaming" },
         { key: "bottles",    title: "Bottles", ar: "تطبيقات Windows", en: "Windows apps",
-          url: "moos://apps/install/com.usebottles.bottles", icon: "moos-system" },
+          url: "moos://do/setup-windows", icon: "moos-system" },
         { key: "waydroid",   title: "Waydroid", ar: "تطبيقات Android", en: "Android apps",
           url: "moos://do/setup-waydroid", icon: "moos-android-apps" },
         { key: "kdeconnect", title: "KDE Connect", ar: "ربط الهاتف", en: "Phone integration",
           url: "moos://apps/install/org.kde.kdeconnect", icon: "moos-phone" }
     ]
+
+    // Pin every paragraph's direction to its OWN language.
+    //
+    // The greeting above can be written correctly by hand; a model's reply cannot. Mo AI is
+    // asked questions in Arabic and answers with English identifiers, paths and commands in
+    // the middle of Arabic sentences — and Qt hands the whole Text one base direction, taken
+    // from the first strong character it finds. One Arabic word at the top drags every
+    // English line right-to-left and throws its punctuation to the front of the sentence.
+    //
+    // So stamp each paragraph with the mark its own first strong character calls for. What it
+    // must NOT do is break the Markdown: a mark inserted before "#" or "-" or "```" stops
+    // that line from being a heading, a bullet or a fence. Hence the skip-list — lines that
+    // start with Markdown syntax are left exactly as they are (their content is nearly always
+    // code or identifiers anyway, which are LTR by nature).
+    function bidiFix(s) {
+        if (!s)
+            return s
+        const arabic = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/
+        const latin = /[A-Za-z]/
+        // Lines that OPEN with Markdown syntax are left alone — a mark in front of "#", "-",
+        // "```" or "_" stops that line from being a heading, a bullet, a fence or an emphasis
+        // run, and prints the syntax as literal text (seen on screen with the greeting's
+        // italic line).
+        const markdown = /^\s*(#{1,6}\s|[-*+]\s|\d+\.\s|>|```|\||[_*]|\s*$)/
+        return s.split("\n").map(function (line) {
+            if (markdown.test(line) || line.charAt(0) === "‎" || line.charAt(0) === "‏")
+                return line
+            const ar = line.search(arabic)
+            const la = line.search(latin)
+            if (ar < 0 && la < 0)
+                return line
+            const rtl = ar >= 0 && (la < 0 || ar < la)
+            return (rtl ? "‏" : "‎") + line
+        }).join("\n")
+    }
 
     // The apps we recommend. Anything else is found by searching Flathub.
     readonly property var appCatalog: [
@@ -251,6 +322,7 @@ Kirigami.ApplicationWindow {
         { id: "org.mozilla.firefox",      title: "Firefox",     ar: "متصفح ويب",      en: "Web browser" },
         { id: "org.videolan.VLC",         title: "VLC",         ar: "مشغل وسائط",     en: "Media player" },
         { id: "org.libreoffice.LibreOffice", title: "LibreOffice", ar: "حزمة مكتبية", en: "Office suite" },
+        { id: "org.kde.kamoso",           title: "Kamoso",      ar: "الكاميرا",       en: "Camera" },
         { id: "com.github.tchx84.Flatseal", title: "Flatseal",  ar: "صلاحيات التطبيقات", en: "App permissions" }
     ]
 
@@ -1154,7 +1226,7 @@ Kirigami.ApplicationWindow {
                                     case "apps":   return "ابحث وثبّت أي تطبيق | search and install anything"
                                     case "compat": return "Windows · Android · الألعاب"
                                     case "remote": return "تحكّم بجهازك من هاتفك | control this PC from your phone"
-                                    case "dev":    return "Codex · Claude Code"
+                                    case "dev":    return "OpenCode · Claude Code · Codex"
                                     default:       return "مساعد MoOS | MoOS assistant"
                                     }
                                 }
@@ -1250,7 +1322,10 @@ Kirigami.ApplicationWindow {
                                         x: 14
                                         y: 11
                                         width: Math.min(implicitWidth, (msg.width * 0.80) - 28)
-                                        text: msg.text
+                                        // Per-paragraph direction: an Arabic answer that quotes an
+                                        // English command must not drag the command's punctuation to
+                                        // the wrong end of the line. See root.bidiFix.
+                                        text: root.bidiFix(msg.text)
                                         textFormat: msg.role === "assistant"
                                                     ? Text.MarkdownText : Text.PlainText
                                         wrapMode: Text.Wrap
@@ -1880,6 +1955,14 @@ Kirigami.ApplicationWindow {
                                         required property string summary
                                         required property bool installed
                                         required property bool verified
+                                        // The decision layer (moai-control): `recommended` is the
+                                        // desktop-native answer to the NEED behind the query, and
+                                        // `note` says why — or warns that an app is built for
+                                        // another desktop and will crash here. Shipping the
+                                        // ranking without showing it is the same as not shipping
+                                        // it: the user still cannot tell the two apart.
+                                        required property bool recommended
+                                        required property string note
                                         Layout.fillWidth: true
 
                                         RowLayout {
@@ -1918,6 +2001,27 @@ Kirigami.ApplicationWindow {
                                                         font.pixelSize: 12
                                                         font.weight: Font.Bold
                                                     }
+                                                    // The MoOS pick, said out loud.
+                                                    Rectangle {
+                                                        visible: hit.recommended
+                                                        Layout.preferredHeight: 17
+                                                        Layout.preferredWidth: pickLabel.width + 12
+                                                        radius: 5
+                                                        color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
+                                                                       root.novaCyan.b, 0.14)
+                                                        border.width: 1
+                                                        border.color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
+                                                                              root.novaCyan.b, 0.45)
+                                                        Text {
+                                                            id: pickLabel
+                                                            anchors.centerIn: parent
+                                                            text: "اختيار MoOS  |  MoOS pick"
+                                                            color: root.novaCyan
+                                                            font.family: root.uiFont
+                                                            font.pixelSize: 9
+                                                            font.weight: Font.DemiBold
+                                                        }
+                                                    }
                                                 }
                                                 Text {
                                                     Layout.fillWidth: true
@@ -1926,6 +2030,18 @@ Kirigami.ApplicationWindow {
                                                     font.family: root.uiFont
                                                     font.pixelSize: 11
                                                     elide: Text.ElideRight
+                                                }
+                                                // Why this one — or why NOT that one. Cyan when it is
+                                                // the pick, amber when the app targets another desktop
+                                                // and will not survive here.
+                                                Text {
+                                                    visible: hit.note !== ""
+                                                    Layout.fillWidth: true
+                                                    text: (hit.recommended ? "✓ " : "⚠ ") + hit.note
+                                                    color: hit.recommended ? root.novaCyan : "#F5A524"
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: 10
+                                                    wrapMode: Text.WordWrap
                                                 }
                                                 Text {
                                                     text: hit.id
@@ -2313,16 +2429,31 @@ Kirigami.ApplicationWindow {
 
                             SectionNote {
                                 Layout.fillWidth: true
-                                text: "وكلاء برمجة يشتغلون داخل مشروعك كمستخدم عادي — يُثبَّتون في ~/.local، بلا صلاحيات مسؤول ولا مساس بالنظام.\n"
-                                    + "Coding agents that run in your project as your user — installed into ~/.local, with no admin rights and no changes to the system."
+                                text: "‏وكلاء برمجة يشتغلون داخل مشروعك كمستخدم عادي — يُثبَّتون في ~/.local، بلا صلاحيات مسؤول ولا مساس بالنظام.\n"
+                                    + "‎Coding agents that run in your project as your user — installed into ~/.local, with no admin rights and no changes to the system."
                             }
 
                             Repeater {
+                                // Two of these are somebody else's cloud, and one is not — which is
+                                // the only distinction that matters on a machine that ships its own
+                                // brain, so the card says it out loud. `local: true` earns the
+                                // "works offline" badge and the cyan frame; the other two carry the
+                                // account they need, because "why is it asking me to log in?" is the
+                                // first thing a user hits otherwise.
                                 model: [
-                                    { key: "claude", title: "Claude Code", ar: "وكيل Anthropic البرمجي", en: "Anthropic's coding agent",
+                                    { key: "opencode", title: "OpenCode", local: true,
+                                      ar: "وكيل يعمل على عقل MoOS المحلي", en: "Runs on the MoOS local brain",
+                                      needs: "بلا حساب وبلا إنترنت  |  no account, no internet",
+                                      pkg: "opencode-ai",
+                                      install: "moos://do/install-opencode", run: "moos://dev/opencode" },
+                                    { key: "claude", title: "Claude Code", local: false,
+                                      ar: "وكيل Anthropic البرمجي", en: "Anthropic's coding agent",
+                                      needs: "يحتاج حساب Anthropic  |  needs an Anthropic account",
                                       pkg: "@anthropic-ai/claude-code",
                                       install: "moos://do/install-claude", run: "moos://dev/claude" },
-                                    { key: "codex", title: "Codex", ar: "وكيل OpenAI البرمجي", en: "OpenAI's coding agent",
+                                    { key: "codex", title: "Codex", local: false,
+                                      ar: "وكيل OpenAI البرمجي", en: "OpenAI's coding agent",
+                                      needs: "يحتاج حساب OpenAI  |  needs an OpenAI account",
                                       pkg: "@openai/codex",
                                       install: "moos://do/install-codex", run: "moos://dev/codex" }
                                 ]
@@ -2330,7 +2461,16 @@ Kirigami.ApplicationWindow {
                                     id: ag
                                     required property var modelData
                                     readonly property bool have: !!root.agentState[modelData.key]
+                                    readonly property bool onDevice: !!modelData.local
                                     Layout.fillWidth: true
+
+                                    // The local agent is the one MoOS is actually proud of, so it
+                                    // reads as first-party: a cyan hairline instead of the default.
+                                    // Card IS a Rectangle, so this overrides its border binding —
+                                    // there is no borderColor property to invent.
+                                    border.color: ag.onDevice
+                                                  ? Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.42)
+                                                  : root.hairline
 
                                     RowLayout {
                                         width: parent.width
@@ -2340,12 +2480,17 @@ Kirigami.ApplicationWindow {
                                             Layout.preferredWidth: 40
                                             Layout.preferredHeight: 40
                                             radius: 11
-                                            color: ag.have ? Qt.rgba(0.21, 0.83, 0.60, 0.13) : root.surface2
+                                            color: ag.have
+                                                   ? Qt.rgba(0.21, 0.83, 0.60, 0.13)
+                                                   : (ag.onDevice
+                                                      ? Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.12)
+                                                      : root.surface2)
                                             Kirigami.Icon {
                                                 anchors.centerIn: parent
                                                 width: 21; height: 21
-                                                source: "utilities-terminal"
-                                                color: ag.have ? root.okColor : root.textMute
+                                                source: ag.onDevice ? "moos-ai" : "utilities-terminal"
+                                                color: ag.have ? root.okColor
+                                                               : (ag.onDevice ? root.novaCyan : root.textMute)
                                             }
                                         }
                                         ColumnLayout {
@@ -2365,6 +2510,29 @@ Kirigami.ApplicationWindow {
                                                     goodText: "مثبّت | Installed"
                                                     badText: "غير مثبّت | Not installed"
                                                 }
+                                                // The badge that is the whole point of shipping a
+                                                // local brain: an agent that keeps working when the
+                                                // network does not.
+                                                Rectangle {
+                                                    visible: ag.onDevice
+                                                    Layout.preferredHeight: 18
+                                                    Layout.preferredWidth: offlineText.width + 14
+                                                    radius: 6
+                                                    color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
+                                                                   root.novaCyan.b, 0.14)
+                                                    border.width: 1
+                                                    border.color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
+                                                                          root.novaCyan.b, 0.45)
+                                                    Text {
+                                                        id: offlineText
+                                                        anchors.centerIn: parent
+                                                        text: "يعمل بلا إنترنت  |  offline"
+                                                        color: root.novaCyan
+                                                        font.family: root.uiFont
+                                                        font.pixelSize: 9
+                                                        font.weight: Font.DemiBold
+                                                    }
+                                                }
                                             }
                                             Text {
                                                 Layout.fillWidth: true
@@ -2372,6 +2540,14 @@ Kirigami.ApplicationWindow {
                                                 color: root.textLo
                                                 font.family: root.uiFont
                                                 font.pixelSize: 11
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: ag.modelData.needs
+                                                color: ag.onDevice ? root.novaCyan : root.textMute
+                                                opacity: ag.onDevice ? 0.95 : 0.8
+                                                font.family: root.uiFont
+                                                font.pixelSize: 10
                                             }
                                             Text {
                                                 text: ag.modelData.pkg
@@ -2396,7 +2572,11 @@ Kirigami.ApplicationWindow {
                                 Layout.topMargin: 4
                                 label: "افتح وكيلاً في مشروع  |  Open an agent in a project"
                                 icon: "utilities-terminal"
+                                // Enabled when ANY agent is installed — moai-code builds its picker
+                                // from what is actually on the machine, so a third agent must not
+                                // be forgotten here (the old condition named two by hand).
                                 enabled_: !!root.agentState.claude || !!root.agentState.codex
+                                          || !!root.agentState.opencode
                                 onClicked: root.launch("moos://dev/code", "Code")
                             }
                         }

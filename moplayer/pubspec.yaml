@@ -1,0 +1,90 @@
+name: moplayer_moos
+description: "MoPlayer for MoOS — the cinematic IPTV player, native to the MoOS desktop."
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Arabic is a first-class language here, and a MaterialApp with an `ar` locale
+  # and no GlobalMaterialLocalizations asserts on the first frame.
+  flutter_localizations:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Routing
+  go_router: ^14.6.2
+
+  # Networking
+  dio: ^5.7.0
+  connectivity_plus: ^6.1.0
+
+  # Backend (optional — the app is fully functional without it)
+  supabase_flutter: ^2.8.0
+
+  # Playback: libmpv, via media_kit. On Linux this binds the system libmpv —
+  # the same engine MoOS already ships as mpv-libs.
+  media_kit: ^1.1.11
+  media_kit_video: ^1.2.5
+  media_kit_libs_video: ^1.0.5
+
+  # Local cache / storage
+  hive_ce: ^2.7.0
+  hive_ce_flutter: ^2.1.0
+  flutter_secure_storage: ^9.2.2
+  shared_preferences: ^2.3.3
+
+  # XMLTV. The panel's own `get_short_epg` returns an empty list on the
+  # maintainer's subscription while `xmltv.php` returns a full 1.1 MB guide, so
+  # the guide — and every match in it — is parsed from XML, not from the API.
+  xml: ^6.5.0
+
+  # Images
+  cached_network_image: ^3.4.1
+
+  # Desktop / MoOS integration
+  window_manager: ^0.4.3 # window control: fullscreen, min size, title
+  # The display's *work area*, in the same coordinate space window_manager sizes
+  # windows in. Flutter's own `Display` is not usable for this on a fractionally
+  # scaled Wayland session: it reports 1396x785 @3.0x on a 4K panel at 275%, so
+  # dividing by the ratio yields a 465x261 "desktop" and a postage-stamp window.
+  # (Already in the tree as a window_manager dependency; named here because the
+  # app now depends on it directly.)
+  screen_retriever: ^0.2.0
+  # MPRIS2 is spoken directly over D-Bus rather than through a wrapper package:
+  # the one on pub.dev that media_kit's own player uses is unpublished, and the
+  # interface is small enough that owning it beats depending on it.
+  # See lib/services/system/mpris.dart.
+  dbus: ^0.7.10
+
+  # Device / system
+  wakelock_plus: ^1.2.10 # org.freedesktop.ScreenSaver inhibit while playing
+  package_info_plus: ^8.1.2
+  device_info_plus: ^11.2.0
+
+  # Utils
+  logger: ^2.5.0
+  intl: ^0.20.2
+  collection: ^1.19.0
+  qr_flutter: ^4.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Test-only. `test/brand_palette_test.dart` opens the logo PNG and checks the
+  # brand tokens still match the pixels in it — a brand colour is the one value
+  # in a design system that cannot be argued about, so it is measured, not read
+  # back from the constant that claims to be it.
+  image: ^4.3.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/branding/

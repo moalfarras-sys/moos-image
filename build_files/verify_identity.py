@@ -70,7 +70,7 @@ def main() -> None:
     # "hardware" and "compathub" are gone on purpose: the Hardware Centre and the
     # Compatibility Hub are panels inside Mo AI now, reached by `moai --panel …`.
     # They have no launchers of their own to check.
-    for app in ("moai", "welcome", "updater", "recovery", "remote"):
+    for app in ("moai", "welcome", "updater", "recovery", "remote", "moplayer"):
         entry = desktop(f"/usr/share/applications/org.moos.{app}.desktop")
         require(entry.get("Icon", "").startswith("moos-")
                 or entry.get("Icon", "").startswith("mo-remote"),

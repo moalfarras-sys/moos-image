@@ -93,6 +93,28 @@ require('moos://do/setup-gaming' in moai_qml,
         "Mo AI's Compatibility panel must expose the focused gaming installer")
 require('moos://do/setup-waydroid' in moai_qml,
         "Mo AI's Compatibility panel must expose the Android (Waydroid) setup")
+require('moos://do/setup-windows' in moai_qml,
+        "Mo AI's Compatibility panel must expose the Windows (Bottles) setup as a real flow, "
+        "not a bare Flatpak install that leaves the user staring at an unopened Bottles")
+
+# ── The camera the user actually gets must run on THIS desktop ────────────────
+#
+# "Install a camera" resolved, on Flathub's top hit, to io.github.cosmic_utils.camera:
+# a COSMIC-desktop app that installs cleanly and then PANICS on KDE Plasma — it hunts
+# com.system76.Cosmic* D-Bus watchers that do not exist here and dies in its wgpu video
+# renderer. The webcam and libcamera were fine; the app was wrong for the desktop.
+#
+# Gate the RECOMMENDED-apps list, not the whole file: the prompt is allowed to NAME the
+# bad id as one to avoid (that is the opposite of recommending it), but the one-click
+# app catalogue must offer Kamoso and must never offer the COSMIC camera.
+appcatalog_match = re.search(r"property var appCatalog:\s*\[(.*?)\]", moai_qml, re.DOTALL)
+require(appcatalog_match is not None, "Mo AI must expose an appCatalog of recommended apps")
+appcatalog = appcatalog_match.group(1) if appcatalog_match else ""
+require("org.kde.kamoso" in appcatalog,
+        "Mo AI's recommended apps must offer Kamoso — a KDE-native camera that runs here")
+require("cosmic_utils.camera" not in appcatalog,
+        "Mo AI must not OFFER io.github.cosmic_utils.camera as a recommended app — it is a "
+        "COSMIC-desktop app and panics on KDE Plasma")
 
 # The old centres must keep opening — as commands, into their panel in Mo AI.
 for shim, panel in (("moos-hardware", "device"), ("moos-compat", "compat")):
@@ -141,6 +163,225 @@ declared_routes = routes_declared(router)
 require("*" not in declared_routes, "the default arm must not count as a route")
 require("apps/install/*" in declared_routes,
         "moos-open must accept an app id to install (apps/install/*)")
+# The counterpart: opening an installed app. Without this route Mo AI can install a
+# program and then have no way to launch it — the exact gap that made "install a
+# camera" end at a fresh icon nobody had asked for instead of a live camera.
+require("apps/run/*" in declared_routes,
+        "moos-open must accept an app id to OPEN (apps/run/*), or an installed app "
+        "cannot be launched from Mo AI")
+
+# ── Double-click a .exe or an .apk and it runs ───────────────────────────────
+# The last mile of "run any program from any system". Three pieces have to line up, and if
+# any one of them drops out the double-click dies SILENTLY — the file manager just opens the
+# binary in a text editor, which is precisely what MoOS did before this shipped:
+#   1. the runner exists and knows both worlds,
+#   2. a desktop entry claims the types (including the two a real .exe actually resolves to
+#      on this image — x-msdownload and vnd.microsoft.portable-executable; Bottles' own entry
+#      claims neither by that name),
+#   3. the system default points at the runner — and apply-theme pins it in the user's own
+#      mimeapps.list, which outranks /etc/xdg.
+runner = code(read("system_files/usr/bin/moos-run-foreign"))
+require("com.usebottles.bottles" in runner and "waydroid" in runner,
+        "moos-run-foreign must route Windows files to Bottles and Android files to Waydroid")
+require("setup-windows" in runner and "setup-waydroid" in runner,
+        "moos-run-foreign must offer the one-time runtime setup when the runtime is missing — "
+        "a first .exe on a fresh MoOS lands before Bottles exists, and failing silently there "
+        "is the whole bug this closes")
+runner_desktop = read("system_files/usr/share/applications/org.moos.runforeign.desktop")
+system_mimeapps = read("system_files/etc/xdg/mimeapps.list")
+for mime in ("application/x-msdownload",
+             "application/vnd.microsoft.portable-executable",
+             "application/vnd.android.package-archive"):
+    require(mime in runner_desktop,
+            f"org.moos.runforeign.desktop must claim {mime}")
+    require(f"{mime}=org.moos.runforeign.desktop" in system_mimeapps,
+            f"/etc/xdg/mimeapps.list must make the MoOS runner the default for {mime}")
+require("org.moos.runforeign.desktop" in code(read("system_files/usr/bin/moos-apply-theme")),
+        "moos-apply-theme must pin the MoOS runner in the user's mimeapps.list — the user's "
+        "file outranks /etc/xdg, so shipping the default is only half the fix")
+
+# ── Mo AI answers the NEED, not the keyword ──────────────────────────────────
+# Flathub ranks by popularity, and for "camera" that puts a COSMIC-desktop app on top: it
+# installs, then panics on Plasma. The user's camera "did not work" while the webcam, the
+# install and libcamera were all fine. So the search ranks the desktop-native answer first
+# and labels apps built for another desktop — and BOTH halves are gated, because a ranking
+# the UI never renders is a ranking the user never receives.
+control = code(read("system_files/usr/bin/moai-control"))
+require("KNOWN_GOOD" in control and "org.kde.kamoso" in control,
+        "moai-control must carry the need→known-good-app table (camera → org.kde.kamoso is "
+        "its archetype); without it Flathub's raw top hit reaches the user")
+require("def desktop_mismatch" in control and "cosmic" in control,
+        "moai-control must label desktop-mismatched apps — a COSMIC/GNOME-only Flatpak "
+        "installs cleanly on MoOS and then crashes, and the user is told AFTER the download")
+moai_qml = read("system_files/usr/share/moos/apps/moai/main.qml")
+require("recommended" in moai_qml and "hit.note" in moai_qml,
+        "Mo AI must render the pick and the warning (recommended / note) on each search hit — "
+        "ranking them in the backend and not showing them changes nothing for the user")
+
+# ── A first-party app must not be killed by the first-party brain ────────────
+# MoOS ships a local LLM and a video player, and on an 8 GB card they cannot both have the
+# memory. With the brain loaded (~6 GB held) MoPlayer could not create an EGL context —
+# `eglMakeCurrent failed`, then libepoxy asserts and the process ABORTS. The user's own OS
+# killed its own player on launch, with no message, because its own assistant was holding
+# the graphics card. Core dumps on the maintainer's machine, 2026-07-13.
+#
+# moos-gpu-headroom unloads ONLY the brain (which reloads itself on the next message) and
+# only when the card is nearly full. If either half of this drops out, the crash comes back
+# and it looks exactly like a broken app.
+headroom = code(read("system_files/usr/bin/moos-gpu-headroom"))
+require("moai.service" in headroom and "nvidia-smi" in headroom,
+        "moos-gpu-headroom must free the local brain — and nothing else — when the GPU is "
+        "too full for an app to make a context")
+require("moos-gpu-headroom" in code(read("system_files/usr/bin/moplayer")),
+        "MoPlayer's launcher must ask for GPU headroom before starting: with the brain loaded "
+        "it aborts on eglMakeCurrent, which reads to the user as a broken app")
+
+# ── The image's copy of MoPlayer's launcher must BE MoPlayer's launcher ───────
+# The launcher is the app's file (moplayer/packaging/moos/moplayer). The image only carries
+# a copy of it at system_files/usr/bin/moplayer, and for two hours those two files silently
+# disagreed: the GPU-headroom guard above existed ONLY in the image's copy. One `install -D`
+# from the app's packaging — exactly what `just sync-moplayer` prints — and the guard is gone,
+# with nothing to notice. `sync-moplayer` now performs that install itself; this is what
+# catches it if the two ever drift again.
+require(read("system_files/usr/bin/moplayer") == read("moplayer/packaging/moos/moplayer"),
+        "system_files/usr/bin/moplayer must be byte-identical to moplayer/packaging/moos/moplayer "
+        "— the launcher belongs to the app, and a divergent copy is one `install -D` away from "
+        "dropping the GPU guard (run `just sync-moplayer`)")
+
+# ── The vendored app must be the app that was committed ───────────────────────
+# The vendored tree is built from `git ls-files`, so an UNTRACKED file in MoPlayer's working
+# tree is copied by nobody: the image compiles source with an import pointing at a file that
+# is not there, and the build fails twenty minutes in, inside a container. `sync-moplayer`
+# refuses a dirty tree for that reason. Here we check the result: every Dart file the vendored
+# source imports from its own lib/ has to exist in the vendored tree.
+vendor_lib = ROOT / "moplayer" / "lib"
+missing_imports: list[str] = []
+for dart in vendor_lib.rglob("*.dart"):
+    for target in re.findall(r"""import\s+['"]((?:\.{1,2}/)[^'"]+\.dart)['"]""",
+                             dart.read_text(encoding="utf-8")):
+        if not (dart.parent / target).resolve().exists():
+            missing_imports.append(f"{dart.relative_to(ROOT)} -> {target}")
+require(not missing_imports,
+        "the vendored MoPlayer source imports files that were not vendored — its working tree "
+        "had uncommitted files when it was synced, and the image build will fail on a missing "
+        f"URI: {missing_imports[:3]}")
+
+# ── fcitx5 must not ship ─────────────────────────────────────────────────────
+# It is a CJK input-method framework MoOS has no use for (Arabic and German are xkb layouts,
+# which KWin handles natively), it arrives only as a dependency of a JAPANESE IME, and it has
+# a launcher entry — so it is one click away. The moment it starts it rewrites the user's
+# ~/.config/kxkbrc to `LayoutList=us` and their Arabic and German layouts are gone, silently.
+# That happened on this machine: the maintainer could not type Arabic for two hours.
+require("dnf5 -y remove fcitx5-mozc fcitx5" in code(read("build_files/build.sh")),
+        "build.sh must remove fcitx5 — one launch of it wipes the user's keyboard layouts and "
+        "nothing in the system notices")
+selfcheck = code(read("system_files/usr/bin/moos-selfcheck"))
+require("KeyboardLayouts.getLayoutsList" in selfcheck,
+        "moos-selfcheck must read the layouts KWin ACTUALLY loaded, not localectl's system "
+        "default — the system default stayed a perfect 'de,ara' while the session typed US, "
+        "and the check reported green throughout")
+
+# ── The third agent is the one that needs nobody's cloud ─────────────────────
+# Codex and Claude Code are both somebody else's subscription. OpenCode is provider-agnostic,
+# so on a machine that ships its own brain it can be pointed at THAT — a coding agent that
+# works with no account, no login and no internet. Verified end-to-end on the hardware:
+# `moai-do install-opencode` installed it, wrote the provider config, and with the brain
+# STOPPED, `opencode run` woke it through moai-gateway and got an answer back.
+#
+# The install is gated as a whole because the npm package alone is not the feature: an agent
+# that lands with no provider configured opens, asks for a model the user does not have, and
+# is indistinguishable from broken. If the config write is dropped, the button still "works"
+# and the user still cannot code.
+control_code = code(read("system_files/usr/bin/moai-control"))
+require('"opencode": command_exists("opencode")' in control_code,
+        "moai-control must report whether OpenCode is installed, or Mo AI's Developer panel "
+        "cannot tell Install from Run")
+do_code = code(read("system_files/usr/bin/moai-do"))
+require("do_install_opencode" in do_code and "opencode-ai" in do_code,
+        "moai-do must be able to install OpenCode — the only coding agent on MoOS that needs "
+        "no account")
+require("opencode.json" in do_code and "127.0.0.1:8080/v1" in do_code,
+        "moai-do install-opencode must WRITE the provider config pointing at moai-gateway — "
+        "an agent installed with no provider is indistinguishable from a broken one")
+require("agentState.opencode" in moai_qml,
+        "Mo AI's Developer panel must know about OpenCode — an agent the system can install "
+        "and the UI cannot show is an agent nobody finds")
+code_runner = code(read("system_files/usr/bin/moai-code"))
+require("claude|codex|opencode" in code_runner,
+        "moai-code must accept opencode as an agent, or moos://dev/opencode opens nothing")
+
+# ── An Arabic assistant that speaks English must not mangle it ───────────────
+# Qt gives a whole Text ONE base direction, taken from its first strong character, and in
+# Markdown a single "\n" is a soft wrap rather than a paragraph break. So Mo AI's greeting —
+# Arabic first line, English second — became one right-to-left paragraph, and the English
+# sentence was rendered with its full stop thrown to the front: the first thing a new MoOS
+# user read was ".the system, install any app, clean things up, and run Mo PC Remote".
+# Fixed by giving each language its own paragraph with its own directional mark, and by
+# stamping every model reply per paragraph (bidiFix) — the model mixes the two languages in
+# one answer constantly, and that text cannot be hand-written.
+# ── The desk widget: weather, a clock that turns, and nothing in the way ─────
+deskclock = read("system_files/usr/share/plasma/plasmoids/"
+                 "org.moos.nova.deskclock/contents/ui/main.qml")
+# style="slash": QML comments, and this gate MUST see past them. Both of the checks below
+# name the thing they forbid (ipapi.co, MouseArea) in the very comment that explains why it
+# is forbidden — strip the prose or the gate fails against the correct file, which is the
+# comment trap AGENTS.md warns about, arriving from the other direction.
+deskclock_code = code(deskclock, "slash")
+require("ipwho.is" in deskclock_code and "api.open-meteo.com" in deskclock_code,
+        "the desk widget must read the weather from ipwho.is + Open-Meteo — both key-less, "
+        "and both verified against the User-Agent Qt actually sends")
+require("ipapi.co" not in deskclock_code,
+        "ipapi.co must not be the widget's geocoder: it answers curl but serves a Cloudflare "
+        "interstitial to Qt's browser-shaped User-Agent, so the widget got HTML instead of "
+        "JSON and the weather silently never appeared")
+require("component Roller" in deskclock_code and "component SkyGlyph" in deskclock_code,
+        "the desk widget must keep the per-digit clock roller and the drawn, animated sky "
+        "glyphs — the old clock threw all four digits in the air every minute, and an icon "
+        "pulled from the icon theme disappears when the user changes it")
+require("MouseArea" not in deskclock_code,
+        "the desk widget must not contain a MouseArea: it sits on the wallpaper, and anything "
+        "that accepts clicks eats the desktop's own right-click menu and rubber-band selection "
+        "inside its rectangle, with no way for the user to tell why")
+
+require("function bidiFix" in moai_qml and "root.bidiFix(msg.text)" in moai_qml,
+        "Mo AI must pin each paragraph's text direction to its own language (bidiFix, applied "
+        "to every chat bubble) — one Arabic word otherwise drags every English line RTL and "
+        "throws its punctuation to the wrong end")
+require("‎" in moai_qml and "‏" in moai_qml,
+        "Mo AI's bilingual messages must carry explicit LRM/RLM marks — without them the "
+        "paragraph's direction is decided by whichever character happens to come first")
+
+# ── The brain must say WHY it did not start ──────────────────────────────────
+# It had exactly one failure message — "the first start downloads the model (~2.5 GB) and
+# keeps going in the background" — and it printed that when the disk was full, when there
+# was no network to download from, and when llama-server aborted because the GPU had no
+# memory left (which happened on this machine). The user waits for a download that is not
+# running. The gateway now refuses a start that cannot work (disk, network) and, when the
+# unit is DOWN, reads the service's own log and names the cause.
+# ── Nothing expensive between the user and their desktop ─────────────────────
+# Fedora Atomic's appstream refresh is WantedBy=multi-user.target and sat in this machine's
+# critical chain at +3.525 s — a third of MoOS's userspace boot — rebuilding an app-store
+# index nobody had asked for yet. And flatpak-system-update, the single most expensive unit
+# on a MoOS boot (1min 3.885s of CPU), fired two minutes into the session at normal priority,
+# competing with the desktop for CPU and disk exactly when the user starts working.
+build_sh = code(read("build_files/build.sh"))
+require("systemctl disable fedora-atomic-desktop-appstream-cache-refresh.service" in build_sh
+        and "systemctl enable moos-appstream-refresh.timer" in build_sh,
+        "build.sh must move the appstream refresh out of the boot path and onto MoOS's timer "
+        "— it costs 3.5 s of every boot for a catalogue nothing has opened yet")
+flatpak_idle = read("system_files/usr/lib/systemd/system/flatpak-system-update.service.d/moos-idle.conf")
+require("CPUSchedulingPolicy=idle" in flatpak_idle and "IOSchedulingClass=idle" in flatpak_idle,
+        "flatpak-system-update must run at idle CPU and I/O priority — at normal priority it "
+        "is what 'the system feels slow right after login' is actually made of")
+
+gateway = code(read("system_files/usr/bin/moai-gateway"))
+require("def preflight_local" in gateway and "disk_free" in gateway and "have_network" in gateway,
+        "moai-gateway must pre-flight a local start (disk space, network) instead of failing "
+        "deep inside RamaLama and blaming a download that never began")
+require("def local_failure_reason" in gateway and "FAILURE_SIGNS" in gateway,
+        "moai-gateway must read the unit's own log when the brain is down and name the cause "
+        "(GPU memory, disk, network) — one generic 'still downloading' message for every "
+        "failure is how a dead brain looks like a slow one")
 
 for qml_path in sorted((ROOT / "system_files/usr/share/moos/apps").glob("*/main.qml")):
     qml_text = qml_path.read_text(encoding="utf-8")
@@ -211,6 +452,16 @@ if moai_do_arm:
         action = label.split("/", 1)[1]
         require(f"{action})" in moai_do,
                 f"moos-open routes {label} to moai-do, which does not implement it")
+
+# Install must also RUN. "Install a camera" is only finished when the camera is on
+# screen, so do_install opens the app it just installed. Gate the CALL, not just the
+# def: launch_app necessarily appears once in its own `launch_app()` definition, so a
+# lone match would stay green even if the call inside do_install were deleted — the
+# same dead-feature-behind-a-green-gate shape this file exists to catch.
+moai_do_code = code(moai_do)
+require("launch_app()" in moai_do_code and moai_do_code.count("launch_app") >= 2,
+        "moai-do must DEFINE and CALL launch_app — a successful install must open the "
+        "app it installed, or Mo AI can download a program and never run it")
 
 # Screen capture. The original implementation spawned `spectacle` once per frame (~630ms,
 # i.e. ~1 fps) and shelled out to `kscreen-doctor` to guess the desktop geometry — the two
@@ -359,6 +610,33 @@ require(not (ROOT / "system_files/usr/lib/systemd/user/moai-cloud.service").exis
 require("moai-cloud" not in code(read("system_files/usr/bin/moai-config")),
         "moai-config must not still enable/disable the retired moai-cloud.service")
 
+# ── The local brain must not hold VRAM while idle ─────────────────────────────
+#
+# moai.service loads ~6 GB into an 8 GB GPU and never releases it while up. That left the
+# compositor almost nothing: a maximised browser on top of a loaded brain exhausted VRAM,
+# the NVIDIA driver logged `NVRM: VM: invalid mmap context`, and kwin_wayland SIGSEGV'd —
+# the whole desktop froze. So the brain is unloaded when idle and reloaded on demand.
+idle_watch = code(read("system_files/usr/bin/moai-idle"))
+require("systemctl --user stop" in idle_watch and 'UNIT="moai.service"' in idle_watch,
+        "moai-idle must STOP moai.service when idle — a watchdog that only measures idleness "
+        "frees no VRAM, which is the entire point")
+require("moai-activity" in idle_watch and "moai-activity" in gateway_code,
+        "moai-idle must key off the same activity stamp moai-gateway writes, or 'idle' is a "
+        "guess — and the gateway must actually write it")
+require("def mark_activity" in gateway_code and "\n        mark_activity()" in gateway_code,
+        "moai-gateway must DEFINE and CALL mark_activity() on the local-chat path, or the "
+        "watchdog cannot tell a loaded-but-unused brain from one in active use")
+require((ROOT / "system_files/usr/lib/systemd/user/moai-idle.timer").is_file()
+        and (ROOT / "system_files/usr/lib/systemd/user/moai-idle.service").is_file(),
+        "the idle-unload timer and its oneshot service must ship")
+require("systemctl --global enable moai-idle.timer" in build_code,
+        "the idle-unload timer must be enabled for every user; leaving it opt-in means the "
+        "brain keeps holding VRAM until someone stops it by hand, and the freeze returns")
+# The gateway must still be able to bring the brain BACK, or unloading it is a one-way trip.
+require('systemctl("start")' in gateway_code and "def ensure_local" in gateway_code,
+        "moai-gateway.ensure_local must start the local brain on demand — moai-idle stopping "
+        "it is only safe because the next request reloads it")
+
 # THE ROUTING CONTRACT. The app names the brain in the `model` field, and a request
 # that names none must still work exactly as it did — an older client, or a chat
 # opened before /models answered, sends "default" and must get the configured brain.
@@ -461,7 +739,16 @@ require('PORT="${MOAI_PORT:-8081}"' in moai_start_code,
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=10" in apply_theme_code, "Nova visual schema must be revision 10")
+require("THEME_REV=12" in apply_theme_code, "Nova visual schema must be revision 12")
+# Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
+# reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
+# Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
+# widget after the upgrade — the file changed, the cache did not notice, and the user sees
+# last month's clock. apply-theme purges the QML caches on every THEME_REV.
+require("qmlcache" in apply_theme_code,
+        "moos-apply-theme must purge the QML disk cache on a THEME_REV bump — OSTree's frozen "
+        "mtimes mean a rebuilt plasmoid is invisible to qmlcache, and the old widget keeps "
+        "running")
 
 # Nova must survive Plasma, not just reach it.
 #
@@ -709,6 +996,58 @@ for relative in kickoff_surfaces:
 layout = read("system_files/usr/share/plasma/layout-templates/"
               "org.kde.plasma.desktop.defaultPanel/contents/layout.js")
 require("panel.floating = true" in layout, "the MoOS dock must float")
+
+# ── Frosted glass: the premium surface finish MoOS competes on ────────────────
+#
+# A floating dock that turns into an opaque slab under every maximised window is not a
+# glass dock. Nova pins Plasma::Theme::adaptiveTransparencyEnabled() OFF so the dock keeps
+# its translucent blur at all times, like the macOS dock / Win11 acrylic taskbar. The
+# blur plugin (Effect-blur) must stay shipped-on for the frost to exist at all.
+nova_plasmarc = code(read("system_files/usr/share/plasma/desktoptheme/Nova/plasmarc"))
+require("[AdaptiveTransparency]" in nova_plasmarc and "enabled=false" in nova_plasmarc,
+        "the Nova dock must stay frosted glass (AdaptiveTransparency enabled=false); adaptive "
+        "opacity turns the floating dock into an opaque slab the moment a window is maximised")
+kwin_glass = code(read("system_files/etc/xdg/kwinrc"))
+require("blurEnabled=true" in kwin_glass,
+        "KWin's blur must ship ON — it is what frosts the dock, the terminal and every "
+        "translucent surface; without it 'glass' is just flat transparency")
+
+# The Arabic terminal is SOLID by choice (the maintainer tried the glass and rejected it):
+# a fully opaque slab, no blur, in both schemes — but beautified. Both colour schemes must
+# stay opaque, and both profiles must carry the premium chrome, or the terminal regresses to
+# either a see-through window or a bare default.
+for scheme in ("NovaDark", "NovaLight"):
+    konsole_scheme = code(read(f"system_files/usr/share/konsole/{scheme}.colorscheme"))
+    require("Opacity=1" in konsole_scheme and "Blur=false" in konsole_scheme,
+            f"{scheme} Konsole scheme must be SOLID (Opacity=1, Blur=false) — the maintainer "
+            f"asked for a solid terminal, not the frosted-glass one that was tried and rejected")
+for prof in ("MoOS.profile", "MoOSLight.profile"):
+    profile_text = code(read(f"system_files/usr/share/konsole/{prof}"))
+    require("TerminalMargin=14" in profile_text
+            and "ScrollBarPosition=2" in profile_text
+            and "UseCustomCursorColor=true" in profile_text
+            and "AutoCopySelectedText=true" in profile_text,
+            f"{prof} must keep the beautified terminal: inner padding, a hidden scrollbar, a "
+            f"coloured cursor and copy-on-select — not the bare FALLBACK defaults")
+    # And the keys must sit in the groups Konsole actually reads. Konsole's group names are
+    # "Cursor Options" and "Interaction Options"; under [Cursor]/[Interaction] the file still
+    # parses, this gate's key strings are still present, and the keys are silently DEAD — a
+    # live terminal was verified rendering a white cursor with CustomCursorColor set.
+    require("[Cursor Options]" in profile_text and "[Interaction Options]" in profile_text,
+            f"{prof} must put the cursor keys under [Cursor Options] and the selection keys "
+            f"under [Interaction Options] — Konsole ignores [Cursor]/[Interaction] entirely")
+konsolerc_chrome = code(read("system_files/etc/xdg/konsolerc"))
+require("ShowMenuBarByDefault=false" in konsolerc_chrome
+        and "TabBarVisibility=ShowTabBarWhenNeeded" in konsolerc_chrome,
+        "konsolerc must ship the clean chrome (no menu bar, tab strip only when needed) — that "
+        "is the 'smaller UI' the maintainer asked for; a single-tab window should be pure terminal")
+# The toolbars are the other half of that "smaller UI", and konsolerc cannot reach them: they
+# live in the Qt State blob in ~/.local/state/konsolestaterc, outside the XDG config cascade.
+# apply-theme is the only place that can hide them, so gate it there.
+require("konsolestaterc" in apply_theme_code and "sessionToolbar" in apply_theme_code,
+        "moos-apply-theme must hide Konsole's toolbars by patching the State blob in "
+        "konsolestaterc — no config file can do it, so if this drops out the terminal silently "
+        "grows its toolbar back")
 require('addWidget("org.kde.plasma.kickoff")' in layout,
         "MoOS must preserve the integrated Kickoff launcher")
 require("org.moos.nova.launcher" not in layout,
@@ -885,6 +1224,18 @@ require('writeConfig("shownItems"' in apply_theme_code
         and "org.kde.plasma.volume" in apply_theme_code,
         "the tray must show exactly the keyboard layout and the volume; everything else "
         "belongs behind the collapse arrow")
+# …and writing that config is not enough. Plasma 6.7's writeConfig+reloadConfig sets the
+# FILE but never rebuilds the running systray's shown/hidden model — verified on 6.7.2, where
+# the file said "2 shown" while the tray drew 8 across reboots, and the gate above stayed
+# green the whole time. The shell has to be restarted for the collapse to reach the user, and
+# it must be guarded by a per-revision marker so it fires once on a THEME_REV bump, not on
+# every login. Assert on the CODE (comments stripped), both halves, so neither can rot alone.
+require(("restart plasma-plasmashell.service" in apply_theme_code
+         or "kquitapp6 plasmashell" in apply_theme_code)
+        and "moos-tray-collapsed.v" in apply_theme_code,
+        "moos-apply-theme must RESTART plasmashell (guarded once per THEME_REV) after writing "
+        "the tray config — in Plasma 6.7 reloadConfig writes the file but the running shell "
+        "keeps drawing the full tray, so the collapse is invisible without a restart")
 require("xdg-desktop-portal-kde" in apply_theme_code,
         "StatusNotifierItems are matched on their OWN Id, not a plasmoid id — the portal's "
         "remote-control icon and the Xwayland bridge are not plasmoids and survive a "

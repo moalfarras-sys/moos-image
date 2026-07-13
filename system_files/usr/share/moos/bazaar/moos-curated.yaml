@@ -57,6 +57,7 @@ rows:
           - org.videolan.VLC             # VLC — مشغل الوسائط
           - org.libreoffice.LibreOffice  # LibreOffice — حزمة المكتب (RTL ممتاز)
           - org.kde.kcalc                # KCalc — الآلة الحاسبة
+          - org.kde.kamoso               # Kamoso — الكاميرا (أصلية لـ KDE، تعمل على Wayland)
           - com.github.tchx84.Flatseal   # Flatseal — أذونات Flatpak
 
   - section:

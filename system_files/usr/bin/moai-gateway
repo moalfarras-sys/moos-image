@@ -52,7 +52,7 @@
 # This process is the only thing that ever sees the API key: it reads the provider
 # (base URL + model + wire) from ~/.config/moai/config.json and the KEY from Secret
 # Service. Stdlib only (no pip deps).
-import json, os, re, subprocess, sys, threading, time
+import json, os, re, socket, subprocess, sys, threading, time
 import urllib.error, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -64,6 +64,25 @@ PORT = int(os.environ.get("MOAI_GATEWAY_PORT", "8080"))
 LOCAL_PORT = int(os.environ.get("MOAI_LOCAL_PORT", "8081"))
 LOCAL_UNIT = os.environ.get("MOAI_LOCAL_UNIT", "moai.service")
 LOCAL_BASE = "http://127.0.0.1:%d" % LOCAL_PORT
+
+# The gateway is the one process that sees every local chat, so it stamps the time of
+# the last one here. moai-idle.timer reads this file's mtime and stops the local brain
+# once it goes stale, freeing ~6 GB of VRAM — otherwise the model sits in the GPU forever
+# and starves the compositor (a maximised browser on top of a loaded brain has crashed
+# kwin_wayland with NVRM: invalid mmap context and frozen the desktop). ensure_local()
+# brings the brain back on the next request, so unloading it while idle costs only a reload.
+ACTIVITY_FILE = os.path.join(
+    os.environ.get("XDG_RUNTIME_DIR") or ("/run/user/%d" % os.getuid()),
+    "moai-activity")
+
+
+def mark_activity():
+    """Record that the local brain was just used, for moai-idle's staleness check."""
+    try:
+        with open(ACTIVITY_FILE, "w") as handle:
+            handle.write(str(int(time.time())))
+    except OSError:
+        pass
 
 # How long to wait for the local brain after starting it. A model that is already
 # pulled loads in well under a minute; the FIRST ever start downloads ~2.5 GB and
@@ -216,6 +235,124 @@ def local_online(timeout=1.5):
         return False
 
 
+# ── Why the brain did not come up ────────────────────────────────────────────
+# Everything below exists because the failure message lied. When the brain does not
+# answer, the gateway told the user "the first start downloads the model (~2.5 GB) and
+# keeps going in the background" — the ONE message it had. It says that when the disk is
+# full, when there is no network to download from, and when llama-server aborted on this
+# very machine because the GPU had no memory left (SIGABRT, 2026-07-13). The user waits
+# for a download that is not happening.
+#
+# So: check what can be checked BEFORE starting, and when it fails anyway, read the
+# service's own log and say what it said.
+MODEL_BYTES = 3 * 1024 ** 3   # a ~2.5 GB model plus room for RamaLama's staging copy.
+
+
+def disk_free(path="/var"):
+    try:
+        st = os.statvfs(path)
+        return st.f_bavail * st.f_frsize
+    except OSError:
+        return -1
+
+
+def gb(n):
+    return "%.1f GB" % (n / 1024 ** 3)
+
+
+def have_network(timeout=2.0):
+    """Can we reach the model registry at all? A pull needs this; a loaded brain does not."""
+    try:
+        socket.create_connection(("registry.ollama.ai", 443), timeout=timeout).close()
+        return True
+    except OSError:
+        pass
+    try:
+        socket.create_connection(("huggingface.co", 443), timeout=timeout).close()
+        return True
+    except OSError:
+        return False
+
+
+def preflight_local(target):
+    """Refuse a start that cannot possibly work, and say why. "" = go ahead."""
+    if target and target in pulled_models():
+        return ""                      # already downloaded: no disk, no network needed
+    free = disk_free()
+    if 0 <= free < MODEL_BYTES:
+        return ("لا تكفي المساحة لتنزيل النموذج: متاح %s، ويلزم نحو %s.\n"
+                "فرّغ مساحة (جرّب: moai-do optimize) ثم أعد المحاولة.\n"
+                "Not enough disk space to download the model: %s free, ~%s needed. "
+                "Free some space (try: moai-do optimize) and ask again."
+                % (gb(free), gb(MODEL_BYTES), gb(free), gb(MODEL_BYTES)))
+    if not have_network():
+        return ("النموذج غير محمّل ولا يوجد اتصال بالإنترنت لتنزيله.\n"
+                "وصّل الإنترنت، أو اسأل العقل السحابي.\n"
+                "The model is not downloaded and there is no internet connection to "
+                "fetch it. Connect to the network, or ask the cloud brain instead.")
+    return ""
+
+
+# What the service says when it dies, mapped to what the user can do about it. Ordered:
+# the first match wins, so the specific signatures come before the generic ones.
+FAILURE_SIGNS = [
+    (("out of memory", "cudamalloc", "failed to allocate", "cuda error", "vram"),
+     "ذاكرة كرت الشاشة لا تكفي لتحميل النموذج الآن.\n"
+     "أغلق تطبيقاً ثقيلاً (متصفّح/لعبة) ثم أعد المحاولة — MoOS يفرّغ العقل تلقائياً عند الخمول.\n"
+     "The GPU ran out of memory loading the model. Close a heavy app (a browser or a "
+     "game) and ask again — MoOS unloads the brain automatically when it goes idle."),
+    (("no space left", "enospc", "disk full"),
+     "امتلأت المساحة أثناء تحميل النموذج.\n"
+     "فرّغ مساحة (moai-do optimize) ثم أعد المحاولة.\n"
+     "The disk filled up while loading the model. Free some space (moai-do optimize)."),
+    (("name resolution", "could not resolve", "connection refused", "network is unreachable",
+      "temporary failure", "timed out"),
+     "انقطع الاتصال أثناء جلب النموذج.\n"
+     "تحقّق من الإنترنت ثم أعد المحاولة.\n"
+     "The connection dropped while fetching the model. Check the network and retry."),
+    (("no such file", "not found", "manifest unknown"),
+     "النموذج غير موجود في السجل.\n"
+     "The model was not found in the registry. Pick another model in Settings."),
+]
+
+
+def local_failure_reason():
+    """Ask the SERVICE why it is not up. "" when it is simply still working."""
+    try:
+        state = subprocess.run(["systemctl", "--user", "is-active", LOCAL_UNIT],
+                               capture_output=True, text=True, timeout=10, check=False)
+        active = (state.stdout or "").strip()
+    except Exception:
+        return ""
+    # "activating" is a unit still coming up (RamaLama pulls a model before it serves), and
+    # calling that a failure would turn every slow first start into a false alarm. Only a
+    # unit that is DOWN gets diagnosed.
+    if active in ("active", "activating", "reloading"):
+        return ""                      # up (or coming up) but not answering yet — a slow load
+
+    try:
+        log = subprocess.run(
+            ["journalctl", "--user", "-u", LOCAL_UNIT, "-n", "40", "--no-pager"],
+            capture_output=True, text=True, timeout=15, check=False)
+        text = (log.stdout or "").lower()
+    except Exception:
+        log, text = None, ""
+
+    for needles, message in FAILURE_SIGNS:
+        if any(n in text for n in needles):
+            return message
+
+    # The last line is usually systemd's own bookkeeping ("Consumed 652ms CPU time…"),
+    # which tells the user nothing. Prefer the last thing the SERVICE said.
+    lines = [l.strip() for l in ((log.stdout if log else "") or "").splitlines() if l.strip()]
+    spoken = [l for l in lines if "systemd[" not in l]
+    tail = (spoken or lines or [""])[-1]
+    return ("توقّف العقل المحلي (%s) ولم يبدأ.\n"
+            "آخر ما قاله: %s\n"
+            "The local brain is %s and did not start. Last log line: %s"
+            % (active or "inactive", tail or "—", active or "inactive", tail or "—"))
+
+
 def systemctl(verb):
     try:
         result = subprocess.run(["systemctl", "--user", verb, LOCAL_UNIT],
@@ -270,6 +407,13 @@ def ensure_local(want):
                         "The local model \"%s\" is not downloaded. Pull it first:\n"
                         "    ramalama pull %s" % (want, want, want))
 
+        # Do not start something that cannot succeed: no disk for the download, or no
+        # network to download from. Both used to fail deep inside RamaLama and surface
+        # as "the model is downloading in the background", which was a lie.
+        blocked = preflight_local(target)
+        if blocked:
+            return blocked
+
         if switching or stale_port:
             # A running brain on the wrong port has to be restarted, not started:
             # systemd will not re-read the EnvironmentFile for a unit it considers
@@ -283,9 +427,20 @@ def ensure_local(want):
                     + error)
 
         deadline = time.monotonic() + LOCAL_TIMEOUT
+        next_check = time.monotonic() + 6.0
         while time.monotonic() < deadline:
             if local_online():
                 return ""
+            # The unit dying is not the same as the unit being slow, and only one of the
+            # two is worth waiting out. Ask the service; if it is DOWN, say what killed it
+            # (GPU memory, disk, network) instead of waiting the full timeout and blaming a
+            # download that already failed. Every 6 s — this shells out twice, and the
+            # answer cannot change faster than the unit can.
+            if time.monotonic() >= next_check:
+                reason = local_failure_reason()
+                if reason:
+                    return reason
+                next_check = time.monotonic() + 6.0
             time.sleep(1.5)
         return ("العقل المحلي لم يجب خلال %d ثانية — أول تشغيل يحمّل النموذج (~2.5GB) "
                 "ويكمل في الخلفية.\n"
@@ -509,6 +664,9 @@ class Handler(BaseHTTPRequestHandler):
         error = ensure_local(model)
         if error:
             return self._err(503, error)
+        # A real local chat just happened: refresh the idle clock so moai-idle keeps
+        # the brain loaded while it is in use and only unloads it once you stop.
+        mark_activity()
         body, streaming = b"", False
         if req:
             out = dict(req)

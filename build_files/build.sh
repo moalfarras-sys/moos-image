@@ -529,7 +529,38 @@ dnf5 -y install libsecret
 
 # Full Arabic + English locale support (glibc locales, hunspell, input) —
 # MoOS is bilingual by design (MOOS_DESIGN_SYSTEM.md §7 RTL rules).
-dnf5 -y install langpacks-ar langpacks-en
+#
+# German joins them because MoPlayer ships an ar/en/de interface AND an ar/en/de
+# launcher, and a translated app on a system with no German locale falls back to
+# English the moment it formats a date.
+dnf5 -y install langpacks-ar langpacks-en langpacks-de
+
+# --- fcitx5 must not be on this machine --------------------------------------
+# It is an input-method framework MoOS does not need — Arabic and German are xkb
+# LAYOUTS, which KWin handles natively; fcitx exists for CJK input methods, and it
+# arrives here only as a dependency of fcitx5-mozc (a JAPANESE IME) that the base
+# image happens to pull in.
+#
+# And it is not merely useless, it is destructive. It ships a launcher entry, so it is
+# one click away in the app menu — and the moment it starts it TAKES OVER the keyboard
+# and rewrites the user's ~/.config/kxkbrc to `LayoutList=us`, wiping whatever they had.
+# That happened on the maintainer's machine on 2026-07-13: fcitx5 was launched once, and
+# the German+Arabic pair MoOS ships (/etc/xdg/kxkbrc) was replaced by a lone US layout.
+# The user could no longer type Arabic OR German, there was no error and no notification,
+# and nothing in MoOS noticed — moos-selfcheck was reading localectl, i.e. the SYSTEM
+# default, which was still perfectly correct while the session used something else. A
+# user-level file outranking the image, silently: the same trap as every other one in
+# this repo (AGENTS.md).
+#
+# So it does not ship. mozc goes with it — a Japanese IME on a bilingual Arabic/German
+# desktop was never a feature — and the gate below keeps them out.
+dnf5 -y remove fcitx5-mozc fcitx5 fcitx5-data fcitx5-configtool 2>/dev/null || true
+for pkg in fcitx5 fcitx5-mozc; do
+    rpm -q "$pkg" >/dev/null 2>&1 \
+        && { echo "GATE FAIL: ${pkg} is still in the image — it hijacks the keyboard layout the first time anyone launches it"; exit 1; }
+done
+test ! -e /usr/share/applications/org.fcitx.Fcitx5.desktop \
+    || { echo "GATE FAIL: fcitx5 still has a launcher entry — one click and the user's layouts are gone"; exit 1; }
 
 # Qt WebEngine spell-check dictionaries.
 #
@@ -815,6 +846,84 @@ dnf5 -y install \
     ffmpegthumbs \
     kdegraphics-thumbnailers
 
+# MoPlayer's runtime, named explicitly.
+#
+# Every one of these is *already* in the image today — but by accident. libmpv
+# arrives because haruna drags it in; gtk3 because Firefox does; libEGL because
+# Plasma does. MoPlayer is a GTK application that links libmpv directly, and an
+# app whose dependencies are supplied by unrelated packages is an app that breaks
+# the day one of them is dropped, with no build failure and no warning: it simply
+# stops opening, on the users' machines, after the image has shipped.
+#
+# So they are named here, and the gate below fails the build if they are missing.
+# This is the same argument this file already makes for the GStreamer codecs.
+#
+# `libglvnd-gles`, not `mesa-libGLESv2` — and this cost a whole image build. There
+# is no `mesa-libGLESv2` package on Fedora 44: `libGLESv2.so.2` is dispatched by
+# GLVND and shipped by `libglvnd-gles`, with Mesa behind it. dnf5 does not warn on
+# an unknown package name, it *fails the transaction* ("No match for argument"),
+# so the whole image stopped building — twenty minutes after MoPlayer itself had
+# compiled cleanly. Verify a name against the repo before adding it here:
+#   dnf repoquery --whatprovides 'libGLESv2.so.2()(64bit)'
+dnf5 -y install mpv-libs gtk3 libepoxy mesa-libEGL libglvnd-gles
+
+# The gate names the *libraries* the player dlopen()s, not the packages that happen
+# to carry them today: a rename like the one above must fail loudly here, not
+# silently produce an image whose player will not open a window.
+for lib in mpv-libs gtk3 libepoxy; do
+    rpm -q "${lib}" >/dev/null \
+        || { echo "GATE FAIL: MoPlayer runtime dependency ${lib} is missing"; exit 1; }
+done
+for so in libEGL.so.1 libGLESv2.so.2; do
+    ldconfig -p | grep -q "${so}" \
+        || { echo "GATE FAIL: MoPlayer needs ${so} and no package in this image provides it"; exit 1; }
+done
+
+# MoPlayer itself: the bundle comes from the moplayer-build stage (see the
+# Containerfile), the launcher and the .desktop from system_files. Neither half is
+# any use without the other, so both are checked here.
+#
+# MoOS's own AGENTS.md is blunt about why: "a gate that cannot fail is worse than
+# no gate". Each line below is a way MoPlayer has actually broken, or a way the
+# QML apps did before it.
+test -x /usr/lib/moplayer/moplayer \
+    || { echo "GATE FAIL: the MoPlayer binary is missing"; exit 1; }
+test -d /usr/lib/moplayer/data/flutter_assets \
+    || { echo "GATE FAIL: MoPlayer has no flutter_assets — it would open to a blank window"; exit 1; }
+test -f /usr/lib/moplayer/data/icudtl.dat \
+    || { echo "GATE FAIL: MoPlayer has no ICU data — it would abort on the first frame"; exit 1; }
+test -x /usr/bin/moplayer \
+    || { echo "GATE FAIL: the MoPlayer launcher is missing or not executable"; exit 1; }
+
+# Every shared library the bundle needs must resolve *inside the image*. This is
+# the check that catches "built against a library the final image does not have" —
+# which fails at run time, on the user's machine, as a window that never appears.
+if ldd /usr/lib/moplayer/moplayer | grep -q 'not found'; then
+    echo "GATE FAIL: MoPlayer has unresolved shared libraries:"
+    ldd /usr/lib/moplayer/moplayer | grep 'not found'
+    exit 1
+fi
+
+# The app_id is written in four places that cannot see each other (Dart, CMake,
+# the .desktop file, the MPRIS bus name). When they drift, the app still builds
+# and still runs — and quietly wears a generic icon, with media keys that raise
+# nothing. Plasma matches window→launcher by this string and nothing else.
+grep -qx 'StartupWMClass=org.moos.moplayer' /usr/share/applications/org.moos.moplayer.desktop \
+    || { echo "GATE FAIL: MoPlayer's StartupWMClass drifted — Plasma will show a generic icon"; exit 1; }
+grep -q 'org\.moos\.moplayer' /usr/lib/moplayer/moplayer \
+    || { echo "GATE FAIL: the app_id is not baked into the MoPlayer binary"; exit 1; }
+
+desktop-file-validate /usr/share/applications/org.moos.moplayer.desktop \
+    || { echo "GATE FAIL: MoPlayer's .desktop file is not valid"; exit 1; }
+
+# The launcher's jump list promises six sections. MoOS shipped eleven buttons once
+# that opened routes nobody had implemented; the app parses these, and this is the
+# cheap half of making sure it still does.
+for action in Live Movies Series Search Favorites Settings; do
+    grep -qx "\[Desktop Action ${action}\]" /usr/share/applications/org.moos.moplayer.desktop \
+        || { echo "GATE FAIL: MoPlayer's launcher lost its ${action} action"; exit 1; }
+done
+
 # Mo Remote: private phone-to-MoOS control. One XDG RemoteDesktop+ScreenCast portal
 # session carries BOTH halves of remote control:
 #   - video: a PipeWire stream, encoded to JPEG by GStreamer (mo-remote-portal.py)
@@ -946,11 +1055,13 @@ curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
 # moos-hardware collects a read-only hardware snapshot to /tmp/moos-hw.json and
 # launches the Hardware Center v0 viewer (/usr/share/moos/apps/hardware) via the
 # same qml-qt6 runner.
+chmod 0755 /usr/bin/moplayer
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moos-device-plan /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
     /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome \
     /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding /usr/bin/moos-open \
     /usr/bin/moai-config /usr/bin/moai-gateway /usr/bin/moai-control /usr/bin/moai-code \
+    /usr/bin/moai-idle \
     /usr/bin/moos-theme /usr/bin/moos-selfcheck \
     /usr/libexec/moos-fstab-sanitize
 
@@ -1006,6 +1117,27 @@ getent group plugdev >/dev/null || groupadd -r plugdev
 # image so every deployment gets background updates by default.
 systemctl enable uupd.timer
 
+# --- Get the app catalogue OUT of the boot path -------------------------------
+# Measured on the maintainer's machine (`systemd-analyze critical-chain`):
+#
+#   graphical.target @11.525s
+#   └─multi-user.target @11.525s
+#     └─fedora-atomic-desktop-appstream-cache-refresh.service @7.999s +3.525s
+#
+# Fedora Atomic's appstream refresh is WantedBy=multi-user.target, so every boot waits
+# 3.5 s — a third of MoOS's entire userspace time — for an app-store index that nobody has
+# asked for yet. The refresh stays; it just runs three minutes AFTER the desktop is up
+# (moos-appstream-refresh.timer, which starts the very same service).
+#
+# GATE: if the upstream unit is ever renamed, `systemctl disable` would quietly do nothing
+# and the boot delay would come back with a green build. So fail loudly instead.
+test -f /usr/lib/systemd/system/fedora-atomic-desktop-appstream-cache-refresh.service || {
+    echo "GATE FAIL: the appstream refresh unit was renamed — MoOS's boot-path fix now targets nothing"
+    exit 1
+}
+systemctl disable fedora-atomic-desktop-appstream-cache-refresh.service
+systemctl enable moos-appstream-refresh.timer
+
 # Mo AI in-app Settings backend: a tiny per-user control API. --global enables it
 # for every user's session (bakes the default.target.wants symlink under
 # /etc/systemd/user) without needing a running user manager at build time.
@@ -1023,6 +1155,13 @@ systemctl --global enable moai-control.service
 #
 # moai.service is deliberately NOT --global enabled: the local brain is on demand.
 systemctl --global enable moai-gateway.service
+
+# Free the local brain's VRAM when it goes idle. moai.service loads ~6 GB into an 8 GB
+# GPU and never releases it while up, which starves the compositor — a maximised browser
+# on a loaded brain has crashed kwin_wayland (NVRM: invalid mmap context) and frozen the
+# desktop. moai-idle.timer stops the brain after it is idle; moai-gateway restarts it on
+# the next request. Enabled for every user so stability is the default, not an opt-in.
+systemctl --global enable moai-idle.timer
 
 # An installed bootc system uses an OSTree/composefs overlay for /. Anaconda's
 # generated physical-root fstab entry makes systemd-remount-fs attempt an
@@ -1445,5 +1584,23 @@ chmod 1777 /var/tmp
 # It runs here now: after every package, every rebrand, every mask — and under `set -e`, so
 # a failure stops the build.
 python3 /ctx/verify_image_experience.py
+
+# ── The image must not carry the build machine's litter ───────────────────────
+#
+# `COPY system_files/ /` copies from the build *context*, which is the working tree
+# — and `.gitignore` has no say in what that contains. On the maintainer's machine
+# it contained `system_files/usr/bin/__pycache__/`, so the image shipped
+# `/usr/bin/__pycache__/moai-control.cpython-313.pyc`: the bytecode cache of the
+# computer that built it, sitting in the OS's own bin directory. CI, which builds
+# from a fresh clone, shipped nothing of the sort — two different images from one
+# commit, and nobody could see it without looking inside.
+#
+# `.containerignore` now keeps it out of the context. This makes sure.
+stray_pycache="$(find /usr/bin /usr/share/moos -type d -name '__pycache__' 2>/dev/null | head -5)"
+if [ -n "${stray_pycache}" ]; then
+    echo "GATE FAIL: the image is carrying a Python bytecode cache from the build machine"
+    echo "${stray_pycache}"
+    exit 1
+fi
 
 echo "MoOS build.sh finished OK"
