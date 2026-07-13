@@ -143,6 +143,37 @@ if runs:
                 f"Mo AI can offer to run `moai-do {action}`, "
                 f"but moos-open has no do/{action} route")
 
+# ── The cloud brain ─────────────────────────────────────────────────────────
+gateway = read("system_files/usr/bin/moai-gateway")
+control_py = read("system_files/usr/bin/moai-control")
+
+# Python's urllib announces itself as "Python-urllib/3.x", and Cloudflare — which
+# fronts a large share of AI providers — answers that with 403 "error code: 1010"
+# before the request reaches the API at all. The gateway shipped with the default
+# UA, so the cloud brain was fully configurable and completely dead: it could not
+# reach ANY Cloudflare-fronted provider. Both processes that call out must identify
+# themselves.
+for name, text in (("moai-gateway", gateway), ("moai-control", control_py)):
+    require('add_header("User-Agent"' in text,
+            f"{name} must send a User-Agent — the urllib default is 403'd by Cloudflare")
+    require("MoOS-MoAI/" in text,
+            f"{name} must identify itself as MoOS-MoAI")
+
+# Claude's native API is not OpenAI's. If we offer it, we must actually translate.
+require('"/messages"' in gateway and "anthropic-version" in gateway
+        and "x-api-key" in gateway,
+        "the Anthropic wire must hit /v1/messages with x-api-key + anthropic-version")
+require("content_block_delta" in gateway,
+        "the Anthropic wire must translate content_block_delta into OpenAI deltas")
+require("max_tokens" in gateway,
+        "Anthropic requires max_tokens; the gateway must supply one")
+
+# Presets describe providers. A preset must never carry a credential.
+require('"key"' not in control_py.split("PROVIDERS = [")[1].split("]")[0],
+        "a provider preset must never contain an API key")
+require("secret-tool" in gateway,
+        "the gateway must read the key from Secret Service, not from config.json")
+
 # …and the other half of the same contract: every do/* route that moos-open hands
 # to moai-do must be an action moai-do actually implements. (Not every do/* route
 # goes there — do/smart-setup and do/setup-gaming are dispatched to moos-setup by

@@ -17,14 +17,61 @@
 #   GET  /scan     full snapshot incl. the cached device plan.
 #   GET  /search?q=…  Flathub app search (this is Mo AI's App Centre).
 #   POST /config   set mode/base/model/key; switches the brain services.
-import json, os, shutil, subprocess, threading, time, urllib.parse, urllib.request
+import json, os, re, shutil, subprocess, threading, time
+import urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+# A base URL is expected to carry its API version ("…/v1", "…/v1beta/openai").
+VERSIONED = re.compile(r"/v\d[\w.]*(/|$)")
 
 CFG_DIR = os.path.expanduser("~/.config/moai")
 CFG = os.path.join(CFG_DIR, "config.json")
 PORT = int(os.environ.get("MOAI_CONTROL_PORT", "8079"))
 
 REMOTE_UNIT = "mo-remote-personal.service"
+
+# See moai-gateway: Python's default "Python-urllib/3.x" User-Agent is answered
+# with 403 (Cloudflare "error code: 1010") by a large share of AI providers.
+USER_AGENT = "MoOS-MoAI/1.0 (+https://github.com/moalfarras-sys/moos-image)"
+
+# ── Cloud brains Mo AI can use ───────────────────────────────────────────────
+#
+# `wire` is the protocol the provider actually speaks — "openai" for the
+# chat/completions dialect (OpenAI, OpenRouter, Gemini's OpenAI-compatible
+# endpoint, and any private gateway), "anthropic" for Claude's native
+# /v1/messages, which moai-gateway translates.
+#
+# `model` is a CHEAP default on purpose. The point of the cloud brain is to
+# answer questions about a desktop, not to be the largest model available, and
+# the user pays for every token.
+#
+# No API keys here, ever. A key lives in Secret Service and nowhere else — not in
+# this file, not in config.json, and not in the repository.
+PROVIDERS = [
+    {"id": "moagent", "name": "Mo Agent (خاص | private)",
+     "base": "https://api.synterolink.com/v1", "wire": "openai",
+     "model": "gpt-5.4-mini",
+     "hint": "وكيلك الخاص | your own agent endpoint"},
+    {"id": "openai", "name": "OpenAI",
+     "base": "https://api.openai.com/v1", "wire": "openai",
+     "model": "gpt-5.4-mini",
+     "hint": "platform.openai.com/api-keys"},
+    {"id": "anthropic", "name": "Claude (Anthropic)",
+     "base": "https://api.anthropic.com/v1", "wire": "anthropic",
+     "model": "claude-haiku-4-5-20251001",
+     "hint": "console.anthropic.com — Haiku هو الأرخص"},
+    {"id": "gemini", "name": "Google Gemini",
+     "base": "https://generativelanguage.googleapis.com/v1beta/openai",
+     "wire": "openai", "model": "gemini-2.0-flash",
+     "hint": "aistudio.google.com/apikey — Flash هو الأرخص"},
+    {"id": "openrouter", "name": "OpenRouter (كل النماذج | every model)",
+     "base": "https://openrouter.ai/api/v1", "wire": "openai",
+     "model": "google/gemini-2.0-flash-001",
+     "hint": "openrouter.ai/keys — مفتاح واحد لكل المزوّدين"},
+    {"id": "custom", "name": "أخرى | Other (OpenAI-compatible)",
+     "base": "", "wire": "openai", "model": "",
+     "hint": "أي خادم يتكلم /v1/chat/completions"},
+]
 
 
 def load():
@@ -365,6 +412,78 @@ def search_apps(query):
     return {"results": results, "source": source}
 
 
+# ── "Test connection" — the whole point of which is that it cannot be faked ──
+#
+# A settings page that saves a key and says "Saved ✓" tells the user nothing: the
+# base URL may be wrong, the key may be dead, the model may not exist, or the
+# provider may be behind a CDN that refuses us. So this actually SENDS a request
+# and reports what came back — the model's own reply, or the provider's own error.
+def test_cloud(base, model, wire, key):
+    base = (base or "").rstrip("/")
+    wire = (wire or "openai").lower()
+    if not base:
+        return {"ok": False, "error": "لا يوجد رابط | no base URL"}
+    if not key:
+        return {"ok": False, "error": "لا يوجد مفتاح | no API key"}
+    if not VERSIONED.search(base):
+        base += "/v1"
+
+    probe = "Reply with exactly: OK"
+    if wire == "anthropic":
+        url = base + "/messages"
+        payload = {"model": model, "max_tokens": 16,
+                   "messages": [{"role": "user", "content": probe}]}
+        headers = {"x-api-key": key, "anthropic-version": "2023-06-01"}
+    else:
+        url = base + "/chat/completions"
+        payload = {"model": model, "max_tokens": 16,
+                   "messages": [{"role": "user", "content": probe}]}
+        headers = {"Authorization": "Bearer " + key}
+
+    req = urllib.request.Request(
+        url, data=json.dumps(payload).encode("utf-8"), method="POST")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", USER_AGENT)
+    for name, value in headers.items():
+        req.add_header(name, value)
+
+    try:
+        with urllib.request.urlopen(req, timeout=45) as r:
+            data = json.loads(r.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "replace")[:200]
+        if e.code in (401, 403):
+            return {"ok": False, "error": "المفتاح مرفوض | key rejected (%d): %s"
+                                          % (e.code, detail)}
+        if e.code == 404:
+            return {"ok": False, "error": "الرابط أو النموذج غير موجود | not found: %s"
+                                          % url}
+        return {"ok": False, "error": "خطأ %d | %s" % (e.code, detail)}
+    except Exception as e:
+        return {"ok": False, "error": "تعذّر الوصول | could not reach it: %s" % e}
+
+    # Read the reply out of whichever shape came back, and report the cost, since
+    # the user is paying per token and some gateways inject a large hidden prompt.
+    try:
+        if wire == "anthropic":
+            reply = "".join(b.get("text") or "" for b in data.get("content", [])
+                            if b.get("type") == "text")
+            usage = data.get("usage") or {}
+            used = {"in": usage.get("input_tokens", 0),
+                    "out": usage.get("output_tokens", 0)}
+        else:
+            reply = (data["choices"][0]["message"]["content"] or "").strip()
+            usage = data.get("usage") or {}
+            used = {"in": usage.get("prompt_tokens", 0),
+                    "out": usage.get("completion_tokens", 0)}
+    except Exception:
+        return {"ok": False,
+                "error": "ردّ غير مفهوم | unexpected reply: %s" % json.dumps(data)[:180]}
+
+    return {"ok": True, "reply": reply[:120],
+            "model": data.get("model") or model, "usage": used}
+
+
 class H(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -406,12 +525,15 @@ class H(BaseHTTPRequestHandler):
             return
         path = urllib.parse.urlparse(self.path)
         route = path.path
-        if route.startswith("/config"):
+        if route.startswith("/providers"):
+            self._send(200, {"providers": PROVIDERS})
+        elif route.startswith("/config"):
             c = load()
             self._send(200, {
                 "mode": c.get("mode", "local"),
                 "cloud_base": c.get("cloud_base", ""),
                 "cloud_model": c.get("cloud_model", ""),
+                "cloud_wire": c.get("cloud_wire", "openai"),
                 "has_key": bool(get_secret()),
             })
         elif route.startswith("/status"):
@@ -434,12 +556,23 @@ class H(BaseHTTPRequestHandler):
         # Reject the CORS "simple request" path (text/plain) that skips preflight.
         if "application/json" not in (self.headers.get("Content-Type") or ""):
             return self._send(415, {"error": "content-type must be application/json"})
-        if not self.path.startswith("/config"):
-            return self._send(404, {"error": "not found"})
         try:
             data = json.loads(raw)
         except Exception:
             return self._send(400, {"error": "bad json"})
+
+        # /test — try the provider for real, without saving anything. The key may
+        # come from the form (the user is still typing it) or from the keyring (it
+        # is already saved and the field was left blank).
+        if self.path.startswith("/test"):
+            return self._send(200, test_cloud(
+                data.get("cloud_base", ""),
+                data.get("cloud_model", ""),
+                data.get("cloud_wire", "openai"),
+                data.get("cloud_key") or get_secret()))
+
+        if not self.path.startswith("/config"):
+            return self._send(404, {"error": "not found"})
         cur = load()
         mode = "cloud" if data.get("mode") == "cloud" else "local"
         key = data.get("cloud_key") or ""
@@ -449,6 +582,7 @@ class H(BaseHTTPRequestHandler):
             "mode": mode,
             "cloud_base": data.get("cloud_base", cur.get("cloud_base", "")),
             "cloud_model": data.get("cloud_model", cur.get("cloud_model", "")),
+            "cloud_wire": data.get("cloud_wire", cur.get("cloud_wire", "openai")),
         }
         save(out)
         # Local and cloud both serve on 8080 — only one may run.

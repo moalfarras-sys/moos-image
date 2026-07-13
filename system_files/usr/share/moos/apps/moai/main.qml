@@ -2349,27 +2349,98 @@ Kirigami.ApplicationWindow {
                         visible: root.settingsCloud
                         spacing: 7
 
-                        Text { text: "المزوّد | Provider (OpenAI-compatible base URL)"; color: root.textLo; font.family: root.uiFont; font.pixelSize: 11 }
+                        Text { text: "الوكيل | Agent"; color: root.textLo; font.family: root.uiFont; font.pixelSize: 11 }
+
+                        // The provider picker. Each preset fills in the base URL,
+                        // the wire protocol and a CHEAP default model — a key is
+                        // never part of a preset and never leaves the keyring.
+                        Flow {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            Repeater {
+                                model: root.providers
+                                delegate: Rectangle {
+                                    id: prov
+                                    required property var modelData
+                                    readonly property bool on_: root.settingsProvider === modelData.id
+                                    height: 30
+                                    width: provText.implicitWidth + 22
+                                    radius: 9
+                                    color: on_ ? root.novaBlue
+                                         : provMa.containsMouse ? root.surface3 : root.surface2
+                                    border.width: 1
+                                    border.color: on_ ? "transparent" : root.hairline
+                                    Behavior on color { ColorAnimation { duration: 120 } }
+                                    Text {
+                                        id: provText
+                                        anchors.centerIn: parent
+                                        text: prov.modelData.name
+                                        color: prov.on_ ? "#FFFFFF" : root.textHi
+                                        font.family: root.uiFont
+                                        font.pixelSize: 11
+                                        font.weight: prov.on_ ? Font.DemiBold : Font.Normal
+                                    }
+                                    MouseArea {
+                                        id: provMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.pickProvider(prov.modelData)
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            visible: text !== ""
+                            text: {
+                                for (let i = 0; i < root.providers.length; i++)
+                                    if (root.providers[i].id === root.settingsProvider)
+                                        return root.providers[i].hint || ""
+                                return ""
+                            }
+                            color: root.textMute
+                            font.family: root.uiFont
+                            font.pixelSize: 10
+                            wrapMode: Text.Wrap
+                        }
+
+                        Text {
+                            text: "الرابط | Base URL"
+                            color: root.textLo; font.family: root.uiFont; font.pixelSize: 11
+                        }
                         QQC2.TextField {
                             id: fBase
                             Layout.fillWidth: true
-                            placeholderText: "https://openrouter.ai/api/v1"
+                            placeholderText: "https://api.openai.com/v1"
                             placeholderTextColor: root.textMute
                             color: root.textHi
                             font.family: root.uiFont
+                            font.pixelSize: 12
                             background: Rectangle { color: root.surface2; radius: 8; border.width: 1; border.color: fBase.activeFocus ? root.novaBlue : root.hairline }
+                            onTextChanged: root.settingsProvider = root.matchProvider(text.trim(), root.settingsWire)
                         }
-                        Text { text: "النموذج | Model"; color: root.textLo; font.family: root.uiFont; font.pixelSize: 11 }
+
+                        Text {
+                            text: "النموذج | Model  " + (root.settingsWire === "anthropic" ? "(Anthropic)" : "(OpenAI-compatible)")
+                            color: root.textLo; font.family: root.uiFont; font.pixelSize: 11
+                        }
                         QQC2.TextField {
                             id: fModel
                             Layout.fillWidth: true
-                            placeholderText: "anthropic/claude-sonnet-5"
+                            placeholderText: "gpt-5.4-mini"
                             placeholderTextColor: root.textMute
                             color: root.textHi
                             font.family: root.uiFont
+                            font.pixelSize: 12
                             background: Rectangle { color: root.surface2; radius: 8; border.width: 1; border.color: fModel.activeFocus ? root.novaBlue : root.hairline }
                         }
-                        Text { text: "مفتاح API | API key (يُحفظ في خزنة النظام | stored in the system keyring)"; color: root.textLo; font.family: root.uiFont; font.pixelSize: 11 }
+
+                        Text {
+                            text: "مفتاح API | API key — يُحفظ في خزنة النظام، لا في ملف"
+                            color: root.textLo; font.family: root.uiFont; font.pixelSize: 11
+                        }
                         QQC2.TextField {
                             id: fKey
                             Layout.fillWidth: true
@@ -2378,7 +2449,47 @@ Kirigami.ApplicationWindow {
                             placeholderTextColor: root.textMute
                             color: root.textHi
                             font.family: root.uiFont
+                            font.pixelSize: 12
                             background: Rectangle { color: root.surface2; radius: 8; border.width: 1; border.color: fKey.activeFocus ? root.novaBlue : root.hairline }
+                        }
+
+                        // Test — sends a real request and reports what came back.
+                        // "Saved ✓" proves nothing: the URL can be wrong, the key
+                        // dead, the model missing, or the provider behind a CDN
+                        // that refuses us. This is the only honest confirmation.
+                        MoButton {
+                            Layout.fillWidth: true
+                            Layout.topMargin: 2
+                            label: root.settingsTesting ? "جارٍ الاختبار… | Testing…"
+                                                        : "اختبر الاتصال  |  Test connection"
+                            icon: "moos-network"
+                            enabled_: !root.settingsTesting
+                            onClicked: root.testConfig()
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            visible: root.settingsTestMsg !== ""
+                            radius: 9
+                            implicitHeight: testText.implicitHeight + 18
+                            color: root.settingsTestOk ? Qt.rgba(0.21, 0.83, 0.60, 0.10)
+                                                       : Qt.rgba(1.0, 0.42, 0.48, 0.10)
+                            border.width: 1
+                            border.color: root.settingsTestOk ? Qt.rgba(0.21, 0.83, 0.60, 0.45)
+                                                              : Qt.rgba(1.0, 0.42, 0.48, 0.45)
+                            Text {
+                                id: testText
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.leftMargin: 11
+                                anchors.rightMargin: 11
+                                text: root.settingsTestMsg
+                                color: root.settingsTestOk ? root.okColor : root.badColor
+                                font.family: root.uiFont
+                                font.pixelSize: 11
+                                wrapMode: Text.Wrap
+                            }
                         }
                     }
 
@@ -2435,8 +2546,55 @@ Kirigami.ApplicationWindow {
     property bool settingsSaving: false
     property string settingsError: ""
 
+    // The cloud provider. `wire` is the protocol the provider actually speaks;
+    // moai-gateway translates it, so this app only ever speaks one dialect.
+    property var providers: []
+    property string settingsProvider: "custom"
+    property string settingsWire: "openai"
+
+    // The result of a REAL request to the provider — not "Saved ✓".
+    property bool settingsTesting: false
+    property bool settingsTestOk: false
+    property string settingsTestMsg: ""
+
+    function loadProviders() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", controlApi + "/providers")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200)
+                return
+            try {
+                root.providers = JSON.parse(xhr.responseText).providers || []
+            } catch (e) {}
+        }
+        xhr.send()
+    }
+
+    /** Fill the form from a preset. The key is never part of a preset. */
+    function pickProvider(p) {
+        root.settingsProvider = p.id
+        root.settingsWire = p.wire || "openai"
+        if (p.base)
+            fBase.text = p.base
+        if (p.model)
+            fModel.text = p.model
+        root.settingsTestMsg = ""
+    }
+
+    /** Which preset (if any) the current form matches. */
+    function matchProvider(base, wire) {
+        for (let i = 0; i < providers.length; i++)
+            if (providers[i].base && providers[i].base === base
+                    && (providers[i].wire || "openai") === wire)
+                return providers[i].id
+        return "custom"
+    }
+
     function loadConfig() {
         settingsError = ""
+        settingsTestMsg = ""
+        loadProviders()
         const xhr = new XMLHttpRequest()
         xhr.open("GET", controlApi + "/config")
         xhr.setRequestHeader("X-Moai-Control", "1")
@@ -2449,9 +2607,11 @@ Kirigami.ApplicationWindow {
                     root.settingsCloud = (c.mode === "cloud")
                     fBase.text = c.cloud_base || ""
                     fModel.text = c.cloud_model || ""
+                    root.settingsWire = c.cloud_wire || "openai"
+                    root.settingsProvider = root.matchProvider(fBase.text, root.settingsWire)
                     fKey.text = ""
                     fKey.placeholderText = c.has_key
-                        ? "•••• محفوظ | saved (اتركه فارغاً للإبقاء)"
+                        ? "•••• محفوظ في خزنة النظام | saved (اتركه فارغاً للإبقاء)"
                         : "sk-…  مفتاحك | your API key"
                 } catch (e) {}
             } else {
@@ -2461,11 +2621,50 @@ Kirigami.ApplicationWindow {
         xhr.send()
     }
 
+    /** Actually call the provider and say what came back. */
+    function testConfig() {
+        root.settingsTesting = true
+        root.settingsTestMsg = ""
+        const body = {
+            cloud_base: fBase.text.trim(),
+            cloud_model: fModel.text.trim(),
+            cloud_wire: root.settingsWire
+        }
+        if (fKey.text.length > 0)
+            body.cloud_key = fKey.text     // still being typed; not saved yet
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", controlApi + "/test")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            root.settingsTesting = false
+            try {
+                const r = JSON.parse(xhr.responseText)
+                root.settingsTestOk = !!r.ok
+                if (r.ok) {
+                    const u = r.usage || {}
+                    root.settingsTestMsg = "✓ ردّ: “" + (r.reply || "") + "”\n"
+                        + (r.model || "") + "  ·  " + (u["in"] || 0) + " in / "
+                        + (u.out || 0) + " out tokens"
+                } else {
+                    root.settingsTestMsg = "✕ " + (r.error || "فشل | failed")
+                }
+            } catch (e) {
+                root.settingsTestOk = false
+                root.settingsTestMsg = "✕ تعذّر الاختبار | test failed"
+            }
+        }
+        xhr.send(JSON.stringify(body))
+    }
+
     function saveConfig() {
         const body = {
             mode: settingsCloud ? "cloud" : "local",
             cloud_base: fBase.text.trim(),
-            cloud_model: fModel.text.trim()
+            cloud_model: fModel.text.trim(),
+            cloud_wire: root.settingsWire
         }
         if (fKey.text.length > 0)
             body.cloud_key = fKey.text

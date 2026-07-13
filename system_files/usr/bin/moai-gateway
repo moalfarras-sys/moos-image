@@ -1,19 +1,43 @@
 #!/usr/bin/env python3
-# moai-gateway — optional CLOUD brain for Mo AI.
+# moai-gateway — the CLOUD brain for Mo AI.
 #
-# The Mo AI app always talks to 127.0.0.1:8080. In LOCAL mode the RamaLama
-# service owns that port; in CLOUD mode moai-config stops the local service and
-# runs THIS gateway on 8080 instead — a tiny localhost proxy that forwards
-# OpenAI-compatible requests to any cloud provider (OpenAI, OpenRouter, Together,
-# a Claude-compatible endpoint, …) reading the base URL + model + API KEY from
-# ~/.config/moai/config.json (chmod 600). The KEY never leaves this process — the
-# pure-QML app never sees it. SSE streaming is piped through untouched. Stdlib
-# only (no pip deps).
-import json, os, subprocess, sys, urllib.request, urllib.error
+# The Mo AI app always talks to 127.0.0.1:8080 and always speaks ONE dialect:
+# OpenAI chat/completions with SSE deltas. In LOCAL mode the RamaLama service owns
+# that port; in CLOUD mode moai-control stops it and runs THIS gateway instead.
+#
+# This process is the only thing that ever sees the API key. It reads the provider
+# (base URL + model + wire protocol) from ~/.config/moai/config.json and the KEY
+# from Secret Service, translates if the provider does not speak OpenAI, and pipes
+# the stream back. The pure-QML app never sees the key and never learns which
+# provider is behind it — which is what lets us add providers without touching the
+# UI's request path. Stdlib only (no pip deps).
+#
+# WIRE PROTOCOLS
+#   openai     — OpenAI, OpenRouter, Google Gemini (its OpenAI-compatible endpoint),
+#                Groq, Together, a local vLLM, and any private OpenAI-compatible
+#                gateway. Passed through almost untouched.
+#   anthropic  — Claude's NATIVE API (/v1/messages). A genuinely different shape:
+#                the system prompt is a top-level field, max_tokens is required,
+#                auth is x-api-key, and the stream is content_block_delta events.
+#                Translated in both directions here so the app stays unchanged.
+import json, os, re, subprocess, sys, urllib.error, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CONFIG = os.path.expanduser("~/.config/moai/config.json")
 PORT = int(os.environ.get("MOAI_GATEWAY_PORT", "8080"))
+
+# Identify ourselves. Python's urllib defaults to "Python-urllib/3.x", and
+# Cloudflare — which fronts a large share of AI providers — answers that with
+# HTTP 403 "error code: 1010" before the request ever reaches the API. The
+# shipped gateway sent the default and therefore could not reach ANY
+# Cloudflare-fronted provider; the cloud brain was configurable and dead.
+USER_AGENT = "MoOS-MoAI/1.0 (+https://github.com/moalfarras-sys/moos-image)"
+
+ANTHROPIC_VERSION = "2023-06-01"
+DEFAULT_MAX_TOKENS = 2048
+
+# A base URL is expected to carry its API version ("…/v1", "…/v1beta/openai").
+VERSIONED = re.compile(r"/v\d[\w.]*(/|$)")
 
 
 def load_cfg():
@@ -35,6 +59,113 @@ def load_secret():
         return ""
 
 
+def upstream_url(base, path, wire):
+    """Map the app's /v1/<endpoint> onto the provider's base URL."""
+    b = base.rstrip("/")
+    if not VERSIONED.search(b):
+        # A bare host was pasted. Add the conventional version segment so it
+        # still works rather than 404ing on the user.
+        b += "/v1"
+    endpoint = path[len("/v1"):] if path.startswith("/v1/") else path
+    if wire == "anthropic":
+        # Claude has no /chat/completions and no /models list we need.
+        return b + ("/messages" if endpoint.startswith("/chat/completions") else endpoint)
+    return b + endpoint
+
+
+def auth_headers(key, wire):
+    if wire == "anthropic":
+        return {"x-api-key": key, "anthropic-version": ANTHROPIC_VERSION}
+    return {"Authorization": "Bearer " + key}
+
+
+# ── OpenAI → Anthropic, and back ─────────────────────────────────────────────
+
+def to_anthropic(body, model):
+    """Rewrite an OpenAI chat/completions request as an Anthropic /v1/messages one.
+
+    Returns (body, streaming).
+    """
+    req = json.loads(body)
+    system_parts, messages = [], []
+    for m in req.get("messages", []):
+        role, content = m.get("role"), m.get("content") or ""
+        if role == "system":
+            system_parts.append(content)       # Anthropic takes system separately
+        elif role in ("user", "assistant"):
+            messages.append({"role": role, "content": content})
+    streaming = bool(req.get("stream"))
+    out = {
+        "model": model or req.get("model") or "",
+        # Required by Anthropic — OpenAI treats it as optional, so supply a default.
+        "max_tokens": req.get("max_tokens") or DEFAULT_MAX_TOKENS,
+        "messages": messages,
+        "stream": streaming,
+    }
+    if system_parts:
+        out["system"] = "\n\n".join(system_parts)
+    return json.dumps(out).encode("utf-8"), streaming
+
+
+def anthropic_chunk(text):
+    """Wrap a text delta in the chat.completion.chunk shape the app parses."""
+    return b"data: " + json.dumps({
+        "object": "chat.completion.chunk",
+        "choices": [{"index": 0, "delta": {"content": text}, "finish_reason": None}],
+    }).encode("utf-8") + b"\n\n"
+
+
+def anthropic_stream_to_openai(upstream, write):
+    """Translate Anthropic's SSE events into OpenAI chunks, live.
+
+    Anthropic emits `event: content_block_delta` with
+    {"delta": {"type": "text_delta", "text": "…"}}. The app only understands
+    choices[0].delta.content, so rewrite each delta as it arrives — buffering the
+    whole reply first would throw away the streaming the UI is built around.
+    """
+    buf = b""
+    while True:
+        chunk = upstream.read1(65536)
+        if not chunk:
+            break
+        buf += chunk
+        while b"\n" in buf:
+            line, buf = buf.split(b"\n", 1)
+            line = line.strip()
+            if not line.startswith(b"data:"):
+                continue
+            payload = line[5:].strip()
+            if not payload:
+                continue
+            try:
+                ev = json.loads(payload)
+            except Exception:
+                continue
+            if ev.get("type") == "content_block_delta":
+                text = (ev.get("delta") or {}).get("text") or ""
+                if text:
+                    write(anthropic_chunk(text))
+            elif ev.get("type") == "message_stop":
+                write(b"data: [DONE]\n\n")
+                return
+    write(b"data: [DONE]\n\n")
+
+
+def anthropic_whole_to_openai(raw):
+    """Non-streamed Anthropic reply → an OpenAI chat.completion."""
+    try:
+        msg = json.loads(raw)
+        text = "".join(b.get("text") or "" for b in msg.get("content", [])
+                       if b.get("type") == "text")
+    except Exception:
+        text = ""
+    return json.dumps({
+        "object": "chat.completion",
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": text},
+                     "finish_reason": "stop"}],
+    }).encode("utf-8")
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -43,70 +174,102 @@ class Handler(BaseHTTPRequestHandler):
 
     def _cfg(self):
         c = load_cfg()
-        base = (c.get("cloud_base") or "").rstrip("/")
-        key = load_secret()
-        model = c.get("cloud_model") or ""
-        return base, key, model
-
-    def _url(self, base):
-        # cloud_base already carries the version (…/v1) and the app's path also
-        # starts with /v1/, so drop one to avoid a doubled /v1 → 404.
-        tail = self.path
-        if base.endswith("/v1") and tail.startswith("/v1/"):
-            tail = tail[3:]
-        return base + tail
+        return ((c.get("cloud_base") or "").rstrip("/"),
+                load_secret(),
+                c.get("cloud_model") or "",
+                (c.get("cloud_wire") or "openai").lower())
 
     def do_GET(self):
-        base, key, _ = self._cfg()
+        base, key, _, wire = self._cfg()
         if not base or not key:
             return self._err(503, "cloud brain not configured")
-        # A cheap reachability probe for the app's status badge.
-        self._proxy("GET", self._url(base), key, None)
+        if wire == "anthropic":
+            # Claude has no /v1/models the app can poll. The badge only needs to
+            # know a brain is reachable, and it is: we hold a key and a base URL.
+            return self._send_json(200, {"object": "list", "data": [{"id": "claude"}]})
+        self._proxy("GET", upstream_url(base, self.path, wire), key, wire, None, False)
 
     def do_POST(self):
         # Drain the request body FIRST — an early error must not leave unread
         # bytes in the keep-alive socket (they would desync the next request).
         length = int(self.headers.get("Content-Length", 0) or 0)
         body = self.rfile.read(length) if length else b""
-        base, key, model = self._cfg()
+        base, key, model, wire = self._cfg()
         if not base or not key:
             return self._err(503, "cloud brain not configured")
-        # Force the configured cloud model if the app sent the local placeholder.
-        if model and body:
+
+        streaming = False
+        if wire == "anthropic":
+            try:
+                body, streaming = to_anthropic(body, model)
+            except Exception as e:
+                return self._err(400, "could not translate the request: %s" % e)
+        elif body:
             try:
                 obj = json.loads(body)
-                obj["model"] = model
+                # Force the configured model if the app sent the local placeholder.
+                if model:
+                    obj["model"] = model
+                streaming = bool(obj.get("stream"))
                 body = json.dumps(obj).encode("utf-8")
             except Exception:
                 pass
-        self._proxy("POST", self._url(base), key, body)
 
-    def _proxy(self, method, url, key, body):
+        self._proxy("POST", upstream_url(base, self.path, wire), key, wire, body, streaming)
+
+    def _proxy(self, method, url, key, wire, body, streaming):
         req = urllib.request.Request(url, data=body, method=method)
-        req.add_header("Authorization", "Bearer " + key)
         req.add_header("Content-Type", "application/json")
+        req.add_header("User-Agent", USER_AGENT)     # or Cloudflare answers 403/1010
+        for name, value in auth_headers(key, wire).items():
+            req.add_header(name, value)
         try:
-            up = urllib.request.urlopen(req, timeout=120)
+            up = urllib.request.urlopen(req, timeout=180)
         except urllib.error.HTTPError as e:
             return self._err(e.code, e.read().decode("utf-8", "replace"))
         except Exception as e:
             return self._err(502, "cloud request failed: %s" % e)
+
         self.send_response(up.status)
         ctype = up.headers.get("Content-Type", "application/json")
+        if wire == "anthropic":
+            # We rewrite the body, so never echo the upstream content type.
+            ctype = "text/event-stream" if streaming else "application/json"
         self.send_header("Content-Type", ctype)
         self.send_header("Transfer-Encoding", "chunked")
         self.end_headers()
-        # Stream (SSE or plain) through so the app renders live. read1() returns
-        # as soon as ANY bytes are available (read() would block until the buffer
-        # fills or the stream ends, defeating live streaming).
+
+        def write(data):
+            self.wfile.write(b"%X\r\n%s\r\n" % (len(data), data))
+            self.wfile.flush()
+
         try:
-            while True:
-                chunk = up.read1(65536)
-                if not chunk:
-                    break
-                self.wfile.write(b"%X\r\n%s\r\n" % (len(chunk), chunk))
-                self.wfile.flush()
+            if wire == "anthropic":
+                if streaming:
+                    anthropic_stream_to_openai(up, write)
+                else:
+                    write(anthropic_whole_to_openai(up.read()))
+            else:
+                # Stream (SSE or plain) straight through. read1() returns as soon
+                # as ANY bytes are available; read() would block until the buffer
+                # fills, defeating live streaming.
+                while True:
+                    chunk = up.read1(65536)
+                    if not chunk:
+                        break
+                    write(chunk)
             self.wfile.write(b"0\r\n\r\n")
+        except Exception:
+            pass
+
+    def _send_json(self, code, obj):
+        payload = json.dumps(obj).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        try:
+            self.wfile.write(payload)
         except Exception:
             pass
 
