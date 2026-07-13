@@ -405,6 +405,59 @@ class _ChannelRow extends ConsumerWidget {
   }
 }
 
+/// The four fields the pane draws, taken from ONE source.
+class NowPlayingSubject {
+  const NowPlayingSubject({
+    required this.title,
+    required this.streamId,
+    this.logo,
+    this.epgChannelId,
+  });
+
+  final String title;
+  final String streamId;
+  final String? logo;
+  final String? epgChannelId;
+}
+
+/// Which channel the pane is about: the previewed one when there is one, else
+/// whatever is playing live. Null means there is nothing to show.
+///
+/// This is a function, not four `??` expressions inline, because the inline form
+/// shipped a crash. `previewed?.logo ?? playing!.imageUrl` reads as "fall back to
+/// the playing stream if there is no previewed channel" — but `??` falls through
+/// when the *field* is null, not only when the channel is. `logo` and
+/// `epgChannelId` are optional on LiveChannel, thousands of the 12,653 channels
+/// on this panel carry neither, and previewing one of them while nothing was
+/// playing dereferenced a null `playing` — on every frame, until the app
+/// segfaulted (2026-07-13, in the shipped image).
+///
+/// Fields never mix: a previewed channel with no logo shows no logo, rather than
+/// borrowing the poster of an unrelated stream.
+NowPlayingSubject? resolveNowPlaying({
+  LiveChannel? previewed,
+  NowPlaying? playing,
+}) {
+  final live = playing != null && playing.kind == MediaKind.live;
+
+  if (previewed != null) {
+    return NowPlayingSubject(
+      title: previewed.name,
+      streamId: previewed.streamId,
+      logo: previewed.logo,
+      epgChannelId: previewed.epgChannelId,
+    );
+  }
+  if (!live) return null;
+
+  return NowPlayingSubject(
+    title: playing.media.title,
+    streamId: playing.refId,
+    logo: playing.imageUrl,
+    epgChannelId: playing.payload['epgChannelId'] as String?,
+  );
+}
+
 /// What is on the channel the user is *looking at* — which is not necessarily
 /// the one that is playing.
 ///
@@ -423,16 +476,18 @@ class _NowPlayingPane extends ConsumerWidget {
     final playing = ref.watch(playbackProvider);
     final live = playing != null && playing.kind == MediaKind.live;
 
+    // The Play button needs the channel itself, not just its fields.
     final channel = previewed;
-    if (channel == null && !live) {
+
+    final subject = resolveNowPlaying(previewed: channel, playing: playing);
+    if (subject == null) {
       return EmptyView(icon: Icons.live_tv_rounded, message: s.pickChannel);
     }
 
-    final title = channel?.name ?? playing!.media.title;
-    final logo = channel?.logo ?? playing!.imageUrl;
-    final streamId = channel?.streamId ?? playing!.refId;
-    final epgChannelId =
-        channel?.epgChannelId ?? playing!.payload['epgChannelId'] as String?;
+    final title = subject.title;
+    final logo = subject.logo;
+    final streamId = subject.streamId;
+    final epgChannelId = subject.epgChannelId;
 
     // Is the pane looking at the thing that is playing, or at something else?
     // The answer decides the button: uncovering a running stream and starting a
