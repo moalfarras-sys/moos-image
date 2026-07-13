@@ -112,6 +112,11 @@ case "${cat}/${tgt}" in
             notify "معرّف تطبيق غير صالح | invalid app id"
             exit 2
         fi
+        # Same guard as moai-do's launch_app, and for the same reason: with the local brain
+        # loaded there is not enough VRAM left for a GPU app to make an EGL context, and it
+        # aborts rather than degrading. A route that opens apps must not open them into a
+        # full card. Silent and non-fatal — never the reason an app did not start.
+        command -v moos-gpu-headroom >/dev/null 2>&1 && moos-gpu-headroom 2>/dev/null || true
         if flatpak info "$id" >/dev/null 2>&1; then
             gui flatpak run "$id"
         elif [ -f "$HOME/.local/share/applications/$id.desktop" ] \

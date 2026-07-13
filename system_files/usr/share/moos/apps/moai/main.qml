@@ -178,9 +178,11 @@ Kirigami.ApplicationWindow {
         "request like “install a camera” ends with the camera on screen. Prefer " +
         "Flatpaks over layering rpm-ostree packages, and prefer apps built for KDE " +
         "Plasma / Wayland — an app made for another desktop can install fine and then " +
-        "crash on launch. For a CAMERA use `org.kde.kamoso` (KDE-native, works here); " +
-        "NEVER `io.github.cosmic_utils.camera` — it is a COSMIC-desktop app and panics " +
-        "on KDE. If you are not certain of an app id, tell the user to search it in " +
+        "crash on launch. For a CAMERA use `org.gnome.Snapshot` (verified live here: it " +
+        "reaches the webcam through the XDG camera portal). NEVER `io.github.cosmic_utils" +
+        ".camera` — a COSMIC-desktop app that panics on KDE — and NOT `org.kde.kamoso`: " +
+        "it is KDE's own, and it still segfaults in GStreamer a few seconds after it " +
+        "opens. If you are not certain of an app id, tell the user to search it in " +
         "the Apps panel rather than guessing one.\n" +
         "• Run apps from OTHER systems, for real:\n" +
         "   – DOUBLE-CLICK IS ENOUGH. A downloaded .exe or .apk runs when the user opens " +
@@ -322,7 +324,7 @@ Kirigami.ApplicationWindow {
         { id: "org.mozilla.firefox",      title: "Firefox",     ar: "متصفح ويب",      en: "Web browser" },
         { id: "org.videolan.VLC",         title: "VLC",         ar: "مشغل وسائط",     en: "Media player" },
         { id: "org.libreoffice.LibreOffice", title: "LibreOffice", ar: "حزمة مكتبية", en: "Office suite" },
-        { id: "org.kde.kamoso",           title: "Kamoso",      ar: "الكاميرا",       en: "Camera" },
+        { id: "org.gnome.Snapshot",       title: "Camera",      ar: "الكاميرا",       en: "Camera" },
         { id: "com.github.tchx84.Flatseal", title: "Flatseal",  ar: "صلاحيات التطبيقات", en: "App permissions" }
     ]
 

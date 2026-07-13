@@ -204,6 +204,48 @@ else
     bad "moos-appstream-refresh.timer is not enabled — the index may be back on the critical path"
 fi
 
+head_ "The dock actually has MoOS's apps in it"
+
+# The image has pinned MoPlayer and Mo PC Remote in layout.js for a long time, and the
+# maintainer's dock still did not have them: a layout template only runs for a user with no
+# panel. So ask the dock the user is looking at, not the file we shipped.
+dock="$(kreadconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
+        --group Containments --group 52 --group Applets --group 54 \
+        --group Configuration --group General --key launchers 2>/dev/null)"
+[ -n "$dock" ] || dock="$(grep -m1 '^launchers=' "${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc" 2>/dev/null)"
+if [ -z "$dock" ]; then
+    printf '  · could not read the dock (no panel config?) — skipped\n'
+else
+    for app in org.moos.moai org.moos.moplayer org.moos.remote; do
+        case "$dock" in
+            *"${app}.desktop"*) ok "${app} is pinned in the dock" ;;
+            *) bad "${app} is NOT in the dock — moos-apply-theme's reconcile did not reach this user (a THEME_REV bump + relogin is what applies it)" ;;
+        esac
+    done
+fi
+
+head_ "The disk cannot fill itself"
+
+# Every one of these was an unbounded leak on this machine: 125 GB of podman build layers,
+# 4.2 GB of core dumps in a night, and a journal heading for 10 % of a 475 GB disk. Read the
+# EFFECTIVE config, not the file we shipped — /etc outranks /usr/lib, and a stale /etc
+# drop-in would silently restore the default.
+journal_cap="$(systemd-analyze cat-config systemd/journald.conf 2>/dev/null \
+               | grep -v '^\s*#' | grep -m1 '^SystemMaxUse=')"
+[ -n "$journal_cap" ] && ok "the journal is capped ($journal_cap)" \
+                      || bad "no SystemMaxUse in the effective journald config — the journal grows to 10 % of the disk"
+
+coredump_cap="$(systemd-analyze cat-config systemd/coredump.conf 2>/dev/null \
+                | grep -v '^\s*#' | grep -m1 '^MaxUse=')"
+[ -n "$coredump_cap" ] && ok "core dumps are capped ($coredump_cap)" \
+                       || bad "no MaxUse in the effective coredump config — one bad GPU night wrote 4.2 GB of dumps"
+
+if systemctl --user is-enabled moos-reclaim-disk.timer >/dev/null 2>&1; then
+    ok "the weekly build-litter sweep is enabled"
+else
+    bad "moos-reclaim-disk.timer is not enabled — podman's dangling build layers grow without limit (125 GB in days)"
+fi
+
 head_ "Failed units"
 
 failed="$(systemctl --failed --no-legend 2>/dev/null | grep -v drkonqi-coredump | wc -l)"

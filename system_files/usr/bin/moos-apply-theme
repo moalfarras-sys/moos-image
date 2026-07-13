@@ -17,7 +17,7 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=12
+THEME_REV=13
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 marker="${state_dir}/moos-nova-theme-applied.v${THEME_REV}"
 
@@ -352,6 +352,88 @@ if command -v gdbus >/dev/null 2>&1; then
             }
         ' >>"$log" 2>&1 || echo "panel polish migration skipped" >>"$log" 2>&1
 fi
+
+# --- The dock: MoOS's own apps are actually IN it ------------------------------
+# THE BUG. layout.js pins Mo AI, MoPlayer and Mo PC Remote, and it is correct — but a
+# layout template only ever runs for a user who has NO panel yet. Every existing user
+# keeps the dock they were given the day their account was made, so the two apps MoOS
+# added since then simply never arrived. Verified on the maintainer's own desktop on
+# 2026-07-13, months of green gates later: his dock held moai, browser, dolphin,
+# systemsettings, konsole — no MoPlayer, no Mo PC Remote. He owns an operating system
+# whose flagship app is not in its own dock. (MoPlayer *looked* present in a screenshot
+# only because it happened to be running; a task is not a launcher.) This is the
+# shadowed-config family again: ship it right, and the user still does not get it.
+#
+# THE RULE THIS FOLLOWS. Add, never remove. A dock is the user's, not ours — so a MoOS
+# app that is missing gets put back, and everything else is left exactly as found:
+#   - an entry the user pinned themselves is kept, in their order, at the end;
+#   - a NON-MoOS default they deliberately unpinned (dolphin, konsole) stays unpinned —
+#     re-adding it would be us overruling a choice, and it would come back every upgrade;
+#   - a MoOS app is re-added at its shipped position, so an upgraded dock and a fresh
+#     one read the same left to right.
+# The one thing MoOS insists on is that its own apps are reachable. If the user unpins
+# MoPlayer, this puts it back once per THEME_REV — the honest cost of the guarantee, and
+# the alternative is the desktop we actually shipped.
+#
+# Only pin a .desktop that EXISTS: icontasks silently skips a launcher URL it cannot
+# resolve, so a stale entry does not fail loudly, it leaves an unexplained hole.
+dock_shipped=""
+for entry in \
+    "applications:org.moos.moai.desktop" \
+    "preferred://browser" \
+    "applications:org.moos.moplayer.desktop" \
+    "applications:org.kde.dolphin.desktop" \
+    "applications:org.moos.remote.desktop" \
+    "applications:systemsettings.desktop" \
+    "applications:org.kde.konsole.desktop" \
+; do
+    case "$entry" in
+        applications:*)
+            desktop_id="${entry#applications:}"
+            [ -e "/usr/share/applications/${desktop_id}" ] \
+                || [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/applications/${desktop_id}" ] \
+                || continue
+            ;;
+    esac
+    dock_shipped="${dock_shipped}${dock_shipped:+, }\"${entry}\""
+done
+
+# The shipped list is the only part that varies, so splice it in by concatenating quoted
+# strings rather than switching the JS to a double-quoted heredoc: inside double quotes every
+# JS string would need a backslash, and gdbus UNESCAPES its argument — a stray backslash
+# escape does not error, it silently truncates the script at the first one.
+if command -v gdbus >/dev/null 2>&1 && [ -n "$dock_shipped" ]; then
+    gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var SHIPPED = ['"$dock_shipped"'];
+            var isMoOS = function (u) { return u.indexOf("applications:org.moos.") === 0; };
+            var ps = panels();
+            for (var i = 0; i < ps.length; i++) {
+                var ws = ps[i].widgets();
+                for (var j = 0; j < ws.length; j++) {
+                    if (ws[j].type != "org.kde.plasma.icontasks") { continue; }
+                    try {
+                        ws[j].currentConfigGroup = ["General"];
+                        var cur = String(ws[j].readConfig("launchers", ""))
+                                      .split(",").filter(function (s) { return s.length > 0; });
+                        var out = [];
+                        var push = function (u) { if (out.indexOf(u) < 0) { out.push(u); } };
+                        for (var k = 0; k < SHIPPED.length; k++) {
+                            var u = SHIPPED[k];
+                            if (isMoOS(u) || cur.indexOf(u) >= 0) { push(u); }
+                        }
+                        for (var m = 0; m < cur.length; m++) { push(cur[m]); }
+                        if (out.join(",") != cur.join(",")) {
+                            ws[j].writeConfig("launchers", out.join(","));
+                            ws[j].reloadConfig();
+                        }
+                    } catch (e) {}
+                }
+            }
+        ' >>"$log" 2>&1 && dock_applied=1 || echo "dock launcher migration skipped" >>"$log" 2>&1
+fi
+# Like the tray below, the write lands in the file but the running icontasks keeps drawing
+# its old model; the plasmashell restart at the end of this script is what makes it visible.
 
 # KSplash is user configuration, so a system default alone cannot override an
 # already-created user's previous Breeze/Fedora choice.  Write the two exact
@@ -743,8 +825,11 @@ done
 # just wrote. This whole apply body only runs on a REAL apply (marker missing after a
 # THEME_REV bump, or a self-heal), never on a steady-state login, so this is not a per-login
 # flicker; the per-revision marker also stops a repeated self-heal from thrashing the shell.
+#
+# The dock reconcile above needs exactly the same restart for exactly the same reason —
+# icontasks keeps drawing the launcher model it booted with — so one restart serves both.
 tray_marker="${state_dir}/moos-tray-collapsed.v${THEME_REV}"
-if [ "${tray_applied:-0}" = "1" ] && [ ! -e "$tray_marker" ]; then
+if { [ "${tray_applied:-0}" = "1" ] || [ "${dock_applied:-0}" = "1" ]; } && [ ! -e "$tray_marker" ]; then
     if ! systemctl --user restart plasma-plasmashell.service >>"$log" 2>&1; then
         kquitapp6 plasmashell >>"$log" 2>&1 || true
         sleep 1
@@ -752,7 +837,7 @@ if [ "${tray_applied:-0}" = "1" ] && [ ! -e "$tray_marker" ]; then
     fi
     touch "$tray_marker" 2>/dev/null || true
     applied=1
-    echo "restarted plasmashell so the collapsed tray takes hold" >>"$log" 2>/dev/null || true
+    echo "restarted plasmashell so the collapsed tray and the dock's launchers take hold" >>"$log" 2>/dev/null || true
 fi
 
 # Only mark done if something actually applied — otherwise retry next login.

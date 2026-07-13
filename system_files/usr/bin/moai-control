@@ -705,13 +705,32 @@ def flatpak_search(query):
 # native to this desktop, ranked first and labelled, plus an honest warning on the ones
 # built for another desktop entirely.
 #
-# The bar for a row here: KDE/Qt-native (no other desktop's D-Bus or shell to miss), and
-# `note` says WHY, so the pick is auditable rather than a matter of taste. `verified`
-# means it was launched on this hardware and held.
+# The bar for a row here, CORRECTED on 2026-07-13 after the first version of this table
+# shipped a broken pick: not "is it KDE-native" but **was it launched on this machine and
+# did it hold**. Those are not the same test, and the difference cost the user their camera
+# twice. `verified` means someone ran it here and watched it survive; `note` says WHY, so a
+# pick is auditable rather than a matter of taste. A KDE-native app that crashes is worse
+# than a GTK one that works — the user does not care whose toolkit it is.
+#
+# THE ROW THAT PROVED IT. This table's first camera was org.kde.kamoso, marked `verified`
+# because it had been seen to open. It opens — and then **segfaults after 15-45 seconds**,
+# inside GStreamer's camerabin (libgstcamerabin → gobject), silently, with no message at
+# all. Reproduced twice on 2026-07-13, and NOT a VRAM problem: it dies just the same with
+# 6.5 GB free on the card, while `gst-launch-1.0 v4l2src` grabs a clean 1280x720 frame from
+# the very same webcam. So "it opened once" is not verification; MoOS shipped a recommended
+# app that crashes, which is exactly the failure this whole table exists to prevent.
+#
+# The camera is org.gnome.Snapshot now: GTK4, but it talks to the hardware through the XDG
+# camera portal (which xdg-desktop-portal-kde implements — it prompts for consent, as it
+# should), so there is no foreign shell or D-Bus service for it to miss. Verified live on
+# this machine: live viewfinder, shutter, no crash. GNOME-branded is fine; COSMIC is not,
+# and the distinction is not tribal — a COSMIC app wants com.system76.Cosmic* services that
+# genuinely do not exist here, while a GTK app on portals wants nothing MoOS does not have.
 KNOWN_GOOD = [
     {"keywords": ["camera", "webcam", "كاميرا", "ويب كام", "تصوير"],
-     "id": "org.kde.kamoso", "name": "Kamoso", "verified": True,
-     "note": "كاميرا KDE الأصلية — مُختبَرة على هذا الجهاز | KDE-native camera, verified on this machine"},
+     "id": "org.gnome.Snapshot", "name": "Camera (Snapshot)", "verified": True,
+     "note": "تعمل عبر بوّابة الكاميرا — مُختبَرة حيّة على هذا الجهاز (kamoso تنهار بعد ثوانٍ) | "
+             "works through the XDG camera portal, verified live here (kamoso segfaults in seconds)"},
     {"keywords": ["video player", "media player", "movie", "mkv", "فيديو", "مشغل", "أفلام"],
      "id": "org.kde.haruna", "name": "Haruna", "verified": True,
      "note": "مشغّل KDE الأصلي (mpv) — يشحن مع MoOS | KDE-native player (mpv), ships with MoOS"},

@@ -110,11 +110,21 @@ require('moos://do/setup-windows' in moai_qml,
 appcatalog_match = re.search(r"property var appCatalog:\s*\[(.*?)\]", moai_qml, re.DOTALL)
 require(appcatalog_match is not None, "Mo AI must expose an appCatalog of recommended apps")
 appcatalog = appcatalog_match.group(1) if appcatalog_match else ""
-require("org.kde.kamoso" in appcatalog,
-        "Mo AI's recommended apps must offer Kamoso — a KDE-native camera that runs here")
+require("org.gnome.Snapshot" in appcatalog,
+        "Mo AI's recommended apps must offer a camera that actually runs here — Snapshot "
+        "reaches the webcam through the XDG camera portal, verified live on this machine")
 require("cosmic_utils.camera" not in appcatalog,
         "Mo AI must not OFFER io.github.cosmic_utils.camera as a recommended app — it is a "
         "COSMIC-desktop app and panics on KDE Plasma")
+# And not Kamoso either, which is the harder lesson. It IS KDE-native, it WAS in this
+# catalogue, and this gate used to demand it — because "KDE-native" was mistaken for
+# "works". It opens and then segfaults inside GStreamer's camerabin after 15-45 seconds
+# (reproduced twice on 2026-07-13, with 6.5 GB free on the GPU, while gst-launch grabbed a
+# clean frame from the same webcam). A recommendation the OS makes is a promise; gate on
+# the promise, not on the toolkit.
+require("org.kde.kamoso" not in appcatalog,
+        "Mo AI must not offer Kamoso: KDE-native or not, it segfaults in GStreamer seconds "
+        "after launch on this hardware — 'it opened once' is not verification")
 
 # The old centres must keep opening — as commands, into their panel in Mo AI.
 for shim, panel in (("moos-hardware", "device"), ("moos-compat", "compat")):
@@ -207,8 +217,8 @@ require("org.moos.runforeign.desktop" in code(read("system_files/usr/bin/moos-ap
 # and labels apps built for another desktop — and BOTH halves are gated, because a ranking
 # the UI never renders is a ranking the user never receives.
 control = code(read("system_files/usr/bin/moai-control"))
-require("KNOWN_GOOD" in control and "org.kde.kamoso" in control,
-        "moai-control must carry the need→known-good-app table (camera → org.kde.kamoso is "
+require("KNOWN_GOOD" in control and "org.gnome.Snapshot" in control,
+        "moai-control must carry the need→known-good-app table (camera → org.gnome.Snapshot is "
         "its archetype); without it Flathub's raw top hit reaches the user")
 require("def desktop_mismatch" in control and "cosmic" in control,
         "moai-control must label desktop-mismatched apps — a COSMIC/GNOME-only Flatpak "
@@ -739,7 +749,7 @@ require('PORT="${MOAI_PORT:-8081}"' in moai_start_code,
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=12" in apply_theme_code, "Nova visual schema must be revision 12")
+require("THEME_REV=13" in apply_theme_code, "Nova visual schema must be revision 13")
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
@@ -1264,6 +1274,80 @@ for clock in ("org.moos.nova.clock", "org.moos.nova.deskclock"):
             f"{clock}: Plasma 6 has no PlasmaCore.Theme — org.kde.plasma.core exposes Types "
             f"only. Binding a colour to it is undefined at runtime and the applet silently "
             f"draws nothing at all. Use Kirigami.Theme.")
+
+# ── Everything MoOS launches gets a GPU it can actually use ───────────────────
+#
+# The brain holds ~6 GB of an 8 GB card, and a graphical app started into what is left does
+# not fall back to software — it ABORTS on eglMakeCurrent. /usr/bin/moplayer calls
+# moos-gpu-headroom, so MoPlayer survives; nothing else did. Mo AI's whole promise is
+# "install a camera" ending with the camera ON SCREEN, and it was handing every Flatpak it
+# installed to a full graphics card. Both launch paths — the installer's and the
+# moos://apps/run route — must ask for headroom first, so gate both.
+for launcher in ("moai-do", "moos-open"):
+    require("moos-gpu-headroom" in code(read(f"system_files/usr/bin/{launcher}")),
+            f"{launcher} must call moos-gpu-headroom before opening an app — with the local "
+            f"brain loaded there is not enough VRAM left to make an EGL context, and the app "
+            f"aborts instead of degrading")
+
+# ── MoOS's own apps are in MoOS's own dock ────────────────────────────────────
+#
+# layout.js pins them, and layout.js only runs for a user who has no panel yet — so on the
+# maintainer's own machine, months and many green gates later, the dock held moai, browser,
+# dolphin, systemsettings, konsole: no MoPlayer, no Mo PC Remote. Gating the template was
+# gating the file that does not decide (PROJECT_STATE.md, the shadowed-config trap). The
+# thing that decides for an EXISTING user is the reconcile in moos-apply-theme, so gate that.
+require('writeConfig("launchers"' in apply_theme_code
+        and "org.kde.plasma.icontasks" in apply_theme_code
+        and "applications:org.moos.moplayer.desktop" in apply_theme_code
+        and "applications:org.moos.remote.desktop" in apply_theme_code,
+        "moos-apply-theme must put MoOS's own apps back into an EXISTING user's dock — the "
+        "layout template only ever runs for a user who has no panel, so every upgraded user "
+        "keeps a dock with no MoPlayer and no Mo PC Remote in it")
+# The dock belongs to the user. The reconcile may ADD a missing MoOS app; it may not rewrite
+# the dock to the shipped list, or it would silently unpin whatever the user pinned and
+# re-pin whatever they deliberately removed — every single upgrade. That property lives in
+# one expression, so gate the expression.
+require("isMoOS(u) || cur.indexOf(u) >= 0" in apply_theme_code,
+        "the dock reconcile must add ONLY MoOS's own apps and otherwise keep the user's "
+        "launchers as found — a non-MoOS default the user unpinned must stay unpinned")
+
+# ── The disk does not fill itself ─────────────────────────────────────────────
+#
+# Three leaks, all measured on the maintainer's machine on 2026-07-13, all with no ceiling:
+# 125 GB of dangling podman layers from building this very image, 4.2 GB of core dumps from
+# one night of GPU crashes, and a journal growing toward systemd's 10 %-of-disk default
+# (~47 GB here). Cleaning them by hand worked and then came straight back — podman was at
+# 14 GB reclaimable a day later. A fix the user has to remember is not a fix.
+# code(): a systemd drop-in comments with `#`, so an UNSET cap sitting in the prose that
+# explains it would satisfy a naive gate — caught exactly that way while writing this one.
+journald_cap = code(read("system_files/usr/lib/systemd/journald.conf.d/10-moos-cap.conf"))
+require("[Journal]" in journald_cap and "SystemMaxUse=" in journald_cap,
+        "the journal must have a ceiling — systemd's default is 10 % of the filesystem, "
+        "which is ~47 GB of logs on this machine that nobody will ever read")
+
+coredump_cap = code(read("system_files/usr/lib/systemd/coredump.conf.d/10-moos-cap.conf"))
+require("[Coredump]" in coredump_cap and "MaxUse=" in coredump_cap,
+        "core dumps must have a ceiling — this machine's GPU sits permanently near the edge, "
+        "so crashes recur, and one night of them wrote 4.2 GB of dumps")
+
+reclaim = code(read("system_files/usr/bin/moos-reclaim-disk"))
+require("podman image prune" in reclaim,
+        "moos-reclaim-disk must prune the dangling layers that every image build leaves behind")
+# THE DANGEROUS FLAG. `podman system prune` deletes STOPPED CONTAINERS, and `-a` then deletes
+# the images they used. The moplayer-dev distrobox is stopped almost always, and it is the only
+# compiler this OSTree machine has — so one "thorough" flag in a weekly automated job silently
+# destroys the user's ability to build their own app. Dangling images are unreferenced by
+# definition; nothing a container uses can be reached by `image prune`. That is the whole
+# safety argument, and this gate is what keeps it true.
+require("system prune" not in reclaim
+        and " -a" not in reclaim
+        and "--all" not in reclaim,
+        "moos-reclaim-disk must NEVER use `podman system prune` or -a/--all: system prune "
+        "removes stopped containers, and the moplayer-dev distrobox — the only compiler on "
+        "this OSTree system — is stopped almost all the time")
+require("moos-reclaim-disk.timer" in code(read("build_files/build.sh")),
+        "the disk-reclaim timer must be enabled in the image — a maintenance script nobody "
+        "starts is the manual cleanup it was written to replace")
 
 if errors:
     print("MoOS user-experience gate failed:", file=sys.stderr)

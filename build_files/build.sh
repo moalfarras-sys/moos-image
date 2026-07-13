@@ -1163,6 +1163,13 @@ systemctl --global enable moai-gateway.service
 # the next request. Enabled for every user so stability is the default, not an opt-in.
 systemctl --global enable moai-idle.timer
 
+# Collect the build litter. Every `just build` leaves its intermediate layers behind as
+# untagged images and nothing ever reaps them: 125 GB accumulated in days on the
+# maintainer's own machine, in ~/.local/share/containers, i.e. out of his home directory.
+# The weekly sweep prunes dangling layers ONLY — see the long warning in the script about
+# why `-a` would eat the moplayer-dev distrobox, which is the machine's only compiler.
+systemctl --global enable moos-reclaim-disk.timer
+
 # An installed bootc system uses an OSTree/composefs overlay for /. Anaconda's
 # generated physical-root fstab entry makes systemd-remount-fs attempt an
 # impossible overlay reconfigure on every boot. Remove only that entry before

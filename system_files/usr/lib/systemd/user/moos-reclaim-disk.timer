@@ -1,0 +1,14 @@
+[Unit]
+Description=Weekly sweep of the build litter podman leaves behind
+
+[Timer]
+# Weekly is the right cadence for a leak measured in tens of GB per week of active
+# building, and it is cheap when there is nothing to collect (a prune with no dangling
+# images is a no-op). Persistent, because this machine is a desktop that gets shut down:
+# a timer that only fires on a box that stays up would never run here.
+OnCalendar=weekly
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

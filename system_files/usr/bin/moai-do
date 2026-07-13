@@ -90,9 +90,20 @@ human() {
 # caller (set -e is on) and takes no arguments beyond the id, so it can do no more
 # than start an app the user already has. This is what makes `install` also RUN:
 # the whole point of "install a camera" is to end up looking through the camera.
+#
+# It also asks for GPU headroom first, and that is not an optimisation. This machine's
+# local brain holds ~6 GB of an 8 GB card for as long as it is loaded, and a graphical app
+# started into the ~300 MB that leaves does not fall back to software — it ABORTS on
+# eglMakeCurrent. MoPlayer survives only because /usr/bin/moplayer calls moos-gpu-headroom
+# itself; a Flatpak has no MoOS launcher to do that for it, so an app Mo AI installs is
+# launched straight into a full card. The user asked for a camera and got a crash, which is
+# indistinguishable from "MoOS installed something broken". The guard unloads only OUR OWN
+# brain (moai-gateway reloads it on the next message), never the user's programs, and it is
+# silent and non-fatal — see moos-gpu-headroom.
 launch_app() {
     local id="${1:-}"
     [ -n "$id" ] || return 0
+    command -v moos-gpu-headroom >/dev/null 2>&1 && moos-gpu-headroom 2>/dev/null || true
     if flatpak info "$id" >/dev/null 2>&1; then
         setsid flatpak run "$id" >/dev/null 2>&1 &
     elif command -v gtk-launch >/dev/null 2>&1; then

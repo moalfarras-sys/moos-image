@@ -1,0 +1,11 @@
+[Unit]
+Description=Reclaim the disk space that building MoOS leaks (dangling podman layers)
+# Rootless podman storage is per-user (~/.local/share/containers), which is why this is a
+# user unit and not a system one: the litter belongs to whoever ran the build.
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/moos-reclaim-disk
+# Housekeeping must never compete with the user for the machine.
+Nice=19
+IOSchedulingClass=idle

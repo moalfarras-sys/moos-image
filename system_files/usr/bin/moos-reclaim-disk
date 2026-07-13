@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# moos-reclaim-disk — give back the disk that building MoOS leaks.
+#
+# THE BUG THIS EXISTS FOR. Building the image is a normal thing to do on this machine —
+# `just build` runs every gate before a push — and every build leaves its intermediate
+# layers behind as untagged (dangling) images. Nothing ever collects them. Measured on
+# 2026-07-13: **125 GB of podman images, 97 % reclaimable**, in a few days; rootless
+# storage lives under ~/.local/share/containers, so it ate the user's home, and the
+# manual `podman system prune` that recovered ~110 GB is a chore that will simply come
+# due again — it was back to 14 GB reclaimable one day later. A maintenance job the user
+# has to remember is a bug with extra steps, so MoOS collects its own litter.
+#
+# WHAT IT MUST NEVER DO, and this is the whole risk of the file:
+#
+#     podman system prune -a     ← removes STOPPED CONTAINERS
+#
+# The one container on this machine that matters is `moplayer-dev`, the distrobox holding
+# the Flutter SDK — MoOS is an OSTree system with no compiler, so that container IS the
+# build environment for MoPlayer, and it is stopped most of the time. `system prune`
+# deletes stopped containers, and `-a` then deletes the fedora-toolbox image they were
+# using. One "helpful" flag and the user cannot build their own app any more, with no
+# error to explain why. So: dangling images and build cache ONLY. Never `-a`, never
+# `system prune`, never anything that reasons about containers at all.
+#
+# Dangling images are by definition unreferenced build leftovers: an image that any
+# container (running OR stopped) still uses is not dangling, so `image prune` cannot
+# reach fedora-toolbox:42 even in principle. That is what makes this safe to automate.
+set -uo pipefail
+
+log() { printf 'moos-reclaim-disk: %s\n' "$1"; }
+
+command -v podman >/dev/null 2>&1 || exit 0
+
+before="$(podman system df --format '{{.Size}}' 2>/dev/null | head -1)"
+
+# The leak itself: untagged layers from previous builds.
+podman image prune --force >/dev/null 2>&1 || log "image prune failed (ignored)"
+
+# The build cache, which podman keeps separately from the images and which `image prune`
+# does not touch. Older podman has no `builder` subcommand — absence is not a failure.
+podman builder prune --force >/dev/null 2>&1 || true
+
+after="$(podman system df --format '{{.Size}}' 2>/dev/null | head -1)"
+log "podman images: ${before:-?} → ${after:-?}"
+
+# drkonqi's gdb scratch, the other thing that grows only after a bad night. It re-runs a
+# debugger over every core it is handed and caches the result; 1.2 GB of it accumulated in
+# the same night that produced 4.2 GB of cores. The cores themselves are capped in the
+# image now (coredump.conf.d/10-moos-cap.conf); this is the cache that outlives them.
+# Only files, only this one directory, only when it is actually large.
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/drkonqi"
+if [ -d "$cache_dir" ]; then
+    size_kb="$(du -sk "$cache_dir" 2>/dev/null | cut -f1)"
+    if [ -n "${size_kb:-}" ] && [ "$size_kb" -gt 262144 ] 2>/dev/null; then   # > 256 MB
+        find "$cache_dir" -type f -mtime +7 -delete 2>/dev/null || true
+        log "trimmed drkonqi's crash-debugger cache (was $((size_kb / 1024)) MB)"
+    fi
+fi
+
+exit 0
