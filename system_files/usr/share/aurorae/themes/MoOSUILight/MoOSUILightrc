@@ -1,0 +1,40 @@
+[General]
+# Title centred, macOS-style, rather than hugged to the button cluster.
+TitleAlignment=Center
+TitleVerticalAlignment=Center
+Animation=120
+ActiveTextColor=41,33,46,255
+InactiveTextColor=117,104,120,255
+UseTextShadow=false
+HaloActive=false
+HaloInactive=false
+
+[Layout]
+BorderLeft=1
+BorderRight=1
+BorderBottom=1
+TitleEdgeTop=5
+TitleEdgeBottom=5
+TitleEdgeLeft=10
+TitleEdgeRight=10
+TitleBorderLeft=8
+TitleBorderRight=8
+TitleHeight=30
+
+# Maximized: no side/bottom frame, no shadow — just the title bar.
+TitleEdgeTopMaximized=0
+TitleEdgeBottomMaximized=0
+TitleEdgeLeftMaximized=10
+TitleEdgeRightMaximized=10
+
+ButtonWidth=18
+ButtonHeight=18
+ButtonSpacing=8
+ButtonMarginTop=0
+
+# The shadow lives here. Aurorae paints the decoration SVG across padding too,
+# so this is the room the drop shadow gets to breathe in.
+PaddingLeft=18
+PaddingRight=18
+PaddingTop=12
+PaddingBottom=24

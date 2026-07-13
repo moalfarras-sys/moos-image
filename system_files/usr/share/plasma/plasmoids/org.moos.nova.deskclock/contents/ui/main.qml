@@ -217,6 +217,17 @@ PlasmoidItem {
         Layout.minimumWidth: implicitWidth
         Layout.minimumHeight: implicitHeight
 
+        // MoOS UI lens: a passive pane behind the existing clock/weather/system
+        // composition. It contains no input handler, so the desktop keeps every
+        // right-click and rubber-band gesture. The old widget had to draw a heavy
+        // inverse halo around every glyph to survive arbitrary wallpapers; this
+        // restrained glass surface gives the content one predictable contrast plane
+        // while still letting the wallpaper colour breathe through it.
+        GlassLens {
+            anchors.fill: column
+            anchors.margins: -Kirigami.Units.largeSpacing
+        }
+
         // A desktop widget sits on the WALLPAPER, not on a themed surface, and a
         // wallpaper is whatever the user makes it. Kirigami.Theme.textColor alone is
         // not enough: switch to the light theme and the clock turns dark, and on a
@@ -380,6 +391,52 @@ PlasmoidItem {
                 // Removes itself on a machine with no GPU, rather than sitting there
                 // at a permanent, meaningless 0%.
                 Gauge { label: "GPU"; sensorId: "gpu/gpu0/usage"; hideWhenAbsent: true }
+            }
+        }
+    }
+
+    // ── Warm glass, shared by both MoOS UI variants ───────────────────────────
+    // The light theme is warm pearl, not white; the dark theme is aubergine, not
+    // blue-black. A very slow sheen is the only motion on the surface itself — the
+    // semantic motion remains in the digit rollers and weather glyphs below.
+    component GlassLens: Rectangle {
+        id: lens
+
+        radius: Math.round(Kirigami.Units.gridUnit * 1.5)
+        color: Kirigami.Theme.backgroundColor.hslLightness > 0.55
+               ? Qt.rgba(0.95, 0.92, 0.88, 0.70)
+               : Qt.rgba(0.10, 0.075, 0.115, 0.72)
+        border.width: 1
+        border.color: Kirigami.Theme.backgroundColor.hslLightness > 0.55
+                      ? Qt.rgba(0.49, 0.23, 0.93, 0.20)
+                      : Qt.rgba(0.75, 0.52, 0.99, 0.24)
+        clip: true
+
+        Rectangle {
+            id: sheen
+            width: lens.width * 0.24
+            height: lens.height * 1.5
+            y: -lens.height * 0.25
+            rotation: 16
+            opacity: 0.28
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.5; color: Qt.rgba(0.95, 0.85, 1.0, 0.22) }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+
+            SequentialAnimation on x {
+                loops: Animation.Infinite
+                running: lens.visible
+                PropertyAction { value: -sheen.width * 1.5 }
+                PauseAnimation { duration: 5200 }
+                NumberAnimation {
+                    to: lens.width + sheen.width
+                    duration: 6200
+                    easing.type: Easing.InOutSine
+                }
+                PauseAnimation { duration: 8400 }
             }
         }
     }

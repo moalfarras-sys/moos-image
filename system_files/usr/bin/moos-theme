@@ -2,8 +2,8 @@
 # moos-theme — switch MoOS between its light and dark look.
 #
 #   moos-theme            show which one is active
-#   moos-theme dark       MoOS Nova (navy glass) — the default
-#   moos-theme light      MoOS Nova Light (porcelain)
+#   moos-theme dark       MoOS UI (aubergine glass) — the default
+#   moos-theme light      MoOS UI Light (warm pearl)
 #   moos-theme toggle     the other one
 #   moos-theme auto       follow sunrise/sunset, between the two MoOS themes
 #
@@ -27,16 +27,16 @@
 # See AGENTS.md, "A theme this image ships is not a theme the user gets".
 set -uo pipefail
 
-DARK_LNF="org.moos.nova"
-LIGHT_LNF="org.moos.nova.light"
+DARK_LNF="org.moos.ui"
+LIGHT_LNF="org.moos.ui.light"
 
 usage() {
     cat <<'EOF'
 moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switch MoOS light/dark
 
   moos-theme            الحالي | show the active theme
-  moos-theme dark       داكن   | MoOS Nova (navy glass, the default)
-  moos-theme light      فاتح   | MoOS Nova Light (porcelain)
+  moos-theme dark       داكن   | MoOS UI (aubergine glass, the default)
+  moos-theme light      فاتح   | MoOS UI Light (warm pearl)
   moos-theme toggle     بدّل   | switch to the other one
   moos-theme auto       تلقائي | follow sunrise/sunset
 EOF
@@ -49,18 +49,18 @@ current() {
 apply() {
     local lnf="$1" scheme konsole_profile prefer_dark icons deco wallpaper
     if [ "$lnf" = "$LIGHT_LNF" ]; then
-        scheme=NovaLight
-        konsole_profile=MoOSLight.profile
+        scheme=MoOSUILight
+        konsole_profile=MoOSUILight.profile
         icons=NovaLight
-        deco=__aurorae__svg__MoOSNovaLight
-        wallpaper=/usr/share/wallpapers/NovaAurora/contents/images/3840x2160.png
+        deco=__aurorae__svg__MoOSUILight
+        wallpaper=/usr/share/wallpapers/MoOSUIAtmosphere/contents/images/3840x2160.png
         prefer_dark=false
     else
-        scheme=NovaDark
-        konsole_profile=MoOS.profile
+        scheme=MoOSUIDark
+        konsole_profile=MoOSUI.profile
         icons=Nova
-        deco=__aurorae__svg__MoOSNova
-        wallpaper=/usr/share/wallpapers/NovaHorizonII/contents/images_dark/3840x2160.png
+        deco=__aurorae__svg__MoOSUI
+        wallpaper=/usr/share/wallpapers/MoOSUIAtmosphere/contents/images_dark/3840x2160.png
         prefer_dark=true
     fi
 

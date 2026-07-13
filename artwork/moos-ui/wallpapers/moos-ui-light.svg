@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="bg" cx="35%" cy="20%" r="105%"><stop stop-color="#FAF4EC"/><stop offset=".48" stop-color="#F1EBE3"/><stop offset="1" stop-color="#DDD0C4"/></radialGradient>
+    <radialGradient id="orchid"><stop stop-color="#C084FC" stop-opacity=".25"/><stop offset=".55" stop-color="#9333EA" stop-opacity=".07"/><stop offset="1" stop-color="#9333EA" stop-opacity="0"/></radialGradient>
+    <radialGradient id="ember"><stop stop-color="#FB923C" stop-opacity=".23"/><stop offset=".55" stop-color="#C2410C" stop-opacity=".05"/><stop offset="1" stop-color="#C2410C" stop-opacity="0"/></radialGradient>
+    <linearGradient id="ribbon" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7C3AED" stop-opacity=".14"/><stop offset=".5" stop-color="#C2410C" stop-opacity=".08"/><stop offset="1" stop-color="#047857" stop-opacity=".07"/></linearGradient>
+  </defs>
+  <rect width="3840" height="2160" fill="url(#bg)"/>
+  <ellipse cx="3050" cy="180" rx="1220" ry="1020" fill="url(#orchid)"/>
+  <ellipse cx="300" cy="2020" rx="1380" ry="920" fill="url(#ember)"/>
+  <path d="M-420 1590C540 1070 1160 1770 2020 1190C2770 680 3320 930 4240 180" fill="none" stroke="url(#ribbon)" stroke-width="300" stroke-linecap="round"/>
+  <path d="M-270 1680C620 1190 1200 1860 2080 1280C2860 760 3420 1000 4160 390" fill="none" stroke="#29212E" stroke-opacity=".055" stroke-width="3"/>
+</svg>

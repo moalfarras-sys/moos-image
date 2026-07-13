@@ -3,15 +3,15 @@
 #
 # VERIFIED (plasma/libplasma src/plasma/private/theme_p.cpp): Plasma reads the
 # active Plasma Style from KSharedConfig "plasmarc", KConfigGroup "Theme", key
-# "name" (default "default"). Setting it to "Nova" makes the MoOS Nova Plasma
+# "name" (default "default"). Setting it to "MoOSUI" makes the MoOS UI Plasma
 # Style the system-wide default, so panels, dialogs, notification popups and the
-# volume/brightness OSD render as Nova navy glass instead of stock Breeze.
+# volume/brightness OSD render as warm aubergine glass instead of stock Breeze.
 #
-# When the org.moos.nova Look-and-Feel package is applied, Plasma's
+# When the org.moos.ui Look-and-Feel package is applied, Plasma's
 # LookAndFeelManager writes [Theme] name=<value> from that package's
 # contents/defaults into the USER's ~/.config/plasmarc, overriding this system
-# default. org.moos.nova/contents/defaults carries [plasmarc][Theme] name=Nova
+# default. org.moos.ui/contents/defaults carries [plasmarc][Theme] name=MoOSUI
 # (wired in v14), so both paths agree. This /etc/xdg default still covers
 # sessions/greeters where the L&F was never applied.
 [Theme]
-name=Nova
+name=MoOSUI

@@ -1,4 +1,4 @@
 # MoOS system default for newly-created Plasma users.
 [KSplash]
-Theme=org.moos.nova
+Theme=org.moos.ui
 Engine=KSplashQML

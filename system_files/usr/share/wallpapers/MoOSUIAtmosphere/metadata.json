@@ -1,0 +1,11 @@
+{
+  "KPlugin": {
+    "Id": "MoOSUIAtmosphere",
+    "Name": "MoOS UI Atmosphere",
+    "Name[ar]": "أجواء MoOS UI",
+    "Description": "Warm pearl by day and aubergine glass by night",
+    "Description[ar]": "لؤلؤ دافئ نهاراً وزجاج باذنجاني ليلاً",
+    "Authors": [{ "Name": "Moalfarras" }],
+    "License": "CC-BY-SA-4.0"
+  }
+}

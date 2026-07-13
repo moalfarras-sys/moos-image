@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="70" viewBox="0 0 160 70">
+  <!-- MoOS UI — floating glass dock. Original art. -->
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Background { color: #241D2B; }
+    .ColorScheme-Highlight  { color: #A855F7; }
+    .ColorScheme-Text       { color: #EEE7F0; }
+  </style>
+  <defs>
+    <linearGradient id="nova-glass" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="56">
+      <stop offset="0" stop-color="#3A2B43" stop-opacity="0.62"/>
+      <stop offset="0.55" stop-color="#2A2031" stop-opacity="0.66"/>
+      <stop offset="1" stop-color="#17131D" stop-opacity="0.74"/>
+    </linearGradient>
+  </defs>
+  <g id="topleft">
+    <path d="M 0,16 A 16,16 0 0 1 16,0 L 16,16 Z" fill="url(#nova-glass)"/>
+    <path d="M 0,16 A 16,16 0 0 1 16,0 L 16,1.0 A 15.0,15.0 0 0 0 1.0,16 Z" fill="#F3ECF4" fill-opacity="0.2"/>
+  </g>
+  <g id="topright">
+    <path d="M 40,0 A 16,16 0 0 1 56,16 L 40,16 Z" fill="url(#nova-glass)"/>
+    <path d="M 40,0 A 16,16 0 0 1 56,16 L 55.0,16 A 15.0,15.0 0 0 0 40,1.0 Z" fill="#F3ECF4" fill-opacity="0.2"/>
+  </g>
+  <g id="bottomleft">
+    <path d="M 16,56 A 16,16 0 0 1 0,40 L 16,40 Z" fill="url(#nova-glass)"/>
+    <path d="M 16,56 A 16,16 0 0 1 0,40 L 1.0,40 A 15.0,15.0 0 0 0 16,55.0 Z" fill="#F3ECF4" fill-opacity="0.05"/>
+  </g>
+  <g id="bottomright">
+    <path d="M 56,40 A 16,16 0 0 1 40,56 L 40,40 Z" fill="url(#nova-glass)"/>
+    <path d="M 56,40 A 16,16 0 0 1 40,56 L 40,55.0 A 15.0,15.0 0 0 0 55.0,40 Z" fill="#F3ECF4" fill-opacity="0.05"/>
+  </g>
+  <g id="top">
+    <rect x="16" y="0" width="24" height="16" fill="url(#nova-glass)"/>
+    <rect x="16" y="0" width="24" height="1" fill="#F3ECF4" fill-opacity="0.2"/>
+  </g>
+  <g id="bottom">
+    <rect x="16" y="40" width="24" height="16" fill="url(#nova-glass)"/>
+    <rect x="16" y="55" width="24" height="1" fill="#F3ECF4" fill-opacity="0.05"/>
+  </g>
+  <g id="left">
+    <rect x="0" y="16" width="16" height="24" fill="url(#nova-glass)"/>
+    <rect x="0" y="16" width="1" height="24" fill="#F3ECF4" fill-opacity="0.11"/>
+  </g>
+  <g id="right">
+    <rect x="40" y="16" width="16" height="24" fill="url(#nova-glass)"/>
+    <rect x="55" y="16" width="1" height="24" fill="#F3ECF4" fill-opacity="0.11"/>
+  </g>
+  <rect id="center" x="16" y="16" width="24" height="24" fill="url(#nova-glass)"/>
+  <path id="mask-topleft" d="M 80,16 A 16,16 0 0 1 96,0 L 96,16 Z" fill="#000000"/>
+  <path id="mask-topright" d="M 120,0 A 16,16 0 0 1 136,16 L 120,16 Z" fill="#000000"/>
+  <path id="mask-bottomleft" d="M 96,56 A 16,16 0 0 1 80,40 L 96,40 Z" fill="#000000"/>
+  <path id="mask-bottomright" d="M 136,40 A 16,16 0 0 1 120,56 L 120,40 Z" fill="#000000"/>
+  <rect id="mask-top" x="96" y="0" width="24" height="16" fill="#000000"/>
+  <rect id="mask-bottom" x="96" y="40" width="24" height="16" fill="#000000"/>
+  <rect id="mask-left" x="80" y="16" width="16" height="24" fill="#000000"/>
+  <rect id="mask-right" x="120" y="16" width="16" height="24" fill="#000000"/>
+  <rect id="mask-center" x="96" y="16" width="24" height="24" fill="#000000"/>
+  <rect id="hint-top-margin" x="100" y="0" width="4" height="6" fill="none" opacity="0"/>
+  <rect id="hint-bottom-margin" x="100" y="10" width="4" height="6" fill="none" opacity="0"/>
+  <rect id="hint-left-margin" x="100" y="20" width="6" height="4" fill="none" opacity="0"/>
+  <rect id="hint-right-margin" x="100" y="30" width="6" height="4" fill="none" opacity="0"/>
+  <rect id="hint-top-inset" x="100" y="40" width="4" height="1e-08" fill="none" opacity="0"/>
+  <rect id="hint-bottom-inset" x="100" y="44" width="4" height="1e-08" fill="none" opacity="0"/>
+  <rect id="hint-left-inset" x="100" y="48" width="1e-08" height="4" fill="none" opacity="0"/>
+  <rect id="hint-right-inset" x="100" y="54" width="1e-08" height="4" fill="none" opacity="0"/>
+  <rect id="hint-stretch-borders" x="100" y="60" width="4" height="4" fill="none" opacity="0"/>
+</svg>

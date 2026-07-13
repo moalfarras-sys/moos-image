@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# moos-apply-theme — apply the full MoOS Nova Global Theme once per user.
+# moos-apply-theme — apply the full MoOS UI Global Theme once per user.
 #
-# WHY: /etc/xdg/kdeglobals sets [KDE] LookAndFeelPackage=org.moos.nova, but
+# WHY: /etc/xdg/kdeglobals sets [KDE] LookAndFeelPackage=org.moos.ui, but
 # Plasma 6 only AUTO-applies a subset of a default Global Theme (color scheme,
 # icons) on a fresh login — it does NOT apply the wallpaper, splash, or the
 # rest of the "look". So a freshly-created INSTALLED user lands on a half-Breeze
@@ -17,7 +17,7 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=13
+THEME_REV=14
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 marker="${state_dir}/moos-nova-theme-applied.v${THEME_REV}"
 
@@ -25,10 +25,10 @@ marker="${state_dir}/moos-nova-theme-applied.v${THEME_REV}"
 # asks "is the desktop still MoOS?" must accept either — a user who chose Light and
 # gets dragged back to Dark on every login has not been protected, they have been
 # overruled.
-DARK_LNF="org.moos.nova"
-LIGHT_LNF="org.moos.nova.light"
-DARK_DECO="__aurorae__svg__MoOSNova"
-LIGHT_DECO="__aurorae__svg__MoOSNovaLight"
+DARK_LNF="org.moos.ui"
+LIGHT_LNF="org.moos.ui.light"
+DARK_DECO="__aurorae__svg__MoOSUI"
+LIGHT_DECO="__aurorae__svg__MoOSUILight"
 
 log="${XDG_CACHE_HOME:-$HOME/.cache}/moos-apply-theme.log"
 mkdir -p "$(dirname "$log")" 2>/dev/null || true
@@ -206,18 +206,18 @@ applied=0
 # verdict — see target_lnf().
 want_lnf="$(target_lnf)"
 if [ "$want_lnf" = "$LIGHT_LNF" ]; then
-    want_scheme=NovaLight
+    want_scheme=MoOSUILight
     want_deco="$LIGHT_DECO"
     want_icons=NovaLight
-    want_konsole=MoOSLight.profile
-    want_wallpaper=/usr/share/wallpapers/NovaAurora/contents/images/3840x2160.png
+    want_konsole=MoOSUILight.profile
+    want_wallpaper=/usr/share/wallpapers/MoOSUIAtmosphere/contents/images/3840x2160.png
     want_gtk_dark=false
 else
-    want_scheme=NovaDark
+    want_scheme=MoOSUIDark
     want_deco="$DARK_DECO"
     want_icons=Nova
-    want_konsole=MoOS.profile
-    want_wallpaper=/usr/share/wallpapers/NovaHorizonII/contents/images_dark/3840x2160.png
+    want_konsole=MoOSUI.profile
+    want_wallpaper=/usr/share/wallpapers/MoOSUIAtmosphere/contents/images_dark/3840x2160.png
     want_gtk_dark=true
 fi
 echo "repairing to ${want_lnf} (${want_scheme})" >>"$log" 2>/dev/null || true
@@ -439,7 +439,7 @@ fi
 # already-created user's previous Breeze/Fedora choice.  Write the two exact
 # Plasma 6 keys explicitly during this versioned migration.
 if command -v kwriteconfig6 >/dev/null 2>&1; then
-    kwriteconfig6 --file ksplashrc --group KSplash --key Theme org.moos.nova
+    kwriteconfig6 --file ksplashrc --group KSplash --key Theme org.moos.ui
     kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML
 fi
 
@@ -799,16 +799,28 @@ for rel in \
     "plasma/plasmoids/org.moos.nova.deskclock" \
     "plasma/look-and-feel/org.moos.nova" \
     "plasma/look-and-feel/org.moos.nova.light" \
+    "plasma/look-and-feel/org.moos.ui" \
+    "plasma/look-and-feel/org.moos.ui.light" \
     "plasma/desktoptheme/Nova" \
     "plasma/desktoptheme/NovaLight" \
+    "plasma/desktoptheme/MoOSUI" \
+    "plasma/desktoptheme/MoOSUILight" \
     "aurorae/themes/MoOSNova" \
     "aurorae/themes/MoOSNovaLight" \
+    "aurorae/themes/MoOSUI" \
+    "aurorae/themes/MoOSUILight" \
     "color-schemes/NovaDark.colors" \
     "color-schemes/NovaLight.colors" \
+    "color-schemes/MoOSUIDark.colors" \
+    "color-schemes/MoOSUILight.colors" \
     "konsole/NovaDark.colorscheme" \
     "konsole/NovaLight.colorscheme" \
+    "konsole/MoOSUIDark.colorscheme" \
+    "konsole/MoOSUILight.colorscheme" \
     "konsole/MoOS.profile" \
     "konsole/MoOSLight.profile" \
+    "konsole/MoOSUI.profile" \
+    "konsole/MoOSUILight.profile" \
     "icons/Nova" \
     "icons/NovaLight" \
 ; do

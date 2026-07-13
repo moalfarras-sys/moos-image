@@ -108,7 +108,12 @@ def main() -> None:
     require(theme.get("KPlugin", {}).get("Id") == "org.moos.nova",
             "Nova look-and-feel metadata has the wrong id")
 
-    print("IDENTITY OK: MoOS owns os-release, session, installer, apps, logos and Nova theme")
+    ui_theme = json.loads((ROOT / "usr/share/plasma/look-and-feel/org.moos.ui/metadata.json")
+                          .read_text(encoding="utf-8"))
+    require(ui_theme.get("KPlugin", {}).get("Id") == "org.moos.ui",
+            "MoOS UI look-and-feel metadata has the wrong id")
+
+    print("IDENTITY OK: MoOS owns os-release, session, installer, apps, logos and themes")
 
 
 if __name__ == "__main__":

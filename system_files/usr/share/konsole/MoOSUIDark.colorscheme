@@ -1,0 +1,108 @@
+# MoOSUIDark — MoOS Konsole color scheme (Nova palette)
+# Format verified verbatim against KDE/konsole master
+# data/color-schemes/Breeze.colorscheme (groups: Background/Foreground with
+# Faint+Intense variants, Color0..Color7 each with Faint+Intense, [General]).
+# Colors are R,G,B from the Nova brand palette:
+#   bg #17131D  surface #241D2B  raised #312538  deepest #100C14
+#   text #EEE7F0  secondary #B8AABD
+#   blue #A855F7  cyan #FB923C  violet #C084FC
+#   red #F87171  green #34D399  yellow #FBBF24
+
+[Background]
+Color=23,19,29
+
+[BackgroundFaint]
+Color=36,29,43
+
+[BackgroundIntense]
+Color=16,12,20
+
+[Color0]
+Color=49,37,56
+
+[Color0Faint]
+Color=36,29,43
+
+[Color0Intense]
+Color=91,107,140
+
+[Color1]
+Color=248,113,113
+
+[Color1Faint]
+Color=154,70,70
+
+[Color1Intense]
+Color=252,165,165
+
+[Color2]
+Color=52,211,153
+
+[Color2Faint]
+Color=31,138,100
+
+[Color2Intense]
+Color=110,231,183
+
+[Color3]
+Color=251,191,36
+
+[Color3Faint]
+Color=163,126,28
+
+[Color3Intense]
+Color=252,211,77
+
+[Color4]
+Color=168,85,247
+
+[Color4Faint]
+Color=31,83,168
+
+[Color4Intense]
+Color=106,166,255
+
+[Color5]
+Color=192,132,252
+
+[Color5Faint]
+Color=93,62,166
+
+[Color5Intense]
+Color=167,139,250
+
+[Color6]
+Color=251,146,60
+
+[Color6Faint]
+Color=23,140,158
+
+[Color6Intense]
+Color=103,232,249
+
+[Color7]
+Color=199,211,232
+
+[Color7Faint]
+Color=126,140,166
+
+[Color7Intense]
+Color=243,236,244
+
+[Foreground]
+Color=238,231,240
+
+[ForegroundFaint]
+Color=184,170,189
+
+[ForegroundIntense]
+Color=243,236,244
+
+[General]
+Description=Nova Dark
+# Solid, by choice: the terminal stays a fully opaque #17131D slab — no translucency,
+# no blur — so text is maximally legible and the surface reads as a deliberate deep-navy
+# panel, not a window into the wallpaper.
+Opacity=1
+Blur=false
+Wallpaper=

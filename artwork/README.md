@@ -1,5 +1,10 @@
 # MoOS Nova artwork sources
 
+The new MoOS UI visual pair and first-party app-icon work is documented in
+[`MOOS_UI_DESIGN.md`](MOOS_UI_DESIGN.md) and regenerated with
+`python3 artwork/generate_moos_ui.py`. Nova stays here as its proven geometry and
+rollback source.
+
 `generate_nova_visuals.py` is the deterministic source for the original MoOS
 app icons, Anaconda artwork, additional wallpaper packages, and GRUB artwork.
 

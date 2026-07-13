@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <radialGradient id="bg" cx="75%" cy="10%" r="110%"><stop stop-color="#3A2941"/><stop offset=".5" stop-color="#211824"/><stop offset="1" stop-color="#100C14"/></radialGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#493650" stop-opacity=".82"/><stop offset="1" stop-color="#17131D" stop-opacity=".88"/></linearGradient>
+    <linearGradient id="accent"><stop stop-color="#C084FC"/><stop offset="1" stop-color="#FB923C"/></linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <ellipse cx="1510" cy="100" rx="650" ry="520" fill="#C084FC" opacity=".10"/>
+  <ellipse cx="100" cy="1020" rx="720" ry="460" fill="#FB923C" opacity=".08"/>
+  <rect x="1240" y="100" width="520" height="500" rx="48" fill="url(#glass)" stroke="#C084FC" stroke-opacity=".28"/>
+  <text x="1500" y="270" text-anchor="middle" fill="#EEE7F0" font-family="IBM Plex Sans" font-size="112" font-weight="300">14:42</text>
+  <text x="1500" y="330" text-anchor="middle" fill="#B8AABD" font-family="IBM Plex Sans" font-size="28">MoOS UI · Monday</text>
+  <circle cx="1390" cy="440" r="42" fill="none" stroke="#6EE7B7" stroke-width="12" stroke-dasharray="190 80"/>
+  <circle cx="1500" cy="440" r="42" fill="none" stroke="#FB923C" stroke-width="12" stroke-dasharray="145 125"/>
+  <circle cx="1610" cy="440" r="42" fill="none" stroke="#C084FC" stroke-width="12" stroke-dasharray="210 60"/>
+  <rect x="280" y="934" width="1360" height="112" rx="42" fill="url(#glass)" stroke="#F3ECF4" stroke-opacity=".14"/>
+  <g transform="translate(390 990)"><ellipse rx="40" ry="22" fill="none" stroke="#C084FC" stroke-width="10" transform="rotate(-20)"/><path d="M0-25C4-8 10-4 28 0C10 5 4 10 0 28C-4 10-10 5-28 0C-10-4-4-8 0-25Z" fill="#6EE7D2"/></g>
+  <circle cx="510" cy="990" r="34" fill="#D864A4" opacity=".90"/>
+  <circle cx="625" cy="990" r="34" fill="#EEE7F0" opacity=".88"/>
+  <g transform="translate(740 990)" fill="none" stroke="#6EE7D2" stroke-width="9" stroke-linejoin="round"><rect x="-34" y="-27" width="68" height="48" rx="9"/><path d="M-15 32H15M0 21V32"/><path d="M-30 20L8-8L25 7" stroke="#FB923C"/></g>
+  <circle cx="860" cy="990" r="34" fill="#C084FC" opacity=".80"/>
+  <circle cx="975" cy="990" r="34" fill="#FB923C" opacity=".85"/>
+  <rect x="340" y="1027" width="100" height="5" rx="3" fill="url(#accent)"/>
+  <text x="1510" y="1003" text-anchor="end" fill="#EEE7F0" font-family="IBM Plex Sans" font-size="32">14:42  ·  13 Jul</text>
+</svg>

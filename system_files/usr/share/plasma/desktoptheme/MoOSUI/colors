@@ -1,0 +1,164 @@
+# MoOS UI — Plasma Style (desktoptheme) color stylesheet.
+#
+# This file is the runtime palette for Nova-owned SVGs and every SVG resolved
+# through Plasma's fallback chain. The theme now ships identity glyphs plus
+# original low-risk button/view-item FrameSvg states. Paths not yet overridden
+# fall through Nova -> breeze-dark -> "default" (Breeze geometry) while keeping
+# this Nova palette. VERIFIED against
+# plasma/libplasma src/desktoptheme/breeze-dark (colors + metadata.json.cmake +
+# plasmarc, no SVGs) and src/plasma/private/theme_p.cpp (setThemeName always
+# appends "default" to fallbackThemes; findInTheme walks that chain). The
+# FrameSvg state IDs are verified against libplasma v6.7.2.
+#
+# Palette is the MoOS UI dark set, identical to /usr/share/color-schemes/
+# MoOSUIDark.colors so popups match the rest of the desktop. The notification /
+# dialog / OSD panel background is [Colors:Window] BackgroundNormal = 36,29,43
+# = #241D2B (Nova "surface"); translucency + blur come from the inherited Breeze
+# translucent dialog SVG plus KWin blur (see /etc/xdg/kwinrc).
+
+[ColorEffects:Disabled]
+Color=36,29,43
+ColorAmount=0.3
+ColorEffect=2
+ContrastAmount=0.65
+ContrastEffect=1
+IntensityAmount=0.1
+IntensityEffect=2
+
+[ColorEffects:Inactive]
+ChangeSelectionColor=true
+Color=36,29,43
+ColorAmount=0.5
+ColorEffect=3
+ContrastAmount=0
+ContrastEffect=0
+Enable=true
+IntensityAmount=0
+IntensityEffect=0
+
+[Colors:Button]
+BackgroundAlternate=36,29,43
+BackgroundNormal=49,37,56
+DecorationFocus=168,85,247
+DecorationHover=251,146,60
+ForegroundActive=251,146,60
+ForegroundInactive=184,170,189
+ForegroundLink=216,100,164
+ForegroundNegative=248,113,113
+ForegroundNeutral=251,191,36
+ForegroundNormal=238,231,240
+ForegroundPositive=52,211,153
+ForegroundVisited=192,132,252
+
+[Colors:Complementary]
+BackgroundAlternate=23,19,29
+BackgroundNormal=16,12,20
+DecorationFocus=168,85,247
+DecorationHover=251,146,60
+ForegroundActive=251,146,60
+ForegroundInactive=184,170,189
+ForegroundLink=216,100,164
+ForegroundNegative=248,113,113
+ForegroundNeutral=251,191,36
+ForegroundNormal=238,231,240
+ForegroundPositive=52,211,153
+ForegroundVisited=192,132,252
+
+[Colors:Header]
+BackgroundAlternate=36,29,43
+BackgroundNormal=23,19,29
+DecorationFocus=168,85,247
+DecorationHover=251,146,60
+ForegroundActive=251,146,60
+ForegroundInactive=184,170,189
+ForegroundLink=216,100,164
+ForegroundNegative=248,113,113
+ForegroundNeutral=251,191,36
+ForegroundNormal=238,231,240
+ForegroundPositive=52,211,153
+ForegroundVisited=192,132,252
+
+[Colors:Header][Inactive]
+BackgroundAlternate=23,19,29
+BackgroundNormal=23,19,29
+DecorationFocus=168,85,247
+DecorationHover=251,146,60
+ForegroundActive=251,146,60
+ForegroundInactive=91,107,133
+ForegroundLink=216,100,164
+ForegroundNegative=248,113,113
+ForegroundNeutral=251,191,36
+ForegroundNormal=184,170,189
+ForegroundPositive=52,211,153
+ForegroundVisited=192,132,252
+
+[Colors:Selection]
+BackgroundAlternate=30,79,216
+BackgroundNormal=168,85,247
+DecorationFocus=168,85,247
+DecorationHover=251,146,60
+ForegroundActive=243,236,244
+ForegroundInactive=226,234,247
+ForegroundLink=125,235,255
+ForegroundNegative=255,205,205
+ForegroundNeutral=255,228,160
+ForegroundNormal=243,236,244
+ForegroundPositive=190,255,225
+ForegroundVisited=226,213,255
+
+[Colors:Tooltip]
+BackgroundAlternate=36,29,43
+BackgroundNormal=49,37,56
+DecorationFocus=168,85,247
+DecorationHover=251,146,60
+ForegroundActive=251,146,60
+ForegroundInactive=184,170,189
+ForegroundLink=216,100,164
+ForegroundNegative=248,113,113
+ForegroundNeutral=251,191,36
+ForegroundNormal=238,231,240
+ForegroundPositive=52,211,153
+ForegroundVisited=192,132,252
+
+[Colors:View]
+BackgroundAlternate=36,29,43
+BackgroundNormal=23,19,29
+DecorationFocus=168,85,247
+DecorationHover=251,146,60
+ForegroundActive=251,146,60
+ForegroundInactive=184,170,189
+ForegroundLink=216,100,164
+ForegroundNegative=248,113,113
+ForegroundNeutral=251,191,36
+ForegroundNormal=238,231,240
+ForegroundPositive=52,211,153
+ForegroundVisited=192,132,252
+
+[Colors:Window]
+BackgroundAlternate=49,37,56
+BackgroundNormal=36,29,43
+DecorationFocus=168,85,247
+DecorationHover=251,146,60
+ForegroundActive=251,146,60
+ForegroundInactive=184,170,189
+ForegroundLink=216,100,164
+ForegroundNegative=248,113,113
+ForegroundNeutral=251,191,36
+ForegroundNormal=238,231,240
+ForegroundPositive=52,211,153
+ForegroundVisited=192,132,252
+
+[General]
+Name=MoOS UI
+shadeSortColumn=true
+
+[KDE]
+contrast=4
+
+[WM]
+activeBackground=36,29,43
+activeBlend=238,231,240
+activeForeground=238,231,240
+inactiveBackground=23,19,29
+inactiveBlend=184,170,189
+inactiveForeground=184,170,189

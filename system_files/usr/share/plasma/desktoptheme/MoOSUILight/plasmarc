@@ -1,0 +1,22 @@
+# MoOS UI Light — Plasma Style per-theme config.
+#
+# FallbackTheme=MoOSUI is the whole trick, and it is why this directory holds no
+# SVG at all. Plasma's ThemePrivate::setThemeName() follows the FallbackTheme
+# chain for SVG LOOKUP but keeps the ACTIVE theme's `colors` file for the
+# palette — and every Nova SVG is written against Plasma's ColorScheme
+# stylesheet. So MoOSUILight borrows Nova's artwork and paints it with the light
+# palette below. One set of widget art, two themes; they cannot drift apart.
+#
+# Chain: MoOSUILight (colors) -> Nova (SVGs) -> breeze-dark -> default (Breeze
+# geometry). Nothing in that chain hardcodes a dark fill.
+[Settings]
+FallbackTheme=MoOSUI
+
+[Wallpaper]
+defaultWallpaperTheme=MoOSUIAtmosphere
+defaultFileSuffix=.png
+defaultWidth=1920
+defaultHeight=1080
+
+[AdaptiveTransparency]
+enabled=true

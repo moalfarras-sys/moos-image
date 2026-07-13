@@ -126,14 +126,16 @@ for gone in ("/usr/share/plasma/look-and-feel/org.fedoraproject.fedora.desktop",
 
 selectors = {
     "lock screen": text("/etc/xdg/kscreenlockerrc"),
-    "look and feel": text("/usr/share/plasma/look-and-feel/org.moos.nova/contents/defaults"),
+    "look and feel": text("/usr/share/plasma/look-and-feel/org.moos.ui/contents/defaults"),
 }
 for surface, value in selectors.items():
     require(re.search(r"fedora|bgrt|spinner", value, re.IGNORECASE) is None,
             f"foreign branding is active in {surface}")
-require("NovaHorizonII" in selectors["lock screen"], "lock screen uses old wallpaper")
-require(Path("/usr/share/wallpapers/NovaHorizonII/contents/images_dark/3840x2160.png").is_file(),
-        "Nova Horizon II dark master is missing")
+require("MoOSUIAtmosphere" in selectors["lock screen"], "lock screen does not use MoOS UI")
+require(Path("/usr/share/wallpapers/MoOSUIAtmosphere/contents/images_dark/3840x2160.png").is_file(),
+        "MoOS UI dark wallpaper master is missing")
+require(Path("/usr/share/wallpapers/MoOSUIAtmosphere/contents/images/3840x2160.png").is_file(),
+        "MoOS UI light wallpaper master is missing")
 require(Path("/usr/share/sddm/themes/moos-nova/backgrounds/nova-horizon-ii.png").is_file(),
         "Nova SDDM background is missing")
 

@@ -8,7 +8,7 @@ SYSTEMD="$HOME/.config/systemd/user"
 mkdir -p "$APP" "$DATA" "$SYSTEMD" "$HOME/.local/share/icons/hicolor/512x512/apps"
 rm -rf "$APP"/*
 cp -a "$ROOT/dist-linux/." "$APP/"
-cp "$ROOT/Logo.png" "$HOME/.local/share/icons/hicolor/512x512/apps/mo-remote-personal.png"
+cp "$ROOT/Logo.png" "$HOME/.local/share/icons/hicolor/512x512/apps/moos-pc-remote.png"
 sed "s|@APP@|$APP|g" "$ROOT/linux/mo-remote-personal.desktop.in" > "$DATA/mo-remote-personal.desktop"
 sed "s|@APP@|$APP|g" "$ROOT/linux/mo-remote-personal.service.in" > "$SYSTEMD/mo-remote-personal.service"
 chmod 755 "$APP/MoRemotePersonal" "$DATA/mo-remote-personal.desktop"

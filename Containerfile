@@ -138,7 +138,10 @@ LABEL org.opencontainers.image.title="MoOS" \
 # dependent wiring and final validation.
 COPY system_files/ /
 COPY --from=moremote-build /out/ /usr/lib/mo-remote/
-COPY moremote/Logo.png /usr/share/icons/hicolor/512x512/apps/mo-remote-personal.png
+# Keep the vendored app's standalone icon byte-identical to MoOS's new
+# moos-pc-remote master. The complete hicolor family and scalable SVG already
+# arrived with system_files; this copy proves the vendored source did not drift.
+COPY moremote/Logo.png /usr/share/icons/hicolor/512x512/apps/moos-pc-remote.png
 
 # MoPlayer's Flutter bundle: one ELF binary plus the data/ directory it must sit
 # beside. /usr/lib/moplayer, and *not* /usr/share/moos/apps/ — build.sh globs

@@ -1,0 +1,17 @@
+{
+    "KPlugin": {
+        "Id": "org.moos.ui.light",
+        "Name": "MoOS UI Light — واجهة MoOS الفاتحة",
+        "Description": "سمة MoOS UI الفاتحة | MoOS UI light global theme",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Version": "0.1.0",
+        "License": "GPL-3.0-or-later",
+        "Website": "https://github.com/moalfarras-sys/moos-image"
+    },
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "X-Plasma-APIVersion": "2"
+}

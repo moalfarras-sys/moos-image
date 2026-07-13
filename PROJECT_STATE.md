@@ -6,6 +6,16 @@ are traps that have already cost this project a day.
 
 Last updated: 2026-07-13, image `44.20260713.104`.
 
+## Active visual work: MoOS UI
+
+The working tree contains the new **MoOS UI** dark/light visual pair, first-party
+Mo AI and Mo PC Remote icon masters, a warm matched wallpaper, and the glass
+desktop-widget evolution. The implementation contract, palette, generated-image
+prompts, rollout rules and one-command regeneration path are in
+[`artwork/MOOS_UI_DESIGN.md`](artwork/MOOS_UI_DESIGN.md). Nova remains installed
+as the known-good fallback. Do not hand-edit generated MoOS UI package output;
+change its masters or `artwork/generate_moos_ui.py` and regenerate it.
+
 ---
 
 ## The shape of the thing
