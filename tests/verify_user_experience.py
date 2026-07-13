@@ -218,6 +218,22 @@ require("recommended" in moai_qml and "hit.note" in moai_qml,
         "Mo AI must render the pick and the warning (recommended / note) on each search hit — "
         "ranking them in the backend and not showing them changes nothing for the user")
 
+# ── The brain must say WHY it did not start ──────────────────────────────────
+# It had exactly one failure message — "the first start downloads the model (~2.5 GB) and
+# keeps going in the background" — and it printed that when the disk was full, when there
+# was no network to download from, and when llama-server aborted because the GPU had no
+# memory left (which happened on this machine). The user waits for a download that is not
+# running. The gateway now refuses a start that cannot work (disk, network) and, when the
+# unit is DOWN, reads the service's own log and names the cause.
+gateway = code(read("system_files/usr/bin/moai-gateway"))
+require("def preflight_local" in gateway and "disk_free" in gateway and "have_network" in gateway,
+        "moai-gateway must pre-flight a local start (disk space, network) instead of failing "
+        "deep inside RamaLama and blaming a download that never began")
+require("def local_failure_reason" in gateway and "FAILURE_SIGNS" in gateway,
+        "moai-gateway must read the unit's own log when the brain is down and name the cause "
+        "(GPU memory, disk, network) — one generic 'still downloading' message for every "
+        "failure is how a dead brain looks like a slow one")
+
 for qml_path in sorted((ROOT / "system_files/usr/share/moos/apps").glob("*/main.qml")):
     qml_text = qml_path.read_text(encoding="utf-8")
     for url in sorted(set(re.findall(r'moos://([a-z0-9/._-]+)', qml_text))):
