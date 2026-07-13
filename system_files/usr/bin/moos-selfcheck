@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+# moos-selfcheck — is this desktop actually working?
+#
+#   moos-selfcheck          human report, exit 1 if anything is broken
+#   moos-selfcheck --quiet  only the failures
+#
+# WHY THIS EXISTS
+#
+# Every gate in this repo is STATIC: it reads files in system_files/ and asks
+# whether the image is right. That is necessary and it is not sufficient — the
+# dominant bug family in MoOS is "the image is right and the user still does not
+# get it". A config in ~/.config outranks /etc/xdg. A cache keyed on mtime never
+# invalidates, because OSTree pins every mtime under /usr to the epoch. A daemon
+# nothing starts is a daemon that is not running. Every one of those leaves the
+# build green and the desktop broken.
+#
+# So this asks the RUNNING system, and only the running system. kreadconfig6, not
+# the file the image shipped. fc-match, not the fontconfig rule. curl, not the
+# systemd unit. If a check here cannot be answered from live state, it does not
+# belong in this file.
+#
+# It is deliberately quiet about things it cannot know. A check that guesses is
+# worse than no check: it teaches you to ignore the output.
+set -uo pipefail
+
+QUIET=0
+[ "${1:-}" = "--quiet" ] && QUIET=1
+
+pass=0
+fail=0
+warn=0
+
+ok()   { pass=$((pass+1)); [ "$QUIET" = 1 ] || printf '  \033[32m✓\033[0m %s\n' "$1"; }
+bad()  { fail=$((fail+1)); printf '  \033[31m✗\033[0m %s\n' "$1"; }
+note() { warn=$((warn+1)); [ "$QUIET" = 1 ] || printf '  \033[33m!\033[0m %s\n' "$1"; }
+head_() { [ "$QUIET" = 1 ] || printf '\n\033[1m%s\033[0m\n' "$1"; }
+
+# ── The image ────────────────────────────────────────────────────────────────
+head_ "النظام | System"
+booted="$(rpm-ostree status --booted 2>/dev/null | grep -oP 'Version: \K\S+' | head -1)"
+[ -n "$booted" ] && ok "booted MoOS ${booted}" || note "could not read the booted deployment"
+
+if staged="$(rpm-ostree status 2>/dev/null | grep -c 'Version:')" && [ "${staged:-0}" -gt 0 ]; then
+    if rpm-ostree status 2>/dev/null | head -6 | grep -q 'Version:' && \
+       ! rpm-ostree status --booted 2>/dev/null | grep -q "$(rpm-ostree status 2>/dev/null | grep -oP 'Version: \K\S+' | head -1)"; then
+        note "a newer deployment is staged — reboot to run it"
+    fi
+fi
+
+# ── Nothing is on fire ───────────────────────────────────────────────────────
+head_ "الوحدات الفاشلة | Failed units"
+
+# `systemctl --failed --no-legend` puts a "●" in column 1, so the unit name is $2.
+# Printing $1 gives you a row of bullets and tells you nothing — which is exactly
+# what the first version of this did.
+#
+# drkonqi-coredump-processor@… is EXCLUDED, and only that one. It is a transient
+# per-crash unit: one instance is spawned for every core dump on the machine, and a
+# failed instance means "the crash handler could not hand this dump to a session",
+# not "the system is broken". They accumulate after any crash, they clear on reboot,
+# and counting them buries the real failures under noise. Everything else counts.
+failed_units() {
+    systemctl ${1:+--user} --failed --no-legend 2>/dev/null \
+        | awk '{print $2}' \
+        | grep -v '^drkonqi-coredump-processor@'
+}
+sys_failed="$(failed_units | grep -c . || true)"
+usr_failed="$(failed_units user | grep -c . || true)"
+[ "${sys_failed:-0}" -eq 0 ] && ok "no failed system units" \
+    || bad "${sys_failed} failed system unit(s): $(failed_units | tr '\n' ' ')"
+[ "${usr_failed:-0}" -eq 0 ] && ok "no failed user units" \
+    || bad "${usr_failed} failed user unit(s): $(failed_units user | tr '\n' ' ')"
+
+# ── The look ─────────────────────────────────────────────────────────────────
+# Read back from the desktop, never from the file the image shipped: ~/.config and
+# ~/.config/kdedefaults BOTH outrank /etc/xdg, and Plasma writes to them.
+head_ "المظهر | Theme"
+lnf="$(kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage 2>/dev/null)"
+deco="$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme 2>/dev/null)"
+scheme="$(kreadconfig6 --file kdeglobals --group General --key ColorScheme 2>/dev/null)"
+icons="$(kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null)"
+style="$(kreadconfig6 --file plasmarc --group Theme --key name 2>/dev/null)"
+
+case "$lnf" in
+    org.moos.nova)       want_deco=__aurorae__svg__MoOSNova;      want_sch=NovaDark;  want_ico=Nova;      want_sty=Nova;      mode="داكن | dark" ;;
+    org.moos.nova.light) want_deco=__aurorae__svg__MoOSNovaLight; want_sch=NovaLight; want_ico=NovaLight; want_sty=NovaLight; mode="فاتح | light" ;;
+    *) want_deco=""; mode="" ;;
+esac
+
+if [ -z "$want_deco" ]; then
+    bad "the desktop is NOT wearing a MoOS theme (LookAndFeelPackage='${lnf:-unset}')"
+else
+    ok "MoOS theme: ${mode}"
+    [ "$deco"   = "$want_deco" ] && ok "window decoration matches" || bad "decoration is '${deco:-unset}', expected ${want_deco}"
+    [ "$scheme" = "$want_sch"  ] && ok "colour scheme matches"     || bad "colour scheme is '${scheme:-unset}', expected ${want_sch}"
+    [ "$icons"  = "$want_ico"  ] && ok "icon theme matches"        || bad "icon theme is '${icons:-unset}', expected ${want_ico}"
+    [ "$style"  = "$want_sty"  ] && ok "Plasma style matches"      || bad "Plasma style is '${style:-unset}', expected ${want_sty}"
+fi
+
+# Plasma's day/night switch resolves these BY NAME, and a name it cannot resolve
+# sends the desktop to Breeze — permanently, in the user's own kdeglobals.
+for key in DefaultDarkLookAndFeel DefaultLightLookAndFeel; do
+    v="$(kreadconfig6 --file kdeglobals --group KDE --key "$key" 2>/dev/null)"
+    if [ -z "$v" ]; then
+        note "${key} is unset"
+    elif [ -d "/usr/share/plasma/look-and-feel/$v" ]; then
+        ok "${key}=${v} (installed)"
+    else
+        bad "${key}=${v} is NOT installed — the day/night switch will drop this desktop into Breeze"
+    fi
+done
+
+# ── The keyboard ─────────────────────────────────────────────────────────────
+head_ "الكيبورد | Keyboard"
+layouts="$(localectl status 2>/dev/null | grep -oP 'X11 Layout: \K.*')"
+opts="$(kreadconfig6 --file kxkbrc --group Layout --key Options 2>/dev/null)"
+[ "$layouts" = "de,ara" ] && ok "layouts: ${layouts}" || bad "layouts are '${layouts:-unset}', expected de,ara"
+case "$opts" in *alt_shift_toggle*) ok "Alt+Shift switches the layout" ;;
+                *) bad "the Alt+Shift toggle is not set (Options='${opts:-unset}')" ;; esac
+
+# ── Arabic in the terminal ───────────────────────────────────────────────────
+# fc-match answers a DIFFERENT question: it returns the family the pattern names.
+# Only the sorted list shows the fallback, and the fallback is what draws Arabic.
+head_ "الخط | Terminal font"
+fallback="$(fc-match -s 'JetBrains Mono:lang=ar' 2>/dev/null | grep -v '"JetBrains Mono"' | head -1)"
+case "$fallback" in
+    *Kawkab*) ok "Arabic in the terminal renders in Kawkab Mono (letters join)" ;;
+    "")       bad "could not resolve an Arabic fallback for the terminal font" ;;
+    *)        bad "Arabic falls back to '${fallback}' — proportional, so the cursive joins tear apart" ;;
+esac
+
+# ── Photos and video ─────────────────────────────────────────────────────────
+head_ "الصور والفيديو | Photos & video"
+img="$(xdg-mime query default image/jpeg 2>/dev/null)"
+vid="$(xdg-mime query default video/mp4 2>/dev/null)"
+case "$img" in
+    *gwenview*) ok "images open in Gwenview" ;;
+    *chrome*|*chromium*|*firefox*) bad "images still open in a browser (${img})" ;;
+    "")  bad "nothing claims image/jpeg" ;;
+    *)   note "images open in ${img}" ;;
+esac
+case "$vid" in
+    *haruna*) ok "video opens in Haruna" ;;
+    "") bad "nothing claims video/mp4" ;;
+    *)  note "video opens in ${vid}" ;;
+esac
+
+# ── Mo AI ────────────────────────────────────────────────────────────────────
+head_ "Mo AI"
+if [ -x /usr/bin/moos-qml-shell ] && grep -q -- "--app-id org.moos.moai" /usr/bin/moai 2>/dev/null; then
+    ok "Mo AI's window carries its own app_id (no generic Qt icon)"
+else
+    bad "Mo AI still runs under the bare QML runtime — its taskbar icon will be the Qt logo"
+fi
+
+if curl -sf --max-time 6 http://127.0.0.1:8080/v1/models >/dev/null 2>&1; then
+    ok "the brain gateway answers on 8080"
+    models="$(curl -sf --max-time 6 http://127.0.0.1:8080/v1/models 2>/dev/null | grep -o '"id":' | wc -l)"
+    [ "${models:-0}" -gt 1 ] && ok "it offers ${models} brains to choose from" \
+                             || note "it offers ${models} brain(s) — configure a cloud key in Mo AI's settings"
+else
+    bad "nothing is answering on 8080 — Mo AI has no brain to talk to"
+fi
+curl -sf --max-time 6 -H 'X-Moai-Control: 1' http://127.0.0.1:8079/status >/dev/null 2>&1 \
+    && ok "the control API answers on 8079" \
+    || note "the control API is not up yet (it starts with the session)"
+
+# ── The desktop ──────────────────────────────────────────────────────────────
+head_ "سطح المكتب | Desktop"
+systemctl --user is-active plasma-ksystemstats.service >/dev/null 2>&1 \
+    && ok "the sensor daemon is running (the rings have data)" \
+    || bad "plasma-ksystemstats is NOT running — every system monitor will draw an empty box"
+
+appletsrc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
+grep -q "org.moos.nova.deskclock" "$appletsrc" 2>/dev/null \
+    && ok "the desk clock is on the desktop" \
+    || bad "the desk clock is missing from the desktop"
+grep -q "org.moos.nova.clock" "$appletsrc" 2>/dev/null \
+    && ok "the Nova clock is in the panel" \
+    || bad "the panel has no clock"
+
+shown="$(kreadconfig6 --file "$appletsrc" --group Containments --group 52 --group Applets --group 56 --group General --key shownItems 2>/dev/null)"
+if grep -q "shownItems=org.kde.plasma.keyboardlayout,org.kde.plasma.volume" "$appletsrc" 2>/dev/null; then
+    ok "the tray shows two things: the layout and the volume"
+else
+    note "the tray's shown items are not the MoOS default (yours to change, so this is only a note)"
+fi
+
+# ── Nothing shadowing the image ──────────────────────────────────────────────
+# A MoOS asset staged into ~/.local or ~/.config OUTRANKS the copy in /usr and
+# freezes it at whatever it said the day it was written. This is the single most
+# common way a MoOS fix reaches the image and never reaches the user.
+head_ "لا شي بيحجب الصورة | Nothing shadowing the image"
+shadows=0
+for rel in plasma/plasmoids/org.moos.nova.clock plasma/plasmoids/org.moos.nova.deskclock \
+           plasma/look-and-feel/org.moos.nova plasma/look-and-feel/org.moos.nova.light \
+           plasma/desktoptheme/Nova plasma/desktoptheme/NovaLight \
+           aurorae/themes/MoOSNova aurorae/themes/MoOSNovaLight \
+           icons/Nova icons/NovaLight konsole/MoOS.profile; do
+    if [ -e "/usr/share/$rel" ] && [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
+        bad "~/.local/share/${rel} shadows the image copy — later updates will never reach you"
+        shadows=$((shadows+1))
+    fi
+done
+if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/fontconfig/conf.d/99-moos-kawkab-test.conf" ]; then
+    bad "a user-level Kawkab fontconfig override is shadowing the image's font policy"
+    shadows=$((shadows+1))
+fi
+[ "$shadows" -eq 0 ] && ok "no user-level copy is shadowing a MoOS asset"
+
+# ── Verdict ──────────────────────────────────────────────────────────────────
+printf '\n'
+if [ "$fail" -eq 0 ]; then
+    printf '\033[1;32m✓ %d checks passed\033[0m' "$pass"
+    [ "$warn" -gt 0 ] && printf ', \033[33m%d note(s)\033[0m' "$warn"
+    printf '\n'
+    exit 0
+fi
+printf '\033[1;31m✗ %d broken\033[0m, %d passed' "$fail" "$pass"
+[ "$warn" -gt 0 ] && printf ', %d note(s)' "$warn"
+printf '\n'
+exit 1
