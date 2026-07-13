@@ -78,6 +78,12 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
+  # Test-only. `test/brand_palette_test.dart` opens the logo PNG and checks the
+  # brand tokens still match the pixels in it — a brand colour is the one value
+  # in a design system that cannot be argued about, so it is measured, not read
+  # back from the constant that claims to be it.
+  image: ^4.3.0
+
 flutter:
   uses-material-design: true
   assets:

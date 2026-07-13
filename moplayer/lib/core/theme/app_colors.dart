@@ -71,11 +71,32 @@ class AppColors {
   static const Color focus = Color(0xFFFFB347);
 
   // ── Brand: ember & gold ────────────────────────────────────────────────────
+  //
+  // These are not chosen colours. They are **measured off the mark** —
+  // `assets/branding/logo.png`, sampled pixel by pixel — because the brand is a
+  // painted flame with a gradient in it, and a palette that merely looks
+  // orange-ish next to it is a palette that fights it. The mark's own ramp runs
+  // from a red-orange core to an amber crown:
+  //
+  //   core       #FF4400   (the single most common pixel in the flame)
+  //   crown      #FF8D00   (its lit edge)
+  //   highlight  near-white, which is a specular, not a colour
+  //
+  // So [ember] is the core, [primary] is the crown — the one that carries text
+  // and icons, because the core is too dark to read at 14 px on near-black — and
+  // [emberGradient] runs the mark's own ramp. Sampled, not guessed: `ember` was
+  // #FF6A0F, a full 38 points lighter and yellower than the flame it was meant
+  // to be, which is exactly the mismatch that makes a brand look approximated.
   static const Color primary = Color(0xFFFF8A1F);
   static const Color primaryBright = Color(0xFFFFB347);
   static const Color gold = Color(0xFFD9A441);
   static const Color goldBright = Color(0xFFFFD27A);
-  static const Color ember = Color(0xFFFF6A0F);
+  static const Color ember = Color(0xFFFF4400);
+
+  /// The green pip on the mark, and the only non-warm colour in it. It means
+  /// *connected* here, which is what it means on the logo: the source badge in
+  /// the caption bar, the "on" side of a switch.
+  static const Color online = Color(0xFF74C23A);
 
   // ── Text — a warm ramp ─────────────────────────────────────────────────────
   /// Warm white. Not `#FFFFFF`: pure white on a warm black is the one pairing

@@ -857,11 +857,26 @@ dnf5 -y install \
 #
 # So they are named here, and the gate below fails the build if they are missing.
 # This is the same argument this file already makes for the GStreamer codecs.
-dnf5 -y install mpv-libs gtk3 libepoxy mesa-libEGL mesa-libGLESv2
+#
+# `libglvnd-gles`, not `mesa-libGLESv2` — and this cost a whole image build. There
+# is no `mesa-libGLESv2` package on Fedora 44: `libGLESv2.so.2` is dispatched by
+# GLVND and shipped by `libglvnd-gles`, with Mesa behind it. dnf5 does not warn on
+# an unknown package name, it *fails the transaction* ("No match for argument"),
+# so the whole image stopped building — twenty minutes after MoPlayer itself had
+# compiled cleanly. Verify a name against the repo before adding it here:
+#   dnf repoquery --whatprovides 'libGLESv2.so.2()(64bit)'
+dnf5 -y install mpv-libs gtk3 libepoxy mesa-libEGL libglvnd-gles
 
+# The gate names the *libraries* the player dlopen()s, not the packages that happen
+# to carry them today: a rename like the one above must fail loudly here, not
+# silently produce an image whose player will not open a window.
 for lib in mpv-libs gtk3 libepoxy; do
     rpm -q "${lib}" >/dev/null \
         || { echo "GATE FAIL: MoPlayer runtime dependency ${lib} is missing"; exit 1; }
+done
+for so in libEGL.so.1 libGLESv2.so.2; do
+    ldconfig -p | grep -q "${so}" \
+        || { echo "GATE FAIL: MoPlayer needs ${so} and no package in this image provides it"; exit 1; }
 done
 
 # MoPlayer itself: the bundle comes from the moplayer-build stage (see the
