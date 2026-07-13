@@ -1,0 +1,36 @@
+# ---- Node / frontend ----
+node_modules/
+controller/dist/
+controller/.vite/
+npm-debug.log*
+
+# ---- .NET / agent ----
+bin/
+obj/
+publish/
+*.user
+
+# ---- Build output served to phone ----
+agent/wwwroot/assets/
+agent/wwwroot/index.html
+agent/wwwroot/manifest.webmanifest
+agent/wwwroot/sw.js
+agent/wwwroot/registerSW.js
+agent/wwwroot/workbox-*.js
+agent/wwwroot/icons/
+
+# ---- Generated icons (derived from Logo.png) ----
+agent/app.ico
+controller/public/icons/
+
+# ---- Runtime data (created on the user's machine, never commit) ----
+*.dat
+config.dat
+data/
+
+# ---- OS / editor ----
+Thumbs.db
+.DS_Store
+.vs/
+.idea/
+.vscode/
