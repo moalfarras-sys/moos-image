@@ -5,6 +5,13 @@ cosign.key
 *.iso
 output/
 
+# Mo Remote's .NET build output. The agent is COMPILED IN THE IMAGE (Containerfile
+# stage `moremote-build`), so a local `dotnet build` leaves 4 MB of binaries in the
+# tree that must never reach a commit — they would be stale the moment the source
+# changed, and nothing in the image ever reads them.
+moremote/agent-linux/bin/
+moremote/agent-linux/obj/
+
 # Local artwork tooling cache
 __pycache__/
 *.py[cod]

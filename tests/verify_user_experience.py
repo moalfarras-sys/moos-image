@@ -20,6 +20,27 @@ def require(condition: bool, message: str) -> None:
         errors.append(message)
 
 
+# ── Gate the code, not the comment explaining the code ────────────────────────
+#
+# Every file in this repo documents the bug it exists to prevent, which means the
+# thing a gate searches for is usually ALSO sitting in a comment two lines above the
+# fix. A gate written as `"Kawkab Mono" in fontconfig_text` therefore passes even
+# after Kawkab Mono has been deleted from the rules — the comment still names it.
+#
+# That is not hypothetical. Both of these were written that way first, and both
+# stayed green when the thing they guard was removed. AGENTS.md: "Prove a new gate
+# bites by breaking the thing it guards and watching it go red." These two did not,
+# until the comments were stripped.
+def code(text: str, style: str = "hash") -> str:
+    """Strip comments so a gate cannot be satisfied by prose."""
+    if style == "xml":
+        return re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+    marker = "//" if style == "slash" else "#"
+    return "\n".join(
+        line for line in text.splitlines() if not line.lstrip().startswith(marker)
+    )
+
+
 # One product, one launcher. Ignore development templates and documentation.
 launchers = []
 for path in (ROOT / "system_files/usr/share/applications").glob("*.desktop"):
@@ -297,9 +318,150 @@ require('had_legacy_key = "cloud_key" in data' in control and
         "elif had_legacy_key:" in control,
         "Mo AI must remove even an empty legacy cloud_key field")
 
+# ── One door, two brains, chosen per request ────────────────────────────────
+#
+# Mo AI's local brain and its cloud proxy both used to listen on 8080. Only one of
+# them could run, so the choice of brain was a GLOBAL setting, and changing it meant
+# `systemctl disable --now` one unit and `enable --now` the other. There was no way
+# to ask a stronger model one question without rebuilding the whole plumbing first.
+#
+# Now moai-gateway owns 8080 alone, is always on, and routes each REQUEST by its
+# `model` field; moai.service serves the local brain on 8081 and is started on
+# demand. Everything below guards a specific way that could silently come apart —
+# and every one of them is checked against the CODE, never the comment that
+# explains it.
+gateway_code = code(gateway)
+control_code = code(control)
+local_unit = read("system_files/usr/lib/systemd/user/moai.service")
+gateway_unit = read("system_files/usr/lib/systemd/user/moai-gateway.service")
+build_code = code(read("build_files/build.sh"))
+
+# The two ports must not collide. This is the whole architecture in two lines.
+require("Environment=MOAI_PORT=8081" in local_unit,
+        "the local brain must serve on 8081 — 8080 is moai-gateway's, and two "
+        "processes on one port is the either/or this replaced")
+require('MOAI_GATEWAY_PORT", "8080"' in gateway_code
+        and 'MOAI_LOCAL_PORT", "8081"' in gateway_code,
+        "moai-gateway must default to 8080 (the front door) and reach the local "
+        "brain on 8081")
+
+# The front door must be on for EVERY user. It used to be moai-cloud.service,
+# enabled only while the user's default was cloud — a door that was locked unless
+# you had already chosen to walk through it.
+require("systemctl --global enable moai-gateway.service" in build_code,
+        "moai-gateway is the only thing Mo AI talks to; the image must enable it "
+        "for every user, not leave it opt-in")
+require("systemctl --global enable moai.service" not in build_code,
+        "the local brain is ON DEMAND — enabling it for every user loads 2.5 GB of "
+        "weights into VRAM at every login, on a machine where it already holds 6 of 8 GB")
+require(not (ROOT / "system_files/usr/lib/systemd/user/moai-cloud.service").exists(),
+        "moai-cloud.service was the opt-in cloud proxy; moai-gateway.service replaces it")
+require("moai-cloud" not in code(read("system_files/usr/bin/moai-config")),
+        "moai-config must not still enable/disable the retired moai-cloud.service")
+
+# THE ROUTING CONTRACT. The app names the brain in the `model` field, and a request
+# that names none must still work exactly as it did — an older client, or a chat
+# opened before /models answered, sends "default" and must get the configured brain.
+require('low.startswith("local:")' in gateway_code
+        and 'low.startswith("cloud:")' in gateway_code,
+        "moai-gateway must route on the request's model field: local:<m> / cloud:<m>")
+require('brain = "cloud" if cfg.get("mode") == "cloud" else "local"' in gateway_code,
+        "a request that names no brain must fall back to the configured default in "
+        "config.json, or every existing client breaks. (Gate the line in resolve(), not "
+        "the bare expression — it also appears in /healthz, so the loose form passed with "
+        "the routing decision itself replaced by False.)")
+
+# llama.cpp IGNORES the model field — verified: it answers a request for a model
+# that does not exist with whatever weights it has loaded. So a picker offering
+# several local models that merely forwards the name would be a lie: every one of
+# them would be answered by the same model. Switching local model means restarting
+# the unit against it, and only for a model that is already downloaded — a chat
+# message must never be able to start a multi-gigabyte download.
+require('systemctl("restart")' in gateway_code,
+        "moai-gateway must RESTART the local unit to change model: llama.cpp ignores "
+        "the model field, so passing the name through would serve the wrong weights "
+        "under the right name")
+require("for name in pulled_models():" in gateway_code
+        and "if not target:" in gateway_code
+        and "not downloaded" in gateway_code,
+        "moai-gateway must only switch to a local model it found in `ramalama list`, and "
+        "refuse the rest — a chat message must never kick off a multi-GB download")
+
+# The shadowed-config trap, in the one place it can still bite. ~/.config/moos/moai.env
+# is moai.service's EnvironmentFile, and systemd applies it AFTER the unit's own
+# Environment= — so it WINS. Every machine that ever ran `moai-start` has one that says
+# MOAI_PORT=8080, the port the gateway now owns. Shipping a corrected unit file changes
+# nothing on those machines: the local brain would come up on top of the front door.
+# Two things therefore have to repair the file that actually decides.
+#
+# Gate the USE, not the definition. Both of the next two were written first as
+# `"env_port()" in gateway_code` and `"ensure_front_door()" in control_code` — and
+# both stayed GREEN when the repair was disabled, because the function's own `def`
+# line contains its name. A gate that matches the thing it is looking for inside the
+# declaration of that thing cannot fail. Assert on the line that DECIDES.
+require("def ensure_front_door():" in control_code
+        and "\n    ensure_front_door()" in control_code
+        and 'MOAI_PORT=%d" % LOCAL_PORT' in control_code
+        # …and it must actually WRITE the repaired file. Asserting only on the
+        # constants passed when the write itself was gutted — leaving an empty
+        # moai.env behind — which is the same green-gate-over-a-dead-feature shape
+        # this whole file exists to catch.
+        and r'"\n".join(out)' in control_code
+        and "os.replace(tmp, ENV_FILE)" in control_code,
+        "moai-control must define AND CALL ensure_front_door(), and it must actually "
+        "rewrite a stale MOAI_PORT in ~/.config/moos/moai.env — a corrected unit file "
+        "is shadowed by that EnvironmentFile and loses the port")
+require("env_port() != LOCAL_PORT" in gateway_code,
+        "moai-gateway must reconcile the port before starting the local brain: a stale "
+        "moai.env put RamaLama on 8080 while the gateway polled 8081, and the chat "
+        "timed out with the model loaded and idle")
+require('MOAI_PORT=8080' not in code(read("system_files/usr/bin/moai-start")),
+        "moai-start must not write MOAI_PORT=8080 back into moai.env — that is the "
+        "file that outranks the unit, and 8080 belongs to the gateway")
+
+# The model list must be ASKED FOR, never invented. The user's provider is a private
+# endpoint; there is no way to know what it serves except to call it. A hardcoded
+# "small/medium/large" tier table would be a menu of models that may not exist on
+# their account, and picking one would 404 in their face.
+#
+# Again: assert on the CALL, not the `def`. "local_models()" is a substring of
+# "def local_models():", so gating the bare name passes even when the function has
+# been renamed out of existence and models() calls something that is gone.
+require('base + "/models"' in control_code
+        and "cloud, cloud_error = cloud_models(cfg)" in control_code,
+        "moai-control /models must ASK the configured provider for its real model list "
+        "— a hardcoded tier table would be a menu of models the user's account may not "
+        "have, and picking one would 404 in their face")
+require('"ramalama", "list"' in control_code
+        and "def local_models():" in control_code
+        and "local = local_models()" in control_code,
+        "moai-control /models must report the local models from `ramalama list` — and the "
+        "function must exist AND be called; gating either alone leaves the other free to "
+        "be renamed out from under it")
+require("cloud_error" in control_code,
+        "a provider with no /models must say so, so the UI can fall back to the "
+        "free-text model field instead of showing an invented list")
+
+# …and the app must actually USE the route, or all of the above is decoration.
+require("model: root.route" in moai_qml,
+        "Mo AI must send the chosen route as the request's model field")
+require("function pickRoute(" in moai_qml and "root.pickRoute(" in moai_qml
+        and "function loadModels()" in moai_qml and "root.loadModels()" in moai_qml,
+        "Mo AI must offer the brain/model picker and populate it from moai-control")
+
+# moai-start writes the EnvironmentFile that outranks the unit. If it defaults the
+# port to 8080 again, every `moai-start` puts the local brain back on top of the
+# front door — which is the bug this whole change is undoing. (Gating for the
+# literal "MOAI_PORT=8080" is not enough: the file writes MOAI_PORT=$PORT, so the
+# 8080 never appears as a string.)
+moai_start_code = code(read("system_files/usr/bin/moai-start"))
+require('PORT="${MOAI_PORT:-8081}"' in moai_start_code,
+        "moai-start must default the local brain to 8081; 8080 is moai-gateway's")
+
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
-require("THEME_REV=9" in apply_theme, "Nova visual schema must be revision 9")
+apply_theme_code = code(apply_theme)
+require("THEME_REV=10" in apply_theme_code, "Nova visual schema must be revision 10")
 
 # Nova must survive Plasma, not just reach it.
 #
@@ -314,14 +476,95 @@ require("THEME_REV=9" in apply_theme, "Nova visual schema must be revision 9")
 # an apply-once marker must never outrank what the desktop is ACTUALLY wearing — a
 # script that trusts its own marker on a desktop that has silently reverted is the thing
 # that keeps it reverted.
-require("defuse_automatic_lookandfeel" in apply_theme,
-        "moos-apply-theme must disarm Plasma's automatic look-and-feel switch")
-require("current_lookandfeel" in apply_theme and "SELF-HEAL" in apply_theme,
-        "moos-apply-theme must re-apply when the desktop is no longer wearing Nova")
+require("pin_lookandfeel_switch_targets()" in apply_theme_code,
+        "moos-apply-theme must point Plasma's day/night switch at MoOS themes, "
+        "never leave it aimed at a package that is not installed")
+require("current_lookandfeel()" in apply_theme_code and "SELF-HEAL" in apply_theme_code,
+        "moos-apply-theme must re-apply when the desktop is no longer wearing MoOS")
 
-xdg_kdeglobals = read("system_files/etc/xdg/kdeglobals")
+xdg_kdeglobals = code(read("system_files/etc/xdg/kdeglobals"))
 require("AutomaticLookAndFeel=false" in xdg_kdeglobals,
-        "MoOS ships one Look and Feel; Plasma's day/night switch can only swap Nova out")
+        "the day/night switch ships off; changing the look at sunset is a choice, not a default")
+require("DefaultDarkLookAndFeel=org.moos.nova" in xdg_kdeglobals
+        and "DefaultLightLookAndFeel=org.moos.nova.light" in xdg_kdeglobals,
+        "both day/night targets must name MoOS themes — Plasma resolves them BY NAME, "
+        "and a name it cannot resolve sends the desktop to Breeze, permanently")
+
+# ── MoOS ships TWO looks, and both must be whole ──────────────────────────────
+#
+# A half-installed light theme is worse than none: Plasma applies what it finds and
+# silently substitutes Breeze for what it does not, so the user gets a desktop that
+# is MoOS in some places and Breeze in others and cannot tell why. Each of these is
+# a piece the light theme cannot do without.
+#
+# The light theme carries no SVGs of its own ON PURPOSE — NovaLight's plasmarc sets
+# FallbackTheme=Nova and borrows the dark theme's artwork, which is what stops the
+# two from drifting apart. So this gate checks for the fallback, not for SVGs.
+light_lnf = code(
+    read("system_files/usr/share/plasma/look-and-feel/org.moos.nova.light/contents/defaults")
+)
+require("ColorScheme=NovaLight" in light_lnf and "name=NovaLight" in light_lnf,
+        "the light Global Theme must select the light colour scheme and Plasma style")
+require("theme=__aurorae__svg__MoOSNovaLight" in light_lnf,
+        "the light Global Theme must select the light window decoration — Aurorae has no "
+        "ColorScheme stylesheet, so a light desktop with the dark decoration writes "
+        "near-white title text onto a near-white title bar")
+require("Theme=NovaLight" in light_lnf,
+        "the light Global Theme must select the light icon theme — Nova's symbolics are "
+        "drawn light for a dark panel and vanish on porcelain")
+require("Image=NovaAurora" in light_lnf,
+        "the light Global Theme must not ship the navy wallpaper")
+
+light_style = code(read("system_files/usr/share/plasma/desktoptheme/NovaLight/plasmarc"))
+require("FallbackTheme=Nova" in light_style,
+        "NovaLight must fall back to Nova for its SVGs; duplicating the artwork is how "
+        "the two styles drift apart")
+require((ROOT / "system_files/usr/share/plasma/desktoptheme/NovaLight/colors").is_file(),
+        "NovaLight must ship its own colour palette")
+for asset in (
+    "system_files/usr/share/aurorae/themes/MoOSNovaLight/decoration.svg",
+    "system_files/usr/share/aurorae/themes/MoOSNovaLight/MoOSNovaLightrc",
+    "system_files/usr/share/color-schemes/NovaLight.colors",
+    "system_files/usr/share/konsole/NovaLight.colorscheme",
+    "system_files/usr/share/konsole/MoOSLight.profile",
+):
+    require((ROOT / asset).is_file(), f"the light theme is missing {asset}")
+
+# The light decoration is GENERATED from the dark one. If someone hand-edits it, the
+# two silently diverge — so the generator has to stay in the repo and stay wired to
+# both themes.
+generator = code(read("artwork/generate_nova_light.py"))
+require("MoOSNovaLight" in generator and "DECORATION_COLORS" in generator,
+        "the light decoration must be generated from the dark one, not hand-maintained — "
+        "a hand-copied decoration diverges the next time the dark one is touched")
+
+light_deco = code(read("system_files/usr/share/aurorae/themes/MoOSNovaLight/MoOSNovaLightrc"))
+require("ActiveTextColor=16,24,40,255" in light_deco,
+        "the light decoration must have DARK title text; Aurorae takes its title colour "
+        "from its own rc, not from the colour scheme, so the dark rc paints near-white "
+        "text onto a near-white title bar")
+
+# The user must be able to switch, and switching must carry the three things a Global
+# Theme does not: Konsole (its scheme is not a KDE scheme and follows nothing), GTK's
+# prefer-dark (Plasma's gtkconfig never sets it), and the wallpaper (measured: applying
+# the light Global Theme left the navy wallpaper in place).
+theme_switch = code(read("system_files/usr/bin/moos-theme"))
+require("plasma-apply-lookandfeel -a" in theme_switch,
+        "moos-theme must apply the Global Theme")
+require("--key DefaultProfile" in theme_switch,
+        "moos-theme must switch Konsole's profile — a light desktop with a black terminal "
+        "is not a light desktop")
+require("gtk-application-prefer-dark-theme" in theme_switch
+        and "color-scheme" in theme_switch,
+        "moos-theme must tell GTK which side of the day it is on, or Firefox stays dark "
+        "on a light desktop")
+require("plasma-apply-wallpaperimage" in theme_switch,
+        "moos-theme must set the wallpaper; applying the Global Theme does not carry it")
+
+# moos-apply-theme repairs the look the user is ON, not the one MoOS prefers. Dragging a
+# user who chose Light back to Dark on every login is not protection, it is the bug.
+require("target_lnf()" in apply_theme_code and "theme_intact()" in apply_theme_code,
+        "the self-heal must accept EITHER MoOS look and repair to the one the user chose")
 
 ui_migrate = read("system_files/usr/bin/moos-ui-migrate")
 require("MOOS_THEME_REV=7" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
@@ -376,7 +619,7 @@ require("[kwinrc][org.kde.kdecoration2]" in lnf_defaults
         and "theme=__aurorae__svg__MoOSNova" in lnf_defaults,
         "org.moos.nova's defaults must declare the window decoration, or Breeze's entry "
         "in ~/.config/kdedefaults/kwinrc permanently shadows /etc/xdg/kwinrc")
-require("--group org.kde.kdecoration2 --key theme __aurorae__svg__MoOSNova" in apply_theme,
+require('--group org.kde.kdecoration2 --key theme "$want_deco"' in apply_theme,
         "the theme migration must pin the Nova decoration into an existing user's own "
         "kwinrc; a system default cannot reach past kdedefaults")
 
@@ -521,6 +764,102 @@ require("grep -qx 'Theme=moos-nova' /etc/plymouth/plymouthd.conf" in build,
         "image build must fail if the active Plymouth selector is not MoOS")
 require("final initramfs contains the Fedora BGRT/spinner branding path" in build,
         "image build must reject Fedora BGRT/spinner paths in initramfs")
+
+# ── Arabic in the terminal ────────────────────────────────────────────────────
+#
+# MoOS brands itself Arabic/English and shipped a terminal an Arabic user could not
+# read. A terminal draws one glyph per fixed-width cell; every Arabic font in Fedora
+# is proportional, so Konsole tore the cursive joins apart and rendered الطرفية as
+# ا ل ط ر ف ي ة — the word shattered into loose letters. JetBrains Mono has no
+# Arabic glyphs at all, so fontconfig fell through to a generic Arabic font and the
+# result was mush.
+#
+# Kawkab Mono is drawn to connect ACROSS a fixed advance. It is the only reason
+# Arabic in the terminal is legible, and nothing else in this build would notice if
+# it went missing — the terminal would simply go back to being unreadable, in a
+# language most of the people reviewing this cannot read.
+build_code = code(build)
+require("/usr/share/fonts/kawkab-mono" in build_code,
+        "the image must install Kawkab Mono; without it Arabic in the terminal is unreadable")
+require("sha256sum -c -" in build_code,
+        "the Kawkab Mono download must be digest-pinned, not fetched blind")
+
+fontconf = code(read("system_files/etc/fonts/conf.d/61-moos-brand.conf"), "xml")
+require("<family>Kawkab Mono</family>" in fontconf,
+        "fontconfig must actually place Kawkab Mono in the fallback chain")
+require(re.search(r"<family>JetBrains Mono</family>\s*<accept>", fontconf) is not None,
+        "Konsole asks for JetBrains Mono BY NAME and never resolves the generic monospace "
+        "alias, so the Arabic fallback must hang off the NAMED family — a rule written only "
+        "on `monospace` never reaches the terminal at all")
+
+# ── A window must know which app it is ────────────────────────────────────────
+#
+# The stock QML runtime names every window it hosts org.qt-project.qml-qt6, so Plasma
+# could not match Mo AI's window to org.moos.moai.desktop and drew the generic green
+# Qt diamond in the taskbar instead of the Mo AI orb. Nothing errors when this breaks;
+# the app just wears somebody else's icon.
+require("-o /usr/bin/moos-qml-shell" in build_code,
+        "the image must build the QML host that sets the app_id")
+for launcher, app_id in (
+    ("system_files/usr/bin/moai", "org.moos.moai"),
+    ("system_files/usr/bin/moos-welcome", "org.moos.welcome"),
+):
+    text = code(read(launcher))
+    require("/usr/bin/moos-qml-shell" in text and f"--app-id {app_id}" in text,
+            f"{launcher} must EXEC moos-qml-shell with --app-id {app_id}, or its window "
+            f"carries the QML runtime's app_id and the taskbar shows the generic Qt icon")
+
+# ── A desktop that can show you a picture ─────────────────────────────────────
+#
+# MoOS shipped no image viewer AT ALL and no default for image/*, so photos opened in
+# whatever browser the user installed. A browser's desktop file claims image/png and
+# nothing in MoOS contested it.
+require(re.search(r"^\s*gwenview \\$", build_code, re.MULTILINE) is not None
+        and re.search(r"^\s*haruna \\$", build_code, re.MULTILINE) is not None,
+        "the image must actually INSTALL an image viewer and a video player")
+mimeapps = code(read("system_files/etc/xdg/mimeapps.list"))
+require("image/jpeg=org.kde.gwenview.desktop" in mimeapps
+        and "video/mp4=org.kde.haruna.desktop" in mimeapps,
+        "MoOS must claim image/* and video/* or a browser will")
+# Shipping the default is only half of it: ~/.config/mimeapps.list outranks /etc/xdg,
+# and Plasma writes that file the first time anyone picks "Open With" — which every
+# existing user already did, in Chrome, because there was nothing else to pick.
+require("pin_default_apps()" in apply_theme_code,
+        "the image/video defaults must also be pinned into the user's own mimeapps.list; "
+        "/etc/xdg alone never reaches a user who already opened a photo in a browser")
+
+# ── The desktop is not empty ──────────────────────────────────────────────────
+for asset in (
+    "system_files/usr/share/plasma/plasmoids/org.moos.nova.deskclock/metadata.json",
+    "system_files/usr/share/plasma/plasmoids/org.moos.nova.deskclock/contents/ui/main.qml",
+):
+    require((ROOT / asset).is_file(), f"the desktop clock is missing {asset}")
+require('addWidget("org.moos.nova.deskclock"' in apply_theme_code,
+        "new and existing users must both receive the desktop clock")
+
+# The panel clock must declare its width to the panel layout. implicitWidth alone is
+# NOT enough: Plasma lays the panel out from the Layout attached properties, and
+# without them it allocated the clock less width than it painted — so the system tray
+# was positioned INSIDE the clock's pixels and drew its icons on top of the digits.
+# Nothing errored. The panel just looked corrupted.
+panel_clock = code(
+    read("system_files/usr/share/plasma/plasmoids/org.moos.nova.clock/contents/ui/main.qml"),
+    "slash",
+)
+require("Layout.minimumWidth:" in panel_clock and "Layout.preferredWidth:" in panel_clock,
+        "the panel clock must declare Layout.minimumWidth/preferredWidth on its compact "
+        "representation. implicitWidth alone is not enough — Plasma lays the panel out from "
+        "the Layout attached properties, and without them the system tray is positioned "
+        "INSIDE the clock's pixels and draws its icons on top of the digits")
+
+for clock in ("org.moos.nova.clock", "org.moos.nova.deskclock"):
+    qml = code(
+        read(f"system_files/usr/share/plasma/plasmoids/{clock}/contents/ui/main.qml"), "slash"
+    )
+    require("PlasmaCore.Theme" not in qml,
+            f"{clock}: Plasma 6 has no PlasmaCore.Theme — org.kde.plasma.core exposes Types "
+            f"only. Binding a colour to it is undefined at runtime and the applet silently "
+            f"draws nothing at all. Use Kirigami.Theme.")
 
 if errors:
     print("MoOS user-experience gate failed:", file=sys.stderr)

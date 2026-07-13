@@ -438,6 +438,91 @@ dnf5 -y install qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia qt6-qtimageform
 dnf5 -y install ibm-plex-sans-fonts ibm-plex-sans-arabic-fonts \
     google-noto-sans-arabic-fonts jetbrains-mono-fonts papirus-icon-theme
 
+# Kawkab Mono — the Arabic terminal font, and the reason Arabic in Konsole was
+# unreadable without it.
+#
+# A terminal draws one glyph per fixed-width cell. Every Arabic font in Fedora
+# is PROPORTIONAL, so when Konsole placed each letter in its own cell the
+# cursive joins were torn apart: الطرفية came out as ا ل ط ر ف ي ة — a word
+# shattered into disconnected letters. No fontconfig ordering fixes that,
+# because the defect is the metrics, not the choice of font. Kawkab Mono is
+# drawn for exactly this: its letters connect ACROSS a fixed advance.
+#
+# Fedora does not package it, so it comes from the upstream OFL release, pinned
+# by digest. A changed tarball fails the build rather than silently shipping
+# something else.
+kawkab_ver=0.501
+kawkab_sha=11c06f57dddefaf0166d74caaa072865ab6ff8d34076e7ec5d2c20edda145666
+kawkab_zip=/tmp/kawkab-mono.zip
+curl -Lf --retry 3 -o "${kawkab_zip}" \
+    "https://github.com/aiaf/kawkab-mono/releases/download/v${kawkab_ver}/kawkab-mono-${kawkab_ver}.zip"
+echo "${kawkab_sha}  ${kawkab_zip}" | sha256sum -c -
+mkdir -p /usr/share/fonts/kawkab-mono
+python3 -m zipfile -e "${kawkab_zip}" /tmp/
+install -m 0644 "/tmp/kawkab-mono-${kawkab_ver}"/KawkabMono-*.ttf /usr/share/fonts/kawkab-mono/
+install -m 0644 "/tmp/kawkab-mono-${kawkab_ver}/OFL.txt" /usr/share/fonts/kawkab-mono/
+rm -rf "${kawkab_zip}" "/tmp/kawkab-mono-${kawkab_ver}"
+fc-cache -f /usr/share/fonts/kawkab-mono
+# Gate it: a missing terminal font is invisible until an Arabic user types.
+test -f /usr/share/fonts/kawkab-mono/KawkabMono-Regular.ttf \
+    || { echo "GATE FAIL: Kawkab Mono did not install"; exit 1; }
+
+# Ask the question the way Konsole asks it, which is NOT what `fc-match` answers.
+#
+# Konsole requests the family BY NAME (MoOS.profile: Font=JetBrains Mono) and Qt
+# then falls back PER GLYPH for the characters that family does not have — all of
+# Arabic. `fc-match "JetBrains Mono:lang=ar"` returns JetBrains Mono itself, because
+# the pattern names it; it says nothing about the fallback. Only the SORTED list
+# does. The first entry that is not JetBrains Mono is the font that will actually
+# draw an Arabic letter in the terminal, and it must be Kawkab Mono — anything else
+# is proportional and shatters the cursive joins.
+#
+# The first version of this gate used plain `fc-match` and failed the build against
+# a fontconfig that was correct.
+arabic_fallback="$(fc-match -s 'JetBrains Mono:lang=ar' | grep -v '"JetBrains Mono"' | head -1)"
+case "${arabic_fallback}" in
+    *Kawkab*) echo "Arabic terminal fallback: ${arabic_fallback}" ;;
+    *) echo "GATE FAIL: Arabic in the terminal falls back to '${arabic_fallback}', not Kawkab Mono"
+       exit 1 ;;
+esac
+
+# -----------------------------------------------------------------------------
+# (c4b) moos-qml-shell — the QML host that gives MoOS's apps a real app_id
+# -----------------------------------------------------------------------------
+# Mo AI ran as `qml-qt6 main.qml`, so its Wayland app_id was org.qt-project.qml-qt6
+# and Plasma could not match the window to org.moos.moai.desktop. The taskbar fell
+# back to the QML runtime's own icon — the generic green Qt diamond. Same for
+# moos-welcome: all three QML apps shared the one app_id.
+#
+# qml-qt6 has no flag to set it (checked: -a, -I, -f, -c, --desktop, --gles,
+# --software … and nothing for the app id). QGuiApplication::setDesktopFileName()
+# is the only supported route, so MoOS hosts the QML itself. See the long comment
+# in build_files/moos-qml-shell.cpp.
+#
+# The compiler and the Qt headers are BUILD-ONLY: installed, used, and removed
+# inside this same RUN, so none of it lands in the shipped image.
+#
+# qt6-qtdeclarative-devel is installed here and NOT removed. It is also installed
+# further down in section (c8) — but that is ~200 lines later, and this needs
+# Qt6Qml.pc NOW: without it pkg-config cannot resolve Qt6Qml and the compile dies
+# with "QGuiApplication: No such file or directory". It stays because it is what
+# provides /usr/bin/qml-qt6, which both the QML smoke-test gate and the launchers'
+# fallback path depend on. The later install is then a no-op.
+dnf5 -y install gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel
+g++ -std=c++17 -fPIC -O2 /ctx/moos-qml-shell.cpp -o /usr/bin/moos-qml-shell \
+    $(pkg-config --cflags --libs Qt6Gui Qt6Qml Qt6Core)
+chmod 0755 /usr/bin/moos-qml-shell
+dnf5 -y remove gcc-c++ qt6-qtbase-devel
+
+# Gate it. A wrong app_id is invisible to every other check in this build: the app
+# launches, the QML loads, nothing errors — the icon is just silently the wrong one.
+test -x /usr/bin/moos-qml-shell \
+    || { echo "GATE FAIL: moos-qml-shell did not build"; exit 1; }
+for launcher in /usr/bin/moai /usr/bin/moos-welcome; do
+    grep -q "moos-qml-shell" "$launcher" \
+        || { echo "GATE FAIL: ${launcher} does not use moos-qml-shell — its window will show the generic Qt icon"; exit 1; }
+done
+
 # Secret Service CLI used by Mo AI. On Plasma this talks to KWallet through
 # the freedesktop Secret Service API; cloud credentials never enter JSON files.
 dnf5 -y install libsecret
@@ -572,6 +657,37 @@ for d in /usr/share/icons/Colloid-Dark/*/; do
 done
 gtk-update-icon-cache -f /usr/share/icons/Nova || true
 
+# "NovaLight" = the same theme over Colloid-LIGHT, for the light Global Theme.
+#
+# An icon theme is not colour-scheme aware. Colloid-Dark's monochrome symbolics
+# are drawn LIGHT so they read on a dark panel — put them on porcelain and the
+# toolbar goes blank. So the light half of MoOS needs its own icon theme, built
+# by exactly the same symlink trick: spec-valid index.theme copied from the base,
+# icon dirs symlinked, zero duplication on disk.
+mkdir -p /usr/share/icons/NovaLight
+cp /usr/share/icons/Colloid-Light/index.theme /usr/share/icons/NovaLight/index.theme
+sed -i \
+    -e 's|^Name=.*|Name=NovaLight|' \
+    -e 's|^Comment=.*|Comment=MoOS Nova Light icons (based on Colloid)|' \
+    -e 's|^Inherits=.*|Inherits=Colloid-Light,Papirus,breeze,hicolor|' \
+    /usr/share/icons/NovaLight/index.theme
+test -d /usr/share/icons/Colloid-Light/apps
+for d in /usr/share/icons/Colloid-Light/*/; do
+    b="$(basename "${d}")"
+    ln -snf "../Colloid-Light/${b}" "/usr/share/icons/NovaLight/${b}"
+done
+gtk-update-icon-cache -f /usr/share/icons/NovaLight || true
+
+# Gate both. An icon theme whose Directories= is missing is treated as INVALID by
+# KIconTheme and Plasma silently falls back — the desktop looks fine at a glance
+# and every icon is somebody else's.
+for t in Nova NovaLight; do
+    grep -q '^Directories=' "/usr/share/icons/${t}/index.theme" \
+        || { echo "GATE FAIL: ${t} icon theme has no Directories= — KIconTheme will reject it"; exit 1; }
+    test -d "/usr/share/icons/${t}/apps" \
+        || { echo "GATE FAIL: ${t} icon theme has no apps/ dir"; exit 1; }
+done
+
 # -----------------------------------------------------------------------------
 # (c6) NovaIce cursor theme (Bibata Modern Ice, rebranded at build time)
 # -----------------------------------------------------------------------------
@@ -675,6 +791,29 @@ dnf5 -y install \
     nodejs22 \
     nodejs22-npm \
     qt6-qtdeclarative-devel
+
+# Photos and video. MoOS shipped NEITHER — there was no image viewer in the
+# image at all, and no default for image/*. Double-clicking a photo therefore
+# opened whatever browser the user happened to install, because a browser's
+# desktop file claims image/png and nothing in MoOS contested it. A desktop
+# that cannot show you a picture is not finished.
+#
+# gwenview: KDE's viewer. It inherits the Nova colour scheme and icon theme for
+#           free, and it is what Dolphin's "Open" already expects.
+# haruna:   KDE's mpv frontend. mpv means real hardware decode — on the NVIDIA
+#           edition that is NVDEC, so 4K video costs the CPU almost nothing.
+# kf6-kimageformats: HEIF, AVIF, JPEG-XL and friends. Qt cannot decode them on its
+#           own, so without this gwenview opens a photo straight off a modern phone
+#           and shows a grey box. NOTE the kf6- prefix: there is no bare
+#           `kimageformats` package in Fedora 44 — only kf5-/kf6- — and naming it
+#           wrong fails the build at the dnf step.
+# ffmpegthumbs / kdegraphics-thumbnailers: Dolphin thumbnails for video and RAW.
+dnf5 -y install \
+    gwenview \
+    haruna \
+    kf6-kimageformats \
+    ffmpegthumbs \
+    kdegraphics-thumbnailers
 
 # Mo Remote: private phone-to-MoOS control. One XDG RemoteDesktop+ScreenCast portal
 # session carries BOTH halves of remote control:
@@ -828,6 +967,38 @@ grep -q '^x-scheme-handler/moos=' "$mimeapps" \
 update-desktop-database /usr/share/applications 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
+# (c9) Two faults that fire on EVERY boot and that nothing else in this build sees
+# -----------------------------------------------------------------------------
+# 1. A permanently failed user unit.
+#
+#    nvidia-settings is an X11 tool. MoOS is a Wayland-only Plasma session, so the
+#    autostart entry the driver ships runs
+#        nvidia-settings --load-config-only
+#    against an X server that does not exist, exits 1, and leaves a RED failed unit
+#    in `systemctl --user --failed` on every boot of the NVIDIA edition. It has been
+#    doing so since the driver was layered in. Nothing is broken by it and nothing
+#    is fixed by it; it is pure noise in the one place a user looks to find out
+#    whether their system is healthy — which makes every REAL failure harder to see.
+#
+#    Guarded on existence: the file only ships in the NVIDIA edition.
+autostart_nv=/etc/xdg/autostart/nvidia-settings-load.desktop
+if [ -f "${autostart_nv}" ]; then
+    grep -q '^Hidden=true' "${autostart_nv}" || printf 'Hidden=true\n' >> "${autostart_nv}"
+    grep -q '^Hidden=true' "${autostart_nv}" \
+        || { echo "GATE FAIL: could not disable the nvidia-settings autostart"; exit 1; }
+fi
+
+# 2. Fourteen udev errors at every boot.
+#
+#    /usr/lib/udev/rules.d/70-u2f.rules assigns security keys to the `plugdev`
+#    group, and Fedora does not create it — so udev logs
+#        Failed to resolve group 'plugdev', ignoring
+#    fourteen times per boot, at ERROR priority. Creating the group is the whole
+#    fix; the rules then resolve, and a FIDO key plugged into this machine gets the
+#    permissions it was always supposed to have.
+getent group plugdev >/dev/null || groupadd -r plugdev
+
+# -----------------------------------------------------------------------------
 # (d) Enable services
 # -----------------------------------------------------------------------------
 # uupd runs from a systemd timer; enabling it here bakes the symlink into the
@@ -838,6 +1009,19 @@ systemctl enable uupd.timer
 # for every user's session (bakes the default.target.wants symlink under
 # /etc/systemd/user) without needing a running user manager at build time.
 systemctl --global enable moai-control.service
+
+# Mo AI's FRONT DOOR. This is the only thing on 127.0.0.1:8080 and the only thing
+# the Mo AI app ever talks to; it routes each request to the local brain (8081,
+# moai.service, started ON DEMAND) or to the configured cloud provider, so a
+# conversation can pick its own brain and model.
+#
+# It must be enabled for EVERY user, not opted into: it used to be
+# moai-cloud.service, which was enabled only while the user's default was cloud,
+# because local and cloud both wanted 8080 and only one could run. That either/or
+# is what made the choice of brain a global, service-bouncing setting.
+#
+# moai.service is deliberately NOT --global enabled: the local brain is on demand.
+systemctl --global enable moai-gateway.service
 
 # An installed bootc system uses an OSTree/composefs overlay for /. Anaconda's
 # generated physical-root fstab entry makes systemd-remount-fs attempt an

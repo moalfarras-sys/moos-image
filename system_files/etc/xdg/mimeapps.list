@@ -1,0 +1,42 @@
+# MoOS system default applications (KConfig/XDG cascade).
+#
+# Why this file exists: MoOS shipped no image viewer and no image/* default, so
+# the association fell to whatever the user installed. A browser's desktop file
+# claims image/png, image/jpeg and image/webp — so photos opened in Chrome, in a
+# tab, with no zoom, no next/previous, and no way to rotate. Nothing in MoOS was
+# contesting the claim.
+#
+# A user's ~/.config/mimeapps.list OUTRANKS this file, and Plasma writes to that
+# file the first time anyone picks "Open With". So this is only half the fix:
+# moos-apply-theme pins the same defaults into the user's own config for people
+# who already have a browser recorded there. Shipping the default is not the
+# same as the user getting it (AGENTS.md).
+#
+# Viewers installed in build_files/build.sh section (c8): gwenview, haruna.
+
+[Default Applications]
+x-scheme-handler/moos=org.moos.urlhandler.desktop
+
+image/png=org.kde.gwenview.desktop
+image/jpeg=org.kde.gwenview.desktop
+image/gif=org.kde.gwenview.desktop
+image/webp=org.kde.gwenview.desktop
+image/tiff=org.kde.gwenview.desktop
+image/bmp=org.kde.gwenview.desktop
+image/svg+xml=org.kde.gwenview.desktop
+image/avif=org.kde.gwenview.desktop
+image/heif=org.kde.gwenview.desktop
+image/jxl=org.kde.gwenview.desktop
+image/x-icon=org.kde.gwenview.desktop
+
+video/mp4=org.kde.haruna.desktop
+video/x-matroska=org.kde.haruna.desktop
+video/webm=org.kde.haruna.desktop
+video/quicktime=org.kde.haruna.desktop
+video/x-msvideo=org.kde.haruna.desktop
+video/mpeg=org.kde.haruna.desktop
+video/x-flv=org.kde.haruna.desktop
+video/3gpp=org.kde.haruna.desktop
+audio/mpeg=org.kde.haruna.desktop
+audio/flac=org.kde.haruna.desktop
+audio/x-wav=org.kde.haruna.desktop
