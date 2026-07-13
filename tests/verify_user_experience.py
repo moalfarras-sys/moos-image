@@ -225,6 +225,22 @@ require("recommended" in moai_qml and "hit.note" in moai_qml,
 # memory left (which happened on this machine). The user waits for a download that is not
 # running. The gateway now refuses a start that cannot work (disk, network) and, when the
 # unit is DOWN, reads the service's own log and names the cause.
+# ── Nothing expensive between the user and their desktop ─────────────────────
+# Fedora Atomic's appstream refresh is WantedBy=multi-user.target and sat in this machine's
+# critical chain at +3.525 s — a third of MoOS's userspace boot — rebuilding an app-store
+# index nobody had asked for yet. And flatpak-system-update, the single most expensive unit
+# on a MoOS boot (1min 3.885s of CPU), fired two minutes into the session at normal priority,
+# competing with the desktop for CPU and disk exactly when the user starts working.
+build_sh = code(read("build_files/build.sh"))
+require("systemctl disable fedora-atomic-desktop-appstream-cache-refresh.service" in build_sh
+        and "systemctl enable moos-appstream-refresh.timer" in build_sh,
+        "build.sh must move the appstream refresh out of the boot path and onto MoOS's timer "
+        "— it costs 3.5 s of every boot for a catalogue nothing has opened yet")
+flatpak_idle = read("system_files/usr/lib/systemd/system/flatpak-system-update.service.d/moos-idle.conf")
+require("CPUSchedulingPolicy=idle" in flatpak_idle and "IOSchedulingClass=idle" in flatpak_idle,
+        "flatpak-system-update must run at idle CPU and I/O priority — at normal priority it "
+        "is what 'the system feels slow right after login' is actually made of")
+
 gateway = code(read("system_files/usr/bin/moai-gateway"))
 require("def preflight_local" in gateway and "disk_free" in gateway and "have_network" in gateway,
         "moai-gateway must pre-flight a local start (disk space, network) instead of failing "

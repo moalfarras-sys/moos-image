@@ -1007,6 +1007,27 @@ getent group plugdev >/dev/null || groupadd -r plugdev
 # image so every deployment gets background updates by default.
 systemctl enable uupd.timer
 
+# --- Get the app catalogue OUT of the boot path -------------------------------
+# Measured on the maintainer's machine (`systemd-analyze critical-chain`):
+#
+#   graphical.target @11.525s
+#   └─multi-user.target @11.525s
+#     └─fedora-atomic-desktop-appstream-cache-refresh.service @7.999s +3.525s
+#
+# Fedora Atomic's appstream refresh is WantedBy=multi-user.target, so every boot waits
+# 3.5 s — a third of MoOS's entire userspace time — for an app-store index that nobody has
+# asked for yet. The refresh stays; it just runs three minutes AFTER the desktop is up
+# (moos-appstream-refresh.timer, which starts the very same service).
+#
+# GATE: if the upstream unit is ever renamed, `systemctl disable` would quietly do nothing
+# and the boot delay would come back with a green build. So fail loudly instead.
+test -f /usr/lib/systemd/system/fedora-atomic-desktop-appstream-cache-refresh.service || {
+    echo "GATE FAIL: the appstream refresh unit was renamed — MoOS's boot-path fix now targets nothing"
+    exit 1
+}
+systemctl disable fedora-atomic-desktop-appstream-cache-refresh.service
+systemctl enable moos-appstream-refresh.timer
+
 # Mo AI in-app Settings backend: a tiny per-user control API. --global enables it
 # for every user's session (bakes the default.target.wants symlink under
 # /etc/systemd/user) without needing a running user manager at build time.
