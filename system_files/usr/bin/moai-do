@@ -275,6 +275,32 @@ do_setup_waydroid() {
 # real Windows .exe programs. Running needs no admin; only the one-time install of
 # the Bottles Flatpak does (a Polkit prompt). Steam/Proton stays the gaming path.
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# setup-gaming — the third foreign runtime, and it was the one command Mo AI
+# recommended that did not exist.
+#
+# The gaming set was only ever reachable as `moos-setup --gaming`, wired to the
+# Compatibility panel's button through moos://do/setup-gaming. But Mo AI's system
+# prompt tells the model to answer "how do I run games" with `moai-do setup-gaming`
+# — a command that printed "unknown command" and a help screen. The assistant was
+# confidently handing the user a dead command; tests/test_moai_do.py now fails the
+# build if any moai-do the QML names is not a real action.
+#
+# So make it real, and keep the safety identical: moos-setup does the Flatpak work
+# (Steam, Bottles, Lutris, ProtonUp) and skips whatever is already installed.
+# -----------------------------------------------------------------------------
+do_setup_gaming() {
+    hdr "تجهيز الألعاب (Steam + Proton + Lutris)" "Set up gaming (Steam + Proton + Lutris)"
+    if ! command -v moos-setup >/dev/null 2>&1; then
+        echo "${R}moos-setup غير موجود | not found${N}" >&2
+        return 1
+    fi
+    echo "${D}يثبّت ما ينقص فقط: Steam وBottles وLutris وProtonUp — ويتخطّى المثبّت مسبقاً.${N}"
+    echo "${D}Installs only what is missing: Steam, Bottles, Lutris, ProtonUp — skips what you have.${N}"
+    confirm || return 0
+    moos-setup --gaming
+}
+
 do_setup_windows() {
     hdr "تجهيز تطبيقات Windows عبر Bottles" "Set up Windows apps through Bottles"
     need flatpak || return 1
@@ -478,6 +504,8 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Download and configure Android support (run Android apps)
   ${C}setup-windows${N}     تثبيت Bottles وفتحه لتشغيل برامج ‎.exe
                     Install Bottles and open it to run Windows .exe programs
+  ${C}setup-gaming${N}      تجهيز الألعاب: Steam وProton وLutris وBottles
+                    Set up gaming: Steam, Proton, Lutris, Bottles
   ${C}optimize${N}          تنظيف Flatpak/الحاويات/السجلّات وتحرير مساحة
                     Clean Flatpak/containers/logs and free disk space
   ${C}hw-report${N}         فتح مركز الجهاز داخل Mo AI | open the device centre in Mo AI
@@ -515,6 +543,7 @@ main() {
         update-firmware) do_update_firmware ;;
         setup-waydroid) do_setup_waydroid ;;
         setup-windows) do_setup_windows ;;
+        setup-gaming)  do_setup_gaming ;;
         remote-anywhere) do_remote_anywhere ;;
         install-codex) do_install_codex ;;
         install-claude) do_install_claude ;;

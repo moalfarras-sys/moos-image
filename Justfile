@@ -15,9 +15,25 @@ base_main := "ghcr.io/ublue-os/kinoite-main:44"
 default:
     @just --list
 
+# The repo gates — the ones that read what is ABOUT to be shipped.
+#
+# These existed and nothing ran them. build.sh runs verify_image_experience.py inside the
+# container, but the three tests under tests/ were honour-system: not in `just build`, not in
+# the CI workflow. Every gate a session added ("a gate now guards this") could go red for
+# weeks and no build would notice — which is the same failure AGENTS.md documents for the
+# identity gate that ran before `set -e`. A gate that cannot fail a build is a comment.
+#
+# They run in seconds and need no container, so they go FIRST: a typo in a Konsole group name
+# or a Mo AI button pointing at a command that does not exist should cost you 3 seconds, not a
+# 20-minute image build.
+check:
+    python3 tests/verify_user_experience.py
+    python3 tests/test_device_plan.py
+    python3 tests/test_moai_do.py
+
 # Build the main MoOS image. The base is pinned in the Containerfile on purpose — both
 # editions must share it (see the comment there); it is not a build-arg any more.
-build:
+build: check
     podman build \
         --build-arg IMAGE_NAME={{ image_name }} \
         -t {{ image_name }}:latest \
@@ -28,7 +44,7 @@ build:
 # abandoned in May, which silently made the "NVIDIA image" ~589 packages older than the
 # generic one.) The akmods tag is pinned to the base image's exact kernel: a kmod built for
 # a different kernel does not load, and the machine boots to a black screen.
-build-nvidia:
+build-nvidia: check
     #!/usr/bin/env bash
     set -euo pipefail
     kernel="$(skopeo inspect docker://{{ base_main }} | jq -er '.Labels["ostree.linux"]')"

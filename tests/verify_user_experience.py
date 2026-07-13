@@ -200,6 +200,24 @@ require("org.moos.runforeign.desktop" in code(read("system_files/usr/bin/moos-ap
         "moos-apply-theme must pin the MoOS runner in the user's mimeapps.list — the user's "
         "file outranks /etc/xdg, so shipping the default is only half the fix")
 
+# ── Mo AI answers the NEED, not the keyword ──────────────────────────────────
+# Flathub ranks by popularity, and for "camera" that puts a COSMIC-desktop app on top: it
+# installs, then panics on Plasma. The user's camera "did not work" while the webcam, the
+# install and libcamera were all fine. So the search ranks the desktop-native answer first
+# and labels apps built for another desktop — and BOTH halves are gated, because a ranking
+# the UI never renders is a ranking the user never receives.
+control = code(read("system_files/usr/bin/moai-control"))
+require("KNOWN_GOOD" in control and "org.kde.kamoso" in control,
+        "moai-control must carry the need→known-good-app table (camera → org.kde.kamoso is "
+        "its archetype); without it Flathub's raw top hit reaches the user")
+require("def desktop_mismatch" in control and "cosmic" in control,
+        "moai-control must label desktop-mismatched apps — a COSMIC/GNOME-only Flatpak "
+        "installs cleanly on MoOS and then crashes, and the user is told AFTER the download")
+moai_qml = read("system_files/usr/share/moos/apps/moai/main.qml")
+require("recommended" in moai_qml and "hit.note" in moai_qml,
+        "Mo AI must render the pick and the warning (recommended / note) on each search hit — "
+        "ranking them in the backend and not showing them changes nothing for the user")
+
 for qml_path in sorted((ROOT / "system_files/usr/share/moos/apps").glob("*/main.qml")):
     qml_text = qml_path.read_text(encoding="utf-8")
     for url in sorted(set(re.findall(r'moos://([a-z0-9/._-]+)', qml_text))):

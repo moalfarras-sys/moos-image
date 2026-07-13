@@ -183,12 +183,17 @@ Kirigami.ApplicationWindow {
         "on KDE. If you are not certain of an app id, tell the user to search it in " +
         "the Apps panel rather than guessing one.\n" +
         "• Run apps from OTHER systems, for real:\n" +
+        "   – DOUBLE-CLICK IS ENOUGH. A downloaded .exe or .apk runs when the user opens " +
+        "it in Files: MoOS hands it to the right layer, and if that layer is not installed " +
+        "yet it offers the one-time setup right there. Say that FIRST — the setup commands " +
+        "below are for someone who wants to prepare the machine in advance.\n" +
         "   – Windows programs: `moai-do setup-windows` installs Bottles (managed Wine) " +
         "and opens it, so any .exe runs. For games use `moai-do setup-gaming` (Steam + " +
-        "Proton); `moai-do install net.lutris.Lutris` manages both.\n" +
+        "Proton + Lutris); `moai-do install net.lutris.Lutris` manages both.\n" +
         "   – Android apps: `moai-do setup-waydroid` boots a real Android container " +
         "(idempotent — safe to re-run); afterwards Android apps appear in the launcher " +
-        "like any other app, and an APK installs with `waydroid app install <file>`.\n" +
+        "like any other app, and an APK installs by double-clicking it (or " +
+        "`waydroid app install <file>`).\n" +
         "• Coding agents: `moai-do install-codex`, `moai-do install-claude` — they " +
         "install into ~/.local and run as the user, with no admin rights.\n" +
         "• Diagnose: explain the likely cause in plain language, then give the " +
@@ -1890,6 +1895,14 @@ Kirigami.ApplicationWindow {
                                         required property string summary
                                         required property bool installed
                                         required property bool verified
+                                        // The decision layer (moai-control): `recommended` is the
+                                        // desktop-native answer to the NEED behind the query, and
+                                        // `note` says why — or warns that an app is built for
+                                        // another desktop and will crash here. Shipping the
+                                        // ranking without showing it is the same as not shipping
+                                        // it: the user still cannot tell the two apart.
+                                        required property bool recommended
+                                        required property string note
                                         Layout.fillWidth: true
 
                                         RowLayout {
@@ -1928,6 +1941,27 @@ Kirigami.ApplicationWindow {
                                                         font.pixelSize: 12
                                                         font.weight: Font.Bold
                                                     }
+                                                    // The MoOS pick, said out loud.
+                                                    Rectangle {
+                                                        visible: hit.recommended
+                                                        Layout.preferredHeight: 17
+                                                        Layout.preferredWidth: pickLabel.width + 12
+                                                        radius: 5
+                                                        color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
+                                                                       root.novaCyan.b, 0.14)
+                                                        border.width: 1
+                                                        border.color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
+                                                                              root.novaCyan.b, 0.45)
+                                                        Text {
+                                                            id: pickLabel
+                                                            anchors.centerIn: parent
+                                                            text: "اختيار MoOS  |  MoOS pick"
+                                                            color: root.novaCyan
+                                                            font.family: root.uiFont
+                                                            font.pixelSize: 9
+                                                            font.weight: Font.DemiBold
+                                                        }
+                                                    }
                                                 }
                                                 Text {
                                                     Layout.fillWidth: true
@@ -1936,6 +1970,18 @@ Kirigami.ApplicationWindow {
                                                     font.family: root.uiFont
                                                     font.pixelSize: 11
                                                     elide: Text.ElideRight
+                                                }
+                                                // Why this one — or why NOT that one. Cyan when it is
+                                                // the pick, amber when the app targets another desktop
+                                                // and will not survive here.
+                                                Text {
+                                                    visible: hit.note !== ""
+                                                    Layout.fillWidth: true
+                                                    text: (hit.recommended ? "✓ " : "⚠ ") + hit.note
+                                                    color: hit.recommended ? root.novaCyan : "#F5A524"
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: 10
+                                                    wrapMode: Text.WordWrap
                                                 }
                                                 Text {
                                                     text: hit.id
