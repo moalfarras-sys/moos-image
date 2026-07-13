@@ -81,8 +81,8 @@ Both variants were staged temporarily into the maintainer's real Plasma 6.7.2
 session on 2026-07-13, applied through the real Look-and-Feel/KWin/KConfig paths,
 read back with `kreadconfig6`, and captured at 3840×2160:
 
-- [`live-tests/moos-ui-dark-final.png`](moos-ui/live-tests/moos-ui-dark-final.png)
-- [`live-tests/moos-ui-light-final.png`](moos-ui/live-tests/moos-ui-light-final.png)
+- [`live-tests/moos-ui-dark-v2.png`](moos-ui/live-tests/moos-ui-dark-v2.png)
+- [`live-tests/moos-ui-light-v2.png`](moos-ui/live-tests/moos-ui-light-v2.png)
 
 The proof covers the actual wallpaper renderer, dark/light palette, Aurorae
 decoration selector, Plasma Style, dock, first-party app icons, animated weather,
@@ -90,6 +90,25 @@ clock glass lens and verified CPU/RAM/GPU sensors. No QML or MoOS UI load errors
 appeared in the live plasmashell journal. The temporary `~/.local/share` packages
 were removed after capture and the installed session was restored to system Nova;
 there are no user-local MoOS UI shadows left to hide the image after an update.
+
+## Revision 2 — direct visual review
+
+The first live pass proved the packages loaded, but it also exposed two design
+regressions that a gate could not judge: the desktop widget still read as Nova's
+narrow vertical clock with a pane behind it, and Plasma's adaptive transparency
+turned the Light dock into a bright opaque slab. Revision 2 therefore makes these
+visual contracts explicit:
+
+- the desk widget is a 27-grid-unit horizontal live dashboard, with an animated
+  status beacon, independent rolling clock, enlarged animated weather orb and a
+  single machine-pulse rail;
+- Dark and Light docks use the exact same FrameSvg geometry and both disable
+  adaptive transparency;
+- Light owns a generated warm-mauve `panel-background.svg` rather than inheriting
+  a surface that Plasma may repaint white.
+
+The generator creates the Light panel from the Dark master and recolours only its
+glass palette, so later geometry changes cannot make the two docks diverge.
 
 ## Generated prompts
 

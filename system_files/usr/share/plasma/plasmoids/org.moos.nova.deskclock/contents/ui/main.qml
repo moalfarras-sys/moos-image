@@ -211,8 +211,8 @@ PlasmoidItem {
     fullRepresentation: Item {
         id: face
 
-        implicitWidth: column.implicitWidth + Kirigami.Units.gridUnit * 2
-        implicitHeight: column.implicitHeight + Kirigami.Units.gridUnit * 2
+        implicitWidth: Math.round(Kirigami.Units.gridUnit * 27)
+        implicitHeight: Math.round(Kirigami.Units.gridUnit * 14)
 
         Layout.minimumWidth: implicitWidth
         Layout.minimumHeight: implicitHeight
@@ -224,8 +224,7 @@ PlasmoidItem {
         // restrained glass surface gives the content one predictable contrast plane
         // while still letting the wallpaper colour breathe through it.
         GlassLens {
-            anchors.fill: column
-            anchors.margins: -Kirigami.Units.largeSpacing
+            anchors.fill: parent
         }
 
         // A desktop widget sits on the WALLPAPER, not on a themed surface, and a
@@ -237,8 +236,8 @@ PlasmoidItem {
         // The shadow is drawn in the INVERSE of the text colour, so dark text carries
         // a light halo and light text a dark one. Legible either way, on anything.
         MultiEffect {
-            anchors.fill: column
-            source: column
+            anchors.fill: dashboard
+            source: dashboard
             shadowEnabled: true
             shadowColor: Kirigami.Theme.textColor.hslLightness > 0.5
                          ? Qt.rgba(0, 0, 0, 0.55)
@@ -250,9 +249,60 @@ PlasmoidItem {
         }
 
         ColumnLayout {
-            id: column
-            anchors.centerIn: parent
-            spacing: Kirigami.Units.smallSpacing
+            id: dashboard
+            anchors.fill: parent
+            anchors.margins: Math.round(Kirigami.Units.gridUnit * 1.25)
+            spacing: Kirigami.Units.largeSpacing
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                RowLayout {
+                    spacing: Kirigami.Units.smallSpacing
+
+                    Rectangle {
+                        width: Kirigami.Units.gridUnit * 0.55
+                        height: width
+                        radius: width / 2
+                        color: "#D864A4"
+
+                        SequentialAnimation on opacity {
+                            loops: Animation.Infinite
+                            NumberAnimation { to: 0.38; duration: 1500; easing.type: Easing.InOutSine }
+                            NumberAnimation { to: 1.0; duration: 1500; easing.type: Easing.InOutSine }
+                        }
+                    }
+
+                    Text {
+                        text: "MoOS  /  LIVE"
+                        color: Kirigami.Theme.textColor
+                        opacity: 0.66
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.58)
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: 1.8
+                    }
+                }
+
+                Item { Layout.fillWidth: true }
+
+                Text {
+                    text: root.city || "MoOS"
+                    color: Kirigami.Theme.textColor
+                    opacity: 0.50
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.62)
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: Math.round(Kirigami.Units.gridUnit * 1.5)
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
 
             // ── The time ─────────────────────────────────────────────────────────
             // Digit by digit, and only the digits that changed.
@@ -266,10 +316,10 @@ PlasmoidItem {
             // a mechanism; at 14:09 → 14:10 exactly one does.
             RowLayout {
                 id: clockRow
-                Layout.alignment: Qt.AlignHCenter
+                Layout.alignment: Qt.AlignLeft
                 spacing: 0
 
-                readonly property int px: Kirigami.Units.gridUnit * 5
+                readonly property int px: Math.round(Kirigami.Units.gridUnit * 4.25)
                 readonly property string hhmm: Qt.formatTime(root.now, "HH:mm")
 
                 Roller { glyph: clockRow.hhmm.charAt(0); px: clockRow.px }
@@ -301,7 +351,7 @@ PlasmoidItem {
             }
 
             Text {
-                Layout.alignment: Qt.AlignHCenter
+                Layout.alignment: Qt.AlignLeft
                 text: root.arabicLocale.standaloneDayName(root.now.getDay(), Locale.LongFormat)
                       + "، " + Qt.formatDate(root.now, "d ")
                       + root.arabicLocale.standaloneMonthName(root.now.getMonth(), Locale.LongFormat)
@@ -313,7 +363,7 @@ PlasmoidItem {
             }
 
             Text {
-                Layout.alignment: Qt.AlignHCenter
+                Layout.alignment: Qt.AlignLeft
                 text: Qt.formatDate(root.now, Locale.LongFormat)
                 color: Kirigami.Theme.textColor
                 opacity: 0.55
@@ -321,6 +371,18 @@ PlasmoidItem {
                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.85)
                 font.weight: Font.Normal
             }
+
+                }
+
+                Rectangle {
+                    Layout.preferredWidth: 1
+                    Layout.fillHeight: true
+                    Layout.topMargin: Kirigami.Units.smallSpacing
+                    Layout.bottomMargin: Kirigami.Units.smallSpacing
+                    color: Qt.rgba(Kirigami.Theme.textColor.r,
+                                   Kirigami.Theme.textColor.g,
+                                   Kirigami.Theme.textColor.b, 0.12)
+                }
 
             // ── The sky ──────────────────────────────────────────────────────────
             // Drawn, not iconed: the glyph is live vector art (a sun whose rays turn, a
@@ -330,29 +392,47 @@ PlasmoidItem {
             // The whole row fades in when the first forecast lands and is simply absent
             // until then — no spinner, no "—°", no placeholder that looks like a fault.
             RowLayout {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.topMargin: Kirigami.Units.largeSpacing
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
                 spacing: Kirigami.Units.largeSpacing
                 visible: root.skyReady
                 opacity: root.skyReady ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 900; easing.type: Easing.OutCubic } }
 
-                SkyGlyph {
-                    kind: root.skyReady ? root.skyKind(root.sky.code, root.sky.day) : "cloud"
-                    size: Math.round(Kirigami.Units.gridUnit * 2.6)
-                }
+                Rectangle {
+                    Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit * 4.5)
+                    Layout.preferredHeight: Layout.preferredWidth
+                    radius: width / 2
+                    color: Kirigami.Theme.backgroundColor.hslLightness > 0.55
+                           ? Qt.rgba(0.58, 0.32, 0.68, 0.12)
+                           : Qt.rgba(0.84, 0.39, 0.64, 0.14)
+                    border.width: 1
+                    border.color: Qt.rgba(0.85, 0.39, 0.64, 0.25)
 
-                Text {
-                    text: root.skyReady ? root.sky.temp + "°" : ""
-                    color: Kirigami.Theme.textColor
-                    font.family: "IBM Plex Sans"
-                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 1.9)
-                    font.weight: Font.Light
-                    font.features: ({ "tnum": 1 })
+                    SequentialAnimation on scale {
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 1.035; duration: 2800; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 1.0; duration: 2800; easing.type: Easing.InOutSine }
+                    }
+
+                    SkyGlyph {
+                        anchors.centerIn: parent
+                        kind: root.skyReady ? root.skyKind(root.sky.code, root.sky.day) : "cloud"
+                        size: Math.round(Kirigami.Units.gridUnit * 3.1)
+                    }
                 }
 
                 ColumnLayout {
                     spacing: 0
+
+                    Text {
+                        text: root.skyReady ? root.sky.temp + "°" : ""
+                        color: Kirigami.Theme.textColor
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 2.35)
+                        font.weight: Font.Light
+                        font.features: ({ "tnum": 1 })
+                    }
 
                     Text {
                         text: root.skyReady ? root.skyNameAr(root.sky.code) : ""
@@ -365,8 +445,7 @@ PlasmoidItem {
 
                     Text {
                         text: root.skyReady
-                              ? (root.city ? root.city + " · " : "")
-                                + "↑" + root.sky.hi + "°  ↓" + root.sky.lo + "°"
+                              ? "H " + root.sky.hi + "°   L " + root.sky.lo + "°"
                               : ""
                         color: Kirigami.Theme.textColor
                         opacity: 0.55
@@ -376,15 +455,24 @@ PlasmoidItem {
                     }
                 }
             }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Qt.rgba(Kirigami.Theme.textColor.r,
+                               Kirigami.Theme.textColor.g,
+                               Kirigami.Theme.textColor.b, 0.12)
+            }
 
             // ── The machine's pulse ──────────────────────────────────────────────
             // Three rings, no card, no legend, no title bar. Green while the machine
             // is fine, amber when it is working, red when it is struggling — so the
             // state reads from across the room without a digit being read.
             RowLayout {
+                Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
-                Layout.topMargin: Kirigami.Units.largeSpacing
-                spacing: Math.round(Kirigami.Units.gridUnit * 0.9)
+                spacing: Math.round(Kirigami.Units.gridUnit * 2.2)
 
                 Gauge { label: "CPU"; sensorId: "cpu/all/usage" }
                 Gauge { label: "RAM"; sensorId: "memory/physical/usedPercent" }
@@ -404,13 +492,43 @@ PlasmoidItem {
 
         radius: Math.round(Kirigami.Units.gridUnit * 1.5)
         color: Kirigami.Theme.backgroundColor.hslLightness > 0.55
-               ? Qt.rgba(0.95, 0.92, 0.88, 0.70)
-               : Qt.rgba(0.10, 0.075, 0.115, 0.72)
+               ? Qt.rgba(0.74, 0.64, 0.70, 0.48)
+               : Qt.rgba(0.10, 0.075, 0.115, 0.78)
         border.width: 1
         border.color: Kirigami.Theme.backgroundColor.hslLightness > 0.55
                       ? Qt.rgba(0.49, 0.23, 0.93, 0.20)
                       : Qt.rgba(0.75, 0.52, 0.99, 0.24)
         clip: true
+
+        Rectangle {
+            width: lens.width * 0.46
+            height: width
+            radius: width / 2
+            x: lens.width * 0.62
+            y: -height * 0.58
+            color: Qt.rgba(0.85, 0.39, 0.64, 0.13)
+
+            SequentialAnimation on scale {
+                loops: Animation.Infinite
+                NumberAnimation { to: 1.14; duration: 4800; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.96; duration: 4800; easing.type: Easing.InOutSine }
+            }
+        }
+
+        Rectangle {
+            width: lens.width * 0.34
+            height: width
+            radius: width / 2
+            x: -width * 0.45
+            y: lens.height * 0.58
+            color: Qt.rgba(0.66, 0.33, 0.97, 0.10)
+
+            SequentialAnimation on opacity {
+                loops: Animation.Infinite
+                NumberAnimation { to: 0.35; duration: 4200; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.9; duration: 4200; easing.type: Easing.InOutSine }
+            }
+        }
 
         Rectangle {
             id: sheen

@@ -372,6 +372,11 @@ require("component Roller" in deskclock_code and "component SkyGlyph" in deskclo
         "pulled from the icon theme disappears when the user changes it")
 require("component GlassLens" in deskclock_code and "SequentialAnimation on x" in deskclock_code,
         "the MoOS UI desk widget must keep its passive glass lens and slow moving sheen")
+require('text: "MoOS  /  LIVE"' in deskclock_code
+        and "Kirigami.Units.gridUnit * 27" in deskclock_code
+        and "SequentialAnimation on scale" in deskclock_code,
+        "the MoOS UI desk widget must remain the wide live dashboard, not regress to Nova's "
+        "old narrow clock with a glass rectangle placed behind it")
 require("MouseArea" not in deskclock_code,
         "the desk widget must not contain a MouseArea: it sits on the wallpaper, and anything "
         "that accepts clicks eats the desktop's own right-click menu and rubber-band selection "
@@ -773,7 +778,7 @@ require('PORT="${MOAI_PORT:-8081}"' in moai_start_code,
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=14" in apply_theme_code, "MoOS UI visual schema must be revision 14")
+require("THEME_REV=15" in apply_theme_code, "MoOS UI visual schema must be revision 15")
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
@@ -840,8 +845,18 @@ light_style = code(read("system_files/usr/share/plasma/desktoptheme/MoOSUILight/
 require("FallbackTheme=MoOSUI" in light_style,
         "MoOSUILight must fall back to MoOSUI for its SVGs; duplicating the artwork is how "
         "the two styles drift apart")
+require("enabled=false" in light_style,
+        "MoOS UI Light must keep adaptive transparency off; it otherwise turns the dock "
+        "into an opaque white slab while Dark remains designed glass")
 require((ROOT / "system_files/usr/share/plasma/desktoptheme/MoOSUILight/colors").is_file(),
         "MoOSUILight must ship its own colour palette")
+light_panel = ROOT / "system_files/usr/share/plasma/desktoptheme/MoOSUILight/widgets/panel-background.svg"
+require(light_panel.is_file(),
+        "MoOS UI Light must ship a warm-tinted panel using the dark dock's exact geometry")
+if light_panel.is_file():
+    light_panel_code = code(light_panel.read_text(encoding="utf-8"), "xml")
+    require("#8B7082" in light_panel_code and "#705969" in light_panel_code,
+            "MoOS UI Light dock must be warm mauve glass, not bright white")
 for asset in (
     "system_files/usr/share/aurorae/themes/MoOSUILight/decoration.svg",
     "system_files/usr/share/aurorae/themes/MoOSUILight/MoOSUILightrc",

@@ -16,6 +16,12 @@ prompts, rollout rules and one-command regeneration path are in
 as the known-good fallback. Do not hand-edit generated MoOS UI package output;
 change its masters or `artwork/generate_moos_ui.py` and regenerate it.
 
+Visual revision 15 incorporates direct hardware review: the desktop widget is now
+a wide animated live dashboard, and the Light dock owns a warm-mauve FrameSvg with
+the exact Dark geometry. Both variants pin adaptive transparency off so Plasma
+cannot turn only the Light dock into an opaque white slab. Current hardware proof
+is under `artwork/moos-ui/live-tests/*-v2.png`.
+
 ---
 
 ## The shape of the thing

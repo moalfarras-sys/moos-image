@@ -143,6 +143,7 @@ def main() -> None:
         SHARE / "plasma/desktoptheme/MoOSUILight/plasmarc": {
             "FallbackTheme=Nova": "FallbackTheme=MoOSUI",
             "defaultWallpaperTheme=NovaAurora": "defaultWallpaperTheme=MoOSUIAtmosphere",
+            "enabled=true": "enabled=false",
         },
         SHARE / "plasma/look-and-feel/org.moos.ui/contents/defaults": {
             "name=Nova": "name=MoOSUI",
@@ -161,6 +162,29 @@ def main() -> None:
         for old, new in mapping.items():
             text = text.replace(old, new)
         path.write_text(text, encoding="utf-8")
+
+    # Light and dark docks must share geometry and transparency behaviour. Plasma's
+    # adaptive mode made the light dock an opaque white slab while the dark one kept
+    # its designed glass. Give Light its own warm mauve rendering of the same SVG and
+    # keep adaptive transparency off in both variants.
+    light_widgets = SHARE / "plasma/desktoptheme/MoOSUILight/widgets"
+    light_widgets.mkdir(parents=True, exist_ok=True)
+    light_panel = light_widgets / "panel-background.svg"
+    shutil.copy2(SHARE / "plasma/desktoptheme/MoOSUI/widgets/panel-background.svg", light_panel)
+    panel_text = light_panel.read_text(encoding="utf-8")
+    for old, new in {
+        "#241D2B": "#5A4556",
+        "#3A2B43": "#8B7082",
+        "#2A2031": "#705969",
+        "#17131D": "#4B3948",
+        "#EEE7F0": "#2D222D",
+        "#F3ECF4": "#F3DDE8",
+        'stop-opacity="0.62"': 'stop-opacity="0.56"',
+        'stop-opacity="0.66"': 'stop-opacity="0.60"',
+        'stop-opacity="0.74"': 'stop-opacity="0.68"',
+    }.items():
+        panel_text = panel_text.replace(old, new)
+    light_panel.write_text(panel_text, encoding="utf-8")
 
     # First-party app icons. The SVG is the master; PNGs are deliberate hicolor
     # fallbacks for Plasma scale factors and third-party desktop readers.
