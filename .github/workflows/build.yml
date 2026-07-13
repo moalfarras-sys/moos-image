@@ -69,6 +69,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # The repo gates, before a single layer is built.
+      #
+      # They were not running anywhere. build.sh runs the in-image identity gate, but the
+      # tests under tests/ were never wired into CI or into `just build` — so every "a gate
+      # now guards this" a session wrote could rot silently, on a repo whose image lands on
+      # the maintainer's daily driver. They take seconds and need no container, so a broken
+      # Mo AI button or a dead Konsole key now fails in the first 20 seconds of the run
+      # instead of shipping.
+      - name: Repo gates
+        run: |
+          python3 tests/verify_user_experience.py
+          python3 tests/test_device_plan.py
+          python3 tests/test_moai_do.py
+
       # GHCR requires a lowercase namespace; github.repository_owner may
       # contain uppercase letters.
       - name: Resolve registry and tags
