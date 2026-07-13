@@ -6,3 +6,15 @@
 
 [Desktop Entry]
 DefaultProfile=MoOS.profile
+
+# Clean chrome — a smaller, quieter terminal. No menu bar by default (everything is
+# still on the right-click menu and F1), and the tab strip only appears once there is
+# a second tab, so a single-tab window is pure terminal. Keys verified in KDE/konsole
+# master (src/MainWindow / src/settings): [KonsoleWindow] ShowMenuBarByDefault,
+# [TabBar] TabBarVisibility ∈ {AlwaysShowTabBar, ShowTabBarWhenNeeded, AlwaysHideTabBar}.
+[KonsoleWindow]
+ShowMenuBarByDefault=false
+
+[TabBar]
+TabBarVisibility=ShowTabBarWhenNeeded
+TabBarPosition=Top

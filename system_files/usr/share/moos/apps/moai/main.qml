@@ -174,12 +174,21 @@ Kirigami.ApplicationWindow {
         "NVIDIA edition — applies on reboot, the previous system is kept for " +
         "rollback), `moai-do update-firmware` (device firmware via fwupd).\n" +
         "• Install ANY app: `moai-do install <flatpak-id>` — e.g. `moai-do install " +
-        "org.blender.Blender`. Prefer Flatpaks over layering rpm-ostree packages. If " +
-        "you are not certain of an app id, tell the user to search it in the Apps " +
-        "panel rather than guessing one.\n" +
-        "• Compatibility: `moai-do setup-waydroid` (Android apps), `moai-do " +
-        "install com.valvesoftware.Steam` (Windows games via Proton), `moai-do " +
-        "install com.usebottles.bottles` (Windows apps).\n" +
+        "org.blender.Blender`. It DOWNLOADS the app AND OPENS it when done, so a " +
+        "request like “install a camera” ends with the camera on screen. Prefer " +
+        "Flatpaks over layering rpm-ostree packages, and prefer apps built for KDE " +
+        "Plasma / Wayland — an app made for another desktop can install fine and then " +
+        "crash on launch. For a CAMERA use `org.kde.kamoso` (KDE-native, works here); " +
+        "NEVER `io.github.cosmic_utils.camera` — it is a COSMIC-desktop app and panics " +
+        "on KDE. If you are not certain of an app id, tell the user to search it in " +
+        "the Apps panel rather than guessing one.\n" +
+        "• Run apps from OTHER systems, for real:\n" +
+        "   – Windows programs: `moai-do setup-windows` installs Bottles (managed Wine) " +
+        "and opens it, so any .exe runs. For games use `moai-do setup-gaming` (Steam + " +
+        "Proton); `moai-do install net.lutris.Lutris` manages both.\n" +
+        "   – Android apps: `moai-do setup-waydroid` boots a real Android container " +
+        "(idempotent — safe to re-run); afterwards Android apps appear in the launcher " +
+        "like any other app, and an APK installs with `waydroid app install <file>`.\n" +
         "• Coding agents: `moai-do install-codex`, `moai-do install-claude` — they " +
         "install into ~/.local and run as the user, with no admin rights.\n" +
         "• Diagnose: explain the likely cause in plain language, then give the " +
@@ -238,7 +247,7 @@ Kirigami.ApplicationWindow {
         { key: "steam",      title: "Steam + Proton", ar: "ألعاب Windows", en: "Windows games",
           url: "moos://do/setup-gaming", icon: "moos-gaming" },
         { key: "bottles",    title: "Bottles", ar: "تطبيقات Windows", en: "Windows apps",
-          url: "moos://apps/install/com.usebottles.bottles", icon: "moos-system" },
+          url: "moos://do/setup-windows", icon: "moos-system" },
         { key: "waydroid",   title: "Waydroid", ar: "تطبيقات Android", en: "Android apps",
           url: "moos://do/setup-waydroid", icon: "moos-android-apps" },
         { key: "kdeconnect", title: "KDE Connect", ar: "ربط الهاتف", en: "Phone integration",
@@ -251,6 +260,7 @@ Kirigami.ApplicationWindow {
         { id: "org.mozilla.firefox",      title: "Firefox",     ar: "متصفح ويب",      en: "Web browser" },
         { id: "org.videolan.VLC",         title: "VLC",         ar: "مشغل وسائط",     en: "Media player" },
         { id: "org.libreoffice.LibreOffice", title: "LibreOffice", ar: "حزمة مكتبية", en: "Office suite" },
+        { id: "org.kde.kamoso",           title: "Kamoso",      ar: "الكاميرا",       en: "Camera" },
         { id: "com.github.tchx84.Flatseal", title: "Flatseal",  ar: "صلاحيات التطبيقات", en: "App permissions" }
     ]
 

@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodically check whether Mo AI's local brain is idle and can free its VRAM
+
+[Timer]
+# Every ~5 minutes while the session is up. The check itself is a stat + is-active,
+# so the cadence is cheap; the idle WINDOW (default 15 min, MOAI_IDLE_MINUTES) is what
+# decides when the brain is actually stopped.
+OnBootSec=5min
+OnUnitActiveSec=5min
+Persistent=false
+
+[Install]
+WantedBy=timers.target

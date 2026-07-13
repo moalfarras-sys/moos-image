@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# =============================================================================
+# moai-idle — unload the Mo AI local brain when it has been idle, to free VRAM.
+# =============================================================================
+# WHY: the local model (RamaLama/llama-server, moai.service) loads ~6 GB into the
+# GPU and never releases it while the unit is up. On an 8 GB card that leaves the
+# compositor almost nothing — a maximised browser on top of a loaded brain has
+# exhausted VRAM, made the NVIDIA driver log `NVRM: VM: invalid mmap context`, and
+# CRASHED kwin_wayland, freezing the whole desktop. So the brain must not sit loaded
+# while nobody is chatting.
+#
+# moai-gateway writes $XDG_RUNTIME_DIR/moai-activity on every local chat request.
+# moai-idle.timer runs this every few minutes: if the brain is up and that stamp is
+# older than the idle window, it stops the unit. moai-gateway's ensure_local() starts
+# the brain again on the next request, so the only cost of unloading is a one-time
+# model reload on the next message — cheap next to a frozen desktop.
+# =============================================================================
+set -uo pipefail
+
+UNIT="moai.service"
+IDLE_MIN="${MOAI_IDLE_MINUTES:-15}"
+runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+ACT="${runtime}/moai-activity"
+
+# Nothing to free unless the brain is actually loaded.
+systemctl --user is-active --quiet "$UNIT" || exit 0
+
+now="$(date +%s)"
+
+if [ -f "$ACT" ]; then
+    last="$(stat -c %Y "$ACT" 2>/dev/null || echo "$now")"
+else
+    # The brain is up but no chat has ever stamped the file — it was started by hand
+    # (moai-start) or this is the first tick after boot. Give it one idle window from
+    # now instead of yanking it out from under the user; the next tick measures for real.
+    : > "$ACT" 2>/dev/null || true
+    exit 0
+fi
+
+idle=$(( now - last ))
+if [ "$idle" -ge $(( IDLE_MIN * 60 )) ]; then
+    if systemctl --user stop "$UNIT"; then
+        logger -t moai-idle "stopped $UNIT after ${idle}s idle — freed the local model's VRAM" 2>/dev/null || true
+    fi
+fi
+exit 0

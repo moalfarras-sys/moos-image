@@ -951,6 +951,7 @@ chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome \
     /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding /usr/bin/moos-open \
     /usr/bin/moai-config /usr/bin/moai-gateway /usr/bin/moai-control /usr/bin/moai-code \
+    /usr/bin/moai-idle \
     /usr/bin/moos-theme /usr/bin/moos-selfcheck \
     /usr/libexec/moos-fstab-sanitize
 
@@ -1023,6 +1024,13 @@ systemctl --global enable moai-control.service
 #
 # moai.service is deliberately NOT --global enabled: the local brain is on demand.
 systemctl --global enable moai-gateway.service
+
+# Free the local brain's VRAM when it goes idle. moai.service loads ~6 GB into an 8 GB
+# GPU and never releases it while up, which starves the compositor — a maximised browser
+# on a loaded brain has crashed kwin_wayland (NVRM: invalid mmap context) and frozen the
+# desktop. moai-idle.timer stops the brain after it is idle; moai-gateway restarts it on
+# the next request. Enabled for every user so stability is the default, not an opt-in.
+systemctl --global enable moai-idle.timer
 
 # An installed bootc system uses an OSTree/composefs overlay for /. Anaconda's
 # generated physical-root fstab entry makes systemd-remount-fs attempt an

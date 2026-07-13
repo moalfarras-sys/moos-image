@@ -1,0 +1,7 @@
+[Unit]
+Description=Free Mo AI's VRAM by unloading the idle local brain
+Documentation=file:/usr/bin/moai-idle
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/moai-idle

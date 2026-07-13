@@ -65,6 +65,25 @@ LOCAL_PORT = int(os.environ.get("MOAI_LOCAL_PORT", "8081"))
 LOCAL_UNIT = os.environ.get("MOAI_LOCAL_UNIT", "moai.service")
 LOCAL_BASE = "http://127.0.0.1:%d" % LOCAL_PORT
 
+# The gateway is the one process that sees every local chat, so it stamps the time of
+# the last one here. moai-idle.timer reads this file's mtime and stops the local brain
+# once it goes stale, freeing ~6 GB of VRAM — otherwise the model sits in the GPU forever
+# and starves the compositor (a maximised browser on top of a loaded brain has crashed
+# kwin_wayland with NVRM: invalid mmap context and frozen the desktop). ensure_local()
+# brings the brain back on the next request, so unloading it while idle costs only a reload.
+ACTIVITY_FILE = os.path.join(
+    os.environ.get("XDG_RUNTIME_DIR") or ("/run/user/%d" % os.getuid()),
+    "moai-activity")
+
+
+def mark_activity():
+    """Record that the local brain was just used, for moai-idle's staleness check."""
+    try:
+        with open(ACTIVITY_FILE, "w") as handle:
+            handle.write(str(int(time.time())))
+    except OSError:
+        pass
+
 # How long to wait for the local brain after starting it. A model that is already
 # pulled loads in well under a minute; the FIRST ever start downloads ~2.5 GB and
 # can take far longer than any HTTP request should be held open, which is why the
@@ -509,6 +528,9 @@ class Handler(BaseHTTPRequestHandler):
         error = ensure_local(model)
         if error:
             return self._err(503, error)
+        # A real local chat just happened: refresh the idle clock so moai-idle keeps
+        # the brain loaded while it is in use and only unloads it once you stop.
+        mark_activity()
         body, streaming = b"", False
         if req:
             out = dict(req)

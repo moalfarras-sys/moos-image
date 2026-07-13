@@ -65,6 +65,7 @@ Color=16,24,40
 Color=5,10,20
 
 [General]
+# Solid, by choice: a fully opaque light panel, no translucency or blur.
 Blur=false
 ColorRandomization=false
 Description=Nova Light

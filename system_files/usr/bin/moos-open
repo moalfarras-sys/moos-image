@@ -98,12 +98,34 @@ case "${cat}/${tgt}" in
             exit 2
         fi ;;
 
+    # ── App Centre: OPEN an already-installed app by id (no privilege) ────────
+    # The counterpart to apps/install. Launching an app the user already has is
+    # exactly what clicking its icon does — no confirmation and no terminal. The
+    # id is still free-form (any web page can hand this scheme a URL), so validate
+    # the reverse-DNS shape, pass NO arguments to the app, and refuse anything not
+    # installed: the worst a drive-by page can do is start an app the user owns.
+    apps/run/*)
+        id="${tgt#run/}"
+        if ! printf '%s' "$id" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{2,254}$'; then
+            notify "معرّف تطبيق غير صالح | invalid app id"
+            exit 2
+        fi
+        if flatpak info "$id" >/dev/null 2>&1; then
+            gui flatpak run "$id"
+        elif [ -f "$HOME/.local/share/applications/$id.desktop" ] \
+          || [ -f "/usr/share/applications/$id.desktop" ]; then
+            gui gtk-launch "$id"
+        else
+            notify "التطبيق غير مثبّت | app is not installed: $id"
+            exit 2
+        fi ;;
+
     search/*)      query="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1]))' "$tgt" 2>/dev/null)";
                    [ -n "$query" ] && gui krunner "$query" ;;
     session/lock)  loginctl lock-session ;;
     session/logout) command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logout || true ;;
     session/power) command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown || true ;;
-    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/install-codex|do/install-claude|do/remote-anywhere)
+    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/setup-windows|do/install-codex|do/install-claude|do/remote-anywhere)
                    term moai-do "$tgt" ;;
     *)
         notify "أمر MoOS غير معروف | unknown MoOS action: ${path}"

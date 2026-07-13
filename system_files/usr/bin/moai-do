@@ -85,6 +85,22 @@ human() {
     fi
 }
 
+# launch_app <id> — open an installed app, detached, as the user. Best-effort:
+# a Flatpak is run by its id, a native app by its desktop file. It NEVER fails the
+# caller (set -e is on) and takes no arguments beyond the id, so it can do no more
+# than start an app the user already has. This is what makes `install` also RUN:
+# the whole point of "install a camera" is to end up looking through the camera.
+launch_app() {
+    local id="${1:-}"
+    [ -n "$id" ] || return 0
+    if flatpak info "$id" >/dev/null 2>&1; then
+        setsid flatpak run "$id" >/dev/null 2>&1 &
+    elif command -v gtk-launch >/dev/null 2>&1; then
+        setsid gtk-launch "$id" >/dev/null 2>&1 &
+    fi
+    return 0
+}
+
 # -----------------------------------------------------------------------------
 # update — atomic system update via bootc (applies on reboot).
 # -----------------------------------------------------------------------------
@@ -128,6 +144,8 @@ do_install() {
     confirm || return 0
     if flatpak install -y flathub "$id"; then
         echo "${G}✓ تم التثبيت | installed:${N} ${id}"
+        echo "${C}يفتح التطبيق الآن… | opening it now…${N}"
+        launch_app "$id"
     else
         echo "${Y}لم يكتمل التثبيت (تحقّق من المعرّف على flathub.org).${N}"
         echo "${Y}Install did not complete (check the id on flathub.org).${N}"
@@ -228,12 +246,53 @@ do_install_nvidia() {
 do_setup_waydroid() {
     hdr "تجهيز Android عبر Waydroid" "Set up Android through Waydroid"
     need waydroid || return 1
-    echo "${D}ينزّل صورة Android الحرة ويشغّل الحاوية. لا يتضمن Google Play.${N}"
-    echo "${D}Downloads the free Android image and starts its container. Google Play is not included.${N}"
-    confirm || return 0
-    run_priv waydroid init -s VANILLA
-    run_priv systemctl enable --now waydroid-container.service
+
+    # Idempotent: `waydroid init` re-downloads the multi-GB system image. Skip it if the
+    # image is already there — `waydroid status` says "not initialized" only when it isn't.
+    local inited=1
+    if waydroid status 2>&1 | grep -qi 'not initialized'; then inited=0; fi
+
+    if [ "$inited" = "0" ]; then
+        echo "${D}ينزّل صورة Android الحرة (~1GB، أول مرة تأخذ دقائق) ويشغّل الحاوية. بلا Google Play.${N}"
+        echo "${D}Downloads the free Android image (~1GB, first run takes minutes) and starts its container. No Google Play.${N}"
+        confirm || return 0
+        run_priv waydroid init -s VANILLA || { echo "${Y}تعذّر التهيئة | init failed${N}"; return 1; }
+    else
+        echo "${G}✓ Android مُهيّأ مسبقاً — سأشغّله فقط | already initialized — just starting it${N}"
+    fi
+
+    run_priv systemctl enable --now waydroid-container.service || true
+    waydroid session start >/dev/null 2>&1 &
+    sleep 2
     waydroid show-full-ui >/dev/null 2>&1 &
+    echo "${G}✓ Android جاهز | ready${N}"
+    echo "${D}لتثبيت تطبيق APK | to install an APK:  ${C}waydroid app install <file.apk>${N}"
+    echo "${D}تطبيقات Android تظهر في القائمة مثل أي تطبيق | Android apps appear in your launcher${N}"
+}
+
+# -----------------------------------------------------------------------------
+# setup-windows — install Bottles (managed Wine) and open it, so the user can run
+# real Windows .exe programs. Running needs no admin; only the one-time install of
+# the Bottles Flatpak does (a Polkit prompt). Steam/Proton stays the gaming path.
+# -----------------------------------------------------------------------------
+do_setup_windows() {
+    hdr "تجهيز تطبيقات Windows عبر Bottles" "Set up Windows apps through Bottles"
+    need flatpak || return 1
+    echo "${D}يثبّت Bottles (Wine مُدار) لتشغيل برامج ‎.exe. التشغيل بلا صلاحيات؛ التثبيت مرة واحدة فقط.${N}"
+    echo "${D}Installs Bottles (managed Wine) to run .exe programs. Running needs no admin; only the one-time install does.${N}"
+    if flatpak info com.usebottles.bottles >/dev/null 2>&1; then
+        echo "${G}✓ Bottles مثبّت مسبقاً — سأفتحه | already installed — opening it${N}"
+    else
+        confirm || return 0
+        if ! flatpak install -y flathub com.usebottles.bottles; then
+            echo "${Y}لم يكتمل التثبيت | install did not complete${N}"
+            return 1
+        fi
+        echo "${G}✓ تم تثبيت Bottles | Bottles installed${N}"
+    fi
+    launch_app com.usebottles.bottles
+    echo "${D}في Bottles: أنشئ «Application» ثم شغّل ملف ‎.exe.${N}"
+    echo "${D}In Bottles: create an 'Application' bottle, then Run your .exe.${N}"
 }
 
 # -----------------------------------------------------------------------------
@@ -405,8 +464,8 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
 
   ${C}update${N}            تحديث النظام (bootc، يُطبَّق عند إعادة التشغيل)
                     Update the system (bootc, applies on reboot)
-  ${C}install <id>${N}      تثبيت تطبيق Flatpak من Flathub
-                    Install a Flatpak app from Flathub
+  ${C}install <id>${N}      تثبيت تطبيق Flatpak من Flathub ثم فتحه
+                    Install a Flatpak app from Flathub, then open it
   ${C}fix-audio${N}         إعادة تشغيل خدمات الصوت (PipeWire)
                     Restart audio services (PipeWire)
   ${C}check-drivers${N}     عرض كرت الشاشة والبرمجيات الثابتة (قراءة فقط)
@@ -415,8 +474,10 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Stage the correct NVIDIA image safely
   ${C}update-firmware${N}   تحديث البرامج الثابتة للأجهزة عبر fwupd
                     Update device firmware through fwupd
-  ${C}setup-waydroid${N}    تنزيل وتجهيز Android الاختياري
-                    Download and configure optional Android support
+  ${C}setup-waydroid${N}    تنزيل وتجهيز Android الاختياري (وتشغيل تطبيقات Android)
+                    Download and configure Android support (run Android apps)
+  ${C}setup-windows${N}     تثبيت Bottles وفتحه لتشغيل برامج ‎.exe
+                    Install Bottles and open it to run Windows .exe programs
   ${C}optimize${N}          تنظيف Flatpak/الحاويات/السجلّات وتحرير مساحة
                     Clean Flatpak/containers/logs and free disk space
   ${C}hw-report${N}         فتح مركز الجهاز داخل Mo AI | open the device centre in Mo AI
@@ -453,6 +514,7 @@ main() {
         install-nvidia) do_install_nvidia ;;
         update-firmware) do_update_firmware ;;
         setup-waydroid) do_setup_waydroid ;;
+        setup-windows) do_setup_windows ;;
         remote-anywhere) do_remote_anywhere ;;
         install-codex) do_install_codex ;;
         install-claude) do_install_claude ;;

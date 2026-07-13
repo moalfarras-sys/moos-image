@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=MoOS App Runner
+Name[ar]=مشغّل تطبيقات MoOS
+Comment=Run Windows and Android programs by opening them
+Comment[ar]=شغّل برامج ويندوز وأندرويد بفتحها مباشرة
+Exec=moos-run-foreign %f
+Icon=moos-logo
+Terminal=false
+# Not a launcher — there is nothing to start without a file. It exists only to claim these
+# types so a double-click has somewhere to go; showing it in the menu would be a dead icon.
+NoDisplay=true
+# The Windows set is exactly what Bottles' own desktop entry claims, plus the modern PE type
+# that shared-mime-info gives a .exe (`xdg-mime query filetype x.exe` on this image), which
+# Bottles does NOT list — a real .exe would otherwise fall through to no handler at all.
+MimeType=application/x-msdownload;application/x-ms-dos-executable;application/vnd.microsoft.portable-executable;application/x-msi;application/x-ms-shortcut;application/x-wine-extension-msp;application/vnd.android.package-archive;

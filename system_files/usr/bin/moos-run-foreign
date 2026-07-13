@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# moos-run-foreign — double-click a Windows .exe or an Android .apk and it RUNS.
+#
+# WHY: MoOS already shipped both runtimes (Bottles for Windows, Waydroid for Android) and
+# both could be set up from Mo AI — but nothing connected them to the file manager. Double-
+# clicking a downloaded .exe did nothing at all: no handler claimed it, so Dolphin offered to
+# open it in a text editor. That is the gap between "the OS supports Windows apps" and "the
+# user can run the program they just downloaded", and closing it is the whole point of the
+# unified runner (MOOS_ROADMAP.md batch 0).
+#
+# WHAT IT DOES: decides by file type, and — this is the part that matters — behaves sanely
+# when the runtime is NOT installed yet. A user who downloads their first .exe on a fresh MoOS
+# does not have Bottles; the honest move is to explain and offer to set it up in one click, not
+# to fail silently.
+#
+#   .exe .msi .lnk .msp  ->  Bottles installed?  run it there : offer moos://do/setup-windows
+#   .apk                 ->  Waydroid ready?     install+open : offer moos://do/setup-waydroid
+#
+# NOT A SECURITY BOUNDARY, and it does not need to be: it is reached only through a MimeType
+# association, so the file is one the user picked in their own file manager, and every path
+# below hands that file to a sandboxed runtime (Bottles is a Flatpak; Waydroid is a container).
+# It runs NOTHING with privilege — the only privileged step (installing a runtime) is delegated
+# to moai-do, which confirms and uses Polkit exactly as before.
+set -uo pipefail
+
+BOTTLES_ID="com.usebottles.bottles"
+
+notify() { command -v kdialog >/dev/null 2>&1 && kdialog --title "MoOS" --passivepopup "$1" 6 >/dev/null 2>&1 || true; }
+
+# A yes/no the user can actually read, in both languages. Default to "no" — an OS that
+# installs a multi-hundred-MB runtime because a file was double-clicked is not trustworthy.
+ask() {
+    command -v kdialog >/dev/null 2>&1 || return 1
+    kdialog --title "MoOS" --yesno "$1" >/dev/null 2>&1
+}
+
+# Long, chatty work (an APK install can take a minute) belongs in a visible terminal, held
+# open so the user sees the result instead of a window that blinks and vanishes.
+term() { setsid konsole --hold -e "$@" >/dev/null 2>&1 & }
+
+usage() { echo "usage: moos-run-foreign <file.exe|file.msi|file.apk>" >&2; exit 2; }
+
+# ---------------------------------------------------------------------------------
+# The Android half, run INSIDE the terminal window opened below (--apk-install).
+# ---------------------------------------------------------------------------------
+apk_install() {
+    local apk="$1"
+    echo "MoOS — تثبيت تطبيق Android | installing an Android app"
+    echo "  $apk"
+    echo
+
+    # The container has to be up before it can be handed a package. `session start` is a
+    # user-level call and is a no-op when a session is already running.
+    if ! waydroid status 2>/dev/null | grep -qi 'session:[[:space:]]*running'; then
+        echo "يشغّل حاوية Android… | starting the Android container…"
+        setsid waydroid session start >/dev/null 2>&1 &
+        for _ in $(seq 1 30); do
+            waydroid status 2>/dev/null | grep -qi 'session:[[:space:]]*running' && break
+            sleep 1
+        done
+    fi
+
+    if waydroid app install "$apk"; then
+        echo
+        echo "✓ تم التثبيت — يفتح التطبيق الآن | installed — opening it now"
+        # Show the Android screen; the app itself is now in Waydroid's launcher.
+        setsid waydroid show-full-ui >/dev/null 2>&1 &
+    else
+        echo
+        echo "✗ فشل التثبيت | install failed"
+        echo "  جرّب: waydroid app install \"$apk\""
+    fi
+    echo
+}
+
+case "${1:-}" in
+    --apk-install) shift; [ -n "${1:-}" ] || usage; apk_install "$1"; exit 0 ;;
+    -h|--help|"") usage ;;
+esac
+
+file="$1"
+# Dolphin may hand a file:// URI even for %f. Accept both.
+case "$file" in
+    file://*) file="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1][7:]))' "$file" 2>/dev/null)" ;;
+esac
+[ -f "$file" ] || { notify "الملف غير موجود | file not found"; exit 2; }
+
+ext="${file##*.}"
+ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
+
+case "$ext" in
+    # ── Windows ──────────────────────────────────────────────────────────────────
+    exe|msi|lnk|msp)
+        if flatpak info "$BOTTLES_ID" >/dev/null 2>&1; then
+            # Bottles' own desktop entry already declares these MIME types and uses Flatpak
+            # file-forwarding (`@@u %u @@`), so handing it the file through its desktop entry
+            # is what gets the path across the sandbox boundary — `flatpak run <id> <path>`
+            # alone would pass a path the sandbox cannot see. It opens its Run-Executable
+            # dialog, where the user picks which bottle to run in.
+            notify "يفتح البرنامج في Bottles | opening in Bottles"
+            setsid gtk-launch "$BOTTLES_ID" "$file" >/dev/null 2>&1 &
+            exit 0
+        fi
+        if ask "هذا برنامج Windows. لتشغيله يحتاج MoOS طبقة ويندوز (Bottles) — تثبيت لمرة واحدة.\n\nنثبّتها الآن؟\n\nThis is a Windows program. Running it needs the Windows layer (Bottles) — a one-time install.\n\nSet it up now?"; then
+            moos-open moos://do/setup-windows
+        fi
+        ;;
+
+    # ── Android ──────────────────────────────────────────────────────────────────
+    apk)
+        if ! command -v waydroid >/dev/null 2>&1; then
+            notify "Waydroid غير مثبّت | Waydroid is not installed"
+            exit 2
+        fi
+        # "not initialized" is Waydroid's own words for "the Android image was never
+        # downloaded". Anything else means it is ready to take a package.
+        if waydroid status 2>&1 | grep -qi 'not initialized'; then
+            if ask "هذا تطبيق Android. لتشغيله يحتاج MoOS طبقة أندرويد (Waydroid) — تنزيل لمرة واحدة (~1GB).\n\nنجهّزها الآن؟\n\nThis is an Android app. Running it needs the Android layer (Waydroid) — a one-time ~1GB download.\n\nSet it up now?"; then
+                moos-open moos://do/setup-waydroid
+            fi
+            exit 0
+        fi
+        term moos-run-foreign --apk-install "$file"
+        ;;
+
+    *)
+        notify "نوع ملف غير مدعوم | unsupported file type: .$ext"
+        exit 2 ;;
+esac
+exit 0

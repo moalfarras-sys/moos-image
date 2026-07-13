@@ -22,8 +22,12 @@ defaultFileSuffix=.png
 defaultWidth=1920
 defaultHeight=1080
 
-# Panels/dialogs go opaque when a window is maximised behind them (upstream
-# Breeze default). Floating popups (notifications, OSD) keep the translucent
-# blurred glass look from the inherited Breeze translucent dialog SVG + KWin blur.
+# The dock stays FROSTED GLASS at all times — like the macOS dock and the Windows 11
+# acrylic taskbar — instead of turning opaque under a maximised window (the upstream
+# Breeze "adaptive" behaviour). Verified real: libplasma exposes
+# Plasma::Theme::adaptiveTransparencyEnabled(), which reads this key; false = never go
+# opaque. The blur (Effect-blur, shipped on) frosts whatever scrolls behind it. Over the
+# navy Nova wallpaper the effect is quiet; over a colourful maximised app it reads as
+# real glass, which is the whole point of a floating dock.
 [AdaptiveTransparency]
-enabled=true
+enabled=false
