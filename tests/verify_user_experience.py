@@ -227,6 +227,30 @@ require("recommended" in moai_qml and "hit.note" in moai_qml,
 # Fixed by giving each language its own paragraph with its own directional mark, and by
 # stamping every model reply per paragraph (bidiFix) — the model mixes the two languages in
 # one answer constantly, and that text cannot be hand-written.
+# ── The desk widget: weather, a clock that turns, and nothing in the way ─────
+deskclock = read("system_files/usr/share/plasma/plasmoids/"
+                 "org.moos.nova.deskclock/contents/ui/main.qml")
+# style="slash": QML comments, and this gate MUST see past them. Both of the checks below
+# name the thing they forbid (ipapi.co, MouseArea) in the very comment that explains why it
+# is forbidden — strip the prose or the gate fails against the correct file, which is the
+# comment trap AGENTS.md warns about, arriving from the other direction.
+deskclock_code = code(deskclock, "slash")
+require("ipwho.is" in deskclock_code and "api.open-meteo.com" in deskclock_code,
+        "the desk widget must read the weather from ipwho.is + Open-Meteo — both key-less, "
+        "and both verified against the User-Agent Qt actually sends")
+require("ipapi.co" not in deskclock_code,
+        "ipapi.co must not be the widget's geocoder: it answers curl but serves a Cloudflare "
+        "interstitial to Qt's browser-shaped User-Agent, so the widget got HTML instead of "
+        "JSON and the weather silently never appeared")
+require("component Roller" in deskclock_code and "component SkyGlyph" in deskclock_code,
+        "the desk widget must keep the per-digit clock roller and the drawn, animated sky "
+        "glyphs — the old clock threw all four digits in the air every minute, and an icon "
+        "pulled from the icon theme disappears when the user changes it")
+require("MouseArea" not in deskclock_code,
+        "the desk widget must not contain a MouseArea: it sits on the wallpaper, and anything "
+        "that accepts clicks eats the desktop's own right-click menu and rubber-band selection "
+        "inside its rectangle, with no way for the user to tell why")
+
 require("function bidiFix" in moai_qml and "root.bidiFix(msg.text)" in moai_qml,
         "Mo AI must pin each paragraph's text direction to its own language (bidiFix, applied "
         "to every chat bubble) — one Arabic word otherwise drags every English line RTL and "
@@ -623,7 +647,16 @@ require('PORT="${MOAI_PORT:-8081}"' in moai_start_code,
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=11" in apply_theme_code, "Nova visual schema must be revision 11")
+require("THEME_REV=12" in apply_theme_code, "Nova visual schema must be revision 12")
+# Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
+# reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
+# Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
+# widget after the upgrade — the file changed, the cache did not notice, and the user sees
+# last month's clock. apply-theme purges the QML caches on every THEME_REV.
+require("qmlcache" in apply_theme_code,
+        "moos-apply-theme must purge the QML disk cache on a THEME_REV bump — OSTree's frozen "
+        "mtimes mean a rebuilt plasmoid is invisible to qmlcache, and the old widget keeps "
+        "running")
 
 # Nova must survive Plasma, not just reach it.
 #

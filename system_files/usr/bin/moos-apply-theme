@@ -17,7 +17,7 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=11
+THEME_REV=12
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 marker="${state_dir}/moos-nova-theme-applied.v${THEME_REV}"
 
@@ -185,6 +185,20 @@ rm -rf "${cache_dir}/ksvg-elements" \
        "${cache_dir}"/plasma_theme_*.kcache \
        "${cache_dir}"/plasma-svgelements* \
        "${cache_dir}/icon-cache.kcache" 2>/dev/null || true
+
+# The QML disk cache is the same trap, and it hides a WIDGET rather than a colour.
+#
+# OSTree pins every mtime under /usr to the epoch, and Qt's qmlcache is keyed on mtime — so
+# a rebuilt plasmoid whose QML changed byte for byte still looks "unchanged" to the cache,
+# and plasmashell keeps executing the compiled OLD widget after the upgrade. moos-ui-migrate
+# purges these, but only once, behind a permanent marker: it will never run again on this
+# machine, so it cannot carry a new widget in. This runs once per THEME_REV, which is exactly
+# the cadence at which MoOS's own QML changes.
+rm -rf "${cache_dir}/qmlcache" \
+       "${cache_dir}/plasmashell/qmlcache" \
+       "${cache_dir}/kwin/qmlcache" 2>/dev/null || true
+find "${cache_dir}" -mindepth 2 -maxdepth 2 -type d -name qmlcache \
+    -exec rm -rf -- {} + 2>/dev/null || true
 
 applied=0
 
