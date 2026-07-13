@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -178,10 +179,33 @@ class ContentRepository {
     );
   }
 
-  Future<MovieDetail> movieInfo(VodMovie base) {
+  /// A film's plot, cast and backdrop — cached for a day.
+  ///
+  /// It was not cached at all, and that was affordable only while nothing asked
+  /// for it. The film wall's preview pane asks for it whenever the cursor settles
+  /// on a poster, so a user sweeping back and forth across a row of ten films
+  /// used to refetch ten plots, then refetch them again on the way back. A detail
+  /// is the same detail tomorrow.
+  Future<MovieDetail> movieInfo(VodMovie base) async {
     final api = _api;
     if (api == null) throw Failure.notConfigured();
-    return api.getVodInfo(base);
+
+    final key = '${_ns}_vodinfo_${base.streamId}';
+    final cached = _cache.getText(key, ttl: CacheTtl.info);
+    if (cached != null) {
+      try {
+        return MovieDetail.fromXtream(
+          jsonDecode(cached) as Map<String, dynamic>,
+          base,
+        );
+      } catch (_) {
+        // A corrupt entry is a cache miss, not a broken film.
+      }
+    }
+
+    final raw = await api.getVodInfoRaw(base.streamId);
+    await _cache.putText(key, jsonEncode(raw));
+    return MovieDetail.fromXtream(raw, base);
   }
 
   // --- Series --------------------------------------------------------------
@@ -317,7 +341,7 @@ class ContentRepository {
     if (!forceRefresh) {
       final cached = _cache.getList(cacheKey, ttl: CacheTtl.streams);
       if (cached != null) {
-        return cached.map((e) => LiveChannel.fromXtream(e)).toList();
+        return _mapped(cacheKey, cached, LiveChannel.fromXtream);
       }
     }
     try {
@@ -333,6 +357,34 @@ class ContentRepository {
     }
   }
 
+  /// Rows → models, remembered.
+  ///
+  /// The other half of the same trick [CacheService.getList] plays: it now hands
+  /// back the *same* `List` instance for an unchanged envelope, so identity is
+  /// enough to know the models built from it are still the right models. Search
+  /// asks for the films, the series and the channels on every debounced
+  /// keystroke — 43,000 objects rebuilt per letter, on the UI isolate, for a list
+  /// that has not changed since the app started.
+  ///
+  /// Bounded to the same handful of keys the cache itself keeps.
+  final Map<String, ({List<Map<String, dynamic>> rows, List<Object> models})>
+  _models = {};
+
+  List<T> _mapped<T extends Object>(
+    String key,
+    List<Map<String, dynamic>> rows,
+    T Function(Map<String, dynamic>) build,
+  ) {
+    final memo = _models[key];
+    if (memo != null && identical(memo.rows, rows)) {
+      return memo.models.cast<T>();
+    }
+    final models = rows.map(build).toList();
+    if (_models.length >= 8) _models.remove(_models.keys.first);
+    _models[key] = (rows: rows, models: models.cast<Object>());
+    return models;
+  }
+
   Future<List<VodMovie>> _xtreamMovies({
     String? categoryId,
     bool forceRefresh = false,
@@ -342,7 +394,7 @@ class ContentRepository {
     if (!forceRefresh) {
       final cached = _cache.getList(cacheKey, ttl: CacheTtl.streams);
       if (cached != null) {
-        return cached.map((e) => VodMovie.fromXtream(e)).toList();
+        return _mapped(cacheKey, cached, VodMovie.fromXtream);
       }
     }
     try {
@@ -367,7 +419,7 @@ class ContentRepository {
     if (!forceRefresh) {
       final cached = _cache.getList(cacheKey, ttl: CacheTtl.streams);
       if (cached != null) {
-        return cached.map((e) => SeriesItem.fromXtream(e)).toList();
+        return _mapped(cacheKey, cached, SeriesItem.fromXtream);
       }
     }
     try {

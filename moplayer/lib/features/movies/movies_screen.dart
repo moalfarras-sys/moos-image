@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -51,8 +53,34 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
   /// other screen and it changes on every hover.
   VodMovie? _previewed;
 
+  /// The film whose *plot* we have gone and asked the panel for.
+  ///
+  /// Not the same thing as [_previewed], and the gap between them is the point: a
+  /// list response carries a film's poster, year and rating but not a word of its
+  /// story, so the plot is a second request — and a cursor crossing a row of ten
+  /// posters would fire ten of them. It is only asked for once the pointer has
+  /// *settled*, and the answer is cached for a day, so sweeping back across the
+  /// same row costs nothing at all.
+  VodMovie? _detailed;
+  Timer? _settle;
+
+  static const _settleDelay = Duration(milliseconds: 320);
+
+  void _preview(VodMovie movie) {
+    if (identical(movie, _previewed)) return;
+    setState(() => _previewed = movie);
+
+    _settle?.cancel();
+    _settle = Timer(_settleDelay, () {
+      if (mounted && identical(_previewed, movie)) {
+        setState(() => _detailed = movie);
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _settle?.cancel();
     _filter.dispose();
     super.dispose();
   }
@@ -80,7 +108,11 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
           // The preview belongs to the wall it was picked from. Leaving it up
           // while a different group loads behind it shows a film that is no
           // longer on screen.
-          setState(() => _previewed = null);
+          _settle?.cancel();
+          setState(() {
+            _previewed = null;
+            _detailed = null;
+          });
           ref.read(selectedMovieCategoryProvider.notifier).state = id;
         },
       ),
@@ -89,6 +121,13 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
         title: movie?.name,
         imageUrl: movie?.poster,
         meta: movie == null ? null : _movieMeta(movie),
+        // The plot is shown only when it belongs to the film currently under the
+        // cursor. A plot arriving late for a poster the user has already moved
+        // past is worse than no plot: it is the *wrong* plot, on screen, next to
+        // the right picture.
+        plot: (movie != null && identical(movie, _detailed))
+            ? ref.watch(movieDetailProvider(movie)).valueOrNull?.plot
+            : null,
         rating: movie?.rating,
         isFavorite:
             movie != null && library.isFavorite(MediaKind.movie, movie.streamId),
@@ -147,7 +186,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                   movies: all,
                   query: _query,
                   compact: compact,
-                  onPreview: (m) => setState(() => _previewed = m),
+                  onPreview: _preview,
                 ),
               ),
             ),

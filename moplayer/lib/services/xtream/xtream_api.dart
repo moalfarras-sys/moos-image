@@ -83,11 +83,19 @@ class XtreamApi {
   }
 
   Future<MovieDetail> getVodInfo(VodMovie base) async {
+    return MovieDetail.fromXtream(await getVodInfoRaw(base.streamId), base);
+  }
+
+  /// The panel's answer, unparsed. The repository caches *this* — a detail is
+  /// the same detail tomorrow, and a preview pane that refetches a plot every
+  /// time the cursor crosses the same poster is a preview pane that spends the
+  /// user's one connection on prose.
+  Future<Map<String, dynamic>> getVodInfoRaw(String streamId) async {
     final data = await _getJson(
-      urls.playerApi('get_vod_info', params: {'vod_id': base.streamId}),
+      urls.playerApi('get_vod_info', params: {'vod_id': streamId}),
     );
     if (data is! Map) throw Failure.parse('Movie details unavailable.');
-    return MovieDetail.fromXtream(Map<String, dynamic>.from(data), base);
+    return Map<String, dynamic>.from(data);
   }
 
   // --- Series --------------------------------------------------------------

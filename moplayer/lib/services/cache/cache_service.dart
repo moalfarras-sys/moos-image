@@ -45,10 +45,36 @@ class CacheService {
     await _cache!.put(key, envelope);
   }
 
+  /// The last decode of each key, so a second read of the same envelope is free.
+  ///
+  /// This is not an optimisation looking for a problem. The maintainer's panel
+  /// returns 20,187 films, and a *search* asks for the films, the series and the
+  /// channels — three envelopes, some 22 MB of JSON — on the UI isolate, after
+  /// every debounced keystroke. Decoded from scratch each time, that is a freeze
+  /// per letter typed. Category switching pays it too, every time the user goes
+  /// back to a group they have already seen.
+  ///
+  /// Validated by **identity of the raw string**, not by a timer. Hive holds its
+  /// values in memory, so `box.get(key)` hands back the same `String` instance
+  /// until something writes over it — and a write replaces the instance, which
+  /// misses the memo. There is no staleness window to reason about and nothing to
+  /// invalidate by hand: if the bytes on disk changed, the memo is skipped.
+  final Map<String, ({String raw, List<Map<String, dynamic>> rows})> _decoded =
+      {};
+
   /// Returns cached rows or null when missing / expired beyond [ttl].
   List<Map<String, dynamic>>? getList(String key, {Duration? ttl}) {
     final raw = _cache!.get(key);
     if (raw == null) return null;
+
+    final memo = _decoded[key];
+    if (memo != null && identical(memo.raw, raw)) {
+      // The TTL is still the envelope's, not the memo's — an entry that has aged
+      // out is expired whether or not we happen to have it decoded.
+      if (ttl != null && _isExpired(raw, ttl)) return null;
+      return memo.rows;
+    }
+
     try {
       final map = jsonDecode(raw) as Map<String, dynamic>;
       if (ttl != null) {
@@ -56,13 +82,27 @@ class CacheService {
         final age = DateTime.now().millisecondsSinceEpoch - ts;
         if (age > ttl.inMilliseconds) return null;
       }
-      return (map['data'] as List<dynamic>)
+      final rows = (map['data'] as List<dynamic>)
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
+
+      // One key's decode is worth tens of megabytes; a dozen of them is not worth
+      // holding. The catalogue the user is *in* is the one that matters.
+      if (_decoded.length >= 8) _decoded.remove(_decoded.keys.first);
+      _decoded[key] = (raw: raw, rows: rows);
+      return rows;
     } catch (_) {
       return null;
     }
+  }
+
+  /// The envelope's own timestamp, read without decoding the payload behind it —
+  /// the whole point of the memo is not to touch that payload again.
+  bool _isExpired(String raw, Duration ttl) {
+    final match = RegExp(r'"ts"\s*:\s*(\d+)').firstMatch(raw);
+    final ts = int.tryParse(match?.group(1) ?? '') ?? 0;
+    return DateTime.now().millisecondsSinceEpoch - ts > ttl.inMilliseconds;
   }
 
   /// A document that is not a list of rows — the XMLTV guide, which is ~1 MB of

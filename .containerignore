@@ -1,0 +1,40 @@
+# What the build context is NOT.
+#
+# `COPY system_files/ /` copies from the build context, and the build context is
+# this working tree — not what git tracks. `.gitignore` has no say in it. So a
+# local build shipped whatever the tree happened to be carrying, while CI (which
+# builds from a fresh clone) shipped only what was committed: two images from one
+# commit, and the difference invisible until someone looked inside.
+#
+# Proven, not feared: `podman run localhost/moos ls /usr/bin/__pycache__` listed
+# `moai-control.cpython-313.pyc` and friends. An operating system does not ship
+# the bytecode cache of the machine that built it — it is dead weight at best, and
+# at worst it is *stale* bytecode sitting next to the source it no longer matches.
+
+# Python's bytecode cache — the one that actually shipped.
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor and OS litter.
+.git/
+.gitignore
+*.swp
+*~
+.DS_Store
+
+# Build output of the vendored apps. MoPlayer and Mo Remote are compiled *inside*
+# the image by their own Containerfile stages; their local build directories are
+# 40 MB of binaries the image must never see. (`just sync-moplayer` already vendors
+# only what git tracks, but the raw directories are here for anyone who copies one
+# in by hand.)
+moplayer/build/
+moplayer/.dart_tool/
+moplayer/linux/flutter/ephemeral/
+moremote/bin/
+moremote/obj/
+
+# Local build artefacts and scratch.
+output/
+*.qcow2
+*.iso

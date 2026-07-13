@@ -1585,4 +1585,22 @@ chmod 1777 /var/tmp
 # a failure stops the build.
 python3 /ctx/verify_image_experience.py
 
+# ── The image must not carry the build machine's litter ───────────────────────
+#
+# `COPY system_files/ /` copies from the build *context*, which is the working tree
+# — and `.gitignore` has no say in what that contains. On the maintainer's machine
+# it contained `system_files/usr/bin/__pycache__/`, so the image shipped
+# `/usr/bin/__pycache__/moai-control.cpython-313.pyc`: the bytecode cache of the
+# computer that built it, sitting in the OS's own bin directory. CI, which builds
+# from a fresh clone, shipped nothing of the sort — two different images from one
+# commit, and nobody could see it without looking inside.
+#
+# `.containerignore` now keeps it out of the context. This makes sure.
+stray_pycache="$(find /usr/bin /usr/share/moos -type d -name '__pycache__' 2>/dev/null | head -5)"
+if [ -n "${stray_pycache}" ]; then
+    echo "GATE FAIL: the image is carrying a Python bytecode cache from the build machine"
+    echo "${stray_pycache}"
+    exit 1
+fi
+
 echo "MoOS build.sh finished OK"
