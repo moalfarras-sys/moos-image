@@ -211,23 +211,41 @@ Kirigami.ApplicationWindow {
         "STYLE: concise and friendly, in the user's language (العربية RTL or English), " +
         "short bullets, code blocks for commands."
 
+    // Every bilingual message below is written as ONE PARAGRAPH PER LANGUAGE, and each
+    // paragraph is stamped with its own directional mark (‏ = RLM, ‎ = LRM).
+    //
+    // Both halves of that are load-bearing, and the greeting — the first thing a new user
+    // reads — proved it. These are Markdown, and in Markdown a single "\n" is a soft wrap,
+    // not a paragraph break: the Arabic sentence and the English one merged into a single
+    // bidi paragraph, whose base direction comes from its first strong character (Arabic).
+    // So the English sentence was laid out right-to-left and its full stop jumped to the
+    // front — the user's first impression of MoOS's assistant was ".the system, install any
+    // app, clean things up, and run Mo PC Remote". A blank line makes each language its own
+    // paragraph; the mark then pins that paragraph's direction instead of leaving it to
+    // whatever character happens to come first (an English line that opens with "Mo AI"
+    // would still resolve fine, but one that opens with a digit or "«" would not).
     readonly property string offlineHelp:
-        "العقل المحلي غير مشغّل.\nThe local brain is off.\n\n" +
-        "اضغط **«شغّل العقل المحلي»** بالأسفل — أو شغّل `moai-start` في الطرفية.\n" +
-        "Tap **“Start local brain”** below — or run `moai-start` in a terminal.\n\n" +
-        "ثم أعد المحاولة | then try again."
+        "‏العقل المحلي غير مشغّل.\n\n" +
+        "‎The local brain is off.\n\n" +
+        "‏اضغط **«شغّل العقل المحلي»** بالأسفل — أو شغّل `moai-start` في الطرفية.\n\n" +
+        "‎Tap **“Start local brain”** below — or run `moai-start` in a terminal.\n\n" +
+        "‏ثم أعد المحاولة | then try again."
 
     readonly property string startingHelp:
-        "العقل المحلي يبدأ الآن… أول تشغيل يُحمّل النموذج (~2.5GB) وقد يأخذ دقائق.\n" +
-        "The local brain is starting… the first run downloads the model (~2.5 GB) and may take a few minutes.\n\n" +
-        "سأصبح جاهزاً تلقائياً عند الانتهاء. | I'll be ready automatically once it finishes."
+        "‏العقل المحلي يبدأ الآن… أول تشغيل يُحمّل النموذج (~2.5GB) وقد يأخذ دقائق.\n\n" +
+        "‎The local brain is starting… the first run downloads the model (~2.5 GB) and may take a few minutes.\n\n" +
+        "‏سأصبح جاهزاً تلقائياً عند الانتهاء. | I'll be ready automatically once it finishes."
 
     readonly property string greetingText:
-        "مرحباً! أنا **Mo AI** — مساعد MoOS.\n" +
-        "Hi! I'm **Mo AI** — your MoOS assistant.\n\n" +
-        "أقدر أصلّح التعريفات، أحدّث النظام، أثبّت أي تطبيق، أنظّف الجهاز، وأشغّل Mo PC Remote.\n" +
-        "I can fix drivers, update the system, install any app, clean things up, and run Mo PC Remote.\n\n" +
-        "_اسألني، أو استخدم الشريط الجانبي. | Ask me, or use the side rail._"
+        "‏مرحباً! أنا **Mo AI** — مساعد MoOS.\n\n" +
+        "‎Hi! I'm **Mo AI** — your MoOS assistant.\n\n" +
+        "‏أقدر أصلّح التعريفات، أحدّث النظام، أثبّت أي تطبيق، أنظّف الجهاز، وأشغّل Mo PC Remote.\n\n" +
+        "‎I can fix drivers, update the system, install any app, clean things up, and run Mo PC Remote.\n\n" +
+        // The mark goes INSIDE the emphasis: Markdown needs the "_" to open the run, and a
+        // directional mark in front of it turns the whole thing into literal underscores
+        // (seen on screen). Inside, it still sets the paragraph's direction.
+        "_‏اسألني، أو استخدم الشريط الجانبي._\n\n" +
+        "_‎Ask me, or use the side rail._"
 
     readonly property var starters: [
         { ar: "حدّث نظامي",     en: "Update my system", send: "حدّث نظام MoOS من فضلك" },
@@ -258,6 +276,41 @@ Kirigami.ApplicationWindow {
         { key: "kdeconnect", title: "KDE Connect", ar: "ربط الهاتف", en: "Phone integration",
           url: "moos://apps/install/org.kde.kdeconnect", icon: "moos-phone" }
     ]
+
+    // Pin every paragraph's direction to its OWN language.
+    //
+    // The greeting above can be written correctly by hand; a model's reply cannot. Mo AI is
+    // asked questions in Arabic and answers with English identifiers, paths and commands in
+    // the middle of Arabic sentences — and Qt hands the whole Text one base direction, taken
+    // from the first strong character it finds. One Arabic word at the top drags every
+    // English line right-to-left and throws its punctuation to the front of the sentence.
+    //
+    // So stamp each paragraph with the mark its own first strong character calls for. What it
+    // must NOT do is break the Markdown: a mark inserted before "#" or "-" or "```" stops
+    // that line from being a heading, a bullet or a fence. Hence the skip-list — lines that
+    // start with Markdown syntax are left exactly as they are (their content is nearly always
+    // code or identifiers anyway, which are LTR by nature).
+    function bidiFix(s) {
+        if (!s)
+            return s
+        const arabic = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/
+        const latin = /[A-Za-z]/
+        // Lines that OPEN with Markdown syntax are left alone — a mark in front of "#", "-",
+        // "```" or "_" stops that line from being a heading, a bullet, a fence or an emphasis
+        // run, and prints the syntax as literal text (seen on screen with the greeting's
+        // italic line).
+        const markdown = /^\s*(#{1,6}\s|[-*+]\s|\d+\.\s|>|```|\||[_*]|\s*$)/
+        return s.split("\n").map(function (line) {
+            if (markdown.test(line) || line.charAt(0) === "‎" || line.charAt(0) === "‏")
+                return line
+            const ar = line.search(arabic)
+            const la = line.search(latin)
+            if (ar < 0 && la < 0)
+                return line
+            const rtl = ar >= 0 && (la < 0 || ar < la)
+            return (rtl ? "‏" : "‎") + line
+        }).join("\n")
+    }
 
     // The apps we recommend. Anything else is found by searching Flathub.
     readonly property var appCatalog: [
@@ -1265,7 +1318,10 @@ Kirigami.ApplicationWindow {
                                         x: 14
                                         y: 11
                                         width: Math.min(implicitWidth, (msg.width * 0.80) - 28)
-                                        text: msg.text
+                                        // Per-paragraph direction: an Arabic answer that quotes an
+                                        // English command must not drag the command's punctuation to
+                                        // the wrong end of the line. See root.bidiFix.
+                                        text: root.bidiFix(msg.text)
                                         textFormat: msg.role === "assistant"
                                                     ? Text.MarkdownText : Text.PlainText
                                         wrapMode: Text.Wrap

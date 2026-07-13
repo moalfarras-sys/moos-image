@@ -218,6 +218,23 @@ require("recommended" in moai_qml and "hit.note" in moai_qml,
         "Mo AI must render the pick and the warning (recommended / note) on each search hit — "
         "ranking them in the backend and not showing them changes nothing for the user")
 
+# ── An Arabic assistant that speaks English must not mangle it ───────────────
+# Qt gives a whole Text ONE base direction, taken from its first strong character, and in
+# Markdown a single "\n" is a soft wrap rather than a paragraph break. So Mo AI's greeting —
+# Arabic first line, English second — became one right-to-left paragraph, and the English
+# sentence was rendered with its full stop thrown to the front: the first thing a new MoOS
+# user read was ".the system, install any app, clean things up, and run Mo PC Remote".
+# Fixed by giving each language its own paragraph with its own directional mark, and by
+# stamping every model reply per paragraph (bidiFix) — the model mixes the two languages in
+# one answer constantly, and that text cannot be hand-written.
+require("function bidiFix" in moai_qml and "root.bidiFix(msg.text)" in moai_qml,
+        "Mo AI must pin each paragraph's text direction to its own language (bidiFix, applied "
+        "to every chat bubble) — one Arabic word otherwise drags every English line RTL and "
+        "throws its punctuation to the wrong end")
+require("‎" in moai_qml and "‏" in moai_qml,
+        "Mo AI's bilingual messages must carry explicit LRM/RLM marks — without them the "
+        "paragraph's direction is decided by whichever character happens to come first")
+
 # ── The brain must say WHY it did not start ──────────────────────────────────
 # It had exactly one failure message — "the first start downloads the model (~2.5 GB) and
 # keeps going in the background" — and it printed that when the disk was full, when there
