@@ -13,12 +13,33 @@ Last updated: 2026-07-13, image `44.20260713.104`.
 | Repository | What it is | How it reaches the user |
 |---|---|---|
 | `~/moos-image` | The OS. A bootc image built from `Containerfile` + `build_files/build.sh` + a literal filesystem tree in `system_files/`. | Push to `main` → GitHub Actions builds **two editions** (`moos`, `moos-nvidia`), signs them with sigstore, pushes to `ghcr.io/moalfarras-sys/`. The user's machine `bootc upgrade`s from the registry. |
-| `~/MoPlayerMoOS` | The IPTV player. Flutter. **Its own repository, local-only — no GitHub remote.** | **Vendored** into `moos-image/moplayer/` by `just sync-moplayer`, then compiled *inside* the image by a Containerfile stage. The image ships the binary, never the toolchain. |
+| `~/MoPlayerMoOS` | The IPTV player. Flutter. Its own repository: **github.com/moalfarras-sys/MoPlayerMoOS**. | **Vendored** into `moos-image/moplayer/` by `just sync-moplayer`, then compiled *inside* the image by a Containerfile stage. The image ships the binary, never the toolchain. |
 | `~/MoPlayerios` | An iOS build of MoPlayer. Not part of the OS. | — |
 
 The machine this is developed on **boots the thing being developed**:
 `ghcr.io/moalfarras-sys/moos-nvidia:latest`, signature-enforced. That is the whole
 reason the gates below exist.
+
+### Changing MoPlayer, end to end
+
+MoPlayer has two homes and they are not equal. Its **repository** is where the work
+happens; `moos-image/moplayer/` is a **snapshot** of it, and the snapshot is what
+the image compiles. A change that lives only in one of them ships as half a change.
+
+```
+1. work + commit in ~/MoPlayerMoOS   (`just check` there: analyze + 92 tests)
+2. push it                            → github.com/moalfarras-sys/MoPlayerMoOS
+3. cd ~/moos-image && just sync-moplayer
+      ↳ refuses a dirty MoPlayer tree — vendoring copies `git ls-files`, so an
+        UNCOMMITTED file is copied by nobody and the image fails on a missing import
+      ↳ also installs the launcher/.desktop/icons into system_files/ itself
+4. commit the re-vendor, push          → CI builds and signs both editions
+5. on the machine: `sudo bootc upgrade && sudo systemctl reboot`
+6. `./tests/post-update-check.sh`      → confirms the booted digest IS the published one
+```
+
+Never edit `moos-image/moplayer/` by hand. It is generated, and the next
+`sync-moplayer` will silently erase you.
 
 ---
 
