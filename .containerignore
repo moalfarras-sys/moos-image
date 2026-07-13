@@ -12,16 +12,22 @@
 # at worst it is *stale* bytecode sitting next to the source it no longer matches.
 
 # Python's bytecode cache — the one that actually shipped.
-__pycache__/
-*.pyc
-*.pyo
+#
+# `**/` is not decoration. These patterns are matched against paths relative to
+# the context root, so a bare `__pycache__/` excludes a `__pycache__` sitting in
+# THIS directory and nothing else — and the one that shipped was four levels down,
+# in `system_files/usr/bin/`. Written without the `**/`, this file looks correct,
+# reads correct, and excludes nothing. The build gate caught it.
+**/__pycache__/
+**/*.pyc
+**/*.pyo
 
 # Editor and OS litter.
 .git/
 .gitignore
-*.swp
-*~
-.DS_Store
+**/*.swp
+**/*~
+**/.DS_Store
 
 # Build output of the vendored apps. MoPlayer and Mo Remote are compiled *inside*
 # the image by their own Containerfile stages; their local build directories are
