@@ -1372,10 +1372,14 @@ Hidden=true
 NoDisplay=true
 X-KDE-autostart-condition=
 PWEOF
-# Also mask the app entry so it never appears in menus/search.
-_pw=/usr/share/applications/org.kde.plasma-welcome.desktop
-[ -f "$_pw" ] && printf '\nHidden=true\nNoDisplay=true\n' >> "$_pw" || true
-unset -v _pw
+# DELETE the app entry — hiding it is not enough. Hidden/NoDisplay only remove
+# it from menus; the .desktop still resolves as a KService, so plasmashell's
+# first-login welcome launch finds the entry, execs the binary we removed, and
+# the user's very first screen carries a red KDED toast:
+#     "Launching plasma-welcome (Failed)"
+# Seen live on the 2026-07-14 ISO in QEMU. With the entry gone the name lookup
+# returns nothing and the launcher skips silently.
+rm -f /usr/share/applications/org.kde.plasma-welcome.desktop
 
 # -----------------------------------------------------------------------------
 # (z2a) Remove the OTHER distribution's themes and wallpapers

@@ -107,6 +107,13 @@ def main() -> None:
 
     require(not (ROOT / "usr/bin/plasma-welcome").exists(),
             "upstream welcome application is still installed")
+    # The binary being gone is not enough: if the .desktop entry survives, the
+    # first-login welcome launch still resolves it, execs a missing binary, and
+    # greets the user with a red "Launching plasma-welcome (Failed)" toast
+    # (seen live, 2026-07-14). No entry -> silent skip.
+    require(not (ROOT / "usr/share/applications/org.kde.plasma-welcome.desktop").exists(),
+            "upstream welcome desktop entry still resolves — first boot would "
+            "show a failed-launch notification")
 
     # Mo AI's system prompt is fed to the model verbatim, so any base-distro name
     # in it can be repeated to the user in conversation — the one runtime path a
