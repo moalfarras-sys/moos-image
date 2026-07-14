@@ -1406,7 +1406,12 @@ for adw_variant, adw_css_rel in (("dark", "system_files/usr/share/moos/gtk/moos-
                 f"{adw_variant}.{token} ({expected_hex}) — libadwaita apps would "
                 "drift from the desktop palette")
 adw_switcher = code(read("system_files/usr/bin/moos-theme"))
-for adw_needle in ("moos-ui2-dark.css", "moos-ui2-light.css", "gtk-4.0/gtk.css"):
+for adw_needle in ("moos-ui2-dark.css", "moos-ui2-light.css",
+                   # gtk.css belongs to Plasma's gtkconfig (it writes the
+                   # colors.css import at login, before moos-theme runs) —
+                   # MoOS only APPENDS this one import line. Verified live
+                   # 2026-07-14: a replace-the-file approach never installed.
+                   "@import 'moos-ui2.css';"):
     require(adw_needle in adw_switcher,
             f"moos-theme no longer wires libadwaita css ({adw_needle} missing) — "
             "Flathub apps would fall back to stock Adwaita")

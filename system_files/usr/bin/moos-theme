@@ -272,22 +272,31 @@ apply_supplements() {
 
     # libadwaita ignores gtk-theme-name entirely, so Bazaar — MoOS's own app
     # store — and every Flathub app rendered stock Adwaita blue on a turquoise
-    # desktop. GTK4 reads exactly one user css (~/.config/gtk-4.0/gtk.css); it
-    # is written only when absent or when it carries the MoOS marker, so a
-    # hand-written user css is never clobbered. Flatpaks read it through the
-    # xdg-config/gtk-4.0:ro hole seeded by moos-gtk-overrides.conf. UI1 sets
-    # adw_css empty: the managed css is then removed and stock Adwaita returns,
-    # because UI1's palette never included libadwaita overrides.
-    css_target="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/gtk.css"
+    # desktop. Flatpaks read the fix through the xdg-config/gtk-4.0:ro hole
+    # seeded by moos-gtk-overrides.conf.
+    #
+    # gtk.css is NOT ours to own: Plasma's gtkconfig writes it at login
+    # (`@import 'colors.css';`) before this script ever runs — verified live
+    # on the 2026-07-14 ISO, where a replace-with-marker approach simply never
+    # installed anything. So MoOS keeps its palette in its own file,
+    # moos-ui2.css, and only APPENDS one import line to gtk.css. Appended
+    # after gtkconfig's import, its @define-color values win. UI1 sets
+    # adw_css empty: the file and the import line are then removed, and stock
+    # Adwaita returns, because UI1's palette never included libadwaita.
+    css_dir="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0"
+    css_ours="$css_dir/moos-ui2.css"
+    css_gtk="$css_dir/gtk.css"
     if [ -z "$adw_css" ]; then
-        if [ -f "$css_target" ] \
-                && grep -q "managed by moos-theme" "$css_target" 2>/dev/null; then
-            rm -f "$css_target" || supplement_failed=1
+        rm -f "$css_ours" || supplement_failed=1
+        if [ -f "$css_gtk" ] && grep -q "moos-ui2.css" "$css_gtk" 2>/dev/null; then
+            sed -i '/moos-ui2\.css/d' "$css_gtk" || supplement_failed=1
         fi
-    elif [ ! -f "$css_target" ] \
-            || grep -q "managed by moos-theme" "$css_target" 2>/dev/null; then
-        mkdir -p "$(dirname "$css_target")" \
-            && cp -f "$adw_css" "$css_target" || supplement_failed=1
+    else
+        mkdir -p "$css_dir" \
+            && cp -f "$adw_css" "$css_ours" || supplement_failed=1
+        if [ ! -f "$css_gtk" ] || ! grep -q "moos-ui2.css" "$css_gtk" 2>/dev/null; then
+            printf "@import 'moos-ui2.css';\n" >>"$css_gtk" || supplement_failed=1
+        fi
     fi
 
     # Wayland GTK/libadwaita apps.
