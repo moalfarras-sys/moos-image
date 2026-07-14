@@ -16,7 +16,7 @@ Do not keep the emoji beside the icon. Replace each emoji prefix with a
 | Welcome / Compatibility — Gaming | `🎮` | `moos-gaming` |
 | Welcome / Compatibility — Android apps | `🤖` | `moos-android-apps` |
 | Welcome — Safe updates | `🛡️` | `moos-safe-update` |
-| Welcome — Nova UI | `🎨` | `moos-nova-ui` |
+| Welcome — Nova UI | `🎨` | `moos-ui` |
 | Hardware — CPU | `🧠` | `moos-cpu` |
 | Hardware — Memory | `🧮` | `moos-memory` |
 | Hardware — GPU | `🎨` | `moos-gpu` |

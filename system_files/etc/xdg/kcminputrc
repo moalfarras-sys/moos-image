@@ -2,7 +2,7 @@
 # KConfig cascade: /etc/xdg/kcminputrc is the lowest-priority layer; a user's
 # ~/.config/kcminputrc always overrides it (same pattern as the kwinrc and
 # kscreenlockerrc files next to this one).
-# NovaIce = Bibata-Modern-Ice (ful1e5, GPL-3.0) rebranded at image build time
+# MoOS = Bibata-Modern-Ice (ful1e5, GPL-3.0) rebranded at image build time
 # in build_files/build.sh section (c6).
 [Mouse]
-cursorTheme=NovaIce
+cursorTheme=MoOS

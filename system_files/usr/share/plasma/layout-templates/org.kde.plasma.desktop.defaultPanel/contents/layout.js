@@ -108,4 +108,4 @@ panel.addWidget("org.kde.plasma.systemtray");
 
 panel.addWidget("org.moos.nova.clock");
 
-/* Wallpaper (NovaHorizon) ships via the org.moos.nova Look-and-Feel defaults. */
+/* Wallpaper ships via the org.moos.ui2 Look-and-Feel defaults. */

@@ -6,6 +6,19 @@ Comment=Control MoOS securely from your phone
 Comment[ar]=تحكم بنظام MoOS بأمان من هاتفك
 Exec=/usr/bin/mo-pc-remote
 Icon=moos-pc-remote
+# The window and this file must agree, or the dock draws the app TWICE.
+#
+# Plasma matches a running window to its launcher by app_id. Mo PC Remote is a GTK application
+# whose GApplication id is org.moos.MoPCRemote, so that is the Wayland app_id it hands KWin — and
+# this file is called org.moos.remote.desktop. The two never matched, so the task manager saw a
+# pinned launcher called org.moos.remote AND an unrelated window called org.moos.MoPCRemote, and
+# it drew both: the app open, with two different icons, side by side. Reported on the maintainer's
+# machine 2026-07-15.
+#
+# StartupWMClass is the declaration that they are the same program. Renaming the file to match
+# the app id would work too, and would break every dock, favourite and pin that already points at
+# org.moos.remote.desktop — including the ones in MoOS's own layout.
+StartupWMClass=org.moos.MoPCRemote
 Terminal=false
 Categories=Network;RemoteAccess;
 StartupNotify=true

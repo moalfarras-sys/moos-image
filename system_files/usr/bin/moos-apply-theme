@@ -45,10 +45,6 @@ LIGHT_DECO="__aurorae__svg__MoOSUI2Light"
 # UI1 remains installed as an explicit rollback. It counts as intact after the
 # UI2 migration marker exists, so `moos-theme ui1-dark|ui1-light` is a durable
 # user choice rather than something the login repair immediately overwrites.
-UI1_DARK_LNF="org.moos.ui"
-UI1_LIGHT_LNF="org.moos.ui.light"
-UI1_DARK_DECO="__aurorae__svg__MoOSUI"
-UI1_LIGHT_DECO="__aurorae__svg__MoOSUILight"
 
 log="${XDG_CACHE_HOME:-$HOME/.cache}/moos-apply-theme.log"
 mkdir -p "$(dirname "$log")" 2>/dev/null || true
@@ -281,16 +277,6 @@ theme_intact() {
             expected_style=MoOSUI2Light; expected_icons=MoOSUI2Light
             expected_widgets=ui2-each
             ;;
-        "$UI1_DARK_LNF")
-            expected_deco="$UI1_DARK_DECO"; expected_scheme=MoOSUIDark
-            expected_style=MoOSUI; expected_icons=Nova
-            expected_widgets=ui1-each
-            ;;
-        "$UI1_LIGHT_LNF")
-            expected_deco="$UI1_LIGHT_DECO"; expected_scheme=MoOSUILight
-            expected_style=MoOSUILight; expected_icons=NovaLight
-            expected_widgets=ui1-each
-            ;;
         *) return 1 ;;
     esac
 
@@ -331,20 +317,18 @@ target_lnf() {
         completed=false
     fi
 
+    # There is ONE MoOS look now, in a light half and a dark half. The older generations (Nova,
+    # then UI) are no longer installed — they were what made System Settings offer the user six
+    # MoOS themes to choose between.
+    #
+    # This case used to have a branch that PRESERVED a user on UI1 whenever the migration marker
+    # existed, on the reasoning that they had rolled back on purpose. With UI1 gone that branch
+    # would have pinned somebody to a Global Theme that is not on the disk — and Plasma does not
+    # error on a missing theme, it silently serves Breeze. So: any look that is not one of MoOS's
+    # two halves resolves to the dark half, which is the one the image ships as the default.
     case "$current" in
         "$LIGHT_LNF") echo "$LIGHT_LNF" ;;
         "$DARK_LNF") echo "$DARK_LNF" ;;
-        # Before revision 16 has completed, UI1 is the source that must migrate
-        # into the corresponding UI2 half. After the marker exists, however,
-        # UI1 can only be an explicit rollback choice. A later repair (for
-        # example, a new Activity without its dashboard) must repair that same
-        # rollback family instead of silently dragging the user back to UI2.
-        "$UI1_LIGHT_LNF")
-            [ "$completed" = true ] && echo "$UI1_LIGHT_LNF" || echo "$LIGHT_LNF"
-            ;;
-        "$UI1_DARK_LNF")
-            [ "$completed" = true ] && echo "$UI1_DARK_LNF" || echo "$DARK_LNF"
-            ;;
         *) echo "$DARK_LNF" ;;
     esac
 }
@@ -421,13 +405,13 @@ pin_lookandfeel_switch_targets
 # AFTER one (Plasma's own Sound settings rewrite the key). The proof is a failed unit on
 # this machine every boot: plasma-startupsound exits 1 with canberra "File or data not
 # found" — it is looking up desktop-login in `freedesktop`, which has no such sound, while
-# /usr/share/sounds/moos-nova/stereo/desktop-login.oga sits there unplayed.
+# /usr/share/sounds/moos/stereo/desktop-login.oga sits there unplayed.
 #
 # Two idempotent kwriteconfig calls. Nothing about them needs a heavy re-apply to be
 # allowed to run, so they no longer live behind one.
 pin_sound_theme() {
     command -v kwriteconfig6 >/dev/null 2>&1 || return 0
-    kwriteconfig6 --file kdeglobals --group Sounds --key Theme moos-nova 2>/dev/null || return 0
+    kwriteconfig6 --file kdeglobals --group Sounds --key Theme moos 2>/dev/null || return 0
     kwriteconfig6 --file kdeglobals --group Sounds --key Enable true 2>/dev/null || return 0
     return 0
 }
@@ -447,7 +431,7 @@ else
 fi
 
 mkdir -p "$state_dir" 2>/dev/null || true
-rm -f "${state_dir}"/moos-nova-theme-applied "${state_dir}"/moos-nova-theme-applied.v* \
+rm -f "${state_dir}"/moos-theme-applied "${state_dir}"/moos-theme-applied.v* \
       "${state_dir}"/moos-ui2-theme-applied.v* 2>/dev/null || true
 # Drop tray-collapse markers from older revisions too, so a new THEME_REV restarts the
 # shell once to re-collapse the tray. Only the current v${THEME_REV} marker is kept below.
@@ -544,34 +528,6 @@ case "$want_lnf" in
         other_widget=org.moos.nova.deskclock
         widget_width=560
         widget_height=220
-        ;;
-    "$UI1_LIGHT_LNF")
-        want_scheme=MoOSUILight
-        want_style=MoOSUILight
-        want_deco="$UI1_LIGHT_DECO"
-        want_icons=NovaLight
-        want_konsole=MoOSUILight.profile
-        want_wallpaper_package=/usr/share/wallpapers/MoOSUIAtmosphere
-        want_wallpaper=${want_wallpaper_package}/contents/images/3840x2160.png
-        want_gtk_dark=false
-        want_widget=org.moos.nova.deskclock
-        other_widget=org.moos.ui2.dashboard
-        widget_width=430
-        widget_height=400
-        ;;
-    "$UI1_DARK_LNF")
-        want_scheme=MoOSUIDark
-        want_style=MoOSUI
-        want_deco="$UI1_DARK_DECO"
-        want_icons=Nova
-        want_konsole=MoOSUI.profile
-        want_wallpaper_package=/usr/share/wallpapers/MoOSUIAtmosphere
-        want_wallpaper=${want_wallpaper_package}/contents/images_dark/3840x2160.png
-        want_gtk_dark=true
-        want_widget=org.moos.nova.deskclock
-        other_widget=org.moos.ui2.dashboard
-        widget_width=430
-        widget_height=400
         ;;
     *)
         echo "cannot resolve a MoOS theme target from '${want_lnf:-unset}'" >>"$log" 2>/dev/null || true
@@ -854,7 +810,7 @@ fi
 #
 # Plasma's gtkconfig kded module already does the hard half of this correctly: on every
 # theme change it regenerates ~/.config/gtk-3.0/colors.css from the ACTIVE KDE colour
-# scheme, so those 84 colours are Nova's navy, and it syncs the Nova icon and NovaIce
+# scheme, so those 84 colours are Nova's navy, and it syncs the Nova icon and MoOS
 # cursor into the GTK settings. What it never sets is gtk-theme-name, which on this system
 # is the empty string.
 #
@@ -868,7 +824,7 @@ fi
 # the deal the Nova Plasma style already makes.
 #
 # The sound theme has to be written here too: the module syncs icons and cursors from
-# kdeglobals but NOT [Sounds], so GTK keeps freedesktop while Plasma plays moos-nova.
+# kdeglobals but NOT [Sounds], so GTK keeps freedesktop while Plasma plays moos.
 #
 # Verified to survive: gtkconfig rewrites these files on every theme change and preserves
 # both keys — it only ever fills in the ones it owns.
@@ -880,7 +836,7 @@ fi
 #
 # Wayland apps read GSettings; X11/XWayland apps read the XSETTINGS daemon; settings.ini is
 # only the fallback when neither answers. gtkconfig keeps all three in sync and fills in
-# what it owns — Net/IconThemeName "Nova", Gtk/CursorThemeName "NovaIce", the Plex font —
+# what it owns — Net/IconThemeName "Nova", Gtk/CursorThemeName "MoOS", the Plex font —
 # and leaves exactly the two keys below unset. So all three have to be written, or the
 # desktop keeps rendering GTK apps in Adwaita grey while insisting the theme is Breeze.
 pin_gtk() {
@@ -890,7 +846,7 @@ pin_gtk() {
                    "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"; do
             [ -f "$ini" ] || continue
             kwriteconfig6 --file "$ini" --group Settings --key gtk-theme-name Breeze
-            kwriteconfig6 --file "$ini" --group Settings --key gtk-sound-theme-name moos-nova
+            kwriteconfig6 --file "$ini" --group Settings --key gtk-sound-theme-name moos
             # gtkconfig regenerates the GTK palette from the active KDE scheme but
             # never touches this key — so on a Nova Light desktop Firefox stayed
             # dark, because nothing had told GTK the desktop was light.
@@ -903,15 +859,15 @@ pin_gtk() {
     local rc="$HOME/.gtkrc-2.0"
     if [ -f "$rc" ]; then
         sed -i -e 's/^gtk-theme-name=.*/gtk-theme-name="Breeze"/' \
-               -e 's/^gtk-sound-theme-name=.*/gtk-sound-theme-name="moos-nova"/' "$rc" 2>/dev/null || true
+               -e 's/^gtk-sound-theme-name=.*/gtk-sound-theme-name="moos"/' "$rc" 2>/dev/null || true
         grep -q '^gtk-theme-name=' "$rc" 2>/dev/null || echo 'gtk-theme-name="Breeze"' >>"$rc"
-        grep -q '^gtk-sound-theme-name=' "$rc" 2>/dev/null || echo 'gtk-sound-theme-name="moos-nova"' >>"$rc"
+        grep -q '^gtk-sound-theme-name=' "$rc" 2>/dev/null || echo 'gtk-sound-theme-name="moos"' >>"$rc"
     fi
 
     # Wayland GTK apps. Takes effect immediately — GSettings notifies live.
     if command -v gsettings >/dev/null 2>&1; then
         gsettings set org.gnome.desktop.interface gtk-theme Breeze 2>/dev/null || true
-        gsettings set org.gnome.desktop.sound theme-name moos-nova 2>/dev/null || true
+        gsettings set org.gnome.desktop.sound theme-name moos 2>/dev/null || true
         # The freedesktop "which side of the day are we on" setting. GTK4/libadwaita
         # apps read ONLY this; they ignore gtk-theme-name entirely.
         gsettings set org.gnome.desktop.interface color-scheme \
@@ -923,9 +879,9 @@ pin_gtk() {
     local xs="${XDG_CONFIG_HOME:-$HOME/.config}/xsettingsd/xsettingsd.conf"
     if [ -f "$xs" ]; then
         sed -i -e 's|^Net/ThemeName .*|Net/ThemeName "Breeze"|' \
-               -e 's|^Net/SoundThemeName .*|Net/SoundThemeName "moos-nova"|' "$xs" 2>/dev/null || true
+               -e 's|^Net/SoundThemeName .*|Net/SoundThemeName "moos"|' "$xs" 2>/dev/null || true
         grep -q '^Net/ThemeName ' "$xs" 2>/dev/null || echo 'Net/ThemeName "Breeze"' >>"$xs"
-        grep -q '^Net/SoundThemeName ' "$xs" 2>/dev/null || echo 'Net/SoundThemeName "moos-nova"' >>"$xs"
+        grep -q '^Net/SoundThemeName ' "$xs" 2>/dev/null || echo 'Net/SoundThemeName "moos"' >>"$xs"
         pkill -HUP -x xsettingsd 2>/dev/null || true
     fi
 

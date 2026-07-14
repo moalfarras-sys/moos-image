@@ -9,7 +9,7 @@ config, not baked here).
 
 Deterministic: same inputs -> same bytes. Source is the 1024px master emblem;
 the wordmark is rendered from a bundled/plain sans at a fixed size. Run this to
-regenerate system_files/usr/share/plymouth/themes/moos-nova/watermark.png.
+regenerate system_files/usr/share/plymouth/themes/moos/watermark.png.
 
 Usage:
     python generate_boot_hero.py [--out PATH] [--preview PATH] [--font PATH]
@@ -21,7 +21,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 REPO = Path(__file__).resolve().parent.parent
 EMBLEM = REPO / "system_files/usr/share/pixmaps/moos-logo.png"
-OUT = REPO / "system_files/usr/share/plymouth/themes/moos-nova/watermark.png"
+OUT = REPO / "system_files/usr/share/plymouth/themes/moos/watermark.png"
 
 # UI2 text token — the wordmark reads as the same near-white as desktop text.
 TEXT_RGB = (232, 241, 239)          # #E8F1EF

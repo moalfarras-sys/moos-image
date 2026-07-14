@@ -59,7 +59,7 @@ SYMBOLS = {
     <path d="M32 8 50 16v14c0 12-7 20-18 26-11-6-18-14-18-26V16Z"/>
     <path d="M23 34a10 10 0 0 1 16-8l3 3m0-7v7h-7M41 34a10 10 0 0 1-16 8l-3-3m0 7v-7h7"/>
     """,
-    "moos-nova-ui": """
+    "moos-ui": """
     <path d="m32 10 20 11-20 11L12 21Z" fill="url(#nova)" fill-opacity=".20"/>
     <path d="m32 10 20 11-20 11L12 21Zm-17 21 17 9 17-9M15 40l17 9 17-9"/>
     <path d="m49 8 1.7 5.3L56 15l-5.3 1.7L49 22l-1.7-5.3L42 15l5.3-1.7Z" fill="#7DEBFF" stroke="none"/>

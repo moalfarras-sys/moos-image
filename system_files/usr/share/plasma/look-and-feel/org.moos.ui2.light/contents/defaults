@@ -17,7 +17,7 @@ Theme=MoOSUI2Light
 
 [kdeglobals][Sounds]
 Enable=true
-Theme=moos-nova
+Theme=moos
 
 [kwinrc][org.kde.kdecoration2]
 library=org.kde.kwin.aurorae
@@ -31,4 +31,4 @@ BlurStrength=8
 NoiseStrength=2
 
 [kcminputrc][Mouse]
-cursorTheme=NovaShadow
+cursorTheme=MoOSDark

@@ -9,9 +9,10 @@
         "Description": "تركواز معدني هادئ لسطح MoOS | Mineral turquoise glass for MoOS",
         "Id": "MoOSUI2Light",
         "License": "GPL-3.0-or-later",
-        "Name": "MoOS UI2 Light",
+        "Name": "MoOS Light",
         "Version": "2.0.0",
-        "Website": "https://github.com/moalfarras-sys/moos-image"
+        "Website": "https://github.com/moalfarras-sys/moos-image",
+        "Name[ar]": "MoOS الفاتح"
     },
     "X-Plasma-API": "5.0"
 }

@@ -1,0 +1,91 @@
+# CHANGELOG 2026-07-09: audited key-by-key against plymouth 24.004.60
+# (themes/spinner/spinner.plymouth.desktop + src/plugins/splash/two-step/plugin.c).
+# All keys/sections confirmed valid for this generation; watermark.png and
+# throbber-NNNN.png are picked up implicitly by filename (no keys needed).
+# Added UseEndAnimation=false to updates/upgrade/reset modes: we ship no
+# animation-*.png, so the plugin's compat path would otherwise consume
+# throbber-*.png as the end animation and free the spinner (plugin.c:346-353).
+# COLOURS 2026-07-14 (MoOS UI2): the splash was deep-navy #050A14 with a #2E7BFF progress bar —
+# Nova's identity. The OS default is now MoOS UI2 Graphite, so every boot opened on navy and
+# then landed on graphite a second later. These four values are the whole fix; they are the UI2
+# Graphite tokens from artwork/moos-ui2/palette.json (canvas / card / primary), and a gate in
+# tests/verify_user_experience.py now reads that file and fails if the two drift apart.
+#
+# The throbber art is untouched: its ring is already turquoise-cyan and reads correctly on
+# graphite. The theme keeps the ID `moos` on purpose — it is named in build.sh, in
+# /etc/plymouth/plymouthd.conf, in the initramfs, and in three gates, and the boot splash is a
+# single system-wide surface that cannot follow a per-user Global Theme anyway. Renaming it
+# would be churn with a black screen as the failure mode; recolouring it is four hex values.
+[Plymouth Theme]
+Name=MoOS
+Description=MoOS premium boot splash: the MoOS emblem and wordmark centered as the hero on UI2 graphite, with a restrained turquoise loading ring near the bottom.
+ModuleName=two-step
+
+[two-step]
+Font=Noto Sans 12
+TitleFont=Noto Sans Light 30
+ImageDir=/usr/share/plymouth/themes/moos
+# The hero — emblem + "MoOS" wordmark — is baked into watermark.png (composed by
+# artwork/generate_boot_hero.py) and centered slightly above the midline, the way
+# a premium OS puts its brand mark. The old theme buried it as a small mark at .96.
+WatermarkHorizontalAlignment=.5
+WatermarkVerticalAlignment=.43
+# The throbber ring is the loading indicator, dropped to the lower third so it
+# reads as secondary to the hero, not competing with it in the centre. Its own
+# turquoise already matches UI2, so the art is untouched. Verified against 768p
+# and 1080p mocks that the hero and ring never overlap.
+HorizontalAlignment=.5
+VerticalAlignment=.85
+# Any boot message/dialog (fsck prompt, LUKS passphrase) sits between the two.
+DialogHorizontalAlignment=.5
+DialogVerticalAlignment=.66
+TitleHorizontalAlignment=.5
+TitleVerticalAlignment=.66
+Transition=none
+TransitionDuration=0.0
+BackgroundStartColor=0x14191C
+BackgroundEndColor=0x14191C
+ProgressBarBackgroundColor=0x232D32
+ProgressBarForegroundColor=0x4ED7C8
+MessageBelowAnimation=true
+
+[boot-up]
+UseEndAnimation=false
+
+[shutdown]
+UseEndAnimation=false
+
+[reboot]
+UseEndAnimation=false
+
+[updates]
+UseEndAnimation=false
+SuppressMessages=true
+ProgressBarShowPercentComplete=true
+UseProgressBar=true
+Title=Installing Updates...
+SubTitle=Do not turn off your computer
+
+[system-upgrade]
+UseEndAnimation=false
+SuppressMessages=true
+ProgressBarShowPercentComplete=true
+UseProgressBar=true
+Title=Upgrading MoOS...
+SubTitle=Do not turn off your computer
+
+[firmware-upgrade]
+UseEndAnimation=false
+SuppressMessages=true
+ProgressBarShowPercentComplete=true
+UseProgressBar=true
+Title=Upgrading Firmware...
+SubTitle=Do not turn off your computer
+
+[system-reset]
+UseEndAnimation=false
+SuppressMessages=true
+ProgressBarShowPercentComplete=true
+UseProgressBar=true
+Title=Resetting System...
+SubTitle=Do not turn off your computer

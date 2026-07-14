@@ -449,35 +449,37 @@ require("claude|codex|opencode" in code_runner,
 # stamping every model reply per paragraph (bidiFix) — the model mixes the two languages in
 # one answer constantly, and that text cannot be hand-written.
 # ── The desk widget: weather, a clock that turns, and nothing in the way ─────
-deskclock = read("system_files/usr/share/plasma/plasmoids/"
-                 "org.moos.nova.deskclock/contents/ui/main.qml")
-# style="slash": QML comments, and this gate MUST see past them. Both of the checks below
-# name the thing they forbid (ipapi.co, MouseArea) in the very comment that explains why it
-# is forbidden — strip the prose or the gate fails against the correct file, which is the
-# comment trap AGENTS.md warns about, arriving from the other direction.
-deskclock_code = code(deskclock, "slash")
-require("ipwho.is" in deskclock_code and "api.open-meteo.com" in deskclock_code,
+#
+# This gated org.moos.nova.deskclock, which no longer ships. MoOS carried THREE generations of its
+# own look — Nova, then UI, then UI2 — all installed at once, so System Settings offered the user
+# six MoOS themes and the wallpaper picker held five Nova wallpapers nobody had chosen in months.
+# The owner's rule is one name and one of everything, so the old two generations are gone and this
+# gate now guards the widget that is actually on the desktop: org.moos.ui2.dashboard.
+#
+# The protections themselves do not change, because the bugs they remember do not care which
+# generation is on screen.
+dashboard = read("system_files/usr/share/plasma/plasmoids/"
+                 "org.moos.ui2.dashboard/contents/ui/main.qml")
+# style="slash": QML comments, and this gate MUST see past them. The checks below name the thing
+# they forbid (ipapi.co, MouseArea) in the very comment that explains why — strip the prose or the
+# gate passes on a broken file, which is the comment trap AGENTS.md warns about.
+dashboard_code = code(dashboard, "slash")
+require("ipwho.is" in dashboard_code and "api.open-meteo.com" in dashboard_code,
         "the desk widget must read the weather from ipwho.is + Open-Meteo — both key-less, "
         "and both verified against the User-Agent Qt actually sends")
-require("ipapi.co" not in deskclock_code,
+require("ipapi.co" not in dashboard_code,
         "ipapi.co must not be the widget's geocoder: it answers curl but serves a Cloudflare "
         "interstitial to Qt's browser-shaped User-Agent, so the widget got HTML instead of "
         "JSON and the weather silently never appeared")
-require("component Roller" in deskclock_code and "component SkyGlyph" in deskclock_code,
-        "the desk widget must keep the per-digit clock roller and the drawn, animated sky "
-        "glyphs — the old clock threw all four digits in the air every minute, and an icon "
-        "pulled from the icon theme disappears when the user changes it")
-require("component GlassLens" in deskclock_code and "SequentialAnimation on x" in deskclock_code,
-        "the MoOS UI desk widget must keep its passive glass lens and slow moving sheen")
-require('text: "MoOS  /  LIVE"' in deskclock_code
-        and "Kirigami.Units.gridUnit * 27" in deskclock_code
-        and "SequentialAnimation on scale" in deskclock_code,
-        "the MoOS UI desk widget must remain the wide live dashboard, not regress to Nova's "
-        "old narrow clock with a glass rectangle placed behind it")
-require("MouseArea" not in deskclock_code,
+dashboard_ui = "".join(
+    code(read(f"system_files/usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/ui/{f}"),
+         "slash")
+    for f in ("main.qml", "ClockCard.qml", "WeatherCard.qml", "SystemCard.qml", "GlassCard.qml"))
+require("MouseArea" not in dashboard_ui,
         "the desk widget must not contain a MouseArea: it sits on the wallpaper, and anything "
         "that accepts clicks eats the desktop's own right-click menu and rubber-band selection "
         "inside its rectangle, with no way for the user to tell why")
+
 
 
 # ── Self-referential grouped-property bindings, and why this gate is STATIC ───
@@ -859,9 +861,12 @@ build_code = code(read("build_files/build.sh"))
 # Gated on the SUBSTITUTION ITSELF, not on the string "(Nova)": that string is already in build.sh
 # twice (PRETTY_NAME, /etc/system-release), so a gate that merely looks for it passes with the
 # rewrite deleted — which is exactly what the first version of this gate did.
-require(r'VERSION="\1(Nova)"' in build_code,
-        "the image must rewrite os-release VERSION's codename — otherwise the installer greets "
-        "the user with the name of the base distribution, not MoOS")
+require(r'VERSION="\1"' in build_code,
+        "the image must STRIP the base's codename from os-release VERSION — that string is what "
+        "the Anaconda installer prints, and the first sentence of a fresh MoOS install must not "
+        "introduce a second name (neither the base's, nor one of ours)")
+require('PRETTY_NAME="MoOS"' in build_code,
+        "the OS introduces itself as MoOS, and as nothing else")
 
 # The two ports must not collide. This is the whole architecture in two lines.
 require("Environment=MOAI_PORT=8081" in local_unit,
@@ -1064,9 +1069,9 @@ require("desktop_wallpapers_complete()" in apply_theme_code
         "the first Image= line is not authoritative on multiple monitors/Activities")
 require("widget-deduplicated" in apply_theme_code
         and "for (var n = 1; n < targets.length; n++)" in apply_theme_code
-        and "d.addWidget(TARGET, 80, 70, TARGET_WIDTH, TARGET_HEIGHT)" in apply_theme_code,
-        "theme repair must deduplicate and instantiate the selected dashboard family "
-        "per containment, whether UI2 or the explicit UI1 rollback is active")
+        and "d.addWidget(TARGET, 260, 70, TARGET_WIDTH, TARGET_HEIGHT)" in apply_theme_code,
+        "theme repair must deduplicate and instantiate the dashboard per containment, and place "
+        "it clear of the desktop icon column")
 require("flock -n 9" in apply_theme_code,
         "two overlapping autostart instances must not race while replacing the same widget")
 require('theme_complete "$lnf_after" "$deco_after" "$want_wallpaper_package"'
@@ -1083,72 +1088,91 @@ require("DefaultDarkLookAndFeel=org.moos.ui2" in xdg_kdeglobals
         "both day/night targets must name MoOS themes — Plasma resolves them BY NAME, "
         "and a name it cannot resolve sends the desktop to Breeze, permanently")
 
-# ── MoOS ships TWO looks, and both must be whole ──────────────────────────────
+# ── MoOS ships ONE look, in two halves, and both halves must be whole ────────
 #
-# A half-installed light theme is worse than none: Plasma applies what it finds and
-# silently substitutes Breeze for what it does not, so the user gets a desktop that
-# is MoOS in some places and Breeze in others and cannot tell why. Each of these is
-# a piece the light theme cannot do without.
+# It used to ship THREE looks — Nova, then UI, then UI2 — all installed at once. System Settings
+# offered the user six MoOS themes, Konsole offered six MoOS profiles, and the wallpaper picker
+# held five Nova wallpapers and one called "F44". The owner's rule: one name, one of everything.
+# The old two generations are gone; these gates guard the one that is left, and the one below
+# makes sure they cannot come back.
 #
-# The light theme carries no SVGs of its own ON PURPOSE — NovaLight's plasmarc sets
-# FallbackTheme=Nova and borrows the dark theme's artwork, which is what stops the
-# two from drifting apart. So this gate checks for the fallback, not for SVGs.
+# A half-installed light theme is worse than none: Plasma applies what it finds and silently
+# substitutes Breeze for what it does not, so the user gets a desktop that is MoOS in some places
+# and Breeze in others and cannot tell why. Each of these is a piece the light half cannot do
+# without.
 light_lnf = code(
-    read("system_files/usr/share/plasma/look-and-feel/org.moos.ui.light/contents/defaults")
+    read("system_files/usr/share/plasma/look-and-feel/org.moos.ui2.light/contents/defaults")
 )
-require("ColorScheme=MoOSUILight" in light_lnf and "name=MoOSUILight" in light_lnf,
+require("ColorScheme=MoOSUI2Light" in light_lnf and "name=MoOSUI2Light" in light_lnf,
         "the light Global Theme must select the light colour scheme and Plasma style")
-require("theme=__aurorae__svg__MoOSUILight" in light_lnf,
+require("theme=__aurorae__svg__MoOSUI2Light" in light_lnf,
         "the light Global Theme must select the light window decoration — Aurorae has no "
         "ColorScheme stylesheet, so a light desktop with the dark decoration writes "
         "near-white title text onto a near-white title bar")
-require("Theme=NovaLight" in light_lnf,
-        "the light Global Theme must select the light icon theme — Nova's symbolics are "
-        "drawn light for a dark panel and vanish on porcelain")
-require("Image=MoOSUIAtmosphere" in light_lnf,
-        "the light Global Theme must select the warm pearl MoOS UI wallpaper")
+require("Theme=MoOSUI2Light" in light_lnf,
+        "the light Global Theme must select the light icon theme — the dark symbolics are drawn "
+        "for a dark panel and vanish on porcelain")
 
-light_style = code(read("system_files/usr/share/plasma/desktoptheme/MoOSUILight/plasmarc"))
-require("FallbackTheme=MoOSUI" in light_style,
-        "MoOSUILight must fall back to MoOSUI for its SVGs; duplicating the artwork is how "
-        "the two styles drift apart")
-require("enabled=false" in light_style,
-        "MoOS UI Light must keep adaptive transparency off; it otherwise turns the dock "
-        "into an opaque white slab while Dark remains designed glass")
-require((ROOT / "system_files/usr/share/plasma/desktoptheme/MoOSUILight/colors").is_file(),
-        "MoOSUILight must ship its own colour palette")
-light_panel = ROOT / "system_files/usr/share/plasma/desktoptheme/MoOSUILight/widgets/panel-background.svg"
-require(light_panel.is_file(),
-        "MoOS UI Light must ship a warm-tinted panel using the dark dock's exact geometry")
-if light_panel.is_file():
-    light_panel_code = code(light_panel.read_text(encoding="utf-8"), "xml")
-    require("#8B7082" in light_panel_code and "#705969" in light_panel_code,
-            "MoOS UI Light dock must be warm mauve glass, not bright white")
 for asset in (
-    "system_files/usr/share/aurorae/themes/MoOSUILight/decoration.svg",
-    "system_files/usr/share/aurorae/themes/MoOSUILight/MoOSUILightrc",
-    "system_files/usr/share/color-schemes/MoOSUILight.colors",
-    "system_files/usr/share/konsole/MoOSUILight.colorscheme",
-    "system_files/usr/share/konsole/MoOSUILight.profile",
+    "system_files/usr/share/aurorae/themes/MoOSUI2Light/decoration.svg",
+    "system_files/usr/share/color-schemes/MoOSUI2Light.colors",
+    "system_files/usr/share/konsole/MoOSUI2Light.colorscheme",
+    "system_files/usr/share/konsole/MoOSUI2Light.profile",
+    "system_files/usr/share/plasma/desktoptheme/MoOSUI2Light/colors",
 ):
-    require((ROOT / asset).is_file(), f"the light theme is missing {asset}")
+    require((ROOT / asset).is_file(), f"the light half of the MoOS theme is missing {asset}")
 
-# The light decoration is GENERATED from the dark one. If someone hand-edits it, the
-# two silently diverge — so the generator has to stay in the repo and stay wired to
-# both themes.
-generator = code(read("artwork/generate_moos_ui.py"))
-require("MoOSUILight" in generator and "DARK_MAP" in generator and "LIGHT_MAP" in generator,
-        "the MoOS UI pair must be generated from the proven Nova contracts, not hand-maintained")
-for package in ("org.moos.ui", "org.moos.ui.light"):
+light_style = code(read("system_files/usr/share/plasma/desktoptheme/MoOSUI2Light/plasmarc"))
+require("enabled=false" in light_style,
+        "the light theme must keep adaptive transparency off; it otherwise turns the dock into an "
+        "opaque white slab while the dark half remains designed glass")
+
+# ── One name, one generation ─────────────────────────────────────────────────
+#
+# Every one of these was a real entry in a real picker on the owner's machine: six MoOS Global
+# Themes, six Konsole profiles, a cursor theme called "NovaShadow", a wallpaper called "F44".
+# The rule is a rule because it is not self-enforcing — an old generation left on disk does not
+# error, it just quietly offers the user a second, older MoOS to choose from.
+lnf_dirs = sorted(p.name for p in (ROOT / "system_files/usr/share/plasma/look-and-feel").iterdir())
+require(lnf_dirs == ["org.moos.ui2", "org.moos.ui2.light"],
+        f"exactly one MoOS Global Theme (dark + light) may ship; found {lnf_dirs}")
+
+konsole_profiles = sorted(
+    p.name for p in (ROOT / "system_files/usr/share/konsole").glob("*.profile"))
+require(konsole_profiles == ["MoOSUI2.profile", "MoOSUI2Light.profile"],
+        f"exactly one MoOS Konsole profile (dark + light) may ship; found {konsole_profiles}")
+
+wallpapers = sorted(p.name for p in (ROOT / "system_files/usr/share/wallpapers").iterdir())
+require(all(w.startswith("MoOS") for w in wallpapers),
+        f"MoOS ships MoOS's wallpapers; found {wallpapers}")
+
+# No name but MoOS. Checked across everything the image installs, with comments stripped, because
+# the history of this rule is written in the comments that explain it.
+shipped_names = ""
+for path in (ROOT / "system_files").rglob("*"):
+    if path.is_file() and path.suffix in (".desktop", ".json", ".theme", ".plymouth", ".profile",
+                                          ".colorscheme", ".colors", "") and path.stat().st_size < 200_000:
+        try:
+            shipped_names += code(path.read_text(encoding="utf-8"), "hash")
+        except (UnicodeDecodeError, OSError):
+            continue
+for banned in ("NovaShadow", "NovaIce", "Nova Seed", "moos-nova"):
+    require(banned not in shipped_names,   # shipped_names = system_files only, comments stripped
+            f"'{banned}' must not ship: the OS is called MoOS, and a picker that offers the user "
+            f"a second name is a picker that makes them wonder what they installed")
+
+# The light half is GENERATED from the dark one. If someone hand-edits it, the two silently
+# diverge — so the generator has to stay in the repo and stay wired to both halves.
+generator = code(read("artwork/generate_moos_ui2.py"))
+require("MoOSUI2Light" in generator and "MoOSUI2" in generator,
+        "the MoOS light/dark pair must be generated, not hand-maintained")
+for package in ("org.moos.ui2", "org.moos.ui2.light"):
     previews = ROOT / f"system_files/usr/share/plasma/look-and-feel/{package}/contents/previews"
     for name in ("preview.png", "lockscreen.png", "splash.png", "fullscreenpreview.jpg"):
         require((previews / name).is_file(), f"{package} is missing its user-facing {name}")
-require((ROOT / "system_files/usr/share/plasma/look-and-feel/org.moos.ui/contents/previews/preview.png").read_bytes()
-        != (ROOT / "system_files/usr/share/plasma/look-and-feel/org.moos.nova/contents/previews/preview.png").read_bytes(),
-        "MoOS UI must not advertise itself with Nova's old blue preview in System Settings")
 
-light_deco = code(read("system_files/usr/share/aurorae/themes/MoOSUILight/MoOSUILightrc"))
-require("ActiveTextColor=41,33,46,255" in light_deco,
+light_deco = code(read("system_files/usr/share/aurorae/themes/MoOSUI2Light/MoOSUI2Lightrc"))
+require("ActiveTextColor=23,48,46,255" in light_deco,
         "the light decoration must have DARK title text; Aurorae takes its title colour "
         "from its own rc, not from the colour scheme, so the dark rc paints near-white "
         "text onto a near-white title bar")
@@ -1200,7 +1224,7 @@ require(ui_migrate.index("gst-registry-") < ui_migrate.index('[ -e "$marker" ] &
 require("secret-tool" not in ui_migrate,
         "UI migration must never inspect or mutate Mo AI credentials")
 
-# Windows must wear the Nova decoration, not Breeze. Breeze here means Breeze's
+# Windows must wear the MoOS decoration, not Breeze. Breeze here means Breeze's
 # X / v / ^ title-bar glyphs on every window — the loudest remaining "this is
 # stock KDE" tell after the dock.
 # ── Log in to an empty desktop, not to the one that crashed ──────────────────
@@ -1245,13 +1269,13 @@ require("[kwinrc][org.kde.kdecoration2]" in lnf_defaults
         "org.moos.ui2's defaults must declare the window decoration, or Breeze's entry "
         "in ~/.config/kdedefaults/kwinrc permanently shadows /etc/xdg/kwinrc")
 require('--group org.kde.kdecoration2 --key theme "$want_deco"' in apply_theme,
-        "the theme migration must pin the Nova decoration into an existing user's own "
+        "the theme migration must pin the MoOS decoration into an existing user's own "
         "kwinrc; a system default cannot reach past kdedefaults")
 
 # Same trap, third instance: [Sounds] is not in the entry set LookAndFeelManager applies,
 # so a user carrying Theme=freedesktop from the defaults they were created under keeps it,
 # and the MoOS sound theme ships without ever playing.
-require("--group Sounds --key Theme moos-nova" in apply_theme,
+require("--group Sounds --key Theme moos" in apply_theme,
         "the theme migration must pin the Nova sound theme into an existing user's own "
         "kdeglobals; Plasma never writes [Sounds] when applying a Global Theme")
 
@@ -1264,21 +1288,21 @@ require("--group Sounds --key Theme moos-nova" in apply_theme,
 require("--key gtk-theme-name Breeze" in apply_theme,
         "GTK apps must name the Breeze stylesheet, or the Nova palette Plasma generates "
         "into colors.css is read by nothing")
-require("--key gtk-sound-theme-name moos-nova" in apply_theme,
+require("--key gtk-sound-theme-name moos" in apply_theme,
         "GTK's sound theme must be pinned too; gtkconfig syncs icons and cursors from "
         "kdeglobals but never [Sounds]")
 
-aurorae = ROOT / "system_files/usr/share/aurorae/themes/MoOSUI"
+aurorae = ROOT / "system_files/usr/share/aurorae/themes/MoOSUI2"
 for name in ("decoration.svg", "close.svg", "minimize.svg", "maximize.svg",
-             "restore.svg", "MoOSUIrc"):
+             "restore.svg", "MoOSUI2rc"):
     require((aurorae / name).is_file(),
-            f"the Nova decoration must ship {name}")
+            f"the MoOS decoration must ship {name}")
 
 # The shadow is the theme's own job — Aurorae paints the decoration SVG across
 # its Padding* region, and a decoration with no padding has no drop shadow, which
 # lands windows flat on the wallpaper and looks WORSE than the Breeze it
 # replaced. Guard the padding so a future edit cannot quietly delete the shadow.
-themerc = read("system_files/usr/share/aurorae/themes/MoOSUI/MoOSUIrc")
+themerc = read("system_files/usr/share/aurorae/themes/MoOSUI2/MoOSUI2rc")
 for pad in ("PaddingLeft", "PaddingRight", "PaddingTop", "PaddingBottom"):
     match = re.search(rf"^{pad}=(\d+)$", themerc, re.MULTILINE)
     require(match is not None and int(match.group(1)) > 0,
@@ -1294,7 +1318,7 @@ for svg in sorted(aurorae.glob("*.svg")):
 # Plasma Style falls back down the chain to breeze-dark for the dock background
 # and the task indicator, and the desktop reads as stock KDE with a repaint --
 # which is the exact complaint the Nova redesign exists to answer.
-widgets = ROOT / "system_files/usr/share/plasma/desktoptheme/MoOSUI/widgets"
+widgets = ROOT / "system_files/usr/share/plasma/desktoptheme/MoOSUI2/widgets"
 for svg in ("panel-background.svg", "tasks.svg"):
     require((widgets / svg).is_file(),
             f"Nova Plasma Style must ship its own {svg}, not inherit Breeze's")
@@ -1321,10 +1345,10 @@ kickoff_surfaces = {
     "widgets/line.svg",
     "widgets/button.svg",
 }
-nova_theme = ROOT / "system_files/usr/share/plasma/desktoptheme/MoOSUI"
+nova_theme = ROOT / "system_files/usr/share/plasma/desktoptheme/MoOSUI2"
 for relative in kickoff_surfaces:
     path = nova_theme / relative
-    require(path.is_file(), f"Nova Kickoff surface must exist: {relative}")
+    require(path.is_file(), f"the MoOS Kickoff surface must exist: {relative}")
     if path.is_file():
         require("stroke" not in path.read_text(encoding="utf-8"),
                 f"{relative} must remain fill-only for FrameSvg geometry")
@@ -1341,7 +1365,7 @@ require("panel.floating = true" in layout, "the MoOS dock must float")
 # glass dock. Nova pins Plasma::Theme::adaptiveTransparencyEnabled() OFF so the dock keeps
 # its translucent blur at all times, like the macOS dock / Win11 acrylic taskbar. The
 # blur plugin (Effect-blur) must stay shipped-on for the frost to exist at all.
-nova_plasmarc = code(read("system_files/usr/share/plasma/desktoptheme/MoOSUI/plasmarc"))
+nova_plasmarc = code(read("system_files/usr/share/plasma/desktoptheme/MoOSUI2/plasmarc"))
 require("[AdaptiveTransparency]" in nova_plasmarc and "enabled=false" in nova_plasmarc,
         "the Nova dock must stay frosted glass (AdaptiveTransparency enabled=false); adaptive "
         "opacity turns the floating dock into an opaque slab the moment a window is maximised")
@@ -1354,14 +1378,12 @@ require("blurEnabled=true" in kwin_glass,
 # a fully opaque slab, no blur, in both schemes — but beautified. Both colour schemes must
 # stay opaque, and both profiles must carry the premium chrome, or the terminal regresses to
 # either a see-through window or a bare default.
-for scheme in ("NovaDark", "NovaLight", "MoOSUIDark", "MoOSUILight",
-               "MoOSUI2Dark", "MoOSUI2Light"):
+for scheme in ("MoOSUI2Dark", "MoOSUI2Light"):
     konsole_scheme = code(read(f"system_files/usr/share/konsole/{scheme}.colorscheme"))
     require("Opacity=1" in konsole_scheme and "Blur=false" in konsole_scheme,
             f"{scheme} Konsole scheme must be SOLID (Opacity=1, Blur=false) — the maintainer "
             f"asked for a solid terminal, not the frosted-glass one that was tried and rejected")
-for prof in ("MoOS.profile", "MoOSLight.profile", "MoOSUI.profile", "MoOSUILight.profile",
-             "MoOSUI2.profile", "MoOSUI2Light.profile"):
+for prof in ("MoOSUI2.profile", "MoOSUI2Light.profile"):
     profile_text = code(read(f"system_files/usr/share/konsole/{prof}"))
     require("TerminalMargin=14" in profile_text
             and "ScrollBarPosition=2" in profile_text
@@ -1452,7 +1474,7 @@ if lock_wallpaper is not None:
             f"the login and lock screens name a wallpaper package the image does not ship: "
             f"{package}")
 
-# SDDM is DEAD on this base: Kinoite 44 boots plasmalogin, so the moos-nova SDDM
+# SDDM is DEAD on this base: Kinoite 44 boots plasmalogin, so the moos SDDM
 # theme and its config were files nobody read — and the gates that asserted their
 # contents were green on a login screen that never rendered them. The tree is
 # deleted; this now fails if it comes back. The real login screen is verified
@@ -1551,33 +1573,24 @@ for cursor_name in ui2_cursors.values():
             f"build.sh never creates {cursor_name} — the defaults would name a "
             "cursor that does not exist and Plasma would fall back")
 
-wallpaper = ROOT / "system_files/usr/share/wallpapers/NovaHorizonII"
+ui_wallpaper = ROOT / "system_files/usr/share/wallpapers/MoOSUI2Graphite"
 for relative in (
     "metadata.json", "contents/screenshot.png",
-    "contents/images/3840x2160.png", "contents/images/3440x1440.png",
-    "contents/images/2560x1600.png", "contents/images_dark/3840x2160.png",
-    "contents/images_dark/3440x1440.png", "contents/images_dark/2560x1600.png",
+    "contents/images/3840x2160.jpg", "contents/images/3440x1440.jpg",
+    "contents/images/2560x1600.jpg", "contents/images_dark/3840x2160.jpg",
+    "contents/images_dark/3440x1440.jpg", "contents/images_dark/2560x1600.jpg",
 ):
-    require((wallpaper / relative).is_file(), f"missing wallpaper asset: {relative}")
-
-ui_wallpaper = ROOT / "system_files/usr/share/wallpapers/MoOSUIAtmosphere"
-for relative in (
-    "metadata.json", "contents/screenshot.png",
-    "contents/images/3840x2160.png", "contents/images/3440x1440.png",
-    "contents/images/2560x1600.png", "contents/images_dark/3840x2160.png",
-    "contents/images_dark/3440x1440.png", "contents/images_dark/2560x1600.png",
-):
-    require((ui_wallpaper / relative).is_file(), f"missing MoOS UI wallpaper asset: {relative}")
+    require((ui_wallpaper / relative).is_file(), f"missing MoOS wallpaper asset: {relative}")
 
 # The requested visual break from Nova is measurable: the operative pair may not
 # retain Nova's cyan/blue focus tokens, and the light canvas may not fall back to
 # glaring 255,255,255. Comments are stripped so prose cannot satisfy the gate.
-for scheme in ("MoOSUIDark", "MoOSUILight"):
+for scheme in ("MoOSUI2Dark", "MoOSUI2Light"):
     palette = code(read(f"system_files/usr/share/color-schemes/{scheme}.colors"))
     require("34,211,238" not in palette and "46,123,255" not in palette,
             f"{scheme} must use the orchid/apricot MoOS UI accents, not Nova cyan/blue")
 require("BackgroundNormal=255,255,255" not in
-        code(read("system_files/usr/share/color-schemes/MoOSUILight.colors")),
+        code(read("system_files/usr/share/color-schemes/MoOSUI2Light.colors")),
         "MoOS UI Light must use warm pearl surfaces, never a pure-white canvas")
 
 # These are the active selectors; comments and package metadata are deliberately
@@ -1591,9 +1604,9 @@ for surface, text in active_selectors.items():
             f"foreign branding selector is active in {surface}")
 
 build = read("build_files/build.sh")
-require("plymouth-set-default-theme moos-nova" in build,
+require("plymouth-set-default-theme moos" in build,
         "image build must select MoOS Plymouth")
-require("grep -qx 'Theme=moos-nova' /etc/plymouth/plymouthd.conf" in build,
+require("grep -qx 'Theme=moos' /etc/plymouth/plymouthd.conf" in build,
         "image build must fail if the active Plymouth selector is not MoOS")
 require("final initramfs contains the Fedora BGRT/spinner branding path" in build,
         "image build must reject Fedora BGRT/spinner paths in initramfs")
@@ -1634,7 +1647,7 @@ if default_lnf is not None:
 # require the splash to agree with it. The splash then cannot drift from the desktop again, and
 # a future palette change updates this gate for free.
 plymouth_theme = code(
-    read("system_files/usr/share/plymouth/themes/moos-nova/moos-nova.plymouth")
+    read("system_files/usr/share/plymouth/themes/moos/moos.plymouth")
 )
 ui2_palette = json.loads(read("artwork/moos-ui2/palette.json"))["dark"]
 def rgb(value: str) -> str:
@@ -1834,16 +1847,19 @@ require("pin_default_apps()" in apply_theme_code,
 for asset in (
     "system_files/usr/share/plasma/plasmoids/org.moos.ui2.dashboard/metadata.json",
     "system_files/usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/ui/main.qml",
-    "system_files/usr/share/plasma/plasmoids/org.moos.nova.deskclock/metadata.json",
-    "system_files/usr/share/plasma/plasmoids/org.moos.nova.deskclock/contents/ui/main.qml",
 ):
     require((ROOT / asset).is_file(), f"a desktop dashboard package is missing {asset}")
-require("want_widget=org.moos.ui2.dashboard" in apply_theme_code
-        and "d.addWidget(TARGET, 80, 70, TARGET_WIDTH, TARGET_HEIGHT)" in apply_theme_code,
-        "new and existing users must both receive the selected MoOS dashboard through "
-        "the parameterised per-containment migration")
-require("org.moos.nova.deskclock" in apply_theme_code,
-        "the UI2 dashboard migration must retain the old package as a safe source/rollback")
+require("want_widget=org.moos.ui2.dashboard" in apply_theme_code,
+        "new and existing users must both receive the MoOS dashboard through the per-containment "
+        "migration")
+# x=260, not 80. The desktop icons live in a column at the LEFT edge, and at x=80 the dashboard
+# sat on top of the first one — which on the live ISO is the icon that says "Install MoOS". The
+# first screen of a fresh install showed its own install button with the label half-swallowed by
+# the clock. A Folder View will never flow its icons around a widget, so the clearance is built in
+# here or it does not exist.
+require("d.addWidget(TARGET, 260, 70, TARGET_WIDTH, TARGET_HEIGHT)" in apply_theme_code,
+        "the dashboard must be placed clear of the desktop icon column — at x=80 it covers the "
+        "'Install MoOS' icon on the live ISO")
 build_script_code = code(read("build_files/build.sh"))
 require("plasmawindowed org.moos.ui2.dashboard" in build_script_code,
         "the image build must load the UI2 plasmoid through Plasma's real package runtime; "
@@ -1863,10 +1879,6 @@ for qml_runtime_failure in ("typeerror", "unable to assign", "binding loop"):
 # CONTAINMENT, not on the applet, and the geometry passed to addWidget() is
 # transient — so two applets that must sit together drift apart the first time the
 # shell restarts, and the second one lands on top of the folder icons.
-deskclock = code(
-    read("system_files/usr/share/plasma/plasmoids/org.moos.nova.deskclock/contents/ui/main.qml"),
-    "slash",
-)
 require("org.moos.nova.sysmon" not in apply_theme_code
         and not (ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.nova.sysmon").exists(),
         "the system rings must live INSIDE the desk clock, not as a second applet — "
@@ -1886,13 +1898,13 @@ KNOWN_SENSORS = {
     "memory/physical/usedPercent",
     "gpu/gpu0/usage",
 }
-for sensor in re.findall(r'sensorId:\s*"([^"]+)"', deskclock):
+for sensor in re.findall(r'sensorId:\s*"([^"]+)"', dashboard_ui):
     require(sensor in KNOWN_SENSORS,
             f"the desk clock reads sensor '{sensor}', which is not in the verified list "
             f"{sorted(KNOWN_SENSORS)}. Check it against `kstatsviewer --list` — an invented "
             f"sensor id draws an empty ring and never says why")
-require(len(re.findall(r'sensorId:\s*"', deskclock)) >= 3,
-        "the desk clock must show CPU, memory and GPU")
+require(len(re.findall(r'sensorId:\s*"', dashboard_ui)) >= 3,
+        "the desk widget must show CPU, memory and GPU")
 
 # Sensors are useless if nothing serves them. ksystemstats was NOT running on this
 # image and nothing started it, so every monitor widget drew an empty grey box.
@@ -1938,7 +1950,7 @@ require("Layout.minimumWidth:" in panel_clock and "Layout.preferredWidth:" in pa
         "the Layout attached properties, and without them the system tray is positioned "
         "INSIDE the clock's pixels and draws its icons on top of the digits")
 
-for clock in ("org.moos.nova.clock", "org.moos.nova.deskclock"):
+for clock in ("org.moos.nova.clock", "org.moos.ui2.dashboard"):
     qml = code(
         read(f"system_files/usr/share/plasma/plasmoids/{clock}/contents/ui/main.qml"), "slash"
     )

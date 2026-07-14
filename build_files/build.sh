@@ -26,7 +26,7 @@ set -euxo pipefail
 # runs LAST, in section (z), once all dnf/copr work is finished.
 # See MOOS_DECISIONS.md ADR-015 and MOOS_BUILD_WORKFLOW.md.
 sed -i 's|^NAME=.*|NAME="MoOS"|' /usr/lib/os-release
-sed -i 's|^PRETTY_NAME=.*|PRETTY_NAME="MoOS 0.1 (Nova Seed)"|' /usr/lib/os-release
+sed -i 's|^PRETTY_NAME=.*|PRETTY_NAME="MoOS"|' /usr/lib/os-release
 
 # Full UI branding for graphical about-pages (KInfoCenter "About this System",
 # Plasma system settings, GNOME Software style dialogs, ...).
@@ -54,7 +54,15 @@ osrel_set() {
 # they are the OSTree version and they change every build. Written as a general substitution
 # rather than s|Kinoite|Nova| so that rebasing onto a different Fedora variant tomorrow cannot
 # quietly put that variant's name back on the installer.
-sed -i -E 's|^VERSION="([^"(]*)\([^)]*\)"|VERSION="\1(Nova)"|' /usr/lib/os-release
+# Strip the base's codename from VERSION entirely rather than swap one codename for another.
+# os-release VERSION is what the ANACONDA INSTALLER prints, and the OS is called MoOS — the first
+# sentence of a fresh install should not be introducing a second name the user has never heard,
+# whether that name is "Kinoite" or one of ours. The version numbers stay: they are the OSTree
+# build, and they are the only part of this string that tells anybody anything.
+sed -i -E 's|^VERSION="([^"(]*[^"( ]) *\([^)]*\)"|VERSION="\1"|' /usr/lib/os-release
+# Belt and braces: if the base ever ships VERSION without a codename, the line above does not
+# match and any trailing space it already had would survive. Trim it unconditionally.
+sed -i -E 's|^VERSION="(.*[^ ]) *"|VERSION="\1"|' /usr/lib/os-release
 
 osrel_set LOGO              'moos-logo'
 osrel_set HOME_URL          '"https://github.com/moalfarras-sys/moos-image"'
@@ -150,7 +158,7 @@ fi
 # - grub2-efi-x64-cdboot: provides gcdx64.efi required for the ISO's EFI dir
 # The ISO config itself ships in system_files:
 #   /usr/lib/bootc-image-builder/iso.yaml
-# plymouth-plugin-two-step: required by the moos-nova boot theme below
+# plymouth-plugin-two-step: required by the moos boot theme below
 # (Kinoite already ships it via the bgrt/spinner themes — explicit install
 # is a harmless guarantee).
 dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot \
@@ -159,20 +167,20 @@ dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot \
 # MoOS branded boot splash (flicker-free). No -R flag on purpose: the dracut
 # run right below regenerates the initramfs anyway, and the plymouth dracut
 # module picks up the theme selected here.
-plymouth-set-default-theme moos-nova
+plymouth-set-default-theme moos
 
 # Fedora's plymouth package keeps two distribution fallbacks outside the
 # selected theme:
 #   /usr/share/plymouth/plymouthd.defaults -> Theme=bgrt
 #   /usr/share/plymouth/themes/spinner/watermark.png -> Fedora wordmark
-# The selected moos-nova theme is what dracut normally embeds, but leaving
+# The selected moos theme is what dracut normally embeds, but leaving
 # these Fedora fallbacks in the image means a future package scriptlet or a
 # manual initramfs rebuild can bring the Fedora splash back.  Rebrand both
 # fallback paths before dracut runs.  This changes only Plymouth policy/assets;
 # it does not touch the kernel, BLS entries, OSTree layout, or EFI binaries.
-sed -i 's/^Theme=.*/Theme=moos-nova/' /usr/share/plymouth/plymouthd.defaults
+sed -i 's/^Theme=.*/Theme=moos/' /usr/share/plymouth/plymouthd.defaults
 if [ -f /usr/share/plymouth/themes/spinner/watermark.png ]; then
-    cp -f /usr/share/plymouth/themes/moos-nova/watermark.png \
+    cp -f /usr/share/plymouth/themes/moos/watermark.png \
         /usr/share/plymouth/themes/spinner/watermark.png
 fi
 
@@ -180,17 +188,17 @@ fi
 # fedora-logos package owns spinner/watermark.png and bgrt points ImageDir at
 # that directory. Keep the package for compatibility, but require its visible
 # boot watermark to contain MoOS pixels before the definitive dracut run.
-cmp -s /usr/share/plymouth/themes/moos-nova/watermark.png \
+cmp -s /usr/share/plymouth/themes/moos/watermark.png \
     /usr/share/plymouth/themes/spinner/watermark.png || {
     echo "FATAL: spinner compatibility watermark still contains foreign branding"; exit 1;
 }
 
 # Fail closed: both the administrator selection and distribution fallback
 # must select MoOS, and the old Fedora spinner watermark must be gone.
-grep -qx 'Theme=moos-nova' /etc/plymouth/plymouthd.conf
-grep -qx 'Theme=moos-nova' /usr/share/plymouth/plymouthd.defaults
+grep -qx 'Theme=moos' /etc/plymouth/plymouthd.conf
+grep -qx 'Theme=moos' /usr/share/plymouth/plymouthd.defaults
 if [ -f /usr/share/plymouth/themes/spinner/watermark.png ]; then
-    cmp -s /usr/share/plymouth/themes/moos-nova/watermark.png \
+    cmp -s /usr/share/plymouth/themes/moos/watermark.png \
         /usr/share/plymouth/themes/spinner/watermark.png
 fi
 
@@ -733,13 +741,13 @@ rm -rf /tmp/colloid
 # src/index.theme at the pinned commit) and symlink Colloid-Dark's icon
 # dirs into Nova — cheap (no duplication), spec-valid, and Nova resolves
 # icons directly instead of relying purely on inheritance.
-mkdir -p /usr/share/icons/Nova
-cp /usr/share/icons/Colloid-Dark/index.theme /usr/share/icons/Nova/index.theme
+mkdir -p /usr/share/icons/MoOSUI2
+cp /usr/share/icons/Colloid-Dark/index.theme /usr/share/icons/MoOSUI2/index.theme
 sed -i \
-    -e 's|^Name=.*|Name=Nova|' \
-    -e 's|^Comment=.*|Comment=MoOS Nova icons (based on Colloid)|' \
+    -e 's|^Name=.*|Name=MoOSUI2|' \
+    -e 's|^Comment=.*|Comment=MoOS icons (based on Colloid)|' \
     -e 's|^Inherits=.*|Inherits=Colloid-Dark,Papirus-Dark,breeze-dark,hicolor|' \
-    /usr/share/icons/Nova/index.theme
+    /usr/share/icons/MoOSUI2/index.theme
 # Symlink every icon subdir of Colloid-Dark (actions, apps, ..., plus the
 # @2x links) into Nova. Relative targets keep the links valid inside the
 # ostree/bootc image. The */ glob matches dirs and dir-symlinks only, so
@@ -747,9 +755,9 @@ sed -i \
 test -d /usr/share/icons/Colloid-Dark/apps   # hard-fail if Colloid's layout ever changes
 for d in /usr/share/icons/Colloid-Dark/*/; do
     b="$(basename "${d}")"
-    ln -snf "../Colloid-Dark/${b}" "/usr/share/icons/Nova/${b}"
+    ln -snf "../Colloid-Dark/${b}" "/usr/share/icons/MoOSUI2/${b}"
 done
-gtk-update-icon-cache -f /usr/share/icons/Nova || true
+gtk-update-icon-cache -f /usr/share/icons/MoOSUI2 || true
 
 # "NovaLight" = the same theme over Colloid-LIGHT, for the light Global Theme.
 #
@@ -758,19 +766,19 @@ gtk-update-icon-cache -f /usr/share/icons/Nova || true
 # toolbar goes blank. So the light half of MoOS needs its own icon theme, built
 # by exactly the same symlink trick: spec-valid index.theme copied from the base,
 # icon dirs symlinked, zero duplication on disk.
-mkdir -p /usr/share/icons/NovaLight
-cp /usr/share/icons/Colloid-Light/index.theme /usr/share/icons/NovaLight/index.theme
+mkdir -p /usr/share/icons/MoOSUI2Light
+cp /usr/share/icons/Colloid-Light/index.theme /usr/share/icons/MoOSUI2Light/index.theme
 sed -i \
-    -e 's|^Name=.*|Name=NovaLight|' \
-    -e 's|^Comment=.*|Comment=MoOS Nova Light icons (based on Colloid)|' \
+    -e 's|^Name=.*|Name=MoOSUI2Light|' \
+    -e 's|^Comment=.*|Comment=MoOS Light icons (based on Colloid)|' \
     -e 's|^Inherits=.*|Inherits=Colloid-Light,Papirus,breeze,hicolor|' \
-    /usr/share/icons/NovaLight/index.theme
+    /usr/share/icons/MoOSUI2Light/index.theme
 test -d /usr/share/icons/Colloid-Light/apps
 for d in /usr/share/icons/Colloid-Light/*/; do
     b="$(basename "${d}")"
-    ln -snf "../Colloid-Light/${b}" "/usr/share/icons/NovaLight/${b}"
+    ln -snf "../Colloid-Light/${b}" "/usr/share/icons/MoOSUI2Light/${b}"
 done
-gtk-update-icon-cache -f /usr/share/icons/NovaLight || true
+gtk-update-icon-cache -f /usr/share/icons/MoOSUI2Light || true
 
 # "MoOSUI2" / "MoOSUI2Light" = the UI2 icon themes, teal folders over the same
 # proven copy-index-then-symlink route. Nova/NovaLight stay installed untouched:
@@ -806,7 +814,7 @@ gtk-update-icon-cache -f /usr/share/icons/MoOSUI2Light || true
 # Gate all four. An icon theme whose Directories= is missing is treated as INVALID by
 # KIconTheme and Plasma silently falls back — the desktop looks fine at a glance
 # and every icon is somebody else's.
-for t in Nova NovaLight MoOSUI2 MoOSUI2Light; do
+for t in MoOSUI2 MoOSUI2Light; do
     grep -q '^Directories=' "/usr/share/icons/${t}/index.theme" \
         || { echo "GATE FAIL: ${t} icon theme has no Directories= — KIconTheme will reject it"; exit 1; }
     test -d "/usr/share/icons/${t}/apps" \
@@ -814,9 +822,9 @@ for t in Nova NovaLight MoOSUI2 MoOSUI2Light; do
 done
 
 # -----------------------------------------------------------------------------
-# (c6) NovaIce cursor theme (Bibata Modern Ice, rebranded at build time)
+# (c6) MoOS cursor theme (Bibata Modern Ice, rebranded at build time)
 # -----------------------------------------------------------------------------
-# Like the Nova icons (c5), the NovaIce cursors are produced HERE at image
+# Like the Nova icons (c5), the MoOS cursors are produced HERE at image
 # build time — no binary cursor dump lives in git. Base theme:
 # ful1e5/Bibata_Cursor "Bibata-Modern-Ice" (GPL-3.0, license verified
 # 2026-07-09 via https://api.github.com/repos/ful1e5/Bibata_Cursor).
@@ -837,21 +845,21 @@ tar -xJf /tmp/bibata-modern-ice.tar.xz -C /usr/share/icons/
 rm -f /tmp/bibata-modern-ice.tar.xz
 test -d /usr/share/icons/Bibata-Modern-Ice/cursors   # hard-fail if the tarball layout ever changes
 
-# "NovaIce" = branded copy of Bibata-Modern-Ice (cp -a keeps the alias
+# "MoOS" = branded copy of Bibata-Modern-Ice (cp -a keeps the alias
 # symlinks inside cursors/ as symlinks). The unmodified upstream dir stays
 # installed alongside — harmless, and the copied cursor.theme still says
 # Inherits="Bibata-Modern-Ice", which keeps resolving through it.
-cp -a /usr/share/icons/Bibata-Modern-Ice /usr/share/icons/NovaIce
-sed -i 's|^Name=.*|Name=NovaIce|' /usr/share/icons/NovaIce/index.theme
-sed -i 's|^Name=.*|Name=NovaIce|' /usr/share/icons/NovaIce/cursor.theme
-sed -i 's|^Comment=.*|Comment=MoOS NovaIce cursors (Bibata Modern Ice by ful1e5, GPL-3.0)|' \
-    /usr/share/icons/NovaIce/index.theme
+cp -a /usr/share/icons/Bibata-Modern-Ice /usr/share/icons/MoOS
+sed -i 's|^Name=.*|Name=MoOS|' /usr/share/icons/MoOS/index.theme
+sed -i 's|^Name=.*|Name=MoOS|' /usr/share/icons/MoOS/cursor.theme
+sed -i 's|^Comment=.*|Comment=MoOS MoOS cursors (Bibata Modern Ice by ful1e5, GPL-3.0)|' \
+    /usr/share/icons/MoOS/index.theme
 
 # GPL-3.0 attribution notice (Bibata is GPL — keep credit next to the copy).
-cat > /usr/share/icons/NovaIce/MOOS-NOTICE.txt <<'EOF'
-NovaIce cursor theme — attribution notice
+cat > /usr/share/icons/MoOS/MOOS-NOTICE.txt <<'EOF'
+MoOS cursor theme — attribution notice
 =========================================
-NovaIce is a renamed build of "Bibata Modern Ice" v2.0.7 by
+MoOS is a renamed build of "Bibata Modern Ice" v2.0.7 by
 Abdulkaiz Khatri (ful1e5) and contributors:
     https://github.com/ful1e5/Bibata_Cursor
 License: GNU General Public License v3.0 (GPL-3.0).
@@ -860,27 +868,27 @@ the cursor artwork itself is unmodified. The unmodified upstream theme is
 installed alongside at /usr/share/icons/Bibata-Modern-Ice.
 EOF
 
-# "NovaShadow" = the DARK half of the same family (Bibata Modern Classic).
+# "MoOSDark" = the DARK half of the same family (Bibata Modern Classic).
 # A white pointer on Tidal Light's mint canvas (#D8EBE7) is a low-contrast
-# pointer — the light Global Theme selects NovaShadow instead, so each half
+# pointer — the light Global Theme selects MoOSDark instead, so each half
 # gets the cursor that reads against ITS canvas. Same pinned release, same
-# rebrand-only treatment as NovaIce above.
+# rebrand-only treatment as MoOS above.
 curl -Lf --retry 3 -o /tmp/bibata-modern-classic.tar.xz \
     "https://github.com/ful1e5/Bibata_Cursor/releases/download/v2.0.7/Bibata-Modern-Classic.tar.xz"
 tar -xJf /tmp/bibata-modern-classic.tar.xz -C /usr/share/icons/
 rm -f /tmp/bibata-modern-classic.tar.xz
 test -d /usr/share/icons/Bibata-Modern-Classic/cursors   # hard-fail if the tarball layout ever changes
 
-cp -a /usr/share/icons/Bibata-Modern-Classic /usr/share/icons/NovaShadow
-sed -i 's|^Name=.*|Name=NovaShadow|' /usr/share/icons/NovaShadow/index.theme
-sed -i 's|^Name=.*|Name=NovaShadow|' /usr/share/icons/NovaShadow/cursor.theme
-sed -i 's|^Comment=.*|Comment=MoOS NovaShadow cursors (Bibata Modern Classic by ful1e5, GPL-3.0)|' \
-    /usr/share/icons/NovaShadow/index.theme
+cp -a /usr/share/icons/Bibata-Modern-Classic /usr/share/icons/MoOSDark
+sed -i 's|^Name=.*|Name=MoOSDark|' /usr/share/icons/MoOSDark/index.theme
+sed -i 's|^Name=.*|Name=MoOSDark|' /usr/share/icons/MoOSDark/cursor.theme
+sed -i 's|^Comment=.*|Comment=MoOS MoOSDark cursors (Bibata Modern Classic by ful1e5, GPL-3.0)|' \
+    /usr/share/icons/MoOSDark/index.theme
 
-cat > /usr/share/icons/NovaShadow/MOOS-NOTICE.txt <<'EOF'
-NovaShadow cursor theme — attribution notice
+cat > /usr/share/icons/MoOSDark/MOOS-NOTICE.txt <<'EOF'
+MoOSDark cursor theme — attribution notice
 ============================================
-NovaShadow is a renamed build of "Bibata Modern Classic" v2.0.7 by
+MoOSDark is a renamed build of "Bibata Modern Classic" v2.0.7 by
 Abdulkaiz Khatri (ful1e5) and contributors:
     https://github.com/ful1e5/Bibata_Cursor
 License: GNU General Public License v3.0 (GPL-3.0).
@@ -1388,9 +1396,9 @@ systemctl enable moos-fstab-sanitize.service
 # untouched — release/update tooling resolves the Fedora release from it.
 osrel_set ID          'moos'
 osrel_set ID_LIKE     '"fedora"'
-osrel_set VARIANT     '"Nova"'
-osrel_set VARIANT_ID  'nova'
-osrel_set PRETTY_NAME '"MoOS 0.1 (Nova)"'
+osrel_set VARIANT     '"MoOS"'
+osrel_set VARIANT_ID  'moos'
+osrel_set PRETTY_NAME '"MoOS"'
 # MoOS electric blue (#2E7BFF -> truecolor SGR "R;G;B") for systemd/fastfetch.
 osrel_set ANSI_COLOR  '"0;38;2;46;123;255"'
 osrel_set DEFAULT_HOSTNAME 'moos'
@@ -1636,6 +1644,50 @@ rm -rf /usr/share/plasma/look-and-feel/org.fedoraproject.fedora.desktop \
        /usr/share/wallpapers/Fedora \
        /usr/share/backgrounds/fedora-workstation
 
+# The wallpaper picker is a user-facing screen, and it held 45 wallpapers: three of MoOS's, one
+# called "F44" (that is Fedora 44, by name, in the picker of an OS called MoOS), and forty-one of
+# KDE's — Kokkini, FlyingKonqui, ScarletTree, summer_1am. None of them is bad. All of them
+# together are somebody else's mood board, and scrolling past forty strangers to reach your own
+# three is exactly the "cheap" the owner keeps pointing at.
+#
+# So: MoOS's wallpapers, and nothing else. This is a curation, not a deletion of capability — the
+# picker still takes any image the user points it at.
+#
+# `Next` survives for one non-cosmetic reason: it is the wallpaper Breeze's look-and-feel names as
+# its default, and Breeze is the fallback Plasma reaches for when everything else fails. Deleting
+# the fallback's wallpaper turns a bad day (theme broken) into a worse one (theme broken AND a
+# black desktop). It is the safety net, not a style choice.
+find /usr/share/wallpapers -mindepth 1 -maxdepth 1 -type d \
+     ! -name 'MoOS*' ! -name 'Next' -exec rm -rf {} +
+
+# Kill any now-dangling symlink in the same directory. `Default` shipped as a symlink to `F44`
+# — Fedora 44's wallpaper — and the -type d sweep above stepped right over it (a symlink is not a
+# directory), so `Default` was left pointing at a wallpaper that no longer exists. Breeze's
+# look-and-feel names `Default`, so its fallback wallpaper was a broken link: a black desktop the
+# moment anything fell back to Breeze. Repoint it at Next (which ships) rather than delete it,
+# because deleting it is what would black out Breeze.
+if [ -L /usr/share/wallpapers/Default ] && [ ! -e /usr/share/wallpapers/Default ]; then
+    ln -snf Next /usr/share/wallpapers/Default
+fi
+find /usr/share/wallpapers -mindepth 1 -maxdepth 1 -type l ! -exec test -e {} \; -print \
+    | while read -r _dead; do rm -f "$_dead"; done
+
+# Gate: nothing may still POINT at a wallpaper we just removed — by absolute path OR by the bare
+# name a look-and-feel uses. A config naming a deleted wallpaper does not fall back gracefully;
+# Plasma paints black, which is precisely how this machine spent an evening looking broken.
+_wp_refs="$(grep -rhoE '/usr/share/wallpapers/[A-Za-z0-9_.-]+' \
+              /etc/xdg /usr/share/kde-settings /usr/share/plasma 2>/dev/null | sort -u || true)"
+# The bare-name form: `Image=Next` in a look-and-feel `defaults`. Resolve each against the
+# wallpaper dir and fail if it is gone.
+_wp_names="$(grep -rhoE '^Image=[A-Za-z0-9_.-]+' \
+              /usr/share/plasma/look-and-feel 2>/dev/null | sed 's|^Image=|/usr/share/wallpapers/|' | sort -u || true)"
+for _wp in $_wp_refs $_wp_names; do
+    if [ ! -e "$_wp" ]; then
+        echo "GATE FAIL: a config points at $_wp, which no longer exists — the desktop would be black"
+        exit 1
+    fi
+done
+
 # Gate: nothing may still POINT at what we just deleted, or Plasma silently falls back.
 if grep -rqE "org\.fedoraproject\.fedora|backgrounds/fedora-workstation|wallpapers/Fedora" \
         /etc/xdg /usr/share/kde-settings /usr/share/plasma 2>/dev/null; then
@@ -1762,10 +1814,10 @@ python3 /ctx/verify_identity.py
 # Fedora's bgrt default (firmware/GIGABYTE image + Fedora watermark).  Re-select
 # Nova and build the definitive initramfs only after package work is finished.
 # This ordering is intentional: nothing below may install/update packages.
-plymouth-set-default-theme moos-nova
-sed -i 's/^Theme=.*/Theme=moos-nova/' /usr/share/plymouth/plymouthd.defaults
+plymouth-set-default-theme moos
+sed -i 's/^Theme=.*/Theme=moos/' /usr/share/plymouth/plymouthd.defaults
 if [ -f /usr/share/plymouth/themes/spinner/watermark.png ]; then
-    cp -f /usr/share/plymouth/themes/moos-nova/watermark.png \
+    cp -f /usr/share/plymouth/themes/moos/watermark.png \
         /usr/share/plymouth/themes/spinner/watermark.png
 fi
 
@@ -1797,8 +1849,8 @@ grep -q "Including module: ostree" /tmp/moos-final-dracut.log || {
 grep -q "Including module: plymouth" /tmp/moos-final-dracut.log || {
     echo "FATAL: final initramfs lost Plymouth support"; exit 1;
 }
-grep -qx 'Theme=moos-nova' /etc/plymouth/plymouthd.conf
-grep -qx 'Theme=moos-nova' /usr/share/plymouth/plymouthd.defaults
+grep -qx 'Theme=moos' /etc/plymouth/plymouthd.conf
+grep -qx 'Theme=moos' /usr/share/plymouth/plymouthd.defaults
 
 # Inspect the final archive, not just the source filesystem.  This is the gate
 # that prevents another image with Fedora bgrt branding from being published.
@@ -1810,11 +1862,11 @@ if [ "${_final_lsrc}" -eq 0 ]; then
     grep -q 'ostree-prepare-root' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks ostree-prepare-root"; exit 1;
     }
-    grep -q 'plymouth/themes/moos-nova/moos-nova.plymouth' /tmp/moos-final-initrd.txt || {
-        echo "FATAL: final initramfs lacks the MoOS Nova Plymouth descriptor"; exit 1;
+    grep -q 'plymouth/themes/moos/moos.plymouth' /tmp/moos-final-initrd.txt || {
+        echo "FATAL: final initramfs lacks the MoOS Plymouth descriptor"; exit 1;
     }
-    grep -q 'plymouth/themes/moos-nova/watermark.png' /tmp/moos-final-initrd.txt || {
-        echo "FATAL: final initramfs lacks the MoOS Nova watermark"; exit 1;
+    grep -q 'plymouth/themes/moos/watermark.png' /tmp/moos-final-initrd.txt || {
+        echo "FATAL: final initramfs lacks the MoOS watermark"; exit 1;
     }
     if grep -qE 'plymouth/themes/(spinner/watermark\.png|bgrt/bgrt\.plymouth)' \
         /tmp/moos-final-initrd.txt; then
@@ -1825,8 +1877,8 @@ if [ "${_final_lsrc}" -eq 0 ]; then
     fi
     lsinitrd -f etc/plymouth/plymouthd.conf \
         "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-final-plymouth.conf
-    grep -qx 'Theme=moos-nova' /tmp/moos-final-plymouth.conf || {
-        echo "FATAL: initramfs Plymouth configuration does not select moos-nova"; exit 1;
+    grep -qx 'Theme=moos' /tmp/moos-final-plymouth.conf || {
+        echo "FATAL: initramfs Plymouth configuration does not select moos"; exit 1;
     }
 else
     # lsinitrd is known to fail under nested buildah even for a valid archive;

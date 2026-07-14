@@ -24,27 +24,38 @@ def function(text: str, name: str) -> str:
 
 
 class TestMoOSThemeSafety(unittest.TestCase):
-    def test_completed_ui1_rollback_remains_in_ui1_during_self_heal(self) -> None:
+    def test_any_foreign_look_resolves_to_the_one_moos_look(self) -> None:
+        """MoOS ships ONE look now, in a light half and a dark half.
+
+        This test used to assert the opposite: that a user who had rolled back to the older MoOS
+        UI generation was PRESERVED there. That behaviour was right while UI1 was installed, and it
+        became a trap the moment it was not — Plasma does not error on a Global Theme that is
+        missing from the disk, it silently serves Breeze. So the resolver must now pull every look
+        that is not one of MoOS's two halves onto the dark half, which is what the image ships.
+        """
         text = APPLY.read_text(encoding="utf-8")
         resolver = function(text, "target_lnf")
         harness = f"""
 set -uo pipefail
 DARK_LNF=org.moos.ui2
 LIGHT_LNF=org.moos.ui2.light
-UI1_DARK_LNF=org.moos.ui
-UI1_LIGHT_LNF=org.moos.ui.light
 marker=/definitely/not/present
 current_lookandfeel() {{ printf '%s\\n' "$CURRENT"; }}
 {resolver}
 target_lnf "$1" "$2"
 """
         cases = {
-            ("org.moos.ui", "false"): "org.moos.ui2",
-            ("org.moos.ui.light", "false"): "org.moos.ui2.light",
-            ("org.moos.ui", "true"): "org.moos.ui",
-            ("org.moos.ui.light", "true"): "org.moos.ui.light",
+            # the two halves stay where they are
             ("org.moos.ui2", "true"): "org.moos.ui2",
             ("org.moos.ui2.light", "true"): "org.moos.ui2.light",
+            ("org.moos.ui2", "false"): "org.moos.ui2",
+            ("org.moos.ui2.light", "false"): "org.moos.ui2.light",
+            # the deleted generations, and anything else, land on the dark half — NOT on a theme
+            # that is no longer installed
+            ("org.moos.ui", "true"): "org.moos.ui2",
+            ("org.moos.ui.light", "true"): "org.moos.ui2",
+            ("org.moos.nova", "true"): "org.moos.ui2",
+            ("org.kde.breezedark.desktop", "true"): "org.moos.ui2",
             ("org.example.foreign", "true"): "org.moos.ui2",
         }
         for (current, completed), expected in cases.items():
@@ -62,14 +73,13 @@ target_lnf "$1" "$2"
         self.assertIn(
             'target_lnf "$(current_lookandfeel)" "$migration_completed"', text
         )
-        for token in (
-            '"$UI1_DARK_LNF")',
-            '"$UI1_LIGHT_LNF")',
-            "want_widget=org.moos.nova.deskclock",
-            "other_widget=org.moos.ui2.dashboard",
-            "d.addWidget(TARGET, 80, 70, TARGET_WIDTH, TARGET_HEIGHT)",
-        ):
-            self.assertIn(token, text)
+        # No generation but this one may be a TARGET…
+        self.assertNotIn("UI1_DARK_LNF", text)
+        self.assertNotIn("UI1_LIGHT_LNF", text)
+        # …but the old desk clock must still be REMOVABLE, or a user who has one keeps it forever
+        # on a desktop that also has the new dashboard.
+        self.assertIn("other_widget=org.moos.nova.deskclock", text)
+        self.assertIn("d.addWidget(TARGET, 260, 70, TARGET_WIDTH, TARGET_HEIGHT)", text)
 
     def test_automatic_switch_has_bounded_non_recursive_supplement_sync(self) -> None:
         switch = SWITCH.read_text(encoding="utf-8")
@@ -105,7 +115,6 @@ target_lnf "$1" "$2"
         # The branch ends at a ';;' on its own line at the case-arm indent; the ';;' inside
         # the bootstrap's own case statement are deeper and inline, so they do not match.
         auto_branch = switch.split("\n    auto)")[1].split("\n        ;;")[0]
-        self.assertIn('"$UI1_LIGHT_LNF") apply "$LIGHT_LNF"', auto_branch)
         self.assertIn('apply "$DARK_LNF"', auto_branch)
 
         # …and it must arm the switch AFTER that bootstrap, never before. plasma-apply-

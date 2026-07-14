@@ -179,7 +179,7 @@ Item {
                         color: Kirigami.Theme.highlightColor
                     }
                     Text {
-                        text: "MOOS UI2"
+                        text: "MoOS"
                         color: Kirigami.Theme.textColor
                         font.family: "IBM Plex Sans"
                         font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.53)

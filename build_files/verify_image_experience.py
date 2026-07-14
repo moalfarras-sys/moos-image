@@ -45,8 +45,8 @@ require("quiet" in kargs_text,
 
 # The splash it draws must be MoOS's, in the initramfs as well as on disk — the initramfs is
 # what owns the screen before the root filesystem is even mounted.
-require("Theme=moos-nova" in text("/usr/share/plymouth/plymouthd.defaults"),
-        "Plymouth's default theme is not moos-nova")
+require("Theme=moos" in text("/usr/share/plymouth/plymouthd.defaults"),
+        "Plymouth's default theme is not moos")
 
 # The first screen a new MoOS user sees must be MoOS. plasma-setup.service is Plasma's
 # out-of-box wizard; it runs Before=display-manager.service and holds the screen, so it — not
@@ -120,7 +120,7 @@ require("do/smart-setup" in router and "do/install-nvidia" in router,
 #
 # Fedora Kinoite 44 replaced SDDM with plasma-login-manager: `sddm` is not installed at all
 # and display-manager.service points at plasmalogin.service. MoOS still shipped an SDDM theme
-# and an SDDM config, and this gate asserted "Current=moos-nova" in that config — and passed.
+# and an SDDM config, and this gate asserted "Current=moos" in that config — and passed.
 # Meanwhile the real login screen showed Plasma's default wallpaper. A green check on a file
 # nobody reads is worse than no check: it buys false confidence.
 #
@@ -194,14 +194,21 @@ require(Path("/usr/share/plasma/look-and-feel/org.moos.ui2.light/contents/defaul
 require(Path("/usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/ui/main.qml").is_file(),
         "MoOS UI2 dashboard is missing")
 
-# UI1 is the explicit rollback, not dead development debris. A UI2 image that
-# deletes it breaks the recovery path promised by `moos-theme ui1-*`.
-for fallback in (
-    "/usr/share/plasma/look-and-feel/org.moos.ui/contents/defaults",
-    "/usr/share/plasma/look-and-feel/org.moos.ui.light/contents/defaults",
-    "/usr/share/plasma/plasmoids/org.moos.nova.deskclock/contents/ui/main.qml",
+# There is ONE MoOS look now (dark + light). The older Nova and UI generations used to ship
+# alongside it as "explicit rollback themes" — which is what put six MoOS themes in System
+# Settings and five Nova wallpapers in the picker. They are gone. This gate now enforces their
+# ABSENCE, so a stray reintroduction fails the build instead of quietly offering the user a
+# second, older MoOS to choose from. (Version rollback — going back to the previous OS — is a
+# separate thing entirely, and it still works: it is `bootc rollback`, in MoOS Recovery.)
+for removed in (
+    "/usr/share/plasma/look-and-feel/org.moos.nova",
+    "/usr/share/plasma/look-and-feel/org.moos.nova.light",
+    "/usr/share/plasma/look-and-feel/org.moos.ui",
+    "/usr/share/plasma/look-and-feel/org.moos.ui.light",
+    "/usr/share/plasma/plasmoids/org.moos.nova.deskclock",
 ):
-    require(Path(fallback).is_file(), f"MoOS UI1 rollback asset is missing: {fallback}")
+    require(not Path(removed).exists(),
+            f"a superseded MoOS theme generation is still installed: {removed}")
 # The SDDM login stack is DEAD WEIGHT on this base: Kinoite 44 replaced SDDM with
 # plasma-login-manager, so ~60 theme files and a config shipped for a greeter that
 # is never installed. This gate used to *require* that theme's background — a green

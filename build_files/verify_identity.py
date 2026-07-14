@@ -43,14 +43,20 @@ def main() -> None:
     expected = {
         "NAME": "MoOS",
         "ID": "moos",
-        "VARIANT": "Nova",
-        "VARIANT_ID": "nova",
+        "VARIANT": "MoOS",
+        "VARIANT_ID": "moos",
         "LOGO": "moos-logo",
     }
     for key, value in expected.items():
         require(os_release.get(key) == value, f"os-release {key} must be {value!r}")
-    require(os_release.get("PRETTY_NAME", "").startswith("MoOS "),
-            "PRETTY_NAME must begin with MoOS")
+    # PRETTY_NAME is exactly "MoOS" — no codename after it. It used to be "MoOS 0.1 (Nova)", and
+    # that parenthesised codename is what the Anaconda installer prints as its title: the first
+    # sentence of a fresh install introduced a name the user had never heard. One name now.
+    require(os_release.get("PRETTY_NAME", "") == "MoOS",
+            "PRETTY_NAME must be exactly 'MoOS' — no codename, no version suffix")
+    # And the inherited codename must be gone from VERSION too — same reason, same screen.
+    require("(" not in os_release.get("VERSION", ""),
+            "os-release VERSION must not carry a parenthesised codename (the installer prints it)")
     require(os_release.get("DEFAULT_HOSTNAME") == "moos",
             "DEFAULT_HOSTNAME must be moos")
     require(os_release.get("CPE_NAME") == "cpe:/o:moos:moos:44",
@@ -133,17 +139,22 @@ def main() -> None:
     require((ROOT / "usr/lib/systemd/system/moos-fstab-sanitize.service").is_file(),
             "bootc fstab sanitizer service is missing")
 
-    theme = json.loads((ROOT / "usr/share/plasma/look-and-feel/org.moos.nova/metadata.json")
-                       .read_text(encoding="utf-8"))
-    require(theme.get("KPlugin", {}).get("Id") == "org.moos.nova",
-            "Nova look-and-feel metadata has the wrong id")
+    # ONE MoOS look ships, in a dark half and a light half. The older generations (org.moos.nova,
+    # org.moos.ui) used to ship alongside it — three generations at once, so System Settings
+    # offered the user six MoOS themes. They are gone, and this checks the survivors are whole and
+    # that the deleted ones are actually deleted, not merely unreferenced.
+    lnf_root = ROOT / "usr/share/plasma/look-and-feel"
+    moos_looks = sorted(p.name for p in lnf_root.glob("org.moos.*"))
+    require(moos_looks == ["org.moos.ui2", "org.moos.ui2.light"],
+            f"exactly one MoOS look-and-feel (dark + light) may ship; found {moos_looks}")
+    for look in ("org.moos.ui2", "org.moos.ui2.light"):
+        meta = json.loads((lnf_root / look / "metadata.json").read_text(encoding="utf-8"))
+        require(meta.get("KPlugin", {}).get("Id") == look,
+                f"{look} look-and-feel metadata has the wrong id")
+        require(meta.get("KPlugin", {}).get("Name") in ("MoOS", "MoOS Light"),
+                f"{look} must be named MoOS, not a codename")
 
-    ui_theme = json.loads((ROOT / "usr/share/plasma/look-and-feel/org.moos.ui/metadata.json")
-                          .read_text(encoding="utf-8"))
-    require(ui_theme.get("KPlugin", {}).get("Id") == "org.moos.ui",
-            "MoOS UI look-and-feel metadata has the wrong id")
-
-    print("IDENTITY OK: MoOS owns os-release, session, installer, apps, logos and themes")
+    print("IDENTITY OK: MoOS owns os-release, session, installer, apps, logos and its one theme")
 
 
 if __name__ == "__main__":

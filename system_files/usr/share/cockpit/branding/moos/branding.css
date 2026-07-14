@@ -7,7 +7,7 @@
  * cockpit-project/cockpit src/ws/cockpitbranding.c:
  *     {ID}-{VARIANT_ID}  ->  {ID}  ->  each {ID_LIKE}  ->  default
  * MoOS os-release (ID=moos, VARIANT_ID=nova, ID_LIKE="fedora") therefore tries:
- *     moos-nova  ->  moos  ->  fedora  ->  default
+ *     moos  ->  moos  ->  fedora  ->  default
  * so this "moos" directory is matched before Fedora's.
  *
  * The anaconda-webui app compiles `@import "../branding/fedora"` at build time,

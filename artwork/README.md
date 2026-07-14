@@ -49,7 +49,7 @@ python artwork/generate_nova_sounds.py
 
 Runtime outputs follow the freedesktop Sound Theme and Sound Naming
 specifications: Vorbis I in lowercase `.oga` files, 48 kHz stereo, under
-`/usr/share/sounds/moos-nova/stereo/`.
+`/usr/share/sounds/moos/stereo/`.
 
 All art in this generator is original MoOS artwork, © Moalfarras. Wallpaper
 package metadata licenses the wallpaper outputs under CC-BY-SA-4.0.

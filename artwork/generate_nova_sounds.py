@@ -16,7 +16,7 @@ import soundfile as sf
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "system_files" / "usr" / "share" / "sounds" / "moos-nova" / "stereo"
+OUT = ROOT / "system_files" / "usr" / "share" / "sounds" / "moos" / "stereo"
 RATE = 48_000
 
 

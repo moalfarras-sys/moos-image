@@ -737,7 +737,7 @@ Kirigami.ApplicationWindow {
     // by the local model (llama-server sits at ~6 of 8 GB), and an offscreen
     // render target for a 44 px icon is not a trade worth making. A radial
     // gradient costs nothing and reads the same.
-    component NovaOrb: Item {
+    component MoOrb: Item {
         id: orb
         property string mood: "idle"
         property real ringAngle: 0
@@ -1063,7 +1063,7 @@ Kirigami.ApplicationWindow {
                     anchors.bottomMargin: 12
                     spacing: 4
 
-                    NovaOrb {
+                    MoOrb {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.preferredWidth: 42
                         Layout.preferredHeight: 42
@@ -1310,7 +1310,7 @@ Kirigami.ApplicationWindow {
                                 width: ListView.view.width - 32
                                 height: bubble.height + 8
 
-                                NovaOrb {
+                                MoOrb {
                                     visible: msg.role !== "user"
                                     anchors.left: parent.left
                                     y: 4

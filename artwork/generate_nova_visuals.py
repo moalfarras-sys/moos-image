@@ -527,7 +527,7 @@ def generate_grub() -> None:
 
 
 def generate_sddm() -> None:
-    theme = SHARE / "sddm" / "themes" / "moos-nova"
+    theme = SHARE / "sddm" / "themes" / "moos"
     background = Image.open(theme / "backgrounds" / "nova-dark.png").convert("RGB")
     save_jpeg(background, theme / "backgrounds" / "default.jpg")
     source = ROOT / "artwork" / "nova-session-icon.svg"
@@ -851,7 +851,7 @@ def generate_previews() -> None:
     save_jpeg(desktop.convert("RGB"), out / "fullscreenpreview.jpg")
     save_png(desktop.convert("RGB").resize((600, 337), RESAMPLE).convert("RGBA"), out / "preview.png")
 
-    lock = Image.open(SHARE / "sddm" / "themes" / "moos-nova" / "backgrounds" / "nova-dark.png").convert("RGBA")
+    lock = Image.open(SHARE / "sddm" / "themes" / "moos" / "backgrounds" / "nova-dark.png").convert("RGBA")
     lock = lock.resize((1200, 674), RESAMPLE).filter(ImageFilter.GaussianBlur(8))
     shade = Image.new("RGBA", lock.size, rgba(P["deepest"], 90))
     lock.alpha_composite(shade)

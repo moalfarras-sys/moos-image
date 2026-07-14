@@ -21,7 +21,7 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 SHARE = ROOT / "system_files" / "usr" / "share"
-PLY = SHARE / "plymouth" / "themes" / "moos-nova"
+PLY = SHARE / "plymouth" / "themes" / "moos"
 HORIZON_LIGHT = SHARE / "wallpapers" / "NovaHorizon" / "contents" / "images"
 
 CYAN = (34, 211, 238)

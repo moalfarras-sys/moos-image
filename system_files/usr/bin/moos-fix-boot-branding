@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # fix-boot-branding.sh — RUN ON THE INSTALLED MoOS SYSTEM (real hardware).
 # Pinpoints and fixes the "Fedora logo on reboot". The MoOS IMAGE is already
-# clean (Plymouth=moos-nova, no Fedora GRUB theme) — the residual "Fedora" is
+# clean (Plymouth=moos, no Fedora GRUB theme) — the residual "Fedora" is
 # created at INSTALL time (UEFI NVRAM entry + shim path EFI/fedora + generated
 # grub.cfg), so it can only be fixed here, not in the image.
 #
@@ -15,7 +15,7 @@ echo "======================================================================"
 echo " MoOS boot-branding diagnostic  ($([ "$APPLY" = "--apply" ] && echo APPLY || echo DIAGNOSE-ONLY))"
 echo "======================================================================"
 
-echo; echo "### 1) Plymouth (boot splash) — must be moos-nova"
+echo; echo "### 1) Plymouth (boot splash) — must be moos"
 grep -i '^Theme' /etc/plymouth/plymouthd.conf 2>/dev/null || echo "  (no Theme in plymouthd.conf)"
 echo -n "  active default: "; plymouth-set-default-theme 2>/dev/null || echo "?"
 
@@ -68,10 +68,10 @@ else
     echo "  no 'Fedora' UEFI entry found (good, or already renamed)"
 fi
 
-# --- Fix B: make sure Plymouth is moos-nova + regenerate initramfs ----------
-echo "  ensuring Plymouth = moos-nova"
-plymouth-set-default-theme -R moos-nova >/dev/null 2>&1 \
-    && echo "  Plymouth set to moos-nova (initramfs regenerated)" \
+# --- Fix B: make sure Plymouth is moos + regenerate initramfs ----------
+echo "  ensuring Plymouth = moos"
+plymouth-set-default-theme -R moos >/dev/null 2>&1 \
+    && echo "  Plymouth set to moos (initramfs regenerated)" \
     || echo "  WARN: plymouth-set-default-theme failed"
 
 # --- Fix C: apply the MoOS GRUB theme --------------------------------------

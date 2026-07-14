@@ -450,7 +450,7 @@ def lnf_defaults(variant: str) -> str:
     icons = "MoOSUI2Light" if light else "MoOSUI2"
     # A white pointer disappears on Tidal Light's mint canvas; each half gets
     # the cursor that reads against ITS canvas (both are rebranded Bibata).
-    cursor = "NovaShadow" if light else "NovaIce"
+    cursor = "MoOSDark" if light else "MoOS"
     deco = "MoOSUI2Light" if light else "MoOSUI2"
     return f"""# MoOS UI2 matched Global Theme defaults. Generated file.
 [kdeglobals][General]
@@ -471,7 +471,7 @@ Theme={icons}
 
 [kdeglobals][Sounds]
 Enable=true
-Theme=moos-nova
+Theme=moos
 
 [kwinrc][org.kde.kdecoration2]
 library=org.kde.kwin.aurorae

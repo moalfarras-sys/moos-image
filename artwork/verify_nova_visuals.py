@@ -148,7 +148,7 @@ def verify_symbolic_icons() -> None:
         "moos-gaming",
         "moos-android-apps",
         "moos-safe-update",
-        "moos-nova-ui",
+        "moos-ui",
         "moos-cpu",
         "moos-memory",
         "moos-gpu",
@@ -204,7 +204,7 @@ def verify_no_foreign_visual_branding() -> None:
     )
 
     session_source = (ROOT / "artwork" / "nova-session-icon.svg").read_bytes()
-    session_dir = SHARE / "sddm" / "themes" / "moos-nova" / "icons" / "sessions"
+    session_dir = SHARE / "sddm" / "themes" / "moos" / "icons" / "sessions"
     for path in session_dir.glob("*.svg"):
         require(path.read_bytes() == session_source, f"foreign session logo returned: {path.name}")
 
@@ -272,18 +272,18 @@ def verify_installer_and_grub() -> None:
 
 
 def verify_sddm() -> None:
-    theme = SHARE / "sddm" / "themes" / "moos-nova"
+    theme = SHARE / "sddm" / "themes" / "moos"
     inspect_image(theme / "backgrounds" / "default.jpg", (3840, 2160), ("RGB",))
     require(not (theme / "backgrounds" / "smoky.jpg").exists(), "stock SDDM fallback remains")
     require(not (theme / "fonts").exists(), "bundled Red Hat fonts remain")
-    require([path.name for path in (theme / "configs").glob("*.conf")] == ["moos-nova.conf"], "unused SDDM presets remain")
+    require([path.name for path in (theme / "configs").glob("*.conf")] == ["moos.conf"], "unused SDDM presets remain")
     source = (ROOT / "artwork" / "nova-session-icon.svg").read_bytes()
     for path in (theme / "icons" / "sessions").glob("*.svg"):
         require(path.read_bytes() == source, f"foreign session art: {path.name}")
     qml_and_config = b"\n".join(path.read_bytes() for path in [
         theme / "components" / "Config.qml",
         theme / "components" / "IconButton.qml",
-        theme / "configs" / "moos-nova.conf",
+        theme / "configs" / "moos.conf",
     ])
     require(b"RedHatDisplay" not in qml_and_config, "RedHatDisplay reference remains")
 
@@ -366,7 +366,7 @@ def verify_plasma_identity_svgs() -> None:
 
 
 def verify_sounds() -> None:
-    root = SHARE / "sounds" / "moos-nova"
+    root = SHARE / "sounds" / "moos"
     index = (root / "index.theme").read_text(encoding="utf-8")
     require("[Sound Theme]" in index, "sound theme header is missing")
     require("Directories=stereo" in index, "sound theme stereo directory is missing")
@@ -387,8 +387,8 @@ def verify_text_files() -> None:
     candidates = list((ROOT / "artwork").glob("*"))
     candidates += list((SHARE / "wallpapers").glob("Nova*/metadata.json"))
     candidates += list((SHARE / "wallpapers").glob("Nova*/README.md"))
-    candidates += list((SHARE / "sddm" / "themes" / "moos-nova").rglob("*.qml"))
-    candidates += list((SHARE / "sddm" / "themes" / "moos-nova").rglob("*.conf"))
+    candidates += list((SHARE / "sddm" / "themes" / "moos").rglob("*.qml"))
+    candidates += list((SHARE / "sddm" / "themes" / "moos").rglob("*.conf"))
     candidates += list((SHARE / "plasma" / "desktoptheme" / "Nova").rglob("*"))
     candidates += [SHARE / "plasma" / "look-and-feel" / "org.moos.nova" / "contents" / "defaults"]
     candidates += list((SHARE / "icons" / "hicolor" / "scalable" / "actions").glob("moos-*.svg"))
@@ -399,7 +399,7 @@ def verify_text_files() -> None:
         require(not data.startswith(b"\xef\xbb\xbf"), f"UTF-8 BOM: {path.relative_to(ROOT)}")
         require(b"\r\n" not in data, f"CRLF: {path.relative_to(ROOT)}")
 
-    tokenized_qml = list((SHARE / "sddm" / "themes" / "moos-nova").rglob("*.qml"))
+    tokenized_qml = list((SHARE / "sddm" / "themes" / "moos").rglob("*.qml"))
     tokenized_qml += list(
         (SHARE / "plasma" / "look-and-feel" / "org.moos.nova" / "contents" / "splash").rglob("*.qml")
     )

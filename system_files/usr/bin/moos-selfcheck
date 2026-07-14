@@ -94,22 +94,8 @@ case "$lnf" in
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui2
         mode="UI2 تركواز | Tidal Light"
         ;;
-    # UI1 stays installed as an intentional rollback. The automatic targets stay
-    # on UI2 even during rollback; the completed UI2 migration marker below is
-    # what distinguishes an explicit `moos-theme ui1-*` choice from stale UI1
-    # config that merely survived the upgrade.
-    org.moos.ui)
-        want_deco=__aurorae__svg__MoOSUI; want_sch=MoOSUIDark; want_ico=Nova
-        want_sty=MoOSUI; want_wall=MoOSUIAtmosphere; want_widget=org.moos.nova.deskclock
-        pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui1
-        mode="UI1 احتياطي داكن | UI1 dark rollback"
-        ;;
-    org.moos.ui.light)
-        want_deco=__aurorae__svg__MoOSUILight; want_sch=MoOSUILight; want_ico=NovaLight
-        want_sty=MoOSUILight; want_wall=MoOSUIAtmosphere; want_widget=org.moos.nova.deskclock
-        pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui1
-        mode="UI1 احتياطي فاتح | UI1 light rollback"
-        ;;
+    # There is one MoOS look now (dark + light). The older Nova and UI generations no longer ship,
+    # so anything that is not one of the two halves above is simply "not a MoOS look".
     *) want_deco=""; want_wall=""; want_widget=""; pair_dark=""; pair_light=""; family=""; mode="" ;;
 esac
 
@@ -140,19 +126,6 @@ if [ -n "$pair_dark" ]; then
         ok "UI2 Graphite/Tidal automatic pair is installed"
     else
         bad "the UI2 automatic dark/light pair is incomplete under /usr/share/plasma/look-and-feel"
-    fi
-    if [ "$family" = ui1 ]; then
-        rollback_marker=""
-        for candidate in "${XDG_STATE_HOME:-$HOME/.local/state}"/moos-ui2-theme-applied.v*; do
-            [ -e "$candidate" ] && rollback_marker="$candidate" && break
-        done
-        if [ -n "$rollback_marker" ] && \
-           [ -d /usr/share/plasma/look-and-feel/org.moos.ui ] && \
-           [ -d /usr/share/plasma/look-and-feel/org.moos.ui.light ]; then
-            ok "UI1 rollback was explicitly selected after the UI2 migration"
-        else
-            bad "UI1 is active without a completed UI2 migration marker or its full rollback pair"
-        fi
     fi
 fi
 
@@ -307,18 +280,18 @@ if [ -f "$lock" ] && grep -q "MoOS" "$lock" 2>/dev/null; then
 else
     bad "the lock screen is not MoOS's — the greeter will fall back to Breeze"
 fi
-if [ -d /usr/share/plymouth/themes/moos-nova ]; then
+if [ -d /usr/share/plymouth/themes/moos ]; then
     plymouth_theme="$(plymouth-set-default-theme 2>/dev/null || true)"
     if [ -n "$plymouth_theme" ]; then
-        [ "$plymouth_theme" = moos-nova ] && ok "the boot splash is moos-nova" \
-            || bad "the boot splash is '${plymouth_theme}', expected moos-nova"
-    elif grep -q '^Theme=moos-nova' /usr/share/plymouth/plymouthd.defaults 2>/dev/null; then
-        ok "the boot splash ships as moos-nova"
+        [ "$plymouth_theme" = moos ] && ok "the boot splash is moos" \
+            || bad "the boot splash is '${plymouth_theme}', expected moos"
+    elif grep -q '^Theme=moos' /usr/share/plymouth/plymouthd.defaults 2>/dev/null; then
+        ok "the boot splash ships as moos"
     else
         note "could not confirm the active boot splash theme"
     fi
 else
-    bad "the moos-nova boot splash theme is not installed"
+    bad "the moos boot splash theme is not installed"
 fi
 
 # ── The desktop ──────────────────────────────────────────────────────────────
@@ -336,7 +309,7 @@ desktop_visual_state() {
     local expected_wall="$1" target="$2" other result
     [ "$target" = org.moos.ui2.dashboard ] \
         && other=org.moos.nova.deskclock \
-        || other=org.moos.ui2.dashboard
+        || other=org.moos.ui2.dashboard   # the only "other" is the removed clock, cleaned from existing desktops
     command -v gdbus >/dev/null 2>&1 || return 1
     command -v timeout >/dev/null 2>&1 || return 1
     result="$(timeout 5s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
@@ -390,7 +363,7 @@ if [ -n "$want_wall" ] && [ -n "$want_widget" ]; then
     fi
 fi
 grep -q "org.moos.nova.clock" "$appletsrc" 2>/dev/null \
-    && ok "the Nova clock is in the panel" \
+    && ok "the MoOS clock is in the panel" \
     || bad "the panel has no clock"
 
 shown="$(kreadconfig6 --file "$appletsrc" --group Containments --group 52 --group Applets --group 56 --group General --key shownItems 2>/dev/null)"
@@ -406,18 +379,14 @@ fi
 # common way a MoOS fix reaches the image and never reaches the user.
 head_ "لا شي بيحجب الصورة | Nothing shadowing the image"
 shadows=0
-for rel in plasma/plasmoids/org.moos.nova.clock plasma/plasmoids/org.moos.nova.deskclock \
+for rel in plasma/plasmoids/org.moos.nova.clock \
            plasma/plasmoids/org.moos.ui2.dashboard \
-           plasma/look-and-feel/org.moos.nova plasma/look-and-feel/org.moos.nova.light \
            plasma/look-and-feel/org.moos.ui2 plasma/look-and-feel/org.moos.ui2.light \
-           plasma/desktoptheme/Nova plasma/desktoptheme/NovaLight \
            plasma/desktoptheme/MoOSUI2 plasma/desktoptheme/MoOSUI2Light \
-           aurorae/themes/MoOSNova aurorae/themes/MoOSNovaLight \
            aurorae/themes/MoOSUI2 aurorae/themes/MoOSUI2Light \
            wallpapers/MoOSUI2Graphite wallpapers/MoOSUI2Tide \
            color-schemes/MoOSUI2Dark.colors color-schemes/MoOSUI2Light.colors \
-           icons/Nova icons/NovaLight icons/MoOSUI2 icons/MoOSUI2Light \
-           konsole/MoOS.profile \
+           icons/MoOSUI2 icons/MoOSUI2Light \
            konsole/MoOSUI2.profile konsole/MoOSUI2Light.profile; do
     if [ -e "/usr/share/$rel" ] && [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
         bad "~/.local/share/${rel} shadows the image copy — later updates will never reach you"

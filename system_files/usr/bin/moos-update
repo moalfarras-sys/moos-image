@@ -1,143 +1,214 @@
-#!/usr/bin/env bash
-# moos-update — friendly bilingual on-demand updater for MoOS.
-#
-# THIN UX ONLY — no new update logic (MOOS_ARCHITECTURE.md §9 non-goals).
-# Background updates already run automatically via the uupd systemd timer
-# (MOOS_ARCHITECTURE.md §3). This is just a human-friendly front-end over the
-# same atomic core commands, for users who want to check/apply an update now.
-#
-# Privileged calls go through pkexec so a polkit GUI prompt appears — we make
-# NO sudo assumptions (a MoOS desktop user may not be a sudoer).
-#
-# bootc CLI flags verified against https://bootc.dev/ man pages (2026-07-10):
-#   bootc status                 -> human-readable current system state
-#   bootc upgrade                -> pull + stage new deployment (applies on reboot)
-#   bootc upgrade --check         -> check for an update (metadata only, no full pull)
-set -euo pipefail
+#!/usr/bin/python3
+"""MoOS Updater — the app that updates MoOS.
 
-# ---- colors (MoOS brand-ish; disabled when stdout is not a terminal) --------
-if [ -t 1 ]; then
-    B=$'\033[1;34m'   # blue   #2E7BFF
-    C=$'\033[1;36m'   # cyan   #22D3EE
-    V=$'\033[1;35m'   # violet #8B5CF6
-    G=$'\033[1;32m'   # ok
-    Y=$'\033[1;33m'   # warn
-    R=$'\033[1;31m'   # error
-    D=$'\033[2m'      # dim / secondary
-    N=$'\033[0m'
-else
-    B=; C=; V=; G=; Y=; R=; D=; N=
-fi
+This was a bash script with an ASCII-art banner and a numbered menu, launched with Terminal=true.
+Three things were wrong with that, and only one of them was cosmetic:
 
-banner() {
-    printf '%s' "$B"
-    echo '  __  __        ___  ____  '
-    echo ' |  \/  | ___  / _ \/ ___| '
-    echo ' | |\/| |/ _ \| | | \___ \ '
-    echo ' | |  | | (_) | |_| |___) |'
-    echo ' |_|  |_|\___/ \___/|____/ '
-    printf '%s' "$N"
-    echo "${C}  MoOS Update  ·  محدّث MoOS${N}"
-    echo "${D}  تحديث ذرّي آمن فوق bootc — يكتمل عند إعادة التشغيل${N}"
-    echo "${D}  Atomic, safe update over bootc — applies on reboot${N}"
-    echo "${D}  (التحديثات التلقائية تعمل في الخلفية عبر uupd | auto-updates already run via uupd)${N}"
-    echo
-}
+  * A Terminal=true launcher does not open YOUR app. It opens KONSOLE and runs you inside it — so
+    the window in the dock wore Konsole's icon and Konsole's name, beside a pinned "MoOS Updater"
+    that never lit up. The owner reported it as "the app opens with two different icons". He was
+    right: there were two, and neither of them was the updater.
+  * It could not show progress. `bootc upgrade` pulls layers for minutes; a numbered menu can only
+    print at you. There was no way to see how far along it was, or whether it had hung.
+  * Updating your operating system through an ASCII banner is not what MoOS is.
 
-# Privileged run via polkit — no sudo assumption.
-run_priv() {
-    if command -v pkexec >/dev/null 2>&1; then
-        pkexec "$@"
-    else
-        echo "${Y}pkexec غير متوفّر — لا يمكن طلب صلاحية المسؤول.${N}" >&2
-        echo "${Y}pkexec not available — cannot request admin privileges.${N}" >&2
-        return 127
-    fi
-}
+The mechanism is unchanged, because the mechanism was never the problem: bootc, over polkit,
+staged atomically, applied on reboot, with the running system untouched until then. What changed
+is that you can watch it happen.
+"""
+import json
+import os
+import subprocess
+import sys
 
-show_status() {
-    echo "${C}▸ النظام الحالي | Current system${N}"
-    local out=""
-    if command -v bootc >/dev/null 2>&1 && out="$(bootc status 2>/dev/null)" && [ -n "$out" ]; then
-        echo "$out"
-    elif command -v rpm-ostree >/dev/null 2>&1 && out="$(rpm-ostree status 2>/dev/null)" && [ -n "$out" ]; then
-        echo "$out"
-    else
-        echo "${Y}  تعذّر قراءة الحالة (شغّل هذه الأداة داخل MoOS).${N}"
-        echo "${Y}  Status unavailable (run this tool on a MoOS system).${N}"
-    fi
-    echo
-}
+sys.path.insert(0, "/usr/lib/moos")
 
-do_update() {
-    if ! command -v bootc >/dev/null 2>&1; then
-        echo "${R}bootc غير موجود على هذا النظام | bootc not found${N}"
-        return 1
-    fi
-    echo "${C}جارٍ تجهيز التحديث… قد يظهر طلب إذن المسؤول.${N}"
-    echo "${C}Staging update… an admin prompt may appear.${N}"
-    if run_priv bootc upgrade; then
-        echo "${G}✓ تم تجهيز التحديث بنجاح.${N}"
-        echo "${G}  يكتمل عند إعادة التشغيل | applies on reboot${N}"
-        echo "${D}  (إن لم يتغيّر شيء فالنظام محدّث بالفعل | if nothing changed, you're already up to date)${N}"
-        echo "${C}  بعد إعادة التشغيل اختر (3) لفحص أنّ كل شيء وصل وعمل.${N}"
-        echo "${C}  After rebooting, choose (3) to check everything arrived and works.${N}"
-    else
-        echo "${Y}لم يكتمل التحديث. | update did not complete.${N}"
-    fi
-}
+import gi
 
-do_check() {
-    if ! command -v bootc >/dev/null 2>&1; then
-        echo "${R}bootc غير موجود على هذا النظام | bootc not found${N}"
-        return 1
-    fi
-    echo "${C}جارٍ الفحص فقط (تنزيل بيانات وصفية بسيطة، بدون تحديث).${N}"
-    echo "${C}Checking only (small metadata download, no upgrade). Admin prompt may appear.${N}"
-    if run_priv bootc upgrade --check; then
-        echo "${D}راجع النتيجة أعلاه — إن توفّر تحديث اختر (1). | see the result above; choose (1) to apply.${N}"
-    else
-        echo "${Y}تعذّر الفحص. | check failed.${N}"
-    fi
-}
+gi.require_version("Gtk", "4.0")
+from gi.repository import GLib, Gtk  # noqa: E402
 
-# After a reboot into the new deployment, this answers the real question the update
-# raises: did everything actually arrive and is it working? moos-selfcheck asks the
-# RUNNING desktop (theme, store, lock screen, splash, Mo AI, keyboard…), not the
-# image — no privilege needed, so no polkit prompt here.
-do_selfcheck() {
-    if ! command -v moos-selfcheck >/dev/null 2>&1; then
-        echo "${Y}moos-selfcheck غير موجود على هذا النظام | moos-selfcheck not found${N}"
-        return 1
-    fi
-    echo "${C}▸ فحص النظام الحيّ | Checking the live system${N}"
-    echo "${D}  يقرأ سطح المكتب الفعلي: المظهر، المتجر، القفل، الإقلاع، Mo AI…${N}"
-    echo "${D}  Reads the actual desktop: theme, store, lock screen, boot, Mo AI…${N}"
-    echo
-    moos-selfcheck || true
-}
+from moos_ui2 import MoOSApp  # noqa: E402
 
-main() {
-    banner
-    show_status
-    while true; do
-        echo "${V}اختر | Choose:${N}"
-        echo "  1) تحديث الآن       | Update now"
-        echo "  2) فحص التحديث فقط  | Check for update only"
-        echo "  3) فحص النظام       | Check the system (did everything land & work?)"
-        echo "  4) خروج             | Exit"
-        printf '%s' "${V}> ${N}"
-        read -r choice || { echo; break; }
-        echo
-        case "${choice:-}" in
-            1) do_update || true ;;
-            2) do_check || true ;;
-            3) do_selfcheck || true ;;
-            4|q|Q) echo "${D}مع السلامة | bye${N}"; break ;;
-            *) echo "${Y}اختيار غير صحيح | invalid choice${N}" ;;
-        esac
-        echo
-    done
-}
 
-main "$@"
+def sh(*cmd, timeout=25):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.returncode, (r.stdout or "") + (r.stderr or "")
+    except (OSError, subprocess.SubprocessError) as e:
+        return 127, str(e)
+
+
+def current_system():
+    """What this machine is running, named the way the OS names itself."""
+    pretty = "MoOS"
+    try:
+        with open("/etc/os-release", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("PRETTY_NAME="):
+                    pretty = line.split("=", 1)[1].strip().strip('"')
+    except OSError:
+        pass
+
+    build = ""
+    rc, out = sh("rpm-ostree", "status", "--json")
+    if rc == 0:
+        try:
+            build = json.loads(out)["deployments"][0].get("version", "") or ""
+        except (ValueError, KeyError, IndexError):
+            build = ""
+    return pretty, build
+
+
+class Updater(MoOSApp):
+    APP_ID = "org.moos.updater"      # == org.moos.updater.desktop — see MoOSApp's docstring
+    TITLE = "MoOS Updater"
+    SIZE = (760, 660)
+
+    def build(self, page):
+        pretty, build = current_system()
+
+        page.append(self.title("MoOS Updater"))
+        page.append(self.subtitle(
+            "تحديث ذرّي: يُجهَّز في الخلفية ويُطبَّق عند إعادة التشغيل. نظامك الحالي يبقى سليمًا حتى ذلك الحين.\n"
+            "Atomic update: staged in the background, applied on restart. Your running system stays "
+            "untouched until then."))
+
+        version = Gtk.Label(xalign=0, wrap=True)
+        version.set_markup(
+            f"<b>{GLib.markup_escape_text(pretty)}</b>\n"
+            f"<span alpha='65%'>{GLib.markup_escape_text(build or '—')}</span>")
+        page.append(self.card(
+            Gtk.Label(label="النظام الحالي  ·  Current system", xalign=0), version))
+
+        self.status = Gtk.Label(xalign=0, wrap=True)
+        self.status.set_text("اضغط “فحص التحديثات” للبدء.  ·  Press “Check for updates” to begin.")
+
+        self.progress = Gtk.ProgressBar(show_text=False)
+        self.progress.set_visible(False)
+
+        self.log = Gtk.TextView(editable=False, monospace=True)
+        self.log.add_css_class("ui2-log")
+        log_scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
+        log_scroll.set_min_content_height(220)
+        log_scroll.set_child(self.log)
+
+        page.append(self.card(self.status, self.progress, log_scroll))
+
+        self.check_btn = Gtk.Button(label="فحص التحديثات  ·  Check for updates")
+        self.check_btn.connect("clicked", self.on_check)
+
+        self.apply_btn = Gtk.Button(label="تثبيت التحديث  ·  Install update")
+        self.apply_btn.add_css_class("suggested-action")
+        self.apply_btn.set_sensitive(False)
+        self.apply_btn.connect("clicked", self.on_apply)
+
+        self.reboot_btn = Gtk.Button(label="إعادة التشغيل الآن  ·  Restart now")
+        self.reboot_btn.add_css_class("suggested-action")
+        self.reboot_btn.set_visible(False)
+        self.reboot_btn.connect("clicked", self.on_reboot)
+
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10, halign=Gtk.Align.END)
+        row.append(self.check_btn)
+        row.append(self.apply_btn)
+        row.append(self.reboot_btn)
+        page.append(row)
+
+    # -- log -------------------------------------------------------------------
+
+    def say(self, text):
+        buf = self.log.get_buffer()
+        buf.insert(buf.get_end_iter(), text if text.endswith("\n") else text + "\n")
+        self.log.scroll_to_iter(buf.get_end_iter(), 0.0, False, 0.0, 0.0)
+
+    def busy(self, on, message=""):
+        self.progress.set_visible(on)
+        self.check_btn.set_sensitive(not on)
+        if on:
+            self.status.remove_css_class("error")
+            self.status.remove_css_class("success")
+            self.status.set_text(message)
+            # Nobody can say how long a layer pull will take, and a bar that claims to know is a
+            # bar that lies. Pulse honestly rather than invent a percentage.
+            self._pulse = GLib.timeout_add(120, self._tick)
+        elif getattr(self, "_pulse", None):
+            GLib.source_remove(self._pulse)
+            self._pulse = None
+
+    def _tick(self):
+        self.progress.pulse()
+        return True
+
+    # -- privileged work, without freezing the window --------------------------
+
+    def run_async(self, cmd, on_done):
+        """pkexec, streamed onto the GLib loop.
+
+        A subprocess.run() here would block the main loop and the window would go grey and stop
+        repainting for the entire pull — which is indistinguishable, to the person watching, from
+        an updater that has crashed. So: read the pipe a line at a time, and let the UI breathe.
+        """
+        try:
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                    text=True, bufsize=1)
+        except OSError as e:
+            self.say(f"error: {e}")
+            on_done(127)
+            return
+
+        def pump(_src, _cond):
+            line = proc.stdout.readline()
+            if line:
+                self.say(line.rstrip("\n"))
+                return True
+            proc.wait()
+            on_done(proc.returncode)
+            return False
+
+        GLib.io_add_watch(proc.stdout, GLib.IO_IN | GLib.IO_HUP, pump)
+
+    # -- actions ---------------------------------------------------------------
+
+    def on_check(self, _btn):
+        self.busy(True, "جارٍ الفحص…  ·  Checking…")
+        self.say("$ bootc upgrade --check")
+
+        def done(rc):
+            self.busy(False)
+            if rc == 0:
+                self.status.set_text(
+                    "راجع النتيجة أعلاه — إن توفّر تحديث اضغط “تثبيت التحديث”.  ·  "
+                    "If an update is available, press “Install update”.")
+                self.apply_btn.set_sensitive(True)
+            else:
+                self.status.add_css_class("error")
+                self.status.set_text("تعذّر الفحص — تحقّق من الاتصال.  ·  "
+                                     "Check failed — is the network up?")
+
+        self.run_async(["pkexec", "bootc", "upgrade", "--check"], done)
+
+    def on_apply(self, _btn):
+        self.busy(True, "جارٍ التحضير… يمكنك متابعة عملك.  ·  Staging the update… you can keep working.")
+        self.apply_btn.set_sensitive(False)
+        self.say("$ bootc upgrade")
+
+        def done(rc):
+            self.busy(False)
+            if rc == 0:
+                self.status.add_css_class("success")
+                self.status.set_text("✓ التحديث جاهز — يُطبَّق عند إعادة التشغيل.  ·  "
+                                     "Update staged. It applies on the next restart.")
+                self.reboot_btn.set_visible(True)
+            else:
+                self.status.add_css_class("error")
+                self.status.set_text("فشل التحديث — نظامك الحالي لم يتغيّر.  ·  "
+                                     "Update failed. Your running system is untouched.")
+                self.apply_btn.set_sensitive(True)
+
+        self.run_async(["pkexec", "bootc", "upgrade"], done)
+
+    def on_reboot(self, _btn):
+        os.execvp("systemctl", ["systemctl", "reboot"])
+
+
+Updater().run()

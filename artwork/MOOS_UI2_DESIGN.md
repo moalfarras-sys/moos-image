@@ -363,7 +363,7 @@ is a place where the desktop is UI2 and the thing sitting on it is not.
    has not yet materialised those files keeps an empty GTK theme name, which means
    Adwaita — the exact failure AGENTS.md documents.
 
-4. **The light cursor.** `NovaIce` (Bibata-Modern-Ice, white) is pinned for *both*
+4. **The light cursor.** `MoOS` (Bibata-Modern-Ice, white) is pinned for *both*
    variants, and `moos-theme` has no cursor variable at all. White-on-mint is a
    low-contrast pointer on Tidal Light's `#D8EBE7` canvas.
 
@@ -379,7 +379,7 @@ is a place where the desktop is UI2 and the thing sitting on it is not.
    Fedora's themes for exactly this reason: "a picker is a user-facing screen like
    any other."
 
-7. ~~**Dead SDDM weight.**~~ **Closed 2026-07-14.** The `moos-nova` SDDM theme
+7. ~~**Dead SDDM weight.**~~ **Closed 2026-07-14.** The `moos` SDDM theme
    (~60 files) and `/etc/sddm.conf.d/moos.conf` are deleted — `sddm` is never
    installed on Kinoite 44, so nothing read them. `verify_image_experience.py`
    no longer requires the theme's background; it now fails the build if
