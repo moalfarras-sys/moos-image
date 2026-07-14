@@ -97,6 +97,30 @@ target_lnf "$1" "$2"
         self.assertIn("systemctl --global enable moos-theme-sync.path", build)
         self.assertIn("systemd-analyze verify", build)
 
+        # `auto` must ARRIVE on UI2, not merely arm the switch. sync_auto refuses to touch a
+        # look that is not already a UI2 half (by design — see below), so without a bootstrap
+        # the command pins the targets, prints "auto", and leaves a UI1 desktop on UI1 until
+        # the next sunrise: success reported for doing nothing. It did exactly that on the
+        # maintainer's machine.
+        # The branch ends at a ';;' on its own line at the case-arm indent; the ';;' inside
+        # the bootstrap's own case statement are deeper and inline, so they do not match.
+        auto_branch = switch.split("\n    auto)")[1].split("\n        ;;")[0]
+        self.assertIn('"$UI1_LIGHT_LNF") apply "$LIGHT_LNF"', auto_branch)
+        self.assertIn('apply "$DARK_LNF"', auto_branch)
+
+        # …and it must arm the switch AFTER that bootstrap, never before. plasma-apply-
+        # lookandfeel CLEARS AutomaticLookAndFeel — applying a Global Theme by hand is
+        # Plasma's own signal that the user took manual control — so arming first arms
+        # nothing: the bootstrap disarms it one line later and `auto` leaves the switch OFF
+        # while printing success. Measured exactly that way on the maintainer's machine.
+        # Ordering is invisible to a "does the file contain X" gate, so assert the order.
+        self.assertLess(
+            auto_branch.index('apply "$DARK_LNF"'),
+            auto_branch.index("AutomaticLookAndFeel true"),
+            "moos-theme auto arms the day/night switch before its bootstrap apply, "
+            "which clears it — the switch ends up off",
+        )
+
         sync = function(switch, "sync_auto")
         supplements = function(switch, "apply_supplements")
         self.assertNotIn("plasma-apply-lookandfeel", sync)

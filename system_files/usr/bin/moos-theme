@@ -530,6 +530,29 @@ case "$command_name" in
         command -v systemctl >/dev/null 2>&1 && \
             systemctl --user start moos-theme-sync.path >/dev/null 2>&1 || true
         pin_switch_targets
+        # Arming the switch is not the same as arriving. Plasma only fires it at the next
+        # sunrise or sunset, and sync_auto deliberately refuses to touch a look that is not
+        # already a UI2 half. So on a UI1 desktop this command pinned the targets, printed
+        # "auto", and left the user on UI1 for hours — it reported success for having done
+        # nothing at all. Seen live on the maintainer's machine.
+        #
+        # Bootstrap onto the UI2 half of the SAME lightness (the mapping moos-apply-theme's
+        # target_lnf() already uses): the user keeps the brightness they are looking at, and
+        # Plasma's switch corrects the half at the next transition — which is the whole of
+        # what `auto` promises.
+        case "$(current)" in
+            "$DARK_LNF"|"$LIGHT_LNF") ;;
+            "$UI1_LIGHT_LNF") apply "$LIGHT_LNF" ;;
+            *)                apply "$DARK_LNF" ;;
+        esac
+        # ARM LAST, and never before that apply. `plasma-apply-lookandfeel` clears
+        # AutomaticLookAndFeel — applying a Global Theme by hand is Plasma's own signal that
+        # the user has taken manual control. Arming first therefore armed nothing: the
+        # bootstrap silently disarmed it one line later, and the command still printed
+        # "auto" while leaving the switch OFF (measured: AutomaticLookAndFeel=false on a
+        # desktop that had just been told to follow the sun). It is also why `dark`, `light`
+        # and `toggle` set it false explicitly — they are agreeing with what apply does
+        # anyway. Order is the whole fix.
         kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel true \
             || { echo "moos-theme: could not enable automatic switching" >&2; exit 1; }
         sync_auto || exit 1
