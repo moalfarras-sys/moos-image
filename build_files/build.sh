@@ -1090,41 +1090,52 @@ if not any(Gst.ElementFactory.find(e) for e in ("openh264enc", "x264enc")):
 print("OK: Mo Remote GStreamer capture pipeline elements all present (incl. software H.264).")
 EOF
 
-# Compile-and-launch smoke test for every shipped pure-QML application. Syntax
-# checks alone do not catch invalid properties (for example Text.font.families,
-# which made Mo AI exit immediately). A healthy ApplicationWindow stays alive
-# until timeout; an engine/load error exits early and fails the image build.
-_qml_runtime="$(command -v qml-qt6 || true)"
-[ -n "$_qml_runtime" ] || { echo "FATAL: qml-qt6 runtime missing"; exit 1; }
+# Compile-and-launch smoke test for every shipped pure-QML application, run through
+# moos-qml-shell — the same binary /usr/bin/moai and /usr/bin/moos-welcome exec, with
+# the same environment they export. A healthy window stays alive until the timeout
+# (exit 124); an engine/load error kills the process before it and fails the build.
+#
+# The verdict is the EXIT CODE, and it has no forgiving branch. That is deliberate:
+# this gate used to run qml-qt6 and decide by grepping the log for "file.qml:line:col",
+# with an else-branch that forgave anything else as "a Kirigami window cannot exist
+# offscreen". It could never fail. Qt only writes QML errors to stderr when it believes
+# stderr is a console, so under CI's pipe the log held ONLY the generic "Did not load
+# any objects, exiting." — no file:line, never a match, always the forgiving branch. The
+# MoOS Store shipped DEAD behind that WARN (font.pixelSize is an int, and a 13.5 literal
+# aborts the whole engine) with every gate green, and it took a user's click to find out.
+# Two things make it bite now: QT_FORCE_STDERR_LOGGING puts the diagnostics back in the
+# log for whoever reads the failure, and the pass/fail decision needs no string at all.
+# The escape hatch was never needed either — Mo AI's Kirigami window DOES reach the
+# timeout under this shell; it was qml-qt6 that could not host it. Verified in both
+# directions: broken Store exits 1, both real apps time out at 124.
+_qml_shell=/usr/bin/moos-qml-shell
+[ -x "$_qml_shell" ] || { echo "FATAL: moos-qml-shell missing — the QML apps have no host"; exit 1; }
+_qml_home="$(mktemp -d)"
 for _qml_app in /usr/share/moos/apps/*/main.qml; do
-    _qml_log="/tmp/$(basename "$(dirname "$_qml_app")")-qml-smoke.log"
+    _qml_id="$(basename "$(dirname "$_qml_app")")"
+    _qml_log="/tmp/${_qml_id}-qml-smoke.log"
     set +e
-    # QT_QUICK_CONTROLS_STYLE=Basic is REQUIRED: Mo AI uses Kirigami, whose
-    # default org.kde.desktop QQC2 style needs Plasma integration that is absent
-    # in the offscreen build container — without a pure-QML style the Kirigami
-    # window fails to instantiate ("Did not load any objects") even when the QML
-    # is valid. Basic has no platform deps, so this validates the QML loads.
-    QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
-        QT_QUICK_CONTROLS_STYLE=Basic \
-        timeout 4 "$_qml_runtime" "$_qml_app" >"$_qml_log" 2>&1
+    # The launchers' own environment: Basic style (no Plasma integration in the
+    # container), no stale disk cache, and local-file XHR — the Store reads its
+    # catalogue with one, so without it the app under test is not the shipped app.
+    HOME="$_qml_home" \
+        QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+        QT_QUICK_CONTROLS_STYLE=Basic QT_FORCE_STDERR_LOGGING=1 \
+        QML_DISABLE_DISK_CACHE=1 QML_XHR_ALLOW_FILE_READ=1 \
+        timeout 6 "$_qml_shell" \
+            --app-id "org.moos.${_qml_id}" --qml "$_qml_app" >"$_qml_log" 2>&1
     _qml_rc=$?
     set -e
-    if [ "$_qml_rc" -eq 124 ]; then
-        : # healthy — the window stayed alive until the timeout
-    elif grep -qE "\.qml:[0-9]+:[0-9]+" "$_qml_log"; then
-        # A real QML load/parse error ALWAYS prints "file.qml:line:col: message".
-        echo "FATAL: QML smoke test failed for $_qml_app (exit=$_qml_rc)"
+    if [ "$_qml_rc" -ne 124 ]; then
+        echo "FATAL: the QML app '${_qml_id}' did not stay loaded (exit=${_qml_rc})."
+        echo "       It will not open for the user either. Its own error follows:"
         cat "$_qml_log"
         exit 1
-    else
-        # No file:line error, just e.g. "Did not load any objects": a Kirigami
-        # ApplicationWindow cannot create a window under QT_QPA_PLATFORM=offscreen
-        # in the build container — a test-environment limitation, not a defect.
-        echo "WARN: $_qml_app exited early with no QML error (headless-window limitation): $(tr '\n' ' ' <"$_qml_log")"
     fi
     rm -f "$_qml_log"
 done
-unset -v _qml_runtime _qml_app _qml_log _qml_rc
+rm -rf "$_qml_home"
+unset -v _qml_shell _qml_home _qml_app _qml_id _qml_log _qml_rc
 
 # A plasmoid is not covered by the pure-QML app loop above: its root type and
 # imports only exist inside Plasma's package loader. UI2's dashboard therefore

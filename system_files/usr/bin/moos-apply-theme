@@ -349,26 +349,6 @@ target_lnf() {
     esac
 }
 
-migration_completed=false
-if [ -e "$marker" ]; then
-    migration_completed=true
-    lnf="$(current_lookandfeel)" || exit 0   # cannot tell → trust the marker, as before
-    deco="$(current_decoration)" || exit 0
-    if theme_intact "$lnf" "$deco"; then
-        exit 0
-    fi
-    echo "=== moos-apply-theme $(date -u '+%FT%TZ') === SELF-HEAL: look-and-feel='${lnf:-unset}' decoration='${deco:-unset}'" >>"$log" 2>/dev/null || true
-else
-    echo "=== moos-apply-theme $(date -u '+%FT%TZ') ===" >>"$log" 2>/dev/null || true
-fi
-
-mkdir -p "$state_dir" 2>/dev/null || true
-rm -f "${state_dir}"/moos-nova-theme-applied "${state_dir}"/moos-nova-theme-applied.v* \
-      "${state_dir}"/moos-ui2-theme-applied.v* 2>/dev/null || true
-# Drop tray-collapse markers from older revisions too, so a new THEME_REV restarts the
-# shell once to re-collapse the tray. Only the current v${THEME_REV} marker is kept below.
-find "${state_dir}" -maxdepth 1 -name 'moos-tray-collapsed.v*' ! -name "moos-tray-collapsed.v${THEME_REV}" -delete 2>/dev/null || true
-
 # Disarm Plasma's day/night Look-and-Feel switch BEFORE applying anything — otherwise it
 # is free to undo this run's work at the next sunrise.
 #
@@ -385,21 +365,25 @@ find "${state_dir}" -maxdepth 1 -name 'moos-tray-collapsed.v*' ! -name "moos-tra
 # but on the first boot after that upgrade the switch resolved a package that no longer
 # existed, and the desktop came up Breeze Dark.
 #
-# MoOS ships exactly ONE Look and Feel, so there is no second theme of ours to switch to:
-# any target here can only ever be somebody else's. Drop the targets, turn the switch off.
-# MoOS used to have exactly one theme, so there was no safe target to give the
-# switch and the only correct move was to disarm it. That is no longer true: MoOS
-# now ships a matched light/dark pair, so the switch gets POINTED AT THEM instead
+# MoOS now ships a matched light/dark pair, so the switch gets POINTED AT THEM instead
 # of being deleted. Whichever way it fires, it lands on MoOS.
-#
-# The danger it poses is unchanged, and it is why this still runs before anything
-# else applies: any target that is not an installed package sends Plasma to Breeze
-# — not to the configured LookAndFeelPackage — and it persists that choice into the
-# user's kdeglobals, which outranks /etc/xdg for good.
 #
 # AutomaticLookAndFeel itself is left exactly as the user set it. Arming it is the
 # user's call (`moos-theme auto`); all this guarantees is that if it IS armed, it
 # cannot reach a non-MoOS theme.
+#
+# IT MUST RUN ABOVE THE MARKER GATE, AND IT DID NOT. Its own comment claimed it "runs
+# before anything else applies"; the call sat ~70 lines BELOW the `exit 0` that fires
+# whenever the marker exists and the look is intact — i.e. on every ordinary login. So
+# on the maintainer's own machine the switch kept a target written back when UI1 WAS the
+# light theme: DefaultLightLookAndFeel=org.moos.ui.light, with the switch armed. At
+# sunrise Plasma resolved the light half by name, and the desktop was pulled to UI1 —
+# nobody chose that. Worse, the pull is self-ratifying: target_lnf() reads UI1 + a
+# completed marker as "an explicit rollback", so every later repair preserved it, and
+# the wallpaper and dashboard (which a Plasma theme switch does not carry) stayed UI2 —
+# a UI2 desktop wearing a UI1 face. An intact look TODAY says nothing about where the
+# switch will land TOMORROW, which is exactly why this cannot live behind that gate.
+# It is idempotent and costs two kreadconfig6 calls; there is no reason to guard it.
 pin_lookandfeel_switch_targets() {
     command -v kreadconfig6 >/dev/null 2>&1 || return 0
     command -v kwriteconfig6 >/dev/null 2>&1 || return 0
@@ -425,6 +409,49 @@ pin_lookandfeel_switch_targets() {
     return 0
 }
 pin_lookandfeel_switch_targets
+
+# The event sounds, the same trap and the same gate. [Sounds] is NOT in the entry set
+# LookAndFeelManager applies, so it writes nothing to kdedefaults — and the user's own
+# kdeglobals, carrying Theme=freedesktop from the Breeze/Fedora defaults they were created
+# under, outranks both the theme's declaration and /etc/xdg/kdeglobals.
+#
+# This reconcile existed, and the comment beside it said the MoOS sound theme "has shipped
+# since day one and has never once played". It still had not: the write lived ~400 lines
+# below the marker gate, so it only ran on a real apply, and the drift it repairs happens
+# AFTER one (Plasma's own Sound settings rewrite the key). The proof is a failed unit on
+# this machine every boot: plasma-startupsound exits 1 with canberra "File or data not
+# found" — it is looking up desktop-login in `freedesktop`, which has no such sound, while
+# /usr/share/sounds/moos-nova/stereo/desktop-login.oga sits there unplayed.
+#
+# Two idempotent kwriteconfig calls. Nothing about them needs a heavy re-apply to be
+# allowed to run, so they no longer live behind one.
+pin_sound_theme() {
+    command -v kwriteconfig6 >/dev/null 2>&1 || return 0
+    kwriteconfig6 --file kdeglobals --group Sounds --key Theme moos-nova 2>/dev/null || return 0
+    kwriteconfig6 --file kdeglobals --group Sounds --key Enable true 2>/dev/null || return 0
+    return 0
+}
+pin_sound_theme
+
+migration_completed=false
+if [ -e "$marker" ]; then
+    migration_completed=true
+    lnf="$(current_lookandfeel)" || exit 0   # cannot tell → trust the marker, as before
+    deco="$(current_decoration)" || exit 0
+    if theme_intact "$lnf" "$deco"; then
+        exit 0
+    fi
+    echo "=== moos-apply-theme $(date -u '+%FT%TZ') === SELF-HEAL: look-and-feel='${lnf:-unset}' decoration='${deco:-unset}'" >>"$log" 2>/dev/null || true
+else
+    echo "=== moos-apply-theme $(date -u '+%FT%TZ') ===" >>"$log" 2>/dev/null || true
+fi
+
+mkdir -p "$state_dir" 2>/dev/null || true
+rm -f "${state_dir}"/moos-nova-theme-applied "${state_dir}"/moos-nova-theme-applied.v* \
+      "${state_dir}"/moos-ui2-theme-applied.v* 2>/dev/null || true
+# Drop tray-collapse markers from older revisions too, so a new THEME_REV restarts the
+# shell once to re-collapse the tray. Only the current v${THEME_REV} marker is kept below.
+find "${state_dir}" -maxdepth 1 -name 'moos-tray-collapsed.v*' ! -name "moos-tray-collapsed.v${THEME_REV}" -delete 2>/dev/null || true
 
 # Autostart can fire before the Plasma shell / session D-Bus is ready. Wait for
 # plasmashell so the apply tools actually take effect. Do NOT rely on `qdbus`:
@@ -821,13 +848,6 @@ if command -v kwriteconfig6 >/dev/null 2>&1; then
             >>"$log" 2>&1 || echo "kwin reconfigure skipped" >>"$log" 2>&1
     fi
 
-    # The event sounds, third instance of the same trap. [Sounds] is NOT in the entry set
-    # LookAndFeelManager applies, so it writes nothing to kdedefaults — and the user's own
-    # kdeglobals, carrying Theme=freedesktop from the Breeze/Fedora defaults they were
-    # created under, outranks both the Nova theme's declaration and /etc/xdg/kdeglobals.
-    # The MoOS sound theme has shipped since day one and has never once played.
-    kwriteconfig6 --file kdeglobals --group Sounds --key Theme moos-nova
-    kwriteconfig6 --file kdeglobals --group Sounds --key Enable true
 fi
 
 # GTK apps — Firefox and every other non-Qt window on the system.

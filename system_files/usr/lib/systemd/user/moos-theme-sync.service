@@ -2,8 +2,17 @@
 Description=Synchronize the complete MoOS automatic theme
 After=plasma-workspace.target
 PartOf=plasma-workspace.target
-StartLimitIntervalSec=60s
-StartLimitBurst=5
+# No start rate limit, and that is the whole point. This unit is triggered by
+# moos-theme-sync.path watching ~/.config/kdeglobals, and Plasma rewrites that file
+# several times within the first seconds of a session (colours, fonts, theme init).
+# With the old 5-starts-per-60s limit that burst was enough to trip it on an ORDINARY
+# LOGIN: the service went failed(start-limit-hit) — after every single run had exited 0
+# in ~16 ms — and systemd then failed the .path unit with it. The watch was dead for the
+# rest of the session, so the sunrise/sunset supplements silently stopped following the
+# theme. Rate-limiting a 16 ms oneshot bought nothing and cost exactly the thing it was
+# attached to. (A self-trigger loop is not the risk it was guarding against: sync-auto
+# never writes kdeglobals — verified by hashing the file across a run.)
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot

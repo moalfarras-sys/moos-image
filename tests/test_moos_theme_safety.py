@@ -82,8 +82,17 @@ target_lnf "$1" "$2"
         self.assertIn("PartOf=plasma-workspace.target", path)
         self.assertIn("ExecStart=/usr/bin/moos-theme sync-auto", service)
         self.assertIn("Restart=on-failure", service)
-        self.assertIn("StartLimitIntervalSec=60s", service)
-        self.assertIn("StartLimitBurst=5", service)
+        # The bound that matters is on the RUN (TimeoutStartSec), never on the RATE.
+        # A path-triggered unit must not be rate-limited: Plasma rewrites kdeglobals
+        # several times in the first seconds of a session, so the old 5-per-60s limit
+        # turned an ordinary login into failed(start-limit-hit) — and systemd fails the
+        # .path unit along with it, so the watch was dead for the rest of the session
+        # and the sunrise/sunset supplements stopped following the theme. Reproduced on
+        # the maintainer's machine with eight touches of kdeglobals. Recursion is what
+        # the limit was really guarding against, and that is guaranteed structurally
+        # below — sync_auto never writes kdeglobals — not by counting starts.
+        self.assertIn("StartLimitIntervalSec=0", service)
+        self.assertNotIn("StartLimitBurst", service)
         self.assertIn("TimeoutStartSec=45s", service)
         self.assertIn("systemctl --global enable moos-theme-sync.path", build)
         self.assertIn("systemd-analyze verify", build)

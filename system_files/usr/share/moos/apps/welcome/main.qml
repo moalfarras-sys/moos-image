@@ -489,7 +489,7 @@ ApplicationWindow {
                                 text: win.catName(pill.modelData.id)
                                 color: pill.isOn ? win.onAccent : win.txt
                                 font.family: "IBM Plex Sans"
-                                font.pixelSize: 13.5
+                                font.pixelSize: 14
                                 font.bold: pill.isOn
                             }
                         }
@@ -498,7 +498,7 @@ ApplicationWindow {
                 Item { Layout.fillWidth: true }
                 Text {
                     text: win.filtered.length + (win.rtl ? " تطبيق" : " apps")
-                    color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12.5
+                    color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 13
                 }
             }
         }
@@ -576,7 +576,7 @@ ApplicationWindow {
                                                 Layout.preferredWidth: 13; Layout.preferredHeight: 13 }
                                             Text {
                                                 text: win.rtl ? chip.modelData.ar : chip.modelData.en
-                                                color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 11.5
+                                                color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 12
                                             }
                                         }
                                     }
@@ -655,7 +655,7 @@ ApplicationWindow {
                                             }
                                             Text {
                                                 text: bundle.modelData.apps.length + (win.rtl ? " تطبيقات" : " apps")
-                                                color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 11.5
+                                                color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
                                             }
                                         }
                                     }
@@ -743,7 +743,7 @@ ApplicationWindow {
                                 Text {
                                     id: popLabel; anchors.centerIn: parent
                                     text: win.rtl ? "شائع" : "Popular"
-                                    color: win.violet; font.family: "IBM Plex Sans"; font.pixelSize: 10.5; font.bold: true
+                                    color: win.violet; font.family: "IBM Plex Sans"; font.pixelSize: 11; font.bold: true
                                 }
                             }
 
@@ -776,12 +776,12 @@ ApplicationWindow {
                                         }
                                         Text {
                                             text: win.rtl ? card.modelData.en : card.modelData.ar
-                                            color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 11.5
+                                            color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
                                             elide: Text.ElideRight; Layout.fillWidth: true
                                         }
                                         RowLayout {
                                             spacing: 4
-                                            Text { text: "★"; color: win.accent; font.pixelSize: 11.5 }
+                                            Text { text: "★"; color: win.accent; font.pixelSize: 12 }
                                             Text {
                                                 text: card.modelData.rating + " · " + card.modelData.reviews
                                                 color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 11
@@ -968,7 +968,7 @@ ApplicationWindow {
                     Text {
                         text: win.rtl ? "يمكنك تثبيت المزيد لاحقاً من متجر MoOS أو عبر Mo AI."
                                       : "Install more later from the MoOS Store or via Mo AI."
-                        color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 11.5
+                        color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
                         wrapMode: Text.WordWrap; Layout.fillWidth: true
                     }
                 }
@@ -1163,7 +1163,7 @@ ApplicationWindow {
                             }
                             Text {
                                 text: win.rtl ? prow.modelData.desc_ar : prow.modelData.desc_en
-                                color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 11.5
+                                color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
                                 elide: Text.ElideRight; Layout.fillWidth: true
                             }
                         }
