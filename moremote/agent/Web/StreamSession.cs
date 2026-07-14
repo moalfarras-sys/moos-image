@@ -61,6 +61,12 @@ public sealed class StreamSession
 
         // 2) Register the live session (this flips the on-screen banner).
         using var handle = _svc.State.Register(_remote);
+
+        // A viewer exists — start the encoder. Deliberately AFTER the auth check above: the capture
+        // pipeline is not free (on Linux it makes the compositor copy every frame), so an
+        // unauthenticated socket must not be able to start it. SessionGone in the finally below is
+        // the other half; between them the encoder runs exactly while somebody is watching.
+        _svc.Capture.SessionArrived(_id);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(requestAborted, handle.Token);
         var ct = linked.Token;
 

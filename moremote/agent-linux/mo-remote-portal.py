@@ -225,8 +225,14 @@ def send_frame(data):
 Gst.init(None)
 
 MAX_WIDTH = 1920
+# `streaming` gates the encode pipeline on somebody actually watching. It starts False and the
+# agent flips it on the first viewer, because a PLAYING pipeline is not free while nobody looks:
+# pipewiresrc keeps the ScreenCast stream active, so the COMPOSITOR copies every damaged frame out
+# for us, forever. Measured on this machine with zero clients connected: kwin_wayland 55% of a core
+# and this helper 32%, permanently — the desktop felt broken and the GPU was one Konsole away from
+# the VRAM ceiling that SIGSEGVs kwin. Idle must cost nothing.
 state = {"sw": 0, "sh": 0, "scale": 1.0, "quality": 70, "fps": 30, "out": (0, 0),
-         "codec": "jpeg", "want": "jpeg"}
+         "codec": "jpeg", "want": "jpeg", "streaming": False}
 pipeline = None
 enc = rate = None
 
@@ -337,6 +343,21 @@ def on_bus(_b, msg):
     return True
 
 
+def teardown():
+    """Drop the pipeline. NULL makes pipewiresrc close its fd, which deactivates the ScreenCast
+    stream — that is what actually stops the compositor copying frames and takes idle back to 0%.
+    The portal SESSION stays open, so resuming costs a pipeline build (~200ms) and never re-prompts
+    the user for permission."""
+    global pipeline, enc, rate
+    if pipeline is None:
+        return False
+    pipeline.set_state(Gst.State.NULL)
+    pipeline = None
+    enc = rate = None
+    state["out"] = (0, 0)
+    return False
+
+
 def rebuild():
     """(Re)build the encode pipeline at the current resolution.
 
@@ -344,8 +365,14 @@ def rebuild():
     caps mid-stream makes pipewiresrc renegotiate and the stream collapses to <1 fps. Tearing the
     pipeline down and standing a new one up costs ~200ms and is rock solid, and only happens when
     the resolution actually changes (startup, or the user moving the quality slider).
+
+    No viewer, no pipeline: every caller funnels through here, so this one guard is what keeps a
+    quality tweak or a stray settings push from resurrecting the encoder on an idle machine.
     """
     global pipeline, enc, rate
+
+    if not state["streaming"]:
+        return teardown()
 
     w, h = target_size()
     if pipeline is not None and (w, h) == state["out"]:
@@ -449,7 +476,9 @@ def force_keyframe():
         pass
 
 
-rebuild()
+# Deliberately NOT building a pipeline here. We come up idle and stay idle until the agent tells
+# us somebody is watching ({"type":"video","streaming":true}) — see the note on state["streaming"].
+# Input still works while idle: pointer and keys go through portal D-Bus calls, not the pipeline.
 
 
 # ---------------------------------------------------------------- input loop
@@ -467,6 +496,12 @@ def set_prop(el, name, value):
 def set_video(m):
     # quality and fps are plain element properties — safe to change on a running pipeline.
     # scale and codec change the pipeline itself, which is not, so they go through rebuild().
+    if "streaming" in m:
+        want = bool(m["streaming"])
+        if want != state["streaming"]:
+            state["streaming"] = want
+            rebuild()                       # builds when a viewer arrives, tears down when the last leaves
+            emit(type="video", streaming=want)
     if "quality" in m:
         state["quality"] = max(10, min(95, int(m["quality"])))
         if state["codec"] == "h264":

@@ -30,6 +30,9 @@ public sealed class PortalBridge : IDisposable
     private long _readyTicks;
     private long _framesReceived;
     private int _generation;
+    private volatile bool _streaming;      // a viewer is connected and wants frames
+    private int _streamingGeneration = -1; // which helper `_streaming` was pushed to
+    private long _streamingTicks;          // when we last asked for frames — the clock Stalled reads
 
     /// <summary>
     /// Bumped every time a new helper takes over. The helper starts from its own default encoder
@@ -45,13 +48,35 @@ public sealed class PortalBridge : IDisposable
     public int VideoHeight { get; private set; }
 
     /// <summary>
-    /// True only when the helper came up but its video pipeline never delivered a single frame,
-    /// i.e. it is genuinely broken. A long gap between frames is NOT a stall: PipeWire is
-    /// damage-driven, so a desktop that nobody is changing correctly produces nothing at all.
+    /// True only when the helper was ASKED to stream and its video pipeline never delivered a
+    /// single frame, i.e. it is genuinely broken. Two things that are not a stall: a long gap
+    /// between frames (PipeWire is damage-driven, so a desktop nobody is changing correctly
+    /// produces nothing at all), and an idle helper (it holds no pipeline until a viewer arrives —
+    /// judging that as "stalled" would send every first frame down the spectacle fallback).
     /// </summary>
     public bool Stalled =>
-        _ready && Interlocked.Read(ref _framesReceived) == 0 &&
-        Environment.TickCount64 - Interlocked.Read(ref _readyTicks) > 5000;
+        _ready && _streaming && Interlocked.Read(ref _framesReceived) == 0 &&
+        Environment.TickCount64 - Interlocked.Read(ref _streamingTicks) > 5000;
+
+    /// <summary>
+    /// Somebody is watching. The helper comes up idle and holds no encode pipeline until this says
+    /// otherwise — see the note on `streaming` in mo-remote-portal.py. Idempotent, and re-pushed
+    /// whenever a fresh helper takes over, because a new helper starts idle no matter what the last
+    /// one was doing.
+    /// </summary>
+    public void SetStreaming(bool on)
+    {
+        lock (_gate)
+        {
+            if (on == _streaming && _streamingGeneration == Generation) return;
+            _streaming = on;
+            _streamingGeneration = Generation;
+            Interlocked.Exchange(ref _framesReceived, 0);
+            Interlocked.Exchange(ref _streamingTicks, Environment.TickCount64);
+            if (!on) _frame = null;   // never hand a new viewer the last frame of the previous one
+        }
+        Send(new { type = "video", streaming = on });
+    }
 
     public PortalBridge()
     {
@@ -231,10 +256,20 @@ public sealed class PortalBridge : IDisposable
                 LogicalHeight = GetInt(root, "logical_height", LogicalHeight);
                 Interlocked.Exchange(ref _framesReceived, 0);
                 Interlocked.Exchange(ref _readyTicks, Environment.TickCount64);
+                Interlocked.Exchange(ref _streamingTicks, Environment.TickCount64);
                 _ready = true;
                 _lastError = "";
                 Log.Info($"Portal ready: {root.GetProperty("backend").GetString()} " +
                          $"(desktop {LogicalWidth}x{LogicalHeight}).");
+                // This helper is idle by construction. If a viewer was watching when the last one
+                // died, its screen would stay frozen forever unless we ask again — and _streaming
+                // is already true, so the idempotence check in SetStreaming would swallow a plain
+                // re-call. Push it against THIS generation.
+                if (_streaming)
+                {
+                    _streamingGeneration = Generation;
+                    Send(new { type = "video", streaming = true });
+                }
                 break;
             case "video":
                 VideoWidth = GetInt(root, "width", VideoWidth);

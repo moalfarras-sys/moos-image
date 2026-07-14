@@ -23,6 +23,30 @@ static void first_frame_cb(MyApplication* self, FlView *view)
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
+
+  // Launching MoPlayer while MoPlayer is running raises the window you already have.
+  //
+  // Without this the app was NON_UNIQUE (Flutter's template default) and every click in Kickoff
+  // started a WHOLE NEW PROCESS. Found on the maintainer's machine with **three** copies running
+  // at once, each rendering video: ~28% of a core and a slice of an 8 GB card apiece, on a box
+  // where the local LLM already holds ~6 GB and kwin SIGSEGVs when the card runs out. The user
+  // had simply clicked the icon again when the desktop felt slow — and made it slower.
+  //
+  // It is also wrong on the player's own terms: the IPTV subscription allows
+  // `max_connections = 1`, so the second copy fights the first for the single stream the account
+  // is allowed and knocks it off the air.
+  //
+  // Now the app is unique: the second process hands its activation to this one over D-Bus and
+  // exits, and we present the window that already exists. (Its command-line arguments do not
+  // cross that boundary — a `moplayer --section live` against a RUNNING player raises the player
+  // rather than jumping to Live. Launching it fresh still honours the flag, which is what the
+  // flag is for.)
+  GList* windows = gtk_application_get_windows(GTK_APPLICATION(application));
+  if (windows != nullptr) {
+    gtk_window_present(GTK_WINDOW(windows->data));
+    return;
+  }
+
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
@@ -182,8 +206,11 @@ MyApplication* my_application_new() {
   // the application to be recognized beyond its binary name.
   g_set_prgname(APPLICATION_ID);
 
+  // NOT G_APPLICATION_NON_UNIQUE (Flutter's template default) — that flag is what let three
+  // MoPlayers run at once. Unique means the second launch reaches the first over D-Bus and
+  // my_application_activate() raises the existing window. See the note there.
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID,
-                                     "flags", G_APPLICATION_NON_UNIQUE,
+                                     "flags", G_APPLICATION_DEFAULT_FLAGS,
                                      nullptr));
 }

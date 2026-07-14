@@ -76,6 +76,10 @@ public sealed class ScreenCapture : IDisposable
     public IDisposable? SubscribeH264(Action<byte[]> onFrame) => null;
     public void RequestKeyframe() { }
     public void SessionCodec(Guid id, bool canH264) { }
+    // On Linux these gate the capture pipeline on somebody actually watching. DXGI only grabs a
+    // frame when Capture() asks for one, so an idle Windows agent already costs nothing and there
+    // is nothing here to start or stop.
+    public void SessionArrived(Guid id) { }
     public void SessionGone(Guid id) { }
 
     public void SelectMonitor(int index)

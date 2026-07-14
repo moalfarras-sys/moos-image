@@ -115,6 +115,18 @@ public sealed class ScreenCapture : IDisposable
     /// bytes it cannot decode does not degrade, it shows nothing. One old browser and everyone
     /// stays on JPEG — which is the honest trade, and the reason this is a vote and not a setting.
     /// </summary>
+    /// <summary>
+    /// A viewer connected. This is what starts the encoder — until it runs, the helper holds no
+    /// pipeline and the compositor is copying nothing. Registered here rather than on the first
+    /// codec vote because a JPEG-only client never sends one, and it would stream to a viewer we
+    /// never counted (and, worse, never stop when that viewer left).
+    /// </summary>
+    public void SessionArrived(Guid id)
+    {
+        _sessionH264.TryAdd(id, false);   // assume no H.264 until the client says otherwise
+        Reconcile();
+    }
+
     public void SessionCodec(Guid id, bool canH264)
     {
         _sessionH264[id] = canH264;
@@ -129,6 +141,10 @@ public sealed class ScreenCapture : IDisposable
 
     private void Reconcile()
     {
+        // Streaming first: with no viewers left this tears the pipeline down, and the codec below
+        // is then a note for the next one rather than a change to a running encoder.
+        _portal.SetStreaming(!_sessionH264.IsEmpty);
+
         bool all = !_sessionH264.IsEmpty && _sessionH264.Values.All(v => v);
         var want = all ? "h264" : "jpeg";
         if (want == _wantCodec) return;

@@ -376,6 +376,25 @@ require(not missing_imports,
         "had uncommitted files when it was synced, and the image build will fail on a missing "
         f"URI: {missing_imports[:3]}")
 
+# ── One MoPlayer, not one per click ──────────────────────────────────────────
+# Flutter's runner template sets G_APPLICATION_NON_UNIQUE, and with it every click in Kickoff
+# starts a WHOLE NEW PROCESS. Found on the maintainer's machine on 2026-07-14: three MoPlayers
+# running at once, each rendering video (~28% of a core apiece) on an 8 GB card that the local LLM
+# already holds ~6 GB of — and kwin_wayland SIGSEGV'd on a swapchain allocation minutes later. He
+# had clicked the icon again *because* the desktop felt slow.
+#
+# It is also wrong on the subscription's terms: max_connections = 1, so copy two fights copy one
+# for the only stream the account is allowed and knocks it off the air.
+#
+# Comments stripped, because the fix's own comment says the words "G_APPLICATION_NON_UNIQUE".
+runner = code(read("moplayer/linux/runner/my_application.cc"), "slash")
+require("G_APPLICATION_NON_UNIQUE" not in runner,
+        "MoPlayer must be a UNIQUE GApplication — NON_UNIQUE is what let three copies run at once, "
+        "each holding VRAM on a card that has none to spare")
+require("gtk_window_present" in runner and "gtk_application_get_windows" in runner,
+        "a second launch must RAISE the window that already exists — a unique app whose activate() "
+        "still builds a new window just moves the duplication inside one process")
+
 # ── fcitx5 must not ship ─────────────────────────────────────────────────────
 # It is a CJK input-method framework MoOS has no use for (Arabic and German are xkb layouts,
 # which KWin handles natively), it arrives only as a dependency of a JAPANESE IME, and it has
@@ -714,6 +733,49 @@ session = read("moremote/agent/Web/StreamSession.cs")
 require("_encoded" in session and "TryDequeue" in session,
         "H.264 access units must be queued and drained in order — the JPEG path keeps only the "
         "newest frame, and a hole in an H.264 stream corrupts every frame until the next IDR")
+
+# An idle remote must cost NOTHING. This is the bug that made the machine feel broken.
+#
+# The helper used to build its pipeline at import and hold it PLAYING forever. A live PipeWire
+# ScreenCast stream is not passive: it makes the COMPOSITOR copy out every damaged frame. Measured
+# on the maintainer's machine on 2026-07-14 with **zero clients connected** — kwin_wayland at 55%
+# of a core, the helper at 32%, permanently, from the moment he logged in. He reported it as "the
+# reboot hangs". It also kept the GPU warm on an 8 GB card that a local LLM already holds ~6 GB of,
+# which is the same VRAM ceiling kwin SIGSEGVs against.
+#
+# So: no viewer, no pipeline. Gated on the code with comments stripped, because every claim below
+# is also written in prose right next to the thing it guards.
+portal_code = code(portal)
+require('"streaming": False' in portal_code,
+        "the portal helper must come up IDLE — a pipeline built at import streams to nobody and "
+        "makes the compositor copy every frame for a viewer who is not there")
+require(not re.search(r"^rebuild\(\)\s*$", portal_code, re.M),
+        "the helper must not build a pipeline at module level: nobody has connected yet")
+require('if not state["streaming"]:' in portal_code,
+        "rebuild() must refuse to build with no viewer, or a stray quality/scale push resurrects "
+        "the encoder on an idle machine")
+
+bridge_code = code(read("moremote/agent-linux/PortalBridge.cs"), "slash")
+require("public void SetStreaming(bool on)" in bridge_code,
+        "PortalBridge must be able to tell the helper whether anyone is watching")
+require("_streaming" in bridge_code and "Stalled =>" in bridge_code
+        and "_ready && _streaming" in bridge_code,
+        "an IDLE helper is not a STALLED helper — judging it stalled sends every first frame down "
+        "the spectacle fallback, which costs ~700ms a frame")
+
+capture_code = code(capture, "slash")
+require("_portal.SetStreaming(!_sessionH264.IsEmpty)" in capture_code,
+        "the encoder must run exactly while somebody is watching — no more, and no less")
+require("public void SessionArrived(Guid id)" in capture_code,
+        "a viewer must be registered when it ARRIVES, not on its first codec vote: a JPEG-only "
+        "client never sends one, and it would stream to a viewer nobody counted")
+
+session_code = code(session, "slash")
+require("SessionArrived" in session_code and "SessionGone" in session_code,
+        "StreamSession owns the viewer's lifetime; both ends of it must reach the capture")
+require(session_code.index("ValidateAndTouch") < session_code.index("SessionArrived"),
+        "the screen encoder must start AFTER authentication — an unauthenticated socket must not "
+        "be able to make this machine start capturing its own screen")
 
 # Remote control that only works inside the house is not remote control.
 #
@@ -1123,6 +1185,22 @@ require("secret-tool" not in ui_migrate,
 # Windows must wear the Nova decoration, not Breeze. Breeze here means Breeze's
 # X / v / ^ title-bar glyphs on every window — the loudest remaining "this is
 # stock KDE" tell after the dock.
+# ── Log in to an empty desktop, not to the one that crashed ──────────────────
+# Plasma's default is `restorePreviousLogout`, and on this hardware that default IS the bug the
+# maintainer reported as "the reboot hangs". He rebooted into a fresh image on 2026-07-14 and
+# Plasma faithfully restored what had been open: MoPlayer rendering video, Mo AI's QML shell, and
+# the remote's screen capture — together, on a card a local LLM already holds ~6 GB of. Ninety
+# seconds after login kwin_wayland could not allocate a swapchain and SIGSEGV'd; the desktop froze
+# and rebuilt itself.
+#
+# Restoring an IPTV player is also a live action, not a cosmetic one: the subscription allows
+# max_connections = 1, so a session restore can knock the user's own stream off a TV in another
+# room. This is a default (in /etc/xdg), not a decree — System Settings still wins.
+ksmserverrc = code(read("system_files/etc/xdg/ksmserverrc"))
+require("loginMode=emptySession" in ksmserverrc,
+        "MoOS must log in to an empty session: restoring the previous one reopened MoPlayer, Mo AI "
+        "and the screen capture at once, and kwin SIGSEGV'd on the VRAM they asked for")
+
 kwinrc = read("system_files/etc/xdg/kwinrc")
 require("library=org.kde.kwin.aurorae" in kwinrc,
         "KWin must load the Aurorae engine, not Breeze")

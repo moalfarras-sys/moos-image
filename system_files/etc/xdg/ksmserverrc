@@ -1,0 +1,18 @@
+# MoOS logs you in to an empty desktop, not to the one you left behind.
+#
+# Plasma's own default is `restorePreviousLogout`, and on this hardware that default is what
+# turned a reboot into a crash. On 2026-07-14 the maintainer rebooted into a fresh image and
+# Plasma dutifully restored what had been open: MoPlayer (rendering video), Mo AI (a QML shell),
+# and Mo PC Remote's capture — all at once, on a card that a local LLM already holds ~6 GB of.
+# 90 seconds after login kwin_wayland failed to allocate a swapchain and SIGSEGV'd; the desktop
+# froze and rebuilt itself, and what the user saw was "the reboot hangs".
+#
+# An empty session is also simply the honest one. Restoring an IPTV player means reconnecting to
+# a subscription that allows `max_connections = 1` — so a session restore can knock the user's own
+# stream off the air on a TV in another room — and restoring an AI assistant means reloading a
+# 6 GB model that nobody asked a question of.
+#
+# This is a default, not a decree: it lives in /etc/xdg, so System Settings → Session → "Restore
+# previous session" writes ~/.config/ksmserverrc and wins, for anyone who wants the old behaviour.
+[General]
+loginMode=emptySession
