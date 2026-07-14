@@ -1604,44 +1604,35 @@ require("THE IDENTITY CONTRACT" in read("AGENTS.md"),
 # ── The lock screen is MoOS's own, and it can still authenticate ──────────────
 #
 # The lock screen was the last surface still drawn by Plasma's shell default
-# (Breeze clock, field and typography) — it inherited the MoOS wallpaper and
-# colours but none of the MoOS design. Both UI2 halves now ship a lockscreen,
-# and the greeter is pointed at it. This is a SECURITY surface: the auth files
-# are copied byte-for-byte from the base's proven lockscreen, and this gate
-# checks they are all present so a half-copied package can never lock a user
-# out. It also gates the RELATIONSHIP — the greeter's Theme must name a package
-# that actually ships a lockscreen — so a rename cannot silently fall back.
-lock_auth_files = ("LockScreen.qml", "MoOSLockScreenUi.qml", "MoOSClock.qml",
-                   "MainBlock.qml", "PasswordSync.qml", "qmldir",
-                   "NoPasswordUnlock.qml", "MediaControls.qml", "LockOsd.qml")
-for lock_pkg in ("org.moos.ui2", "org.moos.ui2.light"):
-    lock_dir = ROOT / f"system_files/usr/share/plasma/look-and-feel/{lock_pkg}/contents/lockscreen"
-    for lock_file in lock_auth_files:
-        require((lock_dir / lock_file).is_file(),
-                f"{lock_pkg} is missing lockscreen/{lock_file} — a partial lock "
-                "screen package can leave a user unable to unlock their machine")
-    # The auth path must stay the proven one: MainBlock still submits to the
-    # authenticator, and LockScreenUi still reacts to its result.
-    main_block = read(f"system_files/usr/share/plasma/look-and-feel/{lock_pkg}/contents/lockscreen/MainBlock.qml")
-    require("authenticator" in read(f"system_files/usr/share/plasma/look-and-feel/{lock_pkg}/contents/lockscreen/MoOSLockScreenUi.qml"),
-            f"{lock_pkg}'s lockscreen no longer talks to the authenticator — unlock would not work")
-    require("passwordResult" in main_block,
-            f"{lock_pkg}'s MainBlock lost the passwordResult path — the password would go nowhere")
-    # It must be MoOS, not a re-skinned shell fallback: the MoOS clock and brand
-    # have to be in the UI.
-    lock_ui = read(f"system_files/usr/share/plasma/look-and-feel/{lock_pkg}/contents/lockscreen/MoOSLockScreenUi.qml")
-    require("MoOSClock" in lock_ui,
-            f"{lock_pkg}'s lockscreen dropped the MoOS clock — it would read as the Breeze default")
-
-# The greeter has to be TOLD to draw the MoOS lockscreen, or kscreenlocker uses
-# the shell default and all of the above ships but never appears.
-lock_conf_greeter = read("system_files/etc/xdg/kscreenlockerrc")
-require(re.search(r"^Theme=org\.moos\.ui2", lock_conf_greeter, re.MULTILINE) is not None,
-        "kscreenlockerrc does not select a MoOS lockscreen Theme — the greeter "
-        "would fall back to Plasma's shell default")
-require('--key Theme "$lnf"' in read("system_files/usr/bin/moos-theme"),
-        "moos-theme no longer sets the greeter Theme per variant — a dark/light "
-        "switch would leave the lock screen on the wrong package")
+# (Breeze clock, field and typography). kscreenlocker draws it from the SHELL
+# package, NOT the look-and-feel (verified live 2026-07-14: a [Greeter] Theme
+# pointing at a look-and-feel silently fell back to this shell default), so MoOS
+# overrides the shell's LockScreenUi.qml directly. This is a SECURITY surface:
+# the file is a fork that keeps the base's auth path, and the base shell provides
+# MainBlock/PasswordSync beside it — this gate makes sure the override stays MoOS
+# AND keeps the auth wiring, so it can neither look un-MoOS nor lock a user out.
+shell_lock = "system_files/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen"
+for lock_file in ("LockScreenUi.qml", "MoOSClock.qml"):
+    require((ROOT / shell_lock / lock_file).is_file(),
+            f"the shell lockscreen override is missing {lock_file} — the lock "
+            "screen would be Plasma's default, not MoOS's")
+lock_ui = read(f"{shell_lock}/LockScreenUi.qml")
+# The auth path must stay the proven one: it still talks to the authenticator
+# and still hands the password to MainBlock.
+require("authenticator" in lock_ui,
+        "the lock screen override no longer talks to the authenticator — unlock would break")
+require("MainBlock" in lock_ui and "onPasswordResult" in lock_ui,
+        "the lock screen override lost the MainBlock password path — the password would go nowhere")
+# It must be MoOS, not the stock shell UI: the MoOS clock has to be there.
+require("MoOSClock" in lock_ui,
+        "the lock screen override dropped the MoOS clock — it would read as the Breeze default")
+require("MoOSClock" in read(f"{shell_lock}/MoOSClock.qml") or "MoOS" in read(f"{shell_lock}/MoOSClock.qml"),
+        "MoOSClock.qml is not the MoOS clock")
+# No stale [Greeter] Theme pointing at a look-and-feel (which silently falls back).
+require(re.search(r"^Theme=", read("system_files/etc/xdg/kscreenlockerrc"), re.MULTILINE) is None,
+        "kscreenlockerrc sets a [Greeter] Theme again — the greeter loads the "
+        "SHELL lockscreen, so a look-and-feel Theme there just misleads and "
+        "falls back; the override is what draws MoOS")
 
 # ── Arabic in the terminal ────────────────────────────────────────────────────
 #

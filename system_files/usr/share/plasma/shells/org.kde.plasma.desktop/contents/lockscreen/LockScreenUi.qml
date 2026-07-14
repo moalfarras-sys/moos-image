@@ -4,13 +4,21 @@
 
     SPDX-License-Identifier: GPL-2.0-or-later
 
-    Derived from KDE Plasma 6.7's org.kde.plasma.desktop LockScreenUi. EVERY
-    authenticator connection, the MainBlock auth path, the StackView, the grace
-    timers and the footer are kept exactly as shipped — this file must never be
-    the reason someone cannot unlock their own machine. The additions are purely
-    visual and purely MoOS UI2: a bottom graphite scrim, a frosted glass card that
-    fades in with the UI, the MoOS emblem + wordmark, the MoOSClock, and a softer
-    entrance. All colours come from the active scheme so it themes on both halves.
+    This IS the plasma-desktop shell's LockScreenUi.qml, overridden by MoOS —
+    kscreenlocker draws the lock screen from the SHELL package, not the
+    look-and-feel (verified live 2026-07-14: a [Greeter] Theme pointing at a
+    look-and-feel silently fell back to this shell default). The base shell's
+    LockScreen.qml loads this file and provides MainBlock/PasswordSync/qmldir/
+    MediaControls/NoPasswordUnlock/LockOsd beside it; only this file and
+    MoOSClock.qml are MoOS overrides.
+
+    Forked from Plasma 6.7's original. EVERY authenticator connection, the
+    MainBlock auth path, the StackView, the grace timers and the footer are kept
+    exactly as shipped — this file must never be the reason someone cannot unlock
+    their own machine. The additions are purely visual and purely MoOS UI2: a
+    bottom graphite scrim, a frosted glass card that fades in with the UI, the
+    MoOS emblem + wordmark, the MoOSClock, and a softer entrance. All colours come
+    from the active scheme so it themes on both Graphite and Tidal.
 */
 import QtQml
 import QtQuick
@@ -222,7 +230,10 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 3
                 Layout.preferredHeight: Layout.preferredWidth
-                source: "../splash/images/moos-logo.png"
+                // Absolute path: this file lives in the shell package now, which
+                // has no MoOS art of its own. /usr/share/pixmaps/moos-logo.png is
+                // the canonical mark the identity firewall pins.
+                source: "file:///usr/share/pixmaps/moos-logo.png"
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 smooth: true

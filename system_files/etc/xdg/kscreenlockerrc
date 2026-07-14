@@ -17,14 +17,13 @@
 # prefers contents/images_dark/ under dark color schemes (MoOSUI2Dark).
 
 [Greeter]
-# Theme names the look-and-feel package whose contents/lockscreen/LockScreen.qml
-# the greeter draws. Without it, kscreenlocker falls back to the plasma-desktop
-# shell's default lockscreen (Breeze clock, field and typography) — which is
-# exactly why the lock screen used to look un-MoOS even with the right wallpaper.
-# org.moos.ui2 ships a premium MoOS lockscreen; moos-theme rewrites this per
-# variant (…ui2 / …ui2.light) on a dark/light switch. A package without a
-# lockscreen (UI1 rollback) falls back to the shell default, safely.
-Theme=org.moos.ui2
+# NOTE: kscreenlocker draws the lock screen from the SHELL package's
+# contents/lockscreen/ (kscreenlocker_greet --shell), NOT from the look-and-feel
+# package — verified live 2026-07-14, where a [Greeter] Theme pointing at a
+# look-and-feel silently fell back to the plasma-desktop shell default. So MoOS
+# ships its premium lock screen by overriding that shell's LockScreenUi.qml
+# directly (system_files/usr/share/plasma/shells/org.kde.plasma.desktop/
+# contents/lockscreen/), which every session uses; no Theme key is needed here.
 WallpaperPlugin=org.kde.image
 
 [Greeter][Wallpaper][org.kde.image][General]
