@@ -100,6 +100,28 @@ case "${cat}/${tgt}" in
             exit 2
         fi ;;
 
+    # ── MoOS Store / Welcome: install a CATALOGUED app, headless, with progress ─
+    # This route only installs apps that are in /usr/share/moos/store/catalog.json
+    # — a fixed, curated, safe set. That is the whole reason it needs NO
+    # confirmation and NO terminal: the worst a drive-by page could do is install
+    # one of MoOS's own vetted apps. moos-install streams PROGRESS/DONE/FAIL/OPENED
+    # to a per-app status file that the Welcome polls for a live bar.
+    store/install/*)
+        id="${tgt#install/}"
+        _statedir="${XDG_CACHE_HOME:-$HOME/.cache}/moos-store"
+        if command -v moos-install >/dev/null 2>&1 \
+           && python3 -c "import json,sys; c=json.load(open('/usr/share/moos/store/catalog.json',encoding='utf-8')); sys.exit(0 if any(a['id']==sys.argv[1] for a in c['apps']) else 1)" "$id" 2>/dev/null; then
+            mkdir -p "$_statedir"
+            # setsid: fully detach so the install outlives this short-lived handler.
+            # stdbuf -oL: moos-install's PROGRESS lines go to a FILE, which glibc
+            # block-buffers by default — without line buffering the bar would sit at
+            # 0 then snap to 100 when the process exits. Fall back if stdbuf is absent.
+            setsid sh -c 'command -v stdbuf >/dev/null 2>&1 && exec stdbuf -oL moos-install "$1" > "$2/$1.status" 2>/dev/null; exec moos-install "$1" > "$2/$1.status" 2>/dev/null' _ "$id" "$_statedir" >/dev/null 2>&1 &
+        else
+            notify "تطبيق غير معروف في المتجر | app not in store: $id"
+            exit 2
+        fi ;;
+
     # ── App Centre: OPEN an already-installed app by id (no privilege) ────────
     # The counterpart to apps/install. Launching an app the user already has is
     # exactly what clicking its icon does — no confirmation and no terminal. The

@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# moos-install <app-id> — install ONE catalogued app and stream machine-readable
+# progress on stdout, so the MoOS Welcome (or any UI) can show a live bar with NO
+# terminal. It is the single install path the store UI drives; the catalog
+# (/usr/share/moos/store/catalog.json) decides HOW each app installs.
+#
+# STDOUT CONTRACT (one token per line — the UI parses these, nothing else):
+#   PROGRESS <0-100>    coarse progress
+#   OPENED              a web-only app: its download page was opened
+#   DONE                installed successfully
+#   FAIL <reason>       did not install
+# All install noise goes to a log, never to stdout.
+#
+# SOURCES (from the catalog):
+#   flathub            -> flatpak install -y --noninteractive flathub <id>
+#   moos + npm         -> npm install -g --prefix ~/.local <pkg>   (Claude Code, Codex)
+#   moos + appimage    -> download the AppImage to ~/.local/bin + a .desktop     (Cursor)
+#   moos + web         -> open the official download page (Antigravity, LM Studio)
+set -uo pipefail
+
+ID="${1:-}"
+CATALOG="/usr/share/moos/store/catalog.json"
+LOG="${TMPDIR:-/tmp}/moos-install-${ID//\//_}.log"
+: >"$LOG" 2>/dev/null || true
+
+emit() { printf '%s\n' "$*"; }
+fail() { emit "FAIL ${1:-install failed}"; exit 1; }
+
+[ -n "$ID" ] || fail "no app id"
+[ -f "$CATALOG" ] || fail "catalog missing"
+
+# Pull this app's install recipe out of the catalog (tab-separated, safe for read).
+REC="$(python3 - "$CATALOG" "$ID" <<'PY' 2>>"$LOG"
+import json, sys
+cat = json.load(open(sys.argv[1], encoding="utf-8"))
+app = next((a for a in cat["apps"] if a["id"] == sys.argv[2]), None)
+if not app:
+    sys.exit(3)
+inst = app.get("install", {})
+fields = [app.get("source", ""), inst.get("kind", ""), inst.get("pkg", ""),
+          inst.get("url", ""), inst.get("bin", ""), inst.get("name", app.get("en", app["id"]))]
+print("\t".join(f.replace("\t", " ") for f in fields))
+PY
+)" || fail "unknown app: $ID"
+
+IFS=$'\t' read -r SOURCE KIND PKG URL BIN NAME <<<"$REC"
+
+# A background ticker gives a smooth bar while the real work runs; it never passes
+# 90 — the real completion drives 100. The install's own output stays in the log.
+p=6
+ticker() { while :; do emit "PROGRESS $p"; [ "$p" -ge 90 ] && break; p=$(( p + (RANDOM % 9 + 4) )); [ "$p" -gt 90 ] && p=90; sleep 0.7; done; }
+ticker & TICK=$!
+stop_ticker() { kill "$TICK" 2>/dev/null; wait "$TICK" 2>/dev/null; }
+
+ok=0
+case "$SOURCE" in
+  flathub)
+    command -v flatpak >/dev/null 2>&1 || { stop_ticker; fail "flatpak not available"; }
+    if ! flatpak remotes 2>/dev/null | grep -q flathub; then
+      flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo >>"$LOG" 2>&1 || true
+    fi
+    flatpak install -y --noninteractive flathub "$ID" >>"$LOG" 2>&1 && ok=1
+    ;;
+  moos)
+    case "$KIND" in
+      npm)
+        command -v npm >/dev/null 2>&1 || { stop_ticker; fail "npm not available"; }
+        mkdir -p "$HOME/.local"
+        # -g with a user prefix keeps everything in ~/.local (bin -> ~/.local/bin);
+        # /usr is read-only on OSTree, so a system npm -g is impossible anyway.
+        npm install -g --prefix "$HOME/.local" "$PKG" >>"$LOG" 2>&1 && ok=1
+        ;;
+      appimage)
+        mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications"
+        target="$HOME/.local/bin/${BIN}.AppImage"
+        if curl -Lf --retry 3 -o "$target" "$URL" >>"$LOG" 2>&1; then
+          chmod +x "$target"
+          cat >"$HOME/.local/share/applications/moos-${BIN}.desktop" <<DESK
+[Desktop Entry]
+Type=Application
+Name=${NAME}
+Exec=${target} --no-sandbox %U
+Icon=applications-development
+Terminal=false
+Categories=Development;
+DESK
+          ok=1
+        fi
+        ;;
+      web)
+        # Nothing to install silently — open the official download page and say so.
+        stop_ticker
+        emit "PROGRESS 100"
+        if command -v xdg-open >/dev/null 2>&1; then setsid xdg-open "$URL" >/dev/null 2>&1 & fi
+        emit "OPENED"
+        exit 0
+        ;;
+      *) stop_ticker; fail "unknown install kind: $KIND" ;;
+    esac
+    ;;
+  *) stop_ticker; fail "unknown source: $SOURCE" ;;
+esac
+
+stop_ticker
+if [ "$ok" -eq 1 ]; then
+  emit "PROGRESS 100"
+  emit "DONE"
+else
+  emit "FAIL see $LOG"
+  exit 1
+fi

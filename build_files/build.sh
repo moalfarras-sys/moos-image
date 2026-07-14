@@ -1197,7 +1197,7 @@ chmod 0755 /usr/bin/moplayer
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moos-device-plan /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
     /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome \
-    /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding /usr/bin/moos-open \
+    /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding /usr/bin/moos-open /usr/bin/moos-install \
     /usr/bin/moai-config /usr/bin/moai-gateway /usr/bin/moai-control /usr/bin/moai-code \
     /usr/bin/moai-idle \
     /usr/bin/moos-theme /usr/bin/moos-selfcheck \
@@ -1778,6 +1778,15 @@ chmod 1777 /var/tmp
 # It runs here now: after every package, every rebrand, every mask — and under `set -e`, so
 # a failure stops the build.
 python3 /ctx/verify_image_experience.py
+
+# ── The MoOS Store must be internally consistent end-to-end ───────────────────
+#
+# The store is one fact in five files (catalog, Welcome QML, moos-install,
+# moos-open, moos-welcome). This gate fails the build if they have drifted apart —
+# an app whose glyph the QML can't draw, an install kind moos-install can't
+# perform, or a moos:// route renamed on one side only — so a user never taps
+# Install and watches nothing happen.
+python3 /ctx/verify_store_catalog.py
 
 # ── The identity firewall — the catch-all, on the finished bytes ──────────────
 #
