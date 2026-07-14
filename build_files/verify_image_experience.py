@@ -53,6 +53,22 @@ require("WantedBy=plasma-workspace.target" in unit, "Mo Remote is not Plasma-sco
 require("WantedBy=default.target" not in unit, "Mo Remote is attached to default.target")
 require("WAYLAND_DISPLAY=wayland-0" not in unit, "Mo Remote guesses a Wayland socket")
 
+# Plasma's day/night switch applies only a subset of a Global Theme. The path
+# unit is what carries wallpaper/Konsole/GTK after an automatic transition; a
+# perfect service file that is not enabled is another green-but-invisible fix.
+theme_path = text("/usr/lib/systemd/user/moos-theme-sync.path")
+theme_service = text("/usr/lib/systemd/user/moos-theme-sync.service")
+require("PathChanged=%h/.config/kdeglobals" in theme_path,
+        "the automatic-theme supplement watcher does not observe kdeglobals")
+require("WantedBy=plasma-workspace.target" in theme_path,
+        "the automatic-theme watcher is not scoped to the Plasma workspace")
+require("ExecStart=/usr/bin/moos-theme sync-auto" in theme_service,
+        "the automatic-theme watcher does not invoke the bounded supplement sync")
+theme_want = Path("/etc/systemd/user/plasma-workspace.target.wants/moos-theme-sync.path")
+require(theme_want.is_symlink()
+        and theme_want.resolve() == Path("/usr/lib/systemd/user/moos-theme-sync.path"),
+        "moos-theme-sync.path is shipped but not globally enabled for users")
+
 # Remote control must ship the PipeWire capture path. The old implementation spawned
 # spectacle once per frame — 630ms a frame, i.e. ~1fps, which is what made the phone feel
 # broken. If the helper is missing, or is not the PipeWire one, the image would silently
@@ -126,16 +142,30 @@ for gone in ("/usr/share/plasma/look-and-feel/org.fedoraproject.fedora.desktop",
 
 selectors = {
     "lock screen": text("/etc/xdg/kscreenlockerrc"),
-    "look and feel": text("/usr/share/plasma/look-and-feel/org.moos.ui/contents/defaults"),
+    "look and feel": text("/usr/share/plasma/look-and-feel/org.moos.ui2/contents/defaults"),
 }
 for surface, value in selectors.items():
     require(re.search(r"fedora|bgrt|spinner", value, re.IGNORECASE) is None,
             f"foreign branding is active in {surface}")
-require("MoOSUIAtmosphere" in selectors["lock screen"], "lock screen does not use MoOS UI")
-require(Path("/usr/share/wallpapers/MoOSUIAtmosphere/contents/images_dark/3840x2160.png").is_file(),
-        "MoOS UI dark wallpaper master is missing")
-require(Path("/usr/share/wallpapers/MoOSUIAtmosphere/contents/images/3840x2160.png").is_file(),
-        "MoOS UI light wallpaper master is missing")
+require("MoOSUI2Graphite" in selectors["lock screen"],
+        "lock screen does not use MoOS UI2 Graphite")
+require(Path("/usr/share/wallpapers/MoOSUI2Graphite/contents/images_dark/3840x2160.jpg").is_file(),
+        "MoOS UI2 Graphite wallpaper master is missing")
+require(Path("/usr/share/wallpapers/MoOSUI2Tide/contents/images/3840x2160.jpg").is_file(),
+        "MoOS UI2 Tidal wallpaper master is missing")
+require(Path("/usr/share/plasma/look-and-feel/org.moos.ui2.light/contents/defaults").is_file(),
+        "MoOS UI2 light Global Theme is missing")
+require(Path("/usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/ui/main.qml").is_file(),
+        "MoOS UI2 dashboard is missing")
+
+# UI1 is the explicit rollback, not dead development debris. A UI2 image that
+# deletes it breaks the recovery path promised by `moos-theme ui1-*`.
+for fallback in (
+    "/usr/share/plasma/look-and-feel/org.moos.ui/contents/defaults",
+    "/usr/share/plasma/look-and-feel/org.moos.ui.light/contents/defaults",
+    "/usr/share/plasma/plasmoids/org.moos.nova.deskclock/contents/ui/main.qml",
+):
+    require(Path(fallback).is_file(), f"MoOS UI1 rollback asset is missing: {fallback}")
 require(Path("/usr/share/sddm/themes/moos-nova/backgrounds/nova-horizon-ii.png").is_file(),
         "Nova SDDM background is missing")
 

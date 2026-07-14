@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -109,6 +110,75 @@ for route in ("do/smart-setup", "do/setup-gaming", "do/install-nvidia", "do/setu
 # The Hardware Centre and the Compatibility Hub are panels inside Mo AI now, so
 # their guarantees are asserted against Mo AI's QML. They still hold.
 moai_qml = read("system_files/usr/share/moos/apps/moai/main.qml")
+
+# First-party QML cards must follow the active KDE colour scheme. Mo AI and the
+# Welcome app used to carry Nova's navy canvas/card/text hex values inside their
+# own QML, so applying a complete light Global Theme still opened two dark-blue
+# applications. Gate the token BINDINGS (not merely the word "palette"), and
+# strip comments so the explanation above cannot make this pass.
+moai_palette_code = code(moai_qml, "slash")
+welcome_qml = read("system_files/usr/share/moos/apps/welcome/main.qml")
+welcome_palette_code = code(welcome_qml, "slash")
+
+for token, role in {
+    "surface0": "root.palette.base",
+    "surface1": "root.palette.alternateBase",
+    "surface2": "root.palette.button",
+    "chrome": "root.palette.window",
+    "hairline": "root.palette.mid",
+    "textHi": "root.palette.windowText",
+    "textLo": "root.palette.placeholderText",
+    "novaBlue": "root.palette.highlight",
+    "novaCyan": "root.palette.link",
+    "novaViolet": "root.palette.linkVisited",
+    "onAccent": "root.palette.highlightedText",
+}.items():
+    require(re.search(
+        rf"readonly\s+property\s+color\s+{token}\s*:\s*{re.escape(role)}\b",
+        moai_palette_code,
+    ) is not None,
+            f"Mo AI's {token} token must follow {role}, not a hard-coded Nova colour")
+
+for token, role in {
+    "canvas": "win.palette.base",
+    "surface": "win.palette.alternateBase",
+    "raised": "win.palette.button",
+    "chrome": "win.palette.window",
+    "outline": "win.palette.mid",
+    "txt": "win.palette.windowText",
+    "txt2": "win.palette.placeholderText",
+    "blue": "win.palette.highlight",
+    "cyan": "win.palette.link",
+    "violet": "win.palette.linkVisited",
+    "onAccent": "win.palette.highlightedText",
+}.items():
+    require(re.search(
+        rf"readonly\s+property\s+color\s+{token}\s*:\s*{re.escape(role)}\b",
+        welcome_palette_code,
+    ) is not None,
+            f"MoOS Welcome's {token} token must follow {role}, not Nova's fixed palette")
+
+legacy_nova_surfaces = {
+    "#0b1220", "#111a2e", "#16233a", "#1a2740", "#263a5c", "#263852",
+    "#f4f8ff", "#e6edf7", "#9fb0c9", "#7f94b5", "#0c1424", "#070c16",
+    "#0a1120", "#0c1526", "#16233c", "#0e1830",
+}
+for app, qml_code in (("Mo AI", moai_palette_code),
+                      ("MoOS Welcome", welcome_palette_code)):
+    retained = sorted(colour for colour in legacy_nova_surfaces
+                      if colour in qml_code.lower())
+    require(not retained,
+            f"{app} must not retain Nova's structural navy/text colours: {retained}")
+
+require("component Card: Rectangle" in moai_palette_code
+        and "color: root.surface1" in moai_palette_code,
+        "Mo AI's shared Card must consume the palette-backed card token")
+require("Qt.rgba(win.surface.r" in welcome_palette_code
+        and "cardHover.hovered ? cardItem.modelData.c : win.outline" in welcome_palette_code,
+        "MoOS Welcome cards must consume the palette-backed surface and outline tokens")
+require("NovaHorizonII" not in welcome_palette_code,
+        "MoOS Welcome must not paint Nova's dark wallpaper over a light KDE palette")
+
 require("sudo waydroid init" not in moai_qml,
         "Mo AI must use the confirmed workflow, not copy sudo commands")
 require('moos://do/setup-gaming' in moai_qml,
@@ -778,7 +848,7 @@ require('PORT="${MOAI_PORT:-8081}"' in moai_start_code,
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=15" in apply_theme_code, "MoOS UI visual schema must be revision 15")
+require("THEME_REV=16" in apply_theme_code, "MoOS UI2 visual schema must be revision 16")
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
@@ -807,12 +877,42 @@ require("pin_lookandfeel_switch_targets()" in apply_theme_code,
         "never leave it aimed at a package that is not installed")
 require("current_lookandfeel()" in apply_theme_code and "SELF-HEAL" in apply_theme_code,
         "moos-apply-theme must re-apply when the desktop is no longer wearing MoOS")
+require(all(token in apply_theme_code for token in (
+            "current_scheme()", "current_style()", "current_icons()",
+            "current_widget_state()", "theme_complete()")),
+        "the apply-once marker must be backed by runtime readback of the full theme and "
+        "the exact per-containment desktop-widget state, not only LNF + decoration")
+require("ui1-each" in apply_theme_code and "ui2-each" in apply_theme_code
+        and "desktops=[1-9][0-9]*;state=" in apply_theme_code
+        and "expected_widgets='ui1=0;ui2=1'" not in apply_theme_code,
+        "desktop widgets must be validated once per containment; a global count of one "
+        "breaks every multi-monitor or multi-Activity desktop")
+require("timeout 4s gdbus call" in apply_theme_code,
+        "runtime widget readback must time out instead of hanging login on an "
+        "unresponsive plasmashell")
+require("desktop_wallpapers_complete()" in apply_theme_code
+        and "matching == desktops" in apply_theme_code
+        and "grep -m1 '^Image='" not in apply_theme_code,
+        "theme completion must verify the wallpaper on every desktop containment; "
+        "the first Image= line is not authoritative on multiple monitors/Activities")
+require("widget-deduplicated" in apply_theme_code
+        and "for (var n = 1; n < targets.length; n++)" in apply_theme_code
+        and "d.addWidget(TARGET, 80, 70, TARGET_WIDTH, TARGET_HEIGHT)" in apply_theme_code,
+        "theme repair must deduplicate and instantiate the selected dashboard family "
+        "per containment, whether UI2 or the explicit UI1 rollback is active")
+require("flock -n 9" in apply_theme_code,
+        "two overlapping autostart instances must not race while replacing the same widget")
+require('theme_complete "$lnf_after" "$deco_after" "$want_wallpaper_package"'
+        in apply_theme_code
+        and 'rm -f "$marker"' in apply_theme_code,
+        "a partial theme apply must leave its marker absent so the next login retries")
 
 xdg_kdeglobals = code(read("system_files/etc/xdg/kdeglobals"))
 require("AutomaticLookAndFeel=false" in xdg_kdeglobals,
         "the day/night switch ships off; changing the look at sunset is a choice, not a default")
-require("DefaultDarkLookAndFeel=org.moos.ui" in xdg_kdeglobals
-        and "DefaultLightLookAndFeel=org.moos.ui.light" in xdg_kdeglobals,
+require("DefaultDarkLookAndFeel=org.moos.ui2" in xdg_kdeglobals
+        and "DefaultLightLookAndFeel=org.moos.ui2.light" in xdg_kdeglobals
+        and "LookAndFeelPackage=org.moos.ui2" in xdg_kdeglobals,
         "both day/night targets must name MoOS themes — Plasma resolves them BY NAME, "
         "and a name it cannot resolve sends the desktop to Breeze, permanently")
 
@@ -909,7 +1009,7 @@ require("target_lnf()" in apply_theme_code and "theme_intact()" in apply_theme_c
         "the self-heal must accept EITHER MoOS look and repair to the one the user chose")
 
 ui_migrate = read("system_files/usr/bin/moos-ui-migrate")
-require("MOOS_THEME_REV=7" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
+require("MOOS_THEME_REV=8" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
         "UI cache and Mo AI migrations must be explicitly revisioned")
 require('rm -rf "$HOME/.cache"' not in ui_migrate,
         "UI migration must never erase the whole user cache")
@@ -939,8 +1039,8 @@ require("secret-tool" not in ui_migrate,
 kwinrc = read("system_files/etc/xdg/kwinrc")
 require("library=org.kde.kwin.aurorae" in kwinrc,
         "KWin must load the Aurorae engine, not Breeze")
-require("theme=__aurorae__svg__MoOSUI" in kwinrc,
-        "KWin must use the MoOS UI decoration; the __aurorae__svg__ prefix is "
+require("theme=__aurorae__svg__MoOSUI2" in kwinrc,
+        "KWin must use the MoOS UI2 decoration; the __aurorae__svg__ prefix is "
         "what routes the theme to the Aurorae SVG engine")
 
 # …and the two checks above are NOT enough on their own. They were green for the
@@ -956,10 +1056,10 @@ require("theme=__aurorae__svg__MoOSUI" in kwinrc,
 # Gate the file that actually decides: the Look-and-Feel defaults (correct for new
 # users) and the explicit user-config write in the migration (correct for existing
 # ones, since ~/.config outranks kdedefaults outright).
-lnf_defaults = read("system_files/usr/share/plasma/look-and-feel/org.moos.ui/contents/defaults")
+lnf_defaults = read("system_files/usr/share/plasma/look-and-feel/org.moos.ui2/contents/defaults")
 require("[kwinrc][org.kde.kdecoration2]" in lnf_defaults
-        and "theme=__aurorae__svg__MoOSUI" in lnf_defaults,
-        "org.moos.ui's defaults must declare the window decoration, or Breeze's entry "
+        and "theme=__aurorae__svg__MoOSUI2" in lnf_defaults,
+        "org.moos.ui2's defaults must declare the window decoration, or Breeze's entry "
         "in ~/.config/kdedefaults/kwinrc permanently shadows /etc/xdg/kwinrc")
 require('--group org.kde.kdecoration2 --key theme "$want_deco"' in apply_theme,
         "the theme migration must pin the Nova decoration into an existing user's own "
@@ -1071,12 +1171,14 @@ require("blurEnabled=true" in kwin_glass,
 # a fully opaque slab, no blur, in both schemes — but beautified. Both colour schemes must
 # stay opaque, and both profiles must carry the premium chrome, or the terminal regresses to
 # either a see-through window or a bare default.
-for scheme in ("NovaDark", "NovaLight", "MoOSUIDark", "MoOSUILight"):
+for scheme in ("NovaDark", "NovaLight", "MoOSUIDark", "MoOSUILight",
+               "MoOSUI2Dark", "MoOSUI2Light"):
     konsole_scheme = code(read(f"system_files/usr/share/konsole/{scheme}.colorscheme"))
     require("Opacity=1" in konsole_scheme and "Blur=false" in konsole_scheme,
             f"{scheme} Konsole scheme must be SOLID (Opacity=1, Blur=false) — the maintainer "
             f"asked for a solid terminal, not the frosted-glass one that was tried and rejected")
-for prof in ("MoOS.profile", "MoOSLight.profile", "MoOSUI.profile", "MoOSUILight.profile"):
+for prof in ("MoOS.profile", "MoOSLight.profile", "MoOSUI.profile", "MoOSUILight.profile",
+             "MoOSUI2.profile", "MoOSUI2Light.profile"):
     profile_text = code(read(f"system_files/usr/share/konsole/{prof}"))
     require("TerminalMargin=14" in profile_text
             and "ScrollBarPosition=2" in profile_text
@@ -1117,12 +1219,13 @@ for package in ("org.moos.nova.clock",):
 require("try {" in layout,
         "the floating setter must be guarded -- a throw in the layout template "
         "leaves the session with NO panel")
-require("MoOSUIAtmosphere/contents/images_dark/3840x2160.png" in apply_theme,
-        "Existing users must migrate to the MoOS UI dark wallpaper")
+require("want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite" in apply_theme
+        and "contents/images_dark/3840x2160.jpg" in apply_theme,
+        "Existing users must migrate to the MoOS UI2 Graphite dark wallpaper")
 
 lock_config = read("system_files/etc/xdg/kscreenlockerrc")
-require("Image=/usr/share/wallpapers/MoOSUIAtmosphere" in lock_config,
-        "Plasma lock screen must use MoOS UI Atmosphere")
+require("Image=/usr/share/wallpapers/MoOSUI2Graphite" in lock_config,
+        "Plasma lock screen must use MoOS UI2 Graphite")
 
 sddm = read("system_files/etc/sddm.conf.d/moos.conf")
 require(re.search(r"^Current=moos-nova$", sddm, re.MULTILINE) is not None,
@@ -1165,7 +1268,7 @@ require("BackgroundNormal=255,255,255" not in
 active_selectors = {
     "SDDM": sddm,
     "lock screen": lock_config,
-    "look and feel": read("system_files/usr/share/plasma/look-and-feel/org.moos.ui/contents/defaults"),
+    "look and feel": read("system_files/usr/share/plasma/look-and-feel/org.moos.ui2/contents/defaults"),
 }
 for surface, text in active_selectors.items():
     require(re.search(r"fedora|bgrt|spinner", text, re.IGNORECASE) is None,
@@ -1244,12 +1347,31 @@ require("pin_default_apps()" in apply_theme_code,
 
 # ── The desktop is not empty ──────────────────────────────────────────────────
 for asset in (
+    "system_files/usr/share/plasma/plasmoids/org.moos.ui2.dashboard/metadata.json",
+    "system_files/usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/ui/main.qml",
     "system_files/usr/share/plasma/plasmoids/org.moos.nova.deskclock/metadata.json",
     "system_files/usr/share/plasma/plasmoids/org.moos.nova.deskclock/contents/ui/main.qml",
 ):
-    require((ROOT / asset).is_file(), f"the desktop clock is missing {asset}")
-require('addWidget("org.moos.nova.deskclock"' in apply_theme_code,
-        "new and existing users must both receive the desktop clock")
+    require((ROOT / asset).is_file(), f"a desktop dashboard package is missing {asset}")
+require("want_widget=org.moos.ui2.dashboard" in apply_theme_code
+        and "d.addWidget(TARGET, 80, 70, TARGET_WIDTH, TARGET_HEIGHT)" in apply_theme_code,
+        "new and existing users must both receive the selected MoOS dashboard through "
+        "the parameterised per-containment migration")
+require("org.moos.nova.deskclock" in apply_theme_code,
+        "the UI2 dashboard migration must retain the old package as a safe source/rollback")
+build_script_code = code(read("build_files/build.sh"))
+require("plasmawindowed org.moos.ui2.dashboard" in build_script_code,
+        "the image build must load the UI2 plasmoid through Plasma's real package runtime; "
+        "pure-QML app smoke tests do not exercise PlasmoidItem or KPackage imports")
+normalized_build_script = " ".join(build_script_code.replace("\\", " ").split())
+require("dbus-run-session -- plasmawindowed org.moos.ui2.dashboard" in
+        normalized_build_script,
+        "the headless plasmoid smoke needs a session bus; without one even KDE's stock "
+        "digital clock exits silently and the gate tests the container, not the package")
+for qml_runtime_failure in ("typeerror", "unable to assign", "binding loop"):
+    require(qml_runtime_failure in build_script_code,
+            "the dashboard smoke must reject live QML %s diagnostics; plasmawindowed can "
+            "stay alive while one card is blank" % qml_runtime_failure)
 
 # The clock and the rings are ONE applet, and they have to stay one. A desktop
 # applet's position lives in a resolution-keyed ItemGeometries string on the
@@ -1413,6 +1535,32 @@ require("system prune" not in reclaim
 require("moos-reclaim-disk.timer" in code(read("build_files/build.sh")),
         "the disk-reclaim timer must be enabled in the image — a maintenance script nobody "
         "starts is the manual cleanup it was written to replace")
+
+# build.yml already invokes this gate directly. Keep the focused visual suite behind
+# that existing CI entry instead of adding another workflow step (workflow pushes require
+# a separate token scope and have historically been rejected after all local work passed).
+ui2_gate = subprocess.run(
+    [sys.executable, "-B", str(ROOT / "tests/test_moos_ui2.py")],
+    cwd=ROOT,
+    text=True,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    check=False,
+)
+require(ui2_gate.returncode == 0,
+        "the focused MoOS UI2 package/art/motion gate failed:\n" + ui2_gate.stdout.strip())
+
+theme_safety_gate = subprocess.run(
+    [sys.executable, "-B", str(ROOT / "tests/test_moos_theme_safety.py")],
+    cwd=ROOT,
+    text=True,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    check=False,
+)
+require(theme_safety_gate.returncode == 0,
+        "the MoOS rollback/automatic-theme safety gate failed:\n"
+        + theme_safety_gate.stdout.strip())
 
 if errors:
     print("MoOS user-experience gate failed:", file=sys.stderr)

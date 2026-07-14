@@ -1,0 +1,820 @@
+#!/usr/bin/env python3
+"""Generate the isolated MoOS UI2 Graphite/Tidal visual family.
+
+MoOS UI (UI1) and Nova are protected inputs/fallbacks. This program writes only
+UI2 package IDs and proves that every protected input has the same digest before
+and after generation. Plasma Dark and Light each receive a complete SVG suite;
+Light never inherits UI2 Dark's fixed-colour artwork.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import pathlib
+import re
+import shutil
+import subprocess
+import tempfile
+
+
+# Tests may point the generator at a synthetic repository tree.  Production
+# runs deliberately ignore the failure-injection knob unless that isolated root
+# is present, so an inherited environment variable can never damage the real
+# working tree.
+TEST_ROOT = os.environ.get("MOOS_UI2_TEST_ROOT")
+ROOT = (pathlib.Path(TEST_ROOT).resolve() if TEST_ROOT
+        else pathlib.Path(__file__).resolve().parents[1])
+SHARE = ROOT / "system_files/usr/share"
+ART = ROOT / "artwork/moos-ui2"
+PALETTES = json.loads((ART / "palette.json").read_text(encoding="utf-8"))
+DASHBOARD_WEATHER = (SHARE / "plasma/plasmoids/org.moos.ui2.dashboard"
+                     / "contents/images/weather")
+WEATHER_KINDS = (
+    "clear-day", "clear-night", "partly-day", "partly-night", "cloudy",
+    "rain", "snow", "fog", "storm",
+)
+
+PROTECTED = (
+    SHARE / "plasma/desktoptheme/MoOSUI",
+    SHARE / "plasma/desktoptheme/MoOSUILight",
+    SHARE / "plasma/look-and-feel/org.moos.ui",
+    SHARE / "plasma/look-and-feel/org.moos.ui.light",
+    SHARE / "aurorae/themes/MoOSUI",
+    SHARE / "aurorae/themes/MoOSUILight",
+    SHARE / "color-schemes/MoOSUIDark.colors",
+    SHARE / "color-schemes/MoOSUILight.colors",
+    SHARE / "konsole/MoOSUIDark.colorscheme",
+    SHARE / "konsole/MoOSUILight.colorscheme",
+    SHARE / "wallpapers/MoOSUIAtmosphere",
+    SHARE / "plasma/plasmoids/org.moos.nova.deskclock",
+)
+
+OUTPUTS = (
+    SHARE / "plasma/desktoptheme/MoOSUI2",
+    SHARE / "plasma/desktoptheme/MoOSUI2Light",
+    SHARE / "plasma/look-and-feel/org.moos.ui2",
+    SHARE / "plasma/look-and-feel/org.moos.ui2.light",
+    SHARE / "aurorae/themes/MoOSUI2",
+    SHARE / "aurorae/themes/MoOSUI2Light",
+    SHARE / "color-schemes/MoOSUI2Dark.colors",
+    SHARE / "color-schemes/MoOSUI2Light.colors",
+    SHARE / "konsole/MoOSUI2Dark.colorscheme",
+    SHARE / "konsole/MoOSUI2Light.colorscheme",
+    SHARE / "konsole/MoOSUI2.profile",
+    SHARE / "konsole/MoOSUI2Light.profile",
+    SHARE / "wallpapers/MoOSUI2Graphite",
+    SHARE / "wallpapers/MoOSUI2Tide",
+    DASHBOARD_WEATHER,
+)
+
+IDENTITY = {
+    "org.moos.ui.light": "org.moos.ui2.light",
+    "org.moos.ui": "org.moos.ui2",
+    "MoOS UI Light": "MoOS UI2 Light",
+    "MoOS UI": "MoOS UI2",
+    "MoOSUILight": "MoOSUI2Light",
+    "MoOSUIDark": "MoOSUI2Dark",
+    "MoOSUI": "MoOSUI2",
+    "Nova Dark": "MoOS UI2 Dark",
+    "Nova Light": "MoOS UI2 Light",
+    "Nova navy": "UI2 graphite",
+    "Nova cyan": "UI2 turquoise",
+    "Nova palette": "UI2 palette",
+    "NovaActionButton": "MoOSUI2ActionButton",
+}
+
+# UI1's Plasma SVGs contain older Nova colours as literal fills. Every source
+# colour is assigned a semantic role here so UI2 cannot reproduce the Light
+# inherits-Dark regression by accident.
+SOURCE_HEX_ROLE = {
+    "#0C0910": "shadow", "#100C14": "shadow",
+    "#0E1728": "canvas", "#110D15": "canvas", "#17131D": "canvas",
+    "#131B31": "surface", "#13213A": "surface", "#241D2B": "surface",
+    "#161F38": "card", "#162743": "card", "#2A2031": "card",
+    "#163059": "raised", "#1B2540": "raised", "#312538": "raised",
+    "#3A2B43": "outline", "#46536B": "outline",
+    "#4B6287": "muted", "#7F94B5": "muted", "#B8AABD": "muted",
+    "#1E4FD8": "secondary", "#6D28D9": "secondary", "#FB923C": "secondary",
+    "#4FC3FF": "luminous", "#76DDF7": "luminous", "#7DEBFF": "luminous",
+    "#A855F7": "primary", "#C084FC": "luminous", "#FF00FF": "primary",
+    "#EEE7F0": "text", "#F3ECF4": "text",
+    "#34D399": "positive", "#F87171": "negative", "#FBBF24": "warning",
+    "#06291D": "positive_deep", "#2A1113": "negative_deep",
+    "#2E2205": "warning_deep",
+}
+
+SOURCE_RGB_ROLE = {
+    "16,12,20": "shadow", "23,19,29": "canvas", "36,29,43": "surface",
+    "49,37,56": "raised", "91,107,133": "muted", "91,107,140": "muted",
+    "150,166,190": "muted", "184,170,189": "muted",
+    "168,85,247": "primary", "192,132,252": "luminous",
+    "216,100,164": "secondary", "251,146,60": "secondary",
+    "30,79,216": "secondary_deep", "125,235,255": "luminous",
+    "238,231,240": "text", "243,236,244": "selected_text",
+    "226,234,247": "selected_text", "226,213,255": "selected_text",
+    "52,211,153": "positive", "190,255,225": "selected_text",
+    "248,113,113": "negative", "255,205,205": "selected_text",
+    "251,191,36": "warning", "255,228,160": "selected_text",
+    "103,232,249": "luminous", "106,166,255": "secondary",
+    "110,231,183": "positive", "126,140,166": "muted",
+    "154,70,70": "negative_deep", "163,126,28": "warning_deep",
+    "167,139,250": "secondary", "199,211,232": "selected_text",
+    "23,140,158": "primary", "252,165,165": "negative",
+    "252,211,77": "warning", "31,138,100": "positive_deep",
+    "31,83,168": "secondary_deep", "93,62,166": "secondary_deep",
+}
+
+EXTRAS = {
+    "dark": {
+        "positive_deep": "#1D4538", "negative_deep": "#49282D",
+        "warning_deep": "#493B22", "secondary_deep": "#315C8E",
+        "selected_text": "#142220",
+    },
+    "light": {
+        "positive_deep": "#B7D9C9", "negative_deep": "#E7C3C7",
+        "warning_deep": "#E4D3B1", "secondary_deep": "#78A8B8",
+        "selected_text": "#E1F0EC",
+    },
+}
+
+
+def digest(path: pathlib.Path) -> str:
+    h = hashlib.sha256()
+    paths = [path] if path.is_file() else sorted(p for p in path.rglob("*") if p.is_file())
+    for item in paths:
+        h.update(str(item.relative_to(ROOT)).encode())
+        h.update(b"\0")
+        h.update(item.read_bytes())
+        h.update(b"\0")
+    return h.hexdigest()
+
+
+def protected_snapshot() -> dict[pathlib.Path, str]:
+    missing = [path for path in PROTECTED if not path.exists()]
+    if missing:
+        raise SystemExit(f"missing protected UI1 input: {missing[0]}")
+    return {path: digest(path) for path in PROTECTED}
+
+
+def rgb(value: str) -> str:
+    value = value.lstrip("#")
+    return ",".join(str(int(value[i:i + 2], 16)) for i in (0, 2, 4))
+
+
+def variant_roles(variant: str) -> dict[str, str]:
+    return PALETTES[variant] | EXTRAS[variant]
+
+
+def palette_map(variant: str) -> dict[str, str]:
+    roles = variant_roles(variant)
+    mapping = {source: roles[role] for source, role in SOURCE_HEX_ROLE.items()}
+    mapping |= {source: rgb(roles[role]) for source, role in SOURCE_RGB_ROLE.items()}
+    return mapping
+
+
+def rewrite_text(text: str, mapping: dict[str, str]) -> str:
+    # Replace in one pass. Sequential ``str.replace`` is unsafe for identity
+    # migrations because a replacement can itself contain another source key:
+    # NovaActionButton -> MoOSUI2ActionButton -> MoOSUI22ActionButton. The bad
+    # component name leaves the logout greeter with a QML type that does not
+    # exist even though all generated files and metadata are otherwise present.
+    pattern = re.compile("|".join(re.escape(old) for old in sorted(mapping, key=len, reverse=True)))
+    return pattern.sub(lambda match: mapping[match.group(0)], text)
+
+
+def rewrite_tree(root: pathlib.Path, mapping: dict[str, str]) -> None:
+    binary = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix.lower() in binary:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        path.write_text(rewrite_text(text, mapping), encoding="utf-8")
+
+
+def copy_generated(source: pathlib.Path, target: pathlib.Path, variant: str) -> None:
+    if target in PROTECTED or any(target.is_relative_to(path) for path in PROTECTED if path.is_dir()):
+        raise SystemExit(f"refusing to overwrite protected UI1 path: {target}")
+    if target.exists():
+        shutil.rmtree(target)
+    shutil.copytree(source, target)
+    rewrite_tree(target, palette_map(variant) | IDENTITY)
+
+
+def write(path: pathlib.Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content.rstrip() + "\n", encoding="utf-8")
+
+
+def render_panel(target: pathlib.Path, variant: str) -> None:
+    tokens = variant_roles(variant)
+    text = (ART / "plasma/panel-background.svg.in").read_text(encoding="utf-8")
+    substitutions = {
+        "@SURFACE@": tokens["surface"], "@PRIMARY@": tokens["primary"],
+        "@TEXT@": tokens["text"], "@LUMINOUS@": tokens["luminous"],
+        "@OUTLINE@": tokens["outline"], "@PANEL_TOP@": tokens["panel_top"],
+        "@PANEL_MID@": tokens["panel_mid"], "@PANEL_BOTTOM@": tokens["panel_bottom"],
+    }
+    write(target, rewrite_text(text, substitutions))
+
+
+def desktop_metadata(style: str, light: bool) -> str:
+    description = ("تركواز معدني هادئ لسطح MoOS | Mineral turquoise glass for MoOS"
+                   if light else
+                   "زجاج غرافيتي حديث لسطح MoOS | Modern graphite glass for MoOS")
+    return json.dumps({
+        "KPlugin": {
+            "Authors": [{"Name": "Moalfarras"}], "Category": "",
+            "Description": description, "Id": style,
+            "License": "GPL-3.0-or-later",
+            "Name": "MoOS UI2 Light" if light else "MoOS UI2",
+            "Version": "2.0.0",
+            "Website": "https://github.com/moalfarras-sys/moos-image",
+        },
+        "X-Plasma-API": "5.0",
+    }, ensure_ascii=False, indent=4)
+
+
+def desktop_plasmarc(wallpaper: str, light: bool) -> str:
+    fallback = "default" if light else "breeze-dark"
+    return f"""# Generated by artwork/generate_moos_ui2.py.
+# Each UI2 variant owns a complete fixed-colour SVG suite. Light never falls
+# back to UI2 Dark; only missing upstream paths use the matching Breeze side.
+[Settings]
+FallbackTheme={fallback}
+
+[Wallpaper]
+defaultWallpaperTheme={wallpaper}
+defaultFileSuffix=.jpg
+defaultWidth=1920
+defaultHeight=1080
+
+[AdaptiveTransparency]
+enabled=false
+"""
+
+
+def color_scheme(variant: str) -> str:
+    p = variant_roles(variant)
+    selected = p["selected_text"]
+
+    def group(name: str, normal: str, alternate: str, inactive: str | None = None) -> str:
+        muted = inactive or p["muted"]
+        return f"""[{name}]
+BackgroundAlternate={rgb(alternate)}
+BackgroundNormal={rgb(normal)}
+DecorationFocus={rgb(p['primary'])}
+DecorationHover={rgb(p['luminous'])}
+ForegroundActive={rgb(p['primary'])}
+ForegroundInactive={rgb(muted)}
+ForegroundLink={rgb(p['secondary'])}
+ForegroundNegative={rgb(p['negative'])}
+ForegroundNeutral={rgb(p['warning'])}
+ForegroundNormal={rgb(p['text'])}
+ForegroundPositive={rgb(p['positive'])}
+ForegroundVisited={rgb(p['luminous'])}
+"""
+
+    selection = f"""[Colors:Selection]
+BackgroundAlternate={rgb(p['secondary'])}
+BackgroundNormal={rgb(p['primary'])}
+DecorationFocus={rgb(p['luminous'])}
+DecorationHover={rgb(p['luminous'])}
+ForegroundActive={rgb(selected)}
+ForegroundInactive={rgb(selected)}
+ForegroundLink={rgb(selected)}
+ForegroundNegative={rgb(selected)}
+ForegroundNeutral={rgb(selected)}
+ForegroundNormal={rgb(selected)}
+ForegroundPositive={rgb(selected)}
+ForegroundVisited={rgb(selected)}
+"""
+    scheme_name = "MoOSUI2Light" if variant == "light" else "MoOSUI2Dark"
+    display_name = "MoOS UI2 Light" if variant == "light" else "MoOS UI2 Dark"
+    return f"""# Generated from artwork/moos-ui2/palette.json. Do not hand-edit.
+[ColorEffects:Disabled]
+Color={rgb(p['raised'])}
+ColorAmount=0.3
+ColorEffect=2
+ContrastAmount=0.65
+ContrastEffect=1
+IntensityAmount=0.1
+IntensityEffect=2
+
+[ColorEffects:Inactive]
+ChangeSelectionColor=true
+Color={rgb(p['raised'])}
+ColorAmount=0.5
+ColorEffect=3
+ContrastAmount=0
+ContrastEffect=0
+Enable=true
+IntensityAmount=0
+IntensityEffect=0
+
+{group('Colors:Button', p['raised'], p['card'])}
+{group('Colors:Complementary', p['canvas'], p['surface'])}
+{group('Colors:Header', p['surface'], p['card'])}
+{group('Colors:Header][Inactive', p['surface'], p['surface'], p['muted'])}
+{selection}
+{group('Colors:Tooltip', p['card'], p['raised'])}
+{group('Colors:View', p['canvas'], p['card'])}
+{group('Colors:Window', p['surface'], p['card'])}
+[General]
+AccentColor={rgb(p['primary'])}
+ColorScheme={scheme_name}
+Name={display_name}
+shadeSortColumn=true
+
+[KDE]
+contrast=4
+
+[WM]
+activeBackground={rgb(p['card'])}
+activeBlend={rgb(p['text'])}
+activeForeground={rgb(p['text'])}
+inactiveBackground={rgb(p['surface'])}
+inactiveBlend={rgb(p['muted'])}
+inactiveForeground={rgb(p['muted'])}
+"""
+
+
+def konsole_scheme(variant: str) -> str:
+    p = variant_roles(variant)
+    light = variant == "light"
+    name = "MoOS UI2 Light" if light else "MoOS UI2 Dark"
+    background = p["card"] if light else p["canvas"]
+    base0 = p["text"] if light else p["raised"]
+    base7 = p["muted"] if light else p["text"]
+    terminal = {
+        0: (base0, p["surface"], p["muted"]),
+        1: (p["negative"], p["negative_deep"], p["negative"]),
+        2: (p["positive"], p["positive_deep"], p["positive"]),
+        3: (p["warning"], p["warning_deep"], p["warning"]),
+        4: (p["secondary"], p["secondary_deep"], p["secondary"]),
+        5: (p["primary"], p["secondary_deep"], p["luminous"]),
+        6: (p["luminous"], p["primary"], p["luminous"]),
+        7: (base7, p["muted"], p["selected_text"]),
+    }
+    blocks = []
+    for number, values in terminal.items():
+        blocks.append(f"""[Color{number}]
+Color={rgb(values[0])}
+
+[Color{number}Faint]
+Color={rgb(values[1])}
+
+[Color{number}Intense]
+Color={rgb(values[2])}
+""")
+    return f"""# Generated from artwork/moos-ui2/palette.json. Do not hand-edit.
+[Background]
+Color={rgb(background)}
+
+[BackgroundFaint]
+Color={rgb(p['surface'])}
+
+[BackgroundIntense]
+Color={rgb(p['canvas'])}
+
+{''.join(blocks)}
+[Foreground]
+Color={rgb(p['text'])}
+
+[ForegroundFaint]
+Color={rgb(p['muted'])}
+
+[ForegroundIntense]
+Color={rgb(p['selected_text'])}
+
+[General]
+Description={name}
+Opacity=1
+Blur=false
+Wallpaper=
+"""
+
+
+def konsole_profile(variant: str) -> str:
+    p = variant_roles(variant)
+    light = variant == "light"
+    scheme = "MoOSUI2Light" if light else "MoOSUI2Dark"
+    name = "MoOS UI2 Light" if light else "MoOS UI2"
+    return f"""# Generated by artwork/generate_moos_ui2.py. Do not hand-edit.
+[Appearance]
+ColorScheme={scheme}
+Font=JetBrains Mono,11,-1,5,50,0,0,0,0,0
+LineSpacing=2
+BoldIntense=true
+UseFontLineChararacters=true
+
+[General]
+Name={name}
+Parent=FALLBACK/
+TerminalMargin=14
+TerminalCenter=false
+ShowTerminalSizeHint=false
+
+[Scrolling]
+ScrollBarPosition=2
+HistoryMode=1
+HistorySize=20000
+
+[Cursor Options]
+CursorShape=0
+UseCustomCursorColor=true
+CustomCursorColor={rgb(p['primary'])}
+
+[Terminal Features]
+BlinkingCursorEnabled=true
+BellMode=3
+
+[Interaction Options]
+AutoCopySelectedText=true
+TrimTrailingSpacesInSelectedText=true
+UnderlineLinksEnabled=true
+UnderlineFilesEnabled=true
+"""
+
+
+def lnf_defaults(variant: str) -> str:
+    light = variant == "light"
+    scheme = "MoOSUI2Light" if light else "MoOSUI2Dark"
+    style = "MoOSUI2Light" if light else "MoOSUI2"
+    package = "org.moos.ui2.light" if light else "org.moos.ui2"
+    wallpaper = "MoOSUI2Tide" if light else "MoOSUI2Graphite"
+    icons = "NovaLight" if light else "Nova"
+    deco = "MoOSUI2Light" if light else "MoOSUI2"
+    return f"""# MoOS UI2 matched Global Theme defaults. Generated file.
+[kdeglobals][General]
+ColorScheme={scheme}
+
+[plasmarc][Theme]
+name={style}
+
+[Wallpaper]
+Image={wallpaper}
+
+[ksplashrc][KSplash]
+Theme={package}
+Engine=KSplashQML
+
+[kdeglobals][Icons]
+Theme={icons}
+
+[kdeglobals][Sounds]
+Enable=true
+Theme=moos-nova
+
+[kwinrc][org.kde.kdecoration2]
+library=org.kde.kwin.aurorae
+theme=__aurorae__svg__{deco}
+
+[kwinrc][Plugins]
+blurEnabled=true
+
+[kwinrc][Effect-blur]
+BlurStrength=8
+NoiseStrength=2
+
+[kcminputrc][Mouse]
+cursorTheme=NovaIce
+"""
+
+
+def lnf_metadata(package: str, light: bool) -> str:
+    return json.dumps({
+        "KPlugin": {
+            "Id": package,
+            "Name": "MoOS UI2 Light — واجهة MoOS" if light else "MoOS UI2 — واجهة MoOS",
+            "Description": ("سمة MoOS UI2 التركواز الفاتحة | MoOS UI2 tidal light global theme"
+                            if light else
+                            "سمة MoOS UI2 الغرافيتية الداكنة | MoOS UI2 graphite dark global theme"),
+            "Authors": [{"Name": "Moalfarras"}], "Version": "2.0.0",
+            "License": "GPL-3.0-or-later",
+            "Website": "https://github.com/moalfarras-sys/moos-image",
+        },
+        "KPackageStructure": "Plasma/LookAndFeel",
+        "X-Plasma-APIVersion": "2",
+    }, ensure_ascii=False, indent=4)
+
+
+def lnf_readme(package: str, light: bool) -> str:
+    variant = "Tidal Light" if light else "Graphite Dark"
+    scheme = "MoOSUI2Light" if light else "MoOSUI2Dark"
+    style = "MoOSUI2Light" if light else "MoOSUI2"
+    wallpaper = "MoOSUI2Tide" if light else "MoOSUI2Graphite"
+    return f"""# {package} — MoOS UI2 {variant}
+
+حزمة MoOS UI2 المتكاملة لـ KDE Plasma 6.  تطبق لوحة الألوان والـPlasma Style
+والزخرفة والخلفية وشاشة البدء المتطابقة، مع إبقاء MoOS UI1 مثبتًا للرجوع.
+
+| Surface | Selector |
+|---|---|
+| Look-and-feel | `{package}` |
+| Colour scheme | `{scheme}` |
+| Plasma style | `{style}` |
+| Wallpaper | `{wallpaper}` |
+
+## Runtime verification
+
+```bash
+plasma-apply-lookandfeel -a {package}
+/usr/libexec/ksmserver-logout-greeter --windowed --lookandfeel {package}
+```
+
+Generated by `artwork/generate_moos_ui2.py`; do not hand-edit this package.
+"""
+
+
+def logout_readme(package: str, light: bool) -> str:
+    variant = "Tidal Light" if light else "Graphite Dark"
+    return f"""# MoOS UI2 logout — {variant}
+
+واجهة الخروج الرسمية للحزمة `{package}`. تحافظ على إشارات وقدرات مضيف
+KDE Plasma 6 الفعلية (logout, lock, suspend, hibernate, restart, shutdown)
+وتستخدم مكوّن `MoOSUI2ActionButton.qml` المحلي المطابق للوحة {variant}.
+
+```bash
+/usr/libexec/ksmserver-logout-greeter --windowed --lookandfeel {package}
+```
+
+`Logout.qml` و`MoOSUI2ActionButton.qml`: GPL-2.0-or-later. عقد المضيف مشتق
+من KDE Breeze؛ التنفيذ البصري لـ MoOS، © 2026 Moalfarras.
+"""
+
+
+def wallpaper_metadata(package: str, light: bool) -> str:
+    return json.dumps({
+        "KPlugin": {
+            "Id": package,
+            "Name": "MoOS UI2 Tidal Mist" if light else "MoOS UI2 Graphite Tide",
+            "Name[ar]": "ضباب MoOS UI2 التركوازي" if light else "مدّ MoOS UI2 الغرافيتي",
+            "Description": ("Mineral turquoise daylight for MoOS UI2"
+                            if light else "Graphite mineral glass and a turquoise tide for MoOS UI2"),
+            "Description[ar]": ("تركواز معدني هادئ لسمة MoOS UI2 الفاتحة"
+                                if light else "زجاج غرافيتي ومد تركوازي لسمة MoOS UI2 الداكنة"),
+            "Authors": [{"Name": "Moalfarras"}], "License": "CC-BY-SA-4.0",
+        }
+    }, ensure_ascii=False, indent=2)
+
+
+def scale_crop(source: pathlib.Path, target: pathlib.Path, width: int, height: int) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg is None:
+        raise SystemExit("ffmpeg is required to export MoOS UI2 raster assets")
+    vf = (f"scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,"
+          f"crop={width}:{height}")
+    command = [ffmpeg, "-y", "-loglevel", "error", "-i", str(source),
+               "-vf", vf, "-frames:v", "1"]
+    if target.suffix.lower() in {".jpg", ".jpeg"}:
+        # 4:4:4 avoids turquoise edge/chroma smearing on a 4K desktop while q=2
+        # is visually transparent against the lossless master. Shipping the
+        # textured image as PNG was ~97 MiB for the two packages; JPEG keeps the
+        # source masters lossless in artwork/ and the runtime image lean.
+        command += ["-q:v", "2", "-pix_fmt", "yuvj444p"]
+    else:
+        command += ["-update", "1"]
+    command.append(str(target))
+    subprocess.run(command, check=True)
+
+
+def generate_desktop_theme(variant: str) -> None:
+    light = variant == "light"
+    style = "MoOSUI2Light" if light else "MoOSUI2"
+    wallpaper = "MoOSUI2Tide" if light else "MoOSUI2Graphite"
+    target = SHARE / f"plasma/desktoptheme/{style}"
+    copy_generated(SHARE / "plasma/desktoptheme/MoOSUI", target, variant)
+    write(target / "metadata.json", desktop_metadata(style, light))
+    write(target / "plasmarc", desktop_plasmarc(wallpaper, light))
+    scheme = color_scheme(variant)
+    write(target / "colors", scheme)
+    render_panel(target / "widgets/panel-background.svg", variant)
+
+
+def generate_aurorae(variant: str) -> None:
+    light = variant == "light"
+    name = "MoOSUI2Light" if light else "MoOSUI2"
+    target = SHARE / f"aurorae/themes/{name}"
+    copy_generated(SHARE / "aurorae/themes/MoOSUI", target, variant)
+    # rewrite_tree changes selectors inside files, not filesystem names.
+    source_rc = target / "MoOSUIrc"
+    target_rc = target / f"{name}rc"
+    if source_rc != target_rc:
+        source_rc.rename(target_rc)
+    metadata = target / "metadata.desktop"
+    text = metadata.read_text(encoding="utf-8")
+    text = re.sub(r"^Name=.*$", f"Name={'MoOS UI2 Light' if light else 'MoOS UI2'}", text, flags=re.M)
+    text = re.sub(r"^Comment=.*$", ("Comment=Mineral turquoise glass window decoration for MoOS"
+                                      if light else
+                                      "Comment=Graphite glass window decoration for MoOS"), text, flags=re.M)
+    text = re.sub(r"^X-KDE-PluginInfo-Name=.*$", f"X-KDE-PluginInfo-Name={name}", text, flags=re.M)
+    text = re.sub(r"^X-KDE-PluginInfo-Version=.*$", "X-KDE-PluginInfo-Version=2.0", text, flags=re.M)
+    metadata.write_text(text, encoding="utf-8")
+
+
+def generate_lnf(variant: str) -> None:
+    light = variant == "light"
+    package = "org.moos.ui2.light" if light else "org.moos.ui2"
+    target = SHARE / f"plasma/look-and-feel/{package}"
+    copy_generated(SHARE / "plasma/look-and-feel/org.moos.ui", target, variant)
+    button = target / "contents/logout/NovaActionButton.qml"
+    if button.exists():
+        button.rename(target / "contents/logout/MoOSUI2ActionButton.qml")
+    write(target / "metadata.json", lnf_metadata(package, light))
+    write(target / "contents/defaults", lnf_defaults(variant))
+    write(target / "README.md", lnf_readme(package, light))
+    write(target / "contents/logout/README.md", logout_readme(package, light))
+
+
+def generate_wallpaper(variant: str) -> None:
+    light = variant == "light"
+    package = "MoOSUI2Tide" if light else "MoOSUI2Graphite"
+    source = ART / "wallpapers" / ("moos-ui2-tide-master.png" if light else
+                                    "moos-ui2-graphite-master.png")
+    target = SHARE / f"wallpapers/{package}"
+    if target.exists():
+        shutil.rmtree(target)
+    for width, height in ((3840, 2160), (3440, 1440), (2560, 1600)):
+        filename = f"{width}x{height}.jpg"
+        for folder in ("images", "images_dark"):
+            scale_crop(source, target / f"contents/{folder}/{filename}", width, height)
+    scale_crop(source, target / "contents/screenshot.png", 1920, 1080)
+    write(target / "metadata.json", wallpaper_metadata(package, light))
+    write(target / "README.md", f"""# {package}
+
+Original MoOS UI2 generated wallpaper. The project-bound raster master and its
+generation prompt live under `artwork/moos-ui2/` and `artwork/MOOS_UI2_DESIGN.md`.
+
+Copyright © 2026 Moalfarras. CC-BY-SA-4.0.
+""")
+
+
+def generate_weather_runtime() -> None:
+    DASHBOARD_WEATHER.mkdir(parents=True, exist_ok=True)
+    for kind in WEATHER_KINDS:
+        source = ART / f"weather/{kind}.png"
+        if not source.is_file():
+            raise SystemExit(f"missing owned UI2 weather master: {source}")
+        shutil.copyfile(source, DASHBOARD_WEATHER / f"{kind}.png")
+
+
+def preflight() -> None:
+    """Fail before touching any shipped output when an input/tool is missing."""
+    if shutil.which("ffmpeg") is None:
+        raise SystemExit("ffmpeg is required to export MoOS UI2 raster assets")
+    for master in (
+        ART / "wallpapers/moos-ui2-graphite-master.png",
+        ART / "wallpapers/moos-ui2-tide-master.png",
+    ):
+        if not master.is_file():
+            raise SystemExit(f"missing UI2 wallpaper master: {master}")
+    for kind in WEATHER_KINDS:
+        master = ART / f"weather/{kind}.png"
+        if not master.is_file():
+            raise SystemExit(f"missing owned UI2 weather master: {master}")
+
+
+def remove_output(path: pathlib.Path) -> None:
+    if path.is_dir():
+        shutil.rmtree(path)
+    elif path.exists():
+        path.unlink()
+
+
+def generate_previews(variant: str) -> None:
+    light = variant == "light"
+    package = "org.moos.ui2.light" if light else "org.moos.ui2"
+    source = ART / "wallpapers" / ("moos-ui2-tide-master.png" if light else
+                                    "moos-ui2-graphite-master.png")
+    target = SHARE / f"plasma/look-and-feel/{package}/contents/previews"
+    scale_crop(source, target / "preview.png", 600, 337)
+    scale_crop(source, target / "lockscreen.png", 600, 337)
+    scale_crop(source, target / "splash.png", 300, 169)
+    scale_crop(source, target / "fullscreenpreview.jpg", 1920, 1080)
+
+
+def validate_outputs() -> None:
+    for output in OUTPUTS:
+        if not output.exists():
+            raise SystemExit(f"missing generated UI2 output: {output}")
+
+    legacy_hex = set(SOURCE_HEX_ROLE)
+    legacy_rgb = set(SOURCE_RGB_ROLE)
+    for root in OUTPUTS:
+        paths = [root] if root.is_file() else root.rglob("*")
+        for path in paths:
+            if not path.is_file() or path.suffix.lower() in {".png", ".jpg", ".jpeg"}:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            remaining = sorted((legacy_hex | legacy_rgb) & set(re.findall(
+                r"#[0-9A-Fa-f]{6}|(?<![\d.])(?:[0-9]{1,3},){2}[0-9]{1,3}(?![\d.])", text
+            )))
+            if remaining:
+                raise SystemExit(f"legacy UI1 colour in {path}: {remaining[0]}")
+            if "MoOSUI22" in text:
+                raise SystemExit(f"cascaded UI2 identity replacement in {path}")
+
+    for variant in ("dark", "light"):
+        style = "MoOSUI2Light" if variant == "light" else "MoOSUI2"
+        widgets = SHARE / f"plasma/desktoptheme/{style}/widgets"
+        required = {"button.svg", "line.svg", "lineedit.svg", "listitem.svg",
+                    "panel-background.svg", "plasmoidheading.svg", "tasks.svg", "viewitem.svg"}
+        actual = {path.name for path in widgets.glob("*.svg")}
+        missing = required - actual
+        if missing:
+            raise SystemExit(f"{style} is missing its own SVG: {sorted(missing)[0]}")
+
+        package = "org.moos.ui2.light" if variant == "light" else "org.moos.ui2"
+        logout = SHARE / f"plasma/look-and-feel/{package}/contents/logout"
+        if not (logout / "MoOSUI2ActionButton.qml").is_file():
+            raise SystemExit(f"{package} is missing its logout action component")
+        if "MoOSUI2ActionButton {" not in (logout / "Logout.qml").read_text(encoding="utf-8"):
+            raise SystemExit(f"{package} logout screen does not instantiate its action component")
+
+
+def main() -> None:
+    before = protected_snapshot()
+    preflight()
+
+    # Generation is transactional. A missing encoder was once able to delete
+    # every working UI2 package and fail halfway through recreating them. Move
+    # the current outputs aside on the same filesystem, validate the complete
+    # replacement, then discard the backup; any exception restores the exact
+    # pre-run tree.
+    with tempfile.TemporaryDirectory(prefix=".moos-ui2-backup-", dir=ROOT) as tmp:
+        backup_root = pathlib.Path(tmp)
+        backups: dict[pathlib.Path, pathlib.Path] = {}
+        backup_complete = False
+        try:
+            # Keep the backup phase inside the same recovery boundary as
+            # generation.  A permission error, interrupt, or failed later
+            # rename must restore every output already moved aside before the
+            # TemporaryDirectory is cleaned up.
+            fail_backup_at = (int(os.environ.get("MOOS_UI2_TEST_FAIL_BACKUP_AT", "0"))
+                              if TEST_ROOT else 0)
+            moved = 0
+            for output in OUTPUTS:
+                if not output.exists():
+                    continue
+                backup = backup_root / output.relative_to(ROOT)
+                backup.parent.mkdir(parents=True, exist_ok=True)
+                # Register the intended backup before rename. If rename itself
+                # fails the missing backup is ignored during recovery; if an
+                # interrupt lands immediately after rename, recovery still
+                # knows where the moved output went.
+                backups[output] = backup
+                if fail_backup_at and moved + 1 == fail_backup_at:
+                    raise OSError(f"injected UI2 backup rename failure at output {moved + 1}")
+                output.rename(backup)
+                moved += 1
+            backup_complete = True
+
+            for variant in ("dark", "light"):
+                generate_desktop_theme(variant)
+                generate_aurorae(variant)
+                generate_lnf(variant)
+                scheme_name = "MoOSUI2Light" if variant == "light" else "MoOSUI2Dark"
+                write(SHARE / f"color-schemes/{scheme_name}.colors", color_scheme(variant))
+                write(SHARE / f"konsole/{scheme_name}.colorscheme", konsole_scheme(variant))
+                profile = "MoOSUI2Light.profile" if variant == "light" else "MoOSUI2.profile"
+                write(SHARE / f"konsole/{profile}", konsole_profile(variant))
+                generate_wallpaper(variant)
+                generate_previews(variant)
+
+            generate_weather_runtime()
+            validate_outputs()
+            after = protected_snapshot()
+            changed = [path for path in PROTECTED if before[path] != after[path]]
+            if changed:
+                raise SystemExit(f"generator mutated protected UI1 path: {changed[0]}")
+        except BaseException:
+            # During generation, remove every partial output (including paths
+            # that did not exist before the run). During an interrupted backup,
+            # untouched later outputs are still the originals and must not be
+            # deleted; clear only locations whose backup actually exists.
+            if backup_complete:
+                for output in OUTPUTS:
+                    remove_output(output)
+            else:
+                for output, backup in backups.items():
+                    if backup.exists():
+                        remove_output(output)
+            for output, backup in backups.items():
+                if backup.exists():
+                    output.parent.mkdir(parents=True, exist_ok=True)
+                    backup.rename(output)
+            raise
+    print("generated isolated MoOS UI2 Graphite/Tidal packages; UI1 unchanged")
+
+
+if __name__ == "__main__":
+    main()

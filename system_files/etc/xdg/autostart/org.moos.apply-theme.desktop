@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=MoOS Apply Nova Theme
-Name[ar]=تطبيق سمة MoOS Nova
-Comment=Applies the MoOS Nova Global Theme on first login (once per user)
-Comment[ar]=يطبّق سمة MoOS Nova عند أول تسجيل دخول
+Name=MoOS Apply UI2 Theme
+Name[ar]=تطبيق سمة MoOS UI2
+Comment=Applies the complete MoOS UI2 Global Theme on first login (once per user)
+Comment[ar]=يطبّق سمة MoOS UI2 المتكاملة عند أول تسجيل دخول
 Exec=/usr/bin/moos-apply-theme
 Icon=moos-logo
 Terminal=false

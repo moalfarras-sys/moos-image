@@ -2,7 +2,7 @@
 # Scoped, once-per-revision UI migration for immutable MoOS images.
 set -uo pipefail
 
-MOOS_THEME_REV=7
+MOOS_THEME_REV=8
 MOAI_UI_REV=3
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/moos"
 cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"

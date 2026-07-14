@@ -1,0 +1,40 @@
+{
+  "dark": {
+    "canvas": "#14191C",
+    "surface": "#1D2529",
+    "card": "#232D32",
+    "raised": "#2C383E",
+    "primary": "#4ED7C8",
+    "secondary": "#78AFFF",
+    "luminous": "#A8F1E8",
+    "positive": "#69D9A5",
+    "warning": "#F4C56A",
+    "negative": "#FF7D88",
+    "text": "#E8F1EF",
+    "muted": "#9CAFAC",
+    "outline": "#415158",
+    "shadow": "#111619",
+    "panel_top": "#35434A",
+    "panel_mid": "#263137",
+    "panel_bottom": "#182024"
+  },
+  "light": {
+    "canvas": "#D8EBE7",
+    "surface": "#C9E2DD",
+    "card": "#E1F0EC",
+    "raised": "#B8D8D2",
+    "primary": "#006D67",
+    "secondary": "#1D6278",
+    "luminous": "#0B6965",
+    "positive": "#086B4B",
+    "warning": "#7B520F",
+    "negative": "#A52F3F",
+    "text": "#17302E",
+    "muted": "#466360",
+    "outline": "#527F79",
+    "shadow": "#668681",
+    "panel_top": "#C0DDD7",
+    "panel_mid": "#ABD0C9",
+    "panel_bottom": "#93C0B8"
+  }
+}

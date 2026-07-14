@@ -1,0 +1,13 @@
+[Unit]
+Description=Watch Plasma automatic theme transitions for MoOS supplements
+PartOf=plasma-workspace.target
+
+[Path]
+# KConfig atomically rewrites this file when AutomaticLookAndFeel switches its
+# target at sunrise/sunset. The paired service never writes kdeglobals, so this
+# watch cannot trigger itself.
+PathChanged=%h/.config/kdeglobals
+Unit=moos-theme-sync.service
+
+[Install]
+WantedBy=plasma-workspace.target

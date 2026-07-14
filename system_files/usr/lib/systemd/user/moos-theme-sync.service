@@ -1,0 +1,13 @@
+[Unit]
+Description=Synchronize the complete MoOS automatic theme
+After=plasma-workspace.target
+PartOf=plasma-workspace.target
+StartLimitIntervalSec=60s
+StartLimitBurst=5
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/moos-theme sync-auto
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=45s

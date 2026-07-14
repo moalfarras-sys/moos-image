@@ -4,9 +4,21 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-13, image `44.20260713.104`.
+Last updated: 2026-07-14, booted image `44.20260713.112`.
 
-## Active visual work: MoOS UI
+## Active visual work: MoOS UI2
+
+The owner rejected MoOS UI revision 15 as visually insufficient after reviewing
+it on the installed machine. It remains installed and untouched as the explicit
+fallback. The isolated **MoOS UI2** Graphite Dark / Tidal Light family is now
+implemented, selected as the working-tree default, and proven in both variants
+on the installed Plasma session. Its palette, package IDs, generated-image
+prompts, independent dashboard, real screenshots, measured proof and rollback
+rules are documented in [`artwork/MOOS_UI2_DESIGN.md`](artwork/MOOS_UI2_DESIGN.md).
+`moos-theme ui1-dark|ui1-light` is the supported rollback; do not delete UI1 or
+leave user-local UI2 staging shadows after testing.
+
+## Previous visual work: MoOS UI
 
 The working tree contains the new **MoOS UI** dark/light visual pair, first-party
 Mo AI and Mo PC Remote icon masters, a warm matched wallpaper, and the glass

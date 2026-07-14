@@ -3,10 +3,116 @@
 import json, os, socket, subprocess, urllib.request
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, GLib
+from gi.repository import Gtk, Gdk, GLib
 
 UNIT = "mo-remote-personal.service"
 PORT = 8765
+
+# MoOS UI2 semantic colours.  Keep this panel on the same Graphite/Tidal rails as
+# the phone controller instead of letting ad-hoc Nova/purple colours creep into
+# first-party cards.  GTK's preference selects the variant; service behaviour is
+# deliberately independent from this presentation layer.
+UI2_DARK = {
+    "canvas": "#14191C", "surface": "#1D2529", "card": "#232D32",
+    "raised": "#2C383E", "primary": "#4ED7C8", "secondary": "#78AFFF", "luminous": "#A8F1E8",
+    "positive": "#69D9A5", "warning": "#F4C56A", "negative": "#FF7D88",
+    "text": "#E8F1EF", "muted": "#9CAFAC", "outline": "#415158",
+    "on_accent": "#102522", "shadow": "rgba(4, 10, 12, 0.42)",
+}
+UI2_LIGHT = {
+    "canvas": "#D8EBE7", "surface": "#C9E2DD", "card": "#E1F0EC",
+    "raised": "#B8D8D2", "primary": "#006D67", "secondary": "#1D6278", "luminous": "#0B6965",
+    "positive": "#086B4B", "warning": "#7B520F", "negative": "#A52F3F",
+    "text": "#17302E", "muted": "#466360", "outline": "#527F79",
+    "on_accent": "#E8F1EF", "shadow": "rgba(23, 48, 46, 0.16)",
+}
+
+def ui2_css(p):
+    return f"""
+@define-color ui2_canvas {p['canvas']};
+@define-color ui2_surface {p['surface']};
+@define-color ui2_card {p['card']};
+@define-color ui2_raised {p['raised']};
+@define-color ui2_primary {p['primary']};
+@define-color ui2_secondary {p['secondary']};
+@define-color ui2_luminous {p['luminous']};
+@define-color ui2_positive {p['positive']};
+@define-color ui2_warning {p['warning']};
+@define-color ui2_negative {p['negative']};
+@define-color ui2_text {p['text']};
+@define-color ui2_muted {p['muted']};
+@define-color ui2_outline {p['outline']};
+@define-color ui2_on_accent {p['on_accent']};
+
+window.moos-ui2 {{
+  background-color: @ui2_canvas;
+  color: @ui2_text;
+}}
+window.moos-ui2 .remote-shell {{
+  background-color: transparent;
+  color: @ui2_text;
+}}
+window.moos-ui2 .title-1,
+window.moos-ui2 .heading {{ color: @ui2_text; }}
+window.moos-ui2 .dim-label {{ color: @ui2_muted; }}
+window.moos-ui2 .ui2-card {{
+  background-color: @ui2_card;
+  color: @ui2_text;
+  border: 1px solid @ui2_outline;
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 10px 28px {p['shadow']};
+}}
+window.moos-ui2 button {{
+  background-color: @ui2_raised;
+  color: @ui2_text;
+  border: 1px solid @ui2_outline;
+  border-radius: 12px;
+  padding: 10px 16px;
+}}
+window.moos-ui2 button:hover,
+window.moos-ui2 button:focus-visible {{
+  border-color: @ui2_primary;
+  outline-color: @ui2_luminous;
+}}
+window.moos-ui2 button:active {{ background-color: @ui2_surface; }}
+window.moos-ui2 button.suggested-action {{
+  background-image: linear-gradient(to bottom right, @ui2_primary, @ui2_secondary);
+  color: @ui2_on_accent;
+  border-color: transparent;
+}}
+window.moos-ui2 button.destructive-action {{
+  background-color: @ui2_negative;
+  color: @ui2_on_accent;
+  border-color: transparent;
+}}
+window.moos-ui2 .success {{ color: @ui2_positive; }}
+window.moos-ui2 .error {{ color: @ui2_negative; }}
+window.moos-ui2 .ui2-log,
+window.moos-ui2 .ui2-log text {{
+  background-color: @ui2_surface;
+  color: @ui2_text;
+}}
+window.moos-ui2 selection {{
+  background-color: @ui2_primary;
+  color: @ui2_on_accent;
+}}
+window.moos-ui2 scrollbar slider {{
+  background-color: @ui2_outline;
+  border-radius: 999px;
+}}
+"""
+
+def gtk_prefers_dark():
+    settings = Gtk.Settings.get_default()
+    if settings is None:
+        return True
+    try:
+        if settings.get_property("gtk-application-prefer-dark-theme"):
+            return True
+        return "dark" in (settings.get_property("gtk-theme-name") or "").lower()
+    except (TypeError, AttributeError):
+        return True
 
 def run(*args):
     return subprocess.run(args, text=True, capture_output=True, timeout=5)
@@ -77,11 +183,22 @@ class App(Gtk.Application):
     def __init__(self): super().__init__(application_id="org.moos.MoPCRemote")
     def do_activate(self):
         self.win=Gtk.ApplicationWindow(application=self,title="Mo PC Remote")
+        self.win.add_css_class("moos-ui2")
+        self.style_provider=Gtk.CssProvider()
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), self.style_provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        self.apply_ui2_style()
+        settings=Gtk.Settings.get_default()
+        if settings:
+            settings.connect("notify::gtk-application-prefer-dark-theme",self.apply_ui2_style)
+            settings.connect("notify::gtk-theme-name",self.apply_ui2_style)
         self.win.set_default_size(720,620)
         outer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14,margin_top=22,margin_bottom=22,margin_start=24,margin_end=24)
+        outer.add_css_class("remote-shell")
         title=Gtk.Label(label="Mo PC Remote",xalign=0); title.add_css_class("title-1"); outer.append(title)
         sub=Gtk.Label(label="Native MoOS control center · مركز تحكم MoOS الأصلي",xalign=0); sub.add_css_class("dim-label"); outer.append(sub)
-        self.status=Gtk.Label(xalign=0); self.status.set_wrap(True); outer.append(self.status)
+        self.status=Gtk.Label(xalign=0); self.status.set_wrap(True); self.status.add_css_class("ui2-card"); outer.append(self.status)
         buttons=Gtk.Box(spacing=8)
         for label,cb,style in (("Start / تشغيل",self.start,"suggested-action"),("Stop / إيقاف",self.stop,"destructive-action"),("Refresh / تحديث",self.refresh,None)):
             b=Gtk.Button(label=label); b.connect("clicked",cb)
@@ -92,10 +209,12 @@ class App(Gtk.Application):
         # Address block: the one that works anywhere first, the house-only one second, and a QR
         # so the phone never has to be told an address at all.
         addr=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=16)
+        addr.add_css_class("ui2-card")
         addr_text=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=4,hexpand=True)
         self.address=Gtk.Label(xalign=0,selectable=True); self.address.set_wrap(True); self.address.set_selectable(True)
         addr_text.append(self.address)
         self.anywhere_btn=Gtk.Button(label="Enable access from anywhere / تفعيل الوصول من أي مكان")
+        self.anywhere_btn.add_css_class("suggested-action")
         self.anywhere_btn.connect("clicked",self.on_enable_anywhere); self.anywhere_btn.set_visible(False)
         addr_text.append(self.anywhere_btn)
         addr.append(addr_text)
@@ -104,12 +223,16 @@ class App(Gtk.Application):
         outer.append(addr)
 
         self.grid=Gtk.Grid(column_spacing=18,row_spacing=10)
+        self.grid.add_css_class("ui2-card")
         outer.append(self.grid)
         log_title=Gtk.Label(label="Recent errors / آخر الأخطاء",xalign=0); log_title.add_css_class("heading"); outer.append(log_title)
         scroll=Gtk.ScrolledWindow(vexpand=True); self.log=Gtk.TextView(editable=False,monospace=True,wrap_mode=Gtk.WrapMode.WORD_CHAR)
+        scroll.add_css_class("ui2-card"); self.log.add_css_class("ui2-log")
         scroll.set_child(self.log); outer.append(scroll)
         self.win.set_child(outer); self.win.present(); self.refresh()
         GLib.timeout_add_seconds(3,self.refresh)
+    def apply_ui2_style(self,*_):
+        self.style_provider.load_from_data(ui2_css(UI2_DARK if gtk_prefers_dark() else UI2_LIGHT))
     def row(self,n,label,value,ok):
         a=Gtk.Label(label=label,xalign=0); b=Gtk.Label(label=("● " if ok else "○ ")+value,xalign=0)
         b.add_css_class("success" if ok else "error"); self.grid.attach(a,0,n,1,1); self.grid.attach(b,1,n,1,1)

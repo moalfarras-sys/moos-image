@@ -1,0 +1,15 @@
+{
+  "KPlugin": {
+    "Id": "MoOSUI2Tide",
+    "Name": "MoOS UI2 Tidal Mist",
+    "Name[ar]": "ضباب MoOS UI2 التركوازي",
+    "Description": "Mineral turquoise daylight for MoOS UI2",
+    "Description[ar]": "تركواز معدني هادئ لسمة MoOS UI2 الفاتحة",
+    "Authors": [
+      {
+        "Name": "Moalfarras"
+      }
+    ],
+    "License": "CC-BY-SA-4.0"
+  }
+}

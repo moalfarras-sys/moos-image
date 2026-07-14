@@ -1,0 +1,15 @@
+{
+  "KPlugin": {
+    "Id": "MoOSUI2Graphite",
+    "Name": "MoOS UI2 Graphite Tide",
+    "Name[ar]": "مدّ MoOS UI2 الغرافيتي",
+    "Description": "Graphite mineral glass and a turquoise tide for MoOS UI2",
+    "Description[ar]": "زجاج غرافيتي ومد تركوازي لسمة MoOS UI2 الداكنة",
+    "Authors": [
+      {
+        "Name": "Moalfarras"
+      }
+    ],
+    "License": "CC-BY-SA-4.0"
+  }
+}

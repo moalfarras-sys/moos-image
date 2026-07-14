@@ -1,7 +1,7 @@
 # MoOS system-wide KDE defaults
 # New users inherit these unless they change them in System Settings.
-# MoOS UI defaults are supplied by the org.moos.ui Global Theme. Nova remains
-# installed as the known-good fallback and still provides the icon family.
+# MoOS UI2 defaults are supplied by the org.moos.ui2 Global Theme. MoOS UI1
+# remains installed as the explicit rollback and Nova still provides the icons.
 #
 # Font values use the Qt 6 QFont::toString() 16-field format that Plasma 6
 # writes (family,pointSize,pixelSize,styleHint,weight,style,underline,
@@ -11,7 +11,7 @@
 # Qt 5 weights instead).
 
 [General]
-ColorScheme=MoOSUIDark
+ColorScheme=MoOSUI2Dark
 font=IBM Plex Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 menuFont=IBM Plex Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 toolBarFont=IBM Plex Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
@@ -35,7 +35,7 @@ Theme=Nova
 # did to an existing user, and why this switch used to be disarmed outright. MoOS
 # had only one theme, so there was no safe target to give it.
 #
-# MoOS now ships a matched pair — org.moos.ui and org.moos.ui.light — so the
+# MoOS now ships a matched pair — org.moos.ui2 and org.moos.ui2.light — so the
 # switch finally has somewhere safe to land in BOTH directions. Naming them here is
 # what makes it safe: however the switch fires, and whoever turns it on, it can only
 # ever land on MoOS.
@@ -44,9 +44,9 @@ Theme=Nova
 # sunset is a choice, not a default. `moos-theme auto` turns it on.
 [KDE]
 AutomaticLookAndFeel=false
-LookAndFeelPackage=org.moos.ui
-DefaultDarkLookAndFeel=org.moos.ui
-DefaultLightLookAndFeel=org.moos.ui.light
+LookAndFeelPackage=org.moos.ui2
+DefaultDarkLookAndFeel=org.moos.ui2
+DefaultLightLookAndFeel=org.moos.ui2.light
 
 # Nova event sounds — the original MoOS sound theme shipped at
 # /usr/share/sounds/moos-nova (freedesktop sound-theme-spec layout).

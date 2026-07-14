@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --experimental-strip-types tests/coordinates.test.ts",
+    "test": "node --experimental-strip-types tests/coordinates.test.ts && node --experimental-strip-types tests/ui2-theme.test.ts",
     "preview": "vite preview",
     "gen-icons": "node scripts/gen-icons.mjs"
   },

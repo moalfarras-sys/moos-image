@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# moos-apply-theme — apply the full MoOS UI Global Theme once per user.
+# moos-apply-theme — apply the full MoOS UI2 Global Theme once per user.
 #
-# WHY: /etc/xdg/kdeglobals sets [KDE] LookAndFeelPackage=org.moos.ui, but
+# WHY: /etc/xdg/kdeglobals sets [KDE] LookAndFeelPackage=org.moos.ui2, but
 # Plasma 6 only AUTO-applies a subset of a default Global Theme (color scheme,
 # icons) on a fresh login — it does NOT apply the wallpaper, splash, or the
 # rest of the "look". So a freshly-created INSTALLED user lands on a half-Breeze
@@ -13,22 +13,42 @@
 # applied on the first login AFTER a `bootc upgrade` that ships this file.
 set -uo pipefail
 
-# Versioned marker: bump THEME_REV whenever the Nova assets change so a later
+# Versioned marker: bump THEME_REV whenever the MoOS UI assets change so a later
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=15
+THEME_REV=16
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
-marker="${state_dir}/moos-nova-theme-applied.v${THEME_REV}"
+mkdir -p "$state_dir" 2>/dev/null || true
+marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
+
+# Plasma can launch the same autostart entry twice while session restore is
+# settling. Two migrations removing/recreating the same applet are not
+# idempotent while they overlap, so only one instance may own this revision.
+if command -v flock >/dev/null 2>&1; then
+    lock_dir="${XDG_RUNTIME_DIR:-$state_dir}"
+    mkdir -p "$lock_dir" 2>/dev/null || true
+    if exec 9>"${lock_dir}/moos-theme.lock"; then
+        flock -n 9 || exit 0
+    fi
+fi
 
 # MoOS now ships TWO looks, and they are equally legitimate. Everything below that
 # asks "is the desktop still MoOS?" must accept either — a user who chose Light and
 # gets dragged back to Dark on every login has not been protected, they have been
 # overruled.
-DARK_LNF="org.moos.ui"
-LIGHT_LNF="org.moos.ui.light"
-DARK_DECO="__aurorae__svg__MoOSUI"
-LIGHT_DECO="__aurorae__svg__MoOSUILight"
+DARK_LNF="org.moos.ui2"
+LIGHT_LNF="org.moos.ui2.light"
+DARK_DECO="__aurorae__svg__MoOSUI2"
+LIGHT_DECO="__aurorae__svg__MoOSUI2Light"
+
+# UI1 remains installed as an explicit rollback. It counts as intact after the
+# UI2 migration marker exists, so `moos-theme ui1-dark|ui1-light` is a durable
+# user choice rather than something the login repair immediately overwrites.
+UI1_DARK_LNF="org.moos.ui"
+UI1_LIGHT_LNF="org.moos.ui.light"
+UI1_DARK_DECO="__aurorae__svg__MoOSUI"
+UI1_LIGHT_DECO="__aurorae__svg__MoOSUILight"
 
 log="${XDG_CACHE_HOME:-$HOME/.cache}/moos-apply-theme.log"
 mkdir -p "$(dirname "$log")" 2>/dev/null || true
@@ -50,6 +70,187 @@ current_decoration() {
     kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme 2>/dev/null
 }
 
+current_scheme() {
+    command -v kreadconfig6 >/dev/null 2>&1 || return 1
+    kreadconfig6 --file kdeglobals --group General --key ColorScheme 2>/dev/null
+}
+
+current_style() {
+    command -v kreadconfig6 >/dev/null 2>&1 || return 1
+    kreadconfig6 --file plasmarc --group Theme --key name 2>/dev/null
+}
+
+current_icons() {
+    command -v kreadconfig6 >/dev/null 2>&1 || return 1
+    kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null
+}
+
+desktop_wallpapers_complete() {
+    local expected="$1" result desktops matching config
+    if command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
+        result="$(timeout 4s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+            -m org.kde.PlasmaShell.evaluateScript '
+                var expected = "'"$expected"'";
+                var ds = desktops();
+                var matching = 0;
+                for (var i = 0; i < ds.length; i++) {
+                    ds[i].currentConfigGroup = ["Wallpaper", "org.kde.image", "General"];
+                    var image = String(ds[i].readConfig("Image", ""));
+                    if (image.indexOf(expected) >= 0) { matching++; }
+                }
+                print("desktops=" + ds.length + ";matching=" + matching);
+            ' 2>/dev/null)" || result=""
+        result="$(printf '%s\n' "$result" \
+            | grep -oE 'desktops=[1-9][0-9]*;matching=[0-9]+' | head -n1)"
+        if [ -n "$result" ]; then
+            desktops="${result#desktops=}"
+            desktops="${desktops%%;*}"
+            matching="${result##*matching=}"
+            [ "$desktops" = "$matching" ]
+            return
+        fi
+    fi
+
+    config="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
+    [ -r "$config" ] || return 1
+    awk -v expected="$expected" '
+        /^\[Containments\]\[[^]]+\]\[Wallpaper\]\[org\.kde\.image\]\[General\]$/ {
+            section = $0
+            sub(/^\[Containments\]\[/, "", section)
+            split(section, parts, "\\]\\[")
+            containment = parts[1]
+            mode = "wallpaper"
+            next
+        }
+        /^\[Containments\]\[[^]]+\]$/ {
+            section = $0
+            sub(/^\[Containments\]\[/, "", section)
+            sub(/\]$/, "", section)
+            containment = section
+            mode = "containment"
+            next
+        }
+        /^\[/ { mode = ""; next }
+        mode == "containment" && /^plugin=/ {
+            rootPlugin[containment] = substr($0, 8)
+            next
+        }
+        mode == "wallpaper" && /^Image=/ {
+            image[containment] = substr($0, 7)
+            next
+        }
+        END {
+            desktops = 0
+            matching = 0
+            for (id in rootPlugin) {
+                if (rootPlugin[id] == "org.kde.panel") { continue }
+                desktops++
+                if (index(image[id], expected) > 0) { matching++ }
+            }
+            exit !(desktops > 0 && matching == desktops)
+        }
+    ' "$config" 2>/dev/null
+}
+
+current_lockscreen_wallpaper() {
+    command -v kreadconfig6 >/dev/null 2>&1 || return 1
+    kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
+        --group org.kde.image --group General --key Image 2>/dev/null
+}
+
+# Prefer the running containments, then fall back to Plasma's persisted source
+# of truth when autostart arrives before the shell's scripting endpoint. The
+# invariant is PER CONTAINMENT: every desktop owns exactly one card of the
+# selected generation and none of the other. A global `ui2=1` is wrong as soon
+# as a second monitor or Activity adds another legitimate desktop containment.
+current_widget_state() {
+    local result config
+    if command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
+        result="$(timeout 4s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+            -m org.kde.PlasmaShell.evaluateScript '
+                var ds = desktops();
+                var ui1Each = ds.length > 0;
+                var ui2Each = ds.length > 0;
+                for (var i = 0; i < ds.length; i++) {
+                    var ui1 = 0, ui2 = 0;
+                    var ws = ds[i].widgets();
+                    for (var j = 0; j < ws.length; j++) {
+                        if (ws[j].type == "org.moos.nova.deskclock") { ui1++; }
+                        if (ws[j].type == "org.moos.ui2.dashboard") { ui2++; }
+                    }
+                    if (!(ui1 == 1 && ui2 == 0)) { ui1Each = false; }
+                    if (!(ui1 == 0 && ui2 == 1)) { ui2Each = false; }
+                }
+                var state = ui1Each ? "ui1-each" : (ui2Each ? "ui2-each" : "mixed");
+                print("desktops=" + ds.length + ";state=" + state);
+            ' 2>/dev/null)" || result=""
+        # A responsive shell can still answer before it has created any desktop
+        # containments. Never accept that transient empty result as real state;
+        # let the persisted parser below decide instead.
+        result="$(printf '%s\n' "$result" \
+            | grep -oE 'desktops=[1-9][0-9]*;state=(ui1-each|ui2-each|mixed)' \
+            | head -n1)"
+        if [ -n "$result" ]; then
+            printf '%s\n' "${result##*state=}"
+            return 0
+        fi
+    fi
+
+    config="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
+    [ -r "$config" ] || return 1
+    # Parse only direct applets of top-level desktop containments. Nested tray
+    # applets and panels also carry plugin= keys and must not enter this count.
+    # The parser intentionally returns failure when no persisted desktop exists:
+    # "zero desktops" is startup uncertainty, never a valid completed theme.
+    awk '
+        /^\[Containments\]\[[^]]+\]\[Applets\]\[[^]]+\]$/ {
+            section = $0
+            sub(/^\[Containments\]\[/, "", section)
+            split(section, parts, "\\]\\[")
+            containment = parts[1]
+            mode = "applet"
+            next
+        }
+        /^\[Containments\]\[[^]]+\]$/ {
+            section = $0
+            sub(/^\[Containments\]\[/, "", section)
+            sub(/\]$/, "", section)
+            containment = section
+            mode = "containment"
+            next
+        }
+        /^\[/ { mode = ""; next }
+        mode == "containment" && /^plugin=/ {
+            plugin = substr($0, 8)
+            rootPlugin[containment] = plugin
+            next
+        }
+        mode == "applet" && /^plugin=org\.moos\.nova\.deskclock$/ {
+            ui1[containment]++
+            next
+        }
+        mode == "applet" && /^plugin=org\.moos\.ui2\.dashboard$/ {
+            ui2[containment]++
+            next
+        }
+        END {
+            desktops = 0
+            ui1Each = 1
+            ui2Each = 1
+            for (id in rootPlugin) {
+                if (rootPlugin[id] == "org.kde.panel") { continue }
+                desktops++
+                if (!((ui1[id] + 0) == 1 && (ui2[id] + 0) == 0)) { ui1Each = 0 }
+                if (!((ui1[id] + 0) == 0 && (ui2[id] + 0) == 1)) { ui2Each = 0 }
+            }
+            if (desktops == 0) { exit 2 }
+            if (ui1Each) { print "ui1-each" }
+            else if (ui2Each) { print "ui2-each" }
+            else { print "mixed" }
+        }
+    ' "$config" 2>/dev/null
+}
+
 # The marker means "this revision was applied once". It does NOT mean the desktop still
 # LOOKS like MoOS, and those two came apart the moment Plasma started rewriting
 # LookAndFeelPackage behind our back (see defuse_automatic_lookandfeel below). An
@@ -62,10 +263,53 @@ current_decoration() {
 # one of ours AND the decoration is the one that belongs to it. A Nova Light
 # desktop wearing the dark decoration is drift just as much as a Breeze one is.
 theme_intact() {
-    local lnf="$1" deco="$2"
-    [ "$lnf" = "$DARK_LNF"  ] && [ "$deco" = "$DARK_DECO"  ] && return 0
-    [ "$lnf" = "$LIGHT_LNF" ] && [ "$deco" = "$LIGHT_DECO" ] && return 0
-    return 1
+    local lnf="$1" deco="$2" scheme style icons widgets
+    local expected_deco expected_scheme expected_style expected_icons expected_widgets
+    scheme="$(current_scheme)" || return 1
+    style="$(current_style)" || return 1
+    icons="$(current_icons)" || return 1
+    widgets="$(current_widget_state)" || return 1
+
+    case "$lnf" in
+        "$DARK_LNF")
+            expected_deco="$DARK_DECO"; expected_scheme=MoOSUI2Dark
+            expected_style=MoOSUI2; expected_icons=Nova
+            expected_widgets=ui2-each
+            ;;
+        "$LIGHT_LNF")
+            expected_deco="$LIGHT_DECO"; expected_scheme=MoOSUI2Light
+            expected_style=MoOSUI2Light; expected_icons=NovaLight
+            expected_widgets=ui2-each
+            ;;
+        "$UI1_DARK_LNF")
+            expected_deco="$UI1_DARK_DECO"; expected_scheme=MoOSUIDark
+            expected_style=MoOSUI; expected_icons=Nova
+            expected_widgets=ui1-each
+            ;;
+        "$UI1_LIGHT_LNF")
+            expected_deco="$UI1_LIGHT_DECO"; expected_scheme=MoOSUILight
+            expected_style=MoOSUILight; expected_icons=NovaLight
+            expected_widgets=ui1-each
+            ;;
+        *) return 1 ;;
+    esac
+
+    [ "$deco" = "$expected_deco" ] \
+        && [ "$scheme" = "$expected_scheme" ] \
+        && [ "$style" = "$expected_style" ] \
+        && [ "$icons" = "$expected_icons" ] \
+        && [ "$widgets" = "$expected_widgets" ]
+}
+
+# Completion is stricter than steady-state integrity: a user may deliberately
+# replace their wallpaper later, but the first revision apply may only mark
+# itself done after both desktop and lock-screen received the requested package.
+theme_complete() {
+    local lnf="$1" deco="$2" wallpaper_package="$3" lockscreen
+    theme_intact "$lnf" "$deco" || return 1
+    desktop_wallpapers_complete "$wallpaper_package" || return 1
+    lockscreen="$(current_lockscreen_wallpaper)" || return 1
+    case "$lockscreen" in *"$wallpaper_package"*) ;; *) return 1 ;; esac
 }
 
 # Which one should a repair restore? Whichever the user last chose. Only when the
@@ -73,11 +317,41 @@ theme_intact() {
 # default. Re-applying Dark to someone who deliberately picked Light would make
 # this script the bug it exists to fix.
 target_lnf() {
-    [ "$(current_lookandfeel)" = "$LIGHT_LNF" ] && { echo "$LIGHT_LNF"; return; }
-    echo "$DARK_LNF"
+    local current completed
+    if [ "$#" -ge 1 ]; then
+        current="$1"
+    else
+        current="$(current_lookandfeel)"
+    fi
+    if [ "$#" -ge 2 ]; then
+        completed="$2"
+    elif [ -e "$marker" ]; then
+        completed=true
+    else
+        completed=false
+    fi
+
+    case "$current" in
+        "$LIGHT_LNF") echo "$LIGHT_LNF" ;;
+        "$DARK_LNF") echo "$DARK_LNF" ;;
+        # Before revision 16 has completed, UI1 is the source that must migrate
+        # into the corresponding UI2 half. After the marker exists, however,
+        # UI1 can only be an explicit rollback choice. A later repair (for
+        # example, a new Activity without its dashboard) must repair that same
+        # rollback family instead of silently dragging the user back to UI2.
+        "$UI1_LIGHT_LNF")
+            [ "$completed" = true ] && echo "$UI1_LIGHT_LNF" || echo "$LIGHT_LNF"
+            ;;
+        "$UI1_DARK_LNF")
+            [ "$completed" = true ] && echo "$UI1_DARK_LNF" || echo "$DARK_LNF"
+            ;;
+        *) echo "$DARK_LNF" ;;
+    esac
 }
 
+migration_completed=false
 if [ -e "$marker" ]; then
+    migration_completed=true
     lnf="$(current_lookandfeel)" || exit 0   # cannot tell → trust the marker, as before
     deco="$(current_decoration)" || exit 0
     if theme_intact "$lnf" "$deco"; then
@@ -89,7 +363,8 @@ else
 fi
 
 mkdir -p "$state_dir" 2>/dev/null || true
-rm -f "${state_dir}"/moos-nova-theme-applied "${state_dir}"/moos-nova-theme-applied.v* 2>/dev/null || true
+rm -f "${state_dir}"/moos-nova-theme-applied "${state_dir}"/moos-nova-theme-applied.v* \
+      "${state_dir}"/moos-ui2-theme-applied.v* 2>/dev/null || true
 # Drop tray-collapse markers from older revisions too, so a new THEME_REV restarts the
 # shell once to re-collapse the tray. Only the current v${THEME_REV} marker is kept below.
 find "${state_dir}" -maxdepth 1 -name 'moos-tray-collapsed.v*' ! -name "moos-tray-collapsed.v${THEME_REV}" -delete 2>/dev/null || true
@@ -204,22 +479,69 @@ applied=0
 
 # Repair the look the user is ACTUALLY on. Dark is only the default, not the
 # verdict — see target_lnf().
-want_lnf="$(target_lnf)"
-if [ "$want_lnf" = "$LIGHT_LNF" ]; then
-    want_scheme=MoOSUILight
-    want_deco="$LIGHT_DECO"
-    want_icons=NovaLight
-    want_konsole=MoOSUILight.profile
-    want_wallpaper=/usr/share/wallpapers/MoOSUIAtmosphere/contents/images/3840x2160.png
-    want_gtk_dark=false
-else
-    want_scheme=MoOSUIDark
-    want_deco="$DARK_DECO"
-    want_icons=Nova
-    want_konsole=MoOSUI.profile
-    want_wallpaper=/usr/share/wallpapers/MoOSUIAtmosphere/contents/images_dark/3840x2160.png
-    want_gtk_dark=true
-fi
+want_lnf="$(target_lnf "$(current_lookandfeel)" "$migration_completed")"
+case "$want_lnf" in
+    "$LIGHT_LNF")
+        want_scheme=MoOSUI2Light
+        want_style=MoOSUI2Light
+        want_deco="$LIGHT_DECO"
+        want_icons=NovaLight
+        want_konsole=MoOSUI2Light.profile
+        want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Tide
+        want_wallpaper=${want_wallpaper_package}/contents/images/3840x2160.jpg
+        want_gtk_dark=false
+        want_widget=org.moos.ui2.dashboard
+        other_widget=org.moos.nova.deskclock
+        widget_width=560
+        widget_height=220
+        ;;
+    "$DARK_LNF")
+        want_scheme=MoOSUI2Dark
+        want_style=MoOSUI2
+        want_deco="$DARK_DECO"
+        want_icons=Nova
+        want_konsole=MoOSUI2.profile
+        want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite
+        want_wallpaper=${want_wallpaper_package}/contents/images_dark/3840x2160.jpg
+        want_gtk_dark=true
+        want_widget=org.moos.ui2.dashboard
+        other_widget=org.moos.nova.deskclock
+        widget_width=560
+        widget_height=220
+        ;;
+    "$UI1_LIGHT_LNF")
+        want_scheme=MoOSUILight
+        want_style=MoOSUILight
+        want_deco="$UI1_LIGHT_DECO"
+        want_icons=NovaLight
+        want_konsole=MoOSUILight.profile
+        want_wallpaper_package=/usr/share/wallpapers/MoOSUIAtmosphere
+        want_wallpaper=${want_wallpaper_package}/contents/images/3840x2160.png
+        want_gtk_dark=false
+        want_widget=org.moos.nova.deskclock
+        other_widget=org.moos.ui2.dashboard
+        widget_width=430
+        widget_height=400
+        ;;
+    "$UI1_DARK_LNF")
+        want_scheme=MoOSUIDark
+        want_style=MoOSUI
+        want_deco="$UI1_DARK_DECO"
+        want_icons=Nova
+        want_konsole=MoOSUI.profile
+        want_wallpaper_package=/usr/share/wallpapers/MoOSUIAtmosphere
+        want_wallpaper=${want_wallpaper_package}/contents/images_dark/3840x2160.png
+        want_gtk_dark=true
+        want_widget=org.moos.nova.deskclock
+        other_widget=org.moos.ui2.dashboard
+        widget_width=430
+        widget_height=400
+        ;;
+    *)
+        echo "cannot resolve a MoOS theme target from '${want_lnf:-unset}'" >>"$log" 2>/dev/null || true
+        exit 0
+        ;;
+esac
 echo "repairing to ${want_lnf} (${want_scheme})" >>"$log" 2>/dev/null || true
 
 # The whole Global Theme (colors, wallpaper, splash, cursor). Do NOT reset the
@@ -238,6 +560,18 @@ if command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
 fi
 command -v plasma-apply-colorscheme >/dev/null 2>&1 && \
     plasma-apply-colorscheme "$want_scheme" >>"$log" 2>&1 || true
+
+# Pin the values Plasma actually reads in the user's own configuration. Theme
+# packages and /etc/xdg are defaults only; both lose to stale ~/.config and
+# ~/.config/kdedefaults entries on an upgraded desktop.
+if command -v kwriteconfig6 >/dev/null 2>&1; then
+    kwriteconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage "$want_lnf"
+    kwriteconfig6 --file kdeglobals --group General --key ColorScheme "$want_scheme"
+    kwriteconfig6 --file plasmarc --group Theme --key name "$want_style"
+    kwriteconfig6 --file kscreenlockerrc --group Greeter --key WallpaperPlugin org.kde.image
+    kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
+        --group org.kde.image --group General --key Image "$want_wallpaper_package"
+fi
 
 # Konsole's colour scheme is NOT a KDE colour scheme and follows nothing. Without
 # this, a Nova Light desktop keeps a black terminal.
@@ -439,7 +773,7 @@ fi
 # already-created user's previous Breeze/Fedora choice.  Write the two exact
 # Plasma 6 keys explicitly during this versioned migration.
 if command -v kwriteconfig6 >/dev/null 2>&1; then
-    kwriteconfig6 --file ksplashrc --group KSplash --key Theme org.moos.ui
+    kwriteconfig6 --file ksplashrc --group KSplash --key Theme "$want_lnf"
     kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML
 fi
 
@@ -579,7 +913,7 @@ systemctl --user start plasma-ksystemstats.service >>"$log" 2>&1 || true
 # --- The desktop itself -------------------------------------------------------
 # MoOS shipped a desktop with nothing on it: no clock, no widgets, nothing. The
 # panel clock is a PANEL applet — its full representation is a calendar popup — so
-# it cannot double as the desktop clock. org.moos.nova.deskclock is the desktop one.
+# it cannot double as the desktop dashboard. UI2's dashboard is the desktop one.
 #
 # ONE widget, carrying the clock AND the three system rings. It was two, briefly,
 # and Plasma would not have it: a desktop applet's position lives in a
@@ -588,31 +922,113 @@ systemctl --user start plasma-ksystemstats.service >>"$log" 2>&1 || true
 # monitor was auto-placed at 0,0 on top of the folder icons while the clock stayed
 # put. Two widgets that must sit together cannot be two widgets.
 #
-# org.kde.plasma.systemmonitor is deliberately NOT used: it draws an opaque card
-# with a title bar and a legend, a slab of UI competing with the wallpaper. The Nova
-# rings have no background at all and go green / amber / red, so the state of the
-# machine reads from across the room without a digit being read.
+# org.kde.plasma.systemmonitor is deliberately NOT used: UI2's single passive
+# bento owns the clock, 3D weather and system health without taking desktop input.
+# The destination is parameterised because a completed UI2 migration may later
+# be repaired while the user is deliberately wearing UI1. Both directions keep
+# the same add-first safety invariant and exactly one card per containment.
 #
-# Guarded and idempotent: it checks before adding, so a user who deletes the widget
-# does not get it forced back on the next login. And a Folder View containment will
-# NOT place a scripted widget for you — pass an explicit rectangle, or the applet
-# exists with zero geometry and never paints.
-if command -v gdbus >/dev/null 2>&1; then
-    gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+# Guarded and idempotent inside this revision: the target is added first and the
+# other generation is removed only after a second scan proves it instantiated.
+# A Folder View containment will NOT place a scripted widget for you — pass an
+# explicit rectangle, or the applet exists with zero geometry and never paints.
+if command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
+    widget_migration_result="$(timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
         -m org.kde.PlasmaShell.evaluateScript '
+            var TARGET = "'"$want_widget"'";
+            var OTHER = "'"$other_widget"'";
+            var TARGET_WIDTH = '"$widget_width"';
+            var TARGET_HEIGHT = '"$widget_height"';
+            var migratedOther = false;
+            var deduplicated = false;
+            var incomplete = false;
             var ds = desktops();
             for (var i = 0; i < ds.length; i++) {
                 var d = ds[i];
-                var have = {};
                 var ws = d.widgets();
-                for (var j = 0; j < ws.length; j++) { have[ws[j].type] = true; }
+                var others = [];
+                var targets = [];
+                for (var j = 0; j < ws.length; j++) {
+                    if (ws[j].type == TARGET) { targets.push(ws[j]); }
+                    if (ws[j].type == OTHER) { others.push(ws[j]); }
+                }
                 try {
-                    if (!have["org.moos.nova.deskclock"]) {
-                        d.addWidget("org.moos.nova.deskclock", 80, 70, 430, 340);
+                    if (targets.length == 0) {
+                        d.addWidget(TARGET, 80, 70, TARGET_WIDTH, TARGET_HEIGHT);
+                        var after = d.widgets();
+                        for (var n = 0; n < after.length; n++) {
+                            if (after[n].type == TARGET) {
+                                targets.push(after[n]);
+                            }
+                        }
                     }
-                } catch (e) {}
+                    if (targets.length > 0) {
+                        // Keep the first valid target and remove every
+                        // duplicate in this containment. This also repairs a
+                        // same-family duplicate state; it does not depend on
+                        // the other generation being present.
+                        for (var n = 1; n < targets.length; n++) {
+                            targets[n].remove();
+                            deduplicated = true;
+                        }
+                        for (var k = 0; k < others.length; k++) { others[k].remove(); }
+                        if (others.length > 0) { migratedOther = true; }
+                    } else { incomplete = true; }
+                } catch (e) { incomplete = true; }
             }
-        ' >>"$log" 2>&1 || echo "desktop widget migration skipped" >>"$log" 2>&1
+            print(migratedOther ? "widget-family-migrated" :
+                (incomplete ? "widget-incomplete" :
+                (deduplicated ? "widget-deduplicated" : "widget-ready")));
+        ' 2>>"$log")" || widget_migration_result=""
+    echo "desktop widget migration: ${widget_migration_result:-skipped}" >>"$log" 2>&1
+
+    # Folder View collision-avoids a new widget while the other one still owns
+    # its preferred top-left rectangle. Once the safe add-then-remove pass above
+    # has proven the target loads, recreate only that freshly migrated card after
+    # the old geometry has left the layout. The two short waits let Plasma commit
+    # each removal; doing both operations in one evaluateScript leaves a phantom
+    # collision and snaps the new bento to 0,0.
+    if [[ "$widget_migration_result" == *widget-family-migrated* ]]; then
+        sleep 2
+        timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+            -m org.kde.PlasmaShell.evaluateScript '
+                var TARGET = "'"$want_widget"'";
+                var OTHER = "'"$other_widget"'";
+                var ds = desktops();
+                for (var i = 0; i < ds.length; i++) {
+                    var ws = ds[i].widgets();
+                    var otherPresent = false;
+                    for (var j = 0; j < ws.length; j++) {
+                        if (ws[j].type == OTHER) { otherPresent = true; }
+                    }
+                    if (otherPresent) { continue; }
+                    for (var k = 0; k < ws.length; k++) {
+                        if (ws[k].type == TARGET) { ws[k].remove(); }
+                    }
+                }
+            ' >>"$log" 2>&1 || true
+        sleep 2
+        timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+            -m org.kde.PlasmaShell.evaluateScript '
+                var TARGET = "'"$want_widget"'";
+                var OTHER = "'"$other_widget"'";
+                var TARGET_WIDTH = '"$widget_width"';
+                var TARGET_HEIGHT = '"$widget_height"';
+                var ds = desktops();
+                for (var i = 0; i < ds.length; i++) {
+                    var ws = ds[i].widgets();
+                    var blocked = false;
+                    for (var j = 0; j < ws.length; j++) {
+                        if (ws[j].type == OTHER || ws[j].type == TARGET) {
+                            blocked = true;
+                        }
+                    }
+                    if (!blocked) {
+                        ds[i].addWidget(TARGET, 80, 70, TARGET_WIDTH, TARGET_HEIGHT);
+                    }
+                }
+            ' >>"$log" 2>&1 || true
+    fi
 fi
 
 # --- The system tray: two icons, not sixteen -----------------------------------
@@ -797,30 +1213,45 @@ user_share="${XDG_DATA_HOME:-$HOME/.local/share}"
 for rel in \
     "plasma/plasmoids/org.moos.nova.clock" \
     "plasma/plasmoids/org.moos.nova.deskclock" \
+    "plasma/plasmoids/org.moos.ui2.dashboard" \
     "plasma/look-and-feel/org.moos.nova" \
     "plasma/look-and-feel/org.moos.nova.light" \
     "plasma/look-and-feel/org.moos.ui" \
     "plasma/look-and-feel/org.moos.ui.light" \
+    "plasma/look-and-feel/org.moos.ui2" \
+    "plasma/look-and-feel/org.moos.ui2.light" \
     "plasma/desktoptheme/Nova" \
     "plasma/desktoptheme/NovaLight" \
     "plasma/desktoptheme/MoOSUI" \
     "plasma/desktoptheme/MoOSUILight" \
+    "plasma/desktoptheme/MoOSUI2" \
+    "plasma/desktoptheme/MoOSUI2Light" \
     "aurorae/themes/MoOSNova" \
     "aurorae/themes/MoOSNovaLight" \
     "aurorae/themes/MoOSUI" \
     "aurorae/themes/MoOSUILight" \
+    "aurorae/themes/MoOSUI2" \
+    "aurorae/themes/MoOSUI2Light" \
     "color-schemes/NovaDark.colors" \
     "color-schemes/NovaLight.colors" \
     "color-schemes/MoOSUIDark.colors" \
     "color-schemes/MoOSUILight.colors" \
+    "color-schemes/MoOSUI2Dark.colors" \
+    "color-schemes/MoOSUI2Light.colors" \
     "konsole/NovaDark.colorscheme" \
     "konsole/NovaLight.colorscheme" \
     "konsole/MoOSUIDark.colorscheme" \
     "konsole/MoOSUILight.colorscheme" \
+    "konsole/MoOSUI2Dark.colorscheme" \
+    "konsole/MoOSUI2Light.colorscheme" \
     "konsole/MoOS.profile" \
     "konsole/MoOSLight.profile" \
     "konsole/MoOSUI.profile" \
     "konsole/MoOSUILight.profile" \
+    "konsole/MoOSUI2.profile" \
+    "konsole/MoOSUI2Light.profile" \
+    "wallpapers/MoOSUI2Graphite" \
+    "wallpapers/MoOSUI2Tide" \
     "icons/Nova" \
     "icons/NovaLight" \
 ; do
@@ -852,11 +1283,21 @@ if { [ "${tray_applied:-0}" = "1" ] || [ "${dock_applied:-0}" = "1" ]; } && [ ! 
     echo "restarted plasmashell so the collapsed tray and the dock's launchers take hold" >>"$log" 2>/dev/null || true
 fi
 
-# Only mark done if something actually applied — otherwise retry next login.
-if [ "$applied" = "1" ]; then
-    touch "$marker" 2>/dev/null || true
-    echo "applied OK" >>"$log" 2>/dev/null || true
+# Only mark done after reading the complete result back from the running desktop.
+# A successful LNF command followed by a failed wallpaper/widget migration is
+# not success; leaving the marker absent makes the next login retry safely.
+lnf_after="$(current_lookandfeel)" || lnf_after=""
+deco_after="$(current_decoration)" || deco_after=""
+if [ "$applied" = "1" ] \
+        && [ "$lnf_after" = "$want_lnf" ] \
+        && theme_complete "$lnf_after" "$deco_after" "$want_wallpaper_package"; then
+    if touch "$marker" 2>/dev/null; then
+        echo "applied OK" >>"$log" 2>/dev/null || true
+    else
+        echo "apply complete but marker write failed — will retry next login" >>"$log" 2>/dev/null || true
+    fi
 else
-    echo "apply tools unavailable/failed — will retry next login" >>"$log" 2>/dev/null || true
+    rm -f "$marker" 2>/dev/null || true
+    echo "apply incomplete after runtime readback — will retry next login" >>"$log" 2>/dev/null || true
 fi
 exit 0

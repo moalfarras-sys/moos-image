@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=MoOS UI2
+Comment=Graphite glass window decoration for MoOS
+X-KDE-PluginInfo-Author=Moalfarras
+X-KDE-PluginInfo-Name=MoOSUI2
+X-KDE-PluginInfo-Version=2.0
+X-KDE-PluginInfo-License=GPL-3.0-or-later
+X-KDE-ServiceTypes=KWin/Decoration
+Type=Service

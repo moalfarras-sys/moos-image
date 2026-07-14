@@ -1,6 +1,8 @@
 // MoOS Welcome — premium first-run welcome (replaces plasma-welcome).
 // Pure-QML script app launched by /usr/bin/moos-welcome via the qml-qt6 runner.
-// Nova "expressive glass" styling; bilingual AR|EN; RTL-safe.
+// Palette-driven MoOS styling; bilingual AR|EN; RTL-safe.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -14,17 +16,23 @@ ApplicationWindow {
     minimumWidth: 720
     minimumHeight: 540
     title: "MoOS"
-    color: "#0B1220"
+    color: win.canvas
 
-    // ---- palette ----
-    readonly property color navy:    "#0B1220"
-    readonly property color surface: "#111A2E"
-    readonly property color raised:  "#1A2740"
-    readonly property color blue:    "#2E7BFF"
-    readonly property color cyan:    "#22D3EE"
-    readonly property color violet:  "#8B5CF6"
-    readonly property color txt:     "#E6EDF7"
-    readonly property color txt2:    "#9FB0C9"
+    // ---- semantic palette ----
+    // The active KDE colour scheme owns every structural colour. This keeps
+    // the known-good Nova themes valid while allowing UI2 Graphite/Tidal to
+    // recolour the whole window instead of leaving navy cards behind.
+    readonly property color canvas:   win.palette.base
+    readonly property color surface:  win.palette.alternateBase
+    readonly property color raised:   win.palette.button
+    readonly property color chrome:   win.palette.window
+    readonly property color outline:  win.palette.mid
+    readonly property color blue:     win.palette.highlight
+    readonly property color cyan:     win.palette.link
+    readonly property color violet:   win.palette.linkVisited
+    readonly property color txt:      win.palette.windowText
+    readonly property color txt2:     win.palette.placeholderText
+    readonly property color onAccent: win.palette.highlightedText
 
     // Launch a MoOS app/action for real. Pure QML has no Process API, but
     // Qt.openUrlExternally routes "moos://…" through xdg-open to the whitelisted
@@ -40,16 +48,9 @@ ApplicationWindow {
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#0B1220" }
-            GradientStop { position: 1.0; color: "#0A1B33" }
+            GradientStop { position: 0.0; color: win.canvas }
+            GradientStop { position: 1.0; color: win.chrome }
         }
-    }
-    Image {
-        source: "file:///usr/share/wallpapers/NovaHorizonII/contents/images_dark/3840x2160.png"
-        anchors.fill: parent
-        fillMode: Image.PreserveAspectCrop
-        opacity: 0.28
-        smooth: true
     }
     Rectangle {  // soft radial-ish accent top-right
         width: 460; height: 460; radius: 230
@@ -108,12 +109,15 @@ ApplicationWindow {
                 ]
                 delegate: Rectangle {
                     id: cardItem
+                    required property var modelData
                     Layout.fillWidth: true
                     Layout.preferredHeight: 96
                     radius: 16
-                    color: cardHover.hovered ? Qt.rgba(26/255, 39/255, 64/255, 0.75) : Qt.rgba(17/255, 26/255, 46/255, 0.45)
+                    color: cardHover.hovered
+                         ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.94)
+                         : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.82)
                     border.width: 1.5
-                    border.color: cardHover.hovered ? modelData.c : Qt.rgba(1, 1, 1, 0.08)
+                    border.color: cardHover.hovered ? cardItem.modelData.c : win.outline
                     scale: cardHover.hovered ? 1.025 : 1.0
 
                     Behavior on color { ColorAnimation { duration: 150 } }
@@ -130,17 +134,19 @@ ApplicationWindow {
                         spacing: 14
 
                         Rectangle {
-                            width: 48
-                            height: 48
+                            Layout.preferredWidth: 48
+                            Layout.preferredHeight: 48
                             radius: 12
-                            color: Qt.rgba(modelData.c.r, modelData.c.g, modelData.c.b, 0.15)
+                            color: Qt.rgba(cardItem.modelData.c.r, cardItem.modelData.c.g,
+                                           cardItem.modelData.c.b, 0.15)
                             border.width: 1
-                            border.color: Qt.rgba(modelData.c.r, modelData.c.g, modelData.c.b, 0.3)
+                            border.color: Qt.rgba(cardItem.modelData.c.r, cardItem.modelData.c.g,
+                                                  cardItem.modelData.c.b, 0.3)
                             Layout.alignment: Qt.AlignVCenter
 
                             Kirigami.Icon {
                                 anchors.centerIn: parent
-                                source: modelData.i
+                                source: cardItem.modelData.i
                                 implicitWidth: 28
                                 implicitHeight: 28
                             }
@@ -150,14 +156,14 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             spacing: 4
                             Text {
-                                text: modelData.t
+                                text: cardItem.modelData.t
                                 color: win.txt
                                 font.family: "IBM Plex Sans"
                                 font.pixelSize: 15
                                 font.bold: true
                             }
                             Text {
-                                text: modelData.d
+                                text: cardItem.modelData.d
                                 color: win.txt2
                                 font.family: "IBM Plex Sans"
                                 font.pixelSize: 12
@@ -177,9 +183,11 @@ ApplicationWindow {
             Layout.fillWidth: true
             spacing: 12
             component NavButton: Rectangle {
+                id: navButton
                 property string label
                 property string iconName
                 property color accent: win.blue
+                property color foreground: win.onAccent
                 property var onTap
                 Layout.fillWidth: true
                 Layout.preferredHeight: 52
@@ -190,27 +198,27 @@ ApplicationWindow {
                     anchors.centerIn: parent
                     spacing: 8
                     Kirigami.Icon {
-                        source: parent.parent.iconName
+                        source: navButton.iconName
                         implicitWidth: 20
                         implicitHeight: 20
-                        color: "white"
-                        visible: parent.parent.iconName !== ""
+                        color: navButton.foreground
+                        visible: navButton.iconName !== ""
                     }
                     Text {
-                        text: parent.parent.label
-                        color: "white"
+                        text: navButton.label
+                        color: navButton.foreground
                         font.family: "IBM Plex Sans"
                         font.pixelSize: 15
                         font.bold: true
                     }
                 }
                 
-                MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: parent.onTap() }
+                MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: navButton.onTap() }
                 Behavior on color { ColorAnimation { duration: 120 } }
             }
             NavButton { label: "ثبّت الأساسيات | Install essentials"; iconName: "moos-install"; accent: win.blue;   onTap: function(){ win.openApp("moos://do/smart-setup",  "التطبيقات | apps") } }
             NavButton { label: "افتح Mo AI | Open Mo AI";            iconName: "moos-ai"; accent: win.violet; onTap: function(){ win.openApp("moos://app/moai",   "Mo AI") } }
-            NavButton { label: "مركز التوافق | Compatibility";       iconName: "moos-gaming"; accent: win.raised; onTap: function(){ win.openApp("moos://app/compat", "التوافق | compat") } }
+            NavButton { label: "مركز التوافق | Compatibility";       iconName: "moos-gaming"; accent: win.raised; foreground: win.palette.buttonText; onTap: function(){ win.openApp("moos://app/compat", "التوافق | compat") } }
         }
 
         Text {

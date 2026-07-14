@@ -1,7 +1,7 @@
 # MoOS system defaults for the KDE lock screen (KConfig cascade — a user's
 # ~/.config/kscreenlockerrc always wins over this file).
 #
-# Why here and not in org.moos.ui contents/defaults: Plasma 6's
+# Why here and not in org.moos.ui2 contents/defaults: Plasma 6's
 # LookAndFeelManager only writes kscreenlockerrc [Greeter] Theme= when an
 # L&F package is applied; nested wallpaper groups inside a look-and-feel
 # defaults file are not supported/applied.
@@ -11,13 +11,13 @@
 #   kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
 #     --group org.kde.image --group General --key Image <value>
 #
-# Image points at the MoOSUIAtmosphere wallpaper *package* directory: the
+# Image points at the MoOSUI2Graphite wallpaper *package* directory: the
 # org.kde.image plugin normalizes schemeless absolute paths via
 # QUrl::fromUserInput, detects the directory as a kpackage, and automatically
-# prefers contents/images_dark/ under dark color schemes (MoOSUIDark).
+# prefers contents/images_dark/ under dark color schemes (MoOSUI2Dark).
 
 [Greeter]
 WallpaperPlugin=org.kde.image
 
 [Greeter][Wallpaper][org.kde.image][General]
-Image=/usr/share/wallpapers/MoOSUIAtmosphere
+Image=/usr/share/wallpapers/MoOSUI2Graphite

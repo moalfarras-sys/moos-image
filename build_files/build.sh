@@ -1028,6 +1028,46 @@ for _qml_app in /usr/share/moos/apps/*/main.qml; do
 done
 unset -v _qml_runtime _qml_app _qml_log _qml_rc
 
+# A plasmoid is not covered by the pure-QML app loop above: its root type and
+# imports only exist inside Plasma's package loader. UI2's dashboard therefore
+# gets its own real KPackage/QML smoke. This is the gate that catches a renamed
+# component, missing local weather asset, or invalid Plasmoid API before a green
+# image boots to an empty desktop card.
+for _weather_kind in clear-day clear-night partly-day partly-night cloudy rain snow fog storm; do
+    test -s "/usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/images/weather/${_weather_kind}.png" \
+        || { echo "FATAL: MoOS UI2 dashboard is missing ${_weather_kind} weather art"; exit 1; }
+done
+unset -v _weather_kind
+_plasmoid_log=/tmp/moos-ui2-dashboard-smoke.log
+_plasmoid_home=/tmp/moos-ui2-dashboard-home
+_plasmoid_runtime=/tmp/moos-ui2-dashboard-runtime
+mkdir -p "$_plasmoid_home/.cache" "$_plasmoid_runtime"
+chmod 0700 "$_plasmoid_runtime"
+command -v dbus-run-session >/dev/null 2>&1 \
+    || { echo "FATAL: dbus-run-session is required for the plasmoid smoke"; exit 1; }
+set +e
+HOME="$_plasmoid_home" XDG_RUNTIME_DIR="$_plasmoid_runtime" \
+    QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+    QT_QUICK_CONTROLS_STYLE=Basic \
+    timeout --kill-after=2s 6 dbus-run-session -- \
+        plasmawindowed org.moos.ui2.dashboard \
+        >"$_plasmoid_log" 2>&1
+_plasmoid_rc=$?
+set -e
+if [ "$_plasmoid_rc" -ne 124 ]; then
+    echo "FATAL: MoOS UI2 dashboard did not stay loaded (exit=$_plasmoid_rc)"
+    cat "$_plasmoid_log"
+    exit 1
+fi
+if grep -qiE 'type .* unavailable|module .* is not installed|error loading qml|referenceerror|typeerror|unable to assign|binding loop|qml image: cannot open' \
+        "$_plasmoid_log"; then
+    echo "FATAL: MoOS UI2 dashboard reported a QML/package error"
+    cat "$_plasmoid_log"
+    exit 1
+fi
+rm -rf "$_plasmoid_log" "$_plasmoid_home" "$_plasmoid_runtime"
+unset -v _plasmoid_log _plasmoid_home _plasmoid_runtime _plasmoid_rc
+
 # System-wide Flathub remote so Discover/Bazaar work out of the box on first
 # boot. Path convention from the kinoite bootc reference implementation
 # (https://github.com/ondrejbudai/bootc-isos, kinoite/src/build.sh):
@@ -1142,6 +1182,15 @@ systemctl enable moos-appstream-refresh.timer
 # for every user's session (bakes the default.target.wants symlink under
 # /etc/systemd/user) without needing a running user manager at build time.
 systemctl --global enable moai-control.service
+
+# Plasma's automatic day/night switch applies only the Global Theme subset. It
+# does not carry Konsole, GTK or the wallpaper reliably, so watch the effective
+# kdeglobals selection and reconcile those supplements after each transition.
+# The service never writes kdeglobals, which keeps the path activation acyclic.
+systemd-analyze verify \
+    /usr/lib/systemd/user/moos-theme-sync.path \
+    /usr/lib/systemd/user/moos-theme-sync.service
+systemctl --global enable moos-theme-sync.path
 
 # Mo AI's FRONT DOOR. This is the only thing on 127.0.0.1:8080 and the only thing
 # the Mo AI app ever talks to; it routes each request to the local brain (8081,

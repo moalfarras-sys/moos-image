@@ -155,15 +155,15 @@ AnimationDurationFactor=0.75
 # NOT apply). Users' ~/.config/kwinrc still overrides this system default.
 #
 # ---------------------------------------------------------------------------
-#  DECORATION: MoOS UI (Aurorae), not Breeze
+#  DECORATION: MoOS UI2 (Aurorae), not Breeze
 # ---------------------------------------------------------------------------
 # This used to be library=org.kde.breeze, so MoOS windows were Breeze windows
 # with a Nova palette poured over them and Breeze's X / v / ^ glyphs in the title
 # bar — one of the loudest "this is just KDE" tells left on the desktop.
 #
-# MoOS UI derives its proven Aurorae geometry from Nova through
-# artwork/generate_moos_ui.py and ships at
-# /usr/share/aurorae/themes/MoOSUI: aubergine glass title bar, 12px rounded
+# MoOS UI2 derives its proven Aurorae geometry from UI1 through the isolated
+# artwork/generate_moos_ui2.py generator and ships at
+# /usr/share/aurorae/themes/MoOSUI2: graphite glass title bar, 12px rounded
 # corners, centred title, soft drop shadow, and circular window controls painted
 # in Nova's OWN semantic colours (NovaDark negative/neutral/positive), so the
 # familiar red/amber/green idiom stays MoOS rather than a 1:1 copy of anyone's
@@ -187,6 +187,6 @@ AnimationDurationFactor=0.75
 # replaces, which is why the shadow is part of the art and not an afterthought.
 [org.kde.kdecoration2]
 library=org.kde.kwin.aurorae
-theme=__aurorae__svg__MoOSUI
+theme=__aurorae__svg__MoOSUI2
 ButtonsOnLeft=XIA
 ButtonsOnRight=

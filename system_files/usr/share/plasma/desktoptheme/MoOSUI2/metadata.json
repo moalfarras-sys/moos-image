@@ -1,0 +1,17 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Category": "",
+        "Description": "زجاج غرافيتي حديث لسطح MoOS | Modern graphite glass for MoOS",
+        "Id": "MoOSUI2",
+        "License": "GPL-3.0-or-later",
+        "Name": "MoOS UI2",
+        "Version": "2.0.0",
+        "Website": "https://github.com/moalfarras-sys/moos-image"
+    },
+    "X-Plasma-API": "5.0"
+}

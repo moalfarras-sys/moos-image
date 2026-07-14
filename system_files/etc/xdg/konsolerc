@@ -2,10 +2,10 @@
 # ~/.config/konsolerc always wins over this file).
 # Konsole reads [Desktop Entry] DefaultProfile from konsolerc (verified in
 # KDE/konsole master src/profile/ProfileManager.cpp); the value is the
-# profile FILE name, and /usr/share/konsole/MoOS.profile ships in this image.
+# profile FILE name, and /usr/share/konsole/MoOSUI2.profile ships in this image.
 
 [Desktop Entry]
-DefaultProfile=MoOSUI.profile
+DefaultProfile=MoOSUI2.profile
 
 # Clean chrome — a smaller, quieter terminal. No menu bar by default (everything is
 # still on the right-click menu and F1), and the tab strip only appears once there is

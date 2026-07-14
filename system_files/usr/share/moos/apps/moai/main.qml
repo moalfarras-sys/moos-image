@@ -33,21 +33,28 @@ import org.kde.kirigami as Kirigami
 Kirigami.ApplicationWindow {
     id: root
 
-    // ── Nova design tokens (MOOS_NOVA_DESIGN_TOKENS.md) ─────────────────────
-    readonly property color surface0: "#0B1220"   // canvas
-    readonly property color surface1: "#111A2E"   // primary surface
-    readonly property color surface2: "#16233A"   // raised control
-    readonly property color surface3: "#263A5C"   // hover / selected
-    readonly property color hairline: "#263852"
-    readonly property color textHi:   "#F4F8FF"
-    readonly property color textLo:   "#9FB0C9"
-    readonly property color textMute: "#7F94B5"
-    readonly property color novaCyan:   "#22D3EE"
-    readonly property color novaBlue:   "#2E7BFF"
-    readonly property color novaViolet: "#8B5CF6"
-    readonly property color okColor:   "#35D39A"
-    readonly property color warnColor: "#F4B860"
-    readonly property color badColor:  "#FF6B7A"
+    // ── Semantic design tokens — supplied by the active KDE scheme ───────
+    // These bindings are deliberately owned by ApplicationWindow.palette. A
+    // Global Theme changes KDE's palette at runtime; keeping Nova hex values
+    // here made every card stay navy even on a light desktop.
+    readonly property color surface0: root.palette.base             // canvas
+    readonly property color surface1: root.palette.alternateBase    // cards
+    readonly property color surface2: root.palette.button           // raised controls
+    readonly property color surface3: root.palette.midlight         // hover / selected
+    readonly property color chrome:   root.palette.window           // rail / headers
+    readonly property color hairline: root.palette.mid
+    readonly property color textHi:   root.palette.windowText
+    readonly property color textLo:   root.palette.placeholderText
+    readonly property color textMute: Qt.rgba(root.palette.placeholderText.r,
+                                               root.palette.placeholderText.g,
+                                               root.palette.placeholderText.b, 0.78)
+    readonly property color novaCyan:   root.palette.link
+    readonly property color novaBlue:   root.palette.highlight
+    readonly property color novaViolet: root.palette.linkVisited
+    readonly property color onAccent:   root.palette.highlightedText
+    readonly property color okColor:   Kirigami.Theme.positiveTextColor
+    readonly property color warnColor: Kirigami.Theme.neutralTextColor
+    readonly property color badColor:  Kirigami.Theme.negativeTextColor
     readonly property string uiFont: "IBM Plex Sans"
 
     // ── Endpoints ───────────────────────────────────────────────────────────
@@ -742,7 +749,7 @@ Kirigami.ApplicationWindow {
               mood === "success" ? root.okColor
             : mood === "warning" ? root.warnColor
             : mood === "error"   ? root.badColor
-            : mood === "offline" ? "#4A5B75"
+            : mood === "offline" ? root.textMute
             : root.novaBlue
 
         implicitWidth: 44
@@ -786,10 +793,10 @@ Kirigami.ApplicationWindow {
                 fillGradient: ConicalGradient {
                     centerX: orb.width / 2; centerY: orb.height / 2
                     angle: orb.ringAngle
-                    GradientStop { position: 0.00; color: orb.alive ? root.novaCyan : "#41506A" }
-                    GradientStop { position: 0.34; color: orb.alive ? root.novaBlue : "#4A5B75" }
-                    GradientStop { position: 0.67; color: orb.alive ? root.novaViolet : "#3B4860" }
-                    GradientStop { position: 1.00; color: orb.alive ? root.novaCyan : "#41506A" }
+                    GradientStop { position: 0.00; color: orb.alive ? root.novaCyan : root.hairline }
+                    GradientStop { position: 0.34; color: orb.alive ? root.novaBlue : root.textMute }
+                    GradientStop { position: 0.67; color: orb.alive ? root.novaViolet : root.surface3 }
+                    GradientStop { position: 1.00; color: orb.alive ? root.novaCyan : root.hairline }
                 }
                 PathAngleArc {
                     moveToStart: true
@@ -814,8 +821,8 @@ Kirigami.ApplicationWindow {
             radius: width / 2
             scale: orb.coreScale
             gradient: Gradient {
-                GradientStop { position: 0.0; color: "#16233A" }
-                GradientStop { position: 1.0; color: "#080D18" }
+                GradientStop { position: 0.0; color: root.surface2 }
+                GradientStop { position: 1.0; color: root.surface0 }
             }
 
             Rectangle {
@@ -905,8 +912,8 @@ Kirigami.ApplicationWindow {
         signal clicked()
 
         readonly property color base:
-              !enabled_ ? "#16233A"
-            : danger ? "#7E2B38"
+              !enabled_ ? root.surface2
+            : danger ? root.badColor
             : primary ? root.novaBlue
             : root.surface2
 
@@ -919,7 +926,7 @@ Kirigami.ApplicationWindow {
              : base
         border.width: 1
         border.color: primary || danger ? "transparent"
-                    : ma.containsMouse ? "#3A4E76" : root.hairline
+                    : ma.containsMouse ? root.novaBlue : root.hairline
         opacity: enabled_ ? 1.0 : 0.45
         Behavior on color { ColorAnimation { duration: 120 } }
 
@@ -930,13 +937,13 @@ Kirigami.ApplicationWindow {
             Kirigami.Icon {
                 visible: btn.icon !== ""
                 source: btn.icon
-                color: btn.primary || btn.danger ? "#FFFFFF" : root.textLo
+                color: btn.primary || btn.danger ? root.onAccent : root.textLo
                 Layout.preferredWidth: 15
                 Layout.preferredHeight: 15
             }
             Text {
                 text: btn.label
-                color: btn.primary || btn.danger ? "#FFFFFF" : root.textHi
+                color: btn.primary || btn.danger ? root.onAccent : root.textHi
                 font.family: root.uiFont
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
@@ -960,9 +967,13 @@ Kirigami.ApplicationWindow {
         implicitHeight: 22
         implicitWidth: pillText.implicitWidth + 20
         radius: 11
-        color: good ? Qt.rgba(0.21, 0.83, 0.60, 0.14) : Qt.rgba(0.62, 0.71, 0.85, 0.10)
+        color: good
+            ? Qt.rgba(root.okColor.r, root.okColor.g, root.okColor.b, 0.14)
+            : Qt.rgba(root.textMute.r, root.textMute.g, root.textMute.b, 0.10)
         border.width: 1
-        border.color: good ? Qt.rgba(0.21, 0.83, 0.60, 0.45) : root.hairline
+        border.color: good
+            ? Qt.rgba(root.okColor.r, root.okColor.g, root.okColor.b, 0.45)
+            : root.hairline
         Text {
             id: pillText
             anchors.centerIn: parent
@@ -1001,9 +1012,9 @@ Kirigami.ApplicationWindow {
         // gradients cost nothing and look better.
         background: Rectangle {
             gradient: Gradient {
-                GradientStop { position: 0.0; color: "#0C1424" }
+                GradientStop { position: 0.0; color: root.chrome }
                 GradientStop { position: 0.55; color: root.surface0 }
-                GradientStop { position: 1.0; color: "#070C16" }
+                GradientStop { position: 1.0; color: root.surface0 }
             }
             Shape {
                 anchors.right: parent.right
@@ -1038,7 +1049,7 @@ Kirigami.ApplicationWindow {
             Rectangle {
                 Layout.preferredWidth: 76
                 Layout.fillHeight: true
-                color: "#0A1120"
+                color: root.chrome
 
                 Rectangle {
                     anchors.right: parent.right
@@ -1094,8 +1105,10 @@ Kirigami.ApplicationWindow {
                                 anchors.centerIn: parent
                                 width: 54; height: 46
                                 radius: 12
-                                color: nav.active ? Qt.rgba(0.18, 0.48, 1.0, 0.16)
-                                     : navMa.containsMouse ? "#16233A" : "transparent"
+                                color: nav.active
+                                     ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
+                                               root.novaBlue.b, 0.16)
+                                     : navMa.containsMouse ? root.surface2 : "transparent"
                                 Behavior on color { ColorAnimation { duration: 130 } }
 
                                 ColumnLayout {
@@ -1129,7 +1142,7 @@ Kirigami.ApplicationWindow {
                                 width: 8; height: 8; radius: 4
                                 color: root.hasImportant ? root.badColor : root.warnColor
                                 border.width: 2
-                                border.color: "#0A1120"
+                                border.color: root.chrome
                             }
 
                             MouseArea {
@@ -1152,7 +1165,7 @@ Kirigami.ApplicationWindow {
                             anchors.centerIn: parent
                             width: 54; height: 40
                             radius: 12
-                            color: gearMa.containsMouse ? "#16233A" : "transparent"
+                            color: gearMa.containsMouse ? root.surface2 : "transparent"
                             Behavior on color { ColorAnimation { duration: 130 } }
                             Kirigami.Icon {
                                 anchors.centerIn: parent
@@ -1193,7 +1206,7 @@ Kirigami.ApplicationWindow {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 56
-                    color: "#0C1526"
+                    color: root.chrome
 
                     RowLayout {
                         anchors.fill: parent
@@ -1313,9 +1326,15 @@ Kirigami.ApplicationWindow {
                                     anchors.leftMargin: mine ? 0 : 36
                                     y: 3
                                     radius: 14
-                                    color: mine ? Qt.rgba(0.18, 0.48, 1.0, 0.16) : root.surface1
+                                    color: mine
+                                         ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
+                                                   root.novaBlue.b, 0.16)
+                                         : root.surface1
                                     border.width: 1
-                                    border.color: mine ? Qt.rgba(0.18, 0.48, 1.0, 0.38) : root.hairline
+                                    border.color: mine
+                                        ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
+                                                  root.novaBlue.b, 0.38)
+                                        : root.hairline
                                     width: body.width + 28
                                     height: body.implicitHeight + 22
 
@@ -1361,9 +1380,11 @@ Kirigami.ApplicationWindow {
                             visible: root.problemCount > 0 && chatModel.count <= 1
                             radius: 12
                             implicitHeight: bannerRow.implicitHeight + 22
-                            color: Qt.rgba(0.96, 0.72, 0.38, 0.09)
+                            color: Qt.rgba(root.warnColor.r, root.warnColor.g,
+                                           root.warnColor.b, 0.09)
                             border.width: 1
-                            border.color: Qt.rgba(0.96, 0.72, 0.38, 0.38)
+                            border.color: Qt.rgba(root.warnColor.r, root.warnColor.g,
+                                                  root.warnColor.b, 0.38)
 
                             RowLayout {
                                 id: bannerRow
@@ -1439,7 +1460,10 @@ Kirigami.ApplicationWindow {
                             visible: root.brainsKnown && !root.serverUp
                             radius: 12
                             implicitHeight: startCol.implicitHeight + 22
-                            color: root.brainStarting ? Qt.rgba(0.18, 0.48, 1.0, 0.10) : root.surface1
+                            color: root.brainStarting
+                                 ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
+                                           root.novaBlue.b, 0.10)
+                                 : root.surface1
                             border.width: 1
                             border.color: root.brainStarting ? root.novaBlue : root.novaViolet
 
@@ -1509,7 +1533,7 @@ Kirigami.ApplicationWindow {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 68
-                            color: "#0C1526"
+                            color: root.chrome
                             Rectangle {
                                 anchors.left: parent.left; anchors.right: parent.right
                                 anchors.top: parent.top
@@ -1625,17 +1649,17 @@ Kirigami.ApplicationWindow {
                                         orientation: Gradient.Horizontal
                                         GradientStop {
                                             position: 0.0
-                                            color: root.busy ? "#B23A6B" : root.novaBlue
+                                            color: root.busy ? root.badColor : root.novaBlue
                                         }
                                         GradientStop {
                                             position: 1.0
-                                            color: root.busy ? "#8B2E8B" : root.novaViolet
+                                            color: root.busy ? root.warnColor : root.novaViolet
                                         }
                                     }
                                     Text {
                                         anchors.centerIn: parent
                                         text: root.busy ? "إيقاف | Stop" : "إرسال | Send"
-                                        color: "#FFFFFF"
+                                        color: root.onAccent
                                         font.family: root.uiFont
                                         font.pixelSize: 13
                                         font.weight: Font.DemiBold
@@ -1677,9 +1701,14 @@ Kirigami.ApplicationWindow {
                                         Layout.preferredWidth: 44
                                         Layout.preferredHeight: 44
                                         radius: 22
-                                        color: root.healthy ? Qt.rgba(0.21, 0.83, 0.60, 0.14)
-                                             : root.hasImportant ? Qt.rgba(1.0, 0.42, 0.48, 0.14)
-                                             : Qt.rgba(0.96, 0.72, 0.38, 0.14)
+                                        color: root.healthy
+                                             ? Qt.rgba(root.okColor.r, root.okColor.g,
+                                                       root.okColor.b, 0.14)
+                                             : root.hasImportant
+                                             ? Qt.rgba(root.badColor.r, root.badColor.g,
+                                                       root.badColor.b, 0.14)
+                                             : Qt.rgba(root.warnColor.r, root.warnColor.g,
+                                                       root.warnColor.b, 0.14)
                                         Kirigami.Icon {
                                             anchors.centerIn: parent
                                             width: 24; height: 24
@@ -2040,7 +2069,7 @@ Kirigami.ApplicationWindow {
                                                     visible: hit.note !== ""
                                                     Layout.fillWidth: true
                                                     text: (hit.recommended ? "✓ " : "⚠ ") + hit.note
-                                                    color: hit.recommended ? root.novaCyan : "#F5A524"
+                                                    color: hit.recommended ? root.novaCyan : root.warnColor
                                                     font.family: root.uiFont
                                                     font.pixelSize: 10
                                                     wrapMode: Text.WordWrap
@@ -2169,7 +2198,10 @@ Kirigami.ApplicationWindow {
                                             Layout.preferredWidth: 40
                                             Layout.preferredHeight: 40
                                             radius: 11
-                                            color: compat.ready ? Qt.rgba(0.21, 0.83, 0.60, 0.13) : root.surface2
+                                            color: compat.ready
+                                                 ? Qt.rgba(root.okColor.r, root.okColor.g,
+                                                           root.okColor.b, 0.13)
+                                                 : root.surface2
                                             Kirigami.Icon {
                                                 anchors.centerIn: parent
                                                 width: 21; height: 21
@@ -2279,7 +2311,9 @@ Kirigami.ApplicationWindow {
                                         Layout.preferredHeight: 46
                                         radius: 23
                                         color: root.remoteState.active
-                                               ? Qt.rgba(0.21, 0.83, 0.60, 0.14) : root.surface2
+                                               ? Qt.rgba(root.okColor.r, root.okColor.g,
+                                                         root.okColor.b, 0.14)
+                                               : root.surface2
                                         Kirigami.Icon {
                                             anchors.centerIn: parent
                                             width: 24; height: 24
@@ -2483,7 +2517,8 @@ Kirigami.ApplicationWindow {
                                             Layout.preferredHeight: 40
                                             radius: 11
                                             color: ag.have
-                                                   ? Qt.rgba(0.21, 0.83, 0.60, 0.13)
+                                                   ? Qt.rgba(root.okColor.r, root.okColor.g,
+                                                             root.okColor.b, 0.13)
                                                    : (ag.onDevice
                                                       ? Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.12)
                                                       : root.surface2)
@@ -2600,9 +2635,10 @@ Kirigami.ApplicationWindow {
             radius: 12
             width: Math.min(parent.width - 40, toastCol.implicitWidth + 30)
             height: toastCol.implicitHeight + 20
-            color: "#16233C"
+            color: root.surface2
             border.width: 1
-            border.color: Qt.rgba(0.13, 0.83, 0.93, 0.5)
+            border.color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
+                                  root.novaCyan.b, 0.5)
             Behavior on opacity { NumberAnimation { duration: 220 } }
 
             Timer { id: toastTimer; interval: 2800; onTriggered: toast.opacity = 0 }
@@ -2641,7 +2677,8 @@ Kirigami.ApplicationWindow {
             anchors.fill: parent
             z: 250
             visible: root.pickerOpen
-            color: "#B0060B16"
+            color: Qt.rgba(root.palette.shadow.r, root.palette.shadow.g,
+                           root.palette.shadow.b, 0.69)
             MouseArea { anchors.fill: parent; onClicked: root.pickerOpen = false }
 
             Rectangle {
@@ -2717,7 +2754,9 @@ Kirigami.ApplicationWindow {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 40
                                     radius: 10
-                                    color: locRow.on_ ? Qt.rgba(0.21, 0.83, 0.60, 0.14)
+                                    color: locRow.on_
+                                         ? Qt.rgba(root.okColor.r, root.okColor.g,
+                                                   root.okColor.b, 0.14)
                                          : locMa.containsMouse ? root.surface2 : "transparent"
                                     border.width: 1
                                     border.color: locRow.on_ ? root.okColor : "transparent"
@@ -2798,7 +2837,9 @@ Kirigami.ApplicationWindow {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 34
                                     radius: 10
-                                    color: cldRow.on_ ? Qt.rgba(0.55, 0.36, 0.96, 0.18)
+                                    color: cldRow.on_
+                                         ? Qt.rgba(root.novaViolet.r, root.novaViolet.g,
+                                                   root.novaViolet.b, 0.18)
                                          : cldMa.containsMouse ? root.surface2 : "transparent"
                                     border.width: 1
                                     border.color: cldRow.on_ ? root.novaViolet : "transparent"
@@ -2880,7 +2921,8 @@ Kirigami.ApplicationWindow {
             anchors.fill: parent
             z: 300
             visible: root.settingsOpen
-            color: "#D0060B16"
+            color: Qt.rgba(root.palette.shadow.r, root.palette.shadow.g,
+                           root.palette.shadow.b, 0.82)
             MouseArea { anchors.fill: parent; onClicked: root.settingsOpen = false }
 
             Rectangle {
@@ -2921,7 +2963,7 @@ Kirigami.ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 46
                         radius: 12
-                        color: "#0E1830"
+                        color: root.surface0
                         border.width: 1
                         border.color: root.hairline
                         RowLayout {
@@ -2937,7 +2979,7 @@ Kirigami.ApplicationWindow {
                                 Text {
                                     anchors.centerIn: parent
                                     text: "محلي | Local"
-                                    color: !root.settingsCloud ? "#FFFFFF" : root.textLo
+                                    color: !root.settingsCloud ? root.onAccent : root.textLo
                                     font.family: root.uiFont
                                     font.pixelSize: 13
                                     font.weight: Font.DemiBold
@@ -2953,7 +2995,7 @@ Kirigami.ApplicationWindow {
                                 Text {
                                     anchors.centerIn: parent
                                     text: "سحابي | Cloud"
-                                    color: root.settingsCloud ? "#FFFFFF" : root.textLo
+                                    color: root.settingsCloud ? root.onAccent : root.textLo
                                     font.family: root.uiFont
                                     font.pixelSize: 13
                                     font.weight: Font.DemiBold
@@ -2994,7 +3036,7 @@ Kirigami.ApplicationWindow {
                                         id: provText
                                         anchors.centerIn: parent
                                         text: prov.modelData.name
-                                        color: prov.on_ ? "#FFFFFF" : root.textHi
+                                        color: prov.on_ ? root.onAccent : root.textHi
                                         font.family: root.uiFont
                                         font.pixelSize: 11
                                         font.weight: prov.on_ ? Font.DemiBold : Font.Normal
@@ -3091,11 +3133,17 @@ Kirigami.ApplicationWindow {
                             visible: root.settingsTestMsg !== ""
                             radius: 9
                             implicitHeight: testText.implicitHeight + 18
-                            color: root.settingsTestOk ? Qt.rgba(0.21, 0.83, 0.60, 0.10)
-                                                       : Qt.rgba(1.0, 0.42, 0.48, 0.10)
+                            color: root.settingsTestOk
+                                ? Qt.rgba(root.okColor.r, root.okColor.g,
+                                          root.okColor.b, 0.10)
+                                : Qt.rgba(root.badColor.r, root.badColor.g,
+                                          root.badColor.b, 0.10)
                             border.width: 1
-                            border.color: root.settingsTestOk ? Qt.rgba(0.21, 0.83, 0.60, 0.45)
-                                                              : Qt.rgba(1.0, 0.42, 0.48, 0.45)
+                            border.color: root.settingsTestOk
+                                ? Qt.rgba(root.okColor.r, root.okColor.g,
+                                          root.okColor.b, 0.45)
+                                : Qt.rgba(root.badColor.r, root.badColor.g,
+                                          root.badColor.b, 0.45)
                             Text {
                                 id: testText
                                 anchors.left: parent.left
@@ -3142,7 +3190,7 @@ Kirigami.ApplicationWindow {
                         Text {
                             anchors.centerIn: parent
                             text: root.settingsSaving ? "جارٍ الحفظ… | Saving…" : "حفظ | Save"
-                            color: "#FFFFFF"
+                            color: root.onAccent
                             font.family: root.uiFont
                             font.pixelSize: 14
                             font.weight: Font.DemiBold

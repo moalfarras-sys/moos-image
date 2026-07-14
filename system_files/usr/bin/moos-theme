@@ -2,10 +2,12 @@
 # moos-theme — switch MoOS between its light and dark look.
 #
 #   moos-theme            show which one is active
-#   moos-theme dark       MoOS UI (aubergine glass) — the default
-#   moos-theme light      MoOS UI Light (warm pearl)
-#   moos-theme toggle     the other one
-#   moos-theme auto       follow sunrise/sunset, between the two MoOS themes
+#   moos-theme dark       MoOS UI2 Graphite — the default
+#   moos-theme light      MoOS UI2 Tidal Light
+#   moos-theme toggle     the other UI2 variant
+#   moos-theme auto       follow sunrise/sunset, between the two UI2 themes
+#   moos-theme ui1-dark   explicit rollback to MoOS UI1 Dark
+#   moos-theme ui1-light  explicit rollback to MoOS UI1 Light
 #
 # WHY A SCRIPT AND NOT JUST SYSTEM SETTINGS
 #
@@ -27,18 +29,22 @@
 # See AGENTS.md, "A theme this image ships is not a theme the user gets".
 set -uo pipefail
 
-DARK_LNF="org.moos.ui"
-LIGHT_LNF="org.moos.ui.light"
+DARK_LNF="org.moos.ui2"
+LIGHT_LNF="org.moos.ui2.light"
+UI1_DARK_LNF="org.moos.ui"
+UI1_LIGHT_LNF="org.moos.ui.light"
 
 usage() {
     cat <<'EOF'
 moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switch MoOS light/dark
 
   moos-theme            الحالي | show the active theme
-  moos-theme dark       داكن   | MoOS UI (aubergine glass, the default)
-  moos-theme light      فاتح   | MoOS UI Light (warm pearl)
-  moos-theme toggle     بدّل   | switch to the other one
-  moos-theme auto       تلقائي | follow sunrise/sunset
+  moos-theme dark       داكن   | MoOS UI2 Graphite (the default)
+  moos-theme light      فاتح   | MoOS UI2 Tidal Light
+  moos-theme toggle     بدّل   | switch to the other UI2 variant
+  moos-theme auto       تلقائي | follow sunrise/sunset with UI2
+  moos-theme ui1-dark   رجوع  | rollback to MoOS UI1 Dark
+  moos-theme ui1-light  رجوع  | rollback to MoOS UI1 Light
 EOF
 }
 
@@ -46,23 +52,301 @@ current() {
     kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage 2>/dev/null
 }
 
-apply() {
-    local lnf="$1" scheme konsole_profile prefer_dark icons deco wallpaper
-    if [ "$lnf" = "$LIGHT_LNF" ]; then
-        scheme=MoOSUILight
-        konsole_profile=MoOSUILight.profile
-        icons=NovaLight
-        deco=__aurorae__svg__MoOSUILight
-        wallpaper=/usr/share/wallpapers/MoOSUIAtmosphere/contents/images/3840x2160.png
-        prefer_dark=false
+switch_dashboard() {
+    command -v gdbus >/dev/null 2>&1 || return 1
+    command -v timeout >/dev/null 2>&1 || return 1
+
+    local target="$1" other x=80 y=70 width height result migration_failed=0
+    if [ "$target" = "org.moos.ui2.dashboard" ]; then
+        other="org.moos.nova.deskclock"
+        width=560; height=220
     else
-        scheme=MoOSUIDark
-        konsole_profile=MoOSUI.profile
-        icons=Nova
-        deco=__aurorae__svg__MoOSUI
-        wallpaper=/usr/share/wallpapers/MoOSUIAtmosphere/contents/images_dark/3840x2160.png
-        prefer_dark=true
+        other="org.moos.ui2.dashboard"
+        width=430; height=400
     fi
+
+    # Instantiate the destination first. Only after a second scan proves that
+    # its QML loaded do we remove the other family's dashboard.
+    result="$(timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var TARGET = "'"$target"'";
+            var OTHER = "'"$other"'";
+            var swapped = false;
+            var ds = desktops();
+            for (var i = 0; i < ds.length; i++) {
+                var d = ds[i];
+                var ws = d.widgets();
+                var ready = false;
+                var old = [];
+                for (var j = 0; j < ws.length; j++) {
+                    if (ws[j].type == TARGET) { ready = true; }
+                    if (ws[j].type == OTHER) { old.push(ws[j]); }
+                }
+                if (!ready) {
+                    d.addWidget(TARGET, '"$x"', '"$y"', '"$width"', '"$height"');
+                    var after = d.widgets();
+                    for (var n = 0; n < after.length; n++) {
+                        if (after[n].type == TARGET) { ready = true; break; }
+                    }
+                }
+                if (ready && old.length > 0) {
+                    for (var k = 0; k < old.length; k++) { old[k].remove(); }
+                    swapped = true;
+                }
+            }
+            print(swapped ? "dashboard-swapped" : "dashboard-ready");
+        ' 2>/dev/null)" || return 1
+
+    # The first add collision-avoids the still-present old card. Once that card
+    # has left Folder View's geometry map, recreate the proven target at its
+    # intended inset. Separate D-Bus turns are required; one turn sees a phantom
+    # collision and snaps UI2 to 0,0.
+    if [[ "$result" == *dashboard-swapped* ]]; then
+        sleep 2
+        timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+            -m org.kde.PlasmaShell.evaluateScript '
+                var TARGET = "'"$target"'";
+                var OTHER = "'"$other"'";
+                var ds = desktops();
+                for (var i = 0; i < ds.length; i++) {
+                    var ws = ds[i].widgets();
+                    var blocked = false;
+                    for (var j = 0; j < ws.length; j++) {
+                        if (ws[j].type == OTHER) { blocked = true; }
+                    }
+                    if (blocked) { continue; }
+                    for (var k = 0; k < ws.length; k++) {
+                        if (ws[k].type == TARGET) { ws[k].remove(); }
+                    }
+                }
+            ' >/dev/null 2>&1 || migration_failed=1
+        sleep 2
+        timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+            -m org.kde.PlasmaShell.evaluateScript '
+                var TARGET = "'"$target"'";
+                var OTHER = "'"$other"'";
+                var ds = desktops();
+                for (var i = 0; i < ds.length; i++) {
+                    var ws = ds[i].widgets();
+                    var blocked = false;
+                    for (var j = 0; j < ws.length; j++) {
+                        if (ws[j].type == TARGET || ws[j].type == OTHER) { blocked = true; }
+                    }
+                    if (!blocked) {
+                        ds[i].addWidget(TARGET, '"$x"', '"$y"', '"$width"', '"$height"');
+                    }
+                }
+            ' >/dev/null 2>&1 || migration_failed=1
+    fi
+    [ "$migration_failed" -eq 0 ]
+}
+
+load_profile() {
+    local lnf="$1"
+    case "$lnf" in
+        "$LIGHT_LNF")
+            scheme=MoOSUI2Light
+            style=MoOSUI2Light
+            konsole_profile=MoOSUI2Light.profile
+            icons=NovaLight
+            deco=__aurorae__svg__MoOSUI2Light
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2Tide
+            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
+            widget=org.moos.ui2.dashboard
+            prefer_dark=false
+            label="MoOS UI2: فاتح | light"
+            ;;
+        "$DARK_LNF")
+            scheme=MoOSUI2Dark
+            style=MoOSUI2
+            konsole_profile=MoOSUI2.profile
+            icons=Nova
+            deco=__aurorae__svg__MoOSUI2
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite
+            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
+            widget=org.moos.ui2.dashboard
+            prefer_dark=true
+            label="MoOS UI2: داكن | dark"
+            ;;
+        "$UI1_LIGHT_LNF")
+            scheme=MoOSUILight
+            style=MoOSUILight
+            konsole_profile=MoOSUILight.profile
+            icons=NovaLight
+            deco=__aurorae__svg__MoOSUILight
+            wallpaper_package=/usr/share/wallpapers/MoOSUIAtmosphere
+            wallpaper=${wallpaper_package}/contents/images/3840x2160.png
+            widget=org.moos.nova.deskclock
+            prefer_dark=false
+            label="MoOS UI1 rollback: فاتح | light"
+            ;;
+        "$UI1_DARK_LNF")
+            scheme=MoOSUIDark
+            style=MoOSUI
+            konsole_profile=MoOSUI.profile
+            icons=Nova
+            deco=__aurorae__svg__MoOSUI
+            wallpaper_package=/usr/share/wallpapers/MoOSUIAtmosphere
+            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.png
+            widget=org.moos.nova.deskclock
+            prefer_dark=true
+            label="MoOS UI1 rollback: داكن | dark"
+            ;;
+        *)
+            echo "moos-theme: unknown MoOS look-and-feel: $lnf" >&2
+            return 2
+            ;;
+    esac
+}
+
+run_with_timeout() {
+    if command -v timeout >/dev/null 2>&1; then
+        timeout 8s "$@"
+    else
+        "$@"
+    fi
+}
+
+# The pieces LookAndFeelManager does not reliably carry. Keep this separate from
+# `apply` because Plasma's built-in sunrise/sunset switch changes the LNF package
+# itself; the path-activated sync service calls this after that transition so
+# Konsole, GTK, wallpaper, lock screen and the dashboard land on the same half.
+# Deliberately do not write kdeglobals here: that is the file watched by the path
+# unit, and touching it would turn a one-shot reconciliation into a feedback loop.
+apply_supplements() {
+    local include_widget="${1:-true}" ini xs v supplement_failed=0
+
+    # The wallpaper is NOT reliably carried by the Global Theme — measured:
+    # applying a light LNF left the previous dark wallpaper in place.
+    if command -v plasma-apply-wallpaperimage >/dev/null 2>&1 && [ -f "$wallpaper" ]; then
+        run_with_timeout plasma-apply-wallpaperimage "$wallpaper" >/dev/null 2>&1 \
+            || supplement_failed=1
+    else
+        supplement_failed=1
+    fi
+
+    if command -v kwriteconfig6 >/dev/null 2>&1; then
+        kwriteconfig6 --file kscreenlockerrc --group Greeter \
+            --key WallpaperPlugin org.kde.image || supplement_failed=1
+        kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
+            --group org.kde.image --group General --key Image "$wallpaper_package" \
+            || supplement_failed=1
+
+        # Konsole profiles are independent from KDE colour schemes.
+        kwriteconfig6 --file konsolerc --group "Desktop Entry" \
+            --key DefaultProfile "$konsole_profile" || supplement_failed=1
+
+        # settings.ini is GTK's fallback; Wayland and X11 sources follow below.
+        for ini in "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/settings.ini" \
+                   "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"; do
+            [ -f "$ini" ] || continue
+            kwriteconfig6 --file "$ini" --group Settings \
+                --key gtk-application-prefer-dark-theme "$prefer_dark" \
+                || supplement_failed=1
+        done
+    else
+        supplement_failed=1
+    fi
+
+    # Wayland GTK/libadwaita apps.
+    if command -v gsettings >/dev/null 2>&1; then
+        gsettings set org.gnome.desktop.interface color-scheme \
+            "$([ "$prefer_dark" = true ] && echo prefer-dark || echo prefer-light)" \
+            2>/dev/null || supplement_failed=1
+    else
+        supplement_failed=1
+    fi
+
+    # X11/XWayland GTK apps.
+    xs="${XDG_CONFIG_HOME:-$HOME/.config}/xsettingsd/xsettingsd.conf"
+    if [ -f "$xs" ]; then
+        v=0; [ "$prefer_dark" = true ] && v=1
+        if grep -q '^Net/PreferDarkTheme ' "$xs" 2>/dev/null; then
+            sed -i "s|^Net/PreferDarkTheme .*|Net/PreferDarkTheme ${v}|" "$xs" \
+                || supplement_failed=1
+        else
+            echo "Net/PreferDarkTheme ${v}" >>"$xs" || supplement_failed=1
+        fi
+        pkill -HUP -x xsettingsd 2>/dev/null || true
+    fi
+
+    if [ "$include_widget" = true ]; then
+        switch_dashboard "$widget" || supplement_failed=1
+    fi
+    [ "$supplement_failed" -eq 0 ]
+}
+
+auto_wallpapers_complete() {
+    local expected="$1" result desktops matching
+    command -v gdbus >/dev/null 2>&1 || return 1
+    command -v timeout >/dev/null 2>&1 || return 1
+    result="$(timeout 4s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var expected = "'"$expected"'";
+            var ds = desktops();
+            var matching = 0;
+            for (var i = 0; i < ds.length; i++) {
+                ds[i].currentConfigGroup = ["Wallpaper", "org.kde.image", "General"];
+                var image = String(ds[i].readConfig("Image", ""));
+                if (ds[i].wallpaperPlugin == "org.kde.image"
+                        && image.indexOf(expected) >= 0) { matching++; }
+            }
+            print("desktops=" + ds.length + ";matching=" + matching);
+        ' 2>/dev/null)" || return 1
+    result="$(printf '%s\n' "$result" \
+        | grep -oE 'desktops=[1-9][0-9]*;matching=[0-9]+' | head -n1)"
+    [ -n "$result" ] || return 1
+    desktops="${result#desktops=}"
+    desktops="${desktops%%;*}"
+    matching="${result##*matching=}"
+    [ "$desktops" = "$matching" ]
+}
+
+automatic_supplements_complete() {
+    local expected_color lock_plugin lock_image konsole_actual gtk_actual ini xs
+
+    [ "$(current)" = "$lnf" ] || return 1
+    auto_wallpapers_complete "$wallpaper_package" || return 1
+
+    lock_plugin="$(kreadconfig6 --file kscreenlockerrc --group Greeter \
+        --key WallpaperPlugin 2>/dev/null)"
+    lock_image="$(kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
+        --group org.kde.image --group General --key Image 2>/dev/null)"
+    [ "$lock_plugin" = org.kde.image ] || return 1
+    case "$lock_image" in *"$wallpaper_package"*) ;; *) return 1 ;; esac
+
+    konsole_actual="$(kreadconfig6 --file konsolerc --group "Desktop Entry" \
+        --key DefaultProfile 2>/dev/null)"
+    [ "$konsole_actual" = "$konsole_profile" ] || return 1
+
+    expected_color=prefer-light
+    [ "$prefer_dark" = true ] && expected_color=prefer-dark
+    gtk_actual="$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null \
+        | tr -d "'[:space:]")"
+    [ "$gtk_actual" = "$expected_color" ] || return 1
+
+    for ini in "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/settings.ini" \
+               "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"; do
+        [ -f "$ini" ] || continue
+        [ "$(kreadconfig6 --file "$ini" --group Settings \
+            --key gtk-application-prefer-dark-theme 2>/dev/null)" = "$prefer_dark" ] \
+            || return 1
+    done
+
+    xs="${XDG_CONFIG_HOME:-$HOME/.config}/xsettingsd/xsettingsd.conf"
+    if [ -f "$xs" ]; then
+        if [ "$prefer_dark" = true ]; then
+            grep -q '^Net/PreferDarkTheme 1$' "$xs" || return 1
+        else
+            grep -q '^Net/PreferDarkTheme 0$' "$xs" || return 1
+        fi
+    fi
+    return 0
+}
+
+apply() {
+    local lnf="$1" scheme style konsole_profile prefer_dark icons deco wallpaper wallpaper_package widget label
+    load_profile "$lnf" || return
 
     plasma-apply-lookandfeel -a "$lnf" >/dev/null 2>&1 \
         || { echo "moos-theme: could not apply $lnf" >&2; return 1; }
@@ -71,75 +355,97 @@ apply() {
     # cheap and closes the window where LookAndFeelManager skips it.
     plasma-apply-colorscheme "$scheme" >/dev/null 2>&1 || true
 
-    # The wallpaper is NOT reliably carried by the Global Theme — measured: applying
-    # org.moos.nova.light left the navy Horizon wallpaper in place, so the light
-    # desktop came up with a dark background and the desk clock's now-dark text
-    # went invisible against it. Set it directly.
-    if command -v plasma-apply-wallpaperimage >/dev/null 2>&1 && [ -f "$wallpaper" ]; then
-        plasma-apply-wallpaperimage "$wallpaper" >/dev/null 2>&1 || true
-    fi
-
     # The icon theme is not colour-scheme aware: Nova's symbolics are drawn light so
     # they read on a dark panel, and they disappear on porcelain.
     if command -v kwriteconfig6 >/dev/null 2>&1; then
+        kwriteconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage "$lnf"
+        kwriteconfig6 --file kdeglobals --group General --key ColorScheme "$scheme"
+        kwriteconfig6 --file plasmarc --group Theme --key name "$style"
         kwriteconfig6 --file kdeglobals --group Icons --key Theme "$icons"
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "$deco"
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft XIA
+        kwriteconfig6 --file ksplashrc --group KSplash --key Theme "$lnf"
+        kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML
     fi
 
-    # Konsole. konsolerc names a profile FILE; both profiles ship in
-    # /usr/share/konsole. A user's own ~/.config/konsolerc outranks /etc/xdg, which
-    # is exactly why this writes the user's copy and not the system default.
-    if command -v kwriteconfig6 >/dev/null 2>&1; then
-        kwriteconfig6 --file konsolerc --group "Desktop Entry" \
-            --key DefaultProfile "$konsole_profile"
-    fi
-
-    # GTK: the one key Plasma's gtkconfig module never sets. Written to all three
-    # sources because Wayland apps read GSettings, X11/XWayland apps read
-    # xsettingsd, and settings.ini is only consulted when neither answers.
-    if command -v gsettings >/dev/null 2>&1; then
-        gsettings set org.gnome.desktop.interface color-scheme \
-            "$([ "$prefer_dark" = true ] && echo prefer-dark || echo prefer-light)" 2>/dev/null || true
-    fi
-    if command -v kwriteconfig6 >/dev/null 2>&1; then
-        for ini in "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/settings.ini" \
-                   "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"; do
-            [ -f "$ini" ] || continue
-            kwriteconfig6 --file "$ini" --group Settings \
-                --key gtk-application-prefer-dark-theme "$prefer_dark"
-        done
-    fi
-    local xs="${XDG_CONFIG_HOME:-$HOME/.config}/xsettingsd/xsettingsd.conf"
-    if [ -f "$xs" ]; then
-        local v=0; [ "$prefer_dark" = true ] && v=1
-        if grep -q '^Net/PreferDarkTheme ' "$xs" 2>/dev/null; then
-            sed -i "s|^Net/PreferDarkTheme .*|Net/PreferDarkTheme ${v}|" "$xs"
-        else
-            echo "Net/PreferDarkTheme ${v}" >>"$xs"
-        fi
-        pkill -HUP -x xsettingsd 2>/dev/null || true
+    if ! apply_supplements; then
+        echo "moos-theme: $lnf applied, but one or more full-theme supplements failed" >&2
+        return 1
     fi
 
     # KWin has to be told, or the new decoration only appears at the next login and
     # the switch reads as broken.
     command -v gdbus >/dev/null 2>&1 && \
-        gdbus call --session -d org.kde.KWin -o /KWin -m org.kde.KWin.reconfigure >/dev/null 2>&1 || true
+        run_with_timeout gdbus call --session -d org.kde.KWin -o /KWin \
+            -m org.kde.KWin.reconfigure >/dev/null 2>&1 || true
 
-    echo "MoOS: $([ "$lnf" = "$LIGHT_LNF" ] && echo 'فاتح | light' || echo 'داكن | dark')"
+    echo "$label"
 }
 
-# Both targets are MoOS themes. That is the entire safety property: Plasma resolves
-# these by name when the switch fires, and a name it cannot resolve sends it to
-# Breeze — permanently, in the user's own kdeglobals.
+sync_auto() {
+    local automatic lnf automatic_after lnf_after scheme style konsole_profile prefer_dark icons deco wallpaper wallpaper_package widget label
+
+    command -v kreadconfig6 >/dev/null 2>&1 || return 1
+    automatic="$(kreadconfig6 --file kdeglobals --group KDE \
+        --key AutomaticLookAndFeel 2>/dev/null)"
+    [ "$automatic" = true ] || return 0
+
+    lnf="$(current)"
+    case "$lnf" in
+        "$DARK_LNF"|"$LIGHT_LNF") ;;
+        *) return 0 ;;
+    esac
+
+    # KConfig may emit several path events during one LNF transaction. Read the
+    # selector twice and only act on a stable pair; a racing transition returns
+    # failure so systemd performs its bounded retry against the final state.
+    sleep 1
+    automatic_after="$(kreadconfig6 --file kdeglobals --group KDE \
+        --key AutomaticLookAndFeel 2>/dev/null)"
+    lnf_after="$(current)"
+    [ "$automatic_after" = "$automatic" ] && [ "$lnf_after" = "$lnf" ] || return 1
+    [ -d "/usr/share/plasma/look-and-feel/$lnf" ] || return 1
+    load_profile "$lnf" || return 1
+
+    # UI2 Dark and Light intentionally share one adaptive dashboard. Do not
+    # remove/recreate it at sunrise and sunset; only the variant supplements move.
+    if apply_supplements false && automatic_supplements_complete; then
+        echo "MoOS automatic theme supplements synced for ${lnf}"
+        return 0
+    fi
+    echo "moos-theme: automatic supplement sync failed for ${lnf}" >&2
+    return 1
+}
+
+# Both automatic targets are the complete UI2 themes. That is the entire safety
+# property: Plasma resolves these by name when the switch fires, and a name it
+# cannot resolve sends it to Breeze — permanently, in the user's own kdeglobals.
+# UI1 remains installed and is reachable only through the explicit rollback
+# commands; `auto` always returns to the current UI2 family.
 pin_switch_targets() {
     command -v kwriteconfig6 >/dev/null 2>&1 || return 0
     kwriteconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel "$LIGHT_LNF"
     kwriteconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel "$DARK_LNF"
 }
 
-case "${1:-status}" in
+acquire_theme_lock() {
+    command -v flock >/dev/null 2>&1 || return 0
+    local lock_dir="${XDG_RUNTIME_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}}"
+    mkdir -p "$lock_dir" 2>/dev/null || return 1
+    exec 9>"${lock_dir}/moos-theme.lock" || return 1
+    flock -w 30 9
+}
+
+command_name="${1:-status}"
+case "$command_name" in
+    dark|light|toggle|auto|sync-auto|ui1-dark|ui1-light)
+        acquire_theme_lock \
+            || { echo "moos-theme: another theme transition is still running" >&2; exit 1; }
+        ;;
+esac
+
+case "$command_name" in
     dark)
         pin_switch_targets
         kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
@@ -153,19 +459,44 @@ case "${1:-status}" in
     toggle)
         pin_switch_targets
         kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
-        if [ "$(current)" = "$LIGHT_LNF" ]; then apply "$DARK_LNF"; else apply "$LIGHT_LNF"; fi
+        case "$(current)" in
+            "$LIGHT_LNF"|"$UI1_LIGHT_LNF") apply "$DARK_LNF" ;;
+            *) apply "$LIGHT_LNF" ;;
+        esac
         ;;
     auto)
+        command -v systemctl >/dev/null 2>&1 && \
+            systemctl --user start moos-theme-sync.path >/dev/null 2>&1 || true
         pin_switch_targets
-        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel true
-        echo "MoOS: تلقائي | auto (light by day, dark by night — both MoOS)"
+        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel true \
+            || { echo "moos-theme: could not enable automatic switching" >&2; exit 1; }
+        sync_auto || exit 1
+        echo "MoOS UI2: تلقائي | auto (Tidal by day, Graphite by night)"
+        ;;
+    sync-auto)
+        # Internal entry point for moos-theme-sync.service. It is intentionally
+        # harmless when automatic switching is off or UI1 rollback is active.
+        sync_auto
+        ;;
+    ui1-dark)
+        pin_switch_targets
+        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
+        apply "$UI1_DARK_LNF"
+        ;;
+    ui1-light)
+        pin_switch_targets
+        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
+        apply "$UI1_LIGHT_LNF"
         ;;
     status)
-        case "$(current)" in
-            "$LIGHT_LNF") echo "فاتح | light  ($LIGHT_LNF)" ;;
-            "$DARK_LNF")  echo "داكن | dark   ($DARK_LNF)" ;;
-            "")           echo "غير محدّد | unset" ;;
-            *)            echo "ليس MoOS | not a MoOS theme: $(current)" ;;
+        active="$(current)"
+        case "$active" in
+            "$LIGHT_LNF")     echo "MoOS UI2 فاتح | light  ($LIGHT_LNF)" ;;
+            "$DARK_LNF")      echo "MoOS UI2 داكن | dark   ($DARK_LNF)" ;;
+            "$UI1_LIGHT_LNF") echo "MoOS UI1 rollback فاتح | light  ($UI1_LIGHT_LNF)" ;;
+            "$UI1_DARK_LNF")  echo "MoOS UI1 rollback داكن | dark   ($UI1_DARK_LNF)" ;;
+            "")               echo "غير محدّد | unset (default: MoOS UI2)" ;;
+            *)                echo "ليس MoOS | not a MoOS theme: $active" ;;
         esac
         ;;
     -h|--help|help) usage ;;

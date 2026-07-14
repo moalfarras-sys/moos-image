@@ -82,9 +82,35 @@ icons="$(kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null)"
 style="$(kreadconfig6 --file plasmarc --group Theme --key name 2>/dev/null)"
 
 case "$lnf" in
-    org.moos.nova)       want_deco=__aurorae__svg__MoOSNova;      want_sch=NovaDark;  want_ico=Nova;      want_sty=Nova;      mode="داكن | dark" ;;
-    org.moos.nova.light) want_deco=__aurorae__svg__MoOSNovaLight; want_sch=NovaLight; want_ico=NovaLight; want_sty=NovaLight; mode="فاتح | light" ;;
-    *) want_deco=""; mode="" ;;
+    org.moos.ui2)
+        want_deco=__aurorae__svg__MoOSUI2; want_sch=MoOSUI2Dark; want_ico=Nova
+        want_sty=MoOSUI2; want_wall=MoOSUI2Graphite; want_widget=org.moos.ui2.dashboard
+        pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui2
+        mode="UI2 غرافيت | Graphite Dark"
+        ;;
+    org.moos.ui2.light)
+        want_deco=__aurorae__svg__MoOSUI2Light; want_sch=MoOSUI2Light; want_ico=NovaLight
+        want_sty=MoOSUI2Light; want_wall=MoOSUI2Tide; want_widget=org.moos.ui2.dashboard
+        pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui2
+        mode="UI2 تركواز | Tidal Light"
+        ;;
+    # UI1 stays installed as an intentional rollback. The automatic targets stay
+    # on UI2 even during rollback; the completed UI2 migration marker below is
+    # what distinguishes an explicit `moos-theme ui1-*` choice from stale UI1
+    # config that merely survived the upgrade.
+    org.moos.ui)
+        want_deco=__aurorae__svg__MoOSUI; want_sch=MoOSUIDark; want_ico=Nova
+        want_sty=MoOSUI; want_wall=MoOSUIAtmosphere; want_widget=org.moos.nova.deskclock
+        pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui1
+        mode="UI1 احتياطي داكن | UI1 dark rollback"
+        ;;
+    org.moos.ui.light)
+        want_deco=__aurorae__svg__MoOSUILight; want_sch=MoOSUILight; want_ico=NovaLight
+        want_sty=MoOSUILight; want_wall=MoOSUIAtmosphere; want_widget=org.moos.nova.deskclock
+        pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui1
+        mode="UI1 احتياطي فاتح | UI1 light rollback"
+        ;;
+    *) want_deco=""; want_wall=""; want_widget=""; pair_dark=""; pair_light=""; family=""; mode="" ;;
 esac
 
 if [ -z "$want_deco" ]; then
@@ -97,18 +123,64 @@ else
     [ "$style"  = "$want_sty"  ] && ok "Plasma style matches"      || bad "Plasma style is '${style:-unset}', expected ${want_sty}"
 fi
 
-# Plasma's day/night switch resolves these BY NAME, and a name it cannot resolve
-# sends the desktop to Breeze — permanently, in the user's own kdeglobals.
-for key in DefaultDarkLookAndFeel DefaultLightLookAndFeel; do
-    v="$(kreadconfig6 --file kdeglobals --group KDE --key "$key" 2>/dev/null)"
-    if [ -z "$v" ]; then
-        note "${key} is unset"
-    elif [ -d "/usr/share/plasma/look-and-feel/$v" ]; then
-        ok "${key}=${v} (installed)"
+# Plasma's day/night switch is a PAIR.  Merely proving that two arbitrary names
+# exist is not enough: UI2 Dark beside UI1 Light is a mixed theme, and a missing
+# name sends Plasma to Breeze and persists that choice in the user's own config.
+default_dark="$(kreadconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel 2>/dev/null)"
+default_light="$(kreadconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel 2>/dev/null)"
+if [ -n "$pair_dark" ]; then
+    [ "$default_dark" = "$pair_dark" ] \
+        && ok "automatic dark target is UI2: ${default_dark}" \
+        || bad "dark target is '${default_dark:-unset}', expected the UI2 safety target ${pair_dark}"
+    [ "$default_light" = "$pair_light" ] \
+        && ok "automatic light target is UI2: ${default_light}" \
+        || bad "light target is '${default_light:-unset}', expected the UI2 safety target ${pair_light}"
+    if [ -d "/usr/share/plasma/look-and-feel/$pair_dark" ] && \
+       [ -d "/usr/share/plasma/look-and-feel/$pair_light" ]; then
+        ok "UI2 Graphite/Tidal automatic pair is installed"
     else
-        bad "${key}=${v} is NOT installed — the day/night switch will drop this desktop into Breeze"
+        bad "the UI2 automatic dark/light pair is incomplete under /usr/share/plasma/look-and-feel"
     fi
+    if [ "$family" = ui1 ]; then
+        rollback_marker=""
+        for candidate in "${XDG_STATE_HOME:-$HOME/.local/state}"/moos-ui2-theme-applied.v*; do
+            [ -e "$candidate" ] && rollback_marker="$candidate" && break
+        done
+        if [ -n "$rollback_marker" ] && \
+           [ -d /usr/share/plasma/look-and-feel/org.moos.ui ] && \
+           [ -d /usr/share/plasma/look-and-feel/org.moos.ui.light ]; then
+            ok "UI1 rollback was explicitly selected after the UI2 migration"
+        else
+            bad "UI1 is active without a completed UI2 migration marker or its full rollback pair"
+        fi
+    fi
+fi
+
+# Both UI2 halves and the dashboard are image assets, even while the user has
+# explicitly selected UI1 for rollback.  Check the load-bearing representatives
+# of every package rather than trusting that one metadata file implies the rest.
+ui2_missing=""
+for asset in \
+    /usr/share/plasma/look-and-feel/org.moos.ui2/contents/defaults \
+    /usr/share/plasma/look-and-feel/org.moos.ui2.light/contents/defaults \
+    /usr/share/plasma/desktoptheme/MoOSUI2/widgets/panel-background.svg \
+    /usr/share/plasma/desktoptheme/MoOSUI2Light/widgets/panel-background.svg \
+    /usr/share/color-schemes/MoOSUI2Dark.colors \
+    /usr/share/color-schemes/MoOSUI2Light.colors \
+    /usr/share/aurorae/themes/MoOSUI2/MoOSUI2rc \
+    /usr/share/aurorae/themes/MoOSUI2Light/MoOSUI2Lightrc \
+    /usr/share/konsole/MoOSUI2.profile \
+    /usr/share/konsole/MoOSUI2Light.profile \
+    /usr/share/wallpapers/MoOSUI2Graphite/contents/images/3840x2160.jpg \
+    /usr/share/wallpapers/MoOSUI2Tide/contents/images/3840x2160.jpg \
+    /usr/share/plasma/plasmoids/org.moos.ui2.dashboard/metadata.json \
+    /usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/ui/main.qml \
+    /usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/images/weather/storm.png; do
+    [ -e "$asset" ] || ui2_missing="${ui2_missing} ${asset}"
 done
+[ -z "$ui2_missing" ] \
+    && ok "UI2 themes, wallpapers, dashboard and weather art are installed" \
+    || bad "UI2 asset set is incomplete:${ui2_missing}"
 
 # ── The keyboard ─────────────────────────────────────────────────────────────
 # Ask the SESSION what it is typing with, not the system what it was told to type with.
@@ -196,9 +268,67 @@ systemctl --user is-active plasma-ksystemstats.service >/dev/null 2>&1 \
     || bad "plasma-ksystemstats is NOT running — every system monitor will draw an empty box"
 
 appletsrc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
-grep -q "org.moos.nova.deskclock" "$appletsrc" 2>/dev/null \
-    && ok "the desk clock is on the desktop" \
-    || bad "the desk clock is missing from the desktop"
+
+# Ask the running shell about every desktop containment. A global grep count is
+# wrong as soon as a second monitor or Activity exists: the valid state is one
+# dashboard and one matching wallpaper PER desktop, not one for the whole file.
+desktop_visual_state() {
+    local expected_wall="$1" target="$2" other result
+    [ "$target" = org.moos.ui2.dashboard ] \
+        && other=org.moos.nova.deskclock \
+        || other=org.moos.ui2.dashboard
+    command -v gdbus >/dev/null 2>&1 || return 1
+    command -v timeout >/dev/null 2>&1 || return 1
+    result="$(timeout 5s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var expected = "'"$expected_wall"'";
+            var target = "'"$target"'";
+            var other = "'"$other"'";
+            var ds = desktops();
+            var wallpapers = 0, ready = 0, targetTotal = 0, otherTotal = 0;
+            for (var i = 0; i < ds.length; i++) {
+                ds[i].currentConfigGroup = ["Wallpaper", "org.kde.image", "General"];
+                if (String(ds[i].readConfig("Image", "")).indexOf(expected) >= 0) {
+                    wallpapers++;
+                }
+                var ws = ds[i].widgets(), targetCount = 0, otherCount = 0;
+                for (var j = 0; j < ws.length; j++) {
+                    if (ws[j].type == target) { targetCount++; }
+                    if (ws[j].type == other) { otherCount++; }
+                }
+                targetTotal += targetCount;
+                otherTotal += otherCount;
+                if (targetCount == 1 && otherCount == 0) { ready++; }
+            }
+            print("desktops=" + ds.length + ";wallpapers=" + wallpapers
+                + ";ready=" + ready + ";target=" + targetTotal + ";other=" + otherTotal);
+        ' 2>/dev/null)" || return 1
+    printf '%s\n' "$result" \
+        | grep -oE 'desktops=[1-9][0-9]*;wallpapers=[0-9]+;ready=[0-9]+;target=[0-9]+;other=[0-9]+' \
+        | head -n1
+}
+
+visual_field() {
+    printf '%s\n' "$desktop_state" | tr ';' '\n' | sed -n "s/^$1=//p"
+}
+
+if [ -n "$want_wall" ] && [ -n "$want_widget" ]; then
+    if desktop_state="$(desktop_visual_state "$want_wall" "$want_widget")" && [ -n "$desktop_state" ]; then
+        desktop_count="$(visual_field desktops)"
+        wallpaper_count="$(visual_field wallpapers)"
+        ready_count="$(visual_field ready)"
+        target_count="$(visual_field target)"
+        other_count="$(visual_field other)"
+        [ "$wallpaper_count" = "$desktop_count" ] \
+            && ok "all ${desktop_count} desktop wallpaper(s) match: ${want_wall}" \
+            || bad "only ${wallpaper_count}/${desktop_count} desktop wallpaper(s) match ${want_wall}"
+        [ "$ready_count" = "$desktop_count" ] \
+            && ok "every desktop has exactly one matching dashboard (${desktop_count}/${desktop_count})" \
+            || bad "dashboard state is incomplete: ${ready_count}/${desktop_count} desktops ready; target=${target_count}, old=${other_count}"
+    else
+        bad "could not read every desktop's wallpaper/dashboard state from the running Plasma shell"
+    fi
+fi
 grep -q "org.moos.nova.clock" "$appletsrc" 2>/dev/null \
     && ok "the Nova clock is in the panel" \
     || bad "the panel has no clock"
@@ -217,10 +347,17 @@ fi
 head_ "لا شي بيحجب الصورة | Nothing shadowing the image"
 shadows=0
 for rel in plasma/plasmoids/org.moos.nova.clock plasma/plasmoids/org.moos.nova.deskclock \
+           plasma/plasmoids/org.moos.ui2.dashboard \
            plasma/look-and-feel/org.moos.nova plasma/look-and-feel/org.moos.nova.light \
+           plasma/look-and-feel/org.moos.ui2 plasma/look-and-feel/org.moos.ui2.light \
            plasma/desktoptheme/Nova plasma/desktoptheme/NovaLight \
+           plasma/desktoptheme/MoOSUI2 plasma/desktoptheme/MoOSUI2Light \
            aurorae/themes/MoOSNova aurorae/themes/MoOSNovaLight \
-           icons/Nova icons/NovaLight konsole/MoOS.profile; do
+           aurorae/themes/MoOSUI2 aurorae/themes/MoOSUI2Light \
+           wallpapers/MoOSUI2Graphite wallpapers/MoOSUI2Tide \
+           color-schemes/MoOSUI2Dark.colors color-schemes/MoOSUI2Light.colors \
+           icons/Nova icons/NovaLight konsole/MoOS.profile \
+           konsole/MoOSUI2.profile konsole/MoOSUI2Light.profile; do
     if [ -e "/usr/share/$rel" ] && [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
         bad "~/.local/share/${rel} shadows the image copy — later updates will never reach you"
         shadows=$((shadows+1))
