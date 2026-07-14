@@ -18,21 +18,29 @@
 # would be churn with a black screen as the failure mode; recolouring it is four hex values.
 [Plymouth Theme]
 Name=MoOS
-Description=MoOS branded flicker-free boot splash: turquoise comet spinner on MoOS UI2 graphite with the MoOS emblem watermark.
+Description=MoOS premium boot splash: the MoOS emblem and wordmark centered as the hero on UI2 graphite, with a restrained turquoise loading ring near the bottom.
 ModuleName=two-step
 
 [two-step]
 Font=Noto Sans 12
 TitleFont=Noto Sans Light 30
 ImageDir=/usr/share/plymouth/themes/moos-nova
-DialogHorizontalAlignment=.5
-DialogVerticalAlignment=.382
-TitleHorizontalAlignment=.5
-TitleVerticalAlignment=.382
-HorizontalAlignment=.5
-VerticalAlignment=.5
+# The hero — emblem + "MoOS" wordmark — is baked into watermark.png (composed by
+# artwork/generate_boot_hero.py) and centered slightly above the midline, the way
+# a premium OS puts its brand mark. The old theme buried it as a small mark at .96.
 WatermarkHorizontalAlignment=.5
-WatermarkVerticalAlignment=.96
+WatermarkVerticalAlignment=.43
+# The throbber ring is the loading indicator, dropped to the lower third so it
+# reads as secondary to the hero, not competing with it in the centre. Its own
+# turquoise already matches UI2, so the art is untouched. Verified against 768p
+# and 1080p mocks that the hero and ring never overlap.
+HorizontalAlignment=.5
+VerticalAlignment=.85
+# Any boot message/dialog (fsck prompt, LUKS passphrase) sits between the two.
+DialogHorizontalAlignment=.5
+DialogVerticalAlignment=.66
+TitleHorizontalAlignment=.5
+TitleVerticalAlignment=.66
 Transition=none
 TransitionDuration=0.0
 BackgroundStartColor=0x14191C

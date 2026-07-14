@@ -1552,6 +1552,41 @@ for key, token in (("BackgroundStartColor", "canvas"),
                 f"{expected}: the first screen of the boot would not be the colour of the "
                 f"desktop it boots into")
 
+# The splash is LOGO-HERO: the emblem+wordmark (watermark.png, composed by
+# artwork/generate_boot_hero.py) is centred as the brand mark, and the throbber
+# ring is dropped to the lower third as a secondary loader. The old theme did the
+# opposite — spinner dead-centre, logo shrunk to a .96 footer. Gate the geometry
+# so a future edit cannot quietly bury the logo again, and gate that the hero and
+# the loader cannot overlap (verified against 768p, the tightest common panel).
+def _frac(key: str) -> float:
+    m = re.search(rf"^{key}=([0-9.]+)", plymouth_theme, re.MULTILINE)
+    require(m is not None, f"the boot splash declares no {key}")
+    return float(m.group(1)) if m else 0.0
+
+watermark_v = _frac("WatermarkVerticalAlignment")
+throbber_v = _frac("VerticalAlignment")
+require(watermark_v <= 0.55,
+        f"the boot logo sits at {watermark_v} — it must be centred as the hero "
+        "(<=0.55), not buried at the bottom like the pre-redesign watermark")
+require(throbber_v >= 0.72,
+        f"the boot loader sits at {throbber_v} — it must drop to the lower third "
+        "(>=0.72) so it reads as secondary to the logo, not over it")
+require(throbber_v - watermark_v >= 0.25,
+        "the boot logo and loader are too close and would overlap on a short "
+        "(768p) panel — keep at least 0.25 of screen height between them")
+require((ROOT / "artwork/generate_boot_hero.py").is_file(),
+        "the boot hero generator is missing — watermark.png could not be "
+        "reproduced from the emblem master")
+
+# The flicker-free kargs are cosmetic-only and proven on this base; require the
+# load-bearing ones so a future edit cannot silently drop the splash or the
+# fast-path that took the installed boot from 8 min to 90 s.
+boot_kargs = read("system_files/usr/lib/bootc/kargs.d/10-moos-boot-splash.toml")
+for karg in ("rhgb", "quiet", "plymouth.use-simpledrm", "vt.global_cursor_default=0"):
+    require(f'"{karg}"' in boot_kargs,
+            f"the boot karg {karg!r} is gone — the graphical splash or its "
+            "flicker-free handoff would regress")
+
 # ── Arabic in the terminal ────────────────────────────────────────────────────
 #
 # MoOS brands itself Arabic/English and shipped a terminal an Arabic user could not

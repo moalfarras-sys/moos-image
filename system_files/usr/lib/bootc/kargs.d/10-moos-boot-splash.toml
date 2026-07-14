@@ -10,6 +10,33 @@
 # bootc kargs.d makes these part of the IMAGE, so every install and every update gets them and
 # the boot looks like MoOS on every machine.
 #
-#   rhgb  — "red hat graphical boot": the flag Plymouth keys off to draw the splash at all
-#   quiet — suppress the kernel log so the splash is not overwritten by scrolling text
-kargs = ["rhgb", "quiet"]
+# These are the standard flicker-free set the immutable-desktop family (Bazzite,
+# Bluefin) ships on this exact base, so they are proven safe here — every one is
+# cosmetic and none changes what boots or how:
+#
+#   rhgb                       — "red hat graphical boot": the flag Plymouth keys
+#                                off to draw the splash at all
+#   quiet                      — suppress the kernel log so the splash is not
+#                                overwritten by scrolling text
+#   splash                     — the generic companion flag to rhgb; harmless and
+#                                belt-and-braces so a non-Fedora initramfs path
+#                                still asks for graphics
+#   loglevel=3                 — kernel prints only warnings+; the last lines of
+#                                console noise before Plymouth takes over go away
+#   rd.udev.log_level=3        — the same for udev inside the initramfs
+#   vt.global_cursor_default=0 — no blinking text cursor flashing in the corner
+#                                during the firmware -> Plymouth -> greeter handoffs
+#   plymouth.use-simpledrm     — draw on the firmware framebuffer from instant zero
+#                                (simpledrm is builtin in the F44 kernel); this is
+#                                the karg that already took the installed system's
+#                                boot from 8 min to 90 s, made an image karg here so
+#                                every install/update gets it, not just the live ISO
+kargs = [
+    "rhgb",
+    "quiet",
+    "splash",
+    "loglevel=3",
+    "rd.udev.log_level=3",
+    "vt.global_cursor_default=0",
+    "plymouth.use-simpledrm",
+]
