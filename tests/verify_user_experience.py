@@ -1385,6 +1385,39 @@ for dock_surface, dock_code in dock_surfaces.items():
                 f"{dock_surface} no longer makes the dock {decision} — "
                 f"missing {needle!r}; fresh and upgraded users would get different docks")
 
+# libadwaita apps ignore gtk-theme-name, so without these css files Bazaar —
+# MoOS's OWN app store — renders stock Adwaita blue on a turquoise desktop.
+# The colours are not this gate's constants: they must EQUAL the UI2 palette
+# master (palette.json), so a palette change drags the css with it or fails.
+adw_palette = json.loads(read("artwork/moos-ui2/palette.json"))
+for adw_variant, adw_css_rel in (("dark", "system_files/usr/share/moos/gtk/moos-ui2-dark.css"),
+                                 ("light", "system_files/usr/share/moos/gtk/moos-ui2-light.css")):
+    adw_css = read(adw_css_rel)
+    require("managed by moos-theme" in adw_css,
+            f"{adw_css_rel} lost its moos-theme marker — the switcher would refuse "
+            "to update it and stale colours would stick forever")
+    for token, adw_key in (("primary", "accent_bg_color"),
+                           ("surface", "window_bg_color"),
+                           ("canvas", "view_bg_color"),
+                           ("text", "window_fg_color")):
+        expected_hex = adw_palette[adw_variant][token]
+        require(f"@define-color {adw_key} {expected_hex};" in adw_css,
+                f"{adw_css_rel}: {adw_key} does not match palette.json's "
+                f"{adw_variant}.{token} ({expected_hex}) — libadwaita apps would "
+                "drift from the desktop palette")
+adw_switcher = code(read("system_files/usr/bin/moos-theme"))
+for adw_needle in ("moos-ui2-dark.css", "moos-ui2-light.css", "gtk-4.0/gtk.css"):
+    require(adw_needle in adw_switcher,
+            f"moos-theme no longer wires libadwaita css ({adw_needle} missing) — "
+            "Flathub apps would fall back to stock Adwaita")
+require("xdg-config/gtk-4.0:ro" in read("system_files/usr/share/moos/gtk/overrides/global"),
+        "the Flatpak global override no longer grants gtk-4.0 read access — "
+        "sandboxed apps cannot see the UI2 css at all")
+require("/usr/share/moos/gtk/overrides/global" in
+        read("system_files/usr/lib/tmpfiles.d/moos-gtk-overrides.conf"),
+        "tmpfiles no longer seeds the Flatpak global override — a fresh machine "
+        "never gets the gtk-4.0 read hole")
+
 wallpaper = ROOT / "system_files/usr/share/wallpapers/NovaHorizonII"
 for relative in (
     "metadata.json", "contents/screenshot.png",

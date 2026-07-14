@@ -149,6 +149,7 @@ load_profile() {
             style=MoOSUI2Light
             konsole_profile=MoOSUI2Light.profile
             icons=MoOSUI2Light
+            adw_css=/usr/share/moos/gtk/moos-ui2-light.css
             deco=__aurorae__svg__MoOSUI2Light
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Tide
             wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
@@ -161,6 +162,7 @@ load_profile() {
             style=MoOSUI2
             konsole_profile=MoOSUI2.profile
             icons=MoOSUI2
+            adw_css=/usr/share/moos/gtk/moos-ui2-dark.css
             deco=__aurorae__svg__MoOSUI2
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
@@ -173,6 +175,7 @@ load_profile() {
             style=MoOSUILight
             konsole_profile=MoOSUILight.profile
             icons=NovaLight
+            adw_css=
             deco=__aurorae__svg__MoOSUILight
             wallpaper_package=/usr/share/wallpapers/MoOSUIAtmosphere
             wallpaper=${wallpaper_package}/contents/images/3840x2160.png
@@ -185,6 +188,7 @@ load_profile() {
             style=MoOSUI
             konsole_profile=MoOSUI.profile
             icons=Nova
+            adw_css=
             deco=__aurorae__svg__MoOSUI
             wallpaper_package=/usr/share/wallpapers/MoOSUIAtmosphere
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.png
@@ -237,15 +241,49 @@ apply_supplements() {
             --key DefaultProfile "$konsole_profile" || supplement_failed=1
 
         # settings.ini is GTK's fallback; Wayland and X11 sources follow below.
+        # A missing file is CREATED, not skipped: a fresh user whose gtkconfig
+        # has not materialised these yet used to keep an empty GTK theme name,
+        # which means Adwaita — the exact failure AGENTS.md documents. And the
+        # stylesheet NAME is pinned when absent (Breeze: Plasma's gtkconfig
+        # feeds the active KDE palette into that stylesheet; only the name was
+        # ever missing).
         for ini in "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/settings.ini" \
                    "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"; do
-            [ -f "$ini" ] || continue
+            if [ ! -f "$ini" ]; then
+                mkdir -p "$(dirname "$ini")" && printf '[Settings]\n' >"$ini" \
+                    || { supplement_failed=1; continue; }
+            fi
             kwriteconfig6 --file "$ini" --group Settings \
                 --key gtk-application-prefer-dark-theme "$prefer_dark" \
                 || supplement_failed=1
+            if [ -z "$(kreadconfig6 --file "$ini" --group Settings \
+                        --key gtk-theme-name 2>/dev/null)" ]; then
+                kwriteconfig6 --file "$ini" --group Settings \
+                    --key gtk-theme-name Breeze || supplement_failed=1
+            fi
         done
     else
         supplement_failed=1
+    fi
+
+    # libadwaita ignores gtk-theme-name entirely, so Bazaar — MoOS's own app
+    # store — and every Flathub app rendered stock Adwaita blue on a turquoise
+    # desktop. GTK4 reads exactly one user css (~/.config/gtk-4.0/gtk.css); it
+    # is written only when absent or when it carries the MoOS marker, so a
+    # hand-written user css is never clobbered. Flatpaks read it through the
+    # xdg-config/gtk-4.0:ro hole seeded by moos-gtk-overrides.conf. UI1 sets
+    # adw_css empty: the managed css is then removed and stock Adwaita returns,
+    # because UI1's palette never included libadwaita overrides.
+    css_target="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/gtk.css"
+    if [ -z "$adw_css" ]; then
+        if [ -f "$css_target" ] \
+                && grep -q "managed by moos-theme" "$css_target" 2>/dev/null; then
+            rm -f "$css_target" || supplement_failed=1
+        fi
+    elif [ ! -f "$css_target" ] \
+            || grep -q "managed by moos-theme" "$css_target" 2>/dev/null; then
+        mkdir -p "$(dirname "$css_target")" \
+            && cp -f "$adw_css" "$css_target" || supplement_failed=1
     fi
 
     # Wayland GTK/libadwaita apps.
