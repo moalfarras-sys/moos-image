@@ -1349,12 +1349,15 @@ if lock_wallpaper is not None:
             f"the login and lock screens name a wallpaper package the image does not ship: "
             f"{package}")
 
-sddm = read("system_files/etc/sddm.conf.d/moos.conf")
-require(re.search(r"^Current=moos-nova$", sddm, re.MULTILINE) is not None,
-        "SDDM must select the MoOS Nova theme")
-sddm_preset = read("system_files/usr/share/sddm/themes/moos-nova/configs/moos-nova.conf")
-require(sddm_preset.count('background = "nova-horizon-ii.png"') == 2,
-        "SDDM idle and login screens must share Nova Horizon II")
+# SDDM is DEAD on this base: Kinoite 44 boots plasmalogin, so the moos-nova SDDM
+# theme and its config were files nobody read — and the gates that asserted their
+# contents were green on a login screen that never rendered them. The tree is
+# deleted; this now fails if it comes back. The real login screen is verified
+# above, against the lock screen's wallpaper.
+for dead_sddm in ("system_files/usr/share/sddm", "system_files/etc/sddm.conf.d"):
+    require(not (ROOT / dead_sddm).exists(),
+            f"dead SDDM login stack is back in the tree: {dead_sddm} — "
+            "plasmalogin is the display manager; nothing reads SDDM files")
 
 wallpaper = ROOT / "system_files/usr/share/wallpapers/NovaHorizonII"
 for relative in (
@@ -1388,7 +1391,6 @@ require("BackgroundNormal=255,255,255" not in
 # These are the active selectors; comments and package metadata are deliberately
 # outside this gate. The EFI shim directory name is also intentionally excluded.
 active_selectors = {
-    "SDDM": sddm,
     "lock screen": lock_config,
     "look and feel": read("system_files/usr/share/plasma/look-and-feel/org.moos.ui2/contents/defaults"),
 }

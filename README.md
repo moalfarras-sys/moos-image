@@ -31,7 +31,6 @@ moos-image/
 │   ├── etc/moos/              # إعدادات MoOS (هيكل)
 │   └── usr/share/
 │       ├── plasma/look-and-feel/org.moos.nova/   # Global Theme (هيكل + metadata)
-│       ├── sddm/themes/moos-nova/                # ثيم الدخول (Phase 5)
 │       ├── plymouth/themes/moos-nova/            # ثيم الإقلاع (Phase 5)
 │       └── wallpapers/NovaHorizon/               # خلفيات kpackage (Phase 3)
 ├── .github/workflows/

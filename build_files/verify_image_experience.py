@@ -159,10 +159,11 @@ if "plasmalogin" in dm_target:
     require(f"/wallpapers/{lock_wallpaper.group(1)}" in login_conf,
             f"the login screen does not use the lock screen's wallpaper "
             f"({lock_wallpaper.group(1)}) — the first screen after boot is off-brand")
-elif "sddm" in dm_target:
-    sddm = text("/etc/sddm.conf.d/moos.conf")
-    require("Current=moos-nova" in sddm, "SDDM does not select MoOS Nova")
 else:
+    # There is deliberately no SDDM branch any more. SDDM is not installed on this
+    # base (plasmalogin replaced it), the dead theme tree it kept alive is gone,
+    # and a display manager this gate has never verified must fail the build, not
+    # pass it on a config file nobody reads.
     require(False, f"unknown display manager: {dm_target} — its branding is unverified")
 
 # The pickers are user-facing screens too. MoOS's own Look and Feel wins, so the desktop looked
@@ -201,8 +202,15 @@ for fallback in (
     "/usr/share/plasma/plasmoids/org.moos.nova.deskclock/contents/ui/main.qml",
 ):
     require(Path(fallback).is_file(), f"MoOS UI1 rollback asset is missing: {fallback}")
-require(Path("/usr/share/sddm/themes/moos-nova/backgrounds/nova-horizon-ii.png").is_file(),
-        "Nova SDDM background is missing")
+# The SDDM login stack is DEAD WEIGHT on this base: Kinoite 44 replaced SDDM with
+# plasma-login-manager, so ~60 theme files and a config shipped for a greeter that
+# is never installed. This gate used to *require* that theme's background — a green
+# check on a file nobody reads. Now it requires the whole stack stays gone: the
+# real login screen is plasmalogin's, verified above against the lock screen.
+for dead_sddm in ("/usr/share/sddm", "/etc/sddm.conf.d"):
+    require(not Path(dead_sddm).exists(),
+            f"dead SDDM login stack is shipping again: {dead_sddm} — "
+            "plasmalogin is the display manager; nothing reads SDDM files")
 
 control = text("/usr/bin/moai-control")
 gateway = text("/usr/bin/moai-gateway")

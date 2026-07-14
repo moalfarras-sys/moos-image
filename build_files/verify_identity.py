@@ -6,6 +6,7 @@ from __future__ import annotations
 import configparser
 import hashlib
 import json
+import re
 from pathlib import Path
 
 
@@ -89,11 +90,33 @@ def main() -> None:
         alias_path = ROOT / alias.lstrip("/")
         require(digest(alias_path) == digest(alias_path.with_name("moos-logo.png")),
                 f"upstream icon alias does not contain the MoOS logo: {alias}")
-    for alias in aliases[3:]:
-        require((ROOT / alias.lstrip("/")).is_file(), f"missing logo alias: {alias}")
+    # The two wordmark aliases have no same-directory MoOS twin to compare against,
+    # and build.sh deliberately never rewrites them — so an existence check would
+    # stay green if a package (fedora-logos, generic-logos) overwrote them with the
+    # genuine upstream wordmark. Pin the exact MoOS art shipped from system_files;
+    # regenerating that art means updating these digests in the same commit.
+    wordmarks = {
+        "/usr/share/pixmaps/fedora_logo_med.png":
+            "3cd3e6ed5f79a4caedb9211b893d3b37f69f2793381755ec2ea8184479ec0e13",
+        "/usr/share/pixmaps/system-logo-white.png":
+            "14f6de4dace33dabe13785a38f35b28367c5fbee232dc7529c0fef82cefe841b",
+    }
+    for alias, expected_digest in wordmarks.items():
+        require(digest(ROOT / alias.lstrip("/")) == expected_digest,
+                f"legacy wordmark alias no longer carries the MoOS art: {alias}")
 
     require(not (ROOT / "usr/bin/plasma-welcome").exists(),
             "upstream welcome application is still installed")
+
+    # Mo AI's system prompt is fed to the model verbatim, so any base-distro name
+    # in it can be repeated to the user in conversation — the one runtime path a
+    # filename scrub cannot close. Comments are stripped first: a comment naming
+    # what was removed must not keep this gate red (or, worse, be all it checks).
+    for qml in (ROOT / "usr/share/moos/apps").rglob("*.qml"):
+        source = re.sub(r"/\*.*?\*/", "", qml.read_text(encoding="utf-8"), flags=re.DOTALL)
+        source = re.sub(r"(?m)//.*$", "", source)
+        require("fedora" not in source.lower(),
+                f"a MoOS app feeds the base distro's name to the user at runtime: {qml}")
 
     require((ROOT / "usr/lib/systemd/user/moai.service").is_file(),
             "Mo AI user service is missing")

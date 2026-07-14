@@ -407,16 +407,17 @@ fi
 unset -v _liveinst
 
 # -----------------------------------------------------------------------------
-# (c3) SDDM login theme — moos-nova (based on SilentSDDM)
+# (c3) Qt runtime extras — on-screen keyboard + media/image plugins
 # -----------------------------------------------------------------------------
-# The theme itself ships via system_files:
-#   /usr/share/sddm/themes/moos-nova   (selected by /etc/sddm.conf.d/moos.conf)
-# SilentSDDM runtime requirements (upstream README, Fedora names):
-# - qt6-qtsvg:             SVG icons used across the theme
-# - qt6-qtvirtualkeyboard: on-screen keyboard (Arabic input at login)
-# - qt6-qtmultimedia:      QtMultimedia import in the theme (video backgrounds)
-# - qt6-qtimageformats:    extra image format plugins for backgrounds
-# SDDM theme runtime deps (SilentSDDM/moos-nova)
+# These arrived as SilentSDDM theme deps, but the SDDM stack is gone from this
+# image (Kinoite 44 boots plasmalogin; the dead theme tree was deleted, and
+# verify_image_experience.py now fails the build if /usr/share/sddm returns).
+# They stay because the RUNNING system uses them:
+# - qt6-qtvirtualkeyboard: Plasma's on-screen keyboard (Arabic input on the
+#                          lock screen and in the greeter)
+# - qt6-qtsvg:             SVG icon rendering across Qt apps
+# - qt6-qtmultimedia:      media playback for QML surfaces (Mo AI, Welcome)
+# - qt6-qtimageformats:    extra image format plugins (wallpapers, previews)
 dnf5 -y install qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia qt6-qtimageformats
 
 # -----------------------------------------------------------------------------
@@ -1458,7 +1459,7 @@ if [ -e /usr/lib/systemd/system/plasma-setup.service ]; then
         echo "FATAL: plasma-setup.service is not masked."
         exit 1
     fi
-    echo "OK: the Plasma out-of-box wizard is masked and flagged done — MoOS boots to its own SDDM."
+    echo "OK: the Plasma out-of-box wizard is masked and flagged done — MoOS boots to its own login screen."
 fi
 
 # -----------------------------------------------------------------------------
