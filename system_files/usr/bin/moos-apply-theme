@@ -987,7 +987,17 @@ if command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
                 }
                 try {
                     if (targets.length == 0) {
-                        d.addWidget(TARGET, 80, 70, TARGET_WIDTH, TARGET_HEIGHT);
+                        // x=260, not 80: the desktop icons live in a column at the LEFT edge,
+                        // and at x=80 the dashboard sat on top of the first one. On the live
+                        // ISO that first icon is "Install MoOS" — so the first screen of a
+                        // fresh MoOS install showed its own install button with the label
+                        // half-swallowed by the clock. Seen in QEMU on the 2026-07-14 ISO.
+                        // A Folder View has no idea a widget is there and will not flow its
+                        // icons around one, so the clearance has to be built in here: 260
+                        // logical px leaves two full icon columns free. It is a margin, not a
+                        // guarantee — enough icons will still reach it — but the icons that
+                        // matter (the ones a fresh desktop is born with) are clear of it.
+                        d.addWidget(TARGET, 260, 70, TARGET_WIDTH, TARGET_HEIGHT);
                         var after = d.widgets();
                         for (var n = 0; n < after.length; n++) {
                             if (after[n].type == TARGET) {
