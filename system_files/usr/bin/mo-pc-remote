@@ -182,6 +182,20 @@ def qr_png(url, path):
 class App(Gtk.Application):
     def __init__(self): super().__init__(application_id="org.moos.MoPCRemote")
     def do_activate(self):
+        # Clicking Mo PC Remote while Mo PC Remote is open shows you the window you already have.
+        #
+        # The uniqueness was never the problem: GApplication is unique by default, so the second
+        # launch correctly handed off to the running process. What it handed off TO was this
+        # method — which built a WHOLE NEW WINDOW every time it was called. So the user clicked the
+        # icon twice and got two Mo PC Remotes, each polling systemd and Tailscale on its own timer,
+        # inside one process. Reported on the maintainer's machine, 2026-07-14.
+        #
+        # Same shape as MoPlayer's and the QML shell's: the app was unique and its activation still
+        # duplicated the window. Uniqueness is only half of "open it once".
+        existing=self.get_active_window()
+        if existing is not None:
+            existing.present()
+            return
         self.win=Gtk.ApplicationWindow(application=self,title="Mo PC Remote")
         self.win.add_css_class("moos-ui2")
         self.style_provider=Gtk.CssProvider()

@@ -28,11 +28,32 @@
 // Built in build_files/build.sh section (c4b). Deliberately tiny: it must not
 // become a place where app behaviour lives — the apps are still plain QML.
 
+// SECOND LAUNCH, SAME WINDOW
+//
+// This host had no single-instance guard, and EVERY pure-QML MoOS app runs under it — so
+// clicking Mo AI twice gave you two Mo AIs, and the Store the same. Measured on the maintainer's
+// machine: `moai` three times produced three processes, each with its own QML engine and its own
+// GPU surface, on a card the local brain already holds ~6 GB of. It is the same bug MoPlayer had
+// (Flutter's G_APPLICATION_NON_UNIQUE) arriving by a different road, and it is worse here because
+// one fix or one omission lands on every MoOS app at once.
+//
+// KDBusService(Unique) is the KDE answer rather than a lock file, and the reason is the raise. On
+// Wayland a process may not simply pull its window to the front — it needs an XDG activation
+// token, and only the launching shell can mint one. KDBusService carries that token across the
+// D-Bus call (Plasma puts it in the environment; the second instance forwards it in platform_data)
+// and KWindowSystem::activateWindow spends it. A lock file would have prevented the duplicate and
+// left the user staring at a desktop where nothing appeared to happen.
+
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
+#include <QObject>
 #include <QString>
 #include <QUrl>
+#include <QWindow>
+
+#include <KDBusService>
+#include <KWindowSystem>
 
 #include <cstdio>
 
@@ -96,6 +117,23 @@ int main(int argc, char *argv[])
 
     QGuiApplication app(argc, argv);
 
+    // One instance per app id. The service name is derived from applicationName, which is the
+    // app id above — so Mo AI and the Store are unique against THEMSELVES and not against each
+    // other, even though they are the same binary.
+    //
+    // Constructed before the engine on purpose: in Unique mode, a second launch hands its
+    // arguments and its activation token to the running instance and exits from inside this
+    // constructor. Building the QML engine first would mean paying for a window we are about to
+    // throw away — which on this hardware means allocating a GPU surface we cannot spare.
+    // NoExitOnFailure is about the BUS, not about the second instance: without it, a shell that
+    // cannot reach a session bus at all refuses to start — which is exactly what happened in the
+    // image build, where the QML smoke-test runs with no bus and every MoOS QML app came back
+    // exit=1 instead of staying up. A missing bus must cost the guard, never the app.
+    // The "somebody else already owns this app id" path is separate: it hands off and exits below,
+    // and this flag does not touch it. Both halves are tested live, because guessing which one a
+    // flag governs is how an app ships that either opens twice or does not open at all.
+    KDBusService service(KDBusService::Unique | KDBusService::NoExitOnFailure);
+
     // X11/XWayland has no app_id; it matches on the window icon and WM_CLASS.
     // Setting the icon explicitly means the app looks right under either.
     QGuiApplication::setWindowIcon(QIcon::fromTheme(iconName));
@@ -107,6 +145,24 @@ int main(int argc, char *argv[])
                      qPrintable(qmlPath));
         return 1;
     }
+
+    // Somebody launched us again — show them the window they already have. Without this the
+    // second launch is silently swallowed and the app looks like it failed to start.
+    QObject::connect(&service, &KDBusService::activateRequested, &app,
+                     [&engine](const QStringList &, const QString &) {
+        const QList<QObject *> roots = engine.rootObjects();
+        if (roots.isEmpty()) {
+            return;
+        }
+        if (auto *window = qobject_cast<QWindow *>(roots.first())) {
+            window->show();
+            window->raise();
+            // Spends the XDG activation token KDBusService just installed. requestActivate()
+            // alone is not enough on Wayland: with no token KWin refuses the focus steal and
+            // merely blinks the task, which is not what "open the app" means.
+            KWindowSystem::activateWindow(window);
+        }
+    });
 
     return app.exec();
 }

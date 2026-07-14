@@ -46,6 +46,16 @@ osrel_set() {
         echo "${key}=${value}" >> /usr/lib/os-release
     fi
 }
+# VERSION carries the base's codename, and the base is Kinoite — so a MoOS that had renamed
+# everything else still introduced itself as `44.20260714.0 (Kinoite)`. That string is not
+# cosmetic trivia: os-release VERSION is what the ANACONDA INSTALLER puts on screen, so the
+# first sentence a person read while installing MoOS named somebody else's distribution.
+# Rewrite only the parenthesised codename and keep the version numbers the base generated —
+# they are the OSTree version and they change every build. Written as a general substitution
+# rather than s|Kinoite|Nova| so that rebasing onto a different Fedora variant tomorrow cannot
+# quietly put that variant's name back on the installer.
+sed -i -E 's|^VERSION="([^"(]*)\([^)]*\)"|VERSION="\1(Nova)"|' /usr/lib/os-release
+
 osrel_set LOGO              'moos-logo'
 osrel_set HOME_URL          '"https://github.com/moalfarras-sys/moos-image"'
 osrel_set DOCUMENTATION_URL '"https://github.com/moalfarras-sys/moos-image"'
@@ -534,11 +544,26 @@ esac
 # with "QGuiApplication: No such file or directory". It stays because it is what
 # provides /usr/bin/qml-qt6, which both the QML smoke-test gate and the launchers'
 # fallback path depend on. The later install is then a no-op.
-dnf5 -y install gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel
+#
+# KF6DBusAddons + KF6WindowSystem are what make the shell single-instance (see the header of
+# moos-qml-shell.cpp). Their -devel packages are build-only like the rest; the RUNTIME libraries
+# they link against — libKF6DBusAddons.so.6, libKF6WindowSystem.so.6 — are already in the image
+# because Plasma itself depends on them, so this costs the image nothing. Neither ships a
+# pkg-config file (KDE distributes CMake configs), hence the explicit -I/-l.
+dnf5 -y install gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel \
+                kf6-kdbusaddons-devel kf6-kwindowsystem-devel
 g++ -std=c++17 -fPIC -O2 /ctx/moos-qml-shell.cpp -o /usr/bin/moos-qml-shell \
-    $(pkg-config --cflags --libs Qt6Gui Qt6Qml Qt6Core)
+    -I/usr/include/KF6/KDBusAddons -I/usr/include/KF6/KWindowSystem \
+    -lKF6DBusAddons -lKF6WindowSystem \
+    $(pkg-config --cflags --libs Qt6Gui Qt6Qml Qt6Core Qt6DBus)
 chmod 0755 /usr/bin/moos-qml-shell
-dnf5 -y remove gcc-c++ qt6-qtbase-devel
+dnf5 -y remove gcc-c++ qt6-qtbase-devel kf6-kdbusaddons-devel kf6-kwindowsystem-devel
+
+# The single-instance guard is a LINK, and a link that silently did not happen leaves a shell that
+# still runs, still shows the app, and still opens a second copy on the next click — exactly the
+# bug this replaced, with a green build. So check the binary actually carries it.
+ldd /usr/bin/moos-qml-shell | grep -q libKF6DBusAddons \
+    || { echo "GATE FAIL: moos-qml-shell is not linked against KF6DBusAddons — it would open twice"; exit 1; }
 
 # Gate it. A wrong app_id is invisible to every other check in this build: the app
 # launches, the QML loads, nothing errors — the icon is just silently the wrong one.
@@ -1517,6 +1542,64 @@ PWEOF
 # Seen live on the 2026-07-14 ISO in QEMU. With the entry gone the name lookup
 # returns nothing and the launcher skips silently.
 rm -f /usr/share/applications/org.kde.plasma-welcome.desktop
+
+# -----------------------------------------------------------------------------
+# (z1b) The app menu holds the system's apps and MoOS's apps. Nothing else.
+# -----------------------------------------------------------------------------
+# The owner's rule, in his words: what ships is the essential system + what we built, and the
+# user chooses the rest. What he actually got was a menu with the base distribution's debug
+# tools in it and the same app listed twice.
+#
+# Two of these are literal DUPLICATES — the thing he complained about:
+#   * kdesystemsettings.desktop is `Exec=systemsettings`, the same command, with the same icon,
+#     as systemsettings.desktop. Fedora ships it for people running KDE apps under GNOME, and it
+#     carries no OnlyShowIn, so on a KDE-only OS BOTH entries appear. "System Settings" and
+#     "KDE System Settings", side by side, opening the identical window.
+#   * KWrite is Kate with features removed; shipping both is offering the user a choice between
+#     an editor and a worse version of the same editor.
+#
+# The rest are the base's diagnostics — a crash-dump browser, a journal viewer, a debug-flag
+# editor, a menu editor. They are the tooling of somebody building a distribution, not of
+# somebody using one. Krfb goes too: it is a second, worse screen-sharing app standing next to
+# Mo PC Remote, which is the one MoOS actually built.
+#
+# NoDisplay, never `rm`: the packages stay installed and every one of these still runs from a
+# terminal or a .desktop launch. This decides what the MENU offers, and nothing else. (Deleting
+# is what plasma-welcome above needed, and only because plasmashell auto-LAUNCHES it; nothing
+# auto-launches these.)
+hide_from_menu() {
+    local f="/usr/share/applications/$1"
+    [ -f "$f" ] || return 0                      # not installed in this edition; fine
+    grep -q '^NoDisplay=true' "$f" && return 0   # idempotent
+    sed -i '/^NoDisplay=/d' "$f"
+    sed -i '0,/^\[Desktop Entry\]/s//[Desktop Entry]\nNoDisplay=true/' "$f"
+}
+
+for entry in \
+    kdesystemsettings.desktop \
+    org.kde.kwrite.desktop \
+    org.kde.drkonqi.coredump.gui.desktop \
+    org.kde.kdebugsettings.desktop \
+    org.kde.kjournaldbrowser.desktop \
+    org.kde.kmenuedit.desktop \
+    org.kde.krfb.desktop \
+    org.kde.krfb.virtualmonitor.desktop \
+    org.kde.kdeconnect.sms.desktop \
+    org.kde.kdeconnect.nonplasma.desktop \
+    ; do
+    hide_from_menu "$entry"
+done
+
+# Gate it: a typo'd filename above would hide nothing and say nothing, and the duplicate the
+# owner reported would ship again with a green build. Check the two that MUST be gone by asking
+# the file itself, not the list.
+for must_hide in kdesystemsettings.desktop org.kde.kwrite.desktop; do
+    f="/usr/share/applications/$must_hide"
+    if [ -f "$f" ] && ! grep -q '^NoDisplay=true' "$f"; then
+        echo "GATE FAIL: $must_hide is still shown in the menu — it duplicates an app MoOS already has"
+        exit 1
+    fi
+done
 
 # -----------------------------------------------------------------------------
 # (z2a) Remove the OTHER distribution's themes and wallpapers

@@ -845,6 +845,24 @@ local_unit = read("system_files/usr/lib/systemd/user/moai.service")
 gateway_unit = read("system_files/usr/lib/systemd/user/moai-gateway.service")
 build_code = code(read("build_files/build.sh"))
 
+# ── MoOS must introduce itself as MoOS ────────────────────────────────────────
+#
+# os-release VERSION is inherited from the base, and the base is Kinoite — so an image that had
+# renamed NAME, PRETTY_NAME, the GRUB title and the boot splash still said
+# `44.20260714.0 (Kinoite)`. That field is what the ANACONDA INSTALLER prints, which means the
+# first screen of a fresh MoOS install named a different distribution. Found while auditing the
+# ISO the owner asked to install on a second machine.
+#
+# ID_LIKE="fedora" is deliberately NOT policed here: it is a machine-readable compatibility hint
+# that dnf, Flatpak and third-party installers read, not branding. Removing it breaks tools.
+#
+# Gated on the SUBSTITUTION ITSELF, not on the string "(Nova)": that string is already in build.sh
+# twice (PRETTY_NAME, /etc/system-release), so a gate that merely looks for it passes with the
+# rewrite deleted — which is exactly what the first version of this gate did.
+require(r'VERSION="\1(Nova)"' in build_code,
+        "the image must rewrite os-release VERSION's codename — otherwise the installer greets "
+        "the user with the name of the base distribution, not MoOS")
+
 # The two ports must not collide. This is the whole architecture in two lines.
 require("Environment=MOAI_PORT=8081" in local_unit,
         "the local brain must serve on 8081 — 8080 is moai-gateway's, and two "
@@ -1762,6 +1780,36 @@ for launcher, app_id in (
     require("/usr/bin/moos-qml-shell" in text and f"--app-id {app_id}" in text,
             f"{launcher} must EXEC moos-qml-shell with --app-id {app_id}, or its window "
             f"carries the QML runtime's app_id and the taskbar shows the generic Qt icon")
+
+# ── …and clicking it twice must not give you two of it ────────────────────────
+#
+# The host had no single-instance guard, and EVERY pure-QML MoOS app runs under it — so this one
+# omission opened a second Mo AI, a second Store, a second everything. Measured on the maintainer's
+# machine: `moai` three times, three processes, three QML engines, three GPU surfaces, on a card
+# the local brain already holds ~6 GB of. Same bug MoPlayer had (NON_UNIQUE), different road.
+#
+# KDBusService(Unique) rather than a lock file, and the difference is the RAISE: on Wayland a
+# process may not pull its own window forward without an XDG activation token, and only the shell
+# that launched it can mint one. KDBusService carries the token across; KWindowSystem spends it.
+# A lock file would suppress the duplicate and leave the user clicking an icon that does nothing.
+shell_src = code(read("build_files/moos-qml-shell.cpp"), "slash")
+require("KDBusService service(" in shell_src and "KDBusService::Unique" in shell_src,
+        "moos-qml-shell must be single-instance — without it every MoOS QML app opens again on "
+        "every click, each with its own QML engine and its own GPU surface")
+# …and the guard must not cost the app its ability to START. Strict Unique refuses to run at all
+# when there is no session bus, which is exactly the case in the image's own QML smoke-test: every
+# MoOS QML app came back exit=1 instead of staying up, and the build went red. A missing bus may
+# cost the guard; it may never cost the app.
+require("KDBusService::NoExitOnFailure" in shell_src,
+        "a missing session bus must disable the single-instance guard, not the application — "
+        "without NoExitOnFailure the shell exits rather than opening the app")
+require("KDBusService::activateRequested" in shell_src
+        and "KWindowSystem::activateWindow" in shell_src,
+        "a second launch must RAISE the running window: uniqueness alone turns the second click "
+        "into nothing happening, which reads as an app that failed to start")
+require("-lKF6DBusAddons" in build_code and "libKF6DBusAddons" in build_code,
+        "build.sh must LINK the guard and then verify the link — a silently unlinked binary still "
+        "runs, still shows the app, and still opens twice")
 
 # ── A desktop that can show you a picture ─────────────────────────────────────
 #
