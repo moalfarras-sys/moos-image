@@ -198,58 +198,10 @@ Item {
             }
         }
 
-        // ── MoOS visual layer ─────────────────────────────────────────────────
-        // A soft graphite scrim rising from the bottom: gives the wallpaper depth
-        // and keeps the clock and password legible over any image. Purely cosmetic.
-        Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.55; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                                                              Kirigami.Theme.backgroundColor.g,
-                                                              Kirigami.Theme.backgroundColor.b, 0.0) }
-                GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                                                             Kirigami.Theme.backgroundColor.g,
-                                                             Kirigami.Theme.backgroundColor.b, 0.55) }
-            }
-        }
-
-        // The MoOS mark, quiet, upper-centre — brand identity without shouting.
-        ColumnLayout {
-            id: brand
-            anchors {
-                top: parent.top
-                horizontalCenter: parent.horizontalCenter
-                topMargin: Kirigami.Units.gridUnit * 2.5
-            }
-            spacing: Kirigami.Units.smallSpacing
-            opacity: 0.9
-            transform: Translate { id: brandShift }
-
-            Image {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 3
-                Layout.preferredHeight: Layout.preferredWidth
-                // Absolute path: this file lives in the shell package now, which
-                // has no MoOS art of its own. /usr/share/pixmaps/moos-logo.png is
-                // the canonical mark the identity firewall pins.
-                source: "file:///usr/share/pixmaps/moos-logo.png"
-                fillMode: Image.PreserveAspectFit
-                asynchronous: true
-                smooth: true
-            }
-            Text {
-                Layout.alignment: Qt.AlignHCenter
-                text: "MoOS"
-                color: Kirigami.Theme.textColor
-                opacity: 0.85
-                font.family: "IBM Plex Sans"
-                font.pointSize: Kirigami.Theme.defaultFont.pointSize + 2
-                font.weight: Font.DemiBold
-                font.letterSpacing: 2
-                renderType: Text.NativeRendering
-            }
-        }
+        // NOTE: the MoOS visual layer (scrim, brand) is declared AFTER the
+        // WallpaperFader below — z-order is declaration order, and anything before
+        // the fader is painted over by the wallpaper. An earlier revision put the
+        // scrim and brand here and the wallpaper hid them both.
 
         // The whole scene fades up on appear (original Breeze behaviour), and the
         // brand mark settles down a touch — a calm, premium entrance. A shared
@@ -288,6 +240,60 @@ Item {
             footer: footer
             clock: clock
             alwaysShowClock: config.alwaysShowClock && !config.hideClockWhenIdle
+        }
+
+        // ── MoOS visual layer — ON TOP of the wallpaper ──────────────────────
+        // A soft graphite scrim: a gentle darkening at the top and bottom edges so
+        // the brand, clock and password stay legible over any wallpaper. Full-bleed,
+        // low opacity, purely cosmetic.
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                                                             Kirigami.Theme.backgroundColor.g,
+                                                             Kirigami.Theme.backgroundColor.b, 0.45) }
+                GradientStop { position: 0.4; color: "transparent" }
+                GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                                                             Kirigami.Theme.backgroundColor.g,
+                                                             Kirigami.Theme.backgroundColor.b, 0.5) }
+            }
+        }
+
+        // The MoOS mark, quiet, upper-centre — brand identity without shouting.
+        ColumnLayout {
+            id: brand
+            anchors {
+                top: parent.top
+                horizontalCenter: parent.horizontalCenter
+                topMargin: Kirigami.Units.gridUnit * 2.5
+            }
+            spacing: Kirigami.Units.smallSpacing
+            opacity: 0.92
+            transform: Translate { id: brandShift }
+
+            Image {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 3
+                Layout.preferredHeight: Layout.preferredWidth
+                // Absolute path: this file lives in the shell package now, which
+                // has no MoOS art of its own. /usr/share/pixmaps/moos-logo.png is
+                // the canonical mark the identity firewall pins.
+                source: "file:///usr/share/pixmaps/moos-logo.png"
+                fillMode: Image.PreserveAspectFit
+                asynchronous: true
+                smooth: true
+            }
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                text: "MoOS"
+                color: Kirigami.Theme.textColor
+                opacity: 0.85
+                font.family: "IBM Plex Sans"
+                font.pointSize: Kirigami.Theme.defaultFont.pointSize + 2
+                font.weight: Font.DemiBold
+                font.letterSpacing: 2
+                renderType: Text.NativeRendering
+            }
         }
 
         // The frosted card behind the auth cluster. Fades and lifts in only when
