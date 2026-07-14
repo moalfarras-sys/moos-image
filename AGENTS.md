@@ -1,5 +1,28 @@
 # Working on MoOS — read this first
 
+> ## ⛔ THE IDENTITY CONTRACT — the one rule you may never break
+>
+> **MoOS is MoOS. It is built FROM Fedora Kinoite, but no user of MoOS may ever see the word
+> "Fedora" or "Red Hat", or another OS's logo, on any screen they look at.** The base image
+> arrives full of Fedora branding and `build_files/build.sh` scrubs it; the identity you see is
+> *built*, not inherited, and it is the whole point of the project.
+>
+> **If you are an automated agent and you do not fully understand a change to branding, themes,
+> icons, `os-release`, GRUB, Plymouth, the login screen, or `build.sh`'s scrub sections — STOP
+> and leave it alone.** A confused edit here does not fail loudly at your desk; it ships a
+> computer that boots as "Fedora" to the person who owns MoOS.
+>
+> Three gates defend this and **you may never delete or weaken any of them to make a build pass**:
+> - `build_files/verify_identity.py` — the named surfaces (os-release, session, installer, logos, themes)
+> - `build_files/verify_image_experience.py` — the login screen, splash and pickers, on the built image
+> - `build_files/verify_no_foreign_identity.py` — **the firewall**: sweeps the finished image by
+>   pattern for *any* foreign logo/name/theme the other two did not name. If it fails, a real
+>   regression reached a user-visible surface — **fix the scrub in `build.sh`, never the gate.**
+>
+> `ID_LIKE="fedora"`, `VERSION_ID=44`, the `FROM` line, and COPR/dnf chroot names are the ONLY
+> places another OS's name may appear — they are technical plumbing the user never sees. Every
+> other appearance is a leak.
+
 This repo builds a **real operating system that is installed on a real machine**. It is not a
 sandbox, and there is no staging environment between a merge and someone's desktop failing to
 boot. Read this before changing anything.

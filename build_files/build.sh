@@ -1725,6 +1725,16 @@ chmod 1777 /var/tmp
 # a failure stops the build.
 python3 /ctx/verify_image_experience.py
 
+# ── The identity firewall — the catch-all, on the finished bytes ──────────────
+#
+# verify_identity.py and verify_image_experience.py check the surfaces we KNOW
+# about. This one sweeps the whole image by pattern for another OS's logo, name
+# or theme, on the real bytes that ship. It is what catches a base-image update
+# that adds a Fedora asset under a name our scrub never listed, and an agent who
+# removed a scrub step without understanding what it protected. It runs LAST, so
+# nothing added after the rebrand can slip a foreign identity past it.
+python3 /ctx/verify_no_foreign_identity.py
+
 # ── The image must not carry the build machine's litter ───────────────────────
 #
 # `COPY system_files/ /` copies from the build *context*, which is the working tree

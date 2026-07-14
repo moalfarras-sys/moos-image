@@ -1587,6 +1587,20 @@ for karg in ("rhgb", "quiet", "plymouth.use-simpledrm", "vt.global_cursor_defaul
             f"the boot karg {karg!r} is gone — the graphical splash or its "
             "flicker-free handoff would regress")
 
+# The identity firewall must stay wired and stay documented. This is the one gate
+# that catches a base-image update or a confused agent re-introducing another OS's
+# branding on the finished bytes; an edit that removed its invocation, or the
+# IDENTITY CONTRACT that tells an agent not to touch it, is itself a regression.
+require((ROOT / "build_files/verify_no_foreign_identity.py").is_file(),
+        "the identity firewall script is gone — nothing sweeps the built image "
+        "for foreign branding the named-surface gates do not know about")
+require("verify_no_foreign_identity.py" in read("build_files/build.sh"),
+        "build.sh no longer runs the identity firewall — a foreign logo or name "
+        "could reach a user-visible surface with every gate still green")
+require("THE IDENTITY CONTRACT" in read("AGENTS.md"),
+        "AGENTS.md lost the IDENTITY CONTRACT — the first thing that tells an "
+        "agent not to let MoOS boot as another OS")
+
 # ── Arabic in the terminal ────────────────────────────────────────────────────
 #
 # MoOS brands itself Arabic/English and shipped a terminal an Arabic user could not
