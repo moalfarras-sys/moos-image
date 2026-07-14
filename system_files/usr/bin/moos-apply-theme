@@ -658,6 +658,8 @@ if command -v gdbus >/dev/null 2>&1; then
                 var p = ps[i];
                 if (p.location != "bottom") { continue; }
                 try { if ("floating" in p) { p.floating = true; } } catch (e) {}
+                try { if ("lengthMode" in p) { p.lengthMode = "fit"; } } catch (e) {}
+                try { if ("alignment" in p) { p.alignment = "center"; } } catch (e) {}
                 try { p.height = 44; } catch (e) {}
                 var ws = p.widgets();
                 for (var j = 0; j < ws.length; j++) {

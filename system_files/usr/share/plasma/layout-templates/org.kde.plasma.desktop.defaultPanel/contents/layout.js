@@ -36,6 +36,19 @@ panel.height = Math.round(gridUnit * 2.6);   // ~46px premium dock
  * the property, the catch keeps the dock. */
 try { panel.floating = true; } catch (e) { /* keep the dock, lose the gap */ }
 
+/* The dock is a CAPSULE, not a bar: it hugs its content and sits centered, the
+ * geometry the maintainer's installed machine actually runs (the shipped proof
+ * artwork/moos-ui2/live-tests/ui2-dark-real-desktop.jpg is exactly this). The
+ * template used to stop at `floating`, so every NEW user — and the live ISO —
+ * got an edge-to-edge bar while the flagship desktop showed a floating capsule.
+ *
+ * Same defensive shape as `floating` above: each setter isolated, because a
+ * throw anywhere in this template leaves the session with NO panel at all.
+ * `lengthMode` and `alignment` are real Plasma 6 scripting Panel properties
+ * ("fill"/"fit"/"custom" and "left"/"center"/"right"). */
+try { panel.lengthMode = "fit"; } catch (e) { /* a full bar, not a broken one */ }
+try { panel.alignment = "center"; } catch (e) { /* a left capsule, still a dock */ }
+
 /* Keep Plasma's fully integrated Kickoff (search, KAStats, favorites, recent
  * usage, keyboard and session models) and skin it through the Nova Plasma
  * Style. MoOS does not ship a competing launcher implementation. */

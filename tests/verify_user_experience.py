@@ -1359,6 +1359,32 @@ for dead_sddm in ("system_files/usr/share/sddm", "system_files/etc/sddm.conf.d")
             f"dead SDDM login stack is back in the tree: {dead_sddm} — "
             "plasmalogin is the display manager; nothing reads SDDM files")
 
+# The dock is a floating CAPSULE — centered, hugging its content — not an
+# edge-to-edge bar. The installed flagship machine runs that geometry (the
+# shipped proof ui2-dark-real-desktop.jpg), but the layout template only set
+# `floating`, so every new user and the live ISO booted to the old full-width
+# bar while every gate stayed green. Seen live in QEMU, 2026-07-14.
+#
+# Two surfaces hand out this geometry — the template (users with no panel yet)
+# and moos-apply-theme's migration (users who already have one). Gate the
+# RELATIONSHIP: both must state all three decisions, or a fresh user and an
+# upgraded user boot into two different docks.
+dock_surfaces = {
+    "dock template": code(read(
+        "system_files/usr/share/plasma/layout-templates/"
+        "org.kde.plasma.desktop.defaultPanel/contents/layout.js")),
+    "dock migration (moos-apply-theme)": code(read("system_files/usr/bin/moos-apply-theme")),
+}
+for dock_surface, dock_code in dock_surfaces.items():
+    for needle, decision in (
+        ('lengthMode = "fit"', "hug the content (capsule, not bar)"),
+        ('alignment = "center"', "sit centered"),
+        (".floating = true", "float off the screen edge"),
+    ):
+        require(needle in dock_code,
+                f"{dock_surface} no longer makes the dock {decision} — "
+                f"missing {needle!r}; fresh and upgraded users would get different docks")
+
 wallpaper = ROOT / "system_files/usr/share/wallpapers/NovaHorizonII"
 for relative in (
     "metadata.json", "contents/screenshot.png",
