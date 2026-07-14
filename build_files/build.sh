@@ -1385,21 +1385,39 @@ grep -E '^(NAME|PRETTY_NAME|ID|ID_LIKE|VERSION_ID|VARIANT|VARIANT_ID|LOGO|ANSI_C
 # (apps + any scalable), replacing PNGs with the MoOS logo and DELETING SVGs
 # so the raster MoOS mark always resolves.
 _moos_src=/usr/share/moos/moos-logo.png
-_names="fedora-logo-icon org.fedoraproject.AnacondaInstaller anaconda \
-        fedora-logo fedora-logo-small start-here-fedora"
+# Every foreign-brand icon stem. This MUST stay a superset of the firewall's
+# FOREIGN_LOGO_STEMS in verify_no_foreign_identity.py — if the firewall flags a
+# name, the scrub has to remove it, or the build cannot pass.
+_names="fedora-logo-icon fedora-logo fedora-logo-small fedora-gdm-logo \
+        start-here-fedora org.fedoraproject.AnacondaInstaller \
+        org.fedoraproject.fedora redhat redhat-logo red-hat anaconda"
 if [ -f "$_moos_src" ]; then
-    # Every icon theme (both /usr/share/icons and /usr/share/icons/hicolor).
-    find /usr/share/icons -type d -name apps 2>/dev/null | while read -r _appdir; do
-        # Prefer a same-size moos-logo.png if this dir has one; else the master.
-        _sized="$_appdir/moos-logo.png"
-        [ -f "$_sized" ] || _sized="$_moos_src"
-        for _name in $_names; do
-            [ -f "$_appdir/$_name.png" ] && cp -f "$_sized" "$_appdir/$_name.png"
-            # scalable SVGs win over raster at large sizes -> remove them.
-            [ -f "$_appdir/$_name.svg" ] && rm -f "$_appdir/$_name.svg"
-            [ -f "$_appdir/$_name.svgz" ] && rm -f "$_appdir/$_name.svgz"
-        done
-    done || true
+    # Search RECURSIVELY for the real files, not just the top apps/ dir.
+    #
+    # The old scrub walked `find -type d -name apps` and touched only
+    # "$appdir/$name.svg" — but Colloid keeps its scalable icons in
+    # apps/SCALABLE/, and Papirus keeps redhat.svg in per-size apps/ dirs. So
+    # org.fedoraproject.AnacondaInstaller.svg, start-here-fedora.svg and
+    # redhat.svg shipped inside Colloid-*/Papirus for weeks — invisible to every
+    # named-surface gate, and only caught once verify_no_foreign_identity.py swept
+    # the finished image (2026-07-14). Two tree walks now cover every depth.
+    _svg_pred=(); _png_pred=()
+    for _name in $_names; do
+        _svg_pred+=(-o -name "${_name}.svg" -o -name "${_name}.svgz")
+        _png_pred+=(-o -name "${_name}.png")
+    done
+    # Delete every foreign vector anywhere under the icon themes (a scalable SVG
+    # outranks the raster MoOS mark at large sizes, so it must be gone, not hidden).
+    find /usr/share/icons -type f \( "${_svg_pred[@]:1}" \) -delete 2>/dev/null || true
+    # Replace every foreign raster with the same-size MoOS mark if its own dir has
+    # one, else the master.
+    find /usr/share/icons -type f \( "${_png_pred[@]:1}" \) -print0 2>/dev/null \
+        | while IFS= read -r -d '' _f; do
+            _dir="$(dirname "$_f")"
+            _sized="$_dir/moos-logo.png"
+            [ -f "$_sized" ] || _sized="$_moos_src"
+            cp -f "$_sized" "$_f"
+        done || true
     # Legacy pixmap logo names read by hardcoded path in some about-dialogs.
     for _px in fedora-logo.png fedora-logo-small.png fedora-gdm-logo.png; do
         [ -f "/usr/share/pixmaps/$_px" ] && cp -f "$_moos_src" "/usr/share/pixmaps/$_px" || true
@@ -1418,7 +1436,7 @@ if [ -f "$_moos_src" ]; then
         [ -f "${_themedir}index.theme" ] && gtk-update-icon-cache -f "$_themedir" 2>/dev/null || true
     done
 fi
-unset -v _moos_src _names _appdir _sized _name _px _themedir
+unset -v _moos_src _names _svg_pred _png_pred _f _dir _sized _name _px _themedir
 
 # Kill KDE's plasma-welcome for the live session — it is the WINDOW that draws a
 # monitor mock-up with the Fedora distro logo (the second Fedora leak besides the
