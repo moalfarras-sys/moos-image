@@ -475,6 +475,15 @@ rm -rf "${cache_dir}/qmlcache" \
 find "${cache_dir}" -mindepth 2 -maxdepth 2 -type d -name qmlcache \
     -exec rm -rf -- {} + 2>/dev/null || true
 
+# ksycoca — the menu/launcher/service database — is the SAME mtime trap one level
+# up: OSTree pins every /usr mtime to the epoch, so a .desktop that was renamed
+# across a `bootc upgrade` (Discover -> "Mo Store" is exactly this) looks unchanged
+# to ksycoca, and the menu keeps serving the old name and icon. A full,
+# non-incremental rebuild ignores mtimes and reads the files, so this revision's
+# .desktop and icon changes actually reach the user. Runs only on a real apply
+# (this whole body does), so it is not a per-login cost.
+command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 --noincremental >>"$log" 2>&1 || true
+
 applied=0
 
 # Repair the look the user is ACTUALLY on. Dark is only the default, not the

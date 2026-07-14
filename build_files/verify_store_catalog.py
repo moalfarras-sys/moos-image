@@ -34,6 +34,7 @@ WELCOME_QML = "/usr/share/moos/apps/welcome/main.qml"
 MOOS_INSTALL = "/usr/bin/moos-install"
 MOOS_OPEN = "/usr/bin/moos-open"
 MOOS_WELCOME = "/usr/bin/moos-welcome"
+MOOS_SELFCHECK = "/usr/bin/moos-selfcheck"
 
 errors = []
 
@@ -174,6 +175,19 @@ require("--cache=" in qml_code,
         "the Welcome QML does not read the --cache= path the launcher passes")
 require("QML_XHR_ALLOW_FILE_READ" in launcher,
         "moos-welcome does not enable local-file XHR — the QML cannot read the catalog")
+
+# ── RELATIONSHIP: the on-device self-check actually checks the store ───────────
+# moos-selfcheck is what a user runs after `bootc upgrade` to confirm everything
+# arrived and works. If the store ships but the health check never looks at it, a
+# broken install path reads as a clean bill of health. Tie them together: the
+# self-check must interrogate the catalogue AND the moos:// route the store fires.
+selfcheck = code(text(MOOS_SELFCHECK), "#")
+require(CATALOG in selfcheck,
+        "moos-selfcheck does not check the store catalogue — a missing store would pass silently")
+require("store/install" in selfcheck,
+        "moos-selfcheck does not verify the store/install route the Welcome depends on")
+require("x-scheme-handler/moos" in selfcheck,
+        "moos-selfcheck does not verify the moos:// handler — dead install links would pass")
 
 # ── report ────────────────────────────────────────────────────────────────────
 if errors:

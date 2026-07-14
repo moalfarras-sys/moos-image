@@ -80,6 +80,8 @@ do_update() {
         echo "${G}✓ تم تجهيز التحديث بنجاح.${N}"
         echo "${G}  يكتمل عند إعادة التشغيل | applies on reboot${N}"
         echo "${D}  (إن لم يتغيّر شيء فالنظام محدّث بالفعل | if nothing changed, you're already up to date)${N}"
+        echo "${C}  بعد إعادة التشغيل اختر (3) لفحص أنّ كل شيء وصل وعمل.${N}"
+        echo "${C}  After rebooting, choose (3) to check everything arrived and works.${N}"
     else
         echo "${Y}لم يكتمل التحديث. | update did not complete.${N}"
     fi
@@ -99,21 +101,39 @@ do_check() {
     fi
 }
 
+# After a reboot into the new deployment, this answers the real question the update
+# raises: did everything actually arrive and is it working? moos-selfcheck asks the
+# RUNNING desktop (theme, store, lock screen, splash, Mo AI, keyboard…), not the
+# image — no privilege needed, so no polkit prompt here.
+do_selfcheck() {
+    if ! command -v moos-selfcheck >/dev/null 2>&1; then
+        echo "${Y}moos-selfcheck غير موجود على هذا النظام | moos-selfcheck not found${N}"
+        return 1
+    fi
+    echo "${C}▸ فحص النظام الحيّ | Checking the live system${N}"
+    echo "${D}  يقرأ سطح المكتب الفعلي: المظهر، المتجر، القفل، الإقلاع، Mo AI…${N}"
+    echo "${D}  Reads the actual desktop: theme, store, lock screen, boot, Mo AI…${N}"
+    echo
+    moos-selfcheck || true
+}
+
 main() {
     banner
     show_status
     while true; do
         echo "${V}اختر | Choose:${N}"
-        echo "  1) تحديث الآن    | Update now"
-        echo "  2) فحص فقط       | Check only"
-        echo "  3) خروج          | Exit"
+        echo "  1) تحديث الآن       | Update now"
+        echo "  2) فحص التحديث فقط  | Check for update only"
+        echo "  3) فحص النظام       | Check the system (did everything land & work?)"
+        echo "  4) خروج             | Exit"
         printf '%s' "${V}> ${N}"
         read -r choice || { echo; break; }
         echo
         case "${choice:-}" in
             1) do_update || true ;;
             2) do_check || true ;;
-            3|q|Q) echo "${D}مع السلامة | bye${N}"; break ;;
+            3) do_selfcheck || true ;;
+            4|q|Q) echo "${D}مع السلامة | bye${N}"; break ;;
             *) echo "${Y}اختيار غير صحيح | invalid choice${N}" ;;
         esac
         echo

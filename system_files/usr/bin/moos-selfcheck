@@ -261,6 +261,66 @@ curl -sf --max-time 6 -H 'X-Moai-Control: 1' http://127.0.0.1:8079/status >/dev/
     && ok "the control API answers on 8079" \
     || note "the control API is not up yet (it starts with the session)"
 
+# ── The MoOS Store ────────────────────────────────────────────────────────────
+# `bootc upgrade` replaces /usr atomically, so reading the booted /usr IS reading
+# the running system: these prove the store, its install path and the Mo Store
+# rebrand actually LANDED in the deployment you are running, and that a store tap
+# has somewhere to go. The store installs with NO terminal by firing
+# moos://store/install/<id> at moos-open, which runs moos-install for a catalogued
+# id — so all three links are checked, not just that the window exists.
+head_ "متجر MoOS | MoOS Store"
+catalog=/usr/share/moos/store/catalog.json
+if [ -f "$catalog" ] && command -v python3 >/dev/null 2>&1 && \
+   n_apps="$(python3 -c 'import json; print(len(json.load(open("/usr/share/moos/store/catalog.json",encoding="utf-8"))["apps"]))' 2>/dev/null)" && \
+   [ "${n_apps:-0}" -gt 0 ]; then
+    ok "the store catalogue lists ${n_apps} apps"
+else
+    bad "the store catalogue is missing or unreadable (${catalog})"
+fi
+[ -x /usr/bin/moos-install ] && ok "moos-install (the no-terminal installer) is present" \
+    || bad "moos-install is missing — the store cannot install anything"
+if [ -x /usr/bin/moos-open ] && grep -q "store/install" /usr/bin/moos-open 2>/dev/null; then
+    ok "moos-open carries the store/install route"
+else
+    bad "moos-open has no store/install route — the store's install taps would do nothing"
+fi
+moos_handler="$(xdg-mime query default x-scheme-handler/moos 2>/dev/null)"
+case "$moos_handler" in
+    org.moos.urlhandler.desktop) ok "moos:// links route to MoOS" ;;
+    "") bad "nothing handles moos:// — the store's install links are dead" ;;
+    *)  note "moos:// is handled by '${moos_handler}' (expected org.moos.urlhandler.desktop)" ;;
+esac
+[ -x /usr/bin/moos-welcome ] && ok "the Welcome/store launcher is present" \
+    || bad "moos-welcome is missing — the store cannot open"
+disc=/usr/share/applications/org.kde.discover.desktop
+if [ -f "$disc" ]; then
+    grep -q '^Name=Mo Store$' "$disc" 2>/dev/null \
+        && ok "the app store is branded Mo Store" \
+        || note "Discover is present but not rebranded to Mo Store"
+fi
+
+# ── The lock screen and boot splash are MoOS ──────────────────────────────────
+head_ "القفل والإقلاع | Lock screen & boot"
+lock=/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml
+if [ -f "$lock" ] && grep -q "MoOS" "$lock" 2>/dev/null; then
+    ok "the lock screen is the MoOS override (drawn by the shell package)"
+else
+    bad "the lock screen is not MoOS's — the greeter will fall back to Breeze"
+fi
+if [ -d /usr/share/plymouth/themes/moos-nova ]; then
+    plymouth_theme="$(plymouth-set-default-theme 2>/dev/null || true)"
+    if [ -n "$plymouth_theme" ]; then
+        [ "$plymouth_theme" = moos-nova ] && ok "the boot splash is moos-nova" \
+            || bad "the boot splash is '${plymouth_theme}', expected moos-nova"
+    elif grep -q '^Theme=moos-nova' /usr/share/plymouth/plymouthd.defaults 2>/dev/null; then
+        ok "the boot splash ships as moos-nova"
+    else
+        note "could not confirm the active boot splash theme"
+    fi
+else
+    bad "the moos-nova boot splash theme is not installed"
+fi
+
 # ── The desktop ──────────────────────────────────────────────────────────────
 head_ "سطح المكتب | Desktop"
 systemctl --user is-active plasma-ksystemstats.service >/dev/null 2>&1 \
