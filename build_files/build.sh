@@ -1392,31 +1392,42 @@ _names="fedora-logo-icon fedora-logo fedora-logo-small fedora-gdm-logo \
         start-here-fedora org.fedoraproject.AnacondaInstaller \
         org.fedoraproject.fedora redhat redhat-logo red-hat anaconda"
 if [ -f "$_moos_src" ]; then
-    # Search RECURSIVELY for the real files, not just the top apps/ dir.
+    # Search RECURSIVELY, and match SYMLINKS as well as regular files.
     #
-    # The old scrub walked `find -type d -name apps` and touched only
-    # "$appdir/$name.svg" — but Colloid keeps its scalable icons in
-    # apps/SCALABLE/, and Papirus keeps redhat.svg in per-size apps/ dirs. So
-    # org.fedoraproject.AnacondaInstaller.svg, start-here-fedora.svg and
-    # redhat.svg shipped inside Colloid-*/Papirus for weeks — invisible to every
-    # named-surface gate, and only caught once verify_no_foreign_identity.py swept
-    # the finished image (2026-07-14). Two tree walks now cover every depth.
-    _svg_pred=(); _png_pred=()
+    # This scrub has been fixed twice against the identity firewall:
+    #   1. The old scrub walked `find -type d -name apps` and touched only the top
+    #      apps/ dir — but Colloid keeps scalable icons in apps/SCALABLE/ and
+    #      Papirus keeps them in per-size apps/ dirs. A recursive find fixed depth.
+    #   2. `find -type f` still missed them, because Papirus and Colloid ship the
+    #      foreign names as SYMLINKS (redhat.svg -> distributor-logo, etc.), and
+    #      -type f skips a symlink. The firewall follows the link and saw them; the
+    #      scrub did not. `\( -type f -o -type l \)` now matches both.
+    # Both were latent for weeks and invisible to every named-surface gate; only
+    # verify_no_foreign_identity.py, sweeping the finished bytes, caught them.
+    _all_pred=()
     for _name in $_names; do
-        _svg_pred+=(-o -name "${_name}.svg" -o -name "${_name}.svgz")
-        _png_pred+=(-o -name "${_name}.png")
+        _all_pred+=(-o -name "${_name}.svg" -o -name "${_name}.svgz" \
+                    -o -name "${_name}.png" -o -name "${_name}.xpm")
     done
-    # Delete every foreign vector anywhere under the icon themes (a scalable SVG
-    # outranks the raster MoOS mark at large sizes, so it must be gone, not hidden).
-    find /usr/share/icons -type f \( "${_svg_pred[@]:1}" \) -delete 2>/dev/null || true
-    # Replace every foreign raster with the same-size MoOS mark if its own dir has
-    # one, else the master.
-    find /usr/share/icons -type f \( "${_png_pred[@]:1}" \) -print0 2>/dev/null \
+    find /usr/share/icons \( -type f -o -type l \) \( "${_all_pred[@]:1}" \) -print0 2>/dev/null \
         | while IFS= read -r -d '' _f; do
-            _dir="$(dirname "$_f")"
-            _sized="$_dir/moos-logo.png"
-            [ -f "$_sized" ] || _sized="$_moos_src"
-            cp -f "$_sized" "$_f"
+            case "$_f" in
+                *.svg|*.svgz)
+                    # A foreign vector (or a symlink to one) outranks the raster
+                    # MoOS mark at large sizes — delete it outright.
+                    rm -f "$_f"
+                    ;;
+                *.png|*.xpm)
+                    # Drop the file-or-symlink first, then write a REAL same-size
+                    # MoOS raster in its place (writing THROUGH a symlink would
+                    # corrupt whatever legit icon it pointed at).
+                    _dir="$(dirname "$_f")"
+                    _sized="$_dir/moos-logo.png"
+                    [ -f "$_sized" ] || _sized="$_moos_src"
+                    rm -f "$_f"
+                    cp -f "$_sized" "$_f"
+                    ;;
+            esac
         done || true
     # Legacy pixmap logo names read by hardcoded path in some about-dialogs.
     for _px in fedora-logo.png fedora-logo-small.png fedora-gdm-logo.png; do
@@ -1436,7 +1447,7 @@ if [ -f "$_moos_src" ]; then
         [ -f "${_themedir}index.theme" ] && gtk-update-icon-cache -f "$_themedir" 2>/dev/null || true
     done
 fi
-unset -v _moos_src _names _svg_pred _png_pred _f _dir _sized _name _px _themedir
+unset -v _moos_src _names _all_pred _f _dir _sized _name _px _themedir
 
 # Kill KDE's plasma-welcome for the live session — it is the WINDOW that draws a
 # monitor mock-up with the Fedora distro logo (the second Fedora leak besides the
