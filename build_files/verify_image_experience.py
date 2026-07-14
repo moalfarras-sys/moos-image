@@ -221,6 +221,19 @@ require("secret-tool" in control and "secret-tool" in gateway,
 require('had_legacy_key = "cloud_key" in data' in control,
         "Mo AI does not fully migrate legacy credential fields")
 
+# Discover is rebranded to MoOS's own "Mo Store" — same engine, MoOS identity.
+# Gate the built .desktop so a base update that re-ships Discover's own name/icon
+# cannot un-brand the store, and so the mo-store icon it points at actually exists.
+disc = Path("/usr/share/applications/org.kde.discover.desktop")
+if disc.is_file():
+    disc_entry = config(text(str(disc)))
+    require("Name=Mo Store" in disc_entry,
+            "the app store is not branded 'Mo Store' — Discover's own name leaked back")
+    require("Icon=mo-store" in disc_entry,
+            "the app store does not use the mo-store icon")
+    require(Path("/usr/share/icons/hicolor/256x256/apps/mo-store.png").is_file(),
+            "the mo-store icon is missing — the store would fall back to a generic icon")
+
 if errors:
     raise SystemExit("MoOS image-experience gate failed:\n - " + "\n - ".join(errors))
 print("MoOS image-experience gate passed")

@@ -407,6 +407,31 @@ fi
 unset -v _liveinst
 
 # -----------------------------------------------------------------------------
+# (c3b) Discover -> "Mo Store": MoOS's own app store, same engine, MoOS identity
+# -----------------------------------------------------------------------------
+# The owner wants ONE branded storefront. Discover is KDE's native store — full
+# (Flatpak + firmware + updates), and it themes with the active UI2 colour scheme
+# for free — so it is rebranded IN PLACE (same sed pattern as the installer, so
+# Exec/MimeType/Categories/urlhandler are all preserved). Bazaar stays installed
+# as the curated "MoOS Picks" feed; the Welcome screen is the first-run app
+# picker. The mo-store icon is a MoOS-turquoise storefront (artwork/
+# generate_mostore_icon.py, shipped in system_files hicolor).
+_disc=/usr/share/applications/org.kde.discover.desktop
+if [ -f "$_disc" ]; then
+    sed -i \
+        -e '/^Name\[/d' \
+        -e 's|^Name=.*|Name=Mo Store|' \
+        -e '/^GenericName\[/d' \
+        -e 's|^GenericName=.*|GenericName=App Store|' \
+        -e 's|^Icon=.*|Icon=mo-store|' \
+        "$_disc"
+    sed -i '/^Name=Mo Store$/a Name[ar]=متجر MoOS' "$_disc"
+    # GenericName may be absent; add an Arabic one if the key exists.
+    grep -q '^GenericName=' "$_disc" && sed -i '/^GenericName=App Store$/a GenericName[ar]=متجر التطبيقات' "$_disc" || true
+fi
+unset -v _disc
+
+# -----------------------------------------------------------------------------
 # (c3) Qt runtime extras — on-screen keyboard + media/image plugins
 # -----------------------------------------------------------------------------
 # These arrived as SilentSDDM theme deps, but the SDDM stack is gone from this
