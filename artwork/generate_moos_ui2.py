@@ -448,6 +448,9 @@ def lnf_defaults(variant: str) -> str:
     package = "org.moos.ui2.light" if light else "org.moos.ui2"
     wallpaper = "MoOSUI2Tide" if light else "MoOSUI2Graphite"
     icons = "MoOSUI2Light" if light else "MoOSUI2"
+    # A white pointer disappears on Tidal Light's mint canvas; each half gets
+    # the cursor that reads against ITS canvas (both are rebranded Bibata).
+    cursor = "NovaShadow" if light else "NovaIce"
     deco = "MoOSUI2Light" if light else "MoOSUI2"
     return f"""# MoOS UI2 matched Global Theme defaults. Generated file.
 [kdeglobals][General]
@@ -482,7 +485,7 @@ BlurStrength=8
 NoiseStrength=2
 
 [kcminputrc][Mouse]
-cursorTheme=NovaIce
+cursorTheme={cursor}
 """
 
 

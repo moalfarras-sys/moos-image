@@ -1418,6 +1418,31 @@ require("/usr/share/moos/gtk/overrides/global" in
         "tmpfiles no longer seeds the Flatpak global override — a fresh machine "
         "never gets the gtk-4.0 read hole")
 
+# Each UI2 half must ship the pointer that reads against ITS canvas — a white
+# cursor on Tidal Light's mint was a low-contrast pointer, documented as UI2
+# coverage gap 4. No cursor name is this gate's constant: it reads what the
+# LNF defaults declare, requires the two halves to DIFFER, and requires the
+# switcher and the image build to agree with the defaults.
+ui2_cursors = {}
+for cursor_variant in ("org.moos.ui2", "org.moos.ui2.light"):
+    cursor_match = re.search(
+        r"^cursorTheme=(\S+)$",
+        read(f"system_files/usr/share/plasma/look-and-feel/{cursor_variant}/contents/defaults"),
+        re.MULTILINE)
+    require(cursor_match is not None, f"{cursor_variant} defaults name no cursor theme")
+    ui2_cursors[cursor_variant] = cursor_match.group(1)
+require(ui2_cursors["org.moos.ui2"] != ui2_cursors["org.moos.ui2.light"],
+        "both UI2 halves name the same cursor — one canvas gets a low-contrast pointer")
+cursor_switcher = code(read("system_files/usr/bin/moos-theme"))
+cursor_build = code(read("build_files/build.sh"))
+for cursor_name in ui2_cursors.values():
+    require(f"cursor={cursor_name}" in cursor_switcher,
+            f"moos-theme never selects {cursor_name} — the LNF defaults and the "
+            "switcher would fight over the pointer")
+    require(f"/usr/share/icons/{cursor_name}" in cursor_build,
+            f"build.sh never creates {cursor_name} — the defaults would name a "
+            "cursor that does not exist and Plasma would fall back")
+
 wallpaper = ROOT / "system_files/usr/share/wallpapers/NovaHorizonII"
 for relative in (
     "metadata.json", "contents/screenshot.png",

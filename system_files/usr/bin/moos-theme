@@ -150,6 +150,7 @@ load_profile() {
             konsole_profile=MoOSUI2Light.profile
             icons=MoOSUI2Light
             adw_css=/usr/share/moos/gtk/moos-ui2-light.css
+            cursor=NovaShadow
             deco=__aurorae__svg__MoOSUI2Light
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Tide
             wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
@@ -163,6 +164,7 @@ load_profile() {
             konsole_profile=MoOSUI2.profile
             icons=MoOSUI2
             adw_css=/usr/share/moos/gtk/moos-ui2-dark.css
+            cursor=NovaIce
             deco=__aurorae__svg__MoOSUI2
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
@@ -176,6 +178,7 @@ load_profile() {
             konsole_profile=MoOSUILight.profile
             icons=NovaLight
             adw_css=
+            cursor=NovaIce
             deco=__aurorae__svg__MoOSUILight
             wallpaper_package=/usr/share/wallpapers/MoOSUIAtmosphere
             wallpaper=${wallpaper_package}/contents/images/3840x2160.png
@@ -189,6 +192,7 @@ load_profile() {
             konsole_profile=MoOSUI.profile
             icons=Nova
             adw_css=
+            cursor=NovaIce
             deco=__aurorae__svg__MoOSUI
             wallpaper_package=/usr/share/wallpapers/MoOSUIAtmosphere
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.png
@@ -383,7 +387,7 @@ automatic_supplements_complete() {
 }
 
 apply() {
-    local lnf="$1" scheme style konsole_profile prefer_dark icons deco wallpaper wallpaper_package widget label
+    local lnf="$1" scheme style konsole_profile prefer_dark icons adw_css cursor deco wallpaper wallpaper_package widget label
     load_profile "$lnf" || return
 
     plasma-apply-lookandfeel -a "$lnf" >/dev/null 2>&1 \
@@ -392,6 +396,14 @@ apply() {
     # The Global Theme carries the colour scheme, but applying it again directly is
     # cheap and closes the window where LookAndFeelManager skips it.
     plasma-apply-colorscheme "$scheme" >/dev/null 2>&1 || true
+
+    # Each half gets the pointer that reads against ITS canvas: NovaIce on
+    # graphite, NovaShadow on Tidal Light's mint (a white pointer there is a
+    # low-contrast pointer). The LNF defaults say the same; applying directly
+    # closes the window where LookAndFeelManager skips the cursor kcm.
+    if command -v plasma-apply-cursortheme >/dev/null 2>&1; then
+        plasma-apply-cursortheme "$cursor" >/dev/null 2>&1 || true
+    fi
 
     # The icon theme is not colour-scheme aware: Nova's symbolics are drawn light so
     # they read on a dark panel, and they disappear on porcelain.
@@ -405,6 +417,7 @@ apply() {
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft XIA
         kwriteconfig6 --file ksplashrc --group KSplash --key Theme "$lnf"
         kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML
+        kwriteconfig6 --file kcminputrc --group Mouse --key cursorTheme "$cursor"
     fi
 
     if ! apply_supplements; then

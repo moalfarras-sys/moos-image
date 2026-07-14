@@ -810,6 +810,35 @@ the cursor artwork itself is unmodified. The unmodified upstream theme is
 installed alongside at /usr/share/icons/Bibata-Modern-Ice.
 EOF
 
+# "NovaShadow" = the DARK half of the same family (Bibata Modern Classic).
+# A white pointer on Tidal Light's mint canvas (#D8EBE7) is a low-contrast
+# pointer — the light Global Theme selects NovaShadow instead, so each half
+# gets the cursor that reads against ITS canvas. Same pinned release, same
+# rebrand-only treatment as NovaIce above.
+curl -Lf --retry 3 -o /tmp/bibata-modern-classic.tar.xz \
+    "https://github.com/ful1e5/Bibata_Cursor/releases/download/v2.0.7/Bibata-Modern-Classic.tar.xz"
+tar -xJf /tmp/bibata-modern-classic.tar.xz -C /usr/share/icons/
+rm -f /tmp/bibata-modern-classic.tar.xz
+test -d /usr/share/icons/Bibata-Modern-Classic/cursors   # hard-fail if the tarball layout ever changes
+
+cp -a /usr/share/icons/Bibata-Modern-Classic /usr/share/icons/NovaShadow
+sed -i 's|^Name=.*|Name=NovaShadow|' /usr/share/icons/NovaShadow/index.theme
+sed -i 's|^Name=.*|Name=NovaShadow|' /usr/share/icons/NovaShadow/cursor.theme
+sed -i 's|^Comment=.*|Comment=MoOS NovaShadow cursors (Bibata Modern Classic by ful1e5, GPL-3.0)|' \
+    /usr/share/icons/NovaShadow/index.theme
+
+cat > /usr/share/icons/NovaShadow/MOOS-NOTICE.txt <<'EOF'
+NovaShadow cursor theme — attribution notice
+============================================
+NovaShadow is a renamed build of "Bibata Modern Classic" v2.0.7 by
+Abdulkaiz Khatri (ful1e5) and contributors:
+    https://github.com/ful1e5/Bibata_Cursor
+License: GNU General Public License v3.0 (GPL-3.0).
+The only modification is the theme name in index.theme / cursor.theme;
+the cursor artwork itself is unmodified. The unmodified upstream theme is
+installed alongside at /usr/share/icons/Bibata-Modern-Classic.
+EOF
+
 # -----------------------------------------------------------------------------
 # (c7) Core Power packages
 # -----------------------------------------------------------------------------
