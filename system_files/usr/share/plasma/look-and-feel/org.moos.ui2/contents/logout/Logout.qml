@@ -160,9 +160,19 @@ Item {
     Component.onCompleted: Qt.callLater(root.focusInitialAction)
 
     Rectangle {
+        id: backdrop
         anchors.fill: parent
         color: Kirigami.Theme.backgroundColor
-        opacity: 0.62
+        opacity: 0
+        Component.onCompleted: backdropFade.start()
+        OpacityAnimator {
+            id: backdropFade
+            target: backdrop
+            from: 0
+            to: 0.62
+            duration: Kirigami.Units.longDuration
+            easing.type: Easing.OutCubic
+        }
     }
 
     Image {
@@ -192,9 +202,24 @@ Item {
         height: Math.min(root.height - Kirigami.Units.gridUnit * 4, contentColumn.implicitHeight + Kirigami.Units.gridUnit * 4)
         radius: Kirigami.Units.gridUnit
         color: Kirigami.Theme.backgroundColor
-        opacity: 0.92
         border.width: 1
         border.color: Kirigami.Theme.highlightColor
+
+        // Premium entrance: the panel fades and rises into place, scaling up a
+        // touch — the calm, confident motion of a finished OS, not a jump-cut.
+        opacity: 0
+        scale: 0.95
+        transform: Translate { id: panelRise; y: Kirigami.Units.gridUnit * 1.5 }
+        Component.onCompleted: panelEntrance.start()
+        ParallelAnimation {
+            id: panelEntrance
+            NumberAnimation { target: glassPanel; property: "opacity"; from: 0; to: 0.92
+                duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+            NumberAnimation { target: glassPanel; property: "scale"; from: 0.95; to: 1.0
+                duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+            NumberAnimation { target: panelRise; property: "y"; from: Kirigami.Units.gridUnit * 1.5; to: 0
+                duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+        }
 
         MouseArea {
             anchors.fill: parent

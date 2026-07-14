@@ -236,6 +236,12 @@ apply_supplements() {
     if command -v kwriteconfig6 >/dev/null 2>&1; then
         kwriteconfig6 --file kscreenlockerrc --group Greeter \
             --key WallpaperPlugin org.kde.image || supplement_failed=1
+        # Point the greeter at THIS variant's look-and-feel so its
+        # contents/lockscreen/LockScreen.qml is the one drawn. UI2 ships a MoOS
+        # lockscreen; a UI1 rollback package has none and falls back to the shell
+        # default safely.
+        kwriteconfig6 --file kscreenlockerrc --group Greeter \
+            --key Theme "$lnf" || supplement_failed=1
         kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
             --group org.kde.image --group General --key Image "$wallpaper_package" \
             || supplement_failed=1

@@ -569,6 +569,8 @@ if command -v kwriteconfig6 >/dev/null 2>&1; then
     kwriteconfig6 --file kdeglobals --group General --key ColorScheme "$want_scheme"
     kwriteconfig6 --file plasmarc --group Theme --key name "$want_style"
     kwriteconfig6 --file kscreenlockerrc --group Greeter --key WallpaperPlugin org.kde.image
+    # Draw the greeter from THIS variant's MoOS lockscreen, not the shell default.
+    kwriteconfig6 --file kscreenlockerrc --group Greeter --key Theme "$want_lnf"
     kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
         --group org.kde.image --group General --key Image "$want_wallpaper_package"
 fi
