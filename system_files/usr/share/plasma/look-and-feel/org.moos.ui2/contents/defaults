@@ -13,7 +13,7 @@ Theme=org.moos.ui2
 Engine=KSplashQML
 
 [kdeglobals][Icons]
-Theme=Nova
+Theme=MoOSUI2
 
 [kdeglobals][Sounds]
 Enable=true

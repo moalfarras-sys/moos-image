@@ -18,12 +18,13 @@ toolBarFont=IBM Plex Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 smallestReadableFont=IBM Plex Sans,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 fixed=JetBrains Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 
-# Nova icon theme — generated at image build time from Colloid, see
-# build_files/build.sh section (c5). Inheritance chain:
-# Nova -> Colloid-Dark -> Papirus-Dark -> breeze-dark -> hicolor
-# (papirus-icon-theme stays installed via section (c4) as the fallback).
+# MoOS UI2 icon theme — generated at image build time from Colloid's Teal
+# variant, see build_files/build.sh section (c5). Inheritance chain:
+# MoOSUI2 -> Colloid-Teal-Dark -> Papirus-Dark -> breeze-dark -> hicolor
+# (papirus-icon-theme stays installed via section (c4) as the fallback;
+# Nova/NovaLight stay installed for the UI1 rollback).
 [Icons]
-Theme=Nova
+Theme=MoOSUI2
 
 # AutomaticLookAndFeel is Plasma's day/night switch between the two Look and Feel
 # packages named in Default{Light,Dark}LookAndFeel.

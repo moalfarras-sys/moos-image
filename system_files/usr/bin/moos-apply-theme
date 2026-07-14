@@ -273,12 +273,12 @@ theme_intact() {
     case "$lnf" in
         "$DARK_LNF")
             expected_deco="$DARK_DECO"; expected_scheme=MoOSUI2Dark
-            expected_style=MoOSUI2; expected_icons=Nova
+            expected_style=MoOSUI2; expected_icons=MoOSUI2
             expected_widgets=ui2-each
             ;;
         "$LIGHT_LNF")
             expected_deco="$LIGHT_DECO"; expected_scheme=MoOSUI2Light
-            expected_style=MoOSUI2Light; expected_icons=NovaLight
+            expected_style=MoOSUI2Light; expected_icons=MoOSUI2Light
             expected_widgets=ui2-each
             ;;
         "$UI1_DARK_LNF")
@@ -485,7 +485,7 @@ case "$want_lnf" in
         want_scheme=MoOSUI2Light
         want_style=MoOSUI2Light
         want_deco="$LIGHT_DECO"
-        want_icons=NovaLight
+        want_icons=MoOSUI2Light
         want_konsole=MoOSUI2Light.profile
         want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Tide
         want_wallpaper=${want_wallpaper_package}/contents/images/3840x2160.jpg
@@ -499,7 +499,7 @@ case "$want_lnf" in
         want_scheme=MoOSUI2Dark
         want_style=MoOSUI2
         want_deco="$DARK_DECO"
-        want_icons=Nova
+        want_icons=MoOSUI2
         want_konsole=MoOSUI2.profile
         want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite
         want_wallpaper=${want_wallpaper_package}/contents/images_dark/3840x2160.jpg
@@ -1256,6 +1256,8 @@ for rel in \
     "wallpapers/MoOSUI2Tide" \
     "icons/Nova" \
     "icons/NovaLight" \
+    "icons/MoOSUI2" \
+    "icons/MoOSUI2Light" \
 ; do
     if [ -e "/usr/share/$rel" ] && [ -e "${user_share}/$rel" ]; then
         rm -rf "${user_share:?}/$rel"

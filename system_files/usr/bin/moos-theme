@@ -148,7 +148,7 @@ load_profile() {
             scheme=MoOSUI2Light
             style=MoOSUI2Light
             konsole_profile=MoOSUI2Light.profile
-            icons=NovaLight
+            icons=MoOSUI2Light
             deco=__aurorae__svg__MoOSUI2Light
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Tide
             wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
@@ -160,7 +160,7 @@ load_profile() {
             scheme=MoOSUI2Dark
             style=MoOSUI2
             konsole_profile=MoOSUI2.profile
-            icons=Nova
+            icons=MoOSUI2
             deco=__aurorae__svg__MoOSUI2
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg

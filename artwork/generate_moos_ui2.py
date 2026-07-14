@@ -447,7 +447,7 @@ def lnf_defaults(variant: str) -> str:
     style = "MoOSUI2Light" if light else "MoOSUI2"
     package = "org.moos.ui2.light" if light else "org.moos.ui2"
     wallpaper = "MoOSUI2Tide" if light else "MoOSUI2Graphite"
-    icons = "NovaLight" if light else "Nova"
+    icons = "MoOSUI2Light" if light else "MoOSUI2"
     deco = "MoOSUI2Light" if light else "MoOSUI2"
     return f"""# MoOS UI2 matched Global Theme defaults. Generated file.
 [kdeglobals][General]

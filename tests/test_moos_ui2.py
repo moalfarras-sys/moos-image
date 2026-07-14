@@ -41,7 +41,7 @@ VARIANTS = {
         "konsole_profile": "MoOSUI2.profile",
         "konsole_scheme": "MoOSUI2Dark.colorscheme",
         "wallpaper": "MoOSUI2Graphite",
-        "icons": "Nova",
+        "icons": "MoOSUI2",
         "fallback": "breeze-dark",
     },
     "light": {
@@ -53,7 +53,7 @@ VARIANTS = {
         "konsole_profile": "MoOSUI2Light.profile",
         "konsole_scheme": "MoOSUI2Light.colorscheme",
         "wallpaper": "MoOSUI2Tide",
-        "icons": "NovaLight",
+        "icons": "MoOSUI2Light",
         "fallback": "default",
     },
 }

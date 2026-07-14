@@ -656,6 +656,18 @@ git -C /tmp/colloid fetch --depth 1 origin "${COLLOID_COMMIT}"
 git -C /tmp/colloid checkout "${COLLOID_COMMIT}"
 
 bash /tmp/colloid/install.sh -d /usr/share/icons -t default -s default
+
+# Second pass: the TEAL variant, for MoOS UI2. UI2's primary is mineral
+# turquoise (#4ED7C8) and its chrome is graphite — Colloid's '-Teal' folder
+# colour (#4DB6AC, verified in install.sh colors_folder() at the pinned
+# commit) sits in that family, where the 'default' blue (#5b9bf8) was chosen
+# to match Nova's electric blue and reads foreign on a UI2 desktop. Only the
+# folder/accent family changes; app icons keep their own colours, and the
+# monochrome symbolics per Light/Dark are what carry contrast on big screens.
+# Directory names produced: Colloid-Teal, Colloid-Teal-Light, Colloid-Teal-Dark
+# (THEME_VARIANTS[7]='-Teal' — capitalised, unlike the lowercase clean_old_theme
+# loop that misled a first reading of install.sh).
+bash /tmp/colloid/install.sh -d /usr/share/icons -t teal -s default
 rm -rf /tmp/colloid
 
 # "Nova" = branded theme on top of Colloid-Dark.
@@ -710,10 +722,41 @@ for d in /usr/share/icons/Colloid-Light/*/; do
 done
 gtk-update-icon-cache -f /usr/share/icons/NovaLight || true
 
-# Gate both. An icon theme whose Directories= is missing is treated as INVALID by
+# "MoOSUI2" / "MoOSUI2Light" = the UI2 icon themes, teal folders over the same
+# proven copy-index-then-symlink route. Nova/NovaLight stay installed untouched:
+# they are what UI1 (the documented rollback) selects.
+mkdir -p /usr/share/icons/MoOSUI2
+cp /usr/share/icons/Colloid-Teal-Dark/index.theme /usr/share/icons/MoOSUI2/index.theme
+sed -i \
+    -e 's|^Name=.*|Name=MoOSUI2|' \
+    -e 's|^Comment=.*|Comment=MoOS UI2 icons — teal on graphite (based on Colloid)|' \
+    -e 's|^Inherits=.*|Inherits=Colloid-Teal-Dark,Papirus-Dark,breeze-dark,hicolor|' \
+    /usr/share/icons/MoOSUI2/index.theme
+test -d /usr/share/icons/Colloid-Teal-Dark/apps
+for d in /usr/share/icons/Colloid-Teal-Dark/*/; do
+    b="$(basename "${d}")"
+    ln -snf "../Colloid-Teal-Dark/${b}" "/usr/share/icons/MoOSUI2/${b}"
+done
+gtk-update-icon-cache -f /usr/share/icons/MoOSUI2 || true
+
+mkdir -p /usr/share/icons/MoOSUI2Light
+cp /usr/share/icons/Colloid-Teal-Light/index.theme /usr/share/icons/MoOSUI2Light/index.theme
+sed -i \
+    -e 's|^Name=.*|Name=MoOSUI2Light|' \
+    -e 's|^Comment=.*|Comment=MoOS UI2 Light icons — teal on tidal mist (based on Colloid)|' \
+    -e 's|^Inherits=.*|Inherits=Colloid-Teal-Light,Papirus,breeze,hicolor|' \
+    /usr/share/icons/MoOSUI2Light/index.theme
+test -d /usr/share/icons/Colloid-Teal-Light/apps
+for d in /usr/share/icons/Colloid-Teal-Light/*/; do
+    b="$(basename "${d}")"
+    ln -snf "../Colloid-Teal-Light/${b}" "/usr/share/icons/MoOSUI2Light/${b}"
+done
+gtk-update-icon-cache -f /usr/share/icons/MoOSUI2Light || true
+
+# Gate all four. An icon theme whose Directories= is missing is treated as INVALID by
 # KIconTheme and Plasma silently falls back — the desktop looks fine at a glance
 # and every icon is somebody else's.
-for t in Nova NovaLight; do
+for t in Nova NovaLight MoOSUI2 MoOSUI2Light; do
     grep -q '^Directories=' "/usr/share/icons/${t}/index.theme" \
         || { echo "GATE FAIL: ${t} icon theme has no Directories= — KIconTheme will reject it"; exit 1; }
     test -d "/usr/share/icons/${t}/apps" \

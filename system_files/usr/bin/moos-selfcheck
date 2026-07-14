@@ -83,13 +83,13 @@ style="$(kreadconfig6 --file plasmarc --group Theme --key name 2>/dev/null)"
 
 case "$lnf" in
     org.moos.ui2)
-        want_deco=__aurorae__svg__MoOSUI2; want_sch=MoOSUI2Dark; want_ico=Nova
+        want_deco=__aurorae__svg__MoOSUI2; want_sch=MoOSUI2Dark; want_ico=MoOSUI2
         want_sty=MoOSUI2; want_wall=MoOSUI2Graphite; want_widget=org.moos.ui2.dashboard
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui2
         mode="UI2 غرافيت | Graphite Dark"
         ;;
     org.moos.ui2.light)
-        want_deco=__aurorae__svg__MoOSUI2Light; want_sch=MoOSUI2Light; want_ico=NovaLight
+        want_deco=__aurorae__svg__MoOSUI2Light; want_sch=MoOSUI2Light; want_ico=MoOSUI2Light
         want_sty=MoOSUI2Light; want_wall=MoOSUI2Tide; want_widget=org.moos.ui2.dashboard
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui2
         mode="UI2 تركواز | Tidal Light"
@@ -356,7 +356,8 @@ for rel in plasma/plasmoids/org.moos.nova.clock plasma/plasmoids/org.moos.nova.d
            aurorae/themes/MoOSUI2 aurorae/themes/MoOSUI2Light \
            wallpapers/MoOSUI2Graphite wallpapers/MoOSUI2Tide \
            color-schemes/MoOSUI2Dark.colors color-schemes/MoOSUI2Light.colors \
-           icons/Nova icons/NovaLight konsole/MoOS.profile \
+           icons/Nova icons/NovaLight icons/MoOSUI2 icons/MoOSUI2Light \
+           konsole/MoOS.profile \
            konsole/MoOSUI2.profile konsole/MoOSUI2Light.profile; do
     if [ -e "/usr/share/$rel" ] && [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
         bad "~/.local/share/${rel} shadows the image copy — later updates will never reach you"
