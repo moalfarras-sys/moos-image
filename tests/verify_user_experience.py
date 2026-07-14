@@ -174,8 +174,15 @@ for app, qml_code in (("Mo AI", moai_palette_code),
 require("component Card: Rectangle" in moai_palette_code
         and "color: root.surface1" in moai_palette_code,
         "Mo AI's shared Card must consume the palette-backed card token")
+# The Welcome is now the MoOS Store: its app cards no longer carry a per-card
+# accent (the old `cardItem.modelData.c`); each card fills with the palette surface
+# token and borders on the palette accent (when selected) or the palette outline
+# (otherwise). The relationship is unchanged — cards follow the KDE scheme, never a
+# fixed Nova colour — so gate the new bindings, still card-specific (`card.selected`
+# exists only on the store's app card), so a hard-coded card colour still goes red.
 require("Qt.rgba(win.surface.r" in welcome_palette_code
-        and "cardHover.hovered ? cardItem.modelData.c : win.outline" in welcome_palette_code,
+        and "border.color: card.selected ? win.accent" in welcome_palette_code
+        and ": win.outline" in welcome_palette_code,
         "MoOS Welcome cards must consume the palette-backed surface and outline tokens")
 require("NovaHorizonII" not in welcome_palette_code,
         "MoOS Welcome must not paint Nova's dark wallpaper over a light KDE palette")
