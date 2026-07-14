@@ -2,6 +2,7 @@
 """Static gates for the active MoOS login/desktop experience."""
 
 from pathlib import Path
+import json
 import re
 import subprocess
 import sys
@@ -451,6 +452,85 @@ require("MouseArea" not in deskclock_code,
         "the desk widget must not contain a MouseArea: it sits on the wallpaper, and anything "
         "that accepts clicks eats the desktop's own right-click menu and rubber-band selection "
         "inside its rectangle, with no way for the user to tell why")
+
+
+# ── Self-referential grouped-property bindings, and why this gate is STATIC ───
+#
+# `sourceSize.height: sourceSize.width` reads as two properties. It is one: sourceSize is a
+# single QSize, so that line makes a component of it depend on a component of itself. Qt calls
+# it "Binding loop detected for property sourceSize.height" and resolves it the only way it
+# can — by DROPPING the binding. The property then holds a stale value forever, silently.
+#
+# UI2's dashboard shipped exactly that line, and the weather art has been decoding at the wrong
+# size ever since, with plasmashell logging the loop on every load and every condition change.
+#
+# The build ALREADY runs the dashboard under plasmawindowed and ALREADY greps its log for
+# "binding loop" (build_files/build.sh). It did not catch this, and it never could: under
+# QT_QPA_PLATFORM=offscreen the card is never laid out to a real width, so the binding is
+# evaluated once, never re-enters, and Qt has no loop to detect. Reproduced deliberately — the
+# broken file exits 124 with a clean log and the build calls it a pass. A runtime gate that
+# cannot give the thing a geometry cannot see a geometry-driven loop.
+#
+# So this one is static, and it is the gate that actually bites. Any binding whose left side is
+# `<group>.<a>` and whose right side reads `<group>.<b>` on the same object is a loop by
+# construction — for sourceSize, font, anchors, or anything else Qt groups.
+#
+# The `(?<![\w.])` is load-bearing: `sourceSize.width: other.sourceSize.width` is a perfectly
+# ordinary binding to a DIFFERENT object, and must not be flagged.
+#
+# WHICH groups: only QML VALUE TYPES. `sourceSize` is a single QSize, so writing .height
+# notifies the whole property and the .width binding re-enters — a loop. `Layout` and `anchors`
+# look identical in source but are an attached object and a grouped object: their components
+# are independent properties that do not notify each other, and binding one to another is
+# ordinary QML (`Layout.preferredHeight: Layout.preferredWidth` just means "square").
+#
+# That distinction is not a guess. The running session logged loops for exactly two properties,
+# `sourceSize.height` and `icon.height` — both value types — while WeatherCard.qml:41 and
+# SystemCard.qml:79 bound Layout.preferredHeight to Layout.preferredWidth in the same dashboard,
+# on the same frames, and Qt never once complained. A gate that flagged those would be crying
+# wolf on correct code, and the next agent would rightly delete it.
+VALUE_TYPE_GROUPS = ("sourceSize", "font", "icon", "palette")
+SELF_REFERENTIAL_GROUP = re.compile(
+    rf"^\s*({'|'.join(VALUE_TYPE_GROUPS)})\.([A-Za-z_]\w*)\s*:\s*(?P<rhs>.*)$"
+)
+
+# Scope: the QML MoOS actually writes. The SDDM theme vendors a copy of Qt's own
+# VirtualKeyboard styles, which contain this pattern upstream — that is not our code, it is
+# not ours to fix, and SDDM is not even installed on Kinoite 44. Gating it would only teach
+# the next agent to switch the gate off.
+moos_qml_roots = (
+    "system_files/usr/share/moos/apps",
+    "system_files/usr/share/plasma/plasmoids",
+    "system_files/usr/share/plasma/look-and-feel",
+)
+shipped_qml = sorted(
+    qml
+    for relative in moos_qml_roots
+    for qml in (ROOT / relative).rglob("*.qml")
+)
+require(shipped_qml != [],
+        "no MoOS QML was found to scan — this gate would pass vacuously over an empty list")
+for qml_file in shipped_qml:
+    for number, line in enumerate(
+        code(qml_file.read_text(encoding="utf-8"), "slash").splitlines(), start=1
+    ):
+        # `anchors.left: parent.left; anchors.right: parent.right` is TWO bindings sharing a
+        # line, and neither is a loop. Judge each binding on its own or the gate cries wolf on
+        # the most ordinary line in QML.
+        for statement in line.split(";"):
+            match = SELF_REFERENTIAL_GROUP.match(statement)
+            if match is None:
+                continue
+            group = match.group(1)
+            rhs = match.group("rhs")
+            if re.search(rf"(?<![\w.]){re.escape(group)}\.\w+", rhs) is None:
+                continue
+            require(False,
+                    f"{qml_file.relative_to(ROOT)}:{number} binds a component of `{group}` to "
+                    f"another component of the same `{group}` ({statement.strip()}). That is "
+                    f"one grouped property depending on itself: Qt detects a binding loop and "
+                    f"DROPS the binding, so the value is silently stale. Compute it once and "
+                    f"assign the whole group (e.g. `sourceSize: Qt.size(px, px)`)")
 
 require("function bidiFix" in moai_qml and "root.bidiFix(msg.text)" in moai_qml,
         "Mo AI must pin each paragraph's text direction to its own language (bidiFix, applied "
@@ -1227,6 +1307,48 @@ lock_config = read("system_files/etc/xdg/kscreenlockerrc")
 require("Image=/usr/share/wallpapers/MoOSUI2Graphite" in lock_config,
         "Plasma lock screen must use MoOS UI2 Graphite")
 
+# ── The login screen, and why it is gated against the lock screen ─────────────
+#
+# The greeter is the first surface of the running system the user sees, and it is the only
+# themed surface a Global Theme can never reach: LookAndFeelManager runs inside the user's
+# session, long after plasma-login-manager has drawn. So the greeter is pinned by hand in the
+# image — and a hand-pinned value is precisely what a theme rollout leaves behind.
+#
+# It was left behind. UI2 moved the lock screen to MoOSUI2Graphite and did not move the
+# greeter, so a fully-UI2 machine booted to a Nova login screen and a Graphite desktop one
+# second later. The in-image gate could not see it: it asserted the literal string
+# "NovaHorizon", which is to say it was holding the bug in place.
+#
+# The fix is to gate the RELATIONSHIP, not a name. Whatever wallpaper the lock screen uses,
+# the login screen must use the same one. That cannot be satisfied by a stale constant, and
+# the next theme family inherits the guarantee for free.
+#
+# code() is not optional here: the drop-in's own comments explain this bug and therefore
+# contain the very wallpaper name being asserted. Gate the config, not the prose.
+login_drop_ins = sorted(
+    (ROOT / "system_files/usr/lib/plasmalogin/plasmalogin.conf.d").glob("*.conf")
+)
+require(login_drop_ins != [],
+        "the login screen ships no MoOS drop-in — the greeter would show Plasma's default")
+login_config = code(
+    "\n".join(p.read_text(encoding="utf-8") for p in login_drop_ins)
+)
+require("WallpaperPluginId=org.kde.image" in login_config,
+        "the login screen must select a wallpaper plugin, or the greeter draws Plasma's default")
+
+lock_wallpaper = re.search(r"^Image=.*/wallpapers/([A-Za-z0-9_.-]+)",
+                           code(lock_config), re.MULTILINE)
+require(lock_wallpaper is not None,
+        "the lock screen names no wallpaper package, so the login screen cannot be matched to it")
+if lock_wallpaper is not None:
+    package = lock_wallpaper.group(1)
+    require(f"/wallpapers/{package}" in login_config,
+            f"the login screen must use the lock screen's wallpaper ({package}); the first "
+            f"screen after boot is otherwise off-brand while every gate stays green")
+    require((ROOT / "system_files/usr/share/wallpapers" / package).is_dir(),
+            f"the login and lock screens name a wallpaper package the image does not ship: "
+            f"{package}")
+
 sddm = read("system_files/etc/sddm.conf.d/moos.conf")
 require(re.search(r"^Current=moos-nova$", sddm, re.MULTILINE) is not None,
         "SDDM must select the MoOS Nova theme")
@@ -1281,6 +1403,63 @@ require("grep -qx 'Theme=moos-nova' /etc/plymouth/plymouthd.conf" in build,
         "image build must fail if the active Plymouth selector is not MoOS")
 require("final initramfs contains the Fedora BGRT/spinner branding path" in build,
         "image build must reject Fedora BGRT/spinner paths in initramfs")
+
+# ── The kde-settings profile must name the theme the image actually defaults to ─
+#
+# /usr/share/kde-settings/kde-profile/default/xdg is the layer AGENTS.md blames for the Breeze
+# fallback: Plasma resolved a Global Theme BY NAME out of this cascade, the name no longer
+# existed, and it silently persisted Breeze. /etc/xdg outranks it, so a stale value here loses
+# every time — right up until the once it doesn't, and then it fails permanently and invisibly.
+#
+# It named org.moos.nova through both the MoOS UI and MoOS UI2 rollouts, i.e. a family the theme
+# switcher cannot even reach. Gate the relationship, not the name: whatever /etc/xdg/kdeglobals
+# declares as the default Global Theme, build.sh must repoint this profile at the SAME package.
+default_lnf = re.search(r"^LookAndFeelPackage=(\S+)",
+                        code(read("system_files/etc/xdg/kdeglobals")), re.MULTILINE)
+require(default_lnf is not None,
+        "/etc/xdg/kdeglobals declares no default Global Theme")
+if default_lnf is not None:
+    require(f"LookAndFeelPackage={default_lnf.group(1)}|' \"${{_kde_profile}}/kdeglobals\"" in build,
+            f"build.sh must repoint the kde-settings profile at the image's default Global "
+            f"Theme ({default_lnf.group(1)}); leaving it on an older family is the exact stale "
+            f"name that made Plasma fall back to Breeze and write it down")
+    require(f"/usr/share/wallpapers/{lock_wallpaper.group(1)}|' \\" in build
+            or f"/usr/share/wallpapers/{lock_wallpaper.group(1)}" in build,
+            f"build.sh must repoint the kde-settings profile's lock screen at the wallpaper the "
+            f"image actually uses ({lock_wallpaper.group(1)})")
+
+# ── The boot splash must be the same colour as the desktop it boots into ──────
+#
+# Plymouth is the first surface of MoOS the user ever sees, and it is system-wide: it cannot
+# follow a per-user Global Theme, so it has to be pinned in the image by hand — which is exactly
+# how it got left behind. It stayed Nova's deep navy (#050A14) with a blue progress bar through
+# the entire UI2 rollout, so every boot opened on navy and landed on graphite a second later.
+#
+# Do not gate a hard-coded hex here: that is what pinned the login screen to NovaHorizon for a
+# whole theme family. Read the UI2 palette that the rest of the image is generated from and
+# require the splash to agree with it. The splash then cannot drift from the desktop again, and
+# a future palette change updates this gate for free.
+plymouth_theme = code(
+    read("system_files/usr/share/plymouth/themes/moos-nova/moos-nova.plymouth")
+)
+ui2_palette = json.loads(read("artwork/moos-ui2/palette.json"))["dark"]
+def rgb(value: str) -> str:
+    """Normalise `0x14191C`, `0X14191c` and `#14191C` to the same six hex digits."""
+    return value.strip().lower().removeprefix("0x").removeprefix("#")
+
+
+for key, token in (("BackgroundStartColor", "canvas"),
+                   ("BackgroundEndColor", "canvas"),
+                   ("ProgressBarBackgroundColor", "card"),
+                   ("ProgressBarForegroundColor", "primary")):
+    expected = ui2_palette[token]
+    actual = re.search(rf"^{key}=(\S+)", plymouth_theme, re.MULTILINE)
+    require(actual is not None, f"the boot splash declares no {key}")
+    if actual is not None:
+        require(rgb(actual.group(1)) == rgb(expected),
+                f"the boot splash's {key} is {actual.group(1)}, but MoOS UI2's `{token}` is "
+                f"{expected}: the first screen of the boot would not be the colour of the "
+                f"desktop it boots into")
 
 # ── Arabic in the terminal ────────────────────────────────────────────────────
 #

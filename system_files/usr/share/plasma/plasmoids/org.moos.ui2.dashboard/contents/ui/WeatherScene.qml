@@ -35,11 +35,24 @@ Item {
         height: width
         transform: Translate { id: floatShift }
 
+        // sourceSize is ONE QSize property, not two. Writing `sourceSize.height:
+        // sourceSize.width` makes a component of it depend on a component of itself,
+        // so Qt reports "Binding loop detected for property sourceSize.height" and
+        // resolves it the only way it can: by DROPPING the binding. The art then
+        // decodes at a stale height instead of the intended 2x supersample, and
+        // plasmashell logs the loop on every load and every condition change.
+        //
+        // That noise is not free. This project's stated test for a UI2 regression is
+        // "no QML error appeared in the journal" — a permanent loop message poisons
+        // the one signal we use to detect the next bug.
+        //
+        // Derive the pixel size once and assign the whole QSize in a single binding.
         Image {
+            id: art
             anchors.fill: parent
+            readonly property int artPx: Math.max(256, Math.round(art.width * 2))
             source: Qt.resolvedUrl("../images/weather/" + scene.kind + ".png")
-            sourceSize.width: Math.max(256, Math.round(width * 2))
-            sourceSize.height: sourceSize.width
+            sourceSize: Qt.size(art.artPx, art.artPx)
             fillMode: Image.PreserveAspectFit
             smooth: true
             mipmap: true

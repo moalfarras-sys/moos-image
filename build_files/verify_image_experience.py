@@ -10,6 +10,19 @@ def text(path: str) -> str:
     return Path(path).read_text(encoding="utf-8")
 
 
+def config(raw: str) -> str:
+    """Strip KConfig comments so a gate cannot be satisfied by the prose explaining it.
+
+    Every config in this repo documents the bug it prevents, so the string a gate searches for
+    is usually sitting in a comment two lines above the fix. `tests/verify_user_experience.py`
+    has carried a `code()` helper for exactly this reason; this file had none, and its login
+    screen gate asserted a wallpaper name that its own drop-in explains at length.
+    """
+    return "\n".join(
+        line for line in raw.splitlines() if not line.lstrip().startswith("#")
+    )
+
+
 errors = []
 
 
@@ -119,11 +132,33 @@ require(dm_target != "", "no display manager is enabled — the system would boo
 if "plasmalogin" in dm_target:
     drop_ins = list(Path("/usr/lib/plasmalogin/plasmalogin.conf.d").glob("*.conf")) \
         if Path("/usr/lib/plasmalogin/plasmalogin.conf.d").exists() else []
-    login_conf = "".join(p.read_text(encoding="utf-8") for p in drop_ins)
+    require(drop_ins != [],
+            "the login screen has no MoOS drop-in at all — it would show Plasma's default")
+    login_conf = config("\n".join(p.read_text(encoding="utf-8") for p in drop_ins))
     require("WallpaperPluginId" in login_conf,
             "the login screen has no MoOS wallpaper configured — it would show Plasma's default")
-    require("NovaHorizon" in login_conf,
-            "the login screen does not use a MoOS wallpaper")
+
+    # The login screen is the FIRST surface of the running system, and the ONLY themed surface a
+    # Global Theme cannot reach: LookAndFeelManager runs inside the user's session, long after the
+    # greeter has drawn. So it is pinned by hand in the image — and a hand-pinned value is exactly
+    # the kind that gets left behind by a theme rollout.
+    #
+    # It WAS left behind: this gate used to assert the string "NovaHorizon", so when UI2 moved the
+    # lock screen to MoOSUI2Graphite and forgot the greeter, the gate stayed green while the user
+    # booted into a Nova login screen and a Graphite desktop. Asserting a hard-coded name is what
+    # made that invisible.
+    #
+    # So do not name a wallpaper here. Read the one the LOCK screen uses and require the login
+    # screen to use the same one. The two first screens of the system now cannot drift apart, and
+    # the next theme family gets this for free.
+    lock_conf = config(text("/etc/xdg/kscreenlockerrc"))
+    lock_wallpaper = re.search(r"^Image=.*/wallpapers/([A-Za-z0-9_.-]+)",
+                               lock_conf, re.MULTILINE)
+    require(lock_wallpaper is not None,
+            "the lock screen names no wallpaper package, so the login screen cannot be matched to it")
+    require(f"/wallpapers/{lock_wallpaper.group(1)}" in login_conf,
+            f"the login screen does not use the lock screen's wallpaper "
+            f"({lock_wallpaper.group(1)}) — the first screen after boot is off-brand")
 elif "sddm" in dm_target:
     sddm = text("/etc/sddm.conf.d/moos.conf")
     require("Current=moos-nova" in sddm, "SDDM does not select MoOS Nova")

@@ -18,6 +18,41 @@ rules are documented in [`artwork/MOOS_UI2_DESIGN.md`](artwork/MOOS_UI2_DESIGN.m
 `moos-theme ui1-dark|ui1-light` is the supported rollback; do not delete UI1 or
 leave user-local UI2 staging shadows after testing.
 
+### Revision 16.1 — the surfaces UI2 had missed
+
+A full sweep of every visual surface found four places where the desktop was UI2
+and the thing sitting on it was not. All four are fixed, and each one is now held
+by a gate that was broken on purpose and watched go red:
+
+- **A QML binding loop, live in the shipped image.** `WeatherScene.qml` bound
+  `sourceSize.height` to `sourceSize.width` — both halves of one `QSize`, so the
+  property depended on itself. Qt resolves that by *dropping* the binding, so the
+  weather art decoded at a stale size and plasmashell logged the loop 21 times.
+  The build already ran the dashboard and already grepped its log for
+  `binding loop`, and **could never have caught it**: under
+  `QT_QPA_PLATFORM=offscreen` the card is never laid out to a real width, the
+  binding never re-enters, and Qt has no loop to detect. Reproduced deliberately.
+  The gate that bites is therefore **static**, in `verify_user_experience.py`.
+- **The login screen was still Nova.** Everything moved to UI2 except the greeter,
+  so the machine booted to a NovaHorizonII login screen and a Graphite desktop a
+  second later. The gate could not catch it because it asserted the literal string
+  `"NovaHorizon"` — it was pinning the bug in place. It now requires the login and
+  lock screens to name the **same** wallpaper.
+- **The boot splash was Nova navy** (`#050A14`, `#2E7BFF` bar) on a graphite OS. It
+  is now gated against `artwork/moos-ui2/palette.json` rather than a hard-coded hex.
+- **The kde-settings profile still named `org.moos.nova`** — a third family, which
+  the theme switcher cannot even reach. This is the exact cascade layer AGENTS.md
+  blames for Plasma resolving a stale name and persisting Breeze.
+
+The pattern in three of those four: **the gate named a constant, and the constant
+went stale.** The replacements gate a *relationship* (login screen == lock screen;
+splash == palette; kde-profile == the image's own default), so the next theme
+family inherits them for free.
+
+`artwork/MOOS_UI2_DESIGN.md` ends with the coverage gaps that are **still open** —
+the icon theme is still Nova's electric blue, libadwaita/Flatpak apps get nothing,
+and the lock screen is Breeze's. Read that list before claiming UI2 is complete.
+
 ## Previous visual work: MoOS UI
 
 The working tree contains the new **MoOS UI** dark/light visual pair, first-party

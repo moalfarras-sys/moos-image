@@ -1387,14 +1387,21 @@ unset -v _pw
 # Repoint every config that names a Fedora theme FIRST, so nothing is left referring to a
 # package that is about to disappear; then remove them. Breeze stays: it is KDE's, not another
 # distribution's, and Plasma falls back to it.
+#
+# These names must track the image's ACTIVE Global Theme, not whichever one was active the day
+# the lines were written. They said org.moos.nova / NovaHorizonII through the entire MoOS UI and
+# MoOS UI2 rollouts, which left the kde-settings profile naming a *third* theme family — and this
+# is precisely the cascade layer AGENTS.md blames for Plasma resolving a stale name and
+# persisting Breeze. /etc/xdg outranks it, so it normally loses and nothing looks wrong; the day
+# it does not lose, it fails silently and permanently. Keep it pointed at the default.
 _kde_profile=/usr/share/kde-settings/kde-profile/default/xdg
 if [ -f "${_kde_profile}/kdeglobals" ]; then
-    sed -i 's|^LookAndFeelPackage=.*|LookAndFeelPackage=org.moos.nova|' "${_kde_profile}/kdeglobals"
+    sed -i 's|^LookAndFeelPackage=.*|LookAndFeelPackage=org.moos.ui2|' "${_kde_profile}/kdeglobals"
 fi
 if [ -f "${_kde_profile}/kscreenlockerrc" ]; then
-    sed -i 's|/usr/share/backgrounds/fedora-workstation.*|/usr/share/wallpapers/NovaHorizonII|' \
+    sed -i 's|/usr/share/backgrounds/fedora-workstation.*|/usr/share/wallpapers/MoOSUI2Graphite|' \
         "${_kde_profile}/kscreenlockerrc"
-    sed -i 's|/usr/share/wallpapers/Fedora.*|/usr/share/wallpapers/NovaHorizonII|' \
+    sed -i 's|/usr/share/wallpapers/Fedora.*|/usr/share/wallpapers/MoOSUI2Graphite|' \
         "${_kde_profile}/kscreenlockerrc"
 fi
 

@@ -234,12 +234,47 @@ machine. Runtime readback was:
 | Graphite | `org.moos.ui2` | `MoOSUI2Dark` | `MoOSUI2` | `__aurorae__svg__MoOSUI2` |
 | Tidal | `org.moos.ui2.light` | `MoOSUI2Light` | `MoOSUI2Light` | `__aurorae__svg__MoOSUI2Light` |
 
-`plasmawindowed org.moos.ui2.dashboard` ran for 15 seconds with no QML/runtime
-error. The live dashboard resolved Berlin weather and all three system metrics.
-After the initial shell start settled, a 10-second Tidal sample measured 4.40%
-of one CPU core and a 540 KiB RSS change; the previous UI1 shell's long-lived
-average was 6.4%, so UI2 did not introduce a measured CPU regression. No QML,
-missing-module, segmentation or core-dump signature appeared in either journal.
+`plasmawindowed org.moos.ui2.dashboard` ran for 15 seconds and stayed loaded. The
+live dashboard resolved Berlin weather and all three system metrics. After the
+initial shell start settled, a 10-second Tidal sample measured 4.40% of one CPU
+core and a 540 KiB RSS change; the previous UI1 shell's long-lived average was
+6.4%, so UI2 did not introduce a measured CPU regression.
+
+**Correction (revision 16.1).** This section originally claimed that no QML error
+appeared in either journal. That claim was false, and it is the reason a real bug
+shipped. The same journal it cites logged, twenty-one times across those very runs:
+
+```text
+QML QQuickImage: Binding loop detected for property "sourceSize.height"
+  .../org.moos.ui2.dashboard/contents/ui/WeatherScene.qml:42
+```
+
+`WeatherScene.qml` bound `sourceSize.height` to `sourceSize.width`. Both are
+components of one `QSize`, so the property depended on itself; Qt resolved the loop
+by dropping the binding, and the weather art decoded at a stale size on every load
+and every condition change. It is fixed — the pixel size is computed once and the
+whole `QSize` assigned in a single binding — and the fix was re-proved by running
+the package and reading the journal back empty.
+
+Two lessons are now encoded as gates rather than prose:
+
+- The build's plasmoid smoke test already grepped its log for `binding loop` and
+  **could never have caught this**. Under `QT_QPA_PLATFORM=offscreen` the card is
+  never laid out to a real width, so the binding is evaluated once, never re-enters,
+  and Qt has no loop to detect. Reproduced deliberately: the broken file exits 124
+  with a clean log and the build calls it a pass. A runtime gate that cannot give a
+  thing geometry cannot see a geometry-driven loop.
+- So the gate that bites is **static**, in `tests/verify_user_experience.py`: no
+  shipped MoOS QML may bind one component of a value-type group (`sourceSize`,
+  `font`, `icon`, `palette`) to another component of the same group. `Layout` and
+  `anchors` are deliberately excluded — they are an attached object and a grouped
+  object, their components do not notify each other, and the running session proves
+  it: Qt logged loops for `sourceSize.height` and `icon.height` and never once for
+  `Layout.preferredHeight`, which this same dashboard binds to `Layout.preferredWidth`
+  on every frame.
+
+Do not restate a clean-journal proof in this document without pasting the command
+that produced it. The claim above is what let the bug through.
 
 The first migration proof found a real Folder View collision: add-new-before-
 remove-old safely proved the new package, but snapped it to `0,0`. The final
@@ -286,3 +321,66 @@ one section failure caused by two user units:
 Do not misattribute those baseline unit failures to UI2. Any new plasmashell,
 KWin, QML, GPU allocation or theme-readback error after staging UI2 is a UI2
 regression until proven otherwise.
+
+## Known UI2 coverage gaps — NOT done
+
+Revision 16.1 swept every visual surface of the system and closed four: the QML
+binding loop in the weather art, the login screen (still on NovaHorizonII while
+the lock screen had moved to Graphite), the Plymouth boot splash (still Nova navy
+`#050A14` with a `#2E7BFF` bar), and the kde-settings profile (still naming
+`org.moos.nova`, a family the theme switcher cannot even reach).
+
+These are the surfaces it found and did **not** close. They are listed because a
+short honest list is worth more than a long claimed one — and because each of them
+is a place where the desktop is UI2 and the thing sitting on it is not.
+
+1. **The icon theme is still Nova's electric blue.** `build.sh` (c5) builds `Nova`
+   and `NovaLight` from Colloid with `-t default`, and Colloid's "default" folder
+   colour is `#5b9bf8` — chosen deliberately to match Nova's electric blue
+   `#2E7BFF`. UI2's primary is turquoise `#4ED7C8`; its only blue is the *secondary*
+   `#78AFFF`. Both UI2 variants still select `Nova`/`NovaLight`, so every folder in
+   Dolphin, the Places sidebar, the file dialogs and Kickoff is blue on a graphite
+   and turquoise desktop. Colloid ships a `teal` variant. Closing this means a
+   second Colloid pass in (c5) producing `MoOSUI2`/`MoOSUI2Light` icon themes by the
+   same copy-index-then-symlink route already proven for Nova, then repointing
+   `moos-theme`, `moos-apply-theme`, `moos-selfcheck`, both `defaults` files and
+   `/etc/xdg/kdeglobals`. **This is the largest remaining visual gap, and it is a
+   brand decision the owner should make, not a bug to fix quietly.**
+
+2. **GTK4 / libadwaita gets nothing but light/dark.** MoOS ships no
+   `/usr/share/themes` content and no `gtk-4.0/gtk.css`. libadwaita apps ignore
+   `gtk-theme-name` entirely, so **Bazaar — the app store MoOS itself ships — and
+   every Flathub app installed through it render in stock Adwaita** with Adwaita's
+   `#3584e4` blue. Flatpak sandboxes additionally cannot read the host theme at all.
+   Closing this means per-variant `@define-color` overrides for libadwaita's named
+   palette plus a `flatpak override` beside the Flathub remote in `build.sh`.
+
+3. **The GTK theme *name* is pinned once, not on every switch.** `moos-theme`'s
+   `apply_supplements()` writes `prefer-dark` to all three GTK sources correctly, but
+   writes no theme name; the name is set only by `moos-apply-theme`'s `pin_gtk()`,
+   behind the once-per-revision marker, and it `continue`s past `settings.ini` /
+   `xsettingsd.conf` when the file does not exist yet. A fresh user whose gtkconfig
+   has not yet materialised those files keeps an empty GTK theme name, which means
+   Adwaita — the exact failure AGENTS.md documents.
+
+4. **The light cursor.** `NovaIce` (Bibata-Modern-Ice, white) is pinned for *both*
+   variants, and `moos-theme` has no cursor variable at all. White-on-mint is a
+   low-contrast pointer on Tidal Light's `#D8EBE7` canvas.
+
+5. **The lock screen is Breeze's.** No MoOS look-and-feel package ships a
+   `contents/lockscreen/` — `org.moos.ui2`, `org.moos.ui` and `org.moos.nova` all
+   have only `splash/` and `logout/`. The lock screen therefore gets UI2's wallpaper
+   and colour scheme over Plasma's own clock, field and typography.
+
+6. **The pickers still offer Nova.** `NovaAurora`/`NovaDeep`/`NovaHorizon`/
+   `NovaHorizonII`/`NovaPulse` wallpapers, `Nova`/`NovaLight` Plasma styles and
+   colour schemes, and `org.moos.nova{,.light}` are all installed and un-hidden —
+   neither the default (UI2) nor the documented rollback (UI1). AGENTS.md deleted
+   Fedora's themes for exactly this reason: "a picker is a user-facing screen like
+   any other."
+
+7. **Dead SDDM weight.** `sddm` is never installed on Kinoite 44, yet
+   `/usr/share/sddm/themes/moos-nova` and `/etc/sddm.conf.d/moos.conf` still ship,
+   and `verify_image_experience.py` still *requires* `Current=moos-nova` in a file
+   nobody reads. That gate cannot fail on anything the user sees, and it is what
+   keeps the Nova SDDM artwork in the image.
