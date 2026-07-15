@@ -921,7 +921,25 @@ systemctl --user start plasma-ksystemstats.service >>"$log" 2>&1 || true
 # other generation is removed only after a second scan proves it instantiated.
 # A Folder View containment will NOT place a scripted widget for you — pass an
 # explicit rectangle, or the applet exists with zero geometry and never paints.
-if command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
+#
+# NOT on the live ISO. The dashboard is a wide bento — clock, weather and system
+# rings across the top of the screen. On an installed system the Desktop folder is
+# empty, so it has the desktop to itself and looks the way it should. The live ISO
+# is the one desktop that is NOT empty: it carries the "Install MoOS" icon, and a
+# full-width widget across the top lands on top of it — the first screen of a fresh
+# install showing its own install button with the label swallowed by the clock.
+# Aligning the icons left, then right, only moved the collision; the widget is wide
+# by design and there is no clear corner.
+# So the live session gets the honest thing a live session is for: wallpaper, dock,
+# and a clear Install icon — the polished install desktop every serious distro
+# ships. The dashboard is what you are rewarded with once MoOS is actually on the
+# disk. Detected by the live kernel arg, which iso.yaml sets (rd.live.image).
+is_live=0
+if grep -qw rd.live.image /proc/cmdline 2>/dev/null; then
+    is_live=1
+    echo "live session detected — desktop dashboard intentionally skipped" >>"$log" 2>&1
+fi
+if [ "$is_live" = 0 ] && command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
     widget_migration_result="$(timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
         -m org.kde.PlasmaShell.evaluateScript '
             var TARGET = "'"$want_widget"'";

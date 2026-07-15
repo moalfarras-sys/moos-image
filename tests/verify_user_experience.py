@@ -1850,16 +1850,19 @@ for asset in (
 ):
     require((ROOT / asset).is_file(), f"a desktop dashboard package is missing {asset}")
 require("want_widget=org.moos.ui2.dashboard" in apply_theme_code,
-        "new and existing users must both receive the MoOS dashboard through the per-containment "
-        "migration")
-# x=260, not 80. The desktop icons live in a column at the LEFT edge, and at x=80 the dashboard
-# sat on top of the first one — which on the live ISO is the icon that says "Install MoOS". The
-# first screen of a fresh install showed its own install button with the label half-swallowed by
-# the clock. A Folder View will never flow its icons around a widget, so the clearance is built in
-# here or it does not exist.
-require("d.addWidget(TARGET, 360, 70, TARGET_WIDTH, TARGET_HEIGHT)" in apply_theme_code,
-        "the dashboard must be placed clear of the desktop icon column — at x=80 it covers the "
-        "'Install MoOS' icon on the live ISO")
+        "an installed desktop must receive the MoOS dashboard through the per-containment migration")
+# The dashboard is a wide bento across the top of the screen. On an installed system the Desktop
+# folder is empty, so it owns the desktop and looks right. The LIVE ISO is the one desktop that is
+# not empty — it carries "Install MoOS" — and a full-width widget lands on top of that icon, its
+# label swallowed by the clock. Left-align then right-align only moved the collision. So the live
+# session skips the dashboard and shows the clean install desktop instead; the dashboard is the
+# reward on the installed system. Detected by the live kernel arg.
+require("grep -qw rd.live.image /proc/cmdline" in apply_theme_code
+        and 'is_live=0' in apply_theme_code
+        and '[ "$is_live" = 0 ]' in apply_theme_code,
+        "the desktop dashboard must be skipped on the live ISO, where it would cover the "
+        "'Install MoOS' icon — a wide top widget has no clear corner beside a desktop that is "
+        "not empty")
 build_script_code = code(read("build_files/build.sh"))
 require("plasmawindowed org.moos.ui2.dashboard" in build_script_code,
         "the image build must load the UI2 plasmoid through Plasma's real package runtime; "
