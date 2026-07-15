@@ -27,7 +27,12 @@
 # removable target if it cannot determine the live medium), refuses a non-block dev.
 set -uo pipefail
 
-emit()  { printf '%s\n' "$*"; }
+# The status file the QML polls. We APPEND each line (open-append-close flushes it
+# immediately) instead of writing to stdout — moos-open runs us via pkexec, which
+# is setuid and drops `stdbuf`'s LD_PRELOAD, so a redirected stdout would be
+# block-buffered and the progress bar would freeze (seen live: FAIL stalled).
+STATUS="${1:-/dev/stdout}"
+emit()  { printf '%s\n' "$*" >> "$STATUS" 2>/dev/null; }
 phase() { emit "PHASE $1"; }
 prog()  { emit "PROGRESS $1"; }
 fail()  { emit "FAIL ${1:-generic}"; exit 1; }

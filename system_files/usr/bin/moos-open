@@ -107,9 +107,12 @@ case "${cat}/${tgt}" in
         # choose a disk: with no recipe the helper fails no-recipe and wipes nothing.
         _idir="${XDG_CACHE_HOME:-$HOME/.cache}/moos-installer"; mkdir -p "$_idir"
         : > "${_idir}/install.status" 2>/dev/null || true
-        # Detached + line-buffered so the QML's PROGRESS bar moves live while the
-        # helper (pkexec → root) streams PHASE/PROGRESS/DONE/FAIL to the file.
-        setsid sh -c 'command -v stdbuf >/dev/null 2>&1 && exec stdbuf -oL pkexec /usr/bin/moos-install-to-disk > "$1/install.status" 2>/dev/null; exec pkexec /usr/bin/moos-install-to-disk > "$1/install.status" 2>/dev/null' _ "$_idir" >/dev/null 2>&1 & ;;
+        # Pass the status FILE to the helper (arg 1). It appends each
+        # PHASE/PROGRESS/DONE/FAIL line itself (open-append-close ⇒ flushed at once),
+        # because `stdbuf -oL pkexec` does NOT work: pkexec is setuid and drops the
+        # LD_PRELOAD, so a redirected helper stdout would be block-buffered and the
+        # progress bar would freeze until the process exits (seen live: FAIL stalled).
+        setsid pkexec /usr/bin/moos-install-to-disk "${_idir}/install.status" >/dev/null 2>&1 & ;;
     installer/advanced) gui liveinst ;;
     installer/reboot)   systemctl reboot   2>/dev/null || loginctl reboot   2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndReboot   2>/dev/null || true ;;
     installer/poweroff) systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null || true ;;
