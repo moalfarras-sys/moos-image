@@ -116,14 +116,72 @@ PlasmoidItem {
         }
     }
 
+    // A finished popup, in the MoOS clock identity (matches the lock screen): a
+    // large light-weight time, a bilingual Arabic/English date and one restrained
+    // turquoise tick, above the month calendar — not a bare MonthView.
     fullRepresentation: Item {
         implicitWidth: Kirigami.Units.gridUnit * 22
-        implicitHeight: Kirigami.Units.gridUnit * 20
+        implicitHeight: Kirigami.Units.gridUnit * 24
 
-        PlasmaCalendar.MonthView {
+        ColumnLayout {
             anchors.fill: parent
-            anchors.margins: Kirigami.Units.smallSpacing
-            today: root.now
+            anchors.margins: Kirigami.Units.largeSpacing
+            spacing: Kirigami.Units.largeSpacing
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.largeSpacing
+                layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+                    Text {
+                        text: Qt.formatTime(root.now, "HH:mm")
+                        color: Kirigami.Theme.textColor
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 2.6)
+                        font.weight: Font.Light
+                        font.features: ({ "tnum": 1 })
+                    }
+                    Text {
+                        text: Qt.formatDate(root.now, Qt.locale("ar"), Qt.locale("ar").dateFormat(Locale.LongFormat))
+                        color: Kirigami.Theme.textColor
+                        opacity: 0.9
+                        font.family: "IBM Plex Sans Arabic"
+                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.95)
+                    }
+                    Text {
+                        text: Qt.formatDate(root.now, Qt.locale("en"), "dddd, d MMMM yyyy")
+                        color: Kirigami.Theme.textColor
+                        opacity: 0.6
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.72)
+                    }
+                }
+
+                Rectangle {   // the one luminous accent, echoing the lock screen
+                    Layout.alignment: Qt.AlignVCenter
+                    Layout.preferredWidth: Math.max(3, Math.round(Kirigami.Units.smallSpacing * 0.7))
+                    Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * 2.2)
+                    radius: width
+                    color: Kirigami.Theme.highlightColor
+                    opacity: 0.9
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Kirigami.Theme.textColor
+                opacity: 0.12
+            }
+
+            PlasmaCalendar.MonthView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                today: root.now
+            }
         }
     }
 }
