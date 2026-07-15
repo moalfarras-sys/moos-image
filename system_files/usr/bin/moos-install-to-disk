@@ -79,7 +79,14 @@ mapfile -d '' -t _RF < <(
     python3 - "$RECIPE" <<'PY' 2>>"$LOG"
 import json, sys
 d = json.load(open(sys.argv[1], encoding="utf-8"))
-def g(k): return str(d.get(k, "")).replace("\x00", " ")
+def g(k):
+    v = d.get(k)
+    # A trusted front-end writes strings, but a stray JSON null/boolean must not
+    # coerce to the literal "None"/"True" (a null password would then hash to the
+    # real word "None", defeating the passwordless path). Treat both as empty.
+    if v is None or isinstance(v, bool):
+        v = ""
+    return str(v).replace("\x00", " ")
 # Terminate EVERY field with NUL (trailing one included) so an empty LAST field
 # (e.g. no timezone) still counts — `mapfile -d ''` drops a trailing delimiter, so
 # "a\0b\0" is 2 elements, but "a\0b\0\0" is 3 with an empty tail. Always 9 here.

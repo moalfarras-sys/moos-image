@@ -578,7 +578,6 @@ case "$want_lnf" in
         want_icons=MoOSUI2Light
         want_konsole=MoOSUI2Light.profile
         want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Tide
-        want_wallpaper=${want_wallpaper_package}/contents/images/3840x2160.jpg
         want_gtk_dark=false
         want_cursor=MoOSDark
         ;;
@@ -589,7 +588,6 @@ case "$want_lnf" in
         want_icons=MoOSUI2
         want_konsole=MoOSUI2.profile
         want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite
-        want_wallpaper=${want_wallpaper_package}/contents/images_dark/3840x2160.jpg
         want_gtk_dark=true
         want_cursor=MoOS
         ;;

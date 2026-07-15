@@ -62,7 +62,10 @@ log "adapting (rev ${HW_REV}) …"
 cpu_vendor="$(grep -m1 '^vendor_id' /proc/cpuinfo 2>/dev/null | awk '{print $3}')"
 mem_kb="$(grep -m1 '^MemTotal:' /proc/meminfo 2>/dev/null | awk '{print $2}')"
 mem_kb="${mem_kb:-0}"
-mem_gib=$(( mem_kb / 1024 / 1024 ))
+# MemTotal is always a little below the physical RAM (firmware/kernel reserve), so a
+# plain floor reads 8 GiB as 7 and 32 as 31, dropping the machine into the wrong zram
+# tier at every power-of-two boundary. Round to the nearest GiB (add half a GiB first).
+mem_gib=$(( (mem_kb + 524288) / 1024 / 1024 ))
 chassis="$(hostnamectl chassis 2>/dev/null || echo unknown)"
 have_battery=0
 for b in "$SYS"/class/power_supply/BAT*; do [ -e "$b" ] && have_battery=1 && break; done

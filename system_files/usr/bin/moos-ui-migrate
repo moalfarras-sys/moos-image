@@ -55,7 +55,7 @@ if [ -f "$legacy_bin" ] && grep -Fq '$HOME/.local/share/moos/apps/moai/main.qml'
     rm -f "$legacy_bin"
     echo "removed obsolete local Mo AI launcher"
 fi
-if [ -f "$legacy_desktop" ] && grep -Fq 'Exec=/var/home/mo/.local/bin/moai' "$legacy_desktop"; then
+if [ -f "$legacy_desktop" ] && grep -Fq "Exec=$HOME/.local/bin/moai" "$legacy_desktop"; then
     rm -f "$legacy_desktop"
     echo "removed obsolete local Mo AI desktop override"
 fi
