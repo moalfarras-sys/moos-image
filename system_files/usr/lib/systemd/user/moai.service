@@ -18,8 +18,14 @@ Type=simple
 # rewrites that file on every start. Fix the file that decides, not the one we ship.
 Environment=MOAI_PORT=8081
 Environment=MOAI_MODEL=ollama://qwen3:4b-instruct
+# Cap the context so llama.cpp cannot project a KV cache bigger than the GPU has —
+# the documented SIGABRT-out-of-VRAM that, on an 8 GB card shared with the Wayland
+# compositor, could take the desktop down with it. --ngl auto offloads as many
+# layers as fit and is a harmless no-op on CPU-only hardware (verified via
+# `ramalama --dryrun serve …`: same runtime image, GPU passed through when present).
+Environment=MOAI_CTX=4096
 EnvironmentFile=-%h/.config/moos/moai.env
-ExecStart=/usr/bin/ramalama serve --port ${MOAI_PORT} ${MOAI_MODEL}
+ExecStart=/usr/bin/ramalama serve --ctx-size ${MOAI_CTX} --ngl auto --port ${MOAI_PORT} ${MOAI_MODEL}
 Restart=on-failure
 RestartSec=5s
 TimeoutStopSec=20s

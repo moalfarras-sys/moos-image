@@ -261,17 +261,22 @@ def gb(n):
 
 
 def have_network(timeout=2.0):
-    """Can we reach the model registry at all? A pull needs this; a loaded brain does not."""
-    try:
-        socket.create_connection(("registry.ollama.ai", 443), timeout=timeout).close()
-        return True
-    except OSError:
-        pass
-    try:
-        socket.create_connection(("huggingface.co", 443), timeout=timeout).close()
-        return True
-    except OSError:
+    """Can we reach what a first-run local pull actually needs? A pull fetches BOTH
+    the model (Ollama registry / Hugging Face) AND the RamaLama runtime container
+    (quay.io / ghcr.io). The old check probed only the model registry, so a machine
+    that could reach Hugging Face but not quay.io passed preflight and then failed
+    the container pull with a misleading 'model' error. A loaded brain needs none of
+    this (preflight_local() already short-circuits when the model is present)."""
+    def reachable(*hosts):
+        for h in hosts:
+            try:
+                socket.create_connection((h, 443), timeout=timeout).close()
+                return True
+            except OSError:
+                continue
         return False
+    return reachable("registry.ollama.ai", "huggingface.co") \
+        and reachable("quay.io", "ghcr.io")
 
 
 def preflight_local(target):
