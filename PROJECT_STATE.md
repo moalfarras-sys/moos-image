@@ -49,9 +49,14 @@ went stale.** The replacements gate a *relationship* (login screen == lock scree
 splash == palette; kde-profile == the image's own default), so the next theme
 family inherits them for free.
 
-`artwork/MOOS_UI2_DESIGN.md` ends with the coverage gaps that are **still open** —
-the icon theme is still Nova's electric blue, libadwaita/Flatpak apps get nothing,
-and the lock screen is Breeze's. Read that list before claiming UI2 is complete.
+`artwork/MOOS_UI2_DESIGN.md` ends with a coverage-gap list that is now largely
+**closed**: teal MoOSUI2/MoOSUI2Light icon themes are built in build.sh,
+libadwaita/Flatpak apps get the UI2 palette (moos-ui2.css + the gtk-4.0 read
+hole), the lock screen is the MoOS shell-package override, and the desktop
+dashboard lives INSIDE the wallpaper (org.moos.ui2.wallpaper — below the icons,
+so it can never cover them). The Welcome (apps/welcome) is a real onboarding
+wizard again; Mo Store (apps/store, /usr/bin/moos-store, org.moos.store.desktop)
+is the standalone storefront. Verify against the gates, not this paragraph.
 
 ## Previous visual work: MoOS UI
 

@@ -1,21 +1,17 @@
 #!/usr/bin/env bash
-# moos-welcome — launch the MoOS Welcome onboarding (replaces plasma-welcome).
-# A smart first-run wizard: pick a look, pick the system's direction (gaming /
-# development / study / office), pick the optional apps, watch them install —
-# then it hands over to Mo Store (/usr/bin/moos-store), which is a SEPARATE app.
-# Pure-QML script app; tries the Fedora qml runner names in order.
+# moos-store — launch Mo Store, MoOS's own storefront (a standalone app; the
+# first-run onboarding is /usr/bin/moos-welcome). Pure-QML script app.
 set -euo pipefail
-QML="/usr/share/moos/apps/welcome/main.qml"
+QML="/usr/share/moos/apps/store/main.qml"
 export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
 # OSTree fixes mtimes → Qt's QML disk cache never invalidates across upgrades,
 # freezing the app at its first-installed version. Always compile the current source.
 export QML_DISABLE_DISK_CACHE=1
 rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/qmlcache" 2>/dev/null || true
 
-# The Welcome installs from the same catalog the store does: it reads
-# /usr/share/moos/store/catalog.json and polls per-app install status files,
-# both via QML's XMLHttpRequest. Qt6 gates local-file reads behind this flag,
-# so set it or the wizard shows no apps.
+# The store reads /usr/share/moos/store/catalog.json and polls per-app install
+# status files, both via QML's XMLHttpRequest. Qt6 gates local-file reads behind
+# this flag, so set it or the store shows no apps.
 export QML_XHR_ALLOW_FILE_READ=1
 # Where moos-open writes each install's PROGRESS/DONE/FAIL status. Passed to the
 # QML as --cache= (pure QML can't read $HOME), and kept identical to the path
@@ -25,11 +21,11 @@ mkdir -p "$CACHEDIR" 2>/dev/null || true
 
 # moos-qml-shell, not the bare runtime: qml-qt6 names every window it hosts
 # org.qt-project.qml-qt6, so Plasma cannot match this window to
-# org.moos.welcome.desktop and shows the generic green Qt icon. The shell sets the
+# org.moos.store.desktop and shows the generic green Qt icon. The shell sets the
 # real app_id. (Same fix as /usr/bin/moai — see build_files/moos-qml-shell.cpp.)
 if [ -x /usr/bin/moos-qml-shell ]; then
     exec /usr/bin/moos-qml-shell \
-        --app-id org.moos.welcome --icon moos-welcome --qml "$QML" \
+        --app-id org.moos.store --icon moos-store --qml "$QML" \
         -- --cache="$CACHEDIR"
 fi
 
@@ -39,5 +35,5 @@ for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
         exec "$runner" "$QML" -- --cache="$CACHEDIR"
     fi
 done
-echo "MoOS Welcome: no Qt6 QML runtime found (install qt6-qtdeclarative-devel). | لا يوجد محرّك QML." >&2
+echo "Mo Store: no Qt6 QML runtime found (install qt6-qtdeclarative-devel). | لا يوجد محرّك QML." >&2
 exit 127

@@ -29,7 +29,10 @@ DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 ROOT = Path(os.environ.get("MOOS_UI2_TEST_ROOT", DEFAULT_ROOT)).resolve()
 SHARE = ROOT / "system_files/usr/share"
 ART = ROOT / "artwork/moos-ui2"
-DASHBOARD = SHARE / "plasma/plasmoids/org.moos.ui2.dashboard"
+# The dashboard bento lives INSIDE the wallpaper plugin (the scene renders image
+# + bento as one layer BELOW the desktop icons). It used to be a desktop applet,
+# and as an applet it always drew on top of the Folder View icons.
+DASHBOARD = SHARE / "plasma/wallpapers/org.moos.ui2.wallpaper"
 
 VARIANTS = {
     "dark": {
@@ -251,13 +254,20 @@ class TestMoOSUI2(unittest.TestCase):
                 for selector in (
                     f"ColorScheme={names['scheme']}",
                     f"name={names['desktop_theme']}",
-                    f"Image={names['wallpaper']}",
                     f"Theme={names['look_and_feel']}",
                     f"Theme={names['icons']}",
                     f"theme=__aurorae__svg__{names['aurorae']}",
                 ):
                     self.assertIn(selector, defaults,
                                   f"{look_and_feel} does not select {selector}")
+                # NO [Wallpaper] section, deliberately: LookAndFeelManager applies
+                # it by forcing org.kde.image onto every desktop containment, which
+                # would replace org.moos.ui2.wallpaper (the scene that draws the
+                # dashboard below the icons) on every theme apply. moos-theme /
+                # moos-apply-theme own the desktop wallpaper per half instead.
+                self.assertNotIn("[Wallpaper]", defaults,
+                                 f"{look_and_feel} must not carry a [Wallpaper] section — "
+                                 "it would erase the MoOS scene on every apply")
 
                 plasmarc = (desktop / "plasmarc").read_text(encoding="utf-8")
                 self.assertIn(f"FallbackTheme={names['fallback']}", plasmarc)
@@ -379,7 +389,7 @@ class TestMoOSUI2(unittest.TestCase):
                 share / "konsole/MoOSUI2Light.profile",
                 share / "wallpapers/MoOSUI2Graphite",
                 share / "wallpapers/MoOSUI2Tide",
-                share / "plasma/plasmoids/org.moos.ui2.dashboard/contents/images/weather",
+                share / "plasma/wallpapers/org.moos.ui2.wallpaper/contents/images/weather",
             )
             output_files = set(outputs[6:12])
             for index, path in enumerate(outputs):
@@ -653,9 +663,13 @@ class TestMoOSUI2(unittest.TestCase):
 
     def test_dashboard_is_passive_palette_driven_and_motion_guarded(self) -> None:
         metadata = load_json(DASHBOARD / "metadata.json")
-        self.assertEqual(metadata["KPlugin"]["Id"], "org.moos.ui2.dashboard")
+        self.assertEqual(metadata["KPlugin"]["Id"], "org.moos.ui2.wallpaper")
+        self.assertEqual(metadata["KPackageStructure"], "Plasma/Wallpaper",
+                         "the scene must be a WALLPAPER package — a Plasma/Applet here "
+                         "puts the bento back on top of the desktop icons")
         self.assert_files(DASHBOARD / "contents/ui", {
             "main.qml",
+            "DashboardBento.qml",
             "GlassCard.qml",
             "ClockCard.qml",
             "RollingDigit.qml",
@@ -686,7 +700,7 @@ class TestMoOSUI2(unittest.TestCase):
         for kind in WEATHER_KINDS:
             self.assertIn(f'"{kind}"', combined)
 
-        main = qml_by_path[DASHBOARD / "contents/ui/main.qml"]
+        main = qml_by_path[DASHBOARD / "contents/ui/DashboardBento.qml"]
         for numeric_weather_value in (
             "current.temperature_2m",
             "current.apparent_temperature",
@@ -751,7 +765,7 @@ class TestMoOSUI2(unittest.TestCase):
             with self.subTest(motion_file=path.name):
                 self.assertIn("motionEnabled", text,
                               f"animated QML has no motion guard: {path}")
-                if path.name != "main.qml":
+                if path.name not in ("main.qml", "DashboardBento.qml"):
                     self.assertRegex(
                         text, r"(?:required|readonly)\s+property\s+bool\s+motionEnabled",
                         f"animated component does not declare its motion seam: {path}",
@@ -777,6 +791,21 @@ class TestMoOSUI2(unittest.TestCase):
                         "motionEnabled", guard_window,
                         f"manual animation restart is not motion-guarded in {path}",
                     )
+
+        # The wallpaper wrapper is the layer contract: WallpaperItem root, the
+        # bento embedded, and the Image config key the theme scripts write.
+        wrapper = qml_by_path[DASHBOARD / "contents/ui/main.qml"]
+        self.assertIn("WallpaperItem", wrapper,
+                      "the scene root must be a WallpaperItem — anything else does not "
+                      "render below the icons")
+        self.assertIn("DashboardBento", wrapper,
+                      "the scene wallpaper no longer embeds the dashboard bento")
+        self.assertIn("root.configuration.Image", wrapper,
+                      "the scene must read the Image config key moos-theme writes per half")
+        bento = qml_by_path[DASHBOARD / "contents/ui/DashboardBento.qml"]
+        self.assertNotIn("import org.kde.plasma.plasmoid", bento,
+                         "DashboardBento must stay plain QtQuick/Kirigami — the build's "
+                         "smoke harness loads it directly")
 
 
 if __name__ == "__main__":

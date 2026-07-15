@@ -425,15 +425,17 @@ fi
 unset -v _liveinst
 
 # -----------------------------------------------------------------------------
-# (c3b) Discover -> "Mo Store": MoOS's own app store, same engine, MoOS identity
+# (c3b) Discover: keep the engine, hide the duplicate storefront entry
 # -----------------------------------------------------------------------------
-# The owner wants ONE branded storefront. Discover is KDE's native store — full
-# (Flatpak + firmware + updates), and it themes with the active UI2 colour scheme
-# for free — so it is rebranded IN PLACE (same sed pattern as the installer, so
-# Exec/MimeType/Categories/urlhandler are all preserved). Bazaar stays installed
-# as the curated "MoOS Picks" feed; the Welcome screen is the first-run app
-# picker. The mo-store icon is a MoOS-turquoise storefront (artwork/
-# generate_mostore_icon.py, shipped in system_files hicolor).
+# The owner wants ONE branded storefront, and that is now the standalone
+# Mo Store app (org.moos.store.desktop -> /usr/bin/moos-store, the curated
+# catalog UI that used to live inside the Welcome). Discover used to be
+# rebranded "Mo Store" in place, which made TWO menu entries with the same
+# name the moment the real Mo Store shipped. So Discover keeps its engine
+# (plasma-discover still handles update notifications, firmware and appstream
+# deep links) but leaves every menu: NoDisplay=true. The MoOS name/icon stay on
+# the entry so any surface that still resolves it (notifier popups) shows MoOS
+# identity, never a foreign brand.
 _disc=/usr/share/applications/org.kde.discover.desktop
 if [ -f "$_disc" ]; then
     sed -i \
@@ -446,6 +448,10 @@ if [ -f "$_disc" ]; then
     sed -i '/^Name=Mo Store$/a Name[ar]=متجر MoOS' "$_disc"
     # GenericName may be absent; add an Arabic one if the key exists.
     grep -q '^GenericName=' "$_disc" && sed -i '/^GenericName=App Store$/a GenericName[ar]=متجر التطبيقات' "$_disc" || true
+    # Hide it from menus/krunner — org.moos.store is the one visible storefront.
+    grep -q '^NoDisplay=' "$_disc" \
+        && sed -i 's|^NoDisplay=.*|NoDisplay=true|' "$_disc" \
+        || sed -i '/^\[Desktop Entry\]/a NoDisplay=true' "$_disc"
 fi
 unset -v _disc
 
@@ -577,7 +583,7 @@ ldd /usr/bin/moos-qml-shell | grep -q libKF6DBusAddons \
 # launches, the QML loads, nothing errors — the icon is just silently the wrong one.
 test -x /usr/bin/moos-qml-shell \
     || { echo "GATE FAIL: moos-qml-shell did not build"; exit 1; }
-for launcher in /usr/bin/moai /usr/bin/moos-welcome; do
+for launcher in /usr/bin/moai /usr/bin/moos-welcome /usr/bin/moos-store; do
     grep -q "moos-qml-shell" "$launcher" \
         || { echo "GATE FAIL: ${launcher} does not use moos-qml-shell — its window will show the generic Qt icon"; exit 1; }
 done
@@ -728,7 +734,8 @@ bash /tmp/colloid/install.sh -d /usr/share/icons -t default -s default
 bash /tmp/colloid/install.sh -d /usr/share/icons -t teal -s default
 rm -rf /tmp/colloid
 
-# "Nova" = branded theme on top of Colloid-Dark.
+# "MoOSUI2" / "MoOSUI2Light" = the UI2 icon themes: teal folders over the
+# copy-index-then-symlink route.
 # VERIFIED: an Inherits-only index.theme is NOT enough —
 # - freedesktop icon-theme spec (File Formats, Table 1) marks Directories=
 #   as REQUIRED (Inherits is the optional one);
@@ -736,53 +743,22 @@ rm -rf /tmp/colloid
 #   (QFileInfo::exists check in the ctor before populating mDirs) and
 #   isValid() requires a non-empty mDirs/mScaledDirs — a dir-less theme is
 #   treated as invalid and Plasma would fall back / not stick.
-# So: copy Colloid-Dark's full index.theme (keeps Directories= plus all
-# per-directory sections; Name=/Comment=/Inherits= lines verified present in
-# src/index.theme at the pinned commit) and symlink Colloid-Dark's icon
-# dirs into Nova — cheap (no duplication), spec-valid, and Nova resolves
-# icons directly instead of relying purely on inheritance.
-mkdir -p /usr/share/icons/MoOSUI2
-cp /usr/share/icons/Colloid-Dark/index.theme /usr/share/icons/MoOSUI2/index.theme
-sed -i \
-    -e 's|^Name=.*|Name=MoOSUI2|' \
-    -e 's|^Comment=.*|Comment=MoOS icons (based on Colloid)|' \
-    -e 's|^Inherits=.*|Inherits=Colloid-Dark,Papirus-Dark,breeze-dark,hicolor|' \
-    /usr/share/icons/MoOSUI2/index.theme
-# Symlink every icon subdir of Colloid-Dark (actions, apps, ..., plus the
-# @2x links) into Nova. Relative targets keep the links valid inside the
-# ostree/bootc image. The */ glob matches dirs and dir-symlinks only, so
+# So: copy the base's full index.theme (keeps Directories= plus all
+# per-directory sections) and symlink the base's icon dirs in — cheap (no
+# duplication), spec-valid, and the theme resolves icons directly instead of
+# relying purely on inheritance. Relative targets keep the links valid inside
+# the ostree/bootc image; the */ glob matches dirs and dir-symlinks only, so
 # index.theme / icon-theme.cache are skipped.
-test -d /usr/share/icons/Colloid-Dark/apps   # hard-fail if Colloid's layout ever changes
-for d in /usr/share/icons/Colloid-Dark/*/; do
-    b="$(basename "${d}")"
-    ln -snf "../Colloid-Dark/${b}" "/usr/share/icons/MoOSUI2/${b}"
-done
-gtk-update-icon-cache -f /usr/share/icons/MoOSUI2 || true
-
-# "NovaLight" = the same theme over Colloid-LIGHT, for the light Global Theme.
 #
-# An icon theme is not colour-scheme aware. Colloid-Dark's monochrome symbolics
-# are drawn LIGHT so they read on a dark panel — put them on porcelain and the
-# toolbar goes blank. So the light half of MoOS needs its own icon theme, built
-# by exactly the same symlink trick: spec-valid index.theme copied from the base,
-# icon dirs symlinked, zero duplication on disk.
-mkdir -p /usr/share/icons/MoOSUI2Light
-cp /usr/share/icons/Colloid-Light/index.theme /usr/share/icons/MoOSUI2Light/index.theme
-sed -i \
-    -e 's|^Name=.*|Name=MoOSUI2Light|' \
-    -e 's|^Comment=.*|Comment=MoOS Light icons (based on Colloid)|' \
-    -e 's|^Inherits=.*|Inherits=Colloid-Light,Papirus,breeze,hicolor|' \
-    /usr/share/icons/MoOSUI2Light/index.theme
-test -d /usr/share/icons/Colloid-Light/apps
-for d in /usr/share/icons/Colloid-Light/*/; do
-    b="$(basename "${d}")"
-    ln -snf "../Colloid-Light/${b}" "/usr/share/icons/MoOSUI2Light/${b}"
-done
-gtk-update-icon-cache -f /usr/share/icons/MoOSUI2Light || true
+# rm -rf first: this block used to run twice (a dead first pass built the same
+# names from Colloid-Dark/Light before this one rebuilt them from Teal), and a
+# subdir the second base lacks would have left a stale foreign-colour symlink
+# behind. One pass, from a clean directory, cannot.
 
 # "MoOSUI2" / "MoOSUI2Light" = the UI2 icon themes, teal folders over the same
 # proven copy-index-then-symlink route. Nova/NovaLight stay installed untouched:
 # they are what UI1 (the documented rollback) selects.
+rm -rf /usr/share/icons/MoOSUI2
 mkdir -p /usr/share/icons/MoOSUI2
 cp /usr/share/icons/Colloid-Teal-Dark/index.theme /usr/share/icons/MoOSUI2/index.theme
 sed -i \
@@ -797,6 +773,7 @@ for d in /usr/share/icons/Colloid-Teal-Dark/*/; do
 done
 gtk-update-icon-cache -f /usr/share/icons/MoOSUI2 || true
 
+rm -rf /usr/share/icons/MoOSUI2Light
 mkdir -p /usr/share/icons/MoOSUI2Light
 cp /usr/share/icons/Colloid-Teal-Light/index.theme /usr/share/icons/MoOSUI2Light/index.theme
 sed -i \
@@ -1170,45 +1147,73 @@ done
 rm -rf "$_qml_home"
 unset -v _qml_shell _qml_home _qml_app _qml_id _qml_log _qml_rc
 
-# A plasmoid is not covered by the pure-QML app loop above: its root type and
-# imports only exist inside Plasma's package loader. UI2's dashboard therefore
-# gets its own real KPackage/QML smoke. This is the gate that catches a renamed
-# component, missing local weather asset, or invalid Plasmoid API before a green
-# image boots to an empty desktop card.
+# The desktop scene (org.moos.ui2.wallpaper) is not covered by the pure-QML app
+# loop above: its root is a WallpaperItem, which only exists inside plasmashell's
+# wallpaper loader, so the PACKAGE cannot be launched headless. What CAN be
+# proven here, and is, in two parts:
+#   1. The bento itself — every visible pixel of the scene — is deliberately a
+#      plain QtQuick/Kirigami component (DashboardBento.qml, no Plasmoid/Wallpaper
+#      API), so it gets the same real load-proof smoke as the apps: hosted in a
+#      window, it must stay alive to the timeout. This catches a renamed
+#      component, a missing weather asset path, or a bad binding.
+#   2. The wallpaper wrapper is validated structurally: package type, root type,
+#      the bento reference, and the Image config entry the theme scripts write.
+_scene_dir=/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper
 for _weather_kind in clear-day clear-night partly-day partly-night cloudy rain snow fog storm; do
-    test -s "/usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/images/weather/${_weather_kind}.png" \
-        || { echo "FATAL: MoOS UI2 dashboard is missing ${_weather_kind} weather art"; exit 1; }
+    test -s "${_scene_dir}/contents/images/weather/${_weather_kind}.png"         || { echo "FATAL: MoOS scene is missing ${_weather_kind} weather art"; exit 1; }
 done
 unset -v _weather_kind
-_plasmoid_log=/tmp/moos-ui2-dashboard-smoke.log
-_plasmoid_home=/tmp/moos-ui2-dashboard-home
-_plasmoid_runtime=/tmp/moos-ui2-dashboard-runtime
-mkdir -p "$_plasmoid_home/.cache" "$_plasmoid_runtime"
-chmod 0700 "$_plasmoid_runtime"
-command -v dbus-run-session >/dev/null 2>&1 \
-    || { echo "FATAL: dbus-run-session is required for the plasmoid smoke"; exit 1; }
+grep -q '"KPackageStructure": "Plasma/Wallpaper"' "${_scene_dir}/metadata.json"     || { echo "FATAL: org.moos.ui2.wallpaper is not a Plasma/Wallpaper package"; exit 1; }
+grep -q '^WallpaperItem' "${_scene_dir}/contents/ui/main.qml"     || { echo "FATAL: the scene wallpaper root is not a WallpaperItem"; exit 1; }
+grep -q 'DashboardBento' "${_scene_dir}/contents/ui/main.qml"     || { echo "FATAL: the scene wallpaper does not embed the dashboard bento"; exit 1; }
+grep -q 'name="Image"' "${_scene_dir}/contents/config/main.xml"     || { echo "FATAL: the scene wallpaper has no Image config entry — moos-theme cannot set the half"; exit 1; }
+if grep -q 'import org\.kde\.plasma\.plasmoid' "${_scene_dir}/contents/ui/DashboardBento.qml"; then
+    echo "FATAL: DashboardBento must stay free of the Plasmoid/Wallpaper API — plain QtQuick+Kirigami is what the smoke below can actually load"
+    exit 1
+fi
+
+_scene_log=/tmp/moos-scene-smoke.log
+_scene_home=/tmp/moos-scene-home
+_scene_runtime=/tmp/moos-scene-runtime
+mkdir -p "$_scene_home/.cache" "$_scene_runtime"
+chmod 0700 "$_scene_runtime"
+command -v dbus-run-session >/dev/null 2>&1     || { echo "FATAL: dbus-run-session is required for the scene smoke"; exit 1; }
+cat > /tmp/moos-scene-smoke.qml <<'SCENEQML'
+import QtQuick
+import QtQuick.Window
+
+Window {
+    visible: true
+    width: 720
+    height: 260
+    Loader {
+        anchors.fill: parent
+        source: "file:///usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/DashboardBento.qml"
+        onStatusChanged: {
+            if (status === Loader.Error) {
+                console.error("SCENE-SMOKE-LOAD-ERROR")
+                Qt.exit(3)
+            }
+        }
+    }
+}
+SCENEQML
 set +e
-HOME="$_plasmoid_home" XDG_RUNTIME_DIR="$_plasmoid_runtime" \
-    QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
-    QT_QUICK_CONTROLS_STYLE=Basic \
-    timeout --kill-after=2s 6 dbus-run-session -- \
-        plasmawindowed org.moos.ui2.dashboard \
-        >"$_plasmoid_log" 2>&1
-_plasmoid_rc=$?
+HOME="$_scene_home" XDG_RUNTIME_DIR="$_scene_runtime"     QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software     QT_QUICK_CONTROLS_STYLE=Basic QT_FORCE_STDERR_LOGGING=1     QML_DISABLE_DISK_CACHE=1     timeout --kill-after=2s 6 dbus-run-session --         /usr/bin/moos-qml-shell --app-id org.moos.scene-smoke         --qml /tmp/moos-scene-smoke.qml         >"$_scene_log" 2>&1
+_scene_rc=$?
 set -e
-if [ "$_plasmoid_rc" -ne 124 ]; then
-    echo "FATAL: MoOS UI2 dashboard did not stay loaded (exit=$_plasmoid_rc)"
-    cat "$_plasmoid_log"
+if [ "$_scene_rc" -ne 124 ]; then
+    echo "FATAL: the MoOS scene bento did not stay loaded (exit=$_scene_rc)"
+    cat "$_scene_log"
     exit 1
 fi
-if grep -qiE 'type .* unavailable|module .* is not installed|error loading qml|referenceerror|typeerror|unable to assign|binding loop|qml image: cannot open' \
-        "$_plasmoid_log"; then
-    echo "FATAL: MoOS UI2 dashboard reported a QML/package error"
-    cat "$_plasmoid_log"
+if grep -qiE 'SCENE-SMOKE-LOAD-ERROR|type .* unavailable|module .* is not installed|error loading qml|referenceerror|typeerror|unable to assign|binding loop|qml image: cannot open'         "$_scene_log"; then
+    echo "FATAL: the MoOS scene bento reported a QML error"
+    cat "$_scene_log"
     exit 1
 fi
-rm -rf "$_plasmoid_log" "$_plasmoid_home" "$_plasmoid_runtime"
-unset -v _plasmoid_log _plasmoid_home _plasmoid_runtime _plasmoid_rc
+rm -rf "$_scene_log" "$_scene_home" "$_scene_runtime" /tmp/moos-scene-smoke.qml
+unset -v _scene_dir _scene_log _scene_home _scene_runtime _scene_rc
 
 # System-wide Flathub remote so Discover/Bazaar work out of the box on first
 # boot. Path convention from the kinoite bootc reference implementation
@@ -1240,7 +1245,7 @@ curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
 chmod 0755 /usr/bin/moplayer
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moos-device-plan /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
-    /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome \
+    /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome /usr/bin/moos-store \
     /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding /usr/bin/moos-open /usr/bin/moos-install \
     /usr/bin/moai-config /usr/bin/moai-gateway /usr/bin/moai-control /usr/bin/moai-code \
     /usr/bin/moai-idle \

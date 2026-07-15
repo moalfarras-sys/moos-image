@@ -63,6 +63,7 @@ launcher.writeConfig("showActionButtonCaptions", true);
 launcher.writeConfig("switchCategoryOnHover", true);
 launcher.writeConfig("favorites", [
     "org.moos.moai.desktop",
+    "org.moos.store.desktop",
     "preferred://browser",
     "org.moos.moplayer.desktop",
     "org.kde.dolphin.desktop",
@@ -84,6 +85,7 @@ var tasks = panel.addWidget("org.kde.plasma.icontasks");
 tasks.currentConfigGroup = ["General"];
 tasks.writeConfig("launchers", [
     "applications:org.moos.moai.desktop",
+    "applications:org.moos.store.desktop",
     "preferred://browser",
     "applications:org.moos.moplayer.desktop",
     "applications:org.kde.dolphin.desktop",

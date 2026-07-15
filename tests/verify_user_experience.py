@@ -120,6 +120,8 @@ moai_qml = read("system_files/usr/share/moos/apps/moai/main.qml")
 moai_palette_code = code(moai_qml, "slash")
 welcome_qml = read("system_files/usr/share/moos/apps/welcome/main.qml")
 welcome_palette_code = code(welcome_qml, "slash")
+store_qml = read("system_files/usr/share/moos/apps/store/main.qml")
+store_palette_code = code(store_qml, "slash")
 
 for token, role in {
     "surface0": "root.palette.base",
@@ -140,24 +142,30 @@ for token, role in {
     ) is not None,
             f"Mo AI's {token} token must follow {role}, not a hard-coded Nova colour")
 
-for token, role in {
-    "canvas": "win.palette.base",
-    "surface": "win.palette.alternateBase",
-    "raised": "win.palette.button",
-    "chrome": "win.palette.window",
-    "outline": "win.palette.mid",
-    "txt": "win.palette.windowText",
-    "txt2": "win.palette.placeholderText",
-    "blue": "win.palette.highlight",
-    "cyan": "win.palette.link",
-    "violet": "win.palette.linkVisited",
-    "onAccent": "win.palette.highlightedText",
-}.items():
-    require(re.search(
-        rf"readonly\s+property\s+color\s+{token}\s*:\s*{re.escape(role)}\b",
-        welcome_palette_code,
-    ) is not None,
-            f"MoOS Welcome's {token} token must follow {role}, not Nova's fixed palette")
+# The same semantic tokens hold on BOTH catalog surfaces: Mo Store (the
+# standalone storefront, apps/store) and the Welcome onboarding wizard
+# (apps/welcome). A hard-coded canvas in either one reopens the "two dark-blue
+# applications on a light theme" bug.
+for surface_label, palette_code in (("Mo Store", store_palette_code),
+                                    ("MoOS Welcome", welcome_palette_code)):
+    for token, role in {
+        "canvas": "win.palette.base",
+        "surface": "win.palette.alternateBase",
+        "raised": "win.palette.button",
+        "chrome": "win.palette.window",
+        "outline": "win.palette.mid",
+        "txt": "win.palette.windowText",
+        "txt2": "win.palette.placeholderText",
+        "blue": "win.palette.highlight",
+        "cyan": "win.palette.link",
+        "violet": "win.palette.linkVisited",
+        "onAccent": "win.palette.highlightedText",
+    }.items():
+        require(re.search(
+            rf"readonly\s+property\s+color\s+{token}\s*:\s*{re.escape(role)}\b",
+            palette_code,
+        ) is not None,
+                f"{surface_label}'s {token} token must follow {role}, not Nova's fixed palette")
 
 legacy_nova_surfaces = {
     "#0b1220", "#111a2e", "#16233a", "#1a2740", "#263a5c", "#263852",
@@ -165,7 +173,8 @@ legacy_nova_surfaces = {
     "#0a1120", "#0c1526", "#16233c", "#0e1830",
 }
 for app, qml_code in (("Mo AI", moai_palette_code),
-                      ("MoOS Welcome", welcome_palette_code)):
+                      ("MoOS Welcome", welcome_palette_code),
+                      ("Mo Store", store_palette_code)):
     retained = sorted(colour for colour in legacy_nova_surfaces
                       if colour in qml_code.lower())
     require(not retained,
@@ -174,18 +183,25 @@ for app, qml_code in (("Mo AI", moai_palette_code),
 require("component Card: Rectangle" in moai_palette_code
         and "color: root.surface1" in moai_palette_code,
         "Mo AI's shared Card must consume the palette-backed card token")
-# The Welcome is now the MoOS Store: its app cards no longer carry a per-card
-# accent (the old `cardItem.modelData.c`); each card fills with the palette surface
-# token and borders on the palette accent (when selected) or the palette outline
-# (otherwise). The relationship is unchanged — cards follow the KDE scheme, never a
-# fixed Nova colour — so gate the new bindings, still card-specific (`card.selected`
-# exists only on the store's app card), so a hard-coded card colour still goes red.
+# The store's app cards carry no per-card accent (the old `cardItem.modelData.c`);
+# each card fills with the palette surface token and borders on the palette accent
+# (when selected) or the palette outline (otherwise). The relationship is
+# unchanged — cards follow the KDE scheme, never a fixed Nova colour — so gate the
+# bindings, still card-specific (`card.selected` exists only on the store's app
+# card), so a hard-coded card colour still goes red.
+require("Qt.rgba(win.surface.r" in store_palette_code
+        and "border.color: card.selected ? win.accent" in store_palette_code
+        and ": win.outline" in store_palette_code,
+        "Mo Store cards must consume the palette-backed surface and outline tokens")
+# The Welcome's pick cards (look/direction/app) follow the same contract with
+# their own delegate ids — the `.selected ? win.accent` shape is the pin.
 require("Qt.rgba(win.surface.r" in welcome_palette_code
-        and "border.color: card.selected ? win.accent" in welcome_palette_code
-        and ": win.outline" in welcome_palette_code,
+        and ".selected ? win.accent : win.outline" in welcome_palette_code,
         "MoOS Welcome cards must consume the palette-backed surface and outline tokens")
-require("NovaHorizonII" not in welcome_palette_code,
-        "MoOS Welcome must not paint Nova's dark wallpaper over a light KDE palette")
+for surface_label, palette_code in (("Mo Store", store_palette_code),
+                                    ("MoOS Welcome", welcome_palette_code)):
+    require("NovaHorizonII" not in palette_code,
+            f"{surface_label} must not paint Nova's dark wallpaper over a light KDE palette")
 
 require("sudo waydroid init" not in moai_qml,
         "Mo AI must use the confirmed workflow, not copy sudo commands")
@@ -448,37 +464,61 @@ require("claude|codex|opencode" in code_runner,
 # Fixed by giving each language its own paragraph with its own directional mark, and by
 # stamping every model reply per paragraph (bidiFix) — the model mixes the two languages in
 # one answer constantly, and that text cannot be hand-written.
-# ── The desk widget: weather, a clock that turns, and nothing in the way ─────
+# ── The desk dashboard: weather, a clock that turns, and nothing in the way ──
 #
-# This gated org.moos.nova.deskclock, which no longer ships. MoOS carried THREE generations of its
-# own look — Nova, then UI, then UI2 — all installed at once, so System Settings offered the user
-# six MoOS themes and the wallpaper picker held five Nova wallpapers nobody had chosen in months.
-# The owner's rule is one name and one of everything, so the old two generations are gone and this
-# gate now guards the widget that is actually on the desktop: org.moos.ui2.dashboard.
+# This gated org.moos.ui2.dashboard the desktop WIDGET, which no longer ships: as a
+# Plasma applet it always drew ON TOP of the Folder View icons, and three shipped
+# fixes (x=80→260→360, icons right-aligned, live-ISO skip) each only moved the
+# collision with the "Install MoOS" icon. The bento now renders INSIDE the
+# wallpaper (org.moos.ui2.wallpaper: image + DashboardBento as one layer BELOW the
+# icons), so it can never cover anything — and the live ISO gets it back.
 #
-# The protections themselves do not change, because the bugs they remember do not care which
-# generation is on screen.
-dashboard = read("system_files/usr/share/plasma/plasmoids/"
-                 "org.moos.ui2.dashboard/contents/ui/main.qml")
+# The protections themselves do not change, because the bugs they remember do not
+# care which layer the bento paints on.
+SCENE = "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper"
+dashboard = read(f"{SCENE}/contents/ui/DashboardBento.qml")
 # style="slash": QML comments, and this gate MUST see past them. The checks below name the thing
 # they forbid (ipapi.co, MouseArea) in the very comment that explains why — strip the prose or the
 # gate passes on a broken file, which is the comment trap AGENTS.md warns about.
 dashboard_code = code(dashboard, "slash")
 require("ipwho.is" in dashboard_code and "api.open-meteo.com" in dashboard_code,
-        "the desk widget must read the weather from ipwho.is + Open-Meteo — both key-less, "
+        "the desk dashboard must read the weather from ipwho.is + Open-Meteo — both key-less, "
         "and both verified against the User-Agent Qt actually sends")
 require("ipapi.co" not in dashboard_code,
-        "ipapi.co must not be the widget's geocoder: it answers curl but serves a Cloudflare "
+        "ipapi.co must not be the dashboard's geocoder: it answers curl but serves a Cloudflare "
         "interstitial to Qt's browser-shaped User-Agent, so the widget got HTML instead of "
         "JSON and the weather silently never appeared")
 dashboard_ui = "".join(
-    code(read(f"system_files/usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/ui/{f}"),
-         "slash")
-    for f in ("main.qml", "ClockCard.qml", "WeatherCard.qml", "SystemCard.qml", "GlassCard.qml"))
+    code(read(f"{SCENE}/contents/ui/{f}"), "slash")
+    for f in ("main.qml", "DashboardBento.qml", "ClockCard.qml", "WeatherCard.qml",
+              "SystemCard.qml", "GlassCard.qml"))
 require("MouseArea" not in dashboard_ui,
-        "the desk widget must not contain a MouseArea: it sits on the wallpaper, and anything "
-        "that accepts clicks eats the desktop's own right-click menu and rubber-band selection "
-        "inside its rectangle, with no way for the user to tell why")
+        "the desk dashboard must not contain a MouseArea: it lives in the wallpaper, and "
+        "anything that accepts clicks eats the desktop's own right-click menu and rubber-band "
+        "selection inside its rectangle, with no way for the user to tell why")
+# The wallpaper wrapper is the layer contract itself: the scene must BE a
+# wallpaper (below icons), embed the bento, and expose the Image config key the
+# theme scripts write per half. Break any of these and the widget-over-icons
+# collision family returns.
+scene_main = code(read(f"{SCENE}/contents/ui/main.qml"), "slash")
+require("WallpaperItem" in scene_main,
+        "the scene's root must be a WallpaperItem — anything else does not render below the icons")
+require("DashboardBento" in scene_main,
+        "the scene wallpaper no longer embeds the dashboard bento")
+require('"Plasma/Wallpaper"' in read(f"{SCENE}/metadata.json"),
+        "org.moos.ui2.wallpaper must be a Plasma/Wallpaper package")
+require('name="Image"' in read(f"{SCENE}/contents/config/main.xml"),
+        "the scene wallpaper lost its Image config entry — moos-theme cannot set the half")
+require("import org.kde.plasma.plasmoid" not in code(dashboard, "slash"),
+        "DashboardBento must stay plain QtQuick/Kirigami — the build's smoke harness "
+        "loads it directly, which the Plasmoid API would break")
+require(not (ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.ui2.dashboard").exists(),
+        "the retired dashboard APPLET package is back — as a desktop widget it draws over "
+        "the icons; the bento belongs inside org.moos.ui2.wallpaper")
+shell_defaults = read("system_files/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults")
+require("Wallpaper=org.moos.ui2.wallpaper" in code(shell_defaults, "hash"),
+        "the desktop shell defaults must select org.moos.ui2.wallpaper, or a fresh "
+        "desktop boots without the MoOS scene")
 
 
 
@@ -1020,7 +1060,7 @@ require('PORT="${MOAI_PORT:-8081}"' in moai_start_code,
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=16" in apply_theme_code, "MoOS UI2 visual schema must be revision 16")
+require("THEME_REV=17" in apply_theme_code, "MoOS UI2 visual schema must be revision 17")
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
@@ -1051,27 +1091,34 @@ require("current_lookandfeel()" in apply_theme_code and "SELF-HEAL" in apply_the
         "moos-apply-theme must re-apply when the desktop is no longer wearing MoOS")
 require(all(token in apply_theme_code for token in (
             "current_scheme()", "current_style()", "current_icons()",
-            "current_widget_state()", "theme_complete()")),
+            "current_scene_state()", "theme_complete()")),
         "the apply-once marker must be backed by runtime readback of the full theme and "
-        "the exact per-containment desktop-widget state, not only LNF + decoration")
-require("ui1-each" in apply_theme_code and "ui2-each" in apply_theme_code
-        and "desktops=[1-9][0-9]*;state=" in apply_theme_code
-        and "expected_widgets='ui1=0;ui2=1'" not in apply_theme_code,
-        "desktop widgets must be validated once per containment; a global count of one "
+        "the exact per-containment desktop-SCENE state, not only LNF + decoration")
+require("scene-each" in apply_theme_code
+        and "desktops=[1-9][0-9]*;state=" in apply_theme_code,
+        "the desktop scene must be validated once per containment; a global count of one "
         "breaks every multi-monitor or multi-Activity desktop")
 require("timeout 4s gdbus call" in apply_theme_code,
-        "runtime widget readback must time out instead of hanging login on an "
+        "runtime scene readback must time out instead of hanging login on an "
         "unresponsive plasmashell")
 require("desktop_wallpapers_complete()" in apply_theme_code
         and "matching == desktops" in apply_theme_code
         and "grep -m1 '^Image='" not in apply_theme_code,
         "theme completion must verify the wallpaper on every desktop containment; "
         "the first Image= line is not authoritative on multiple monitors/Activities")
-require("widget-deduplicated" in apply_theme_code
-        and "for (var n = 1; n < targets.length; n++)" in apply_theme_code
-        and "d.addWidget(TARGET, 360, 70, TARGET_WIDTH, TARGET_HEIGHT)" in apply_theme_code,
-        "theme repair must deduplicate and instantiate the dashboard per containment, and place "
-        "it clear of the desktop icon column")
+# The scene replaces the desktop-widget era: the repair points every containment
+# at org.moos.ui2.wallpaper, hands it the half's package, and clears the retired
+# applets that would otherwise still draw over the icons. addWidget placement is
+# FORBIDDEN — any coordinate is a collision with some icon layout somewhere.
+require("apply_desktop_scene" in apply_theme_code
+        and 'd.wallpaperPlugin = "org.moos.ui2.wallpaper"' in apply_theme_code
+        and 'writeConfig("Image", IMAGE)' in apply_theme_code
+        and 'ws[j].remove()' in apply_theme_code,
+        "theme repair must point every desktop containment at the MoOS scene wallpaper "
+        "and remove the retired dashboard applets")
+require("d.addWidget(" not in apply_theme_code,
+        "moos-apply-theme must not place desktop widgets — the bento lives inside the "
+        "wallpaper precisely because every widget coordinate collides with icons somewhere")
 require("flock -n 9" in apply_theme_code,
         "two overlapping autostart instances must not race while replacing the same widget")
 require('theme_complete "$lnf_after" "$deco_after" "$want_wallpaper_package"'
@@ -1191,8 +1238,26 @@ require("gtk-application-prefer-dark-theme" in theme_switch
         and "color-scheme" in theme_switch,
         "moos-theme must tell GTK which side of the day it is on, or Firefox stays dark "
         "on a light desktop")
-require("plasma-apply-wallpaperimage" in theme_switch,
-        "moos-theme must set the wallpaper; applying the Global Theme does not carry it")
+# The wallpaper is the MoOS SCENE plugin (image + dashboard bento below the
+# icons). plasma-apply-wallpaperimage is FORBIDDEN: it flips containments back
+# onto org.kde.image and the bento silently vanishes. The switch must drive the
+# scene plugin directly, per containment.
+require("apply_desktop_scene" in theme_switch
+        and 'd.wallpaperPlugin = "org.moos.ui2.wallpaper"' in theme_switch
+        and 'writeConfig("Image", IMAGE)' in theme_switch,
+        "moos-theme must set the desktop SCENE (org.moos.ui2.wallpaper) per containment; "
+        "applying the Global Theme does not carry it")
+require("plasma-apply-wallpaperimage" not in theme_switch,
+        "moos-theme must not call plasma-apply-wallpaperimage — it forces org.kde.image "
+        "back onto the containments and the dashboard bento disappears")
+# The LNF defaults must not carry a [Wallpaper] section for the same reason:
+# LookAndFeelManager applies it by forcing org.kde.image onto every containment.
+for half in ("org.moos.ui2", "org.moos.ui2.light"):
+    lnf_defaults = code(
+        read(f"system_files/usr/share/plasma/look-and-feel/{half}/contents/defaults"))
+    require("[Wallpaper]" not in lnf_defaults,
+            f"{half}/contents/defaults carries a [Wallpaper] section — every theme apply "
+            f"would force org.kde.image back and erase the scene (the dashboard)")
 
 # moos-apply-theme repairs the look the user is ON, not the one MoOS prefers. Dragging a
 # user who chose Light back to Dark on every login is not protection, it is the bug.
@@ -1788,6 +1853,7 @@ require("-o /usr/bin/moos-qml-shell" in build_code,
 for launcher, app_id in (
     ("system_files/usr/bin/moai", "org.moos.moai"),
     ("system_files/usr/bin/moos-welcome", "org.moos.welcome"),
+    ("system_files/usr/bin/moos-store", "org.moos.store"),
 ):
     text = code(read(launcher))
     require("/usr/bin/moos-qml-shell" in text and f"--app-id {app_id}" in text,
@@ -1845,36 +1911,41 @@ require("pin_default_apps()" in apply_theme_code,
 
 # ── The desktop is not empty ──────────────────────────────────────────────────
 for asset in (
-    "system_files/usr/share/plasma/plasmoids/org.moos.ui2.dashboard/metadata.json",
-    "system_files/usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/ui/main.qml",
+    "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/metadata.json",
+    "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/main.qml",
+    "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/DashboardBento.qml",
+    "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/config/main.xml",
 ):
-    require((ROOT / asset).is_file(), f"a desktop dashboard package is missing {asset}")
-require("want_widget=org.moos.ui2.dashboard" in apply_theme_code,
-        "an installed desktop must receive the MoOS dashboard through the per-containment migration")
-# The dashboard is a wide bento across the top of the screen. On an installed system the Desktop
-# folder is empty, so it owns the desktop and looks right. The LIVE ISO is the one desktop that is
-# not empty — it carries "Install MoOS" — and a full-width widget lands on top of that icon, its
-# label swallowed by the clock. Left-align then right-align only moved the collision. So the live
-# session skips the dashboard and shows the clean install desktop instead; the dashboard is the
-# reward on the installed system. Detected by the live kernel arg.
-require("grep -qw rd.live.image /proc/cmdline" in apply_theme_code
-        and 'is_live=0' in apply_theme_code
-        and '[ "$is_live" = 0 ]' in apply_theme_code,
-        "the desktop dashboard must be skipped on the live ISO, where it would cover the "
-        "'Install MoOS' icon — a wide top widget has no clear corner beside a desktop that is "
-        "not empty")
+    require((ROOT / asset).is_file(), f"the MoOS scene wallpaper package is missing {asset}")
+require("apply_desktop_scene" in apply_theme_code,
+        "an installed desktop must receive the MoOS scene through the per-containment repair")
+# The dashboard used to be SKIPPED on the live ISO because, as a widget, it landed
+# on the "Install MoOS" icon. Inside the wallpaper it renders BELOW the icons, so
+# the live session gets the dashboard back — and any live-skip gate would now be
+# hiding the scene from the first screen a user ever sees.
+require("rd.live.image" not in apply_theme_code,
+        "moos-apply-theme must not skip the desktop scene on the live ISO — the bento lives "
+        "below the icons now, and the live desktop is where it makes the first impression")
 build_script_code = code(read("build_files/build.sh"))
-require("plasmawindowed org.moos.ui2.dashboard" in build_script_code,
-        "the image build must load the UI2 plasmoid through Plasma's real package runtime; "
-        "pure-QML app smoke tests do not exercise PlasmoidItem or KPackage imports")
+# The bento is deliberately plain QtQuick/Kirigami so the build can genuinely
+# LOAD it (a WallpaperItem root only exists inside plasmashell). The smoke hosts
+# DashboardBento in a window via moos-qml-shell under a real session bus and
+# rejects the live QML diagnostics; the wallpaper wrapper is checked structurally.
+require("moos-scene-smoke.qml" in build_script_code
+        and "DashboardBento.qml" in build_script_code,
+        "the image build must load the scene bento through a real QML host; "
+        "a package that only exists on disk is not a package that loads")
 normalized_build_script = " ".join(build_script_code.replace("\\", " ").split())
-require("dbus-run-session -- plasmawindowed org.moos.ui2.dashboard" in
+require("dbus-run-session -- /usr/bin/moos-qml-shell --app-id org.moos.scene-smoke" in
         normalized_build_script,
-        "the headless plasmoid smoke needs a session bus; without one even KDE's stock "
+        "the headless scene smoke needs a session bus; without one even KDE's stock "
         "digital clock exits silently and the gate tests the container, not the package")
+require('"KPackageStructure": "Plasma/Wallpaper"' in build_script_code,
+        "the image build must verify the scene package type — a Plasma/Applet here means "
+        "the bento went back to drawing over the icons")
 for qml_runtime_failure in ("typeerror", "unable to assign", "binding loop"):
     require(qml_runtime_failure in build_script_code,
-            "the dashboard smoke must reject live QML %s diagnostics; plasmawindowed can "
+            "the scene smoke must reject live QML %s diagnostics; a QML host can "
             "stay alive while one card is blank" % qml_runtime_failure)
 
 # The clock and the rings are ONE applet, and they have to stay one. A desktop
@@ -1953,13 +2024,16 @@ require("Layout.minimumWidth:" in panel_clock and "Layout.preferredWidth:" in pa
         "the Layout attached properties, and without them the system tray is positioned "
         "INSIDE the clock's pixels and draws its icons on top of the digits")
 
-for clock in ("org.moos.nova.clock", "org.moos.ui2.dashboard"):
-    qml = code(
-        read(f"system_files/usr/share/plasma/plasmoids/{clock}/contents/ui/main.qml"), "slash"
-    )
+for label, qml_path in (
+    ("org.moos.nova.clock",
+     "system_files/usr/share/plasma/plasmoids/org.moos.nova.clock/contents/ui/main.qml"),
+    ("org.moos.ui2.wallpaper (DashboardBento)",
+     "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/DashboardBento.qml"),
+):
+    qml = code(read(qml_path), "slash")
     require("PlasmaCore.Theme" not in qml,
-            f"{clock}: Plasma 6 has no PlasmaCore.Theme — org.kde.plasma.core exposes Types "
-            f"only. Binding a colour to it is undefined at runtime and the applet silently "
+            f"{label}: Plasma 6 has no PlasmaCore.Theme — org.kde.plasma.core exposes Types "
+            f"only. Binding a colour to it is undefined at runtime and the surface silently "
             f"draws nothing at all. Use Kirigami.Theme.")
 
 # ── Everything MoOS launches gets a GPU it can actually use ───────────────────

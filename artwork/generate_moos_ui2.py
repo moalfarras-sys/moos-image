@@ -29,7 +29,10 @@ ROOT = (pathlib.Path(TEST_ROOT).resolve() if TEST_ROOT
 SHARE = ROOT / "system_files/usr/share"
 ART = ROOT / "artwork/moos-ui2"
 PALETTES = json.loads((ART / "palette.json").read_text(encoding="utf-8"))
-DASHBOARD_WEATHER = (SHARE / "plasma/plasmoids/org.moos.ui2.dashboard"
+# The dashboard bento lives INSIDE the scene wallpaper plugin now (it used to
+# be a desktop applet, which always drew over the icons). Writing the retired
+# plasmoid path would recreate a package two gates forbid.
+DASHBOARD_WEATHER = (SHARE / "plasma/wallpapers/org.moos.ui2.wallpaper"
                      / "contents/images/weather")
 WEATHER_KINDS = (
     "clear-day", "clear-night", "partly-day", "partly-night", "cloudy",
@@ -452,15 +455,19 @@ def lnf_defaults(variant: str) -> str:
     # the cursor that reads against ITS canvas (both are rebranded Bibata).
     cursor = "MoOSDark" if light else "MoOS"
     deco = "MoOSUI2Light" if light else "MoOSUI2"
+    # NO [Wallpaper] section, deliberately. LookAndFeelManager applies a theme's
+    # [Wallpaper] Image= by forcing every desktop containment back onto
+    # org.kde.image — which would silently replace org.moos.ui2.wallpaper (the
+    # scene that carries the dashboard bento BELOW the icons) on every theme
+    # apply and every sunrise/sunset switch. moos-theme / moos-apply-theme own
+    # the desktop wallpaper instead, per half. (`wallpaper` stays a parameter
+    # so the generator's call sites don't churn: {wallpaper} is the half's package.)
     return f"""# MoOS UI2 matched Global Theme defaults. Generated file.
 [kdeglobals][General]
 ColorScheme={scheme}
 
 [plasmarc][Theme]
 name={style}
-
-[Wallpaper]
-Image={wallpaper}
 
 [ksplashrc][KSplash]
 Theme={package}

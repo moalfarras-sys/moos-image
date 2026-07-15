@@ -191,8 +191,17 @@ require(Path("/usr/share/wallpapers/MoOSUI2Tide/contents/images/3840x2160.jpg").
         "MoOS UI2 Tidal wallpaper master is missing")
 require(Path("/usr/share/plasma/look-and-feel/org.moos.ui2.light/contents/defaults").is_file(),
         "MoOS UI2 light Global Theme is missing")
-require(Path("/usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/ui/main.qml").is_file(),
-        "MoOS UI2 dashboard is missing")
+require(Path("/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/main.qml").is_file(),
+        "the MoOS scene wallpaper plugin is missing")
+require(Path("/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/DashboardBento.qml").is_file(),
+        "the MoOS dashboard bento is missing from the scene wallpaper")
+# The shell defaults are what make NEW desktop containments (first boot, the
+# live ISO) come up on the scene plugin without waiting for a login script.
+shell_defaults = Path("/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults")
+require(shell_defaults.is_file()
+        and "Wallpaper=org.moos.ui2.wallpaper" in config(text(str(shell_defaults))),
+        "the desktop shell defaults do not select org.moos.ui2.wallpaper — "
+        "a fresh desktop would boot without the MoOS scene (no dashboard)")
 
 # There is ONE MoOS look now (dark + light). The older Nova and UI generations used to ship
 # alongside it as "explicit rollback themes" — which is what put six MoOS themes in System
@@ -206,6 +215,13 @@ for removed in (
     "/usr/share/plasma/look-and-feel/org.moos.ui",
     "/usr/share/plasma/look-and-feel/org.moos.ui.light",
     "/usr/share/plasma/plasmoids/org.moos.nova.deskclock",
+    # The dashboard-as-a-desktop-WIDGET generation: as an applet it always drew
+    # on top of the Folder View icons (three shipped fixes only moved the
+    # collision). It lives inside org.moos.ui2.wallpaper now — a reintroduced
+    # applet package would put the collision back.
+    "/usr/share/plasma/plasmoids/org.moos.ui2.dashboard",
+    # Orphan of the deleted UI1 generation — it polluted the wallpaper picker.
+    "/usr/share/wallpapers/MoOSUIAtmosphere",
 ):
     require(not Path(removed).exists(),
             f"a superseded MoOS theme generation is still installed: {removed}")
@@ -228,18 +244,34 @@ require("secret-tool" in control and "secret-tool" in gateway,
 require('had_legacy_key = "cloud_key" in data' in control,
         "Mo AI does not fully migrate legacy credential fields")
 
-# Discover is rebranded to MoOS's own "Mo Store" — same engine, MoOS identity.
-# Gate the built .desktop so a base update that re-ships Discover's own name/icon
-# cannot un-brand the store, and so the mo-store icon it points at actually exists.
+# ONE visible storefront: the standalone Mo Store app (org.moos.store — the
+# curated catalog UI). Discover keeps its engine for update notifications and
+# firmware, but its menu entry is hidden and MoOS-branded, so no menu ever
+# shows two storefronts and no surface ever shows a foreign store name.
+store_entry_path = Path("/usr/share/applications/org.moos.store.desktop")
+require(store_entry_path.is_file(),
+        "org.moos.store.desktop is missing — Mo Store is not in the menu")
+if store_entry_path.is_file():
+    store_entry = config(text(str(store_entry_path)))
+    require("Name=Mo Store" in store_entry,
+            "the store app is not named 'Mo Store'")
+    require("Exec=moos-store" in store_entry,
+            "org.moos.store.desktop does not launch moos-store")
+    require("Icon=moos-store" in store_entry,
+            "the store app does not use the moos-store icon")
+require(Path("/usr/share/icons/hicolor/256x256/apps/moos-store.png").is_file(),
+        "the moos-store icon is missing — the store would fall back to a generic icon")
 disc = Path("/usr/share/applications/org.kde.discover.desktop")
 if disc.is_file():
     disc_entry = config(text(str(disc)))
+    require("NoDisplay=true" in disc_entry,
+            "Discover's menu entry is visible — the menu would show two storefronts")
     require("Name=Mo Store" in disc_entry,
-            "the app store is not branded 'Mo Store' — Discover's own name leaked back")
+            "the hidden Discover entry is not MoOS-branded — a notifier popup could show a foreign store name")
     require("Icon=mo-store" in disc_entry,
-            "the app store does not use the mo-store icon")
+            "the hidden Discover entry does not use the mo-store icon")
     require(Path("/usr/share/icons/hicolor/256x256/apps/mo-store.png").is_file(),
-            "the mo-store icon is missing — the store would fall back to a generic icon")
+            "the mo-store icon is missing — notifier surfaces would fall back to a generic icon")
 
 if errors:
     raise SystemExit("MoOS image-experience gate failed:\n - " + "\n - ".join(errors))

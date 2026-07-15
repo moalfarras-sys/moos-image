@@ -1,18 +1,22 @@
-// MoOS UI2 Dashboard — one passive, adaptive Tidal Glass bento for the desktop.
+// MoOS UI2 Dashboard — one passive, adaptive Tidal Glass bento, rendered as
+// part of the WALLPAPER (org.moos.ui2.wallpaper wraps this in a WallpaperItem).
+// Living below the Folder View icon grid ended the whole family of "the widget
+// sat on top of the Install MoOS icon" collisions: the desktop draws icons,
+// windows and everything else ON TOP of this scene, so the bento can never
+// cover anything again. Pure QtQuick + Kirigami — no Plasmoid API — so the
+// build's QML smoke harness can load it directly.
 // It uses the active Kirigami palette and keeps all artwork local to the package.
 pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.kde.plasma.core as PlasmaCore
-import org.kde.plasma.plasmoid
 
-PlasmoidItem {
+Item {
     id: root
 
-    Plasmoid.backgroundHints: PlasmaCore.Types.NoBackground
-    preferredRepresentation: fullRepresentation
+    implicitWidth: Math.round(Kirigami.Units.gridUnit * 31)
+    implicitHeight: Math.round(Kirigami.Units.gridUnit * 12)
 
     property date now: new Date()
     property real latitude: NaN
@@ -215,59 +219,48 @@ PlasmoidItem {
         onTriggered: isNaN(root.latitude) ? root.locate() : root.refreshForecast()
     }
 
-    fullRepresentation: Item {
-        id: dashboard
+    RowLayout {
+        anchors.fill: parent
+        spacing: Math.round(Kirigami.Units.gridUnit * 0.65)
 
-        implicitWidth: Math.round(Kirigami.Units.gridUnit * 31)
-        implicitHeight: Math.round(Kirigami.Units.gridUnit * 12)
-        Layout.minimumWidth: implicitWidth
-        Layout.minimumHeight: implicitHeight
-        Layout.preferredWidth: implicitWidth
-        Layout.preferredHeight: implicitHeight
+        ClockCard {
+            Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit * 12.45)
+            Layout.fillHeight: true
+            now: root.now
+            motionEnabled: root.motionEnabled
+            entranceDelay: 0
+        }
 
-        RowLayout {
-            anchors.fill: parent
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
             spacing: Math.round(Kirigami.Units.gridUnit * 0.65)
 
-            ClockCard {
-                Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit * 12.45)
-                Layout.fillHeight: true
-                now: root.now
+            WeatherCard {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * 7.05)
+                weatherReady: root.weatherReady
+                city: root.city
+                temperature: root.weatherReady ? root.forecastData.temperature : 0
+                feelsLike: root.weatherReady ? root.forecastData.feelsLike : 0
+                high: root.weatherReady ? root.forecastData.high : 0
+                low: root.weatherReady ? root.forecastData.low : 0
+                kind: root.weatherReady
+                        ? root.weatherKind(root.forecastData.code,
+                                           root.forecastData.daylight)
+                        : "cloudy"
+                condition: root.weatherReady
+                        ? root.conditionNameArabic(root.forecastData.code)
+                        : ""
                 motionEnabled: root.motionEnabled
-                entranceDelay: 0
+                entranceDelay: 70
             }
 
-            ColumnLayout {
+            SystemCard {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: Math.round(Kirigami.Units.gridUnit * 0.65)
-
-                WeatherCard {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * 7.05)
-                    weatherReady: root.weatherReady
-                    city: root.city
-                    temperature: root.weatherReady ? root.forecastData.temperature : 0
-                    feelsLike: root.weatherReady ? root.forecastData.feelsLike : 0
-                    high: root.weatherReady ? root.forecastData.high : 0
-                    low: root.weatherReady ? root.forecastData.low : 0
-                    kind: root.weatherReady
-                            ? root.weatherKind(root.forecastData.code,
-                                               root.forecastData.daylight)
-                            : "cloudy"
-                    condition: root.weatherReady
-                            ? root.conditionNameArabic(root.forecastData.code)
-                            : ""
-                    motionEnabled: root.motionEnabled
-                    entranceDelay: 70
-                }
-
-                SystemCard {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    motionEnabled: root.motionEnabled
-                    entranceDelay: 140
-                }
+                motionEnabled: root.motionEnabled
+                entranceDelay: 140
             }
         }
     }

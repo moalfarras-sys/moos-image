@@ -68,42 +68,26 @@ theme_scheme="$(kreadconfig6 --file kdeglobals --group General --key ColorScheme
 theme_icons="$(kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null)"
 theme_style="$(kreadconfig6 --file plasmarc --group Theme --key name 2>/dev/null)"
 
+# There is ONE MoOS look (UI2, dark + light halves). The UI1 generation no
+# longer ships — the image build gates its ABSENCE — so a UI1 selector here is
+# drift, not a rollback. (Version rollback is `bootc rollback`, a separate thing.)
 case "$theme_lnf" in
     org.moos.ui2)
         theme_family=ui2; theme_name="UI2 Graphite Dark"
         want_deco=__aurorae__svg__MoOSUI2; want_scheme=MoOSUI2Dark
-        want_icons=Nova; want_style=MoOSUI2; want_wallpaper=MoOSUI2Graphite
-        want_widget=org.moos.ui2.dashboard
+        want_icons=MoOSUI2; want_style=MoOSUI2; want_wallpaper=MoOSUI2Graphite
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light
         ;;
     org.moos.ui2.light)
         theme_family=ui2; theme_name="UI2 Tidal Light"
         want_deco=__aurorae__svg__MoOSUI2Light; want_scheme=MoOSUI2Light
-        want_icons=NovaLight; want_style=MoOSUI2Light; want_wallpaper=MoOSUI2Tide
-        want_widget=org.moos.ui2.dashboard
-        pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light
-        ;;
-    # UI1 is deliberately retained as the known rollback. Automatic day/night
-    # targets stay on UI2; a completed UI2 migration marker is the evidence below
-    # that this UI1 state was selected intentionally rather than surviving stale.
-    org.moos.ui)
-        theme_family=ui1; theme_name="UI1 dark rollback"
-        want_deco=__aurorae__svg__MoOSUI; want_scheme=MoOSUIDark
-        want_icons=Nova; want_style=MoOSUI; want_wallpaper=MoOSUIAtmosphere
-        want_widget=org.moos.nova.deskclock
-        pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light
-        ;;
-    org.moos.ui.light)
-        theme_family=ui1; theme_name="UI1 light rollback"
-        want_deco=__aurorae__svg__MoOSUILight; want_scheme=MoOSUILight
-        want_icons=NovaLight; want_style=MoOSUILight; want_wallpaper=MoOSUIAtmosphere
-        want_widget=org.moos.nova.deskclock
+        want_icons=MoOSUI2Light; want_style=MoOSUI2Light; want_wallpaper=MoOSUI2Tide
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light
         ;;
     *)
         theme_family=""; theme_name=""; want_deco=""; want_scheme=""; want_icons=""
-        want_style=""; want_wallpaper=""; want_widget=""; pair_dark=""; pair_light=""
-        bad "active LookAndFeelPackage is '${theme_lnf:-unset}', not UI2 or an explicit UI1 rollback"
+        want_style=""; want_wallpaper=""; pair_dark=""; pair_light=""
+        bad "active LookAndFeelPackage is '${theme_lnf:-unset}', not a MoOS UI2 half"
         ;;
 esac
 
@@ -136,73 +120,55 @@ if [ -n "$theme_family" ]; then
     else
         bad "the UI2 automatic dark/light pair is incomplete"
     fi
-    if [ "$theme_family" = ui1 ]; then
-        rollback_marker=""
-        for candidate in "${XDG_STATE_HOME:-$HOME/.local/state}"/moos-ui2-theme-applied.v*; do
-            [ -e "$candidate" ] && rollback_marker="$candidate" && break
-        done
-        if [ -n "$rollback_marker" ] && \
-           [ -d /usr/share/plasma/look-and-feel/org.moos.ui ] && \
-           [ -d /usr/share/plasma/look-and-feel/org.moos.ui.light ]; then
-            ok "UI1 rollback was explicitly selected after the UI2 migration"
-        else
-            bad "UI1 is active without a completed UI2 migration marker or its full rollback pair"
-        fi
-    fi
-
     # Validate every live desktop containment. Exactly-one global counts reject a
     # correct two-monitor setup and a first-Image grep can inspect a panel instead
-    # of a desktop, so the running Plasma shell is the authority here.
-    if [ "$want_widget" = org.moos.ui2.dashboard ]; then
-        other_widget=org.moos.nova.deskclock
-    else
-        other_widget=org.moos.ui2.dashboard
-    fi
+    # of a desktop, so the running Plasma shell is the authority here. The valid
+    # state is the MoOS SCENE: wallpaper plugin org.moos.ui2.wallpaper (which
+    # paints the dashboard bento BELOW the icons) with the matching image, and
+    # ZERO leftover widget-era dashboard applets.
     desktop_state="$(timeout 5s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
         -m org.kde.PlasmaShell.evaluateScript '
             var expected = "'"$want_wallpaper"'";
-            var target = "'"$want_widget"'";
-            var other = "'"$other_widget"'";
             var ds = desktops();
-            var wallpapers = 0, ready = 0, targetTotal = 0, otherTotal = 0;
+            var scenes = 0, wallpapers = 0, staleTotal = 0;
             for (var i = 0; i < ds.length; i++) {
-                ds[i].currentConfigGroup = ["Wallpaper", "org.kde.image", "General"];
+                if (ds[i].wallpaperPlugin == "org.moos.ui2.wallpaper") { scenes++; }
+                ds[i].currentConfigGroup = ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
                 if (String(ds[i].readConfig("Image", "")).indexOf(expected) >= 0) {
                     wallpapers++;
                 }
-                var ws = ds[i].widgets(), targetCount = 0, otherCount = 0;
+                var ws = ds[i].widgets();
                 for (var j = 0; j < ws.length; j++) {
-                    if (ws[j].type == target) { targetCount++; }
-                    if (ws[j].type == other) { otherCount++; }
+                    if (ws[j].type == "org.moos.ui2.dashboard"
+                            || ws[j].type == "org.moos.nova.deskclock") { staleTotal++; }
                 }
-                targetTotal += targetCount;
-                otherTotal += otherCount;
-                if (targetCount == 1 && otherCount == 0) { ready++; }
             }
-            print("desktops=" + ds.length + ";wallpapers=" + wallpapers
-                + ";ready=" + ready + ";target=" + targetTotal + ";other=" + otherTotal);
+            print("desktops=" + ds.length + ";scenes=" + scenes
+                + ";wallpapers=" + wallpapers + ";stale=" + staleTotal);
         ' 2>/dev/null \
-        | grep -oE 'desktops=[1-9][0-9]*;wallpapers=[0-9]+;ready=[0-9]+;target=[0-9]+;other=[0-9]+' \
+        | grep -oE 'desktops=[1-9][0-9]*;scenes=[0-9]+;wallpapers=[0-9]+;stale=[0-9]+' \
         | head -n1)" || desktop_state=""
     if [ -n "$desktop_state" ]; then
         desktop_count="$(printf '%s\n' "$desktop_state" | tr ';' '\n' | sed -n 's/^desktops=//p')"
+        scene_count="$(printf '%s\n' "$desktop_state" | tr ';' '\n' | sed -n 's/^scenes=//p')"
         wallpaper_count="$(printf '%s\n' "$desktop_state" | tr ';' '\n' | sed -n 's/^wallpapers=//p')"
-        ready_count="$(printf '%s\n' "$desktop_state" | tr ';' '\n' | sed -n 's/^ready=//p')"
-        target_count="$(printf '%s\n' "$desktop_state" | tr ';' '\n' | sed -n 's/^target=//p')"
-        other_count="$(printf '%s\n' "$desktop_state" | tr ';' '\n' | sed -n 's/^other=//p')"
+        stale_count="$(printf '%s\n' "$desktop_state" | tr ';' '\n' | sed -n 's/^stale=//p')"
+        [ "$scene_count" = "$desktop_count" ] \
+            && ok "all ${desktop_count} live desktop(s) run the MoOS scene wallpaper" \
+            || bad "only ${scene_count}/${desktop_count} desktop(s) run org.moos.ui2.wallpaper — no dashboard there"
         [ "$wallpaper_count" = "$desktop_count" ] \
             && ok "all ${desktop_count} live desktop wallpaper(s) match ${want_wallpaper}" \
             || bad "only ${wallpaper_count}/${desktop_count} live wallpaper(s) match ${want_wallpaper}"
-        [ "$ready_count" = "$desktop_count" ] \
-            && ok "every desktop has exactly one matching dashboard (${desktop_count}/${desktop_count})" \
-            || bad "dashboard state incomplete: ${ready_count}/${desktop_count} ready; target=${target_count}, old=${other_count}"
+        [ "${stale_count:-0}" = "0" ] \
+            && ok "no leftover widget-era dashboard applets" \
+            || bad "${stale_count} stale dashboard applet(s) still draw over the icons"
     else
-        bad "could not inspect every live desktop's wallpaper/dashboard state through Plasma"
+        bad "could not inspect every live desktop's scene state through Plasma"
     fi
 fi
 
-# A selected UI1 rollback does not excuse an incomplete new image: both UI2
-# variants, their wallpapers, and the adaptive dashboard must still have shipped.
+# Both UI2 variants, their wallpapers, and the scene plugin (the wallpaper that
+# carries the dashboard bento) must have shipped.
 ui2_missing=""
 for asset in \
     /usr/share/plasma/look-and-feel/org.moos.ui2/contents/defaults \
@@ -217,9 +183,10 @@ for asset in \
     /usr/share/konsole/MoOSUI2Light.profile \
     /usr/share/wallpapers/MoOSUI2Graphite/contents/images/3840x2160.jpg \
     /usr/share/wallpapers/MoOSUI2Tide/contents/images/3840x2160.jpg \
-    /usr/share/plasma/plasmoids/org.moos.ui2.dashboard/metadata.json \
-    /usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/ui/main.qml \
-    /usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/images/weather/storm.png; do
+    /usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/metadata.json \
+    /usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/main.qml \
+    /usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/DashboardBento.qml \
+    /usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/images/weather/storm.png; do
     [ -e "$asset" ] || ui2_missing="${ui2_missing} ${asset}"
 done
 [ -z "$ui2_missing" ] \

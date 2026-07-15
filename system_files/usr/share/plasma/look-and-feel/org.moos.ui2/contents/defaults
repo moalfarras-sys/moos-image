@@ -5,9 +5,6 @@ ColorScheme=MoOSUI2Dark
 [plasmarc][Theme]
 name=MoOSUI2
 
-[Wallpaper]
-Image=MoOSUI2Graphite
-
 [ksplashrc][KSplash]
 Theme=org.moos.ui2
 Engine=KSplashQML

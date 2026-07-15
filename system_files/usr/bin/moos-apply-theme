@@ -17,7 +17,7 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=16
+THEME_REV=17
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -81,6 +81,10 @@ current_icons() {
     kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null
 }
 
+# The desktop wallpaper is the MoOS SCENE plugin (org.moos.ui2.wallpaper):
+# wallpaper image + the Tidal Glass dashboard, painted as one layer BELOW the
+# Folder View icons. "Complete" means every desktop containment runs the scene
+# plugin AND its Image config points at the expected wallpaper package.
 desktop_wallpapers_complete() {
     local expected="$1" result desktops matching config
     if command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
@@ -90,9 +94,10 @@ desktop_wallpapers_complete() {
                 var ds = desktops();
                 var matching = 0;
                 for (var i = 0; i < ds.length; i++) {
-                    ds[i].currentConfigGroup = ["Wallpaper", "org.kde.image", "General"];
+                    ds[i].currentConfigGroup = ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
                     var image = String(ds[i].readConfig("Image", ""));
-                    if (image.indexOf(expected) >= 0) { matching++; }
+                    if (ds[i].wallpaperPlugin == "org.moos.ui2.wallpaper"
+                            && image.indexOf(expected) >= 0) { matching++; }
                 }
                 print("desktops=" + ds.length + ";matching=" + matching);
             ' 2>/dev/null)" || result=""
@@ -110,7 +115,7 @@ desktop_wallpapers_complete() {
     config="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
     [ -r "$config" ] || return 1
     awk -v expected="$expected" '
-        /^\[Containments\]\[[^]]+\]\[Wallpaper\]\[org\.kde\.image\]\[General\]$/ {
+        /^\[Containments\]\[[^]]+\]\[Wallpaper\]\[org\.moos\.ui2\.wallpaper\]\[General\]$/ {
             section = $0
             sub(/^\[Containments\]\[/, "", section)
             split(section, parts, "\\]\\[")
@@ -131,6 +136,10 @@ desktop_wallpapers_complete() {
             rootPlugin[containment] = substr($0, 8)
             next
         }
+        mode == "containment" && /^wallpaperplugin=/ {
+            wallPlugin[containment] = substr($0, 17)
+            next
+        }
         mode == "wallpaper" && /^Image=/ {
             image[containment] = substr($0, 7)
             next
@@ -141,11 +150,51 @@ desktop_wallpapers_complete() {
             for (id in rootPlugin) {
                 if (rootPlugin[id] == "org.kde.panel") { continue }
                 desktops++
-                if (index(image[id], expected) > 0) { matching++ }
+                if (wallPlugin[id] == "org.moos.ui2.wallpaper" \
+                        && index(image[id], expected) > 0) { matching++ }
             }
             exit !(desktops > 0 && matching == desktops)
         }
     ' "$config" 2>/dev/null
+}
+
+# Point every desktop containment at the MoOS scene: the wallpaper plugin that
+# carries the dashboard bento below the icons. Also removes the RETIRED desktop
+# applets (the bento used to be org.moos.ui2.dashboard, and before that
+# org.moos.nova.deskclock — as widgets they always sat ON TOP of the icons) and
+# keeps the Folder View icons right-aligned, opposite the bento. Idempotent,
+# one D-Bus turn, safe on the live ISO — the scene cannot cover anything.
+apply_desktop_scene() {
+    local image="$1" result
+    command -v gdbus >/dev/null 2>&1 || return 1
+    command -v timeout >/dev/null 2>&1 || return 1
+    result="$(timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var IMAGE = "'"$image"'";
+            var incomplete = false;
+            var ds = desktops();
+            for (var i = 0; i < ds.length; i++) {
+                var d = ds[i];
+                try {
+                    d.currentConfigGroup = ["General"];
+                    d.writeConfig("alignment", "1");
+                    d.writeConfig("sortMode", "1");
+                    var ws = d.widgets();
+                    for (var j = 0; j < ws.length; j++) {
+                        if (ws[j].type == "org.moos.ui2.dashboard"
+                                || ws[j].type == "org.moos.nova.deskclock") {
+                            ws[j].remove();
+                        }
+                    }
+                    d.wallpaperPlugin = "org.moos.ui2.wallpaper";
+                    d.currentConfigGroup = ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
+                    d.writeConfig("Image", IMAGE);
+                    d.reloadConfig();
+                } catch (e) { incomplete = true; }
+            }
+            print(incomplete ? "scene-incomplete" : "scene-ready");
+        ' 2>>"$log")" || return 1
+    case "$result" in *scene-ready*) return 0 ;; *) return 1 ;; esac
 }
 
 current_lockscreen_wallpaper() {
@@ -156,35 +205,37 @@ current_lockscreen_wallpaper() {
 
 # Prefer the running containments, then fall back to Plasma's persisted source
 # of truth when autostart arrives before the shell's scripting endpoint. The
-# invariant is PER CONTAINMENT: every desktop owns exactly one card of the
-# selected generation and none of the other. A global `ui2=1` is wrong as soon
-# as a second monitor or Activity adds another legitimate desktop containment.
-current_widget_state() {
+# invariant is PER CONTAINMENT: every desktop runs the MoOS scene wallpaper
+# (which carries the bento BELOW the icons) and carries ZERO of the retired
+# desktop-applet generations. A global check is wrong as soon as a second
+# monitor or Activity adds another legitimate desktop containment.
+current_scene_state() {
     local result config
     if command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
         result="$(timeout 4s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
             -m org.kde.PlasmaShell.evaluateScript '
                 var ds = desktops();
-                var ui1Each = ds.length > 0;
-                var ui2Each = ds.length > 0;
+                var sceneEach = ds.length > 0;
                 for (var i = 0; i < ds.length; i++) {
-                    var ui1 = 0, ui2 = 0;
+                    var stale = 0;
                     var ws = ds[i].widgets();
                     for (var j = 0; j < ws.length; j++) {
-                        if (ws[j].type == "org.moos.nova.deskclock") { ui1++; }
-                        if (ws[j].type == "org.moos.ui2.dashboard") { ui2++; }
+                        if (ws[j].type == "org.moos.nova.deskclock") { stale++; }
+                        if (ws[j].type == "org.moos.ui2.dashboard") { stale++; }
                     }
-                    if (!(ui1 == 1 && ui2 == 0)) { ui1Each = false; }
-                    if (!(ui1 == 0 && ui2 == 1)) { ui2Each = false; }
+                    if (stale > 0
+                            || ds[i].wallpaperPlugin != "org.moos.ui2.wallpaper") {
+                        sceneEach = false;
+                    }
                 }
-                var state = ui1Each ? "ui1-each" : (ui2Each ? "ui2-each" : "mixed");
+                var state = sceneEach ? "scene-each" : "mixed";
                 print("desktops=" + ds.length + ";state=" + state);
             ' 2>/dev/null)" || result=""
         # A responsive shell can still answer before it has created any desktop
         # containments. Never accept that transient empty result as real state;
         # let the persisted parser below decide instead.
         result="$(printf '%s\n' "$result" \
-            | grep -oE 'desktops=[1-9][0-9]*;state=(ui1-each|ui2-each|mixed)' \
+            | grep -oE 'desktops=[1-9][0-9]*;state=(scene-each|mixed)' \
             | head -n1)"
         if [ -n "$result" ]; then
             printf '%s\n' "${result##*state=}"
@@ -221,27 +272,29 @@ current_widget_state() {
             rootPlugin[containment] = plugin
             next
         }
+        mode == "containment" && /^wallpaperplugin=/ {
+            wallPlugin[containment] = substr($0, 17)
+            next
+        }
         mode == "applet" && /^plugin=org\.moos\.nova\.deskclock$/ {
-            ui1[containment]++
+            stale[containment]++
             next
         }
         mode == "applet" && /^plugin=org\.moos\.ui2\.dashboard$/ {
-            ui2[containment]++
+            stale[containment]++
             next
         }
         END {
             desktops = 0
-            ui1Each = 1
-            ui2Each = 1
+            sceneEach = 1
             for (id in rootPlugin) {
                 if (rootPlugin[id] == "org.kde.panel") { continue }
                 desktops++
-                if (!((ui1[id] + 0) == 1 && (ui2[id] + 0) == 0)) { ui1Each = 0 }
-                if (!((ui1[id] + 0) == 0 && (ui2[id] + 0) == 1)) { ui2Each = 0 }
+                if ((stale[id] + 0) != 0) { sceneEach = 0 }
+                if (wallPlugin[id] != "org.moos.ui2.wallpaper") { sceneEach = 0 }
             }
             if (desktops == 0) { exit 2 }
-            if (ui1Each) { print "ui1-each" }
-            else if (ui2Each) { print "ui2-each" }
+            if (sceneEach) { print "scene-each" }
             else { print "mixed" }
         }
     ' "$config" 2>/dev/null
@@ -259,32 +312,42 @@ current_widget_state() {
 # one of ours AND the decoration is the one that belongs to it. A Nova Light
 # desktop wearing the dark decoration is drift just as much as a Breeze one is.
 theme_intact() {
-    local lnf="$1" deco="$2" scheme style icons widgets
-    local expected_deco expected_scheme expected_style expected_icons expected_widgets
+    local lnf="$1" deco="$2" scheme style icons cursor scene
+    local expected_deco expected_scheme expected_style expected_icons expected_cursor expected_scene
     scheme="$(current_scheme)" || return 1
     style="$(current_style)" || return 1
     icons="$(current_icons)" || return 1
-    widgets="$(current_widget_state)" || return 1
+    scene="$(current_scene_state)" || return 1
 
     case "$lnf" in
         "$DARK_LNF")
             expected_deco="$DARK_DECO"; expected_scheme=MoOSUI2Dark
             expected_style=MoOSUI2; expected_icons=MoOSUI2
-            expected_widgets=ui2-each
+            expected_cursor=MoOS
+            expected_scene=scene-each
             ;;
         "$LIGHT_LNF")
             expected_deco="$LIGHT_DECO"; expected_scheme=MoOSUI2Light
             expected_style=MoOSUI2Light; expected_icons=MoOSUI2Light
-            expected_widgets=ui2-each
+            expected_cursor=MoOSDark
+            expected_scene=scene-each
             ;;
         *) return 1 ;;
     esac
+
+    # The cursor is part of the look (a white pointer on Tidal Light's mint is
+    # unreadable), and cursor drift used to be invisible to this readback — the
+    # marker stayed green while the pointer stayed wrong. An EMPTY value is not
+    # drift (a fresh user may simply not have the key yet; the LNF defaults
+    # cover them); only a conflicting explicit value is.
+    cursor="$(kreadconfig6 --file kcminputrc --group Mouse --key cursorTheme 2>/dev/null)" || cursor=""
 
     [ "$deco" = "$expected_deco" ] \
         && [ "$scheme" = "$expected_scheme" ] \
         && [ "$style" = "$expected_style" ] \
         && [ "$icons" = "$expected_icons" ] \
-        && [ "$widgets" = "$expected_widgets" ]
+        && { [ -z "$cursor" ] || [ "$cursor" = "$expected_cursor" ]; } \
+        && [ "$scene" = "$expected_scene" ]
 }
 
 # Completion is stricter than steady-state integrity: a user may deliberately
@@ -426,6 +489,13 @@ if [ -e "$marker" ]; then
         exit 0
     fi
     echo "=== moos-apply-theme $(date -u '+%FT%TZ') === SELF-HEAL: look-and-feel='${lnf:-unset}' decoration='${deco:-unset}'" >>"$log" 2>/dev/null || true
+    # A SELF-HEAL inside the same THEME_REV used to leave the tray marker in
+    # place, which suppressed the one guarded plasmashell restart below — so the
+    # tray/dock writes landed in the file while the running shell kept drawing
+    # the old model until logout (the exact Plasma 6.7 reloadConfig() failure
+    # this script documents). A repair that the user cannot see is not a repair:
+    # drop the marker so this heal may restart the shell once, like a fresh apply.
+    rm -f "${state_dir}/moos-tray-collapsed.v${THEME_REV}" 2>/dev/null || true
 else
     echo "=== moos-apply-theme $(date -u '+%FT%TZ') ===" >>"$log" 2>/dev/null || true
 fi
@@ -510,10 +580,7 @@ case "$want_lnf" in
         want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Tide
         want_wallpaper=${want_wallpaper_package}/contents/images/3840x2160.jpg
         want_gtk_dark=false
-        want_widget=org.moos.ui2.dashboard
-        other_widget=org.moos.nova.deskclock
-        widget_width=560
-        widget_height=220
+        want_cursor=MoOSDark
         ;;
     "$DARK_LNF")
         want_scheme=MoOSUI2Dark
@@ -524,10 +591,7 @@ case "$want_lnf" in
         want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite
         want_wallpaper=${want_wallpaper_package}/contents/images_dark/3840x2160.jpg
         want_gtk_dark=true
-        want_widget=org.moos.ui2.dashboard
-        other_widget=org.moos.nova.deskclock
-        widget_width=560
-        widget_height=220
+        want_cursor=MoOS
         ;;
     *)
         echo "cannot resolve a MoOS theme target from '${want_lnf:-unset}'" >>"$log" 2>/dev/null || true
@@ -544,14 +608,31 @@ if command -v plasma-apply-lookandfeel >/dev/null 2>&1; then
     fi
 fi
 
-# Belt-and-suspenders: force the wallpaper + colour scheme directly, in case the
-# L&F apply skips them (Plasma has historically been inconsistent here).
-if command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
-    [ -f "$want_wallpaper" ] \
-        && { plasma-apply-wallpaperimage "$want_wallpaper" >>"$log" 2>&1 && applied=1; }
+# The desktop scene: our wallpaper plugin (image + dashboard bento, below the
+# icons) on every desktop containment. plasma-apply-wallpaperimage is NOT used —
+# it would flip the containments back onto org.kde.image and the bento would
+# vanish. The LNF defaults deliberately carry no [Wallpaper] section for the
+# same reason (see artwork/generate_moos_ui2.py).
+if apply_desktop_scene "$want_wallpaper_package"; then
+    applied=1
+    echo "desktop scene applied: org.moos.ui2.wallpaper ← ${want_wallpaper_package}" >>"$log" 2>&1
+else
+    echo "desktop scene apply failed or shell not ready" >>"$log" 2>&1
 fi
 command -v plasma-apply-colorscheme >/dev/null 2>&1 && \
     plasma-apply-colorscheme "$want_scheme" >>"$log" 2>&1 || true
+
+# The cursor, directly. plasma-apply-lookandfeel is SUPPOSED to carry the LNF's
+# cursorTheme default, but LookAndFeelManager has historically skipped KCMs —
+# the exact reason the colour scheme is re-applied above. moos-theme applies the
+# cursor explicitly on every manual switch; the login repair used to rely on the
+# LNF alone, so cursor drift (a white pointer on Tidal Light) survived every
+# self-heal. Mirror moos-theme here.
+if command -v plasma-apply-cursortheme >/dev/null 2>&1; then
+    plasma-apply-cursortheme "$want_cursor" >>"$log" 2>&1 || true
+fi
+command -v kwriteconfig6 >/dev/null 2>&1 && \
+    kwriteconfig6 --file kcminputrc --group Mouse --key cursorTheme "$want_cursor" 2>/dev/null || true
 
 # Pin the values Plasma actually reads in the user's own configuration. Theme
 # packages and /etc/xdg are defaults only; both lose to stale ~/.config and
@@ -710,6 +791,7 @@ fi
 dock_shipped=""
 for entry in \
     "applications:org.moos.moai.desktop" \
+    "applications:org.moos.store.desktop" \
     "preferred://browser" \
     "applications:org.moos.moplayer.desktop" \
     "applications:org.kde.dolphin.desktop" \
@@ -796,6 +878,13 @@ if command -v kwriteconfig6 >/dev/null 2>&1; then
     # The icon theme is not colour-scheme aware: Nova's symbolics are drawn light
     # for a dark panel and disappear on porcelain. The light look needs NovaLight.
     kwriteconfig6 --file kdeglobals --group Icons --key Theme "$want_icons"
+    # A raw kdeglobals write is SILENT: running apps only drop their icon caches
+    # when the icons KCM's helper broadcasts the KIconLoader change signal. Without
+    # it the new family arrives at the next login, which reads as "didn't work".
+    # plasma-changeicons writes the same key AND emits the signal.
+    if [ -x /usr/libexec/plasma-changeicons ]; then
+        /usr/libexec/plasma-changeicons "$want_icons" >>"$log" 2>&1 || true
+    fi
     echo "pinned the ${want_deco} decoration and the ${want_icons} icons into the user's config" >>"$log" 2>/dev/null || true
     # KWin only re-reads kwinrc when told to. Without this the decoration changes on the
     # next login instead of now, which reads as "the fix did not work".
@@ -900,163 +989,19 @@ pin_gtk
 systemctl --user start plasma-ksystemstats.service >>"$log" 2>&1 || true
 
 # --- The desktop itself -------------------------------------------------------
-# MoOS shipped a desktop with nothing on it: no clock, no widgets, nothing. The
-# panel clock is a PANEL applet — its full representation is a calendar popup — so
-# it cannot double as the desktop dashboard. UI2's dashboard is the desktop one.
+# The dashboard bento is NOT a desktop widget anymore. Three shipped fixes
+# (x=80 -> 260 -> 360, icons right-aligned, live-ISO skip) each only moved its
+# collision with the Folder View icons, because a Plasma desktop applet always
+# draws ON TOP of the icon grid. The bento now lives INSIDE the wallpaper
+# (org.moos.ui2.wallpaper renders image + dashboard as one layer BELOW icons),
+# so there is nothing to place, nothing to collide, and the live ISO gets its
+# dashboard back — the "Install MoOS" icon simply draws over wallpaper.
 #
-# ONE widget, carrying the clock AND the three system rings. It was two, briefly,
-# and Plasma would not have it: a desktop applet's position lives in a
-# resolution-keyed ItemGeometries string on the CONTAINMENT, not on the applet, and
-# the x/y/w/h passed to addWidget() is transient. After the first shell restart the
-# monitor was auto-placed at 0,0 on top of the folder icons while the clock stayed
-# put. Two widgets that must sit together cannot be two widgets.
-#
-# org.kde.plasma.systemmonitor is deliberately NOT used: UI2's single passive
-# bento owns the clock, 3D weather and system health without taking desktop input.
-# The destination is parameterised because a completed UI2 migration may later
-# be repaired while the user is deliberately wearing UI1. Both directions keep
-# the same add-first safety invariant and exactly one card per containment.
-#
-# Guarded and idempotent inside this revision: the target is added first and the
-# other generation is removed only after a second scan proves it instantiated.
-# A Folder View containment will NOT place a scripted widget for you — pass an
-# explicit rectangle, or the applet exists with zero geometry and never paints.
-#
-# NOT on the live ISO. The dashboard is a wide bento — clock, weather and system
-# rings across the top of the screen. On an installed system the Desktop folder is
-# empty, so it has the desktop to itself and looks the way it should. The live ISO
-# is the one desktop that is NOT empty: it carries the "Install MoOS" icon, and a
-# full-width widget across the top lands on top of it — the first screen of a fresh
-# install showing its own install button with the label swallowed by the clock.
-# Aligning the icons left, then right, only moved the collision; the widget is wide
-# by design and there is no clear corner.
-# So the live session gets the honest thing a live session is for: wallpaper, dock,
-# and a clear Install icon — the polished install desktop every serious distro
-# ships. The dashboard is what you are rewarded with once MoOS is actually on the
-# disk. Detected by the live kernel arg, which iso.yaml sets (rd.live.image).
-is_live=0
-if grep -qw rd.live.image /proc/cmdline 2>/dev/null; then
-    is_live=1
-    echo "live session detected — desktop dashboard intentionally skipped" >>"$log" 2>&1
-fi
-if [ "$is_live" = 0 ] && command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
-    widget_migration_result="$(timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
-        -m org.kde.PlasmaShell.evaluateScript '
-            var TARGET = "'"$want_widget"'";
-            var OTHER = "'"$other_widget"'";
-            var TARGET_WIDTH = '"$widget_width"';
-            var TARGET_HEIGHT = '"$widget_height"';
-            var migratedOther = false;
-            var deduplicated = false;
-            var incomplete = false;
-            var ds = desktops();
-            for (var i = 0; i < ds.length; i++) {
-                var d = ds[i];
-                var ws = d.widgets();
-                var others = [];
-                var targets = [];
-                for (var j = 0; j < ws.length; j++) {
-                    if (ws[j].type == TARGET) { targets.push(ws[j]); }
-                    if (ws[j].type == OTHER) { others.push(ws[j]); }
-                }
-                try {
-                    // Send the desktop icons to the RIGHT edge, away from the dashboard.
-                    //
-                    // The dashboard sits top-left. A Folder View lays its icons out top-LEFT too,
-                    // and it has no idea the widget is there — it will not flow its icons around
-                    // one. So on the live ISO the "Install MoOS" icon landed underneath the clock,
-                    // its label half-swallowed: the first thing a fresh install showed was its own
-                    // install button, unreadable. Nudging the widget rightwards only moved the
-                    // collision — enough icons still reach it.
-                    //
-                    // The real fix is to make the two live on opposite sides. Folder View aligns
-                    // its icons by an integer (0 = Left, 1 = Right — verified against
-                    // desktopcontainment config/main.xml). Right starts the icon grid at the RIGHT
-                    // edge and fills toward the middle, so the icons grow away from the top-left
-                    // dashboard instead of under it. Set on the containment General group.
-                    d.currentConfigGroup = ["General"];
-                    d.writeConfig("alignment", "1");
-                    d.writeConfig("sortMode", "1");   // 1 = by name; 0 = Unsorted
+# apply_desktop_scene() above already did the whole job for this run: it set
+# every desktop containment's wallpaper plugin + image, removed any stale
+# org.moos.ui2.dashboard / org.moos.nova.deskclock applets left behind by
+# earlier revisions, and right-aligned the icons (alignment=1, sortMode=1).
 
-                    if (targets.length == 0) {
-                        // Top-left, clear of the icons that now grow from the right. x=360 is still
-                        // a comfortable inset from the screen edge for the widget itself.
-                        d.addWidget(TARGET, 360, 70, TARGET_WIDTH, TARGET_HEIGHT);
-                        var after = d.widgets();
-                        for (var n = 0; n < after.length; n++) {
-                            if (after[n].type == TARGET) {
-                                targets.push(after[n]);
-                            }
-                        }
-                    }
-                    if (targets.length > 0) {
-                        // Keep the first valid target and remove every
-                        // duplicate in this containment. This also repairs a
-                        // same-family duplicate state; it does not depend on
-                        // the other generation being present.
-                        for (var n = 1; n < targets.length; n++) {
-                            targets[n].remove();
-                            deduplicated = true;
-                        }
-                        for (var k = 0; k < others.length; k++) { others[k].remove(); }
-                        if (others.length > 0) { migratedOther = true; }
-                    } else { incomplete = true; }
-                } catch (e) { incomplete = true; }
-            }
-            print(migratedOther ? "widget-family-migrated" :
-                (incomplete ? "widget-incomplete" :
-                (deduplicated ? "widget-deduplicated" : "widget-ready")));
-        ' 2>>"$log")" || widget_migration_result=""
-    echo "desktop widget migration: ${widget_migration_result:-skipped}" >>"$log" 2>&1
-
-    # Folder View collision-avoids a new widget while the other one still owns
-    # its preferred top-left rectangle. Once the safe add-then-remove pass above
-    # has proven the target loads, recreate only that freshly migrated card after
-    # the old geometry has left the layout. The two short waits let Plasma commit
-    # each removal; doing both operations in one evaluateScript leaves a phantom
-    # collision and snaps the new bento to 0,0.
-    if [[ "$widget_migration_result" == *widget-family-migrated* ]]; then
-        sleep 2
-        timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
-            -m org.kde.PlasmaShell.evaluateScript '
-                var TARGET = "'"$want_widget"'";
-                var OTHER = "'"$other_widget"'";
-                var ds = desktops();
-                for (var i = 0; i < ds.length; i++) {
-                    var ws = ds[i].widgets();
-                    var otherPresent = false;
-                    for (var j = 0; j < ws.length; j++) {
-                        if (ws[j].type == OTHER) { otherPresent = true; }
-                    }
-                    if (otherPresent) { continue; }
-                    for (var k = 0; k < ws.length; k++) {
-                        if (ws[k].type == TARGET) { ws[k].remove(); }
-                    }
-                }
-            ' >>"$log" 2>&1 || true
-        sleep 2
-        timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
-            -m org.kde.PlasmaShell.evaluateScript '
-                var TARGET = "'"$want_widget"'";
-                var OTHER = "'"$other_widget"'";
-                var TARGET_WIDTH = '"$widget_width"';
-                var TARGET_HEIGHT = '"$widget_height"';
-                var ds = desktops();
-                for (var i = 0; i < ds.length; i++) {
-                    var ws = ds[i].widgets();
-                    var blocked = false;
-                    for (var j = 0; j < ws.length; j++) {
-                        if (ws[j].type == OTHER || ws[j].type == TARGET) {
-                            blocked = true;
-                        }
-                    }
-                    if (!blocked) {
-                        ds[i].addWidget(TARGET, 80, 70, TARGET_WIDTH, TARGET_HEIGHT);
-                    }
-                }
-            ' >>"$log" 2>&1 || true
-    fi
-fi
 
 # --- The system tray: two icons, not sixteen -----------------------------------
 # The tray was a wall of indicators — notifications, disc burner, printer, vault,
@@ -1237,10 +1182,24 @@ fi
 # can carry it (AGENTS.md: read it back from the running system). Staging is the
 # right way to prove it. Leaving the stage up afterwards is how the image loses.
 user_share="${XDG_DATA_HOME:-$HOME/.local/share}"
+
+# RETIRED MoOS assets are removed from the user share UNCONDITIONALLY — the
+# image no longer carries them, so the [-e /usr/share/…] guard below would
+# never fire, and a stale user-level copy of a package the OS retired would
+# haunt the widget explorer forever. Every name here is MoOS-owned.
 for rel in \
-    "plasma/plasmoids/org.moos.nova.clock" \
     "plasma/plasmoids/org.moos.nova.deskclock" \
     "plasma/plasmoids/org.moos.ui2.dashboard" \
+; do
+    if [ -e "${user_share}/$rel" ]; then
+        rm -rf "${user_share:?}/$rel"
+        echo "removed the user-level copy of retired $rel" >>"$log" 2>/dev/null || true
+    fi
+done
+
+for rel in \
+    "plasma/plasmoids/org.moos.nova.clock" \
+    "plasma/wallpapers/org.moos.ui2.wallpaper" \
     "plasma/look-and-feel/org.moos.nova" \
     "plasma/look-and-feel/org.moos.nova.light" \
     "plasma/look-and-feel/org.moos.ui" \

@@ -4,6 +4,7 @@
     { "id": "ess", "en": "Essentials", "ar": "الأساسيات", "glyph": "compass" },
     { "id": "fun", "en": "Games & Fun", "ar": "الترفيه والألعاب", "glyph": "gamepad" },
     { "id": "dev", "en": "Development", "ar": "التطوير", "glyph": "code" },
+    { "id": "work", "en": "Work & Study", "ar": "العمل والدراسة", "glyph": "doc" },
     { "id": "ai", "en": "AI", "ar": "الذكاء الاصطناعي", "glyph": "spark" }
   ],
   "bundles": [
@@ -13,6 +14,12 @@
     { "id": "game-starter", "en": "Gaming Starter", "ar": "حزمة الألعاب", "glyph": "gamepad",
       "desc_ar": "شغّل ألعاب ويندوز وأدرها من مكان واحد.",
       "apps": ["com.valvesoftware.Steam", "com.usebottles.bottles", "net.lutris.Lutris", "com.heroicgameslauncher.hgl", "net.davidotek.pupgui2", "com.discordapp.Discord"] },
+    { "id": "study-starter", "en": "Study Starter", "ar": "حزمة الدراسة", "glyph": "bulb",
+      "desc_ar": "ملاحظات وبطاقات مراجعة وقراءة PDF — عدة الطالب كاملة.",
+      "apps": ["md.obsidian.Obsidian", "net.ankiweb.Anki", "com.github.xournalpp.xournalpp", "org.kde.okular", "org.libreoffice.LibreOffice", "org.mozilla.firefox"] },
+    { "id": "office-starter", "en": "Office Starter", "ar": "حزمة المكتب", "glyph": "briefcase",
+      "desc_ar": "مستندات وبريد واجتماعات — مكتب متكامل من أول يوم.",
+      "apps": ["org.libreoffice.LibreOffice", "org.onlyoffice.desktopeditors", "org.mozilla.Thunderbird", "org.kde.okular", "us.zoom.Zoom", "com.slack.Slack"] },
     { "id": "creator-kit", "en": "Creator Kit", "ar": "عدّة المبدع", "glyph": "camera",
       "desc_ar": "أدوات الوسائط والإنتاج والتواصل اليومي.",
       "apps": ["com.obsproject.Studio", "org.gnome.Snapshot", "com.spotify.Client", "org.gnome.SoundRecorder", "org.mozilla.Thunderbird", "com.discordapp.Discord"] }
@@ -53,6 +60,21 @@
       "en": "Discord", "ar": "ديسكورد", "desc_en": "Voice and chat for gamers and communities.", "desc_ar": "صوت ودردشة للاعبين والمجتمعات." },
     { "id": "net.supertuxkart.SuperTuxKart", "source": "flathub", "cat": "fun", "glyph": "car", "rating": 4.5, "reviews": "7k",
       "en": "SuperTuxKart", "ar": "سوبر تكس كارت", "desc_en": "A fun, free kart racer.", "desc_ar": "سباق كارتينج مرح ومجاني." },
+
+    { "id": "org.libreoffice.LibreOffice", "source": "flathub", "cat": "work", "glyph": "doc", "rating": 4.6, "reviews": "45k",
+      "en": "LibreOffice", "ar": "ليبرأوفيس", "desc_en": "Full office suite — documents, sheets, slides.", "desc_ar": "حزمة مكتبية كاملة — مستندات وجداول وعروض.", "popular": true },
+    { "id": "org.onlyoffice.desktopeditors", "source": "flathub", "cat": "work", "glyph": "briefcase", "rating": 4.5, "reviews": "8k",
+      "en": "OnlyOffice", "ar": "أونلي‌أوفيس", "desc_en": "Office editors with the best MS Office compatibility.", "desc_ar": "محررات مكتبية بأفضل توافق مع ملفات أوفيس." },
+    { "id": "md.obsidian.Obsidian", "source": "flathub", "cat": "work", "glyph": "gem", "rating": 4.8, "reviews": "18k",
+      "en": "Obsidian", "ar": "أوبسيديان", "desc_en": "Powerful linked-notes knowledge base.", "desc_ar": "قاعدة معرفة وملاحظات مترابطة قوية." },
+    { "id": "net.ankiweb.Anki", "source": "flathub", "cat": "work", "glyph": "bulb", "rating": 4.7, "reviews": "9k",
+      "en": "Anki", "ar": "أنكي", "desc_en": "Smart flashcards that make studying stick.", "desc_ar": "بطاقات مراجعة ذكية تثبّت الحفظ." },
+    { "id": "com.github.xournalpp.xournalpp", "source": "flathub", "cat": "work", "glyph": "pen", "rating": 4.6, "reviews": "5k",
+      "en": "Xournal++", "ar": "زورنال++", "desc_en": "Handwritten notes and PDF annotation.", "desc_ar": "ملاحظات بخط اليد وتعليق على PDF." },
+    { "id": "us.zoom.Zoom", "source": "flathub", "cat": "work", "glyph": "video", "rating": 4.2, "reviews": "30k",
+      "en": "Zoom", "ar": "زوم", "desc_en": "Video meetings and webinars.", "desc_ar": "اجتماعات فيديو وندوات عن بُعد." },
+    { "id": "com.slack.Slack", "source": "flathub", "cat": "work", "glyph": "chat", "rating": 4.3, "reviews": "22k",
+      "en": "Slack", "ar": "سلاك", "desc_en": "Team chat and channels for work.", "desc_ar": "دردشة وقنوات فرق العمل." },
 
     { "id": "com.visualstudio.code", "source": "flathub", "cat": "dev", "glyph": "code", "rating": 4.9, "reviews": "62k",
       "en": "VS Code", "ar": "في‌إس كود", "desc_en": "The most popular code editor.", "desc_ar": "محرّر الأكواد الأشهر في العالم.", "popular": true, "preselect": true },

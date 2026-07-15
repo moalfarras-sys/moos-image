@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <kcfgfile name=""/>
+  <group name="General">
+    <!-- A plain image file, or a MoOS wallpaper package dir (MoOSUI2Graphite /
+         MoOSUI2Tide) — moos-theme and moos-apply-theme write it per UI2 half.
+         Empty means: follow the active palette (Graphite dark / Tide light). -->
+    <entry name="Image" type="String">
+      <default></default>
+    </entry>
+  </group>
+</kcfg>

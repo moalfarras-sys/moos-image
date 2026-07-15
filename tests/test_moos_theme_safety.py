@@ -76,12 +76,16 @@ target_lnf "$1" "$2"
         # No generation but this one may be a TARGET…
         self.assertNotIn("UI1_DARK_LNF", text)
         self.assertNotIn("UI1_LIGHT_LNF", text)
-        # …but the old desk clock must still be REMOVABLE, or a user who has one keeps it forever
-        # on a desktop that also has the new dashboard.
-        self.assertIn("other_widget=org.moos.nova.deskclock", text)
-        self.assertIn("d.addWidget(TARGET, 360, 70, TARGET_WIDTH, TARGET_HEIGHT)", text)
-        # The dashboard is top-left and the icons must grow from the RIGHT, or they land under it —
-        # which on the ISO is the "Install MoOS" icon with its label swallowed by the clock.
+        # …but the widget-era dashboards must still be REMOVABLE, or a user who has
+        # one keeps it forever, drawing on top of the icons, on a desktop whose bento
+        # now lives inside the wallpaper scene.
+        self.assertIn('"org.moos.nova.deskclock"', text)
+        self.assertIn('"org.moos.ui2.dashboard"', text)
+        self.assertIn('d.wallpaperPlugin = "org.moos.ui2.wallpaper"', text)
+        # addWidget placement is FORBIDDEN: as a desktop applet the bento always drew
+        # over the Folder View icons — every coordinate collides with some icon layout.
+        self.assertNotIn("d.addWidget(", text)
+        # The icons grow from the RIGHT, opposite the bento's top-left corner of the scene.
         self.assertIn('d.writeConfig("alignment", "1")', text)
 
     def test_automatic_switch_has_bounded_non_recursive_supplement_sync(self) -> None:
@@ -137,20 +141,24 @@ target_lnf "$1" "$2"
         supplements = function(switch, "apply_supplements")
         self.assertNotIn("plasma-apply-lookandfeel", sync)
         self.assertNotIn("kwriteconfig6 --file kdeglobals", sync)
-        self.assertIn('apply_supplements false', sync)
+        self.assertIn('apply_supplements', sync)
         self.assertIn('AutomaticLookAndFeel', sync)
         self.assertIn('automatic_after', sync)
         self.assertIn('automatic_supplements_complete', sync)
         self.assertIn('[ -d "/usr/share/plasma/look-and-feel/$lnf" ]', sync)
 
         for token in (
-            "plasma-apply-wallpaperimage",
+            # The desktop wallpaper is the MoOS scene plugin, applied per
+            # containment; plasma-apply-wallpaperimage is FORBIDDEN because it
+            # forces org.kde.image back and erases the dashboard bento.
+            "apply_desktop_scene",
             "DefaultProfile",
             "gtk-application-prefer-dark-theme",
             "org.gnome.desktop.interface color-scheme",
             "WallpaperPlugin",
         ):
             self.assertIn(token, supplements)
+        self.assertNotIn("plasma-apply-wallpaperimage", supplements)
         self.assertNotIn("kdeglobals", supplements)
 
         auto_case = switch[switch.index("    auto)"):switch.index("    sync-auto)")]

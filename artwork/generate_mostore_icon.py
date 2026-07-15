@@ -12,7 +12,11 @@ from PIL import Image, ImageDraw, ImageFilter
 
 REPO = Path(__file__).resolve().parent.parent
 HICOLOR = REPO / "system_files/usr/share/icons/hicolor"
-NAME = "mo-store"
+# Two stems, one artwork: `moos-store` is the standalone Mo Store app's icon
+# (org.moos.store.desktop — the moos- prefix is what verify_identity.py demands
+# of every org.moos.* launcher); `mo-store` remains for the hidden Discover
+# engine entry that legacy configs may still reference.
+NAMES = ("moos-store", "mo-store")
 SIZES = (16, 22, 24, 32, 48, 64, 128, 256, 512)
 
 # UI2 palette
@@ -109,10 +113,12 @@ def render(px: int) -> Image.Image:
 
 def main():
     for px in SIZES:
-        out = HICOLOR / f"{px}x{px}" / "apps" / f"{NAME}.png"
-        out.parent.mkdir(parents=True, exist_ok=True)
-        render(px).save(out)
-        print(f"wrote {out}")
+        art = render(px)
+        for name in NAMES:
+            out = HICOLOR / f"{px}x{px}" / "apps" / f"{name}.png"
+            out.parent.mkdir(parents=True, exist_ok=True)
+            art.save(out)
+            print(f"wrote {out}")
     # A flattened preview for review.
     prev = REPO / "artwork" / "mostore-icon-preview.png"
     bg = Image.new("RGBA", (256, 256), (28, 34, 38, 255))

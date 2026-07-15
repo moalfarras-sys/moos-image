@@ -1,22 +1,30 @@
-// MoOS Welcome — the MoOS Store. Premium first-run app picker that replaces
-// plasma-welcome. Pure-QML (launched by /usr/bin/moos-welcome via moos-qml-shell).
+// MoOS Welcome — the first-run onboarding wizard (a real welcome, not a store).
+// Pure-QML (launched by /usr/bin/moos-welcome via moos-qml-shell). The store is
+// a SEPARATE standalone app (apps/store, /usr/bin/moos-store) — this wizard
+// hands over to it on the last page.
 //
-// WHAT IT IS
-//   A real store, not a static page. Every app, category and bundle is read at
-//   runtime from /usr/share/moos/store/catalog.json — the SAME file /usr/bin/
-//   moos-install obeys — so what the user can pick here is exactly what can be
-//   installed, with no second list to drift.
+// WHAT IT DOES, IN SIX STEPS
+//   0 hero       أهلاً بك — the MoOS mark, breathing.
+//   1 look       Graphite dark / Tidal light — the pick applies INSTANTLY via
+//                moos://theme/{dark,light} (moos-open runs moos-theme detached),
+//                and because the KDE platform theme broadcasts palette changes,
+//                this very window recolours live as proof.
+//   2 direction  What is this machine for? gaming / development / study /
+//                office — multi-select. Each direction is a catalog BUNDLE, so
+//                what a direction installs is exactly what the store shows.
+//   3 apps       The optional essentials (camera, recorder, reader…) plus the
+//                apps the chosen directions brought in — all toggleable.
+//   4 install    Fires moos://store/install/<id> per app (the same headless
+//                path the store uses) and polls <cache>/moos-store/<id>.status
+//                for live progress bars. No terminal, ever.
+//   5 done       Open Mo Store / open Mo AI / finish.
 //
-// HOW INSTALL WORKS WITH NO TERMINAL AND NO C++ BRIDGE
-//   Pure QML cannot spawn a process, so each pick fires
-//   Qt.openUrlExternally("moos://store/install/<id>"). moos-open validates the id
-//   against the catalog (a curated, safe set — hence no confirmation prompt) and
-//   runs moos-install headless, streaming PROGRESS/DONE/FAIL/OPENED into
-//   <cache>/moos-store/<id>.status. This window polls that file for a live bar.
-//   The cache path is handed in as --cache= by the launcher (QML has no $HOME).
+// Every app id, category and bundle comes at runtime from
+// /usr/share/moos/store/catalog.json — the SAME file /usr/bin/moos-install
+// obeys — so the wizard can never offer what the system cannot install.
 //
 // Bilingual, Arabic-first, RTL-safe. Every structural colour comes from the
-// active KDE palette so UI2 Graphite/Tidal recolours the whole store.
+// active KDE palette so UI2 Graphite/Tidal recolours the whole wizard.
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -27,10 +35,10 @@ ApplicationWindow {
     id: win
     visible: true
     width: 1080
-    height: 728
-    minimumWidth: 900
-    minimumHeight: 600
-    title: qsTr("MoOS Store")
+    height: 760
+    minimumWidth: 940
+    minimumHeight: 660
+    title: qsTr("Welcome to MoOS")
     color: win.canvas
 
     // ── semantic palette (KDE colour scheme owns every structural colour) ──────
@@ -46,31 +54,139 @@ ApplicationWindow {
     readonly property color txt2:     win.palette.placeholderText
     readonly property color onAccent: win.palette.highlightedText
 
-    // Accent used through the store. Turquoise (link) is the MoOS Tidal accent;
+    // Accent used throughout. Turquoise (link) is the MoOS Tidal accent;
     // fall back to highlight if a scheme leaves it unset.
     readonly property color accent: win.cyan.a > 0 ? win.cyan : win.blue
 
     readonly property bool rtl: Qt.application.layoutDirection === Qt.RightToLeft
 
+    // ── wizard state ───────────────────────────────────────────────────────────
+    property int step: 0
+    readonly property int stepCount: 6
+    readonly property bool navPages: win.step >= 1 && win.step <= 3
+
+    function goNext() { if (win.step < win.stepCount - 1) win.step++ }
+    function goBack() { if (win.step > 0) win.step-- }
+
     // ── catalog data (filled at runtime) ──────────────────────────────────────
     property var cats: []            // [{id,en,ar,glyph}]
-    property var apps: []            // [{id,cat,glyph,en,ar,desc_*,rating,reviews,source,popular,preselect,install}]
+    property var apps: []            // [{id,cat,glyph,en,ar,desc_*,source,popular,preselect,install}]
     property var bundles: []         // [{id,en,ar,glyph,desc_ar,apps:[ids]}]
     property bool loaded: false
     property string loadError: ""
 
-    property string activeCat: "all"
-    property string query: ""
-    property var filtered: []
+    // ── the look (step 1) ──────────────────────────────────────────────────────
+    // "dark" = Graphite, "light" = Tidal. Seeded from the palette the window
+    // actually opened with — the wizard can be reopened from the menu on a
+    // system already switched to Light, and a hardcoded "dark" would highlight
+    // the wrong card AND make tapping the real half a dead click (chooseLook
+    // early-returns on equality). Same lightness test the wallpaper scene uses.
+    property string look: win.canvas.hslLightness > 0.55 ? "light" : "dark"
 
-    // ── selection ("cart") ─────────────────────────────────────────────────────
-    property var cart: ({})          // id -> true
-    property int cartCount: 0
+    function chooseLook(which) {
+        if (win.look === which) return
+        win.look = which
+        // Instant, headless, reversible. moos-open whitelists these two routes
+        // and runs moos-theme detached; the palette change flows back into this
+        // window live through the KDE platform theme.
+        Qt.openUrlExternally(which === "light" ? "moos://theme/light"
+                                               : "moos://theme/dark")
+    }
 
-    // ── install run state ──────────────────────────────────────────────────────
+    // ── directions (step 2) — each id is a catalog bundle id ──────────────────
+    readonly property var directionIds: ["game-starter", "dev-starter",
+                                         "study-starter", "office-starter"]
+    readonly property var directionMeta: ({
+        "game-starter":   { glyph: "gamepad",   en: "Gaming",      ar: "ألعاب" },
+        "dev-starter":    { glyph: "code",      en: "Development", ar: "تطوير" },
+        "study-starter":  { glyph: "bulb",      en: "Study",       ar: "دراسة" },
+        "office-starter": { glyph: "briefcase", en: "Office",      ar: "مكتب" }
+    })
+    property var directions: ({})    // bundle id -> true
+
+    // ── app picks (step 3) ─────────────────────────────────────────────────────
+    property var picks: ({})         // app id -> true
+    property int pickCount: 0
+
+    function countPicks(p) { return Object.keys(p).length }
+
+    function bundleById(id) {
+        for (var i = 0; i < win.bundles.length; i++)
+            if (win.bundles[i].id === id) return win.bundles[i]
+        return null
+    }
+
+    function appById(id) {
+        for (var i = 0; i < win.apps.length; i++)
+            if (win.apps[i].id === id) return win.apps[i]
+        return null
+    }
+
+    function togglePick(id) {
+        var p = Object.assign({}, win.picks)
+        if (p[id]) delete p[id]; else p[id] = true
+        win.picks = p
+        win.pickCount = win.countPicks(p)
+    }
+
+    function toggleDirection(id) {
+        var b = win.bundleById(id)
+        if (!b) return
+        var d = Object.assign({}, win.directions)
+        var p = Object.assign({}, win.picks)
+        if (d[id]) {
+            delete d[id]
+            // Drop this direction's apps — unless another selected direction
+            // still wants them, or they are recommended essentials.
+            for (var i = 0; i < b.apps.length; i++) {
+                var aid = b.apps[i]
+                var covered = false
+                for (var k in d) {
+                    var ob = win.bundleById(k)
+                    if (ob && ob.apps.indexOf(aid) >= 0) { covered = true; break }
+                }
+                var a = win.appById(aid)
+                if (!covered && !(a && a.preselect)) delete p[aid]
+            }
+        } else {
+            d[id] = true
+            for (var j = 0; j < b.apps.length; j++) p[b.apps[j]] = true
+        }
+        win.directions = d
+        win.picks = p
+        win.pickCount = win.countPicks(p)
+    }
+
+    // The optional-apps grid (step 3): every essential, plus whatever the
+    // chosen directions pulled in, plus the popular picks — deduplicated,
+    // essentials first so the camera/recorder gaps the base image leaves are
+    // the first thing the user sees.
+    function optionalApps() {
+        var seen = {}
+        var out = []
+        function push(a) {
+            if (!a || seen[a.id]) return
+            seen[a.id] = true
+            out.push(a)
+        }
+        var i
+        for (i = 0; i < win.apps.length; i++)
+            if (win.apps[i].cat === "ess") push(win.apps[i])
+        for (var k in win.directions) {
+            var b = win.bundleById(k)
+            if (!b) continue
+            for (i = 0; i < b.apps.length; i++) push(win.appById(b.apps[i]))
+        }
+        for (i = 0; i < win.apps.length; i++)
+            if (win.apps[i].popular) push(win.apps[i])
+        return out
+    }
+
+    // ── install engine (step 4) — the exact store contract ────────────────────
     // installState[id] = { pct: 0..100, state: "queued"|"installing"|"done"|"opened"|"fail" }
     property var installState: ({})
     property bool installing: false
+    property bool installFinished: false
     property var queue: []
     property int queueIdx: 0
 
@@ -84,73 +200,135 @@ ApplicationWindow {
         return ""
     }
 
-    // ── helpers ────────────────────────────────────────────────────────────────
-    function catName(id) {
-        if (id === "all") return win.rtl ? "الكل" : "All"
-        for (var i = 0; i < win.cats.length; i++)
-            if (win.cats[i].id === id) return win.rtl ? win.cats[i].ar : win.cats[i].en
-        return id
+    function setState(id, pct, state) {
+        var s = Object.assign({}, win.installState)
+        s[id] = { pct: pct, state: state }
+        win.installState = s
     }
 
-    function inCart(id) { return win.cart[id] === true }
-
-    function toggleCart(id) {
-        var c = Object.assign({}, win.cart)
-        if (c[id]) delete c[id]; else c[id] = true
-        win.cart = c
-        win.cartCount = Object.keys(c).length
-    }
-
-    function addMany(ids) {
-        var c = Object.assign({}, win.cart)
-        for (var i = 0; i < ids.length; i++) c[ids[i]] = true
-        win.cart = c
-        win.cartCount = Object.keys(c).length
-        win.flash((win.rtl ? "أُضيفت للمختار — " : "Added — ") + ids.length)
-    }
-
-    function clearCart() { win.cart = ({}); win.cartCount = 0 }
-
-    function recompute() {
-        var q = win.query.trim().toLowerCase()
-        var out = []
-        for (var i = 0; i < win.apps.length; i++) {
-            var a = win.apps[i]
-            if (win.activeCat !== "all" && a.cat !== win.activeCat) continue
-            if (q !== "") {
-                var hay = (a.en + " " + a.ar + " " + (a.desc_en || "") + " "
-                           + (a.desc_ar || "") + " " + a.id).toLowerCase()
-                if (hay.indexOf(q) < 0) continue
-            }
-            out.push(a)
+    function overallProgress() {
+        if (win.queue.length === 0) return 0
+        var sum = 0
+        for (var i = 0; i < win.queue.length; i++) {
+            var st = win.installState[win.queue[i]]
+            sum += st ? st.pct : 0
         }
-        win.filtered = out
+        return sum / (win.queue.length * 100)
     }
 
-    function popularApps() {
-        var out = []
-        for (var i = 0; i < win.apps.length; i++)
-            if (win.apps[i].popular) out.push(win.apps[i])
-        return out
+    function startInstall() {
+        var ids = Object.keys(win.picks)
+        win.step = 4
+        if (ids.length === 0) { win.installFinished = true; return }
+        win.queue = ids
+        win.queueIdx = 0
+        win.installing = true
+        win.installFinished = false
+        var s = {}
+        for (var i = 0; i < ids.length; i++) s[ids[i]] = { pct: 0, state: "queued" }
+        win.installState = s
+        win.installNext()
     }
 
-    function preselectApps() {
-        var out = []
-        for (var i = 0; i < win.apps.length; i++)
-            if (win.apps[i].preselect) out.push(win.apps[i])
-        return out
+    function installNext() {
+        if (win.queueIdx >= win.queue.length) {
+            win.installing = false
+            win.installFinished = true
+            pollTimer.stop()
+            return
+        }
+        var id = win.queue[win.queueIdx]
+        win.setState(id, 3, "installing")
+        Qt.openUrlExternally("moos://store/install/" + id)
+        if (win.cacheDir === "") {
+            // No status path (bare-runtime fallback): fire-and-forget, best effort.
+            fallbackTimer.restart()
+            return
+        }
+        pollTimer.targetId = id
+        pollTimer.miss = 0
+        pollTimer.polls = 0
+        pollTimer.restart()
     }
 
-    function appById(id) {
-        for (var i = 0; i < win.apps.length; i++)
-            if (win.apps[i].id === id) return win.apps[i]
-        return null
+    function readStatus(id) {
+        try {
+            var req = new XMLHttpRequest()
+            req.open("GET", "file://" + win.cacheDir + "/" + id + ".status", false)
+            req.send()
+            var t = req.responseText
+            if (!t) return { pct: -1, state: "installing" }
+            var lines = t.split("\n")
+            for (var i = lines.length - 1; i >= 0; i--) {
+                var ln = lines[i].trim()
+                if (ln === "") continue
+                if (ln.indexOf("PROGRESS ") === 0)
+                    return { pct: parseInt(ln.substring(9)) || 0, state: "installing" }
+                if (ln === "DONE")   return { pct: 100, state: "done" }
+                if (ln === "OPENED") return { pct: 100, state: "opened" }
+                if (ln.indexOf("FAIL") === 0) return { pct: 0, state: "fail" }
+            }
+            return { pct: -1, state: "installing" }
+        } catch (e) {
+            return { pct: -1, state: "installing" }
+        }
     }
 
-    function flash(msg) { toastLabel.text = msg; toast.open(); toastTimer.restart() }
+    Timer {
+        id: pollTimer
+        interval: 450; repeat: true
+        property string targetId: ""
+        property int miss: 0
+        property int polls: 0
+        onTriggered: {
+            pollTimer.polls++
+            var s = win.readStatus(pollTimer.targetId)
+            // Stale-file grace: moos-open truncates the status file before the
+            // install starts, but the truncation itself is behind xdg-open
+            // dispatch. A terminal line seen in the FIRST beats can be last
+            // run's verdict for the same app — ignore it; a genuine terminal
+            // state is still there on the next poll.
+            var terminal = (s.state === "done" || s.state === "opened" || s.state === "fail")
+            if (terminal && pollTimer.polls <= 3) {
+                return
+            }
+            if (s.pct >= 0) {
+                pollTimer.miss = 0
+                var cur = win.installState[pollTimer.targetId]
+                var pct = Math.max(s.pct, cur ? cur.pct : 0)   // never go backwards
+                win.setState(pollTimer.targetId, pct, s.state)
+            }
+            if (terminal) {
+                pollTimer.stop()
+                win.queueIdx++
+                win.installNext()
+            } else if (s.pct < 0) {
+                // Status file absent/empty. Bounded: if nothing has appeared
+                // after ~27s the moos:// dispatch itself failed (handler not
+                // registered, moos-install unresolvable) — mark this app failed
+                // and move on, or the wizard would sit on this page forever
+                // with no Skip and no Continue.
+                pollTimer.miss++
+                if (pollTimer.miss > 60) {
+                    win.setState(pollTimer.targetId, 0, "fail")
+                    pollTimer.stop()
+                    win.queueIdx++
+                    win.installNext()
+                }
+            }
+        }
+    }
 
-    onActiveCatChanged: recompute()
-    onQueryChanged: recompute()
+    // Bare-runtime fallback with no status file: advance after a beat.
+    Timer {
+        id: fallbackTimer
+        interval: 1400
+        onTriggered: {
+            win.setState(win.queue[win.queueIdx], 100, "opened")
+            win.queueIdx++
+            win.installNext()
+        }
+    }
 
     // ── colour → #rrggbb (+ separate opacity). Qt's SVG-Tiny renderer supports
     //    hex and stroke-opacity, but NOT the CSS rgba() function — so use hex. ──
@@ -161,7 +339,8 @@ ApplicationWindow {
     function hexColor(c) { return "#" + hex2(c.r) + hex2(c.g) + hex2(c.b) }
 
     // ── line-glyph library (24×24, stroke-only, round joins) ───────────────────
-    // A curated custom icon set so the store never falls back to generic symbols.
+    // The same curated set Mo Store draws from, so a catalog glyph renders
+    // identically in both apps.
     readonly property var glyphs: ({
         "compass":  "<circle cx='12' cy='12' r='9'/><path d='M15.5 8.5l-2.4 5.1-5.1 2.4 2.4-5.1z'/>",
         "gamepad":  "<rect x='2.5' y='7.5' width='19' height='10' rx='5'/><path d='M7 11v3M5.5 12.5h3'/><circle cx='15.5' cy='11.5' r='1.1'/><circle cx='18' cy='14' r='1.1'/>",
@@ -191,7 +370,14 @@ ApplicationWindow {
         "brain":    "<path d='M9.5 5.5A3 3 0 0 0 6.5 8.7 3 3 0 0 0 5.5 14c0 2 1.8 3.2 3.8 3.2M14.5 5.5a3 3 0 0 1 3 3.2 3 3 0 0 1 1 5.3c0 2-1.8 3.2-3.8 3.2M12 5v14'/>",
         "bulb":     "<path d='M9 17.5h6M10 20.5h4'/><path d='M12 3a6 6 0 0 0-4 10.4c.8.9.9 1.7.9 2.6h6.2c0-.9.1-1.7.9-2.6A6 6 0 0 0 12 3z'/>",
         "wave":     "<path d='M3 12h2.2M8 8v8M11.5 5v14M15 8.5v7M18.8 12H21'/>",
-        "monitor":  "<rect x='3' y='4' width='18' height='12' rx='2'/><path d='M9 20h6M12 16v4'/>"
+        "monitor":  "<rect x='3' y='4' width='18' height='12' rx='2'/><path d='M9 20h6M12 16v4'/>",
+        "briefcase":"<rect x='3' y='8' width='18' height='12' rx='2.5'/><path d='M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2'/><path d='M3 13h18'/>",
+        "gem":      "<path d='M12 3L5 9.5 12 21l7-11.5z'/><path d='M5 9.5h14M12 3l-2.6 6.5L12 21l2.6-11.5z'/>",
+        "pen":      "<path d='M4 20l1.2-4.2L16.4 4.6a2 2 0 0 1 2.8 0l.2.2a2 2 0 0 1 0 2.8L8.2 18.8z'/><path d='M14.5 6.5l3 3'/>",
+        "video":    "<rect x='3' y='6' width='13' height='12' rx='2.5'/><path d='M16 10.5l5-3v9l-5-3z'/>",
+        "check":    "<path d='M5 12.5l4.5 4.5L19 7'/>",
+        "sun":      "<circle cx='12' cy='12' r='4.2'/><path d='M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3L19 19M19 5l-1.7 1.7M6.7 17.3L5 19'/>",
+        "moon":     "<path d='M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z'/>"
     })
 
     function glyphURL(name, c, w) {
@@ -227,113 +413,17 @@ ApplicationWindow {
             win.cats = doc.categories || []
             win.apps = doc.apps || []
             win.bundles = doc.bundles || []
-            // preselect the recommended set into the cart on first run.
-            var c = {}
+            // The recommended essentials start selected — the user un-picks,
+            // not hunts.
+            var p = {}
             for (var i = 0; i < win.apps.length; i++)
-                if (win.apps[i].preselect) c[win.apps[i].id] = true
-            win.cart = c
-            win.cartCount = Object.keys(c).length
+                if (win.apps[i].preselect) p[win.apps[i].id] = true
+            win.picks = p
+            win.pickCount = win.countPicks(p)
             win.loaded = true
-            win.recompute()
         } catch (e) {
             win.loadError = "" + e
             win.loaded = false
-        }
-    }
-
-    // ── install engine ─────────────────────────────────────────────────────────
-    function setState(id, pct, state) {
-        var s = Object.assign({}, win.installState)
-        s[id] = { pct: pct, state: state }
-        win.installState = s
-    }
-
-    function startInstall() {
-        var ids = Object.keys(win.cart)
-        if (ids.length === 0) return
-        // Split: web apps just open a page; keep them last so the bars finish clean.
-        win.queue = ids
-        win.queueIdx = 0
-        win.installing = true
-        var s = {}
-        for (var i = 0; i < ids.length; i++) s[ids[i]] = { pct: 0, state: "queued" }
-        win.installState = s
-        installSheet.open()
-        win.installNext()
-    }
-
-    function installNext() {
-        if (win.queueIdx >= win.queue.length) {
-            win.installing = false
-            pollTimer.stop()
-            return
-        }
-        var id = win.queue[win.queueIdx]
-        win.setState(id, 3, "installing")
-        Qt.openUrlExternally("moos://store/install/" + id)
-        if (win.cacheDir === "") {
-            // No status path (bare-runtime fallback): fire-and-forget, best effort.
-            fallbackTimer.restart()
-            return
-        }
-        pollTimer.targetId = id
-        pollTimer.miss = 0
-        pollTimer.restart()
-    }
-
-    function readStatus(id) {
-        try {
-            var req = new XMLHttpRequest()
-            req.open("GET", "file://" + win.cacheDir + "/" + id + ".status", false)
-            req.send()
-            var t = req.responseText
-            if (!t) return { pct: -1, state: "installing" }
-            var lines = t.split("\n")
-            for (var i = lines.length - 1; i >= 0; i--) {
-                var ln = lines[i].trim()
-                if (ln === "") continue
-                if (ln.indexOf("PROGRESS ") === 0)
-                    return { pct: parseInt(ln.substring(9)) || 0, state: "installing" }
-                if (ln === "DONE")   return { pct: 100, state: "done" }
-                if (ln === "OPENED") return { pct: 100, state: "opened" }
-                if (ln.indexOf("FAIL") === 0) return { pct: 0, state: "fail" }
-            }
-            return { pct: -1, state: "installing" }
-        } catch (e) {
-            return { pct: -1, state: "installing" }
-        }
-    }
-
-    Timer {
-        id: pollTimer
-        interval: 450; repeat: true
-        property string targetId: ""
-        property int miss: 0
-        onTriggered: {
-            var s = win.readStatus(pollTimer.targetId)
-            if (s.pct >= 0) {
-                var cur = win.installState[pollTimer.targetId]
-                var pct = Math.max(s.pct, cur ? cur.pct : 0)   // never go backwards
-                win.setState(pollTimer.targetId, pct, s.state)
-            }
-            if (s.state === "done" || s.state === "opened" || s.state === "fail") {
-                pollTimer.stop()
-                win.queueIdx++
-                win.installNext()
-            } else if (s.pct < 0) {
-                pollTimer.miss++   // status file not there yet; keep waiting a while
-            }
-        }
-    }
-
-    // Bare-runtime fallback with no status file: advance after a beat.
-    Timer {
-        id: fallbackTimer
-        interval: 1400
-        onTriggered: {
-            win.setState(win.queue[win.queueIdx], 100, "opened")
-            win.queueIdx++
-            win.installNext()
         }
     }
 
@@ -346,15 +436,15 @@ ApplicationWindow {
         }
     }
     Rectangle {   // ambient turquoise glow, trailing-top
-        width: 520; height: 520; radius: 260
+        width: 560; height: 560; radius: 280
         anchors.right: parent.right; anchors.top: parent.top
-        anchors.rightMargin: -180; anchors.topMargin: -200
+        anchors.rightMargin: -200; anchors.topMargin: -220
         color: win.accent; opacity: 0.10
     }
     Rectangle {   // ambient blue glow, leading-bottom
-        width: 420; height: 420; radius: 210
+        width: 440; height: 440; radius: 220
         anchors.left: parent.left; anchors.bottom: parent.bottom
-        anchors.leftMargin: -160; anchors.bottomMargin: -180
+        anchors.leftMargin: -170; anchors.bottomMargin: -190
         color: win.blue; opacity: 0.07
     }
 
@@ -366,860 +456,987 @@ ApplicationWindow {
         LayoutMirroring.childrenInherit: true
 
         // ───────────────────────────── HEADER ─────────────────────────────────
-        Rectangle {
+        Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: 78
-            color: Qt.rgba(win.chrome.r, win.chrome.g, win.chrome.b, 0.55)
+            Layout.preferredHeight: 74
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 26; anchors.rightMargin: 26
-                spacing: 16
+                anchors.leftMargin: 28; anchors.rightMargin: 28
+                spacing: 14
 
                 Image {
                     source: "file:///usr/share/moos/moos-logo.png"
-                    sourceSize.width: 40; sourceSize.height: 40
-                    Layout.preferredWidth: 40; Layout.preferredHeight: 40
+                    sourceSize.width: 34; sourceSize.height: 34
+                    Layout.preferredWidth: 34; Layout.preferredHeight: 34
+                    opacity: win.step === 0 ? 0 : 1
+                    Behavior on opacity { NumberAnimation { duration: 200 } }
                 }
-                ColumnLayout {
-                    spacing: 0
-                    Text {
-                        text: win.rtl ? "متجر MoOS" : "MoOS Store"
-                        color: win.txt; font.family: "IBM Plex Sans"
-                        font.pixelSize: 20; font.bold: true
-                    }
-                    Text {
-                        text: win.rtl ? "اختر تطبيقاتك — وثبّتها بنقرة، بلا طرفية"
-                                      : "Pick your apps — one tap, no terminal"
-                        color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
+
+                Item { Layout.fillWidth: true }
+
+                // step dots
+                Row {
+                    spacing: 9
+                    Repeater {
+                        model: win.stepCount
+                        delegate: Rectangle {
+                            id: dot
+                            required property int index
+                            width: dot.index === win.step ? 26 : 8
+                            height: 8
+                            radius: 4
+                            color: dot.index === win.step ? win.accent
+                                 : dot.index < win.step
+                                   ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.45)
+                                   : Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.8)
+                            Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                            Behavior on color { ColorAnimation { duration: 180 } }
+                        }
                     }
                 }
 
                 Item { Layout.fillWidth: true }
 
-                // search field (also the command palette's twin)
+                // skip — always an exit, never a trap
                 Rectangle {
-                    Layout.preferredWidth: Math.min(340, win.width * 0.34)
-                    Layout.preferredHeight: 42
-                    radius: 21
-                    color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.85)
-                    border.width: searchField.activeFocus ? 1.5 : 1
-                    border.color: searchField.activeFocus ? win.accent : win.outline
-                    Behavior on border.color { ColorAnimation { duration: 120 } }
-
+                    visible: win.step < 4
+                    Layout.preferredHeight: 34
+                    implicitWidth: skipRow.implicitWidth + 26
+                    radius: 17
+                    color: skipHover.hovered
+                           ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.9)
+                           : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.0)
+                    border.width: 1
+                    border.color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b,
+                                          skipHover.hovered ? 1.0 : 0.0)
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                    HoverHandler { id: skipHover }
+                    TapHandler { onTapped: win.step = 5 }
                     RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 14; anchors.rightMargin: 12
-                        spacing: 8
-                        Glyph { name: "compass"; tint: win.txt2; stroke: 1.6
-                            Layout.preferredWidth: 18; Layout.preferredHeight: 18 }
-                        TextField {
-                            id: searchField
-                            Layout.fillWidth: true
-                            background: null
-                            color: win.txt
-                            placeholderText: win.rtl ? "ابحث عن تطبيق…" : "Search apps…"
-                            placeholderTextColor: win.txt2
-                            font.family: "IBM Plex Sans"; font.pixelSize: 14
-                            selectByMouse: true
-                            onTextChanged: win.query = text
-                            Keys.onEscapePressed: { text = "" }
-                        }
+                        id: skipRow
+                        anchors.centerIn: parent
+                        spacing: 6
                         Text {
-                            visible: searchField.text === ""
-                            text: "⌘K"
-                            color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 11
+                            text: win.rtl ? "تخطّي" : "Skip"
+                            color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 13
                         }
                     }
                 }
             }
-
-            Rectangle {   // hairline
-                anchors.bottom: parent.bottom; width: parent.width; height: 1
-                color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.6)
-            }
         }
 
-        // ─────────────────────────── CATEGORY PILLS ───────────────────────────
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 60
-            color: "transparent"
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 24; anchors.rightMargin: 24
-                spacing: 10
-
-                Repeater {
-                    model: {
-                        var m = [{ id: "all", glyph: "spark" }]
-                        for (var i = 0; i < win.cats.length; i++)
-                            m.push({ id: win.cats[i].id, glyph: win.cats[i].glyph })
-                        return m
-                    }
-                    delegate: Rectangle {
-                        id: pill
-                        required property var modelData
-                        readonly property bool isOn: win.activeCat === pill.modelData.id
-                        Layout.preferredHeight: 38
-                        implicitWidth: pillRow.implicitWidth + 30
-                        radius: 19
-                        color: pill.isOn ? win.accent
-                              : pillHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.9)
-                              : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.55)
-                        border.width: 1
-                        border.color: pill.isOn ? win.accent : win.outline
-                        Behavior on color { ColorAnimation { duration: 130 } }
-
-                        HoverHandler { id: pillHover }
-                        TapHandler { onTapped: win.activeCat = pill.modelData.id }
-
-                        RowLayout {
-                            id: pillRow
-                            anchors.centerIn: parent
-                            spacing: 8
-                            Glyph {
-                                name: pill.modelData.glyph
-                                tint: pill.isOn ? win.onAccent : win.txt
-                                stroke: 1.7
-                                Layout.preferredWidth: 17; Layout.preferredHeight: 17
-                            }
-                            Text {
-                                text: win.catName(pill.modelData.id)
-                                color: pill.isOn ? win.onAccent : win.txt
-                                font.family: "IBM Plex Sans"
-                                font.pixelSize: 14
-                                font.bold: pill.isOn
-                            }
-                        }
-                    }
-                }
-                Item { Layout.fillWidth: true }
-                Text {
-                    text: win.filtered.length + (win.rtl ? " تطبيق" : " apps")
-                    color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 13
-                }
-            }
-        }
-
-        // ─────────────────────────────── BODY ─────────────────────────────────
-        Flickable {
-            id: flick
+        // ─────────────────────────────── PAGES ────────────────────────────────
+        StackLayout {
+            id: pages
             Layout.fillWidth: true
             Layout.fillHeight: true
-            contentWidth: width
-            contentHeight: body.implicitHeight + 130
-            clip: true
-            boundsBehavior: Flickable.StopAtBounds
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+            currentIndex: win.step
 
-            ColumnLayout {
-                id: body
-                x: 24
-                width: flick.width - 48
-                spacing: 22
-                LayoutMirroring.enabled: win.rtl
-                LayoutMirroring.childrenInherit: true
+            // ════════ 0 · HERO ════════
+            Item {
+                id: hero
 
-                Item { Layout.preferredHeight: 2 }
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    spacing: 0
+                    width: Math.min(640, hero.width - 80)
 
-                // ── QUICK START (recommended essentials) ───────────────────────
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 132
-                    visible: win.activeCat === "all" && win.query === "" && win.loaded
-                    radius: 20
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16) }
-                        GradientStop { position: 1.0; color: Qt.rgba(win.blue.r, win.blue.g, win.blue.b, 0.06) }
-                    }
-                    border.width: 1
-                    border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.35)
+                    Item {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredWidth: 168
+                        Layout.preferredHeight: 168
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 20
-                        spacing: 18
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 6
-                            Text {
-                                text: win.rtl ? "بداية سريعة" : "Quick start"
-                                color: win.txt; font.family: "IBM Plex Sans"
-                                font.pixelSize: 18; font.bold: true
-                            }
-                            Text {
-                                text: win.rtl ? "الأساسيات الموصى بها لنظامك — مختارة مسبقاً وجاهزة للتثبيت."
-                                              : "The essentials we recommend — pre-selected and ready."
-                                color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 13
-                                wrapMode: Text.WordWrap; Layout.fillWidth: true
-                            }
-                            RowLayout {
-                                spacing: 8
-                                Repeater {
-                                    model: win.preselectApps()
-                                    delegate: Rectangle {
-                                        id: chip
-                                        required property var modelData
-                                        Layout.preferredHeight: 26
-                                        implicitWidth: chipRow.implicitWidth + 18
-                                        radius: 13
-                                        color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.9)
-                                        border.width: 1; border.color: win.outline
-                                        RowLayout {
-                                            id: chipRow
-                                            anchors.centerIn: parent; spacing: 5
-                                            Glyph { name: chip.modelData.glyph; tint: win.accent; stroke: 1.7
-                                                Layout.preferredWidth: 13; Layout.preferredHeight: 13 }
-                                            Text {
-                                                text: win.rtl ? chip.modelData.ar : chip.modelData.en
-                                                color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 12
-                                            }
-                                        }
-                                    }
+                        // breathing halo rings
+                        Repeater {
+                            model: 2
+                            delegate: Rectangle {
+                                id: ring
+                                required property int index
+                                anchors.centerIn: parent
+                                width: 128 + ring.index * 34
+                                height: width
+                                radius: width / 2
+                                color: "transparent"
+                                border.width: 1
+                                border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b,
+                                                      0.34 - ring.index * 0.12)
+                                SequentialAnimation on scale {
+                                    running: hero.visible
+                                    loops: Animation.Infinite
+                                    NumberAnimation { to: 1.06; duration: 2600 + ring.index * 500; easing.type: Easing.InOutSine }
+                                    NumberAnimation { to: 1.0;  duration: 2600 + ring.index * 500; easing.type: Easing.InOutSine }
                                 }
                             }
                         }
+                        Rectangle {   // soft core glow behind the mark
+                            anchors.centerIn: parent
+                            width: 120; height: 120; radius: 60
+                            color: win.accent
+                            opacity: 0.14
+                        }
+                        Image {
+                            anchors.centerIn: parent
+                            source: "file:///usr/share/moos/moos-logo.png"
+                            sourceSize.width: 104; sourceSize.height: 104
+                            width: 104; height: 104
+                        }
+                    }
 
-                        PrimaryButton {
-                            label: win.rtl ? "أضِف الموصى به" : "Add recommended"
-                            glyphName: "spark"
-                            action: function() {
-                                var ids = []
-                                var p = win.preselectApps()
-                                for (var i = 0; i < p.length; i++) ids.push(p[i].id)
-                                win.addMany(ids)
+                    Item { Layout.preferredHeight: 34 }
+
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: "أهلاً بك في MoOS"
+                        color: win.txt
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: 40
+                        font.weight: Font.Bold
+                    }
+                    Item { Layout.preferredHeight: 8 }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: "Welcome to MoOS"
+                        color: win.txt2
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: 18
+                    }
+                    Item { Layout.preferredHeight: 18 }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: win.rtl
+                              ? "دقيقتان نجهّز فيهما نظامك: مظهرك، وجهة استخدامك، وتطبيقاتك — كلها بنقرات."
+                              : "Two minutes to make this system yours: your look, your direction, your apps — all in taps."
+                        color: win.txt2
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: 15
+                        lineHeight: 1.35
+                    }
+                    Item { Layout.preferredHeight: 34 }
+
+                    Rectangle {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredHeight: 52
+                        implicitWidth: beginRow.implicitWidth + 64
+                        radius: 26
+                        color: beginHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        HoverHandler { id: beginHover }
+                        TapHandler { onTapped: win.goNext() }
+                        RowLayout {
+                            id: beginRow
+                            anchors.centerIn: parent
+                            spacing: 10
+                            Text {
+                                text: win.rtl ? "لنبدأ" : "Let's begin"
+                                color: win.onAccent
+                                font.family: "IBM Plex Sans"
+                                font.pixelSize: 17
+                                font.weight: Font.DemiBold
                             }
                         }
                     }
                 }
+            }
 
-                // ── BUNDLES ────────────────────────────────────────────────────
+            // ════════ 1 · THE LOOK ════════
+            Item {
+                id: lookPage
+
                 ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-                    visible: win.activeCat === "all" && win.query === "" && win.bundles.length > 0
+                    anchors.centerIn: parent
+                    width: Math.min(860, lookPage.width - 72)
+                    spacing: 0
 
                     Text {
-                        text: win.rtl ? "حزم جاهزة" : "Curated bundles"
-                        color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 16; font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
+                        text: win.rtl ? "اختر مظهرك" : "Pick your look"
+                        color: win.txt
+                        font.family: "IBM Plex Sans"; font.pixelSize: 30; font.weight: Font.Bold
                     }
+                    Item { Layout.preferredHeight: 8 }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: win.rtl ? "يطبَّق فوراً — وهذه النافذة نفسها ستتلوّن أمامك"
+                                      : "Applies instantly — this very window recolours as proof"
+                        color: win.txt2
+                        font.family: "IBM Plex Sans"; font.pixelSize: 14
+                    }
+                    Item { Layout.preferredHeight: 30 }
+
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 14
-                        Repeater {
-                            model: win.bundles
-                            delegate: Rectangle {
-                                id: bundle
-                                required property var modelData
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 128
-                                radius: 18
-                                color: bundleHover.hovered
-                                     ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.95)
-                                     : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.8)
-                                border.width: 1.5
-                                border.color: bundleHover.hovered ? win.accent : win.outline
-                                scale: bundleHover.hovered ? 1.015 : 1.0
-                                Behavior on color { ColorAnimation { duration: 140 } }
-                                Behavior on border.color { ColorAnimation { duration: 140 } }
-                                Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutQuad } }
+                        spacing: 22
 
-                                HoverHandler { id: bundleHover }
+                        // one look card per half
+                        Repeater {
+                            model: [
+                                { id: "dark",  glyph: "moon", en: "Graphite",    ar: "غرافيت داكن",
+                                  canvasC: "#14191C", chromeC: "#1C2226", accentC: "#4ED7C8", txtC: "#E8F1EF" },
+                                { id: "light", glyph: "sun",  en: "Tidal Light", ar: "تايدل فاتح",
+                                  canvasC: "#D8EBE7", chromeC: "#C7E0DA", accentC: "#0E8577", txtC: "#17272B" }
+                            ]
+                            delegate: Rectangle {
+                                id: lookCard
+                                required property var modelData
+                                readonly property bool selected: win.look === lookCard.modelData.id
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 250
+                                radius: 22
+                                color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
+                                               lookHover.hovered || lookCard.selected ? 0.95 : 0.6)
+                                border.width: lookCard.selected ? 2 : 1
+                                border.color: lookCard.selected ? win.accent : win.outline
+                                Behavior on color { ColorAnimation { duration: 130 } }
+                                Behavior on border.color { ColorAnimation { duration: 130 } }
+                                HoverHandler { id: lookHover }
+                                TapHandler { onTapped: win.chooseLook(lookCard.modelData.id) }
 
                                 ColumnLayout {
                                     anchors.fill: parent
-                                    anchors.margins: 16
-                                    spacing: 8
-                                    RowLayout {
-                                        spacing: 10
+                                    anchors.margins: 18
+                                    spacing: 12
+
+                                    // miniature desktop preview, drawn live
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        radius: 14
+                                        color: lookCard.modelData.canvasC
+                                        clip: true
+
+                                        Rectangle {   // preview glow
+                                            width: parent.width * 0.7; height: width; radius: width / 2
+                                            x: parent.width * 0.55; y: -width * 0.55
+                                            color: lookCard.modelData.accentC
+                                            opacity: 0.16
+                                        }
+                                        // mini glass bento (the desktop dashboard)
                                         Rectangle {
-                                            Layout.preferredWidth: 38; Layout.preferredHeight: 38
-                                            radius: 11
-                                            color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
-                                            Glyph {
-                                                anchors.centerIn: parent
-                                                width: 22; height: 22
-                                                name: bundle.modelData.glyph; tint: win.accent; stroke: 1.8
+                                            x: 14; y: 14
+                                            width: parent.width * 0.46; height: 42; radius: 9
+                                            color: Qt.lighter(lookCard.modelData.canvasC, 1.35)
+                                            opacity: 0.9
+                                            Rectangle {
+                                                x: 9; y: 9; width: 34; height: 10; radius: 5
+                                                color: lookCard.modelData.accentC; opacity: 0.85
                                             }
+                                            Rectangle {
+                                                x: 9; y: 25; width: 52; height: 7; radius: 3.5
+                                                color: lookCard.modelData.txtC; opacity: 0.35
+                                            }
+                                        }
+                                        // mini dock capsule
+                                        Rectangle {
+                                            anchors.horizontalCenter: parent.horizontalCenter
+                                            anchors.bottom: parent.bottom
+                                            anchors.bottomMargin: 10
+                                            width: parent.width * 0.5; height: 16; radius: 8
+                                            color: Qt.lighter(lookCard.modelData.canvasC, 1.4)
+                                            opacity: 0.95
+                                            Row {
+                                                anchors.centerIn: parent
+                                                spacing: 6
+                                                Repeater {
+                                                    model: 5
+                                                    delegate: Rectangle {
+                                                        required property int index
+                                                        width: 8; height: 8; radius: 2.5
+                                                        color: lookCard.modelData.accentC
+                                                        opacity: 0.75
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 10
+                                        Glyph {
+                                            name: lookCard.modelData.glyph
+                                            tint: lookCard.selected ? win.accent : win.txt2
+                                            Layout.preferredWidth: 20; Layout.preferredHeight: 20
                                         }
                                         ColumnLayout {
                                             spacing: 0
                                             Text {
-                                                text: win.rtl ? bundle.modelData.ar : bundle.modelData.en
-                                                color: win.txt; font.family: "IBM Plex Sans"
-                                                font.pixelSize: 15; font.bold: true
+                                                text: win.rtl ? lookCard.modelData.ar : lookCard.modelData.en
+                                                color: win.txt
+                                                font.family: "IBM Plex Sans"; font.pixelSize: 16; font.weight: Font.DemiBold
                                             }
                                             Text {
-                                                text: bundle.modelData.apps.length + (win.rtl ? " تطبيقات" : " apps")
-                                                color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
+                                                text: win.rtl ? lookCard.modelData.en : lookCard.modelData.ar
+                                                color: win.txt2
+                                                font.family: "IBM Plex Sans"; font.pixelSize: 12
                                             }
                                         }
-                                    }
-                                    Text {
-                                        text: bundle.modelData.desc_ar
-                                        color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
-                                        wrapMode: Text.WordWrap; Layout.fillWidth: true
-                                        maximumLineCount: 2; elide: Text.ElideRight
-                                        visible: win.rtl
-                                    }
-                                    Item { Layout.fillHeight: true }
-                                    Rectangle {
-                                        Layout.preferredHeight: 28
-                                        implicitWidth: addAllRow.implicitWidth + 22
-                                        radius: 14
-                                        color: addAllTap.pressed ? Qt.darker(win.accent, 1.1)
-                                             : Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.9)
-                                        RowLayout {
-                                            id: addAllRow
-                                            anchors.centerIn: parent; spacing: 6
-                                            Glyph { name: "spark"; tint: win.onAccent; stroke: 1.8
-                                                Layout.preferredWidth: 13; Layout.preferredHeight: 13 }
-                                            Text {
-                                                text: win.rtl ? "أضِف الحزمة" : "Add bundle"
-                                                color: win.onAccent; font.family: "IBM Plex Sans"
-                                                font.pixelSize: 12; font.bold: true
+                                        Item { Layout.fillWidth: true }
+                                        Rectangle {   // selected tick
+                                            Layout.preferredWidth: 26; Layout.preferredHeight: 26
+                                            radius: 13
+                                            color: lookCard.selected ? win.accent : "transparent"
+                                            border.width: lookCard.selected ? 0 : 1
+                                            border.color: win.outline
+                                            Behavior on color { ColorAnimation { duration: 130 } }
+                                            Glyph {
+                                                visible: lookCard.selected
+                                                anchors.centerIn: parent
+                                                name: "check"; tint: win.onAccent; stroke: 2.4
+                                                width: 14; height: 14
                                             }
                                         }
-                                        TapHandler { id: addAllTap; onTapped: win.addMany(bundle.modelData.apps) }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                // ── SECTION TITLE ──────────────────────────────────────────────
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 4
+                    Item { Layout.preferredHeight: 14 }
                     Text {
-                        text: win.query !== "" ? (win.rtl ? "نتائج البحث" : "Search results")
-                                               : win.catName(win.activeCat)
-                        color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 16; font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
+                        text: win.rtl ? "وضع تلقائي (نهار/ليل)؟ من أي طرفية: moos-theme auto"
+                                      : "Auto day/night? From any terminal: moos-theme auto"
+                        color: win.txt2
+                        font.family: "IBM Plex Sans"; font.pixelSize: 12
+                        opacity: 0.8
                     }
-                    Item { Layout.fillWidth: true }
                 }
+            }
 
-                // ── APP GRID ───────────────────────────────────────────────────
-                GridLayout {
-                    Layout.fillWidth: true
-                    columns: Math.max(1, Math.floor((flick.width - 48) / 290))
-                    rowSpacing: 14; columnSpacing: 14
+            // ════════ 2 · DIRECTION ════════
+            Item {
+                id: dirPage
 
-                    Repeater {
-                        model: win.filtered
-                        delegate: Rectangle {
-                            id: card
-                            required property var modelData
-                            readonly property bool selected: win.inCart(card.modelData.id)
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 158
-                            radius: 18
-                            color: cardHover.hovered
-                                 ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.96)
-                                 : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.82)
-                            border.width: card.selected ? 2 : 1.5
-                            border.color: card.selected ? win.accent
-                                        : cardHover.hovered ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.6)
-                                        : win.outline
-                            scale: cardHover.hovered ? 1.02 : 1.0
-                            Behavior on color { ColorAnimation { duration: 140 } }
-                            Behavior on border.color { ColorAnimation { duration: 140 } }
-                            Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutQuad } }
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    width: Math.min(860, dirPage.width - 72)
+                    spacing: 0
 
-                            HoverHandler { id: cardHover }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: win.rtl ? "وجهة هذا الجهاز؟" : "What is this machine for?"
+                        color: win.txt
+                        font.family: "IBM Plex Sans"; font.pixelSize: 30; font.weight: Font.Bold
+                    }
+                    Item { Layout.preferredHeight: 8 }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: win.rtl ? "اختر اتجاهاً أو أكثر — وسنجهّز عدّته كاملة"
+                                      : "Pick one or more directions — we prepare the full kit"
+                        color: win.txt2
+                        font.family: "IBM Plex Sans"; font.pixelSize: 14
+                    }
+                    Item { Layout.preferredHeight: 28 }
 
-                            // popular ribbon
-                            Rectangle {
-                                visible: card.modelData.popular === true
-                                anchors.top: parent.top; anchors.right: parent.right
-                                anchors.topMargin: 12; anchors.rightMargin: 12
-                                height: 20; width: popLabel.implicitWidth + 16; radius: 10
-                                color: Qt.rgba(win.violet.r, win.violet.g, win.violet.b, 0.18)
-                                Text {
-                                    id: popLabel; anchors.centerIn: parent
-                                    text: win.rtl ? "شائع" : "Popular"
-                                    color: win.violet; font.family: "IBM Plex Sans"; font.pixelSize: 11; font.bold: true
-                                }
-                            }
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: 2
+                        rowSpacing: 18
+                        columnSpacing: 18
 
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: 16
-                                spacing: 8
+                        Repeater {
+                            model: win.directionIds
+                            delegate: Rectangle {
+                                id: dirCard
+                                required property string modelData
+                                readonly property var meta: win.directionMeta[dirCard.modelData]
+                                readonly property var bundle: win.bundleById(dirCard.modelData)
+                                readonly property bool selected: win.directions[dirCard.modelData] === true
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 116
+                                radius: 20
+                                color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
+                                               dirHover.hovered || dirCard.selected ? 0.95 : 0.6)
+                                border.width: dirCard.selected ? 2 : 1
+                                border.color: dirCard.selected ? win.accent : win.outline
+                                Behavior on color { ColorAnimation { duration: 130 } }
+                                Behavior on border.color { ColorAnimation { duration: 130 } }
+                                HoverHandler { id: dirHover }
+                                TapHandler { onTapped: win.toggleDirection(dirCard.modelData) }
 
                                 RowLayout {
-                                    spacing: 12
+                                    anchors.fill: parent
+                                    anchors.margins: 18
+                                    spacing: 16
+
                                     Rectangle {
-                                        Layout.preferredWidth: 46; Layout.preferredHeight: 46
-                                        radius: 13
-                                        color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
-                                        border.width: 1
-                                        border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.3)
+                                        Layout.preferredWidth: 56; Layout.preferredHeight: 56
+                                        radius: 16
+                                        color: dirCard.selected
+                                               ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.18)
+                                               : Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.9)
+                                        Behavior on color { ColorAnimation { duration: 130 } }
                                         Glyph {
-                                            anchors.centerIn: parent; width: 26; height: 26
-                                            name: card.modelData.glyph; tint: win.accent; stroke: 1.75
+                                            anchors.centerIn: parent
+                                            name: dirCard.meta.glyph
+                                            tint: dirCard.selected ? win.accent : win.txt
+                                            stroke: 1.6
+                                            width: 30; height: 30
                                         }
                                     }
+
                                     ColumnLayout {
                                         Layout.fillWidth: true
-                                        spacing: 1
+                                        spacing: 3
                                         Text {
-                                            text: win.rtl ? card.modelData.ar : card.modelData.en
-                                            color: win.txt; font.family: "IBM Plex Sans"
-                                            font.pixelSize: 15; font.bold: true
-                                            elide: Text.ElideRight; Layout.fillWidth: true
+                                            text: win.rtl ? dirCard.meta.ar : dirCard.meta.en
+                                            color: win.txt
+                                            font.family: "IBM Plex Sans"; font.pixelSize: 18; font.weight: Font.DemiBold
                                         }
                                         Text {
-                                            text: win.rtl ? card.modelData.en : card.modelData.ar
-                                            color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
-                                            elide: Text.ElideRight; Layout.fillWidth: true
+                                            Layout.fillWidth: true
+                                            text: dirCard.bundle
+                                                  ? (win.rtl ? dirCard.bundle.desc_ar
+                                                             : dirCard.bundle.en + " — "
+                                                               + dirCard.bundle.apps.length
+                                                               + " apps")
+                                                  : ""
+                                            color: win.txt2
+                                            font.family: "IBM Plex Sans"; font.pixelSize: 13
+                                            wrapMode: Text.WordWrap
+                                            maximumLineCount: 2
+                                            elide: Text.ElideRight
                                         }
-                                        RowLayout {
-                                            spacing: 4
-                                            Text { text: "★"; color: win.accent; font.pixelSize: 12 }
+                                    }
+
+                                    Rectangle {
+                                        Layout.preferredWidth: 26; Layout.preferredHeight: 26
+                                        radius: 13
+                                        color: dirCard.selected ? win.accent : "transparent"
+                                        border.width: dirCard.selected ? 0 : 1
+                                        border.color: win.outline
+                                        Behavior on color { ColorAnimation { duration: 130 } }
+                                        Glyph {
+                                            visible: dirCard.selected
+                                            anchors.centerIn: parent
+                                            name: "check"; tint: win.onAccent; stroke: 2.4
+                                            width: 14; height: 14
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Item { Layout.preferredHeight: 14 }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: win.rtl ? "ولا واحد؟ لا بأس — نظامك يبقى نظيفاً وتجد كل شيء في متجر Mo Store"
+                                      : "None? Fine — the system stays clean, and Mo Store has everything"
+                        color: win.txt2
+                        font.family: "IBM Plex Sans"; font.pixelSize: 12
+                        opacity: 0.8
+                    }
+                }
+            }
+
+            // ════════ 3 · OPTIONAL APPS ════════
+            Item {
+                id: appsPage
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Math.max(36, (appsPage.width - 900) / 2)
+                    anchors.rightMargin: Math.max(36, (appsPage.width - 900) / 2)
+                    anchors.topMargin: 6
+                    spacing: 0
+
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: win.rtl ? "تطبيقاتك الاختيارية" : "Your optional apps"
+                        color: win.txt
+                        font.family: "IBM Plex Sans"; font.pixelSize: 30; font.weight: Font.Bold
+                    }
+                    Item { Layout.preferredHeight: 8 }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: win.rtl ? "الكاميرا والمسجّل والقارئ وأصحابهم — علِّم ما تريد، والباقي في المتجر"
+                                      : "Camera, recorder, reader and friends — tick what you want; the rest lives in the store"
+                        color: win.txt2
+                        font.family: "IBM Plex Sans"; font.pixelSize: 14
+                    }
+                    Item { Layout.preferredHeight: 20 }
+
+                    Flickable {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        contentWidth: width
+                        contentHeight: appsGrid.implicitHeight + 20
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                        GridLayout {
+                            id: appsGrid
+                            width: parent.width
+                            columns: Math.max(2, Math.floor(width / 290))
+                            rowSpacing: 12
+                            columnSpacing: 12
+
+                            Repeater {
+                                model: win.loaded ? win.optionalApps() : []
+                                delegate: Rectangle {
+                                    id: appCard
+                                    required property var modelData
+                                    readonly property bool selected: win.picks[appCard.modelData.id] === true
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 74
+                                    radius: 16
+                                    color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
+                                                   appHover.hovered || appCard.selected ? 0.95 : 0.55)
+                                    border.width: 1
+                                    border.color: appCard.selected ? win.accent : win.outline
+                                    Behavior on color { ColorAnimation { duration: 120 } }
+                                    Behavior on border.color { ColorAnimation { duration: 120 } }
+                                    HoverHandler { id: appHover }
+                                    TapHandler { onTapped: win.togglePick(appCard.modelData.id) }
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 14; anchors.rightMargin: 14
+                                        spacing: 12
+
+                                        Rectangle {
+                                            Layout.preferredWidth: 42; Layout.preferredHeight: 42
+                                            radius: 12
+                                            color: appCard.selected
+                                                   ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
+                                                   : Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.9)
+                                            Glyph {
+                                                anchors.centerIn: parent
+                                                name: appCard.modelData.glyph
+                                                tint: appCard.selected ? win.accent : win.txt
+                                                width: 22; height: 22
+                                            }
+                                        }
+
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 1
                                             Text {
-                                                text: card.modelData.rating + " · " + card.modelData.reviews
-                                                color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 11
+                                                text: win.rtl ? appCard.modelData.ar : appCard.modelData.en
+                                                color: win.txt
+                                                font.family: "IBM Plex Sans"; font.pixelSize: 15; font.weight: Font.DemiBold
+                                                elide: Text.ElideRight
+                                                Layout.fillWidth: true
+                                            }
+                                            Text {
+                                                text: win.rtl ? (appCard.modelData.desc_ar || "")
+                                                              : (appCard.modelData.desc_en || "")
+                                                color: win.txt2
+                                                font.family: "IBM Plex Sans"; font.pixelSize: 12
+                                                elide: Text.ElideRight
+                                                Layout.fillWidth: true
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            Layout.preferredWidth: 22; Layout.preferredHeight: 22
+                                            radius: 11
+                                            color: appCard.selected ? win.accent : "transparent"
+                                            border.width: appCard.selected ? 0 : 1
+                                            border.color: win.outline
+                                            Behavior on color { ColorAnimation { duration: 120 } }
+                                            Glyph {
+                                                visible: appCard.selected
+                                                anchors.centerIn: parent
+                                                name: "check"; tint: win.onAccent; stroke: 2.6
+                                                width: 12; height: 12
                                             }
                                         }
                                     }
                                 }
+                            }
+                        }
+                    }
 
-                                Text {
-                                    text: win.rtl ? card.modelData.desc_ar : card.modelData.desc_en
-                                    color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
-                                    wrapMode: Text.WordWrap; Layout.fillWidth: true
-                                    maximumLineCount: 2; elide: Text.ElideRight
-                                }
+                    // load error surface — never a blank page
+                    Text {
+                        visible: !win.loaded && win.loadError !== ""
+                        Layout.alignment: Qt.AlignHCenter
+                        text: (win.rtl ? "تعذّر قراءة الكتالوج: " : "Could not read the catalog: ") + win.loadError
+                        color: win.txt2
+                        font.family: "IBM Plex Sans"; font.pixelSize: 13
+                    }
+                }
+            }
 
-                                Item { Layout.fillHeight: true }
+            // ════════ 4 · INSTALL ════════
+            Item {
+                id: installPage
 
-                                // select toggle
-                                Rectangle {
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Math.max(36, (installPage.width - 760) / 2)
+                    anchors.rightMargin: Math.max(36, (installPage.width - 760) / 2)
+                    anchors.topMargin: 6
+                    spacing: 0
+
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: win.installFinished
+                              ? (win.rtl ? "اكتمل التجهيز" : "Setup complete")
+                              : (win.rtl ? "نجهّز نظامك…" : "Preparing your system…")
+                        color: win.txt
+                        font.family: "IBM Plex Sans"; font.pixelSize: 30; font.weight: Font.Bold
+                    }
+                    Item { Layout.preferredHeight: 8 }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        visible: !win.installFinished
+                        text: win.rtl ? "بلا طرفية. اترك النافذة مفتوحة حتى ينتهي الطابور"
+                                      : "No terminal. Keep this window open until the queue finishes"
+                        color: win.txt2
+                        font.family: "IBM Plex Sans"; font.pixelSize: 14
+                    }
+                    Item { Layout.preferredHeight: 22 }
+
+                    // overall bar
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 10
+                        radius: 5
+                        color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.5)
+                        Rectangle {
+                            width: parent.width * win.overallProgress()
+                            height: parent.height
+                            radius: 5
+                            color: win.accent
+                            Behavior on width { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+                        }
+                    }
+                    Item { Layout.preferredHeight: 18 }
+
+                    Flickable {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        contentWidth: width
+                        contentHeight: installCol.implicitHeight + 16
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                        ColumnLayout {
+                            id: installCol
+                            width: parent.width
+                            spacing: 10
+
+                            Repeater {
+                                model: win.queue
+                                delegate: Rectangle {
+                                    id: instRow
+                                    required property string modelData
+                                    readonly property var app: win.appById(instRow.modelData)
+                                    readonly property var st: win.installState[instRow.modelData]
+                                                              || { pct: 0, state: "queued" }
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 34
-                                    radius: 10
-                                    color: card.selected ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.9)
-                                         : selTap.pressed ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 1.0)
-                                         : Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.7)
+                                    Layout.preferredHeight: 64
+                                    radius: 14
+                                    color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                                     border.width: 1
-                                    border.color: card.selected ? win.accent : win.outline
-                                    Behavior on color { ColorAnimation { duration: 120 } }
+                                    border.color: instRow.st.state === "fail"
+                                                  ? win.violet
+                                                  : Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.8)
 
                                     RowLayout {
-                                        anchors.centerIn: parent; spacing: 7
-                                        Text {
-                                            text: card.selected ? "✓" : "+"
-                                            color: card.selected ? win.onAccent : win.txt
-                                            font.pixelSize: 14; font.bold: true
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 14; anchors.rightMargin: 16
+                                        spacing: 12
+
+                                        Rectangle {
+                                            Layout.preferredWidth: 38; Layout.preferredHeight: 38
+                                            radius: 11
+                                            color: Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.9)
+                                            Glyph {
+                                                anchors.centerIn: parent
+                                                name: instRow.app ? instRow.app.glyph : "spark"
+                                                tint: instRow.st.state === "done" || instRow.st.state === "opened"
+                                                      ? win.accent : win.txt
+                                                width: 20; height: 20
+                                            }
                                         }
-                                        Text {
-                                            text: card.selected ? (win.rtl ? "مُختار" : "Selected")
-                                                : card.modelData.source === "moos" && card.modelData.install
-                                                  && card.modelData.install.kind === "web"
-                                                  ? (win.rtl ? "افتح الصفحة" : "Open page")
-                                                  : (win.rtl ? "أضِف" : "Add")
-                                            color: card.selected ? win.onAccent : win.txt
-                                            font.family: "IBM Plex Sans"; font.pixelSize: 13
-                                            font.bold: card.selected
+
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 5
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                Text {
+                                                    text: instRow.app ? (win.rtl ? instRow.app.ar : instRow.app.en)
+                                                                      : instRow.modelData
+                                                    color: win.txt
+                                                    font.family: "IBM Plex Sans"; font.pixelSize: 14; font.weight: Font.DemiBold
+                                                }
+                                                Item { Layout.fillWidth: true }
+                                                Text {
+                                                    text: instRow.st.state === "done"   ? (win.rtl ? "تم ✓" : "Done ✓")
+                                                        : instRow.st.state === "opened" ? (win.rtl ? "فُتحت صفحته" : "Page opened")
+                                                        : instRow.st.state === "fail"   ? (win.rtl ? "تعذّر" : "Failed")
+                                                        : instRow.st.state === "queued" ? (win.rtl ? "بالانتظار" : "Queued")
+                                                        : instRow.st.pct + "%"
+                                                    color: instRow.st.state === "done" || instRow.st.state === "opened"
+                                                           ? win.accent
+                                                           : instRow.st.state === "fail" ? win.violet : win.txt2
+                                                    font.family: "IBM Plex Sans"; font.pixelSize: 13
+                                                }
+                                            }
+                                            Rectangle {
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 5
+                                                radius: 2.5
+                                                color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.45)
+                                                Rectangle {
+                                                    width: parent.width * (instRow.st.pct / 100)
+                                                    height: parent.height
+                                                    radius: 2.5
+                                                    color: instRow.st.state === "fail" ? win.violet : win.accent
+                                                    Behavior on width { NumberAnimation { duration: 220 } }
+                                                }
+                                            }
                                         }
                                     }
-                                    TapHandler { id: selTap; onTapped: win.toggleCart(card.modelData.id) }
                                 }
+                            }
+
+                            // nothing was picked
+                            Text {
+                                visible: win.queue.length === 0
+                                Layout.alignment: Qt.AlignHCenter
+                                Layout.topMargin: 30
+                                text: win.rtl ? "لم تختر تطبيقات — نظامك جاهز كما هو."
+                                              : "No apps picked — your system is ready as it is."
+                                color: win.txt2
+                                font.family: "IBM Plex Sans"; font.pixelSize: 14
                             }
                         }
                     }
-                }
 
-                // empty state
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 40
-                    spacing: 8
-                    visible: win.loaded && win.filtered.length === 0
-                    Text {
+                    Item { Layout.preferredHeight: 14 }
+                    Rectangle {
                         Layout.alignment: Qt.AlignHCenter
-                        text: win.rtl ? "لا توجد نتائج" : "No results"
-                        color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 16; font.bold: true
+                        visible: win.installFinished
+                        Layout.preferredHeight: 48
+                        implicitWidth: contRow.implicitWidth + 56
+                        radius: 24
+                        color: contHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        HoverHandler { id: contHover }
+                        TapHandler { onTapped: win.goNext() }
+                        RowLayout {
+                            id: contRow
+                            anchors.centerIn: parent
+                            Text {
+                                text: win.rtl ? "متابعة" : "Continue"
+                                color: win.onAccent
+                                font.family: "IBM Plex Sans"; font.pixelSize: 16; font.weight: Font.DemiBold
+                            }
+                        }
                     }
-                    Text {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: win.rtl ? "جرّب كلمة أخرى أو فئة مختلفة." : "Try another word or category."
-                        color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 13
-                    }
+                    Item { Layout.preferredHeight: 10 }
                 }
-
-                // load error / loading
-                Text {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 40
-                    horizontalAlignment: Text.AlignHCenter
-                    visible: !win.loaded
-                    text: win.loadError !== ""
-                          ? (win.rtl ? "تعذّر تحميل الكتالوج" : "Could not load the catalog")
-                          : (win.rtl ? "جارٍ التحميل…" : "Loading…")
-                    color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 14
-                }
-
-                Item { Layout.preferredHeight: 8 }
             }
-        }
-    }
 
-    // ═══════════════════════════ FLOATING INSTALL BAR ═════════════════════════
-    Rectangle {
-        id: floatBar
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: win.cartCount > 0 && !installSheet.visible ? 22 : -90
-        Behavior on anchors.bottomMargin { NumberAnimation { duration: 240; easing.type: Easing.OutBack } }
-        height: 58
-        width: Math.min(560, win.width - 48)
-        radius: 29
-        color: Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.98)
-        border.width: 1
-        border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.5)
-        visible: anchors.bottomMargin > -90
+            // ════════ 5 · DONE ════════
+            Item {
+                id: donePage
 
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: 20; anchors.rightMargin: 10
-            spacing: 12
-            LayoutMirroring.enabled: win.rtl
-            LayoutMirroring.childrenInherit: true
-
-            Rectangle {
-                Layout.preferredWidth: 30; Layout.preferredHeight: 30; radius: 15
-                color: win.accent
-                Text { anchors.centerIn: parent; text: win.cartCount
-                       color: win.onAccent; font.family: "IBM Plex Sans"; font.pixelSize: 14; font.bold: true }
-            }
-            Text {
-                text: win.rtl ? "تطبيقات مختارة" : "selected"
-                color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 14
-            }
-            Item { Layout.fillWidth: true }
-            Text {
-                text: win.rtl ? "مسح" : "Clear"
-                color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 13
-                TapHandler { onTapped: win.clearCart() }
-            }
-            PrimaryButton {
-                label: win.rtl ? "ثبّت الآن" : "Install now"
-                glyphName: "bolt"
-                action: function() { win.startInstall() }
-            }
-        }
-    }
-
-    // ═══════════════════════════════ INSTALL SHEET ════════════════════════════
-    Popup {
-        id: installSheet
-        anchors.centerIn: Overlay.overlay
-        width: Math.min(560, win.width - 60)
-        height: Math.min(560, win.height - 80)
-        modal: true
-        closePolicy: win.installing ? Popup.NoAutoClose : Popup.CloseOnEscape
-        padding: 0
-
-        background: Rectangle {
-            radius: 22
-            color: win.surface
-            border.width: 1; border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.4)
-        }
-        enter: Transition {
-            NumberAnimation { property: "scale"; from: 0.94; to: 1.0; duration: 180; easing.type: Easing.OutBack }
-            NumberAnimation { property: "opacity"; from: 0.0; to: 1.0; duration: 140 }
-        }
-        Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.5) }
-
-        readonly property bool allDone: {
-            if (!win.installing && win.queueIdx >= win.queue.length && win.queue.length > 0) return true
-            return false
-        }
-
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 22
-            spacing: 14
-            LayoutMirroring.enabled: win.rtl
-            LayoutMirroring.childrenInherit: true
-
-            RowLayout {
-                Layout.fillWidth: true
-                Rectangle {
-                    Layout.preferredWidth: 40; Layout.preferredHeight: 40; radius: 12
-                    color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
-                    Glyph { anchors.centerIn: parent; width: 22; height: 22
-                            name: installSheet.allDone ? "spark" : "bolt"; tint: win.accent; stroke: 1.8 }
-                }
                 ColumnLayout {
+                    anchors.centerIn: parent
+                    width: Math.min(620, donePage.width - 80)
                     spacing: 0
-                    Text {
-                        text: installSheet.allDone ? (win.rtl ? "اكتمل التثبيت" : "All set")
-                                                   : (win.rtl ? "جارٍ التثبيت" : "Installing")
-                        color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 17; font.bold: true
-                    }
-                    Text {
-                        text: win.rtl ? "يمكنك تثبيت المزيد لاحقاً من متجر MoOS أو عبر Mo AI."
-                                      : "Install more later from the MoOS Store or via Mo AI."
-                        color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
-                        wrapMode: Text.WordWrap; Layout.fillWidth: true
-                    }
-                }
-            }
 
-            ListView {
-                Layout.fillWidth: true; Layout.fillHeight: true
-                clip: true; spacing: 10
-                model: win.queue
-                ScrollBar.vertical: ScrollBar {}
-                delegate: Item {
-                    id: irow
-                    required property var modelData
-                    width: ListView.view.width
-                    height: 58
-                    readonly property var st: win.installState[irow.modelData] || { pct: 0, state: "queued" }
-                    readonly property var app: win.appById(irow.modelData)
+                    Rectangle {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredWidth: 96; Layout.preferredHeight: 96
+                        radius: 48
+                        color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
+                        border.width: 2
+                        border.color: win.accent
+                        scale: donePage.visible ? 1 : 0.6
+                        Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutBack } }
+                        Glyph {
+                            anchors.centerIn: parent
+                            name: "check"; tint: win.accent; stroke: 2.6
+                            width: 44; height: 44
+                        }
+                    }
+
+                    Item { Layout.preferredHeight: 26 }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: win.rtl ? "نظامك جاهز" : "Your system is ready"
+                        color: win.txt
+                        font.family: "IBM Plex Sans"; font.pixelSize: 34; font.weight: Font.Bold
+                    }
+                    Item { Layout.preferredHeight: 10 }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: win.rtl
+                              ? "متجر Mo Store دائماً في متناولك، وMo AI مساعدك في كل شيء — أهلاً بك في بيتك الجديد."
+                              : "Mo Store is always at hand, and Mo AI helps with everything — welcome home."
+                        color: win.txt2
+                        font.family: "IBM Plex Sans"; font.pixelSize: 15
+                        lineHeight: 1.35
+                    }
+                    Item { Layout.preferredHeight: 32 }
 
                     RowLayout {
-                        anchors.fill: parent
-                        spacing: 12
-                        LayoutMirroring.enabled: win.rtl
-                        LayoutMirroring.childrenInherit: true
+                        Layout.alignment: Qt.AlignHCenter
+                        spacing: 14
 
                         Rectangle {
-                            Layout.preferredWidth: 40; Layout.preferredHeight: 40; radius: 11
-                            color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.12)
-                            Glyph { anchors.centerIn: parent; width: 22; height: 22
-                                    name: irow.app ? irow.app.glyph : "spark"
-                                    tint: win.accent; stroke: 1.75 }
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true; spacing: 5
+                            Layout.preferredHeight: 50
+                            implicitWidth: storeRow.implicitWidth + 52
+                            radius: 25
+                            color: storeHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                            HoverHandler { id: storeHover }
+                            TapHandler { onTapped: Qt.openUrlExternally("moos://app/store") }
                             RowLayout {
-                                Layout.fillWidth: true
+                                id: storeRow
+                                anchors.centerIn: parent
+                                spacing: 8
                                 Text {
-                                    text: irow.app ? (win.rtl ? irow.app.ar : irow.app.en) : irow.modelData
-                                    color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 14; font.bold: true
-                                }
-                                Item { Layout.fillWidth: true }
-                                Text {
-                                    text: irow.st.state === "done" ? (win.rtl ? "تم ✓" : "Done ✓")
-                                        : irow.st.state === "opened" ? (win.rtl ? "فُتحت الصفحة" : "Opened")
-                                        : irow.st.state === "fail" ? (win.rtl ? "فشل" : "Failed")
-                                        : irow.st.state === "queued" ? (win.rtl ? "بالانتظار" : "Queued")
-                                        : (Math.max(0, irow.st.pct) + "%")
-                                    color: irow.st.state === "fail" ? win.violet
-                                         : irow.st.state === "done" || irow.st.state === "opened" ? win.accent : win.txt2
-                                    font.family: "IBM Plex Sans"; font.pixelSize: 12
+                                    text: win.rtl ? "افتح متجر Mo Store" : "Open Mo Store"
+                                    color: win.onAccent
+                                    font.family: "IBM Plex Sans"; font.pixelSize: 15; font.weight: Font.DemiBold
                                 }
                             }
-                            // progress track
-                            Rectangle {
-                                Layout.fillWidth: true
-                                height: 6; radius: 3
-                                color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.5)
-                                Rectangle {
-                                    height: parent.height; radius: 3
-                                    width: parent.width * Math.max(0, Math.min(100, irow.st.pct)) / 100
-                                    color: irow.st.state === "fail" ? win.violet : win.accent
-                                    Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                        }
+
+                        Rectangle {
+                            Layout.preferredHeight: 50
+                            implicitWidth: aiRow.implicitWidth + 52
+                            radius: 25
+                            color: aiHover.hovered
+                                   ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
+                                   : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.6)
+                            border.width: 1
+                            border.color: win.outline
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                            HoverHandler { id: aiHover }
+                            TapHandler { onTapped: Qt.openUrlExternally("moos://app/moai") }
+                            RowLayout {
+                                id: aiRow
+                                anchors.centerIn: parent
+                                spacing: 8
+                                Glyph { name: "spark"; tint: win.accent; width: 17; height: 17 }
+                                Text {
+                                    text: win.rtl ? "افتح Mo AI" : "Open Mo AI"
+                                    color: win.txt
+                                    font.family: "IBM Plex Sans"; font.pixelSize: 15; font.weight: Font.DemiBold
                                 }
+                            }
+                        }
+                    }
+
+                    Item { Layout.preferredHeight: 16 }
+                    Rectangle {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredHeight: 38
+                        implicitWidth: quitRow.implicitWidth + 34
+                        radius: 19
+                        color: "transparent"
+                        border.width: 1
+                        border.color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b,
+                                              quitHover.hovered ? 1.0 : 0.0)
+                        HoverHandler { id: quitHover }
+                        TapHandler { onTapped: Qt.quit() }
+                        RowLayout {
+                            id: quitRow
+                            anchors.centerIn: parent
+                            Text {
+                                text: win.rtl ? "إنهاء" : "Finish"
+                                color: win.txt2
+                                font.family: "IBM Plex Sans"; font.pixelSize: 14
                             }
                         }
                     }
                 }
             }
+        }
+
+        // ─────────────────────────────── FOOTER NAV ───────────────────────────
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredHeight: win.navPages ? 84 : 12
+            Behavior on Layout.preferredHeight { NumberAnimation { duration: 180 } }
 
             RowLayout {
-                Layout.fillWidth: true
+                visible: win.navPages
+                anchors.fill: parent
+                anchors.leftMargin: 34; anchors.rightMargin: 34
+                anchors.bottomMargin: 22
+                spacing: 12
+
+                Rectangle {   // back
+                    Layout.preferredHeight: 46
+                    implicitWidth: backRow.implicitWidth + 44
+                    radius: 23
+                    color: backHover.hovered
+                           ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
+                           : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.5)
+                    border.width: 1
+                    border.color: win.outline
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                    HoverHandler { id: backHover }
+                    TapHandler { onTapped: win.goBack() }
+                    RowLayout {
+                        id: backRow
+                        anchors.centerIn: parent
+                        Text {
+                            text: win.rtl ? "السابق" : "Back"
+                            color: win.txt
+                            font.family: "IBM Plex Sans"; font.pixelSize: 15
+                        }
+                    }
+                }
+
                 Item { Layout.fillWidth: true }
-                Rectangle {
-                    Layout.preferredHeight: 42
-                    implicitWidth: doneRow.implicitWidth + 40
-                    radius: 12
-                    opacity: win.installing ? 0.5 : 1.0
-                    color: installSheet.allDone ? win.accent : win.raised
-                    border.width: 1; border.color: installSheet.allDone ? win.accent : win.outline
+
+                Text {
+                    visible: win.step === 3
+                    text: win.pickCount + (win.rtl ? " مختار" : " selected")
+                    color: win.txt2
+                    font.family: "IBM Plex Sans"; font.pixelSize: 14
+                }
+
+                Rectangle {   // next / install
+                    Layout.preferredHeight: 46
+                    implicitWidth: nextRow.implicitWidth + 52
+                    radius: 23
+                    color: nextHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                    HoverHandler { id: nextHover }
+                    TapHandler {
+                        onTapped: {
+                            if (win.step === 3) win.startInstall()
+                            else win.goNext()
+                        }
+                    }
                     RowLayout {
-                        id: doneRow
-                        anchors.centerIn: parent; spacing: 7
+                        id: nextRow
+                        anchors.centerIn: parent
+                        spacing: 8
                         Text {
-                            text: win.installing ? (win.rtl ? "جارٍ العمل…" : "Working…")
-                                                 : (win.rtl ? "تم" : "Done")
-                            color: installSheet.allDone ? win.onAccent : win.txt
-                            font.family: "IBM Plex Sans"; font.pixelSize: 14; font.bold: true
-                        }
-                    }
-                    TapHandler { enabled: !win.installing; onTapped: installSheet.close() }
-                }
-            }
-        }
-    }
-
-    // ═══════════════════════════ COMMAND PALETTE (⌘K) ═════════════════════════
-    Shortcut { sequences: ["Ctrl+K", "Ctrl+F"]; onActivated: palette.open() }
-
-    Popup {
-        id: palette
-        anchors.centerIn: Overlay.overlay
-        width: Math.min(600, win.width - 80)
-        height: Math.min(460, win.height - 120)
-        modal: true
-        padding: 0
-        onOpened: paletteField.forceActiveFocus()
-        onClosed: paletteField.text = ""
-
-        background: Rectangle {
-            radius: 18; color: win.surface
-            border.width: 1; border.color: win.accent
-        }
-        Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.45) }
-        enter: Transition {
-            NumberAnimation { property: "scale"; from: 0.96; to: 1.0; duration: 150; easing.type: Easing.OutQuad }
-            NumberAnimation { property: "opacity"; from: 0.0; to: 1.0; duration: 120 }
-        }
-
-        function matches() {
-            var q = paletteField.text.trim().toLowerCase()
-            var out = []
-            for (var i = 0; i < win.apps.length; i++) {
-                var a = win.apps[i]
-                if (q === "") { out.push(a); if (out.length >= 40) break; continue }
-                var hay = (a.en + " " + a.ar + " " + a.id).toLowerCase()
-                if (hay.indexOf(q) >= 0) out.push(a)
-            }
-            return out
-        }
-
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 16
-            spacing: 12
-            LayoutMirroring.enabled: win.rtl
-            LayoutMirroring.childrenInherit: true
-
-            Rectangle {
-                Layout.fillWidth: true; Layout.preferredHeight: 44
-                radius: 12; color: Qt.rgba(win.canvas.r, win.canvas.g, win.canvas.b, 0.6)
-                border.width: 1; border.color: win.outline
-                RowLayout {
-                    anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 12; spacing: 8
-                    Glyph { name: "compass"; tint: win.accent; stroke: 1.7
-                            Layout.preferredWidth: 18; Layout.preferredHeight: 18 }
-                    TextField {
-                        id: paletteField
-                        Layout.fillWidth: true
-                        background: null; color: win.txt
-                        placeholderText: win.rtl ? "اكتب اسم تطبيق ثم اضغط Enter لإضافته…"
-                                                 : "Type an app, Enter to add…"
-                        placeholderTextColor: win.txt2
-                        font.family: "IBM Plex Sans"; font.pixelSize: 15
-                        selectByMouse: true
-                        Keys.onReturnPressed: {
-                            var m = palette.matches()
-                            if (m.length > 0) { win.toggleCart(m[0].id); palette.close() }
-                        }
-                        Keys.onEscapePressed: palette.close()
-                    }
-                }
-            }
-
-            ListView {
-                Layout.fillWidth: true; Layout.fillHeight: true
-                clip: true; spacing: 4
-                model: palette.matches()
-                ScrollBar.vertical: ScrollBar {}
-                delegate: Rectangle {
-                    id: prow
-                    required property var modelData
-                    width: ListView.view.width
-                    height: 52
-                    radius: 10
-                    color: rowHover.hovered ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.12) : "transparent"
-                    HoverHandler { id: rowHover }
-                    TapHandler { onTapped: { win.toggleCart(prow.modelData.id); palette.close() } }
-                    RowLayout {
-                        anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 12; spacing: 12
-                        LayoutMirroring.enabled: win.rtl
-                        LayoutMirroring.childrenInherit: true
-                        Rectangle {
-                            Layout.preferredWidth: 34; Layout.preferredHeight: 34; radius: 9
-                            color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
-                            Glyph { anchors.centerIn: parent; width: 19; height: 19
-                                    name: prow.modelData.glyph; tint: win.accent; stroke: 1.75 }
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true; spacing: 0
-                            Text {
-                                text: win.rtl ? prow.modelData.ar : prow.modelData.en
-                                color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 14; font.bold: true
-                            }
-                            Text {
-                                text: win.rtl ? prow.modelData.desc_ar : prow.modelData.desc_en
-                                color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
-                                elide: Text.ElideRight; Layout.fillWidth: true
-                            }
-                        }
-                        Text {
-                            text: win.inCart(prow.modelData.id) ? "✓" : "+"
-                            color: win.inCart(prow.modelData.id) ? win.accent : win.txt2
-                            font.pixelSize: 16; font.bold: true
+                            text: win.step === 3
+                                  ? (win.pickCount > 0
+                                     ? (win.rtl ? "ثبّت الآن" : "Install now")
+                                     : (win.rtl ? "متابعة بلا تثبيت" : "Continue without installing"))
+                                  : (win.rtl ? "التالي" : "Next")
+                            color: win.onAccent
+                            font.family: "IBM Plex Sans"; font.pixelSize: 15; font.weight: Font.DemiBold
                         }
                     }
                 }
             }
         }
-    }
-
-    // ═══════════════════════════════ PRIMARY BUTTON ═══════════════════════════
-    component PrimaryButton: Rectangle {
-        id: pb
-        property string label: ""
-        property string glyphName: ""
-        property var action
-        implicitWidth: pbRow.implicitWidth + 34
-        implicitHeight: 42
-        radius: 21
-        color: pbTap.pressed ? Qt.darker(win.accent, 1.12)
-             : pbHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
-        Behavior on color { ColorAnimation { duration: 120 } }
-        HoverHandler { id: pbHover }
-        TapHandler { id: pbTap; onTapped: if (pb.action) pb.action() }
-        RowLayout {
-            id: pbRow
-            anchors.centerIn: parent; spacing: 8
-            Glyph {
-                visible: pb.glyphName !== ""
-                name: pb.glyphName; tint: win.onAccent; stroke: 1.9
-                Layout.preferredWidth: 16; Layout.preferredHeight: 16
-            }
-            Text {
-                text: pb.label; color: win.onAccent
-                font.family: "IBM Plex Sans"; font.pixelSize: 14; font.bold: true
-            }
-        }
-    }
-
-    // ═══════════════════════════════════ TOAST ════════════════════════════════
-    Popup {
-        id: toast
-        y: win.height - 96
-        x: (win.width - width) / 2
-        width: toastLabel.implicitWidth + 36; height: 42
-        padding: 0; modal: false; closePolicy: Popup.NoAutoClose
-        background: Rectangle {
-            radius: 21; color: win.raised
-            border.width: 1; border.color: win.accent
-        }
-        Text { id: toastLabel; anchors.centerIn: parent; text: "MoOS"
-               color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 13 }
-        Timer { id: toastTimer; interval: 1800; onTriggered: toast.close() }
     }
 }

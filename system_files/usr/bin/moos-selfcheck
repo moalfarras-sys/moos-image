@@ -84,19 +84,19 @@ style="$(kreadconfig6 --file plasmarc --group Theme --key name 2>/dev/null)"
 case "$lnf" in
     org.moos.ui2)
         want_deco=__aurorae__svg__MoOSUI2; want_sch=MoOSUI2Dark; want_ico=MoOSUI2
-        want_sty=MoOSUI2; want_wall=MoOSUI2Graphite; want_widget=org.moos.ui2.dashboard
+        want_sty=MoOSUI2; want_wall=MoOSUI2Graphite
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui2
         mode="UI2 غرافيت | Graphite Dark"
         ;;
     org.moos.ui2.light)
         want_deco=__aurorae__svg__MoOSUI2Light; want_sch=MoOSUI2Light; want_ico=MoOSUI2Light
-        want_sty=MoOSUI2Light; want_wall=MoOSUI2Tide; want_widget=org.moos.ui2.dashboard
+        want_sty=MoOSUI2Light; want_wall=MoOSUI2Tide
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui2
         mode="UI2 تركواز | Tidal Light"
         ;;
     # There is one MoOS look now (dark + light). The older Nova and UI generations no longer ship,
     # so anything that is not one of the two halves above is simply "not a MoOS look".
-    *) want_deco=""; want_wall=""; want_widget=""; pair_dark=""; pair_light=""; family=""; mode="" ;;
+    *) want_deco=""; want_wall=""; pair_dark=""; pair_light=""; family=""; mode="" ;;
 esac
 
 if [ -z "$want_deco" ]; then
@@ -146,13 +146,14 @@ for asset in \
     /usr/share/konsole/MoOSUI2Light.profile \
     /usr/share/wallpapers/MoOSUI2Graphite/contents/images/3840x2160.jpg \
     /usr/share/wallpapers/MoOSUI2Tide/contents/images/3840x2160.jpg \
-    /usr/share/plasma/plasmoids/org.moos.ui2.dashboard/metadata.json \
-    /usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/ui/main.qml \
-    /usr/share/plasma/plasmoids/org.moos.ui2.dashboard/contents/images/weather/storm.png; do
+    /usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/metadata.json \
+    /usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/main.qml \
+    /usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/DashboardBento.qml \
+    /usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/images/weather/storm.png; do
     [ -e "$asset" ] || ui2_missing="${ui2_missing} ${asset}"
 done
 [ -z "$ui2_missing" ] \
-    && ok "UI2 themes, wallpapers, dashboard and weather art are installed" \
+    && ok "UI2 themes, wallpapers, the scene plugin and weather art are installed" \
     || bad "UI2 asset set is incomplete:${ui2_missing}"
 
 # ── The keyboard ─────────────────────────────────────────────────────────────
@@ -263,13 +264,20 @@ case "$moos_handler" in
     "") bad "nothing handles moos:// — the store's install links are dead" ;;
     *)  note "moos:// is handled by '${moos_handler}' (expected org.moos.urlhandler.desktop)" ;;
 esac
-[ -x /usr/bin/moos-welcome ] && ok "the Welcome/store launcher is present" \
-    || bad "moos-welcome is missing — the store cannot open"
+[ -x /usr/bin/moos-store ] && ok "the Mo Store launcher is present" \
+    || bad "moos-store is missing — the store cannot open"
+[ -x /usr/bin/moos-welcome ] && ok "the Welcome onboarding launcher is present" \
+    || bad "moos-welcome is missing — first-run has no wizard"
+[ -f /usr/share/applications/org.moos.store.desktop ] \
+    && ok "Mo Store has its own app entry (org.moos.store)" \
+    || bad "org.moos.store.desktop is missing — the store is not in the menu"
 disc=/usr/share/applications/org.kde.discover.desktop
 if [ -f "$disc" ]; then
-    grep -q '^Name=Mo Store$' "$disc" 2>/dev/null \
-        && ok "the app store is branded Mo Store" \
-        || note "Discover is present but not rebranded to Mo Store"
+    if grep -q '^NoDisplay=true$' "$disc" 2>/dev/null; then
+        ok "the Discover engine entry is hidden (Mo Store is the one storefront)"
+    else
+        note "Discover's menu entry is visible — the menu will show two storefronts"
+    fi
 fi
 
 # ── The lock screen and boot splash are MoOS ──────────────────────────────────
@@ -303,41 +311,36 @@ systemctl --user is-active plasma-ksystemstats.service >/dev/null 2>&1 \
 appletsrc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
 
 # Ask the running shell about every desktop containment. A global grep count is
-# wrong as soon as a second monitor or Activity exists: the valid state is one
-# dashboard and one matching wallpaper PER desktop, not one for the whole file.
+# wrong as soon as a second monitor or Activity exists: the valid state is the
+# MoOS SCENE (wallpaper plugin org.moos.ui2.wallpaper, which paints the bento
+# below the icons) with the matching image and ZERO leftover desktop applets
+# from the widget era — PER desktop, not once for the whole file.
 desktop_visual_state() {
-    local expected_wall="$1" target="$2" other result
-    [ "$target" = org.moos.ui2.dashboard ] \
-        && other=org.moos.nova.deskclock \
-        || other=org.moos.ui2.dashboard   # the only "other" is the removed clock, cleaned from existing desktops
+    local expected_wall="$1" result
     command -v gdbus >/dev/null 2>&1 || return 1
     command -v timeout >/dev/null 2>&1 || return 1
     result="$(timeout 5s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
         -m org.kde.PlasmaShell.evaluateScript '
             var expected = "'"$expected_wall"'";
-            var target = "'"$target"'";
-            var other = "'"$other"'";
             var ds = desktops();
-            var wallpapers = 0, ready = 0, targetTotal = 0, otherTotal = 0;
+            var scenes = 0, wallpapers = 0, staleTotal = 0;
             for (var i = 0; i < ds.length; i++) {
-                ds[i].currentConfigGroup = ["Wallpaper", "org.kde.image", "General"];
+                if (ds[i].wallpaperPlugin == "org.moos.ui2.wallpaper") { scenes++; }
+                ds[i].currentConfigGroup = ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
                 if (String(ds[i].readConfig("Image", "")).indexOf(expected) >= 0) {
                     wallpapers++;
                 }
-                var ws = ds[i].widgets(), targetCount = 0, otherCount = 0;
+                var ws = ds[i].widgets();
                 for (var j = 0; j < ws.length; j++) {
-                    if (ws[j].type == target) { targetCount++; }
-                    if (ws[j].type == other) { otherCount++; }
+                    if (ws[j].type == "org.moos.ui2.dashboard"
+                            || ws[j].type == "org.moos.nova.deskclock") { staleTotal++; }
                 }
-                targetTotal += targetCount;
-                otherTotal += otherCount;
-                if (targetCount == 1 && otherCount == 0) { ready++; }
             }
-            print("desktops=" + ds.length + ";wallpapers=" + wallpapers
-                + ";ready=" + ready + ";target=" + targetTotal + ";other=" + otherTotal);
+            print("desktops=" + ds.length + ";scenes=" + scenes
+                + ";wallpapers=" + wallpapers + ";stale=" + staleTotal);
         ' 2>/dev/null)" || return 1
     printf '%s\n' "$result" \
-        | grep -oE 'desktops=[1-9][0-9]*;wallpapers=[0-9]+;ready=[0-9]+;target=[0-9]+;other=[0-9]+' \
+        | grep -oE 'desktops=[1-9][0-9]*;scenes=[0-9]+;wallpapers=[0-9]+;stale=[0-9]+' \
         | head -n1
 }
 
@@ -345,28 +348,29 @@ visual_field() {
     printf '%s\n' "$desktop_state" | tr ';' '\n' | sed -n "s/^$1=//p"
 }
 
-if [ -n "$want_wall" ] && [ -n "$want_widget" ]; then
-    if desktop_state="$(desktop_visual_state "$want_wall" "$want_widget")" && [ -n "$desktop_state" ]; then
+if [ -n "$want_wall" ]; then
+    if desktop_state="$(desktop_visual_state "$want_wall")" && [ -n "$desktop_state" ]; then
         desktop_count="$(visual_field desktops)"
+        scene_count="$(visual_field scenes)"
         wallpaper_count="$(visual_field wallpapers)"
-        ready_count="$(visual_field ready)"
-        target_count="$(visual_field target)"
-        other_count="$(visual_field other)"
+        stale_count="$(visual_field stale)"
+        [ "$scene_count" = "$desktop_count" ] \
+            && ok "all ${desktop_count} desktop(s) run the MoOS scene (dashboard below the icons)" \
+            || bad "only ${scene_count}/${desktop_count} desktop(s) run org.moos.ui2.wallpaper — the dashboard is missing there"
         [ "$wallpaper_count" = "$desktop_count" ] \
             && ok "all ${desktop_count} desktop wallpaper(s) match: ${want_wall}" \
             || bad "only ${wallpaper_count}/${desktop_count} desktop wallpaper(s) match ${want_wall}"
-        [ "$ready_count" = "$desktop_count" ] \
-            && ok "every desktop has exactly one matching dashboard (${desktop_count}/${desktop_count})" \
-            || bad "dashboard state is incomplete: ${ready_count}/${desktop_count} desktops ready; target=${target_count}, old=${other_count}"
+        [ "${stale_count:-0}" = "0" ] \
+            && ok "no leftover widget-era dashboard applets" \
+            || bad "${stale_count} stale dashboard applet(s) still sit ON TOP of the icons — run moos-theme dark/light once"
     else
-        bad "could not read every desktop's wallpaper/dashboard state from the running Plasma shell"
+        bad "could not read every desktop's scene state from the running Plasma shell"
     fi
 fi
 grep -q "org.moos.nova.clock" "$appletsrc" 2>/dev/null \
     && ok "the MoOS clock is in the panel" \
     || bad "the panel has no clock"
 
-shown="$(kreadconfig6 --file "$appletsrc" --group Containments --group 52 --group Applets --group 56 --group General --key shownItems 2>/dev/null)"
 if grep -q "shownItems=org.kde.plasma.keyboardlayout,org.kde.plasma.volume" "$appletsrc" 2>/dev/null; then
     ok "the tray shows two things: the layout and the volume"
 else
@@ -380,7 +384,7 @@ fi
 head_ "لا شي بيحجب الصورة | Nothing shadowing the image"
 shadows=0
 for rel in plasma/plasmoids/org.moos.nova.clock \
-           plasma/plasmoids/org.moos.ui2.dashboard \
+           plasma/wallpapers/org.moos.ui2.wallpaper \
            plasma/look-and-feel/org.moos.ui2 plasma/look-and-feel/org.moos.ui2.light \
            plasma/desktoptheme/MoOSUI2 plasma/desktoptheme/MoOSUI2Light \
            aurorae/themes/MoOSUI2 aurorae/themes/MoOSUI2Light \

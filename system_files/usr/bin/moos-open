@@ -73,8 +73,15 @@ case "${cat}/${tgt}" in
     app/updater)   term moos-update ;;
     app/recovery)  term moos-rollback ;;
     app/welcome)   gui moos-welcome ;;
+    app/store)     gui moos-store ;;
     brain/start)   term moai-start ;;
     ai/config)     gui moai-config ;;
+
+    # ── Theme: instant, cosmetic, reversible — the Welcome's look picker fires
+    # these. moos-theme itself serializes concurrent runs behind a flock, so a
+    # drive-by page can at worst flip a look the user can flip right back.
+    theme/dark)    setsid moos-theme dark  >/dev/null 2>&1 & ;;
+    theme/light)   setsid moos-theme light >/dev/null 2>&1 & ;;
 
     # ── Mo PC Remote: start / stop / reconnect, from inside Mo AI ────────────
     remote/start)   remote_ctl enable --now ;;
@@ -112,6 +119,12 @@ case "${cat}/${tgt}" in
         if command -v moos-install >/dev/null 2>&1 \
            && python3 -c "import json,sys; c=json.load(open('/usr/share/moos/store/catalog.json',encoding='utf-8')); sys.exit(0 if any(a['id']==sys.argv[1] for a in c['apps']) else 1)" "$id" 2>/dev/null; then
             mkdir -p "$_statedir"
+            # Truncate the status file SYNCHRONOUSLY, before detaching. A retry
+            # of an app that failed (or finished) before would otherwise leave
+            # the OLD terminal line in place for the detached shell's startup
+            # window, and the UI's first poll would consume last run's DONE/FAIL
+            # as if it were this run's verdict.
+            : > "${_statedir}/${id}.status" 2>/dev/null || true
             # setsid: fully detach so the install outlives this short-lived handler.
             # stdbuf -oL: moos-install's PROGRESS lines go to a FILE, which glibc
             # block-buffers by default — without line buffering the bar would sit at

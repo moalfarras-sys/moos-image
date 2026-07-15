@@ -1,0 +1,20 @@
+{
+    "KPackageStructure": "Plasma/Wallpaper",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "MoOS"
+            }
+        ],
+        "Category": "Wallpaper",
+        "Description": "The MoOS desktop scene — wallpaper and the Tidal Glass dashboard as one layer, always below your icons",
+        "Description[ar]": "مشهد سطح مكتب MoOS — الخلفية ولوحة MoOS طبقة واحدة، دائماً تحت أيقوناتك",
+        "EnabledByDefault": true,
+        "Id": "org.moos.ui2.wallpaper",
+        "License": "MIT",
+        "Name": "MoOS Tidal Glass",
+        "Name[ar]": "خلفية MoOS الزجاجية",
+        "Version": "1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

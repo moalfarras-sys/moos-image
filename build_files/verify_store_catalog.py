@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
 """Fail the image build when the MoOS Store chain is internally inconsistent.
 
-The store is one fact expressed in five files, and the whole point of the design
-is that they cannot drift:
+The store is one fact expressed across a chain of files, and the whole point of
+the design is that they cannot drift:
 
     catalog.json ── every app, category and bundle the user can see
         │
-        ├─▶ the Welcome QML draws each app with a glyph named in the catalog,
-        │   from a glyph library defined in the QML itself
+        ├─▶ TWO QML surfaces draw it: the Mo Store app (apps/store) and the
+        │   Welcome onboarding wizard (apps/welcome). Each draws every app with
+        │   a glyph named in the catalog, from a glyph library defined in the
+        │   QML itself.
         │
         ├─▶ moos-install installs each app by its catalog `source`/`install.kind`
         │
         └─▶ moos-open's `store/install/<id>` route runs moos-install for a
-            catalog id, and the Welcome fires exactly that moos:// URL, with the
-            launcher handing the QML the cache path it polls for progress.
+            catalog id, and BOTH QML surfaces fire exactly that moos:// URL,
+            with their launchers handing the QML the cache path it polls for
+            progress.
 
 This gate checks the RELATIONSHIPS between those files, not constants inside one:
-add an app with a glyph the QML can't draw, or an install kind moos-install can't
+add an app with a glyph a QML can't draw, or an install kind moos-install can't
 perform, or rename the URL route on one side only, and the build stops here — long
 before a user taps Install and watches nothing happen.
 
@@ -30,9 +33,11 @@ import re
 from pathlib import Path
 
 CATALOG = "/usr/share/moos/store/catalog.json"
+STORE_QML = "/usr/share/moos/apps/store/main.qml"
 WELCOME_QML = "/usr/share/moos/apps/welcome/main.qml"
 MOOS_INSTALL = "/usr/bin/moos-install"
 MOOS_OPEN = "/usr/bin/moos-open"
+MOOS_STORE = "/usr/bin/moos-store"
 MOOS_WELCOME = "/usr/bin/moos-welcome"
 MOOS_SELFCHECK = "/usr/bin/moos-selfcheck"
 
@@ -108,27 +113,36 @@ for b in bundles:
         require(ref in app_ids,
                 f"bundle {b.get('id', '?')} lists app '{ref}', which is not in the catalog")
 
-# ── RELATIONSHIP: every glyph the catalog names must exist in the QML library ──
-# The Welcome draws each glyph from `readonly property var glyphs: ({...})`. If the
-# catalog names one the QML has no path for, the card silently falls back to the
-# 'spark' glyph — a store where three different apps wear the same icon. Parse the
-# QML's glyph keys and demand the catalog's glyphs are a subset.
-qml = text(WELCOME_QML)
-try:
-    block = qml.split("property var glyphs:", 1)[1].split("})", 1)[0]
-    # Each entry is  "<key>": "<svg…>"  with any amount of alignment spacing; the
-    # svg values use single quotes internally, so no "…" appears inside a value.
-    qml_glyphs = set(re.findall(r'"([A-Za-z0-9_]+)"\s*:\s*"', block))
-except Exception:  # noqa: BLE001
-    qml_glyphs = set()
+# ── RELATIONSHIP: every glyph the catalog names must exist in BOTH QML libraries ─
+# Each surface draws each glyph from `readonly property var glyphs: ({...})`. If
+# the catalog names one a QML has no path for, the card silently falls back to
+# the 'spark' glyph — a store where three different apps wear the same icon.
+# Parse each QML's glyph keys and demand the catalog's glyphs are a subset.
+def qml_glyph_library(path, label):
+    src = text(path)
+    try:
+        block = src.split("property var glyphs:", 1)[1].split("})", 1)[0]
+        # Each entry is  "<key>": "<svg…>"  with any amount of alignment spacing;
+        # the svg values use single quotes internally, so no "…" appears inside
+        # a value.
+        found = set(re.findall(r'"([A-Za-z0-9_]+)"\s*:\s*"', block))
+    except Exception:  # noqa: BLE001
+        found = set()
+    require(len(found) >= 10,
+            f"could not parse the glyph library out of the {label} QML (did its shape change?)")
+    return src, found
 
-require(len(qml_glyphs) >= 10,
-        "could not parse the glyph library out of the Welcome QML (did its shape change?)")
+
+store_qml, store_glyphs = qml_glyph_library(STORE_QML, "Mo Store")
+welcome_qml, welcome_glyphs = qml_glyph_library(WELCOME_QML, "Welcome")
 
 used_glyphs = {c.get("glyph") for c in cats} | {b.get("glyph") for b in bundles} \
     | {a.get("glyph") for a in apps}
 for g in sorted(used_glyphs):
-    require(g in qml_glyphs,
+    require(g in store_glyphs,
+            f"glyph '{g}' is used in the catalog but the Mo Store QML cannot draw it "
+            f"(add its path to the glyphs library, or the card shows a fallback icon)")
+    require(g in welcome_glyphs,
             f"glyph '{g}' is used in the catalog but the Welcome QML cannot draw it "
             f"(add its path to the glyphs library, or the card shows a fallback icon)")
 
@@ -152,29 +166,41 @@ for token in ("PROGRESS", "DONE", "FAIL", "OPENED"):
     require(token in install_code,
             f"moos-install no longer emits '{token}' — the Welcome's progress bar reads it")
 
-# ── RELATIONSHIP: the moos:// install route the Welcome fires actually exists ──
+# ── RELATIONSHIP: the moos:// install route both surfaces fire actually exists ─
 open_code = code(text(MOOS_OPEN), "#")
 require("store/install" in open_code,
-        "moos-open has no 'store/install' route — the Welcome's install taps would do nothing")
+        "moos-open has no 'store/install' route — the install taps would do nothing")
 require("moos-install" in open_code,
         "moos-open's store route does not run moos-install")
 require(CATALOG in open_code,
         "moos-open's store route does not validate ids against the store catalog")
+# The Welcome's look picker and handover buttons are moos:// URLs too — a route
+# that disappears on one side turns a first-run button into a dead click.
+require("theme/dark" in open_code and "theme/light" in open_code,
+        "moos-open lost the theme/dark|light routes the Welcome's look picker fires")
+require("app/store" in open_code,
+        "moos-open lost the app/store route — the Welcome cannot hand over to Mo Store")
 
-qml_code = code(qml, "//")
-require("moos://store/install/" in qml_code,
-        "the Welcome QML no longer fires moos://store/install/ — installs are wired to nothing")
-require(CATALOG in qml_code,
-        "the Welcome QML does not read the store catalog it displays")
+for qml_path, qml_src, label in ((STORE_QML, store_qml, "Mo Store"),
+                                 (WELCOME_QML, welcome_qml, "Welcome")):
+    qml_code = code(qml_src, "//")
+    require("moos://store/install/" in qml_code,
+            f"the {label} QML no longer fires moos://store/install/ — installs are wired to nothing")
+    require(CATALOG in qml_code,
+            f"the {label} QML does not read the store catalog it displays")
+    require("--cache=" in qml_code,
+            f"the {label} QML does not read the --cache= path its launcher passes")
 
-# ── RELATIONSHIP: the launcher hands the QML what it needs (cache + file XHR) ──
-launcher = code(text(MOOS_WELCOME), "#")
-require("--cache=" in launcher,
-        "moos-welcome does not pass --cache= to the QML — progress polling has no path")
-require("--cache=" in qml_code,
-        "the Welcome QML does not read the --cache= path the launcher passes")
-require("QML_XHR_ALLOW_FILE_READ" in launcher,
-        "moos-welcome does not enable local-file XHR — the QML cannot read the catalog")
+# ── RELATIONSHIP: each launcher hands its QML what it needs (cache + file XHR) ─
+for launcher_path, qml_ref, label in ((MOOS_STORE, STORE_QML, "moos-store"),
+                                      (MOOS_WELCOME, WELCOME_QML, "moos-welcome")):
+    launcher = code(text(launcher_path), "#")
+    require(qml_ref in launcher,
+            f"{label} does not launch {qml_ref} — launcher and app have drifted apart")
+    require("--cache=" in launcher,
+            f"{label} does not pass --cache= to the QML — progress polling has no path")
+    require("QML_XHR_ALLOW_FILE_READ" in launcher,
+            f"{label} does not enable local-file XHR — the QML cannot read the catalog")
 
 # ── RELATIONSHIP: the on-device self-check actually checks the store ───────────
 # moos-selfcheck is what a user runs after `bootc upgrade` to confirm everything
@@ -185,9 +211,11 @@ selfcheck = code(text(MOOS_SELFCHECK), "#")
 require(CATALOG in selfcheck,
         "moos-selfcheck does not check the store catalogue — a missing store would pass silently")
 require("store/install" in selfcheck,
-        "moos-selfcheck does not verify the store/install route the Welcome depends on")
+        "moos-selfcheck does not verify the store/install route the store depends on")
 require("x-scheme-handler/moos" in selfcheck,
         "moos-selfcheck does not verify the moos:// handler — dead install links would pass")
+require("moos-store" in selfcheck,
+        "moos-selfcheck does not check the Mo Store launcher — a missing storefront would pass silently")
 
 # ── report ────────────────────────────────────────────────────────────────────
 if errors:
@@ -197,4 +225,5 @@ if errors:
     raise SystemExit(1)
 
 print(f"MoOS Store catalog OK: {len(apps)} apps, {len(cats)} categories, "
-      f"{len(bundles)} bundles, {len(qml_glyphs)} glyphs — chain consistent.")
+      f"{len(bundles)} bundles, {len(store_glyphs)} store glyphs / "
+      f"{len(welcome_glyphs)} welcome glyphs — chain consistent.")

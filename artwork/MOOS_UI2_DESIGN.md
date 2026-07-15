@@ -322,7 +322,18 @@ Do not misattribute those baseline unit failures to UI2. Any new plasmashell,
 KWin, QML, GPU allocation or theme-readback error after staging UI2 is a UI2
 regression until proven otherwise.
 
-## Known UI2 coverage gaps — NOT done
+## Known UI2 coverage gaps — historical record (all seven CLOSED)
+
+> **2026-07-15 status:** every numbered item below has since shipped — teal
+> `MoOSUI2`/`MoOSUI2Light` icon themes (1), libadwaita/Flatpak palette via
+> `moos-ui2.css` + the gtk-4.0 read hole (2), the GTK theme-name pin on every
+> switch (3), the `MoOSDark` pointer for Tidal Light (4), the MoOS lock screen
+> in the shell package (5), Nova pickers gone with the one-generation cleanup
+> (6), and the traffic-light decision (7). The desktop dashboard additionally
+> moved INSIDE the wallpaper (`org.moos.ui2.wallpaper`) so it renders below the
+> icons, and the Welcome/Store split into two apps (`apps/welcome` onboarding,
+> `apps/store` = Mo Store). The gates — not this list — are the source of truth.
+> The original text is kept because it documents WHY each surface mattered.
 
 Revision 16.1 swept every visual surface of the system and closed four: the QML
 binding loop in the weather art, the login screen (still on NovaHorizonII while
