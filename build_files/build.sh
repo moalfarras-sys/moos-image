@@ -657,13 +657,15 @@ dnf5 -y install libsecret
 # Full Arabic + English locale support (glibc locales, hunspell, input) —
 # MoOS is bilingual by design (MOOS_DESIGN_SYSTEM.md §7 RTL rules).
 #
-# German joins them because MoPlayer ships an ar/en/de interface AND an ar/en/de
-# launcher, and a translated app on a system with no German locale falls back to
-# English the moment it formats a date.
-dnf5 -y install langpacks-ar langpacks-en langpacks-de
+# German was dropped: MoOS speaks Arabic + English only. The installer and the
+# welcome/language wizards never offer German, the default keyboard is us,ara, and
+# shipping langpacks-de only put German Plasma/GTK catalogs on disk where an invalid
+# LANG could fall back into them — a real cause of the "system shows German" bug.
+# (MoPlayer keeps its own in-app ar/en/de strings; it does not need the OS langpack.)
+dnf5 -y install langpacks-ar langpacks-en
 
 # --- fcitx5 must not be on this machine --------------------------------------
-# It is an input-method framework MoOS does not need — Arabic and German are xkb
+# It is an input-method framework MoOS does not need — Arabic and English are xkb
 # LAYOUTS, which KWin handles natively; fcitx exists for CJK input methods, and it
 # arrives here only as a dependency of fcitx5-mozc (a JAPANESE IME) that the base
 # image happens to pull in.
@@ -672,8 +674,8 @@ dnf5 -y install langpacks-ar langpacks-en langpacks-de
 # one click away in the app menu — and the moment it starts it TAKES OVER the keyboard
 # and rewrites the user's ~/.config/kxkbrc to `LayoutList=us`, wiping whatever they had.
 # That happened on the maintainer's machine on 2026-07-13: fcitx5 was launched once, and
-# the German+Arabic pair MoOS ships (/etc/xdg/kxkbrc) was replaced by a lone US layout.
-# The user could no longer type Arabic OR German, there was no error and no notification,
+# the US+Arabic pair MoOS ships (/etc/xdg/kxkbrc) was replaced by a lone US layout.
+# The user could no longer type Arabic, there was no error and no notification,
 # and nothing in MoOS noticed — moos-selfcheck was reading localectl, i.e. the SYSTEM
 # default, which was still perfectly correct while the session used something else. A
 # user-level file outranking the image, silently: the same trap as every other one in

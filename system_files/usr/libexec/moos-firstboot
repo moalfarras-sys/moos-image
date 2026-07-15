@@ -42,6 +42,34 @@ if ! printf '%s' "$USERNAME" | grep -Eq '^[a-z_][a-z0-9_-]{0,31}$'; then
     log "invalid username '${USERNAME}', using 'moos'"; USERNAME="moos"
 fi
 
+# ── validate every locale/keyboard answer so a malformed conf can NEVER break the
+#    language or keyboard. A past installer bug shifted the tab-delimited fields and
+#    wrote LOCALE=UTC / XKBLAYOUT=en_US.UTF-8 / AUTOLOGIN=us, which made the desktop
+#    fall back to a foreign language, broke typing, and disabled autologin. Guard
+#    each value here (defence in depth — also protects the Anaconda path) so even a
+#    bad conf yields a sane, English-by-default, US-keyboard system. ─────────────
+case "$AUTOLOGIN" in 0|1) ;; *) log "invalid autologin '${AUTOLOGIN}', using 1"; AUTOLOGIN="1" ;; esac
+# LOCALE must look like ll_CC(.enc) or C/POSIX; an empty or bogus value (e.g. a bare
+# timezone) becomes en_US.UTF-8 so LANG is always valid and never falls back to a
+# stray image language.
+if ! printf '%s' "$LOCALE" | grep -Eq '^([a-z]{2,3}_[A-Z]{2}(\.[A-Za-z0-9-]+)?|C|POSIX)$'; then
+    [ -n "$LOCALE" ] && log "invalid locale '${LOCALE}', using en_US.UTF-8"
+    LOCALE="en_US.UTF-8"
+fi
+# XKBLAYOUT is a comma list of short layout codes (us, ara, …) — never a locale.
+if ! printf '%s' "$XKBLAYOUT" | grep -Eq '^[a-z]{2,6}(,[a-z]{2,6})*$'; then
+    log "invalid xkblayout '${XKBLAYOUT}', using us"; XKBLAYOUT="us"
+fi
+# KEYMAP is a single console keymap token.
+if ! printf '%s' "$KEYMAP" | grep -Eq '^[a-z0-9][a-z0-9._-]*$'; then
+    log "invalid keymap '${KEYMAP}', using us"; KEYMAP="us"
+fi
+# TIMEZONE must resolve to a zoneinfo file; else UTC.
+if [ -z "$TIMEZONE" ] || [ ! -f "/usr/share/zoneinfo/${TIMEZONE}" ]; then
+    [ -n "$TIMEZONE" ] && log "invalid timezone '${TIMEZONE}', using UTC"
+    TIMEZONE="UTC"
+fi
+
 # ── create the user (home lands in /var/home on Atomic; /home is a symlink) ────
 if ! id "$USERNAME" >/dev/null 2>&1; then
     useradd -m -G wheel -c "$FULLNAME" -s /bin/bash "$USERNAME" \

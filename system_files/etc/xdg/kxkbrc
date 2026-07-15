@@ -1,26 +1,23 @@
 # MoOS default keyboard layouts — bilingual out of the box.
 #
-# German + Arabic, toggled with Alt+Shift (the switch every Windows user already
-# has in their fingers). The layout pair is what a MoOS user actually types in:
-# German is the physical keyboard and the system locale (de_DE.UTF-8, VC keymap
-# de-nodeadkeys), Arabic is the language MoOS brands itself in.
+# US (English) + Arabic, toggled with Alt+Shift (the switch every user already has
+# in their fingers). This matches what the MoOS installer actually plants on every
+# install (xkbForLang() -> "us,ara" / "us", localeForLang() -> en_US.UTF-8 /
+# ar_SA.UTF-8): the system speaks English/Arabic, so its keyboard must too.
 #
-# This used to be us,ara. That pairing was wrong in both halves: it put a US
-# layout under a German keyboard — every umlaut and every 'z'/'y' in the wrong
-# place — and it did it silently, because a layout mismatch produces wrong
-# characters, never an error.
+# This used to be de,ara (German + Arabic). That was wrong for a MoOS user: it put a
+# German physical layout under an English/Arabic system — every 'z'/'y' swapped and
+# every umlaut in the wrong place — and it did it silently, because a layout mismatch
+# produces wrong characters, never an error. It also contradicted the installer,
+# which never offers or plants German. That contradiction is gone now.
 #
-# nodeadkeys on the German half is deliberate: the default German layout makes
-# ^ ` ´ dead keys, which is a trap in a terminal and in code.
-#
-# System default via the KConfig cascade (/etc/xdg). A user's own
-# ~/.config/kxkbrc still outranks this, so System Settings > Keyboard keeps
-# working as the last word.
+# System default via the KConfig cascade (/etc/xdg). A user's own ~/.config/kxkbrc
+# still outranks this, so System Settings > Keyboard keeps working as the last word.
 [Layout]
 Use=true
-LayoutList=de,ara
-VariantList=nodeadkeys,
-DisplayNames=DE,ع
+LayoutList=us,ara
+VariantList=,
+DisplayNames=US,ع
 Options=grp:alt_shift_toggle
 SwitchMode=Global
 ResetOldOptions=true

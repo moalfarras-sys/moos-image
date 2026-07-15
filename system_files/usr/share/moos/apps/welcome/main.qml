@@ -212,6 +212,11 @@ ApplicationWindow {
     // Where moos-open drops per-app status files (from the launcher's --cache=).
     readonly property string cacheDir: win.argValue("--cache=")
 
+    // Live session (booted from the USB, not yet installed): the launcher passes
+    // --live=1. Drives the "Install MoOS on this computer" call-to-action on the
+    // hero so the Welcome hands off cleanly into the installer.
+    readonly property bool live: win.argValue("--live=") === "1"
+
     function argValue(prefix) {
         var a = Qt.application.arguments
         for (var i = 0; i < a.length; i++)
@@ -689,6 +694,53 @@ ApplicationWindow {
                                 font.weight: Font.DemiBold
                             }
                         }
+                    }
+
+                    // ── Live session hand-off ──────────────────────────────────
+                    // On the live USB, the Welcome is the first thing the user sees,
+                    // so this is exactly where "install MoOS for real" belongs. A
+                    // secondary (outlined) action under "Let's begin" opens the
+                    // installer UI via moos://installer/open. Hidden on an already
+                    // installed system, where there is nothing to install.
+                    Item { visible: win.live; Layout.preferredHeight: 14 }
+                    Rectangle {
+                        visible: win.live
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredHeight: 50
+                        implicitWidth: installRow.implicitWidth + 56
+                        radius: 25
+                        color: installHover.hovered ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.10)
+                                                    : "transparent"
+                        border.width: 1.5
+                        border.color: installHover.hovered ? win.accent : win.outline
+                        Behavior on border.color { ColorAnimation { duration: 120 } }
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        HoverHandler { id: installHover }
+                        TapHandler { onTapped: Qt.openUrlExternally("moos://installer/open") }
+                        RowLayout {
+                            id: installRow
+                            anchors.centerIn: parent
+                            spacing: 10
+                            Text {
+                                text: win.rtl ? "ثبّت MoOS على هذا الكمبيوتر"
+                                              : "Install MoOS on this computer"
+                                color: win.txt
+                                font.family: "IBM Plex Sans"
+                                font.pixelSize: 15
+                                font.weight: Font.DemiBold
+                            }
+                        }
+                    }
+                    Text {
+                        visible: win.live
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.topMargin: 8
+                        horizontalAlignment: Text.AlignHCenter
+                        text: win.rtl ? "أنت الآن على النسخة الحيّة — جرّب بحرّية، وثبّت متى شئت"
+                                      : "You're on the live version — explore freely, install whenever you like"
+                        color: win.txt2
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: 12
                     }
                 }
             }

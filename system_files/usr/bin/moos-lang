@@ -27,8 +27,11 @@ CODE="${1:-}"
 case "$CODE" in
     ar) LANGUAGE=ar;    FMT=ar_SA.UTF-8; FLATPAK_LANGS=ar ;;
     en) LANGUAGE=en_US; FMT=en_US.UTF-8; FLATPAK_LANGS=en ;;
-    de) LANGUAGE=de;    FMT=de_DE.UTF-8; FLATPAK_LANGS=de ;;
-    *)  echo "moos-lang: unknown language '$CODE' (want ar|en|de)" >&2; exit 2 ;;
+    # MoOS ships Arabic + English only. German was removed: the wizards never offer
+    # it, the keyboard default is us,ara, and langpacks-de is no longer installed —
+    # a reachable `de` branch here only let a stray moos://lang/de flip the whole UI
+    # to a language the system otherwise has no catalogs for.
+    *)  echo "moos-lang: unknown language '$CODE' (want ar|en)" >&2; exit 2 ;;
 esac
 
 log="${XDG_CACHE_HOME:-$HOME/.cache}/moos-lang.log"

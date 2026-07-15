@@ -37,6 +37,16 @@ export QML_XHR_ALLOW_FILE_READ=1
 CACHEDIR="${XDG_CACHE_HOME:-$HOME/.cache}/moos-store"
 mkdir -p "$CACHEDIR" 2>/dev/null || true
 
+# Live-session detection. When MoOS is booted from the live USB (not yet installed),
+# the Welcome shows an "Install MoOS on this computer" call-to-action on its hero
+# that opens the installer (moos://installer/open). Passed to the QML as --live=1
+# (pure QML can't read /proc/cmdline). Same signal the installer helper self-guards
+# on, so the two always agree on what "live" means.
+LIVE=0
+if grep -q 'rd.live.image' /proc/cmdline 2>/dev/null || [ -d /run/initramfs/live ]; then
+    LIVE=1
+fi
+
 # moos-qml-shell, not the bare runtime: qml-qt6 names every window it hosts
 # org.qt-project.qml-qt6, so Plasma cannot match this window to
 # org.moos.welcome.desktop and shows the generic green Qt icon. The shell sets the
@@ -44,13 +54,13 @@ mkdir -p "$CACHEDIR" 2>/dev/null || true
 if [ -x /usr/bin/moos-qml-shell ]; then
     exec /usr/bin/moos-qml-shell \
         --app-id org.moos.welcome --icon moos-welcome --qml "$QML" \
-        -- --cache="$CACHEDIR"
+        -- --cache="$CACHEDIR" --live="$LIVE"
 fi
 
 # Fallback: wrong icon beats no window.
 for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
     if command -v "$runner" >/dev/null 2>&1 || [ -x "$runner" ]; then
-        exec "$runner" "$QML" -- --cache="$CACHEDIR"
+        exec "$runner" "$QML" -- --cache="$CACHEDIR" --live="$LIVE"
     fi
 done
 echo "MoOS Welcome: no Qt6 QML runtime found (install qt6-qtdeclarative-devel). | لا يوجد محرّك QML." >&2

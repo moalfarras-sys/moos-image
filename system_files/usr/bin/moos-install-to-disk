@@ -32,6 +32,11 @@ set -uo pipefail
 # is setuid and drops `stdbuf`'s LD_PRELOAD, so a redirected stdout would be
 # block-buffered and the progress bar would freeze (seen live: FAIL stalled).
 STATUS="${1:-/dev/stdout}"
+# Truncate the status file at the start of every run. We APPEND progress lines, so a
+# previous attempt's stale `FAIL …` / `DONE` would otherwise linger at the top and
+# the QML front-end (which polls this file) would show the OLD outcome — seen live:
+# a successful retry still reported failure. Harmless when STATUS is /dev/stdout.
+if [ "$STATUS" != "/dev/stdout" ]; then : > "$STATUS" 2>/dev/null || true; fi
 emit()  { printf '%s\n' "$*" >> "$STATUS" 2>/dev/null; }
 phase() { emit "PHASE $1"; }
 prog()  { emit "PROGRESS $1"; }
@@ -63,15 +68,28 @@ trap 'wipe_recipe' EXIT
 [ -n "$RECIPE" ] && [ -r "$RECIPE" ] || fail "no-recipe"
 DISKS_JSON="$(dirname "$RECIPE")/disks.json"
 
-IFS=$'\t' read -r NODE R_USER R_FULL R_PASS R_AUTO R_KEYMAP R_XKB R_LOCALE R_TZ < <(
+# Parse the recipe with NUL-delimited fields, NOT tab. `IFS=$'\t' read` collapses a
+# run of tabs into ONE delimiter (tab is IFS-whitespace) and drops any EMPTY field,
+# shifting every field after it left by one. That is a real, reproduced corruption:
+# an empty `password` (the default passwordless flow) or empty `autologin` made the
+# installed system get LOCALE=<timezone>, XKBLAYOUT=<locale> → LANG=UTC (invalid) →
+# the desktop fell back to the image's default language and the keyboard broke.
+# NUL delimiters + `mapfile -d ''` preserve empty fields exactly, in order.
+mapfile -d '' -t _RF < <(
     python3 - "$RECIPE" <<'PY' 2>>"$LOG"
 import json, sys
 d = json.load(open(sys.argv[1], encoding="utf-8"))
-def g(k): return str(d.get(k, "")).replace("\t", " ").replace("\n", " ")
-print("\t".join([g("node"), g("username"), g("fullname"), g("password"),
-                 g("autologin"), g("keymap"), g("xkblayout"), g("locale"), g("timezone")]))
+def g(k): return str(d.get(k, "")).replace("\x00", " ")
+# Terminate EVERY field with NUL (trailing one included) so an empty LAST field
+# (e.g. no timezone) still counts — `mapfile -d ''` drops a trailing delimiter, so
+# "a\0b\0" is 2 elements, but "a\0b\0\0" is 3 with an empty tail. Always 9 here.
+for k in ("node","username","fullname","password","autologin","keymap","xkblayout","locale","timezone"):
+    sys.stdout.write(g(k)); sys.stdout.write("\x00")
 PY
 ) || { wipe_recipe; fail "no-recipe"; }
+[ "${#_RF[@]}" -ge 9 ] || { wipe_recipe; fail "no-recipe"; }
+NODE="${_RF[0]}"; R_USER="${_RF[1]}"; R_FULL="${_RF[2]}"; R_PASS="${_RF[3]}"
+R_AUTO="${_RF[4]}"; R_KEYMAP="${_RF[5]}"; R_XKB="${_RF[6]}"; R_LOCALE="${_RF[7]}"; R_TZ="${_RF[8]}"
 
 # Hash the password now (stdin, never argv) so the plaintext can be discarded with
 # the recipe immediately after — nothing plaintext survives the long install.
@@ -152,10 +170,31 @@ else
     ensure_network || fail "no-network"
 fi
 
-# Best-effort: free the target of any live auto-mounts so the wipe can proceed.
-for part in $(lsblk -nro PATH "$NODE" 2>/dev/null | tail -n +2); do
-    umount "$part" >>"$LOG" 2>&1 || true
-done
+# Free the target of any live auto-mount so bootc's wipe can proceed. A single
+# umount pass is NOT enough: the live KDE session (udisks) races us and RE-mounts a
+# previous install's partitions under /run/media, so bootc dies "Device /dev/sdX is
+# mounted" (seen live on the first attempt). Sweep every child partition AND its
+# mountpoints, swapoff anything backed by the disk, then POLL until the kernel shows
+# nothing from this disk still mounted — retrying the sweep each round.
+free_target() {
+    local i part mp busy
+    for i in $(seq 1 10); do
+        for part in $(lsblk -nrpo NAME "$NODE" 2>/dev/null); do
+            swapoff "$part" 2>/dev/null || true
+            for mp in $(findmnt -nro TARGET -S "$part" 2>/dev/null); do
+                umount "$mp" >>"$LOG" 2>&1 || umount -l "$mp" >>"$LOG" 2>&1 || true
+            done
+            umount "$part" >>"$LOG" 2>&1 || true
+        done
+        busy=""
+        for part in $(lsblk -nrpo NAME "$NODE" 2>/dev/null); do
+            [ -n "$(findmnt -nro TARGET -S "$part" 2>/dev/null)" ] && { busy=1; break; }
+        done
+        [ -z "$busy" ] && return 0
+        sleep 1
+    done
+    return 1   # still mounted after ~10s
+}
 
 # ── progress ticker: crawls toward a moving ceiling so the bar lives during the
 #    long, quiet copy phase. Honest: never passes the ceiling. ─────────────────
@@ -192,7 +231,8 @@ run_install() {
         "$NODE" 2>&1
 }
 
-run_install | tee -a "$LOG" | while IFS= read -r line; do
+attempt_install() {
+    run_install | tee -a "$LOG" | while IFS= read -r line; do
     case "$line" in
         *artition*|*wiping*|*Wiping*|*GPT*|*sgdisk*)        phase partition;  raise 22 ;;
         *ilesystem*|*mkfs*|*ormatting*|*subvol*)            phase format;     raise 34 ;;
@@ -200,8 +240,26 @@ run_install | tee -a "$LOG" | while IFS= read -r line; do
         *bootupd*|*ootloader*|*grub*|*shim*|*EFI*)          phase bootloader; raise 93 ;;
         *inaliz*|*Finaliz*|*yncing*|*ompleted*|*omplete*)   phase finalize;   raise 97 ;;
     esac
+    done
+    return "${PIPESTATUS[0]}"
+}
+
+# Run the install with a bounded retry. free_target already polls the disk clear,
+# but the live udisks can still win a race and make bootc see a fresh mount. Retry
+# ONLY when the attempt failed on that mount/busy race — never loop on a real error.
+rc=1
+for _try in 1 2 3; do
+    free_target || echo "free_target: $NODE still busy before attempt $_try" >>"$LOG"
+    _before="$(wc -l < "$LOG" 2>/dev/null || echo 0)"
+    attempt_install; rc=$?
+    [ "$rc" -eq 0 ] && break
+    if tail -n +"$(( _before + 1 ))" "$LOG" 2>/dev/null \
+         | grep -qiE 'is mounted|resource busy|is in use|already in use'; then
+        echo "install attempt $_try lost the umount race — freeing and retrying" >>"$LOG"
+        sleep 2; continue
+    fi
+    break   # a genuine failure — stop and report it
 done
-rc="${PIPESTATUS[0]}"
 stop_ticker
 
 # On success: mount the target ONCE to (a) plant the first-boot answers and (b)
@@ -240,9 +298,53 @@ seed_target() {
     [ -n "$etc" ]
 }
 
+# ── UEFI boot entry ───────────────────────────────────────────────────────────
+# `bootc install --generic-image` deliberately does NOT write a UEFI NVRAM boot
+# entry (a generic image is meant to be portable/re-imaged). On a real machine that
+# is a trap: the firmware ends up with no "MoOS" entry, so the moment the live USB
+# is pulled it boots the PREVIOUS OS and the whole install looks like it did nothing
+# — this was the actual "it won't install on the real PC" symptom. Create the entry
+# ourselves, pointed at the target ESP's shim (Secure-Boot friendly), first in
+# BootOrder. Best-effort: never fail the install over it, but log loudly.
+register_uefi_boot() {
+    [ -d /sys/firmware/efi ] || { echo "uefi: legacy/BIOS boot — no NVRAM entry needed" >>"$LOG"; return 0; }
+    command -v efibootmgr >/dev/null 2>&1 || { echo "uefi: efibootmgr missing" >>"$LOG"; return 1; }
+
+    local esp pnum disk mnt=/run/moos-esp loader='\EFI\fedora\shimx64.efi'
+    esp="$(lsblk -nrpo NAME,FSTYPE "$NODE" 2>/dev/null | awk '$2=="vfat"{print $1; exit}')"
+    [ -n "$esp" ] || { echo "uefi: no ESP (vfat) on $NODE" >>"$LOG"; return 1; }
+    pnum="$(lsblk -nro PARTN "$esp" 2>/dev/null | tr -d ' ')"
+    [ -n "$pnum" ] || pnum="$(printf '%s' "$esp" | grep -oE '[0-9]+$')"
+    disk="/dev/$(lsblk -nro PKNAME "$esp" 2>/dev/null | head -1 | tr -d ' ')"
+    [ -b "$disk" ] && [ -n "$pnum" ] || { echo "uefi: could not resolve ESP disk/partnum ($esp)" >>"$LOG"; return 1; }
+
+    # Prefer the signed shim; fall back to the removable-media default loader if the
+    # image laid the bootloader down only under \EFI\BOOT.
+    mkdir -p "$mnt"
+    if mount -o ro "$esp" "$mnt" 2>>"$LOG"; then
+        if [ ! -f "$mnt/EFI/fedora/shimx64.efi" ] && [ -f "$mnt/EFI/BOOT/BOOTX64.EFI" ]; then
+            loader='\EFI\BOOT\BOOTX64.EFI'
+        fi
+        umount "$mnt" 2>>"$LOG" || true
+    fi
+
+    # Remove any stale MoOS entries a prior run left, then create fresh — efibootmgr
+    # -c also prepends the new entry to BootOrder (so MoOS boots first; the existing
+    # Windows/other entries are left untouched and still selectable in firmware).
+    efibootmgr 2>/dev/null | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\)\*\{0,1\}[[:space:]]*MoOS$/\1/p' \
+        | while read -r n; do efibootmgr -b "$n" -B >>"$LOG" 2>&1 || true; done
+    if efibootmgr -c -d "$disk" -p "$pnum" -L "MoOS" -l "$loader" >>"$LOG" 2>&1; then
+        echo "uefi: registered MoOS -> $disk part $pnum $loader (first in BootOrder)" >>"$LOG"
+        return 0
+    fi
+    echo "uefi: WARN efibootmgr failed to create the MoOS entry" >>"$LOG"
+    return 1
+}
+
 if [ "$rc" -eq 0 ]; then
     phase finalize; raise 99
     seed_target || echo "target seeding incomplete (non-fatal for boot; check log)" >>"$LOG"
+    register_uefi_boot || echo "uefi: boot entry NOT registered — user may need to pick the disk in the firmware menu (check log)" >>"$LOG"
     prog 100
     emit "DONE"
     exit 0

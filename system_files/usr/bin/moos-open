@@ -88,7 +88,7 @@ case "${cat}/${tgt}" in
     # validated to a fixed set here before it ever reaches the writer.
     lang/ar)       setsid moos-lang ar >/dev/null 2>&1 & ;;
     lang/en)       setsid moos-lang en >/dev/null 2>&1 & ;;
-    lang/de)       setsid moos-lang de >/dev/null 2>&1 & ;;
+    # (No lang/de — MoOS ships Arabic + English only; German was removed.)
 
     # ── MoOS Installer (apps/installer/main.qml, launched by moos-installer on
     # the live USB). Re-probe disks, run the ONE privileged destructive step, or
@@ -113,6 +113,10 @@ case "${cat}/${tgt}" in
         # LD_PRELOAD, so a redirected helper stdout would be block-buffered and the
         # progress bar would freeze until the process exits (seen live: FAIL stalled).
         setsid pkexec /usr/bin/moos-install-to-disk "${_idir}/install.status" >/dev/null 2>&1 & ;;
+    # Open the MoOS installer UI itself — the Welcome's "Install MoOS on this
+    # computer" call-to-action fires this on the live session. Harmless on an
+    # installed system: moos-installer's own live-guard just shows a notice.
+    installer/open)     gui moos-installer ;;
     installer/advanced) gui liveinst ;;
     installer/reboot)   systemctl reboot   2>/dev/null || loginctl reboot   2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndReboot   2>/dev/null || true ;;
     installer/poweroff) systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null || true ;;
