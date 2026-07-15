@@ -1897,16 +1897,21 @@ if [ -f /usr/share/plymouth/themes/spinner/watermark.png ]; then
         /usr/share/plymouth/themes/spinner/watermark.png
 fi
 
-# Prove moos is the ACTIVE default (the symlink dracut's plymouth module reads to
-# decide which single theme to embed), not merely present on disk. A wrong symlink
-# ships a Fedora bgrt/spinner splash whose grey three-dot fallback is the exact
-# symptom to avoid. Absolute ImageDir is required or the emblem/ring silently fail
-# to load, leaving only the background — the "background but no logo" render.
-_active_theme="$(readlink -f /usr/share/plymouth/themes/default.plymouth 2>/dev/null)"
-case "$_active_theme" in
-    */themes/moos/moos.plymouth) : ;;
-    *) echo "FATAL: active Plymouth default is '${_active_theme:-unset}', not moos — the initramfs would embed a foreign splash"; exit 1 ;;
-esac
+# Prove moos is the ACTIVE default that dracut's plymouth module will embed, not
+# merely present on disk. `plymouth-set-default-theme` with no args PRINTS the
+# active default theme name (it reads the config, not a symlink — Fedora 44's
+# mechanism). A wrong default ships a Fedora bgrt/spinner splash whose grey
+# three-dot fallback is the exact symptom to avoid. Absolute ImageDir is required
+# or the emblem/ring silently fail to load, leaving only the background.
+_active_theme="$(plymouth-set-default-theme 2>/dev/null)"
+if [ -n "$_active_theme" ] && [ "$_active_theme" != "moos" ]; then
+    # The query tool answered, and it is NOT moos → a real regression.
+    echo "FATAL: active Plymouth default is '${_active_theme}', not moos — the initramfs would embed a foreign splash"
+    exit 1
+fi
+# If the query returned empty (the tool can be unavailable inside buildah), the
+# authoritative Theme=moos checks in plymouthd.conf/.defaults below and the
+# in-initramfs moos.plymouth gate still prove the splash is MoOS.
 grep -qx 'ImageDir=/usr/share/plymouth/themes/moos' /usr/share/plymouth/themes/moos/moos.plymouth \
     || { echo "FATAL: moos.plymouth ImageDir is not the absolute /usr/share/plymouth/themes/moos"; exit 1; }
 unset -v _active_theme
