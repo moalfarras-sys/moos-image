@@ -1,11 +1,13 @@
 # =============================================================================
 # MoOS live/preinstall Flatpak set — one Flathub ref per line.
 # Consumed by the Titanoboa action (see .github/workflows/build-iso.yml).
-# Flatpak/Flathub is the ONLY promoted app source in MoOS; the app store is
-# Bazaar (MoOS App Center). Keep this list small: it inflates the ISO size.
+# Flatpak/Flathub is the ONLY promoted app source in MoOS. The one visible app
+# store is **Mo Store** (/usr/bin/moos-store, org.moos.store). Bazaar is NOT
+# preinstalled — it is Mo Store's OPTIONAL full-Flathub catalog + app-lifecycle
+# engine, added on demand (moos-setup / "Browse all"), so a fresh device shows
+# exactly ONE store, never two. Keep this list small: it inflates the ISO size.
 # =============================================================================
 org.mozilla.firefox
 org.videolan.VLC
 org.libreoffice.LibreOffice
-io.github.kolunmi.Bazaar
 org.kde.kcalc

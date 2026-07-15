@@ -43,7 +43,7 @@ elif [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
         "org.mozilla.firefox" "Firefox — المتصفح (Web Browser)" on \
         "org.videolan.VLC" "VLC — مشغل الوسائط (Media Player)" on \
         "org.libreoffice.LibreOffice" "LibreOffice — حزمة المكتب (Office Suite)" on \
-        "io.github.kolunmi.Bazaar" "Bazaar — متجر تطبيقات MoOS (App Store)" on \
+        "io.github.kolunmi.Bazaar" "Bazaar — كتالوج Mo Store الكامل، اختياري (full catalog engine)" off \
         "com.github.tchx84.Flatseal" "Flatseal — إدارة أذونات التطبيقات (Flatpak Permissions)" on \
         "com.valvesoftware.Steam" "Steam — منصة الألعاب (Steam Gaming)" on \
         "com.usebottles.bottles" "Bottles — تشغيل برامج Windows (Run Windows Apps)" on \

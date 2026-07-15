@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# moos-store-browse — Mo Store's "Browse all" engine.
+#
+# Mo Store (org.moos.store) is the ONE visible MoOS storefront: a curated,
+# premium, one-tap surface. Its full-Flathub catalog + app lifecycle (search
+# everything, update, remove, permissions) is provided by the Bazaar engine,
+# which MoOS does NOT preinstall — so a fresh device shows exactly one store.
+#
+# The first time the user asks to browse everything, install Bazaar per-user
+# (no password prompt), keep its launcher OUT of the app menu (Mo Store stays the
+# single visible store, per the one-system rule), and open it. Subsequent calls
+# just re-hide (in case a Bazaar update regenerated its export) and launch.
+set -euo pipefail
+
+APP="io.github.kolunmi.Bazaar"
+
+# Keep Bazaar out of the application menu: Mo Store is the only visible store.
+# The per-user flatpak export (…/.local/share/flatpak/exports/share) outranks the
+# system one in XDG_DATA_DIRS, so editing it here reliably hides the launcher.
+hide_launcher() {
+    local d="${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/share/applications/${APP}.desktop"
+    [ -f "$d" ] || return 0
+    if command -v desktop-file-edit >/dev/null 2>&1; then
+        desktop-file-edit --set-key=NoDisplay --set-value=true "$d" 2>/dev/null || true
+    elif ! grep -q '^NoDisplay=true$' "$d" 2>/dev/null; then
+        printf 'NoDisplay=true\n' >>"$d" 2>/dev/null || true
+    fi
+}
+
+err() {
+    if command -v kdialog >/dev/null 2>&1; then
+        kdialog --title "Mo Store" --error \
+            "تعذّر فتح الكتالوج الكامل.\nCould not open the full catalog." 2>/dev/null || true
+    fi
+    exit 1
+}
+
+if ! flatpak info --user "$APP" >/dev/null 2>&1 && ! flatpak info "$APP" >/dev/null 2>&1; then
+    flatpak remote-add --user --if-not-exists flathub \
+        https://dl.flathub.org/repo/flathub.flatpakrepo >/dev/null 2>&1 || true
+    flatpak install -y --user --noninteractive flathub "$APP" >/dev/null 2>&1 || err
+fi
+
+hide_launcher
+exec flatpak run "$APP" "$@"

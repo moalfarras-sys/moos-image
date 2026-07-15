@@ -172,6 +172,11 @@ case "${cat}/${tgt}" in
             exit 2
         fi ;;
 
+    # ── Mo Store "Browse all": the full Flathub catalog + app lifecycle, via the
+    #    Bazaar engine — installed on demand and kept OUT of the app menu so Mo
+    #    Store stays the ONE visible store. See /usr/bin/moos-store-browse. ──────
+    store/browse-all)  gui moos-store-browse ;;
+
     # ── App Centre: OPEN an already-installed app by id (no privilege) ────────
     # The counterpart to apps/install. Launching an app the user already has is
     # exactly what clicking its icon does — no confirmation and no terminal. The

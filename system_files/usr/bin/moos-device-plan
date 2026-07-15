@@ -159,9 +159,11 @@ def detect():
         actions.append({"id": "kvm", "severity": "info", "title": "Android emulator acceleration", "detail": "Enable CPU virtualization in firmware and grant KVM access.", "url": ""})
     if memory_gib and memory_gib < 15:
         actions.append({"id": "memory", "severity": "info", "title": "Development memory", "detail": "16 GiB or more is recommended for Android development.", "url": ""})
+    # Mo Store is the one visible store; Bazaar is an OPTIONAL full-catalog engine,
+    # never auto-installed into the default plan (that would ship a second store).
     recommended = [
         "org.mozilla.firefox", "org.videolan.VLC", "org.libreoffice.LibreOffice",
-        "io.github.kolunmi.Bazaar", "com.github.tchx84.Flatseal"
+        "com.github.tchx84.Flatseal"
     ]
     if kvm and memory_gib >= 15:
         recommended.append("com.google.AndroidStudio")

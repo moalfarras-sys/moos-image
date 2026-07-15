@@ -461,6 +461,34 @@ ApplicationWindow {
                         }
                     }
                 }
+
+                // Browse the full Flathub catalog (search everything, update,
+                // remove) via the Bazaar engine — installed on demand and kept out
+                // of the app menu, so Mo Store stays the one visible store.
+                Rectangle {
+                    Layout.preferredHeight: 42
+                    implicitWidth: browseRow.implicitWidth + 30
+                    radius: 21
+                    color: browseTap.pressed ? Qt.darker(win.surface, 1.1)
+                         : browseHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
+                                               : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.75)
+                    border.width: 1
+                    border.color: browseHover.hovered ? win.accent : win.outline
+                    Behavior on border.color { ColorAnimation { duration: 120 } }
+                    HoverHandler { id: browseHover }
+                    TapHandler { id: browseTap; onTapped: Qt.openUrlExternally("moos://store/browse-all") }
+                    RowLayout {
+                        id: browseRow
+                        anchors.centerIn: parent; spacing: 8
+                        Glyph { name: "compass"; tint: win.txt; stroke: 1.6
+                            Layout.preferredWidth: 16; Layout.preferredHeight: 16 }
+                        Text {
+                            text: win.rtl ? "تصفّح الكل" : "Browse all"
+                            color: win.txt; font.family: "IBM Plex Sans"
+                            font.pixelSize: 13; font.bold: true
+                        }
+                    }
+                }
             }
 
             Rectangle {   // hairline
