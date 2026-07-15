@@ -1069,7 +1069,7 @@ require("desktop_wallpapers_complete()" in apply_theme_code
         "the first Image= line is not authoritative on multiple monitors/Activities")
 require("widget-deduplicated" in apply_theme_code
         and "for (var n = 1; n < targets.length; n++)" in apply_theme_code
-        and "d.addWidget(TARGET, 260, 70, TARGET_WIDTH, TARGET_HEIGHT)" in apply_theme_code,
+        and "d.addWidget(TARGET, 360, 70, TARGET_WIDTH, TARGET_HEIGHT)" in apply_theme_code,
         "theme repair must deduplicate and instantiate the dashboard per containment, and place "
         "it clear of the desktop icon column")
 require("flock -n 9" in apply_theme_code,
@@ -1857,7 +1857,7 @@ require("want_widget=org.moos.ui2.dashboard" in apply_theme_code,
 # first screen of a fresh install showed its own install button with the label half-swallowed by
 # the clock. A Folder View will never flow its icons around a widget, so the clearance is built in
 # here or it does not exist.
-require("d.addWidget(TARGET, 260, 70, TARGET_WIDTH, TARGET_HEIGHT)" in apply_theme_code,
+require("d.addWidget(TARGET, 360, 70, TARGET_WIDTH, TARGET_HEIGHT)" in apply_theme_code,
         "the dashboard must be placed clear of the desktop icon column — at x=80 it covers the "
         "'Install MoOS' icon on the live ISO")
 build_script_code = code(read("build_files/build.sh"))

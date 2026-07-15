@@ -79,7 +79,10 @@ target_lnf "$1" "$2"
         # …but the old desk clock must still be REMOVABLE, or a user who has one keeps it forever
         # on a desktop that also has the new dashboard.
         self.assertIn("other_widget=org.moos.nova.deskclock", text)
-        self.assertIn("d.addWidget(TARGET, 260, 70, TARGET_WIDTH, TARGET_HEIGHT)", text)
+        self.assertIn("d.addWidget(TARGET, 360, 70, TARGET_WIDTH, TARGET_HEIGHT)", text)
+        # The dashboard is top-left and the icons must grow from the RIGHT, or they land under it —
+        # which on the ISO is the "Install MoOS" icon with its label swallowed by the clock.
+        self.assertIn('d.writeConfig("alignment", "1")', text)
 
     def test_automatic_switch_has_bounded_non_recursive_supplement_sync(self) -> None:
         switch = SWITCH.read_text(encoding="utf-8")

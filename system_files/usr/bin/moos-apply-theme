@@ -942,18 +942,28 @@ if command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
                     if (ws[j].type == OTHER) { others.push(ws[j]); }
                 }
                 try {
+                    // Send the desktop icons to the RIGHT edge, away from the dashboard.
+                    //
+                    // The dashboard sits top-left. A Folder View lays its icons out top-LEFT too,
+                    // and it has no idea the widget is there — it will not flow its icons around
+                    // one. So on the live ISO the "Install MoOS" icon landed underneath the clock,
+                    // its label half-swallowed: the first thing a fresh install showed was its own
+                    // install button, unreadable. Nudging the widget rightwards only moved the
+                    // collision — enough icons still reach it.
+                    //
+                    // The real fix is to make the two live on opposite sides. Folder View aligns
+                    // its icons by an integer (0 = Left, 1 = Right — verified against
+                    // desktopcontainment config/main.xml). Right starts the icon grid at the RIGHT
+                    // edge and fills toward the middle, so the icons grow away from the top-left
+                    // dashboard instead of under it. Set on the containment General group.
+                    d.currentConfigGroup = ["General"];
+                    d.writeConfig("alignment", "1");
+                    d.writeConfig("sortMode", "1");   // 1 = by name; 0 = Unsorted
+
                     if (targets.length == 0) {
-                        // x=260, not 80: the desktop icons live in a column at the LEFT edge,
-                        // and at x=80 the dashboard sat on top of the first one. On the live
-                        // ISO that first icon is "Install MoOS" — so the first screen of a
-                        // fresh MoOS install showed its own install button with the label
-                        // half-swallowed by the clock. Seen in QEMU on the 2026-07-14 ISO.
-                        // A Folder View has no idea a widget is there and will not flow its
-                        // icons around one, so the clearance has to be built in here: 260
-                        // logical px leaves two full icon columns free. It is a margin, not a
-                        // guarantee — enough icons will still reach it — but the icons that
-                        // matter (the ones a fresh desktop is born with) are clear of it.
-                        d.addWidget(TARGET, 260, 70, TARGET_WIDTH, TARGET_HEIGHT);
+                        // Top-left, clear of the icons that now grow from the right. x=360 is still
+                        // a comfortable inset from the screen edge for the widget itself.
+                        d.addWidget(TARGET, 360, 70, TARGET_WIDTH, TARGET_HEIGHT);
                         var after = d.widgets();
                         for (var n = 0; n < after.length; n++) {
                             if (after[n].type == TARGET) {
