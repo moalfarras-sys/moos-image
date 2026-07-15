@@ -117,7 +117,6 @@ case "${cat}/${tgt}" in
     # computer" call-to-action fires this on the live session. Harmless on an
     # installed system: moos-installer's own live-guard just shows a notice.
     installer/open)     gui moos-installer ;;
-    installer/advanced) gui liveinst ;;
     installer/reboot)   systemctl reboot   2>/dev/null || loginctl reboot   2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndReboot   2>/dev/null || true ;;
     installer/poweroff) systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null || true ;;
 

@@ -4,15 +4,16 @@
 // the existing Welcome wizard (apps/welcome) then personalises look/direction/apps
 // on the installed system's FIRST boot. Setup deliberately does NOT re-ask those.
 //
-// SEVEN STEPS
+// EIGHT STEPS
 //   0 welcome   language pick (applies to the live session + the install default).
 //   1 sell      one honest screen: what MoOS actually is. No hype.
 //   2 disk      a card per eligible internal disk (name/model/size/data). The USB
 //               you booted from is shown as a PROTECTED, non-selectable row.
-//   3 method    "Erase & install" (default) or "Advanced / dual-boot" (honest).
-//   4 confirm   the point of no return — a press-and-HOLD control, never a click.
-//   5 progress  one long job, human PHASES, honest stepped progress. No logs.
-//   6 success   remove USB → restart → first boot continues into Welcome.
+//   3 method    "Erase & install" — the single, honest MoOS install path.
+//   4 account   username + optional password (or passwordless auto sign-in).
+//   5 confirm   the point of no return — a press-and-HOLD control, never a click.
+//   6 progress  one long job, human PHASES, honest stepped progress. No logs.
+//   7 success   remove USB → restart → first boot continues into Welcome.
 //
 // BACKEND CONTRACT (pure QML can't touch disks — the launcher/helper do):
 //   --disks=<path>       JSON the launcher wrote: { liveNode, disks:[…] } (see loadDisks)
@@ -22,7 +23,7 @@
 //                               disk + account come from recipe.json, NOT the URL)
 //                               which appends PHASE/PROGRESS/DONE/FAIL to
 //                               <cache>/moos-installer/install.status (the store idiom)
-//   moos://installer/reboot | poweroff | advanced
+//   moos://installer/reboot | poweroff
 //
 // Bilingual, Arabic-first, RTL-safe. Structural colour comes from the KDE palette
 // so the live session's Graphite/Tidal recolours the installer too.
@@ -109,7 +110,7 @@ ApplicationWindow {
     property bool probing: true
     property string probeError: ""
     property string targetNode: ""
-    property string method: "erase"     // "erase" | "advanced"
+    property string method: "erase"     // the single MoOS install method (Erase & install)
 
     readonly property string disksPath: win.argValue("--disks=")
     readonly property string cacheDir:  win.argValue("--cache=")
@@ -997,11 +998,7 @@ ApplicationWindow {
                             { id: "erase", glyph: "bolt",
                               ar: "امسح وثبّت", en: "Erase & install",
                               arDesc: "يمحو كل شيء على القرص المختار ويجعل MoOS النظام الوحيد. الأنظف والأبسط.",
-                              enDesc: "Wipes everything on the selected disk and makes MoOS the only system. The cleanest, simplest path." },
-                            { id: "advanced", glyph: "gear",
-                              ar: "متقدّم / نظامان جنباً إلى جنب", en: "Advanced / dual-boot",
-                              arDesc: "أبقِ نظامك الحالي وثبّت MoOS بجانبه. يحتاج خطوات يدوية وخبرة بالأقراص.",
-                              enDesc: "Keep your current OS and install MoOS beside it. Requires manual steps and some disk know-how." }
+                              enDesc: "Wipes everything on the selected disk and makes MoOS the only system. The cleanest, simplest path." }
                         ]
                         delegate: Rectangle {
                             id: methodCard
@@ -1921,22 +1918,14 @@ ApplicationWindow {
                     HoverHandler { id: nextHover; enabled: parent.ready }
                     TapHandler {
                         enabled: parent.ready
-                        onTapped: {
-                            if (win.step === 3 && win.method === "advanced") {
-                                Qt.openUrlExternally("moos://installer/advanced")
-                            } else {
-                                win.goNext()
-                            }
-                        }
+                        onTapped: win.goNext()
                     }
                     RowLayout {
                         id: nextRow
                         anchors.centerIn: parent
                         spacing: 8
                         Text {
-                            text: (win.step === 3 && win.method === "advanced")
-                                  ? win.tr("افتح الوضع المتقدّم", "Open advanced")
-                                  : win.tr("التالي", "Next")
+                            text: win.tr("التالي", "Next")
                             color: win.onAccent
                             font.family: "IBM Plex Sans"; font.pixelSize: 15; font.weight: Font.DemiBold
                         }

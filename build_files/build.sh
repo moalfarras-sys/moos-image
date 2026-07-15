@@ -453,10 +453,13 @@ if [ -f "$_liveinst" ]; then
     # Repoint the "Install MoOS" icon at the BEAUTIFUL MoOS QML installer
     # (/usr/bin/moos-installer) instead of raw Anaconda. The old Anaconda WebUI
     # storage screen is confusing and its registry-pull install failed offline;
-    # moos-installer is the clear, offline, disk-card flow. Anaconda is still
-    # reachable as the "Advanced / dual-boot" path from inside moos-installer
-    # (moos://installer/advanced → liveinst). StartupWMClass is retargeted so
-    # Plasma matches the QML window to org.moos.installer.desktop (MoOS icon).
+    # moos-installer is the clear, offline, disk-card flow, and is now the SINGLE
+    # install path — the old "Advanced / dual-boot → raw Anaconda" escape hatch was
+    # removed (it opened a second installer window over the first and its kickstart
+    # default erased all disks under a "dual-boot" label). Anaconda stays installed
+    # for the live ISO's infrastructure but is no longer reachable from any UI.
+    # StartupWMClass is retargeted so Plasma matches the QML window to
+    # org.moos.installer.desktop (MoOS icon).
     sed -i \
         -e 's|^Name=.*|Name=Install MoOS|' \
         -e '/^Name\[/d' \
