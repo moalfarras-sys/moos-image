@@ -1,5 +1,8 @@
-// Verified Plasma system-monitor sensor IDs. These are runtime IDs from
-// ksystemstats, not labels inferred from the hardware names.
+// Device-health card: a live verdict plus animated CPU / RAM / Disk rings, drawn
+// from ksystemstats runtime sensor IDs (not hardware-name labels). Each ring is
+// present-gated on its sensor's Ready status, so a metric the machine does not
+// expose simply shows "—" instead of a dead gauge (this is why the old GPU pill,
+// which yields nothing on the open NVK driver, is replaced by the Disk ring).
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -15,15 +18,15 @@ Item {
 
     readonly property real cpuValue: safeValue(cpuSensor.value)
     readonly property real memoryValue: safeValue(memorySensor.value)
-    readonly property real gpuValue: safeValue(gpuSensor.value)
+    readonly property real diskValue: safeValue(diskSensor.value)
     readonly property bool cpuPresent: cpuSensor.status === Sensors.Sensor.Ready
     readonly property bool memoryPresent: memorySensor.status === Sensors.Sensor.Ready
-    readonly property bool gpuPresent: gpuSensor.status === Sensors.Sensor.Ready
-    // CPU and RAM are the minimum evidence for a system-health verdict. GPU is
-    // optional because the generic edition may expose no GPU usage sensor.
+    readonly property bool diskPresent: diskSensor.status === Sensors.Sensor.Ready
+    // CPU and RAM are the minimum evidence for a system-health verdict.
     readonly property bool coreSensorsReady: cpuPresent && memoryPresent
-    readonly property real peakValue: Math.max(cpuValue, memoryValue,
-                                               gpuPresent ? gpuValue : 0)
+    // Disk fullness is normal and must NOT drive the "pressure" verdict — only live
+    // load (CPU/RAM) does.
+    readonly property real peakValue: Math.max(cpuValue, memoryValue)
     readonly property color healthColor: !coreSensorsReady
         ? Kirigami.Theme.disabledTextColor
         : (peakValue >= 88
@@ -55,8 +58,8 @@ Item {
     }
 
     Sensors.Sensor {
-        id: gpuSensor
-        sensorId: "gpu/gpu0/usage"
+        id: diskSensor
+        sensorId: "disk/all/usedPercent"
         updateRateLimit: 1500
     }
 
@@ -67,9 +70,12 @@ Item {
 
         RowLayout {
             anchors.fill: parent
-            spacing: Math.round(Kirigami.Units.gridUnit * 0.65)
+            spacing: Math.round(Kirigami.Units.gridUnit * 0.5)
 
+            // ── Verdict strip. FIXED width (fillWidth:false) — without this it eats
+            //    the whole row and the rings collapse to a few pixels. ────────────
             ColumnLayout {
+                Layout.fillWidth: false
                 Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit * 3.35)
                 Layout.fillHeight: true
                 spacing: 0
@@ -87,16 +93,8 @@ Item {
                         SequentialAnimation on opacity {
                             running: systemCard.motionEnabled && beacon.visible
                             loops: Animation.Infinite
-                            NumberAnimation {
-                                to: 0.38
-                                duration: 1500
-                                easing.type: Easing.InOutSine
-                            }
-                            NumberAnimation {
-                                to: 1
-                                duration: 1500
-                                easing.type: Easing.InOutSine
-                            }
+                            NumberAnimation { to: 0.38; duration: 1500; easing.type: Easing.InOutSine }
+                            NumberAnimation { to: 1;    duration: 1500; easing.type: Easing.InOutSine }
                         }
                     }
                     Text {
@@ -112,9 +110,6 @@ Item {
                 Item { Layout.fillHeight: true }
 
                 Text {
-                    // "PRESSURED" (9 chars) at this size is wider than the fixed
-                    // status column, so it used to overlap into the CPU pill.
-                    // Fill the column and elide instead of overrunning it.
                     Layout.fillWidth: true
                     text: systemCard.healthLabel
                     color: systemCard.healthColor
@@ -126,9 +121,10 @@ Item {
                 }
             }
 
-            MetricPill {
+            MetricRing {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.minimumWidth: Math.round(Kirigami.Units.gridUnit * 2.4)
                 label: "CPU"
                 value: systemCard.cpuValue
                 present: systemCard.cpuPresent
@@ -136,9 +132,10 @@ Item {
                 accentColor: Kirigami.Theme.highlightColor
             }
 
-            MetricPill {
+            MetricRing {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.minimumWidth: Math.round(Kirigami.Units.gridUnit * 2.4)
                 label: "RAM"
                 value: systemCard.memoryValue
                 present: systemCard.memoryPresent
@@ -146,12 +143,13 @@ Item {
                 accentColor: Kirigami.Theme.linkColor
             }
 
-            MetricPill {
+            MetricRing {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                label: "GPU"
-                value: systemCard.gpuValue
-                present: systemCard.gpuPresent
+                Layout.minimumWidth: Math.round(Kirigami.Units.gridUnit * 2.4)
+                label: "DISK"
+                value: systemCard.diskValue
+                present: systemCard.diskPresent
                 motionEnabled: systemCard.motionEnabled
                 accentColor: Kirigami.Theme.positiveTextColor
             }
