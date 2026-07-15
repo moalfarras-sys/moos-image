@@ -676,7 +676,7 @@ class TestMoOSUI2(unittest.TestCase):
             "WeatherCard.qml",
             "WeatherScene.qml",
             "SystemCard.qml",
-            "MetricPill.qml",
+            "MetricRing.qml",
         })
 
         qml_files = sorted((DASHBOARD / "contents/ui").glob("*.qml"))
@@ -694,7 +694,7 @@ class TestMoOSUI2(unittest.TestCase):
         for sensor in (
             "cpu/all/usage",
             "memory/physical/usedPercent",
-            "gpu/gpu0/usage",
+            "disk/all/usedPercent",
         ):
             self.assertIn(sensor, combined)
         for kind in WEATHER_KINDS:

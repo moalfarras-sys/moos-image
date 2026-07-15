@@ -2040,6 +2040,7 @@ require("org.moos.nova.sysmon" not in apply_theme_code
 KNOWN_SENSORS = {
     "cpu/all/usage",
     "memory/physical/usedPercent",
+    "disk/all/usedPercent",
     "gpu/gpu0/usage",
 }
 for sensor in re.findall(r'sensorId:\s*"([^"]+)"', dashboard_ui):
@@ -2048,7 +2049,7 @@ for sensor in re.findall(r'sensorId:\s*"([^"]+)"', dashboard_ui):
             f"{sorted(KNOWN_SENSORS)}. Check it against `kstatsviewer --list` — an invented "
             f"sensor id draws an empty ring and never says why")
 require(len(re.findall(r'sensorId:\s*"', dashboard_ui)) >= 3,
-        "the desk widget must show CPU, memory and GPU")
+        "the desk widget must show CPU, memory and Disk")
 
 # Sensors are useless if nothing serves them. ksystemstats was NOT running on this
 # image and nothing started it, so every monitor widget drew an empty grey box.
