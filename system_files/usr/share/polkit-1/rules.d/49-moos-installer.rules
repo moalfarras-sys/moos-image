@@ -1,0 +1,16 @@
+// MoOS installer — let the live user run the ONE privileged install step without
+// a password prompt, so the beautiful QML installer flows on live media (where
+// the live user has no password to type). This authorises ONLY the exact program
+// /usr/bin/moos-install-to-disk, and only for a LOCAL, ACTIVE session.
+//
+// Safe on installed systems: moos-install-to-disk self-guards to a live boot
+// (rd.live.image / /run/initramfs/live) and refuses the boot medium, so being
+// authorised here does nothing destructive off live media. verify_identity.py
+// enforces that not-live guard at build time.
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.policykit.exec" &&
+        action.lookup("program") == "/usr/bin/moos-install-to-disk" &&
+        subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});

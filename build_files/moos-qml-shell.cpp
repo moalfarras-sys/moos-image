@@ -47,15 +47,59 @@
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QObject>
 #include <QString>
 #include <QUrl>
 #include <QWindow>
+#include <QDir>
+#include <QFile>
+#include <QFileDevice>
 
 #include <KDBusService>
 #include <KWindowSystem>
 
 #include <cstdio>
+#include <cstdlib>
+
+// InstallerBridge — the ONE way the (unprivileged, pure-QML) MoOS installer hands
+// the user's answers to the privileged install helper WITHOUT putting a password
+// in a moos:// URL (which xdg-open/journald could log). QML calls
+// MoosInstaller.writeRecipe(json); we write it to a FIXED path (the installer's own
+// cache dir) with 0600 perms. The path is computed here from the environment, not
+// taken from QML, so a hosted app cannot aim the write anywhere else. The helper
+// reads it, hashes the password, plants the answers on the target, and wipes it.
+class InstallerBridge : public QObject
+{
+    Q_OBJECT
+public:
+    using QObject::QObject;
+
+    Q_INVOKABLE bool writeRecipe(const QString &json)
+    {
+        const char *xdg = std::getenv("XDG_CACHE_HOME");
+        const char *home = std::getenv("HOME");
+        QString base;
+        if (xdg && *xdg) {
+            base = QString::fromLocal8Bit(xdg);
+        } else if (home && *home) {
+            base = QString::fromLocal8Bit(home) + QLatin1String("/.cache");
+        } else {
+            return false;
+        }
+        const QString dir = base + QLatin1String("/moos-installer");
+        QDir().mkpath(dir);
+        const QString path = dir + QLatin1String("/recipe.json");
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            return false;
+        }
+        f.write(json.toUtf8());
+        f.close();
+        QFile::setPermissions(path, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+        return true;
+    }
+};
 
 namespace {
 
@@ -139,6 +183,11 @@ int main(int argc, char *argv[])
     QGuiApplication::setWindowIcon(QIcon::fromTheme(iconName));
 
     QQmlApplicationEngine engine;
+    // The installer's secure answers channel (see InstallerBridge). Harmless for
+    // the other MoOS apps that never call it.
+    InstallerBridge installerBridge;
+    engine.rootContext()->setContextProperty(QStringLiteral("MoosInstaller"),
+                                             &installerBridge);
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty()) {
         std::fprintf(stderr, "moos-qml-shell: %s produced no root object\n",
@@ -166,3 +215,7 @@ int main(int argc, char *argv[])
 
     return app.exec();
 }
+
+// InstallerBridge uses Q_OBJECT/Q_INVOKABLE, so this .cpp is moc'd and the
+// generated meta-object is included here (build.sh runs moc before g++).
+#include "moos-qml-shell.moc"

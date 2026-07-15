@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+# moos-list-disks — emit the JSON the MoOS installer (apps/installer/main.qml)
+# reads to draw its disk cards. Pure detection, no side effects.
+#
+# OUTPUT (stdout):
+#   { "liveNode": "/dev/sda",
+#     "disks": [ { node, name, model, sizeBytes, sizeH, removable, isLive,
+#                  tooSmall, hasOS, osName, hasData }, … ] }
+#
+# The installer front-end is unprivileged; this runs as the live user. lsblk does
+# not need root to enumerate block devices and read partition fstypes/labels, so
+# OS/data detection here is best-effort from partition metadata (no mounting,
+# no os-prober) — enough to warn "this disk has Windows / has data" honestly.
+import json
+import subprocess
+import sys
+
+MIN_BYTES = 20 * 1000 * 1000 * 1000  # 20 GB — smaller can't hold MoOS comfortably
+
+
+def run(args):
+    try:
+        return subprocess.check_output(args, text=True, stderr=subprocess.DEVNULL)
+    except Exception:
+        return ""
+
+
+def human(n):
+    # Base-10 units, the way drives are sold and users expect.
+    n = int(n or 0)
+    if n >= 1000 ** 4:
+        return f"{n / 1000**4:.1f} TB"
+    if n >= 1000 ** 3:
+        return f"{round(n / 1000**3)} GB"
+    if n >= 1000 ** 2:
+        return f"{round(n / 1000**2)} MB"
+    return f"{n} B"
+
+
+def live_parent():
+    """Whole-disk node backing the running live medium — never a target."""
+    for mnt in ("/run/initramfs/live", "/run/rootfsbase", "/"):
+        src = run(["findmnt", "-n", "-o", "SOURCE", mnt]).strip()
+        # SOURCE can be "/dev/sda1" or "/dev/mapper/live-rw[/…]"; take the leaf dev.
+        src = src.split("[")[0].strip()
+        if not src.startswith("/dev/"):
+            continue
+        pk = run(["lsblk", "-no", "pkname", src]).strip().splitlines()
+        if pk and pk[0]:
+            return "/dev/" + pk[0].strip()
+        # src may already be a whole disk
+        typ = run(["lsblk", "-ndo", "type", src]).strip()
+        if typ == "disk":
+            return src
+    return ""
+
+
+def classify(node):
+    """(hasData, hasOS, osName) from a disk's partitions, best-effort, no mount."""
+    out = run(["lsblk", "-nro", "FSTYPE,PARTTYPENAME,LABEL,PARTLABEL", node])
+    has_data = False
+    has_esp = False
+    win = False
+    linux = False
+    for line in out.splitlines():
+        blob = line.lower()
+        if not blob.strip():
+            continue
+        fstype = blob.split()[0] if blob.split() else ""
+        if fstype and fstype not in ("", "linux_raid_member"):
+            has_data = True
+        if "ntfs" in blob:
+            win = True
+            has_data = True
+        if "efi system" in blob or "vfat" in blob and ("efi" in blob or "esp" in blob):
+            has_esp = True
+        if fstype in ("ext4", "ext3", "xfs", "btrfs") or "linux filesystem" in blob:
+            linux = True
+            has_data = True
+    os_name = ""
+    has_os = False
+    if win:
+        os_name, has_os = "Windows", True
+    elif linux and has_esp:
+        os_name, has_os = "Linux", True
+    elif has_esp:
+        os_name, has_os = "", True  # some bootable system present
+    return has_data, has_os, os_name
+
+
+def main():
+    lp = live_parent()
+    try:
+        doc = json.loads(run(["lsblk", "-b", "-d", "-J", "-o",
+                              "NAME,PATH,TYPE,SIZE,MODEL,VENDOR,RM,RO,HOTPLUG"]))
+    except Exception:
+        print(json.dumps({"liveNode": lp, "disks": []}))
+        return
+    disks = []
+    for d in doc.get("blockdevices", []):
+        name = d.get("name", "")
+        node = d.get("path") or ("/dev/" + name)
+        if d.get("type") != "disk":
+            continue
+        if name.startswith(("zram", "loop", "sr", "fd", "ram")):
+            continue
+        if d.get("ro") is True:
+            continue
+        size = int(d.get("size") or 0)
+        if size <= 0:
+            continue
+        removable = bool(d.get("rm") or d.get("hotplug"))
+        is_live = (node == lp)
+        model = (d.get("model") or "").strip() or (d.get("vendor") or "").strip()
+        has_data, has_os, os_name = classify(node)
+        # A friendly, honest name: internal vs removable.
+        friendly = "Removable drive" if removable and not is_live else "Internal drive"
+        if is_live:
+            friendly = "Boot drive (USB)"
+        disks.append({
+            "node": node,
+            "name": friendly,
+            "model": model,
+            "sizeBytes": size,
+            "sizeH": human(size),
+            "removable": removable,
+            "isLive": is_live,
+            "tooSmall": size < MIN_BYTES,
+            "hasOS": has_os,
+            "osName": os_name,
+            "hasData": has_data,
+        })
+    # Largest first so the obvious target is on top.
+    disks.sort(key=lambda x: (x["isLive"], -x["sizeBytes"]))
+    print(json.dumps({"liveNode": lp, "disks": disks}))
+
+
+if __name__ == "__main__":
+    main()

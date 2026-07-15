@@ -28,6 +28,20 @@ set -euxo pipefail
 sed -i 's|^NAME=.*|NAME="MoOS"|' /usr/lib/os-release
 sed -i 's|^PRETTY_NAME=.*|PRETTY_NAME="MoOS"|' /usr/lib/os-release
 
+# The name is "MoOS" — NOT "MoOS 44". The "44" is Fedora's version number and the
+# classic release files (/etc/redhat-release, /etc/system-release, /etc/fedora-release)
+# still read "Fedora release 44 (…)" from the base package; anything that prints
+# them (the shell login banner, some About dialogs, `hostnamectl`) would show a
+# foreign name AND a version the user never asked to see. Force all three to a bare
+# "MoOS". VERSION_ID in os-release stays 44 — dnf/COPR need it — but it is not the
+# product NAME and never shown as one. (Owner: drop the Fedora version from the name.)
+for _rel in /etc/redhat-release /etc/system-release /etc/fedora-release; do
+    if [ -e "$_rel" ] || [ -L "$_rel" ]; then
+        rm -f "$_rel"; printf 'MoOS\n' > "$_rel"
+    fi
+done
+unset -v _rel
+
 # Full UI branding for graphical about-pages (KInfoCenter "About this System",
 # Plasma system settings, GNOME Software style dialogs, ...).
 # LOGO= takes an ICON NAME, not a file path — os-release(5): "A string,
@@ -65,7 +79,8 @@ sed -i -E 's|^VERSION="([^"(]*[^"( ]) *\([^)]*\)"|VERSION="\1"|' /usr/lib/os-rel
 sed -i -E 's|^VERSION="(.*[^ ]) *"|VERSION="\1"|' /usr/lib/os-release
 
 osrel_set LOGO              'moos-logo'
-osrel_set HOME_URL          '"https://github.com/moalfarras-sys/moos-image"'
+# MoOS's own home is Moalfarras's site (the system is "designed by Moalfarras").
+osrel_set HOME_URL          '"https://www.moalfarras.space"'
 osrel_set DOCUMENTATION_URL '"https://github.com/moalfarras-sys/moos-image"'
 osrel_set SUPPORT_URL       '"https://github.com/moalfarras-sys/moos-image/issues"'
 osrel_set BUG_REPORT_URL    '"https://github.com/moalfarras-sys/moos-image/issues"'
@@ -361,35 +376,61 @@ MOOS_IMAGETAG="latest"
 # block at the end silently overwrote it with insecureAcceptAnything. The image built clean
 # and shipped unverified. One writer only.)
 
+# anaconda-webui + cockpit-bridge are EXPLICIT: they are the WebUI frontend the
+# advanced/dual-boot path uses, and on Fedora they are weak deps of anaconda —
+# with install_weak_deps=False they would silently NOT install, leaving "Install
+# MoOS (advanced)" with no installer at all. libblockdev-nvme/crypto add NVMe and
+# LUKS disk detection so a modern laptop's disk is actually found.
 dnf5 -y install --setopt=install_weak_deps=False \
-    anaconda-live firefox libblockdev-btrfs libblockdev-lvm libblockdev-dm
+    anaconda-live anaconda-webui cockpit-bridge firefox \
+    libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+    libblockdev-nvme libblockdev-crypto whois
 mkdir -p /var/lib/rpm-state   # Anaconda Web UI needs this to exist
 
-# interactive-defaults.ks: deploy the MoOS container image to the target disk.
-# TRANSPORT = registry (network pull), NOT containers-storage: verified that
-# Titanoboa's build_iso.sh only squashfs-es /rootfs and does NOT embed the
-# image into the live /var/lib/containers/storage (no skopeo/payload copy) —
-# so containers-storage would fail at install time. Registry pull always works
-# as long as there is internet (the install guide requires it) and the image
-# is public on GHCR.
-#
-# The install-time pull IS verified. This previously passed --no-signature-verification,
-# with a comment claiming the installed system "still enforces cosign signatures for all
-# future bootc upgrades" — it did not, in two ways: the policy listed the MoOS registry as
-# insecureAcceptAnything, and the flag also makes the INSTALLED origin an unverified one, so
-# every future update on that machine skipped the policy too. A fresh install was unverified
-# for life.
-#
-# Verifying here works because the live installer environment IS this image: it carries the
-# MoOS public key (/etc/pki/containers/moos.pub), the policy that requires it, and the
-# registries.d entry that tells the verifier the signature is a sigstore attachment. Dropping
-# the flag also makes the deployed origin ostree-image-signed, so the machine keeps verifying
-# every update for the rest of its life.
-#
-# A signature failure here is a clean, loud install failure — not a broken system.
+# The MoOS installer (moos-installer → moos-install-to-disk) and the Anaconda
+# advanced path both install the SAME edition they booted. Bake the edition-aware
+# ref the helper reads (system_files ships the default moos ref; overwrite it so a
+# moos-nvidia ISO installs moos-nvidia and the user never has to `bootc switch`).
+mkdir -p /usr/lib/moos
+printf '%s\n' "${MOOS_IMAGEREF}:${MOOS_IMAGETAG}" > /usr/lib/moos/install-imageref
+
+# interactive-defaults.ks: the Anaconda ADVANCED / dual-boot path (the PRIMARY
+# install path is now the MoOS QML installer, moos-installer → moos-install-to-disk,
+# which the "Install MoOS" launcher runs). Install OFFLINE from the image embedded
+# in the ISO's containers-storage — no network pull. The old registry transport
+# was the #1 reason real-hardware installs failed: it needed internet, and the
+# wired-only network default (moos.conf FIRST_WIRED_WITH_LINK) never came up on a
+# Wi-Fi laptop, so the deploy aborted. This is the proven Titanoboa/Bazzite pattern:
+#   --transport=containers-storage : read the image already on the USB (offline).
+#   --no-signature-verification    : a local copy carries no sigstore attachment,
+#       and copying signed layers to disk would invalidate them (bootc #812). Safe:
+#       the bits came from the user's own USB, not the network.
+#   clearpart/autopart/bootloader  : real defaults so the common case is one click,
+#       not the error-prone manual partitioner (the old kickstart had NONE and
+#       dropped users into manual mode — a top human cause of "the install failed").
+# The %post re-arms SIGNED day-2 updates so every future `bootc upgrade` verifies
+# the cosign signature (the image ships the key + policy.json + registries.d).
+# Result: offline, one-click install — and a verified system for life. The image
+# is embedded into the ISO's /var/lib/containers/storage by the ISO build
+# (.github/workflows/build-iso.yml) — without that this path fails "no image".
 cat >> /usr/share/anaconda/interactive-defaults.ks <<KSEOF
 
-ostreecontainer --url=${MOOS_IMAGEREF}:${MOOS_IMAGETAG} --transport=registry
+clearpart --all --initlabel
+autopart --type=btrfs
+bootloader --location=mbr
+ostreecontainer --url=${MOOS_IMAGEREF}:${MOOS_IMAGETAG} --transport=containers-storage --no-signature-verification
+
+%post --erroronfail
+set -euo pipefail
+# Re-arm signed verification for day-2 updates (the install itself was local and
+# unverified BY DESIGN). Rewrite the deployment origin to ostree-image-signed so
+# bootc verifies the cosign signature on every upgrade. Fail loudly rather than
+# ship a system that silently stopped verifying.
+for origin in /ostree/deploy/*/deploy/*.origin; do
+    [ -f "\$origin" ] || continue
+    sed -i 's|^container-image-reference=.*|container-image-reference=ostree-image-signed:docker://${MOOS_IMAGEREF}:${MOOS_IMAGETAG}|' "\$origin"
+done
+%end
 KSEOF
 
 # Re-brand the installer AFTER anaconda-live is installed. GROUND TRUTH (verified
@@ -409,6 +450,13 @@ KSEOF
 # reads "التثبيت على القرص الصلب".
 _liveinst=/usr/share/applications/liveinst.desktop
 if [ -f "$_liveinst" ]; then
+    # Repoint the "Install MoOS" icon at the BEAUTIFUL MoOS QML installer
+    # (/usr/bin/moos-installer) instead of raw Anaconda. The old Anaconda WebUI
+    # storage screen is confusing and its registry-pull install failed offline;
+    # moos-installer is the clear, offline, disk-card flow. Anaconda is still
+    # reachable as the "Advanced / dual-boot" path from inside moos-installer
+    # (moos://installer/advanced → liveinst). StartupWMClass is retargeted so
+    # Plasma matches the QML window to org.moos.installer.desktop (MoOS icon).
     sed -i \
         -e 's|^Name=.*|Name=Install MoOS|' \
         -e '/^Name\[/d' \
@@ -416,7 +464,10 @@ if [ -f "$_liveinst" ]; then
         -e '/^GenericName\[/d' \
         -e 's|^Comment=.*|Comment=Install MoOS to your disk|' \
         -e '/^Comment\[/d' \
+        -e 's|^Exec=.*|Exec=moos-installer|' \
+        -e 's|^TryExec=.*|TryExec=moos-installer|' \
         -e 's|^Icon=.*|Icon=moos-logo|' \
+        -e 's|^StartupWMClass=.*|StartupWMClass=org.moos.installer|' \
         -e 's|^Categories=.*|Categories=System;|' \
         "$_liveinst"
     # Arabic display name right after the (now single) Name line.
@@ -566,7 +617,16 @@ esac
 # pkg-config file (KDE distributes CMake configs), hence the explicit -I/-l.
 dnf5 -y install gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel \
                 kf6-kdbusaddons-devel kf6-kwindowsystem-devel
-g++ -std=c++17 -fPIC -O2 /ctx/moos-qml-shell.cpp -o /usr/bin/moos-qml-shell \
+# moos-qml-shell now carries a Q_OBJECT (InstallerBridge — the installer's secure
+# recipe channel), so it must be moc'd: the .cpp ends with #include
+# "moos-qml-shell.moc", which moc generates next to the source. Locate moc across
+# the paths Fedora's qt6-qtbase-devel installs it under.
+_moc="$(command -v moc-qt6 2>/dev/null || true)"
+[ -z "$_moc" ] && [ -x /usr/lib64/qt6/libexec/moc ] && _moc=/usr/lib64/qt6/libexec/moc
+[ -z "$_moc" ] && _moc="$(command -v moc 2>/dev/null || true)"
+[ -n "$_moc" ] || { echo "FATAL: Qt6 moc not found — cannot build moos-qml-shell."; exit 1; }
+"$_moc" /ctx/moos-qml-shell.cpp -o /ctx/moos-qml-shell.moc
+g++ -std=c++17 -fPIC -O2 -I/ctx /ctx/moos-qml-shell.cpp -o /usr/bin/moos-qml-shell \
     -I/usr/include/KF6/KDBusAddons -I/usr/include/KF6/KWindowSystem \
     -lKF6DBusAddons -lKF6WindowSystem \
     $(pkg-config --cflags --libs Qt6Gui Qt6Qml Qt6Core Qt6DBus)
@@ -1261,6 +1321,7 @@ chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moai-config /usr/bin/moai-gateway /usr/bin/moai-control /usr/bin/moai-code \
     /usr/bin/moai-idle \
     /usr/bin/moos-theme /usr/bin/moos-selfcheck \
+    /usr/bin/moos-installer /usr/bin/moos-install-to-disk /usr/bin/moos-list-disks \
     /usr/libexec/moos-fstab-sanitize
 
 # Register the moos:// scheme handler so the pure-QML apps' buttons actually
@@ -1442,6 +1503,14 @@ rpm -q microcode_ctl >/dev/null 2>&1 || rpm -q amd-ucode-firmware >/dev/null 2>&
 
 chmod 0755 /usr/libexec/moos-hardware-adapt
 systemctl enable moos-hardware-adapt.service
+
+# First-boot setup: create the user + apply account/locale/timezone/keyboard from
+# the installer's answers (or a safe default `moos` autologin user). This REPLACES
+# the masked plasma-setup (Plasma's OOBE, masked in section (z)) with MoOS's own —
+# without it a fresh install would reach the greeter with NO user to log in as.
+# Runs only on the installed system (ConditionPathExists=/run/ostree-booted).
+chmod 0755 /usr/libexec/moos-firstboot
+systemctl enable moos-firstboot.service
 
 # -----------------------------------------------------------------------------
 # (z) Full identity switch — MUST BE LAST, after ALL dnf/copr operations

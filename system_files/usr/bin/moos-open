@@ -90,6 +90,30 @@ case "${cat}/${tgt}" in
     lang/en)       setsid moos-lang en >/dev/null 2>&1 & ;;
     lang/de)       setsid moos-lang de >/dev/null 2>&1 & ;;
 
+    # ── MoOS Installer (apps/installer/main.qml, launched by moos-installer on
+    # the live USB). Re-probe disks, run the ONE privileged destructive step, or
+    # finish. moos-install-to-disk self-guards to a live boot and refuses the boot
+    # medium, so even a drive-by moos:// URL can at worst raise the (live-only,
+    # live-guarded) installer helper — which does nothing on an installed system.
+    installer/probe)
+        _idir="${XDG_CACHE_HOME:-$HOME/.cache}/moos-installer"; mkdir -p "$_idir"
+        if command -v moos-list-disks >/dev/null 2>&1; then
+            setsid sh -c 'moos-list-disks > "$1/disks.json" 2>/dev/null || printf "{\"liveNode\":\"\",\"disks\":[]}\n" > "$1/disks.json"' _ "$_idir" >/dev/null 2>&1 &
+        fi ;;
+    installer/begin)
+        # The target disk is NOT taken from this URL — the helper reads it (and the
+        # account answers) from the 0600 recipe.json the trusted QML front-end wrote
+        # via the moos-qml-shell bridge. So a drive-by moos://installer/begin cannot
+        # choose a disk: with no recipe the helper fails no-recipe and wipes nothing.
+        _idir="${XDG_CACHE_HOME:-$HOME/.cache}/moos-installer"; mkdir -p "$_idir"
+        : > "${_idir}/install.status" 2>/dev/null || true
+        # Detached + line-buffered so the QML's PROGRESS bar moves live while the
+        # helper (pkexec → root) streams PHASE/PROGRESS/DONE/FAIL to the file.
+        setsid sh -c 'command -v stdbuf >/dev/null 2>&1 && exec stdbuf -oL pkexec /usr/bin/moos-install-to-disk > "$1/install.status" 2>/dev/null; exec pkexec /usr/bin/moos-install-to-disk > "$1/install.status" 2>/dev/null' _ "$_idir" >/dev/null 2>&1 & ;;
+    installer/advanced) gui liveinst ;;
+    installer/reboot)   systemctl reboot   2>/dev/null || loginctl reboot   2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndReboot   2>/dev/null || true ;;
+    installer/poweroff) systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null || true ;;
+
     # ── Mo PC Remote: start / stop / reconnect, from inside Mo AI ────────────
     remote/start)   remote_ctl enable --now ;;
     remote/stop)    remote_ctl disable --now ;;

@@ -309,6 +309,109 @@ if disc.is_file():
     require(Path("/usr/share/icons/hicolor/256x256/apps/mo-store.png").is_file(),
             "the mo-store icon is missing — notifier surfaces would fall back to a generic icon")
 
+# ── The MoOS installer (the live-USB disk installer) ──────────────────────────
+# "Install MoOS" must launch the beautiful MoOS QML installer (moos-installer),
+# not raw Anaconda, and every piece it needs must be present. The old registry-pull
+# install failed on real hardware; these gates lock in the offline, one-click flow.
+for _p, _msg in [
+    ("/usr/bin/moos-installer", "the MoOS installer launcher is missing"),
+    ("/usr/bin/moos-install-to-disk", "the privileged install helper is missing"),
+    ("/usr/bin/moos-list-disks", "the disk-probe helper is missing"),
+    ("/usr/share/moos/apps/installer/main.qml", "the installer QML front-end is missing"),
+    ("/usr/share/polkit-1/rules.d/49-moos-installer.rules", "the installer polkit rule is missing — the install step could not elevate"),
+    ("/usr/lib/moos/install-imageref", "the edition-aware install image ref is missing"),
+]:
+    require(Path(_p).is_file(), _msg)
+
+liveinst = Path("/usr/share/applications/liveinst.desktop")
+if liveinst.is_file():
+    _li = config(text(str(liveinst)))
+    require("Exec=moos-installer" in _li,
+            "'Install MoOS' does not launch moos-installer — it would open the confusing Anaconda screen")
+    require("Name=Install MoOS" in _li, "the installer launcher is not named 'Install MoOS'")
+
+# Anti-footgun contract on the destructive helper: it MUST refuse to run outside a
+# live boot and MUST refuse the live boot medium itself, or a stray invocation
+# could wipe an installed machine's disk. Enforced at build time.
+helper = Path("/usr/bin/moos-install-to-disk")
+if helper.is_file():
+    _h = text(str(helper))
+    require("rd.live.image" in _h and "not-live" in _h,
+            "moos-install-to-disk lacks the live-only guard — it could wipe an installed system's disk")
+    require("live-node" in _h and "live_parent" in _h,
+            "moos-install-to-disk lacks the boot-medium guard — it could wipe the USB it booted from")
+    # The target disk must come from the trusted recipe, NOT argv/URL, or a drive-by
+    # moos:// URL could aim a --wipe at an attacker-chosen internal disk.
+    require("no-recipe" in _h and "DISKS_JSON" in _h,
+            "moos-install-to-disk takes its target from argv/URL — a drive-by moos:// URL could wipe an arbitrary disk")
+    # The install must re-arm SIGNED day-2 verification (else updates go unverified).
+    require("ostree-image-signed" in _h,
+            "moos-install-to-disk does not re-arm signed day-2 verification after install")
+_open = Path("/usr/bin/moos-open")
+if _open.is_file():
+    _o = text(str(_open))
+    require("installer/begin)" in _o and "installer/disk/" not in _o,
+            "moos-open still routes a disk node from the URL — the target must come from the recipe, not the URL")
+
+# The install must be OFFLINE from the embedded image and re-arm signed day-2
+# updates. The kickstart is assembled by build.sh; assert the offline contract.
+ks = Path("/usr/share/anaconda/interactive-defaults.ks")
+if ks.is_file():
+    _ks = text(str(ks))
+    require("--transport=containers-storage" in _ks,
+            "the kickstart still pulls from the registry — install fails with no network")
+    require("ostree-image-signed:" in _ks,
+            "the kickstart does not re-arm signed day-2 updates in %post")
+    require("autopart" in _ks,
+            "the kickstart has no autopart — users are dropped into manual partitioning")
+
+# ── First-boot account setup (bootc installs no user; we create it on first boot) ─
+require(Path("/usr/libexec/moos-firstboot").is_file(),
+        "moos-firstboot is missing — a fresh install would reach the greeter with NO user")
+require(Path("/usr/lib/systemd/system/moos-firstboot.service").is_file(),
+        "moos-firstboot.service is missing")
+require(
+    Path("/etc/systemd/system/multi-user.target.wants/moos-firstboot.service").exists()
+    or Path("/usr/lib/systemd/system/multi-user.target.wants/moos-firstboot.service").exists(),
+    "moos-firstboot.service is not enabled — the first-boot user setup would never run",
+)
+fb = Path("/usr/libexec/moos-firstboot")
+if fb.is_file():
+    _fb = text(str(fb))
+    require("useradd" in _fb and "chpasswd" in _fb,
+            "moos-firstboot does not create the user / set the password")
+    require("plasmalogin.conf.d" in _fb and "Autologin" in _fb,
+            "moos-firstboot does not configure autologin — the passwordless choice would not work")
+    # Never ship an empty password (pam_unix rejects it and it breaks sudo/polkit).
+    require("passwd -l" in _fb,
+            "moos-firstboot must lock (not empty) the password in the passwordless path")
+# plasma-setup (Fedora KDE's own OOBE) must stay masked, or it double-runs with ours.
+require(Path("/etc/plasma-setup-done").exists()
+        or Path("/etc/systemd/system/plasma-setup.service").is_symlink(),
+        "plasma-setup is not neutralised — the first-run OOBE could be the foreign KDE one")
+
+# The installer must actually feed the account to first boot: the QML hands answers
+# to the privileged helper via the moos-qml-shell bridge (never a moos:// URL).
+inst_qml = Path("/usr/share/moos/apps/installer/main.qml")
+if inst_qml.is_file():
+    _iq = text(str(inst_qml))
+    require("MoosInstaller.writeRecipe" in _iq,
+            "the installer does not hand the account recipe to the helper (no secure bridge call)")
+    require("acctUser" in _iq and "acctPassword" in _iq,
+            "the installer has no account screen (username / password choice)")
+    require("moalfarras.space" in _iq,
+            "the installer's finish screen does not carry the moalfarras.space signature")
+# The QR asset the finish screen shows must ship.
+require(Path("/usr/share/moos/apps/installer/qr-moalfarras.png").is_file(),
+        "the installer QR code asset is missing")
+
+# The name is MoOS, not "MoOS 44": no release file may carry the bare Fedora version.
+for _rel in ("/etc/system-release", "/etc/redhat-release", "/etc/fedora-release"):
+    p = Path(_rel)
+    if p.is_file():
+        require(p.read_text(encoding="utf-8").strip() == "MoOS",
+                f"{_rel} is not exactly 'MoOS' — it still shows a version/foreign name")
+
 if errors:
     raise SystemExit("MoOS image-experience gate failed:\n - " + "\n - ".join(errors))
 print("MoOS image-experience gate passed")

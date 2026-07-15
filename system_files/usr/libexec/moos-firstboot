@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# moos-firstboot — apply the MoOS installer's answers on the target's FIRST boot.
+#
+# `bootc install to-disk` lays down an intentionally UNCONFIGURED image (no user,
+# no password, no timezone, no keymap — bootc.dev/bootc/bootc-install.html). Doing
+# that setup here, on the real booted OS, gets SELinux labels, PAM and the /var
+# bind-mounts correct automatically (a live-USB chroot would mislabel /etc/shadow
+# and /var/home). This is the same pattern Fedora 44 KDE uses (plasma-setup) — we
+# ship our own so nothing foreign brands the first-run.
+#
+# INPUT: /etc/moos-setup.conf (written by moos-install-to-disk into the target),
+# a KEY=VALUE file:
+#   USERNAME, FULLNAME, PASSWORD_HASH (crypt string, empty ⇒ passwordless),
+#   AUTOLOGIN (1|0), TIMEZONE, KEYMAP, XKBLAYOUT, LOCALE
+# If the file is ABSENT (e.g. the Anaconda advanced path), a safe default `moos`
+# user with passwordless autologin is created so the system is ALWAYS usable.
+#
+# Gated by the unit's ConditionPathExists=!/etc/moos-firstboot-done; stamps that
+# file when finished so it runs exactly once.
+set -uo pipefail
+
+CONF="/etc/moos-setup.conf"
+STAMP="/etc/moos-firstboot-done"
+log() { printf 'moos-firstboot: %s\n' "$*"; }
+
+# Defaults (used verbatim when no answers file exists).
+USERNAME="moos"; FULLNAME="MoOS User"; PASSWORD_HASH=""
+AUTOLOGIN="1"; TIMEZONE=""; KEYMAP="us"; XKBLAYOUT="us"; LOCALE=""
+
+if [ -r "$CONF" ]; then
+    # Parse KEY=VALUE safely (no eval): only our known keys, value is the rest of line.
+    while IFS='=' read -r k v; do
+        case "$k" in
+            USERNAME|FULLNAME|PASSWORD_HASH|AUTOLOGIN|TIMEZONE|KEYMAP|XKBLAYOUT|LOCALE)
+                printf -v "$k" '%s' "$v" ;;
+        esac
+    done < "$CONF"
+fi
+
+# Sanitise the username to a valid POSIX login name; fall back to moos.
+if ! printf '%s' "$USERNAME" | grep -Eq '^[a-z_][a-z0-9_-]{0,31}$'; then
+    log "invalid username '${USERNAME}', using 'moos'"; USERNAME="moos"
+fi
+
+# ── create the user (home lands in /var/home on Atomic; /home is a symlink) ────
+if ! id "$USERNAME" >/dev/null 2>&1; then
+    useradd -m -G wheel -c "$FULLNAME" -s /bin/bash "$USERNAME" \
+        || { log "useradd failed"; }
+fi
+
+# ── password / passwordless ───────────────────────────────────────────────────
+if [ -n "$PASSWORD_HASH" ]; then
+    printf '%s:%s\n' "$USERNAME" "$PASSWORD_HASH" | chpasswd -e || log "chpasswd failed"
+    passwd -u "$USERNAME" >/dev/null 2>&1 || true
+else
+    # Passwordless: lock the password field (never leave it EMPTY — pam_unix
+    # rejects empty passwords and it breaks sudo/polkit/unlock). Reaching the
+    # desktop is via autologin; privileged actions go through the rules below.
+    passwd -l "$USERNAME" >/dev/null 2>&1 || true
+    # No password to type for admin actions in the passwordless model.
+    printf '%%wheel ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/10-moos-nopasswd
+    chmod 0440 /etc/sudoers.d/10-moos-nopasswd
+    install -d -m 0755 /etc/polkit-1/rules.d
+    cat > /etc/polkit-1/rules.d/49-moos-passwordless.rules <<POLKIT
+// Passwordless MoOS: the sole local desktop user does not type a password for
+// admin prompts (mirrors the autologin choice). Written only when the user chose
+// no password at install; a password install does NOT ship this file.
+polkit.addRule(function(action, subject) {
+    if (subject.isInGroup("wheel") && subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});
+POLKIT
+fi
+
+# ── autologin (plasmalogin — Fedora 44 KDE greeter, SDDM-compatible INI) ───────
+if [ "$AUTOLOGIN" = "1" ]; then
+    install -d -m 0755 /etc/plasmalogin.conf.d
+    cat > /etc/plasmalogin.conf.d/10-moos-autologin.conf <<AUTOEOF
+[Autologin]
+User=${USERNAME}
+Session=plasma.desktop
+
+[General]
+DisplayServer=wayland
+AUTOEOF
+    # SDDM fallback path, in case a variant still uses sddm.
+    install -d -m 0755 /etc/sddm.conf.d
+    cp -f /etc/plasmalogin.conf.d/10-moos-autologin.conf /etc/sddm.conf.d/10-moos-autologin.conf 2>/dev/null || true
+fi
+
+# ── locale / timezone / keyboard ──────────────────────────────────────────────
+[ -n "$LOCALE" ]   && printf 'LANG=%s\n' "$LOCALE" > /etc/locale.conf
+[ -n "$KEYMAP" ]   && printf 'KEYMAP=%s\n' "$KEYMAP" > /etc/vconsole.conf
+if [ -n "$TIMEZONE" ] && [ -f "/usr/share/zoneinfo/${TIMEZONE}" ]; then
+    ln -sf "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime
+fi
+if [ -n "$XKBLAYOUT" ]; then
+    install -d -m 0755 /etc/X11/xorg.conf.d
+    cat > /etc/X11/xorg.conf.d/00-keyboard.conf <<XKBEOF
+Section "InputClass"
+    Identifier "system-keyboard"
+    MatchIsKeyboard "on"
+    Option "XkbLayout" "${XKBLAYOUT}"
+    Option "XkbOptions" "grp:alt_shift_toggle"
+EndSection
+XKBEOF
+fi
+
+# The answers file may carry a password hash — remove it once applied.
+rm -f "$CONF" 2>/dev/null || true
+: > "$STAMP" 2>/dev/null || true
+log "done (user=${USERNAME} autologin=${AUTOLOGIN})"
+exit 0

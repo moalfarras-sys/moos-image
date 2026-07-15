@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# moos-installer — launch the MoOS Setup installer (the live-USB disk installer).
+# The beautiful QML front-end (apps/installer/main.qml) that replaces the raw
+# Anaconda storage screen. Mirrors /usr/bin/moos-welcome's launch pattern exactly:
+# a pure-QML script app hosted by moos-qml-shell (so Plasma matches the window to
+# org.moos.installer.desktop and shows the MoOS icon, not a generic Qt window).
+#
+# It probes disks ONCE at startup into a JSON the QML reads; the QML's "Rescan"
+# re-runs the probe via moos://installer/probe (handled in moos-open). The actual
+# destructive install is a SEPARATE privileged helper (moos-install-to-disk) the
+# QML triggers via moos://installer/disk/<node> — this launcher never touches a
+# disk. Distinct from /usr/bin/moos-setup (the Flatpak power-apps picker).
+set -euo pipefail
+QML="/usr/share/moos/apps/installer/main.qml"
+export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
+
+# QML disk cache, content-hash stamped (same seam as moos-welcome/moai): drops
+# exactly once per real UI change, warm every other launch. OSTree's frozen mtimes
+# defeat Qt's mtime-keyed qmlcache, so hash the source instead.
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}"
+if command -v sha256sum >/dev/null 2>&1 && [ -r "$QML" ]; then
+    _stamp="${CACHE}/moos-installer.qmlstamp"
+    _cur="$(sha256sum "$QML" 2>/dev/null | cut -c1-32)"
+    if [ -n "$_cur" ] && [ "$(cat "$_stamp" 2>/dev/null)" != "$_cur" ]; then
+        rm -rf "${CACHE}/qmlcache" 2>/dev/null || true
+        mkdir -p "$CACHE" 2>/dev/null || true
+        printf '%s\n' "$_cur" > "$_stamp" 2>/dev/null || true
+    fi
+else
+    export QML_DISABLE_DISK_CACHE=1
+fi
+
+# Qt6 gates local-file reads (catalog/status/disks JSON) behind this flag.
+export QML_XHR_ALLOW_FILE_READ=1
+
+# The installer's private cache dir: the disk probe JSON and the privileged
+# helper's live status file both live here (kept identical to the path the QML
+# reads and moos-open writes).
+CACHEDIR="${CACHE}/moos-installer"
+mkdir -p "$CACHEDIR" 2>/dev/null || true
+DISKS="${CACHEDIR}/disks.json"
+
+# Probe disks now (best-effort; the QML shows an empty-state + Rescan on failure).
+if command -v moos-list-disks >/dev/null 2>&1; then
+    moos-list-disks > "$DISKS" 2>/dev/null || printf '{"liveNode":"","disks":[]}\n' > "$DISKS"
+else
+    printf '{"liveNode":"","disks":[]}\n' > "$DISKS"
+fi
+
+# moos-qml-shell sets the real app_id so Plasma shows the MoOS installer icon.
+if [ -x /usr/bin/moos-qml-shell ]; then
+    exec /usr/bin/moos-qml-shell \
+        --app-id org.moos.installer --icon moos-logo --qml "$QML" \
+        -- --cache="$CACHEDIR" --disks="$DISKS"
+fi
+
+# Fallback: bare runtime (wrong icon beats no window).
+for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
+    if command -v "$runner" >/dev/null 2>&1 || [ -x "$runner" ]; then
+        exec "$runner" "$QML" -- --cache="$CACHEDIR" --disks="$DISKS"
+    fi
+done
+echo "MoOS Installer: no Qt6 QML runtime found. | لا يوجد محرّك QML." >&2
+exit 127

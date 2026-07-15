@@ -1,0 +1,22 @@
+[Desktop Entry]
+# Window-identity entry for the MoOS installer QML app. moos-qml-shell sets the
+# window app_id to org.moos.installer, so Plasma matches THIS file for the task-bar
+# icon/name. NoDisplay=true: the visible launcher the live user clicks is
+# /usr/share/applications/liveinst.desktop ("Install MoOS"), which execs
+# moos-installer — this entry only gives that window its MoOS icon, not a second
+# menu item.
+Type=Application
+Name=Install MoOS
+Name[ar]=تثبيت MoOS
+GenericName=MoOS Installer
+GenericName[ar]=مثبّت MoOS
+Comment=Install MoOS to your disk
+Comment[ar]=ثبّت MoOS على قرصك
+Exec=moos-installer
+TryExec=moos-installer
+Icon=moos-logo
+Terminal=false
+Categories=System;
+NoDisplay=true
+StartupWMClass=org.moos.installer
+Keywords=install;installer;moos;

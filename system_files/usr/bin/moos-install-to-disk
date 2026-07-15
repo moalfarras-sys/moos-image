@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+# moos-install-to-disk — the ONE privileged, destructive step of the MoOS installer.
+# Wipes the chosen disk, installs the MoOS image, makes it bootable, and plants the
+# account/locale answers for first boot.
+#
+# THE TARGET DISK AND ANSWERS COME FROM THE RECIPE, NOT ARGV/URL. The trusted QML
+# front-end writes a 0600 recipe.json (via the moos-qml-shell bridge) containing the
+# target node it enumerated + the user's account choices. This helper reads the node
+# FROM THAT FILE — so a drive-by `moos://installer/begin` URL cannot aim a wipe at an
+# attacker-chosen disk (there is no node to supply, and no recipe ⇒ FAIL no-recipe).
+# Defence in depth: the node must also appear in the front-end's disks.json as an
+# eligible (non-live) disk.
+#
+# Invoked ONLY by moos-open's `installer/begin` route via pkexec (polkit rule
+# 49-moos-installer.rules). stdout is the machine-readable contract the QML polls:
+#     PHASE partition|format|copy|bootloader|finalize
+#     PROGRESS 0..100
+#     DONE / FAIL <code>   code ∈ no-recipe|not-root|not-live|no-node|live-node|
+#                                 no-image|no-network|no-space|disk-io|generic
+#
+# ENGINE: `bootc install to-disk` run inside the image via podman (the container IS
+# the image). Uses the LOCAL copy if the ISO embedded it (offline) else pulls it
+# (online). After install it re-arms SIGNED day-2 verification (origin rewrite), so
+# every future `bootc upgrade` verifies the cosign signature.
+#
+# SAFETY: refuses to run outside a live boot, refuses the live medium (and refuses a
+# removable target if it cannot determine the live medium), refuses a non-block dev.
+set -uo pipefail
+
+emit()  { printf '%s\n' "$*"; }
+phase() { emit "PHASE $1"; }
+prog()  { emit "PROGRESS $1"; }
+fail()  { emit "FAIL ${1:-generic}"; exit 1; }
+
+LOG="/tmp/moos-install-to-disk.log"
+: > "$LOG" 2>/dev/null || true
+
+IMGREF_FILE="/usr/lib/moos/install-imageref"
+TARGET_IMGREF="ghcr.io/moalfarras-sys/moos:latest"
+[ -r "$IMGREF_FILE" ] && TARGET_IMGREF="$(tr -d ' \t\r\n' < "$IMGREF_FILE")"
+
+# ── find + parse the recipe (the trusted source of BOTH target disk and answers) ─
+find_recipe() {
+    local h
+    if [ -n "${PKEXEC_UID:-}" ]; then
+        h="$(getent passwd "$PKEXEC_UID" 2>/dev/null | cut -d: -f6)"
+        [ -n "$h" ] && [ -r "$h/.cache/moos-installer/recipe.json" ] && { printf '%s' "$h/.cache/moos-installer/recipe.json"; return; }
+    fi
+    ls /home/*/.cache/moos-installer/recipe.json /var/home/*/.cache/moos-installer/recipe.json \
+       /root/.cache/moos-installer/recipe.json 2>/dev/null | head -1
+}
+RECIPE="$(find_recipe)"
+# The recipe holds a plaintext password — wipe it on ANY exit (belt), and again
+# explicitly right after we parse it (braces) so it never outlives the parse.
+wipe_recipe() { [ -n "${RECIPE:-}" ] && [ -e "$RECIPE" ] && { shred -u "$RECIPE" 2>/dev/null || rm -f "$RECIPE" 2>/dev/null; } || true; }
+trap 'wipe_recipe' EXIT
+
+[ -n "$RECIPE" ] && [ -r "$RECIPE" ] || fail "no-recipe"
+DISKS_JSON="$(dirname "$RECIPE")/disks.json"
+
+IFS=$'\t' read -r NODE R_USER R_FULL R_PASS R_AUTO R_KEYMAP R_XKB R_LOCALE R_TZ < <(
+    python3 - "$RECIPE" <<'PY' 2>>"$LOG"
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+def g(k): return str(d.get(k, "")).replace("\t", " ").replace("\n", " ")
+print("\t".join([g("node"), g("username"), g("fullname"), g("password"),
+                 g("autologin"), g("keymap"), g("xkblayout"), g("locale"), g("timezone")]))
+PY
+) || { wipe_recipe; fail "no-recipe"; }
+
+# Hash the password now (stdin, never argv) so the plaintext can be discarded with
+# the recipe immediately after — nothing plaintext survives the long install.
+PASS_HASH=""
+if [ -n "$R_PASS" ]; then
+    command -v mkpasswd >/dev/null 2>&1 && PASS_HASH="$(printf '%s' "$R_PASS" | mkpasswd -m yescrypt -s 2>/dev/null)"
+    [ -z "$PASS_HASH" ] && command -v openssl >/dev/null 2>&1 && PASS_HASH="$(printf '%s' "$R_PASS" | openssl passwd -6 -stdin 2>/dev/null)"
+fi
+R_PASS=""
+wipe_recipe   # done with the recipe — no plaintext lingers during the install
+
+# ── guards ────────────────────────────────────────────────────────────────────
+[ "$(id -u)" = "0" ] || fail "not-root"
+if ! grep -q 'rd.live.image' /proc/cmdline 2>/dev/null && [ ! -d /run/initramfs/live ]; then
+    fail "not-live"
+fi
+[ -n "$NODE" ] || fail "no-node"
+[ -b "$NODE" ] || fail "no-node"
+
+# Defence in depth: the node must be a disk the front-end actually enumerated as
+# eligible (non-live). Ties the wipe to what the trusted UI showed the user.
+if [ -r "$DISKS_JSON" ]; then
+    python3 - "$DISKS_JSON" "$NODE" <<'PY' 2>>"$LOG" || fail "no-node"
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+n = sys.argv[2]
+sys.exit(0 if any(x.get("node") == n and not x.get("isLive") for x in d.get("disks", [])) else 1)
+PY
+fi
+
+# The whole disk backing the live medium — never a target.
+live_parent() {
+    local src pk typ
+    for mnt in /run/initramfs/live /run/rootfsbase /; do
+        src="$(findmnt -n -o SOURCE "$mnt" 2>/dev/null | sed 's/\[.*//')"
+        case "$src" in /dev/*) ;; *) continue ;; esac
+        pk="$(lsblk -no pkname "$src" 2>/dev/null | head -1 | tr -d ' ')"
+        if [ -n "$pk" ]; then echo "/dev/$pk"; return; fi
+        typ="$(lsblk -ndo type "$src" 2>/dev/null | tr -d ' ')"
+        [ "$typ" = "disk" ] && { echo "$src"; return; }
+    done
+}
+LIVE="$(live_parent)"
+if [ -n "$LIVE" ] && [ "$NODE" = "$LIVE" ]; then
+    fail "live-node"
+fi
+# Fail CLOSED, not open: if we could not identify the live medium at all, refuse a
+# REMOVABLE target — it might BE the USB we booted from.
+if [ -z "$LIVE" ]; then
+    _rm="$(lsblk -ndo RM "$NODE" 2>/dev/null | tr -d ' ')"
+    [ "$_rm" = "1" ] && fail "live-node"
+fi
+
+# podman must exist; image is local (offline) or pulled (needs network).
+command -v podman >/dev/null 2>&1 || fail "no-image"
+if podman image exists "$TARGET_IMGREF" >>"$LOG" 2>&1; then
+    echo "image present locally — offline install" >>"$LOG"
+else
+    echo "image not in local storage — needs network to pull" >>"$LOG"
+    if ! curl -s -o /dev/null --max-time 8 https://ghcr.io/ 2>>"$LOG"; then
+        fail "no-network"
+    fi
+fi
+
+# Best-effort: free the target of any live auto-mounts so the wipe can proceed.
+for part in $(lsblk -nro PATH "$NODE" 2>/dev/null | tail -n +2); do
+    umount "$part" >>"$LOG" 2>&1 || true
+done
+
+# ── progress ticker: crawls toward a moving ceiling so the bar lives during the
+#    long, quiet copy phase. Honest: never passes the ceiling. ─────────────────
+CEILF="$(mktemp)"; PCTF="$(mktemp)"
+echo 4 > "$CEILF"; echo 3 > "$PCTF"
+ticker() {
+    local cur ceil
+    while :; do
+        cur="$(cat "$PCTF" 2>/dev/null || echo 3)"
+        ceil="$(cat "$CEILF" 2>/dev/null || echo 4)"
+        if [ "$cur" -lt "$ceil" ]; then cur=$((cur + 1)); echo "$cur" > "$PCTF"; prog "$cur"; fi
+        sleep 1
+    done
+}
+raise() { echo "$1" > "$CEILF"; }
+ticker & TICK=$!
+stop_ticker() { [ -n "${TICK:-}" ] && kill "$TICK" 2>/dev/null; wait "$TICK" 2>/dev/null; rm -f "$CEILF" "$PCTF"; TICK=""; }
+trap 'stop_ticker; wipe_recipe' EXIT
+
+phase partition; prog 4; raise 18
+
+run_install() {
+    podman run --rm --privileged --pid=host --net=host \
+        --security-opt label=disable \
+        -v /dev:/dev -v /var/lib/containers:/var/lib/containers \
+        -v /run/udev:/run/udev \
+        "$TARGET_IMGREF" \
+        bootc install to-disk \
+            --wipe --filesystem btrfs \
+            --target-transport registry --target-imgref "$TARGET_IMGREF" \
+            --skip-fetch-check \
+            "$NODE" 2>&1
+}
+
+run_install | tee -a "$LOG" | while IFS= read -r line; do
+    case "$line" in
+        *artition*|*wiping*|*Wiping*|*GPT*|*sgdisk*)        phase partition;  raise 22 ;;
+        *ilesystem*|*mkfs*|*ormatting*|*subvol*)            phase format;     raise 34 ;;
+        *ostree*|*Deploying*|*deploy*|*ayer*|*hunk*|*Writing*|*opying*) phase copy; raise 86 ;;
+        *bootupd*|*ootloader*|*grub*|*shim*|*EFI*)          phase bootloader; raise 93 ;;
+        *inaliz*|*Finaliz*|*yncing*|*ompleted*|*omplete*)   phase finalize;   raise 97 ;;
+    esac
+done
+rc="${PIPESTATUS[0]}"
+stop_ticker
+
+# On success: mount the target ONCE to (a) plant the first-boot answers and (b)
+# re-arm SIGNED day-2 verification. Both best-effort for (a) — the system stays
+# usable via moos-firstboot's default user — but the signing rewrite matters, so
+# it is logged loudly if it cannot run.
+seed_target() {
+    local part etc mnt=/run/moos-target origin
+    part="$(lsblk -nrpo NAME,FSTYPE "$NODE" 2>/dev/null | awk '$2=="btrfs"{print $1; exit}')"
+    [ -n "$part" ] || { echo "seed: no btrfs partition found" >>"$LOG"; return 1; }
+    mkdir -p "$mnt"
+    mount "$part" "$mnt" 2>>"$LOG" || { echo "seed: mount failed" >>"$LOG"; return 1; }
+    etc="$(ls -d "$mnt"/ostree/deploy/*/deploy/*/etc "$mnt"/root/ostree/deploy/*/deploy/*/etc 2>/dev/null | head -1)"
+    if [ -n "$etc" ] && [ -d "$etc" ]; then
+        {
+            printf 'USERNAME=%s\n'      "$R_USER"
+            printf 'FULLNAME=%s\n'      "$R_FULL"
+            printf 'PASSWORD_HASH=%s\n' "$PASS_HASH"
+            printf 'AUTOLOGIN=%s\n'     "${R_AUTO:-1}"
+            printf 'KEYMAP=%s\n'        "${R_KEYMAP:-us}"
+            printf 'XKBLAYOUT=%s\n'     "${R_XKB:-us}"
+            printf 'LOCALE=%s\n'        "$R_LOCALE"
+            printf 'TIMEZONE=%s\n'      "$R_TZ"
+        } > "$etc/moos-setup.conf" 2>>"$LOG"
+        chmod 0600 "$etc/moos-setup.conf" 2>/dev/null || true
+    fi
+    # Re-arm signed day-2 updates: rewrite the deployment origin so every future
+    # `bootc upgrade` verifies the cosign signature (matches the Anaconda %post).
+    for origin in "$mnt"/ostree/deploy/*/deploy/*.origin "$mnt"/root/ostree/deploy/*/deploy/*.origin; do
+        [ -f "$origin" ] || continue
+        sed -i "s|^container-image-reference=.*|container-image-reference=ostree-image-signed:docker://${TARGET_IMGREF}|" "$origin" 2>>"$LOG" \
+            && echo "seed: re-armed signed origin in $origin" >>"$LOG" \
+            || echo "seed: WARN could not re-arm signed origin in $origin" >>"$LOG"
+    done
+    umount "$mnt" 2>>"$LOG" || true
+    [ -n "$etc" ]
+}
+
+if [ "$rc" -eq 0 ]; then
+    phase finalize; raise 99
+    seed_target || echo "target seeding incomplete (non-fatal for boot; check log)" >>"$LOG"
+    prog 100
+    emit "DONE"
+    exit 0
+fi
+
+reason="generic"
+if grep -qiE 'no space|enospc|not enough (space|room)|disk full' "$LOG" 2>/dev/null; then
+    reason="no-space"
+elif grep -qiE 'input/output error|i/o error|read-only|write error|failed to write|device or resource busy' "$LOG" 2>/dev/null; then
+    reason="disk-io"
+elif grep -qiE 'no such image|image not known|unable to find image' "$LOG" 2>/dev/null; then
+    reason="no-image"
+fi
+fail "$reason"

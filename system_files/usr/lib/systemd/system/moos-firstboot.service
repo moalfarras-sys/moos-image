@@ -1,0 +1,22 @@
+# MoOS first-boot setup: create the user + apply account/locale/timezone/keyboard
+# from the installer's answers (/etc/moos-setup.conf), or a safe default user if
+# none. Runs ONCE, before the greeter, on the freshly installed system — where
+# SELinux labels and PAM are correct. See /usr/libexec/moos-firstboot.
+[Unit]
+Description=MoOS first-boot setup
+ConditionPathExists=!/etc/moos-firstboot-done
+# Only on a real installed (ostree-booted) system, never in the live ISO — the
+# live session is configured separately and must not run this.
+ConditionPathExists=/run/ostree-booted
+After=local-fs.target systemd-machine-id-commit.service
+# Must finish before the login manager so autologin/user exist at greeter time.
+Before=display-manager.service plasmalogin.service sddm.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/moos-firstboot
+TimeoutStartSec=120s
+
+[Install]
+WantedBy=multi-user.target
