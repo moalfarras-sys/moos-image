@@ -125,15 +125,31 @@ if [ -z "$LIVE" ]; then
     [ "$_rm" = "1" ] && fail "live-node"
 fi
 
-# podman must exist; image is local (offline) or pulled (needs network).
-command -v podman >/dev/null 2>&1 || fail "no-image"
-if podman image exists "$TARGET_IMGREF" >>"$LOG" 2>&1; then
-    echo "image present locally — offline install" >>"$LOG"
+# Choose the install SOURCE: the LOCAL image if the ISO embedded it (offline,
+# instant) else the registry (needs a working network). We run `bootc install`
+# DIRECTLY below — NOT `podman run <image> bootc install`, which first unpacks the
+# whole image into the live env's RAM-backed writable layer (overlayfs=1) and dies
+# "no space left on device". Direct bootc streams straight to the target's repo.
+SRC="docker://${TARGET_IMGREF}"
+if command -v podman >/dev/null 2>&1 && podman image exists "$TARGET_IMGREF" >>"$LOG" 2>&1; then
+    SRC="containers-storage:${TARGET_IMGREF}"
+    echo "source: local containers-storage (offline)" >>"$LOG"
 else
-    echo "image not in local storage — needs network to pull" >>"$LOG"
-    if ! curl -s -o /dev/null --max-time 8 https://ghcr.io/ 2>>"$LOG"; then
-        fail "no-network"
-    fi
+    echo "source: registry (online) — ensuring network is up" >>"$LOG"
+    # systemd-resolved frequently has NOT come up on a slow live boot (dbus-broker
+    # cascade), so DNS fails even though the NIC has an IP. Nudge it and wait.
+    ensure_network() {
+        local host="${TARGET_IMGREF%%/*}" i
+        getent hosts "$host" >/dev/null 2>&1 && return 0
+        systemctl restart systemd-resolved 2>>"$LOG" || true
+        systemctl restart NetworkManager  2>>"$LOG" || true
+        for i in $(seq 1 45); do
+            getent hosts "$host" >/dev/null 2>&1 && return 0
+            sleep 1
+        done
+        return 1
+    }
+    ensure_network || fail "no-network"
 fi
 
 # Best-effort: free the target of any live auto-mounts so the wipe can proceed.
@@ -162,16 +178,18 @@ trap 'stop_ticker; wipe_recipe' EXIT
 phase partition; prog 4; raise 18
 
 run_install() {
-    podman run --rm --privileged --pid=host --net=host \
-        --security-opt label=disable \
-        -v /dev:/dev -v /var/lib/containers:/var/lib/containers \
-        -v /run/udev:/run/udev \
-        "$TARGET_IMGREF" \
-        bootc install to-disk \
-            --wipe --filesystem btrfs \
-            --target-transport registry --target-imgref "$TARGET_IMGREF" \
-            --skip-fetch-check \
-            "$NODE" 2>&1
+    # Direct bootc (root, from the live env). --source-imgref lets bootc fetch the
+    # image itself (registry or local containers-storage) and write it straight to
+    # the target disk's ostree repo — no full unpack into live RAM. --generic-image
+    # marks it a portable install (not tied to this machine's firmware). The
+    # INSTALLED system keeps a registry target ref so day-2 `bootc upgrade` works.
+    bootc install to-disk \
+        --source-imgref "$SRC" \
+        --target-transport registry --target-imgref "$TARGET_IMGREF" \
+        --skip-fetch-check \
+        --wipe --filesystem btrfs \
+        --generic-image \
+        "$NODE" 2>&1
 }
 
 run_install | tee -a "$LOG" | while IFS= read -r line; do
