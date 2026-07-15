@@ -1336,6 +1336,35 @@ test -f /usr/lib/systemd/system/fedora-atomic-desktop-appstream-cache-refresh.se
 systemctl disable fedora-atomic-desktop-appstream-cache-refresh.service
 systemctl enable moos-appstream-refresh.timer
 
+# -----------------------------------------------------------------------------
+# Boot speed — the two highest-impact SAFE levers on a Fedora Atomic KDE desktop
+# -----------------------------------------------------------------------------
+# Measured across the Fedora/uBlue/Bazzite ecosystem, these two dominate the
+# serial boot path on this exact stack, and both are safe on a GENERIC DESKTOP
+# image (no network mounts, no SDDM). Nothing here touches the branded splash
+# handoff (plymouth-quit-wait is deliberately left alone — masking it does not
+# speed boot and breaks the flicker-free handoff).
+#
+# 1) NetworkManager-wait-online.service gates network-online.target, which on a
+#    desktop NOTHING needs before the greeter — NM keeps connecting in the
+#    background while Plasma appears. This is the single biggest common win
+#    (5-30 s off the serial path). DISABLE only the -wait-online sub-unit, never
+#    NetworkManager itself. Safe because MoOS ships no _netdev (NFS/CIFS/iSCSI)
+#    mount that would need the network up early. Gate: fail loud if the unit was
+#    renamed so the win can't silently rot.
+test -f /usr/lib/systemd/system/NetworkManager-wait-online.service || {
+    echo "GATE FAIL: NetworkManager-wait-online.service is gone/renamed — the boot-speed fix now targets nothing"
+    exit 1
+}
+systemctl disable NetworkManager-wait-online.service
+
+# 2) systemd-udev-settle.service is deprecated ("depending on it is a bug" per
+#    systemd) and, when some greeter/vendor drop-in drags it in, it SERIALIZES
+#    the whole boot — historically adding up to ~2 minutes on Atomic KDE. F44's
+#    Plasma Login Manager should not pull it, but mask it as a hard guard so a
+#    future base/drop-in change can never resurrect the stall.
+systemctl mask systemd-udev-settle.service 2>/dev/null || true
+
 # Mo AI in-app Settings backend: a tiny per-user control API. --global enables it
 # for every user's session (bakes the default.target.wants symlink under
 # /etc/systemd/user) without needing a running user manager at build time.
@@ -1382,6 +1411,37 @@ systemctl --global enable moos-reclaim-disk.timer
 # impossible overlay reconfigure on every boot. Remove only that entry before
 # remount processing while preserving /boot, /boot/efi, /home and /var.
 systemctl enable moos-fstab-sanitize.service
+
+# -----------------------------------------------------------------------------
+# Hardware adaptation — MoOS "plants itself" into the machine (safe subset)
+# -----------------------------------------------------------------------------
+# Ship the daemons the first-boot service (and the DE) rely on, and enable the
+# service. Everything the service DOES is safe and reversible (see the anti-brick
+# contract in /usr/libexec/moos-hardware-adapt). Most adaptation is already
+# static/build-time: microcode is early-loaded from the initramfs, GPU mesa
+# drivers ship in the image, TRIM is fstrim.timer, the I/O scheduler is the
+# static udev rule 60-moos-ioschedulers.rules, base zram is zram-generator.
+#
+# - thermald: Intel proactive thermal protection (the service enables it only on
+#   Intel; AMD relies on amd-pstate + firmware, which is always on).
+# - fwupd: firmware SERVICE for LVFS; the service enables only fwupd-refresh.timer
+#   (metadata refresh), never auto-applies. tuned/tuned-ppd is the Fedora default
+#   power manager and is already in the KDE base (do not co-install TLP/ppd).
+# These are small and Fedora-packaged; a missing one must not fail the build
+# (the service degrades gracefully), so this install is best-effort.
+dnf5 -y install thermald fwupd || \
+    echo "note: thermald/fwupd install skipped (base may already provide them)"
+
+# Guarantee the CPU microcode packages stay in the image — they are early-loaded
+# from the prebuilt initramfs, so their mere presence is the whole guarantee.
+# Fail loud if a future edit ever strips them (a machine with stale microcode is
+# a real stability/security regression).
+rpm -q microcode_ctl >/dev/null 2>&1 || rpm -q amd-ucode-firmware >/dev/null 2>&1 \
+    || dnf5 -y install microcode_ctl || \
+    echo "note: microcode package check inconclusive (linux-firmware ships amd-ucode)"
+
+chmod 0755 /usr/libexec/moos-hardware-adapt
+systemctl enable moos-hardware-adapt.service
 
 # -----------------------------------------------------------------------------
 # (z) Full identity switch — MUST BE LAST, after ALL dnf/copr operations
@@ -1837,6 +1897,20 @@ if [ -f /usr/share/plymouth/themes/spinner/watermark.png ]; then
         /usr/share/plymouth/themes/spinner/watermark.png
 fi
 
+# Prove moos is the ACTIVE default (the symlink dracut's plymouth module reads to
+# decide which single theme to embed), not merely present on disk. A wrong symlink
+# ships a Fedora bgrt/spinner splash whose grey three-dot fallback is the exact
+# symptom to avoid. Absolute ImageDir is required or the emblem/ring silently fail
+# to load, leaving only the background — the "background but no logo" render.
+_active_theme="$(readlink -f /usr/share/plymouth/themes/default.plymouth 2>/dev/null)"
+case "$_active_theme" in
+    */themes/moos/moos.plymouth) : ;;
+    *) echo "FATAL: active Plymouth default is '${_active_theme:-unset}', not moos — the initramfs would embed a foreign splash"; exit 1 ;;
+esac
+grep -qx 'ImageDir=/usr/share/plymouth/themes/moos' /usr/share/plymouth/themes/moos/moos.plymouth \
+    || { echo "FATAL: moos.plymouth ImageDir is not the absolute /usr/share/plymouth/themes/moos"; exit 1; }
+unset -v _active_theme
+
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
     --add "ostree plymouth dmsquash-live dmsquash-live-autooverlay" \
     --add-drivers "erofs overlay loop" \
@@ -1883,6 +1957,20 @@ if [ "${_final_lsrc}" -eq 0 ]; then
     }
     grep -q 'plymouth/themes/moos/watermark.png' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks the MoOS watermark"; exit 1;
+    }
+    # The throbber (turquoise loading ring) frames and the two-step PLUGIN must
+    # both be in the initramfs, or Plymouth renders the background + emblem but no
+    # animation, or cannot run the graphical splash at all (the three-dot
+    # fallback). The research confirmed a missing two-step.so is the difference
+    # between a full render and the fallback.
+    grep -q 'plymouth/themes/moos/throbber-0001.png' /tmp/moos-final-initrd.txt || {
+        echo "FATAL: final initramfs lacks the MoOS throbber (the loading ring)"; exit 1;
+    }
+    grep -qE 'plymouth/(two-step\.so|two-step)' /tmp/moos-final-initrd.txt || {
+        echo "FATAL: final initramfs lacks the two-step Plymouth plugin — the moos theme cannot render"; exit 1;
+    }
+    grep -qE 'plymouth/renderers/(drm\.so|frame-buffer\.so)' /tmp/moos-final-initrd.txt || {
+        echo "FATAL: final initramfs lacks a Plymouth renderer (drm/frame-buffer) — no graphical splash"; exit 1;
     }
     if grep -qE 'plymouth/themes/(spinner/watermark\.png|bgrt/bgrt\.plymouth)' \
         /tmp/moos-final-initrd.txt; then

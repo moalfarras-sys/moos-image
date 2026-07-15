@@ -48,6 +48,42 @@ require("quiet" in kargs_text,
 require("Theme=moos" in text("/usr/share/plymouth/plymouthd.defaults"),
         "Plymouth's default theme is not moos")
 
+# The LIVE ISO boot config (this file ships in the image; Titanoboa consumes it).
+# It must carry rd.live.overlay.overlayfs=1 — without it the live writable layer
+# is a small fixed dm-snapshot COW that fills to 100% within minutes and makes
+# systemd freeze ('Freezing execution'). It must also match the installed
+# system's flicker-free set so the live boot is not noisier than an install.
+iso_yaml = Path("/usr/lib/bootc-image-builder/iso.yaml")
+if iso_yaml.is_file():
+    iso_text = iso_yaml.read_text(encoding="utf-8")
+    require("rd.live.overlay.overlayfs=1" in iso_text,
+            "the live ISO kargs lack rd.live.overlay.overlayfs=1 — the live session's COW "
+            "would fill and systemd would freeze")
+    for karg in ("loglevel=3", "rd.udev.log_level=3", "splash", "plymouth.use-simpledrm"):
+        require(karg in iso_text,
+                f"the live ISO kargs lack '{karg}' — the live boot is noisier than an installed MoOS")
+
+# Hardware adaptation service must be ENABLED (its multi-user.target.wants symlink
+# present), not merely shipped — a first-boot adapter that is never wanted never
+# runs. `systemctl enable` in the build lands the symlink under /etc; check both
+# /etc and /usr so the gate is robust to how the image records enablement.
+hw_wants = [
+    Path("/etc/systemd/system/multi-user.target.wants/moos-hardware-adapt.service"),
+    Path("/usr/lib/systemd/system/multi-user.target.wants/moos-hardware-adapt.service"),
+]
+require(any(p.exists() or p.is_symlink() for p in hw_wants),
+        "moos-hardware-adapt.service is not enabled (no multi-user.target.wants symlink) — "
+        "the hardware adaptation would never run")
+
+# The static I/O-scheduler udev rule (the build-time half of hardware adaptation)
+# must ship and pick a scheduler per device type.
+iosched = Path("/usr/lib/udev/rules.d/60-moos-ioschedulers.rules")
+require(iosched.is_file(), "the MoOS I/O-scheduler udev rule is missing")
+if iosched.is_file():
+    rules = iosched.read_text(encoding="utf-8")
+    require("nvme" in rules and 'scheduler}="none"' in rules,
+            "the I/O-scheduler rule does not set 'none' for NVMe")
+
 # The first screen a new MoOS user sees must be MoOS. plasma-setup.service is Plasma's
 # out-of-box wizard; it runs Before=display-manager.service and holds the screen, so it — not
 # the MoOS SDDM theme — was what greeted every fresh install: a full-screen "Welcome to Plasma

@@ -140,6 +140,28 @@ def main() -> None:
     require((ROOT / "usr/lib/systemd/system/moos-fstab-sanitize.service").is_file(),
             "bootc fstab sanitizer service is missing")
 
+    # Hardware adaptation — MoOS plants itself into the machine. The service and
+    # its script must ship together (a service with no script is a boot-time
+    # failure), and the script must keep its anti-brick contract: it must NEVER
+    # flash firmware, raise thermal limits, or install GPU drivers at runtime.
+    hw = ROOT / "usr/libexec/moos-hardware-adapt"
+    require(hw.is_file() and hw.stat().st_mode & 0o111,
+            "moos-hardware-adapt is missing or not executable")
+    require((ROOT / "usr/lib/systemd/system/moos-hardware-adapt.service").is_file(),
+            "moos-hardware-adapt.service is missing")
+    hw_text = hw.read_text(encoding="utf-8")
+    # The dangerous operations must not appear as ACTIONS. `fwupdmgr update -y`
+    # would auto-apply firmware (brick risk); the service may only refresh
+    # metadata (fwupd-refresh.timer). Guard the exact unsafe invocation.
+    require("fwupdmgr update" not in hw_text,
+            "moos-hardware-adapt must NEVER auto-apply firmware (fwupdmgr update) — brick risk")
+    require("ryzenadj" not in hw_text and "--overclock" not in hw_text,
+            "moos-hardware-adapt must NEVER overclock/undervolt on generic hardware")
+    # It must be idempotent (state-gated) so a rebase re-adapts and an ordinary
+    # boot no-ops — the fstab-sanitize discipline.
+    require("hardware-adapt.state" in hw_text or "MOOS_HW_STATE" in hw_text,
+            "moos-hardware-adapt must be idempotent via a versioned state file")
+
     # ONE MoOS look ships, in a dark half and a light half. The older generations (org.moos.nova,
     # org.moos.ui) used to ship alongside it — three generations at once, so System Settings
     # offered the user six MoOS themes. They are gone, and this checks the survivors are whole and

@@ -4,14 +4,34 @@
 # NOTE: CDLABEL in the kernel args MUST match `label` exactly.
 label: "MoOS-Live"
 grub2:
-  timeout: 5
+  # 1s hidden menu, not 5s — the live boot should reach the MoOS splash fast; the
+  # deployment/rollback picker is still reachable by holding a key. (The installed
+  # system uses GRUB_TIMEOUT=1 too — keep the two consistent.)
+  timeout: 1
   default: 0
   entries:
-    # plymouth.use-simpledrm: force the graphical splash onto the firmware
-    # framebuffer from instant zero (simpledrm is builtin in the F44 kernel) —
-    # fixes the ugly grey text-mode fallback seen in VMs; harmless on real
-    # hardware (it is Fedora's own default for non-LUKS via UseSimpledrmNoLuks).
-    # vt.global_cursor_default=0: no blinking console cursor during handoffs.
+    # KARGS — kept in lockstep with the INSTALLED system's flicker-free set
+    # (usr/lib/bootc/kargs.d/10-moos-boot-splash.toml). The live ISO used to omit
+    # loglevel/rd.udev.log_level/splash, so the live boot showed more console
+    # noise than an installed MoOS. Now they match.
+    #   quiet + splash + rhgb + loglevel=3 + rd.udev.log_level=3 : the standard
+    #     flicker-free set — kernel/udev stay quiet so the Plymouth MoOS splash
+    #     owns the screen from the first frame.
+    #   plymouth.use-simpledrm : draw the splash on the firmware framebuffer from
+    #     instant zero (simpledrm is builtin in F44; Fedora's own non-LUKS
+    #     default via UseSimpledrmNoLuks). NOTE: under some VMs (QEMU+OVMF) the
+    #     emulated display may not bind a DRM device and Plymouth then shows its
+    #     grey three-dot fallback — that is a VM artifact; on real hardware
+    #     simpledrm binds the EFI framebuffer and the MoOS emblem+ring render.
+    #   vt.global_cursor_default=0 : no blinking console cursor during handoffs.
+    #
+    # rd.live.overlay.overlayfs=1 — THE fix for the live session "Freezing
+    # execution" hang. The default live writable layer is a device-mapper
+    # snapshot (COW) with a small fixed size; a few minutes of session writes
+    # fill it to 100%, writes start failing block-level, and systemd freezes
+    # (seen live: 'systemd[1]: Freezing execution' at ~94s under load). overlayfs
+    # backs the writable layer with tmpfs instead — proper headroom, no fixed COW
+    # to overflow — which is what current Fedora/Bazzite live images use.
     - name: "MoOS Live"
-      linux: "/images/pxeboot/vmlinuz quiet rhgb plymouth.use-simpledrm vt.global_cursor_default=0 root=live:CDLABEL=MoOS-Live enforcing=0 rd.live.image"
+      linux: "/images/pxeboot/vmlinuz quiet splash rhgb loglevel=3 rd.udev.log_level=3 plymouth.use-simpledrm vt.global_cursor_default=0 rd.live.overlay.overlayfs=1 root=live:CDLABEL=MoOS-Live enforcing=0 rd.live.image"
       initrd: "/images/pxeboot/initrd.img"

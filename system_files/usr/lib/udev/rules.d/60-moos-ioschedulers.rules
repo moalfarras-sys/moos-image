@@ -1,0 +1,20 @@
+# MoOS I/O schedulers by device type — static, applied by udev at device add.
+# This is the build-time/static half of hardware adaptation (the professional
+# division of labour: static where it can be, first-boot service only for what
+# genuinely varies per machine at runtime).
+#
+#   NVMe        -> none        (the drive's own queue is faster than any elevator)
+#   SATA/SAS SSD-> mq-deadline (low-overhead, good for flash)
+#   rotational  -> bfq         (fair + interactive-friendly for spinning disks)
+#
+# Keyed on queue/rotational and the device subsystem, the same shape Fedora/RHEL
+# document. Persisted via udev, never the obsolete elevator= kernel arg.
+
+# NVMe: no scheduler.
+ACTION=="add|change", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none"
+
+# Non-rotational SCSI/SATA (SSD): mq-deadline.
+ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
+
+# Rotational (HDD): bfq for fairness + desktop interactivity.
+ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"

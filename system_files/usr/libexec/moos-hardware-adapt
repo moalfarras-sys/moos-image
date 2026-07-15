@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# moos-hardware-adapt — MoOS "plants itself" into the machine it is installed on.
+#
+# On an image-based OS (bootc/ostree) MOST hardware adaptation is already baked
+# into the image or handled by static config + udev (CPU microcode is early-loaded
+# from the prebuilt initramfs, GPU mesa drivers ship in the image, TRIM is the
+# weekly fstrim.timer, the I/O scheduler is a static udev rule, base zram comes
+# from zram-generator-defaults). This service does ONLY the small, curated set of
+# SAFE runtime tweaks that genuinely depend on the specific machine — the exact
+# division of labour Bazzite's hardware-setup uses. It is deliberately narrow:
+# it must never be able to brick or overheat a machine (see the DO-NOT list below).
+#
+# WHAT IT WILL NEVER DO (the anti-brick / anti-overheat contract):
+#   * flash/apply BIOS/UEFI/device firmware (only refresh metadata + surface it)
+#   * raise power/thermal limits, undervolt/overclock, or set custom fan curves
+#   * disable thermal throttling
+#   * compile or install GPU drivers at runtime (NVIDIA is a build-time image
+#     variant — runtime only ADVISES a rebase)
+#   * write CPU microcode (early-loaded from the initramfs already)
+#   * apply arbitrary kernel args (none here; kargs stay hand-curated in the image)
+#   * touch Secure Boot keys, the bootloader, or the partition/LUKS layout
+#   * co-install conflicting power daemons (tuned-ppd is the Fedora default; keep it)
+#
+# IDEMPOTENT & RE-RUNNABLE: state lives in /etc/moos/hardware-adapt.state, keyed on
+# a revision number AND the booted image name. A `bootc switch`/rebase or a bumped
+# HW_REV re-triggers; an ordinary boot no-ops in milliseconds. Test-overridable via
+# MOOS_HW_STATE / MOOS_HW_SYSFS / MOOS_HW_DRYRUN so the gate can exercise it.
+set -uo pipefail
+
+HW_REV=1
+
+STATE="${MOOS_HW_STATE:-/etc/moos/hardware-adapt.state}"
+SYS="${MOOS_HW_SYSFS:-/sys}"
+DRYRUN="${MOOS_HW_DRYRUN:-0}"
+LOG="${MOOS_HW_LOG:-/run/moos-hardware-adapt.log}"
+
+log() {
+    echo "moos-hardware-adapt: $*"
+    # Append to the log only when its directory is writable (it is /run on a real
+    # system; skip silently on a host without /run so a dry-run stays quiet).
+    [ -d "$(dirname "$LOG")" ] && [ -w "$(dirname "$LOG")" ] || return 0
+    printf '%s %s\n' "$(date -u '+%FT%TZ' 2>/dev/null || echo now)" "$*" >>"$LOG" 2>/dev/null || true
+}
+do_run() { if [ "$DRYRUN" = "1" ]; then log "DRYRUN: $*"; else "$@" >>"$LOG" 2>&1 || log "warn: '$*' failed (non-fatal)"; fi; }
+
+# ── idempotency ──────────────────────────────────────────────────────────────
+booted_image() {
+    # The image this deployment runs, so a rebase re-adapts. Best-effort.
+    bootc status --json 2>/dev/null | python3 -c 'import json,sys
+try:
+    d=json.load(sys.stdin); print((d.get("status",{}).get("booted",{}).get("image",{}).get("image",{}) or {}).get("image","") or "")
+except Exception: print("")' 2>/dev/null || echo ""
+}
+want_stamp="rev=${HW_REV} image=$(booted_image)"
+if [ -r "$STATE" ] && grep -qxF "$want_stamp" "$STATE" 2>/dev/null; then
+    log "already adapted for this revision+image — nothing to do"
+    exit 0
+fi
+log "adapting (rev ${HW_REV}) …"
+
+# ── detections (read-only) ───────────────────────────────────────────────────
+cpu_vendor="$(grep -m1 '^vendor_id' /proc/cpuinfo 2>/dev/null | awk '{print $3}')"
+mem_kb="$(grep -m1 '^MemTotal:' /proc/meminfo 2>/dev/null | awk '{print $2}')"
+mem_kb="${mem_kb:-0}"
+mem_gib=$(( mem_kb / 1024 / 1024 ))
+chassis="$(hostnamectl chassis 2>/dev/null || echo unknown)"
+have_battery=0
+for b in "$SYS"/class/power_supply/BAT*; do [ -e "$b" ] && have_battery=1 && break; done
+gpu_vendors=""
+for v in "$SYS"/bus/pci/devices/*/vendor; do
+    [ -r "$v" ] || continue
+    class="$(cat "${v%vendor}class" 2>/dev/null)"
+    case "$class" in 0x03*) gpu_vendors="${gpu_vendors} $(cat "$v" 2>/dev/null)" ;; esac
+done
+has_nvidia=0; case "$gpu_vendors" in *0x10de*) has_nvidia=1 ;; esac
+has_intel_gpu=0; case "$gpu_vendors" in *0x8086*) has_intel_gpu=1 ;; esac
+booted_img="$(booted_image)"
+is_nvidia_edition=0; case "$booted_img" in *moos-nvidia*) is_nvidia_edition=1 ;; esac
+
+log "cpu=${cpu_vendor:-?} ram=${mem_gib}GiB chassis=${chassis} battery=${have_battery} gpu_nvidia=${has_nvidia} gpu_intel=${has_intel_gpu} edition=${booted_img:-?}"
+
+# ── 1. Intel CPU → thermald (proactive overheat prevention). AMD relies on
+#       amd-pstate + firmware passive throttling, which is always on. ──────────
+if [ "$cpu_vendor" = "GenuineIntel" ]; then
+    if systemctl list-unit-files thermald.service >/dev/null 2>&1; then
+        do_run systemctl enable --now thermald.service
+        log "Intel CPU: thermald enabled"
+    else
+        log "Intel CPU: thermald not installed (skipping)"
+    fi
+else
+    # Never enable thermald on AMD — it is Intel-specific.
+    log "non-Intel CPU: leaving thermal management to the kernel/firmware (correct)"
+fi
+
+# ── 2. RAM-tiered zram — never touches disk, worst case is OOM not corruption,
+#       fully reversible (a config file). Sized by installed RAM. ─────────────
+if [ "$mem_gib" -gt 0 ]; then
+    zconf="/etc/systemd/zram-generator.conf"
+    if [ "$mem_gib" -lt 8 ]; then zsize="ram"          # low RAM: compression buys real headroom
+    elif [ "$mem_gib" -lt 32 ]; then zsize="min(ram, 8192)"
+    else zsize="min(ram / 2, 16384)"; fi
+    if [ "$DRYRUN" = "1" ]; then
+        log "DRYRUN would write ${zconf}: zram-size=${zsize}"
+    else
+        mkdir -p /etc/systemd 2>/dev/null || true
+        printf '# Written by moos-hardware-adapt (RAM tier: %sGiB). Reversible.\n[zram0]\nzram-size = %s\ncompression-algorithm = zstd\n' \
+            "$mem_gib" "$zsize" > "$zconf" 2>/dev/null && log "zram sized for ${mem_gib}GiB: ${zsize}" \
+            || log "warn: could not write ${zconf}"
+        # vm.min_free_kbytes ~1% of RAM (Bazzite pattern) — keeps a reclaim buffer.
+        minfree=$(( mem_kb / 100 ))
+        printf '# Written by moos-hardware-adapt. Reversible.\nvm.min_free_kbytes = %s\n' "$minfree" \
+            > /etc/sysctl.d/90-moos-hardware.conf 2>/dev/null || true
+        do_run systemctl restart "systemd-zram-setup@zram0.service"
+    fi
+fi
+
+# ── 3. Chassis-aware default power profile. Desktops with NO battery get
+#       'balanced' as the sane default; laptops/handhelds keep 'balanced' and let
+#       KDE PowerDevil switch to power-saver on battery. NEVER force performance
+#       silently, NEVER disable tuned/ppd. ────────────────────────────────────
+if command -v tuned-adm >/dev/null 2>&1; then
+    do_run tuned-adm profile balanced
+    log "tuned default profile: balanced (the DE switches on battery)"
+fi
+
+# ── 4. NVIDIA GPU on the BASE edition → SURFACE a rebase suggestion (never
+#       install drivers at runtime on an atomic system). Written where Mo AI /
+#       the welcome can read it. ─────────────────────────────────────────────
+notice_dir="/run/moos"
+mkdir -p "$notice_dir" 2>/dev/null || true
+if [ "$has_nvidia" = 1 ] && [ "$is_nvidia_edition" = 0 ]; then
+    printf 'nvidia-rebase\n' > "${notice_dir}/hardware-notice" 2>/dev/null || true
+    log "NVIDIA GPU on the base edition — suggest rebasing to moos-nvidia (advice only, no runtime driver install)"
+else
+    rm -f "${notice_dir}/hardware-notice" 2>/dev/null || true
+fi
+
+# ── 5. Intel GPU → a harmless per-session renderer hint (Bazzite pattern) so
+#       GTK apps use the GL renderer, which is smoother on Intel. Env drop-in,
+#       trivially reversible, affects rendering only. ────────────────────────
+if [ "$has_intel_gpu" = 1 ]; then
+    if [ "$DRYRUN" = "1" ]; then
+        log "DRYRUN would set GSK_RENDERER=gl for Intel GPU"
+    else
+        mkdir -p /etc/environment.d 2>/dev/null || true
+        printf '# Written by moos-hardware-adapt (Intel GPU). Reversible.\nGSK_RENDERER=gl\n' \
+            > /etc/environment.d/90-moos-intel-gpu.conf 2>/dev/null && log "Intel GPU: GSK_RENDERER=gl" || true
+    fi
+fi
+
+# ── 6. Firmware: refresh LVFS METADATA only (never apply). Surfacing the count
+#       to the user is Mo AI's job; applying requires explicit consent. ───────
+if systemctl list-unit-files fwupd-refresh.timer >/dev/null 2>&1; then
+    do_run systemctl enable fwupd-refresh.timer
+    log "fwupd-refresh.timer enabled (metadata only — updates are never auto-applied)"
+fi
+
+# ── record state (idempotency) ───────────────────────────────────────────────
+if [ "$DRYRUN" != "1" ]; then
+    mkdir -p "$(dirname "$STATE")" 2>/dev/null || true
+    printf '%s\n' "$want_stamp" > "$STATE" 2>/dev/null || log "warn: could not write state ${STATE}"
+fi
+log "hardware adaptation complete"
+exit 0
