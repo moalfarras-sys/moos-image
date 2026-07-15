@@ -1,0 +1,38 @@
+// MoOS — DEVELOPMENT MODE polkit rule.   ⚠️  TEMPORARY — REMOVE BEFORE RELEASE.  ⚠️
+//
+// During active development the recurring admin password prompts (pkexec/polkit)
+// that MoOS's own admin flows raise — `moos-update` (bootc upgrade), `moos-rollback`,
+// theme apply, `moai-do` — interrupt the edit/test loop on the maintainer's machine.
+// This rule lets the LOCAL, ACTIVE, wheel-group user run those admin actions WITHOUT
+// a password, so development is not gated on typing a password every few minutes.
+//
+// This is DEV-ONLY and MUST be reverted before an ISO / release ships. To restore
+// normal authentication, DELETE THIS FILE. Keep 49-moos-installer.rules — that one is
+// legitimate and needed on live media.
+//
+// Scope is deliberately narrow: only a session that is local AND active AND whose user
+// is in `wheel`. It authorises the rpm-ostree/bootc system-management D-Bus actions and
+// the exact pkexec-launched tools MoOS's admin UIs wrap — not a blanket YES.
+polkit.addRule(function(action, subject) {
+    if (!subject.local || !subject.active || !subject.isInGroup("wheel"))
+        return polkit.Result.NOT_HANDLED;
+
+    // rpm-ostree / bootc system management (update, rollback, deploy, rebase…).
+    if (action.id.indexOf("org.projectatomic.rpmostree1.") === 0 ||
+        action.id.indexOf("org.freedesktop.bootc") === 0)
+        return polkit.Result.YES;
+
+    // pkexec-launched MoOS admin helpers and the tools they wrap.
+    if (action.id === "org.freedesktop.policykit.exec") {
+        var prog = action.lookup("program") || "";
+        if (prog === "/usr/bin/bootc" ||
+            prog === "/usr/bin/rpm-ostree" ||
+            prog === "/usr/bin/systemctl" ||
+            prog === "/usr/bin/journalctl" ||
+            prog === "/usr/bin/moai-do" ||
+            prog.indexOf("/usr/bin/moos-") === 0 ||
+            prog.indexOf("/usr/libexec/moos-") === 0)
+            return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});
