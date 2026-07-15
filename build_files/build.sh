@@ -625,8 +625,10 @@ _moc="$(command -v moc-qt6 2>/dev/null || true)"
 [ -z "$_moc" ] && [ -x /usr/lib64/qt6/libexec/moc ] && _moc=/usr/lib64/qt6/libexec/moc
 [ -z "$_moc" ] && _moc="$(command -v moc 2>/dev/null || true)"
 [ -n "$_moc" ] || { echo "FATAL: Qt6 moc not found — cannot build moos-qml-shell."; exit 1; }
-"$_moc" /ctx/moos-qml-shell.cpp -o /ctx/moos-qml-shell.moc
-g++ -std=c++17 -fPIC -O2 -I/ctx /ctx/moos-qml-shell.cpp -o /usr/bin/moos-qml-shell \
+# /ctx is a READ-ONLY bind mount — write the generated meta-object to writable /tmp
+# and let g++ find it via -I/tmp (the .cpp's #include "moos-qml-shell.moc").
+"$_moc" /ctx/moos-qml-shell.cpp -o /tmp/moos-qml-shell.moc
+g++ -std=c++17 -fPIC -O2 -I/tmp /ctx/moos-qml-shell.cpp -o /usr/bin/moos-qml-shell \
     -I/usr/include/KF6/KDBusAddons -I/usr/include/KF6/KWindowSystem \
     -lKF6DBusAddons -lKF6WindowSystem \
     $(pkg-config --cflags --libs Qt6Gui Qt6Qml Qt6Core Qt6DBus)
