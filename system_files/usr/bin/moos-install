@@ -29,7 +29,12 @@ fail() { emit "FAIL ${1:-install failed}"; exit 1; }
 [ -n "$ID" ] || fail "no app id"
 [ -f "$CATALOG" ] || fail "catalog missing"
 
-# Pull this app's install recipe out of the catalog (tab-separated, safe for read).
+# Pull this app's install recipe out of the catalog. The fields are joined with the
+# ASCII Unit Separator (\x1f), NOT a tab: `appimage` legitimately has an empty `pkg`
+# and `web` an empty `pkg` AND `bin`, and tab is IFS-whitespace, so `read` would
+# coalesce the empty fields and shift every later field left (URL -> BIN, etc.),
+# silently breaking every appimage/web install. \x1f is non-whitespace, so empty
+# fields are preserved exactly. (Same class of bug fixed in moos-install-to-disk.)
 REC="$(python3 - "$CATALOG" "$ID" <<'PY' 2>>"$LOG"
 import json, sys
 cat = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -39,11 +44,11 @@ if not app:
 inst = app.get("install", {})
 fields = [app.get("source", ""), inst.get("kind", ""), inst.get("pkg", ""),
           inst.get("url", ""), inst.get("bin", ""), inst.get("name", app.get("en", app["id"]))]
-print("\t".join(f.replace("\t", " ") for f in fields))
+sys.stdout.write("\x1f".join(f.replace("\x1f", " ").replace("\t", " ") for f in fields))
 PY
 )" || fail "unknown app: $ID"
 
-IFS=$'\t' read -r SOURCE KIND PKG URL BIN NAME <<<"$REC"
+IFS=$'\x1f' read -r SOURCE KIND PKG URL BIN NAME <<<"$REC"
 
 # A background ticker gives a smooth bar while the real work runs; it never passes
 # 90 — the real completion drives 100. The install's own output stays in the log.

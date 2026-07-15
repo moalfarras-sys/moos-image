@@ -3,11 +3,10 @@
     "KPlugin": {
         "Id": "org.moos.nova.clock",
         "Name": "MoOS Clock",
-        "Description": "Compact, scale-safe Nova time and date",
+        "Description": "Compact, scale-safe MoOS time and date",
         "Icon": "preferences-system-time",
         "Version": "1.0",
-        "Name[ar]": "ساعة MoOS",
-        "Name[de]": "MoOS Uhr"
+        "Name[ar]": "ساعة MoOS"
     },
     "X-Plasma-API-Minimum-Version": "6.0",
     "X-Plasma-Provides": [

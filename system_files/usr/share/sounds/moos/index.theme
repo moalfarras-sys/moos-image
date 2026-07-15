@@ -1,8 +1,8 @@
 [Sound Theme]
-Name=MoOS Nova
-Name[ar]=أصوات MoOS Nova
-Comment=Original glass-like event sounds for MoOS Nova
-Comment[ar]=أصوات زجاجية أصلية لأحداث MoOS Nova
+Name=MoOS
+Name[ar]=أصوات MoOS
+Comment=Original glass-like event sounds for MoOS
+Comment[ar]=أصوات زجاجية أصلية لأحداث MoOS
 Inherits=freedesktop
 Directories=stereo
 Example=message-new-instant
