@@ -82,20 +82,47 @@ WallpaperItem {
         color: Kirigami.Theme.backgroundColor
     }
 
-    DashboardBento {
-        id: bento
-        // Top-leading, generous margins. Folder View icons are right-aligned
-        // (moos-apply-theme writes alignment=1), so the visual balance is:
-        // bento top-left, icons top-right — and even a full desktop of icons
-        // merely draws over wallpaper, never a widget.
+    // Scale-to-fit frame. The bento has a FIXED design size (gridUnit*31 ×
+    // gridUnit*12), and gridUnit tracks the user's font/DPI — so on a small
+    // screen, a scaled desktop, or a large accessibility font, the fixed width
+    // can exceed the space left after the margins and the bento would clip off
+    // the right/bottom edge. This frame measures the room actually available and
+    // scales the whole bento down (never up past 1.0) to fit, keeping its aspect
+    // and every card readable. transformOrigin top-left so it shrinks toward the
+    // corner it is anchored to, not toward its centre.
+    Item {
+        id: bentoFrame
         anchors.top: parent.top
         anchors.left: parent.left
-        anchors.topMargin: Math.max(40, Math.round(parent.height * 0.05))
-        anchors.leftMargin: Math.max(48, Math.round(parent.width * 0.032))
-        width: implicitWidth
-        height: implicitHeight
-        // A phone-sized or squeezed screen gets a clean wallpaper, not a
-        // cramped bento.
-        visible: parent.width >= 900 && parent.height >= 560
+        anchors.topMargin: Math.max(36, Math.round(parent.height * 0.05))
+        anchors.leftMargin: Math.max(44, Math.round(parent.width * 0.032))
+
+        // The room the bento may occupy: everything from its top-left corner to
+        // a comfortable inset from the opposite edges, capped so it never spans
+        // more than ~68% of the screen width (it is a corner accent, not a bar).
+        readonly property real roomWidth:
+            Math.min(root.width * 0.68,
+                     root.width - anchors.leftMargin - Math.max(44, Math.round(root.width * 0.032)))
+        readonly property real roomHeight:
+            root.height * 0.42 - anchors.topMargin
+
+        readonly property real fit: Math.min(
+            1.0,
+            bento.implicitWidth  > 0 ? roomWidth  / bento.implicitWidth  : 1.0,
+            bento.implicitHeight > 0 ? roomHeight / bento.implicitHeight : 1.0)
+
+        width: bento.implicitWidth * fit
+        height: bento.implicitHeight * fit
+        // Below this the bento would scale so small it reads as clutter — a
+        // phone-sized or heavily-squeezed desktop gets a clean wallpaper instead.
+        visible: root.width >= 820 && root.height >= 520 && fit >= 0.62
+
+        DashboardBento {
+            id: bento
+            width: implicitWidth
+            height: implicitHeight
+            transformOrigin: Item.TopLeft
+            scale: bentoFrame.fit
+        }
     }
 }

@@ -4,10 +4,27 @@
 set -euo pipefail
 QML="/usr/share/moos/apps/store/main.qml"
 export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
-# OSTree fixes mtimes → Qt's QML disk cache never invalidates across upgrades,
-# freezing the app at its first-installed version. Always compile the current source.
-export QML_DISABLE_DISK_CACHE=1
-rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/qmlcache" 2>/dev/null || true
+
+# QML disk cache, kept WARM. OSTree pins every mtime under /usr to the epoch, so
+# Qt's mtime-keyed qmlcache never invalidates when a `bootc upgrade` ships a new
+# main.qml — the app would freeze at its first-installed look. The old fix was to
+# delete the cache on every launch, which cured staleness by paying a full
+# recompile forever (a visibly slow open on llvmpipe). Key the drop on the file's
+# CONTENT instead: hash it, drop the cache only when the hash changes (exactly
+# once per real UI change), and every later open is warm. Same seam as
+# /usr/bin/moai. Fall back to the always-correct always-slow path if no hasher.
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}"
+if command -v sha256sum >/dev/null 2>&1 && [ -r "$QML" ]; then
+    _stamp="${CACHE}/moos-store.qmlstamp"
+    _cur="$(sha256sum "$QML" 2>/dev/null | cut -c1-32)"
+    if [ -n "$_cur" ] && [ "$(cat "$_stamp" 2>/dev/null)" != "$_cur" ]; then
+        rm -rf "${CACHE}/qmlcache" 2>/dev/null || true
+        mkdir -p "$CACHE" 2>/dev/null || true
+        printf '%s\n' "$_cur" > "$_stamp" 2>/dev/null || true
+    fi
+else
+    export QML_DISABLE_DISK_CACHE=1
+fi
 
 # The store reads /usr/share/moos/store/catalog.json and polls per-app install
 # status files, both via QML's XMLHttpRequest. Qt6 gates local-file reads behind

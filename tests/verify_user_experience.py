@@ -289,6 +289,29 @@ declared_routes = routes_declared(router)
 require("*" not in declared_routes, "the default arm must not count as a route")
 require("apps/install/*" in declared_routes,
         "moos-open must accept an app id to install (apps/install/*)")
+
+# ── One language, chosen by the user, applied to the whole session ───────────
+# MoOS shows ONE language (the user's), not both stacked in every window. The
+# Welcome's language pick fires moos://lang/<code>; moos-open routes it to
+# /usr/bin/moos-lang, which writes only the user's own plasma-localerc + flatpak
+# language (no root). All three pieces must ship together or the pick is a dead
+# tap, so gate the chain the same way the theme/install chains are gated.
+require("lang/ar" in declared_routes and "lang/en" in declared_routes,
+        "moos-open must route the Welcome's language pick (lang/ar, lang/en) — "
+        "without it the language buttons do nothing")
+require((ROOT / "system_files/usr/bin/moos-lang").is_file(),
+        "the language writer /usr/bin/moos-lang is missing — moos-open's lang route "
+        "would call a command that does not exist")
+moos_lang = code(read("system_files/usr/bin/moos-lang"))
+require("plasma-localerc" in moos_lang and "LANGUAGE" in moos_lang,
+        "moos-lang must set the Plasma UI language via plasma-localerc — that one "
+        "write is what carries the choice to the desktop, the MoOS apps and the session")
+require("flatpak config" in moos_lang and "languages" in moos_lang,
+        "moos-lang must set the Flatpak language too, or Flathub apps stay in the "
+        "install-time language after a switch")
+welcome_lang = code(read("system_files/usr/share/moos/apps/welcome/main.qml"), "slash")
+require("moos://lang/" in welcome_lang and "chooseLang" in welcome_lang,
+        "the Welcome must offer the language pick that drives the whole session")
 # The counterpart: opening an installed app. Without this route Mo AI can install a
 # program and then have no way to launch it — the exact gap that made "install a
 # camera" end at a fresh icon nobody had asked for instead of a live camera.
@@ -630,6 +653,53 @@ flatpak_idle = read("system_files/usr/lib/systemd/system/flatpak-system-update.s
 require("CPUSchedulingPolicy=idle" in flatpak_idle and "IOSchedulingClass=idle" in flatpak_idle,
         "flatpak-system-update must run at idle CPU and I/O priority — at normal priority it "
         "is what 'the system feels slow right after login' is actually made of")
+
+# ── The live session must reach the network on its own ───────────────────────
+# On a slow first boot (a cold WHPX guest, software rendering, a machine thrashing through
+# its first userspace) dbus-broker — the system message bus, Type=notify-reload with NO
+# TimeoutStartSec of its own — did not signal READY inside the 90s default and was killed
+# with result 'timeout'. EVERY unit that needs the bus then failed in the same instant with
+# "Dependency failed": NetworkManager, NetworkManager-wait-online, tuned, tuned-ppd. The
+# live session came up with NO network, so the Welcome wizard could not install anything,
+# until NM was started by hand — sixteen minutes late. Seen on the v21 ISO, 2026-07-15
+# (vm-test/v21-26-root.png, vm-test/v21-24-nmlog.png).
+#
+# Two drop-ins, same philosophy as plasma's moos-stop-timeout.conf: a generous timeout
+# costs nothing on fast hardware. Comments are stripped with code() so neither gate can be
+# satisfied by the prose that names the very directive it checks for.
+#
+#   1. dbus-broker gets a far larger start window — the ROOT fix, since a bus that does not
+#      time out never starts the cascade.
+dbus_timeout = code(read(
+    "system_files/usr/lib/systemd/system/dbus-broker.service.d/moos-start-timeout.conf"))
+dbus_start = re.search(r"TimeoutStartSec\s*=\s*(\d+)\s*(min|s|sec)?", dbus_timeout)
+require(dbus_start is not None,
+        "dbus-broker must get a TimeoutStartSec drop-in — its stock unit sets none, so it "
+        "inherits the 90s default the slow first boot blew past, killing the system bus and "
+        "every unit that needs it (NetworkManager, tuned, ...)")
+if dbus_start:
+    dbus_seconds = int(dbus_start.group(1)) * (60 if dbus_start.group(2) == "min" else 1)
+    require(dbus_seconds >= 120,
+            f"dbus-broker's TimeoutStartSec must be generously above the 90s default (got "
+            f"{dbus_seconds}s), or a slow WHPX first boot trips it again and the network "
+            f"cascade returns")
+
+#   2. NetworkManager keeps retrying its OWN failures. Stock NM already sets Restart=on-failure
+#      (which does NOT fire on the 'dependency' failure that struck here — systemd restarts a
+#      service whose own process failed, never one cancelled by a failed dependency); the
+#      load-bearing addition is StartLimitIntervalSec=0, so a run of quick restarts on a rocky
+#      boot cannot trip the default 5-in-10s burst and latch NM off for good.
+nm_restart = code(read(
+    "system_files/usr/lib/systemd/system/NetworkManager.service.d/moos-restart.conf"))
+require("Restart=on-failure" in nm_restart,
+        "NetworkManager's drop-in must declare Restart=on-failure (explicit even though stock "
+        "sets it), or the intent to self-heal a failed NM goes undocumented")
+require(re.search(r"RestartSec\s*=\s*\d", nm_restart) is not None,
+        "NetworkManager's drop-in must set a RestartSec so its retries are paced")
+require("StartLimitIntervalSec=0" in nm_restart,
+        "NetworkManager's drop-in must disable the start rate limiter (StartLimitIntervalSec=0) "
+        "— without it a handful of quick own-failure restarts on a bad boot trip the default "
+        "5-in-10s burst and latch NM off for good, re-creating 'no network until I intervene'")
 
 gateway = code(read("system_files/usr/bin/moai-gateway"))
 require("def preflight_local" in gateway and "disk_free" in gateway and "have_network" in gateway,

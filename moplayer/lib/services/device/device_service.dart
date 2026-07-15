@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -5,15 +6,23 @@ import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/config/app_config.dart';
-import '../storage/secure_storage_service.dart';
+import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_logger.dart';
 
-/// Provides a stable per-install device id (persisted in the Keychain) plus
-/// human-readable device + app metadata for the Settings screen and for the
-/// activation flow.
+/// Provides a stable per-install device id plus human-readable device + app
+/// metadata for the Settings screen and for the activation flow.
+///
+/// The id is a random, opaque install token — **not a secret**. It lives in a
+/// plain file under the app's data directory, deliberately NOT in the keyring:
+/// a first launch on a MoOS live session must never have to create a wallet just
+/// to mint an id, and a dismissed wallet prompt must never be able to abort boot.
+/// The keyring is reserved for real Xtream credentials (see SecureStorageService).
 class DeviceService {
-  DeviceService(this._secureStorage);
+  DeviceService(this._dataDir);
 
-  final SecureStorageService _secureStorage;
+  /// Application data directory (the same `$XDG_DATA_HOME/moplayer` the cache
+  /// uses) — supplied by bootstrap so this service owns no path logic of its own.
+  final String _dataDir;
 
   String? _cachedId;
   String _model = 'Unknown device';
@@ -27,19 +36,32 @@ class DeviceService {
   String get buildNumber => _buildNumber;
   String get deviceId => _cachedId ?? 'unknown';
 
+  File get _idFile => File('$_dataDir/${StorageKeys.deviceId}');
+
   Future<void> init() async {
     _cachedId = await _ensureDeviceId();
     await _loadMetadata();
   }
 
   Future<String> _ensureDeviceId() async {
-    final existing = await _secureStorage.readDeviceId();
-    if (existing != null &&
-        RegExp(r'^MO-D-[A-Z0-9-]{8,40}$').hasMatch(existing)) {
-      return existing;
+    try {
+      if (await _idFile.exists()) {
+        final existing = (await _idFile.readAsString()).trim();
+        if (RegExp(r'^MO-D-[A-Z0-9-]{8,40}$').hasMatch(existing)) {
+          return existing;
+        }
+      }
+    } catch (e) {
+      log.w('could not read device id, minting a fresh one: $e');
     }
     final id = _generateId();
-    await _secureStorage.writeDeviceId(id);
+    try {
+      await _idFile.writeAsString(id);
+    } catch (e) {
+      // A read-only or full disk costs us persistence, not a working session:
+      // the id stays valid in memory for as long as the app runs.
+      log.w('could not persist device id (staying in-memory only): $e');
+    }
     return id;
   }
 

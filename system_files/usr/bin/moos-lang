@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# moos-lang <ar|en> — set the ONE language the whole session speaks.
+#
+# MoOS is not "bilingual, both stacked in every window" — the user picks a
+# language and the system UI, the MoOS apps, and Flatpak apps all follow that
+# single choice. This is the writer behind the Welcome wizard's language pick
+# (moos://lang/<code> → moos-open → here). It needs NO root and NO /etc edit.
+#
+# HOW ONE WRITE REACHES EVERYTHING
+#   ~/.config/plasma-localerc is Plasma's own locale source. startplasma reads it
+#   and exports LANG / LANGUAGE / LC_* into the whole session, so at the next
+#   login:
+#     * Plasma's UI is translated (KDE ships the ar/en catalogues already), AND
+#     * every app launched inherits that LANG — including the MoOS QML apps, which
+#       derive Qt.application.layoutDirection (Arabic ⇒ RTL ⇒ Arabic strings)
+#       from it with zero locale logic of their own.
+#   Flatpak language is a separate axis (flatpak config --set languages), set here
+#   too so Flathub apps carry the picked language's locale extension.
+#
+# LIVE vs NEXT LOGIN: the colour theme recolours live because KDE broadcasts it;
+# LANG is read once at process start, so a language change lands fully at the next
+# login. The wizard itself flips instantly because its strings read a `lang`
+# property, not the OS locale — this makes the durable choice stick.
+set -uo pipefail
+
+CODE="${1:-}"
+case "$CODE" in
+    ar) LANGUAGE=ar;    FMT=ar_SA.UTF-8; FLATPAK_LANGS=ar ;;
+    en) LANGUAGE=en_US; FMT=en_US.UTF-8; FLATPAK_LANGS=en ;;
+    de) LANGUAGE=de;    FMT=de_DE.UTF-8; FLATPAK_LANGS=de ;;
+    *)  echo "moos-lang: unknown language '$CODE' (want ar|en|de)" >&2; exit 2 ;;
+esac
+
+log="${XDG_CACHE_HOME:-$HOME/.cache}/moos-lang.log"
+mkdir -p "$(dirname "$log")" 2>/dev/null || true
+echo "=== moos-lang $(date -u '+%FT%TZ') → ${CODE} ===" >>"$log" 2>/dev/null || true
+
+# A per-user lock so a double-tap in the wizard cannot interleave two writes.
+if command -v flock >/dev/null 2>&1; then
+    lock_dir="${XDG_RUNTIME_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}}"
+    mkdir -p "$lock_dir" 2>/dev/null || true
+    if exec 9>"${lock_dir}/moos-lang.lock"; then flock -w 10 9 || true; fi
+fi
+
+failed=0
+
+# ── Plasma UI language + region formats (the one write that carries the session)
+if command -v kwriteconfig6 >/dev/null 2>&1; then
+    # [Translations] LANGUAGE is what Plasma reads for its UI language; a
+    # colon-list would be a fallback chain, but MoOS is one language, so one value.
+    kwriteconfig6 --file plasma-localerc --group Translations \
+        --key LANGUAGE "$LANGUAGE" || failed=1
+    # Region/formats (dates, numbers, currency). Keep them on the same language so
+    # the desktop never mixes an Arabic UI with English dates.
+    for key in LANG LC_TIME LC_NUMERIC LC_MEASUREMENT LC_MONETARY; do
+        kwriteconfig6 --file plasma-localerc --group Formats \
+            --key "$key" "$FMT" || failed=1
+    done
+else
+    failed=1
+fi
+
+# Plasma regenerates ~/.config/plasma-locale-settings.sh from plasma-localerc at
+# login; write it now too so a relogin is not strictly required for LANG to be
+# exported by a fresh startplasma, and so a shell started meanwhile sees it.
+settings_sh="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-locale-settings.sh"
+{
+    printf '#!/bin/sh\n'
+    printf 'export LANG=%s\n' "$FMT"
+    printf 'export LANGUAGE=%s\n' "$LANGUAGE"
+    for v in LC_TIME LC_NUMERIC LC_MEASUREMENT LC_MONETARY; do
+        printf 'export %s=%s\n' "$v" "$FMT"
+    done
+} > "$settings_sh" 2>/dev/null || failed=1
+
+# ── Flatpak language: pull the picked language's locale subset for Flathub apps.
+# Best-effort — flatpak may be busy or absent; never fail the pick over it.
+if command -v flatpak >/dev/null 2>&1; then
+    flatpak config --user --set languages "$FLATPAK_LANGS" >>"$log" 2>&1 \
+        || flatpak config --set languages "$FLATPAK_LANGS" >>"$log" 2>&1 || true
+fi
+
+# ── Marker so moos-firstrun / selfcheck can tell a language was chosen.
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
+mkdir -p "$state_dir" 2>/dev/null || true
+printf '%s\n' "$CODE" > "${state_dir}/moos-language" 2>/dev/null || true
+
+if [ "$failed" -eq 0 ]; then
+    echo "moos-lang: ${CODE} written (takes full effect at next login)" >>"$log" 2>/dev/null || true
+    echo "MoOS language set to ${CODE}. تأثيرها الكامل عند تسجيل الدخول التالي."
+else
+    echo "moos-lang: ${CODE} partially applied — see $log" >&2
+    exit 1
+fi

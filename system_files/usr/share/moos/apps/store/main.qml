@@ -27,11 +27,13 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: win
     visible: true
-    width: 1080
-    height: 728
-    minimumWidth: 900
-    minimumHeight: 600
-    title: qsTr("MoOS Store")
+    // Open at the design size, clamped to what the screen can actually hold so a
+    // 1280×720 / 1366×768 laptop never gets an oversized window (see Welcome).
+    width: Math.min(1080, Screen.desktopAvailableWidth * 0.92)
+    height: Math.min(728, Screen.desktopAvailableHeight * 0.92)
+    minimumWidth: Math.min(880, Screen.desktopAvailableWidth * 0.92)
+    minimumHeight: Math.min(560, Screen.desktopAvailableHeight * 0.92)
+    title: qsTr("Mo Store")
     color: win.canvas
 
     // ── semantic palette (KDE colour scheme owns every structural colour) ──────
@@ -411,7 +413,7 @@ ApplicationWindow {
                 ColumnLayout {
                     spacing: 0
                     Text {
-                        text: win.rtl ? "متجر MoOS" : "MoOS Store"
+                        text: win.rtl ? "متجر MoOS" : "Mo Store"
                         color: win.txt; font.family: "IBM Plex Sans"
                         font.pixelSize: 20; font.bold: true
                     }
@@ -994,7 +996,7 @@ ApplicationWindow {
                     }
                     Text {
                         text: win.rtl ? "يمكنك تثبيت المزيد لاحقاً من متجر MoOS أو عبر Mo AI."
-                                      : "Install more later from the MoOS Store or via Mo AI."
+                                      : "Install more later from Mo Store or via Mo AI."
                         color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
                         wrapMode: Text.WordWrap; Layout.fillWidth: true
                     }

@@ -112,12 +112,17 @@ Item {
                 Item { Layout.fillHeight: true }
 
                 Text {
+                    // "PRESSURED" (9 chars) at this size is wider than the fixed
+                    // status column, so it used to overlap into the CPU pill.
+                    // Fill the column and elide instead of overrunning it.
+                    Layout.fillWidth: true
                     text: systemCard.healthLabel
                     color: systemCard.healthColor
                     font.family: "IBM Plex Sans"
                     font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.66)
                     font.weight: Font.DemiBold
                     font.letterSpacing: 1.1
+                    elide: Text.ElideRight
                 }
             }
 

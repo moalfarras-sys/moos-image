@@ -34,10 +34,13 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: win
     visible: true
-    width: 1080
-    height: 760
-    minimumWidth: 940
-    minimumHeight: 660
+    // Open at the design size, but never larger than the screen can hold — a
+    // 1280×720 or 1366×768 laptop (with the panel eating height) must not get a
+    // window taller than the desktop. Clamp to 92% of the available area.
+    width: Math.min(1080, Screen.desktopAvailableWidth * 0.92)
+    height: Math.min(760, Screen.desktopAvailableHeight * 0.92)
+    minimumWidth: Math.min(860, Screen.desktopAvailableWidth * 0.92)
+    minimumHeight: Math.min(600, Screen.desktopAvailableHeight * 0.92)
     title: qsTr("Welcome to MoOS")
     color: win.canvas
 
@@ -58,7 +61,23 @@ ApplicationWindow {
     // fall back to highlight if a scheme leaves it unset.
     readonly property color accent: win.cyan.a > 0 ? win.cyan : win.blue
 
-    readonly property bool rtl: Qt.application.layoutDirection === Qt.RightToLeft
+    // ── language (chosen on the hero, applied system-wide) ─────────────────────
+    // MoOS speaks ONE language, the user's — not both stacked in every window.
+    // `lang` drives every string in this wizard and, via moos://lang/<code>,
+    // the whole session (Plasma UI + formats + Flatpak) through /usr/bin/moos-lang.
+    // Seeded from the locale the window opened under so a system already set to
+    // Arabic starts Arabic. Everything reads `rtl`, which now follows the CHOICE.
+    property string lang: Qt.application.layoutDirection === Qt.RightToLeft ? "ar" : "en"
+    readonly property bool rtl: win.lang === "ar"
+
+    function chooseLang(which) {
+        if (win.lang === which) return
+        win.lang = which
+        // Apply to the whole session — headless, whitelisted route. A full Plasma
+        // UI-language switch lands at the next login; the wizard itself flips live
+        // because every string reads `win.rtl` above.
+        Qt.openUrlExternally("moos://lang/" + which)
+    }
 
     // ── wizard state ───────────────────────────────────────────────────────────
     property int step: 0
@@ -583,23 +602,55 @@ ApplicationWindow {
                         }
                     }
 
-                    Item { Layout.preferredHeight: 34 }
+                    Item { Layout.preferredHeight: 26 }
+
+                    // Language choice — the first decision, applied at once. Both
+                    // names are shown on their own buttons (a language picker is
+                    // the one place both languages belong); everything after this
+                    // speaks only the one picked.
+                    RowLayout {
+                        Layout.alignment: Qt.AlignHCenter
+                        spacing: 10
+                        Repeater {
+                            model: [ { id: "ar", label: "العربية" },
+                                     { id: "en", label: "English" } ]
+                            delegate: Rectangle {
+                                id: langPill
+                                required property var modelData
+                                readonly property bool on: win.lang === langPill.modelData.id
+                                Layout.preferredHeight: 40
+                                implicitWidth: langLabel.implicitWidth + 44
+                                radius: 20
+                                color: langPill.on ? win.accent
+                                     : langHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.9)
+                                     : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.5)
+                                border.width: 1
+                                border.color: langPill.on ? win.accent : win.outline
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                                HoverHandler { id: langHover }
+                                TapHandler { onTapped: win.chooseLang(langPill.modelData.id) }
+                                Text {
+                                    id: langLabel
+                                    anchors.centerIn: parent
+                                    text: langPill.modelData.label
+                                    color: langPill.on ? win.onAccent : win.txt
+                                    font.family: "IBM Plex Sans"
+                                    font.pixelSize: 16
+                                    font.weight: langPill.on ? Font.DemiBold : Font.Normal
+                                }
+                            }
+                        }
+                    }
+
+                    Item { Layout.preferredHeight: 24 }
 
                     Text {
                         Layout.alignment: Qt.AlignHCenter
-                        text: "أهلاً بك في MoOS"
+                        text: win.rtl ? "أهلاً بك في MoOS" : "Welcome to MoOS"
                         color: win.txt
                         font.family: "IBM Plex Sans"
                         font.pixelSize: 40
                         font.weight: Font.Bold
-                    }
-                    Item { Layout.preferredHeight: 8 }
-                    Text {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: "Welcome to MoOS"
-                        color: win.txt2
-                        font.family: "IBM Plex Sans"
-                        font.pixelSize: 18
                     }
                     Item { Layout.preferredHeight: 18 }
                     Text {

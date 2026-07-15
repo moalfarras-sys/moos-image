@@ -1225,6 +1225,17 @@ mkdir -p /etc/flatpak/remotes.d
 curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
     https://dl.flathub.org/repo/flathub.flatpakrepo
 
+# Pre-seed the languages Flathub apps carry, regardless of which one the user
+# picks at first run. The org.freedesktop.Platform.Locale extension otherwise
+# defaults to "match the host locale only" — so a user who installs an app in
+# English and later switches to Arabic gets an app with no Arabic strings until a
+# manual `flatpak update`. Declaring all three shipped languages here means every
+# Flathub install already carries ar/en/de locale data; moos-lang then only has
+# to point the SESSION at the chosen one. System-wide default; a per-user
+# `flatpak config --user --set languages` (moos-lang) still refines it.
+flatpak config --set extra-languages 'ar;en;de' 2>/dev/null || \
+    echo "note: flatpak extra-languages not set at build time (set per-user by moos-lang)" >&2
+
 # -----------------------------------------------------------------------------
 # (c8) First-boot experience — permissions safety net
 # -----------------------------------------------------------------------------
@@ -1245,7 +1256,7 @@ curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
 chmod 0755 /usr/bin/moplayer
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moos-device-plan /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
-    /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome /usr/bin/moos-store \
+    /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome /usr/bin/moos-store /usr/bin/moos-lang \
     /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding /usr/bin/moos-open /usr/bin/moos-install \
     /usr/bin/moai-config /usr/bin/moai-gateway /usr/bin/moai-control /usr/bin/moai-code \
     /usr/bin/moai-idle \

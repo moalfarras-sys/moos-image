@@ -237,28 +237,32 @@ Kirigami.ApplicationWindow {
     // paragraph; the mark then pins that paragraph's direction instead of leaving it to
     // whatever character happens to come first (an English line that opens with "Mo AI"
     // would still resolve fine, but one that opens with a digit or "«" would not).
-    readonly property string offlineHelp:
-        "‏العقل المحلي غير مشغّل.\n\n" +
-        "‎The local brain is off.\n\n" +
-        "‏اضغط **«شغّل العقل المحلي»** بالأسفل — أو شغّل `moai-start` في الطرفية.\n\n" +
-        "‎Tap **“Start local brain”** below — or run `moai-start` in a terminal.\n\n" +
-        "‏ثم أعد المحاولة | then try again."
+    readonly property string offlineHelp: (Qt.application.layoutDirection === Qt.RightToLeft)
+        ? ("‏العقل المحلي غير مشغّل.\n\n" +
+           "اضغط **«شغّل العقل المحلي»** بالأسفل — أو شغّل `moai-start` في الطرفية.\n\n" +
+           "ثم أعد المحاولة.")
+        : ("‎The local brain is off.\n\n" +
+           "Tap **“Start local brain”** below — or run `moai-start` in a terminal.\n\n" +
+           "Then try again.")
 
-    readonly property string startingHelp:
-        "‏العقل المحلي يبدأ الآن… أول تشغيل يُحمّل النموذج (~2.5GB) وقد يأخذ دقائق.\n\n" +
-        "‎The local brain is starting… the first run downloads the model (~2.5 GB) and may take a few minutes.\n\n" +
-        "‏سأصبح جاهزاً تلقائياً عند الانتهاء. | I'll be ready automatically once it finishes."
+    readonly property string startingHelp: (Qt.application.layoutDirection === Qt.RightToLeft)
+        ? ("‏العقل المحلي يبدأ الآن… أول تشغيل يُحمّل النموذج (~2.5GB) وقد يأخذ دقائق.\n\n" +
+           "سأصبح جاهزاً تلقائياً عند الانتهاء.")
+        : ("‎The local brain is starting… the first run downloads the model (~2.5 GB) and may take a few minutes.\n\n" +
+           "I'll be ready automatically once it finishes.")
 
-    readonly property string greetingText:
-        "‏مرحباً! أنا **Mo AI** — مساعد MoOS.\n\n" +
-        "‎Hi! I'm **Mo AI** — your MoOS assistant.\n\n" +
-        "‏أقدر أصلّح التعريفات، أحدّث النظام، أثبّت أي تطبيق، أنظّف الجهاز، وأشغّل Mo PC Remote.\n\n" +
-        "‎I can fix drivers, update the system, install any app, clean things up, and run Mo PC Remote.\n\n" +
-        // The mark goes INSIDE the emphasis: Markdown needs the "_" to open the run, and a
-        // directional mark in front of it turns the whole thing into literal underscores
-        // (seen on screen). Inside, it still sets the paragraph's direction.
-        "_‏اسألني، أو استخدم الشريط الجانبي._\n\n" +
-        "_‎Ask me, or use the side rail._"
+    // MoOS speaks the user's ONE language. The greeting used to stack Arabic and
+    // English; now it shows only the session language (RTL ⇒ Arabic), the same
+    // signal the whole app mirrors on. The model still replies in whatever
+    // language the user writes in — that is per-message, not the static greeting.
+    readonly property bool moaiRtl: Qt.application.layoutDirection === Qt.RightToLeft
+    readonly property string greetingText: moaiRtl
+        ? ("‏مرحباً! أنا **Mo AI** — مساعد MoOS.\n\n" +
+           "أقدر أصلّح التعريفات، أحدّث النظام، أثبّت أي تطبيق، أنظّف الجهاز، وأشغّل Mo PC Remote.\n\n" +
+           "_اسألني، أو استخدم الشريط الجانبي._")
+        : ("‎Hi! I'm **Mo AI** — your MoOS assistant.\n\n" +
+           "I can fix drivers, update the system, install any app, clean things up, and run Mo PC Remote.\n\n" +
+           "_Ask me, or use the side rail._")
 
     readonly property var starters: [
         { ar: "حدّث نظامي",     en: "Update my system", send: "حدّث نظام MoOS من فضلك" },

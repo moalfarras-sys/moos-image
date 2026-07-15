@@ -172,11 +172,50 @@ def check_grub_distributor() -> None:
                      "system with another distribution's name")
 
 
+def check_console_identity() -> None:
+    """The TTY console login banner and the terminal fastfetch readout.
+
+    These are the two user-visible surfaces the named-surface gates missed:
+    /etc/issue is printed by agetty at every text login, and fastfetch draws its
+    logo in every interactive shell. Both resolve to MoOS today, but /etc/issue's
+    default is provided by the base `setup` package (a base update could reintroduce
+    a Fedora banner) and fastfetch would auto-detect a distro logo if its inline
+    MoOS wordmark were removed — neither had a gate.
+    """
+    issue = ROOT / "etc/issue"
+    if issue.is_file():
+        text = issue.read_text(encoding="utf-8", errors="replace")
+        low = text.lower()
+        if "moos" not in low:
+            fail("/etc/issue does not name MoOS — the TTY login banner would show "
+                 "the base distribution's name")
+        for bad in ("fedora", "kinoite", "red hat", "redhat"):
+            if bad in low:
+                fail(f"/etc/issue contains {bad!r} — a foreign name on the console "
+                     "login banner")
+
+    cfg = ROOT / "etc/fastfetch/config.jsonc"
+    if cfg.is_file():
+        text = cfg.read_text(encoding="utf-8", errors="replace")
+        # The MoOS wordmark is shipped inline as a "data" logo precisely so
+        # fastfetch never auto-detects a distro logo. If that block is gone,
+        # fastfetch falls back to ID_LIKE=fedora and prints a Fedora logo.
+        # Markers chosen to avoid backslash-escaping ambiguity: the data logo
+        # type, the MoOS brand-blue colour slot, and the wordmark's bottom row.
+        if ('"type": "data"' not in text
+                or "2E7BFF" not in text
+                or "|_|  |_|" not in text):
+            fail("/etc/fastfetch/config.jsonc no longer ships the inline MoOS "
+                 "wordmark logo — fastfetch would auto-detect and draw a Fedora "
+                 "logo in every terminal")
+
+
 def main() -> None:
     sweep_foreign_logos()
     check_os_release()
     check_foreign_packages()
     check_grub_distributor()
+    check_console_identity()
 
     if failures:
         print("MoOS IDENTITY FIREWALL: the finished image would ship another OS's "

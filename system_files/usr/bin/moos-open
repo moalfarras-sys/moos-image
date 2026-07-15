@@ -83,6 +83,13 @@ case "${cat}/${tgt}" in
     theme/dark)    setsid moos-theme dark  >/dev/null 2>&1 & ;;
     theme/light)   setsid moos-theme light >/dev/null 2>&1 & ;;
 
+    # ── Language: the Welcome's language pick. moos-lang writes only the user's
+    # own plasma-localerc + flatpak language (no root, reversible), and the id is
+    # validated to a fixed set here before it ever reaches the writer.
+    lang/ar)       setsid moos-lang ar >/dev/null 2>&1 & ;;
+    lang/en)       setsid moos-lang en >/dev/null 2>&1 & ;;
+    lang/de)       setsid moos-lang de >/dev/null 2>&1 & ;;
+
     # ── Mo PC Remote: start / stop / reconnect, from inside Mo AI ────────────
     remote/start)   remote_ctl enable --now ;;
     remote/stop)    remote_ctl disable --now ;;

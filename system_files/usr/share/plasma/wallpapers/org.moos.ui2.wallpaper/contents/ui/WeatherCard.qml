@@ -80,14 +80,19 @@ Item {
                     }
                     ColumnLayout {
                         Layout.alignment: Qt.AlignVCenter
+                        Layout.fillWidth: true
                         spacing: 0
 
                         Text {
+                            // A long Arabic condition ("عاصفة رعدية") or a large
+                            // font must elide, not push the row wider than the card.
+                            Layout.fillWidth: true
                             text: weatherCard.condition
                             color: Kirigami.Theme.textColor
                             font.family: "IBM Plex Sans Arabic"
                             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.72)
                             font.weight: Font.Medium
+                            elide: Text.ElideRight
                         }
                         Text {
                             text: "FEELS " + weatherCard.feelsLike + "°"
