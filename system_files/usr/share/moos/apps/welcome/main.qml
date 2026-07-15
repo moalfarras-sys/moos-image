@@ -700,8 +700,8 @@ ApplicationWindow {
                     // On the live USB, the Welcome is the first thing the user sees,
                     // so this is exactly where "install MoOS for real" belongs. A
                     // secondary (outlined) action under "Let's begin" opens the
-                    // installer UI via moos://installer/open. Hidden on an already
-                    // installed system, where there is nothing to install.
+                    // installer UI via the moos://installer/open route (handled by
+                    // moos-open). Hidden on an already installed system.
                     Item { visible: win.live; Layout.preferredHeight: 14 }
                     Rectangle {
                         visible: win.live
