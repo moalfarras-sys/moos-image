@@ -36,7 +36,10 @@ Item {
 
             Text {
                 id: hours
-                text: Qt.formatTime(timeSource.now, Qt.locale(), "HH")
+                // Qt.formatTime has NO (date, locale, string) overload: the extra
+                // locale made it IGNORE "HH" and render the full long time —
+                // "20:03:56 UTC+00:00" — at 7.4x, twice, across the lock screen.
+                text: Qt.formatTime(timeSource.now, "HH")
                 color: Kirigami.Theme.textColor
                 font.family: "IBM Plex Sans"
                 font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 7.4)
@@ -56,7 +59,7 @@ Item {
             }
             Text {
                 id: minutes
-                text: Qt.formatTime(timeSource.now, Qt.locale(), "mm")
+                text: Qt.formatTime(timeSource.now, "mm")
                 color: Kirigami.Theme.textColor
                 font.family: "IBM Plex Sans"
                 font.pointSize: hours.font.pointSize

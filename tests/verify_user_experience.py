@@ -2087,6 +2087,14 @@ require("MoOSClock" in lock_ui,
         "the lock screen override dropped the MoOS clock — it would read as the Breeze default")
 require("MoOSClock" in read(f"{shell_lock}/MoOSClock.qml") or "MoOS" in read(f"{shell_lock}/MoOSClock.qml"),
         "MoOSClock.qml is not the MoOS clock")
+# Qt.formatTime has no (date, locale, format-string) overload. With a locale
+# slipped in, the "HH"/"mm" formats were IGNORED and the greeter drew the full
+# long time — "20:03:56 UTC+00:00" — at display size, twice, clear across the
+# lock screen (seen live in the 179 ISO walkthrough). formatDate is fine with
+# a locale; formatTime is the one that must stay two-argument.
+require(re.search(r"formatTime\s*\([^)]*Qt\.locale", read(f"{shell_lock}/MoOSClock.qml")) is None,
+        "MoOSClock.qml calls Qt.formatTime with a locale argument — Qt ignores "
+        "the format string and the greeter draws the long UTC time at 7.4x")
 # No stale [Greeter] Theme pointing at a look-and-feel (which silently falls back).
 require(re.search(r"^Theme=", read("system_files/etc/xdg/kscreenlockerrc"), re.MULTILINE) is None,
         "kscreenlockerrc sets a [Greeter] Theme again — the greeter loads the "
