@@ -76,10 +76,25 @@ ApplicationWindow {
 
     // ── wizard state ───────────────────────────────────────────────────────────
     property int step: 0
-    readonly property int stepCount: 8   // welcome, sell, disk, method, account, confirm, progress, success
-    // Footer Back/Next lives on the reversible choice pages (disk, method, account).
+    // NAMED, not numbered. These indices are the StackLayout's child order, the progress
+    // dots' model, and every jump in this file — a page inserted in the middle used to mean
+    // hunting bare 5/6/7s through 1900 lines and hoping. That is the trap this project keeps
+    // paying for: a constant goes stale and nothing says so. Insert a page HERE and in the
+    // StackLayout, and the rest follows. stepCount is gated against the real child count.
+    readonly property int stepWelcome:  0
+    readonly property int stepSell:     1
+    readonly property int stepDisk:     2
+    readonly property int stepMethod:   3
+    readonly property int stepAccount:  4
+    readonly property int stepZone:     5
+    readonly property int stepConfirm:  6
+    readonly property int stepProgress: 7
+    readonly property int stepSuccess:  8
+    readonly property int stepCount: 9
+    // Footer Back/Next lives on the reversible choice pages (disk, method, account, zone).
     // Confirm has its own inline back + hold-commit; progress/success are committed.
-    readonly property bool navPages: win.step === 2 || win.step === 3 || win.step === 4
+    readonly property bool navPages: win.step === win.stepDisk || win.step === win.stepMethod
+                                     || win.step === win.stepAccount || win.step === win.stepZone
 
     // ── account (step 4). Applied on the target's FIRST boot by moos-firstboot
     // from the recipe the secure bridge writes — bootc install itself makes no
@@ -104,7 +119,59 @@ ApplicationWindow {
     function keymapForLang() { return win.xkbForLang().split(",")[0] }
     function xkbForLang()    { return win.lang === "ar" ? "de,ara" : "de" }
     function localeForLang() { return win.lang === "ar" ? "ar_SA.UTF-8" : "en_US.UTF-8" }
-    function tzForLang()     { return win.lang === "ar" ? "Asia/Riyadh" : "UTC" }
+    // A GUESS, and only the zone step's starting selection — never the answer on its own.
+    // Language is not location: this project's own owner is an Arabic speaker in Germany, so
+    // BOTH branches were wrong for him — Arabic handed him Asia/Riyadh (+2h off) and English
+    // handed him UTC (a placeholder nobody lives in). The clock was two hours wrong on the
+    // panel and nothing in the install ever asked. Hence stepZone: derive a guess, then let
+    // the human correct it, because only the human knows where they are.
+    function tzForLang()     { return win.lang === "ar" ? "Asia/Riyadh" : "Europe/Berlin" }
+
+    // ── timezone (step 5) ──────────────────────────────────────────────────────
+    // Read straight from tzdata's own zone1970.tab — the list the system already ships, so
+    // the picker cannot drift from what /usr/share/zoneinfo actually has (a hand-kept list
+    // would). The launcher exports QML_XHR_ALLOW_FILE_READ=1 for exactly this kind of local
+    // read, which is how the disk JSON arrives too. Best-effort: if the file cannot be read
+    // the step falls back to the guess and still installs — a missing list must never be a
+    // dead end.
+    property var    zones: []
+    property string tz: ""
+    property string zoneFilter: ""
+    readonly property string zoneTabPath: "/usr/share/zoneinfo/zone1970.tab"
+
+    function loadZones() {
+        var out = []
+        try {
+            var req = new XMLHttpRequest()
+            req.open("GET", "file://" + win.zoneTabPath, false)
+            req.send()
+            var lines = req.responseText.split("\n")
+            for (var i = 0; i < lines.length; i++) {
+                var l = lines[i]
+                if (l === "" || l.charAt(0) === "#") continue
+                // codes \t coordinates \t TZ \t comments
+                var f = l.split("\t")
+                if (f.length < 3) continue
+                var name = f[2].trim()
+                if (name !== "") out.push(name)
+            }
+        } catch (e) { out = [] }
+        out.sort()
+        win.zones = out
+        if (win.tz === "") win.tz = win.tzForLang()
+    }
+
+    // Matches on the whole zone name, so "berlin", "europe" and "Europe/Ber" all find it.
+    function zonesFiltered() {
+        var q = win.zoneFilter.trim().toLowerCase()
+        if (win.zones.length === 0) return win.tz === "" ? [] : [win.tz]
+        if (q === "") return win.zones
+        var out = []
+        for (var i = 0; i < win.zones.length; i++)
+            if (win.zones[i].toLowerCase().indexOf(q) !== -1) out.push(win.zones[i])
+        return out
+    }
+    function zoneLabel(z) { return z.replace(/_/g, " ").replace("/", " › ") }
     readonly property bool acctUserValid: /^[a-z_][a-z0-9_-]{0,31}$/.test(win.acctUser)
     readonly property bool acctValid: win.acctUserValid
         && (!win.acctPassword || (win.acctPass.length >= 4 && win.acctPass === win.acctPass2))
@@ -242,18 +309,18 @@ ApplicationWindow {
             keymap:    win.keymapForLang(),
             xkblayout: win.xkbForLang(),
             locale:    win.localeForLang(),
-            timezone:  win.tzForLang()
+            timezone:  win.tz !== "" ? win.tz : win.tzForLang()
         }
         // The bridge write is synchronous, so the recipe is on disk before we fire
         // the begin route. If the bridge is unavailable we do NOT start — the helper
         // would have no target (no node in the URL, by design).
         if (typeof MoosInstaller === "undefined" || !MoosInstaller.writeRecipe(JSON.stringify(recipe))) {
-            win.step = 6
+            win.step = win.stepProgress
             win.instState = "fail"
             win.failReason = "generic"
             return
         }
-        win.step = 6
+        win.step = win.stepProgress
         win.instState = "running"
         win.instPct = 0
         win.instPhase = "partition"
@@ -326,7 +393,7 @@ ApplicationWindow {
             }
         }
     }
-    Timer { id: doneBeat; interval: 500; onTriggered: win.step = 7 }
+    Timer { id: doneBeat; interval: 500; onTriggered: win.step = win.stepSuccess }
 
     // ── colour → #rrggbb helpers (Qt SVG-Tiny: hex + stroke-opacity, no rgba()) ─
     function hex2(n) {
@@ -371,7 +438,7 @@ ApplicationWindow {
         fillMode: Image.PreserveAspectFit
     }
 
-    Component.onCompleted: loadDisks()
+    Component.onCompleted: { loadDisks(); loadZones() }
 
     // ═══════════════════════════════ BACKGROUND ═══════════════════════════════
     Rectangle {
@@ -415,7 +482,7 @@ ApplicationWindow {
                     source: "file:///usr/share/moos/moos-logo.png"
                     sourceSize.width: 34; sourceSize.height: 34
                     Layout.preferredWidth: 34; Layout.preferredHeight: 34
-                    opacity: win.step === 0 ? 0 : 1
+                    opacity: win.step === win.stepWelcome ? 0 : 1
                     Behavior on opacity { NumberAnimation { duration: 200 } }
                 }
 
@@ -1359,7 +1426,162 @@ ApplicationWindow {
                 }
             }
 
-            // ════════ 5 · CONFIRM (point of no return) ════════
+            // ════════ 5 · TIME ZONE ════════
+            // The clock is the most-looked-at thing on the desktop, and it was the one thing
+            // the install never asked about — it guessed from the LANGUAGE. Language is not
+            // location (an Arabic speaker in Germany got Riyadh; an English one got UTC), so
+            // the guess is only where this list starts. The zones come from tzdata's own
+            // zone1970.tab, so the picker cannot drift from what /usr/share/zoneinfo has.
+            Item {
+                id: zonePage
+                ColumnLayout {
+                    id: zoneCol
+                    width: Math.min(560, zonePage.width - 80)
+                    x: Math.max(40, (zonePage.width - width) / 2)
+                    height: zonePage.height
+                    spacing: 0
+
+                    Item { Layout.preferredHeight: 6 }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: win.tr("منطقتك الزمنية", "Your time zone")
+                        color: win.txt
+                        font.family: "IBM Plex Sans"; font.pixelSize: 30; font.weight: Font.Bold
+                    }
+                    Item { Layout.preferredHeight: 8 }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: win.tr("عشان الساعة تضبط من أول لحظة. اخترنا لك بداية — صحّحها لو مكانك غير.",
+                                     "So the clock is right from the first minute. We picked a starting point — change it if you are somewhere else.")
+                        color: win.txt2
+                        font.family: "IBM Plex Sans"; font.pixelSize: 14; lineHeight: 1.3
+                    }
+                    Item { Layout.preferredHeight: 18 }
+
+                    // search
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 48
+                        radius: 12
+                        color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
+                        border.width: 1
+                        border.color: zoneSearch.activeFocus ? win.accent : win.outline
+                        TextInput {
+                            id: zoneSearch
+                            anchors.fill: parent
+                            anchors.leftMargin: 14; anchors.rightMargin: 14
+                            verticalAlignment: TextInput.AlignVCenter
+                            horizontalAlignment: win.rtl ? TextInput.AlignRight : TextInput.AlignLeft
+                            color: win.txt
+                            font.family: "IBM Plex Sans"; font.pixelSize: 15
+                            clip: true; selectByMouse: true
+                            onTextChanged: win.zoneFilter = text
+                        }
+                        Text {
+                            visible: zoneSearch.text === ""
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: win.rtl ? undefined : parent.left
+                            anchors.right: win.rtl ? parent.right : undefined
+                            anchors.leftMargin: 14; anchors.rightMargin: 14
+                            text: win.tr("ابحث… مثلاً برلين أو Berlin", "Search… e.g. Berlin")
+                            color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 15
+                        }
+                    }
+                    Item { Layout.preferredHeight: 12 }
+
+                    // the list
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.bottomMargin: 18
+                        radius: 12
+                        color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.45)
+                        border.width: 1; border.color: win.outline
+                        clip: true
+
+                        ListView {
+                            id: zoneList
+                            anchors.fill: parent
+                            anchors.margins: 6
+                            clip: true
+                            model: win.zonesFiltered()
+                            currentIndex: -1
+                            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                            // Scroll the pick into view, or the promise above is a lie: sorted
+                            // alphabetically this list parks on "Africa › Abidjan", so the page
+                            // said "we picked a starting point" while the screen showed nothing
+                            // picked — the pre-selection existed only in the recipe.
+                            //
+                            // The height guard is the whole trick. Component.onCompleted runs
+                            // BEFORE the layout has given this view a size: measured, height was
+                            // -12 (anchors.fill of a parent still at 0, minus the 6px margins),
+                            // and positionViewAtIndex on a negative height silently lands
+                            // somewhere near the end of the list. The index was right all along
+                            // (Europe/Berlin = 245 of 312) — the viewport was not. So reveal only
+                            // once there is a real viewport, and only ONCE, or a later relayout
+                            // would yank the list back while the user is reading it.
+                            property bool revealed: false
+                            function revealPick() {
+                                if (revealed || height <= 0 || !model || win.tz === "") return
+                                var i = model.indexOf(win.tz)
+                                if (i < 0) return
+                                positionViewAtIndex(i, ListView.Center)
+                                revealed = true
+                            }
+                            onHeightChanged: revealPick()
+                            onModelChanged: revealPick()
+                            Component.onCompleted: revealPick()
+                            delegate: Rectangle {
+                                required property string modelData
+                                width: zoneList.width - 12
+                                height: 40
+                                radius: 9
+                                readonly property bool picked: modelData === win.tz
+                                color: picked ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.18)
+                                     : zoneHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.9)
+                                     : "transparent"
+                                border.width: picked ? 1 : 0
+                                border.color: win.accent
+                                HoverHandler { id: zoneHover }
+                                TapHandler { onTapped: win.tz = modelData }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.left: win.rtl ? undefined : parent.left
+                                    anchors.right: win.rtl ? parent.right : undefined
+                                    anchors.leftMargin: 12; anchors.rightMargin: 12
+                                    width: parent.width - 24
+                                    elide: Text.ElideRight
+                                    text: win.zoneLabel(parent.modelData)
+                                    color: parent.picked ? win.txt : win.txt2
+                                    font.family: "IBM Plex Sans"; font.pixelSize: 14
+                                    font.weight: parent.picked ? Font.DemiBold : Font.Normal
+                                }
+                            }
+                        }
+                        // The list never reads empty-and-silent: a failed read or a filter that
+                        // matches nothing says so, instead of looking like a broken app.
+                        Text {
+                            anchors.centerIn: parent
+                            width: parent.width - 40
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            visible: zoneList.count === 0
+                            text: win.zones.length === 0
+                                  ? win.tr("تعذّرت قراءة قائمة المناطق — سنكمل بـ " + win.tz,
+                                           "Could not read the zone list — we will use " + win.tz)
+                                  : win.tr("ما في منطقة بهذا الاسم", "No zone matches that")
+                            color: win.txt2
+                            font.family: "IBM Plex Sans"; font.pixelSize: 14
+                        }
+                    }
+                }
+            }
+
+            // ════════ 6 · CONFIRM (point of no return) ════════
             Item {
                 id: confirmPage
                 readonly property var d: win.targetDisk()
@@ -1705,7 +1927,7 @@ ApplicationWindow {
                                                           : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.6)
                                 border.width: 1; border.color: win.outline
                                 HoverHandler { id: otherHover }
-                                TapHandler { onTapped: { win.instState = "idle"; win.step = 2 } }
+                                TapHandler { onTapped: { win.instState = "idle"; win.step = win.stepDisk } }
                                 RowLayout {
                                     id: otherRow
                                     anchors.centerIn: parent
@@ -1917,9 +2139,10 @@ ApplicationWindow {
                 Item { Layout.fillWidth: true }
 
                 Rectangle {   // next
-                    readonly property bool ready: (win.step === 2 && win.targetNode !== "")
-                                                  || win.step === 3
-                                                  || (win.step === 4 && win.acctValid)
+                    readonly property bool ready: (win.step === win.stepDisk && win.targetNode !== "")
+                                                  || win.step === win.stepMethod
+                                                  || (win.step === win.stepAccount && win.acctValid)
+                                                  || (win.step === win.stepZone && win.tz !== "")
                     Layout.preferredHeight: 46
                     implicitWidth: nextRow.implicitWidth + 52
                     radius: 23

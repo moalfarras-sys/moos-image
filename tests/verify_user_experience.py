@@ -478,6 +478,55 @@ require("xkbForLang" in keymap_fn.group(1),
         "keymapForLang() must derive the console keymap from xkbForLang() — naming the keyboard "
         "twice is what let the console keep typing 'us' after the layout became 'de,ara'")
 
+# ── The wizard's page count must be the wizard's real pages ──────────────────
+# stepCount drives the progress dots and bounds goNext(); the StackLayout's children ARE the
+# pages. They are two hand-kept numbers describing one thing, so they drift: get it wrong and
+# the dots count pages that do not exist, or Next stops one short of the end and the install
+# can never be reached. Nothing else in the app would say a word. So assert the RELATIONSHIP
+# by counting the StackLayout's real children — this is the check that makes inserting a page
+# safe, which is how the time-zone step was added.
+def stacklayout_children(text: str) -> int:
+    start = text.index("StackLayout {")
+    depth, kids = 0, 0
+    for line in text[start:].splitlines():
+        if depth == 1 and re.match(r"^\s*[A-Za-z_][\w.]*\s*\{", line):
+            kids += 1
+        depth += line.count("{") - line.count("}")
+        if depth <= 0:
+            break
+    return kids
+
+declared = re.search(r"readonly property int stepCount:\s*(\d+)", installer_qml)
+require(declared, "the installer must declare stepCount — the progress dots read it")
+actual = stacklayout_children(installer_qml)
+require(int(declared.group(1)) == actual,
+        f"stepCount says {declared.group(1)} but the StackLayout has {actual} pages — the dots "
+        "and the wizard disagree, and Next stops on the wrong page")
+
+# Named indices, not bare numbers. A page inserted in the middle used to mean renumbering
+# every 5/6/7 scattered through ~1900 lines by hand; one missed and the installer jumps to the
+# wrong page at the point of no return. The names make the pages movable.
+stray = re.search(r"win\.step\s*(?:===?|=)\s*\d", installer_qml)
+require(not stray,
+        "no bare step numbers: use the named stepWelcome/…/stepSuccess indices, or the next "
+        f"inserted page silently sends the wizard to the wrong screen (found: {stray.group(0) if stray else ''})")
+
+# ── The install must apply the timezone the HUMAN picked ─────────────────────
+# tzForLang() is a guess derived from the UI language, and language is not location: this
+# project's owner is an Arabic speaker in Germany, so the Arabic branch handed him Riyadh (2h
+# wrong) and the English branch handed him UTC (a placeholder nobody lives in). The desktop
+# clock — the most-looked-at thing on the screen — was simply wrong, and the install never
+# asked. The zone step exists so the human corrects the guess; if the recipe silently sends
+# the guess anyway, the step is decoration.
+recipe = re.search(r"timezone:\s*(.+)", installer_qml)
+require(recipe, "the install recipe must carry a timezone — moos-firstboot writes /etc/localtime from it")
+# \b, not `in`. `"win.tz" in "win.tzForLang()"` is True — the substring test was satisfied by
+# the exact line it exists to reject, and passed green while the recipe shipped the guess.
+# Caught only by breaking it on purpose. The boundary stops at `win.tz` and refuses the prefix.
+require(re.search(r"win\.tz\b", recipe.group(1)),
+        "the recipe's timezone must be the zone the user chose (win.tz), not tzForLang() alone — "
+        "otherwise the picker changes nothing and the clock stays wrong")
+
 # ── The third agent is the one that needs nobody's cloud ─────────────────────
 # Codex and Claude Code are both somebody else's subscription. OpenCode is provider-agnostic,
 # so on a machine that ships its own brain it can be pointed at THAT — a coding agent that
