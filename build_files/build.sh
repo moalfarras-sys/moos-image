@@ -1796,6 +1796,27 @@ rm -rf /usr/share/plasma/look-and-feel/org.fedoraproject.fedora.desktop \
        /usr/share/wallpapers/Fedora \
        /usr/share/backgrounds/fedora-workstation
 
+# The Global Theme picker should read all-MoOS. Fedora's looks are deleted above;
+# Breeze's three (Breeze, Breeze Dark, Breeze Twilight) are KDE's, not another
+# distro's, so they are NOT deleted — Breeze stays the fallback ENGINE every MoOS
+# look reaches for (FallbackTheme=breeze-dark). But a foreign NAME in the chooser,
+# beside six MoOS looks, is exactly the "not fully MoOS" the owner is removing. So
+# the Global-Theme WRAPPERS are hidden from the KCM (Hidden=true) while the
+# underlying Breeze plasma-style/colour engine stays fully intact and selectable
+# as the fallback. Non-destructive and reversible — nothing is removed from disk.
+for _bz in org.kde.breeze.desktop org.kde.breezedark.desktop org.kde.breezetwilight.desktop; do
+    _bzmeta="/usr/share/plasma/look-and-feel/${_bz}/metadata.json"
+    [ -f "$_bzmeta" ] || continue
+    python3 - "$_bzmeta" <<'PY'
+import json, sys
+p = sys.argv[1]
+m = json.load(open(p, encoding="utf-8"))
+m.setdefault("KPlugin", {})["Hidden"] = True
+m["Hidden"] = True  # some KCM paths read the top-level flag
+json.dump(m, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=4)
+PY
+done
+
 # The wallpaper picker is a user-facing screen, and it held 45 wallpapers: three of MoOS's, one
 # called "F44" (that is Fedora 44, by name, in the picker of an OS called MoOS), and forty-one of
 # KDE's — Kokkini, FlyingKonqui, ScarletTree, summer_1am. None of them is bad. All of them

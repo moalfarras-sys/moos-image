@@ -29,16 +29,27 @@ set -uo pipefail
 
 DARK_LNF="org.moos.ui2"
 LIGHT_LNF="org.moos.ui2.light"
+# The extended MoOS theme family — same UI2 engine, distinct identities. Each is
+# a manual pick; `auto` (sunrise/sunset) always moves between Graphite and Tidal.
+NOVA_LNF="org.moos.ui2.nova"
+AMETHYST_LNF="org.moos.ui2.amethyst"
+MIDNIGHT_LNF="org.moos.ui2.midnight"
+AURORA_LNF="org.moos.ui2.aurora"
 
 usage() {
     cat <<'EOF'
 moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switch MoOS light/dark
 
   moos-theme            الحالي | show the active theme
+  moos-theme list       القائمة | list all MoOS themes
   moos-theme dark       داكن   | MoOS Graphite (the default)
   moos-theme light      فاتح   | MoOS Tidal Light
-  moos-theme toggle     بدّل   | switch to the other UI2 variant
-  moos-theme auto       تلقائي | follow sunrise/sunset with UI2
+  moos-theme nova       MoOS Nova     — cosmic navy
+  moos-theme amethyst   MoOS Amethyst — warm aubergine
+  moos-theme midnight   MoOS Midnight — true-black OLED
+  moos-theme aurora     MoOS Aurora   — teal aurora
+  moos-theme toggle     بدّل   | switch Graphite <-> Tidal
+  moos-theme auto       تلقائي | follow sunrise/sunset (Graphite/Tidal)
 EOF
 }
 
@@ -116,6 +127,42 @@ load_profile() {
             konsole_profile_name="MoOS UI2"
             prefer_dark=true
             label="MoOS: داكن | dark"
+            ;;
+        "$NOVA_LNF")
+            scheme=MoOSUI2Nova; style=MoOSUI2Nova
+            konsole_profile=MoOSUI2Nova.profile; konsole_profile_name="MoOS Nova"
+            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-dark.css; cursor=MoOS
+            deco=__aurorae__svg__MoOSUI2Nova
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2Nova
+            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
+            prefer_dark=true; label="MoOS: Nova"
+            ;;
+        "$AMETHYST_LNF")
+            scheme=MoOSUI2Amethyst; style=MoOSUI2Amethyst
+            konsole_profile=MoOSUI2Amethyst.profile; konsole_profile_name="MoOS Amethyst"
+            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-dark.css; cursor=MoOS
+            deco=__aurorae__svg__MoOSUI2Amethyst
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2Amethyst
+            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
+            prefer_dark=true; label="MoOS: Amethyst"
+            ;;
+        "$MIDNIGHT_LNF")
+            scheme=MoOSUI2Midnight; style=MoOSUI2Midnight
+            konsole_profile=MoOSUI2Midnight.profile; konsole_profile_name="MoOS Midnight"
+            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-dark.css; cursor=MoOS
+            deco=__aurorae__svg__MoOSUI2Midnight
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2Midnight
+            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
+            prefer_dark=true; label="MoOS: Midnight"
+            ;;
+        "$AURORA_LNF")
+            scheme=MoOSUI2Aurora; style=MoOSUI2Aurora
+            konsole_profile=MoOSUI2Aurora.profile; konsole_profile_name="MoOS Aurora"
+            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-dark.css; cursor=MoOS
+            deco=__aurorae__svg__MoOSUI2Aurora
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2Aurora
+            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
+            prefer_dark=true; label="MoOS: Aurora"
             ;;
         *)
             echo "moos-theme: unknown MoOS look-and-feel: $lnf" >&2
@@ -455,11 +502,19 @@ acquire_theme_lock() {
 
 command_name="${1:-status}"
 case "$command_name" in
-    dark|light|toggle|auto|sync-auto)
+    dark|light|nova|amethyst|midnight|aurora|toggle|auto|sync-auto)
         acquire_theme_lock \
             || { echo "moos-theme: another theme transition is still running" >&2; exit 1; }
         ;;
 esac
+
+# Manual picks in the extended family disarm sunrise/sunset (the user chose a
+# specific look) but do NOT change the auto sun/moon targets, which stay
+# Graphite/Tidal. apply() writes the whole cascade, so the switch is instant.
+apply_manual() {
+    kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
+    apply "$1"
+}
 
 case "$command_name" in
     dark)
@@ -471,6 +526,20 @@ case "$command_name" in
         pin_switch_targets
         kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
         apply "$LIGHT_LNF"
+        ;;
+    nova)     apply_manual "$NOVA_LNF" ;;
+    amethyst) apply_manual "$AMETHYST_LNF" ;;
+    midnight) apply_manual "$MIDNIGHT_LNF" ;;
+    aurora)   apply_manual "$AURORA_LNF" ;;
+    list)
+        cat <<'EOF'
+dark      MoOS Graphite   (الافتراضي | default dark)
+light     MoOS Tidal      (فاتح | light)
+nova      MoOS Nova       (كحلي سماوي‑بنفسجي | cosmic navy)
+amethyst  MoOS Amethyst   (باذنجاني دافئ | warm aubergine)
+midnight  MoOS Midnight   (أسود OLED | true black)
+aurora    MoOS Aurora     (تركوازي حديث | teal aurora)
+EOF
         ;;
     toggle)
         pin_switch_targets
@@ -519,8 +588,12 @@ case "$command_name" in
     status)
         active="$(current)"
         case "$active" in
-            "$LIGHT_LNF")     echo "MoOS فاتح | light  ($LIGHT_LNF)" ;;
-            "$DARK_LNF")      echo "MoOS داكن | dark   ($DARK_LNF)" ;;
+            "$LIGHT_LNF")     echo "MoOS فاتح | light     ($LIGHT_LNF)" ;;
+            "$DARK_LNF")      echo "MoOS داكن | dark      ($DARK_LNF)" ;;
+            "$NOVA_LNF")      echo "MoOS Nova            ($NOVA_LNF)" ;;
+            "$AMETHYST_LNF")  echo "MoOS Amethyst        ($AMETHYST_LNF)" ;;
+            "$MIDNIGHT_LNF")  echo "MoOS Midnight        ($MIDNIGHT_LNF)" ;;
+            "$AURORA_LNF")    echo "MoOS Aurora          ($AURORA_LNF)" ;;
             "")               echo "غير محدّد | unset (default: MoOS UI2)" ;;
             *)                echo "ليس MoOS | not a MoOS theme: $active" ;;
         esac

@@ -162,22 +162,36 @@ def main() -> None:
     require("hardware-adapt.state" in hw_text or "MOOS_HW_STATE" in hw_text,
             "moos-hardware-adapt must be idempotent via a versioned state file")
 
-    # ONE MoOS look ships, in a dark half and a light half. The older generations (org.moos.nova,
-    # org.moos.ui) used to ship alongside it — three generations at once, so System Settings
-    # offered the user six MoOS themes. They are gone, and this checks the survivors are whole and
-    # that the deleted ones are actually deleted, not merely unreferenced.
+    # The MoOS theme FAMILY. One design engine (UI2), several MoOS-branded looks the user picks
+    # between — Graphite (dark) and Tidal (light) are the base pair; Nova/Amethyst/Midnight/Aurora
+    # are recoloured members of the same engine (see artwork/generate_moos_themes.py). The OLD
+    # top-level generations (org.moos.nova, org.moos.ui) are a DIFFERENT thing: they shipped three
+    # separate engines at once and are still forbidden — they are not in this allow-set and are
+    # gated for absence in verify_image_experience.py. This gate keeps the picker all-MoOS: it
+    # must contain EXACTLY the known family, every member id-correct and named "MoOS …", so a
+    # foreign look or a reintroduced old generation fails the build rather than reaching the user.
+    ALLOWED_LOOKS = {
+        "org.moos.ui2": "MoOS",
+        "org.moos.ui2.light": "MoOS Light",
+        "org.moos.ui2.nova": "MoOS Nova",
+        "org.moos.ui2.amethyst": "MoOS Amethyst",
+        "org.moos.ui2.midnight": "MoOS Midnight",
+        "org.moos.ui2.aurora": "MoOS Aurora",
+    }
     lnf_root = ROOT / "usr/share/plasma/look-and-feel"
     moos_looks = sorted(p.name for p in lnf_root.glob("org.moos.*"))
-    require(moos_looks == ["org.moos.ui2", "org.moos.ui2.light"],
-            f"exactly one MoOS look-and-feel (dark + light) may ship; found {moos_looks}")
-    for look in ("org.moos.ui2", "org.moos.ui2.light"):
+    require(set(moos_looks) == set(ALLOWED_LOOKS),
+            f"the picker must show exactly the MoOS theme family {sorted(ALLOWED_LOOKS)}; "
+            f"found {moos_looks}")
+    for look, expected_name in ALLOWED_LOOKS.items():
         meta = json.loads((lnf_root / look / "metadata.json").read_text(encoding="utf-8"))
         require(meta.get("KPlugin", {}).get("Id") == look,
                 f"{look} look-and-feel metadata has the wrong id")
-        require(meta.get("KPlugin", {}).get("Name") in ("MoOS", "MoOS Light"),
-                f"{look} must be named MoOS, not a codename")
+        name = meta.get("KPlugin", {}).get("Name", "")
+        require(name == expected_name and name.startswith("MoOS"),
+                f"{look} must be named {expected_name!r} (MoOS-branded), not a codename")
 
-    print("IDENTITY OK: MoOS owns os-release, session, installer, apps, logos and its one theme")
+    print("IDENTITY OK: MoOS owns os-release, session, installer, apps, logos and its theme family")
 
 
 if __name__ == "__main__":

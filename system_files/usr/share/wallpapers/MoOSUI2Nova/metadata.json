@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Id": "MoOSUI2Nova",
+        "Name": "MoOS Nova",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "License": "GPL-3.0-or-later"
+    }
+}

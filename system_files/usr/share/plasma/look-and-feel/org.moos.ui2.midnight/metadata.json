@@ -1,0 +1,18 @@
+{
+    "KPlugin": {
+        "Id": "org.moos.ui2.midnight",
+        "Name": "MoOS Midnight",
+        "Description": "أسود حقيقي عالي التباين لشاشات OLED | True-black high-contrast for OLED",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Version": "2.0.0",
+        "License": "GPL-3.0-or-later",
+        "Website": "https://github.com/moalfarras-sys/moos-image",
+        "Name[ar]": "MoOS Midnight"
+    },
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "X-Plasma-APIVersion": "2"
+}

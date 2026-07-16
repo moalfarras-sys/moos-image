@@ -80,8 +80,12 @@ case "${cat}/${tgt}" in
     # ── Theme: instant, cosmetic, reversible — the Welcome's look picker fires
     # these. moos-theme itself serializes concurrent runs behind a flock, so a
     # drive-by page can at worst flip a look the user can flip right back.
-    theme/dark)    setsid moos-theme dark  >/dev/null 2>&1 & ;;
-    theme/light)   setsid moos-theme light >/dev/null 2>&1 & ;;
+    theme/dark)     setsid moos-theme dark     >/dev/null 2>&1 & ;;
+    theme/light)    setsid moos-theme light    >/dev/null 2>&1 & ;;
+    theme/nova)     setsid moos-theme nova     >/dev/null 2>&1 & ;;
+    theme/amethyst) setsid moos-theme amethyst >/dev/null 2>&1 & ;;
+    theme/midnight) setsid moos-theme midnight >/dev/null 2>&1 & ;;
+    theme/aurora)   setsid moos-theme aurora   >/dev/null 2>&1 & ;;
 
     # ── Language: the Welcome's language pick. moos-lang writes only the user's
     # own plasma-localerc + flatpak language (no root, reversible), and the id is

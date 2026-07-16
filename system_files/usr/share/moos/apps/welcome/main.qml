@@ -105,11 +105,11 @@ ApplicationWindow {
     function chooseLook(which) {
         if (win.look === which) return
         win.look = which
-        // Instant, headless, reversible. moos-open whitelists these two routes
-        // and runs moos-theme detached; the palette change flows back into this
-        // window live through the KDE platform theme.
-        Qt.openUrlExternally(which === "light" ? "moos://theme/light"
-                                               : "moos://theme/dark")
+        // Instant, headless, reversible. moos-open whitelists every MoOS theme
+        // route (dark, light, nova, amethyst, midnight, aurora) and runs
+        // moos-theme detached; the palette change flows back into this window
+        // live through the KDE platform theme.
+        Qt.openUrlExternally("moos://theme/" + which)
     }
 
     // ── directions (step 2) — each id is a catalog bundle id ──────────────────
@@ -770,25 +770,35 @@ ApplicationWindow {
                     }
                     Item { Layout.preferredHeight: 30 }
 
-                    RowLayout {
+                    GridLayout {
                         Layout.fillWidth: true
-                        spacing: 22
+                        columns: 3
+                        columnSpacing: 18
+                        rowSpacing: 18
 
-                        // one look card per half
+                        // one card per MoOS look — the whole family, pick any
                         Repeater {
                             model: [
                                 { id: "dark",  glyph: "moon", en: "Graphite",    ar: "غرافيت داكن",
                                   canvasC: "#14191C", chromeC: "#1C2226", accentC: "#4ED7C8", txtC: "#E8F1EF" },
                                 { id: "light", glyph: "sun",  en: "Tidal Light", ar: "تايدل فاتح",
-                                  canvasC: "#D8EBE7", chromeC: "#C7E0DA", accentC: "#0E8577", txtC: "#17272B" }
+                                  canvasC: "#D8EBE7", chromeC: "#C7E0DA", accentC: "#0E8577", txtC: "#17272B" },
+                                { id: "nova",  glyph: "moon", en: "Nova",        ar: "نوفا",
+                                  canvasC: "#0A1120", chromeC: "#111A2E", accentC: "#38BDF8", txtC: "#EAF2FF" },
+                                { id: "amethyst", glyph: "moon", en: "Amethyst", ar: "أميثيست",
+                                  canvasC: "#17121F", chromeC: "#201829", accentC: "#C084FC", txtC: "#F1E9F5" },
+                                { id: "midnight", glyph: "moon", en: "Midnight", ar: "منتصف الليل",
+                                  canvasC: "#000000", chromeC: "#0A0A0C", accentC: "#22D3EE", txtC: "#F5F7FA" },
+                                { id: "aurora", glyph: "moon", en: "Aurora",     ar: "أورورا",
+                                  canvasC: "#0E1524", chromeC: "#172236", accentC: "#2DD4BF", txtC: "#ECF2FB" }
                             ]
                             delegate: Rectangle {
                                 id: lookCard
                                 required property var modelData
                                 readonly property bool selected: win.look === lookCard.modelData.id
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 250
-                                radius: 22
+                                Layout.preferredHeight: 172
+                                radius: 20
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
                                                lookHover.hovered || lookCard.selected ? 0.95 : 0.6)
                                 border.width: lookCard.selected ? 2 : 1

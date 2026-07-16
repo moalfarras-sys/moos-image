@@ -41,6 +41,14 @@ DARK_LNF="org.moos.ui2"
 LIGHT_LNF="org.moos.ui2.light"
 DARK_DECO="__aurorae__svg__MoOSUI2"
 LIGHT_DECO="__aurorae__svg__MoOSUI2Light"
+# The extended MoOS theme family (same UI2 engine, own palettes). A member the
+# user picked is a durable choice — the login repair PRESERVES it, it does not
+# drag it back to Dark. Their assets are derived from the LNF suffix (nova ->
+# MoOSUI2Nova), so one branch covers all four.
+NOVA_LNF="org.moos.ui2.nova"
+AMETHYST_LNF="org.moos.ui2.amethyst"
+MIDNIGHT_LNF="org.moos.ui2.midnight"
+AURORA_LNF="org.moos.ui2.aurora"
 
 # UI1 remains installed as an explicit rollback. It counts as intact after the
 # UI2 migration marker exists, so `moos-theme ui1-dark|ui1-light` is a durable
@@ -332,6 +340,13 @@ theme_intact() {
             expected_cursor=MoOSDark
             expected_scene=scene-each
             ;;
+        "$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF")
+            local fam="${lnf##*.}"; local Fam="${fam^}"   # nova -> Nova
+            expected_deco="__aurorae__svg__MoOSUI2${Fam}"
+            expected_scheme="MoOSUI2${Fam}"; expected_style="MoOSUI2${Fam}"
+            expected_icons=MoOSUI2; expected_cursor=MoOS
+            expected_scene=scene-each
+            ;;
         *) return 1 ;;
     esac
 
@@ -392,6 +407,7 @@ target_lnf() {
     case "$current" in
         "$LIGHT_LNF") echo "$LIGHT_LNF" ;;
         "$DARK_LNF") echo "$DARK_LNF" ;;
+        "$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF") echo "$current" ;;
         *) echo "$DARK_LNF" ;;
     esac
 }
@@ -593,6 +609,20 @@ case "$want_lnf" in
         want_konsole=MoOSUI2.profile
         want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite
         want_wallpaper=${want_wallpaper_package}/contents/images_dark/3840x2160.jpg
+        want_gtk_dark=true
+        want_cursor=MoOS
+        ;;
+    "$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF")
+        # One branch, four looks: the assets follow the LNF suffix. All members
+        # are dark-canvas, so they share the dark cursor/icons/GTK side.
+        want_fam="${want_lnf##*.}"; want_Fam="${want_fam^}"   # nova -> Nova
+        want_scheme="MoOSUI2${want_Fam}"
+        want_style="MoOSUI2${want_Fam}"
+        want_deco="__aurorae__svg__MoOSUI2${want_Fam}"
+        want_icons=MoOSUI2
+        want_konsole="MoOSUI2${want_Fam}.profile"
+        want_wallpaper_package="/usr/share/wallpapers/MoOSUI2${want_Fam}"
+        want_wallpaper="${want_wallpaper_package}/contents/images_dark/3840x2160.jpg"
         want_gtk_dark=true
         want_cursor=MoOS
         ;;

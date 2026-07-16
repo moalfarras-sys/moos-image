@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=MoOS Nova
+Comment=سديم كحلي بتوهّج سماوي‑بنفسجي | Cosmic navy with a cyan-violet aurora
+X-KDE-PluginInfo-Author=Moalfarras
+X-KDE-PluginInfo-Name=MoOSUI2Nova
+X-KDE-PluginInfo-Version=2.0
+X-KDE-PluginInfo-License=GPL-3.0-or-later
+X-KDE-ServiceTypes=KWin/Decoration
+Type=Service

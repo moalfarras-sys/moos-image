@@ -1,0 +1,95 @@
+{
+  "_comment": "MoOS theme-family palettes. Each palette drives the SAME UI2 engine (SVGs, aurorae, QML) recoloured to its identity — one design system, many MoOS looks. Roles match artwork/moos-ui2/palette.json exactly so the shared generator logic applies. Graphite (dark) and Tidal (light) live in palette.json and stay the base; these are the added members of the family. All designed for high contrast (text-on-canvas >= 14:1) and a distinct, modern 2026 identity.",
+
+  "nova": {
+    "_identity": "Cosmic deep-navy with a cyan->blue->violet aurora. MoOS's original Nova spirit, reborn on the UI2 engine.",
+    "canvas": "#0A1120",
+    "surface": "#111A2E",
+    "card": "#16233A",
+    "raised": "#1E2E4A",
+    "primary": "#38BDF8",
+    "secondary": "#8B5CF6",
+    "luminous": "#7DEBFF",
+    "positive": "#34D399",
+    "warning": "#FBBF24",
+    "negative": "#FB7185",
+    "text": "#EAF2FF",
+    "muted": "#9FB0C9",
+    "outline": "#26364F",
+    "shadow": "#060B16",
+    "panel_top": "#1E2E4A",
+    "panel_mid": "#16233A",
+    "panel_bottom": "#0C1424"
+  },
+
+  "amethyst": {
+    "_identity": "Warm aubergine with orchid + amber glow. Calm, premium, the UI1 warmth carried forward.",
+    "canvas": "#17121F",
+    "surface": "#201829",
+    "card": "#291F35",
+    "raised": "#342844",
+    "primary": "#C084FC",
+    "secondary": "#FB923C",
+    "luminous": "#E9D5FF",
+    "positive": "#6EE7B7",
+    "warning": "#FBBF24",
+    "negative": "#FB7185",
+    "text": "#F1E9F5",
+    "muted": "#B7A6C0",
+    "outline": "#3E3050",
+    "shadow": "#0F0A15",
+    "panel_top": "#342844",
+    "panel_mid": "#291F35",
+    "panel_bottom": "#120D19"
+  },
+
+  "midnight": {
+    "_identity": "True-black OLED. Maximum contrast, minimal energy, a single crisp cyan accent.",
+    "canvas": "#000000",
+    "surface": "#0A0A0C",
+    "card": "#121216",
+    "raised": "#1C1C22",
+    "primary": "#22D3EE",
+    "secondary": "#7DD3FC",
+    "luminous": "#67E8F9",
+    "positive": "#4ADE80",
+    "warning": "#FBBF24",
+    "negative": "#F87171",
+    "text": "#F5F7FA",
+    "muted": "#9BA3AE",
+    "outline": "#26262E",
+    "shadow": "#000000",
+    "panel_top": "#1C1C22",
+    "panel_mid": "#121216",
+    "panel_bottom": "#000000"
+  },
+
+  "aurora": {
+    "_identity": "The merged Breeze+Nova: a clean slate base with a teal->blue northern-lights sweep. Modern, crisp, fresh.",
+    "canvas": "#0E1524",
+    "surface": "#172236",
+    "card": "#1D2A42",
+    "raised": "#263651",
+    "primary": "#2DD4BF",
+    "secondary": "#60A5FA",
+    "luminous": "#A5F3FC",
+    "positive": "#34D399",
+    "warning": "#FBBF24",
+    "negative": "#FB7185",
+    "text": "#ECF2FB",
+    "muted": "#9AAAC2",
+    "outline": "#2C3D5A",
+    "shadow": "#080D18",
+    "panel_top": "#263651",
+    "panel_mid": "#1D2A42",
+    "panel_bottom": "#0F1826"
+  },
+
+  "_extras": {
+    "_comment": "Per-theme EXTRAS mirror the UI2 EXTRAS roles (deep semantic tints for chips/badges, and selected_text = the ink drawn ON an accent highlight — dark on these dark themes).",
+    "nova":     { "positive_deep": "#123227", "negative_deep": "#4A2530", "warning_deep": "#4A3A1C", "secondary_deep": "#3B2E7A", "selected_text": "#0A1120" },
+    "amethyst": { "positive_deep": "#17342A", "negative_deep": "#43222C", "warning_deep": "#43331A", "secondary_deep": "#7A3E1A", "selected_text": "#17121F" },
+    "midnight": { "positive_deep": "#06301E", "negative_deep": "#401B1B", "warning_deep": "#40311A", "secondary_deep": "#1E4A5C", "selected_text": "#000000" },
+    "aurora":   { "positive_deep": "#123227", "negative_deep": "#47262F", "warning_deep": "#473A1C", "secondary_deep": "#2E4C86", "selected_text": "#0E1524" }
+  }
+}
