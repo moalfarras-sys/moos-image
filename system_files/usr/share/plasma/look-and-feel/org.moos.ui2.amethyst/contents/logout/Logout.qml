@@ -251,13 +251,74 @@ Item {
                 width: glassPanel.width - Kirigami.Units.gridUnit * 4
                 spacing: Kirigami.Units.largeSpacing
 
-                Image {
+                // The animated brand: breathing halo, the emblem, one slow spark —
+                // the same living mark the login scene and lock screen carry.
+                // Sprites are pre-baked alpha PNGs (artwork/generate_login_scene.py);
+                // the motion is Animators-only, no shaders on a shutdown prompt.
+                Item {
+                    id: brandStage
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 5.5
                     Layout.preferredHeight: Layout.preferredWidth
-                    source: "../splash/images/moos-logo.png"
-                    fillMode: Image.PreserveAspectFit
-                    asynchronous: true
+
+                    Image {
+                        anchors.centerIn: parent
+                        width: parent.width * 2.2
+                        height: width
+                        source: "images/glow-cyan.png"
+                        opacity: 0.5
+                        SequentialAnimation on opacity {
+                            loops: Animation.Infinite
+                            running: root.visible
+                            NumberAnimation { to: 0.8; duration: 3400; easing.type: Easing.InOutSine }
+                            NumberAnimation { to: 0.5; duration: 3400; easing.type: Easing.InOutSine }
+                        }
+                    }
+                    Image {
+                        anchors.centerIn: parent
+                        width: parent.width * 1.7
+                        height: width
+                        source: "images/glow-violet.png"
+                        opacity: 0.55
+                        SequentialAnimation on opacity {
+                            loops: Animation.Infinite
+                            running: root.visible
+                            NumberAnimation { to: 0.32; duration: 3400; easing.type: Easing.InOutSine }
+                            NumberAnimation { to: 0.55; duration: 3400; easing.type: Easing.InOutSine }
+                        }
+                    }
+                    Image {
+                        id: brandEmblem
+                        anchors.centerIn: parent
+                        width: parent.width
+                        height: parent.height
+                        source: "../splash/images/moos-logo.png"
+                        fillMode: Image.PreserveAspectFit
+                        asynchronous: true
+                        smooth: true
+                        SequentialAnimation on scale {
+                            loops: Animation.Infinite
+                            running: root.visible
+                            NumberAnimation { to: 1.03; duration: 2900; easing.type: Easing.InOutSine }
+                            NumberAnimation { to: 1.0; duration: 2900; easing.type: Easing.InOutSine }
+                        }
+                    }
+                    Item {
+                        anchors.fill: parent
+                        RotationAnimator on rotation {
+                            from: 0; to: 360
+                            duration: 20000
+                            loops: Animation.Infinite
+                            running: root.visible
+                        }
+                        Image {
+                            source: "images/spark.png"
+                            width: brandStage.width * 0.15
+                            height: width
+                            x: (brandStage.width - width) / 2
+                            y: -brandStage.width * 0.10
+                        }
+                    }
                 }
 
                 QQC2.Label {
@@ -290,6 +351,32 @@ Item {
                     visible: countdownTimer.running
                     font.family: "IBM Plex Sans"
                     font.weight: Font.DemiBold
+                }
+
+                // The countdown made visible: a hairline that drains with the
+                // seconds, so the remaining time reads at a glance from across
+                // the room — not only as a number.
+                Rectangle {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 14
+                    Layout.preferredHeight: 3
+                    radius: height / 2
+                    visible: countdownTimer.running
+                    // Translucent track colour, NOT `opacity` — item opacity
+                    // multiplies into children, and would dim the filler too.
+                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.25)
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        radius: parent.radius
+                        color: Kirigami.Theme.highlightColor
+                        width: parent.width * Math.max(0, Math.min(1, root.remainingTime / 30))
+                        Behavior on width {
+                            NumberAnimation { duration: 950; easing.type: Easing.Linear }
+                        }
+                    }
                 }
 
                 QQC2.Label {
@@ -330,7 +417,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: suspendButton
                         Layout.fillWidth: true
-                        iconName: "system-suspend"
+                        iconName: "system-suspend-symbolic"
                         text: "تعليق | Sleep"
                         description: "إبقاء الجلسة | Keep session"
                         visible: root.showAllOptions && spdMethods.SuspendState
@@ -344,7 +431,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: hibernateButton
                         Layout.fillWidth: true
-                        iconName: "system-suspend-hibernate"
+                        iconName: "system-suspend-hibernate-symbolic"
                         text: "إسبات | Hibernate"
                         description: "حفظ الجلسة | Save session"
                         visible: root.showAllOptions && spdMethods.HibernateState
@@ -358,7 +445,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: rebootButton
                         Layout.fillWidth: true
-                        iconName: softwareUpdatePending ? "system-reboot-update" : "system-reboot"
+                        iconName: softwareUpdatePending ? "system-reboot-update-symbolic" : "system-reboot-symbolic"
                         text: softwareUpdatePending
                             ? "تحديث وإعادة تشغيل | Update & Restart"
                             : "إعادة التشغيل | Restart"
@@ -381,7 +468,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: rebootWithoutUpdatesButton
                         Layout.fillWidth: true
-                        iconName: "system-reboot"
+                        iconName: "system-reboot-symbolic"
                         text: "إعادة التشغيل الآن | Restart now"
                         description: "بدون تحديث | Without updating"
                         visible: maysd && softwareUpdatePending
@@ -396,7 +483,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: shutdownButton
                         Layout.fillWidth: true
-                        iconName: softwareUpdatePending ? "system-shutdown-update" : "system-shutdown"
+                        iconName: softwareUpdatePending ? "system-shutdown-update-symbolic" : "system-shutdown-symbolic"
                         text: softwareUpdatePending
                             ? "تحديث وإيقاف | Update & Shut Down"
                             : "إيقاف التشغيل | Shut Down"
@@ -420,7 +507,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: shutdownWithoutUpdatesButton
                         Layout.fillWidth: true
-                        iconName: "system-shutdown"
+                        iconName: "system-shutdown-symbolic"
                         text: "إيقاف الآن | Shut down now"
                         description: "بدون تحديث | Without updating"
                         destructive: true
@@ -436,7 +523,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: logoutButton
                         Layout.fillWidth: true
-                        iconName: "system-log-out"
+                        iconName: "system-log-out-symbolic"
                         text: "تسجيل الخروج | Log Out"
                         description: "إنهاء الجلسة | End session"
                         visible: canLogout
@@ -451,7 +538,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: lockButton
                         Layout.fillWidth: true
-                        iconName: "system-lock-screen"
+                        iconName: "system-lock-screen-symbolic"
                         text: "قفل الشاشة | Lock Screen"
                         description: "العودة لاحقًا | Return later"
                         visible: root.showAllOptions
@@ -465,7 +552,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: cancelButton
                         Layout.fillWidth: true
-                        iconName: "dialog-cancel"
+                        iconName: "cancel-operation-symbolic"
                         text: "إلغاء | Cancel"
                         description: "العودة إلى سطح المكتب | Back to desktop"
                         emphasized: root.showAllOptions

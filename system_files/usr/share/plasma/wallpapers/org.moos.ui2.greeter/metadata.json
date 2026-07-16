@@ -1,0 +1,17 @@
+{
+    "KPackageStructure": "Plasma/Wallpaper",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Description": "The MoOS login scene: the UI2 wallpaper with the animated MoOS brand mark, drawn behind the plasma-login greeter.",
+        "EnabledByDefault": true,
+        "Id": "org.moos.ui2.greeter",
+        "License": "GPL-3.0-or-later",
+        "Name": "MoOS Login Scene",
+        "Name[ar]": "مشهد دخول MoOS",
+        "Version": "1.0.0"
+    }
+}

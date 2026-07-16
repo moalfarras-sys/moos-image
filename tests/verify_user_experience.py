@@ -1792,8 +1792,28 @@ require(login_drop_ins != [],
 login_config = code(
     "\n".join(p.read_text(encoding="utf-8") for p in login_drop_ins)
 )
-require("WallpaperPluginId=org.kde.image" in login_config,
+# The plugin id is a RELATIONSHIP too, not a constant. This line used to pin
+# "org.kde.image", and went stale the day the login scene became MoOS's own
+# plugin (org.moos.ui2.greeter — the animated brand behind the auth card).
+# Whatever the drop-in names must be loadable: org.kde.* ships with Plasma; an
+# org.moos.* id must be a wallpaper package in THIS tree, main.qml and all —
+# otherwise plasma-login-wallpaper resolves nothing and the first screen after
+# boot is black.
+login_plugin = re.search(r"^WallpaperPluginId=(\S+)", login_config, re.MULTILINE)
+require(login_plugin is not None,
         "the login screen must select a wallpaper plugin, or the greeter draws Plasma's default")
+if login_plugin is not None and not login_plugin.group(1).startswith("org.kde."):
+    login_scene = ROOT / "system_files/usr/share/plasma/wallpapers" / login_plugin.group(1)
+    require((login_scene / "contents/ui/main.qml").is_file(),
+            f"the login screen names wallpaper plugin {login_plugin.group(1)} but the tree "
+            "ships no such package — the first screen after boot would be black")
+    require((login_scene / "contents/config/main.xml").is_file()
+            and 'name="Image"' in (login_scene / "contents/config/main.xml").read_text(encoding="utf-8"),
+            f"login wallpaper plugin {login_plugin.group(1)} declares no Image config key — "
+            "the drop-in's wallpaper value would be silently ignored")
+    require(f"[Greeter][Wallpaper][{login_plugin.group(1)}][General]" in login_config,
+            "the login drop-in's wallpaper group does not match the plugin it names — "
+            "the greeter would load the scene with an empty config")
 
 lock_wallpaper = re.search(r"^Image=.*/wallpapers/([A-Za-z0-9_.-]+)",
                            code(lock_config), re.MULTILINE)
@@ -2100,6 +2120,41 @@ require(re.search(r"^Theme=", read("system_files/etc/xdg/kscreenlockerrc"), re.M
         "kscreenlockerrc sets a [Greeter] Theme again — the greeter loads the "
         "SHELL lockscreen, so a look-and-feel Theme there just misleads and "
         "falls back; the override is what draws MoOS")
+# The brand and the clock live on different rulers (the brand in gridUnits, the
+# clock derived from the userlist geometry), and on a 4K panel the halfway
+# formula parked the clock INSIDE the emblem+wordmark (seen live 2026-07-16 via
+# kscreenlocker_greet --testing). The floor below the brand is what keeps them
+# apart; a rewrite that loses it re-ships the collision on every tall screen.
+require(re.search(r"y:\s*Math\.max\(\s*brand\.y\s*\+\s*brand\.height", lock_ui) is not None,
+        "the lock screen clock lost its floor below the brand — on a 4K panel "
+        "the time draws through the MoOS emblem and wordmark again")
+# ── The animated brand's light is pre-baked sprites, and they must travel with
+#    every QML file that names them. A QML that references images/glow-cyan.png
+#    with no sprite beside it fails SILENTLY (Image logs a warning nobody reads
+#    and draws nothing) — the brand would quietly lose its glow.
+for qml_dir in (Path("system_files/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen"),
+                Path("system_files/usr/share/plasma/wallpapers/org.moos.ui2.greeter/contents/ui"),
+                *sorted(Path("system_files/usr/share/plasma/look-and-feel").glob("org.moos.ui2*/contents/logout"))):
+    for qml in sorted((ROOT / qml_dir).glob("*.qml")):
+        body = qml.read_text(encoding="utf-8")
+        for sprite in re.findall(r'"(?:\.\./)?images/([a-z-]+\.png)"', body):
+            # the greeter plugin's ui/main.qml references ../images/, siblings images/
+            base = qml_dir.parent / "images" if "../images/" in body else qml_dir / "images"
+            require((ROOT / base / sprite).is_file(),
+                    f"{qml.relative_to(ROOT)} references {sprite} but the sprite is not "
+                    f"at {base}/ — the animated brand would silently lose its light "
+                    "(regenerate with artwork/generate_login_scene.py)")
+# ── Logout action icons must be the -symbolic glyphs. The buttons recolour their
+#    icon with isMask, and the MoOSUI2 theme's full-colour action icons (a filled
+#    disc with white detail) mask into a featureless blob — every logout button
+#    shipped as a solid circle until 2026-07-16. Symbolic variants are drawn for
+#    exactly this. Kirigami falls back to the blob silently, so pin the names.
+logout_qml = read("system_files/usr/share/plasma/look-and-feel/org.moos.ui2/contents/logout/Logout.qml")
+for icon_name in re.findall(r'iconName:\s*(?:[^"\n]*\?\s*)?"([^"]+)"(?:\s*:\s*"([^"]+)")?', logout_qml):
+    for name in filter(None, icon_name):
+        require(name.endswith("-symbolic"),
+                f"logout button icon {name!r} is not a -symbolic glyph — isMask "
+                "turns the theme's full-colour icon into a solid blob")
 
 # ── Arabic in the terminal ────────────────────────────────────────────────────
 #

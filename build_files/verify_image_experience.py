@@ -174,6 +174,18 @@ if "plasmalogin" in dm_target:
     require("WallpaperPluginId" in login_conf,
             "the login screen has no MoOS wallpaper configured — it would show Plasma's default")
 
+    # The plugin the drop-in names must actually be installed. plasma-login-wallpaper
+    # loads it as a KPackage by id; an id that resolves to nothing draws a BLACK login
+    # screen with every other check still green. Read the value, then require the
+    # package's main.qml on disk — a relationship, not a constant, so swapping the
+    # scene later keeps this gate honest.
+    plugin_id = re.search(r"^WallpaperPluginId=(\S+)", login_conf, re.MULTILINE)
+    require(plugin_id is not None, "WallpaperPluginId has no value in the login drop-in")
+    if plugin_id is not None and not plugin_id.group(1).startswith("org.kde."):
+        require(Path(f"/usr/share/plasma/wallpapers/{plugin_id.group(1)}/contents/ui/main.qml").is_file(),
+                f"the login screen names wallpaper plugin {plugin_id.group(1)} but no such "
+                "package is installed — the first screen after boot would be black")
+
     # The login screen is the FIRST surface of the running system, and the ONLY themed surface a
     # Global Theme cannot reach: LookAndFeelManager runs inside the user's session, long after the
     # greeter has drawn. So it is pinned by hand in the image — and a hand-pinned value is exactly

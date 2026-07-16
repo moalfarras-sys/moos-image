@@ -271,17 +271,78 @@ Item {
             opacity: 0.92
             transform: Translate { id: brandShift }
 
-            Image {
+            // The animated brand: breathing halo, the emblem, one slow spark —
+            // the same living mark the login scene and logout greeter carry.
+            // Sprites are pre-baked alpha PNGs (artwork/generate_login_scene.py,
+            // copied into this shell dir); motion is Animators-only, no shaders
+            // on a screen that can stay up for hours.
+            Item {
+                id: brandStage
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 3
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 3.6
                 Layout.preferredHeight: Layout.preferredWidth
-                // Absolute path: this file lives in the shell package now, which
-                // has no MoOS art of its own. /usr/share/pixmaps/moos-logo.png is
-                // the canonical mark the identity firewall pins.
-                source: "file:///usr/share/pixmaps/moos-logo.png"
-                fillMode: Image.PreserveAspectFit
-                asynchronous: true
-                smooth: true
+
+                Image {
+                    anchors.centerIn: brandEmblem
+                    width: brandStage.width * 2.3
+                    height: width
+                    source: "images/glow-cyan.png"
+                    opacity: 0.45
+                    SequentialAnimation on opacity {
+                        loops: Animation.Infinite
+                        running: brandStage.visible
+                        NumberAnimation { to: 0.75; duration: 3600; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 0.45; duration: 3600; easing.type: Easing.InOutSine }
+                    }
+                }
+                Image {
+                    anchors.centerIn: brandEmblem
+                    width: brandStage.width * 1.75
+                    height: width
+                    source: "images/glow-violet.png"
+                    opacity: 0.5
+                    SequentialAnimation on opacity {
+                        loops: Animation.Infinite
+                        running: brandStage.visible
+                        NumberAnimation { to: 0.3; duration: 3600; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 0.5; duration: 3600; easing.type: Easing.InOutSine }
+                    }
+                }
+                Image {
+                    id: brandEmblem
+                    anchors.centerIn: parent
+                    width: brandStage.width
+                    height: brandStage.height
+                    // Absolute path: this file lives in the shell package now, which
+                    // has no MoOS art of its own. /usr/share/pixmaps/moos-logo.png is
+                    // the canonical mark the identity firewall pins.
+                    source: "file:///usr/share/pixmaps/moos-logo.png"
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                    smooth: true
+                    SequentialAnimation on scale {
+                        loops: Animation.Infinite
+                        running: brandStage.visible
+                        NumberAnimation { to: 1.03; duration: 3000; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 1.0; duration: 3000; easing.type: Easing.InOutSine }
+                    }
+                }
+                Item {
+                    anchors.fill: parent
+                    RotationAnimator on rotation {
+                        from: 0; to: 360
+                        duration: 24000
+                        loops: Animation.Infinite
+                        running: brandStage.visible
+                    }
+                    Image {
+                        source: "images/spark.png"
+                        width: brandStage.width * 0.15
+                        height: width
+                        x: (brandStage.width - width) / 2
+                        y: -brandStage.width * 0.10
+                    }
+                }
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
@@ -350,7 +411,12 @@ Item {
             property Item shadow: clockShadow
             visible: y > 0 && config.alwaysShowClock
             anchors.horizontalCenter: parent.horizontalCenter
-            y: (mainBlock.userList.y + mainStack.y) / 2 - height / 2
+            // Never above the brand: the halfway formula alone parked the clock
+            // inside the emblem+wordmark on a 4K panel (the two were designed on
+            // different rulers — the brand in gridUnits, the clock from the
+            // userlist geometry). The floor keeps a clear breath below the brand.
+            y: Math.max(brand.y + brand.height + Kirigami.Units.gridUnit * 1.5,
+                        (mainBlock.userList.y + mainStack.y) / 2 - height / 2)
             Layout.alignment: Qt.AlignBaseline
         }
 
