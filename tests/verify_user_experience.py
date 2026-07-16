@@ -89,11 +89,41 @@ for icon in ("moos-moai", "moos-pc-remote"):
     require(master.is_file(), f"{icon} must ship a scalable SVG master")
     if master.is_file():
         svg = code(master.read_text(encoding="utf-8"), "xml")
-        require("<text" not in svg and "<image" not in svg,
-                f"{icon} must remain original vector geometry with no text or embedded bitmap")
+        if icon == "moos-moai":
+            # 2026-07-16: the owner replaced Mo AI's vector icon with commissioned
+            # raster artwork. The scalable entry is now a wrapper that must embed
+            # the EXACT 1024px master (artwork/icons/mo-ai-1024.png) — anything
+            # else (a text logo, a recompressed or low-res bitmap) is a downgrade.
+            import base64 as _b64
+            master_png = ROOT / "artwork/icons/mo-ai-1024.png"
+            require(master_png.is_file(), "the Mo AI 1024px icon master is missing from artwork/icons")
+            if master_png.is_file():
+                require(_b64.b64encode(master_png.read_bytes()).decode() in svg,
+                        "moos-moai.svg must embed the exact mo-ai-1024.png master, byte for byte")
+        else:
+            require("<text" not in svg and "<image" not in svg,
+                    f"{icon} must remain original vector geometry with no text or embedded bitmap")
     for size in (16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512):
         png = ROOT / f"system_files/usr/share/icons/hicolor/{size}x{size}/apps/{icon}.png"
         require(png.is_file(), f"{icon} is missing its {size}px dock fallback")
+
+# The store's two icon names (moos-store for the store itself, mo-store for the
+# hidden Discover entry) are the SAME artwork — if they ever drift, one surface
+# quietly keeps an old brand. And every rendered size must carry real alpha:
+# the source art arrived with a baked-in checkerboard, and a regression to an
+# opaque background would put a white square on the dock.
+for size in (16, 22, 24, 32, 48, 64, 128, 256, 512):
+    a = ROOT / f"system_files/usr/share/icons/hicolor/{size}x{size}/apps/moos-store.png"
+    b = ROOT / f"system_files/usr/share/icons/hicolor/{size}x{size}/apps/mo-store.png"
+    require(a.is_file() and b.is_file() and a.read_bytes() == b.read_bytes(),
+            f"moos-store and mo-store must stay byte-identical at {size}px")
+for name, sizes in (("moos-moai", (16, 512)), ("moos-store", (16, 512))):
+    for size in sizes:
+        png = ROOT / f"system_files/usr/share/icons/hicolor/{size}x{size}/apps/{name}.png"
+        if png.is_file():
+            data = png.read_bytes()
+            require(data[25:26] == b"\x06",
+                    f"{name} {size}px must be RGBA — a flattened background is a regression")
 require((ROOT / "moremote/Logo.png").read_bytes()
         == (ROOT / "system_files/usr/share/icons/hicolor/512x512/apps/moos-pc-remote.png").read_bytes(),
         "the vendored Mo PC Remote icon and the OS icon must stay byte-identical")
