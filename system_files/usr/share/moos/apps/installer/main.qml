@@ -91,7 +91,17 @@ ApplicationWindow {
     property bool   acctPassword: false      // false = passwordless autologin (default)
     property string acctPass: ""
     property string acctPass2: ""
-    function keymapForLang() { return "us" }
+    // The CONSOLE keymap (/etc/vconsole.conf). It describes the same physical keyboard the
+    // graphical layout describes, so DERIVE it from xkbForLang's primary entry — naming the
+    // layout twice is what broke it. When the default became de,ara (the owner's hardware is
+    // German) this line was left behind returning a literal "us", so every install since has
+    // typed German on the desktop and US in the text console: 'y' and 'z' swapped exactly
+    // where you land when the desktop does not start, and exactly where a wrong character in
+    // a password is least affordable. vconsole takes ONE keymap and moos-firstboot rejects a
+    // comma, so the primary layout is all there is to send. xkb layout codes and console
+    // keymap names coincide for what MoOS ships (de, us, both in `localectl list-keymaps`);
+    // a layout whose console keymap has a different name would need a mapping here.
+    function keymapForLang() { return win.xkbForLang().split(",")[0] }
     function xkbForLang()    { return win.lang === "ar" ? "de,ara" : "de" }
     function localeForLang() { return win.lang === "ar" ? "ar_SA.UTF-8" : "en_US.UTF-8" }
     function tzForLang()     { return win.lang === "ar" ? "Asia/Riyadh" : "UTC" }

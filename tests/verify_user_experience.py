@@ -456,6 +456,28 @@ require("KeyboardLayouts.getLayoutsList" in selfcheck,
         "default — the system default stayed a perfect 'de,ara' while the session typed US, "
         "and the check reported green throughout")
 
+# ── The console types the same keyboard the desktop types ────────────────────
+# The installer derives keymap/layout/locale/timezone from the chosen language, and writes
+# BOTH an X11 layout (/etc/X11/xorg.conf.d/00-keyboard.conf) and a console keymap
+# (/etc/vconsole.conf). They describe ONE piece of hardware. When the default became de,ara
+# because the owner's keyboard is German, `xkbForLang` was updated and `keymapForLang` was
+# left behind returning a literal "us" — so every install since wrote a German desktop and a
+# US text console. That console is exactly where you land when the desktop will not start,
+# and a 'y' that types 'z' is least affordable exactly there.
+#
+# So this gate asserts the RELATIONSHIP — the console keymap is derived from the layout — and
+# not a literal "de", which is the constant-goes-stale trap that produced the bug in the
+# first place. Comments are stripped (style="slash") because the prose right above names both
+# "us" and "de", and a gate that matches its own comment passes forever.
+installer_qml = code(read("system_files/usr/share/moos/apps/installer/main.qml"), style="slash")
+keymap_fn = re.search(r"function\s+keymapForLang\s*\(\s*\)\s*\{([^}]*)\}", installer_qml)
+require(keymap_fn,
+        "the installer must define keymapForLang() — /etc/vconsole.conf's console keymap comes "
+        "from it, and without it the console falls back to us on German hardware")
+require("xkbForLang" in keymap_fn.group(1),
+        "keymapForLang() must derive the console keymap from xkbForLang() — naming the keyboard "
+        "twice is what let the console keep typing 'us' after the layout became 'de,ara'")
+
 # ── The third agent is the one that needs nobody's cloud ─────────────────────
 # Codex and Claude Code are both somebody else's subscription. OpenCode is provider-agnostic,
 # so on a machine that ships its own brain it can be pointed at THAT — a coding agent that
