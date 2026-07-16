@@ -172,8 +172,15 @@ legacy_nova_surfaces = {
     "#f4f8ff", "#e6edf7", "#9fb0c9", "#7f94b5", "#0c1424", "#070c16",
     "#0a1120", "#0c1526", "#16233c", "#0e1830",
 }
+# The MoOS Welcome's "Pick your look" grid PREVIEWS every theme in the family, so it
+# legitimately names each theme's own canvas/accent hexes (Nova's navy among them) as
+# swatch VALUES — not as the app's own chrome. Strip those swatch property lines
+# (canvasC/chromeC/accentC/txtC) before the structural-Nova scan, so a *preview* of Nova
+# is not misread as Nova *chrome*. The rest of Welcome is still held to the palette tokens.
+welcome_scan = re.sub(r"(?m)^\s*(canvasC|chromeC|accentC|txtC)\s*:.*$", "",
+                      welcome_palette_code)
 for app, qml_code in (("Mo AI", moai_palette_code),
-                      ("MoOS Welcome", welcome_palette_code),
+                      ("MoOS Welcome", welcome_scan),
                       ("Mo Store", store_palette_code)):
     retained = sorted(colour for colour in legacy_nova_surfaces
                       if colour in qml_code.lower())
@@ -1244,20 +1251,26 @@ require("enabled=false" in light_style,
         "the light theme must keep adaptive transparency off; it otherwise turns the dock into an "
         "opaque white slab while the dark half remains designed glass")
 
-# ── One name, one generation ─────────────────────────────────────────────────
+# ── One engine, one family ───────────────────────────────────────────────────
 #
-# Every one of these was a real entry in a real picker on the owner's machine: six MoOS Global
-# Themes, six Konsole profiles, a cursor theme called "NovaShadow", a wallpaper called "F44".
-# The rule is a rule because it is not self-enforcing — an old generation left on disk does not
-# error, it just quietly offers the user a second, older MoOS to choose from.
+# MoOS now ships a FAMILY of looks on the single UI2 engine (Graphite/Tidal + Nova/Amethyst/
+# Midnight/Aurora). The rule is still not self-enforcing: an OLD generation (org.moos.nova,
+# org.moos.ui) or a foreign look left on disk does not error, it quietly offers the user a
+# second, wrong picker entry. So the family must be EXACTLY these — every one MoOS-branded,
+# nothing foreign, no reintroduced old generation. (verify_identity.py enforces the same set
+# with name/id checks; this gate holds the on-disk package + Konsole-profile count.)
+FAMILY_LNF = ["org.moos.ui2", "org.moos.ui2.amethyst", "org.moos.ui2.aurora",
+              "org.moos.ui2.light", "org.moos.ui2.midnight", "org.moos.ui2.nova"]
 lnf_dirs = sorted(p.name for p in (ROOT / "system_files/usr/share/plasma/look-and-feel").iterdir())
-require(lnf_dirs == ["org.moos.ui2", "org.moos.ui2.light"],
-        f"exactly one MoOS Global Theme (dark + light) may ship; found {lnf_dirs}")
+require(lnf_dirs == FAMILY_LNF,
+        f"the MoOS Global Theme family must be exactly {FAMILY_LNF}; found {lnf_dirs}")
 
+FAMILY_PROFILES = ["MoOSUI2.profile", "MoOSUI2Amethyst.profile", "MoOSUI2Aurora.profile",
+                   "MoOSUI2Light.profile", "MoOSUI2Midnight.profile", "MoOSUI2Nova.profile"]
 konsole_profiles = sorted(
     p.name for p in (ROOT / "system_files/usr/share/konsole").glob("*.profile"))
-require(konsole_profiles == ["MoOSUI2.profile", "MoOSUI2Light.profile"],
-        f"exactly one MoOS Konsole profile (dark + light) may ship; found {konsole_profiles}")
+require(konsole_profiles == FAMILY_PROFILES,
+        f"the MoOS Konsole profile family must be exactly {FAMILY_PROFILES}; found {konsole_profiles}")
 
 wallpapers = sorted(p.name for p in (ROOT / "system_files/usr/share/wallpapers").iterdir())
 require(all(w.startswith("MoOS") for w in wallpapers),

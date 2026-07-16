@@ -25,13 +25,12 @@ def function(text: str, name: str) -> str:
 
 class TestMoOSThemeSafety(unittest.TestCase):
     def test_any_foreign_look_resolves_to_the_one_moos_look(self) -> None:
-        """MoOS ships ONE look now, in a light half and a dark half.
-
-        This test used to assert the opposite: that a user who had rolled back to the older MoOS
-        UI generation was PRESERVED there. That behaviour was right while UI1 was installed, and it
-        became a trap the moment it was not — Plasma does not error on a Global Theme that is
-        missing from the disk, it silently serves Breeze. So the resolver must now pull every look
-        that is not one of MoOS's two halves onto the dark half, which is what the image ships.
+        """MoOS now ships a FAMILY of looks on one engine: the Graphite/Tidal base pair plus
+        the org.moos.ui2.* members (Nova, Amethyst, Midnight, Aurora). A member the user picked
+        is a durable choice and is PRESERVED. Everything that is NOT a current MoOS look — the
+        DELETED old generations (org.moos.nova, org.moos.ui, which are a different, top-level
+        namespace), Breeze, any foreign theme — must still resolve to the dark half, because
+        Plasma does not error on a missing Global Theme, it silently serves Breeze.
         """
         text = APPLY.read_text(encoding="utf-8")
         resolver = function(text, "target_lnf")
@@ -39,19 +38,28 @@ class TestMoOSThemeSafety(unittest.TestCase):
 set -uo pipefail
 DARK_LNF=org.moos.ui2
 LIGHT_LNF=org.moos.ui2.light
+NOVA_LNF=org.moos.ui2.nova
+AMETHYST_LNF=org.moos.ui2.amethyst
+MIDNIGHT_LNF=org.moos.ui2.midnight
+AURORA_LNF=org.moos.ui2.aurora
 marker=/definitely/not/present
 current_lookandfeel() {{ printf '%s\\n' "$CURRENT"; }}
 {resolver}
 target_lnf "$1" "$2"
 """
         cases = {
-            # the two halves stay where they are
+            # the two base halves stay where they are
             ("org.moos.ui2", "true"): "org.moos.ui2",
             ("org.moos.ui2.light", "true"): "org.moos.ui2.light",
             ("org.moos.ui2", "false"): "org.moos.ui2",
             ("org.moos.ui2.light", "false"): "org.moos.ui2.light",
-            # the deleted generations, and anything else, land on the dark half — NOT on a theme
-            # that is no longer installed
+            # a chosen family member is a durable choice — PRESERVED, not reset to dark
+            ("org.moos.ui2.nova", "true"): "org.moos.ui2.nova",
+            ("org.moos.ui2.amethyst", "false"): "org.moos.ui2.amethyst",
+            ("org.moos.ui2.midnight", "true"): "org.moos.ui2.midnight",
+            ("org.moos.ui2.aurora", "true"): "org.moos.ui2.aurora",
+            # the DELETED old generations (top-level namespace), and anything else, land on the
+            # dark half — NOT on a theme that is no longer installed
             ("org.moos.ui", "true"): "org.moos.ui2",
             ("org.moos.ui.light", "true"): "org.moos.ui2",
             ("org.moos.nova", "true"): "org.moos.ui2",
