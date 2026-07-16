@@ -478,6 +478,37 @@ require("xkbForLang" in keymap_fn.group(1),
         "keymapForLang() must derive the console keymap from xkbForLang() — naming the keyboard "
         "twice is what let the console keep typing 'us' after the layout became 'de,ara'")
 
+# ── The boot theme must carry what two-step LOADS, not just what it draws ────
+# The splash was dead for weeks and every gate was green. They asserted the theme was
+# installed, selected, and that its PNGs decoded — all true, all still true while the screen
+# was a flat grey text fallback. Nothing asserted the thing that actually mattered.
+#
+# two-step loads the password-entry assets FIRST, unconditionally, before the logo. From
+# plymouth's debug log on a real boot: "loading lock image" -> "can't show splash: No such
+# file or directory" -> "showing text splash screen". `strings two-step.so` gives the order
+# (lock -> box -> corner -> header -> background -> watermark) and shows `%s/lock.png` as the
+# only hard-coded path. A theme without lock.png dies before the watermark is considered.
+#
+# build.sh copies these from plymouth-theme-spinner (they are function, not branding), so
+# this gate holds the BUILD STEP, not the repo tree — the assets are deliberately not
+# committed: they must track plymouth's own version, and keymap-render.png is a 25881x50
+# pre-rendered strip nobody can hand-author.
+build_sh = code(read("build_files/build.sh"))
+require('cp -f "${_SPIN}/${_a}" "${_MOOS}/${_a}"' in build_sh,
+        "build.sh must copy two-step's entry assets into the moos theme — without lock.png "
+        "the plugin aborts on its first image load and the boot falls back to a grey text "
+        "screen, with every other splash gate still green")
+require('test -f "${_MOOS}/lock.png"' in build_sh,
+        "build.sh must PROVE moos/lock.png landed — a silent copy of nothing puts the boot "
+        "straight back to the text fallback")
+require('test -f "${_SPIN}/lock.png"' in build_sh,
+        "build.sh must gate on spinner still shipping lock.png — if the source disappears, "
+        "the copy becomes a no-op and the splash dies with a green build")
+theme_dir = ROOT / "system_files/usr/share/plymouth/themes/moos"
+require((theme_dir / "watermark.png").is_file(),
+        "the moos theme must ship its own watermark.png — that is the MoOS emblem itself, "
+        "and unlike the entry assets it is branding, not function")
+
 # ── plymouth.use-simpledrm must stay opt-out-able ───────────────────────────
 # The karg was proven in a VM, promoted to every machine, and on the owner's NVIDIA box it
 # did the opposite of its promise: nvidia is force_drivers'd into the initramfs and owns the

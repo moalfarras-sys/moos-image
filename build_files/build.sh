@@ -184,6 +184,53 @@ dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot \
 # module picks up the theme selected here.
 plymouth-set-default-theme moos
 
+# ── The splash needs the two-step plugin's FUNCTIONAL assets, not just the art ──
+#
+# THIS IS WHY THERE WAS NO BOOT SPLASH. The moos theme shipped watermark.png and 60
+# throbber frames and nothing else, because its README says the batch "replaces assets
+# only" — but two-step does not only draw art. It loads the password-entry assets FIRST,
+# unconditionally, before it ever reaches the logo. Plymouth's own debug log, captured by
+# booting the ISO in a VM with plymouth.debug:
+#
+#   two-step/plugin.c:1862:show_splash_screen : loading lock image
+#   ply-boot-splash.c:553                     : can't show splash: No such file or directory
+#   main.c:505:show_default_splash            : Could not start default splash screen,
+#                                               showing text splash screen
+#
+# `strings` on two-step.so gives the order: lock -> box -> corner -> header -> background
+# -> watermark. lock.png is the FIRST load and the only hard-coded path (`%s/lock.png`),
+# so a theme without it dies before the watermark is even considered. The user saw a flat
+# grey screen with a few squares — that was Plymouth's TEXT fallback, not our theme.
+#
+# Every gate stayed green throughout: they checked that the theme was installed, selected,
+# and that its PNGs were valid. All true. All still true while the splash was dead. They
+# checked what SHIPS; nothing checked what two-step LOADS.
+#
+# These are function, not branding — a padlock, a bullet, a text box, and the keymap strip
+# that appear only at a LUKS password prompt. They come from plymouth-theme-spinner (an
+# installed RPM, so they track plymouth's own version and format), and keymap-render.png
+# in particular is a 25881x50 pre-rendered layout strip that cannot be hand-authored.
+# Copying them is not "a system on top of a system": it completes MoOS's own theme with
+# the parts its plugin requires.
+_SPIN=/usr/share/plymouth/themes/spinner
+_MOOS=/usr/share/plymouth/themes/moos
+# GATE: if spinner ever stops shipping these, copying silently nothing would put the boot
+# straight back to a grey text screen — with a green build, exactly as it shipped before.
+test -f "${_SPIN}/lock.png" || {
+    echo "GATE FAIL: ${_SPIN}/lock.png is gone — the moos theme cannot be completed and"
+    echo "           two-step would abort the splash on its very first image load."
+    exit 1
+}
+for _a in lock.png bullet.png entry.png capslock.png keyboard.png keymap-render.png; do
+    if [ -f "${_SPIN}/${_a}" ]; then
+        cp -f "${_SPIN}/${_a}" "${_MOOS}/${_a}"
+    fi
+done
+# GATE: prove the one that aborts the splash actually landed.
+test -f "${_MOOS}/lock.png" || { echo "GATE FAIL: moos/lock.png was not installed"; exit 1; }
+echo "=== plymouth: moos theme completed with two-step's entry assets ==="
+ls -1 "${_MOOS}" | grep -v '^throbber' | sed 's/^/    /'
+
 # Fedora's plymouth package keeps two distribution fallbacks outside the
 # selected theme:
 #   /usr/share/plymouth/plymouthd.defaults -> Theme=bgrt
