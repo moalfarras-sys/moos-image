@@ -196,6 +196,7 @@ elif [ "$layouts" = "$image_layouts" ]; then
     # check fell back to config and stayed green. Say so instead of implying.
     [ -z "$live_layouts" ] && \
         note "KWin did not answer getLayoutsList — the values above are config, not the running keymap"
+else
     bad "layouts are '${layouts:-unset}', but MoOS ships '${image_layouts}' — the session does not match the image"
     [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/kxkbrc" ] && \
         bad "  cause: ~/.config/kxkbrc overrides the image (delete it, then log out and back in)"
