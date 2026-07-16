@@ -92,7 +92,7 @@ ApplicationWindow {
     property string acctPass: ""
     property string acctPass2: ""
     function keymapForLang() { return "us" }
-    function xkbForLang()    { return win.lang === "ar" ? "us,ara" : "us" }
+    function xkbForLang()    { return win.lang === "ar" ? "de,ara" : "de" }
     function localeForLang() { return win.lang === "ar" ? "ar_SA.UTF-8" : "en_US.UTF-8" }
     function tzForLang()     { return win.lang === "ar" ? "Asia/Riyadh" : "UTC" }
     readonly property bool acctUserValid: /^[a-z_][a-z0-9_-]{0,31}$/.test(win.acctUser)

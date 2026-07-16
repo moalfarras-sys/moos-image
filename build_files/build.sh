@@ -660,10 +660,12 @@ dnf5 -y install libsecret
 # Full Arabic + English locale support (glibc locales, hunspell, input) —
 # MoOS is bilingual by design (MOOS_DESIGN_SYSTEM.md §7 RTL rules).
 #
-# German was dropped: MoOS speaks Arabic + English only. The installer and the
-# welcome/language wizards never offer German, the default keyboard is us,ara, and
-# shipping langpacks-de only put German Plasma/GTK catalogs on disk where an invalid
-# LANG could fall back into them — a real cause of the "system shows German" bug.
+# German is a keyboard LAYOUT here, not a UI language: the owner's hardware is a
+# German keyboard, so the default xkb layout is de,ara (see /etc/xdg/kxkbrc), while
+# the welcome/language wizards still offer only Arabic + English. langpacks-de is
+# still NOT shipped: German Plasma/GTK *catalogues* on disk are where an invalid LANG
+# could fall back into a German UI — the "system shows German" bug. The layout gives
+# the right keys; it never changes the UI language.
 # (MoPlayer keeps its own in-app ar/en/de strings; it does not need the OS langpack.)
 dnf5 -y install langpacks-ar langpacks-en
 
