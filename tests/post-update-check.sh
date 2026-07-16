@@ -203,18 +203,53 @@ else
     ok "fcitx5 is not in the image"
 fi
 
-layouts="$(busctl --user call org.kde.KWin /Layouts org.kde.KeyboardLayouts getLayoutsList 2>/dev/null || true)"
-if printf '%s' "$layouts" | grep -q '"ara"'; then
-    ok "the live session has the Arabic layout"
+# What MoOS actually ships is the ONLY expectation either check below is allowed to hold.
+# Read it once, here, and never hardcode a layout: `moos-selfcheck` had to learn this the
+# hard way when it asserted a literal "us,ara" and kept asserting it after the image's
+# default deliberately became "de,ara" (the owner's keyboard is German) — the gate drifted
+# from the system and started calling a correct machine broken.
+image_layouts="$(kreadconfig6 --file /etc/xdg/kxkbrc --group Layout --key LayoutList 2>/dev/null)"
+
+# Parsed exactly as `moos-selfcheck` parses it: gdbus prints the layouts as a list of
+# (code, displayName, longName) tuples, and anchoring on the tuple's opening `('` takes the
+# CODE and nothing else. A looser match over the raw text can pick a display name up
+# instead — "DE" and "de" are not the same field, and only one of them is a layout.
+layouts="$(gdbus call --session --dest org.kde.KWin --object-path /Layouts \
+           --method org.kde.KeyboardLayouts.getLayoutsList 2>/dev/null || true)"
+live_layouts="$(printf '%s' "$layouts" | grep -oP "\('\K[a-z]+" | paste -sd, -)"
+if [ -z "$image_layouts" ]; then
+    bad "the image ships no /etc/xdg/kxkbrc LayoutList — MoOS has no default keyboard"
 elif [ -z "$layouts" ]; then
     bad "could not ask KWin for its layouts (not in a Plasma session?)"
+elif [ "$live_layouts" = "$image_layouts" ]; then
+    ok "the live session types what the image ships (${live_layouts}, live from KWin)"
 else
-    bad "the live session's layouts do not include Arabic — you cannot type it"
+    bad "the session types '${live_layouts:-unset}', but MoOS ships '${image_layouts}' — the session does not match the image"
 fi
 
-[ -f "$HOME/.config/kxkbrc" ] \
-    && bad "~/.config/kxkbrc exists — it SHADOWS the image's layout defaults" \
-    || ok "no ~/.config/kxkbrc shadowing the image"
+# A user file here is NOT a bug by itself, and a gate that says it is has to be rewritten
+# every time the image's default moves. This check flagged the file's mere EXISTENCE, so on
+# 2026-07-16 it failed a machine whose ~/.config/kxkbrc read `LayoutList=de,ara` — the
+# image's own default — and told the owner to delete a file that was already correct. The
+# de,ara commit fixed that reasoning in `moos-selfcheck` and left this copy behind, so the
+# two gates disagreed about one machine. Whichever gate you edit, edit its twin.
+#
+# DIVERGENCE is the thing that matters: a user file outranks /etc/xdg forever, so one that
+# says something ELSE is the shadowed-config trap. One that agrees shadows nothing today —
+# but it will pin this layout if the image's default ever moves, so it is worth a word.
+user_kxkb="$HOME/.config/kxkbrc"
+if [ ! -f "$user_kxkb" ]; then
+    ok "no ~/.config/kxkbrc shadowing the image"
+else
+    user_layouts="$(kreadconfig6 --file "$user_kxkb" --group Layout --key LayoutList 2>/dev/null)"
+    if [ -z "$image_layouts" ]; then
+        bad "the image ships no /etc/xdg/kxkbrc LayoutList — MoOS has no default keyboard"
+    elif [ "$user_layouts" = "$image_layouts" ]; then
+        ok "~/.config/kxkbrc agrees with the image (${image_layouts}) — it shadows nothing, but it pins this layout if the default ever moves"
+    else
+        bad "~/.config/kxkbrc says '${user_layouts:-unset}' but MoOS ships '${image_layouts}' — it SHADOWS the image; remove it (moos-apply-theme) or make it agree"
+    fi
+fi
 
 head_ "MoPlayer"
 
