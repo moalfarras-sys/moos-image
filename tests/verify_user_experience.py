@@ -2462,6 +2462,29 @@ require(theme_safety_gate.returncode == 0,
         "the MoOS rollback/automatic-theme safety gate failed:\n"
         + theme_safety_gate.stdout.strip())
 
+# ── ONE visible store, whatever scope Bazaar lands in ────────────────────────
+# Bazaar (Mo Store's full-catalog engine) can be installed per-user (by
+# moos-store-browse) or system-wide (by moos-setup's checklist). The launcher
+# hide that only edited the per-user flatpak export shipped a machine showing
+# TWO stores the day Bazaar arrived system-scope. The fix is one shared helper
+# that writes a NoDisplay override into the user's own applications dir — the
+# single location that outranks BOTH flatpak export scopes. Gate the
+# relationship: every installer of Bazaar must route through that helper, and
+# the helper must target the winning directory.
+one_store = code(read("system_files/usr/bin/moos-one-store"), "hash")
+require("/.local/share}/applications" in one_store,
+        "moos-one-store must write its override under ~/.local/share/applications "
+        "(the only dir that outranks both flatpak export scopes)")
+require("NoDisplay=true" in one_store,
+        "moos-one-store must set NoDisplay=true on the Bazaar override")
+require("flatpak/exports" not in one_store,
+        "moos-one-store must not edit flatpak export files — a Bazaar update regenerates them")
+for installer_of_bazaar in ("moos-store-browse", "moos-setup"):
+    text = code(read(f"system_files/usr/bin/{installer_of_bazaar}"), "hash")
+    require("moos-one-store" in text,
+            f"{installer_of_bazaar} can install Bazaar, so it must call moos-one-store "
+            "to keep Mo Store the single visible storefront")
+
 if errors:
     print("MoOS user-experience gate failed:", file=sys.stderr)
     for error in errors:

@@ -4,15 +4,23 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-16, booted image `44.20260716.167` (`moos-nvidia`, signed origin).
+Last updated: 2026-07-16 (session E), booted image `44.20260716.176` (`moos-nvidia`, signed origin).
 
-> **State on 2026-07-16 (session D).** The machine is green: `moos-selfcheck` 39/39,
-> `post-update-check.sh` 39/0, **zero failed units**, and `system_files/` is byte-identical to
-> the running system (619 files; the only differences are the `moos-nvidia` edition's driver
-> bits and the documented `liveinst.desktop` dead code). The NVIDIA fix is **proven on the
-> hardware**: the local brain runs on CUDA at ~9 ms/token, ≈6× the CPU-only 55 ms/token it was
-> stuck at. One bug is **open**: `fwupd-refresh` — the polkit theory is refuted and it no longer
-> reproduces, but it is not understood; see `FIXES_2026-07-16b.md` before touching it.
+> **State on 2026-07-16 (session E).** The machine is green: `moos-selfcheck` all-pass,
+> `post-update-check.sh` 39/0, **zero failed units**, boot to graphical in 4.8 s of userspace
+> (GRUB timeout already 1 s; firmware is the remaining 10 s and is out of OS control). The
+> NVIDIA fix is proven on hardware (~9 ms/token on CUDA). `fwupd-refresh` — the last open bug —
+> now **completes successfully** (Result=success; keep the `10-moos-log-the-error.conf` drop-in
+> so any recurrence names its own cause).
+>
+> **Session E found and fixed the two-stores regression:** Bazaar installed at SYSTEM scope
+> (moos-setup's checklist) showed a second visible store, because the old hide only edited the
+> per-user flatpak export. The fix is `/usr/bin/moos-one-store` — a NoDisplay override in
+> `~/.local/share/applications`, the one dir that outranks BOTH export scopes — called by
+> `moos-store-browse` AND `moos-setup`. Three new gates hold it: a static relationship gate in
+> `tests/verify_user_experience.py` (both installers must route through the helper; the helper
+> must not touch flatpak exports), and a live `moos-selfcheck` check that resolves Bazaar's menu
+> entry the way the menu does. All were broken on purpose and watched go red.
 >
 > **Two traps this session cost real time on, both worth knowing before you start:**
 > - **Root is `pkexec`, not `sudo`.** `50-moos-devmode.rules` authorises the local active wheel

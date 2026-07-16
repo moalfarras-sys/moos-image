@@ -62,6 +62,10 @@ for app in "${SELECTED[@]}"; do
     echo -e "${B}Installing ${app}...${N}"
     flatpak install -y --noninteractive flathub "$app" || echo "skipped: $app"
 done
+# Bazaar may have just been installed system-wide. It is Mo Store's engine, not
+# a second storefront — hide its launcher for this user (moos-one-store is a
+# no-op when Bazaar is absent).
+/usr/bin/moos-one-store 2>/dev/null || true
 if [ "${#SELECTED[@]}" -eq 0 ]; then
     echo -e "${G}✓ التطبيقات الأساسية موجودة بالفعل | Essential apps are already installed${N}"
 fi

@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# moos-one-store — enforce the ONE visible storefront for the calling user.
+#
+# Mo Store (org.moos.store) is the single store a MoOS user may ever see.
+# Bazaar is its optional full-catalog ENGINE — installable per-user (by
+# moos-store-browse) or system-wide (by moos-setup's checklist). Whichever
+# scope it lands in, its launcher must never appear in the application menu.
+#
+# The one hiding place that beats BOTH flatpak export scopes is the user's own
+# ~/.local/share/applications: it is first in XDG_DATA_DIRS resolution, and a
+# Bazaar update regenerating its export cannot touch it. Editing the export
+# file itself (what this fix replaces) only worked for a per-user install —
+# a system-scope Bazaar shipped a second visible store for a day.
+set -euo pipefail
+
+APP="io.github.kolunmi.Bazaar"
+DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+OVERRIDE="$DIR/${APP}.desktop"
+
+# Nothing to hide if Bazaar is not installed in any scope.
+flatpak info --user "$APP" >/dev/null 2>&1 || flatpak info "$APP" >/dev/null 2>&1 || exit 0
+
+mkdir -p "$DIR"
+cat > "$OVERRIDE" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Bazaar
+Comment=Mo Store's full-catalog engine (hidden: Mo Store is the one storefront)
+Exec=flatpak run ${APP}
+Icon=${APP}
+NoDisplay=true
+EOF
+
+command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 >/dev/null 2>&1 || true
+exit 0

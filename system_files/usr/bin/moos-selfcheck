@@ -313,6 +313,27 @@ if [ -f "$disc" ]; then
         note "Discover's menu entry is visible — the menu will show two storefronts"
     fi
 fi
+# Bazaar (Mo Store's optional full-catalog engine) may be installed in EITHER
+# flatpak scope. Resolve its menu entry the way the menu does — the user's own
+# applications dir first, then the per-user export, then the system export —
+# and require the WINNING file to be hidden. This is the live check for the bug
+# where a system-scope Bazaar showed a second store while every gate was green.
+bazaar=io.github.kolunmi.Bazaar
+if flatpak info --user "$bazaar" >/dev/null 2>&1 || flatpak info "$bazaar" >/dev/null 2>&1; then
+    bz_entry=""
+    for d in "${XDG_DATA_HOME:-$HOME/.local/share}/applications" \
+             "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/share/applications" \
+             /var/lib/flatpak/exports/share/applications; do
+        [ -f "$d/$bazaar.desktop" ] && { bz_entry="$d/$bazaar.desktop"; break; }
+    done
+    if [ -z "$bz_entry" ]; then
+        note "Bazaar is installed but exports no menu entry"
+    elif grep -q '^NoDisplay=true$' "$bz_entry" 2>/dev/null; then
+        ok "the Bazaar engine's launcher is hidden (Mo Store is the one storefront)"
+    else
+        bad "Bazaar's launcher is visible (${bz_entry}) — the menu shows TWO stores; run moos-one-store"
+    fi
+fi
 
 # ── The lock screen and boot splash are MoOS ──────────────────────────────────
 head_ "القفل والإقلاع | Lock screen & boot"
