@@ -1882,20 +1882,39 @@ if [ -f "$_moos_src" ]; then
 fi
 unset -v _moos_src _names _all_pred _f _dir _sized _name _px _themedir
 
-# Kill KDE's plasma-welcome for the live session — it is the WINDOW that draws a
-# monitor mock-up with the Fedora distro logo (the second Fedora leak besides the
-# desktop launcher). GROUND TRUTH (v16 squashfs, verified 2026-07-10): the app is
-# org.kde.plasma-welcome (DASH, not the dotted name earlier code targeted, which
-# never existed here), binary /usr/bin/plasma-welcome. It AUTO-SHOWS because
-# livesys-kde writes ~/.config/plasma-welcomerc "[General] LiveEnvironment=true"
-# at boot — but ONLY when /etc/xdg/autostart/org.kde.plasma-welcome.desktop is
-# ABSENT. If that file is PRESENT, livesys-kde instead deletes it and writes NO
-# welcomerc. So we (1) PLANT that autostart file (Hidden) to force livesys-kde's
-# no-welcome branch, and (2) REMOVE the binary as a hard guarantee that nothing
-# can launch it regardless. MoOS ships its own premium Welcome (org.moos.welcome)
-# + first-run dialog + the rebranded "Install MoOS" launcher, so plasma-welcome
-# is fully redundant.
-rm -f /usr/bin/plasma-welcome
+# Neutralise KDE's plasma-welcome — the WINDOW that draws a monitor mock-up with
+# the Fedora distro logo (the second Fedora leak besides the desktop launcher).
+# GROUND TRUTH (v16 squashfs, 2026-07-10): the app is org.kde.plasma-welcome,
+# binary /usr/bin/plasma-welcome. On LIVE it auto-shows because livesys-kde writes
+# ~/.config/plasma-welcomerc "[General] LiveEnvironment=true" — but ONLY when
+# /etc/xdg/autostart/org.kde.plasma-welcome.desktop is ABSENT; if that file is
+# PRESENT, livesys-kde deletes it and writes no welcomerc. So we still PLANT that
+# autostart file to force livesys-kde's no-welcome branch.
+#
+# CORRECTION (2026-07-16, seen live on the installed 179 ISO in QEMU): the earlier
+# approach — rm the binary AND rm the /usr/share/applications entry — did NOT make
+# the launcher "skip silently". On the INSTALLED first boot it drew a red toast
+#     "Launching plasma-welcome (Failed)"
+# because KDE resolves the launch by the desktop-id org.kde.plasma-welcome (the
+# autostart stub's own filename maps to it), and with the service entry DELETED the
+# ApplicationLauncherJob fails loudly; with the binary DELETED a CommandLauncherJob
+# fails the same way. DELETION is what turns a benign launch into a visible failure.
+#
+# The fix is a SILENT NO-OP on every path KDE might take, so the launch always
+# succeeds and nothing is ever drawn (MoOS shows its own Welcome via moos-firstrun):
+#   1. binary  -> a stub that exits 0 (covers CommandLauncherJob by exec name)
+#   2. app entry -> a NoDisplay/Hidden entry, Exec=/bin/true (covers the service-id
+#      ApplicationLauncherJob AND keeps it out of every menu)
+#   3. autostart -> the Hidden stub, for livesys-kde's branch on LIVE
+cat > /usr/bin/plasma-welcome <<'PWBIN'
+#!/bin/sh
+# MoOS: the upstream Plasma welcome is replaced by moos-firstrun/moos-welcome.
+# This no-op exists so any first-run launch of "plasma-welcome" succeeds silently
+# instead of raising a red "Launching plasma-welcome (Failed)" toast. It draws
+# nothing on purpose.
+exit 0
+PWBIN
+chmod 0755 /usr/bin/plasma-welcome
 mkdir -p /etc/xdg/autostart
 cat > /etc/xdg/autostart/org.kde.plasma-welcome.desktop <<'PWEOF'
 [Desktop Entry]
@@ -1906,14 +1925,18 @@ Hidden=true
 NoDisplay=true
 X-KDE-autostart-condition=
 PWEOF
-# DELETE the app entry — hiding it is not enough. Hidden/NoDisplay only remove
-# it from menus; the .desktop still resolves as a KService, so plasmashell's
-# first-login welcome launch finds the entry, execs the binary we removed, and
-# the user's very first screen carries a red KDED toast:
-#     "Launching plasma-welcome (Failed)"
-# Seen live on the 2026-07-14 ISO in QEMU. With the entry gone the name lookup
-# returns nothing and the launcher skips silently.
-rm -f /usr/share/applications/org.kde.plasma-welcome.desktop
+cat > /usr/share/applications/org.kde.plasma-welcome.desktop <<'PWAPP'
+[Desktop Entry]
+Type=Application
+Name=Plasma Welcome (disabled by MoOS)
+Comment=Replaced by the MoOS Welcome (moos-firstrun)
+Exec=/bin/true
+Icon=moos-logo
+Terminal=false
+NoDisplay=true
+Hidden=true
+OnlyShowIn=KDE;
+PWAPP
 
 # -----------------------------------------------------------------------------
 # (z1b) The app menu holds the system's apps and MoOS's apps. Nothing else.

@@ -112,15 +112,30 @@ def main() -> None:
         require(digest(ROOT / alias.lstrip("/")) == expected_digest,
                 f"legacy wordmark alias no longer carries the MoOS art: {alias}")
 
-    require(not (ROOT / "usr/bin/plasma-welcome").exists(),
-            "upstream welcome application is still installed")
-    # The binary being gone is not enough: if the .desktop entry survives, the
-    # first-login welcome launch still resolves it, execs a missing binary, and
-    # greets the user with a red "Launching plasma-welcome (Failed)" toast
-    # (seen live, 2026-07-14). No entry -> silent skip.
-    require(not (ROOT / "usr/share/applications/org.kde.plasma-welcome.desktop").exists(),
-            "upstream welcome desktop entry still resolves — first boot would "
-            "show a failed-launch notification")
+    # plasma-welcome must never draw its Fedora-branded window, and must never
+    # raise a red "Launching plasma-welcome (Failed)" toast. DELETING the binary
+    # and desktop entry does the SECOND wrong (proven live on the installed 179
+    # ISO, 2026-07-16): KDE still resolves the launch by desktop-id and fails
+    # loudly when the target is gone. The contract is now SILENT NO-OP on every
+    # path — the binary exits 0 and draws nothing, the desktop entry is a hidden
+    # /bin/true — so the launch always succeeds and shows nothing. MoOS's own
+    # Welcome is what actually greets the user (moos-firstrun).
+    pw_bin = ROOT / "usr/bin/plasma-welcome"
+    require(pw_bin.is_file(), "the plasma-welcome no-op stub is missing — a bare "
+            "launch of it would raise a failed-launch toast on first boot")
+    if pw_bin.is_file():
+        body = pw_bin.read_text(encoding="utf-8", errors="replace")
+        require(body.startswith("#!") and "exit 0" in body and len(body) < 1024,
+                "usr/bin/plasma-welcome is not the MoOS no-op stub — it must exit "
+                "0 and draw nothing, not run the upstream Fedora-branded welcome")
+    pw_desktop = ROOT / "usr/share/applications/org.kde.plasma-welcome.desktop"
+    require(pw_desktop.is_file(), "the plasma-welcome desktop stub is missing — "
+            "the service-id launch would fail loudly without it")
+    if pw_desktop.is_file():
+        entry = pw_desktop.read_text(encoding="utf-8", errors="replace")
+        require("NoDisplay=true" in entry and "Exec=/bin/true" in entry,
+                "the plasma-welcome desktop entry is not the hidden no-op stub — "
+                "it must be NoDisplay with Exec=/bin/true so the launch is silent")
 
     # Mo AI's system prompt is fed to the model verbatim, so any base-distro name
     # in it can be repeated to the user in conversation — the one runtime path a
