@@ -4,7 +4,27 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-14, booted image `44.20260713.112`.
+Last updated: 2026-07-16, booted image `44.20260716.167` (`moos-nvidia`, signed origin).
+
+> **State on 2026-07-16 (session D).** The machine is green: `moos-selfcheck` 39/39,
+> `post-update-check.sh` 39/0, **zero failed units**, and `system_files/` is byte-identical to
+> the running system (619 files; the only differences are the `moos-nvidia` edition's driver
+> bits and the documented `liveinst.desktop` dead code). The NVIDIA fix is **proven on the
+> hardware**: the local brain runs on CUDA at ~9 ms/token, ≈6× the CPU-only 55 ms/token it was
+> stuck at. One bug is **open**: `fwupd-refresh` — the polkit theory is refuted and it no longer
+> reproduces, but it is not understood; see `FIXES_2026-07-16b.md` before touching it.
+>
+> **Two traps this session cost real time on, both worth knowing before you start:**
+> - **Root is `pkexec`, not `sudo`.** `50-moos-devmode.rules` authorises the local active wheel
+>   user for `org.freedesktop.policykit.exec`, so `pkexec` runs as root with no prompt while
+>   `sudo` still asks for a password. A previous session hit `sudo`, concluded root was out of
+>   reach, and left the decisive `fwupd` test unrun for a day. But the rule's allowlist is
+>   narrow (`systemctl`, `journalctl`, `bootc`, `rpm-ostree`, `moai-do`, `moos-*`) — `pkexec`
+>   on anything else (`localectl`, `cp`) **raises a password dialog on the owner's screen**, and
+>   polkit's cache expires every few minutes so it keeps coming back. Do not make the owner
+>   authenticate for your own diagnostics.
+> - **Mo AI's units are USER units.** `systemctl is-active moai.service` in the system scope
+>   answers `inactive` — for a unit that does not exist there. Use `systemctl --user`.
 
 ## Active visual work: the MoOS theme FAMILY (UI2 engine)
 
