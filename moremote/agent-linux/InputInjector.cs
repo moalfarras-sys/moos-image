@@ -150,10 +150,15 @@ public sealed class InputInjector : IDisposable
     }
 
     /// <summary>
-    /// Types text by keysym, so it is independent of the PC's keyboard layout and handles any
-    /// character the phone's keyboard can produce (accents, Arabic, emoji-free symbols…).
-    /// The old clipboard+Ctrl-V trick is kept only for the ydotool fallback, since uinput can
-    /// only send layout-dependent scancodes.
+    /// Types text by keysym for plain ASCII, which every layout can produce. Anything outside
+    /// ASCII — Arabic, accented Latin, symbols — goes through clipboard+Ctrl-V instead, because
+    /// the portal's NotifyKeyboardKeysym can only emit a character KWin can find in the *active*
+    /// xkb keymap. We send Unicode keysyms (0x0100_0000 + codepoint); the `ara` layout only maps
+    /// its keys to the *legacy* Arabic keysyms (0x05xx), so KWin matches nothing and the character
+    /// silently vanishes — and because the D-Bus call itself succeeds, the old code never fell
+    /// back. Clipboard paste is layout-independent and is the only thing that reliably types Arabic.
+    /// The ydotool fallback (uinput) has always used clipboard for the same reason: it can only send
+    /// layout-dependent scancodes.
     /// </summary>
     public void TypeText(string text)
     {
@@ -161,7 +166,7 @@ public sealed class InputInjector : IDisposable
 
         // Keysyms are typed one at a time with a small gap, so a long paste would crawl. Above a
         // paragraph or so, one clipboard paste is far quicker and the user is pasting anyway.
-        if (_portal.IsReady && text.Length <= BulkPasteThreshold)
+        if (_portal.IsReady && text.Length <= BulkPasteThreshold && IsKeysymSafe(text))
         {
             bool ok = true;
             foreach (var rune in text.EnumerateRunes())
@@ -179,6 +184,18 @@ public sealed class InputInjector : IDisposable
     }
 
     private const int BulkPasteThreshold = 64;
+
+    /// <summary>
+    /// True only when every character is printable ASCII, the range KWin can inject as a keysym on
+    /// any layout. Anything else (Arabic, accented Latin, box-drawing…) needs the clipboard path —
+    /// see TypeText. Control characters like newline/tab also route through paste, which is correct.
+    /// </summary>
+    private static bool IsKeysymSafe(string text)
+    {
+        foreach (var rune in text.EnumerateRunes())
+            if (rune.Value is < 0x20 or > 0x7e) return false;
+        return true;
+    }
 
     /// <summary>X11 keysym for a unicode codepoint: Latin-1 maps directly, the rest via 0x01000000.</summary>
     private static int KeysymFor(int codepoint) =>

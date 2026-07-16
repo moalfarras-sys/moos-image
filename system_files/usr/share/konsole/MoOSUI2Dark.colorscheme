@@ -71,7 +71,7 @@ Color=232,241,239
 Color=156,175,172
 
 [Color7Intense]
-Color=20,34,32
+Color=232,241,239
 
 [Foreground]
 Color=232,241,239
@@ -80,7 +80,7 @@ Color=232,241,239
 Color=156,175,172
 
 [ForegroundIntense]
-Color=20,34,32
+Color=232,241,239
 
 [General]
 Description=MoOS UI2 Dark

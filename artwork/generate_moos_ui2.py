@@ -361,7 +361,11 @@ def konsole_scheme(variant: str) -> str:
         4: (p["secondary"], p["secondary_deep"], p["secondary"]),
         5: (p["primary"], p["secondary_deep"], p["luminous"]),
         6: (p["luminous"], p["primary"], p["luminous"]),
-        7: (base7, p["muted"], p["selected_text"]),
+        # Intense (bold) white must stay on the foreground side of the palette.
+        # It used to be p["selected_text"] — the ink for text drawn ON an accent
+        # highlight, which is dark in the dark theme and light in the light one —
+        # so bold white came out near-invisible against the terminal background.
+        7: (base7, p["muted"], base7),
     }
     blocks = []
     for number, values in terminal.items():
@@ -392,7 +396,7 @@ Color={rgb(p['text'])}
 Color={rgb(p['muted'])}
 
 [ForegroundIntense]
-Color={rgb(p['selected_text'])}
+Color={rgb(p['text'])}
 
 [General]
 Description={name}

@@ -71,7 +71,7 @@ Color=70,99,96
 Color=70,99,96
 
 [Color7Intense]
-Color=225,240,236
+Color=70,99,96
 
 [Foreground]
 Color=23,48,46
@@ -80,7 +80,7 @@ Color=23,48,46
 Color=70,99,96
 
 [ForegroundIntense]
-Color=225,240,236
+Color=23,48,46
 
 [General]
 Description=MoOS UI2 Light
