@@ -81,9 +81,27 @@ if forwarded:
 # system prompt, which is the assistant telling the user what to type. This is not academic:
 # the prompt taught the model to answer "how do I run games?" with `moai-do setup-gaming`, an
 # action that did not exist, so the assistant confidently handed out a dead command.
+#
+# Scan the CODE, not the comments explaining it. This regex reads any "moai-do <word>" in the
+# file, and a QML comment is prose: the sentence "each is implemented in moai-do and routed in
+# moos-open" makes it demand an action called `and`. That is a gate failing on a file that is
+# perfectly correct — the mirror image of the trap in verify_user_experience.py's code(), where
+# a comment SATISFIES a gate the code no longer passes. Both come from reading English as code.
+#
+# The old defence was a denylist — `if named in ("action", "actions")` — which is a losing game:
+# it only ever names the prose words someone already tripped over, and the next comment finds
+# the next hole. Stripping // comments removes the whole class instead. The denylist stays for
+# the words that can still legitimately appear in user-visible STRINGS (which are code, and are
+# not stripped): "moai-do <action>" is real placeholder text the prompt shows the user.
+def qml_code(text: str) -> str:
+    """Drop // line comments so English prose cannot be read as a command."""
+    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("//"))
+
+
 for qml in sorted((ROOT / "system_files/usr/share/moos/apps").glob("*/main.qml")):
-    for named in sorted(set(re.findall(r"moai-do ([a-z][a-z-]+)", qml.read_text(encoding="utf-8")))):
-        if named in ("action", "actions"):   # prose, not a command
+    source = qml_code(qml.read_text(encoding="utf-8"))
+    for named in sorted(set(re.findall(r"moai-do ([a-z][a-z-]+)", source))):
+        if named in ("action", "actions"):   # placeholder text in the prompt, not a command
             continue
         check(named in actions,
               f"{qml.parent.name}/main.qml tells the user to run `moai-do {named}`, but that "
