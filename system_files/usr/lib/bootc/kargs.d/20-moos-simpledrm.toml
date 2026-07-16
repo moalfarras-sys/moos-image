@@ -1,0 +1,43 @@
+# plymouth.use-simpledrm — for the GENERIC edition only.
+#
+# build.sh DELETES this file for the moos-nvidia edition. That is the whole point of it
+# being its own file: bootc kargs.d can add a karg, never subtract one, so the only way an
+# edition can opt out is for the file not to be there.
+#
+# WHAT IT DOES
+#   Tells Plymouth to draw on simpledrm — the plain firmware framebuffer the kernel sets up
+#   before any real GPU driver exists. On a machine whose KMS driver appears late (a VM, or
+#   hardware whose driver loads after plymouth starts) this is a huge win: Plymouth draws at
+#   instant zero instead of waiting for a DRM device. That is the karg that took an installed
+#   boot from 8 min to 90 s.
+#
+# WHY NVIDIA MUST NOT HAVE IT — measured on the owner's machine, 2026-07-16
+#   The karg was proven in a VM and then promoted to every machine. On real NVIDIA hardware
+#   it does the exact opposite of what it promises. The boot journal:
+#
+#     12:01:27  [drm] Initialized simpledrm 1.0.0 … fb0     <- plymouth's target appears
+#     12:01:27  [drm] [nvidia-drm] Loading driver           <- and is superseded, same second
+#     12:01:29  Starting plymouth-start.service             <- plymouth starts TWO SECONDS LATE
+#
+#   nvidia is force_drivers'd into the initramfs (99-nvidia.conf), so by the time Plymouth
+#   runs, nvidia-drm owns the display and simpledrm is gone — `ls /sys/class/drm` shows only
+#   card1 (nvidia) with its connectors, no card0. Plymouth is pointed at a device that no
+#   longer drives the screen, so the user sees NOTHING: no emblem, no splash, just black
+#   until the greeter. Exactly what was reported.
+#
+#   Without this karg, Plymouth enumerates DRM itself and finds card1 — which already has
+#   KMS (card1-DP-1, card1-HDMI-A-1 exist, which is proof: without modesetting nvidia-drm
+#   registers no connectors). Modern nvidia defaults nvidia-drm.modeset=1, so nothing extra
+#   is needed. And the 8-minute risk does not apply here for the same reason: the wait that
+#   karg cured is Plymouth waiting for a DRM device that has not appeared yet, and on this
+#   machine nvidia-drm is up at 12:01:27, two seconds BEFORE Plymouth asks.
+#
+# WHY EVERY GATE STAYED GREEN WHILE THIS WAS BROKEN
+#   `moos-selfcheck` and the identity gates check that the theme is configured — Theme=moos,
+#   the assets installed, plymouth-start enabled. All true. All still true while the screen
+#   was black. The theme was never the thing that was broken; the surface it draws on was.
+#   A splash can only be verified by looking at a boot, on the hardware, with the GPU that
+#   machine has. Do not add a gate here that reads config and calls it proof.
+kargs = [
+    "plymouth.use-simpledrm",
+]

@@ -26,11 +26,9 @@
 #   rd.udev.log_level=3        — the same for udev inside the initramfs
 #   vt.global_cursor_default=0 — no blinking text cursor flashing in the corner
 #                                during the firmware -> Plymouth -> greeter handoffs
-#   plymouth.use-simpledrm     — draw on the firmware framebuffer from instant zero
-#                                (simpledrm is builtin in the F44 kernel); this is
-#                                the karg that already took the installed system's
-#                                boot from 8 min to 90 s, made an image karg here so
-#                                every install/update gets it, not just the live ISO
+# plymouth.use-simpledrm USED TO BE HERE, and on the owner's NVIDIA machine it was the
+# reason there was no splash at all. It now lives in 20-moos-simpledrm.toml, which build.sh
+# deletes for the moos-nvidia edition. See that file for the whole story.
 kargs = [
     "rhgb",
     "quiet",
@@ -38,5 +36,4 @@ kargs = [
     "loglevel=3",
     "rd.udev.log_level=3",
     "vt.global_cursor_default=0",
-    "plymouth.use-simpledrm",
 ]

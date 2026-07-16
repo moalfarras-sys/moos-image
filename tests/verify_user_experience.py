@@ -478,6 +478,41 @@ require("xkbForLang" in keymap_fn.group(1),
         "keymapForLang() must derive the console keymap from xkbForLang() — naming the keyboard "
         "twice is what let the console keep typing 'us' after the layout became 'de,ara'")
 
+# ── plymouth.use-simpledrm must stay opt-out-able ───────────────────────────
+# The karg was proven in a VM, promoted to every machine, and on the owner's NVIDIA box it
+# did the opposite of its promise: nvidia is force_drivers'd into the initramfs and owns the
+# display two seconds before plymouth-start runs, so Plymouth drew on a simpledrm device
+# that no longer existed and the boot was black — no emblem, no splash, nothing saying MoOS.
+# Every gate stayed green throughout, because they all check that the THEME is configured,
+# which it was. The theme was never broken; the surface it draws on was.
+#
+# bootc kargs.d can only ADD a karg, so the nvidia edition opts out by build.sh deleting the
+# file that carries it. That only works while the karg lives ALONE in its own file: fold it
+# back into the shared one and the rm removes nothing, the karg returns for everyone, and
+# the NVIDIA splash dies again with a green build. So gate the separation itself.
+kargs_dir = ROOT / "system_files/usr/lib/bootc/kargs.d"
+shared_kargs = code(read("system_files/usr/lib/bootc/kargs.d/10-moos-boot-splash.toml"))
+require("plymouth.use-simpledrm" not in shared_kargs,
+        "plymouth.use-simpledrm must NOT be in the shared kargs file — the nvidia edition "
+        "opts out by deleting its file, and bootc kargs.d cannot subtract a karg. In the "
+        "shared file it reaches NVIDIA and blacks out the boot splash")
+optout = kargs_dir / "20-moos-simpledrm.toml"
+if not optout.is_file():
+    # Guarded, not chained: require() collects and keeps going, so reading a missing file
+    # below would raise FileNotFoundError and the run would die on a traceback instead of
+    # printing which gate failed and why. A gate that crashes teaches nothing.
+    require(False,
+            "20-moos-simpledrm.toml must exist — it is the only file build.sh can delete to "
+            "keep plymouth.use-simpledrm off the NVIDIA edition, and bootc kargs.d cannot "
+            "subtract a karg any other way")
+else:
+    require("plymouth.use-simpledrm" in code(optout.read_text(encoding="utf-8")),
+            "20-moos-simpledrm.toml must actually carry plymouth.use-simpledrm, or the generic "
+            "edition loses the karg that took its boot from 8 min to 90 s")
+require("rm -f /usr/lib/bootc/kargs.d/20-moos-simpledrm.toml" in code(read("build_files/build.sh")),
+        "build.sh must delete 20-moos-simpledrm.toml for the nvidia edition — without it the "
+        "karg ships to NVIDIA and there is no boot splash at all")
+
 # ── An I/O scheduler is a property of a DISK, not of a partition ─────────────
 # A udev KERNEL glob does not stop at the whole disk: the trailing * in `nvme[0-9]*n[0-9]*`
 # also matches `nvme0n1p1`. Only a disk has queue/, so the NVMe rule tried to set a scheduler
@@ -1935,7 +1970,16 @@ require((ROOT / "artwork/generate_boot_hero.py").is_file(),
 # The flicker-free kargs are cosmetic-only and proven on this base; require the
 # load-bearing ones so a future edit cannot silently drop the splash or the
 # fast-path that took the installed boot from 8 min to 90 s.
-boot_kargs = read("system_files/usr/lib/bootc/kargs.d/10-moos-boot-splash.toml")
+#
+# Read the WHOLE kargs.d, not one file. plymouth.use-simpledrm moved into its own
+# 20-moos-simpledrm.toml so build.sh can withhold it from the NVIDIA edition (where it
+# blacked the splash out entirely — see the section above). This gate asked only
+# 10-moos-boot-splash.toml, so the move made it fail while the karg still shipped: it was
+# pinning a FILE, and what matters is that the generic edition still gets the karg.
+boot_kargs = "".join(
+    p.read_text(encoding="utf-8")
+    for p in sorted((ROOT / "system_files/usr/lib/bootc/kargs.d").glob("*.toml"))
+)
 for karg in ("rhgb", "quiet", "plymouth.use-simpledrm", "vt.global_cursor_default=0"):
     require(f'"{karg}"' in boot_kargs,
             f"the boot karg {karg!r} is gone — the graphical splash or its "

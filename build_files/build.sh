@@ -338,6 +338,28 @@ if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
         echo "      An unverifiable nvidia image is not shippable."
         exit 1
     fi
+
+    # --- The splash: NVIDIA must NOT be told to draw on simpledrm ---------------
+    # bootc kargs.d can only ADD kargs, never remove one, so an edition opts out by the
+    # file not existing. plymouth.use-simpledrm is a real win where the KMS driver shows
+    # up late (a VM, the live ISO) — and a splash-killer here, because nvidia is
+    # force_drivers'd into THIS initramfs (proven three lines above) and owns the display
+    # two seconds before plymouth-start even runs. Pointed at simpledrm, Plymouth draws on
+    # a device that no longer drives the screen and the user sees a black boot with no MoOS
+    # anywhere. Deleting the file lets Plymouth find card1 — which has KMS, or it would
+    # have no connectors — and the emblem lands on the real display.
+    # See system_files/usr/lib/bootc/kargs.d/20-moos-simpledrm.toml for the measurements.
+    #
+    # GATE: if that file is ever renamed or folded back into 10-moos-boot-splash.toml, this
+    # rm silently removes nothing, the karg comes back, and the NVIDIA splash dies again
+    # with a green build. That is exactly how it shipped the first time.
+    test -f /usr/lib/bootc/kargs.d/20-moos-simpledrm.toml || {
+        echo "GATE FAIL: 20-moos-simpledrm.toml is gone — the NVIDIA edition can no longer"
+        echo "           opt out of plymouth.use-simpledrm, and its splash would go black."
+        exit 1
+    }
+    rm -f /usr/lib/bootc/kargs.d/20-moos-simpledrm.toml
+    echo "=== NVIDIA edition: plymouth.use-simpledrm withheld (nvidia owns the display) ==="
 fi
 rm -f /tmp/moos-lsinitrd.txt /tmp/moos-lsinitrd.err
 
