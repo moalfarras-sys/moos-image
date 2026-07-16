@@ -32,6 +32,8 @@ IF YOU ARE AN AUTOMATED AGENT AND THIS GATE FAILED:
 from __future__ import annotations
 
 import hashlib
+import re
+import subprocess
 from pathlib import Path
 
 ROOT = Path("/")
@@ -172,6 +174,45 @@ def check_grub_distributor() -> None:
                      "system with another distribution's name")
 
 
+def check_unit_identity() -> None:
+    """systemd units that introduce themselves as another OS.
+
+    `systemctl` is a surface. The base image shipped three units that answered in
+    Fedora's name — fedora-atomic-desktop-appstream-cache-refresh, -mandb-update and
+    fedora-kinoite-plasmalogin-workaround, the last two describing themselves as
+    "Workaround for Atomic Destkops…" and "…on Kinoite". build.sh renames all three in
+    place (never wraps them: a moos-*.service shelling out to a fedora-*.service would be
+    two systems stacked, which is the one thing the one-system rule forbids). This is the
+    gate that keeps a base-image update from quietly reintroducing the next one.
+
+    Scope is deliberate: only units NOT owned by an RPM. A packaged unit's name is not
+    MoOS's to change — renaming it means every update silently restores the old name while
+    the rename appears to work, and other units reference it by name. Two package-owned
+    families are therefore expected and allowed, and they are not branding:
+      - dbus-org.fedoraproject.FirewallD1.service — a D-Bus interface NAME that firewalld
+        activates on. It is a protocol identifier; renaming it breaks the firewall.
+      - flatpak-add-fedora-repos / ublue-nvctk-cdi / anaconda-* — owned by their packages.
+    Documentation= URLs are not checked: they cite the real upstream bug a workaround
+    exists for, which is provenance, not branding.
+    """
+    unit_dir = ROOT / "usr/lib/systemd/system"
+    if not unit_dir.is_dir():
+        return
+    foreign = re.compile(r"fedora|kinoite|silverblue|redhat|red-hat|rhel", re.I)
+    for path in sorted(unit_dir.glob("*")):
+        if not path.is_file() or path.is_symlink():
+            continue
+        if not foreign.search(path.name):
+            continue
+        owner = subprocess.run(["rpm", "-qf", "--queryformat", "%{NAME}", str(path)],
+                               capture_output=True, text=True)
+        if owner.returncode == 0 and owner.stdout.strip():
+            continue  # a package owns the name; not ours to rename
+        fail(f"an unowned systemd unit still carries another OS's name: {path.name} — "
+             "build.sh renames the base's units in place; this one was missed, and "
+             "`systemctl` will answer the user in someone else's name")
+
+
 def check_console_identity() -> None:
     """The TTY console login banner and the terminal fastfetch readout.
 
@@ -215,6 +256,7 @@ def main() -> None:
     check_os_release()
     check_foreign_packages()
     check_grub_distributor()
+    check_unit_identity()
     check_console_identity()
 
     if failures:

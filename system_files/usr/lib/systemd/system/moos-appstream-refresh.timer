@@ -1,21 +1,24 @@
 [Unit]
 # The app catalogue does not need to be fresh before the desktop exists.
 #
-# Fedora Atomic ships fedora-atomic-desktop-appstream-cache-refresh.service as
-# WantedBy=multi-user.target, and on this machine it sits in the critical chain:
+# The base image ships the appstream refresh as WantedBy=multi-user.target, and on this
+# machine it sat in the critical chain:
 #
 #   graphical.target @11.525s
 #   └─multi-user.target @11.525s
-#     └─fedora-atomic-desktop-appstream-cache-refresh.service @7.999s +3.525s
+#     └─(the appstream refresh) @7.999s +3.525s
 #
 # 3.5 s of every single boot — a third of MoOS's userspace time — spent rebuilding an
 # app-store index that nothing has asked for yet, while the user stares at Plasma's
 # splash. The refresh itself is worth keeping (Bazaar and Discover read that cache); it
 # just has no business being between the user and their desktop.
 #
-# So MoOS disables it from multi-user.target (build.sh) and starts the SAME service from
-# here, once the desktop is already up. Nothing is lost, and the catalogue is fresh long
-# before anyone opens the app centre.
+# So MoOS disables it from multi-user.target and starts the SAME service from here, once
+# the desktop is already up. Nothing is lost, and the catalogue is fresh long before anyone
+# opens the app centre. build.sh also renames that unit to moos-appstream-refresh.service —
+# one system, one name — which is why there is no Unit= line below: systemd pairs X.timer
+# with X.service implicitly, so the target now comes from this file's own name and the two
+# cannot drift apart.
 Description=Refresh the app catalogue after the desktop is up (MoOS)
 Documentation=https://gitlab.com/fedora/ostree/sig/-/work_items/103
 ConditionPathExists=/run/ostree-booted
@@ -25,7 +28,6 @@ OnBootSec=3min
 # Missing a refresh is a stale catalogue, not a broken system — never make a machine that
 # was off catch one up at the worst possible moment (the next boot).
 Persistent=false
-Unit=fedora-atomic-desktop-appstream-cache-refresh.service
 
 [Install]
 WantedBy=timers.target

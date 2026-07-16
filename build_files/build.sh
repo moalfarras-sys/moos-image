@@ -1419,6 +1419,92 @@ test -f /usr/lib/systemd/system/fedora-atomic-desktop-appstream-cache-refresh.se
     exit 1
 }
 systemctl disable fedora-atomic-desktop-appstream-cache-refresh.service
+
+# ── The base's own units must not wear another OS's name ─────────────────────
+# MoOS is not a skin over Fedora Kinoite — it IS the system, and a system whose
+# `systemctl` answers in someone else's name is telling the user what it really is.
+# Three units the base image carries are still introducing themselves as Fedora:
+#
+#   fedora-atomic-desktop-appstream-cache-refresh   "Workaround for Atomic Destkops…"
+#   fedora-atomic-desktop-mandb-update              "Workaround for Atomic Destkops…"
+#   fedora-kinoite-plasmalogin-workaround           "…on Kinoite"
+#
+# RENAMED IN PLACE, not wrapped. A moos-*.service that shells out to a fedora-*.service
+# would be a second system stacked on the first — the exact thing the one-system rule
+# forbids. `mv` keeps one unit, one job, one name. This runs on every build from a fresh
+# base, so a base-image update cannot quietly restore the old names.
+#
+# Only these three are touched, because they are the only foreign-named units NOT owned by
+# an RPM (`rpm -qf` finds no package). The rest are left ALONE on purpose:
+#   - dbus-org.fedoraproject.FirewallD1.service — that string is a D-Bus interface NAME, a
+#     protocol identifier firewalld activates on, not branding. Renaming it breaks the
+#     firewall.
+#   - flatpak-add-fedora-repos.service, ublue-nvctk-cdi.service, anaconda-* — package-owned.
+#     Renaming a packaged unit means every dnf update silently restores the old name while
+#     the rename "works", and other units reference them by name.
+# Documentation= URLs are kept: they point at the real upstream bug each workaround exists
+# for. That is provenance, not branding — the next maintainer needs to know where this came
+# from, and deleting the citation would not make MoOS any more MoOS.
+#
+# GATE first: `mv` of a path that moved upstream would create the destination from nothing
+# and silently ship a unit that runs a command that no longer exists.
+for _u in fedora-atomic-desktop-mandb-update.service \
+          fedora-kinoite-plasmalogin-workaround.service; do
+    test -f "/usr/lib/systemd/system/${_u}" || {
+        echo "GATE FAIL: ${_u} is gone from the base — the MoOS rename now targets nothing"
+        exit 1
+    }
+done
+test -x /usr/libexec/fedora-kinoite-plasmalogin-workaround || {
+    echo "GATE FAIL: the plasmalogin workaround script moved — its unit would ExecStart nothing"
+    exit 1
+}
+
+# 1. appstream refresh. Already disabled above (it is off the boot path); the MoOS timer
+#    drives it. Naming it moos-appstream-refresh.service makes the timer's target IMPLICIT
+#    — systemd pairs X.timer with X.service — so the timer's explicit Unit= line goes away
+#    and the two can no longer drift apart.
+mv /usr/lib/systemd/system/fedora-atomic-desktop-appstream-cache-refresh.service \
+   /usr/lib/systemd/system/moos-appstream-refresh.service
+sed -i 's|^Description=.*|Description=Refresh the app catalogue index (MoOS)|' \
+   /usr/lib/systemd/system/moos-appstream-refresh.service
+
+# 2. mandb. Stays enabled and stays exactly as cheap as it was (Nice=19, IOWeight=10).
+systemctl disable fedora-atomic-desktop-mandb-update.service
+mv /usr/lib/systemd/system/fedora-atomic-desktop-mandb-update.service \
+   /usr/lib/systemd/system/moos-mandb-update.service
+sed -i 's|^Description=.*|Description=Update the manual page index (MoOS)|' \
+   /usr/lib/systemd/system/moos-mandb-update.service
+systemctl enable moos-mandb-update.service
+
+# 3. plasmalogin shadow entries. The unit, the script it runs, and the stamp file it writes
+#    all carry the name, so all three move together — a rename that left the stamp behind
+#    would leave `/etc/.fedora-…` on every disk MoOS ever installs. Renaming the stamp costs
+#    exactly one extra run on machines installed before this: the script greps /etc/shadow
+#    before it writes, so it finds the entry already there and reports "Nothing to do".
+systemctl disable fedora-kinoite-plasmalogin-workaround.service
+mv /usr/libexec/fedora-kinoite-plasmalogin-workaround /usr/libexec/moos-plasmalogin-shadow-fix
+mv /usr/lib/systemd/system/fedora-kinoite-plasmalogin-workaround.service \
+   /usr/lib/systemd/system/moos-plasmalogin-shadow-fix.service
+sed -i -e 's|^Description=.*|Description=Add the missing plasmalogin shadow entries (MoOS)|' \
+       -e 's|/usr/libexec/fedora-kinoite-plasmalogin-workaround|/usr/libexec/moos-plasmalogin-shadow-fix|' \
+       -e 's|/etc/\.fedora-kinoite-plasmalogin-workaround|/etc/.moos-plasmalogin-shadow-fix|' \
+       /usr/lib/systemd/system/moos-plasmalogin-shadow-fix.service
+sed -i 's|/etc/\.fedora-kinoite-plasmalogin-workaround|/etc/.moos-plasmalogin-shadow-fix|g' \
+   /usr/libexec/moos-plasmalogin-shadow-fix
+systemctl enable moos-plasmalogin-shadow-fix.service
+
+# The preset still says `enable fedora-kinoite-plasmalogin-workaround.service` for a unit
+# that no longer exists. Presets are advice, not references — `systemctl preset` on a
+# missing unit is a no-op — but a line naming a ghost is a trap for the next reader.
+# Guarded with `if`, not `&&`: under `set -e` a bare `test -f X && sed …` FAILS THE BUILD
+# when the file is absent, and this line is a tidy-up, not a gate. A base that drops the
+# preset entirely is fine; a build that dies with "sed: No such file" while the real gates
+# stay silent is not.
+if [ -f /usr/lib/systemd/system-preset/82-kinoite.preset ]; then
+    sed -i '/fedora-kinoite-plasmalogin-workaround/d' /usr/lib/systemd/system-preset/82-kinoite.preset
+fi
+
 systemctl enable moos-appstream-refresh.timer
 
 # -----------------------------------------------------------------------------
