@@ -1466,6 +1466,30 @@ systemctl mask systemd-udev-settle.service 2>/dev/null || true
 systemctl --global mask grub-boot-success.timer 2>/dev/null || true
 systemctl --global mask grub-boot-success.service 2>/dev/null || true
 
+# 4) drkonqi-coredump-pickup.service is the same shape: it CANNOT succeed, so it went red
+#    30 minutes into every session on the maintainer's machine ("Service reached runtime
+#    time limit. Stopping." -> Failed with result 'timeout').
+#
+#    Traced with gdb before touching it, because the obvious reads are both wrong:
+#      - `--settle-first` is a plain nanosleep of SIXTY seconds (the timespec in .rodata is
+#        tv_sec=0x3c), not the 30-minute limit. Watching it for 25s shows "nothing
+#        happening" and means nothing — it has not left the sleep.
+#      - After the sleep, main() enters QCoreApplication::exec() and NEVER RETURNS. That is
+#        true with ZERO coredumps in scope (reproduced with --boot-id of a crash-free boot),
+#        so it is not "stuck on a crash" — it is an event loop upstream modelled as a
+#        time-limited job. systemd SIGTERMs it at RuntimeMaxSec and records `timeout`, which
+#        is a failure. There is NO exit path that ends in success, on any machine.
+#    SuccessExitStatus= cannot rescue it either: that matches exit codes and signals, not
+#    systemd's timeout result.
+#
+#    What is actually lost by masking: only the pickup of crashes that happened BEFORE login.
+#    Live crashes are untouched — they arrive through drkonqi-coredump-launcher.socket, a
+#    different unit that works and stays enabled. The alternative (RuntimeMaxSec=infinity)
+#    keeps the pickup and also clears the red, but leaves the processor running all session
+#    beside the socket launcher, risking DOUBLE crash dialogs — worse than the noise it fixes.
+#    So: mask, and keep the crash reporter that works. See FIXES_2026-07-16b.md.
+systemctl --global mask drkonqi-coredump-pickup.service 2>/dev/null || true
+
 # Mo AI in-app Settings backend: a tiny per-user control API. --global enables it
 # for every user's session (bakes the default.target.wants symlink under
 # /etc/systemd/user) without needing a running user manager at build time.
