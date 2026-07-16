@@ -1,0 +1,24 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "The living MoOS emblem in the panel, with a quick glance popup: updates, theme, store, AI and recovery one press away.",
+        "Description[ar]": "شعار MoOS الحي في الشريط، مع نافذة لمحة سريعة: التحديثات والثيم والمتجر والذكاء والاستعادة بضغطة واحدة.",
+        "EnabledByDefault": true,
+        "Icon": "moos-logo",
+        "Id": "org.moos.brand",
+        "License": "GPL-3.0-or-later",
+        "Name": "MoOS Brand",
+        "Name[ar]": "علامة MoOS",
+        "Version": "1.0.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-Provides": [
+        "org.moos.brand"
+    ]
+}

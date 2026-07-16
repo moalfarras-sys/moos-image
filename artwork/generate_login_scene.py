@@ -32,6 +32,7 @@ OUTS = (
     SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/images",
     SHARE / "plasma/look-and-feel/org.moos.ui2.light/contents/logout/images",
     SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen/images",
+    SHARE / "plasma/plasmoids/org.moos.brand/contents/images",
 )
 
 # Brand light colours — the emblem's own cyan/violet, the UI2 identity accents.

@@ -49,12 +49,20 @@ try { panel.floating = true; } catch (e) { /* keep the dock, lose the gap */ }
 try { panel.lengthMode = "fit"; } catch (e) { /* a full bar, not a broken one */ }
 try { panel.alignment = "center"; } catch (e) { /* a left capsule, still a dock */ }
 
+/* The LIVING brand opens the bar: org.moos.brand is the animated MoOS emblem
+ * (idle breath, hover glow, press flourish) whose popup is the MoOS glance —
+ * version, uptime, and store/AI/updates/theme/settings/recovery one press
+ * away. Kickoff's compiled-in button cannot animate, so the emblem lives in
+ * a first-party applet and the launcher wears the app-grid glyph instead:
+ * ONE logo in the bar, and it moves. */
+try { panel.addWidget("org.moos.brand"); } catch (e) { /* the bar survives brandless */ }
+
 /* Keep Plasma's fully integrated Kickoff (search, KAStats, favorites, recent
  * usage, keyboard and session models) and skin it through the Nova Plasma
  * Style. MoOS does not ship a competing launcher implementation. */
 var launcher = panel.addWidget("org.kde.plasma.kickoff");
 launcher.currentConfigGroup = ["General"];
-launcher.writeConfig("icon", "/usr/share/moos/moos-logo.png");
+launcher.writeConfig("icon", "view-app-grid-symbolic");
 launcher.writeConfig("appNameFormat", 0);
 launcher.writeConfig("favoritesDisplay", 0);
 launcher.writeConfig("applicationsDisplay", 1);

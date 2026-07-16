@@ -17,7 +17,7 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=17
+THEME_REV=18
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -769,13 +769,29 @@ if command -v gdbus >/dev/null 2>&1; then
                 try { if ("lengthMode" in p) { p.lengthMode = "fit"; } } catch (e) {}
                 try { if ("alignment" in p) { p.alignment = "center"; } } catch (e) {}
                 try { p.height = 44; } catch (e) {}
+                /* THEME_REV 18: the living brand. org.moos.brand (the animated
+                   MoOS emblem + glance popup) opens the dock, and Kickoff hands
+                   the logo role over to it, wearing the app-grid glyph instead —
+                   one MoOS mark in the bar, and it moves. Add-only: an existing
+                   brand applet is left exactly where the user put it. */
+                var hasBrand = false;
+                var wsScan = p.widgets();
+                for (var b = 0; b < wsScan.length; b++) {
+                    if (wsScan[b].type == "org.moos.brand") { hasBrand = true; }
+                }
+                if (!hasBrand) {
+                    try {
+                        var brand = p.addWidget("org.moos.brand");
+                        try { brand.index = 0; } catch (e) {}
+                    } catch (e) {}
+                }
                 var ws = p.widgets();
                 for (var j = 0; j < ws.length; j++) {
                     var w = ws[j];
                     try {
                         if (w.type == "org.kde.plasma.kickoff") {
                             w.currentConfigGroup = ["General"];
-                            w.writeConfig("icon", "/usr/share/moos/moos-logo.png");
+                            w.writeConfig("icon", "view-app-grid-symbolic");
                             w.writeConfig("appNameFormat", 0);
                             w.writeConfig("favoritesDisplay", 0);
                             w.writeConfig("applicationsDisplay", 1);

@@ -1323,7 +1323,7 @@ require('PORT="${MOAI_PORT:-8081}"' in moai_start_code,
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=17" in apply_theme_code, "MoOS UI2 visual schema must be revision 17")
+require("THEME_REV=18" in apply_theme_code, "MoOS UI2 visual schema must be revision 18")
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
@@ -1750,11 +1750,30 @@ require("org.moos.nova.launcher" not in layout,
         "MoOS must not ship a competing launcher in the panel")
 require('addWidget("org.moos.nova.clock")' in layout,
         "new users must receive the compact Nova clock")
-for package in ("org.moos.nova.clock",):
+# The living brand: org.moos.brand is the ONE MoOS mark in the bar (animated
+# emblem + glance popup), and Kickoff hands the logo role to it. Both sides of
+# that trade are gated together — brand present AND kickoff on the app-grid
+# glyph — because shipping only half re-creates the double-logo bar one way,
+# or a logo-less bar the other.
+require('addWidget("org.moos.brand")' in layout,
+        "new users must receive the animated MoOS brand applet in the panel")
+require('writeConfig("icon", "view-app-grid-symbolic")' in layout,
+        "Kickoff must wear the app-grid glyph — the MoOS logo in the bar is the "
+        "brand applet now, and two identical marks side by side reads as a bug")
+for package in ("org.moos.nova.clock", "org.moos.brand"):
     root = ROOT / "system_files/usr/share/plasma/plasmoids" / package
     require((root / "metadata.json").is_file() and
             (root / "contents/ui/main.qml").is_file(),
             f"missing complete Plasma package: {package}")
+# The brand applet must never grow a shader/Lottie dependency (it lives in
+# plasmashell, forever), and its actions must stay user-session binaries —
+# a pkexec here would put a password prompt behind a panel click. code():
+# the header comment documents exactly these bans, so grep the code, not the prose.
+brand_qml = code(read("system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml"),
+                 style="slash")
+for banned in ("ShaderEffect", "MultiEffect", "Lottie", "pkexec", "sudo "):
+    require(banned not in brand_qml,
+            f"org.moos.brand must not use {banned.strip()!r}")
 require("try {" in layout,
         "the floating setter must be guarded -- a throw in the layout template "
         "leaves the session with NO panel")
