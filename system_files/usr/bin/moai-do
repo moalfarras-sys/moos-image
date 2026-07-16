@@ -204,7 +204,10 @@ do_check_drivers() {
     if printf '%s' "$gpu" | grep -qi nvidia; then
         echo "${Y}⚠ كرت NVIDIA مكتشف — لأفضل تعريف انتقل إلى صورة MoOS الخاصة بـ NVIDIA:${N}"
         echo "${Y}⚠ NVIDIA GPU detected — for the best driver, switch to the MoOS NVIDIA image:${N}"
-        echo "${C}  sudo bootc switch ghcr.io/moalfarras-sys/moos-nvidia:latest${N}"
+        # Point at the action, not a raw bootc line. The action keeps the confirmation, the
+        # Polkit prompt and --enforce-container-sigpolicy; a hand-typed `bootc switch` is the
+        # exact path that silently staged an unverified origin on the maintainer's machine.
+        echo "${C}  moai-do install-nvidia${N}"
         echo "${D}  (يُطبَّق عند إعادة التشغيل | applies on reboot)${N}"
         echo
     fi
@@ -250,7 +253,14 @@ do_install_nvidia() {
     echo "${D}ينتقل إلى صورة MoOS NVIDIA الذرية ويُبقي النشر السابق للرجوع.${N}"
     echo "${D}Switches to the atomic NVIDIA image and keeps the previous deployment for rollback.${N}"
     confirm || return 0
-    run_priv bootc switch ghcr.io/moalfarras-sys/moos-nvidia:latest
+    # --enforce-container-sigpolicy is NOT optional. `bootc switch` REPLACES the origin, and
+    # without this flag it writes `ostree-unverified-registry:` — silently downgrading a
+    # signature-enforced machine to one that verifies nothing. The origin persists, so every
+    # later `bootc upgrade` stays unverified for the life of the install. An installed MoOS
+    # boots `ostree-image-signed:docker://` (the kickstart deploys it that way and
+    # verify_image_experience.py gates it); switching editions must land on the same footing.
+    # Guarded by tests/verify_user_experience.py — do not drop the flag.
+    run_priv bootc switch --enforce-container-sigpolicy ghcr.io/moalfarras-sys/moos-nvidia:latest
     echo "${G}✓ تم التجهيز — أعد التشغيل لتفعيل التعريف | Staged — reboot to activate${N}"
 }
 

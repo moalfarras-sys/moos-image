@@ -2208,6 +2208,83 @@ ui2_gate = subprocess.run(
 require(ui2_gate.returncode == 0,
         "the focused MoOS UI2 package/art/motion gate failed:\n" + ui2_gate.stdout.strip())
 
+
+# ── A switch must land on a SIGNED origin ─────────────────────────────────────
+#
+# `bootc upgrade` keeps the origin it was given; `bootc switch` REPLACES it. Without
+# --enforce-container-sigpolicy, switch writes `ostree-unverified-registry:` — and an
+# installed MoOS boots `ostree-image-signed:docker://` (the kickstart deploys it that
+# way; the install-time end of this contract is gated in verify_image_experience.py).
+#
+# So `moai-do install-nvidia` — the one action that moves a user between editions —
+# silently downgraded a signature-enforcing machine to one that verifies nothing, and
+# because the origin persists, EVERY later upgrade stayed unverified for the life of
+# the install. It shipped, it ran on the maintainer's machine (journal, 2026-07-16
+# 08:05: "Staging image for deployment: ostree-unverified-registry:…/moos-nvidia"),
+# and every gate was green: the kickstart it asserts on was still correct, because
+# nothing checked the switch the RUNNING system performs.
+#
+# Comments are stripped first: the fix documents the flag directly above the call, so
+# a gate reading raw text would pass on the prose after the flag itself was deleted.
+_SWITCH = re.compile(r"bootc\s+switch\b([^\n;|&]*)")
+for _tool in sorted((ROOT / "system_files/usr/bin").iterdir()):
+    if not _tool.is_file():
+        continue
+    try:
+        _text = _tool.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, OSError):
+        continue
+    for _args in _SWITCH.findall(code(_text)):
+        require("--enforce-container-sigpolicy" in _args,
+                f"system_files/usr/bin/{_tool.name} runs `bootc switch` without "
+                "--enforce-container-sigpolicy. switch REPLACES the origin, so this stages "
+                "ostree-unverified-registry: and the machine — and every later upgrade — "
+                "stops verifying signatures for the life of the install. "
+                f"Offending arguments: `bootc switch{_args.rstrip()}`")
+
+
+# ── Every action Mo AI PROMISES gets a Run button ─────────────────────────────
+#
+# Mo AI's systemPrompt tells the model: "put the EXACT command in a fenced code block
+# and the app turns it into a one-click Run button". extractRuns()'s regex is what
+# actually makes that button, and the two lists were never compared — so the prompt
+# offered `moai-do setup-gaming`, `setup-windows` and `install-opencode`, the model
+# named them exactly as instructed, and no button appeared. All three were implemented
+# in moai-do and routed in moos-open; only the regex was short. The existing route
+# gates could not see it: they check moos:// URLs against moos-open's cases, and a
+# promise that never becomes a URL has no route to check.
+#
+# So: every id the prompt hands the model must be matchable by the regex, and every id
+# the regex matches must be a real, routed action (the button opens moos://do/<id>).
+# `install` is excluded — it takes a Flathub id and goes through moos://apps/install/<id>.
+_moai_qml = read("system_files/usr/share/moos/apps/moai/main.qml")
+_prompt_start = _moai_qml.index("property string systemPrompt")
+_prompt_text = _moai_qml[_prompt_start:_moai_qml.index("function ", _prompt_start)]
+_prompt_actions = set(re.findall(r"moai-do ([a-z][a-z0-9-]+)", _prompt_text)) - {"install"}
+
+_re_match = re.search(r"const re = /moai-do\\s\+\((.*?)\)\\b/g", _moai_qml)
+require(_re_match is not None,
+        "Mo AI's extractRuns() Run-button regex could not be found — if it was renamed or "
+        "restructured, update this gate so it keeps comparing the prompt to the buttons")
+if _re_match:
+    _button_actions = set(_re_match.group(1).split("|"))
+    _moai_do_text = read("system_files/usr/bin/moai-do")
+    _router_text = read("system_files/usr/bin/moos-open")
+
+    for _act in sorted(_prompt_actions - _button_actions):
+        require(False,
+                f"Mo AI's system prompt offers `moai-do {_act}` but extractRuns()'s regex does "
+                f"not match it, so the model names it exactly as told and NO Run button appears. "
+                f"Add '{_act}' to the regex or stop promising it in the prompt.")
+
+    for _act in sorted(_button_actions):
+        require(re.search(rf"^\s+{re.escape(_act)}\)\s", _moai_do_text, re.M) is not None,
+                f"extractRuns() offers a Run button for `moai-do {_act}`, but moai-do implements "
+                f"no such action — the button would run nothing")
+        require(route_is_covered(f"do/{_act}", routes_declared(_router_text)),
+                f"extractRuns() offers a Run button for `moai-do {_act}`, but moos-open has no "
+                f"case for moos://do/{_act} — the button falls through to \"unknown MoOS action\"")
+
 theme_safety_gate = subprocess.run(
     [sys.executable, "-B", str(ROOT / "tests/test_moos_theme_safety.py")],
     cwd=ROOT,

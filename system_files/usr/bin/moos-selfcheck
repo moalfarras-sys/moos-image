@@ -178,10 +178,21 @@ sys_layouts="$(localectl status 2>/dev/null | grep -oP 'X11 Layout: \K.*')"
 opts="$(kreadconfig6 --file kxkbrc --group Layout --key Options 2>/dev/null)"
 
 layouts="${live_layouts:-${conf_layouts:-$sys_layouts}}"
-if [ "$layouts" = "us,ara" ]; then
+
+# The expectation is READ FROM THE IMAGE, never hardcoded here. This check asserted a
+# literal "us,ara" and kept asserting it after the image default deliberately became
+# "de,ara" (the owner's keyboard is German). So the check called a CORRECT machine
+# broken and told the user to delete a ~/.config/kxkbrc that matched the image exactly
+# — the check drifted from the system, and a check that has to be edited in lockstep
+# with the thing it checks will always eventually lie. Ask /etc/xdg/kxkbrc what MoOS
+# ships and compare the session against that.
+image_layouts="$(kreadconfig6 --file /etc/xdg/kxkbrc --group Layout --key LayoutList 2>/dev/null)"
+if [ -z "$image_layouts" ]; then
+    bad "the image ships no /etc/xdg/kxkbrc LayoutList — MoOS has no default keyboard"
+elif [ "$layouts" = "$image_layouts" ]; then
     ok "layouts: ${layouts}${live_layouts:+ (live, from KWin)}"
 else
-    bad "layouts are '${layouts:-unset}', expected us,ara — you cannot type English+Arabic"
+    bad "layouts are '${layouts:-unset}', but MoOS ships '${image_layouts}' — the session does not match the image"
     [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/kxkbrc" ] && \
         bad "  cause: ~/.config/kxkbrc overrides the image (delete it, then log out and back in)"
 fi

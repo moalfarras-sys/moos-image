@@ -540,9 +540,20 @@ Kirigami.ApplicationWindow {
     // The moai-do actions the model named in its last reply, surfaced as Run
     // chips. Only ids from the fixed allowlist are matched — a command the model
     // invents does not become a button.
+    //
+    // This list must cover every action the systemPrompt above tells the model it may
+    // name. It did not: the prompt promises "put the EXACT command in a fenced code
+    // block and the app turns it into a one-click Run button", then offers
+    // setup-gaming, setup-windows and install-opencode — three ids this regex did not
+    // match. Each one is implemented in moai-do and routed in moos-open; only the
+    // regex was missing, so the model would answer "run `moai-do setup-gaming`", the
+    // code block would render, and no button would ever appear. The user is left
+    // reading a command they were told they would not have to type — the same dead
+    // promise as the eleven dead buttons in AGENTS.md, one layer up.
+    // tests/verify_user_experience.py now compares this list against the prompt.
     function extractRuns(text) {
         const out = []
-        const re = /moai-do\s+(update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|update-firmware|install-nvidia|setup-waydroid|install-codex|install-claude)\b/g
+        const re = /moai-do\s+(update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|update-firmware|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode)\b/g
         let m
         while ((m = re.exec(text)) !== null)
             if (out.indexOf(m[1]) === -1)

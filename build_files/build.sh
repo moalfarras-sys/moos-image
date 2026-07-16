@@ -1450,6 +1450,22 @@ systemctl disable NetworkManager-wait-online.service
 #    future base/drop-in change can never resurrect the stall.
 systemctl mask systemd-udev-settle.service 2>/dev/null || true
 
+# 3) grub-boot-success.timer/.service can NEVER succeed here, and failed on every
+#    login on the maintainer's machine: the timer fires 2 minutes into each session
+#    and runs `grub2-set-bootflag boot_success`, which writes /boot/grub2/grubenv —
+#    and on bootc/OSTree /boot is mounted READ-ONLY ("Creating tmpfile failed:
+#    Read-only file system"). Nothing here consumes the flag: boot_success exists for
+#    greenboot's automatic-rollback counting and greenboot is not installed (MoOS
+#    rolls back through bootc/rpm-ostree, which keeps the previous deployment and
+#    does not read grubenv). So this is a guaranteed red `systemctl --user --failed`
+#    on every boot of every install, including a fresh ISO, reporting a failure that
+#    means nothing. Masking removes the noise and changes no behaviour — the flag was
+#    already never written. Mask the TIMER (so nothing queues the job) and the SERVICE
+#    (so a manual/drop-in start cannot resurrect the failure).
+#    If greenboot is ever added, or /boot becomes writable, revisit this.
+systemctl --global mask grub-boot-success.timer 2>/dev/null || true
+systemctl --global mask grub-boot-success.service 2>/dev/null || true
+
 # Mo AI in-app Settings backend: a tiny per-user control API. --global enables it
 # for every user's session (bakes the default.target.wants symlink under
 # /etc/systemd/user) without needing a running user manager at build time.
