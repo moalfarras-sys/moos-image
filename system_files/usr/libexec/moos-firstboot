@@ -23,9 +23,12 @@ CONF="/etc/moos-setup.conf"
 STAMP="/etc/moos-firstboot-done"
 log() { printf 'moos-firstboot: %s\n' "$*"; }
 
-# Defaults (used verbatim when no answers file exists).
+# Defaults (used verbatim when no answers file exists). Keyboard defaults match
+# the image's own shipped defaults (/etc/vconsole.conf, 00-keyboard.conf,
+# /etc/xdg/kxkbrc): German hardware, de,ara toggle — the old "us" fallback
+# would have silently reverted the image's identity on the no-recipe path.
 USERNAME="moos"; FULLNAME="MoOS User"; PASSWORD_HASH=""
-AUTOLOGIN="1"; TIMEZONE=""; KEYMAP="us"; XKBLAYOUT="us"; LOCALE=""
+AUTOLOGIN="1"; TIMEZONE=""; KEYMAP="de"; XKBLAYOUT="de,ara"; LOCALE=""
 
 if [ -r "$CONF" ]; then
     # Parse KEY=VALUE safely (no eval): only our known keys, value is the rest of line.

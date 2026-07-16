@@ -2462,6 +2462,50 @@ require(theme_safety_gate.returncode == 0,
         "the MoOS rollback/automatic-theme safety gate failed:\n"
         + theme_safety_gate.stdout.strip())
 
+# ── The installer's status pipeline: three parties, ONE path ─────────────────
+# moos-open (the writer), the moos-installer launcher (which hands the QML its
+# --cache dir) and the QML poller must agree on the status file, or the wizard
+# calls a SUCCEEDING install "stalled" — which is exactly what shipped: the
+# launcher's --cache already IS ~/.cache/moos-installer, and the QML appended
+# another "/moos-installer", polling a path no one writes. Found the first time
+# the wizard was driven end-to-end (QEMU, 2026-07-16). Gate the relationship.
+inst_launcher = code(read("system_files/usr/bin/moos-installer"), "hash")
+inst_qml = code(read("system_files/usr/share/moos/apps/installer/main.qml"), "slash")
+inst_open = code(read("system_files/usr/bin/moos-open"), "hash")
+require('CACHEDIR="${CACHE}/moos-installer"' in inst_launcher
+        and '--cache="$CACHEDIR"' in inst_launcher,
+        "moos-installer must pass its private ~/.cache/moos-installer dir as --cache")
+require('win.cacheDir + "/install.status"' in inst_qml,
+        "the installer QML must poll <cacheDir>/install.status — cacheDir already "
+        "IS the private moos-installer dir")
+require('cacheDir + "/moos-installer/' not in inst_qml,
+        "the installer QML must not re-append /moos-installer to cacheDir — that "
+        "polls a path nobody writes and reports a succeeding install as stalled")
+require('${_idir}/install.status' in inst_open
+        and '/moos-installer"' in inst_open,
+        "moos-open must hand the helper the same ~/.cache/moos-installer/install.status")
+
+# ── The keyboard the session actually compiles ───────────────────────────────
+# KWin (Wayland) takes its keymap from systemd-localed (locale1), NOT from the
+# shipped kxkbrc: on the live ISO the panel said "DE" while typing was
+# English (US), because nothing shipped localed's two sources. Proven in QEMU
+# (2026-07-16): populating localed flipped the live session to German
+# instantly. So the image must ship BOTH files, and they must agree with
+# kxkbrc — gate the relationship, not a constant.
+kxkbrc = code(read("system_files/etc/xdg/kxkbrc"), "hash")
+layout_list = next((ln.split("=", 1)[1].strip() for ln in kxkbrc.splitlines()
+                    if ln.strip().startswith("LayoutList=")), "")
+require(layout_list != "", "kxkbrc must declare a LayoutList")
+xorg_kbd = code(read("system_files/etc/X11/xorg.conf.d/00-keyboard.conf"), "hash")
+require(f'Option "XkbLayout" "{layout_list}"' in xorg_kbd,
+        f"00-keyboard.conf must ship XkbLayout \"{layout_list}\" — the same list "
+        "kxkbrc declares, because KWin compiles what locale1 answers")
+vconsole = code(read("system_files/etc/vconsole.conf"), "hash")
+first_layout = layout_list.split(",")[0]
+require(f"KEYMAP={first_layout}" in vconsole,
+        f"vconsole.conf must ship KEYMAP={first_layout} (the primary kxkbrc layout, "
+        "same derivation the installer uses)")
+
 # ── ONE visible store, whatever scope Bazaar lands in ────────────────────────
 # Bazaar (Mo Store's full-catalog engine) can be installed per-user (by
 # moos-store-browse) or system-wide (by moos-setup's checklist). The launcher

@@ -22,6 +22,31 @@ Last updated: 2026-07-16 (session E), booted image `44.20260716.176` (`moos-nvid
 > must not touch flatpak exports), and a live `moos-selfcheck` check that resolves Bazaar's menu
 > entry the way the menu does. All were broken on purpose and watched go red.
 >
+> **Session E then drove the installer wizard end-to-end for the FIRST time** (ISO 176 in QEMU,
+> QMP mouse/keys — synthetic input works in a VM even though it does not on the real machine)
+> and the walkthrough caught two shipped bugs no gate had ever seen:
+>
+> 1. **The wizard called a SUCCEEDING install "stalled."** The backend finished the whole
+>    install (target disk bootable, `Installation complete!`, 92 PROGRESS lines written) while
+>    the front-end reported FAIL: the launcher's `--cache` already IS `~/.cache/moos-installer`,
+>    and the QML appended another `/moos-installer` to it, polling a file nobody writes.
+>    One-line QML fix; a three-party relationship gate (moos-open ↔ launcher ↔ QML) now pins
+>    the status path.
+> 2. **The live session typed English (US) on the owner's German keyboard** while the panel
+>    indicator claimed "DE". KWin (Wayland) compiles the keymap locale1 answers — NOT the
+>    shipped kxkbrc — and the image shipped neither of localed's sources, so the live ISO ran
+>    with localectl fully unset. Proven live: `sudo localectl set-x11-keymap de,ara pc105`
+>    flipped the running session to German instantly. The image now ships
+>    `/etc/vconsole.conf` (KEYMAP=de) and `/etc/X11/xorg.conf.d/00-keyboard.conf` (de,ara,
+>    alt_shift_toggle), both gated against kxkbrc's LayoutList as a relationship;
+>    moos-firstboot still rewrites both per the install answers (its no-recipe fallback now
+>    matches the image instead of reverting to `us`), and `moos-selfcheck` says explicitly
+>    when KWin refused to answer and only config was checked.
+>
+> The installed target from that walkthrough also proved: timezone page 5 works (searched
+> "vienna", selected Europe→Vienna), disk/account/confirm/hold-to-commit all behave, and the
+> ISO's offline install path (embedded image, no network) completes.
+>
 > **Two traps this session cost real time on, both worth knowing before you start:**
 > - **Root is `pkexec`, not `sudo`.** `50-moos-devmode.rules` authorises the local active wheel
 >   user for `org.freedesktop.policykit.exec`, so `pkexec` runs as root with no prompt while

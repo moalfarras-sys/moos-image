@@ -334,7 +334,12 @@ ApplicationWindow {
     function readInstall() {
         try {
             var req = new XMLHttpRequest()
-            req.open("GET", "file://" + win.cacheDir + "/moos-installer/install.status", false)
+            // cacheDir IS ~/.cache/moos-installer (the launcher passes its private dir).
+            // Appending another "/moos-installer" here polled a path that never exists,
+            // so a SUCCEEDING install reported "FAIL stalled" — found the first time the
+            // wizard was driven end-to-end in QEMU (2026-07-16). The status file must be
+            // the exact path moos-open hands the pkexec'd helper.
+            req.open("GET", "file://" + win.cacheDir + "/install.status", false)
             req.send()
             var t = req.responseText
             if (!t) return { pct: -1, phase: "", state: "running", reason: "" }

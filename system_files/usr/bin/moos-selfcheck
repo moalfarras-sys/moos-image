@@ -191,7 +191,11 @@ if [ -z "$image_layouts" ]; then
     bad "the image ships no /etc/xdg/kxkbrc LayoutList — MoOS has no default keyboard"
 elif [ "$layouts" = "$image_layouts" ]; then
     ok "layouts: ${layouts}${live_layouts:+ (live, from KWin)}"
-else
+    # A config-only pass is NOT proof the session types those layouts: the live
+    # ISO showed "DE" in config while KWin compiled English (US), and this very
+    # check fell back to config and stayed green. Say so instead of implying.
+    [ -z "$live_layouts" ] && \
+        note "KWin did not answer getLayoutsList — the values above are config, not the running keymap"
     bad "layouts are '${layouts:-unset}', but MoOS ships '${image_layouts}' — the session does not match the image"
     [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/kxkbrc" ] && \
         bad "  cause: ~/.config/kxkbrc overrides the image (delete it, then log out and back in)"
