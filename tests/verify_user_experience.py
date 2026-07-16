@@ -478,6 +478,25 @@ require("xkbForLang" in keymap_fn.group(1),
         "keymapForLang() must derive the console keymap from xkbForLang() — naming the keyboard "
         "twice is what let the console keep typing 'us' after the layout became 'de,ara'")
 
+# ── An I/O scheduler is a property of a DISK, not of a partition ─────────────
+# A udev KERNEL glob does not stop at the whole disk: the trailing * in `nvme[0-9]*n[0-9]*`
+# also matches `nvme0n1p1`. Only a disk has queue/, so the NVMe rule tried to set a scheduler
+# on every partition and logged "Could not chase sysfs attribute .../nvme0n1p1/queue/scheduler"
+# 28 times per boot — while setting the disk itself correctly, which is why nobody noticed.
+# The SATA rules were quiet only by luck: their ATTR{queue/rotational} is a MATCH that a
+# partition also fails, so they failed silently rather than loudly.
+#
+# Gate the discriminator, not the log line: every scheduler assignment must be constrained to
+# DEVTYPE=disk. Checking for absence of the error message would need a boot to observe.
+sched_rules = read("system_files/usr/lib/udev/rules.d/60-moos-ioschedulers.rules")
+sched_lines = [l for l in code(sched_rules).splitlines() if "queue/scheduler" in l]
+require(sched_lines, "60-moos-ioschedulers.rules must actually set queue/scheduler")
+for line in sched_lines:
+    require('ENV{DEVTYPE}=="disk"' in line,
+            "every queue/scheduler rule must be constrained to ENV{DEVTYPE}==\"disk\" — a KERNEL "
+            "glob swallows partitions too, and a partition has no scheduler to set: "
+            f"{line.strip()[:80]}")
+
 # ── The wizard's page count must be the wizard's real pages ──────────────────
 # stepCount drives the progress dots and bounds goNext(); the StackLayout's children ARE the
 # pages. They are two hand-kept numbers describing one thing, so they drift: get it wrong and

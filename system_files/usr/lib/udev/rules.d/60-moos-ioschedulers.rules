@@ -9,12 +9,24 @@
 #
 # Keyed on queue/rotational and the device subsystem, the same shape Fedora/RHEL
 # document. Persisted via udev, never the obsolete elevator= kernel arg.
+#
+# ENV{DEVTYPE}=="disk" is load-bearing, not decoration. A KERNEL glob does NOT stop at
+# the whole disk: the trailing * in `nvme[0-9]*n[0-9]*` also swallows `nvme0n1p1`, and
+# `sd[a-z]*` swallows `sda1`. Only a DISK has queue/ — a partition has no scheduler to
+# set — so the NVMe rule fired once per partition and logged
+#   Could not chase sysfs attribute .../nvme0n1p1/queue/scheduler … No such file
+# 28 times per boot on this machine, while the disk itself was set correctly. The SATA
+# rules were quiet by luck, not by design: their ATTR{queue/rotational} is a MATCH, and
+# a partition has no queue/rotational either, so those rules failed silently instead of
+# loudly. The NVMe rule carries only an assignment, so it had nothing to fail on first.
+# DEVTYPE is the documented discriminator (disk vs partition); it makes all three rules
+# mean what the comments above always claimed they meant.
 
 # NVMe: no scheduler.
-ACTION=="add|change", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none"
+ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none"
 
 # Non-rotational SCSI/SATA (SSD): mq-deadline.
-ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
+ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
 
 # Rotational (HDD): bfq for fairness + desktop interactivity.
-ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
+ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
