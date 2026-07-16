@@ -172,9 +172,7 @@ class App(Gtk.Application):
 
     def refresh(self,*_):
         on=active(UNIT)
-        ip=lan_ip()
         far=tailscale_url() if on else None
-        home=f"http://{ip}:{PORT}/"
         self.status.set_markup(f"<b>Service:</b> {'Running' if on else 'Stopped'}    <b>Device:</b> {GLib.markup_escape_text(socket.gethostname())}")
 
         if not on:
@@ -186,8 +184,8 @@ class App(Gtk.Application):
             self.address.set_markup(
                 "<b>From anywhere / من أي مكان</b>  ·  works on mobile data\n"
                 f"<tt>{GLib.markup_escape_text(far)}</tt>\n\n"
-                "<small>Home network only / الشبكة المنزلية فقط\n"
-                f"<tt>{GLib.markup_escape_text(home)}</tt></small>")
+                "<small>Scan the code or open the link on your phone, then enter your PIN.\n"
+                "امسح الرمز أو افتح الرابط على جوالك، ثم أدخل الـPIN.</small>")
             self.anywhere_btn.set_visible(False)
             path=os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp",f"mo-remote-qr-{os.getuid()}.png")
             if qr_png(far,path):
@@ -195,10 +193,16 @@ class App(Gtk.Application):
             else:
                 self.qr.set_visible(False)
         else:
+            # Direct LAN access is off by design (AllowLan=false, most secure): the
+            # agent accepts only the Tailscale tailnet + loopback, so we do NOT dangle
+            # the blocked LAN address here — we point the user at the path that works.
             self.address.set_markup(
-                f"<b>Home network only / الشبكة المنزلية فقط</b>\n<tt>{GLib.markup_escape_text(home)}</tt>\n\n"
-                "<small>This address stops working once the phone leaves the house.\n"
-                "هذا العنوان يتوقف عن العمل فور خروج الجوال من البيت.</small>")
+                "<b>Enable remote access / فعّل الوصول عن بُعد</b>\n"
+                "<small>For your security, MoOS reaches this PC over your private Tailscale "
+                "network — encrypted, and it works from anywhere — not a plain LAN address. "
+                "Press the button below once to set it up.\n"
+                "لأمانك، يصل MoOS لهذا الجهاز عبر شبكة Tailscale الخاصة — مشفّرة وتعمل من أي "
+                "مكان — لا عبر عنوان شبكة محلية مكشوف. اضغط الزر بالأسفل مرة واحدة.</small>")
             self.anywhere_btn.set_visible(True)
             self.qr.set_visible(False)
         while c:=self.grid.get_first_child(): self.grid.remove(c)
