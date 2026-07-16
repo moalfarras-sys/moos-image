@@ -1115,8 +1115,23 @@ done
 # them here is the difference between "remote control breaks silently if the base image
 # drops a package" and "the image build fails loudly". They are cheap and already pulled
 # in by Plasma, so this is a no-op in practice.
-curl -fsSL --retry 3 https://pkgs.tailscale.com/stable/fedora/tailscale.repo \
-    -o /etc/yum.repos.d/tailscale.repo
+# Tailscale repo — write the (small, static, public) repo file OURSELVES instead of
+# curl-ing it from pkgs.tailscale.com at build time. That download is a dependency on
+# a third-party server, and it took the ENTIRE image build down on 2026-07-16 when
+# pkgs.tailscale.com returned 504 for the .repo file: curl exhausted --retry 3 and
+# buildah exited 22, on a build whose only changes were themes and a keyboard layout.
+# Shipping the repo inline removes that flaky round-trip; dnf still fetches the
+# packages and gpg key from the baseurl (with its own retries), which is unavoidable.
+cat > /etc/yum.repos.d/tailscale.repo <<'TAILSCALE_REPO'
+[tailscale-stable]
+name=Tailscale stable
+baseurl=https://pkgs.tailscale.com/stable/fedora/$basearch
+enabled=1
+type=rpm
+repo_gpgcheck=1
+gpgcheck=0
+gpgkey=https://pkgs.tailscale.com/stable/fedora/repo.gpg
+TAILSCALE_REPO
 # qrencode: the Mo PC Remote panel renders its address as a QR code. Without it the user has to
 # read an address off the screen and type it into a phone — which is exactly how they end up on
 # the LAN address that dies the moment they leave the house.
