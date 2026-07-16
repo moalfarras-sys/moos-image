@@ -23,7 +23,9 @@
 //   `Image` accepts what org.kde.image accepted (a file or a MoOS wallpaper
 //   package dir) — the login==lock gate in verify_image_experience.py reads
 //   the package name straight out of the drop-in, so the config value keeps
-//   naming /usr/share/wallpapers/MoOSUI2Graphite.
+//   naming the Graphite package (/usr/share/wallpapers/MoOSUI2Graphite/ — and
+//   mind the punctuation here: build.sh greps QML too for wallpaper paths,
+//   and a sentence period right after a path reads as part of the path).
 import QtQuick
 import QtQuick.Window
 import org.kde.kirigami as Kirigami
