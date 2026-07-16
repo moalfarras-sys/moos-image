@@ -47,6 +47,13 @@ Last updated: 2026-07-16 (session E), booted image `44.20260716.176` (`moos-nvid
 > "vienna", selected Europe→Vienna), disk/account/confirm/hold-to-commit all behave, and the
 > ISO's offline install path (embedded image, no network) completes.
 >
+> **ISO `44.20260716.179` (commit `0149736`) is built, WALKED AGAIN end-to-end in QEMU and
+> verified fixed:** the live session types German (physical z,z,y,y → "yyzz"; localectl answers
+> de/de,ara), the wizard's progress bar moves (34% → 80% → success page), and the whole journey
+> is photographed. It lives in `~/Desktop/MoOS-ISO/` with BUILD-INFO.txt, sha256 and proof/.
+> The older ISOs (175 broken splash, 176 stalled-wizard) are deleted. The QMP driver scripts
+> used for walkthroughs are kept in `~/iso-test/` (drive.py, detype.py).
+>
 > **Two traps this session cost real time on, both worth knowing before you start:**
 > - **Root is `pkexec`, not `sudo`.** `50-moos-devmode.rules` authorises the local active wheel
 >   user for `org.freedesktop.policykit.exec`, so `pkexec` runs as root with no prompt while
