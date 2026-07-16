@@ -4,7 +4,21 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-16 (session E), booted image `44.20260716.176` (`moos-nvidia`, signed origin).
+Last updated: 2026-07-16 (session F), booted image `44.20260716.176` (`moos-nvidia`, signed origin).
+
+> **Session F — the brand session (2026-07-16, full writeup in `FIXES_2026-07-16c.md`).**
+> The owner's vector logo landed (`artwork/logo/`) and the animated MoOS brand now lives on
+> every doorway surface: the login scene is `org.moos.ui2.greeter` (a Plasma/Wallpaper package
+> the greeter's wallpaper process loads — the greeter QML itself is compiled into the binary),
+> the lock screen brand breathes and its clock has a floor below it (4K collision fixed), the
+> logout greeter carries the animated mark + a draining countdown hairline and its NINE action
+> icons are -symbolic now (they all drew as solid teal blobs — isMask over full-colour disc
+> icons), and the bar opens with `org.moos.brand` (animated emblem + MoOS-glance popup;
+> Kickoff stays the launcher, wearing view-app-grid-symbolic; THEME_REV is 18). Every family
+> theme got real designed wallpaper art (glass waves per palette — make_wallpaper rewrite;
+> Canva was quota-blocked, the deterministic generator ships the art). All motion is
+> Animators-only over pre-baked sprites (`artwork/generate_login_scene.py`); the Lottie file
+> in the logo delivery has zero keyframes and is provenance only.
 
 > **State on 2026-07-16 (session E).** The machine is green: `moos-selfcheck` all-pass,
 > `post-update-check.sh` 39/0, **zero failed units**, boot to graphical in 4.8 s of userspace
