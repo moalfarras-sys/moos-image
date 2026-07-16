@@ -131,7 +131,7 @@ load_profile() {
         "$NOVA_LNF")
             scheme=MoOSUI2Nova; style=MoOSUI2Nova
             konsole_profile=MoOSUI2Nova.profile; konsole_profile_name="MoOS Nova"
-            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-dark.css; cursor=MoOS
+            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-nova.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Nova
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Nova
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
@@ -140,7 +140,7 @@ load_profile() {
         "$AMETHYST_LNF")
             scheme=MoOSUI2Amethyst; style=MoOSUI2Amethyst
             konsole_profile=MoOSUI2Amethyst.profile; konsole_profile_name="MoOS Amethyst"
-            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-dark.css; cursor=MoOS
+            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-amethyst.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Amethyst
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Amethyst
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
@@ -149,7 +149,7 @@ load_profile() {
         "$MIDNIGHT_LNF")
             scheme=MoOSUI2Midnight; style=MoOSUI2Midnight
             konsole_profile=MoOSUI2Midnight.profile; konsole_profile_name="MoOS Midnight"
-            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-dark.css; cursor=MoOS
+            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-midnight.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Midnight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Midnight
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
@@ -158,7 +158,7 @@ load_profile() {
         "$AURORA_LNF")
             scheme=MoOSUI2Aurora; style=MoOSUI2Aurora
             konsole_profile=MoOSUI2Aurora.profile; konsole_profile_name="MoOS Aurora"
-            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-dark.css; cursor=MoOS
+            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-aurora.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Aurora
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Aurora
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg

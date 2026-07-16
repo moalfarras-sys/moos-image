@@ -63,6 +63,7 @@ THEMES = {
 SRC_STYLE = SHARE / "plasma/desktoptheme/MoOSUI2"
 SRC_AUR   = SHARE / "aurorae/themes/MoOSUI2"
 SRC_LNF   = SHARE / "plasma/look-and-feel/org.moos.ui2"
+SRC_GTK   = SHARE / "moos/gtk/moos-ui2-dark.css"   # libadwaita palette to recolour
 
 
 def hexmap(key: str) -> dict[str, str]:
@@ -417,6 +418,17 @@ def make_wallpaper(key: str, mood: str = "cosmic"):
     return img
 
 
+def build_gtk(key: str, meta: dict) -> None:
+    """Per-theme libadwaita palette — the UI2 dark GTK-4 CSS recoloured to this
+    theme, so Flatpak/GTK-4 apps carry the theme's accent, not UI2's teal."""
+    if not SRC_GTK.exists():
+        return
+    m = hexmap(key)
+    css = recolor(SRC_GTK.read_text(encoding="utf-8"), m)
+    css = css.replace("MoOS UI2 (Graphite Dark)", f"{meta['name']}")
+    write(SHARE / "moos/gtk" / f"moos-ui2-{key}.css", css)
+
+
 def build_wallpaper(key: str, meta: dict) -> bool:
     img = make_wallpaper(key, meta.get("mood", "cosmic"))
     if img is None:
@@ -452,6 +464,7 @@ def build_theme(key: str) -> None:
     write(SHARE / "color-schemes" / f"{meta['style']}.colors", color_scheme_for(key, meta))
     write(SHARE / "konsole" / f"{meta['style']}.colorscheme", konsole_scheme_for(key, meta))
     write(SHARE / "konsole" / f"{meta['style']}.profile", konsole_profile_for(key, meta))
+    build_gtk(key, meta)
     wp = build_wallpaper(key, meta)
     print(f"  ✓ {meta['name']:<16} style={meta['style']} lnf={meta['lnf']} "
           f"wallpaper={'yes' if wp else 'SKIPPED (no PIL)'}")

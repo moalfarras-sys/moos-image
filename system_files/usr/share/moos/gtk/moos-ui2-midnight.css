@@ -1,0 +1,29 @@
+/* MoOS Midnight libadwaita palette — managed by moos-theme.
+ * Installed to ~/.config/gtk-4.0/gtk.css on theme switch; a file WITHOUT this
+ * marker is the user's own and moos-theme will not touch it.
+ * Values are artwork/moos-ui2/palette.json (dark); a repo gate holds them equal. */
+@define-color accent_bg_color #22D3EE;
+@define-color accent_fg_color #000000;
+@define-color accent_color #22D3EE;
+@define-color window_bg_color #0A0A0C;
+@define-color window_fg_color #F5F7FA;
+@define-color view_bg_color #000000;
+@define-color view_fg_color #F5F7FA;
+@define-color headerbar_bg_color #0A0A0C;
+@define-color headerbar_fg_color #F5F7FA;
+@define-color headerbar_border_color #26262E;
+@define-color headerbar_backdrop_color #000000;
+@define-color popover_bg_color #121216;
+@define-color popover_fg_color #F5F7FA;
+@define-color card_bg_color #121216;
+@define-color card_fg_color #F5F7FA;
+@define-color dialog_bg_color #0A0A0C;
+@define-color dialog_fg_color #F5F7FA;
+@define-color sidebar_bg_color #0A0A0C;
+@define-color sidebar_fg_color #F5F7FA;
+@define-color sidebar_backdrop_color #000000;
+@define-color secondary_sidebar_bg_color #000000;
+@define-color secondary_sidebar_fg_color #F5F7FA;
+@define-color success_color #4ADE80;
+@define-color warning_color #FBBF24;
+@define-color error_color #F87171;
