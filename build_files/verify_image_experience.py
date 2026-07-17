@@ -240,14 +240,27 @@ if "plasmalogin" in dm_target:
             "ignores MoOS's ActionButton.qml/Clock.qml on disk — the login screen "
             "silently reverts to Breeze's full-colour discs while every file check "
             "stays green. build.sh must drop that line.")
-    for own in ("ActionButton.qml", "Clock.qml"):
+    for own in ("ActionButton.qml", "Clock.qml", "UserDelegate.qml"):
         body = (breeze_components / own)
         require(body.is_file(),
                 f"MoOS's {own} is missing from org.kde.breeze.components — the "
                 "greeter would draw Breeze's")
         require("MoOS" in body.read_text(encoding="utf-8"),
                 f"{own} in org.kde.breeze.components is not MoOS's version — the "
-                "login screen's clock/buttons are stock Plasma")
+                "login screen's clock/buttons/avatar are stock Plasma")
+
+    # A Behavior on a `readonly property` does not warn: QML rejects the WHOLE
+    # component, silently — "Did not load any objects", no error line, and on the
+    # login screen that means a greeter with no avatar at all. It shipped for
+    # exactly one edit of UserDelegate.qml, qmllint passed it, and only rendering
+    # it caught it. Cheap check, catastrophic failure.
+    for own in ("ActionButton.qml", "Clock.qml", "UserDelegate.qml"):
+        text_of = (breeze_components / own).read_text(encoding="utf-8")
+        for prop in re.findall(r"readonly\s+property\s+\w+\s+(\w+)", text_of):
+            require(re.search(rf"Behavior\s+on\s+{prop}\b", text_of) is None,
+                    f"{own} puts a Behavior on the readonly property `{prop}`. QML "
+                    "rejects that by failing the entire component with no error "
+                    "message — the login screen would draw no avatar/button at all.")
 
     # The clock is MoOS's now, so it must be SHOWN. It was hidden (ShowClock=false)
     # only because the stock face could not be re-skinned; that premise is dead,
