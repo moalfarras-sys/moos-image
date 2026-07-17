@@ -42,6 +42,8 @@ Rectangle {
     onStageChanged: {
         if (stage == 2) {
             introAnimation.running = true;
+            shineSweep.running = true;
+            bloomFlash.running = true;
         } else if (stage == 5) {
             outroAnimation.running = true;
         }
@@ -92,6 +94,38 @@ Rectangle {
             Rectangle { anchors.centerIn: parent; width: 100; height: 100; radius: 50;  color: root.cyan; opacity: 0.055 }
         }
 
+        // Arrival bloom: a soft disc that expands and fades the instant the mark
+        // lands — the burst of energy behind the reveal. GPU-light: one rounded
+        // rect, scale + opacity only. Sits behind the logo (declared before it).
+        Rectangle {
+            id: bloomFlash
+            anchors.centerIn: logo
+            width: 150
+            height: 150
+            radius: 75
+            color: root.cyan
+            opacity: 0
+            scale: 0.4
+            property alias running: bloomAnim.running
+            ParallelAnimation {
+                id: bloomAnim
+                running: false
+                NumberAnimation { target: bloomFlash; property: "scale"
+                    from: 0.4; to: 2.4; duration: 900; easing.type: Easing.OutCubic }
+                SequentialAnimation {
+                    NumberAnimation { target: bloomFlash; property: "opacity"
+                        from: 0; to: 0.5; duration: 180; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: bloomFlash; property: "opacity"
+                        to: 0; duration: 720; easing.type: Easing.InCubic }
+                }
+            }
+        }
+
+        // The logo, kept CRISP and READABLE — his brief's first rule. The mark is
+        // his full-detail 1024px master rendered at 512, never a traced/low-res
+        // frame; the cinema is in the LIGHT around it (bloom, sweep, orbit), not in
+        // deforming the logo. The intro pops it to full size with a confident
+        // OutBack settle.
         Image {
             id: logo
             anchors.centerIn: parent
@@ -99,14 +133,57 @@ Rectangle {
 
             asynchronous: true
             source: "images/moos-logo.png"
-            width: 220
-            height: 220
+            width: 236
+            height: 236
             fillMode: Image.PreserveAspectFit
-            sourceSize.width: 220
-            sourceSize.height: 220
+            sourceSize.width: 512
+            sourceSize.height: 512
+            smooth: true
+            mipmap: true
 
-            // Pre-scaled; the intro ScaleAnimator settles it to 1.0.
-            scale: 0.92
+            // Pre-scaled small; the intro ScaleAnimator pops it to 1.0 (OutBack).
+            scale: 0.35
+
+            // A single studio light-sweep crosses the mark once as it arrives —
+            // a bright diagonal band clipped to the logo's square, fading at both
+            // ends so it reads as a glint travelling over the glass, not a bar.
+            // GPU-light: one gradient rect + one x animation, no shader/mask.
+            Item {
+                anchors.fill: parent
+                clip: true
+                Rectangle {
+                    id: shine
+                    width: parent.width * 0.42
+                    height: parent.height * 1.8
+                    rotation: 18
+                    y: -parent.height * 0.4
+                    x: -width * 1.4
+                    opacity: 0.0
+                    // A bright cyan glint (theme hoverColor, never a hardcoded
+                    // white — the identity gate forbids pure-white literals and
+                    // the theme keeps the glint on-brand across looks).
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: Qt.rgba(root.cyan.r, root.cyan.g, root.cyan.b, 0) }
+                        GradientStop { position: 0.5; color: Qt.rgba(root.cyan.r, root.cyan.g, root.cyan.b, 0.6) }
+                        GradientStop { position: 1.0; color: Qt.rgba(root.cyan.r, root.cyan.g, root.cyan.b, 0) }
+                    }
+                    SequentialAnimation {
+                        id: shineSweep
+                        running: false
+                        PauseAnimation { duration: 520 }
+                        ParallelAnimation {
+                            NumberAnimation { target: shine; property: "x"
+                                from: -shine.width * 1.4; to: logo.width + shine.width * 0.4
+                                duration: 900; easing.type: Easing.InOutSine }
+                            SequentialAnimation {
+                                NumberAnimation { target: shine; property: "opacity"; to: 0.9; duration: 300 }
+                                NumberAnimation { target: shine; property: "opacity"; to: 0.0; duration: 420 }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // The comet ring — the same pre-baked orbit every doorway surface
@@ -207,10 +284,10 @@ Rectangle {
         }
         ScaleAnimator {
             target: logo
-            from: 0.92
+            from: 0.35
             to: 1.0
-            duration: 520
-            easing.type: Easing.OutCubic
+            duration: 720
+            easing.type: Easing.OutBack
         }
     }
 
