@@ -4,7 +4,20 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-17 (session G), booted image `44.20260716.176` (`moos-nvidia`, signed origin).
+Last updated: 2026-07-17 (session H), booted image `44.20260717.190` (`moos-nvidia`, signed origin).
+
+> **Session H — the first-boot session (2026-07-17, full writeup in `FIXES_2026-07-17b.md`).**
+> ISO `44.20260717.190` was walked end-to-end in QEMU (all green: splash+ring, DE live
+> keyboard, 9-page installer, moving progress bar, offline install, target first boot on
+> Vienna time) and the walkthrough caught two shipped bugs no gate had seen: (1) the zram
+> storm — moos-hardware-adapt's first-boot re-tier restarted systemd-zram-setup@zram0
+> bare, tripping dev-zram0.swap into start-limit-hit and leaving a fresh install's first
+> boot with two failed units and NO swap (fix: config-equality skip + stop → daemon-reload
+> → reset-failed → one start); (2) the live session kept KDE's 5-minute autolock and
+> LOCKED the screen over its own running installer (fix: moos-live-polish, gated on
+> rd.live.image, writes liveuser's kscreenlockerrc/powerdevilrc — never /etc/xdg). Both
+> gates broken-once and watched go red. Forensics trick that cracked it: power the VM off,
+> guestfish the journal out of the target disk, read it with `journalctl --directory`.
 
 > **Session G — the polish session (2026-07-17, full writeup in `FIXES_2026-07-17.md`).**
 > Wallpapers v2: the four family themes now carry LIT-SILK art (crest-lit bands, aurora
