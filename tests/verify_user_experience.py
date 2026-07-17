@@ -1760,7 +1760,7 @@ require('addWidget("org.moos.brand")' in layout,
 require('writeConfig("icon", "view-app-grid-symbolic")' in layout,
         "Kickoff must wear the app-grid glyph — the MoOS logo in the bar is the "
         "brand applet now, and two identical marks side by side reads as a bug")
-for package in ("org.moos.nova.clock", "org.moos.brand"):
+for package in ("org.moos.nova.clock", "org.moos.brand", "org.moos.heroclock"):
     root = ROOT / "system_files/usr/share/plasma/plasmoids" / package
     require((root / "metadata.json").is_file() and
             (root / "contents/ui/main.qml").is_file(),
@@ -1769,11 +1769,12 @@ for package in ("org.moos.nova.clock", "org.moos.brand"):
 # plasmashell, forever), and its actions must stay user-session binaries —
 # a pkexec here would put a password prompt behind a panel click. code():
 # the header comment documents exactly these bans, so grep the code, not the prose.
-brand_qml = code(read("system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml"),
-                 style="slash")
-for banned in ("ShaderEffect", "MultiEffect", "Lottie", "pkexec", "sudo "):
-    require(banned not in brand_qml,
-            f"org.moos.brand must not use {banned.strip()!r}")
+for always_on in ("org.moos.brand", "org.moos.heroclock"):
+    applet_qml = code(read(f"system_files/usr/share/plasma/plasmoids/{always_on}/contents/ui/main.qml"),
+                      style="slash")
+    for banned in ("ShaderEffect", "MultiEffect", "Lottie", "pkexec", "sudo "):
+        require(banned not in applet_qml,
+                f"{always_on} must not use {banned.strip()!r}")
 require("try {" in layout,
         "the floating setter must be guarded -- a throw in the layout template "
         "leaves the session with NO panel")
