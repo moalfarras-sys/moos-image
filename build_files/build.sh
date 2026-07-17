@@ -99,6 +99,39 @@ dnf5 -y install uupd
 dnf5 -y copr disable ublue-os/packages
 
 # -----------------------------------------------------------------------------
+# (b1) Prune older kernels — keep exactly the NEWEST, before anything reads it
+# -----------------------------------------------------------------------------
+# Upstream drift (first seen 2026-07-17): ghcr.io/ublue-os/kinoite-main:44 began
+# shipping TWO kernels in /usr/lib/modules (a kernel bump where the previous
+# version had not yet been pruned). That breaks MoOS two ways: the NVIDIA section
+# below picks the kernel with `find … | head -1` (UNSORTED — it can grab the OLD
+# one and then mismatch the akmods kmod), and the initramfs step later hard-fails
+# on any kernel count != 1. Both are right to distrust ambiguity, so resolve it
+# here, deterministically: keep only the newest kernel.
+#
+# "Newest" is correct for BOTH editions — ublue's akmods tag (main-44-x86_64) is
+# floating and rebuilt against kinoite's CURRENT (newest) kernel, so the kmod
+# matches the newest. If upstream ever gets ahead of akmods, the NVIDIA section's
+# explicit kernel-mismatch FATAL still catches it loudly (a clear "wait for the
+# matching akmod", never a silent black screen).
+mapfile -t _kvers < <(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V)
+if [ "${#_kvers[@]}" -gt 1 ]; then
+    _keep="${_kvers[-1]}"
+    echo "=== base ships ${#_kvers[@]} kernels (${_kvers[*]}) — keeping newest: ${_keep} ==="
+    for _kv in "${_kvers[@]}"; do
+        [ "$_kv" = "$_keep" ] && continue
+        echo "    pruning older kernel ${_kv}"
+        # Remove every kernel* package pinned to this exact version (deps ignored:
+        # this is an offline image build, not a live system), then make sure the
+        # module tree is gone even if a stray file was not package-owned.
+        _old=$(rpm -qa 'kernel*' | grep -F -- "-${_kv}" || true)
+        [ -n "$_old" ] && printf '%s\n' "$_old" | xargs -r rpm -e --nodeps 2>/dev/null || true
+        rm -rf "/usr/lib/modules/${_kv}"
+    done
+    echo "=== kernels after prune: $(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d -printf '%f ')==="
+fi
+
+# -----------------------------------------------------------------------------
 # (b2) NVIDIA driver — moos-nvidia edition only
 # -----------------------------------------------------------------------------
 # This MUST run before the initramfs is regenerated below: dracut has to see the
