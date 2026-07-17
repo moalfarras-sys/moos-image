@@ -35,6 +35,12 @@ NOVA_LNF="org.moos.ui2.nova"
 AMETHYST_LNF="org.moos.ui2.amethyst"
 MIDNIGHT_LNF="org.moos.ui2.midnight"
 AURORA_LNF="org.moos.ui2.aurora"
+# Each family ships a matched LIGHT sibling — its id is the dark id + ".light".
+# midnight's light sibling is presented as "MoOS Daylight".
+NOVA_LIGHT_LNF="org.moos.ui2.nova.light"
+AMETHYST_LIGHT_LNF="org.moos.ui2.amethyst.light"
+AURORA_LIGHT_LNF="org.moos.ui2.aurora.light"
+DAYLIGHT_LNF="org.moos.ui2.midnight.light"
 
 usage() {
     cat <<'EOF'
@@ -44,12 +50,14 @@ moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switc
   moos-theme list       القائمة | list all MoOS themes
   moos-theme dark       داكن   | MoOS Graphite (the default)
   moos-theme light      فاتح   | MoOS Tidal Light
-  moos-theme nova       MoOS Nova     — cosmic navy
-  moos-theme amethyst   MoOS Amethyst — warm aubergine
-  moos-theme midnight   MoOS Midnight — true-black OLED
-  moos-theme aurora     MoOS Aurora   — teal aurora
-  moos-theme toggle     بدّل   | switch Graphite <-> Tidal
+  moos-theme nova       MoOS Nova     — cosmic navy   (+ nova-light)
+  moos-theme amethyst   MoOS Amethyst — warm aubergine (+ amethyst-light)
+  moos-theme midnight   MoOS Midnight — true-black OLED (+ daylight)
+  moos-theme aurora     MoOS Aurora   — teal aurora    (+ aurora-light)
+  moos-theme toggle     بدّل   | flip the current family light <-> dark
   moos-theme auto       تلقائي | follow sunrise/sunset (Graphite/Tidal)
+
+Every family has a matched light + dark sibling; `toggle` flips the current one.
 EOF
 }
 
@@ -163,6 +171,42 @@ load_profile() {
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Aurora
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
             prefer_dark=true; label="MoOS: Aurora"
+            ;;
+        "$NOVA_LIGHT_LNF")
+            scheme=MoOSUI2NovaLight; style=MoOSUI2NovaLight
+            konsole_profile=MoOSUI2NovaLight.profile; konsole_profile_name="MoOS Nova Light"
+            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-nova-light.css; cursor=MoOSDark
+            deco=__aurorae__svg__MoOSUI2NovaLight
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2NovaLight
+            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
+            prefer_dark=false; label="MoOS: Nova فاتح | light"
+            ;;
+        "$AMETHYST_LIGHT_LNF")
+            scheme=MoOSUI2AmethystLight; style=MoOSUI2AmethystLight
+            konsole_profile=MoOSUI2AmethystLight.profile; konsole_profile_name="MoOS Amethyst Light"
+            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-amethyst-light.css; cursor=MoOSDark
+            deco=__aurorae__svg__MoOSUI2AmethystLight
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2AmethystLight
+            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
+            prefer_dark=false; label="MoOS: Amethyst فاتح | light"
+            ;;
+        "$AURORA_LIGHT_LNF")
+            scheme=MoOSUI2AuroraLight; style=MoOSUI2AuroraLight
+            konsole_profile=MoOSUI2AuroraLight.profile; konsole_profile_name="MoOS Aurora Light"
+            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-aurora-light.css; cursor=MoOSDark
+            deco=__aurorae__svg__MoOSUI2AuroraLight
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2AuroraLight
+            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
+            prefer_dark=false; label="MoOS: Aurora فاتح | light"
+            ;;
+        "$DAYLIGHT_LNF")
+            scheme=MoOSUI2Daylight; style=MoOSUI2Daylight
+            konsole_profile=MoOSUI2Daylight.profile; konsole_profile_name="MoOS Daylight"
+            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-daylight.css; cursor=MoOSDark
+            deco=__aurorae__svg__MoOSUI2Daylight
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2Daylight
+            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
+            prefer_dark=false; label="MoOS: Daylight فاتح | light"
             ;;
         *)
             echo "moos-theme: unknown MoOS look-and-feel: $lnf" >&2
@@ -521,7 +565,8 @@ reconcile() {
     # non-MoOS Global Theme, leave their choice entirely alone.
     lnf="$(current)"
     case "$lnf" in
-        "$DARK_LNF"|"$LIGHT_LNF"|"$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF") ;;
+        "$DARK_LNF"|"$LIGHT_LNF"|"$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF"\
+        |"$NOVA_LIGHT_LNF"|"$AMETHYST_LIGHT_LNF"|"$AURORA_LIGHT_LNF"|"$DAYLIGHT_LNF") ;;
         *) return 0 ;;
     esac
     [ -d "/usr/share/plasma/look-and-feel/$lnf" ] || return 0
@@ -561,7 +606,7 @@ acquire_theme_lock() {
 
 command_name="${1:-status}"
 case "$command_name" in
-    dark|light|nova|amethyst|midnight|aurora|toggle|auto|sync-auto|reconcile)
+    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|toggle|auto|sync-auto|reconcile)
         acquire_theme_lock \
             || { echo "moos-theme: another theme transition is still running" >&2; exit 1; }
         ;;
@@ -586,27 +631,40 @@ case "$command_name" in
         kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
         apply "$LIGHT_LNF"
         ;;
-    nova)     apply_manual "$NOVA_LNF" ;;
-    amethyst) apply_manual "$AMETHYST_LNF" ;;
-    midnight) apply_manual "$MIDNIGHT_LNF" ;;
-    aurora)   apply_manual "$AURORA_LNF" ;;
+    nova)           apply_manual "$NOVA_LNF" ;;
+    amethyst)       apply_manual "$AMETHYST_LNF" ;;
+    midnight)       apply_manual "$MIDNIGHT_LNF" ;;
+    aurora)         apply_manual "$AURORA_LNF" ;;
+    nova-light)     apply_manual "$NOVA_LIGHT_LNF" ;;
+    amethyst-light) apply_manual "$AMETHYST_LIGHT_LNF" ;;
+    aurora-light)   apply_manual "$AURORA_LIGHT_LNF" ;;
+    daylight)       apply_manual "$DAYLIGHT_LNF" ;;
     list)
         cat <<'EOF'
-dark      MoOS Graphite   (الافتراضي | default dark)
-light     MoOS Tidal      (فاتح | light)
-nova      MoOS Nova       (كحلي سماوي‑بنفسجي | cosmic navy)
-amethyst  MoOS Amethyst   (باذنجاني دافئ | warm aubergine)
-midnight  MoOS Midnight   (أسود OLED | true black)
-aurora    MoOS Aurora     (تركوازي حديث | teal aurora)
+Every family has a light + dark sibling. `moos-theme toggle` flips the current one.
+
+  dark            MoOS Graphite     ·  light           MoOS Tidal
+  nova            MoOS Nova         ·  nova-light       MoOS Nova Light
+  amethyst        MoOS Amethyst     ·  amethyst-light   MoOS Amethyst Light
+  aurora          MoOS Aurora       ·  aurora-light     MoOS Aurora Light
+  midnight        MoOS Midnight     ·  daylight         MoOS Daylight
 EOF
         ;;
     toggle)
+        # Flip the CURRENT family between its light and dark sibling. Every MoOS
+        # look-and-feel id follows the same rule — the light sibling is the dark
+        # id + ".light" — so one string op toggles any family (base, Nova,
+        # Amethyst, Midnight/Daylight, Aurora).
         pin_switch_targets
         kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
-        case "$(current)" in
-            "$LIGHT_LNF") apply "$DARK_LNF" ;;
-            *) apply "$LIGHT_LNF" ;;
+        cur="$(current)"
+        case "$cur" in
+            *.light)                 target="${cur%.light}" ;;
+            "$DARK_LNF"|"$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF")
+                                     target="${cur}.light" ;;
+            *)                       target="$LIGHT_LNF" ;;
         esac
+        apply "$target"
         ;;
     auto)
         command -v systemctl >/dev/null 2>&1 && \
@@ -660,6 +718,10 @@ EOF
             "$AMETHYST_LNF")  echo "MoOS Amethyst        ($AMETHYST_LNF)" ;;
             "$MIDNIGHT_LNF")  echo "MoOS Midnight        ($MIDNIGHT_LNF)" ;;
             "$AURORA_LNF")    echo "MoOS Aurora          ($AURORA_LNF)" ;;
+            "$NOVA_LIGHT_LNF")     echo "MoOS Nova Light      ($NOVA_LIGHT_LNF)" ;;
+            "$AMETHYST_LIGHT_LNF") echo "MoOS Amethyst Light  ($AMETHYST_LIGHT_LNF)" ;;
+            "$AURORA_LIGHT_LNF")   echo "MoOS Aurora Light    ($AURORA_LIGHT_LNF)" ;;
+            "$DAYLIGHT_LNF")       echo "MoOS Daylight        ($DAYLIGHT_LNF)" ;;
             "")               echo "غير محدّد | unset (default: MoOS UI2)" ;;
             *)                echo "ليس MoOS | not a MoOS theme: $active" ;;
         esac

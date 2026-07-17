@@ -1500,20 +1500,26 @@ require("enabled=false" in light_style,
 
 # ── One engine, one family ───────────────────────────────────────────────────
 #
-# MoOS now ships a FAMILY of looks on the single UI2 engine (Graphite/Tidal + Nova/Amethyst/
-# Midnight/Aurora). The rule is still not self-enforcing: an OLD generation (org.moos.nova,
+# MoOS ships a FAMILY of looks on the single UI2 engine — every family is a matched
+# light+dark PAIR: Graphite/Tidal, Nova/Nova Light, Amethyst/Amethyst Light,
+# Midnight/Daylight, Aurora/Aurora Light. The light siblings' ids are the dark id +
+# ".light". The rule is still not self-enforcing: an OLD generation (org.moos.nova,
 # org.moos.ui) or a foreign look left on disk does not error, it quietly offers the user a
 # second, wrong picker entry. So the family must be EXACTLY these — every one MoOS-branded,
 # nothing foreign, no reintroduced old generation. (verify_identity.py enforces the same set
 # with name/id checks; this gate holds the on-disk package + Konsole-profile count.)
-FAMILY_LNF = ["org.moos.ui2", "org.moos.ui2.amethyst", "org.moos.ui2.aurora",
-              "org.moos.ui2.light", "org.moos.ui2.midnight", "org.moos.ui2.nova"]
+FAMILY_LNF = ["org.moos.ui2", "org.moos.ui2.amethyst", "org.moos.ui2.amethyst.light",
+              "org.moos.ui2.aurora", "org.moos.ui2.aurora.light", "org.moos.ui2.light",
+              "org.moos.ui2.midnight", "org.moos.ui2.midnight.light", "org.moos.ui2.nova",
+              "org.moos.ui2.nova.light"]
 lnf_dirs = sorted(p.name for p in (ROOT / "system_files/usr/share/plasma/look-and-feel").iterdir())
 require(lnf_dirs == FAMILY_LNF,
         f"the MoOS Global Theme family must be exactly {FAMILY_LNF}; found {lnf_dirs}")
 
-FAMILY_PROFILES = ["MoOSUI2.profile", "MoOSUI2Amethyst.profile", "MoOSUI2Aurora.profile",
-                   "MoOSUI2Light.profile", "MoOSUI2Midnight.profile", "MoOSUI2Nova.profile"]
+FAMILY_PROFILES = ["MoOSUI2.profile", "MoOSUI2Amethyst.profile", "MoOSUI2AmethystLight.profile",
+                   "MoOSUI2Aurora.profile", "MoOSUI2AuroraLight.profile", "MoOSUI2Daylight.profile",
+                   "MoOSUI2Light.profile", "MoOSUI2Midnight.profile", "MoOSUI2Nova.profile",
+                   "MoOSUI2NovaLight.profile"]
 konsole_profiles = sorted(
     p.name for p in (ROOT / "system_files/usr/share/konsole").glob("*.profile"))
 require(konsole_profiles == FAMILY_PROFILES,

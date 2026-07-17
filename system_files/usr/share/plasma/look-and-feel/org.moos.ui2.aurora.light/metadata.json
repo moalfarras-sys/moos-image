@@ -1,0 +1,18 @@
+{
+    "KPlugin": {
+        "Id": "org.moos.ui2.aurora.light",
+        "Name": "MoOS Aurora Light",
+        "Description": "نهار نعناعي‑تركوازي منعش | Fresh mineral mint-teal daylight",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Version": "2.0.0",
+        "License": "GPL-3.0-or-later",
+        "Website": "https://github.com/moalfarras-sys/moos-image",
+        "Name[ar]": "MoOS Aurora Light"
+    },
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "X-Plasma-APIVersion": "2"
+}

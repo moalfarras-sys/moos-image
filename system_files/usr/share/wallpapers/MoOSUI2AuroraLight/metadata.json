@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Id": "MoOSUI2AuroraLight",
+        "Name": "MoOS Aurora Light",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "License": "GPL-3.0-or-later"
+    }
+}

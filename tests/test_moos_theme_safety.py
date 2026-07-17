@@ -199,6 +199,56 @@ target_lnf "$1" "$2"
         self.assertIn("moos-theme.lock", switch)
         self.assertIn("moos-theme.lock", APPLY.read_text(encoding="utf-8"))
 
+    def test_every_family_has_a_matched_light_and_dark_sibling(self) -> None:
+        """The owner's rule: every theme is a light+dark pair. Assert each family
+        ships BOTH complete look-and-feel package sets, that the light scheme is
+        genuinely light and the dark scheme genuinely dark (a light theme whose
+        window is dark is the "no light theme" bug), and that moos-theme can drive
+        each light id and toggle any family by the ".light" suffix rule."""
+        share = ROOT / "system_files/usr/share"
+        switch = SWITCH.read_text(encoding="utf-8")
+
+        def window_bg_sum(scheme_style: str) -> int:
+            text = (share / "color-schemes" / f"{scheme_style}.colors").read_text(encoding="utf-8")
+            m = re.search(r"\[Colors:Window\][^\[]*?BackgroundNormal=(\d+),(\d+),(\d+)", text, re.S)
+            self.assertIsNotNone(m, f"{scheme_style}: no [Colors:Window] BackgroundNormal")
+            return sum(int(g) for g in m.groups())
+
+        # base pair + four accent families, each (dark_lnf, dark_style, light_lnf, light_style)
+        families = {
+            "base":     ("org.moos.ui2",          "MoOSUI2Dark",     "org.moos.ui2.light",          "MoOSUI2Light"),
+            "nova":     ("org.moos.ui2.nova",      "MoOSUI2Nova",     "org.moos.ui2.nova.light",     "MoOSUI2NovaLight"),
+            "amethyst": ("org.moos.ui2.amethyst",  "MoOSUI2Amethyst", "org.moos.ui2.amethyst.light", "MoOSUI2AmethystLight"),
+            "aurora":   ("org.moos.ui2.aurora",    "MoOSUI2Aurora",   "org.moos.ui2.aurora.light",   "MoOSUI2AuroraLight"),
+            "midnight": ("org.moos.ui2.midnight",  "MoOSUI2Midnight", "org.moos.ui2.midnight.light", "MoOSUI2Daylight"),
+        }
+        for fam, (dark_lnf, dark_style, light_lnf, light_style) in families.items():
+            for lnf in (dark_lnf, light_lnf):
+                self.assertTrue((share / "plasma/look-and-feel" / lnf / "contents/defaults").is_file(),
+                                f"{fam}: missing look-and-feel package {lnf}")
+            for style in (dark_style, light_style):
+                self.assertTrue((share / "color-schemes" / f"{style}.colors").is_file(),
+                                f"{fam}: missing color scheme {style}")
+            # light must read light, dark must read dark — the actual parity property
+            self.assertGreater(window_bg_sum(light_style), 540,
+                               f"{light_style} is not a LIGHT scheme (window bg too dark)")
+            self.assertLess(window_bg_sum(dark_style), 320,
+                            f"{dark_style} is not a DARK scheme (window bg too light)")
+            # the accent families also ship desktoptheme/aurorae/wallpaper for both halves
+            if fam not in ("base",):
+                for style in (dark_style, light_style):
+                    self.assertTrue((share / "plasma/desktoptheme" / style).is_dir(),
+                                    f"{fam}: missing desktoptheme {style}")
+                    self.assertTrue((share / "aurorae/themes" / style).is_dir(),
+                                    f"{fam}: missing aurorae {style}")
+                    self.assertTrue((share / "wallpapers" / style / "contents/screenshot.png").is_file(),
+                                    f"{fam}: missing wallpaper {style}")
+            # moos-theme must be able to apply the light id (a load_profile arm)
+            self.assertIn(light_lnf, switch, f"moos-theme cannot drive {light_lnf}")
+        # toggle flips ANY family by the ".light" suffix rule, in both directions
+        self.assertIn('target="${cur%.light}"', switch)
+        self.assertIn('target="${cur}.light"', switch)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

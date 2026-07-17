@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=MoOS Amethyst Light
+Comment=غسق أرجواني فاتح بلمسة كهرمان | Light orchid dusk with an amber wash
+X-KDE-PluginInfo-Author=Moalfarras
+X-KDE-PluginInfo-Name=MoOSUI2AmethystLight
+X-KDE-PluginInfo-Version=2.0
+X-KDE-PluginInfo-License=GPL-3.0-or-later
+X-KDE-ServiceTypes=KWin/Decoration
+Type=Service

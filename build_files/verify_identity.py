@@ -185,13 +185,19 @@ def main() -> None:
     # gated for absence in verify_image_experience.py. This gate keeps the picker all-MoOS: it
     # must contain EXACTLY the known family, every member id-correct and named "MoOS …", so a
     # foreign look or a reintroduced old generation fails the build rather than reaching the user.
+    # Every family is a matched light+dark PAIR; the light sibling's id is the
+    # dark id + ".light" and its name is "… Light" (midnight's light is "Daylight").
     ALLOWED_LOOKS = {
         "org.moos.ui2": "MoOS",
         "org.moos.ui2.light": "MoOS Light",
         "org.moos.ui2.nova": "MoOS Nova",
+        "org.moos.ui2.nova.light": "MoOS Nova Light",
         "org.moos.ui2.amethyst": "MoOS Amethyst",
+        "org.moos.ui2.amethyst.light": "MoOS Amethyst Light",
         "org.moos.ui2.midnight": "MoOS Midnight",
+        "org.moos.ui2.midnight.light": "MoOS Daylight",
         "org.moos.ui2.aurora": "MoOS Aurora",
+        "org.moos.ui2.aurora.light": "MoOS Aurora Light",
     }
     lnf_root = ROOT / "usr/share/plasma/look-and-feel"
     moos_looks = sorted(p.name for p in lnf_root.glob("org.moos.*"))

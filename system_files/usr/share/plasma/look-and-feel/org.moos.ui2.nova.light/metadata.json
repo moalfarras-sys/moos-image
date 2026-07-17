@@ -1,0 +1,18 @@
+{
+    "KPlugin": {
+        "Id": "org.moos.ui2.nova.light",
+        "Name": "MoOS Nova Light",
+        "Description": "نهار كوني: أزرق سماوي فاتح بشفق بنفسجي | Airy cosmic day, cyan-violet silk",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Version": "2.0.0",
+        "License": "GPL-3.0-or-later",
+        "Website": "https://github.com/moalfarras-sys/moos-image",
+        "Name[ar]": "MoOS Nova Light"
+    },
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "X-Plasma-APIVersion": "2"
+}

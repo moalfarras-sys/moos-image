@@ -39,26 +39,95 @@ BASE = gen.variant_roles("dark")
 _PALJSON = json.loads((ART / "moos-themes/palettes.json").read_text(encoding="utf-8"))
 _EXTRAS = _PALJSON["_extras"]
 
-def _roles(key: str) -> dict[str, str]:
-    """Full role map for a family palette (skips the _identity annotation)."""
-    base = {k: v for k, v in _PALJSON[key].items() if not k.startswith("_")}
-    return base | _EXTRAS[key]
+# The five EXTRAS roles (deep semantic tints + the ink drawn ON an accent).
+EXTRA_KEYS = ("positive_deep", "negative_deep", "warning_deep", "secondary_deep", "selected_text")
 
-# key -> display/id/style/wallpaper metadata for each family member
+# The proven Tidal LIGHT role set — high contrast, dark ink on a mineral canvas.
+# Every family's light sibling is derived FROM this so it inherits the same
+# contrast structure the shipping light theme already passes its gates with.
+LIGHT_BASE = gen.variant_roles("light")
+
+# Per-family light identity: the accent trio (dark enough to read on a light
+# canvas) plus the pale hue the neutral surfaces are washed toward. midnight's
+# light sibling is "Daylight" — a bright sky, the true-black theme's opposite.
+LIGHT_ACCENTS = {
+    "nova":     dict(primary="#0E63C4", secondary="#5B4BD6", luminous="#1A76D8", tint="#2E6FD0"),
+    "amethyst": dict(primary="#7C3AED", secondary="#B45309", luminous="#8B3FD4", tint="#8B5CF6"),
+    "aurora":   dict(primary="#0F766E", secondary="#0369A1", luminous="#0D8577", tint="#0EA5A0"),
+    "midnight": dict(primary="#0284C7", secondary="#4F46E5", luminous="#0891B2", tint="#2563EB"),
+}
+
+
+def _hex(t: tuple[int, int, int]) -> str:
+    return "#%02X%02X%02X" % t
+
+
+def _mix_hex(a: str, b: str, t: float) -> str:
+    return _hex(_lerp(_rgbtuple(a), _rgbtuple(b), t))
+
+
+def light_roles(base_key: str) -> dict[str, str]:
+    """Derive a family's LIGHT palette: the Tidal light neutrals washed toward the
+    family hue, carrying the family's own accent trio. Keeps the base light dark
+    ink (text/muted/outline/shadow) so contrast stays at the shipping light
+    theme's level."""
+    acc = LIGHT_ACCENTS[base_key]
+    wash = _mix_hex(acc["tint"], "#FFFFFF", 0.72)   # a pale breath of the family hue
+    roles = dict(LIGHT_BASE)
+    for r in ("canvas", "surface", "card", "raised", "panel_top", "panel_mid", "panel_bottom"):
+        roles[r] = _mix_hex(LIGHT_BASE[r], wash, 0.55)
+    roles["primary"] = acc["primary"]
+    roles["secondary"] = acc["secondary"]
+    roles["luminous"] = acc["luminous"]
+    for r in ("positive_deep", "negative_deep", "warning_deep", "secondary_deep"):
+        roles[r] = _mix_hex(LIGHT_BASE[r], wash, 0.25)
+    roles["selected_text"] = "#FFFFFF"              # white ink on the saturated accent highlight
+    return roles
+
+
+# key -> display/id/style/wallpaper metadata. Each family ships a DARK identity
+# and a matching LIGHT sibling; moos-theme toggles between them by appending
+# ".light" to the look-and-feel id.
 THEMES = {
     "nova":     dict(name="MoOS Nova",     style="MoOSUI2Nova",     lnf="org.moos.ui2.nova",
-                     wall="MoOSUI2Nova",     mood="cosmic",
+                     wall="MoOSUI2Nova",     mood="cosmic", light=False, base="nova",
                      desc="سديم كحلي بتوهّج سماوي‑بنفسجي | Cosmic navy with a cyan-violet aurora"),
     "amethyst": dict(name="MoOS Amethyst", style="MoOSUI2Amethyst", lnf="org.moos.ui2.amethyst",
-                     wall="MoOSUI2Amethyst", mood="calm",
+                     wall="MoOSUI2Amethyst", mood="calm", light=False, base="amethyst",
                      desc="باذنجاني دافئ بلمسة أوركيد وكهرمان | Warm aubergine with orchid and amber"),
     "midnight": dict(name="MoOS Midnight", style="MoOSUI2Midnight", lnf="org.moos.ui2.midnight",
-                     wall="MoOSUI2Midnight", mood="minimal",
+                     wall="MoOSUI2Midnight", mood="minimal", light=False, base="midnight",
                      desc="أسود حقيقي عالي التباين لشاشات OLED | True-black high-contrast for OLED"),
     "aurora":   dict(name="MoOS Aurora",   style="MoOSUI2Aurora",   lnf="org.moos.ui2.aurora",
-                     wall="MoOSUI2Aurora",   mood="cosmic",
+                     wall="MoOSUI2Aurora",   mood="cosmic", light=False, base="aurora",
                      desc="سليت نظيف بشفق تركوازي‑أزرق حديث | Clean slate with a modern teal-blue aurora"),
+    "nova-light":     dict(name="MoOS Nova Light",     style="MoOSUI2NovaLight",
+                           lnf="org.moos.ui2.nova.light",     wall="MoOSUI2NovaLight",
+                           mood="cosmic", light=True, base="nova",
+                           desc="نهار كوني: أزرق سماوي فاتح بشفق بنفسجي | Airy cosmic day, cyan-violet silk"),
+    "amethyst-light": dict(name="MoOS Amethyst Light", style="MoOSUI2AmethystLight",
+                           lnf="org.moos.ui2.amethyst.light", wall="MoOSUI2AmethystLight",
+                           mood="calm", light=True, base="amethyst",
+                           desc="غسق أرجواني فاتح بلمسة كهرمان | Light orchid dusk with an amber wash"),
+    "aurora-light":   dict(name="MoOS Aurora Light",   style="MoOSUI2AuroraLight",
+                           lnf="org.moos.ui2.aurora.light",   wall="MoOSUI2AuroraLight",
+                           mood="cosmic", light=True, base="aurora",
+                           desc="نهار نعناعي‑تركوازي منعش | Fresh mineral mint-teal daylight"),
+    "daylight":       dict(name="MoOS Daylight",       style="MoOSUI2Daylight",
+                           lnf="org.moos.ui2.midnight.light", wall="MoOSUI2Daylight",
+                           mood="cosmic", light=True, base="midnight",
+                           desc="نهار صافٍ عالي التباين، نقيض Midnight | Clean high-contrast day, Midnight's opposite"),
 }
+
+
+def _roles(key: str) -> dict[str, str]:
+    """Full role map for a theme member. Light members are derived from the Tidal
+    light base; dark members come from palettes.json."""
+    meta = THEMES.get(key)
+    if meta and meta.get("light"):
+        return light_roles(meta["base"])
+    base = {k: v for k, v in _PALJSON[key].items() if not k.startswith("_")}
+    return base | _EXTRAS[key]
 
 SRC_STYLE = SHARE / "plasma/desktoptheme/MoOSUI2"
 SRC_AUR   = SHARE / "aurorae/themes/MoOSUI2"
@@ -100,18 +169,31 @@ def write(path: pathlib.Path, content: str) -> None:
 
 
 # ---------------------------------------------------------------- colour files
+def _register_palette(key: str) -> None:
+    """Feed this member's resolved roles into the shared UI2 colour math, split
+    into the core palette and the five EXTRAS roles it expects separately. Works
+    for both dark (palettes.json) and light (derived) members."""
+    roles = _roles(key)
+    gen.PALETTES[key] = {k: v for k, v in roles.items() if k not in EXTRA_KEYS}
+    gen.EXTRAS[key] = {k: roles[k] for k in EXTRA_KEYS}
+
+
 def color_scheme_for(key: str, meta: dict) -> str:
-    gen.PALETTES[key] = {k: v for k, v in _PALJSON[key].items() if not k.startswith("_")}
-    gen.EXTRAS[key] = _EXTRAS[key]
+    _register_palette(key)
+    # color_scheme() names light members "MoOS UI2 Light"/"MoOSUI2Light" and dark
+    # ones "…Dark"; rename either to this member's own style/display name.
     text = gen.color_scheme(key)
-    return (text.replace("MoOSUI2Dark", meta["style"])
-                .replace("MoOS UI2 Dark", meta["name"]))
+    for scheme in ("MoOSUI2Dark", "MoOSUI2Light"):
+        text = text.replace(scheme, meta["style"])
+    for name in ("MoOS UI2 Dark", "MoOS UI2 Light"):
+        text = text.replace(name, meta["name"])
+    return text
 
 
 def konsole_scheme_for(key: str, meta: dict) -> str:
-    gen.PALETTES[key] = {k: v for k, v in _PALJSON[key].items() if not k.startswith("_")}
-    gen.EXTRAS[key] = _EXTRAS[key]
-    return gen.konsole_scheme(key).replace("MoOS UI2 Dark", meta["name"])
+    _register_palette(key)
+    text = gen.konsole_scheme(key, light=meta.get("light", False))
+    return text.replace("MoOS UI2 Dark", meta["name"]).replace("MoOS UI2 Light", meta["name"])
 
 
 def konsole_profile_for(key: str, meta: dict) -> str:
@@ -180,10 +262,10 @@ def build_desktoptheme(key: str, meta: dict) -> None:
         }, "X-Plasma-API": "5.0",
     }, ensure_ascii=False, indent=4))
     write(dst / "plasmarc", f"""# Generated by artwork/generate_moos_themes.py — {meta['name']}.
-# A complete fixed-colour SVG suite; falls back only to Breeze Dark for any
+# A complete fixed-colour SVG suite; falls back only to Breeze for any
 # upstream path this family does not draw.
 [Settings]
-FallbackTheme=breeze-dark
+FallbackTheme={'breeze-light' if meta.get('light') else 'breeze-dark'}
 
 [Wallpaper]
 defaultWallpaperTheme={meta['wall']}
@@ -290,7 +372,12 @@ def build_lnf(key: str, meta: dict) -> None:
         },
         "KPackageStructure": "Plasma/LookAndFeel", "X-Plasma-APIVersion": "2",
     }, ensure_ascii=False, indent=4))
-    # contents/defaults — the cascade the switcher also writes live
+    # contents/defaults — the cascade the switcher also writes live. Light
+    # siblings carry the light icon theme and the dark-on-light pointer, exactly
+    # as the base MoOS Light theme does.
+    light = meta.get("light", False)
+    icons = "MoOSUI2Light" if light else "MoOSUI2"
+    cursor = "MoOSDark" if light else "MoOS"
     write(dst / "contents/defaults", f"""# {meta['name']} matched Global Theme defaults. Generated file.
 [kdeglobals][General]
 ColorScheme={meta['style']}
@@ -303,7 +390,7 @@ Theme={meta['lnf']}
 Engine=KSplashQML
 
 [kdeglobals][Icons]
-Theme=MoOSUI2
+Theme={icons}
 
 [kdeglobals][Sounds]
 Enable=true
@@ -321,7 +408,7 @@ BlurStrength=8
 NoiseStrength=2
 
 [kcminputrc][Mouse]
-cursorTheme=MoOS
+cursorTheme={cursor}
 """)
     write(dst / "README.md", f"# {meta['name']}\n\nGenerated by artwork/generate_moos_themes.py — a MoOS UI2-family look.\n")
 
@@ -606,6 +693,99 @@ def make_wallpaper(key: str, mood: str = "cosmic"):
     return img
 
 
+def make_wallpaper_light(base_key: str):
+    """A LIGHT-canvas silk backdrop for a family's light sibling. The dark master
+    is deep glass lit from within; the light master is the opposite discipline —
+    an airy near-white sky with the family's accent silk washed across it, lit by
+    soft accent glows, no starfield. Alpha/screen-composited so the bands read as
+    tinted silk on daylight, not emitted light on a void. Reviewed at render
+    before adoption; deterministic pure-PIL. Returns None if PIL is missing."""
+    try:
+        from PIL import Image, ImageChops, ImageDraw, ImageFilter
+    except Exception:
+        return None
+    dp = _roles(base_key)                      # the family's vivid dark accents
+    tint = LIGHT_ACCENTS[base_key]["tint"]
+    pri_hex, sec_hex, lum_hex = dp["primary"], dp["secondary"], dp["luminous"]
+    primary, secondary, luminous = _rgbtuple(pri_hex), _rgbtuple(sec_hex), _rgbtuple(lum_hex)
+    W, H = 3840, 2160
+    rng = random.Random(sum(ord(c) for c in base_key) * 7 + 101)
+
+    top    = _rgbtuple(_mix_hex("#FFFFFF", tint, 0.05))
+    canvas = _rgbtuple(_mix_hex("#EEF3FA", tint, 0.10))
+    low    = _rgbtuple(_mix_hex("#DDE7F2", tint, 0.16))
+    edge   = _rgbtuple(_mix_hex("#CBD8E6", tint, 0.14))
+
+    col = Image.new("RGB", (1, H)); px = col.load()
+    for y in range(H):
+        t = y / (H - 1)
+        px[0, y] = _lerp(top, canvas, t / 0.5) if t < 0.5 else _lerp(canvas, low, (t - 0.5) / 0.5)
+    img = col.resize((W, H))
+
+    def soft_glow(cx, cy, r, color, strength):
+        nonlocal img
+        layer = Image.new("RGB", (W, H), (0, 0, 0))
+        ImageDraw.Draw(layer).ellipse([cx - r, cy - r, cx + r, cy + r],
+            fill=tuple(int(c * strength) for c in color))
+        img = ImageChops.screen(img, layer.filter(ImageFilter.GaussianBlur(r // 2)))
+
+    ph = rng.uniform(0, math.pi * 2)
+    def curve(y0, amp, tilt, f1, f2, phase):
+        return [(x, y0 + tilt * (x / W - 0.5) * H
+                    + amp * math.sin(x / W * math.pi * 2 * f1 + phase)
+                    + amp * 0.42 * math.sin(x / W * math.pi * 2 * f2 + phase * 2.17))
+                for x in range(-80, W + 81, 12)]
+
+    def ribbon(top_pts, glass_a, glass_b, crest, *, thick0, thick1, sag=0.3,
+               crest_light=0.5, alpha=210):
+        nonlocal img
+        n = len(top_pts); bot = []
+        for i, (x, y) in enumerate(top_pts):
+            t = i / (n - 1); th = thick0 + (thick1 - thick0) * t
+            bot.append((x, y + th + math.sin(t * math.pi) * th * sag))
+        mask = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(mask).polygon(top_pts + bot[::-1], fill=alpha)
+        row = Image.new("RGB", (W, 1)); rp = row.load()
+        for x in range(W):
+            rp[x, 0] = _lerp(glass_a, glass_b, x / (W - 1))
+        grad = row.resize((W, H)).convert("RGBA"); grad.putalpha(mask)
+        img = Image.alpha_composite(img.convert("RGBA"), grad).convert("RGB")
+        lit = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(lit).line(top_pts, fill=255, width=int(H * 0.10), joint="curve")
+        lit = ImageChops.multiply(lit.filter(ImageFilter.GaussianBlur(int(H * 0.05))), mask)
+        sheen = Image.new("RGB", (W, H), tuple(crest))
+        img = ImageChops.screen(img, Image.composite(sheen, Image.new("RGB", (W, H), (0, 0, 0)),
+                                                      lit.point(lambda v: int(v * crest_light))))
+        shl = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(shl).line(bot, fill=120, width=int(H * 0.045), joint="curve")
+        shl = ImageChops.multiply(shl.filter(ImageFilter.GaussianBlur(int(H * 0.02))), mask)
+        img = Image.composite(Image.new("RGB", (W, H), edge), img, shl.point(lambda v: int(v * 0.5)))
+        hair = Image.new("RGB", (W, H), (0, 0, 0))
+        ImageDraw.Draw(hair).line(top_pts, fill=tuple(int(c * 0.9) for c in crest), width=4, joint="curve")
+        img = ImageChops.screen(img, hair.filter(ImageFilter.GaussianBlur(3)))
+
+    soft_glow(int(W * 0.22), int(H * 0.16), int(W * 0.34), primary, 0.22)
+    soft_glow(int(W * 0.86), int(H * 0.82), int(W * 0.30), secondary, 0.17)
+    ribbon(curve(H * 0.44, H * 0.07, 0.18, 0.7, 1.9, ph),
+           _rgbtuple(_mix_hex(pri_hex, "#FFFFFF", 0.68)), _rgbtuple(_mix_hex(sec_hex, "#FFFFFF", 0.72)),
+           luminous, thick0=H * 0.22, thick1=H * 0.34, crest_light=0.40, alpha=178)
+    ribbon(curve(H * 0.60, H * 0.065, 0.12, 0.9, 2.4, ph + 1.2),
+           _rgbtuple(_mix_hex(pri_hex, "#FFFFFF", 0.58)), _rgbtuple(_mix_hex(sec_hex, "#FFFFFF", 0.62)),
+           primary, thick0=H * 0.26, thick1=H * 0.40, crest_light=0.52, alpha=205)
+    ribbon(curve(H * 0.78, H * 0.055, 0.04, 1.1, 2.8, ph + 2.4),
+           _rgbtuple(_mix_hex(sec_hex, "#FFFFFF", 0.56)), _rgbtuple(_mix_hex(pri_hex, "#FFFFFF", 0.60)),
+           secondary, thick0=H * 0.30, thick1=H * 0.44, crest_light=0.50, alpha=222)
+    soft_glow(int(W * 0.34), int(H * 0.55), int(W * 0.15), luminous, 0.20)
+
+    vig = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(vig).ellipse([-W * 0.28, -H * 0.28, W * 1.28, H * 1.28], fill=255)
+    vig = vig.filter(ImageFilter.GaussianBlur(int(H * 0.30)))
+    img = Image.composite(img, Image.new("RGB", (W, H), edge), vig)
+    noise = Image.effect_noise((W, H), 10).convert("L").point(lambda v: (v - 128) // 7 + 128)
+    img = ImageChops.overlay(img, Image.merge("RGB", (noise, noise, noise)))
+    return img
+
+
 def build_gtk(key: str, meta: dict) -> None:
     """Per-theme libadwaita palette — the UI2 dark GTK-4 CSS recoloured to this
     theme, so Flatpak/GTK-4 apps carry the theme's accent, not UI2's teal."""
@@ -618,7 +798,8 @@ def build_gtk(key: str, meta: dict) -> None:
 
 
 def build_wallpaper(key: str, meta: dict) -> bool:
-    img = make_wallpaper(key, meta.get("mood", "cosmic"))
+    img = (make_wallpaper_light(meta["base"]) if meta.get("light")
+           else make_wallpaper(key, meta.get("mood", "cosmic")))
     if img is None:
         return False
     pkg = SHARE / "wallpapers" / meta["wall"]

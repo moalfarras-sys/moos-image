@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Id": "MoOSUI2Daylight",
+        "Name": "MoOS Daylight",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "License": "GPL-3.0-or-later"
+    }
+}

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=MoOS Nova Light
+Comment=نهار كوني: أزرق سماوي فاتح بشفق بنفسجي | Airy cosmic day, cyan-violet silk
+X-KDE-PluginInfo-Author=Moalfarras
+X-KDE-PluginInfo-Name=MoOSUI2NovaLight
+X-KDE-PluginInfo-Version=2.0
+X-KDE-PluginInfo-License=GPL-3.0-or-later
+X-KDE-ServiceTypes=KWin/Decoration
+Type=Service

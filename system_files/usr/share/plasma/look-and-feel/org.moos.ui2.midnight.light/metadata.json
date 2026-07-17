@@ -1,0 +1,18 @@
+{
+    "KPlugin": {
+        "Id": "org.moos.ui2.midnight.light",
+        "Name": "MoOS Daylight",
+        "Description": "نهار صافٍ عالي التباين، نقيض Midnight | Clean high-contrast day, Midnight's opposite",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Version": "2.0.0",
+        "License": "GPL-3.0-or-later",
+        "Website": "https://github.com/moalfarras-sys/moos-image",
+        "Name[ar]": "MoOS Daylight"
+    },
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "X-Plasma-APIVersion": "2"
+}

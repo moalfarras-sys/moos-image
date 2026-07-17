@@ -1,0 +1,18 @@
+{
+    "KPlugin": {
+        "Id": "org.moos.ui2.amethyst.light",
+        "Name": "MoOS Amethyst Light",
+        "Description": "غسق أرجواني فاتح بلمسة كهرمان | Light orchid dusk with an amber wash",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Version": "2.0.0",
+        "License": "GPL-3.0-or-later",
+        "Website": "https://github.com/moalfarras-sys/moos-image",
+        "Name[ar]": "MoOS Amethyst Light"
+    },
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "X-Plasma-APIVersion": "2"
+}

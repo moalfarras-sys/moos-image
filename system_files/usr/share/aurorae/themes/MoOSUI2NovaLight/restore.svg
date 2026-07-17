@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18">
+<g id="active-center"><circle cx="9.0" cy="9.0" r="6.5" fill="#086B4B" fill-opacity="1.0"/></g>
+<g id="hover-center"><circle cx="9.0" cy="9.0" r="6.5" fill="#086B4B" fill-opacity="1.0"/><rect x="5.3" y="8.3" width="7.4" height="1.4" fill="#BAD8D3"/></g>
+<g id="pressed-center"><circle cx="9.0" cy="9.0" r="6.5" fill="#086B4B" fill-opacity="0.72"/><rect x="5.3" y="8.3" width="7.4" height="1.4" fill="#BAD8D3"/></g>
+<g id="inactive-center"><circle cx="9.0" cy="9.0" r="6.5" fill="#527F79" fill-opacity="1.0"/></g>
+<g id="hover-inactive-center"><circle cx="9.0" cy="9.0" r="6.5" fill="#086B4B" fill-opacity="1.0"/><rect x="5.3" y="8.3" width="7.4" height="1.4" fill="#BAD8D3"/></g>
+</svg>

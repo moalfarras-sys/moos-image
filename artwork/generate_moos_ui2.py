@@ -346,9 +346,13 @@ inactiveForeground={rgb(p['muted'])}
 """
 
 
-def konsole_scheme(variant: str) -> str:
+def konsole_scheme(variant: str, light: bool | None = None) -> str:
     p = variant_roles(variant)
-    light = variant == "light"
+    # Family light siblings register under keys like "nova-light", so the name
+    # test alone would mis-detect them as dark and swap ANSI 0/7. Callers pass
+    # light explicitly; the default preserves the base Graphite/Tidal behaviour.
+    if light is None:
+        light = variant == "light"
     name = "MoOS UI2 Light" if light else "MoOS UI2 Dark"
     background = p["card"] if light else p["canvas"]
     base0 = p["text"] if light else p["raised"]
