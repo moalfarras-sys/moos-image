@@ -1152,6 +1152,42 @@ require("modelData.note" in _moai_qml and "modelData.size_gb" in _moai_qml,
         "Mo AI's picker must render the starters' note and size_gb — a catalog "
         "the UI never shows is not a catalog")
 
+# ── "one-tap download" must BE one tap ───────────────────────────────────────
+#
+# The picker labelled every un-pulled starter "تحميل بضغطة | one-tap download"
+# from the day the catalog shipped, and the tap only set the route: the first
+# chat then came back from moai-gateway with "Pull it first: ramalama pull <x>".
+# A terminal instruction, on the desktop whose entire promise is that there is no
+# terminal — the label was true about the intent and false about the machine.
+# Gate the whole chain, because any one link failing restores the dead end:
+#   1. the label's endpoint exists in moai-control and is allowlisted;
+#   2. the tap routes through pickOrPull, not pickRoute;
+#   3. the pull carries the ollama:// transport.
+# (3) is not style. MEASURED 2026-07-17: a bare `ramalama pull qwen3:8b` resolves
+# to hf://Qwen/Qwen3-8B-GGUF, which short_model() renders "Qwen/Qwen3-8B-GGUF" —
+# matching no id in the catalog — so the gateway reports a fully downloaded brain
+# as missing, forever, with no way out from the UI.
+require('self.path.startswith("/pull")' in code(control)
+        and "def start_pull" in code(control),
+        "moai-control must serve /pull — Mo AI's picker promises a one-tap "
+        "download and needs a machine behind the label")
+_start_pull = re.search(r"def start_pull\(.*?\n(?=\n\S|\Z)", code(control), re.S)
+require(_start_pull is not None
+        and "RECOMMENDED_LOCAL" in _start_pull.group(0)
+        and "unknown model" in _start_pull.group(0),
+        "start_pull must accept ONLY ids from RECOMMENDED_LOCAL — an arbitrary "
+        "model string from the UI is an arbitrary registry fetch")
+require(re.search(r'"ramalama",\s*"pull",\s*"ollama://"\s*\+', code(control)) is not None,
+        "the starter pull must prefix ollama:// — a bare tag resolves to a "
+        "HuggingFace name that short_model() can never match back to the "
+        "catalog, so the brain downloads and still reports as missing")
+require("pickOrPull" in _moai_qml,
+        "the picker's tap must go through pickOrPull — pickRoute alone only sets "
+        "a route to a brain this machine does not have")
+require(re.search(r"onClicked:\s*root\.pickRoute\(locRow", _moai_qml) is None,
+        "the local starter row must not tap straight to pickRoute — that is the "
+        "dead end that sent users to a terminal")
+
 # ── One door, two brains, chosen per request ────────────────────────────────
 #
 # Mo AI's local brain and its cloud proxy both used to listen on 8080. Only one of

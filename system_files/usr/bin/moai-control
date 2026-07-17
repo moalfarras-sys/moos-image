@@ -530,14 +530,130 @@ _models_cache = {"data": None, "ts": 0.0, "sig": None}
 # Selection rule: light enough for any MoOS machine (smallest runs CPU-only),
 # smart enough to drive moai-do, and EVERY entry handles Arabic AND English —
 # the bilingual UI is pointless behind a monolingual brain.
+#
+# EVERY entry below was MEASURED on this hardware through the real gateway, in
+# Arabic, on a real repair question ("جهاز لينكس صار بطيء — أعطني أوامر فحص") —
+# not chosen from a leaderboard (2026-07-17):
+#   qwen3:1.7b        answered in Arabic with three real commands. Terse: it drops
+#                     the "explain each" half of the ask. Right for a weak machine.
+#   qwen3:4b-instruct answered Arabic cleanly; drives moai-do. Stays the default.
+#   qwen3:8b          the best Arabic of everything tried — correct commands AND
+#                     correct explanations. Wants a real GPU; the size says so.
+# REJECTED, and why (so nobody re-adds them on a hunch):
+#   qwen2.5-coder:7b  excellent code (clean one-liners), but its ARABIC is broken:
+#                     it emitted "الملفات الممكدة" (not a phrase) and invented an
+#                     `lsof -m` flag that does not exist. A coder brain that cannot
+#                     hold a sentence in Arabic fails MoOS's bilingual contract.
+#   gemma3:4b         shipped 2026-07-17 on the strength of a "broadest knowledge
+#                     and languages" claim NOBODY had tested. Replaced by qwen3:8b,
+#                     which was tested. "Ran here and survived" is the bar.
+#
+# `id` is the comparison key (it matches short_model() of what RamaLama lists) and
+# pull_model() prefixes the ollama:// transport. Do NOT drop that prefix: a BARE
+# `ramalama pull qwen3:8b` resolves to hf://Qwen/Qwen3-8B-GGUF — MEASURED — which
+# short_model() renders "Qwen/Qwen3-8B-GGUF", matching no id here, so the gateway
+# would report a downloaded brain as missing forever.
 RECOMMENDED_LOCAL = [
     {"id": "qwen3:1.7b", "size_gb": 1.4,
      "note": "الأخف — يعمل على أي جهاز حتى بلا كرت شاشة | lightest — runs anywhere, even CPU-only"},
     {"id": "qwen3:4b-instruct", "size_gb": 2.5,
      "note": "التوازن الموصى به — ذكي وسريع | the recommended balance — smart and quick"},
-    {"id": "gemma3:4b", "size_gb": 3.3,
-     "note": "أوسع معرفة ولغات | broadest knowledge and languages"},
+    {"id": "qwen3:8b", "size_gb": 4.9,
+     "note": "الأقوى للعربية والكود والصيانة — يحتاج كرت شاشة | strongest Arabic, code and repair — wants a GPU"},
 ]
+
+# ── The one-tap download the picker promises ─────────────────────────────────
+#
+# The picker has said "تحميل بضغطة | one-tap download" under every un-pulled
+# starter since the catalog shipped, and the tap did NOT download: a chat routed
+# to a missing brain came back from moai-gateway with "Pull it first: ramalama
+# pull <x>" — a terminal instruction, on the one desktop whose whole promise is
+# that you never need the terminal. The label was true about the intent and false
+# about the machine. This is that missing half.
+#
+# Deliberately NOT in moai-gateway: it is right that a CHAT MESSAGE never starts
+# a multi-gigabyte download (its refusal stays). A download is an explicit act the
+# user asks for and watches — so it lives here, on the control API the picker
+# already speaks, with progress the picker can draw.
+#
+# ALLOWLIST, not a passthrough: only an id in RECOMMENDED_LOCAL can be pulled.
+# The id reaches the shell as one argv element and is never interpolated, but the
+# allowlist is what makes that safe by construction rather than by escaping —
+# the same contract moai-do holds for its 17 actions.
+STORE = os.path.expanduser("~/.local/share/ramalama/store")
+
+_pull_lock = threading.Lock()
+_pull = {"model": "", "state": "idle", "percent": 0, "error": ""}
+
+
+def store_bytes():
+    """Bytes RamaLama's store holds right now.
+
+    Progress comes from measuring this, NOT from parsing `ramalama pull` output:
+    with stdout on a pipe rather than a TTY, that output carries no percentage at
+    all (verified — the captured log has "Downloading qwen3" and nothing more).
+    Blobs are shared per model FAMILY (every qwen3 variant lands under one
+    directory), so a per-model size is not attributable; the whole-store delta
+    during a serialised pull is. It costs ~1 ms on Btrfs.
+    """
+    total = 0
+    for root, _dirs, files in os.walk(STORE):
+        for name in files:
+            try:
+                total += os.lstat(os.path.join(root, name)).st_size
+            except OSError:
+                pass
+    return total
+
+
+def pull_worker(model_id, size_gb):
+    start = store_bytes()
+    expected = max(int(size_gb * 1e9), 1)
+    try:
+        proc = subprocess.Popen(
+            ["ramalama", "pull", "ollama://" + model_id],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    except Exception as exc:
+        with _pull_lock:
+            _pull.update(state="error", error=str(exc))
+        return
+    while proc.poll() is None:
+        grown = max(store_bytes() - start, 0)
+        with _pull_lock:
+            # Never show 100% while the process still runs: the last bytes are
+            # verification and linking, and a bar that sits full while nothing
+            # visibly happens reads as a hang.
+            _pull["percent"] = min(int(grown * 100 / expected), 99)
+        time.sleep(2.0)
+    out = (proc.stdout.read() or "") if proc.stdout else ""
+    with _pull_lock:
+        if proc.returncode == 0:
+            _pull.update(state="done", percent=100, error="")
+        else:
+            # Say what actually failed. The last non-empty line is RamaLama's own
+            # message (no disk, no network, bad tag) and beats a generic string.
+            tail = [ln for ln in out.replace("\r", "\n").splitlines() if ln.strip()]
+            _pull.update(state="error",
+                         error=tail[-1].strip() if tail else "pull failed")
+    with _models_lock:                     # the picker must see it as pulled now
+        _models_cache["data"] = None
+
+
+def start_pull(model_id):
+    """Begin a download. Returns the state dict the picker polls."""
+    known = {r["id"]: r for r in RECOMMENDED_LOCAL}
+    if model_id not in known:
+        return {"state": "error", "error": "unknown model", "percent": 0,
+                "model": ""}
+    with _pull_lock:
+        if _pull["state"] == "running":
+            return dict(_pull)             # already downloading — report, do not queue
+        _pull.update(model=model_id, state="running", percent=0, error="")
+        state = dict(_pull)
+    threading.Thread(target=pull_worker,
+                     args=(model_id, known[model_id]["size_gb"]),
+                     daemon=True).start()
+    return state
 
 
 def local_models():
@@ -971,6 +1087,10 @@ class H(BaseHTTPRequestHandler):
             self._send(200, quick())
         elif route.startswith("/models"):
             self._send(200, models())
+        elif route.startswith("/pull"):
+            # Polled by the picker while a starter downloads.
+            with _pull_lock:
+                self._send(200, dict(_pull))
         elif route.startswith("/scan"):
             self._send(200, scan())
         elif route.startswith("/search"):
@@ -1001,6 +1121,11 @@ class H(BaseHTTPRequestHandler):
                 data.get("cloud_model", ""),
                 data.get("cloud_wire", "openai"),
                 data.get("cloud_key") or get_secret()))
+
+        # /pull — download a curated starter brain. The picker's "one-tap
+        # download" label finally has a machine behind it.
+        if self.path.startswith("/pull"):
+            return self._send(200, start_pull((data.get("model") or "").strip()))
 
         if not self.path.startswith("/config"):
             return self._send(404, {"error": "not found"})

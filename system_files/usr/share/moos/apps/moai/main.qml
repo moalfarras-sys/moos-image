@@ -92,6 +92,13 @@ Kirigami.ApplicationWindow {
     property bool modelsLoading: false
     property bool pickerOpen: false
 
+    // The download the picker offers. `pullModel` is the starter being fetched
+    // right now (""=none), so its own row can draw the bar instead of the whole
+    // list pretending to download.
+    property string pullModel: ""
+    property int pullPercent: 0
+    property string pullError: ""
+
     readonly property bool routeIsCloud: root.route.indexOf("cloud") === 0
     readonly property bool routeIsLocal: root.route.indexOf("local") === 0
     // The part after the FIRST colon — a model id may contain colons of its own
@@ -877,6 +884,78 @@ Kirigami.ApplicationWindow {
         root.route = id
         root.pickerOpen = false
         root.flashMood("attentive")
+    }
+
+    // ── Tapping a starter that is not on this machine yet ────────────────────
+    //
+    // The row has always said "one-tap download". Until now the tap only set the
+    // route, and the first chat came back from the gateway with "Pull it first:
+    // ramalama pull <x>" — a terminal instruction on the desktop whose promise is
+    // that there is no terminal. The tap now downloads, shows the bar, and picks
+    // the brain when it lands. The picker STAYS OPEN while it downloads: closing
+    // it over a running download is how you get a user who thinks nothing
+    // happened and taps a second brain.
+    function pickOrPull(entry) {
+        if (entry.pulled) {
+            root.pickRoute(entry.id)
+            return
+        }
+        if (root.pullModel !== "")     // one at a time; the backend serialises too
+            return
+        const bare = entry.id.indexOf("local:") === 0 ? entry.id.substring(6) : entry.id
+        root.pullError = ""
+        root.pullPercent = 0
+        root.pullModel = bare
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", controlApi + "/pull")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            let res = {}
+            try { res = JSON.parse(xhr.responseText) } catch (e) { res = {} }
+            if (xhr.status !== 200 || res.state === "error") {
+                root.pullError = res.error || "تعذّر بدء التنزيل | could not start the download"
+                root.pullModel = ""
+                return
+            }
+            pullPoll.pickWhenDone = entry.id
+            pullPoll.start()
+        }
+        xhr.send(JSON.stringify({ model: bare }))
+    }
+
+    Timer {
+        id: pullPoll
+        property string pickWhenDone: ""
+        interval: 1200
+        repeat: true
+        onTriggered: {
+            const xhr = new XMLHttpRequest()
+            xhr.open("GET", controlApi + "/pull")
+            xhr.setRequestHeader("X-Moai-Control", "1")
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200)
+                    return
+                let s = {}
+                try { s = JSON.parse(xhr.responseText) } catch (e) { return }
+                root.pullPercent = s.percent || 0
+                if (s.state === "running")
+                    return
+                pullPoll.stop()
+                root.pullModel = ""
+                if (s.state === "error") {
+                    root.pullError = s.error || "فشل التنزيل | the download failed"
+                    return
+                }
+                // Landed. Re-ask what this machine has (the row must stop saying
+                // "download") and switch to the brain the user actually asked for.
+                root.loadModels()
+                root.pickRoute(pullPoll.pickWhenDone)
+            }
+            xhr.send()
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -2904,6 +2983,10 @@ Kirigami.ApplicationWindow {
                                     id: locRow
                                     required property var modelData
                                     readonly property bool on_: root.route === locRow.modelData.id
+                                    readonly property bool downloading:
+                                        root.pullModel !== ""
+                                        && (locRow.modelData.id === "local:" + root.pullModel
+                                            || locRow.modelData.id === root.pullModel)
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 40
                                     radius: 10
@@ -2945,7 +3028,10 @@ Kirigami.ApplicationWindow {
                                                 // honest download size from moai-control — the user
                                                 // knows what each brain is good at, and what the tap
                                                 // costs, BEFORE anything happens.
-                                                text: (locRow.modelData.note ? locRow.modelData.note + "  ·  " : "")
+                                                text: locRow.downloading
+                                                      ? ("يُنزَّل الآن — " + root.pullPercent
+                                                         + "% | downloading — keep this open")
+                                                      : (locRow.modelData.note ? locRow.modelData.note + "  ·  " : "")
                                                       + (!locRow.modelData.pulled
                                                         ? ((locRow.modelData.size_gb > 0
                                                             ? "~" + locRow.modelData.size_gb + " GB — " : "")
@@ -2968,14 +3054,53 @@ Kirigami.ApplicationWindow {
                                             font.weight: Font.DemiBold
                                         }
                                     }
+                                    // The download bar, drawn along the bottom edge of
+                                    // this row and ONLY while this brain is the one
+                                    // downloading. A bar on every row would claim the
+                                    // whole list is arriving.
+                                    Rectangle {
+                                        visible: locRow.downloading
+                                        anchors.left: parent.left
+                                        anchors.right: parent.right
+                                        anchors.bottom: parent.bottom
+                                        anchors.margins: 1
+                                        height: 3
+                                        radius: 2
+                                        color: Qt.rgba(root.okColor.r, root.okColor.g,
+                                                       root.okColor.b, 0.18)
+                                        Rectangle {
+                                            anchors.left: parent.left
+                                            anchors.top: parent.top
+                                            anchors.bottom: parent.bottom
+                                            width: parent.width * (root.pullPercent / 100.0)
+                                            radius: 2
+                                            color: root.okColor
+                                            Behavior on width { NumberAnimation { duration: 260 } }
+                                        }
+                                    }
                                     MouseArea {
                                         id: locMa
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.pickRoute(locRow.modelData.id)
+                                        // Not pickRoute: an un-pulled brain must be
+                                        // fetched before it can answer anything.
+                                        onClicked: root.pickOrPull(locRow.modelData)
                                     }
                                 }
+                            }
+
+                            // The download's own failure, said once, under the list —
+                            // no disk, no network, a tag the registry moved. Silence
+                            // here is what made the old refusal unexplainable.
+                            Text {
+                                visible: root.pullError !== ""
+                                Layout.fillWidth: true
+                                text: root.pullError
+                                color: root.badColor
+                                font.family: root.uiFont
+                                font.pixelSize: 9
+                                wrapMode: Text.WordWrap
                             }
 
                             // ── Cloud ──────────────────────────────────────
