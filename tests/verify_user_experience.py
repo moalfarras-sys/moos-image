@@ -421,6 +421,19 @@ require('controlApi + "/delete"' in moai_qml,
         "Mo AI's deleteModel must POST to moai-control's /delete")
 require("النماذج المحلية" in moai_qml and "root.pickOrPull(" in moai_qml,
         "Mo AI Settings must show the Local models section with a one-tap download")
+# Mo AI reasons about the system and offers SAFE repairs: a READ-ONLY /diagnose
+# that runs moos-selfcheck, and a Settings panel that shows health + one-tap fixes,
+# each fix a moai-do action behind confirmation — never a composed command.
+require("def diagnose_system" in control and "/diagnose" in control,
+        "moai-control must expose /diagnose — read-only system health from moos-selfcheck")
+require("moos-selfcheck" in control,
+        "diagnose must reason from moos-selfcheck, not invent its own health verdict")
+require("function diagnoseSystem" in moai_qml and 'controlApi + "/diagnose"' in moai_qml,
+        "Mo AI must call /diagnose from its System-health panel")
+require("صحة النظام" in moai_qml
+        and 'Qt.openUrlExternally("moos://do/" + modelData.id)' in moai_qml,
+        "Mo AI's Diagnose panel must offer repairs as moos://do/<id> (moai-do confirm + Polkit), "
+        "never a free-form command — the whole safety contract")
 require("recommended" in moai_qml and "hit.note" in moai_qml,
         "Mo AI must render the pick and the warning (recommended / note) on each search hit — "
         "ranking them in the backend and not showing them changes nothing for the user")

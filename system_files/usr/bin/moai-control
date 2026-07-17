@@ -686,6 +686,54 @@ def delete_model(model_id):
     return {"ok": False, "error": tail[-1].strip() if tail else "delete failed"}
 
 
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def diagnose_system():
+    """Run moos-selfcheck --quiet (which prints only the BROKEN checks plus the
+    count summary) and return a structured health report the UI renders, plus the
+    safe moai-do repairs worth offering. This step is READ-ONLY: it reasons about
+    what is wrong, it does not change anything. Every fix is a separate, explicit
+    moai-do action the user still confirms behind Polkit — the same allowlist
+    contract as everywhere else. Nothing here ever runs a free-form command.
+    """
+    issues, ok_n, fail_n = [], 0, 0
+    try:
+        r = subprocess.run(["moos-selfcheck", "--quiet"],
+                           capture_output=True, text=True, timeout=45, check=False)
+        for raw in (r.stdout + "\n" + r.stderr).splitlines():
+            s = _ANSI.sub("", raw).strip()
+            if not s:
+                continue
+            m = re.search(r"(\d+)\s+broken,\s+(\d+)\s+passed", s)
+            if m:
+                fail_n, ok_n = int(m.group(1)), int(m.group(2))
+                continue
+            m = re.search(r"(\d+)\s+checks passed", s)
+            if m:
+                ok_n = int(m.group(1))
+                continue
+            if s.startswith("✗"):
+                fail_n += 1
+                issues.append(s.lstrip("✗").strip())
+    except Exception as exc:
+        issues.append("تعذّر تشغيل الفحص | could not run selfcheck: %s" % exc)
+        fail_n = fail_n or 1
+    # The curated, SAFE repair menu — read-only diagnostics first, then the
+    # maintenance actions. Each id is a real moai-do action (confirm + Polkit);
+    # the UI opens moos://do/<id>, it never composes a command.
+    fixes = [
+        {"id": "diagnose-services", "label": "الخدمات الفاشلة | Failed services", "read": True},
+        {"id": "check-drivers",     "label": "الكرت والتعريف | GPU & drivers",    "read": True},
+        {"id": "inspect-boot",      "label": "حالة الإقلاع | Boot status",         "read": True},
+        {"id": "fix-audio",         "label": "إصلاح الصوت | Fix audio",            "read": False},
+        {"id": "optimize",          "label": "تنظيف وتحرير مساحة | Clean & free space", "read": False},
+        {"id": "update",            "label": "تحديث MoOS | Update MoOS",           "read": False},
+    ]
+    return {"healthy": fail_n == 0, "ok": ok_n, "fail": fail_n,
+            "issues": issues, "fixes": fixes}
+
+
 def local_models():
     """Every model RamaLama has pulled, and which one the local brain serves.
 
@@ -1117,6 +1165,10 @@ class H(BaseHTTPRequestHandler):
             self._send(200, quick())
         elif route.startswith("/models"):
             self._send(200, models())
+        elif route.startswith("/diagnose"):
+            # Read-only: reason about system health via moos-selfcheck and return
+            # the safe repair menu. The repairs themselves are moos://do/<id>.
+            self._send(200, diagnose_system())
         elif route.startswith("/pull"):
             # Polled by the picker while a starter downloads.
             with _pull_lock:

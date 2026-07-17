@@ -956,6 +956,29 @@ Kirigami.ApplicationWindow {
         xhr.send(JSON.stringify({ model: bare }))
     }
 
+    // ── Diagnose & fix the system, safely ────────────────────────────────────
+    // Ask the control API to reason about system health (it runs moos-selfcheck)
+    // and hand back the broken checks plus a curated menu of SAFE moai-do repairs.
+    // The diagnosis is read-only; each repair the UI offers is a moos://do/<id>
+    // that still goes through moai-do's confirm + Polkit — never a free command.
+    property var diagResult: ({})
+    property bool diagLoading: false
+    function diagnoseSystem() {
+        root.diagLoading = true
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", controlApi + "/diagnose")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            root.diagLoading = false
+            let res = {}
+            try { res = JSON.parse(xhr.responseText) } catch (e) { res = {} }
+            root.diagResult = res
+        }
+        xhr.send()
+    }
+
     Timer {
         id: pullPoll
         property string pickWhenDone: ""
@@ -3263,6 +3286,89 @@ Kirigami.ApplicationWindow {
                         MoButton {
                             label: "✕"
                             onClicked: root.settingsOpen = false
+                        }
+                    }
+
+                    // ── System health & repair ───────────────────────────────
+                    // Mo AI reasons about what's wrong (moos-selfcheck) and offers
+                    // one-tap SAFE repairs. The diagnosis reads only; every fix is a
+                    // moai-do action behind confirmation + Polkit — no free commands.
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: sysCol.implicitHeight + 22
+                        radius: 13
+                        color: root.surface0
+                        border.width: 1
+                        border.color: root.diagResult.healthy === false ? root.badColor : root.hairline
+
+                        ColumnLayout {
+                            id: sysCol
+                            anchors.fill: parent
+                            anchors.margins: 11
+                            spacing: 8
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text {
+                                    text: "صحة النظام | System health"
+                                    color: root.textHi
+                                    font.family: root.uiFont
+                                    font.pixelSize: 13
+                                    font.weight: Font.DemiBold
+                                }
+                                Item { Layout.fillWidth: true }
+                                MoButton {
+                                    label: root.diagLoading ? "…جارٍ | working" : "افحص وأصلح | Diagnose"
+                                    primary: true
+                                    enabled_: !root.diagLoading
+                                    onClicked: root.diagnoseSystem()
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                visible: root.diagResult.ok !== undefined
+                                text: root.diagResult.healthy
+                                      ? ("✓ نظامك سليم — " + (root.diagResult.ok || 0)
+                                         + " فحص ناجح | healthy — " + (root.diagResult.ok || 0) + " checks passed")
+                                      : ("✗ " + (root.diagResult.fail || 0)
+                                         + " مشكلة بحاجة انتباه | issue(s) need attention")
+                                color: root.diagResult.healthy ? root.okColor : root.badColor
+                                font.family: root.uiFont
+                                font.pixelSize: 11
+                                wrapMode: Text.Wrap
+                            }
+                            Repeater {
+                                model: root.diagResult.issues || []
+                                delegate: Text {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    text: "•  " + modelData
+                                    color: root.textMute
+                                    font.family: root.uiFont
+                                    font.pixelSize: 10
+                                    wrapMode: Text.Wrap
+                                }
+                            }
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                visible: root.diagResult.fixes !== undefined
+                                Repeater {
+                                    model: root.diagResult.fixes || []
+                                    delegate: MoButton {
+                                        required property var modelData
+                                        label: modelData.label
+                                        onClicked: Qt.openUrlExternally("moos://do/" + modelData.id)
+                                    }
+                                }
+                            }
+                            SectionNote {
+                                Layout.fillWidth: true
+                                visible: root.diagResult.fixes !== undefined
+                                text: "كل إصلاح يمرّ عبر تأكيد وصلاحيات — بلا أوامر حرّة.\n"
+                                    + "Every fix asks to confirm — no free-form commands."
+                            }
                         }
                     }
 
