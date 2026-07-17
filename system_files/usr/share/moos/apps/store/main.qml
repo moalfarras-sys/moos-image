@@ -749,16 +749,60 @@ ApplicationWindow {
                     }
                 }
 
-                // ── SECTION TITLE ──────────────────────────────────────────────
+                // ── SECTION TITLE + "add the whole section" ────────────────────
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.topMargin: 4
+                    spacing: 10
                     Text {
                         text: win.query !== "" ? (win.rtl ? "نتائج البحث" : "Search results")
                                                : win.catName(win.activeCat)
                         color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 16; font.bold: true
                     }
+                    Text {
+                        text: "· " + win.filtered.length
+                        color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 13
+                        visible: win.loaded && win.filtered.length > 0
+                    }
                     Item { Layout.fillWidth: true }
+                    // One tap adds every app in THIS section to the cart — the
+                    // group-per-section pick. addMany already skips anything already
+                    // chosen, so it never double-adds. Hidden while searching (a
+                    // search result set is not a section) or with one/zero apps.
+                    Rectangle {
+                        Layout.preferredHeight: 30
+                        implicitWidth: addSecRow.implicitWidth + 24
+                        radius: 15
+                        visible: win.query === "" && win.filtered.length > 1
+                        color: addSecTap.pressed ? Qt.darker(win.accent, 1.1)
+                             : addSecHover.hovered ? win.accent
+                             : Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
+                        border.width: 1
+                        border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.5)
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        HoverHandler { id: addSecHover }
+                        RowLayout {
+                            id: addSecRow
+                            anchors.centerIn: parent; spacing: 6
+                            Glyph { name: "spark"
+                                tint: (addSecHover.hovered || addSecTap.pressed) ? win.onAccent : win.accent
+                                stroke: 1.8; Layout.preferredWidth: 13; Layout.preferredHeight: 13 }
+                            Text {
+                                text: win.rtl ? "أضِف كل القسم" : "Add all in section"
+                                color: (addSecHover.hovered || addSecTap.pressed) ? win.onAccent : win.accent
+                                font.family: "IBM Plex Sans"; font.pixelSize: 12; font.bold: true
+                            }
+                        }
+                        TapHandler {
+                            id: addSecTap
+                            onTapped: {
+                                var ids = []
+                                for (var i = 0; i < win.filtered.length; i++)
+                                    ids.push(win.filtered[i].id)
+                                win.addMany(ids)
+                            }
+                        }
+                    }
                 }
 
                 // ── APP GRID ───────────────────────────────────────────────────
@@ -837,11 +881,28 @@ ApplicationWindow {
                                             elide: Text.ElideRight; Layout.fillWidth: true
                                         }
                                         RowLayout {
-                                            spacing: 4
+                                            spacing: 5
                                             Text { text: "★"; color: win.accent; font.pixelSize: 12 }
                                             Text {
                                                 text: card.modelData.rating + " · " + card.modelData.reviews
                                                 color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 11
+                                            }
+                                            // how it installs — so the method is never a mystery
+                                            Rectangle {
+                                                Layout.leftMargin: 3
+                                                implicitWidth: srcLabel.implicitWidth + 12
+                                                implicitHeight: 16; radius: 8
+                                                color: Qt.rgba(win.txt2.r, win.txt2.g, win.txt2.b, 0.14)
+                                                Text {
+                                                    id: srcLabel
+                                                    anchors.centerIn: parent
+                                                    text: card.modelData.source === "flathub" ? "Flatpak"
+                                                        : (card.modelData.install && card.modelData.install.kind === "web")
+                                                          ? (win.rtl ? "ويب" : "Web")
+                                                          : "MoOS"
+                                                    color: win.txt2; font.family: "IBM Plex Sans"
+                                                    font.pixelSize: 9; font.bold: true
+                                                }
                                             }
                                         }
                                     }

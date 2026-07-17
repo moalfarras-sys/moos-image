@@ -153,6 +153,15 @@ welcome_palette_code = code(welcome_qml, "slash")
 store_qml = read("system_files/usr/share/moos/apps/store/main.qml")
 store_palette_code = code(store_qml, "slash")
 
+# Mo Store must make the whole section installable in one tap (the group-per-
+# category pick) and must SHOW how each app installs, so the method is never a
+# mystery — the owner's two asks. Both drive real, existing plumbing (addMany
+# feeds the cart; the real install streams from moos-install).
+require('"أضِف كل القسم"' in store_qml and "win.addMany(ids)" in store_qml,
+        "Mo Store must offer a per-section 'Add all' that carts the whole category")
+require('card.modelData.source === "flathub" ? "Flatpak"' in store_qml,
+        "Mo Store cards must show each app's install method (Flatpak / Web / MoOS)")
+
 for token, role in {
     "surface0": "root.palette.base",
     "surface1": "root.palette.alternateBase",
