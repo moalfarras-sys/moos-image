@@ -1,5 +1,5 @@
 [Unit]
-Description=Synchronize the complete MoOS automatic theme
+Description=Reconcile the complete MoOS theme after any Global Theme change
 After=plasma-workspace.target
 PartOf=plasma-workspace.target
 # No start rate limit, and that is the whole point. This unit is triggered by
@@ -8,15 +8,22 @@ PartOf=plasma-workspace.target
 # With the old 5-starts-per-60s limit that burst was enough to trip it on an ORDINARY
 # LOGIN: the service went failed(start-limit-hit) — after every single run had exited 0
 # in ~16 ms — and systemd then failed the .path unit with it. The watch was dead for the
-# rest of the session, so the sunrise/sunset supplements silently stopped following the
+# rest of the session, so the theme supplements silently stopped following the
 # theme. Rate-limiting a 16 ms oneshot bought nothing and cost exactly the thing it was
-# attached to. (A self-trigger loop is not the risk it was guarding against: sync-auto
-# never writes kdeglobals — verified by hashing the file across a run.)
+# attached to. (A self-trigger loop is not the risk it was guarding against: `reconcile`
+# and the `sync-auto` it delegates to never write kdeglobals — verified by hashing the
+# file across a run.)
 StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/moos-theme sync-auto
+# `reconcile` (not the old `sync-auto`): kdeglobals changes on EVERY Global Theme
+# Apply, not only the sunrise/sunset switch. LookAndFeelManager carries colours and
+# decoration but never the MoOS wallpaper scene, Konsole, GTK or the lock screen, so
+# a GUI pick of e.g. "MoOS Nova" left Nova's colours on the OLD wallpaper. `reconcile`
+# delegates to `sync-auto` in automatic mode and otherwise applies the missing
+# supplements for whatever MoOS look is now current. Idempotent and kdeglobals-safe.
+ExecStart=/usr/bin/moos-theme reconcile
 Restart=on-failure
 RestartSec=5s
 TimeoutStartSec=45s

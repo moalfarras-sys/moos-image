@@ -105,7 +105,19 @@ target_lnf "$1" "$2"
         self.assertIn("PathChanged=%h/.config/kdeglobals", path)
         self.assertIn("WantedBy=plasma-workspace.target", path)
         self.assertIn("PartOf=plasma-workspace.target", path)
-        self.assertIn("ExecStart=/usr/bin/moos-theme sync-auto", service)
+        # `reconcile`, not the old `sync-auto`: kdeglobals changes on EVERY Global
+        # Theme Apply, not only the sunrise/sunset switch. LookAndFeelManager carries
+        # colours and decoration but never the MoOS wallpaper scene, Konsole, GTK or
+        # the lock screen, so a GUI pick of e.g. "MoOS Nova" stranded Nova's colours on
+        # the OLD wallpaper (measured live). `reconcile` delegates to sync_auto in
+        # automatic mode and otherwise applies those missing supplements.
+        self.assertIn("ExecStart=/usr/bin/moos-theme reconcile", service)
+        self.assertIn("reconcile()", switch)
+        # It must carry the MANUAL family, not only the two auto halves, or a GUI pick
+        # of Nova/Amethyst/Midnight/Aurora still strands the wallpaper.
+        reconcile_body = switch.split("reconcile() {", 1)[1].split("\n}\n", 1)[0]
+        for fam in ("NOVA_LNF", "AMETHYST_LNF", "MIDNIGHT_LNF", "AURORA_LNF"):
+            self.assertIn(fam, reconcile_body)
         self.assertIn("Restart=on-failure", service)
         # The bound that matters is on the RUN (TimeoutStartSec), never on the RATE.
         # A path-triggered unit must not be rate-limited: Plasma rewrites kdeglobals
@@ -154,6 +166,18 @@ target_lnf "$1" "$2"
         self.assertIn('automatic_after', sync)
         self.assertIn('automatic_supplements_complete', sync)
         self.assertIn('[ -d "/usr/share/plasma/look-and-feel/$lnf" ]', sync)
+
+        # reconcile is the path unit's entry point and fires on Plasma's burst of
+        # kdeglobals writes at login. It MUST NOT write kdeglobals itself or it
+        # would re-arm the very watch that triggered it — an unbounded loop. It is
+        # loop-safe structurally: it only reads, delegates to sync_auto, and calls
+        # apply_supplements (both already proven kdeglobals-clean above).
+        recon = function(switch, "reconcile")
+        self.assertNotIn("kwriteconfig6 --file kdeglobals", recon)
+        self.assertIn("apply_supplements", recon)
+        self.assertIn("automatic_supplements_complete", recon)
+        self.assertIn("sync_auto", recon)
+        self.assertIn('[ -d "/usr/share/plasma/look-and-feel/$lnf" ]', recon)
 
         for token in (
             # The desktop wallpaper is the MoOS scene plugin, applied per

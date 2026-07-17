@@ -481,6 +481,65 @@ sync_auto() {
     return 1
 }
 
+# Reconcile the MoOS supplements after a Global Theme change made OUTSIDE
+# moos-theme — System Settings -> Appearance -> Global Theme -> Apply, or the CLI
+# `plasma-apply-lookandfeel`. That path runs KDE's LookAndFeelManager, which DOES
+# carry the colour scheme, plasma style, window decoration, icons and cursor
+# (measured live: it writes them straight into ~/.config/{kdeglobals,kwinrc,
+# plasmarc}, so the visible switch is real) — but it does NOT carry the four
+# things LookAndFeelManager never reads from a package's contents/defaults: the
+# MoOS wallpaper SCENE, Konsole, GTK and the lock screen. The wallpaper is a
+# custom containment plugin set over D-Bus and is deliberately absent from every
+# LNF's defaults (a [Wallpaper] there would flip the containment back to
+# org.kde.image and drop the dashboard bento). So a user who picks "MoOS Nova" in
+# System Settings got Nova's colours and decoration on the OLD wallpaper —
+# measured live: Nova's dark canvas under the light Tide wallpaper, which reads as
+# "the theme didn't change." This reconciler runs exactly the supplements the GUI
+# drops, for whatever MoOS look is now current.
+#
+# It is triggered by moos-theme-sync.path, which already watches
+# ~/.config/kdeglobals — the file LookAndFeelManager rewrites on every Apply. It
+# writes NONE of the files that watch guards (apply_supplements never touches
+# kdeglobals — see its header), so it cannot trigger itself; and it no-ops the
+# instant the supplements already match the current look, so Plasma's burst of
+# kdeglobals writes at login costs one cheap check each.
+reconcile() {
+    local automatic lnf scheme style konsole_profile konsole_profile_name prefer_dark icons adw_css cursor deco wallpaper wallpaper_package label
+
+    command -v kreadconfig6 >/dev/null 2>&1 || return 0
+
+    # The sunrise/sunset auto switch has its own precise, stability-checked path;
+    # keep delegating to it so this cannot regress the automatic mode.
+    automatic="$(kreadconfig6 --file kdeglobals --group KDE \
+        --key AutomaticLookAndFeel 2>/dev/null)"
+    if [ "$automatic" = true ]; then
+        sync_auto
+        return $?
+    fi
+
+    # A manual pick. Reconcile ONLY the MoOS family — if the user chose a
+    # non-MoOS Global Theme, leave their choice entirely alone.
+    lnf="$(current)"
+    case "$lnf" in
+        "$DARK_LNF"|"$LIGHT_LNF"|"$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF") ;;
+        *) return 0 ;;
+    esac
+    [ -d "/usr/share/plasma/look-and-feel/$lnf" ] || return 0
+    load_profile "$lnf" || return 0
+
+    # Already whole for this look? Then this firing is one of Plasma's many
+    # kdeglobals rewrites, not a theme change — write nothing, so the watch does
+    # not re-arm on us.
+    automatic_supplements_complete && return 0
+
+    if apply_supplements; then
+        echo "MoOS supplements reconciled for ${lnf}"
+        return 0
+    fi
+    echo "moos-theme: supplement reconcile failed for ${lnf}" >&2
+    return 1
+}
+
 # Both automatic targets are the complete UI2 themes. That is the entire safety
 # property: Plasma resolves these by name when the switch fires, and a name it
 # cannot resolve sends it to Breeze — permanently, in the user's own kdeglobals.
@@ -502,7 +561,7 @@ acquire_theme_lock() {
 
 command_name="${1:-status}"
 case "$command_name" in
-    dark|light|nova|amethyst|midnight|aurora|toggle|auto|sync-auto)
+    dark|light|nova|amethyst|midnight|aurora|toggle|auto|sync-auto|reconcile)
         acquire_theme_lock \
             || { echo "moos-theme: another theme transition is still running" >&2; exit 1; }
         ;;
@@ -581,9 +640,16 @@ EOF
         echo "MoOS: تلقائي | auto (Tidal by day, Graphite by night)"
         ;;
     sync-auto)
-        # Internal entry point for moos-theme-sync.service. It is intentionally
+        # Internal entry point kept for compatibility. It is intentionally
         # harmless when automatic switching is off or UI1 rollback is active.
         sync_auto
+        ;;
+    reconcile)
+        # Internal entry point for moos-theme-sync.service — fired by the
+        # kdeglobals watch after ANY Global Theme change (GUI or CLI). Delegates
+        # to sync_auto in automatic mode, otherwise carries the supplements a
+        # manual GUI pick leaves behind (wallpaper scene, Konsole, GTK, lock).
+        reconcile
         ;;
     status)
         active="$(current)"

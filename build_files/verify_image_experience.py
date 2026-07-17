@@ -102,17 +102,32 @@ require("WantedBy=plasma-workspace.target" in unit, "Mo Remote is not Plasma-sco
 require("WantedBy=default.target" not in unit, "Mo Remote is attached to default.target")
 require("WAYLAND_DISPLAY=wayland-0" not in unit, "Mo Remote guesses a Wayland socket")
 
-# Plasma's day/night switch applies only a subset of a Global Theme. The path
-# unit is what carries wallpaper/Konsole/GTK after an automatic transition; a
-# perfect service file that is not enabled is another green-but-invisible fix.
+# A Global Theme Apply (GUI or CLI) carries colours and decoration but NEVER the
+# MoOS wallpaper scene, Konsole, GTK or the lock screen — LookAndFeelManager does
+# not read them from a package's defaults. The path unit watches kdeglobals (which
+# changes on every Apply) and its service reconciles those supplements for whatever
+# MoOS look is now current; a GUI pick of "MoOS Nova" that leaves the old wallpaper
+# is exactly the green-but-broken failure this guards. A perfect service that is
+# not enabled is the same class of invisible fix.
 theme_path = text("/usr/lib/systemd/user/moos-theme-sync.path")
 theme_service = text("/usr/lib/systemd/user/moos-theme-sync.service")
+theme_bin = text("/usr/bin/moos-theme")
 require("PathChanged=%h/.config/kdeglobals" in theme_path,
-        "the automatic-theme supplement watcher does not observe kdeglobals")
+        "the theme supplement watcher does not observe kdeglobals")
 require("WantedBy=plasma-workspace.target" in theme_path,
-        "the automatic-theme watcher is not scoped to the Plasma workspace")
-require("ExecStart=/usr/bin/moos-theme sync-auto" in theme_service,
-        "the automatic-theme watcher does not invoke the bounded supplement sync")
+        "the theme watcher is not scoped to the Plasma workspace")
+require("ExecStart=/usr/bin/moos-theme reconcile" in theme_service,
+        "the theme watcher does not invoke the full-theme reconciler "
+        "(a GUI Global Theme pick would leave the wallpaper unchanged)")
+require("reconcile()" in theme_bin,
+        "moos-theme has no reconcile entry point")
+# reconcile must handle the MANUAL family too, not only the sunrise/sunset halves —
+# otherwise picking Nova/Amethyst/Midnight/Aurora in System Settings still strands
+# the wallpaper. Assert the manual family is matched inside reconcile's own scope.
+_recon = theme_bin.split("reconcile() {", 1)[-1].split("\n}\n", 1)[0]
+for _fam in ("NOVA_LNF", "AMETHYST_LNF", "MIDNIGHT_LNF", "AURORA_LNF"):
+    require(_fam in _recon,
+            f"reconcile does not carry supplements for a manual pick of ${_fam}")
 theme_want = Path("/etc/systemd/user/plasma-workspace.target.wants/moos-theme-sync.path")
 require(theme_want.is_symlink()
         and theme_want.resolve() == Path("/usr/lib/systemd/user/moos-theme-sync.path"),
