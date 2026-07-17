@@ -13,7 +13,8 @@ active build gates (verify_identity, verify_image_experience,
 verify_user_experience, verify_no_foreign_identity, test_moos_theme_safety);
 this one only asserts that the pixels are well-formed.
 
-Run standalone: `python3 artwork/verify_visuals.py`. Wired into build_files/build.sh.
+Run standalone: `python3 artwork/verify_visuals.py`. Wired into the CI "Repo gates"
+step (.github/workflows/build.yml) and `just check` — both install Pillow first.
 """
 from __future__ import annotations
 import json

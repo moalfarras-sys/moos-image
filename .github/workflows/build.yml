@@ -77,6 +77,12 @@ jobs:
       # the maintainer's daily driver. They take seconds and need no container, so a broken
       # Mo AI button or a dead Konsole key now fails in the first 20 seconds of the run
       # instead of shipping.
+      # verify_visuals.py opens the shipped PNG/JPG masters with Pillow; the
+      # stock runner has no PIL, so install it before the gates run (apt avoids
+      # PEP-668's externally-managed pip refusal on ubuntu-latest).
+      - name: Gate dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-pil
+
       - name: Repo gates
         run: |
           python3 tests/verify_user_experience.py
