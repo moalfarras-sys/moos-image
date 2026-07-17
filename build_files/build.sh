@@ -1723,6 +1723,13 @@ rpm -q microcode_ctl >/dev/null 2>&1 || rpm -q amd-ucode-firmware >/dev/null 2>&
 chmod 0755 /usr/libexec/moos-hardware-adapt
 systemctl enable moos-hardware-adapt.service
 
+# Live-session polish: on rd.live.image boots ONLY, the demo/installer session
+# must never lock (liveuser has no password — a mid-install lock reads as a
+# hang) nor blank/suspend. Writes the live user's own config, never /etc/xdg,
+# so installed systems keep the real lock screen.
+chmod 0755 /usr/libexec/moos-live-polish
+systemctl enable moos-live-polish.service
+
 # First-boot setup: create the user + apply account/locale/timezone/keyboard from
 # the installer's answers (or a safe default `moos` autologin user). This REPLACES
 # the masked plasma-setup (Plasma's OOBE, masked in section (z)) with MoOS's own —

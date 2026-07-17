@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# moos-live-polish — LIVE-SESSION-ONLY finish: the demo/installer session must
+# never lock or blank itself.
+#
+# Why this exists: the live ISO's KDE session kept the stock 5-minute autolock,
+# so the screen LOCKED in the middle of a long install (seen in the QEMU
+# walkthrough of ISO 44.20260717.190 — the installer was at "Copying MoOS 86%"
+# behind a lock screen). liveuser has no password, so the lock protects nothing;
+# it only reads as a hang to someone installing on a real PC.
+#
+# Scope discipline: this runs ONLY on a live boot (the unit is gated on the
+# rd.live.image kernel argument) and writes ONLY the live user's own config —
+# never /etc/xdg — so an installed MoOS keeps its real lock screen untouched.
+# The target file wins the KConfig cascade, whatever the shipped defaults say.
+set -uo pipefail
+
+LIVE_USER="${MOOS_LIVE_USER:-liveuser}"
+
+entry="$(getent passwd "$LIVE_USER" 2>/dev/null)" || {
+    echo "moos-live-polish: no ${LIVE_USER} account (not a livesys boot?) — nothing to do"
+    exit 0
+}
+home="$(printf '%s' "$entry" | cut -d: -f6)"
+[ -n "$home" ] || exit 0
+
+conf_dir="${home}/.config"
+mkdir -p "$conf_dir"
+
+# The locker: never auto-lock, and never demand a lock after resume.
+printf '[Daemon]\nAutolock=false\nLockOnResume=false\n' > "${conf_dir}/kscreenlockerrc"
+
+# PowerDevil: keep the panel lit — a live demo or a running install that goes
+# black mid-copy reads as a crash on a machine you cannot yet trust.
+printf '[AC][Display]\nDimDisplayWhenIdle=false\nTurnOffDisplayWhenIdle=false\n\n[AC][SuspendAndShutdown]\nAutoSuspendAction=0\n' \
+    > "${conf_dir}/powerdevilrc"
+
+chown -R "${LIVE_USER}:${LIVE_USER}" "$conf_dir" 2>/dev/null || true
+echo "moos-live-polish: live session will not lock, dim or sleep (${conf_dir})"

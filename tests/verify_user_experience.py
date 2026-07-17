@@ -2678,6 +2678,80 @@ for installer_of_bazaar in ("moos-store-browse", "moos-setup"):
             f"{installer_of_bazaar} can install Bazaar, so it must call moos-one-store "
             "to keep Mo Store the single visible storefront")
 
+# ── Re-sizing zram must never storm the swap unit ─────────────────────────────
+# On a fresh install's FIRST boot, moos-hardware-adapt re-tiers zram for the
+# machine's RAM and re-applies it. A bare `systemctl restart
+# systemd-zram-setup@zram0` right after boot stops the just-started
+# dev-zram0.swap and re-starts it inside systemd's start-rate window: the swap
+# unit trips start-limit-hit, every later setup retry dies with EBUSY writing
+# comp_algorithm (the device is already sized), and the install's first boot
+# ends with TWO failed units and swap OFF. Reproduced end-to-end in QEMU
+# (2026-07-17, ISO 44.20260717.190) and invisible to every existing gate — the
+# machine still boots, it is just silently degraded and selfcheck-red.
+#
+# The contract, on the comment-stripped script:
+#   1. no bare `systemctl restart` of the zram stack, ever;
+#   2. a config-equality skip, so an ordinary boot never touches a working swap;
+#   3. the one legitimate apply uses stop → daemon-reload → reset-failed →
+#      ONE start of dev-zram0.swap, in that order (reset-failed clears the
+#      start-limit counters; the single start pulls setup in via Requires=).
+_hw = code(read("system_files/usr/libexec/moos-hardware-adapt"), "hash")
+require(re.search(r"systemctl\s+restart\s+\S*systemd-zram-setup", _hw) is None,
+        "moos-hardware-adapt must not `systemctl restart systemd-zram-setup@…` — "
+        "that storms dev-zram0.swap into start-limit-hit on a fresh install's first "
+        "boot and leaves the machine with failed units and no swap")
+require('= "$zwant"' in _hw or "= \"$(cat" in _hw or '"$zwant" ]' in _hw,
+        "moos-hardware-adapt must compare the zram config it would write with what "
+        "is already on disk and skip the apply when identical — an ordinary boot "
+        "must never stop a working swap")
+_i_stop = _hw.find("systemctl stop dev-zram0.swap")
+_i_reload = _hw.find("systemctl daemon-reload")
+_i_reset = _hw.find("systemctl reset-failed dev-zram0.swap")
+_i_start = _hw.find("systemctl start dev-zram0.swap")
+require(-1 < _i_stop < _i_reload < _i_reset < _i_start,
+        "moos-hardware-adapt's zram apply must be exactly: stop dev-zram0.swap → "
+        "daemon-reload → reset-failed dev-zram0.swap → start dev-zram0.swap. "
+        "reset-failed must come after the stop (it clears the start-limit counters "
+        "the stop/start cycle charged) and before the single start request")
+
+# ── The live session must not lock itself mid-install ────────────────────────
+# The live ISO's KDE session kept the stock 5-minute autolock, so the screen
+# LOCKED over a running install (QEMU walkthrough of 44.20260717.190: "Copying
+# MoOS — 86%" behind a lock screen). liveuser has no password, so that lock
+# protects nothing and reads as a hang on a machine the user does not trust yet.
+# The fix is moos-live-polish; its safety story is the kernel-cmdline condition,
+# so the gate holds BOTH halves: it must fire on live boots only, before the
+# session that reads its config exists, and it must write the live USER's
+# config, never a system-wide path an installed machine would inherit.
+# Only EFFECTIVE lines count — a commented-out Condition= would pass a raw
+# substring check while systemd ignores it (this gate was broken-once to prove
+# exactly that, and the naive version stayed green).
+_lp_unit = "\n".join(
+    line for line in
+    read("system_files/usr/lib/systemd/system/moos-live-polish.service").splitlines()
+    if not line.lstrip().startswith(("#", ";")))
+require("ConditionKernelCommandLine=rd.live.image" in _lp_unit,
+        "moos-live-polish.service must be gated on ConditionKernelCommandLine="
+        "rd.live.image — without it an INSTALLED MoOS loses its lock screen")
+require("Before=display-manager.service" in _lp_unit,
+        "moos-live-polish.service must run Before=display-manager.service — the "
+        "autologin session reads kscreenlockerrc once, at session start")
+require("After=livesys.service" in _lp_unit,
+        "moos-live-polish.service must order After=livesys.service — livesys "
+        "creates the live user whose home it writes into")
+_lp = code(read("system_files/usr/libexec/moos-live-polish"), "hash")
+require("Autolock=false" in _lp and "LockOnResume=false" in _lp,
+        "moos-live-polish must write Autolock=false and LockOnResume=false into "
+        "the live user's kscreenlockerrc")
+require("/etc/xdg" not in _lp,
+        "moos-live-polish must never write /etc/xdg — that would disable the lock "
+        "screen on installed systems too")
+require("getent passwd" in _lp,
+        "moos-live-polish must resolve the live user via getent and no-op when "
+        "absent — the unit alone cannot prove livesys ran")
+require(re.search(r"systemctl enable moos-live-polish\.service", read("build_files/build.sh")),
+        "build.sh must enable moos-live-polish.service or the fix ships dormant")
+
 if errors:
     print("MoOS user-experience gate failed:", file=sys.stderr)
     for error in errors:

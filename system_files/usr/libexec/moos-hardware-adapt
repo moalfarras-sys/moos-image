@@ -98,23 +98,47 @@ fi
 
 # ── 2. RAM-tiered zram — never touches disk, worst case is OOM not corruption,
 #       fully reversible (a config file). Sized by installed RAM. ─────────────
+#
+# APPLY DISCIPLINE (learned the hard way on a fresh install's FIRST boot):
+# a bare `systemctl restart systemd-zram-setup@zram0` right after boot stops the
+# just-started dev-zram0.swap and re-starts it inside systemd's default rate-limit
+# window — the swap unit trips `start-limit-hit`, every later setup retry dies with
+# EBUSY on comp_algorithm (the device is already sized), and the install's first
+# boot ends with two failed units and NO swap. So: (a) skip the whole apply when
+# the config we would write is already on disk, and (b) when we do apply, stop the
+# stack cleanly, reload generators, CLEAR the start-limit counters with
+# reset-failed, and issue ONE start request for the swap (it pulls setup in via
+# Requires=). Verified in QEMU: the storm reproduces with the old sequence and
+# does not with this one.
 if [ "$mem_gib" -gt 0 ]; then
     zconf="/etc/systemd/zram-generator.conf"
     if [ "$mem_gib" -lt 8 ]; then zsize="ram"          # low RAM: compression buys real headroom
     elif [ "$mem_gib" -lt 32 ]; then zsize="min(ram, 8192)"
     else zsize="min(ram / 2, 16384)"; fi
+    zwant="$(printf '# Written by moos-hardware-adapt (RAM tier: %sGiB). Reversible.\n[zram0]\nzram-size = %s\ncompression-algorithm = zstd\n' \
+        "$mem_gib" "$zsize")"
     if [ "$DRYRUN" = "1" ]; then
         log "DRYRUN would write ${zconf}: zram-size=${zsize}"
+    elif [ -r "$zconf" ] && [ "$(cat "$zconf" 2>/dev/null)" = "$zwant" ]; then
+        log "zram already sized for ${mem_gib}GiB (${zsize}) — leaving the running swap alone"
     else
         mkdir -p /etc/systemd 2>/dev/null || true
-        printf '# Written by moos-hardware-adapt (RAM tier: %sGiB). Reversible.\n[zram0]\nzram-size = %s\ncompression-algorithm = zstd\n' \
-            "$mem_gib" "$zsize" > "$zconf" 2>/dev/null && log "zram sized for ${mem_gib}GiB: ${zsize}" \
+        printf '%s\n' "$zwant" > "$zconf" 2>/dev/null && log "zram sized for ${mem_gib}GiB: ${zsize}" \
             || log "warn: could not write ${zconf}"
         # vm.min_free_kbytes ~1% of RAM (Bazzite pattern) — keeps a reclaim buffer.
         minfree=$(( mem_kb / 100 ))
         printf '# Written by moos-hardware-adapt. Reversible.\nvm.min_free_kbytes = %s\n' "$minfree" \
             > /etc/sysctl.d/90-moos-hardware.conf 2>/dev/null || true
-        do_run systemctl restart "systemd-zram-setup@zram0.service"
+        do_run systemctl stop dev-zram0.swap systemd-zram-setup@zram0.service
+        do_run systemctl daemon-reload
+        do_run systemctl reset-failed dev-zram0.swap systemd-zram-setup@zram0.service
+        do_run systemctl start dev-zram0.swap
+        # Say out loud whether swap actually came back — a silent OFF swap is the bug.
+        if [ "$(systemctl is-active dev-zram0.swap 2>/dev/null)" = "active" ]; then
+            log "zram swap re-activated cleanly"
+        else
+            log "warn: dev-zram0.swap is $(systemctl is-active dev-zram0.swap 2>/dev/null || echo unknown) after re-size"
+        fi
     fi
 fi
 

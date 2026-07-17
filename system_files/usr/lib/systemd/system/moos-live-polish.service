@@ -1,0 +1,19 @@
+[Unit]
+Description=MoOS live-session polish (no autolock/blank in the live environment)
+Documentation=https://github.com/moalfarras-sys/moos-image
+# LIVE BOOTS ONLY. An installed MoOS must keep its real lock screen — this
+# condition is the entire safety story, do not weaken it.
+ConditionKernelCommandLine=rd.live.image
+# livesys-scripts create the live user; the config must exist before the
+# display manager starts the autologin session that reads it.
+After=livesys.service local-fs.target
+Before=display-manager.service
+Wants=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/moos-live-polish
+
+[Install]
+WantedBy=multi-user.target
