@@ -332,20 +332,30 @@ def _lerp(a, b, t):
 
 
 def make_wallpaper(key: str, mood: str = "cosmic"):
-    """The theme's own designed backdrop — GLASS WAVES, not a blurred gradient.
+    """The theme's own designed backdrop, v2 — LIT SILK, not line-art.
 
-    The first family wallpapers were heavy-blurred aurora bands over a vertical
-    gradient, and next to the Graphite master (real layered glass waves) they
-    read as unfinished. This renders the same design language the master
-    carries, per palette: a deep gradient sky, then stacked translucent wave
-    bands rising through the frame, each with a gradient fill, a soft depth
-    shadow beneath its crest, a crisp luminous edge and a wide glow around it —
-    dark mineral glass catching the theme's accent light. Composition varies by
-    mood (cosmic/calm/minimal) and every parameter derives from a per-key seed,
-    so the art is distinct per theme and byte-deterministic per run.
+    v1 drew single crest lines filled flat to the bottom edge; honest, but
+    next to the painterly Graphite master it read as a diagram. The rewrite
+    keeps v1's deterministic, pure-PIL contract and changes how the light
+    works, which is what actually separates the master from a diagram:
+
+      sky        vertical colour ramp + wide accent glows + one soft beam
+      aurora     (cosmic) a veil of light following a sweep curve, drawn as
+                 a thick gradient-coloured stroke and blurred until it is
+                 atmosphere, not a shape
+      ribbons    silk bands between two curves. Each band is a dark glass
+                 gradient along its length, LIT FROM ITS CREST — a falloff
+                 of the theme's light colour breathing down into the glass —
+                 with silk-fold filaments inside, an inner shadow along the
+                 underside, and a neon crest edge screen-blended so it
+                 genuinely emits
+      focus      one luminous core where the composition's light gathers
+      finish     stars/bokeh per mood, vignette, fine grain
 
     Pure PIL (polygons, gradients, blurs, channel ops) — no numpy, no AI, no
-    network. Returns a PIL image or None if PIL is missing."""
+    network. Byte-deterministic per key. Returns None if PIL is missing.
+    Canva art can still replace these masters later without touching
+    packaging (build_wallpaper only needs a PIL image)."""
     try:
         from PIL import Image, ImageChops, ImageDraw, ImageFilter
     except Exception:
@@ -363,115 +373,234 @@ def make_wallpaper(key: str, mood: str = "cosmic"):
     secondary = _rgbtuple(p["secondary"])
     luminous = _rgbtuple(p["luminous"])
 
-    # 1) the sky: surface(top) -> canvas(mid) -> shadow(bottom)
-    col = Image.new("RGB", (1, H)); px = col.load()
+    # ── 1. the sky ──────────────────────────────────────────────────────────
+    col = Image.new("RGB", (1, H))
+    px = col.load()
     for y in range(H):
         t = y / (H - 1)
         px[0, y] = _lerp(surface, canvas, t / 0.55) if t < 0.55 else _lerp(canvas, bottom, (t - 0.55) / 0.45)
     img = col.resize((W, H))
 
     def screen_glow(cx, cy, radius, color, strength):
+        nonlocal img
         layer = Image.new("RGB", (W, H), (0, 0, 0))
         ImageDraw.Draw(layer).ellipse(
             [cx - radius, cy - radius, cx + radius, cy + radius],
             fill=tuple(int(c * strength) for c in color))
-        return ImageChops.screen(img, layer.filter(ImageFilter.GaussianBlur(radius // 2)))
+        img = ImageChops.screen(img, layer.filter(ImageFilter.GaussianBlur(radius // 2)))
 
-    def wave_curve(y0, amp, tilt, f1, f2, ph):
-        """Sample one smooth crest line across the frame (every 12 px)."""
+    def screen_stroke(pts, color, strength, width, blur):
+        """A luminous stroke, screen-blended: real emitted light on dark glass."""
+        nonlocal img
+        layer = Image.new("RGB", (W, H), (0, 0, 0))
+        ImageDraw.Draw(layer).line(pts, fill=tuple(int(c * strength) for c in color),
+                                   width=width, joint="curve")
+        img = ImageChops.screen(img, layer.filter(ImageFilter.GaussianBlur(blur)))
+
+    def gradient_stroke(pts, color_a, color_b, strength, width, blur):
+        """screen_stroke whose colour travels a→b along the stroke's length."""
+        nonlocal img
+        layer = Image.new("RGB", (W, H), (0, 0, 0))
+        d = ImageDraw.Draw(layer)
+        n = len(pts)
+        for i in range(n - 1):
+            c = _lerp(color_a, color_b, i / (n - 2 if n > 2 else 1))
+            d.line([pts[i], pts[i + 1]], fill=tuple(int(v * strength) for v in c),
+                   width=width, joint="curve")
+        img = ImageChops.screen(img, layer.filter(ImageFilter.GaussianBlur(blur)))
+
+    # ── 2. curve sampling (every 12 px, overscanned past both edges) ────────
+    ph = rng.uniform(0, math.pi * 2)
+
+    def curve(y0, amp, tilt, f1, f2, phase, drift=0.0):
         pts = []
-        for x in range(-60, W + 61, 12):
+        for x in range(-80, W + 81, 12):
             u = x / W
             yy = (y0
                   + tilt * (u - 0.5) * H
-                  + amp * math.sin(u * math.pi * 2 * f1 + ph)
-                  + amp * 0.38 * math.sin(u * math.pi * 2 * f2 + ph * 2.3))
+                  + amp * math.sin(u * math.pi * 2 * f1 + phase)
+                  + amp * 0.42 * math.sin(u * math.pi * 2 * f2 + phase * 2.17 + drift))
             pts.append((x, yy))
         return pts
 
-    def glass_wave(crest, fill_top, fill_bottom, edge_color, edge_strength,
-                   fill_alpha=255, shade_strength=0.5):
-        """One band of dark glass: gradient fill below the crest, a depth shadow
-        under the crest line, a crisp luminous edge and a wide soft glow."""
+    def aurora_veil(top_y, colors, strength=0.5, passes=3):
+        """Light as weather: wide gradient strokes along drifting curves,
+        blurred until nothing has an outline any more."""
+        for i in range(passes):
+            c = curve(top_y + i * H * 0.055, H * (0.045 + 0.02 * i), 0.10 - 0.05 * i,
+                      0.7 + 0.25 * i, 2.0 + 0.4 * i, ph + i * 1.9)
+            a, b = colors[i % len(colors)], colors[(i + 1) % len(colors)]
+            gradient_stroke(c, a, b, strength * (1.0 - i * 0.22),
+                            width=int(H * (0.10 + 0.03 * i)), blur=110 + 30 * i)
+
+    def ribbon(top, fill_a, fill_b, light_color, *, thick0, thick1,
+               light=0.55, edge=0.85, alpha=225, folds=3, depth_blur=0, sag=0.35):
+        """One band of silk glass, lit from its crest.
+
+        fill_a→fill_b is the dark glass gradient along the band's LENGTH;
+        light_color breathes down from the crest into the glass (the lit-silk
+        falloff), an inner shadow darkens the underside, faint filaments flow
+        inside, and the crest itself emits via a screen-blended neon edge."""
         nonlocal img
-        # -- fill: vertical gradient masked to the area below the crest
-        lo = int(min(y for _, y in crest)); hi = H
-        grad = Image.new("RGB", (1, H)); gp = grad.load()
-        for y in range(H):
-            t = 0.0 if hi == lo else max(0.0, min(1.0, (y - lo) / (hi - lo)))
-            gp[0, y] = _lerp(fill_top, fill_bottom, t)
-        grad = grad.resize((W, H))
+        n = len(top)
+        bot = []
+        for i, (x, y) in enumerate(top):
+            t = i / (n - 1)
+            th = thick0 + (thick1 - thick0) * t
+            bot.append((x, y + th + math.sin(t * math.pi) * th * sag))
+
         mask = Image.new("L", (W, H), 0)
-        ImageDraw.Draw(mask).polygon(crest + [(W + 60, H + 60), (-60, H + 60)], fill=fill_alpha)
-        img = Image.composite(grad, img, mask)
-        # -- depth shadow: darken just below the crest so each layer separates
-        if shade_strength > 0:
-            sh = Image.new("L", (W, H), 0)
-            ImageDraw.Draw(sh).line(crest, fill=int(150 * shade_strength), width=int(H * 0.055))
-            sh = sh.filter(ImageFilter.GaussianBlur(int(H * 0.03)))
-            # only inside the band
-            sh = ImageChops.multiply(sh, mask)
-            dark = Image.new("RGB", (W, H), tuple(int(c * 0.55) for c in fill_bottom))
-            img = Image.composite(dark, img, sh)
-        # -- the luminous edge: a tight bright line plus a wide soft glow
-        if edge_strength > 0:
-            line = Image.new("RGB", (W, H), (0, 0, 0))
-            ImageDraw.Draw(line).line(crest, fill=tuple(int(c * edge_strength) for c in edge_color), width=6)
-            img = ImageChops.screen(img, line.filter(ImageFilter.GaussianBlur(3)))
-            glow = Image.new("RGB", (W, H), (0, 0, 0))
-            ImageDraw.Draw(glow).line(crest, fill=tuple(int(c * edge_strength * 0.55) for c in edge_color), width=44)
-            img = ImageChops.screen(img, glow.filter(ImageFilter.GaussianBlur(60)))
+        ImageDraw.Draw(mask).polygon(top + bot[::-1], fill=alpha)
 
-    # 2) mood-tuned composition
-    ph = rng.uniform(0, math.pi * 2)
-    if mood == "minimal":
-        # midnight: near-black sky, two barely-there glass layers, one razor of light
-        img = screen_glow(int(W * 0.5), int(H * 1.05), int(W * 0.55), primary, 0.14)
-        glass_wave(wave_curve(H * 0.62, H * 0.05, 0.10, 0.9, 2.3, ph),
-                   card, bottom, secondary, 0.22, shade_strength=0.35)
-        glass_wave(wave_curve(H * 0.80, H * 0.04, -0.06, 1.1, 2.9, ph + 2.0),
-                   surface, bottom, luminous, 0.55, shade_strength=0.45)
-        stars = 150
-    elif mood == "calm":
-        # amethyst: soft high glow, three waves, the warm secondary low in the frame
-        img = screen_glow(int(W * 0.26), int(H * 0.22), int(W * 0.34), primary, 0.30)
-        img = screen_glow(int(W * 0.85), int(H * 0.86), int(W * 0.30), secondary, 0.22)
-        glass_wave(wave_curve(H * 0.46, H * 0.07, 0.16, 0.8, 2.1, ph),
-                   raised, canvas, luminous, 0.30, shade_strength=0.4)
-        glass_wave(wave_curve(H * 0.63, H * 0.06, 0.10, 1.0, 2.7, ph + 1.4),
-                   card, bottom, primary, 0.45, shade_strength=0.5)
-        glass_wave(wave_curve(H * 0.82, H * 0.05, -0.08, 1.2, 3.1, ph + 3.1),
-                   surface, bottom, secondary, 0.35, shade_strength=0.5)
-        stars = 0
-    else:  # cosmic (nova, aurora)
-        img = screen_glow(int(W * 0.22), int(H * 0.20), int(W * 0.34), primary, 0.34)
-        img = screen_glow(int(W * 0.86), int(H * 0.80), int(W * 0.30), secondary, 0.26)
-        glass_wave(wave_curve(H * 0.40, H * 0.08, 0.20, 0.7, 1.9, ph),
-                   raised, canvas, luminous, 0.26, shade_strength=0.35)
-        glass_wave(wave_curve(H * 0.56, H * 0.07, 0.14, 0.9, 2.4, ph + 1.2),
-                   card, canvas, primary, 0.5, shade_strength=0.45)
-        glass_wave(wave_curve(H * 0.72, H * 0.06, 0.06, 1.1, 2.8, ph + 2.4),
-                   surface, bottom, secondary, 0.4, shade_strength=0.5)
-        glass_wave(wave_curve(H * 0.88, H * 0.05, -0.10, 1.3, 3.3, ph + 4.0),
-                   card, bottom, luminous, 0.5, shade_strength=0.55)
-        stars = 220
+        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        gradrow = Image.new("RGB", (W, 1))
+        gp = gradrow.load()
+        for x in range(W):
+            gp[x, 0] = _lerp(fill_a, fill_b, x / (W - 1))
+        grad = gradrow.resize((W, H)).convert("RGBA")
+        grad.putalpha(mask)
+        layer = Image.alpha_composite(layer, grad)
 
-    # 3) star field — only above the waves, where the sky is darkest
-    if stars:
+        # crest light: a wide band of the light colour hugging the top curve,
+        # faded by blur, clipped to the glass — silk catching the sky
+        if light > 0:
+            lit = Image.new("L", (W, H), 0)
+            ImageDraw.Draw(lit).line(top, fill=255, width=int(H * 0.11), joint="curve")
+            lit = lit.filter(ImageFilter.GaussianBlur(int(H * 0.045)))
+            lit = ImageChops.multiply(lit, mask)
+            silk = Image.new("RGBA", (W, H), tuple(_lerp(light_color, (255, 255, 255), 0.18)) + (0,))
+            silk.putalpha(lit.point(lambda v: int(v * light)))
+            layer = Image.alpha_composite(layer, silk)
+
+        # inner shadow along the underside, so stacked bands separate
+        shl = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(shl).line(bot, fill=190, width=int(H * 0.05), joint="curve")
+        shl = shl.filter(ImageFilter.GaussianBlur(int(H * 0.024)))
+        shl = ImageChops.multiply(shl, mask)
+        dark = Image.new("RGBA", (W, H), tuple(int(c * 0.4) for c in bottom) + (0,))
+        dark.putalpha(shl.point(lambda v: int(v * 0.65)))
+        layer = Image.alpha_composite(layer, dark)
+
+        # silk folds: faint filaments flowing inside the glass
+        fd = ImageDraw.Draw(layer, "RGBA")
+        for k in range(folds):
+            f = (k + 1) / (folds + 1)
+            fold = []
+            for i in range(n):
+                tx, ty = top[i]
+                by = bot[i][1]
+                wobble = math.sin(i / n * math.pi * 2 * (1.3 + k * 0.7) + ph + k * 1.7)
+                fold.append((tx, ty + (by - ty) * (f + wobble * 0.06)))
+            fd.line(fold, fill=tuple(light_color) + (max(14, 40 - k * 8),), width=4, joint="curve")
+
+        if depth_blur:
+            layer = layer.filter(ImageFilter.GaussianBlur(depth_blur))
+        img = Image.alpha_composite(img.convert("RGBA"), layer).convert("RGB")
+
+        # the crest EMITS: tight neon line + wide halo, screen-blended after
+        # compositing so the light adds instead of covering
+        if edge > 0:
+            eb = 2 if not depth_blur else depth_blur + 2
+            screen_stroke(top, light_color, edge, width=6, blur=eb)
+            screen_stroke(top, light_color, edge * 0.40, width=54, blur=64)
+
+    def bokeh(count, colors, y_lo, y_hi):
+        nonlocal img
+        for blur, rmin, rmax, amul in ((70, 90, 150, 0.15), (28, 40, 90, 0.21), (9, 14, 40, 0.28)):
+            layer = Image.new("RGB", (W, H), (0, 0, 0))
+            d = ImageDraw.Draw(layer)
+            for _ in range(count // 3):
+                x = rng.randint(0, W)
+                y = rng.randint(int(H * y_lo), int(H * y_hi))
+                r = rng.randint(rmin, rmax)
+                c = rng.choice(colors)
+                s = amul * rng.uniform(0.5, 1.0)
+                d.ellipse([x - r, y - r, x + r, y + r], fill=tuple(int(v * s) for v in c))
+            img = ImageChops.screen(img, layer.filter(ImageFilter.GaussianBlur(blur)))
+
+    def starfield(n, y_frac, sparkle=0.04):
         sd = ImageDraw.Draw(img, "RGBA")
-        for _ in range(stars):
-            x, y = rng.randint(0, W), rng.randint(0, int(H * 0.45))
+        for _ in range(n):
+            x, y = rng.randint(0, W), rng.randint(0, int(H * y_frac))
             r = rng.choice([1, 1, 1, 2, 2, 3])
             a = rng.randint(40, 150)
             sd.ellipse([x - r, y - r, x + r, y + r], fill=(235, 242, 255, a))
+            if rng.random() < sparkle:
+                fl = r * 7
+                sd.line([(x - fl, y), (x + fl, y)], fill=(235, 242, 255, 46), width=2)
+                sd.line([(x, y - fl), (x, y + fl)], fill=(235, 242, 255, 46), width=2)
 
-    # 4) vignette toward the shadow colour
+    # tinted glass tones: the fills carry the accent's hue, not raw near-black
+    def glass(tone, accent, k):
+        return _lerp(tone, accent, k)
+
+    # ── 3. mood-tuned composition ────────────────────────────────────────────
+    if mood == "minimal":
+        # midnight: the void, one razor arc of light low in the frame, two
+        # panes of barely-tinted glass — exquisite, not empty
+        screen_glow(int(W * 0.5), int(H * 1.12), int(W * 0.62), primary, 0.12)
+        screen_glow(int(W * 0.84), int(H * 0.04), int(W * 0.26), secondary, 0.05)
+        arc = curve(H * 0.585, H * 0.075, -0.16, 0.55, 1.6, ph + 0.4)
+        ribbon(arc, glass(card, primary, 0.06), glass(surface, primary, 0.04), luminous,
+               thick0=H * 0.55, thick1=H * 0.62, light=0.20, edge=1.25,
+               alpha=246, folds=2, sag=0.15)
+        # the razor itself: one unblurred hairline of light along the arc
+        screen_stroke(arc, luminous, 0.9, width=3, blur=1)
+        ribbon(curve(H * 0.815, H * 0.045, 0.07, 1.05, 2.7, ph + 2.1),
+               glass(surface, secondary, 0.05), bottom, primary,
+               thick0=H * 0.4, thick1=H * 0.5, light=0.12, edge=0.5,
+               alpha=250, folds=2, sag=0.15)
+        starfield(170, 0.52, sparkle=0.03)
+    elif mood == "calm":
+        # amethyst: dusk silk — orchid light from the upper left, amber
+        # counter-glow, bokeh motes drifting between the layers
+        screen_glow(int(W * 0.24), int(H * 0.16), int(W * 0.38), primary, 0.34)
+        screen_glow(int(W * 0.90), int(H * 0.90), int(W * 0.34), secondary, 0.26)
+        aurora_veil(H * 0.16, [primary, secondary], strength=0.22, passes=2)
+        ribbon(curve(H * 0.42, H * 0.07, 0.18, 0.7, 1.9, ph),
+               glass(raised, primary, 0.14), glass(card, secondary, 0.10), luminous,
+               thick0=H * 0.24, thick1=H * 0.36, light=0.42, edge=0.35,
+               alpha=170, folds=2, depth_blur=8)
+        bokeh(27, [luminous, primary, secondary], 0.08, 0.72)
+        ribbon(curve(H * 0.57, H * 0.065, 0.12, 0.9, 2.4, ph + 1.3),
+               glass(card, primary, 0.16), glass(card, secondary, 0.12), primary,
+               thick0=H * 0.26, thick1=H * 0.40, light=0.55, edge=0.9, folds=4)
+        ribbon(curve(H * 0.75, H * 0.055, 0.02, 1.1, 2.8, ph + 2.6),
+               glass(surface, secondary, 0.14), glass(surface, primary, 0.08), secondary,
+               thick0=H * 0.34, thick1=H * 0.46, light=0.42, edge=0.7, folds=3)
+        ribbon(curve(H * 0.91, H * 0.04, -0.07, 1.3, 3.2, ph + 4.1),
+               glass(card, primary, 0.10), bottom, luminous,
+               thick0=H * 0.28, thick1=H * 0.32, light=0.34, edge=0.75, folds=2)
+        bokeh(12, [luminous, secondary], 0.30, 0.92)
+        screen_glow(int(W * 0.30), int(H * 0.55), int(W * 0.17), luminous, 0.20)
+    else:  # cosmic — nova, aurora
+        # deep-space dusk: an aurora veil breathing across the upper sky,
+        # lit silk stacked toward the viewer, one luminous core, stars
+        screen_glow(int(W * 0.20), int(H * 0.14), int(W * 0.36), primary, 0.34)
+        screen_glow(int(W * 0.88), int(H * 0.76), int(W * 0.32), secondary, 0.26)
+        aurora_veil(H * 0.14, [primary, secondary, luminous], strength=0.46, passes=3)
+        ribbon(curve(H * 0.45, H * 0.075, 0.20, 0.7, 1.9, ph),
+               glass(raised, primary, 0.14), glass(card, secondary, 0.12), luminous,
+               thick0=H * 0.22, thick1=H * 0.34, light=0.42, edge=0.32,
+               alpha=165, folds=2, depth_blur=9)
+        ribbon(curve(H * 0.585, H * 0.07, 0.14, 0.9, 2.4, ph + 1.2),
+               glass(card, primary, 0.16), glass(card, secondary, 0.12), primary,
+               thick0=H * 0.26, thick1=H * 0.38, light=0.55, edge=0.95, folds=4)
+        ribbon(curve(H * 0.74, H * 0.06, 0.05, 1.1, 2.8, ph + 2.4),
+               glass(surface, secondary, 0.14), glass(surface, primary, 0.08), secondary,
+               thick0=H * 0.32, thick1=H * 0.44, light=0.45, edge=0.7, folds=3)
+        ribbon(curve(H * 0.895, H * 0.045, -0.09, 1.3, 3.3, ph + 4.0),
+               glass(card, primary, 0.10), bottom, luminous,
+               thick0=H * 0.26, thick1=H * 0.30, light=0.35, edge=0.8, folds=2)
+        screen_glow(int(W * 0.34), int(H * 0.56), int(W * 0.16), luminous, 0.22)
+        starfield(240, 0.48)
+
+    # ── 4. finish: vignette toward the shadow colour, then fine grain ───────
     vig = Image.new("L", (W, H), 0)
     ImageDraw.Draw(vig).ellipse([-W * 0.28, -H * 0.28, W * 1.28, H * 1.28], fill=255)
     vig = vig.filter(ImageFilter.GaussianBlur(420))
     img = Image.composite(img, Image.new("RGB", (W, H), bottom), vig)
 
-    # 5) fine grain — breaks up gradient banding, reads as premium texture
     noise = Image.effect_noise((W, H), 14).convert("L").point(lambda v: (v - 128) // 6 + 128)
     img = ImageChops.overlay(img, Image.merge("RGB", (noise, noise, noise)))
     return img
