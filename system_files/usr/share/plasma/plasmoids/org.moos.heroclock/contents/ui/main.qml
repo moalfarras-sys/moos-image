@@ -35,6 +35,15 @@ PlasmoidItem {
     // the widget ticks at 1 Hz (the lock clock already does the same).
     property bool tick: true
 
+    // Each theme animates in its own tempo. The energy is read straight off the
+    // active accent's vividness (saturation × value), so a hot magenta Arena
+    // pulses quick and bright while a muted Scholar sage breathes slow and
+    // gentle — the SAME widget, a different heartbeat per look. Nothing is
+    // hard-coded to a theme id; switch the Global Theme and the motion follows
+    // the colour. 0 = calm, 1 = energetic.
+    readonly property real accentEnergy: Math.max(0.0, Math.min(1.0,
+        Kirigami.Theme.highlightColor.hsvSaturation * Kirigami.Theme.highlightColor.hsvValue))
+
     toolTipMainText: Qt.formatTime(now, Locale.LongFormat)
     toolTipSubText: Qt.formatDate(now, Locale.LongFormat)
 
@@ -94,6 +103,15 @@ PlasmoidItem {
         // glass. Verified live at square and wide aspect.
         readonly property int timePx: Math.round(Math.min(height * 0.34, width * 0.165))
 
+        // Per-theme heartbeat, all derived from root.accentEnergy (0 calm → 1
+        // energetic): a livelier theme breathes faster, glows brighter, and spins
+        // its comet quicker. Bounds keep even the most vivid theme tasteful on a
+        // surface that stays up for hours.
+        readonly property int breathMs: Math.round(4200 - root.accentEnergy * 1800)   // 4200→2400
+        readonly property int ringMs:   Math.round(26000 - root.accentEnergy * 11000) // 26s→15s
+        readonly property real glowPeak: 0.48 + root.accentEnergy * 0.34              // 0.48→0.82
+        readonly property real breathTo: 1.03 + root.accentEnergy * 0.03             // 1.03→1.06
+
         // Glass: translucent fill via colour alpha (never item opacity — that
         // would dim the time and the emblem with it), hairline border, one
         // top highlight. The same glass language as the logout panel.
@@ -140,8 +158,8 @@ PlasmoidItem {
                 SequentialAnimation on opacity {
                     loops: Animation.Infinite
                     running: hero.visible
-                    NumberAnimation { to: 0.65; duration: 3800; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.4; duration: 3800; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: hero.glowPeak; duration: hero.breathMs; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.4; duration: hero.breathMs; easing.type: Easing.InOutSine }
                 }
             }
             Image {
@@ -155,11 +173,12 @@ PlasmoidItem {
                 SequentialAnimation on scale {
                     loops: Animation.Infinite
                     running: hero.visible
-                    NumberAnimation { to: 1.04; duration: 3800; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 1.0; duration: 3800; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: hero.breathTo; duration: hero.breathMs; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 1.0; duration: hero.breathMs; easing.type: Easing.InOutSine }
                 }
             }
             Image {
+                id: cornerRing
                 anchors.centerIn: cornerEmblem
                 width: cornerEmblem.width * 1.45
                 height: width
@@ -169,9 +188,28 @@ PlasmoidItem {
                 sourceSize: Qt.size(width * 2, height * 2)
                 RotationAnimator on rotation {
                     from: 360; to: 0
-                    duration: 24000
+                    duration: hero.ringMs
                     loops: Animation.Infinite
                     running: hero.visible
+                }
+                // The comet HEAD, riding the ring's leading edge — the same
+                // orbiting spark the panel brand, lock and login carry, so the
+                // desktop's clock reads as one living mark with the rest.
+                Image {
+                    source: "../images/spark.png"
+                    width: cornerRing.width * 0.22
+                    height: width
+                    x: (cornerRing.width - width) / 2
+                    y: -height * 0.28
+                    smooth: true
+                    sourceSize: Qt.size(width * 2, height * 2)
+                    opacity: 0.85
+                    SequentialAnimation on scale {
+                        loops: Animation.Infinite
+                        running: hero.visible
+                        NumberAnimation { to: 1.25; duration: Math.round(hero.breathMs * 0.4); easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 1.0; duration: Math.round(hero.breathMs * 0.4); easing.type: Easing.InOutSine }
+                    }
                 }
             }
         }

@@ -5,8 +5,9 @@
         "Name": "MoOS Hero Clock",
         "Description": "A large glass clock with the living MoOS mark — time, bilingual date, and the brand's orbit",
         "Description[ar]": "ساعة زجاجية كبيرة بعلامة MoOS الحيّة — الوقت والتاريخ بلغتين ومدار الشعار",
-        "Icon": "preferences-system-time",
-        "Version": "1.0",
+        "Icon": "moos-logo",
+        "Category": "Date and Time",
+        "Version": "1.1",
         "Name[ar]": "ساعة MoOS الكبيرة"
     },
     "X-Plasma-API-Minimum-Version": "6.0",
