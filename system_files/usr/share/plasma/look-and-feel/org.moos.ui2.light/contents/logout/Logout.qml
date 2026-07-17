@@ -187,6 +187,15 @@ Item {
         fillMode: Image.PreserveAspectFit
         opacity: 0.075
         asynchronous: true
+        // The watermark breathes too — twelve seconds a cycle, felt more
+        // than seen, so the backdrop is alive without competing with the
+        // dialog above it.
+        SequentialAnimation on scale {
+            loops: Animation.Infinite
+            running: root.visible
+            NumberAnimation { to: 1.025; duration: 6000; easing.type: Easing.InOutSine }
+            NumberAnimation { to: 1.0; duration: 6000; easing.type: Easing.InOutSine }
+        }
     }
 
     MouseArea {
@@ -317,6 +326,24 @@ Item {
                             height: width
                             x: (brandStage.width - width) / 2
                             y: -brandStage.width * 0.10
+                        }
+                    }
+                    // The comet ring: the same orbit the login scene carries,
+                    // counter-rotating against the spark so the mark reads as
+                    // one living system on every doorway surface.
+                    Image {
+                        anchors.centerIn: parent
+                        width: brandStage.width * 1.5
+                        height: width
+                        source: "images/ring.png"
+                        mirror: true
+                        opacity: 0.7
+                        sourceSize: Qt.size(width * 2, height * 2)
+                        RotationAnimator on rotation {
+                            from: 360; to: 0
+                            duration: 26000
+                            loops: Animation.Infinite
+                            running: root.visible
                         }
                     }
                 }

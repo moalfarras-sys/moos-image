@@ -33,6 +33,7 @@ OUTS = (
     SHARE / "plasma/look-and-feel/org.moos.ui2.light/contents/logout/images",
     SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen/images",
     SHARE / "plasma/plasmoids/org.moos.brand/contents/images",
+    SHARE / "plasma/plasmoids/org.moos.heroclock/contents/images",
 )
 
 # Brand light colours — the emblem's own cyan/violet, the UI2 identity accents.
@@ -57,18 +58,54 @@ def radial_glow(size: int, rgb: tuple[int, int, int], peak: int, gamma: float) -
     return img
 
 
+def comet_ring(size: int, head: tuple[int, int, int], tail: tuple[int, int, int],
+               sweep_deg: float = 250.0, radius_frac: float = 0.465,
+               width_frac: float = 0.016, peak: int = 235) -> Image.Image:
+    """A thin luminous ring arc with a comet tail: brightest at its head,
+    fading to nothing along `sweep_deg`, colour travelling head→tail. Rotating
+    this sprite behind the emblem gives the orbit a direction and a life that
+    a full uniform circle (which reads as a static border) never has."""
+    from math import atan2, degrees, exp, hypot
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    px = img.load()
+    centre = (size - 1) / 2
+    ring_r = size * radius_frac
+    sigma = size * width_frac
+    for y in range(size):
+        for x in range(size):
+            dx, dy = x - centre, y - centre
+            r = hypot(dx, dy)
+            radial = exp(-((r - ring_r) ** 2) / (2 * sigma * sigma))
+            if radial < 0.01:
+                continue
+            ang = (degrees(atan2(dy, dx)) + 360.0) % 360.0
+            if ang > sweep_deg:
+                continue
+            t = ang / sweep_deg              # 0 at the head, 1 at the tail tip
+            fade = (1.0 - t) ** 1.8
+            a = int(peak * radial * fade)
+            if a <= 0:
+                continue
+            c = tuple(int(head[i] + (tail[i] - head[i]) * t) for i in range(3))
+            px[x, y] = c + (a,)
+    return img
+
+
 def main() -> None:
     # The brand halo behind the emblem — wide, quiet falloff.
     glow_cyan = radial_glow(640, CYAN, peak=170, gamma=2.6)
     glow_violet = radial_glow(640, VIOLET, peak=170, gamma=2.6)
     # The orbiting spark — small, bright core, fast falloff.
     spark = radial_glow(96, (196, 240, 255), peak=255, gamma=1.6)
+    # The comet ring — the emblem's orbit made visible, cyan head, violet tail.
+    ring = comet_ring(640, CYAN, VIOLET)
     for out in OUTS:
         out.mkdir(parents=True, exist_ok=True)
         glow_cyan.save(out / "glow-cyan.png")
         glow_violet.save(out / "glow-violet.png")
         spark.save(out / "spark.png")
-        print(f"wrote {out}/{{glow-cyan,glow-violet,spark}}.png")
+        ring.save(out / "ring.png")
+        print(f"wrote {out}/{{glow-cyan,glow-violet,spark,ring}}.png")
 
 
 if __name__ == "__main__":

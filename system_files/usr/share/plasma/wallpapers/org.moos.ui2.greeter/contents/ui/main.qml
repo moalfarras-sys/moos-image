@@ -26,6 +26,8 @@
 //   naming the Graphite package (/usr/share/wallpapers/MoOSUI2Graphite/ — and
 //   mind the punctuation here: build.sh greps QML too for wallpaper paths,
 //   and a sentence period right after a path reads as part of the path).
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Window
 import org.kde.kirigami as Kirigami
@@ -143,6 +145,30 @@ WallpaperItem {
         }
     }
 
+    // ── Drifting light motes: six sparks rising through the whole scene at
+    //    whisper opacity and different speeds. They start together below the
+    //    frame and separate within the first climb; the wrap happens fully
+    //    off-screen so the loop never shows a pop.
+    Repeater {
+        model: 6
+        delegate: Image {
+            id: mote
+            required property int index
+            source: "../images/spark.png"
+            width: Math.max(6, Math.round(root.height * (0.007 + 0.004 * (mote.index % 3))))
+            height: width
+            x: Math.round([0.16, 0.84, 0.31, 0.68, 0.07, 0.93][mote.index] * root.width)
+            opacity: [0.22, 0.15, 0.26, 0.18, 0.13, 0.20][mote.index]
+            YAnimator on y {
+                from: root.height * 1.06
+                to: -mote.height - root.height * 0.06
+                duration: 38000 + mote.index * 9000
+                loops: Animation.Infinite
+                running: root.visible
+            }
+        }
+    }
+
     // ── The MoOS brand: breathing glow, the emblem, two orbiting sparks, the
     //    wordmark — staged entrance, then a calm idle. Scaled from screen height
     //    so a 768p panel keeps the brand clear of the greeter's user avatar.
@@ -200,6 +226,43 @@ WallpaperItem {
                         running: root.visible
                         NumberAnimation { to: 0.35; duration: 3600; easing.type: Easing.InOutSine }
                         NumberAnimation { to: 0.6; duration: 3600; easing.type: Easing.InOutSine }
+                    }
+                }
+
+                // Two comet rings, counter-orbiting at different radii and
+                // periods — the emblem's swirl given an orbit of its own.
+                // ringB is mirrored so its tail trails its direction too.
+                Image {
+                    id: ringA
+                    anchors.centerIn: emblem
+                    width: brand.emblemSize * 1.62
+                    height: width
+                    source: "../images/ring.png"
+                    opacity: 0.85
+                    sourceSize: Qt.size(width * Screen.devicePixelRatio,
+                                        height * Screen.devicePixelRatio)
+                    RotationAnimator on rotation {
+                        from: 0; to: 360
+                        duration: 21000
+                        loops: Animation.Infinite
+                        running: root.visible
+                    }
+                }
+                Image {
+                    id: ringB
+                    anchors.centerIn: emblem
+                    width: brand.emblemSize * 1.36
+                    height: width
+                    source: "../images/ring.png"
+                    mirror: true
+                    opacity: 0.45
+                    sourceSize: Qt.size(width * Screen.devicePixelRatio,
+                                        height * Screen.devicePixelRatio)
+                    RotationAnimator on rotation {
+                        from: 360; to: 0
+                        duration: 34000
+                        loops: Animation.Infinite
+                        running: root.visible
                     }
                 }
 
@@ -287,6 +350,35 @@ WallpaperItem {
                 radius: 1
                 color: root.primaryColor
                 opacity: 0
+
+                // Every few seconds a spark glides along the hairline — the
+                // one deliberate glint in an otherwise calm idle.
+                Image {
+                    id: hairlineSpark
+                    source: "../images/spark.png"
+                    width: Math.max(10, Math.round(brand.emblemSize * 0.10))
+                    height: width
+                    y: Math.round((parent.height - height) / 2)
+                    opacity: 0
+                    SequentialAnimation {
+                        running: root.visible
+                        loops: Animation.Infinite
+                        PauseAnimation { duration: 4600 }
+                        ParallelAnimation {
+                            NumberAnimation { target: hairlineSpark; property: "x"
+                                from: -hairlineSpark.width * 0.5
+                                to: hairline.width - hairlineSpark.width * 0.5
+                                duration: 1700; easing.type: Easing.InOutSine }
+                            SequentialAnimation {
+                                NumberAnimation { target: hairlineSpark; property: "opacity"
+                                    to: 0.9; duration: 400; easing.type: Easing.OutCubic }
+                                PauseAnimation { duration: 850 }
+                                NumberAnimation { target: hairlineSpark; property: "opacity"
+                                    to: 0; duration: 450; easing.type: Easing.InCubic }
+                            }
+                        }
+                    }
+                }
             }
 
             Text {
@@ -308,6 +400,10 @@ WallpaperItem {
             running: false
             NumberAnimation { target: brand; property: "opacity"; from: 0; to: 1
                 duration: 1100; easing.type: Easing.OutCubic }
+            // The emblem arrives from slightly above scale and settles — the
+            // cinematic beat that makes the entrance read as intentional.
+            NumberAnimation { target: brand; property: "scale"; from: 1.12; to: 1.0
+                duration: 1300; easing.type: Easing.OutCubic }
             NumberAnimation { target: brandRise; property: "y"
                 from: -Kirigami.Units.gridUnit * 1.4; to: 0
                 duration: 1100; easing.type: Easing.OutCubic }

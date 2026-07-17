@@ -343,6 +343,24 @@ Item {
                         y: -brandStage.width * 0.10
                     }
                 }
+                // The comet ring, counter-rotating against the spark — the
+                // same orbit the login and logout scenes carry, so lock,
+                // login and logout read as one brand.
+                Image {
+                    anchors.centerIn: brandEmblem
+                    width: brandStage.width * 1.5
+                    height: width
+                    source: "images/ring.png"
+                    mirror: true
+                    opacity: 0.65
+                    sourceSize: Qt.size(width * 2, height * 2)
+                    RotationAnimator on rotation {
+                        from: 360; to: 0
+                        duration: 28000
+                        loops: Animation.Infinite
+                        running: brandStage.visible
+                    }
+                }
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter

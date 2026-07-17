@@ -69,13 +69,22 @@ Item {
         }
 
         // A short turquoise tick under the time — the one luminous accent.
+        // It breathes: a slow width swell, in period with the brand above it,
+        // so the lock screen's two living elements share one pulse.
         Rectangle {
+            id: accentTick
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: Math.round(hours.implicitWidth * 0.6)
             Layout.preferredHeight: Math.round(Kirigami.Units.smallSpacing * 0.6)
             radius: height
             color: Kirigami.Theme.highlightColor
             opacity: 0.9
+            SequentialAnimation on scale {
+                loops: Animation.Infinite
+                running: clock.visible
+                NumberAnimation { to: 1.18; duration: 3000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 1.0; duration: 3000; easing.type: Easing.InOutSine }
+            }
         }
 
         Text {
