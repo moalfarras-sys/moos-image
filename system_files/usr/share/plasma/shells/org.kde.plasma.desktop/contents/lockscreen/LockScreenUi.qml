@@ -375,8 +375,24 @@ Item {
             }
         }
 
+        // A soft shadow beneath the auth card — the UI2 glass sits ON the
+        // wallpaper, not painted into it. Behind the card, tied to its state.
+        // Purely decorative; never touches the auth path.
+        RectangularGlow {
+            anchors.fill: authCard
+            visible: !lockScreenUi.softwareRendering && authCard.opacity > 0
+            glowRadius: Kirigami.Units.gridUnit * 1.1
+            spread: 0.06
+            color: Qt.rgba(0, 0, 0, 0.34)
+            cornerRadius: authCard.radius + glowRadius
+            opacity: authCard.opacity
+            scale: authCard.scale
+        }
+
         // The frosted card behind the auth cluster. Fades and lifts in only when
         // the UI is summoned, so the idle screen stays clean wallpaper + clock.
+        // Real UI2 glass: a vertical depth gradient (lighter crest, deeper foot),
+        // a 1px translucent inner border, a top highlight, and the shadow above.
         Rectangle {
             id: authCard
             anchors.horizontalCenter: parent.horizontalCenter
@@ -384,24 +400,31 @@ Item {
             width: Math.min(parent.width - Kirigami.Units.gridUnit * 4, Kirigami.Units.gridUnit * 30)
             height: Kirigami.Units.gridUnit * 21
             radius: Kirigami.Units.gridUnit * 1.2
-            color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                           Kirigami.Theme.backgroundColor.g,
-                           Kirigami.Theme.backgroundColor.b, 0.55)
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                                                             Kirigami.Theme.backgroundColor.g,
+                                                             Kirigami.Theme.backgroundColor.b, 0.64) }
+                GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                                                             Kirigami.Theme.backgroundColor.g,
+                                                             Kirigami.Theme.backgroundColor.b, 0.50) }
+            }
             border.width: 1
             border.color: Qt.rgba(Kirigami.Theme.textColor.r,
                                   Kirigami.Theme.textColor.g,
-                                  Kirigami.Theme.textColor.b, 0.10)
+                                  Kirigami.Theme.textColor.b, 0.14)
             visible: opacity > 0
             opacity: lockScreenRoot.uiVisible ? 1 : 0
             scale: lockScreenRoot.uiVisible ? 1 : 0.96
             Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
             Behavior on scale { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
 
-            // One soft inner highlight along the top edge — the UI2 glass tell.
+            // One soft inner highlight along the top edge — the UI2 glass tell:
+            // silk catching the light where the card meets the sky.
             Rectangle {
                 anchors { top: parent.top; left: parent.left; right: parent.right; margins: 1 }
                 height: 1
-                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.12)
+                radius: 1
+                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.16)
             }
         }
 
