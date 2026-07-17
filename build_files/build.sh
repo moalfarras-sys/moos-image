@@ -9,6 +9,27 @@
 set -euxo pipefail
 
 # -----------------------------------------------------------------------------
+# (a0) Freeze the kernel at the BASE image's version — before any dnf runs
+# -----------------------------------------------------------------------------
+# The base (ghcr.io/ublue-os/kinoite-main:44) defines the kernel; its
+# `ostree.linux` label is exactly what build.yml pins the NVIDIA akmod to. A
+# layered dnf transaction in this build must NOT bump it. Seen 2026-07-17: the
+# base shipped kernel 7.1.3-200 but the `updates` repo offered -201, so a plain
+# `dnf install` pulled -201 in as an update and left TWO kernels in
+# /usr/lib/modules — the newer one only half-populated (no overlay.ko, so dracut
+# could not build the live initramfs: "Module 'dmsquash-live' depends on
+# 'overlayfs', which can't be installed") AND unmatched by the akmod (a NVIDIA
+# black screen). Exclude the kernel binary packages from EVERY transaction so the
+# base's kernel stays the one and only. Kernel bumps ride the correct rail: a base
+# rebuild → a matching akmod → `bootc upgrade`, never a side effect of layering.
+# (Must be the first thing in the script — before the copr/dnf calls below.)
+if ! grep -q '^exclude=.*kernel-core' /etc/dnf/dnf.conf 2>/dev/null; then
+    printf 'exclude=kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra\n' \
+        >> /etc/dnf/dnf.conf
+fi
+echo "=== kernel frozen at the base version (dnf.conf exclude added) ==="
+
+# -----------------------------------------------------------------------------
 # (a) os-release branding
 # -----------------------------------------------------------------------------
 # /etc/os-release is a symlink to /usr/lib/os-release on Fedora Atomic,
@@ -99,31 +120,28 @@ dnf5 -y install uupd
 dnf5 -y copr disable ublue-os/packages
 
 # -----------------------------------------------------------------------------
-# (b1) Prune older kernels — keep exactly the NEWEST, before anything reads it
+# (b1) Belt-and-suspenders: if a stray second kernel ever slips in, keep the RIGHT one
 # -----------------------------------------------------------------------------
-# Upstream drift (first seen 2026-07-17): ghcr.io/ublue-os/kinoite-main:44 began
-# shipping TWO kernels in /usr/lib/modules (a kernel bump where the previous
-# version had not yet been pruned). That breaks MoOS two ways: the NVIDIA section
-# below picks the kernel with `find … | head -1` (UNSORTED — it can grab the OLD
-# one and then mismatch the akmods kmod), and the initramfs step later hard-fails
-# on any kernel count != 1. Both are right to distrust ambiguity, so resolve it
-# here, deterministically: keep only the newest kernel.
-#
-# "Newest" is correct for BOTH editions — ublue's akmods tag (main-44-x86_64) is
-# floating and rebuilt against kinoite's CURRENT (newest) kernel, so the kmod
-# matches the newest. If upstream ever gets ahead of akmods, the NVIDIA section's
-# explicit kernel-mismatch FATAL still catches it loudly (a clear "wait for the
-# matching akmod", never a silent black screen).
-mapfile -t _kvers < <(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V)
+# With the kernel frozen in (a0) this should never fire. But if a second kernel
+# ever reaches /usr/lib/modules anyway, resolve it deterministically — and NOT by
+# "newest wins": the newest may be the half-populated update that fails dracut,
+# and on the NVIDIA edition the only correct kernel is the exact one the akmod was
+# built for (anything else black-screens). So the NVIDIA edition keeps its akmod's
+# KERNEL_VERSION; the generic edition keeps the newest.
+if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ] && [ -r /akmods/rpms/kmods/nvidia-vars ]; then
+    _keep=$(. /akmods/rpms/kmods/nvidia-vars && printf '%s' "$KERNEL_VERSION")
+else
+    _keep=$(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V | tail -1)
+fi
+mapfile -t _kvers < <(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d -printf '%f\n')
 if [ "${#_kvers[@]}" -gt 1 ]; then
-    _keep="${_kvers[-1]}"
-    echo "=== base ships ${#_kvers[@]} kernels (${_kvers[*]}) — keeping newest: ${_keep} ==="
+    echo "=== more than one kernel present (${_kvers[*]}) — keeping ${_keep} ==="
     for _kv in "${_kvers[@]}"; do
         [ "$_kv" = "$_keep" ] && continue
-        echo "    pruning older kernel ${_kv}"
+        echo "    pruning stray kernel ${_kv}"
         # Remove every kernel* package pinned to this exact version (deps ignored:
-        # this is an offline image build, not a live system), then make sure the
-        # module tree is gone even if a stray file was not package-owned.
+        # offline image build), then make sure the module tree is gone even if a
+        # stray file was not package-owned.
         _old=$(rpm -qa 'kernel*' | grep -F -- "-${_kv}" || true)
         [ -n "$_old" ] && printf '%s\n' "$_old" | xargs -r rpm -e --nodeps 2>/dev/null || true
         rm -rf "/usr/lib/modules/${_kv}"
