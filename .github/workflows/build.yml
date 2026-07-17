@@ -82,6 +82,7 @@ jobs:
           python3 tests/verify_user_experience.py
           python3 tests/test_device_plan.py
           python3 tests/test_moai_do.py
+          python3 artwork/verify_visuals.py
 
       # GHCR requires a lowercase namespace; github.repository_owner may
       # contain uppercase letters.
