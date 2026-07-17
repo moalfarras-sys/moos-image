@@ -120,14 +120,38 @@ dnf5 -y install uupd
 dnf5 -y copr disable ublue-os/packages
 
 # -----------------------------------------------------------------------------
-# (b1) Belt-and-suspenders: if a stray second kernel ever slips in, keep the RIGHT one
+# (b1) Resolve the base's kernel ambiguity — drop INCOMPLETE kernels, keep one
 # -----------------------------------------------------------------------------
-# With the kernel frozen in (a0) this should never fire. But if a second kernel
-# ever reaches /usr/lib/modules anyway, resolve it deterministically — and NOT by
-# "newest wins": the newest may be the half-populated update that fails dracut,
-# and on the NVIDIA edition the only correct kernel is the exact one the akmod was
-# built for (anything else black-screens). So the NVIDIA edition keeps its akmod's
-# KERNEL_VERSION; the generic edition keeps the newest.
+# ghcr.io/ublue-os/kinoite-main:44 currently ships TWO kernels in
+# /usr/lib/modules: the real 7.1.3-200 (complete, and what build.yml pins the
+# NVIDIA akmod to) AND a stray 7.1.3-201 whose module tree is HALF-POPULATED — it
+# has no overlay.ko, so dracut cannot build the live initramfs ("Module
+# 'dmsquash-live' depends on 'overlayfs', which can't be installed"). The (a0)
+# dnf exclude stops NEW kernels being pulled but cannot remove one already baked
+# into the base, so handle it here.
+#
+# Step 1 — remove any INCOMPLETE kernel (no overlay module), version-agnostic.
+# Guarded so it can never delete every kernel: only prune once we know at least
+# one COMPLETE kernel remains to keep.
+_complete=()
+while IFS= read -r _cand; do
+    [ -n "$(find "/usr/lib/modules/${_cand}" -name 'overlay.ko*' -print -quit 2>/dev/null)" ] \
+        && _complete+=("$_cand")
+done < <(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d -printf '%f\n')
+if [ "${#_complete[@]}" -ge 1 ]; then
+    while IFS= read -r _cand; do
+        _ok=0; for _c in "${_complete[@]}"; do [ "$_c" = "$_cand" ] && _ok=1; done
+        [ "$_ok" = 1 ] && continue
+        echo "=== removing INCOMPLETE kernel ${_cand} (no overlay module → breaks live initramfs) ==="
+        rpm -qa 'kernel*' | grep -F -- "-${_cand}" | xargs -r rpm -e --nodeps 2>/dev/null || true
+        rm -rf "/usr/lib/modules/${_cand}"
+    done < <(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d -printf '%f\n')
+else
+    echo "WARNING: no kernel with an overlay module found — leaving /usr/lib/modules untouched"
+fi
+# Step 2 — if more than one COMPLETE kernel still remains, keep the RIGHT one:
+# the akmod's exact kernel on NVIDIA (newest-wins would black-screen), newest on
+# generic. (With today's base this leaves exactly 7.1.3-200 either way.)
 if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ] && [ -r /akmods/rpms/kmods/nvidia-vars ]; then
     _keep=$(. /akmods/rpms/kmods/nvidia-vars && printf '%s' "$KERNEL_VERSION")
 else
@@ -135,19 +159,14 @@ else
 fi
 mapfile -t _kvers < <(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d -printf '%f\n')
 if [ "${#_kvers[@]}" -gt 1 ]; then
-    echo "=== more than one kernel present (${_kvers[*]}) — keeping ${_keep} ==="
+    echo "=== multiple complete kernels (${_kvers[*]}) — keeping ${_keep} ==="
     for _kv in "${_kvers[@]}"; do
         [ "$_kv" = "$_keep" ] && continue
-        echo "    pruning stray kernel ${_kv}"
-        # Remove every kernel* package pinned to this exact version (deps ignored:
-        # offline image build), then make sure the module tree is gone even if a
-        # stray file was not package-owned.
-        _old=$(rpm -qa 'kernel*' | grep -F -- "-${_kv}" || true)
-        [ -n "$_old" ] && printf '%s\n' "$_old" | xargs -r rpm -e --nodeps 2>/dev/null || true
+        rpm -qa 'kernel*' | grep -F -- "-${_kv}" | xargs -r rpm -e --nodeps 2>/dev/null || true
         rm -rf "/usr/lib/modules/${_kv}"
     done
-    echo "=== kernels after prune: $(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d -printf '%f ')==="
 fi
+echo "=== kernel(s) after resolve: $(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d -printf '%f ')==="
 
 # -----------------------------------------------------------------------------
 # (b2) NVIDIA driver — moos-nvidia edition only
