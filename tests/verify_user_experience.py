@@ -2259,6 +2259,33 @@ require(re.search(r"^Theme=", read("system_files/etc/xdg/kscreenlockerrc"), re.M
 require(re.search(r"y:\s*Math\.max\(\s*brand\.y\s*\+\s*brand\.height", lock_ui) is not None,
         "the lock screen clock lost its floor below the brand — on a 4K panel "
         "the time draws through the MoOS emblem and wordmark again")
+# The auth cluster INSIDE the card (avatar, password field, unlock button) was
+# the last stock-Breeze surface — the deferred "auth card". MoOS now overrides
+# the shell's lockscreen MainBlock.qml too. It is THE unlock path: this gate
+# holds the auth wiring byte-for-byte present so a future restyle can never
+# quietly break login. The visual dressing is free to change; these wires are not.
+mainblock = read(f"{shell_lock}/MainBlock.qml")
+require("SessionManagementScreen" in mainblock,
+        "MainBlock.qml is no longer a SessionManagementScreen — it would lose the "
+        "user avatar/list and the whole auth screen contract")
+for wire, why in (
+        (r"signal\s+passwordResult\s*\(\s*string\s+password\s*\)",
+         "the passwordResult(string) signal LockScreenUi connects to authenticator.respond"),
+        (r"function\s+startLogin\s*\(", "the startLogin() entry point"),
+        (r"passwordResult\s*\(\s*password\s*\)", "the passwordResult(password) emit inside startLogin"),
+        (r"alias\s+mainPasswordBox\s*:\s*passwordBox", "the mainPasswordBox alias LockScreenUi drives"),
+        (r"target:\s*PasswordSync", "the PasswordSync binding that carries the typed secret"),
+        (r"onClicked:\s*sessionManager\.startLogin\(\)", "the unlock button wired to startLogin"),
+        (r"PlasmaExtras\.PasswordField", "the real password field (secret entry, not a plain TextField)"),
+):
+    require(re.search(wire, mainblock) is not None,
+            f"MoOS MainBlock.qml lost {why} — the lock/login could stop accepting "
+            "the password. Restyle the auth card, never rewire it.")
+# And it must actually be MoOS, not a copy of the stock file: the auth-safety
+# contract banner is the tell that this is the deliberate MoOS fork.
+require("AUTH SAFETY CONTRACT" in mainblock,
+        "MoOS MainBlock.qml lost its AUTH SAFETY CONTRACT banner — either it "
+        "reverted to stock Breeze or someone rewrote it without the guardrails")
 # ── The animated brand's light is pre-baked sprites, and they must travel with
 #    every QML file that names them. A QML that references images/glow-cyan.png
 #    with no sprite beside it fails SILENTLY (Image logs a warning nobody reads
@@ -2799,6 +2826,30 @@ require(-1 < _i_stop < _i_reload < _i_reset < _i_start,
         "daemon-reload → reset-failed dev-zram0.swap → start dev-zram0.swap. "
         "reset-failed must come after the stop (it clears the start-limit counters "
         "the stop/start cycle charged) and before the single start request")
+
+# ── A transient zram-setup failure must not look permanent on a fresh install ──
+# Round-190 (QEMU) finding: one transient boot-time failure of
+# systemd-zram-setup@zram0 left the device sized (disksize set, mkswap done), so
+# every retry then died EBUSY writing comp_algorithm and the first boot ended
+# with no swap. The fix is a template drop-in whose ExecStartPre resets the zram
+# device before each (re)start — guarded so it SKIPS an active swap and no-ops on
+# a healthy first boot. Hold both halves: the reset, and the /proc/swaps guard
+# that keeps it from ever touching live swap.
+_zram_drop = "system_files/usr/lib/systemd/system/systemd-zram-setup@.service.d/10-moos-reset-on-retry.conf"
+require((ROOT / _zram_drop).is_file(),
+        "the zram reset-on-retry drop-in is missing — one transient zram-setup "
+        "failure on a fresh install's first boot would leave the device wedged "
+        "(EBUSY on every retry) and the install would boot with no swap")
+_zd = read(_zram_drop)
+require(re.search(r"ExecStartPre=.*/sys/block/%i/reset", _zd) is not None,
+        "the zram drop-in must reset /sys/block/%i/reset in ExecStartPre so a "
+        "retry-after-transient-failure starts from a clean, re-configurable device")
+require("/proc/swaps" in _zd,
+        "the zram drop-in must guard on /proc/swaps — it must never reset a zram "
+        "device that is currently an ACTIVE swap")
+require(re.search(r"ExecStartPre=-", _zd) is not None,
+        "the zram drop-in's ExecStartPre must be prefixed '-' (failure-tolerant) "
+        "so a guard miss can never block the device from being set up")
 
 # ── The live session must not lock itself mid-install ────────────────────────
 # The live ISO's KDE session kept the stock 5-minute autolock, so the screen
