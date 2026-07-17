@@ -128,6 +128,144 @@ Kirigami.ApplicationWindow {
     color: surface0
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.None
 
+    // ── The glass backdrop — the roadmap's last Nova Glass item ─────────────
+    // The window used to be one flat colour; the flagship app now sits on a
+    // living scene: a deepening gradient, two aurora bands drifting slower
+    // than the eye tracks, the brand's breathing light, and the mark itself
+    // as a watermark with its comet ring. Everything is palette-driven so all
+    // six family themes (and Tidal light) keep their own identity, and every
+    // sprite is a pre-baked PNG from artwork/generate_login_scene.py at the
+    // canonical /usr/share/moos/brand/ — a missing sprite degrades to the
+    // plain gradient, never to a broken window. Declared as a sibling of the
+    // pageStack at z:-1, so it draws behind every page. Animators only, the
+    // same budget as every MoOS always-on surface.
+    Item {
+        id: ambient
+        anchors.fill: parent
+        z: -1
+
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.lighter(root.surface0, 1.05) }
+                GradientStop { position: 0.55; color: root.surface0 }
+                GradientStop { position: 1.0; color: Qt.darker(root.surface0, 1.25) }
+            }
+        }
+
+        Rectangle {
+            id: ambientCyan
+            width: parent.width * 1.6
+            height: parent.height * 0.5
+            y: parent.height * 0.02
+            rotation: -14
+            opacity: 0.05
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.5; color: root.novaCyan }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+            XAnimator on x {
+                from: -ambientCyan.width * 0.35
+                to: root.width - ambientCyan.width * 0.65
+                duration: 140000
+                loops: Animation.Infinite
+                easing.type: Easing.InOutSine
+                running: root.visible
+            }
+        }
+        Rectangle {
+            id: ambientViolet
+            width: parent.width * 1.5
+            height: parent.height * 0.45
+            y: parent.height * 0.5
+            rotation: 10
+            opacity: 0.04
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.5; color: root.novaViolet }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+            XAnimator on x {
+                from: root.width - ambientViolet.width * 0.6
+                to: -ambientViolet.width * 0.4
+                duration: 170000
+                loops: Animation.Infinite
+                easing.type: Easing.InOutSine
+                running: root.visible
+            }
+        }
+
+        Image {
+            id: ambientGlowCyan
+            source: "file:///usr/share/moos/brand/glow-cyan.png"
+            width: Math.round(Math.min(parent.width, parent.height) * 0.9)
+            height: width
+            x: -width * 0.35
+            y: parent.height - height * 0.55
+            asynchronous: true
+            opacity: 0.14
+            SequentialAnimation on opacity {
+                loops: Animation.Infinite
+                running: root.visible
+                NumberAnimation { to: 0.26; duration: 5200; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.14; duration: 5200; easing.type: Easing.InOutSine }
+            }
+        }
+        Image {
+            id: ambientGlowViolet
+            source: "file:///usr/share/moos/brand/glow-violet.png"
+            width: Math.round(Math.min(parent.width, parent.height) * 0.75)
+            height: width
+            x: parent.width - width * 0.55
+            y: -height * 0.35
+            asynchronous: true
+            opacity: 0.18
+            SequentialAnimation on opacity {
+                loops: Animation.Infinite
+                running: root.visible
+                NumberAnimation { to: 0.08; duration: 5200; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.18; duration: 5200; easing.type: Easing.InOutSine }
+            }
+        }
+
+        // The watermark: the mark at whisper opacity, its comet ring turning
+        // once a minute — presence, not decoration competing with content.
+        Image {
+            id: ambientMark
+            source: "file:///usr/share/moos/moos-logo.png"
+            width: Math.round(Math.min(parent.width, parent.height) * 0.5)
+            height: width
+            x: parent.width - width * 0.62
+            y: parent.height - height * 0.60
+            asynchronous: true
+            fillMode: Image.PreserveAspectFit
+            opacity: 0.05
+            SequentialAnimation on scale {
+                loops: Animation.Infinite
+                running: root.visible
+                NumberAnimation { to: 1.02; duration: 6000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 1.0; duration: 6000; easing.type: Easing.InOutSine }
+            }
+        }
+        Image {
+            anchors.centerIn: ambientMark
+            source: "file:///usr/share/moos/brand/ring.png"
+            width: ambientMark.width * 1.35
+            height: width
+            asynchronous: true
+            opacity: 0.10
+            RotationAnimator on rotation {
+                from: 0; to: 360
+                duration: 60000
+                loops: Animation.Infinite
+                running: root.visible
+            }
+        }
+    }
+
     // ── Health, derived from the detector rather than asserted ──────────────
     //
     // planReady matters: moai-control refreshes the device plan on a background

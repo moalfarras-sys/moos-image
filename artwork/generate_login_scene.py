@@ -36,6 +36,9 @@ OUTS = (
     SHARE / "plasma/plasmoids/org.moos.heroclock/contents/images",
     SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/images",
     SHARE / "plasma/look-and-feel/org.moos.ui2.light/contents/splash/images",
+    # The canonical shared copy for APPS (Mo AI's glass backdrop reads these
+    # absolute paths — plasma packages keep their own package-local copies).
+    SHARE / "moos/brand",
 )
 
 # Brand light colours — the emblem's own cyan/violet, the UI2 identity accents.

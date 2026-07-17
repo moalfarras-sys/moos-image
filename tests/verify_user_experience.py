@@ -2164,6 +2164,17 @@ for qml_dir in (Path("system_files/usr/share/plasma/shells/org.kde.plasma.deskto
                     f"{qml.relative_to(ROOT)} references {sprite} but the sprite is not "
                     f"at {base}/ — the animated brand would silently lose its light "
                     "(regenerate with artwork/generate_login_scene.py)")
+# ── The same rule for APPS: Mo AI's glass backdrop reads the canonical shared
+#    sprites at /usr/share/moos/brand/. An absolute path fails even more
+#    silently than a package-relative one (nothing in the app's own tree looks
+#    wrong), so every such reference must resolve inside system_files.
+for qml in sorted((ROOT / "system_files/usr/share/moos/apps").rglob("*.qml")):
+    body = qml.read_text(encoding="utf-8")
+    for sprite in re.findall(r'file:///usr/share/moos/brand/([a-z-]+\.png)', body):
+        require((ROOT / "system_files/usr/share/moos/brand" / sprite).is_file(),
+                f"{qml.relative_to(ROOT)} references /usr/share/moos/brand/{sprite} "
+                "but the image does not ship it — the glass backdrop would silently "
+                "lose its light (regenerate with artwork/generate_login_scene.py)")
 # ── Logout action icons must be the -symbolic glyphs. The buttons recolour their
 #    icon with isMask, and the MoOSUI2 theme's full-colour action icons (a filled
 #    disc with white detail) mask into a featureless blob — every logout button
