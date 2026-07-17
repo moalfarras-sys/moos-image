@@ -4,7 +4,20 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-16 (session F), booted image `44.20260716.176` (`moos-nvidia`, signed origin).
+Last updated: 2026-07-17 (session G), booted image `44.20260716.176` (`moos-nvidia`, signed origin).
+
+> **Session G — the polish session (2026-07-17, full writeup in `FIXES_2026-07-17.md`).**
+> Wallpapers v2: the four family themes now carry LIT-SILK art (crest-lit bands, aurora
+> veil, screen-blended neon edges — make_wallpaper rewritten; Canva retried, account AI
+> quota still hard-blocked). A new pre-baked `ring.png` comet-ring sprite orbits the emblem
+> on every doorway (login gained a scale-settle entrance, a hairline spark and drifting
+> motes; lock and logout carry mirrored rings; the logout watermark breathes). The bar
+> brand widened to 1.5× panel height with the ring orbiting continuously. NEW widget:
+> `org.moos.heroclock` — the glass desktop Hero Clock (bilingual, live seconds, the mark in
+> the corner; every size derives from min(width,height) — height-only sizing shoved the
+> seconds strip out of the card on a square window, found live). Lock clock's tick
+> breathes; panel clock glints on hover. Gates extended (heroclock completeness + the
+> always-on shader ban loop), both watched go red.
 
 > **Session F — the brand session (2026-07-16, full writeup in `FIXES_2026-07-16c.md`).**
 > The owner's vector logo landed (`artwork/logo/`) and the animated MoOS brand now lives on
