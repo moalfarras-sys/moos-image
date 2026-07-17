@@ -1,0 +1,174 @@
+// MoOS premium boot splash — Plymouth Script module.
+//
+// A deep-navy field. A cyan->violet energy head orbits a faint ring while the
+// CRISP MoOS mark rises and settles with a soft glow; then the head keeps
+// orbiting as the loading loop, seamlessly, until the desktop takes over. No
+// vendor branding, no default dots, no boot text on a normal boot.
+//
+// Driven entirely by moving four small sprites (logo/ring/head/glow) from the
+// refresh callback — NOT hundreds of pre-baked frames — so the theme is ~0.8 MB
+// and adds almost nothing to the initramfs or boot time. Everything scales to
+// the screen height, so it is crisp at 1080p and 4K without stretching. If any
+// sprite fails to load, Plymouth falls back to its text splash and the machine
+// still boots — that is the safe fallback.
+//
+// Assets are produced by artwork/generate_boot_splash.py. The logo is his 1024px
+// master, downscaled but never redrawn/recoloured/cropped.
+
+// ── deep near-black navy ground ──────────────────────────────────────────────
+Window.SetBackgroundTopColor(0.027, 0.043, 0.086);      // #070B16
+Window.SetBackgroundBottomColor(0.016, 0.024, 0.039);   // #04060A
+
+sw = Window.GetWidth(0);
+sh = Window.GetHeight(0);
+cx = sw / 2;
+cy = sh / 2;
+
+fun fmin(a, b) { if (a < b) return a; return b; }
+fun fmax(a, b) { if (a > b) return a; return b; }
+fun clamp01(v) { return fmax(0, fmin(1, v)); }
+fun easeout(t) { u = 1 - t; return 1 - u * u * u; }
+
+PI = 3.14159265;
+
+// ── sizes, all relative to screen height (crisp at any resolution) ───────────
+logo_size = sh * 0.26;
+ring_size = sh * 0.62;
+glow_size = sh * 0.44;
+head_size = sh * 0.10;
+ring_radius = ring_size * 0.44;   // matches ring.png geometry (6% margins)
+
+// ── sprites ──────────────────────────────────────────────────────────────────
+logo_image = Image("logo.png");
+ring_image = Image("ring.png");
+head_image = Image("head.png");
+glow_image = Image("glow.png");
+
+logo_full = logo_image.Scale(logo_size, logo_size);
+ring_scaled = ring_image.Scale(ring_size, ring_size);
+glow_scaled = glow_image.Scale(glow_size, glow_size);
+head_scaled = head_image.Scale(head_size, head_size);
+
+glow_sprite = Sprite(glow_scaled);
+glow_sprite.SetX(cx - glow_size / 2);
+glow_sprite.SetY(cy - glow_size / 2);
+glow_sprite.SetZ(1);
+glow_sprite.SetOpacity(0.18);
+
+ring_sprite = Sprite(ring_scaled);
+ring_sprite.SetX(cx - ring_size / 2);
+ring_sprite.SetY(cy - ring_size / 2);
+ring_sprite.SetZ(2);
+ring_sprite.SetOpacity(0);
+
+logo_sprite = Sprite();
+logo_sprite.SetZ(5);
+logo_sprite.SetOpacity(0);
+
+head_sprite = Sprite(head_scaled);
+head_sprite.SetZ(6);
+head_sprite.SetOpacity(0);
+
+// ── animation state ──────────────────────────────────────────────────────────
+// Plymouth calls refresh ~50x/sec; we count frames and treat ~50 as one second.
+// Exact wall-clock does not matter for a splash — it only needs to read smooth.
+frame = 0;
+logo_settled = 0;
+
+INTRO_SEC = 2.4;     // reveal length
+SWEEP_SEC = 1.9;     // the head's one-time sweep around the ring
+LOOP_SEC = 2.2;      // seconds per orbit during the loading loop
+
+fun refresh() {
+    frame++;
+    t = frame / 50.0;
+    p = clamp01(t / INTRO_SEC);
+
+    // the ring track fades in first
+    ring_sprite.SetOpacity(clamp01(t / 0.4) * 0.9);
+
+    // the mark rises: fade + scale from 0.5s to ~1.6s, then hold (stop rescaling)
+    if (logo_settled == 0) {
+        lt = clamp01((t - 0.4) / 1.1);
+        le = easeout(lt);
+        if (lt >= 1) {
+            logo_sprite.SetImage(logo_full);
+            logo_sprite.SetX(cx - logo_size / 2);
+            logo_sprite.SetY(cy - logo_size / 2);
+            logo_sprite.SetOpacity(1);
+            logo_settled = 1;
+        } else {
+            ls = logo_size * (0.62 + 0.38 * le);
+            logo_sprite.SetImage(logo_image.Scale(ls, ls));
+            logo_sprite.SetX(cx - ls / 2);
+            logo_sprite.SetY(cy - ls / 2);
+            logo_sprite.SetOpacity(le);
+        }
+    }
+
+    // the ambient glow breathes
+    glow_sprite.SetOpacity(0.16 + 0.09 * (0.5 + 0.5 * Math.Sin(t * 1.5)));
+
+    // the energy head: one eased sweep around the ring, then a steady orbit
+    if (t < SWEEP_SEC) {
+        ang = 360 * easeout(t / SWEEP_SEC);
+    } else {
+        ang = 360 * ((t - SWEEP_SEC) / LOOP_SEC);
+    }
+    rad = ang * PI / 180 - PI / 2;    // start at the top of the ring
+    hx = cx + ring_radius * Math.Cos(rad);
+    hy = cy + ring_radius * Math.Sin(rad);
+    head_sprite.SetX(hx - head_size / 2);
+    head_sprite.SetY(hy - head_size / 2);
+    head_sprite.SetOpacity(clamp01(t / 0.25));
+}
+Plymouth.SetRefreshFunction(refresh);
+
+// ── boot messages (fsck etc.), shown quietly below the mark ──────────────────
+message_sprite = Sprite();
+message_sprite.SetZ(20);
+fun message_callback(text) {
+    img = Image.Text(text, 0.62, 0.70, 0.82);
+    message_sprite.SetImage(img);
+    message_sprite.SetX(cx - img.GetWidth() / 2);
+    message_sprite.SetY(sh * 0.86);
+    message_sprite.SetOpacity(1);
+}
+fun hide_message() { message_sprite.SetOpacity(0); }
+Plymouth.SetMessageFunction(message_callback);
+
+// ── LUKS / login passphrase prompt (only appears on encrypted systems) ───────
+prompt_sprite = Sprite();
+prompt_sprite.SetZ(20);
+bullets_sprite = Sprite();
+bullets_sprite.SetZ(20);
+fun display_password(prompt, bullets) {
+    hide_message();
+    pimg = Image.Text(prompt, 0.78, 0.85, 0.93);
+    prompt_sprite.SetImage(pimg);
+    prompt_sprite.SetX(cx - pimg.GetWidth() / 2);
+    prompt_sprite.SetY(sh * 0.72);
+    prompt_sprite.SetOpacity(1);
+    dots = "";
+    i = 0;
+    while (i < bullets) { dots = dots + "•"; i++; }
+    if (dots == "") { dots = " "; }
+    bimg = Image.Text(dots, 0.31, 0.85, 0.93);
+    bullets_sprite.SetImage(bimg);
+    bullets_sprite.SetX(cx - bimg.GetWidth() / 2);
+    bullets_sprite.SetY(sh * 0.77);
+    bullets_sprite.SetOpacity(1);
+}
+fun clear_password() {
+    prompt_sprite.SetOpacity(0);
+    bullets_sprite.SetOpacity(0);
+}
+Plymouth.SetDisplayPasswordFunction(display_password);
+
+// On a normal display (no prompt/message), clear both overlays — the mark and
+// its orbit are all that should remain.
+fun display_normal() {
+    hide_message();
+    clear_password();
+}
+Plymouth.SetDisplayNormalFunction(display_normal);

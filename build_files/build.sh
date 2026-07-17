@@ -173,63 +173,38 @@ fi
 # - grub2-efi-x64-cdboot: provides gcdx64.efi required for the ISO's EFI dir
 # The ISO config itself ships in system_files:
 #   /usr/lib/bootc-image-builder/iso.yaml
-# plymouth-plugin-two-step: required by the moos boot theme below
-# (Kinoite already ships it via the bgrt/spinner themes — explicit install
-# is a harmless guarantee).
+# plymouth-plugin-script: the moos boot theme is a native SCRIPT theme —
+# moos.script drives the reveal by moving four small sprites (logo/ring/head/glow).
+# plymouth-plugin-two-step is kept because Kinoite's own bgrt/spinner fallbacks use
+# it; both explicit installs are harmless guarantees.
 dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot \
-    plymouth-plugin-two-step
+    plymouth-plugin-script plymouth-plugin-two-step
 
 # MoOS branded boot splash (flicker-free). No -R flag on purpose: the dracut
 # run right below regenerates the initramfs anyway, and the plymouth dracut
 # module picks up the theme selected here.
 plymouth-set-default-theme moos
 
-# ── The splash needs the two-step plugin's FUNCTIONAL assets, not just the art ──
+# ── The Script theme must ship its script + sprites ──────────────────────────
 #
-# THIS IS WHY THERE WAS NO BOOT SPLASH. The moos theme shipped watermark.png and 60
-# throbber frames and nothing else, because its README says the batch "replaces assets
-# only" — but two-step does not only draw art. It loads the password-entry assets FIRST,
-# unconditionally, before it ever reaches the logo. Plymouth's own debug log, captured by
-# booting the ISO in a VM with plymouth.debug:
-#
-#   two-step/plugin.c:1862:show_splash_screen : loading lock image
-#   ply-boot-splash.c:553                     : can't show splash: No such file or directory
-#   main.c:505:show_default_splash            : Could not start default splash screen,
-#                                               showing text splash screen
-#
-# `strings` on two-step.so gives the order: lock -> box -> corner -> header -> background
-# -> watermark. lock.png is the FIRST load and the only hard-coded path (`%s/lock.png`),
-# so a theme without it dies before the watermark is even considered. The user saw a flat
-# grey screen with a few squares — that was Plymouth's TEXT fallback, not our theme.
-#
-# Every gate stayed green throughout: they checked that the theme was installed, selected,
-# and that its PNGs were valid. All true. All still true while the splash was dead. They
-# checked what SHIPS; nothing checked what two-step LOADS.
-#
-# These are function, not branding — a padlock, a bullet, a text box, and the keymap strip
-# that appear only at a LUKS password prompt. They come from plymouth-theme-spinner (an
-# installed RPM, so they track plymouth's own version and format), and keymap-render.png
-# in particular is a 25881x50 pre-rendered layout strip that cannot be hand-authored.
-# Copying them is not "a system on top of a system": it completes MoOS's own theme with
-# the parts its plugin requires.
-_SPIN=/usr/share/plymouth/themes/spinner
+# A script theme draws everything from moos.script by moving sprites, so unlike the
+# old two-step theme it needs NO password-entry assets (lock/box/corner/keymap) —
+# the script renders any LUKS prompt itself with Image.Text. But the same class of
+# silent failure still exists: a script theme whose ScriptFile, or any sprite it
+# loads, is missing falls straight back to Plymouth's TEXT splash — a green build
+# with a grey boot, exactly what the two-step theme once shipped (loading lock
+# image -> "can't show splash: No such file or directory" -> text splash). Nothing
+# used to check what the plugin LOADS. So GATE that the script and its four sprites
+# actually landed in the image.
 _MOOS=/usr/share/plymouth/themes/moos
-# GATE: if spinner ever stops shipping these, copying silently nothing would put the boot
-# straight back to a grey text screen — with a green build, exactly as it shipped before.
-test -f "${_SPIN}/lock.png" || {
-    echo "GATE FAIL: ${_SPIN}/lock.png is gone — the moos theme cannot be completed and"
-    echo "           two-step would abort the splash on its very first image load."
-    exit 1
-}
-for _a in lock.png bullet.png entry.png capslock.png keyboard.png keymap-render.png; do
-    if [ -f "${_SPIN}/${_a}" ]; then
-        cp -f "${_SPIN}/${_a}" "${_MOOS}/${_a}"
-    fi
+for _f in moos.script logo.png ring.png head.png glow.png; do
+    test -f "${_MOOS}/${_f}" || {
+        echo "GATE FAIL: moos theme is missing ${_f} — the Script splash would abort to text"
+        exit 1
+    }
 done
-# GATE: prove the one that aborts the splash actually landed.
-test -f "${_MOOS}/lock.png" || { echo "GATE FAIL: moos/lock.png was not installed"; exit 1; }
-echo "=== plymouth: moos theme completed with two-step's entry assets ==="
-ls -1 "${_MOOS}" | grep -v '^throbber' | sed 's/^/    /'
+echo "=== plymouth: moos Script theme present ==="
+ls -1 "${_MOOS}" | grep -vE 'README' | sed 's/^/    /'
 
 # Fedora's plymouth package keeps two distribution fallbacks outside the
 # selected theme:
@@ -241,8 +216,11 @@ ls -1 "${_MOOS}" | grep -v '^throbber' | sed 's/^/    /'
 # fallback paths before dracut runs.  This changes only Plymouth policy/assets;
 # it does not touch the kernel, BLS entries, OSTree layout, or EFI binaries.
 sed -i 's/^Theme=.*/Theme=moos/' /usr/share/plymouth/plymouthd.defaults
+# The Script theme has no watermark.png of its own (the mark is logo.png, moved by
+# the script), so the Fedora spinner/bgrt fallback watermark is overwritten with
+# the MoOS mark (logo.png) instead.
 if [ -f /usr/share/plymouth/themes/spinner/watermark.png ]; then
-    cp -f /usr/share/plymouth/themes/moos/watermark.png \
+    cp -f /usr/share/plymouth/themes/moos/logo.png \
         /usr/share/plymouth/themes/spinner/watermark.png
 fi
 
@@ -250,7 +228,7 @@ fi
 # fedora-logos package owns spinner/watermark.png and bgrt points ImageDir at
 # that directory. Keep the package for compatibility, but require its visible
 # boot watermark to contain MoOS pixels before the definitive dracut run.
-cmp -s /usr/share/plymouth/themes/moos/watermark.png \
+cmp -s /usr/share/plymouth/themes/moos/logo.png \
     /usr/share/plymouth/themes/spinner/watermark.png || {
     echo "FATAL: spinner compatibility watermark still contains foreign branding"; exit 1;
 }
@@ -260,7 +238,7 @@ cmp -s /usr/share/plymouth/themes/moos/watermark.png \
 grep -qx 'Theme=moos' /etc/plymouth/plymouthd.conf
 grep -qx 'Theme=moos' /usr/share/plymouth/plymouthd.defaults
 if [ -f /usr/share/plymouth/themes/spinner/watermark.png ]; then
-    cmp -s /usr/share/plymouth/themes/moos/watermark.png \
+    cmp -s /usr/share/plymouth/themes/moos/logo.png \
         /usr/share/plymouth/themes/spinner/watermark.png
 fi
 
@@ -2272,7 +2250,7 @@ python3 /ctx/verify_identity.py
 plymouth-set-default-theme moos
 sed -i 's/^Theme=.*/Theme=moos/' /usr/share/plymouth/plymouthd.defaults
 if [ -f /usr/share/plymouth/themes/spinner/watermark.png ]; then
-    cp -f /usr/share/plymouth/themes/moos/watermark.png \
+    cp -f /usr/share/plymouth/themes/moos/logo.png \
         /usr/share/plymouth/themes/spinner/watermark.png
 fi
 
@@ -2339,19 +2317,24 @@ if [ "${_final_lsrc}" -eq 0 ]; then
     grep -q 'plymouth/themes/moos/moos.plymouth' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks the MoOS Plymouth descriptor"; exit 1;
     }
-    grep -q 'plymouth/themes/moos/watermark.png' /tmp/moos-final-initrd.txt || {
-        echo "FATAL: final initramfs lacks the MoOS watermark"; exit 1;
+    # The Script theme's mark (logo.png), its animation SCRIPT, and its moving
+    # sprites must all be in the initramfs, or Plymouth renders the background but
+    # no reveal, or aborts to the text fallback. The script plugin (script.so) is
+    # the difference between a full render and that fallback — the equivalent of
+    # the old two-step.so check.
+    grep -q 'plymouth/themes/moos/logo.png' /tmp/moos-final-initrd.txt || {
+        echo "FATAL: final initramfs lacks the MoOS logo sprite"; exit 1;
     }
-    # The throbber (turquoise loading ring) frames and the two-step PLUGIN must
-    # both be in the initramfs, or Plymouth renders the background + emblem but no
-    # animation, or cannot run the graphical splash at all (the three-dot
-    # fallback). The research confirmed a missing two-step.so is the difference
-    # between a full render and the fallback.
-    grep -q 'plymouth/themes/moos/throbber-0001.png' /tmp/moos-final-initrd.txt || {
-        echo "FATAL: final initramfs lacks the MoOS throbber (the loading ring)"; exit 1;
+    grep -q 'plymouth/themes/moos/moos.script' /tmp/moos-final-initrd.txt || {
+        echo "FATAL: final initramfs lacks moos.script — the Script splash would abort to text"; exit 1;
     }
-    grep -qE 'plymouth/(two-step\.so|two-step)' /tmp/moos-final-initrd.txt || {
-        echo "FATAL: final initramfs lacks the two-step Plymouth plugin — the moos theme cannot render"; exit 1;
+    for _spr in ring head glow; do
+        grep -q "plymouth/themes/moos/${_spr}.png" /tmp/moos-final-initrd.txt || {
+            echo "FATAL: final initramfs lacks the MoOS ${_spr} sprite — the reveal cannot draw"; exit 1;
+        }
+    done
+    grep -qE 'plymouth/(script\.so|script)' /tmp/moos-final-initrd.txt || {
+        echo "FATAL: final initramfs lacks the script Plymouth plugin — the moos theme cannot render"; exit 1;
     }
     grep -qE 'plymouth/renderers/(drm\.so|frame-buffer\.so)' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks a Plymouth renderer (drm/frame-buffer) — no graphical splash"; exit 1;

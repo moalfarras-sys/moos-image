@@ -1,36 +1,44 @@
-# moos — ثيم إقلاع Plymouth الخاص بـ MoOS
+# moos — ثيم إقلاع Plymouth الخاص بـ MoOS (Script)
 
-ثيم إقلاع MoOS الرسمي المبني على plugin ‏`two-step` نفسه المستخدم في مسار Fedora flicker-free. عقد `.plymouth` بقي ثابتًا؛ هذه الدفعة تستبدل الأصول فقط.
+ثيم إقلاع MoOS الرسمي، ثيم **Script** أصلي: كل الحركة يقودها `moos.script` بتحريك
+أربع صور صغيرة، لا إطارات مُسبقة التصيير — فالثيم ‏~0.8 MiB والإقلاع يبقى سريعًا.
 
-## Contents
+## المشهد
+
+على خلفية كحلية غامقة (‏`#070B16`)، يلفّ رأس طاقة سماوي→بنفسجي حلقةً خافتة بينما
+تطلع علامة MoOS الحادّة وتستقرّ بتوهّج ناعم؛ ثم يستمرّ الرأس بالدوران كمؤشّر تحميل
+سلس حتى يتسلّم سطح المكتب. بلا شعار أو نص إقلاع أو نقاط افتراضية. يتوسّع حسب ارتفاع
+الشاشة فيكون حادًّا على 1080p و4K.
+
+## المحتويات
 
 ```text
 moos/
-├── moos.plymouth
-├── throbber-0001.png … throbber-0060.png   # 96×96 RGBA
-├── watermark.png                           # 288×288 RGBA
+├── moos.plymouth        # ModuleName=script ، يشير إلى moos.script
+├── moos.script          # كل الحركة: الكشف + حلقة التحميل + رسائل + كلمة مرور LUKS
+├── logo.png   512×512   # علامة MoOS الحادّة (نسخة من الماستر، بلا تعديل)
+├── ring.png   720×720   # مسار الحلقة الخافت
+├── head.png   220×220   # رأس الطاقة (نواة ساطعة + ذيل مذنّب)
+├── glow.png   512×512   # توهّج محيطي خلف العلامة
 └── README.md
 ```
 
-- الـ throbber حلقة مدتها ثانيتان من 60 صورة فريدة. Plymouth 24.004.60 يعرضها عند **30 FPS ثابتة**؛ لا يوجد مفتاح `FrameRate`، لذلك 60 صورة لا تعني 60 FPS.
-- كل إطار transparent RGBA، مرسوم عند 4× ثم مصغّر مرة واحدة بـ LANCZOS، مع glow وmotion trail وتدرج Mo الكامل.
-- الـ watermark يستخدم شعار MoOS الأصلي مع هالة مضبوطة، ويُعرض بحجمه الأصلي لأن `two-step` لا يغيّر حجمه.
-- كل PNG يحمل sRGB profile. الاستهلاك الخام للإطارات الستين يقارب 2.1 MiB فقط.
+الصور تُولَّد بـ `artwork/generate_boot_splash.py` (PIL خالص، حتمي). العلامة هي ماستر
+الـ1024px، مصغّرة لكن **غير مُعاد رسمها أو تلوينها أو قصّها**.
 
-## Contract verification
+## fallback آمن
 
-تم التحقق مقابل tag الرسمي `24.004.60`:
+ثيم السكربت لا يحتاج أصول two-step (lock/box/corner)؛ السكربت يرسم أي مطالبة LUKS
+بنفسه عبر `Image.Text`. لو فشل تحميل أي صورة أو السكربت، يرجع Plymouth لسبلاش النص —
+**النظام يقلع دائمًا**. `build_files/build.sh` يثبّت `plymouth-plugin-script`، يختار
+الثيم، ويُثبت أن السكربت وصوره الأربع دخلت الصورة والـinitramfs (بوابات fail-closed).
 
-- plugin keys: <https://gitlab.freedesktop.org/plymouth/plymouth/-/blob/24.004.60/src/plugins/splash/two-step/plugin.c>
-- throbber loader and timing: <https://gitlab.freedesktop.org/plymouth/plymouth/-/blob/24.004.60/src/libply-splash-graphics/ply-throbber.c>
-- reference descriptor: <https://gitlab.freedesktop.org/plymouth/plymouth/-/blob/24.004.60/themes/spinner/spinner.plymouth.desktop>
+## التحقّق
 
-`throbber-` والامتداد lowercase `.png` ثابتان، والتحميل يتم بترتيب `versionsort`. يبقى `UseEndAnimation=false` إلزاميًا في كل وضع لأننا لا نشحن `animation-*`.
+التحقّق النهائي البصري يلزم على عتاد/VM يوفّر DRM مبكرًا (جولة QEMU مثل الـISO) —
+سبلاش لا يُثبَت بقراءة الإعداد، فقط بالإقلاع والنظر. البوابات تحرس أن كل ما يحمّله
+الـplugin موجود، لا فقط ما "يُشحَن".
 
-## Activation and testing
+## الإسناد
 
-`build_files/build.sh` الموجود أصلًا يختار الثيم قبل إعادة بناء initramfs؛ لم تُعدّل هذه الدفعة أي wiring يملكه Claude. يلزم التحقق النهائي على عتاد/VM يوفّر DRM مبكرًا لأن QEMU الحالي قد يسقط إلى النص حتى مع ثيم صحيح.
-
-## Attribution
-
-عقد التسمية والبنية من Plymouth الرسمي. كل الصور أصلية لـ MoOS ولا تحتوي أصولًا من طرف ثالث.
+عقد التسمية والبنية من Plymouth الرسمي. كل الصور أصلية لـ MoOS بلا أصول طرف ثالث.

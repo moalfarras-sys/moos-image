@@ -508,36 +508,38 @@ require("xkbForLang" in keymap_fn.group(1),
         "keymapForLang() must derive the console keymap from xkbForLang() — naming the keyboard "
         "twice is what let the console keep typing 'us' after the layout became 'de,ara'")
 
-# ── The boot theme must carry what two-step LOADS, not just what it draws ────
-# The splash was dead for weeks and every gate was green. They asserted the theme was
-# installed, selected, and that its PNGs decoded — all true, all still true while the screen
-# was a flat grey text fallback. Nothing asserted the thing that actually mattered.
-#
-# two-step loads the password-entry assets FIRST, unconditionally, before the logo. From
-# plymouth's debug log on a real boot: "loading lock image" -> "can't show splash: No such
-# file or directory" -> "showing text splash screen". `strings two-step.so` gives the order
-# (lock -> box -> corner -> header -> background -> watermark) and shows `%s/lock.png` as the
-# only hard-coded path. A theme without lock.png dies before the watermark is considered.
-#
-# build.sh copies these from plymouth-theme-spinner (they are function, not branding), so
-# this gate holds the BUILD STEP, not the repo tree — the assets are deliberately not
-# committed: they must track plymouth's own version, and keymap-render.png is a 25881x50
-# pre-rendered strip nobody can hand-author.
-build_sh = code(read("build_files/build.sh"))
-require('cp -f "${_SPIN}/${_a}" "${_MOOS}/${_a}"' in build_sh,
-        "build.sh must copy two-step's entry assets into the moos theme — without lock.png "
-        "the plugin aborts on its first image load and the boot falls back to a grey text "
-        "screen, with every other splash gate still green")
-require('test -f "${_MOOS}/lock.png"' in build_sh,
-        "build.sh must PROVE moos/lock.png landed — a silent copy of nothing puts the boot "
-        "straight back to the text fallback")
-require('test -f "${_SPIN}/lock.png"' in build_sh,
-        "build.sh must gate on spinner still shipping lock.png — if the source disappears, "
-        "the copy becomes a no-op and the splash dies with a green build")
+# ── The boot theme is a SCRIPT theme; gate what the plugin LOADS, not just draws ─
+# The splash was once dead for weeks with every gate green: they asserted the theme
+# was installed, selected, and its PNGs decoded — all true while the screen was a
+# grey text fallback, because the plugin ABORTED loading an asset nothing checked.
+# The theme is now a native Script theme (moos.script moves logo/ring/head/glow),
+# but the same failure mode exists: a script whose ScriptFile — or any sprite it
+# loads — is missing falls straight back to the text splash. So gate the script and
+# its sprites in the repo tree, in the config, in the script's own load calls, and
+# in build.sh's fail-closed check.
 theme_dir = ROOT / "system_files/usr/share/plymouth/themes/moos"
-require((theme_dir / "watermark.png").is_file(),
-        "the moos theme must ship its own watermark.png — that is the MoOS emblem itself, "
-        "and unlike the entry assets it is branding, not function")
+build_sh = code(read("build_files/build.sh"))
+require("plymouth-plugin-script" in build_sh,
+        "build.sh must install plymouth-plugin-script — the moos boot theme is a Script theme")
+require("plymouth-set-default-theme moos" in build_sh,
+        "build.sh must select the moos boot theme")
+require("for _f in moos.script logo.png ring.png head.png glow.png" in build_sh,
+        "build.sh must PROVE the script + its four sprites landed — a missing ScriptFile or "
+        "sprite silently drops the boot to the text splash, with every other gate green")
+for _asset in ("moos.script", "logo.png", "ring.png", "head.png", "glow.png"):
+    require((theme_dir / _asset).is_file(),
+            f"the moos Script theme must ship {_asset} — the splash aborts to text without it")
+_moos_cfg = (theme_dir / "moos.plymouth").read_text(encoding="utf-8")
+require("ModuleName=script" in _moos_cfg,
+        "moos.plymouth must select the script module")
+require("ScriptFile=/usr/share/plymouth/themes/moos/moos.script" in _moos_cfg,
+        "moos.plymouth must point ScriptFile at moos.script")
+_moos_script = (theme_dir / "moos.script").read_text(encoding="utf-8")
+for _spr in ('Image("logo.png")', 'Image("ring.png")', 'Image("head.png")', 'Image("glow.png")'):
+    require(_spr in _moos_script,
+            f"moos.script must load {_spr} — a typo'd or missing load aborts the whole theme")
+require("Plymouth.SetRefreshFunction" in _moos_script,
+        "moos.script must drive the reveal + loading orbit from a refresh function")
 
 # ── plymouth.use-simpledrm must stay opt-out-able ───────────────────────────
 # The karg was proven in a VM, promoted to every machine, and on the owner's NVIDIA box it
@@ -2091,53 +2093,27 @@ if default_lnf is not None:
 # whole theme family. Read the UI2 palette that the rest of the image is generated from and
 # require the splash to agree with it. The splash then cannot drift from the desktop again, and
 # a future palette change updates this gate for free.
-plymouth_theme = code(
-    read("system_files/usr/share/plymouth/themes/moos/moos.plymouth")
-)
-ui2_palette = json.loads(read("artwork/moos-ui2/palette.json"))["dark"]
-def rgb(value: str) -> str:
-    """Normalise `0x14191C`, `0X14191c` and `#14191C` to the same six hex digits."""
-    return value.strip().lower().removeprefix("0x").removeprefix("#")
+# The Script theme sets its background from the script (Window.SetBackground*Color),
+# not from a .plymouth key. The owner's brief calls for a deep near-black NAVY field
+# (not the graphite desktop canvas), so gate the exact navy values so a future edit
+# cannot wash the boot out to grey or drift it off the intended navy.
+moos_script_src = read("system_files/usr/share/plymouth/themes/moos/moos.script")
+require("Window.SetBackgroundTopColor(0.027, 0.043, 0.086)" in moos_script_src,
+        "the boot splash's deep-navy top background drifted from #070B16")
+require("Window.SetBackgroundBottomColor(0.016, 0.024, 0.039)" in moos_script_src,
+        "the boot splash's navy bottom background drifted from #04060A")
 
-
-for key, token in (("BackgroundStartColor", "canvas"),
-                   ("BackgroundEndColor", "canvas"),
-                   ("ProgressBarBackgroundColor", "card"),
-                   ("ProgressBarForegroundColor", "primary")):
-    expected = ui2_palette[token]
-    actual = re.search(rf"^{key}=(\S+)", plymouth_theme, re.MULTILINE)
-    require(actual is not None, f"the boot splash declares no {key}")
-    if actual is not None:
-        require(rgb(actual.group(1)) == rgb(expected),
-                f"the boot splash's {key} is {actual.group(1)}, but MoOS UI2's `{token}` is "
-                f"{expected}: the first screen of the boot would not be the colour of the "
-                f"desktop it boots into")
-
-# The splash is LOGO-HERO: the emblem+wordmark (watermark.png, composed by
-# artwork/generate_boot_hero.py) is centred as the brand mark, and the throbber
-# ring is dropped to the lower third as a secondary loader. The old theme did the
-# opposite — spinner dead-centre, logo shrunk to a .96 footer. Gate the geometry
-# so a future edit cannot quietly bury the logo again, and gate that the hero and
-# the loader cannot overlap (verified against 768p, the tightest common panel).
-def _frac(key: str) -> float:
-    m = re.search(rf"^{key}=([0-9.]+)", plymouth_theme, re.MULTILINE)
-    require(m is not None, f"the boot splash declares no {key}")
-    return float(m.group(1)) if m else 0.0
-
-watermark_v = _frac("WatermarkVerticalAlignment")
-throbber_v = _frac("VerticalAlignment")
-require(watermark_v <= 0.55,
-        f"the boot logo sits at {watermark_v} — it must be centred as the hero "
-        "(<=0.55), not buried at the bottom like the pre-redesign watermark")
-require(throbber_v >= 0.72,
-        f"the boot loader sits at {throbber_v} — it must drop to the lower third "
-        "(>=0.72) so it reads as secondary to the logo, not over it")
-require(throbber_v - watermark_v >= 0.25,
-        "the boot logo and loader are too close and would overlap on a short "
-        "(768p) panel — keep at least 0.25 of screen height between them")
-require((ROOT / "artwork/generate_boot_hero.py").is_file(),
-        "the boot hero generator is missing — watermark.png could not be "
-        "reproduced from the emblem master")
+# The splash is LOGO-HERO: the crisp mark is centred and the cyan-violet energy
+# head ORBITS a ring as the loading indicator. Gate that the script actually
+# centres the logo and drives the head around the ring at ring_radius, so a future
+# edit cannot bury the mark or freeze the loader.
+require("logo_sprite.SetX(cx" in moos_script_src and "logo_sprite.SetY(cy" in moos_script_src,
+        "the boot mark must be centred as the hero")
+require("head_sprite.SetX(hx" in moos_script_src and "ring_radius" in moos_script_src,
+        "the boot loading head must orbit the ring (ring_radius) as the loading indicator")
+# Scale to screen height, so it is crisp at 1080p and 4K without stretching.
+require("Window.GetHeight(0)" in moos_script_src,
+        "the boot splash must size itself from the screen height (crisp at 1080p and 4K)")
 
 # The flicker-free kargs are cosmetic-only and proven on this base; require the
 # load-bearing ones so a future edit cannot silently drop the splash or the
