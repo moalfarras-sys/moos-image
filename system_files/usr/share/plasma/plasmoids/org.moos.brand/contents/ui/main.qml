@@ -109,10 +109,11 @@ PlasmoidItem {
     compactRepresentation: MouseArea {
         id: compact
 
-        // Wider than tall on purpose — the brand gets a little more presence
-        // than a stock icon, without pushing the panel around: the width is
-        // still derived from the panel height, so it scales with the dock.
-        readonly property int contentWidth: Math.round(height * 1.2)
+        // Wider than tall on purpose — the brand gets real presence in the
+        // bar, not a stock icon's slot. The width is still derived from the
+        // panel height, so it scales with the dock; 1.5× gives the comet
+        // ring room to orbit without the panel clipping it.
+        readonly property int contentWidth: Math.round(height * 1.5)
 
         implicitWidth: contentWidth
         implicitHeight: Kirigami.Units.gridUnit * 2
@@ -179,6 +180,27 @@ PlasmoidItem {
                 onStopped: emblem.rotation = 0
             }
         }
+
+        // The comet ring — the same orbit every doorway surface carries, now
+        // living in the bar. Sized to the panel height (not the emblem) so
+        // its circle stays inside the panel window and never clips; it leans
+        // brighter under the pointer, with the halo.
+        Image {
+            id: panelRing
+            anchors.centerIn: emblem
+            width: Math.round(Math.min(compact.height, compact.width) * 0.995)
+            height: width
+            source: "../images/ring.png"
+            opacity: compact.containsMouse ? 0.95 : 0.55
+            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+            sourceSize: Qt.size(width * 2, height * 2)
+            RotationAnimator on rotation {
+                from: 0; to: 360
+                duration: 16000
+                loops: Animation.Infinite
+                running: compact.visible
+            }
+        }
     }
 
     // ── The MoOS glance ───────────────────────────────────────────────────────
@@ -226,6 +248,21 @@ PlasmoidItem {
                             running: root.expanded
                             NumberAnimation { to: 1.04; duration: 3200; easing.type: Easing.InOutSine }
                             NumberAnimation { to: 1.0; duration: 3200; easing.type: Easing.InOutSine }
+                        }
+                    }
+                    Image {
+                        anchors.centerIn: glanceEmblem
+                        width: glanceEmblem.width * 1.42
+                        height: width
+                        source: "../images/ring.png"
+                        mirror: true
+                        opacity: 0.7
+                        sourceSize: Qt.size(width * 2, height * 2)
+                        RotationAnimator on rotation {
+                            from: 360; to: 0
+                            duration: 22000
+                            loops: Animation.Infinite
+                            running: root.expanded
                         }
                     }
                 }

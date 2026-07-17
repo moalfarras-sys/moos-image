@@ -78,6 +78,24 @@ PlasmoidItem {
             Behavior on opacity { NumberAnimation { duration: 120 } }
         }
 
+        // A turquoise hairline sweeps in under the time on hover — the same
+        // accent the lock clock and the hero clock carry, sized from the row
+        // so it works at any panel scale.
+        Rectangle {
+            anchors {
+                bottom: parent.bottom
+                bottomMargin: 3
+                horizontalCenter: parent.horizontalCenter
+            }
+            width: compact.containsMouse ? clockRow.width : 0
+            height: 2
+            radius: 1
+            color: Kirigami.Theme.highlightColor
+            opacity: compact.containsMouse ? 0.9 : 0
+            Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+            Behavior on opacity { NumberAnimation { duration: 150 } }
+        }
+
         RowLayout {
             id: clockRow
             anchors.centerIn: parent
