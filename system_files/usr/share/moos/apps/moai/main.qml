@@ -963,6 +963,18 @@ Kirigami.ApplicationWindow {
     // that still goes through moai-do's confirm + Polkit — never a free command.
     property var diagResult: ({})
     property bool diagLoading: false
+    // The safe repair menu — always shown, and the fallback before a diagnose run
+    // has returned. Mirrors moai-control's /diagnose fixes; each id is a REAL
+    // moai-do action (moos://do/<id> → confirm + Polkit). read=true only shows
+    // information. Nothing here is a placeholder.
+    readonly property var defaultRepairs: [
+        { id: "diagnose-services", label: "الخدمات الفاشلة | Failed services", read: true },
+        { id: "check-drivers",     label: "الكرت والتعريف | GPU & drivers",    read: true },
+        { id: "inspect-boot",      label: "حالة الإقلاع | Boot status",         read: true },
+        { id: "fix-audio",         label: "إصلاح الصوت | Fix audio",            read: false },
+        { id: "optimize",          label: "تنظيف وتحرير مساحة | Clean & free space", read: false },
+        { id: "update",            label: "تحديث MoOS | Update MoOS",           read: false }
+    ]
     function diagnoseSystem() {
         root.diagLoading = true
         const xhr = new XMLHttpRequest()
@@ -3344,20 +3356,56 @@ Kirigami.ApplicationWindow {
                                     required property var modelData
                                     Layout.fillWidth: true
                                     text: "•  " + modelData
-                                    color: root.textMute
+                                    color: root.badColor
                                     font.family: root.uiFont
                                     font.pixelSize: 10
                                     wrapMode: Text.Wrap
                                 }
                             }
+
+                            // The repair menu is ALWAYS here — you never have to
+                            // diagnose first to reach a tool. Two clear groups so
+                            // nothing is ambiguous: «عرض» only READS information
+                            // (safe), «إصلاح» CHANGES the system (each still asks to
+                            // confirm via Polkit). Every button is a real moai-do
+                            // action — nothing here is a placeholder.
+                            Text {
+                                Layout.topMargin: 2
+                                text: "عرض — قراءة فقط | Inspect (read-only)"
+                                color: root.textLo
+                                font.family: root.uiFont
+                                font.pixelSize: 10
+                            }
                             Flow {
                                 Layout.fillWidth: true
                                 spacing: 6
-                                visible: root.diagResult.fixes !== undefined
                                 Repeater {
-                                    model: root.diagResult.fixes || []
+                                    model: (root.diagResult.fixes || root.defaultRepairs)
+                                           .filter(function (f) { return f.read })
                                     delegate: MoButton {
                                         required property var modelData
+                                        icon: "documentinfo"
+                                        label: modelData.label
+                                        onClicked: Qt.openUrlExternally("moos://do/" + modelData.id)
+                                    }
+                                }
+                            }
+                            Text {
+                                Layout.topMargin: 2
+                                text: "إصلاح — بتأكيد | Repair (asks to confirm)"
+                                color: root.textLo
+                                font.family: root.uiFont
+                                font.pixelSize: 10
+                            }
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                Repeater {
+                                    model: (root.diagResult.fixes || root.defaultRepairs)
+                                           .filter(function (f) { return !f.read })
+                                    delegate: MoButton {
+                                        required property var modelData
+                                        icon: "system-run"
                                         label: modelData.label
                                         onClicked: Qt.openUrlExternally("moos://do/" + modelData.id)
                                     }
@@ -3365,9 +3413,8 @@ Kirigami.ApplicationWindow {
                             }
                             SectionNote {
                                 Layout.fillWidth: true
-                                visible: root.diagResult.fixes !== undefined
-                                text: "كل إصلاح يمرّ عبر تأكيد وصلاحيات — بلا أوامر حرّة.\n"
-                                    + "Every fix asks to confirm — no free-form commands."
+                                text: "«عرض» يقرأ فقط، و«إصلاح» يطلب تأكيداً وصلاحيات — بلا أوامر حرّة.\n"
+                                    + "Inspect only reads; Repair asks to confirm — no free-form commands."
                             }
                         }
                     }
