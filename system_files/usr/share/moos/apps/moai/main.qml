@@ -2941,11 +2941,18 @@ Kirigami.ApplicationWindow {
                                             }
                                             Text {
                                                 Layout.fillWidth: true
-                                                text: !locRow.modelData.pulled
-                                                        ? "يحتاج تحميلاً أول مرة | needs a first download"
+                                                // The curated starters carry a bilingual note and an
+                                                // honest download size from moai-control — the user
+                                                // knows what each brain is good at, and what the tap
+                                                // costs, BEFORE anything happens.
+                                                text: (locRow.modelData.note ? locRow.modelData.note + "  ·  " : "")
+                                                      + (!locRow.modelData.pulled
+                                                        ? ((locRow.modelData.size_gb > 0
+                                                            ? "~" + locRow.modelData.size_gb + " GB — " : "")
+                                                           + "تحميل بضغطة | one-tap download")
                                                         : locRow.modelData.serving
                                                         ? "جاهز | ready"
-                                                        : "محمَّل — يُعاد تشغيل العقل | downloaded — restarts the brain"
+                                                        : "محمَّل — يُعاد تشغيل العقل | downloaded — restarts the brain")
                                                 color: root.textMute
                                                 font.family: root.uiFont
                                                 font.pixelSize: 9

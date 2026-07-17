@@ -1132,6 +1132,26 @@ require('had_legacy_key = "cloud_key" in data' in control and
         "elif had_legacy_key:" in control,
         "Mo AI must remove even an empty legacy cloud_key field")
 
+# ── The curated local starters, and that the picker can explain them ─────────
+# A fresh install used to show exactly ONE local model, so the picker answered
+# the question "which brains can I have?" with silence (owner, 2026-07-17).
+# moai-control must ship at least two curated one-tap-download starters — each
+# with a bilingual note and an honest size — and the picker must actually
+# render those two fields, or the catalog exists and the user still sees bare
+# model tags. Both sides checked, because either alone regresses silently.
+_rec = re.search(r"RECOMMENDED_LOCAL\s*=\s*\[(.*?)\]", code(control), re.S)
+require(_rec is not None, "moai-control lost its RECOMMENDED_LOCAL starter catalog")
+require(len(re.findall(r'"id":', _rec.group(1))) >= 2,
+        "the local starter catalog must offer at least two models to download")
+require(_rec.group(1).count('"note":') == len(re.findall(r'"id":', _rec.group(1)))
+        and _rec.group(1).count('"size_gb":') == len(re.findall(r'"id":', _rec.group(1))),
+        "every curated starter needs a bilingual note AND a size_gb — the picker "
+        "promises the cost of the tap before anything downloads")
+_moai_qml = code(read("system_files/usr/share/moos/apps/moai/main.qml"), style="slash")
+require("modelData.note" in _moai_qml and "modelData.size_gb" in _moai_qml,
+        "Mo AI's picker must render the starters' note and size_gb — a catalog "
+        "the UI never shows is not a catalog")
+
 # ── One door, two brains, chosen per request ────────────────────────────────
 #
 # Mo AI's local brain and its cloud proxy both used to listen on 8080. Only one of
@@ -1210,6 +1230,11 @@ require("moai-activity" in idle_watch and "moai-activity" in gateway_code,
 require("def mark_activity" in gateway_code and "\n        mark_activity()" in gateway_code,
         "moai-gateway must DEFINE and CALL mark_activity() on the local-chat path, or the "
         "watchdog cannot tell a loaded-but-unused brain from one in active use")
+require("ActiveEnterTimestamp" in idle_watch,
+        "moai-idle must treat the unit's own start as activity (ActiveEnterTimestamp): "
+        "the stamp records the last CHAT, so a brain started seconds ago still wears a "
+        "stale stamp — this checker killed a 2-second-old brain live on 2026-07-17, "
+        "which read to the owner as 'the assistant does not work'")
 require((ROOT / "system_files/usr/lib/systemd/user/moai-idle.timer").is_file()
         and (ROOT / "system_files/usr/lib/systemd/user/moai-idle.service").is_file(),
         "the idle-unload timer and its oneshot service must ship")

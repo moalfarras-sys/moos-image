@@ -519,6 +519,26 @@ MODELS_TTL = 60.0
 _models_lock = threading.Lock()
 _models_cache = {"data": None, "ts": 0.0, "sig": None}
 
+# ── Curated LOCAL starters ────────────────────────────────────────────────────
+# The no-invented-menu rule above is about the CLOUD: a provider's account can
+# 404 a model we made up. These are different in kind — fixed registry tags that
+# RamaLama pulls onto THIS machine when picked, so nothing here can 404 on an
+# account, and the picker states the download size before anything happens.
+# Without this list a fresh install shows exactly ONE local option and the
+# owner rightly asked where the choices were (2026-07-17).
+#
+# Selection rule: light enough for any MoOS machine (smallest runs CPU-only),
+# smart enough to drive moai-do, and EVERY entry handles Arabic AND English —
+# the bilingual UI is pointless behind a monolingual brain.
+RECOMMENDED_LOCAL = [
+    {"id": "qwen3:1.7b", "size_gb": 1.4,
+     "note": "الأخف — يعمل على أي جهاز حتى بلا كرت شاشة | lightest — runs anywhere, even CPU-only"},
+    {"id": "qwen3:4b-instruct", "size_gb": 2.5,
+     "note": "التوازن الموصى به — ذكي وسريع | the recommended balance — smart and quick"},
+    {"id": "gemma3:4b", "size_gb": 3.3,
+     "note": "أوسع معرفة ولغات | broadest knowledge and languages"},
+]
+
 
 def local_models():
     """Every model RamaLama has pulled, and which one the local brain serves.
@@ -548,8 +568,23 @@ def local_models():
     if served and served not in seen:
         # The configured model has not been downloaded yet. Say so — it is still a
         # valid route, it just costs a download the first time.
+        seen.add(served)
         out.insert(0, {"id": "local:" + served, "label": served,
                        "pulled": False, "serving": True, "size_gb": 0})
+    # The curated starters: anything not already on the machine joins the list
+    # as a one-tap download; anything already pulled just inherits its note so
+    # the picker can still explain what it is good at.
+    for rec in RECOMMENDED_LOCAL:
+        name = rec["id"]
+        if name in seen:
+            for row in out:
+                if row["label"] == name and not row.get("note"):
+                    row["note"] = rec["note"]
+            continue
+        seen.add(name)
+        out.append({"id": "local:" + name, "label": name,
+                    "pulled": False, "serving": False,
+                    "size_gb": rec["size_gb"], "note": rec["note"]})
     return out
 
 

@@ -37,6 +37,18 @@ else
     exit 0
 fi
 
+# A fresh start counts as activity. The stamp records the last CHAT, so a brain
+# started seconds ago (by hand, by the picker, by ensure_local) still wears the
+# stamp of a conversation from hours back — and this checker killed it two
+# seconds after start (seen live 2026-07-17: Started 04:52:00, Stopping
+# 04:52:02). Idle is measured from whichever is newer: the last chat, or the
+# unit's own ActiveEnterTimestamp.
+started="$(systemctl --user show "$UNIT" -p ActiveEnterTimestamp --value 2>/dev/null)"
+if [ -n "$started" ]; then
+    start_s="$(date -d "$started" +%s 2>/dev/null || echo 0)"
+    [ "$start_s" -gt "$last" ] && last="$start_s"
+fi
+
 idle=$(( now - last ))
 if [ "$idle" -ge $(( IDLE_MIN * 60 )) ]; then
     if systemctl --user stop "$UNIT"; then
