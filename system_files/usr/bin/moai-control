@@ -656,6 +656,36 @@ def start_pull(model_id):
     return state
 
 
+def delete_model(model_id):
+    """Remove a locally-pulled model. Safe by construction: the id must match a
+    model RamaLama actually lists as installed, so nothing user-typed reaches the
+    shell — the same allowlist discipline as the pull side, but against the live
+    install set rather than the curated catalog. The active brain cannot be
+    deleted out from under a running conversation; switch first.
+    """
+    model_id = (model_id or "").strip()
+    installed = {m["label"] for m in local_models() if m.get("pulled")}
+    if model_id not in installed:
+        return {"ok": False, "error": "not an installed local model | ليس نموذجًا محلّيًا مثبّتًا"}
+    if model_id == short_model(env_model()):
+        return {"ok": False,
+                "error": "this is the active brain — switch to another first "
+                         "| هذا هو العقل الفعّال — بدّله أولًا"}
+    try:
+        result = subprocess.run(
+            ["ramalama", "rm", "ollama://" + model_id],
+            capture_output=True, text=True, timeout=120, check=False)
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+    with _models_lock:                     # the picker must see it gone now
+        _models_cache["data"] = None
+    if result.returncode == 0:
+        return {"ok": True}
+    tail = [ln for ln in (result.stderr or result.stdout or "").replace("\r", "\n").splitlines()
+            if ln.strip()]
+    return {"ok": False, "error": tail[-1].strip() if tail else "delete failed"}
+
+
 def local_models():
     """Every model RamaLama has pulled, and which one the local brain serves.
 
@@ -1126,6 +1156,13 @@ class H(BaseHTTPRequestHandler):
         # download" label finally has a machine behind it.
         if self.path.startswith("/pull"):
             return self._send(200, start_pull((data.get("model") or "").strip()))
+
+        # /delete — remove a locally-pulled model. Only something RamaLama already
+        # lists as installed can be removed, and never the active brain; nothing
+        # user-typed reaches the shell. This is the "delete" half of managing the
+        # local brains from Settings, symmetric with /pull.
+        if self.path.startswith("/delete"):
+            return self._send(200, delete_model(data.get("model") or ""))
 
         if not self.path.startswith("/config"):
             return self._send(404, {"error": "not found"})

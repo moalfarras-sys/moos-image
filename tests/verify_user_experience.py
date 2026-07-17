@@ -399,7 +399,28 @@ require("KNOWN_GOOD" in control and "org.gnome.Snapshot" in control,
 require("def desktop_mismatch" in control and "cosmic" in control,
         "moai-control must label desktop-mismatched apps — a COSMIC/GNOME-only Flatpak "
         "installs cleanly on MoOS and then crashes, and the user is told AFTER the download")
+# Local brains are MANAGED from Settings, not only downloaded from the chat picker.
+# The backend must expose a /delete that is the safe mirror of /pull: it removes a
+# model RamaLama actually lists as installed (never something user-typed), and
+# never the active brain (that would break a running conversation).
+require("def delete_model" in control,
+        "moai-control needs delete_model() — the safe mirror of start_pull()")
+require("/delete" in control,
+        "moai-control must route /delete to remove a local model from Settings")
+require("not an installed local model" in control,
+        "moai-control /delete must refuse anything not actually installed (safe by the live set, "
+        "the same allowlist discipline as /pull — never a user-typed shell argument)")
+require("the active brain" in control,
+        "moai-control /delete must refuse deleting the model the brain is currently serving")
 moai_qml = read("system_files/usr/share/moos/apps/moai/main.qml")
+# …and Settings must actually offer download / use / delete on each local model —
+# a backend endpoint the UI never calls is a feature the user never gets.
+require("function deleteModel" in moai_qml and "root.deleteModel(" in moai_qml,
+        "Mo AI Settings must let the user delete a local model")
+require('controlApi + "/delete"' in moai_qml,
+        "Mo AI's deleteModel must POST to moai-control's /delete")
+require("النماذج المحلية" in moai_qml and "root.pickOrPull(" in moai_qml,
+        "Mo AI Settings must show the Local models section with a one-tap download")
 require("recommended" in moai_qml and "hit.note" in moai_qml,
         "Mo AI must render the pick and the warning (recommended / note) on each search hit — "
         "ranking them in the backend and not showing them changes nothing for the user")

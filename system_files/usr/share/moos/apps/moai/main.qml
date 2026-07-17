@@ -926,6 +926,36 @@ Kirigami.ApplicationWindow {
         xhr.send(JSON.stringify({ model: bare }))
     }
 
+    // Remove a locally-pulled brain from Settings. The backend refuses anything
+    // that is not actually installed, and refuses the active brain, so this only
+    // ever frees disk for a model the user is done with. `deleteBusy` holds the
+    // id being removed so its row can show a spinner and disable its button.
+    property string deleteBusy: ""
+    function deleteModel(id) {
+        const bare = id.indexOf("local:") === 0 ? id.substring(6) : id
+        if (root.deleteBusy !== "")
+            return
+        root.deleteBusy = bare
+        root.settingsError = ""
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", controlApi + "/delete")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            let res = {}
+            try { res = JSON.parse(xhr.responseText) } catch (e) { res = {} }
+            root.deleteBusy = ""
+            if (xhr.status !== 200 || !res.ok) {
+                root.settingsError = res.error || "تعذّر الحذف | could not delete the model"
+                return
+            }
+            root.loadModels()          // the row must disappear now
+        }
+        xhr.send(JSON.stringify({ model: bare }))
+    }
+
     Timer {
         id: pullPoll
         property string pickWhenDone: ""
@@ -3450,6 +3480,109 @@ Kirigami.ApplicationWindow {
                         visible: !root.settingsCloud
                         text: "العقل المحلي خاص بالكامل (RamaLama) — لا إنترنت بعد التحميل الأول.\n"
                             + "The local brain is fully private — no Internet after the first download."
+                    }
+
+                    // ── Local models: download, switch, delete — right here in ──
+                    // Settings, not only on the chat picker. This is the manage
+                    // surface the owner asked for: add a brain, make it the active
+                    // one, or free its disk when done.
+                    Text {
+                        Layout.fillWidth: true
+                        visible: !root.settingsCloud
+                        text: "النماذج المحلية | Local models"
+                        color: root.textLo
+                        font.family: root.uiFont
+                        font.pixelSize: 11
+                    }
+                    Repeater {
+                        model: root.settingsCloud ? [] : root.localModels
+                        delegate: Rectangle {
+                            id: mRow
+                            required property var modelData
+                            readonly property bool active_: root.route === mRow.modelData.id
+                            readonly property bool dl: root.pullModel !== ""
+                                && (mRow.modelData.id === "local:" + root.pullModel
+                                    || mRow.modelData.id === root.pullModel)
+                            readonly property bool busy: root.deleteBusy !== ""
+                                && ("local:" + root.deleteBusy === mRow.modelData.id
+                                    || root.deleteBusy === mRow.modelData.id)
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 50
+                            radius: 11
+                            color: active_ ? Qt.rgba(root.okColor.r, root.okColor.g, root.okColor.b, 0.12)
+                                           : root.surface0
+                            border.width: 1
+                            border.color: active_ ? root.okColor : root.hairline
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 11
+                                anchors.rightMargin: 8
+                                spacing: 8
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: mRow.modelData.label
+                                        color: root.textHi
+                                        font.family: root.uiFont
+                                        font.pixelSize: 12
+                                        font.weight: mRow.active_ ? Font.DemiBold : Font.Normal
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: mRow.dl
+                                              ? ("يُنزَّل — " + root.pullPercent + "% | downloading…")
+                                              : mRow.busy ? "يُحذف… | deleting…"
+                                              : !mRow.modelData.pulled
+                                                ? ((mRow.modelData.size_gb > 0 ? "~" + mRow.modelData.size_gb + " GB · " : "")
+                                                   + "غير مثبّت | not installed")
+                                              : mRow.modelData.serving ? "فعّال الآن | active brain"
+                                              : "مثبّت | installed"
+                                        color: root.textMute
+                                        font.family: root.uiFont
+                                        font.pixelSize: 9
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                                MoButton {
+                                    visible: !mRow.modelData.pulled && !mRow.dl
+                                    label: "تحميل | Download"
+                                    primary: true
+                                    onClicked: root.pickOrPull(mRow.modelData)
+                                }
+                                MoButton {
+                                    visible: mRow.modelData.pulled && !mRow.modelData.serving && !mRow.busy
+                                    label: "استخدام | Use"
+                                    onClicked: root.pickRoute(mRow.modelData.id)
+                                }
+                                MoButton {
+                                    visible: mRow.modelData.pulled && !mRow.modelData.serving && !mRow.busy
+                                    label: "حذف | Delete"
+                                    danger: true
+                                    onClicked: root.deleteModel(mRow.modelData.id)
+                                }
+                                Text {
+                                    visible: mRow.modelData.serving && !mRow.dl
+                                    text: "✓"
+                                    color: root.okColor
+                                    font.family: root.uiFont
+                                    font.pixelSize: 15
+                                    font.weight: Font.Bold
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: !root.settingsCloud && root.pullError !== ""
+                        text: root.pullError
+                        color: root.badColor
+                        font.family: root.uiFont
+                        font.pixelSize: 10
+                        wrapMode: Text.Wrap
                     }
 
                     Text {
