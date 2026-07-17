@@ -109,6 +109,29 @@ Rectangle {
             scale: 0.92
         }
 
+        // The comet ring — the same pre-baked orbit every doorway surface
+        // carries (artwork/generate_login_scene.py), here circling the mark
+        // while the system comes up. One Image + a render-thread
+        // RotationAnimator: exactly as GPU-light as the discs above. A bit
+        // quicker than the login scene's orbit — a splash lives for seconds,
+        // and the motion should be seen, not suspected.
+        Image {
+            anchors.centerIn: logo
+            width: 330
+            height: 330
+            asynchronous: true
+            source: "images/ring.png"
+            sourceSize.width: 660
+            sourceSize.height: 660
+            opacity: 0.8
+            RotationAnimator on rotation {
+                from: 0; to: 360
+                duration: 9000
+                loops: Animation.Infinite
+                running: true
+            }
+        }
+
         // ── Neon progress line ──────────────────────────────────────────────
         // A dim track with a bright cyan→blue light pill sweeping across it. The
         // pill's gradient fades to transparent at both ends so it reads as a
