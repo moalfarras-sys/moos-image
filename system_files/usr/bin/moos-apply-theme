@@ -17,7 +17,11 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-THEME_REV=18
+# 19: MoOS took Plasma's own greeter components (login/lock/logout action buttons
+#     and the greeter clock). Qt's qmlcache keys on mtime and OSTree pins every
+#     mtime under /usr to the epoch, so without this bump an upgraded machine
+#     would keep executing the STALE compiled Breeze components off disk.
+THEME_REV=19
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

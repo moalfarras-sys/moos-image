@@ -1693,6 +1693,46 @@ systemctl --global enable moos-reclaim-disk.timer
 systemctl enable moos-fstab-sanitize.service
 
 # -----------------------------------------------------------------------------
+# The login screen is Plasma's, and Plasma's login screen is MoOS
+# -----------------------------------------------------------------------------
+# MoOS ships its own org/kde/breeze/components/{ActionButton,Clock}.qml — the
+# components Plasma's LOGIN, LOCK and LOGOUT screens all draw. Overwriting those
+# files is not enough on its own, and this is the trap:
+#
+#   qmldir carries `prefer :/qt/qml/org/kde/breeze/components/`
+#
+# which tells Qt to load every type from the copies COMPILED INTO
+# libcomponents.so (AOT-compiled — the symbols are visible in the .so), and to
+# ignore the .qml files sitting right beside it. Those on-disk files are, at
+# runtime, decoys. MEASURED 2026-07-17: with MoOS's ActionButton.qml and
+# Clock.qml in the import path and `prefer` intact, the greeter still rendered
+# the stock Breeze clock and full-colour discs. Dropping the line, same files,
+# same harness: the MoOS face appeared. A text gate over those .qml files would
+# have been green through all of it.
+#
+# So: drop `prefer` and let Qt read the module from disk. Nothing is hidden,
+# nothing is layered, the plugin's C++ types still register from the .so — only
+# the QML the module resolves changes, which is precisely the surface MoOS owns.
+#
+# Fail-loud on purpose. If plasma-workspace ever stops shipping this line (or the
+# path moves), the build stops and a human looks — rather than the login screen
+# quietly reverting to Breeze on the next base bump.
+qmldir="/usr/lib64/qt6/qml/org/kde/breeze/components/qmldir"
+[ -f "$qmldir" ] || { echo "FATAL: ${qmldir} is missing — the breeze components module moved"; exit 1; }
+grep -q '^prefer ' "$qmldir" || { echo "FATAL: no 'prefer' line in ${qmldir} — upstream changed how this module resolves QML; re-verify that MoOS's ActionButton/Clock still reach the login screen before removing this check"; exit 1; }
+sed -i '/^prefer /d' "$qmldir"
+grep -q '^prefer ' "$qmldir" && { echo "FATAL: failed to drop 'prefer' from ${qmldir}"; exit 1; }
+echo "MoOS: breeze components resolve from disk — the login screen wears the MoOS face"
+
+# The AOT-compiled copies inside the .so are what `prefer` pointed at. They stay
+# (they are part of the shipped library and removing them would mean rebuilding
+# plasma-workspace), but nothing loads them any more. Qt's own disk cache is a
+# different matter: it keys on mtime, and OSTree pins every mtime under /usr to
+# the epoch, so a stale compiled QML could outlive an update — the same trap Mo
+# AI hit. moos-apply-theme already purges qmlcache on every THEME_REV bump, and
+# THEME_REV is raised in this change for exactly that reason.
+
+# -----------------------------------------------------------------------------
 # Hardware adaptation — MoOS "plants itself" into the machine (safe subset)
 # -----------------------------------------------------------------------------
 # Ship the daemons the first-boot service (and the DE) rely on, and enable the

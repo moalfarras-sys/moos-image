@@ -207,6 +207,55 @@ if "plasmalogin" in dm_target:
     require(f"/wallpapers/{lock_wallpaper.group(1)}" in login_conf,
             f"the login screen does not use the lock screen's wallpaper "
             f"({lock_wallpaper.group(1)}) — the first screen after boot is off-brand")
+
+    # ── The greeter's own face, and the one line that decides whether it loads ──
+    #
+    # The wallpaper was only ever half the login screen. The other half — the
+    # clock, and the Sleep/Restart/Shut Down buttons — comes from
+    # org.kde.breeze.components, which the compiled greeter instantiates and
+    # which the LOCK and LOGOUT screens draw from too. MoOS ships its own
+    # ActionButton.qml and Clock.qml there, so all three doorways read as one
+    # system.
+    #
+    # But shipping those files is NOT what makes them load. The module's qmldir
+    # carries `prefer :/qt/qml/…`, which points Qt at the copies AOT-compiled
+    # into libcomponents.so and makes the on-disk .qml decoys. MEASURED
+    # 2026-07-17: MoOS's components in the import path with `prefer` intact →
+    # stock Breeze rendered anyway. build.sh drops the line; this gate is what
+    # stops it silently coming back (a base bump reinstalling plasma-workspace
+    # would restore it, and every file check here would stay green while the
+    # login screen reverted to Breeze).
+    #
+    # So assert the DECIDER, not just the files: no prefer line, and the MoOS
+    # components present beside it.
+    breeze_components = Path("/usr/lib64/qt6/qml/org/kde/breeze/components")
+    require(breeze_components.is_dir(),
+            "org.kde.breeze.components is missing — the login, lock and logout "
+            "screens all draw their buttons from it")
+    qmldir = breeze_components / "qmldir"
+    require(qmldir.is_file(), "the breeze components module has no qmldir")
+    require(not re.search(r"^prefer ", qmldir.read_text(encoding="utf-8"), re.MULTILINE),
+            "org.kde.breeze.components/qmldir still has its `prefer :/qt/qml/…` "
+            "line, so Qt loads the components COMPILED INTO libcomponents.so and "
+            "ignores MoOS's ActionButton.qml/Clock.qml on disk — the login screen "
+            "silently reverts to Breeze's full-colour discs while every file check "
+            "stays green. build.sh must drop that line.")
+    for own in ("ActionButton.qml", "Clock.qml"):
+        body = (breeze_components / own)
+        require(body.is_file(),
+                f"MoOS's {own} is missing from org.kde.breeze.components — the "
+                "greeter would draw Breeze's")
+        require("MoOS" in body.read_text(encoding="utf-8"),
+                f"{own} in org.kde.breeze.components is not MoOS's version — the "
+                "login screen's clock/buttons are stock Plasma")
+
+    # The clock is MoOS's now, so it must be SHOWN. It was hidden (ShowClock=false)
+    # only because the stock face could not be re-skinned; that premise is dead,
+    # and MoOS does not hide Plasma's surfaces — it owns them.
+    require(re.search(r"^ShowClock=true", login_conf, re.MULTILINE),
+            "the login screen's clock is switched off. It is MoOS's own clock now "
+            "(org.kde.breeze.components/Clock.qml); hiding a surface MoOS has "
+            "already branded is the workaround this replaced")
 else:
     # There is deliberately no SDDM branch any more. SDDM is not installed on this
     # base (plasmalogin replaced it), the dead theme tree it kept alive is gone,
