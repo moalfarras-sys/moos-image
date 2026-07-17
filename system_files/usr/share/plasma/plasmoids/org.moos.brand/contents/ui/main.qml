@@ -200,6 +200,29 @@ PlasmoidItem {
                 loops: Animation.Infinite
                 running: compact.visible
             }
+
+            // The comet HEAD — a bright spark riding the ring's leading edge, so
+            // the orbit reads as an actual comet rounding the mark, not just a
+            // spinning texture. A child of the ring, so it inherits the same turn
+            // and stays locked to the head. It flares brighter under the pointer.
+            Image {
+                source: "../images/spark.png"
+                width: panelRing.width * 0.22
+                height: width
+                x: (panelRing.width - width) / 2
+                y: -height * 0.30
+                smooth: true
+                sourceSize: Qt.size(width * 2, height * 2)
+                opacity: compact.containsMouse ? 1.0 : 0.85
+                Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                // A gentle twinkle so the head has life even mid-orbit.
+                SequentialAnimation on scale {
+                    loops: Animation.Infinite
+                    running: compact.visible
+                    NumberAnimation { to: 1.25; duration: 1400; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 1.0; duration: 1400; easing.type: Easing.InOutSine }
+                }
+            }
         }
     }
 
