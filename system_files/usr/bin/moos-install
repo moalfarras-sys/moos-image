@@ -109,6 +109,27 @@ esac
 stop_ticker
 if [ "$ok" -eq 1 ]; then
   emit "PROGRESS 100"
+
+  # If we just installed a BROWSER, make it the default — the owner's ask: click a
+  # link, your browser opens, the one you just chose, not whatever registered first.
+  # Windows-like: installing a browser makes it your browser. Sets both the
+  # xdg-settings default and the http/https/html handlers, in the user's own
+  # config (nothing here needs root). MoOS never fights this later — moos-apply-theme
+  # pins only the image/video viewers, never the web handler.
+  case "$ID" in
+    org.mozilla.firefox|com.brave.Browser|com.google.Chrome|org.chromium.Chromium|\
+    com.microsoft.Edge|com.vivaldi.Vivaldi|net.mullvad.MullvadBrowser|\
+    io.gitlab.librewolf-community|org.gnome.Epiphany)
+      _bdesk="${ID}.desktop"
+      command -v xdg-settings >/dev/null 2>&1 && \
+        xdg-settings set default-web-browser "$_bdesk" >>"$LOG" 2>&1 || true
+      command -v xdg-mime >/dev/null 2>&1 && \
+        xdg-mime default "$_bdesk" x-scheme-handler/http x-scheme-handler/https \
+          text/html application/xhtml+xml >>"$LOG" 2>&1 || true
+      echo "set ${NAME} as the default web browser" >>"$LOG" 2>&1 || true
+      ;;
+  esac
+
   emit "DONE"
 else
   emit "FAIL see $LOG"

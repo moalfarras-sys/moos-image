@@ -162,6 +162,27 @@ require('"أضِف كل القسم"' in store_qml and "win.addMany(ids)" in stor
 require('card.modelData.source === "flathub" ? "Flatpak"' in store_qml,
         "Mo Store cards must show each app's install method (Flatpak / Web / MoOS)")
 
+# Launch feedback must be OBVIOUS. The owner clicked a link and could not tell if
+# anything launched — KDE's default feedback is a brief, easy-to-miss busy cursor.
+# Ship the prominent form (the app icon bounces AND its task-manager button shows a
+# launching state) as the system default so every launch is acknowledged.
+klaunch = read("system_files/etc/xdg/klaunchrc")
+require("Bouncing=true" in klaunch and "BusyCursor=true" in klaunch
+        and "TaskbarButton=true" in klaunch,
+        "MoOS must ship prominent launch feedback (bouncing cursor + task-manager button) so a "
+        "click that starts an app is unmistakable")
+
+# Installing a browser makes it the default — the owner's ask: click a link, YOUR
+# browser opens, the one you just chose. moos-install sets the web + http/https
+# handlers to the just-installed browser (in the user's own config, no root), and
+# knows the common browsers.
+moos_install = read("system_files/usr/bin/moos-install")
+require("xdg-settings set default-web-browser" in moos_install
+        and "x-scheme-handler/https" in moos_install,
+        "installing a browser must set it as the default web + http/https handler")
+require("com.google.Chrome" in moos_install and "org.mozilla.firefox" in moos_install,
+        "the browser-default step must recognise the common browsers (Chrome/Firefox/Brave/…)")
+
 for token, role in {
     "surface0": "root.palette.base",
     "surface1": "root.palette.alternateBase",
