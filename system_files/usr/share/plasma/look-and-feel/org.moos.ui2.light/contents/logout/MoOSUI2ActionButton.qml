@@ -68,6 +68,21 @@ QQC2.AbstractButton {
             color: Kirigami.Theme.textColor
             opacity: 0.10
         }
+
+        // a bottom inner shadow — the mirror of the top highlight — so the tile
+        // reads as a raised piece of glass, not a flat swatch.
+        Rectangle {
+            anchors {
+                bottom: parent.bottom
+                horizontalCenter: parent.horizontalCenter
+                bottomMargin: 1
+            }
+            width: parent.width - 2
+            height: 1
+            radius: parent.radius
+            color: Kirigami.Theme.backgroundColor
+            opacity: 0.30
+        }
     }
 
     contentItem: Column {
@@ -76,6 +91,8 @@ QQC2.AbstractButton {
         Item {
             width: parent.width
             height: Kirigami.Units.gridUnit * 3.4
+
+            readonly property bool active: control.hovered || control.down
 
             Rectangle {
                 anchors.centerIn: parent
@@ -89,7 +106,13 @@ QQC2.AbstractButton {
                     : (control.emphasized
                         ? Kirigami.Theme.textColor
                         : Kirigami.Theme.highlightColor)
-                opacity: control.emphasized ? 0.14 : 0.18
+                // the disc lights up and swells as the pointer lands — the tile
+                // gains depth and life instead of sitting flat.
+                opacity: parent.active ? (control.emphasized ? 0.24 : 0.30)
+                                       : (control.emphasized ? 0.14 : 0.18)
+                scale: parent.active ? 1.12 : 1.0
+                Behavior on opacity { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+                Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
             }
 
             Kirigami.Icon {
@@ -104,6 +127,8 @@ QQC2.AbstractButton {
                         ? Kirigami.Theme.highlightedTextColor
                         : Kirigami.Theme.negativeTextColor)
                     : Kirigami.Theme.highlightColor
+                scale: parent.active ? 1.08 : 1.0
+                Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
             }
         }
 
