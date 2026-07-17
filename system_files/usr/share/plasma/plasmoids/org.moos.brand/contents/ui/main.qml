@@ -131,13 +131,30 @@ PlasmoidItem {
             root.expanded = !root.expanded;
         }
 
+        // Twin aura, lower layer — a violet glow breathing COUNTER to the cyan
+        // above it, so the mark sits in living two-tone light, not a flat halo.
+        Image {
+            anchors.centerIn: emblem
+            width: emblem.width * 2.4
+            height: width
+            source: "../images/glow-violet.png"
+            opacity: compact.containsMouse ? 0.72 : 0.26
+            Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            SequentialAnimation on scale {
+                loops: Animation.Infinite
+                running: compact.visible
+                NumberAnimation { to: 1.0; duration: 4200; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 1.14; duration: 4200; easing.type: Easing.InOutSine }
+            }
+        }
+
         // Hover halo — the pre-baked cyan glow, brightening under the pointer.
         Image {
             anchors.centerIn: emblem
             width: emblem.width * 2.1
             height: width
             source: "../images/glow-cyan.png"
-            opacity: compact.containsMouse ? 0.9 : 0.35
+            opacity: compact.containsMouse ? 0.95 : 0.35
             Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
             SequentialAnimation on scale {
                 loops: Animation.Infinite
@@ -181,22 +198,42 @@ PlasmoidItem {
             }
         }
 
+        // A fainter inner ring, counter-rotating — two orbits crossing gives the
+        // mark real depth instead of one flat spin. Smaller, dimmer, mirrored, and
+        // it too quickens under the pointer.
+        Image {
+            anchors.centerIn: emblem
+            width: Math.round(Math.min(compact.height, compact.width) * 0.72)
+            height: width
+            source: "../images/ring.png"
+            mirror: true
+            opacity: compact.containsMouse ? 0.5 : 0.22
+            Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            sourceSize: Qt.size(width * 2, height * 2)
+            RotationAnimator on rotation {
+                from: 360; to: 0
+                duration: compact.containsMouse ? 12000 : 22000
+                loops: Animation.Infinite
+                running: compact.visible
+            }
+        }
+
         // The comet ring — the same orbit every doorway surface carries, now
         // living in the bar. Sized to the panel height (not the emblem) so
         // its circle stays inside the panel window and never clips; it leans
-        // brighter under the pointer, with the halo.
+        // brighter under the pointer, and quickens with it.
         Image {
             id: panelRing
             anchors.centerIn: emblem
             width: Math.round(Math.min(compact.height, compact.width) * 0.995)
             height: width
             source: "../images/ring.png"
-            opacity: compact.containsMouse ? 0.95 : 0.55
+            opacity: compact.containsMouse ? 0.98 : 0.55
             Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
             sourceSize: Qt.size(width * 2, height * 2)
             RotationAnimator on rotation {
                 from: 0; to: 360
-                duration: 16000
+                duration: compact.containsMouse ? 9000 : 16000
                 loops: Animation.Infinite
                 running: compact.visible
             }
@@ -215,12 +252,15 @@ PlasmoidItem {
                 sourceSize: Qt.size(width * 2, height * 2)
                 opacity: compact.containsMouse ? 1.0 : 0.85
                 Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-                // A gentle twinkle so the head has life even mid-orbit.
+                // A twinkle so the head has life even mid-orbit — quicker and
+                // brighter the moment the pointer lands.
                 SequentialAnimation on scale {
                     loops: Animation.Infinite
                     running: compact.visible
-                    NumberAnimation { to: 1.25; duration: 1400; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 1.0; duration: 1400; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: compact.containsMouse ? 1.4 : 1.25
+                        duration: compact.containsMouse ? 800 : 1400; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 1.0
+                        duration: compact.containsMouse ? 800 : 1400; easing.type: Easing.InOutSine }
                 }
             }
         }
