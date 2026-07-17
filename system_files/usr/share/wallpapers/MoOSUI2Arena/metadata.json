@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Id": "MoOSUI2Arena",
+        "Name": "MoOS Arena",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "License": "GPL-3.0-or-later"
+    }
+}

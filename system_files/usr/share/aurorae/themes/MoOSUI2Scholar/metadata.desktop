@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=MoOS Scholar
+Comment=للدراسة: دفء كهرماني وسيج هادئ، مريح للعين | Study: amber warmth + calm sage, easy on the eyes
+X-KDE-PluginInfo-Author=Moalfarras
+X-KDE-PluginInfo-Name=MoOSUI2Scholar
+X-KDE-PluginInfo-Version=2.0
+X-KDE-PluginInfo-License=GPL-3.0-or-later
+X-KDE-ServiceTypes=KWin/Decoration
+Type=Service

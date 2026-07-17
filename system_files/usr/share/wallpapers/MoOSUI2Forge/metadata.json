@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Id": "MoOSUI2Forge",
+        "Name": "MoOS Forge",
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "License": "GPL-3.0-or-later"
+    }
+}

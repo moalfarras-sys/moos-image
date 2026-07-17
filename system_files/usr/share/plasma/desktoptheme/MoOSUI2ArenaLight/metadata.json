@@ -1,0 +1,17 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Category": "",
+        "Description": "للألعاب نهاراً: طاقة الماجنتا على قماشة فاتحة | Arena by day: magenta energy on a light canvas",
+        "Id": "MoOSUI2ArenaLight",
+        "License": "GPL-3.0-or-later",
+        "Name": "MoOS Arena Light",
+        "Version": "2.0.0",
+        "Website": "https://github.com/moalfarras-sys/moos-image"
+    },
+    "X-Plasma-API": "5.0"
+}

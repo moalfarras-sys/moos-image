@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=MoOS Scholar Light
+Comment=للدراسة نهاراً: ورق دافئ مريح للقراءة | Scholar by day: warm paper, made for reading
+X-KDE-PluginInfo-Author=Moalfarras
+X-KDE-PluginInfo-Name=MoOSUI2ScholarLight
+X-KDE-PluginInfo-Version=2.0
+X-KDE-PluginInfo-License=GPL-3.0-or-later
+X-KDE-ServiceTypes=KWin/Decoration
+Type=Service

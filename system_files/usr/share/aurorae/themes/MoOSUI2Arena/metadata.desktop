@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=MoOS Arena
+Comment=للألعاب: نيون سينث‑ويف، ماجنتا وسماوي كهربائي | Gaming: synthwave neon, magenta + electric cyan
+X-KDE-PluginInfo-Author=Moalfarras
+X-KDE-PluginInfo-Name=MoOSUI2Arena
+X-KDE-PluginInfo-Version=2.0
+X-KDE-PluginInfo-License=GPL-3.0-or-later
+X-KDE-ServiceTypes=KWin/Decoration
+Type=Service

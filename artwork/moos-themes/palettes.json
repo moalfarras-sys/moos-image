@@ -1,6 +1,5 @@
 {
   "_comment": "MoOS theme-family palettes. Each palette drives the SAME UI2 engine (SVGs, aurorae, QML) recoloured to its identity — one design system, many MoOS looks. Roles match artwork/moos-ui2/palette.json exactly so the shared generator logic applies. Graphite (dark) and Tidal (light) live in palette.json and stay the base; these are the added members of the family. All designed for high contrast (text-on-canvas >= 14:1) and a distinct, modern 2026 identity.",
-
   "nova": {
     "_identity": "Cosmic deep-navy with a cyan->blue->violet aurora. MoOS's original Nova spirit, reborn on the UI2 engine.",
     "canvas": "#0A1120",
@@ -21,7 +20,6 @@
     "panel_mid": "#16233A",
     "panel_bottom": "#0C1424"
   },
-
   "amethyst": {
     "_identity": "Warm aubergine with orchid + amber glow. Calm, premium, the UI1 warmth carried forward.",
     "canvas": "#17121F",
@@ -42,7 +40,6 @@
     "panel_mid": "#291F35",
     "panel_bottom": "#120D19"
   },
-
   "midnight": {
     "_identity": "True-black OLED. Maximum contrast, minimal energy, a single crisp cyan accent.",
     "canvas": "#000000",
@@ -63,7 +60,6 @@
     "panel_mid": "#121216",
     "panel_bottom": "#000000"
   },
-
   "aurora": {
     "_identity": "The merged Breeze+Nova: a clean slate base with a teal->blue northern-lights sweep. Modern, crisp, fresh.",
     "canvas": "#0E1524",
@@ -84,12 +80,116 @@
     "panel_mid": "#1D2A42",
     "panel_bottom": "#0F1826"
   },
-
   "_extras": {
     "_comment": "Per-theme EXTRAS mirror the UI2 EXTRAS roles (deep semantic tints for chips/badges, and selected_text = the ink drawn ON an accent highlight — dark on these dark themes).",
-    "nova":     { "positive_deep": "#123227", "negative_deep": "#4A2530", "warning_deep": "#4A3A1C", "secondary_deep": "#3B2E7A", "selected_text": "#0A1120" },
-    "amethyst": { "positive_deep": "#17342A", "negative_deep": "#43222C", "warning_deep": "#43331A", "secondary_deep": "#7A3E1A", "selected_text": "#17121F" },
-    "midnight": { "positive_deep": "#06301E", "negative_deep": "#401B1B", "warning_deep": "#40311A", "secondary_deep": "#1E4A5C", "selected_text": "#000000" },
-    "aurora":   { "positive_deep": "#123227", "negative_deep": "#47262F", "warning_deep": "#473A1C", "secondary_deep": "#2E4C86", "selected_text": "#0E1524" }
+    "nova": {
+      "positive_deep": "#123227",
+      "negative_deep": "#4A2530",
+      "warning_deep": "#4A3A1C",
+      "secondary_deep": "#3B2E7A",
+      "selected_text": "#0A1120"
+    },
+    "amethyst": {
+      "positive_deep": "#17342A",
+      "negative_deep": "#43222C",
+      "warning_deep": "#43331A",
+      "secondary_deep": "#7A3E1A",
+      "selected_text": "#17121F"
+    },
+    "midnight": {
+      "positive_deep": "#06301E",
+      "negative_deep": "#401B1B",
+      "warning_deep": "#40311A",
+      "secondary_deep": "#1E4A5C",
+      "selected_text": "#000000"
+    },
+    "aurora": {
+      "positive_deep": "#123227",
+      "negative_deep": "#47262F",
+      "warning_deep": "#473A1C",
+      "secondary_deep": "#2E4C86",
+      "selected_text": "#0E1524"
+    },
+    "gaming": {
+      "positive_deep": "#163A2A",
+      "negative_deep": "#4A1F30",
+      "warning_deep": "#4A3A1C",
+      "secondary_deep": "#164C5C",
+      "selected_text": "#0B0714"
+    },
+    "dev": {
+      "positive_deep": "#10361F",
+      "negative_deep": "#4A1F1D",
+      "warning_deep": "#45350F",
+      "secondary_deep": "#1A3A5C",
+      "selected_text": "#0D1117"
+    },
+    "study": {
+      "positive_deep": "#1E3A2A",
+      "negative_deep": "#45261F",
+      "warning_deep": "#453516",
+      "secondary_deep": "#244A40",
+      "selected_text": "#16120C"
+    }
+  },
+  "gaming": {
+    "_identity": "Synthwave arena: hot magenta + electric cyan over a violet-black void. High energy, esports night.",
+    "canvas": "#0B0714",
+    "surface": "#150C22",
+    "card": "#1D1030",
+    "raised": "#2A1845",
+    "primary": "#FF2D95",
+    "secondary": "#22D3EE",
+    "luminous": "#C77DFF",
+    "positive": "#4ADE80",
+    "warning": "#FBBF24",
+    "negative": "#FF4D6D",
+    "text": "#F5E9FF",
+    "muted": "#A98FC4",
+    "outline": "#3D2A5C",
+    "shadow": "#070410",
+    "panel_top": "#2A1845",
+    "panel_mid": "#1D1030",
+    "panel_bottom": "#120A1E"
+  },
+  "dev": {
+    "_identity": "Terminal focus: a calm slate canvas with a green build-light and a blue link. Low distraction, long sessions.",
+    "canvas": "#0D1117",
+    "surface": "#131A22",
+    "card": "#1A222C",
+    "raised": "#232E3A",
+    "primary": "#3FB950",
+    "secondary": "#58A6FF",
+    "luminous": "#7EE787",
+    "positive": "#3FB950",
+    "warning": "#D29922",
+    "negative": "#F85149",
+    "text": "#E6EDF3",
+    "muted": "#8B949E",
+    "outline": "#30363D",
+    "shadow": "#010409",
+    "panel_top": "#232E3A",
+    "panel_mid": "#1A222C",
+    "panel_bottom": "#10161D"
+  },
+  "study": {
+    "_identity": "Reading warmth: amber lamp-light and a calm sage over a warm near-black. Low stimulation, made to focus.",
+    "canvas": "#16120C",
+    "surface": "#201A11",
+    "card": "#2A2217",
+    "raised": "#372C1E",
+    "primary": "#E0A458",
+    "secondary": "#7FB8A8",
+    "luminous": "#F2CE93",
+    "positive": "#82C99A",
+    "warning": "#E0A458",
+    "negative": "#E08B7D",
+    "text": "#F3EADB",
+    "muted": "#B7A489",
+    "outline": "#3D3122",
+    "shadow": "#0C0906",
+    "panel_top": "#372C1E",
+    "panel_mid": "#2A2217",
+    "panel_bottom": "#1B160E"
   }
 }

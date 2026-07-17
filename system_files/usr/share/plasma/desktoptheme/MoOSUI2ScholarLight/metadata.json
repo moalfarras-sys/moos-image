@@ -1,0 +1,17 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Category": "",
+        "Description": "للدراسة نهاراً: ورق دافئ مريح للقراءة | Scholar by day: warm paper, made for reading",
+        "Id": "MoOSUI2ScholarLight",
+        "License": "GPL-3.0-or-later",
+        "Name": "MoOS Scholar Light",
+        "Version": "2.0.0",
+        "Website": "https://github.com/moalfarras-sys/moos-image"
+    },
+    "X-Plasma-API": "5.0"
+}

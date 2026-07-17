@@ -1,0 +1,17 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Category": "",
+        "Description": "للتطوير: سليت هادئ بضوء بناء أخضر، تركيز طويل | Dev: calm slate, a green build-light, low distraction",
+        "Id": "MoOSUI2Forge",
+        "License": "GPL-3.0-or-later",
+        "Name": "MoOS Forge",
+        "Version": "2.0.0",
+        "Website": "https://github.com/moalfarras-sys/moos-image"
+    },
+    "X-Plasma-API": "5.0"
+}

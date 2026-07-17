@@ -1,0 +1,29 @@
+/* MoOS Arena libadwaita palette — managed by moos-theme.
+ * Installed to ~/.config/gtk-4.0/gtk.css on theme switch; a file WITHOUT this
+ * marker is the user's own and moos-theme will not touch it.
+ * Values are artwork/moos-ui2/palette.json (dark); a repo gate holds them equal. */
+@define-color accent_bg_color #FF2D95;
+@define-color accent_fg_color #0B0714;
+@define-color accent_color #FF2D95;
+@define-color window_bg_color #150C22;
+@define-color window_fg_color #F5E9FF;
+@define-color view_bg_color #0B0714;
+@define-color view_fg_color #F5E9FF;
+@define-color headerbar_bg_color #150C22;
+@define-color headerbar_fg_color #F5E9FF;
+@define-color headerbar_border_color #3D2A5C;
+@define-color headerbar_backdrop_color #0B0714;
+@define-color popover_bg_color #1D1030;
+@define-color popover_fg_color #F5E9FF;
+@define-color card_bg_color #1D1030;
+@define-color card_fg_color #F5E9FF;
+@define-color dialog_bg_color #150C22;
+@define-color dialog_fg_color #F5E9FF;
+@define-color sidebar_bg_color #150C22;
+@define-color sidebar_fg_color #F5E9FF;
+@define-color sidebar_backdrop_color #0B0714;
+@define-color secondary_sidebar_bg_color #0B0714;
+@define-color secondary_sidebar_fg_color #F5E9FF;
+@define-color success_color #4ADE80;
+@define-color warning_color #FBBF24;
+@define-color error_color #FF4D6D;

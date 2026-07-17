@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=MoOS Forge
+Comment=للتطوير: سليت هادئ بضوء بناء أخضر، تركيز طويل | Dev: calm slate, a green build-light, low distraction
+X-KDE-PluginInfo-Author=Moalfarras
+X-KDE-PluginInfo-Name=MoOSUI2Forge
+X-KDE-PluginInfo-Version=2.0
+X-KDE-PluginInfo-License=GPL-3.0-or-later
+X-KDE-ServiceTypes=KWin/Decoration
+Type=Service

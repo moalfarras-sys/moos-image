@@ -41,6 +41,13 @@ NOVA_LIGHT_LNF="org.moos.ui2.nova.light"
 AMETHYST_LIGHT_LNF="org.moos.ui2.amethyst.light"
 AURORA_LIGHT_LNF="org.moos.ui2.aurora.light"
 DAYLIGHT_LNF="org.moos.ui2.midnight.light"
+# Purpose-built editions — gaming (Arena), dev (Forge), study (Scholar), each a pair.
+GAMING_LNF="org.moos.ui2.gaming"
+DEV_LNF="org.moos.ui2.dev"
+STUDY_LNF="org.moos.ui2.study"
+GAMING_LIGHT_LNF="org.moos.ui2.gaming.light"
+DEV_LIGHT_LNF="org.moos.ui2.dev.light"
+STUDY_LIGHT_LNF="org.moos.ui2.study.light"
 
 usage() {
     cat <<'EOF'
@@ -207,6 +214,60 @@ load_profile() {
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Daylight
             wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
             prefer_dark=false; label="MoOS: Daylight فاتح | light"
+            ;;
+        "$GAMING_LNF")
+            scheme=MoOSUI2Arena; style=MoOSUI2Arena
+            konsole_profile=MoOSUI2Arena.profile; konsole_profile_name="MoOS Arena"
+            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-gaming.css; cursor=MoOS
+            deco=__aurorae__svg__MoOSUI2Arena
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2Arena
+            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
+            prefer_dark=true; label="MoOS: Arena (ألعاب | gaming)"
+            ;;
+        "$DEV_LNF")
+            scheme=MoOSUI2Forge; style=MoOSUI2Forge
+            konsole_profile=MoOSUI2Forge.profile; konsole_profile_name="MoOS Forge"
+            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-dev.css; cursor=MoOS
+            deco=__aurorae__svg__MoOSUI2Forge
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2Forge
+            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
+            prefer_dark=true; label="MoOS: Forge (تطوير | dev)"
+            ;;
+        "$STUDY_LNF")
+            scheme=MoOSUI2Scholar; style=MoOSUI2Scholar
+            konsole_profile=MoOSUI2Scholar.profile; konsole_profile_name="MoOS Scholar"
+            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-study.css; cursor=MoOS
+            deco=__aurorae__svg__MoOSUI2Scholar
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2Scholar
+            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
+            prefer_dark=true; label="MoOS: Scholar (دراسة | study)"
+            ;;
+        "$GAMING_LIGHT_LNF")
+            scheme=MoOSUI2ArenaLight; style=MoOSUI2ArenaLight
+            konsole_profile=MoOSUI2ArenaLight.profile; konsole_profile_name="MoOS Arena Light"
+            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-gaming-light.css; cursor=MoOSDark
+            deco=__aurorae__svg__MoOSUI2ArenaLight
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2ArenaLight
+            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
+            prefer_dark=false; label="MoOS: Arena فاتح | light"
+            ;;
+        "$DEV_LIGHT_LNF")
+            scheme=MoOSUI2ForgeLight; style=MoOSUI2ForgeLight
+            konsole_profile=MoOSUI2ForgeLight.profile; konsole_profile_name="MoOS Forge Light"
+            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-dev-light.css; cursor=MoOSDark
+            deco=__aurorae__svg__MoOSUI2ForgeLight
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2ForgeLight
+            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
+            prefer_dark=false; label="MoOS: Forge فاتح | light"
+            ;;
+        "$STUDY_LIGHT_LNF")
+            scheme=MoOSUI2ScholarLight; style=MoOSUI2ScholarLight
+            konsole_profile=MoOSUI2ScholarLight.profile; konsole_profile_name="MoOS Scholar Light"
+            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-study-light.css; cursor=MoOSDark
+            deco=__aurorae__svg__MoOSUI2ScholarLight
+            wallpaper_package=/usr/share/wallpapers/MoOSUI2ScholarLight
+            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
+            prefer_dark=false; label="MoOS: Scholar فاتح | light"
             ;;
         *)
             echo "moos-theme: unknown MoOS look-and-feel: $lnf" >&2
@@ -566,7 +627,9 @@ reconcile() {
     lnf="$(current)"
     case "$lnf" in
         "$DARK_LNF"|"$LIGHT_LNF"|"$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF"\
-        |"$NOVA_LIGHT_LNF"|"$AMETHYST_LIGHT_LNF"|"$AURORA_LIGHT_LNF"|"$DAYLIGHT_LNF") ;;
+        |"$NOVA_LIGHT_LNF"|"$AMETHYST_LIGHT_LNF"|"$AURORA_LIGHT_LNF"|"$DAYLIGHT_LNF"\
+        |"$GAMING_LNF"|"$DEV_LNF"|"$STUDY_LNF"\
+        |"$GAMING_LIGHT_LNF"|"$DEV_LIGHT_LNF"|"$STUDY_LIGHT_LNF") ;;
         *) return 0 ;;
     esac
     [ -d "/usr/share/plasma/look-and-feel/$lnf" ] || return 0
@@ -606,7 +669,7 @@ acquire_theme_lock() {
 
 command_name="${1:-status}"
 case "$command_name" in
-    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|toggle|auto|sync-auto|reconcile)
+    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|toggle|auto|sync-auto|reconcile)
         acquire_theme_lock \
             || { echo "moos-theme: another theme transition is still running" >&2; exit 1; }
         ;;
@@ -639,6 +702,12 @@ case "$command_name" in
     amethyst-light) apply_manual "$AMETHYST_LIGHT_LNF" ;;
     aurora-light)   apply_manual "$AURORA_LIGHT_LNF" ;;
     daylight)       apply_manual "$DAYLIGHT_LNF" ;;
+    gaming)         apply_manual "$GAMING_LNF" ;;
+    dev)            apply_manual "$DEV_LNF" ;;
+    study)          apply_manual "$STUDY_LNF" ;;
+    gaming-light)   apply_manual "$GAMING_LIGHT_LNF" ;;
+    dev-light)      apply_manual "$DEV_LIGHT_LNF" ;;
+    study-light)    apply_manual "$STUDY_LIGHT_LNF" ;;
     list)
         cat <<'EOF'
 Every family has a light + dark sibling. `moos-theme toggle` flips the current one.
@@ -648,6 +717,9 @@ Every family has a light + dark sibling. `moos-theme toggle` flips the current o
   amethyst        MoOS Amethyst     ·  amethyst-light   MoOS Amethyst Light
   aurora          MoOS Aurora       ·  aurora-light     MoOS Aurora Light
   midnight        MoOS Midnight     ·  daylight         MoOS Daylight
+  gaming          MoOS Arena        ·  gaming-light     MoOS Arena Light
+  dev             MoOS Forge        ·  dev-light        MoOS Forge Light
+  study           MoOS Scholar      ·  study-light      MoOS Scholar Light
 EOF
         ;;
     toggle)
@@ -660,7 +732,8 @@ EOF
         cur="$(current)"
         case "$cur" in
             *.light)                 target="${cur%.light}" ;;
-            "$DARK_LNF"|"$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF")
+            "$DARK_LNF"|"$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF"\
+            |"$GAMING_LNF"|"$DEV_LNF"|"$STUDY_LNF")
                                      target="${cur}.light" ;;
             *)                       target="$LIGHT_LNF" ;;
         esac
@@ -722,6 +795,12 @@ EOF
             "$AMETHYST_LIGHT_LNF") echo "MoOS Amethyst Light  ($AMETHYST_LIGHT_LNF)" ;;
             "$AURORA_LIGHT_LNF")   echo "MoOS Aurora Light    ($AURORA_LIGHT_LNF)" ;;
             "$DAYLIGHT_LNF")       echo "MoOS Daylight        ($DAYLIGHT_LNF)" ;;
+            "$GAMING_LNF")         echo "MoOS Arena           ($GAMING_LNF)" ;;
+            "$DEV_LNF")            echo "MoOS Forge           ($DEV_LNF)" ;;
+            "$STUDY_LNF")          echo "MoOS Scholar         ($STUDY_LNF)" ;;
+            "$GAMING_LIGHT_LNF")   echo "MoOS Arena Light     ($GAMING_LIGHT_LNF)" ;;
+            "$DEV_LIGHT_LNF")      echo "MoOS Forge Light     ($DEV_LIGHT_LNF)" ;;
+            "$STUDY_LIGHT_LNF")    echo "MoOS Scholar Light   ($STUDY_LIGHT_LNF)" ;;
             "")               echo "غير محدّد | unset (default: MoOS UI2)" ;;
             *)                echo "ليس MoOS | not a MoOS theme: $active" ;;
         esac

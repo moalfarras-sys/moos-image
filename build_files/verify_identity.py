@@ -198,6 +198,13 @@ def main() -> None:
         "org.moos.ui2.midnight.light": "MoOS Daylight",
         "org.moos.ui2.aurora": "MoOS Aurora",
         "org.moos.ui2.aurora.light": "MoOS Aurora Light",
+        # Purpose-built editions, each a light+dark pair.
+        "org.moos.ui2.gaming": "MoOS Arena",
+        "org.moos.ui2.gaming.light": "MoOS Arena Light",
+        "org.moos.ui2.dev": "MoOS Forge",
+        "org.moos.ui2.dev.light": "MoOS Forge Light",
+        "org.moos.ui2.study": "MoOS Scholar",
+        "org.moos.ui2.study.light": "MoOS Scholar Light",
     }
     lnf_root = ROOT / "usr/share/plasma/look-and-feel"
     moos_looks = sorted(p.name for p in lnf_root.glob("org.moos.*"))

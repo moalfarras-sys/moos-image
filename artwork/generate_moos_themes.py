@@ -55,6 +55,9 @@ LIGHT_ACCENTS = {
     "amethyst": dict(primary="#7C3AED", secondary="#B45309", luminous="#8B3FD4", tint="#8B5CF6"),
     "aurora":   dict(primary="#0F766E", secondary="#0369A1", luminous="#0D8577", tint="#0EA5A0"),
     "midnight": dict(primary="#0284C7", secondary="#4F46E5", luminous="#0891B2", tint="#2563EB"),
+    "gaming":   dict(primary="#C81D7A", secondary="#0891B2", luminous="#7C3AED", tint="#C026D3"),
+    "dev":      dict(primary="#1A7F37", secondary="#0969DA", luminous="#2DA44E", tint="#1A7F37"),
+    "study":    dict(primary="#B45309", secondary="#4F7A6B", luminous="#A16207", tint="#B45309"),
 }
 
 
@@ -117,6 +120,25 @@ THEMES = {
                            lnf="org.moos.ui2.midnight.light", wall="MoOSUI2Daylight",
                            mood="cosmic", light=True, base="midnight",
                            desc="نهار صافٍ عالي التباين، نقيض Midnight | Clean high-contrast day, Midnight's opposite"),
+    # ── Purpose-built editions: gaming, dev, study — each MoOS, its own energy ──
+    "gaming":   dict(name="MoOS Arena",   style="MoOSUI2Arena",   lnf="org.moos.ui2.gaming",
+                     wall="MoOSUI2Arena",   mood="cosmic", light=False, base="gaming",
+                     desc="للألعاب: نيون سينث‑ويف، ماجنتا وسماوي كهربائي | Gaming: synthwave neon, magenta + electric cyan"),
+    "dev":      dict(name="MoOS Forge",   style="MoOSUI2Forge",   lnf="org.moos.ui2.dev",
+                     wall="MoOSUI2Forge",   mood="minimal", light=False, base="dev",
+                     desc="للتطوير: سليت هادئ بضوء بناء أخضر، تركيز طويل | Dev: calm slate, a green build-light, low distraction"),
+    "study":    dict(name="MoOS Scholar", style="MoOSUI2Scholar", lnf="org.moos.ui2.study",
+                     wall="MoOSUI2Scholar", mood="calm", light=False, base="study",
+                     desc="للدراسة: دفء كهرماني وسيج هادئ، مريح للعين | Study: amber warmth + calm sage, easy on the eyes"),
+    "gaming-light": dict(name="MoOS Arena Light",   style="MoOSUI2ArenaLight",   lnf="org.moos.ui2.gaming.light",
+                         wall="MoOSUI2ArenaLight",   mood="cosmic", light=True, base="gaming",
+                         desc="للألعاب نهاراً: طاقة الماجنتا على قماشة فاتحة | Arena by day: magenta energy on a light canvas"),
+    "dev-light":    dict(name="MoOS Forge Light",   style="MoOSUI2ForgeLight",   lnf="org.moos.ui2.dev.light",
+                         wall="MoOSUI2ForgeLight",   mood="minimal", light=True, base="dev",
+                         desc="للتطوير نهاراً: سليت فاتح مركّز | Forge by day: a light, focused slate"),
+    "study-light":  dict(name="MoOS Scholar Light", style="MoOSUI2ScholarLight", lnf="org.moos.ui2.study.light",
+                         wall="MoOSUI2ScholarLight", mood="calm", light=True, base="study",
+                         desc="للدراسة نهاراً: ورق دافئ مريح للقراءة | Scholar by day: warm paper, made for reading"),
 }
 
 

@@ -221,6 +221,9 @@ target_lnf "$1" "$2"
             "amethyst": ("org.moos.ui2.amethyst",  "MoOSUI2Amethyst", "org.moos.ui2.amethyst.light", "MoOSUI2AmethystLight"),
             "aurora":   ("org.moos.ui2.aurora",    "MoOSUI2Aurora",   "org.moos.ui2.aurora.light",   "MoOSUI2AuroraLight"),
             "midnight": ("org.moos.ui2.midnight",  "MoOSUI2Midnight", "org.moos.ui2.midnight.light", "MoOSUI2Daylight"),
+            "gaming":   ("org.moos.ui2.gaming",    "MoOSUI2Arena",    "org.moos.ui2.gaming.light",   "MoOSUI2ArenaLight"),
+            "dev":      ("org.moos.ui2.dev",       "MoOSUI2Forge",    "org.moos.ui2.dev.light",      "MoOSUI2ForgeLight"),
+            "study":    ("org.moos.ui2.study",     "MoOSUI2Scholar",  "org.moos.ui2.study.light",    "MoOSUI2ScholarLight"),
         }
         for fam, (dark_lnf, dark_style, light_lnf, light_style) in families.items():
             for lnf in (dark_lnf, light_lnf):
