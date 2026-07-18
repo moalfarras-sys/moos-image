@@ -76,6 +76,18 @@ settings_sh="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-locale-settings.sh"
     done
 } > "$settings_sh" 2>/dev/null || failed=1
 
+# Push the pick into the ALREADY-RUNNING session too, so apps launched THIS
+# session (the Welcome's "open Mo Store / Mo AI" hand-off) inherit the language
+# immediately — not only at next login. Export here, then hand to the D-Bus
+# activation env and the systemd user env. Best-effort; never fail the pick.
+export LANG="$FMT" LANGUAGE="$LANGUAGE" \
+       LC_TIME="$FMT" LC_NUMERIC="$FMT" LC_MEASUREMENT="$FMT" LC_MONETARY="$FMT"
+command -v dbus-update-activation-environment >/dev/null 2>&1 \
+    && dbus-update-activation-environment --systemd \
+         LANG LANGUAGE LC_TIME LC_NUMERIC LC_MEASUREMENT LC_MONETARY >>"$log" 2>&1 || true
+systemctl --user import-environment \
+    LANG LANGUAGE LC_TIME LC_NUMERIC LC_MEASUREMENT LC_MONETARY >>"$log" 2>&1 || true
+
 # ── Flatpak language: pull the picked language's locale subset for Flathub apps.
 # Best-effort — flatpak may be busy or absent; never fail the pick over it.
 if command -v flatpak >/dev/null 2>&1; then

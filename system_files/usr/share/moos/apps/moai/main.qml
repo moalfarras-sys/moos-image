@@ -2954,7 +2954,10 @@ Kirigami.ApplicationWindow {
                 anchors.centerIn: parent
                 spacing: 3
                 Text {
-                    text: "جارٍ التنفيذ ✓  |  Running ✓"
+                    // Neutral "working" — not a ✓ success claim. The action may
+                    // fail-closed (no confirm dialog) or be a no-op; the orb only
+                    // knows it dispatched the request, not that it completed.
+                    text: "جارٍ التنفيذ…  |  Working…"
                     color: root.novaCyan
                     font.family: root.uiFont
                     font.pixelSize: 11

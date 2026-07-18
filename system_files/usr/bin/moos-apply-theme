@@ -772,7 +772,11 @@ if command -v gdbus >/dev/null 2>&1; then
                 try { if ("floating" in p) { p.floating = true; } } catch (e) {}
                 try { if ("lengthMode" in p) { p.lengthMode = "fit"; } } catch (e) {}
                 try { if ("alignment" in p) { p.alignment = "center"; } } catch (e) {}
-                try { p.height = 44; } catch (e) {}
+                /* Do NOT force a pixel height here. The layout template sizes the
+                   dock as Math.round(gridUnit * 2.6), which scales with DPI; a
+                   hardcoded 44 shrank the dock (and its icons) to a tiny bar on
+                   every HiDPI display the moment the theme was applied. Leave the
+                   scale-derived height the template set. */
                 /* THEME_REV 18: the living brand. org.moos.brand (the animated
                    MoOS emblem + glance popup) opens the dock, and Kickoff hands
                    the logo role over to it, wearing the app-grid glyph instead —
