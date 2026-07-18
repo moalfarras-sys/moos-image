@@ -133,6 +133,38 @@ require(theme_want.is_symlink()
         and theme_want.resolve() == Path("/usr/lib/systemd/user/moos-theme-sync.path"),
         "moos-theme-sync.path is shipped but not globally enabled for users")
 
+# The reconcile above only STRANDS the wallpaper if the value it writes still
+# reaches a real image. That is the desktop wallpaper PLUGIN's job: its
+# resolveImage() turns the package DIRECTORY moos-theme hands it into a concrete
+# master file. It once named only MoOSUI2Tide and MoOSUI2Graphite, so every other
+# theme — Midnight/Nova/Amethyst/Aurora/Arena/Forge/Scholar/Daylight and all
+# *Light — fell through to the bare directory, which QML Image cannot open: the
+# desktop dropped to a flat colour with NO wallpaper (only Graphite<->Tidal was
+# QEMU-tested, so it shipped). Guard the general resolver, and that every shipped
+# package actually carries the two masters the resolver maps to.
+_wp_src = text("/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/main.qml")
+require('indexOf("MoOSUI2")' in _wp_src,
+        "the wallpaper plugin resolver names specific themes only — a new or renamed "
+        "MoOS theme would resolve to a bare directory and show no wallpaper")
+_pkgs = sorted(Path("/usr/share/wallpapers").glob("MoOSUI2*"))
+require(len(_pkgs) >= 2, "no MoOS wallpaper packages are installed")
+for _pkg in _pkgs:
+    require((_pkg / "contents/images_dark/3840x2160.jpg").is_file()
+            and (_pkg / "contents/images/3840x2160.jpg").is_file(),
+            f"{_pkg.name} lacks a master the wallpaper resolver maps to "
+            "(needs both contents/images/ and contents/images_dark/ 3840x2160.jpg)")
+
+# Each MoOS QML app must pin its running window to its launcher, or the dock shows
+# the pinned icon PLUS a second entry for the window (a "duplicate window"). These
+# two set their Wayland app_id through moos-qml-shell, but if that shell is ever
+# missing the launcher falls back to bare qml-qt6 (app_id org.qt-project.qml-qt6)
+# and the duplicate returns — StartupWMClass is the fallback/XWayland safety net.
+for _app in ("store", "moai"):
+    _de = text(f"/usr/share/applications/org.moos.{_app}.desktop")
+    require(f"StartupWMClass=org.moos.{_app}" in _de,
+            f"org.moos.{_app}.desktop has no StartupWMClass=org.moos.{_app} — its "
+            "window can show as a duplicate dock icon")
+
 # Remote control must ship the PipeWire capture path. The old implementation spawned
 # spectacle once per frame — 630ms a frame, i.e. ~1fps, which is what made the phone feel
 # broken. If the helper is missing, or is not the PipeWire one, the image would silently

@@ -10,6 +10,10 @@ Exec=moos-store
 TryExec=moos-store
 Icon=moos-store
 Terminal=false
+# Ties the running window to this launcher so the dock shows ONE Store icon, not a
+# pinned icon plus a second entry. moos-store sets this Wayland app_id via
+# moos-qml-shell; this is the XWayland/fallback safety net (must equal that id).
+StartupWMClass=org.moos.store
 Categories=System;
 Keywords=store;apps;install;moos;shop;
 Keywords[ar]=متجر;تطبيقات;تثبيت;

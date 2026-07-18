@@ -10,6 +10,10 @@ Exec=moai
 TryExec=moai
 Icon=moos-moai
 Terminal=false
+# Ties the running window to this launcher so the dock shows ONE Mo AI icon, not a
+# pinned icon plus a second entry. moai sets this Wayland app_id via moos-qml-shell;
+# this is the XWayland/fallback safety net (must equal that id).
+StartupWMClass=org.moos.moai
 Categories=Utility;System;
 Keywords=AI;assistant;chat;local;llm;drivers;hardware;update;install;apps;remote;compatibility;
 Keywords[ar]=ذكاء;مساعد;محادثة;محلي;تعريفات;أجهزة;تحديث;تثبيت;تطبيقات;توافق;
