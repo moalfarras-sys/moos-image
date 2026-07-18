@@ -130,12 +130,15 @@ jobs:
           sudo xorriso -osirrox on -indev "${ISO_DEST}" \
                -extract /LiveOS/squashfs.img "${work}/squashfs.img"
           sudo unsquashfs -d "${rootfs}" "${work}/squashfs.img"
+          sudo rm -f "${work}/squashfs.img"          # free ~3.5GB — done with it
           sudo mkdir -p "${store}"
+          echo "disk after unsquash:"; df -h / | tail -1
 
-          # 2) copy the image into the live rootfs's OWN containers-storage, with the
-          #    SAME overlay driver the booted root podman reads with. Source is the
+          # 2) copy the image into the live rootfs's OWN containers-storage. The
+          #    overlay driver is named IN the destination reference ([overlay@…]);
+          #    Ubuntu's skopeo has no --dest-storage-driver flag. Source is the
           #    runner's rootful store (pulled earlier) — no network needed.
-          sudo skopeo copy --dest-storage-driver overlay \
+          sudo skopeo copy \
                "containers-storage:${IMAGE_REF}" \
                "containers-storage:[overlay@${store}+${runroot}]${IMAGE_REF}"
 
@@ -146,15 +149,24 @@ jobs:
                --storage-driver overlay image exists "${IMAGE_REF}"
           echo "OFFLINE EMBED OK: ${IMAGE_REF} is present in the live ISO's containers-storage"
 
-          # 4) re-squash (match Titanoboa's flags) and splice back, preserving boot.
+          # Free the runner's rootful store now (Titanoboa and the copy are done with
+          # it) so the re-squash and ISO write have headroom on the ~25GB runner.
+          sudo podman system reset -f 2>/dev/null || true
+          echo "disk after freeing rootful store:"; df -h / | tail -1
+
+          # 4) re-squash, then DROP the rootfs BEFORE writing the ISO (frees ~12GB).
           sudo mksquashfs "${rootfs}" "${work}/squashfs-new.img" \
                -noappend -all-root -comp zstd -Xcompression-level 19
+          sudo rm -rf "${rootfs}" "${runroot}"
+          echo "disk after re-squash:"; df -h / | tail -1
+
+          # 5) splice the new squashfs back in, preserving the hybrid UEFI+BIOS boot.
           out="${GITHUB_WORKSPACE}/moos-offline.iso"
           sudo xorriso -indev "${ISO_DEST}" -outdev "${out}" \
                -boot_image any replay \
                -update "${work}/squashfs-new.img" /LiveOS/squashfs.img \
                -commit
-          sudo rm -rf "${rootfs}" "${work}/squashfs.img" "${work}/squashfs-new.img"
+          sudo rm -f "${work}/squashfs-new.img"
           ls -lh "${out}"
           echo "iso=${out}" >> "$GITHUB_OUTPUT"
 
