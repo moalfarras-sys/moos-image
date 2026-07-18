@@ -78,7 +78,13 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const [mode, setMode] = useState<GestureMode>("touch");
   const [viewMode, setViewMode] = useState<ViewMode>("fit");
   const [presetIdx, setPresetIdx] = useState(1);
-  const [auto, setAuto] = useState(false);
+  // Auto quality ON by default. The complaint that keeps coming back is "the remote is slow",
+  // and the usual cause is a fixed preset that is too heavy for the link the phone is actually
+  // on — a DERP relay or mobile data, not the home LAN it was tuned for. Starting in auto lets
+  // the stream drop to a lighter preset within a couple of seconds of high latency and climb
+  // back up on a fast link, without the user ever opening the quality menu. They can still turn
+  // it off and pin a preset by hand. This is the client half of Fast Remote (host half).
+  const [auto, setAuto] = useState(true);
   const latRef = useRef(0);
   const [kbOpen, setKbOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
