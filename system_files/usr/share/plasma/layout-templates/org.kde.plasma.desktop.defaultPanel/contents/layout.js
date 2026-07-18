@@ -98,6 +98,7 @@ tasks.writeConfig("launchers", [
     "applications:org.moos.moplayer.desktop",
     "applications:org.kde.dolphin.desktop",
     "applications:org.moos.remote.desktop",
+    "applications:org.moos.fastremote.desktop",
     "applications:systemsettings.desktop",
     "applications:org.kde.konsole.desktop"
 ].join(","));

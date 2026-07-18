@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Fast Remote
+Name[ar]=اتصال سريع
+Comment=Toggle a low-overhead mode that speeds up Mo PC Remote
+Comment[ar]=يشغّل/يوقف وضعاً خفيفاً يسرّع الاتصال عن بُعد
+Exec=moos-fast-remote toggle
+Icon=preferences-system-network-remote
+Terminal=false
+Categories=System;RemoteAccess;
+Keywords=remote;fast;speed;stream;موس;سريع;
+X-KDE-GlobalAccel=Meta+R

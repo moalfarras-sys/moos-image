@@ -173,8 +173,8 @@ export class GestureController {
       const t = this.nudge(dx, dy);
       this.queueMove(t.x, t.y, false);
     } else if (this.phase === "scroll") {
-      this.qScrollX -= dx;   // wheel convention: positive = content moves up / left
-      this.qScrollY -= dy;
+      this.qScrollX += dx;   // MoOS traditional scroll: swipe up scrolls up the page (owner preference)
+      this.qScrollY += dy;
       this.scheduleFlush();
     }
   };
@@ -237,8 +237,8 @@ export class GestureController {
     if (this.getZoom() > 1.01) {
       this.cb.panBy(dcx, dcy);       // zoomed in: two fingers pan the view
     } else {
-      this.qScrollX -= dcx;          // otherwise they scroll the remote screen
-      this.qScrollY -= dcy;
+      this.qScrollX += dcx;          // otherwise they scroll the remote screen (traditional direction)
+      this.qScrollY += dcy;
       this.scheduleFlush();
     }
     this.lastCx = cx; this.lastCy = cy; this.lastDist = d;

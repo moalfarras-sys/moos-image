@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# moos-fast-remote — MoOS "Fast Remote" mode.
+# When ON, it pauses everything that makes the remote (Mo PC Remote) feel slow:
+#   • live animated dashboard wallpaper  -> static Tide image
+#   • KWin blur + slide effects          -> off (huge win for encoded bandwidth)
+#   • window animation duration          -> instant (nothing to re-encode)
+#   • Mo AI local brain (VRAM ~5.6G)     -> suspended (freed for the compositor)
+# When OFF, everything is restored to the full beautiful MoOS experience.
+# Toggling is instant and never restarts kwin/plasmashell, so it is safe to run
+# from inside an active remote session — the connection is not dropped.
+set -uo pipefail
+
+STATE="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/moos-fast-remote.on"
+STATIC_WALLPAPER="/usr/share/wallpapers/MoOSUI2Tide"
+LIVE_WALLPAPER="org.moos.ui2.wallpaper"
+
+kwin_reconfigure() {
+  gdbus call --session --dest org.kde.KWin --object-path /KWin \
+    --method org.kde.KWin.reconfigure >/dev/null 2>&1
+}
+
+set_effect() { # group key value
+  kwriteconfig6 --file kwinrc --group "$1" --key "$2" "$3"
+}
+
+set_wallpaper_static() {
+  gdbus call --session --dest org.kde.plasmashell --object-path /PlasmaShell \
+    --method org.kde.PlasmaShell.evaluateScript "
+      var ds = desktops();
+      for (var i=0;i<ds.length;i++){
+        ds[i].wallpaperPlugin = 'org.kde.image';
+        ds[i].currentConfigGroup = ['Wallpaper','org.kde.image','General'];
+        ds[i].writeConfig('Image','file://$STATIC_WALLPAPER');
+      }" >/dev/null 2>&1
+}
+
+set_wallpaper_live() {
+  gdbus call --session --dest org.kde.plasmashell --object-path /PlasmaShell \
+    --method org.kde.PlasmaShell.evaluateScript "
+      var ds = desktops();
+      for (var i=0;i<ds.length;i++){ ds[i].wallpaperPlugin = '$LIVE_WALLPAPER'; }" \
+    >/dev/null 2>&1
+}
+
+fast_on() {
+  # 1) effects off
+  set_effect Plugins blurEnabled false
+  set_effect Plugins slideEnabled false
+  set_effect Plugins contrastEnabled false
+  # 2) instant animations
+  set_effect KDE AnimationDurationFactor 0.05
+  kwin_reconfigure
+  # 3) static wallpaper
+  set_wallpaper_static
+  # 4) free the GPU: suspend Mo AI local brain (gateway stays; reloads on demand)
+  systemctl --user stop moai.service >/dev/null 2>&1
+  touch "$STATE"
+  echo "Fast Remote: ON  (effects off, static wallpaper, Mo AI brain suspended)"
+}
+
+fast_off() {
+  # restore effects
+  set_effect Plugins blurEnabled true
+  set_effect Plugins slideEnabled true
+  kwriteconfig6 --file kwinrc --group Plugins --key contrastEnabled --delete 2>/dev/null
+  kwriteconfig6 --file kwinrc --group KDE --key AnimationDurationFactor --delete 2>/dev/null
+  kwin_reconfigure
+  # restore live wallpaper
+  set_wallpaper_live
+  # bring Mo AI local brain back
+  systemctl --user start moai.service >/dev/null 2>&1
+  rm -f "$STATE"
+  echo "Fast Remote: OFF  (full experience restored)"
+}
+
+case "${1:-toggle}" in
+  on)     fast_on ;;
+  off)    fast_off ;;
+  status) [ -f "$STATE" ] && echo "on" || echo "off" ;;
+  toggle) [ -f "$STATE" ] && fast_off || fast_on ;;
+  *) echo "usage: moos-fast-remote {on|off|toggle|status}" >&2; exit 2 ;;
+esac
