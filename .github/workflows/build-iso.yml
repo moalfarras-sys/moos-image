@@ -158,8 +158,11 @@ jobs:
           echo "disk after freeing rootful store:"; df -h / | tail -1
 
           # 4) re-squash, then DROP the rootfs BEFORE writing the ISO (frees ~12GB).
+          # zstd level 6 (not 19): re-compressing the ~15GB rootfs+image at max level
+          # took far too long on the 4-core runner for a marginal size gain. Level 6 is
+          # ~5x faster and still small. The live boot decompresses zstd either way.
           sudo mksquashfs "${rootfs}" "${work}/squashfs-new.img" \
-               -noappend -all-root -comp zstd -Xcompression-level 19
+               -noappend -all-root -comp zstd -Xcompression-level 6
           sudo rm -rf "${rootfs}" "${runroot}"
           echo "disk after re-squash:"; df -h / | tail -1
 
