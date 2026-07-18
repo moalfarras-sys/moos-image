@@ -739,13 +739,43 @@ class TestMoOSUI2(unittest.TestCase):
         )
 
         clock_card = qml_by_path[DASHBOARD / "contents/ui/ClockCard.qml"]
+        # The identity badge names the ACTIVE theme (e.g. "MIDNIGHT GLASS"),
+        # driven by themeLabel threaded from main.qml -> DashboardBento -> here,
+        # and still falls back to the Light/Dark palette when no label is given.
+        self.assertRegex(
+            clock_card,
+            r"property\s+string\s+themeLabel",
+            "ClockCard must accept the active MoOS theme label",
+        )
         self.assertIn('"TIDAL GLASS"', clock_card)
         self.assertIn('"GRAPHITE GLASS"', clock_card)
         self.assertRegex(
             clock_card,
-            r"text:\s*clockCard\.lightSurface\s*\?\s*\"TIDAL GLASS\"\s*"
-            r":\s*\"GRAPHITE GLASS\"",
-            "the dashboard identity must follow the active Light/Dark palette",
+            r"text:\s*clockCard\.themeLabel\s*!==\s*\"\"\s*"
+            r"\?\s*clockCard\.themeLabel\s*"
+            r":\s*\(\s*clockCard\.lightSurface\s*\?\s*\"TIDAL GLASS\"\s*"
+            r":\s*\"GRAPHITE GLASS\"\s*\)",
+            "the dashboard identity must name the active theme, "
+            "falling back to the Light/Dark palette",
+        )
+        # main.qml must DERIVE that label from the active wallpaper package and
+        # thread it down, or every theme would show the same fallback name.
+        dashboard_main = qml_by_path[DASHBOARD / "contents/ui/main.qml"]
+        self.assertRegex(
+            dashboard_main,
+            r"readonly\s+property\s+string\s+themeLabel\s*:",
+            "main.qml must derive the active theme label",
+        )
+        self.assertRegex(
+            dashboard_main,
+            r"themeLabel:\s*root\.themeLabel",
+            "the derived theme label must be threaded into the bento",
+        )
+        bento = qml_by_path[DASHBOARD / "contents/ui/DashboardBento.qml"]
+        self.assertRegex(
+            bento,
+            r"themeLabel:\s*root\.themeLabel",
+            "the bento must forward the theme label to the clock card",
         )
 
         self.assertRegex(main, r"readonly\s+property\s+bool\s+motionEnabled\s*:")
