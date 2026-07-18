@@ -40,10 +40,20 @@ assert.ok(linkedCss && existsSync(resolve(repo, "moremote/agent/wwwroot", linked
 assert.match(html, /content="#14191c" media="\(prefers-color-scheme: dark\)"/);
 assert.match(html, /content="#d8ebe7" media="\(prefers-color-scheme: light\)"/);
 
+// The palette + CSS now live in ONE shared module (/usr/lib/moos/moos_ui2.py);
+// the native GTK panel imports them instead of carrying its own copy.
+const sharedPalette = readFileSync(resolve(repo, "system_files/usr/lib/moos/moos_ui2.py"), "utf8").toLowerCase();
+for (const token of [...dark, ...light]) assert.ok(sharedPalette.includes(token), `shared palette misses ${token}`);
+for (const token of legacy) assert.ok(!sharedPalette.includes(token), `shared palette retains legacy ${token}`);
+assert.match(sharedPalette, /def gtk_prefers_dark\(\)/);
+
 const nativePanel = readFileSync(resolve(repo, "system_files/usr/bin/mo-pc-remote"), "utf8").toLowerCase();
-for (const token of [...dark, ...light]) assert.ok(nativePanel.includes(token), `native panel misses ${token}`);
-for (const token of legacy) assert.ok(!nativePanel.includes(token), `native panel retains legacy ${token}`);
-assert.match(nativePanel, /def gtk_prefers_dark\(\)/);
+assert.match(nativePanel, /from moos_ui2 import[^\n]*\bui2_dark\b/,
+  "native panel must import the shared dark palette");
+assert.match(nativePanel, /from moos_ui2 import[^\n]*\bui2_light\b/,
+  "native panel must import the shared light palette");
+assert.match(nativePanel, /from moos_ui2 import[^\n]*\bgtk_prefers_dark\b/,
+  "native panel must import the shared dark-preference probe");
 assert.match(nativePanel, /add_css_class\("ui2-card"\)/);
 
 console.log("PASS: Mo PC Remote UI2 source, shipping bundle, and native GTK palette");
