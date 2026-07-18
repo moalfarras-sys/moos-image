@@ -1,15 +1,18 @@
-# MoOS launch feedback — make it OBVIOUS an app is opening.
+# MoOS launch feedback — a calm, unmistakable acknowledgement that a click landed.
 #
-# KDE's default launch feedback is deliberately subtle (a brief busy cursor), so
-# on MoOS a click that started Firefox/Chrome/anything read as "did that do
-# anything?". This turns it up to a Windows-like, unmistakable acknowledgement:
-# the app's icon BOUNCES beside the cursor while it loads, AND its task-manager
-# button shows a launching state — so you always know the click landed and the
-# app is on its way. Plasma reads /etc/xdg as a system default; a user can still
-# soften it in System Settings → Launch Feedback.
+# An earlier revision turned this "up to Windows-like": the icon BOUNCED beside the
+# cursor AND a launching-state task button appeared on every launch. Applied as a
+# system default (/etc/xdg) it hit EVERY app, not just the browser — so opening the
+# terminal or any pinned app flashed a bouncing icon and a second task button, which
+# read as "it opened a new window every time I click". That was noise, not polish.
+#
+# Now: keep the busy cursor (subtle, immediate, universally understood) and drop the
+# bounce and the extra task-manager button. The click is acknowledged without the
+# surface flashing. A user can still turn feedback up in System Settings → Launch
+# Feedback.
 [BusyCursorSettings]
-Bouncing=true
+Bouncing=false
 
 [FeedbackStyle]
 BusyCursor=true
-TaskbarButton=true
+TaskbarButton=false
