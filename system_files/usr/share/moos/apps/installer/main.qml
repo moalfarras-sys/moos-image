@@ -1851,7 +1851,10 @@ ApplicationWindow {
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         visible: win.instState !== "fail"
-                        text: win.phaseLabel(win.instPhase) + " — " + win.instPct + (win.rtl ? "٪" : "%")
+                        // Western "45%" on both paths: instPct is a Number (always
+                        // Western digits), so the old Arabic "٪" produced mixed script
+                        // ("45٪"). One sign that matches the digits, no bidi surprises.
+                        text: win.phaseLabel(win.instPhase) + " — " + win.instPct + "%"
                         color: win.txt
                         font.family: "IBM Plex Sans"; font.pixelSize: 15; font.weight: Font.DemiBold
                     }
