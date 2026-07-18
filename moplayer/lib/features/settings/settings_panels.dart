@@ -284,12 +284,16 @@ class _PlaybackPanel extends ConsumerWidget {
           value: settings.rememberLastChannel,
           onChanged: controller.setRememberLastChannel,
         ),
-        const _Hairline(),
-        _SwitchRow(
-          title: s.syncOnLaunch,
-          value: settings.syncOnLaunch,
-          onChanged: controller.setSyncOnLaunch,
-        ),
+        // Only show "Sync on launch" when cloud sync can actually run — a switch
+        // for a feature the shipped build has no backend for is a dead control.
+        if (AppConfig.hasSupabase) ...[
+          const _Hairline(),
+          _SwitchRow(
+            title: s.syncOnLaunch,
+            value: settings.syncOnLaunch,
+            onChanged: controller.setSyncOnLaunch,
+          ),
+        ],
       ],
     );
   }

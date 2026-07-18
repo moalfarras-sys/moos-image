@@ -160,16 +160,22 @@ class PlaybackController extends Notifier<NowPlaying?> {
     final mpris = ref.watch(mprisProvider);
     final desktop = ref.watch(desktopServiceProvider);
 
+    // MPRIS (panel + media-key control) only when the user enabled it — the
+    // "Media keys" toggle must actually gate registration, not be a dead switch.
     // Best-effort; a session with no D-Bus simply has no media keys.
-    unawaited(mpris.start());
+    if (ref.read(settingsProvider).mediaKeys) {
+      unawaited(mpris.start());
+    }
 
     _subs.addAll([
       player.playingStream.listen((playing) {
         if (state == null) return;
         mpris.setStatus(playing ? MprisStatus.playing : MprisStatus.paused);
-        // Only hold the screen awake while pixels are actually changing. An
+        // Only hold the screen awake while pixels are actually changing AND the
+        // user asked us to ("Keep the screen awake" toggle). Read fresh each
+        // event so the toggle is honoured from the next play/pause on. An
         // inhibitor left on through a pause is how a laptop cooks in a bag.
-        desktop.setKeepAwake(playing);
+        desktop.setKeepAwake(playing && ref.read(settingsProvider).keepAwake);
         if (playing) _retries = 0;
       }),
       player.volumeStream.listen((v) => mpris.setVolume(v / 100)),

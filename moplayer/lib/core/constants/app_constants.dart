@@ -2,13 +2,9 @@
 class StorageKeys {
   const StorageKeys._();
 
-  // Secure storage (encrypted) — real credentials only
+  // Secure storage (encrypted)
   static const String activePlaylist = 'active_playlist';
   static const String playlists = 'saved_playlists';
-
-  // Plain on-disk install token (NOT a secret). Kept out of the keyring so a
-  // fresh MoOS live session never has to create a wallet just to mint an id —
-  // see DeviceService.
   static const String deviceId = 'device_id';
 
   // Hive boxes

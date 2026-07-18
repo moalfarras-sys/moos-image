@@ -96,7 +96,14 @@ class HomeScreen extends ConsumerWidget {
 
     return channels.when(
       loading: () => LoadingView(label: s.loading),
-      error: (error, _) => ErrorView(strings: s, error: error, onRetry: refresh),
+      error: (error, _) => ErrorView(
+        strings: s,
+        error: error,
+        onRetry: refresh,
+        // Expired/invalid-subscription failures can't be fixed by Retry — offer
+        // the Settings route that can (change or re-enter the source).
+        onOpenSettings: () => context.go(Routes.settings),
+      ),
       data: (live) {
         if (live.isEmpty &&
             movies.isEmpty &&

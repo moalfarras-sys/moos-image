@@ -181,6 +181,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
                   strings: s,
                   error: error,
                   onRetry: () => ref.invalidate(moviesProvider(categoryId)),
+                  onOpenSettings: () => context.go(Routes.settings),
                 ),
                 data: (all) => _MovieGrid(
                   movies: all,

@@ -118,6 +118,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       strings: s,
                       error: error,
                       onRetry: () => ref.invalidate(searchResultsProvider),
+                      onOpenSettings: () => context.go(Routes.settings),
                     ),
                     data: (data) => _Results(results: data, query: query),
                   ),

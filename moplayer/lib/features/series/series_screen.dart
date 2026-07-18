@@ -136,6 +136,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
                   strings: s,
                   error: error,
                   onRetry: () => ref.invalidate(seriesListProvider(categoryId)),
+                  onOpenSettings: () => context.go(Routes.settings),
                 ),
                 data: (all) => _SeriesGrid(
                   series: all,

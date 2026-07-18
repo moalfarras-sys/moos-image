@@ -94,7 +94,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   /// and get out of the way.
   Future<void> _activate(PlaylistConfig config) async {
     await ref.read(activePlaylistProvider.notifier).activate(config);
-    await ref.read(libraryActionsProvider).syncFromCloud();
+    // Honour the "Sync on launch" toggle instead of always pulling (it defaults
+    // to true, so first login still syncs). Makes the switch actually do something.
+    if (ref.read(settingsProvider).syncOnLaunch) {
+      await ref.read(libraryActionsProvider).syncFromCloud();
+    }
     if (!mounted) return;
     // Settings pushed this screen to add a second source: it is still on the
     // stack underneath, and it is where the user was going back to anyway.

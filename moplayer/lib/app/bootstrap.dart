@@ -46,14 +46,10 @@ class Boot {
 Future<Boot> bootstrap(LaunchArgs launch) async {
   final secure = SecureStorageService();
 
-  final dataDir = _appDataDir();
-
   final cache = CacheService();
-  await cache.init(path: dataDir);
+  await cache.init(path: _appDataDir());
 
-  // The device id is a plain file under dataDir, not a keyring secret: a first
-  // launch must not have to open a wallet just to identify the machine.
-  final device = DeviceService(dataDir);
+  final device = DeviceService(secure);
   await device.init();
 
   final supabase = SupabaseService(enabled: AppConfig.hasSupabase);
