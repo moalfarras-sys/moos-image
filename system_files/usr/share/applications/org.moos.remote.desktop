@@ -22,3 +22,22 @@ StartupWMClass=org.moos.MoPCRemote
 Terminal=false
 Categories=Network;RemoteAccess;
 StartupNotify=true
+
+# Fast Remote lives here now, not as a second dock icon. Right-clicking the Mo PC
+# Remote launcher (in the dock or the menu) offers to speed the connection up or
+# restore the full experience — both call the ONE /usr/bin/moos-fast-remote, the
+# same script the toggle inside the panel and the Meta+R shortcut use. One feature,
+# one code path, reachable three convenient ways.
+Actions=FastOn;FastOff;
+
+[Desktop Action FastOn]
+Name=Speed up the connection (Fast Remote)
+Name[ar]=تسريع الاتصال (الوضع السريع)
+Exec=/usr/bin/moos-fast-remote on
+Icon=preferences-system-network-remote
+
+[Desktop Action FastOff]
+Name=Restore full quality
+Name[ar]=استعادة الجودة الكاملة
+Exec=/usr/bin/moos-fast-remote off
+Icon=preferences-system-network-remote

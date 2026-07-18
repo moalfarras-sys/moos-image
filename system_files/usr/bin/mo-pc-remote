@@ -126,6 +126,25 @@ class App(Gtk.Application):
             buttons.append(b)
         outer.append(buttons)
 
+        # Fast Remote — folded in from what used to be a SECOND dock icon. MoOS ships one
+        # remote icon now; the speed control lives here, where the connection does. One
+        # switch pauses everything that makes the stream feel slow (the live wallpaper, KWin
+        # blur/slide, and the Mo AI brain's VRAM) so the encoder has the machine to itself.
+        # It is safe to flip mid-session — nothing restarts the compositor, so the phone does
+        # not disconnect. Backed by the same /usr/bin/moos-fast-remote the Meta+R shortcut and
+        # the launcher's right-click actions use: one feature, one code path, three doors.
+        fast=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=16)
+        fast.add_css_class("ui2-card")
+        fast_text=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=2,hexpand=True)
+        fast_title=Gtk.Label(label="Fast Remote · الوضع السريع",xalign=0); fast_title.add_css_class("heading")
+        self.fast_sub=Gtk.Label(xalign=0); self.fast_sub.set_wrap(True); self.fast_sub.add_css_class("dim-label")
+        fast_text.append(fast_title); fast_text.append(self.fast_sub)
+        fast.append(fast_text)
+        self.fast_switch=Gtk.Switch(valign=Gtk.Align.CENTER)
+        self.fast_switch.connect("state-set",self.on_fast_toggled)
+        fast.append(self.fast_switch)
+        outer.append(fast)
+
         # Address block: the one that works anywhere first, the house-only one second, and a QR
         # so the phone never has to be told an address at all.
         addr=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=16)
@@ -158,6 +177,16 @@ class App(Gtk.Application):
         b.add_css_class("success" if ok else "error"); self.grid.attach(a,0,n,1,1); self.grid.attach(b,1,n,1,1)
     def start(self,*_): run("systemctl","--user","enable","--now",UNIT); self.refresh()
     def stop(self,*_): run("systemctl","--user","disable","--now",UNIT); self.refresh()
+
+    # Fast Remote toggle. The switch drives the ONE moos-fast-remote script; refresh() reads
+    # its status back so the panel always reflects the real mode (e.g. if it was flipped by
+    # Meta+R or the launcher's right-click action). The _fast_syncing guard stops that
+    # read-back from re-firing the script — set_active() also emits "state-set".
+    def fast_status(self): return run("moos-fast-remote","status").stdout.strip()=="on"
+    def on_fast_toggled(self,_switch,state):
+        if getattr(self,"_fast_syncing",False): return False
+        run("moos-fast-remote","on" if state else "off"); self.refresh()
+        return False
 
     def on_enable_anywhere(self,*_):
         ok,err=enable_anywhere()
@@ -215,6 +244,18 @@ class App(Gtk.Application):
         self.row(2,"Desktop portal", "active" if portal else "inactive",portal)
         self.row(3,"Input permission", "private user socket" if sock else "not ready",sock)
         self.row(4,"MoPC backend", "touch/keyboard/desktop service" if on else "stopped",on)
+        # Reflect the real Fast Remote mode without re-triggering it.
+        try: fast_on=self.fast_status()
+        except (OSError, subprocess.SubprocessError): fast_on=False
+        self._fast_syncing=True
+        self.fast_switch.set_active(fast_on)
+        self._fast_syncing=False
+        self.fast_sub.set_text(
+            "On — the connection is prioritised: live wallpaper, effects and Mo AI are paused.\n"
+            "مفعّل — الاتصال في الأولوية: الخلفية الحية والتأثيرات وMo AI موقوفة."
+            if fast_on else
+            "Off. Turn it on when the remote feels slow — it frees the machine for the stream.\n"
+            "متوقف. شغّله عندما يبطؤ الاتصال — يفرّغ الجهاز لصالح البث.")
         path=os.path.expanduser("~/.local/share/MoRemotePersonal/log.txt")
         try: lines=open(path,errors="replace").read().splitlines()[-30:]; self.log.get_buffer().set_text("\n".join(lines))
         except OSError: self.log.get_buffer().set_text("No log yet.")

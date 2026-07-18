@@ -10,3 +10,9 @@ Terminal=false
 Categories=System;RemoteAccess;
 Keywords=remote;fast;speed;stream;موس;سريع;
 X-KDE-GlobalAccel=Meta+R
+# Fast Remote is no longer a standalone icon — it is merged into Mo PC Remote (the
+# panel toggle + the launcher's right-click actions). This entry is kept ONLY so the
+# Meta+R global shortcut has a target; NoDisplay keeps it out of the menu and dock so
+# the feature is never shown twice. kglobalaccel still registers the shortcut for a
+# NoDisplay entry.
+NoDisplay=true

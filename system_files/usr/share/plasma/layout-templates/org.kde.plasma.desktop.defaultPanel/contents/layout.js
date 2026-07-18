@@ -84,6 +84,14 @@ launcher.writeConfig("favorites", [
 /* Icons-Only Task Manager — Mo AI pinned FIRST, then browser, files, Mo PC
  * Remote, System Settings and the terminal.
  *
+ * ONE remote icon, not two. Mo PC Remote and Fast Remote used to sit side by
+ * side in the dock — two glyphs for one feature, which reads as clutter, not
+ * power. They are now merged: Fast Remote lives INSIDE Mo PC Remote — a toggle
+ * switch in its panel AND a right-click jump-list action (Desktop Actions in
+ * org.moos.remote.desktop) — so the single Mo PC Remote icon is the whole
+ * remote-control surface. org.moos.fastremote.desktop is kept NoDisplay only to
+ * back the Meta+R global shortcut; it is deliberately NOT pinned here.
+ *
  * org.moos.compathub and org.moos.hardware used to be pinned here. Those apps no
  * longer exist — the Hardware Centre and the Compatibility Hub are panels inside
  * Mo AI. They must not be listed: icontasks silently SKIPS a launcher URL it
@@ -98,7 +106,6 @@ tasks.writeConfig("launchers", [
     "applications:org.moos.moplayer.desktop",
     "applications:org.kde.dolphin.desktop",
     "applications:org.moos.remote.desktop",
-    "applications:org.moos.fastremote.desktop",
     "applications:systemsettings.desktop",
     "applications:org.kde.konsole.desktop"
 ].join(","));
