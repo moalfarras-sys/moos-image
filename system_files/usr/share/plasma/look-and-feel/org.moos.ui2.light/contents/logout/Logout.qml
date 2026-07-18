@@ -282,6 +282,36 @@ Item {
             }
         }
 
+        // An occasional shooting star streaks across the upper sky — the one
+        // deliberate glint over the calm drift of the curtains.
+        Rectangle {
+            id: shootingStar
+            width: Math.max(40, root.width * 0.045)
+            height: 2
+            radius: 1
+            rotation: 20
+            opacity: 0
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 1.0; color: "#EAFDF8" }
+            }
+            SequentialAnimation {
+                loops: Animation.Infinite
+                running: root.visible
+                PauseAnimation { duration: 8000 }
+                ParallelAnimation {
+                    NumberAnimation { target: shootingStar; property: "x"; from: root.width * 0.14; to: root.width * 0.60; duration: 1200; easing.type: Easing.InCubic }
+                    NumberAnimation { target: shootingStar; property: "y"; from: root.height * 0.12; to: root.height * 0.40; duration: 1200; easing.type: Easing.InCubic }
+                    SequentialAnimation {
+                        NumberAnimation { target: shootingStar; property: "opacity"; to: 0.9; duration: 260; easing.type: Easing.OutCubic }
+                        NumberAnimation { target: shootingStar; property: "opacity"; to: 0; duration: 900; easing.type: Easing.InCubic }
+                    }
+                }
+                PauseAnimation { duration: 6000 }
+            }
+        }
+
         // the tide line — a fine luminous horizon in the theme accent, the thread
         // of continuity from the earlier scene, now drawn under the aurora
         Rectangle {

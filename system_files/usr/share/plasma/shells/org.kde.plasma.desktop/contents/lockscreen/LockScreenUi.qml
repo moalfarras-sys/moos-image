@@ -348,6 +348,168 @@ Item {
                     NumberAnimation { to: 0.08; duration: 8200; easing.type: Easing.InOutSine }
                 }
             }
+            // A faint scatter of stars behind the curtains, each breathing on its own.
+            Rectangle {
+                width: 3; height: 3; radius: 1.5
+                color: "#E8F1EF"
+                x: lockAurora.width * 0.07; y: lockAurora.height * 0.1
+                opacity: 0.12
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.5; duration: 2400; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.12; duration: 2400; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: 2; height: 2; radius: 1.0
+                color: "#E8F1EF"
+                x: lockAurora.width * 0.16; y: lockAurora.height * 0.24
+                opacity: 0.12
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.5; duration: 2900; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.12; duration: 2900; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: 4; height: 4; radius: 2.0
+                color: "#E8F1EF"
+                x: lockAurora.width * 0.27; y: lockAurora.height * 0.07
+                opacity: 0.12
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.5; duration: 3300; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.12; duration: 3300; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: 2; height: 2; radius: 1.0
+                color: "#E8F1EF"
+                x: lockAurora.width * 0.35; y: lockAurora.height * 0.33
+                opacity: 0.12
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.5; duration: 2600; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.12; duration: 2600; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: 3; height: 3; radius: 1.5
+                color: "#E8F1EF"
+                x: lockAurora.width * 0.44; y: lockAurora.height * 0.15
+                opacity: 0.12
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.5; duration: 3100; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.12; duration: 3100; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: 2; height: 2; radius: 1.0
+                color: "#E8F1EF"
+                x: lockAurora.width * 0.55; y: lockAurora.height * 0.42
+                opacity: 0.12
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.5; duration: 2800; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.12; duration: 2800; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: 4; height: 4; radius: 2.0
+                color: "#E8F1EF"
+                x: lockAurora.width * 0.63; y: lockAurora.height * 0.19
+                opacity: 0.12
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.5; duration: 3500; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.12; duration: 3500; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: 3; height: 3; radius: 1.5
+                color: "#E8F1EF"
+                x: lockAurora.width * 0.72; y: lockAurora.height * 0.3
+                opacity: 0.12
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.5; duration: 2700; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.12; duration: 2700; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: 2; height: 2; radius: 1.0
+                color: "#E8F1EF"
+                x: lockAurora.width * 0.81; y: lockAurora.height * 0.12
+                opacity: 0.12
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.5; duration: 3000; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.12; duration: 3000; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: 3; height: 3; radius: 1.5
+                color: "#E8F1EF"
+                x: lockAurora.width * 0.9; y: lockAurora.height * 0.26
+                opacity: 0.12
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.5; duration: 3200; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.12; duration: 3200; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: 2; height: 2; radius: 1.0
+                color: "#E8F1EF"
+                x: lockAurora.width * 0.12; y: lockAurora.height * 0.46
+                opacity: 0.12
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.5; duration: 2500; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.12; duration: 2500; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: 4; height: 4; radius: 2.0
+                color: "#E8F1EF"
+                x: lockAurora.width * 0.48; y: lockAurora.height * 0.52
+                opacity: 0.12
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.5; duration: 3400; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.12; duration: 3400; easing.type: Easing.InOutSine }
+                }
+            }
+            // An occasional shooting star streaks across the upper sky — the one
+            // deliberate glint over the calm drift of the curtains.
+            Rectangle {
+                id: lockShootingStar
+                width: Math.max(40, lockAurora.width * 0.045)
+                height: 2
+                radius: 1
+                rotation: 20
+                opacity: 0
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 1.0; color: "#EAFDF8" }
+                }
+                SequentialAnimation {
+                    loops: Animation.Infinite
+                    running: lockAurora.visible
+                    PauseAnimation { duration: 8000 }
+                    ParallelAnimation {
+                        NumberAnimation { target: lockShootingStar; property: "x"; from: lockAurora.width * 0.14; to: lockAurora.width * 0.60; duration: 1200; easing.type: Easing.InCubic }
+                        NumberAnimation { target: lockShootingStar; property: "y"; from: lockAurora.height * 0.12; to: lockAurora.height * 0.40; duration: 1200; easing.type: Easing.InCubic }
+                        SequentialAnimation {
+                            NumberAnimation { target: lockShootingStar; property: "opacity"; to: 0.9; duration: 260; easing.type: Easing.OutCubic }
+                            NumberAnimation { target: lockShootingStar; property: "opacity"; to: 0; duration: 900; easing.type: Easing.InCubic }
+                        }
+                    }
+                    PauseAnimation { duration: 6000 }
+                }
+            }
         }
 
         // ── MoOS visual layer — ON TOP of the wallpaper ──────────────────────
