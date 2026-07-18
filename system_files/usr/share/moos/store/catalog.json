@@ -38,6 +38,7 @@
       "en": "Developer Starter",
       "ar": "حزمة المطوّر",
       "glyph": "code",
+      "desc_en": "Editors, containers and databases — everything you need to code.",
       "desc_ar": "محرّرات وحاويات وقواعد بيانات — كل ما يلزم للبرمجة.",
       "apps": [
         "com.visualstudio.code",
@@ -53,6 +54,7 @@
       "en": "Gaming Starter",
       "ar": "حزمة الألعاب",
       "glyph": "gamepad",
+      "desc_en": "Play and manage Windows games from one place.",
       "desc_ar": "شغّل ألعاب ويندوز وأدرها من مكان واحد.",
       "apps": [
         "com.valvesoftware.Steam",
@@ -68,6 +70,7 @@
       "en": "Study Starter",
       "ar": "حزمة الدراسة",
       "glyph": "bulb",
+      "desc_en": "Notes, flashcards and PDF reading — the complete student kit.",
       "desc_ar": "ملاحظات وبطاقات مراجعة وقراءة PDF — عدة الطالب كاملة.",
       "apps": [
         "md.obsidian.Obsidian",
@@ -83,6 +86,7 @@
       "en": "Office Starter",
       "ar": "حزمة المكتب",
       "glyph": "briefcase",
+      "desc_en": "Documents, email and meetings — a full office from day one.",
       "desc_ar": "مستندات وبريد واجتماعات — مكتب متكامل من أول يوم.",
       "apps": [
         "org.libreoffice.LibreOffice",
@@ -98,6 +102,7 @@
       "en": "Creator Kit",
       "ar": "عدّة المبدع",
       "glyph": "camera",
+      "desc_en": "Media, production and everyday communication tools.",
       "desc_ar": "أدوات الوسائط والإنتاج والتواصل اليومي.",
       "apps": [
         "com.obsproject.Studio",

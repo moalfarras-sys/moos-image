@@ -719,11 +719,10 @@ ApplicationWindow {
                                         }
                                     }
                                     Text {
-                                        text: bundle.modelData.desc_ar
+                                        text: win.rtl ? bundle.modelData.desc_ar : bundle.modelData.desc_en
                                         color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
                                         wrapMode: Text.WordWrap; Layout.fillWidth: true
                                         maximumLineCount: 2; elide: Text.ElideRight
-                                        visible: win.rtl
                                     }
                                     Item { Layout.fillHeight: true }
                                     Rectangle {
@@ -938,11 +937,12 @@ ApplicationWindow {
                                             font.pixelSize: 14; font.bold: true
                                         }
                                         Text {
+                                            // "Add" for every card (web apps included): the tap only
+                                            // toggles the cart, so a distinct "Open page" label
+                                            // over-promised an action this button never performed.
+                                            // The floating "Install now" opens web apps' pages.
                                             text: card.selected ? (win.rtl ? "مُختار" : "Selected")
-                                                : card.modelData.source === "moos" && card.modelData.install
-                                                  && card.modelData.install.kind === "web"
-                                                  ? (win.rtl ? "افتح الصفحة" : "Open page")
-                                                  : (win.rtl ? "أضِف" : "Add")
+                                                : (win.rtl ? "أضِف" : "Add")
                                             color: card.selected ? win.onAccent : win.txt
                                             font.family: "IBM Plex Sans"; font.pixelSize: 13
                                             font.bold: card.selected
