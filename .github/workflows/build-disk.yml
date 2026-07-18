@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       image-ref:
-        description: "Image ref (empty = ghcr.io/<owner>/moos-nvidia:latest — the edition the user runs)"
+        description: "Image ref (empty = ghcr.io/<owner>/moos:latest — the generic edition; matches the resolver below)"
         required: false
         default: ""
   schedule:

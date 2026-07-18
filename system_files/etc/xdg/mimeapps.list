@@ -33,6 +33,10 @@ application/x-msdownload=org.moos.runforeign.desktop
 application/x-ms-dos-executable=org.moos.runforeign.desktop
 application/vnd.microsoft.portable-executable=org.moos.runforeign.desktop
 application/x-msi=org.moos.runforeign.desktop
+# moos-run-foreign also handles .lnk and .msp; pin them too, or a double-click
+# falls through to another handler / "no application" — the gap it exists to close.
+application/x-ms-shortcut=org.moos.runforeign.desktop
+application/x-wine-extension-msp=org.moos.runforeign.desktop
 application/vnd.android.package-archive=org.moos.runforeign.desktop
 
 image/png=org.kde.gwenview.desktop

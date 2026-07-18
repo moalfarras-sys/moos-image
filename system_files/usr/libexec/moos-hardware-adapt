@@ -129,6 +129,10 @@ if [ "$mem_gib" -gt 0 ]; then
         minfree=$(( mem_kb / 100 ))
         printf '# Written by moos-hardware-adapt. Reversible.\nvm.min_free_kbytes = %s\n' "$minfree" \
             > /etc/sysctl.d/90-moos-hardware.conf 2>/dev/null || true
+        # Apply it THIS boot. This service runs After=systemd-sysctl.service, which
+        # already applied the earlier config and will NOT re-read the new file until
+        # next boot; `systemctl daemon-reload` only reloads UNIT files, not sysctls.
+        do_run sysctl --system
         do_run systemctl stop dev-zram0.swap systemd-zram-setup@zram0.service
         do_run systemctl daemon-reload
         do_run systemctl reset-failed dev-zram0.swap systemd-zram-setup@zram0.service

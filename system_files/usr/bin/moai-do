@@ -283,6 +283,10 @@ do_setup_waydroid() {
     fi
 
     run_priv systemctl enable --now waydroid-container.service || true
+    # Free VRAM before the Android UI (an EGL/GPU client) starts — same guard as
+    # launch_app and moos-open's apps/run route. With the local brain holding ~6GB
+    # of an 8GB card, eglMakeCurrent aborts instead of degrading; best-effort.
+    command -v moos-gpu-headroom >/dev/null 2>&1 && moos-gpu-headroom 2>/dev/null || true
     waydroid session start >/dev/null 2>&1 &
     sleep 2
     waydroid show-full-ui >/dev/null 2>&1 &

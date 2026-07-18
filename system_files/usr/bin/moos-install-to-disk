@@ -104,6 +104,10 @@ PASS_HASH=""
 if [ -n "$R_PASS" ]; then
     command -v mkpasswd >/dev/null 2>&1 && PASS_HASH="$(printf '%s' "$R_PASS" | mkpasswd -m yescrypt -s 2>/dev/null)"
     [ -z "$PASS_HASH" ] && command -v openssl >/dev/null 2>&1 && PASS_HASH="$(printf '%s' "$R_PASS" | openssl passwd -6 -stdin 2>/dev/null)"
+    # A chosen password that could not be hashed must NOT silently become a
+    # PASSWORDLESS machine (moos-firstboot would then ship NOPASSWD sudo + a
+    # passwordless polkit rule). Fail loudly so the user knows it was not set.
+    [ -z "$PASS_HASH" ] && { R_PASS=""; wipe_recipe; fail "hash-failed"; }
 fi
 R_PASS=""
 wipe_recipe   # done with the recipe — no plaintext lingers during the install
@@ -150,6 +154,20 @@ if [ -z "$LIVE" ]; then
     [ "$_rm" = "1" ] && fail "live-node"
 fi
 
+# One install at a time. A re-fired begin (the QML Retry, an impatient double-tap,
+# or a drive-by moos://installer/begin) must never start a SECOND
+# `bootc install --wipe` on the same disk while the first is still partitioning or
+# copying. Hold an exclusive lock for the whole destructive run.
+exec 9>/run/moos-install.lock 2>/dev/null || true
+if command -v flock >/dev/null 2>&1; then
+    flock -n 9 || fail "busy"
+fi
+
+# Early liveness: the QML poller times out on ~30s of silence, but the online
+# source/network prep below can legitimately take longer before the ticker starts.
+# Emit one PHASE/PROGRESS now so the front-end sees the helper is alive.
+phase partition; prog 2
+
 # Choose the install SOURCE: the LOCAL image if the ISO embedded it (offline,
 # instant) else the registry (needs a working network). We run `bootc install`
 # DIRECTLY below — NOT `podman run <image> bootc install`, which first unpacks the
@@ -170,6 +188,7 @@ else
         systemctl restart NetworkManager  2>>"$LOG" || true
         for i in $(seq 1 45); do
             getent hosts "$host" >/dev/null 2>&1 && return 0
+            [ $(( i % 4 )) -eq 0 ] && prog 2   # heartbeat so the QML poller sees liveness
             sleep 1
         done
         return 1

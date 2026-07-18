@@ -2892,6 +2892,98 @@ require("getent passwd" in _lp,
 require(re.search(r"systemctl enable moos-live-polish\.service", read("build_files/build.sh")),
         "build.sh must enable moos-live-polish.service or the fix ships dormant")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Gates for the 2026-07-18 audit fixes. Each guards a RELATIONSHIP a shipped
+# regression would break, comment-stripped so prose cannot satisfy it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# #1 The dev-mode passwordless-root polkit rule must NOT ship in the image; the
+#    convenience is opt-in locally via moos-devmode-enable instead.
+require(not (ROOT / "system_files/usr/share/polkit-1/rules.d/50-moos-devmode.rules").exists(),
+        "the dev-mode passwordless-root polkit rule must not ship in the image "
+        "(it defeats Mo AI's pkexec model); enable it locally with moos-devmode-enable")
+require((ROOT / "system_files/usr/bin/moos-devmode-enable").exists(),
+        "moos-devmode-enable (local opt-in for passwordless admin) must ship")
+
+# #10/#20 The desktop dashboard clock: 24-hour digits with NO AM/PM meridiem, and
+#         its second date line pinned to English (the ar+en pair every clock uses).
+_clock = code(read("system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/ClockCard.qml"), "slash")
+require('"AP"' not in _clock,
+        "the dashboard clock must not pair an AM/PM meridiem with 24-hour digits")
+require('Qt.locale("en")' in _clock,
+        "the dashboard clock's secondary date line must be pinned to English")
+
+# #9 The UI font is requested BY NAME everywhere, so the Arabic fallback must hang
+#    off the NAMED family (a sans-serif prefer never reaches a by-name request).
+_font = code(read("system_files/etc/fonts/conf.d/61-moos-brand.conf"), "xml")
+require(re.search(r"<family>IBM Plex Sans</family>\s*<accept>", _font) is not None,
+        "IBM Plex Sans must carry a by-name <accept> fallback to IBM Plex Sans Arabic")
+
+# #3/#7 moos-open: disruptive drive-by-triggerable routes must route through a
+#       confirmation before acting.
+_open = code(read("system_files/usr/bin/moos-open"), "hash")
+def _arm(text: str, label: str) -> str:
+    m = re.search(re.escape(label) + r"(.*?);;", text, re.DOTALL)
+    return m.group(1) if m else ""
+for _label in ("remote/start)", "installer/reboot)", "installer/poweroff)",
+               "session/logout)", "session/power)"):
+    require("confirm" in _arm(_open, _label),
+            f"moos-open {_label} must confirm before acting (drive-by moos:// safety)")
+
+# #18 do_setup_waydroid must free VRAM before starting the Android (EGL) UI.
+_moaido = code(read("system_files/usr/bin/moai-do"), "hash")
+_ws = _moaido.find("waydroid session start")
+require(_ws > 0 and "moos-gpu-headroom" in _moaido[max(0, _ws - 400):_ws],
+        "do_setup_waydroid must call moos-gpu-headroom before 'waydroid session start'")
+
+# #16 moos-firstboot must not stamp completion when the account was not created.
+_fb = code(read("system_files/usr/libexec/moos-firstboot"), "hash")
+require('id "$USERNAME"' in _fb and "NOT stamping" in _fb,
+        "moos-firstboot must not stamp a userless install; it must retry next boot")
+
+# #25 moos-hardware-adapt must APPLY the sysctl it writes (daemon-reload does not).
+_hw = code(read("system_files/usr/libexec/moos-hardware-adapt"), "hash")
+require(re.search(r"90-moos-hardware\.conf.*?sysctl --system", _hw, re.DOTALL) is not None,
+        "moos-hardware-adapt must run `sysctl --system` after writing 90-moos-hardware.conf")
+
+# #8 Fast Remote must restore the CAPTURED layout on off, not a hard-coded country.
+_fr = code(read("system_files/usr/bin/moos-fast-remote"), "hash")
+require("set_layout de" not in _fr,
+        "Fast Remote off must not restore a hard-coded 'de' layout")
+require("prevlayout" in _fr and "set_layout_idx" in _fr,
+        "Fast Remote must save the active layout on and restore it on off")
+
+# #19 Every Windows/foreign type runforeign claims must have a default handler.
+_mime = read("system_files/etc/xdg/mimeapps.list")
+for _t in ("application/x-ms-shortcut", "application/x-wine-extension-msp"):
+    require(f"{_t}=org.moos.runforeign.desktop" in _mime,
+            f"{_t} must default to org.moos.runforeign.desktop")
+
+# #5/#11/#22 The install helper: single-instance lock, network-wait heartbeat, and
+#            a hard fail (not a silent passwordless downgrade) when hashing fails.
+_i2d = code(read("system_files/usr/bin/moos-install-to-disk"), "hash")
+require("flock -n 9" in _i2d,
+        "moos-install-to-disk must hold an flock so a re-fired begin cannot double-wipe")
+require('fail "hash-failed"' in _i2d,
+        "a chosen password that cannot be hashed must fail, not become passwordless")
+_iqml = read("system_files/usr/share/moos/apps/installer/main.qml")
+_m = re.search(r"instPoll\.miss\s*>\s*(\d+)", _iqml)
+require(_m is not None and int(_m.group(1)) >= 150,
+        "installer stall threshold must exceed the online ensure_network worst case")
+
+# #2/#6 The ISO build must embed the image into the live containers-storage for
+#       OFFLINE install AND verify it (fail-loud), not assume Titanoboa did it.
+_isoyml = read(".github/workflows/build-iso.yml")
+require("containers-storage:[overlay@" in _isoyml and "image exists" in _isoyml,
+        "build-iso.yml must embed the MoOS image into the live ISO's containers-storage and verify it")
+
+# #14 CI must verify the signature against the SAME public key the OS enforces.
+# (The theme-safety and UI2 gates already run transitively via this file's own
+# subprocess invocations above, so they are wired — no separate build.yml entry.)
+_byml = read(".github/workflows/build.yml")
+require("cosign verify --key cosign.pub" in _byml,
+        "build.yml must verify the signature against the OS-enforced public key")
+
 if errors:
     print("MoOS user-experience gate failed:", file=sys.stderr)
     for error in errors:

@@ -33,6 +33,24 @@ tgt="${path#*/}"; [ "$tgt" = "$cat" ] && tgt=""
 
 notify() { command -v kdialog >/dev/null 2>&1 && kdialog --title "MoOS" --passivepopup "$1" 5 >/dev/null 2>&1 || true; }
 
+# Because "moos:" is a registered scheme, ANY web page can hand this handler a URL.
+# State changes that are disruptive or persistent — turning ON a remote-access
+# service (it comes back every boot), rebooting, powering off, logging out — must be
+# something the USER actively confirms, matching this file's "at worst a prompt the
+# user has to answer" contract. Fail CLOSED: with no dialog tool, refuse rather than
+# act, so a drive-by URL can never silently trigger these. Trusted local UIs (the
+# installer success page, the logout screen) simply show one confirm dialog, which is
+# normal, expected UX for reboot/logout anyway.
+confirm() {
+    if command -v kdialog >/dev/null 2>&1; then
+        kdialog --title "MoOS" --warningyesno "$1" >/dev/null 2>&1
+    elif command -v zenity >/dev/null 2>&1; then
+        zenity --question --text="$1" >/dev/null 2>&1
+    else
+        return 1
+    fi
+}
+
 # Launch a GUI app fully detached from this short-lived handler process.
 gui() { setsid "$@" >/dev/null 2>&1 & }
 
@@ -121,11 +139,16 @@ case "${cat}/${tgt}" in
     # computer" call-to-action fires this on the live session. Harmless on an
     # installed system: moos-installer's own live-guard just shows a notice.
     installer/open)     gui moos-installer ;;
-    installer/reboot)   systemctl reboot   2>/dev/null || loginctl reboot   2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndReboot   2>/dev/null || true ;;
-    installer/poweroff) systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null || true ;;
+    installer/reboot)   confirm "إعادة تشغيل الجهاز الآن؟ | Restart the computer now?" \
+                          && { systemctl reboot 2>/dev/null || loginctl reboot 2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndReboot 2>/dev/null || true; } ;;
+    installer/poweroff) confirm "إيقاف تشغيل الجهاز الآن؟ | Shut the computer down now?" \
+                          && { systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null || true; } ;;
 
     # ── Mo PC Remote: start / stop / reconnect, from inside Mo AI ────────────
-    remote/start)   remote_ctl enable --now ;;
+    # start ENABLES the service (it returns every boot), so it must be confirmed —
+    # a drive-by moos://remote/start must not silently open persistent remote access.
+    remote/start)   confirm "تشغيل Mo PC Remote والسماح له بالعمل بعد كل إقلاع؟ | Turn on Mo PC Remote (it will start at every boot)?" \
+                          && remote_ctl enable --now ;;
     remote/stop)    remote_ctl disable --now ;;
     remote/restart) remote_ctl restart ;;
 
@@ -211,8 +234,10 @@ case "${cat}/${tgt}" in
     search/*)      query="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1]))' "$tgt" 2>/dev/null)";
                    [ -n "$query" ] && gui krunner "$query" ;;
     session/lock)  loginctl lock-session ;;
-    session/logout) command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logout || true ;;
-    session/power) command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown || true ;;
+    session/logout) confirm "تسجيل الخروج الآن؟ | Log out now?" \
+                          && command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logout || true ;;
+    session/power) confirm "إيقاف تشغيل الجهاز الآن؟ | Shut the computer down now?" \
+                          && command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown || true ;;
     do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/setup-windows|do/install-codex|do/install-claude|do/install-opencode|do/remote-anywhere)
                    term moai-do "$tgt" ;;
     *)

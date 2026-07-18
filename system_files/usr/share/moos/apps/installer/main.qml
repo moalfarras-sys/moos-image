@@ -377,8 +377,12 @@ ApplicationWindow {
                 win.instPct = Math.max(win.instPct, s.pct)   // never go backwards
             } else {
                 instPoll.miss++
-                // ~30s of total silence with no terminal line → the dispatch failed.
-                if (instPoll.miss > 66 && !terminal) {
+                // ~90s of total silence with no terminal line → the dispatch failed.
+                // Must comfortably exceed the helper's online ensure_network worst
+                // case (45x1s + two systemctl restarts) so a legitimately slow
+                // network-up is never mistaken for a stall. The helper also emits a
+                // heartbeat during that wait, so this threshold is the backstop.
+                if (instPoll.miss > 200 && !terminal) {
                     win.instState = "fail"
                     win.failReason = "stalled"
                     instPoll.stop()

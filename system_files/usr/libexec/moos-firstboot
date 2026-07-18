@@ -105,7 +105,9 @@ POLKIT
 fi
 
 # ── autologin (plasmalogin — Fedora 44 KDE greeter, SDDM-compatible INI) ───────
-if [ "$AUTOLOGIN" = "1" ]; then
+# Only if the user actually exists — an autologin drop-in pointing at a user that
+# useradd failed to create is an unrecoverable login loop.
+if [ "$AUTOLOGIN" = "1" ] && id "$USERNAME" >/dev/null 2>&1; then
     install -d -m 0755 /etc/plasmalogin.conf.d
     cat > /etc/plasmalogin.conf.d/10-moos-autologin.conf <<AUTOEOF
 [Autologin]
@@ -140,6 +142,15 @@ fi
 
 # The answers file may carry a password hash — remove it once applied.
 rm -f "$CONF" 2>/dev/null || true
+
+# Stamp completion ONLY when the account truly exists. Stamping regardless (the old
+# behaviour) turned a failed useradd into a permanent userless, unrecoverable login
+# that never retries (ConditionPathExists=!$STAMP). If the seeded user is missing,
+# leave no stamp: the next boot re-runs first-boot and creates the default user.
+if ! id "$USERNAME" >/dev/null 2>&1; then
+    log "user '${USERNAME}' was not created — NOT stamping; next boot will retry"
+    exit 1
+fi
 : > "$STAMP" 2>/dev/null || true
 log "done (user=${USERNAME} autologin=${AUTOLOGIN})"
 exit 0

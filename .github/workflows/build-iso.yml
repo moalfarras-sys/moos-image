@@ -101,13 +101,70 @@ jobs:
         run: |
           ls -lh "${ISO_DEST}" || find "${GITHUB_WORKSPACE}" -maxdepth 4 -name '*.iso' -printf '%p (%s bytes)\n' || true
 
+      # ── OFFLINE-INSTALL EMBED (the fix for "the ISO would not install on disk") ──
+      # Titanoboa builds a live ISO whose squashfs is the image's rootfs MINUS
+      # sysroot/ostree — so the live session ships an EMPTY /var/lib/containers/
+      # storage. But BOTH install paths need the MoOS image THERE to install
+      # offline: moos-install-to-disk gates on `podman image exists` -> installs
+      # `containers-storage:<ref>`, and the Anaconda kickstart uses
+      # `ostreecontainer --transport=containers-storage`. Titanoboa's action exposes
+      # no embed input, so we do it here: extract the squashfs, copy the image into
+      # its containers-storage, re-squash, and splice it back into the ISO while
+      # PRESERVING the (hybrid UEFI+BIOS) boot layout via `xorriso ... replay`.
+      - name: Embed MoOS image into the live ISO for offline install
+        id: embed
+        env:
+          IMAGE_REF: ${{ steps.ref.outputs.image_ref }}
+          ISO_DEST: ${{ steps.titanoboa.outputs.iso-dest }}
+        run: |
+          set -euxo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xorriso squashfs-tools skopeo
+          work="${GITHUB_WORKSPACE}/iso-embed"
+          rootfs="${work}/rootfs"
+          store="${rootfs}/var/lib/containers/storage"
+          runroot="${work}/runroot"
+          rm -rf "${work}"; mkdir -p "${work}" "${runroot}"
+
+          # 1) pull the live rootfs squashfs out of the ISO (Titanoboa path).
+          sudo xorriso -osirrox on -indev "${ISO_DEST}" \
+               -extract /LiveOS/squashfs.img "${work}/squashfs.img"
+          sudo unsquashfs -d "${rootfs}" "${work}/squashfs.img"
+          sudo mkdir -p "${store}"
+
+          # 2) copy the image into the live rootfs's OWN containers-storage, with the
+          #    SAME overlay driver the booted root podman reads with. Source is the
+          #    runner's rootful store (pulled earlier) — no network needed.
+          sudo skopeo copy --dest-storage-driver overlay \
+               "containers-storage:${IMAGE_REF}" \
+               "containers-storage:[overlay@${store}+${runroot}]${IMAGE_REF}"
+
+          # 3) GATE (fail-loud): the image MUST now be present in that store, or the
+          #    offline install would silently fall back to a network pull — exactly
+          #    the bug this step fixes. A wrong embed fails the BUILD, never ships.
+          sudo podman --root "${store}" --runroot "${runroot}" \
+               --storage-driver overlay image exists "${IMAGE_REF}"
+          echo "OFFLINE EMBED OK: ${IMAGE_REF} is present in the live ISO's containers-storage"
+
+          # 4) re-squash (match Titanoboa's flags) and splice back, preserving boot.
+          sudo mksquashfs "${rootfs}" "${work}/squashfs-new.img" \
+               -noappend -all-root -comp zstd -Xcompression-level 19
+          out="${GITHUB_WORKSPACE}/moos-offline.iso"
+          sudo xorriso -indev "${ISO_DEST}" -outdev "${out}" \
+               -boot_image any replay \
+               -update "${work}/squashfs-new.img" /LiveOS/squashfs.img \
+               -commit
+          sudo rm -rf "${rootfs}" "${work}/squashfs.img" "${work}/squashfs-new.img"
+          ls -lh "${out}"
+          echo "iso=${out}" >> "$GITHUB_OUTPUT"
+
       # NOTE: artifacts are a temporary distribution channel (short retention,
       # slow downloads). Cloudflare R2 upload replaces this step later.
       - name: Upload ISO as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: moos-live-iso
-          path: ${{ steps.titanoboa.outputs.iso-dest }}
+          path: ${{ steps.embed.outputs.iso }}
           if-no-files-found: error
           retention-days: 7
           compression-level: 0

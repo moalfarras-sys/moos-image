@@ -53,16 +53,10 @@ Item {
                     font.letterSpacing: 1.8
                 }
 
+                // No AM/PM badge: the digits below are 24-hour (HH:mm), so a
+                // meridiem marker contradicts them. Every other MoOS clock (login,
+                // lock, Hero) shows 24-hour with no meridiem — this card matches.
                 Item { Layout.fillWidth: true }
-
-                Text {
-                    text: Qt.formatTime(clockCard.now, "AP")
-                    visible: text.length > 0
-                    color: Kirigami.Theme.highlightColor
-                    font.family: "IBM Plex Sans"
-                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.52)
-                    font.weight: Font.Medium
-                }
             }
 
             Item { Layout.preferredHeight: Kirigami.Units.gridUnit * 0.75 }
@@ -146,7 +140,11 @@ Item {
             Text {
                 Layout.fillWidth: true
                 Layout.topMargin: Kirigami.Units.smallSpacing / 2
-                text: Qt.formatDate(clockCard.now, Locale.LongFormat)
+                // Pinned to English (not the ambient session locale) so the two
+                // date lines are always the same ar+en bilingual pair the login,
+                // lock and Hero clocks use — never two Arabic lines on an Arabic
+                // session.
+                text: Qt.formatDate(clockCard.now, Qt.locale("en"), "dddd, d MMMM yyyy")
                 color: Kirigami.Theme.disabledTextColor
                 font.family: "IBM Plex Sans"
                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.68)

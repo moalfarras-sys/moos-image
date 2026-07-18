@@ -33,6 +33,18 @@ set_layout() { # $1 = layout code
       --method org.kde.KeyboardLayouts.setLayout "$idx" >/dev/null 2>&1
 }
 
+# Read / set the ACTIVE layout by INDEX, so OFF can restore whatever the user
+# actually had — MoOS ships internationally, so hard-coding a country (de) on
+# restore was wrong for every non-German user and never captured their real layout.
+get_layout_idx() {
+  gdbus call --session --dest org.kde.KWin --object-path /Layouts \
+    --method org.kde.KeyboardLayouts.getLayout 2>/dev/null | grep -oE '[0-9]+' | head -1
+}
+set_layout_idx() { # $1 = index
+  gdbus call --session --dest org.kde.KWin --object-path /Layouts \
+    --method org.kde.KeyboardLayouts.setLayout "$1" >/dev/null 2>&1
+}
+
 set_effect() { # group key value
   kwriteconfig6 --file kwinrc --group "$1" --key "$2" "$3"
 }
@@ -68,7 +80,9 @@ fast_on() {
   set_wallpaper_static
   # 4) free the GPU: suspend Mo AI local brain (gateway stays; reloads on demand)
   systemctl --user stop moai.service >/dev/null 2>&1
-  # 5) US keyboard for correct remote typing (the phone speaks US, not German QWERTZ)
+  # 5) US keyboard for correct remote typing (the phone speaks US). Remember the
+  #    layout in use FIRST, so OFF restores exactly it — not a hard-coded country.
+  get_layout_idx > "${STATE}.prevlayout" 2>/dev/null || true
   set_layout us
   touch "$STATE"
   echo "Fast Remote: ON  (effects off, static wallpaper, US keyboard, Mo AI brain suspended)"
@@ -85,8 +99,11 @@ fast_off() {
   set_wallpaper_live
   # bring Mo AI local brain back
   systemctl --user start moai.service >/dev/null 2>&1
-  # restore German layout for the physical keyboard
-  set_layout de
+  # restore whatever layout was active before Fast Remote (fallback: index 0),
+  # not a hard-coded country — MoOS users are not all on a German keyboard.
+  _prev="$(cat "${STATE}.prevlayout" 2>/dev/null)"; [ -n "$_prev" ] || _prev=0
+  set_layout_idx "$_prev"
+  rm -f "${STATE}.prevlayout"
   rm -f "$STATE"
   echo "Fast Remote: OFF  (full experience restored)"
 }

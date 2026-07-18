@@ -183,3 +183,16 @@ jobs:
         run: |
           cosign sign -y --key env://COSIGN_PRIVATE_KEY \
             "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
+
+      # Prove the signature we just wrote verifies against the SAME public key the
+      # installed OS enforces (cosign.pub == /etc/pki/containers/moos.pub). A key
+      # mismatch would otherwise break every fielded machine's updates silently,
+      # with a green build. Fail the job here instead.
+      - name: Verify signature against the OS-enforced public key
+        env:
+          IMAGE_REGISTRY: ${{ steps.meta.outputs.registry }}
+          IMAGE_NAME: ${{ matrix.image_name }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          cosign verify --key cosign.pub \
+            "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"

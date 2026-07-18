@@ -2260,9 +2260,11 @@ fi
 #     wrong key -> refused: "cryptographic signature verification failed"
 #     right key -> accepted; deployment moved to ostree-image-signed:registry
 #
-# The install-time pull is verified too (the kickstart no longer passes
-# --no-signature-verification), which also makes the deployed origin a signed one — so an
-# installed machine keeps verifying every update for the rest of its life.
+# The OFFLINE install-time pull is UNVERIFIED by design: it reads the image from the
+# USB's local containers-storage, which carries no sigstore attachment, so the
+# kickstart must pass --no-signature-verification (see the ostreecontainer line). That
+# is safe because the %post rewrites the deployed origin to ostree-image-signed — so an
+# installed machine re-arms and keeps verifying every DAY-2 update for the rest of its life.
 #
 # This runs in section (z), after all package installs, so nothing can restore a permissive
 # rule afterwards. There must be exactly ONE writer of this file; an earlier iteration of
