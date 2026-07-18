@@ -33,9 +33,12 @@ Item {
            ? Kirigami.Theme.negativeTextColor
            : (peakValue >= 65 ? Kirigami.Theme.neutralTextColor
                               : Kirigami.Theme.positiveTextColor))
+    // "BUSY" (not "PRESSURED"): the fixed-width verdict column elides a 9-letter
+    // word exactly at high load — the one moment the verdict matters most. A short
+    // token fits like HEALTHY/ACTIVE without stealing width from the rings.
     readonly property string healthLabel: !coreSensorsReady
         ? "WAITING"
-        : (peakValue >= 88 ? "PRESSURED"
+        : (peakValue >= 88 ? "BUSY"
                            : (peakValue >= 65 ? "ACTIVE" : "HEALTHY"))
 
     function safeValue(rawValue) {

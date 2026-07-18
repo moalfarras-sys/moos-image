@@ -113,12 +113,16 @@ def main():
         is_live = (node == lp)
         model = (d.get("model") or "").strip() or (d.get("vendor") or "").strip()
         has_data, has_os, os_name = classify(node)
-        # A friendly, honest name: internal vs removable.
-        friendly = "Removable drive" if removable and not is_live else "Internal drive"
-        if is_live:
-            friendly = "Boot drive (USB)"
+        # A stable machine key + a friendly English name. The installer localizes
+        # the KIND (the English name here is only the fallback) so the disk about to
+        # be WIPED is never labelled in the wrong language on an Arabic session.
+        kind = "live" if is_live else ("removable" if removable else "internal")
+        friendly = {"live": "Boot drive (USB)",
+                    "removable": "Removable drive",
+                    "internal": "Internal drive"}[kind]
         disks.append({
             "node": node,
+            "kind": kind,
             "name": friendly,
             "model": model,
             "sizeBytes": size,

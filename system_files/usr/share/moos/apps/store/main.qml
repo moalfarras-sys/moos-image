@@ -455,8 +455,10 @@ ApplicationWindow {
                             Keys.onEscapePressed: { text = "" }
                         }
                         Text {
+                            // Real Plasma binding (Ctrl+K), not the macOS ⌘ glyph — no PC
+                            // keyboard has a Command key, and this OS is not macOS.
                             visible: searchField.text === ""
-                            text: "⌘K"
+                            text: "Ctrl K"
                             color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 11
                         }
                     }
@@ -882,11 +884,10 @@ ApplicationWindow {
                                         }
                                         RowLayout {
                                             spacing: 5
-                                            Text { text: "★"; color: win.accent; font.pixelSize: 12 }
-                                            Text {
-                                                text: card.modelData.rating + " · " + card.modelData.reviews
-                                                color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 11
-                                            }
+                                            // No star-rating / review-count: Flathub exposes no such
+                                            // figures, so any number shown here would be invented
+                                            // (the owner's rule: nothing fake). Show only the honest
+                                            // install-method badge below.
                                             // how it installs — so the method is never a mystery
                                             Rectangle {
                                                 Layout.leftMargin: 3

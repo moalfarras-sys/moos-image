@@ -929,7 +929,15 @@ ApplicationWindow {
                                             spacing: 4
                                             Text {
                                                 Layout.fillWidth: true
-                                                text: (win.tr(diskCard.modelData.name, diskCard.modelData.name))
+                                                // Localize the disk KIND (the drive about to be wiped
+                                                // must read in the UI language); the model name is a
+                                                // proper noun and stays as-is.
+                                                text: win.tr(
+                                                          diskCard.modelData.kind === "internal" ? "قرص داخلي"
+                                                          : diskCard.modelData.kind === "removable" ? "قرص قابل للإزالة"
+                                                          : diskCard.modelData.kind === "live" ? "قرص الإقلاع (USB)"
+                                                          : diskCard.modelData.name,
+                                                          diskCard.modelData.name)
                                                       + (diskCard.modelData.model ? " · " + diskCard.modelData.model : "")
                                                 color: win.txt
                                                 font.family: "IBM Plex Sans"; font.pixelSize: 16; font.weight: Font.DemiBold

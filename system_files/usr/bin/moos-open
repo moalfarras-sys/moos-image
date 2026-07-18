@@ -104,6 +104,7 @@ case "${cat}/${tgt}" in
     theme/amethyst) setsid moos-theme amethyst >/dev/null 2>&1 & ;;
     theme/midnight) setsid moos-theme midnight >/dev/null 2>&1 & ;;
     theme/aurora)   setsid moos-theme aurora   >/dev/null 2>&1 & ;;
+    theme/auto)     setsid moos-theme auto     >/dev/null 2>&1 & ;;
 
     # ── Language: the Welcome's language pick. moos-lang writes only the user's
     # own plasma-localerc + flatpak language (no root, reversible), and the id is

@@ -475,6 +475,9 @@ def scan():
         "org.libreoffice.LibreOffice", "com.github.tchx84.Flatseal",
         "com.valvesoftware.Steam", "com.usebottles.bottles",
         "org.kde.kdeconnect", "com.google.AndroidStudio",
+        # The recommended camera — without it the Camera card can never flip to
+        # "Installed" the way every other recommended app does.
+        "org.gnome.Snapshot",
     )}
     info["compatibility"] = {
         "waydroid": command_exists("waydroid"),
