@@ -29,6 +29,26 @@ WallpaperItem {
         ? "/usr/share/wallpapers/MoOSUI2Tide/contents/images/3840x2160.jpg"
         : "/usr/share/wallpapers/MoOSUI2Graphite/contents/images_dark/3840x2160.jpg"
 
+    // The bento's theme badge. Derive the active MoOS look from the wallpaper
+    // package name so the badge names the theme the user actually picked
+    // (Midnight, Nova, …) instead of only ever "GRAPHITE"/"TIDAL". Empty until a
+    // package is set (first boot) — the badge then falls back to the half.
+    readonly property string themeLabel: {
+        var v = String(root.configuration.Image || "")
+        var m = v.match(/MoOSUI2([A-Za-z]+?)(Light)?\/?$/)
+        if (!m) {
+            return ""
+        }
+        var names = {
+            "Tide": "TIDAL", "Graphite": "GRAPHITE", "Midnight": "MIDNIGHT",
+            "Nova": "NOVA", "Amethyst": "AMETHYST", "Aurora": "AURORA",
+            "Daylight": "DAYLIGHT", "Arena": "ARENA", "Forge": "FORGE",
+            "Scholar": "SCHOLAR"
+        }
+        var base = names[m[1]] || m[1].toUpperCase()
+        return base + (m[2] ? " LIGHT" : " GLASS")
+    }
+
     function resolveImage(value) {
         var v = String(value || "")
         if (v === "") {
@@ -131,6 +151,7 @@ WallpaperItem {
             height: implicitHeight
             transformOrigin: Item.TopLeft
             scale: bentoFrame.fit
+            themeLabel: root.themeLabel
         }
     }
 }

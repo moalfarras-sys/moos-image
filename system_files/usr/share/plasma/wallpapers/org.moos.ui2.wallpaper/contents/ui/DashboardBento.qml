@@ -23,6 +23,8 @@ Item {
     property real longitude: NaN
     property string city: ""
     property var forecastData: null
+    // Display name of the active MoOS look, for the clock card's badge.
+    property string themeLabel: ""
 
     // Plasma sets animation durations to zero when global animation speed is off.
     // Every decorative movement in the package is gated by this single value.
@@ -229,6 +231,7 @@ Item {
             now: root.now
             motionEnabled: root.motionEnabled
             entranceDelay: 0
+            themeLabel: root.themeLabel
         }
 
         ColumnLayout {

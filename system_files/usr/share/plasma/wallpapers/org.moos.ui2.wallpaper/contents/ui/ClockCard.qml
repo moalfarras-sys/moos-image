@@ -10,6 +10,8 @@ Item {
     required property date now
     required property bool motionEnabled
     property int entranceDelay: 0
+    // Active MoOS look, e.g. "MIDNIGHT GLASS"; empty falls back to the half.
+    property string themeLabel: ""
 
     readonly property string timeText: Qt.formatTime(now, "HH:mm")
     readonly property var arabicLocale: Qt.locale("ar")
@@ -188,7 +190,9 @@ Item {
                     }
                     Item { Layout.fillWidth: true }
                     Text {
-                        text: clockCard.lightSurface ? "TIDAL GLASS" : "GRAPHITE GLASS"
+                        text: clockCard.themeLabel !== ""
+                            ? clockCard.themeLabel
+                            : (clockCard.lightSurface ? "TIDAL GLASS" : "GRAPHITE GLASS")
                         color: Kirigami.Theme.disabledTextColor
                         font.family: "IBM Plex Sans"
                         font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.49)
