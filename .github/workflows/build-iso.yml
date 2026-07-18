@@ -123,8 +123,11 @@ jobs:
           work="${GITHUB_WORKSPACE}/iso-embed"
           rootfs="${work}/rootfs"
           store="${rootfs}/var/lib/containers/storage"
-          runroot="${work}/runroot"
-          rm -rf "${work}"; mkdir -p "${work}" "${runroot}"
+          # runroot MUST be <50 chars — podman rejects a long runroot (its lock/socket
+          # paths). The long GITHUB_WORKSPACE path tripped this; use a short /run dir.
+          runroot="/run/mre"
+          rm -rf "${work}"; mkdir -p "${work}"
+          sudo rm -rf "${runroot}"; sudo mkdir -p "${runroot}"
 
           # 1) pull the live rootfs squashfs out of the ISO (Titanoboa path).
           sudo xorriso -osirrox on -indev "${ISO_DEST}" \
