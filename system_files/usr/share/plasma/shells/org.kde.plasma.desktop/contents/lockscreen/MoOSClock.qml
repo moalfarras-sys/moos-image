@@ -89,6 +89,8 @@ Item {
 
         Text {
             Layout.alignment: Qt.AlignHCenter
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 30
+            elide: Text.ElideRight
             text: Qt.formatDate(timeSource.now, Qt.locale("ar"), Qt.locale("ar").dateFormat(Locale.LongFormat))
             color: Kirigami.Theme.textColor
             opacity: 0.92
@@ -101,6 +103,8 @@ Item {
 
         Text {
             Layout.alignment: Qt.AlignHCenter
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 30
+            elide: Text.ElideRight
             text: Qt.formatDate(timeSource.now, Qt.locale("en"), "dddd, d MMMM yyyy")
             color: Kirigami.Theme.textColor
             opacity: 0.62

@@ -1371,7 +1371,11 @@ Kirigami.ApplicationWindow {
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.bottomMargin: 8
-                        text: root.serverUp ? "متصل" : root.brainStarting ? "يبدأ…" : "غير متصل"
+                        // Bilingual by session direction, like the rest of the app —
+                        // it was Arabic-only, breaking the convention on English sessions.
+                        text: (Qt.application.layoutDirection === Qt.RightToLeft)
+                              ? (root.serverUp ? "متصل" : root.brainStarting ? "يبدأ…" : "غير متصل")
+                              : (root.serverUp ? "Online" : root.brainStarting ? "Starting…" : "Offline")
                         color: root.serverUp ? root.okColor
                              : root.brainStarting ? root.novaBlue : root.textMute
                         font.family: root.uiFont
