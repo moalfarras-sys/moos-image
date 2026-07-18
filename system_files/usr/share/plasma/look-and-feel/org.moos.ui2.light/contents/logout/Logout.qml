@@ -169,9 +169,67 @@ Item {
             id: backdropFade
             target: backdrop
             from: 0
-            to: 0.62
+            to: 0.72
             duration: Kirigami.Units.longDuration
             easing.type: Easing.OutCubic
+        }
+    }
+
+    // MoOS UI2 "tidal horizon" — a pre-baked aurora depth behind the dialog: two
+    // soft brand glows low and high, and a hairline tide line across the middle,
+    // the same premium scene the login greeter carries. Sprites only (the same
+    // alpha PNGs the emblem uses — no shaders on an always-on doorway surface),
+    // quiet opacity so the dialog above always stays the focus.
+    Item {
+        id: aurora
+        anchors.fill: parent
+        opacity: 0
+        Component.onCompleted: auroraFade.start()
+        OpacityAnimator {
+            id: auroraFade
+            target: aurora
+            from: 0
+            to: 1
+            duration: Kirigami.Units.veryLongDuration
+            easing.type: Easing.OutCubic
+        }
+
+        Image {
+            source: "images/glow-cyan.png"
+            width: root.width * 0.62
+            height: width
+            x: -width * 0.16
+            y: root.height * 0.40
+            opacity: 0.55
+            asynchronous: true
+            SequentialAnimation on opacity {
+                loops: Animation.Infinite
+                running: root.visible
+                NumberAnimation { to: 0.70; duration: 5200; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.45; duration: 5200; easing.type: Easing.InOutSine }
+            }
+        }
+        Image {
+            source: "images/glow-violet.png"
+            width: root.width * 0.52
+            height: width
+            x: root.width * 0.64
+            y: -height * 0.14
+            opacity: 0.45
+            asynchronous: true
+        }
+        // the tide line — a fine luminous horizon in the brand colour
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: root.height * 0.60
+            width: root.width * 0.72
+            height: 1
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.5; color: Qt.alpha(Kirigami.Theme.highlightColor, 0.55) }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
         }
     }
 
