@@ -8,6 +8,8 @@
     org.kde.breeze Logout.qml. The visual implementation is original MoOS UI2.
 */
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
@@ -175,11 +177,12 @@ Item {
         }
     }
 
-    // MoOS UI2 "tidal horizon" — a pre-baked aurora depth behind the dialog: two
-    // soft brand glows low and high, and a hairline tide line across the middle,
-    // the same premium scene the login greeter carries. Sprites only (the same
-    // alpha PNGs the emblem uses — no shaders on an always-on doorway surface),
-    // quiet opacity so the dialog above always stays the focus.
+    // MoOS UI2 "Living Aurora" — flowing curtains of emerald, teal and violet
+    // light drifting across the night behind the dialog, over a quiet scatter of
+    // stars, with a mote or two rising through the whole scene. Rectangle
+    // gradients + Animators only (render thread): no shaders/Canvas on an
+    // always-on doorway surface. Vivid at the edges, but the near-opaque glass
+    // panel above always keeps the focus.
     Item {
         id: aurora
         anchors.fill: parent
@@ -194,34 +197,96 @@ Item {
             easing.type: Easing.OutCubic
         }
 
-        Image {
-            source: "images/glow-cyan.png"
-            width: root.width * 0.62
-            height: width
-            x: -width * 0.16
-            y: root.height * 0.40
-            opacity: 0.55
-            asynchronous: true
-            SequentialAnimation on opacity {
-                loops: Animation.Infinite
-                running: root.visible
-                NumberAnimation { to: 0.70; duration: 5200; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 0.45; duration: 5200; easing.type: Easing.InOutSine }
+        // A quiet scatter of stars, each breathing at its own rate.
+        Repeater {
+            model: 18
+            delegate: Image {
+                id: star
+                required property int index
+                readonly property var xs: [0.05, 0.14, 0.23, 0.31, 0.40, 0.48, 0.57, 0.66, 0.74, 0.83, 0.91, 0.09, 0.19, 0.37, 0.53, 0.71, 0.88, 0.62]
+                readonly property var ys: [0.08, 0.22, 0.05, 0.34, 0.13, 0.44, 0.19, 0.52, 0.10, 0.38, 0.24, 0.60, 0.48, 0.66, 0.30, 0.58, 0.15, 0.70]
+                source: "images/spark.png"
+                width: Math.max(4, root.height * (0.004 + 0.003 * (star.index % 3)))
+                height: width
+                x: star.xs[star.index] * root.width
+                y: star.ys[star.index] * root.height
+                opacity: 0.10
+                asynchronous: true
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite
+                    running: root.visible
+                    NumberAnimation { to: 0.42; duration: 2200 + star.index * 140; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.10; duration: 2200 + star.index * 140; easing.type: Easing.InOutSine }
+                }
             }
         }
-        Image {
-            source: "images/glow-violet.png"
-            width: root.width * 0.52
-            height: width
-            x: root.width * 0.64
-            y: -height * 0.14
-            opacity: 0.45
-            asynchronous: true
+
+        // Four aurora curtains: tall vertical light-sheets, each a different jewel
+        // tone, drifting horizontally and breathing at its own pace. The gradient
+        // fades top and bottom so each reads as a hanging curtain, not a slab.
+        Repeater {
+            model: 4
+            delegate: Rectangle {
+                id: curtain
+                required property int index
+                readonly property color tone: ["#10B981", "#2DD4BF", "#22D3EE", "#8B5CF6"][curtain.index]
+                readonly property real baseOp: [0.20, 0.22, 0.16, 0.18][curtain.index]
+                width: root.width * [0.42, 0.48, 0.38, 0.46][curtain.index]
+                height: root.height * [0.66, 0.72, 0.60, 0.68][curtain.index]
+                y: root.height * [0.02, -0.04, 0.10, 0.00][curtain.index]
+                rotation: [-16, 12, -10, 18][curtain.index]
+                transformOrigin: Item.Center
+                gradient: Gradient {
+                    orientation: Gradient.Vertical
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.42; color: curtain.tone }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+                opacity: baseOp
+                XAnimator on x {
+                    from: [-0.14, 0.50, 0.16, 0.42][curtain.index] * root.width
+                    to: [0.46, -0.06, 0.58, 0.04][curtain.index] * root.width
+                    duration: [46000, 58000, 52000, 64000][curtain.index]
+                    loops: Animation.Infinite
+                    easing.type: Easing.InOutSine
+                    running: root.visible
+                }
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite
+                    running: root.visible
+                    NumberAnimation { to: curtain.baseOp * 1.45; duration: 5200 + curtain.index * 850; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: curtain.baseOp * 0.65; duration: 5200 + curtain.index * 850; easing.type: Easing.InOutSine }
+                }
+            }
         }
-        // the tide line — a fine luminous horizon in the brand colour
+
+        // Two or three light motes rising slowly through the whole scene.
+        Repeater {
+            model: 3
+            delegate: Image {
+                id: mote
+                required property int index
+                source: "images/spark.png"
+                width: Math.max(6, root.height * (0.008 + 0.004 * (mote.index % 2)))
+                height: width
+                x: [0.22, 0.60, 0.82][mote.index] * root.width
+                opacity: [0.22, 0.16, 0.20][mote.index]
+                asynchronous: true
+                YAnimator on y {
+                    from: root.height * 1.05
+                    to: -mote.height - root.height * 0.05
+                    duration: 42000 + mote.index * 11000
+                    loops: Animation.Infinite
+                    running: root.visible
+                }
+            }
+        }
+
+        // the tide line — a fine luminous horizon in the theme accent, the thread
+        // of continuity from the earlier scene, now drawn under the aurora
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
-            y: root.height * 0.60
+            y: root.height * 0.62
             width: root.width * 0.72
             height: 1
             gradient: Gradient {

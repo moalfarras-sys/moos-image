@@ -242,6 +242,114 @@ Item {
             alwaysShowClock: config.alwaysShowClock && !config.hideClockWhenIdle
         }
 
+        // ── MoOS "Living Aurora" — four drifting curtains of emerald, teal, cyan
+        //    and violet light over the wallpaper, the same living sky the login
+        //    and logout scenes carry, so lock, login and logout read as one brand.
+        //    Explicit Rectangles (no Repeater → no ComponentBehavior pragma in the
+        //    unlock file); Animators only, no shaders. Kept quiet so the clock and
+        //    password never lose legibility, and drawn UNDER the scrim + brand.
+        Item {
+            id: lockAurora
+            anchors.fill: parent
+
+            Rectangle {
+                width: lockAurora.width * 0.42
+                height: lockAurora.height * 0.66
+                y: 0
+                rotation: -16
+                transformOrigin: Item.Center
+                opacity: 0.13
+                gradient: Gradient {
+                    orientation: Gradient.Vertical
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.42; color: "#10B981" }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+                XAnimator on x {
+                    from: -lockAurora.width * 0.14; to: lockAurora.width * 0.46
+                    duration: 64000; loops: Animation.Infinite
+                    easing.type: Easing.InOutSine; running: lockAurora.visible
+                }
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.20; duration: 6000; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.08; duration: 6000; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: lockAurora.width * 0.48
+                height: lockAurora.height * 0.72
+                y: -lockAurora.height * 0.05
+                rotation: 12
+                transformOrigin: Item.Center
+                opacity: 0.16
+                gradient: Gradient {
+                    orientation: Gradient.Vertical
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.42; color: "#2DD4BF" }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+                XAnimator on x {
+                    from: lockAurora.width * 0.50; to: -lockAurora.width * 0.06
+                    duration: 82000; loops: Animation.Infinite
+                    easing.type: Easing.InOutSine; running: lockAurora.visible
+                }
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.24; duration: 6900; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.10; duration: 6900; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: lockAurora.width * 0.38
+                height: lockAurora.height * 0.60
+                y: lockAurora.height * 0.08
+                rotation: -10
+                transformOrigin: Item.Center
+                opacity: 0.11
+                gradient: Gradient {
+                    orientation: Gradient.Vertical
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.42; color: "#22D3EE" }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+                XAnimator on x {
+                    from: lockAurora.width * 0.16; to: lockAurora.width * 0.58
+                    duration: 72000; loops: Animation.Infinite
+                    easing.type: Easing.InOutSine; running: lockAurora.visible
+                }
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.17; duration: 7600; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.07; duration: 7600; easing.type: Easing.InOutSine }
+                }
+            }
+            Rectangle {
+                width: lockAurora.width * 0.46
+                height: lockAurora.height * 0.68
+                y: -lockAurora.height * 0.02
+                rotation: 18
+                transformOrigin: Item.Center
+                opacity: 0.13
+                gradient: Gradient {
+                    orientation: Gradient.Vertical
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.42; color: "#8B5CF6" }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+                XAnimator on x {
+                    from: lockAurora.width * 0.42; to: lockAurora.width * 0.04
+                    duration: 92000; loops: Animation.Infinite
+                    easing.type: Easing.InOutSine; running: lockAurora.visible
+                }
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite; running: lockAurora.visible
+                    NumberAnimation { to: 0.20; duration: 8200; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.08; duration: 8200; easing.type: Easing.InOutSine }
+                }
+            }
+        }
+
         // ── MoOS visual layer — ON TOP of the wallpaper ──────────────────────
         // A soft graphite scrim: a gentle darkening at the top and bottom edges so
         // the brand, clock and password stay legible over any wallpaper. Full-bleed,

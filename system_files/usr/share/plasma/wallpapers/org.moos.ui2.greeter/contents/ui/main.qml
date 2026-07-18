@@ -87,51 +87,67 @@ WallpaperItem {
                             root.height * Screen.devicePixelRatio)
     }
 
-    // ── Ambient light: two aurora bands drifting very slowly ──────────────────
-    // Rotated linear gradients at whisper opacity. The motion is slow enough to
-    // be felt rather than seen — the screen is alive, not busy.
-    Rectangle {
-        id: auroraCyan
-        width: parent.width * 1.6
-        height: parent.height * 0.5
-        y: parent.height * 0.05
-        rotation: -16
-        opacity: 0.10
-        gradient: Gradient {
-            orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: "transparent" }
-            GradientStop { position: 0.5; color: root.cyanAccent }
-            GradientStop { position: 1.0; color: "transparent" }
-        }
-        XAnimator on x {
-            from: -auroraCyan.width * 0.35
-            to: root.width - auroraCyan.width * 0.65
-            duration: 120000
-            loops: Animation.Infinite
-            easing.type: Easing.InOutSine
-            running: root.visible
+    // ── Living Aurora: four curtains of emerald, teal, cyan and violet light,
+    //    tall vertical light-sheets drifting horizontally over a faint scatter of
+    //    stars. Rotated Rectangle gradients + Animators only (render thread) — no
+    //    shaders, same motion budget as the splash. Slow drift: this screen can
+    //    stay up for minutes, so the light is felt more than watched, and the
+    //    greeter blurs the whole scene the moment the password field is summoned.
+    Repeater {
+        model: 18
+        delegate: Rectangle {
+            id: star
+            required property int index
+            readonly property var xs: [0.05, 0.14, 0.23, 0.31, 0.40, 0.48, 0.57, 0.66, 0.74, 0.83, 0.91, 0.09, 0.19, 0.37, 0.53, 0.71, 0.88, 0.62]
+            readonly property var ys: [0.06, 0.20, 0.04, 0.30, 0.11, 0.40, 0.16, 0.47, 0.09, 0.34, 0.22, 0.15, 0.44, 0.27, 0.38, 0.12, 0.50, 0.24]
+            width: Math.max(2, Math.round(root.height * (0.0016 + 0.0012 * (star.index % 3))))
+            height: width
+            radius: width / 2
+            color: root.textColor
+            x: star.xs[star.index] * root.width
+            y: star.ys[star.index] * root.height
+            opacity: 0.12
+            SequentialAnimation on opacity {
+                loops: Animation.Infinite
+                running: root.visible
+                NumberAnimation { to: 0.5; duration: 2400 + star.index * 150; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.12; duration: 2400 + star.index * 150; easing.type: Easing.InOutSine }
+            }
         }
     }
-    Rectangle {
-        id: auroraViolet
-        width: parent.width * 1.5
-        height: parent.height * 0.45
-        y: parent.height * 0.45
-        rotation: 12
-        opacity: 0.08
-        gradient: Gradient {
-            orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: "transparent" }
-            GradientStop { position: 0.5; color: root.violetAccent }
-            GradientStop { position: 1.0; color: "transparent" }
-        }
-        XAnimator on x {
-            from: root.width - auroraViolet.width * 0.6
-            to: -auroraViolet.width * 0.4
-            duration: 150000
-            loops: Animation.Infinite
-            easing.type: Easing.InOutSine
-            running: root.visible
+    Repeater {
+        model: 4
+        delegate: Rectangle {
+            id: curtain
+            required property int index
+            readonly property color tone: ["#10B981", "#2DD4BF", "#22D3EE", "#8B5CF6"][curtain.index]
+            readonly property real baseOp: [0.14, 0.16, 0.11, 0.13][curtain.index]
+            width: root.width * [0.42, 0.48, 0.38, 0.46][curtain.index]
+            height: root.height * [0.66, 0.72, 0.60, 0.68][curtain.index]
+            y: root.height * [0.00, -0.05, 0.08, -0.02][curtain.index]
+            rotation: [-16, 12, -10, 18][curtain.index]
+            transformOrigin: Item.Center
+            gradient: Gradient {
+                orientation: Gradient.Vertical
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.42; color: curtain.tone }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+            opacity: curtain.baseOp
+            XAnimator on x {
+                from: [-0.14, 0.50, 0.16, 0.42][curtain.index] * root.width
+                to: [0.46, -0.06, 0.58, 0.04][curtain.index] * root.width
+                duration: [64000, 82000, 72000, 92000][curtain.index]
+                loops: Animation.Infinite
+                easing.type: Easing.InOutSine
+                running: root.visible
+            }
+            SequentialAnimation on opacity {
+                loops: Animation.Infinite
+                running: root.visible
+                NumberAnimation { to: curtain.baseOp * 1.5; duration: 6000 + curtain.index * 900; easing.type: Easing.InOutSine }
+                NumberAnimation { to: curtain.baseOp * 0.6; duration: 6000 + curtain.index * 900; easing.type: Easing.InOutSine }
+            }
         }
     }
 
