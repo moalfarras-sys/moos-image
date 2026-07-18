@@ -41,14 +41,22 @@ WallpaperItem {
         if (/\.(jpg|jpeg|png|webp|avif)$/i.test(v)) {
             return v
         }
-        // A MoOS wallpaper package dir: pick the master that matches the half
-        // (Tide ships light masters under images/, Graphite dark ones under
-        // images_dark/ — the same files the lock screen's org.kde.image uses).
-        if (v.indexOf("MoOSUI2Tide") >= 0) {
-            return v + "/contents/images/3840x2160.jpg"
-        }
-        if (v.indexOf("MoOSUI2Graphite") >= 0) {
-            return v + "/contents/images_dark/3840x2160.jpg"
+        // A MoOS wallpaper package dir: EVERY MoOS package ships both a light
+        // master under images/ and a dark one under images_dark/ (the same files
+        // the lock screen's org.kde.image uses). Light-family packages — names
+        // ending in "Light", plus Tide and Daylight — take the light master;
+        // every other MoOS theme is dark and takes images_dark. This must cover
+        // the whole family: earlier only Tide/Graphite were handled, so Midnight,
+        // Nova, Amethyst, Aurora, Arena, Forge, Scholar and every *Light package
+        // fell through to the bare dir path and QML Image could not open it — the
+        // desktop showed only the flat fallback colour with no wallpaper.
+        if (v.indexOf("MoOSUI2") >= 0) {
+            var base = v.replace(/\/+$/, "")
+            var isLight = /Light$/.test(base)
+                || /MoOSUI2Tide$/.test(base)
+                || /MoOSUI2Daylight$/.test(base)
+            return base + (isLight ? "/contents/images/3840x2160.jpg"
+                                   : "/contents/images_dark/3840x2160.jpg")
         }
         return v
     }
