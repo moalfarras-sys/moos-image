@@ -121,6 +121,14 @@ require("ExecStart=/usr/bin/moos-theme reconcile" in theme_service,
         "(a GUI Global Theme pick would leave the wallpaper unchanged)")
 require("reconcile()" in theme_bin,
         "moos-theme has no reconcile entry point")
+# A Global Theme Apply can REBUILD the desktop containment a few seconds after it
+# rewrites kdeglobals, dropping the MoOS wallpaper scene onto org.kde.image with no
+# second trigger (the watch only sees kdeglobals) — the "pick a theme, wallpaper
+# doesn't follow" bug. reconcile must arm a post-apply watchdog that re-verifies the
+# live scene and re-applies it across that rebuild window.
+require("settle_desktop_scene" in theme_bin,
+        "reconcile has no post-rebuild scene watchdog — a Global Theme pick can "
+        "strand the desktop on org.kde.image with no MoOS wallpaper")
 # reconcile must handle the MANUAL family too, not only the sunrise/sunset halves —
 # otherwise picking Nova/Amethyst/Midnight/Aurora in System Settings still strands
 # the wallpaper. Assert the manual family is matched inside reconcile's own scope.
