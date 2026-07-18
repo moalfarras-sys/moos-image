@@ -162,15 +162,18 @@ require('"أضِف كل القسم"' in store_qml and "win.addMany(ids)" in stor
 require('card.modelData.source === "flathub" ? "Flatpak"' in store_qml,
         "Mo Store cards must show each app's install method (Flatpak / Web / MoOS)")
 
-# Launch feedback must be OBVIOUS. The owner clicked a link and could not tell if
-# anything launched — KDE's default feedback is a brief, easy-to-miss busy cursor.
-# Ship the prominent form (the app icon bounces AND its task-manager button shows a
-# launching state) as the system default so every launch is acknowledged.
+# Launch feedback must be CALM but present. An earlier revision shipped the "prominent"
+# form (bouncing icon AND a launching-state task-manager button) as a SYSTEM default, so
+# it hit every app: opening the terminal or any pinned app flashed a bounce and a second
+# task button, which the owner read as "it opens a new window every click". Keep the busy
+# cursor (immediate, universally understood) and forbid the bounce and the extra task
+# button, so the click is acknowledged without the surface flashing.
 klaunch = read("system_files/etc/xdg/klaunchrc")
-require("Bouncing=true" in klaunch and "BusyCursor=true" in klaunch
-        and "TaskbarButton=true" in klaunch,
-        "MoOS must ship prominent launch feedback (bouncing cursor + task-manager button) so a "
-        "click that starts an app is unmistakable")
+require("BusyCursor=true" in klaunch
+        and "Bouncing=false" in klaunch
+        and "TaskbarButton=false" in klaunch,
+        "MoOS launch feedback must be calm: busy cursor on, bounce + extra task button off "
+        "(the prominent form read as opening a new window on every click)")
 
 # Installing a browser makes it the default — the owner's ask: click a link, YOUR
 # browser opens, the one you just chose. moos-install sets the web + http/https
