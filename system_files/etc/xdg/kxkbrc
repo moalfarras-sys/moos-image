@@ -11,9 +11,9 @@
 # still outranks this, so System Settings > Keyboard keeps working as the last word.
 [Layout]
 Use=true
-LayoutList=de,ara
-VariantList=,
-DisplayNames=DE,ع
+LayoutList=de,us,ara
+VariantList=,,
+DisplayNames=DE,,ع
 Options=grp:alt_shift_toggle
 SwitchMode=Global
 ResetOldOptions=true

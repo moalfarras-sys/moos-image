@@ -136,6 +136,12 @@ public sealed class InputInjector : IDisposable
 
     public void KeyTap(string k)
     {
+        // A lone printable character must type layout-independently via keysym. The single-letter
+        // entries in Keys (a/c/v/x/z) exist only for Ctrl-combos and are German-QWERTZ-dependent:
+        // tapping them as characters swaps y/z and mangles symbols on the owner's German keymap
+        // (the reported "types wrong" bug). Named keys (Enter, Tab, arrows, F-keys) and modifiers
+        // keep the keycode path; combos still resolve letters through Keys via Combo().
+        if (k.Length == 1 && k[0] is >= ' ' and <= '~') { TypeText(k); return; }
         if (Keys.TryGetValue(k, out var c)) { Set(c, true); Thread.Sleep(12); Set(c, false); }
         else if (k.Length >= 1) TypeText(k);
     }

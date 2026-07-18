@@ -19,6 +19,20 @@ kwin_reconfigure() {
     --method org.kde.KWin.reconfigure >/dev/null 2>&1
 }
 
+# Switch the ACTIVE xkb group to a layout by its code (e.g. us / de). The owner's
+# physical keyboard is German, so `de` is the day-to-day layout; but the phone speaks
+# US, so remote typing is only correct with `us` active. Fast Remote flips to US while
+# on and back to German when off. No-op if the layout is not in the session list.
+set_layout() { # $1 = layout code
+  local idx
+  idx=$(gdbus call --session --dest org.kde.KWin --object-path /Layouts \
+        --method org.kde.KeyboardLayouts.getLayoutsList 2>/dev/null \
+        | python3 -c "import sys,re;c=re.findall(r\"\\('([a-z]+)'\",sys.stdin.read());t='$1';print(c.index(t) if t in c else -1)" 2>/dev/null)
+  [ -n "$idx" ] && [ "$idx" -ge 0 ] 2>/dev/null && \
+    gdbus call --session --dest org.kde.KWin --object-path /Layouts \
+      --method org.kde.KeyboardLayouts.setLayout "$idx" >/dev/null 2>&1
+}
+
 set_effect() { # group key value
   kwriteconfig6 --file kwinrc --group "$1" --key "$2" "$3"
 }
@@ -54,8 +68,10 @@ fast_on() {
   set_wallpaper_static
   # 4) free the GPU: suspend Mo AI local brain (gateway stays; reloads on demand)
   systemctl --user stop moai.service >/dev/null 2>&1
+  # 5) US keyboard for correct remote typing (the phone speaks US, not German QWERTZ)
+  set_layout us
   touch "$STATE"
-  echo "Fast Remote: ON  (effects off, static wallpaper, Mo AI brain suspended)"
+  echo "Fast Remote: ON  (effects off, static wallpaper, US keyboard, Mo AI brain suspended)"
 }
 
 fast_off() {
@@ -69,6 +85,8 @@ fast_off() {
   set_wallpaper_live
   # bring Mo AI local brain back
   systemctl --user start moai.service >/dev/null 2>&1
+  # restore German layout for the physical keyboard
+  set_layout de
   rm -f "$STATE"
   echo "Fast Remote: OFF  (full experience restored)"
 }
