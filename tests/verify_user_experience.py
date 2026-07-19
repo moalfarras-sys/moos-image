@@ -3192,6 +3192,21 @@ require(
     "digest-pinned ISO builds must alias the source to the exact tagged ref the offline installer requests",
 )
 
+# Qt 6.11 deprecates Qt.btoa(string) in favour of an array-like overload, but
+# QML's JavaScript host is not a browser and does not expose TextEncoder. These
+# glyph helpers only build ASCII SVG, so Array.from(svg) is both documented and
+# sufficient; a browser-only encoder would make every generated icon disappear.
+for _glyph_qml in (
+    "system_files/usr/share/moos/apps/installer/main.qml",
+    "system_files/usr/share/moos/apps/store/main.qml",
+    "system_files/usr/share/moos/apps/welcome/main.qml",
+):
+    _glyph_text = code(read(_glyph_qml), "slash")
+    require("TextEncoder" not in _glyph_text,
+            f"{_glyph_qml} must not use browser-only TextEncoder in QML")
+    require("Qt.btoa(Array.from(svg))" in _glyph_text,
+            f"{_glyph_qml} must use Qt 6.11's array-like btoa overload for SVG glyphs")
+
 # #14 CI must verify the signature against the SAME public key the OS enforces.
 # (The theme-safety and UI2 gates already run transitively via this file's own
 # subprocess invocations above, so they are wired — no separate build.yml entry.)
