@@ -53,7 +53,13 @@ Evidence priority:
   bound `8079` immediately and served valid JSON.
 - The next fix removes only the three generic tmpfiles creation rules that
   conflict with OSTree's `/home`, `/srv`, and `/root` symlinks. It is locally
-  built and tested; commit/push and signed-image CI remain.
+  built and tested in commit `5d49e84`.
+- GitHub image run `29695527186` passed for both editions at head `83d1e98`,
+  pushed `.254`, signed it, and verified it against the OS-enforced key. Exact
+  NVIDIA digest:
+  `sha256:274c18b2daddeb86ff62f958de3f36a633cca4dea1aabbbb5bfc859d426ddb00`.
+- `.254` is staged exactly by digest for the next boot. `.253` remains booted;
+  reboot and live verification of the tmpfiles fix remain.
 
 ## Installed system
 
@@ -106,8 +112,8 @@ stale.
 
 ## Highest-priority observed issues
 
-1. Commit/push the locally built tmpfiles fix, wait for signed-image CI, stage
-   the exact NVIDIA digest, reboot, and confirm the three errors are absent.
+1. Reboot into the staged exact signed NVIDIA `.254`, then confirm the three
+   tmpfiles errors are absent while all live checks remain green.
 2. Investigate repeated `No QSGTexture provided from updateSampledImage()`.
 3. Investigate MoPlayer's display-change/UI-close crash path.
 4. ~~Replace deprecated `Qt.btoa(string)`~~ DONE — replaced with the Qt 6.11
@@ -123,7 +129,7 @@ stale.
    the retained journal. NVIDIA's suspend unit/drop-in is installed.
 2. Boot logs in `.253` contain tmpfiles errors for the composefs symlinks
    `/home`, `/srv`, and `/root`. The exact owning rules are now identified and
-   the fix is locally built, but it is not live until a new image boots.
+   signed `.254` is staged with the fix, but it is not live until reboot.
 3. MoPlayer produced one real core dump after 25 seconds:
    `eglMakeCurrent failed` → libepoxy assertion during
    `fl_compositor_opengl_cleanup`. A controlled 15-second launch followed by
@@ -135,10 +141,12 @@ stale.
 
 ## Exact next action
 
-Commit and push the tmpfiles fix. After image CI passes, resolve and verify the
-exact signed NVIDIA digest, stage it, reboot, then verify:
+Reboot into the already-staged exact signed NVIDIA `.254`, then verify:
 
 ```bash
+systemctl reboot
+
+# After login:
 rpm-ostree status
 moos-selfcheck
 systemctl --failed
