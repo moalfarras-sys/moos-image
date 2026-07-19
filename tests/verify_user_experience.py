@@ -1207,6 +1207,19 @@ require("NotifyPointerMotionAbsolute" in portal,
 require("CURSOR_HIDDEN" in portal,
         "The stream must be able to hide the cursor — drawing it re-encodes a full frame per move")
 
+# Arabic from a phone is two separate contracts. KWin/XKB expects the legacy 0x05xx Arabic
+# keysyms, while phone keyboards commit words through composition events. Losing either half
+# makes the D-Bus call look successful while letters vanish or arrive duplicated.
+text_keysym = read("moremote/agent-linux/TextKeysym.cs")
+input_injector = read("moremote/agent-linux/InputInjector.cs")
+remote_screen = read("moremote/controller/src/ui/RemoteScreen.tsx")
+require("0x05c1" in text_keysym and "0x05e0" in text_keysym
+        and "TextKeysym.ForCodepoint" in input_injector,
+        "Mo PC Remote must map core Arabic Unicode to XKB's legacy Arabic keysyms")
+require("onCompositionStart" in remote_screen and "onCompositionEnd" in remote_screen
+        and "composingRef.current" in remote_screen,
+        "the phone keyboard must send committed Arabic/IME text once, not stream composition edits")
+
 # build.sh installs into the image by name; a stale filename here fails the image build.
 build = read("build_files/build.sh")
 require("mo-remote-portal.py" in build, "build.sh must ship the PipeWire portal helper")

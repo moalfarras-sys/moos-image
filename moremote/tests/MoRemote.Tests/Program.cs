@@ -22,4 +22,9 @@ Eq((0,785),CoordinateMapper.NormalizedToDesktop(-5,9,normal),"out-of-range clamp
 var guard=new InputSequenceGuard();Eq(true,guard.Accept(1,1000,1000,out _),"sequence first");Eq(false,guard.Accept(1,1001,1001,out _),"sequence duplicate");Eq(false,guard.Accept(0,1002,1002,out _),"sequence reordered");Eq(false,new InputSequenceGuard().Accept(1,0,40000,out _),"stale event");
 
 var unicode="مرحباً Grüße English";Eq(unicode,System.Text.Encoding.UTF8.GetString(System.Text.Encoding.UTF8.GetBytes(unicode)),"clipboard unicode");
+Eq(0x05e5,TextKeysym.ForCodepoint('م'),"Arabic meem legacy keysym");
+Eq(0x05d1,TextKeysym.ForCodepoint('ر'),"Arabic reh legacy keysym");
+Eq(0x05c8,TextKeysym.ForCodepoint('ب'),"Arabic beh legacy keysym");
+Eq(0x05ac,TextKeysym.ForCodepoint('،'),"Arabic comma legacy keysym");
+Eq(0x010020ac,TextKeysym.ForCodepoint('€'),"non-Arabic Unicode keysym");
 Console.WriteLine($"PASS: {passed} mapping/validation/Unicode tests");

@@ -71,6 +71,8 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const view = useRef({ zoom: 1, panX: 0, panY: 0 });
   const fpsCount = useRef(0);
   const lastVal = useRef("");
+  const composingRef = useRef(false);
+  const compositionStartRef = useRef("");
   const cursorNorm = useRef({ x: 0.5, y: 0.5 });
   const hideTimer = useRef<number | null>(null);
 
@@ -418,6 +420,9 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const onInput = () => {
     const el = inputRef.current!, v = el.value, last = lastVal.current, c = connRef.current;
     if (!c) { lastVal.current = v; return; }
+    // Arabic keyboards and other IMEs revise a word while it is being composed. Streaming those
+    // intermediate values duplicates letters and Backspaces remotely; send only the commit.
+    if (composingRef.current) return;
     if (v.length > last.length && v.startsWith(last)) {
       const added = v.slice(last.length);
       if (mods.size > 0) { for (const ch of added) c.combo([...mods, ch]); setMods(new Set()); el.value = ""; lastVal.current = ""; return; }
@@ -432,6 +437,18 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     lastVal.current = v;
     // resync only if the line gets very long (Backspace-on-empty is handled in onKeyDown)
     if (v.length > 300) { el.value = ""; lastVal.current = ""; }
+  };
+  const onCompositionStart = () => {
+    composingRef.current = true;
+    compositionStartRef.current = inputRef.current?.value ?? "";
+  };
+  const onCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+    composingRef.current = false;
+    const after = inputRef.current?.value ?? "";
+    const before = compositionStartRef.current;
+    const committed = after.startsWith(before) ? after.slice(before.length) : e.data;
+    if (committed) connRef.current?.text(committed);
+    lastVal.current = after;
   };
   const onInputKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
@@ -710,6 +727,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
             autoCapitalize="off" autoCorrect="off" autoComplete="off" spellCheck={false}
             placeholder="اكتب هنا — tap & type"
             onInput={onInput} onKeyDown={onInputKeyDown}
+            onCompositionStart={onCompositionStart} onCompositionEnd={onCompositionEnd}
           />
           <button className="kbicon" onMouseDown={(e) => e.preventDefault()} onClick={() => sendKey("Backspace")} aria-label="Backspace">⌫</button>
           <button className="kbicon" onMouseDown={(e) => e.preventDefault()} onClick={() => sendKey("Enter")} aria-label="Enter">↵</button>
