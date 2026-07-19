@@ -5,7 +5,7 @@
 > maintainer's MoOS desktop — with the commands, so anyone can re-run them — and,
 > just as importantly, **what was not tested**.
 
-آخر تحقق: **2026-07-13** — على جهاز MoOS حقيقي (Fedora Kinoite 44 · KDE Plasma 6 ·
+آخر تحقق: **2026-07-19** — على جهاز MoOS حقيقي (Fedora Kinoite 44 · KDE Plasma 6 ·
 Wayland · جلسة المشرف نفسها).
 
 ---
@@ -79,6 +79,18 @@ desktop-file-validate ~/.local/share/applications/org.moos.moplayer.desktop
 
 `moplayer assets/demo/demo.m3u` → القنوات والتصنيفات (`group-title`) والشعارات
 (`tvg-logo`) ظهرت جميعها: [`screenshots/live.png`](screenshots/live.png).
+
+## 6. الإغلاق وتغيير الشاشة — Close and display change
+
+أُعيد إنتاج خطأ الإغلاق على NVIDIA/Wayland أولاً: طلب الإغلاق الحقيقي من KWin كان
+ينهي Flutter داخل `libepoxy` بعد `eglMakeCurrent failed`. بعد ربط `delete-event`
+بمسار خروج يسبق teardown المعيب، شُغّلت حزمة release نفسها على الجهاز الحي:
+
+- الانتقال أثناء بقاء MoPlayer مفتوحاً من 1920×1080@60 إلى 3840×2160@60
+  بمقياس 2 ثم الرجوع إلى 1080p: بقيت النافذة مرسومة، بلا شاشة سوداء.
+- الإغلاق بطلب KWin: رمز الخروج 0، ولا عملية باقية.
+- لا `coredump`، ولا خطأ EGL/libepoxy جديد، ولا وحدة systemd فاشلة.
+- `flutter analyze` بلا ملاحظات، ونجحت اختبارات Flutter الـ95 وبناء release.
 
 ---
 

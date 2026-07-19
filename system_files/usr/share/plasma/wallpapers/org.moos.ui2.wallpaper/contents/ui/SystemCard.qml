@@ -79,7 +79,9 @@ Item {
             //    the whole row and the rings collapse to a few pixels. ────────────
             ColumnLayout {
                 Layout.fillWidth: false
-                Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit * 3.35)
+                // HEALTHY is the widest normal verdict. 3.35 grid units clipped
+                // it to "HEALT…" at the supported 4K/200% desktop scale.
+                Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit * 4.2)
                 Layout.fillHeight: true
                 spacing: 0
 

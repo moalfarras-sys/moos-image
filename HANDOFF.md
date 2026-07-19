@@ -34,9 +34,9 @@ Evidence priority:
 - Date: 2026-07-19, Europe/Berlin.
 - Local repository: `/var/home/moos/moos-image`.
 - Branch: `main`.
-- Current implemented fix commit: `5d49e84` (`fix(boot): silence OSTree
-  tmpfiles conflicts`). Push/CI status is recorded below and must be rechecked
-  live rather than inferred from this file.
+- Current code fix commit: `5d49e84` (`fix(boot): silence OSTree tmpfiles
+  conflicts`). Repository HEAD and `origin/main` are both `eabee96`
+  (`docs(handoff): record signed 254 deployment`).
 - The NFS-root initramfs fix from `9fe30a9` is now verified on the live system:
   this boot contains no `rpcbind`, `rpc.statd`, or `nfs-start-rpc` errors.
 - The live `.252` image verified the previous `moai-control` class-scope fix,
@@ -58,24 +58,40 @@ Evidence priority:
   pushed `.254`, signed it, and verified it against the OS-enforced key. Exact
   NVIDIA digest:
   `sha256:274c18b2daddeb86ff62f958de3f36a633cca4dea1aabbbb5bfc859d426ddb00`.
-- `.254` is staged exactly by digest for the next boot. `.253` remains booted;
-  reboot and live verification of the tmpfiles fix remain.
+- `.254` is now booted and live-verified by exact digest. The `/home`, `/srv`,
+  and `/root` composefs links remain intact and this boot contains none of the
+  former “already exists and is not a directory” tmpfiles errors.
+- QSG localization is complete. Controlled Plasma restarts produced 27 startup
+  warnings; replacing the MoOS wallpaper and both MoOS panel applets did not
+  change the count. Disabling the panel removed all 27, and replacing only the
+  standard Plasma System Tray removed 18. They are upstream Qt/Plasma
+  scene-graph startup noise, do not recur, and caused no crash, visual defect,
+  or sustained load. No MoOS asset was changed to hide them.
+- The canonical MoPlayer source is
+  `https://github.com/moalfarras-sys/MoPlayerMoOS.git`. It is byte-identical to
+  the previously vendored snapshot. Commit `ed5ebe4` fixes the reproducible
+  NVIDIA/Wayland close crash and is now synced into this image tree.
+- A live 4K/200% dark/light audit found two real dashboard defects: Arabic RTL
+  reversed `HH:mm` (for example 19:59 became 95:91), and the normal `HEALTHY`
+  verdict was clipped to `HEALT…`. This release pins the time row LTR and gives
+  the verdict column enough width, with regression gates for both.
 
 ## Installed system
 
 - MoOS 44 on KDE Plasma 6.7.3, Wayland, kernel 7.1.3.
 - Booted origin: exact signed `ghcr.io/moalfarras-sys/moos-nvidia` image.
 - Booted signed NVIDIA digest:
-  `sha256:8ac01ccbba3f14c374d9534062290a12119498ab84ecbf88f0c49745b60b3a85`.
-- The booted image is revision `8ccfeff`, version `44.20260719.253`, and its
-  signature was verified locally with `cosign.pub`.
+  `sha256:274c18b2daddeb86ff62f958de3f36a633cca4dea1aabbbb5bfc859d426ddb00`.
+- The booted image is version `44.20260719.254`; its digest exactly matches
+  GHCR `latest` and its signature was verified locally with `cosign.pub`.
 - NVIDIA, Wayland, Plasma login and CUDA/NVIDIA operation are live and healthy;
   `nvidia-smi` reports the RTX 2080 SUPER with driver `610.43.03`.
-- The previous signed NVIDIA `.252` deployment remains available as rollback.
+- The previous signed NVIDIA `.253` deployment remains available as rollback:
+  `sha256:8ac01ccbba3f14c374d9534062290a12119498ab84ecbf88f0c49745b60b3a85`.
 - `moos-selfcheck`: 39 passed.
 - Failed system units: 0.
 - Failed user units: 0.
-- `tests/post-update-check.sh`: 39 passed on `.253`; the booted digest exactly
+- `tests/post-update-check.sh`: 39 passed on `.254`; the booted digest exactly
   matches GHCR `latest` and signature enforcement is active.
 
 ## Repository checks
@@ -99,12 +115,26 @@ Passed from the live tree with the two new fixes:
   was restored to its original 1920x1080@60, scale 1 afterward.
 - `just build` full local image succeeded, including identity/experience
   firewalls, QML smoke tests and `bootc container lint`.
+- Canonical MoPlayer `ed5ebe4`: `flutter analyze` passed; all 95 Flutter tests
+  passed; release build passed. On the live NVIDIA/Wayland session it survived
+  1920x1080 -> 3840x2160@60 scale 2 -> 1920x1080 while remaining correctly
+  rendered, then a real KWin close request exited 0 with no process left, black
+  screen, coredump, EGL/libepoxy journal error, or failed unit.
+- Live visual audit at 3840x2160/200% covered Graphite dark and Tidal light,
+  desktop/dashboard, wallpaper, panel, launcher, Arabic menus, Konsole window,
+  and notification. Fonts, icons, colour, transparency, spacing, corners and
+  contrast remained coherent. The two concrete defects above are fixed in
+  source; post-update screenshots must confirm them from the new booted image.
 - tmpfiles root simulation: after scrubbing only the three conflicting
   top-level rules, `/home`, `/srv`, and `/root` remained symlinks and emitted no
   “already exists and is not a directory” messages.
 - inspection of the built `moos:latest` image confirms `home.conf` no longer
   creates `/home` or `/srv`, and `provision.conf` still provisions
   `/root/.ssh` while no longer trying to recreate `/root`.
+- Live `.254` verification repeated `just check`, the 3 theme-safety tests, the
+  7 UI2 tests, `bash -n build_files/build.sh`, and the direct experience gate;
+  all passed. There are zero failed system/user units and no coredumps in this
+  boot.
 
 The two unittest files are reached by the recursive experience verifier invoked
 by `just check`; the older handoff statement that they were outside the gate was
@@ -112,10 +142,10 @@ stale.
 
 ## Highest-priority observed issues
 
-1. Reboot into the staged exact signed NVIDIA `.254`, then confirm the three
-   tmpfiles errors are absent while all live checks remain green.
-2. Investigate repeated `No QSGTexture provided from updateSampledImage()`.
-3. Investigate MoPlayer's display-change/UI-close crash path.
+1. Publish this bundled MoPlayer + dashboard fix, wait for both CI editions and
+   signed GHCR image, then update/reboot and visually verify the fixed clock and
+   verdict on the live deployment while preserving `.253` as rollback.
+2. Capture/inspect Plymouth and the login greeter during the new-image boot.
 4. ~~Replace deprecated `Qt.btoa(string)`~~ DONE — replaced with the Qt 6.11
    array-like overload `Qt.btoa(Array.from(svg))` (verified QML-host-safe; a
    sibling session's PR #10 added a gate forbidding browser-only `TextEncoder`).
@@ -127,33 +157,40 @@ stale.
 1. Suspend/resume was not triggered during this session: Mo Remote intentionally
    holds a sleep inhibitor, and no prior successful suspend cycle was present in
    the retained journal. NVIDIA's suspend unit/drop-in is installed.
-2. Boot logs in `.253` contain tmpfiles errors for the composefs symlinks
-   `/home`, `/srv`, and `/root`. The exact owning rules are now identified and
-   signed `.254` is staged with the fix, but it is not live until reboot.
-3. MoPlayer produced one real core dump after 25 seconds:
-   `eglMakeCurrent failed` → libepoxy assertion during
-   `fl_compositor_opengl_cleanup`. A controlled 15-second launch followed by
-   SIGTERM exited without a crash, so startup/playback rendering is not enough
-   to reproduce it; test the UI close path and display-change path separately.
-4. `No QSGTexture provided from updateSampledImage()` — likely Qt/plasmashell
-   internal warning; left as-is (non-blocking, not our QML).
+2. The tmpfiles issue is CLOSED on live `.254`: `/home`, `/srv`, and `/root`
+   are the expected composefs symlinks and the old errors are absent.
+3. MoPlayer close/display issue is fixed in canonical commit `ed5ebe4` and
+   passed the live test described above. It remains to verify the installed
+   copy after booting the signed image containing it.
+4. `No QSGTexture provided from updateSampledImage()` is localized to standard
+   Plasma panel/tray startup. It is non-recurring and has no observed functional
+   or visual consequence. Leave it unchanged unless future evidence shows an
+   actual defect; do not shadow system assets in `$HOME`.
 5. CI warns that several upstream actions still target deprecated Node.js 20.
+6. `kded6` logs missing Aurorae button files under the user-local search path
+   during startup, then the installed theme resolves from `/usr/share`. There
+   is no user copy, all system assets exist, the live decoration checks pass,
+   and copying the theme into `$HOME` would improperly shadow the image. Treat
+   this as diagnostic noise unless a visible decoration defect is reproduced.
 
 ## Exact next action
 
-Reboot into the already-staged exact signed NVIDIA `.254`, then verify:
+Commit and push the code plus this handoff together, wait for CI and signed
+GHCR publication, then update to the exact new NVIDIA digest:
 
 ```bash
-systemctl reboot
+git status --short
+git diff --check
+git add HANDOFF.md moplayer system_files/usr/share/plasma/wallpapers/\
+org.moos.ui2.wallpaper/contents/ui/{ClockCard,SystemCard}.qml \
+tests/test_moos_ui2.py tests/verify_user_experience.py
+git commit -m "fix(desktop): correct RTL clock and MoPlayer close"
+git push origin main
 
-# After login:
-rpm-ostree status
-moos-selfcheck
-systemctl --failed
-systemctl --user --failed
-journalctl -b 0 -p err..alert --no-pager
-# Expect the new signed NVIDIA image, 39/39, zero failed units, and no tmpfiles
-# errors for /home, /srv, or /root. Keep the previous deployment for rollback.
+# Wait for both image editions, inspect/signature-verify the resulting NVIDIA
+# digest, stage it with bootc/rpm-ostree, reboot, then rerun post-update checks.
+# At 4K/200% capture dark and light screenshots confirming chronological HH:mm
+# and an untruncated HEALTHY. Test the image-installed MoPlayer close once more.
 ```
 
 ## Mo PC Remote (remote control) — status 2026-07-19

@@ -64,6 +64,10 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignLeft
+                // Time is a left-to-right technical token even when the shell
+                // language is Arabic.  Without this, RowLayout inherits the
+                // session's RTL direction and visually turns 19:54 into 45:91.
+                layoutDirection: Qt.LeftToRight
                 spacing: 0
 
                 RollingDigit {

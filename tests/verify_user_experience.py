@@ -3124,6 +3124,9 @@ require('"AP"' not in _clock,
         "the dashboard clock must not pair an AM/PM meridiem with 24-hour digits")
 require('Qt.locale("en")' in _clock,
         "the dashboard clock's secondary date line must be pinned to English")
+require(re.search(r"RowLayout\s*\{[^}]*layoutDirection:\s*Qt\.LeftToRight",
+                  _clock, re.DOTALL) is not None,
+        "the dashboard HH:mm row must not reverse its digits in an Arabic session")
 
 # #9 The UI font is requested BY NAME everywhere, so the Arabic fallback must hang
 #    off the NAMED family (a sans-serif prefer never reaches a by-name request).

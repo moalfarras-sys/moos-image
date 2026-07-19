@@ -740,8 +740,19 @@ class TestMoOSUI2(unittest.TestCase):
             r"healthLabel\s*:\s*!coreSensorsReady\s*\n\s*\?\s*\"WAITING\"",
             "missing core sensors must never be labelled HEALTHY",
         )
+        self.assertRegex(
+            system_card,
+            r"Layout\.preferredWidth:\s*Math\.round\("
+            r"Kirigami\.Units\.gridUnit\s*\*\s*(?:4\.[2-9]|[5-9])",
+            "the verdict column must fit HEALTHY at the supported 4K/200% scale",
+        )
 
         clock_card = qml_by_path[DASHBOARD / "contents/ui/ClockCard.qml"]
+        self.assertRegex(
+            clock_card,
+            r"RowLayout\s*\{[^}]*layoutDirection:\s*Qt\.LeftToRight",
+            "the HH:mm glyph row must stay chronological in Arabic/RTL sessions",
+        )
         # The identity badge names the ACTIVE theme (e.g. "MIDNIGHT GLASS"),
         # driven by themeLabel threaded from main.qml -> DashboardBento -> here,
         # and still falls back to the Light/Dark palette when no label is given.

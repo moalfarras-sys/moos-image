@@ -43,6 +43,23 @@ void main() {
       );
     });
 
+    test('Linux closes before Flutter tears down an invalid NVIDIA EGL surface', () {
+      final runner = File('linux/runner/my_application.cc').readAsStringSync();
+      expect(runner, contains('close_before_flutter_egl_teardown'));
+      expect(
+        runner,
+        contains('g_signal_connect(window, "delete-event"'),
+        reason: 'KWin and the in-app close button must share the guarded path',
+      );
+      expect(
+        runner,
+        contains('_exit(EXIT_SUCCESS)'),
+        reason:
+            'normal GTK destruction re-enters Flutter after Wayland has '
+            'invalidated the EGL surface and aborts inside libepoxy on NVIDIA',
+      );
+    });
+
     test('the launcher entry matches the window it launches', () {
       expect(
         desktop,

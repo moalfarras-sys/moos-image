@@ -1,6 +1,8 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <cstdlib>
+#include <unistd.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -18,6 +20,30 @@ G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 static void first_frame_cb(MyApplication* self, FlView *view)
 {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+}
+
+// Flutter 3.35's GTK embedder tears its compositor down after GTK/Wayland has
+// already invalidated the window's EGL surface on NVIDIA.  The result on the
+// MoOS RTX 2080 SUPER is deterministic:
+//
+//   eglMakeCurrent failed
+//   epoxy_get_proc_address: Assertion `Couldn't find current GLX or EGL context'
+//
+// It happens on an idle login screen with no video texture, from both KWin's
+// close request and the app's own close button.  There is no application state
+// left to flush here: geometry is persisted while it changes, Hive writes each
+// setting eagerly, and all remaining resources are process-owned.  Exit while
+// the surface is still valid instead of entering the broken engine teardown.
+// `_exit`, rather than `exit`, is intentional: normal C/GTK destructors are the
+// path that reaches libepoxy after the EGL context has gone away.
+static gboolean close_before_flutter_egl_teardown(
+    GtkWidget* widget,
+    GdkEvent* event,
+    gpointer user_data) {
+  (void)widget;
+  (void)event;
+  (void)user_data;
+  _exit(EXIT_SUCCESS);
 }
 
 // Implements GApplication::activate.
@@ -49,6 +75,8 @@ static void my_application_activate(GApplication* application) {
 
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  g_signal_connect(window, "delete-event",
+                   G_CALLBACK(close_before_flutter_egl_teardown), nullptr);
 
   // No GTK header bar, and no window manager decoration either.
   //
