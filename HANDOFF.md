@@ -34,7 +34,9 @@ Evidence priority:
 - Date: 2026-07-19, Europe/Berlin.
 - Local repository: `/var/home/moos/moos-image`.
 - Branch: `main`.
-- `main` and `origin/main`: `8ccfeff08d25b80e60ced7fe4ebee24e95047a08`.
+- Current implemented fix commit: `5d49e84` (`fix(boot): silence OSTree
+  tmpfiles conflicts`). Push/CI status is recorded below and must be rechecked
+  live rather than inferred from this file.
 - The NFS-root initramfs fix from `9fe30a9` is now verified on the live system:
   this boot contains no `rpcbind`, `rpc.statd`, or `nfs-start-rpc` errors.
 - The live `.252` image verified the previous `moai-control` class-scope fix,
