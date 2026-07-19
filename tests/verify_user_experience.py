@@ -78,6 +78,59 @@ require("Gtk.Application" in native_remote,
 require('UNIT = "mo-remote-personal.service"' in native_remote,
         "Mo PC Remote must manage the MoPC backend")
 
+# ── Remote control must be a whole, regression-proof chain ────────────────────
+#
+# Mo PC Remote is how the owner drives this machine from a phone, so every link
+# must be gated: the UI button, the router case, and the backend action. Any one
+# of them going quiet makes "I can't reach my computer" with no error anywhere.
+# Each assertion reads the CODE, never the prose — the comment above names
+# "mo-remote-personal.service" on purpose, so a gate that matched the string
+# would pass green while the route that opens it had been deleted.
+moai_remote_qml = code(read("system_files/usr/share/moos/apps/moai/main.qml"), "slash")
+router_remote = code(read("system_files/usr/bin/moos-open"))
+do_remote = code(read("system_files/usr/bin/moai-do"))
+for route in ("remote/start", "remote/stop", "remote/restart", "app/remote",
+              "do/remote-anywhere"):
+    require('moos://%s"' % route in moai_remote_qml,
+            "Mo AI must offer the %s action (it is how the owner reaches this "
+            "machine remotely)" % route)
+require('remote/start)' in router_remote and 'remote/stop)' in router_remote \
+        and 'remote/restart)' in router_remote,
+        "moos-open must route remote/start|stop|restart to the MoPC backend")
+require('remote-anywhere)' in router_remote,
+        "moos-open must route do/remote-anywhere to moai-do")
+# The start route is privileged by CONFIRM, not by root: it enables a persistent
+# service, so a drive-by moos://remote/start must not open remote access silently.
+require('remote/start)   confirm' in router_remote,
+        "moos-open must confirm before enabling Mo PC Remote (persistent access "
+        "must never be opened by a drive-by moos:// link)")
+# The user-service helper must use enable/disable --now, so the panel and the
+# router never disagree about whether it returns after a reboot. NOT plain
+# start/stop, which would leave it off next boot.
+require('REMOTE_UNIT="mo-remote-personal.service"' in router_remote,
+        "moos-open must target mo-remote-personal.service for remote control")
+# remote_ctl forwards its args to `systemctl --user "$@" UNIT`, and the callers
+# pass `enable --now` / `disable --now` (see the remote/start|stop|restart arms
+# below). Assert the forwarding mechanism AND that both persistent verbs are used
+# by the callers — not a literal expanded string, which the helper does not write.
+require('systemctl --user "$@"' in router_remote or 'systemctl --user "$@"' in router_remote,
+        "moos-open's remote_ctl must forward its args to systemctl --user, so the "
+        "callers' enable/disable --now actually reach the unit")
+require('remote_ctl enable --now' in router_remote,
+        "the remote/start arm must enable --now (persist across reboot), matching "
+        "the Mo PC Remote panel")
+require('remote_ctl disable --now' in router_remote,
+        "the remote/stop arm must disable --now (stop AND persist off)")
+require("do_remote_anywhere()" in do_remote and 'remote-anywhere) do_remote_anywhere' in do_remote,
+        "moai-do must DEFINE and DISPATCH do_remote_anywhere — the Tailscale "
+        "serve path that makes Mo PC Remote reachable from mobile data")
+require("tailscale serve" in do_remote,
+        "do_remote_anywhere must run `tailscale serve` to give the machine a "
+        "real HTTPS name on the tailnet (LAN IP over http dies on mobile data)")
+require("tailscale set --operator" in do_remote,
+        "do_remote_anywhere must grant the user Tailscale operator so later "
+        "serve changes need no root")
+
 # First-party dock icons are SVG masters plus raster fallbacks. Plasma can request
 # any of these sizes depending on scale factor; a single 512 px PNG makes a 16 px
 # task icon look soft and, historically, Remote had only that one file.
