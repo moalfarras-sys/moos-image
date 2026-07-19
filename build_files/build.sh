@@ -1800,6 +1800,19 @@ echo "MoOS: breeze components resolve from disk — the login screen wears the M
 dnf5 -y install thermald fwupd || \
     echo "note: thermald/fwupd install skipped (base may already provide them)"
 
+# Machine-check reporting must work on both AMD and Intel without leaving a red
+# failed unit on every AMD machine. The Kinoite base enables the legacy
+# mcelog.service, but mcelog exits 1 on AMD ("AMD systems are not supported")
+# and tells the operator to use rasdaemon. The kernel documentation makes the
+# same recommendation. rasdaemon consumes the kernel RAS/EDAC trace events and
+# is Fedora's cross-vendor package, so make it the one machine-error daemon.
+# This is a release-health guarantee, not best-effort: a missing logger makes
+# hardware faults invisible, while two loggers create duplicate/conflicting
+# ownership.
+dnf5 -y install rasdaemon
+systemctl mask mcelog.service
+systemctl enable rasdaemon.service
+
 # Guarantee the CPU microcode packages stay in the image — they are early-loaded
 # from the prebuilt initramfs, so their mere presence is the whole guarantee.
 # Fail loud if a future edit ever strips them (a machine with stale microcode is
