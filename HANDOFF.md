@@ -136,6 +136,22 @@ sudo systemctl reboot                  # confirm it still boots, then re-deploy 
 Do NOT trust the old staged NVIDIA digest `115141c5…` — it is an orphan that no
 longer exists in GHCR. The generic image is now `sha256:81e10d12…` (same rev);
 
+## Mo PC Remote (remote control) — status 2026-07-19
+
+- **Verified live and WORKING**, both on LAN and from anywhere on the tailnet:
+  - agent listening on `*:8765` (`MoRemotePersona`).
+  - `mo-remote-personal.service` active + enabled.
+  - `tailscale serve` active: `https://moos-3.tailab78a5.ts.net (tailnet only)
+    -- / proxy http://127.0.0.1:8765` — real HTTPS MagicDNS name, so the phone
+    reaches this machine on mobile data. Nothing published to the public internet.
+- The whole chain is wired: Mo AI Remote panel buttons (Start/Stop/Reconnect/
+  Open panel/Remote anywhere) -> `moos://remote/*` + `moos://do/remote-anywhere`
+  -> `moos-open` (`remote_ctl`, confirm on start) -> `moai-do do_remote_anywhere`
+  (Tailscale operator + `tailscale serve`).
+- **Pinned in repo**: `tests/verify_user_experience.py` now gates the entire
+  remote-control chain (commit `7c58fb0`) so a future edit cannot silently break
+  remote access. Gate verified to bite when a route is removed.
+
 ## New-conversation prompt
 
 Use:
