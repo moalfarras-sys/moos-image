@@ -2046,6 +2046,12 @@ for package in ("org.moos.nova.clock", "org.moos.brand", "org.moos.heroclock"):
     require((root / "metadata.json").is_file() and
             (root / "contents/ui/main.qml").is_file(),
             f"missing complete Plasma package: {package}")
+brand_qml = code(read(
+    "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml"
+), style="slash")
+require("if (root.expanded)" in brand_qml and "if (expanded)" not in brand_qml,
+        "the brand applet must qualify root.expanded; the bare signal argument "
+        "uses deprecated parameter injection and warns on every Plasma login")
 # The brand applet must never grow a shader/Lottie dependency (it lives in
 # plasmashell, forever), and its actions must stay user-session binaries —
 # a pkexec here would put a password prompt behind a panel click. code():

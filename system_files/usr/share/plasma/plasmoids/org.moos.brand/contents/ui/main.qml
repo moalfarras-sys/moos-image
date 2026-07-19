@@ -84,7 +84,10 @@ PlasmoidItem {
 
     Component.onCompleted: refreshOsRelease()
     onExpandedChanged: {
-        if (expanded) {
+        // Qualify the property explicitly. Plasma's expandedChanged signal also
+        // carries an `expanded` argument; resolving the bare name through that
+        // injected argument is deprecated in Qt 6 and warns on every login.
+        if (root.expanded) {
             refreshUptime();
         }
     }

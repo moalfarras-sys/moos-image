@@ -40,9 +40,17 @@ Evidence priority:
   The new source fix explicitly disables mirroring on the HH:mm row and
   propagates that non-mirrored state to its rolling digits. Both regression
   gates now require the complete invariant.
-- Current code fix commit: `5d49e84` (`fix(boot): silence OSTree tmpfiles
-  conflicts`). Repository HEAD and `origin/main` are both `eabee96`
-  (`docs(handoff): record signed 254 deployment`).
+- Commit `fcc1fe6` contains the complete fix. GitHub image run `29699253331`
+  passed for both editions, pushed `.257`, signed it, and verified it against
+  the OS-enforced public key. Exact NVIDIA digest:
+  `sha256:c794fc6715c2cb63fec9a6520c22081f95717f5d3f7af31ecc074b1b8f7b4fc8`.
+- `.257` is now booted and live-verified. Its digest exactly matches current
+  GHCR `moos-nvidia:latest`; `.256` remains the rollback deployment.
+- The live `.257` session exposed one MoOS-owned Qt warning on login:
+  `org.moos.brand` used the bare `expanded` name in `onExpandedChanged`, which
+  Qt 6 resolves through deprecated signal-parameter injection. The source now
+  explicitly reads `root.expanded`, with a regression assertion in the
+  experience gate.
 - The NFS-root initramfs fix from `9fe30a9` is now verified on the live system:
   this boot contains no `rpcbind`, `rpc.statd`, or `nfs-start-rpc` errors.
 - The live `.252` image verified the previous `moai-control` class-scope fix,
@@ -87,13 +95,13 @@ Evidence priority:
 - MoOS 44 on KDE Plasma 6.7.3, Wayland, kernel 7.1.3.
 - Booted origin: exact signed `ghcr.io/moalfarras-sys/moos-nvidia` image.
 - Booted signed NVIDIA digest:
-  `sha256:93f82d4399471bc3b5008814db9440425fb7e935eccc881c8207c18908f10aa8`.
-- The booted image is version `44.20260719.256`; its digest exactly matches
+  `sha256:c794fc6715c2cb63fec9a6520c22081f95717f5d3f7af31ecc074b1b8f7b4fc8`.
+- The booted image is version `44.20260719.257`; its digest exactly matches
   GHCR `latest` and its signature was verified locally with `cosign.pub`.
 - NVIDIA, Wayland, Plasma login and CUDA/NVIDIA operation are live and healthy;
   `nvidia-smi` reports the RTX 2080 SUPER with driver `610.43.03`.
-- The previous signed NVIDIA `.254` deployment remains available as rollback:
-  `sha256:274c18b2daddeb86ff62f958de3f36a633cca4dea1aabbbb5bfc859d426ddb00`.
+- The previous signed NVIDIA `.256` deployment remains available as rollback:
+  `sha256:93f82d4399471bc3b5008814db9440425fb7e935eccc881c8207c18908f10aa8`.
 - `moos-selfcheck`: 39 passed.
 - Failed system units: 0.
 - Failed user units: 0.
@@ -117,6 +125,16 @@ Passed from the live tree:
   longer clipped and the dashboard cards do not overlap. It also provided the
   decisive counterexample to the old clock gate: dashboard `73:02` versus
   panel `20:37`.
+- `.257` live screenshot at 1920x1080 confirms the dashboard and panel both
+  read `21:35` in chronological order under the Arabic/RTL session; `HEALTHY`
+  is complete and the dashboard cards do not overlap.
+- `.257` live checks: `moos-selfcheck` 39/39 and
+  `tests/post-update-check.sh` 39/39; the booted digest matches signed GHCR
+  `latest`, signature enforcement remains `sigstoreSigned`, and there are zero
+  failed system/user units.
+- The brand-applet cleanup passes `just check`, theme-safety 3/3, UI2 7/7,
+  direct experience verification, build-script syntax, and a full `just build`
+  through all image gates and `bootc container lint`.
 - Full local image build with the complete mirroring fix passed every identity,
   image-experience and QML smoke gate plus `bootc container lint`.
 - forced occupied-port test: repository `moai-control` retried for five seconds
@@ -157,10 +175,9 @@ stale.
 
 ## Highest-priority observed issues
 
-1. Publish the complete RTL mirroring fix, wait for both CI editions and the
-   signed GHCR image, then update/reboot and visually verify the dashboard time
-   matches the panel in chronological HH:mm order while preserving `.256` as
-   rollback.
+1. Publish the `org.moos.brand` signal-handler cleanup, wait for both CI
+   editions and the signed GHCR image, then update/reboot and confirm the MoOS
+   warning is absent from the new Plasma session.
 2. Capture/inspect Plymouth and the login greeter during the new-image boot.
 4. ~~Replace deprecated `Qt.btoa(string)`~~ DONE — replaced with the Qt 6.11
    array-like overload `Qt.btoa(Array.from(svg))` (verified QML-host-safe; a
@@ -191,22 +208,17 @@ stale.
 
 ## Exact next action
 
-Commit and push the clock fix plus this handoff together, wait for CI and
-signed GHCR publication, then update to the exact new NVIDIA digest:
+Commit and push the `org.moos.brand` warning fix plus this handoff, wait for
+both CI editions and the signed NVIDIA image, then update by exact digest:
 
 ```bash
-git status --short
-git diff --check
-git add HANDOFF.md system_files/usr/share/plasma/wallpapers/\
-org.moos.ui2.wallpaper/contents/ui/ClockCard.qml tests/test_moos_ui2.py \
-tests/verify_user_experience.py
-git commit -m "fix(desktop): prevent inherited RTL clock mirroring"
+git add HANDOFF.md \
+  system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml \
+  tests/verify_user_experience.py
+git commit -m "fix(desktop): qualify brand applet expanded state"
 git push origin main
-
-# Wait for both image editions, inspect/signature-verify the resulting NVIDIA
-# digest, stage it with bootc/rpm-ostree, reboot, then rerun post-update checks.
-# Capture a live screenshot confirming chronological HH:mm and an untruncated
-# HEALTHY. Then continue the broader screen-by-screen polish audit.
+# Wait for CI, verify the signed digest, stage it, reboot, and confirm the
+# parameter-injection warning no longer appears in the fresh user journal.
 ```
 
 ## Mo PC Remote (remote control) — status 2026-07-19
