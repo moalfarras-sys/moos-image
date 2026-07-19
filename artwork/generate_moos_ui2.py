@@ -208,7 +208,8 @@ def desktop_metadata(style: str, light: bool) -> str:
             "Authors": [{"Name": "Moalfarras"}], "Category": "",
             "Description": description, "Id": style,
             "License": "GPL-3.0-or-later",
-            "Name": "MoOS UI2 Light" if light else "MoOS UI2",
+            "Name": "MoOS Light" if light else "MoOS",
+            "Name[ar]": "MoOS الفاتح" if light else "MoOS",
             "Version": "2.0.0",
             "Website": "https://github.com/moalfarras-sys/moos-image",
         },
@@ -482,7 +483,8 @@ def lnf_metadata(package: str, light: bool) -> str:
     return json.dumps({
         "KPlugin": {
             "Id": package,
-            "Name": "MoOS UI2 Light — واجهة MoOS" if light else "MoOS UI2 — واجهة MoOS",
+            "Name": "MoOS Light" if light else "MoOS",
+            "Name[ar]": "MoOS الفاتح" if light else "MoOS",
             "Description": ("سمة MoOS UI2 التركواز الفاتحة | MoOS UI2 tidal light global theme"
                             if light else
                             "سمة MoOS UI2 الغرافيتية الداكنة | MoOS UI2 graphite dark global theme"),
@@ -544,12 +546,12 @@ def wallpaper_metadata(package: str, light: bool) -> str:
     return json.dumps({
         "KPlugin": {
             "Id": package,
-            "Name": "MoOS UI2 Tidal Mist" if light else "MoOS UI2 Graphite Tide",
-            "Name[ar]": "ضباب MoOS UI2 التركوازي" if light else "مدّ MoOS UI2 الغرافيتي",
+            "Name": "MoOS Tidal Mist" if light else "MoOS Quiet Horizon",
+            "Name[ar]": "ضباب MoOS التركوازي" if light else "أفق MoOS الهادئ",
             "Description": ("Mineral turquoise daylight for MoOS UI2"
-                            if light else "Graphite mineral glass and a turquoise tide for MoOS UI2"),
+                            if light else "A calm graphite horizon with restrained cyan and emerald light"),
             "Description[ar]": ("تركواز معدني هادئ لسمة MoOS UI2 الفاتحة"
-                                if light else "زجاج غرافيتي ومد تركوازي لسمة MoOS UI2 الداكنة"),
+                                if light else "أفق غرافيتي هادئ بإضاءة سماوية وزمردية محسوبة"),
             "Authors": [{"Name": "Moalfarras"}], "License": "CC-BY-SA-4.0",
         }
     }, ensure_ascii=False, indent=2)
@@ -648,7 +650,7 @@ def generate_wallpaper(variant: str) -> None:
     light = variant == "light"
     package = "MoOSUI2Tide" if light else "MoOSUI2Graphite"
     source = ART / "wallpapers" / ("moos-ui2-tide-master.png" if light else
-                                    "moos-ui2-graphite-master.png")
+                                    "moos-ui2-quiet-horizon-master-v2.png")
     target = SHARE / f"wallpapers/{package}"
     if target.exists():
         shutil.rmtree(target)
@@ -658,10 +660,12 @@ def generate_wallpaper(variant: str) -> None:
             scale_crop(source, target / f"contents/{folder}/{filename}", width, height)
     scale_crop(source, target / "contents/screenshot.png", 1920, 1080)
     write(target / "metadata.json", wallpaper_metadata(package, light))
-    write(target / "README.md", f"""# {package}
+    title = "MoOS Tidal Mist" if light else "MoOS Quiet Horizon"
+    write(target / "README.md", f"""# {title}
 
-Original MoOS UI2 generated wallpaper. The project-bound raster master and its
-generation prompt live under `artwork/moos-ui2/` and `artwork/MOOS_UI2_DESIGN.md`.
+Original MoOS wallpaper generated from the project-bound raster master under
+`artwork/moos-ui2/wallpapers/`. Runtime crops are exported deterministically
+for 16:9, 16:10 and ultrawide displays.
 
 Copyright © 2026 Moalfarras. CC-BY-SA-4.0.
 """)
@@ -684,7 +688,7 @@ def preflight() -> None:
         if not source.exists():
             raise SystemExit(f"missing canonical UI2 source: {source}")
     for master in (
-        ART / "wallpapers/moos-ui2-graphite-master.png",
+        ART / "wallpapers/moos-ui2-quiet-horizon-master-v2.png",
         ART / "wallpapers/moos-ui2-tide-master.png",
     ):
         if not master.is_file():
@@ -706,7 +710,7 @@ def generate_previews(variant: str) -> None:
     light = variant == "light"
     package = "org.moos.ui2.light" if light else "org.moos.ui2"
     source = ART / "wallpapers" / ("moos-ui2-tide-master.png" if light else
-                                    "moos-ui2-graphite-master.png")
+                                    "moos-ui2-quiet-horizon-master-v2.png")
     target = SHARE / f"plasma/look-and-feel/{package}/contents/previews"
     scale_crop(source, target / "preview.png", 600, 337)
     scale_crop(source, target / "lockscreen.png", 600, 337)

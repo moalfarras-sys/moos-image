@@ -20,7 +20,7 @@
  */
 
 var panel = new Panel;
-panel.height = Math.round(gridUnit * 2.6);   // ~46px premium dock
+panel.height = Math.round(gridUnit * 3.05);  // ~54px MoOS command dock
 
 /* Float the dock off the screen edge.
  *
@@ -62,7 +62,7 @@ try { panel.addWidget("org.moos.brand"); } catch (e) { /* the bar survives brand
  * Style. MoOS does not ship a competing launcher implementation. */
 var launcher = panel.addWidget("org.kde.plasma.kickoff");
 launcher.currentConfigGroup = ["General"];
-launcher.writeConfig("icon", "view-app-grid-symbolic");
+launcher.writeConfig("icon", "system-search-symbolic");
 launcher.writeConfig("appNameFormat", 0);
 launcher.writeConfig("favoritesDisplay", 0);
 launcher.writeConfig("applicationsDisplay", 1);
@@ -105,9 +105,7 @@ tasks.writeConfig("launchers", [
     "preferred://browser",
     "applications:org.moos.moplayer.desktop",
     "applications:org.kde.dolphin.desktop",
-    "applications:org.moos.remote.desktop",
-    "applications:systemsettings.desktop",
-    "applications:org.kde.konsole.desktop"
+    "applications:org.moos.remote.desktop"
 ].join(","));
 tasks.writeConfig("showOnlyCurrentDesktop", false);
 

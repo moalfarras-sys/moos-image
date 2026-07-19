@@ -364,7 +364,7 @@ class TestMoOSUI2(unittest.TestCase):
             # preflight() runs before any rename. Raster validity is irrelevant
             # here because the injected fifth backup failure happens first.
             for master in (
-                art / "wallpapers/moos-ui2-graphite-master.png",
+                art / "wallpapers/moos-ui2-quiet-horizon-master-v2.png",
                 art / "wallpapers/moos-ui2-tide-master.png",
             ):
                 master.parent.mkdir(parents=True, exist_ok=True)

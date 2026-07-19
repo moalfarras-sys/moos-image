@@ -21,7 +21,7 @@ set -uo pipefail
 #     and the greeter clock). Qt's qmlcache keys on mtime and OSTree pins every
 #     mtime under /usr to the epoch, so without this bump an upgraded machine
 #     would keep executing the STALE compiled Breeze components off disk.
-THEME_REV=19
+THEME_REV=20
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -772,25 +772,30 @@ if command -v gdbus >/dev/null 2>&1; then
                 try { if ("floating" in p) { p.floating = true; } } catch (e) {}
                 try { if ("lengthMode" in p) { p.lengthMode = "fit"; } } catch (e) {}
                 try { if ("alignment" in p) { p.alignment = "center"; } } catch (e) {}
-                /* Do NOT force a pixel height here. The layout template sizes the
-                   dock as Math.round(gridUnit * 2.6), which scales with DPI; a
-                   hardcoded 44 shrank the dock (and its icons) to a tiny bar on
-                   every HiDPI display the moment the theme was applied. Leave the
-                   scale-derived height the template set. */
+                /* Plasma panel height is a logical size and therefore scales at
+                   200%. Revision 20 gives the command dock enough presence for
+                   the wordmark and 32px application marks without becoming a
+                   taskbar slab. */
+                try { p.height = 54; } catch (e) {}
                 /* THEME_REV 18: the living brand. org.moos.brand (the animated
                    MoOS emblem + glance popup) opens the dock, and Kickoff hands
                    the logo role over to it, wearing the app-grid glyph instead —
                    one MoOS mark in the bar, and it moves. Add-only: an existing
                    brand applet is left exactly where the user put it. */
                 var hasBrand = false;
+                var brandWidget = null;
                 var wsScan = p.widgets();
                 for (var b = 0; b < wsScan.length; b++) {
-                    if (wsScan[b].type == "org.moos.brand") { hasBrand = true; }
+                    if (wsScan[b].type == "org.moos.brand") {
+                        hasBrand = true;
+                        brandWidget = wsScan[b];
+                    }
                 }
                 if (!hasBrand) {
                     try {
                         var brand = p.addWidget("org.moos.brand");
                         try { brand.index = 0; } catch (e) {}
+                        brandWidget = brand;
                     } catch (e) {}
                 }
                 var ws = p.widgets();
@@ -799,7 +804,7 @@ if command -v gdbus >/dev/null 2>&1; then
                     try {
                         if (w.type == "org.kde.plasma.kickoff") {
                             w.currentConfigGroup = ["General"];
-                            w.writeConfig("icon", "view-app-grid-symbolic");
+                            w.writeConfig("icon", "system-search-symbolic");
                             w.writeConfig("appNameFormat", 0);
                             w.writeConfig("favoritesDisplay", 0);
                             w.writeConfig("applicationsDisplay", 1);
@@ -819,6 +824,34 @@ if command -v gdbus >/dev/null 2>&1; then
                 }
             }
         ' >>"$log" 2>&1 || echo "panel polish migration skipped" >>"$log" 2>&1
+fi
+
+# THEME_REV 20: MoOS Control is deliberately richer than the old six-tile
+# glance. Popup geometry is shell-owned state (not an applet configuration key),
+# so Plasma's scripting writeConfig API cannot update it. Locate only the MoOS
+# brand applet's exact containment/applet pair and migrate its persisted size.
+# A later shell restart in this revision makes the new geometry live; no panel
+# structure, user launcher choice, or other applet is touched.
+applets_rc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
+if [[ -f "$applets_rc" ]] && command -v kwriteconfig6 >/dev/null 2>&1; then
+    while read -r containment_id applet_id; do
+        [[ "$containment_id" =~ ^[0-9]+$ && "$applet_id" =~ ^[0-9]+$ ]] || continue
+        kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
+            --group Containments --group "$containment_id" --group Applets \
+            --group "$applet_id" --group Configuration --key popupWidth 420
+        kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
+            --group Containments --group "$containment_id" --group Applets \
+            --group "$applet_id" --group Configuration --key popupHeight 430
+    done < <(
+        awk '
+            match($0, /^\[Containments\]\[([0-9]+)\]\[Applets\]\[([0-9]+)\]$/, m) {
+                containment=m[1]; applet=m[2]; next
+            }
+            $0 == "plugin=org.moos.brand" && containment != "" && applet != "" {
+                print containment, applet
+            }
+        ' "$applets_rc"
+    )
 fi
 
 # --- The dock: MoOS's own apps are actually IN it ------------------------------
@@ -853,8 +886,6 @@ for entry in \
     "applications:org.moos.moplayer.desktop" \
     "applications:org.kde.dolphin.desktop" \
     "applications:org.moos.remote.desktop" \
-    "applications:systemsettings.desktop" \
-    "applications:org.kde.konsole.desktop" \
 ; do
     case "$entry" in
         applications:*)

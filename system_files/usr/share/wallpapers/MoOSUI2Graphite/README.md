@@ -1,6 +1,7 @@
-# MoOSUI2Graphite
+# MoOS Quiet Horizon
 
-Original MoOS UI2 generated wallpaper. The project-bound raster master and its
-generation prompt live under `artwork/moos-ui2/` and `artwork/MOOS_UI2_DESIGN.md`.
+Original MoOS wallpaper generated from the project-bound raster master under
+`artwork/moos-ui2/wallpapers/`. Runtime crops are exported deterministically
+for 16:9, 16:10 and ultrawide displays.
 
 Copyright © 2026 Moalfarras. CC-BY-SA-4.0.

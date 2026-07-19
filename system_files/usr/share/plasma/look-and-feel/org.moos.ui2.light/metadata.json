@@ -2,6 +2,7 @@
     "KPlugin": {
         "Id": "org.moos.ui2.light",
         "Name": "MoOS Light",
+        "Name[ar]": "MoOS الفاتح",
         "Description": "سمة MoOS UI2 التركواز الفاتحة | MoOS UI2 tidal light global theme",
         "Authors": [
             {
@@ -10,8 +11,7 @@
         ],
         "Version": "2.0.0",
         "License": "GPL-3.0-or-later",
-        "Website": "https://github.com/moalfarras-sys/moos-image",
-        "Name[ar]": "MoOS الفاتح"
+        "Website": "https://github.com/moalfarras-sys/moos-image"
     },
     "KPackageStructure": "Plasma/LookAndFeel",
     "X-Plasma-APIVersion": "2"

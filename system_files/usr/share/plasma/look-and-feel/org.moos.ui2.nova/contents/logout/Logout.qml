@@ -617,7 +617,12 @@ Item {
 
                     Layout.alignment: Qt.AlignHCenter
                     Layout.fillWidth: true
-                    columns: root.width < Kirigami.Units.gridUnit * 50 ? 2 : 4
+                    // Six common session actions resolve to a balanced 3×2
+                    // command deck on desktop displays. The old 4-column grid
+                    // left half of its second row empty, making the greeter look
+                    // like an unfinished settings page. Narrow/windowed tests
+                    // retain a readable two-column fallback.
+                    columns: root.width < Kirigami.Units.gridUnit * 55 ? 2 : 3
                     columnSpacing: Kirigami.Units.largeSpacing
                     rowSpacing: Kirigami.Units.largeSpacing
 

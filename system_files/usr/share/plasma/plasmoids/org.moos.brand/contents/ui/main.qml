@@ -112,11 +112,10 @@ PlasmoidItem {
     compactRepresentation: MouseArea {
         id: compact
 
-        // Wider than tall on purpose — the brand gets real presence in the
-        // bar, not a stock icon's slot. The width is still derived from the
-        // panel height, so it scales with the dock; 1.5× gives the comet
-        // ring room to orbit without the panel clipping it.
-        readonly property int contentWidth: Math.round(height * 1.5)
+        // A wordmark, not another anonymous dock icon. The width remains tied
+        // to panel height, so the control has the same physical proportions at
+        // 100% and 200% scale.
+        readonly property int contentWidth: Math.round(height * 2.45)
 
         implicitWidth: contentWidth
         implicitHeight: Kirigami.Units.gridUnit * 2
@@ -126,144 +125,143 @@ PlasmoidItem {
         Layout.maximumWidth: contentWidth
 
         hoverEnabled: true
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
         cursorShape: Qt.PointingHandCursor
         Accessible.name: "MoOS"
 
-        onClicked: {
+        onClicked: mouse => {
             spinFlourish.restart();
-            root.expanded = !root.expanded;
-        }
-
-        // Twin aura, lower layer — a violet glow breathing COUNTER to the cyan
-        // above it, so the mark sits in living two-tone light, not a flat halo.
-        Image {
-            anchors.centerIn: emblem
-            width: emblem.width * 2.4
-            height: width
-            source: "../images/glow-violet.png"
-            opacity: compact.containsMouse ? 0.72 : 0.26
-            Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            SequentialAnimation on scale {
-                loops: Animation.Infinite
-                running: compact.visible
-                NumberAnimation { to: 1.0; duration: 4200; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 1.14; duration: 4200; easing.type: Easing.InOutSine }
+            if (mouse.button === Qt.MiddleButton) {
+                root.run("gdbus call --session -d org.kde.plasmashell -o /PlasmaShell -m org.kde.PlasmaShell.activateLauncherMenu");
+            } else {
+                root.expanded = !root.expanded;
             }
         }
 
-        // Hover halo — the pre-baked cyan glow, brightening under the pointer.
-        Image {
-            anchors.centerIn: emblem
-            width: emblem.width * 2.1
-            height: width
-            source: "../images/glow-cyan.png"
-            opacity: compact.containsMouse ? 0.95 : 0.35
-            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-            SequentialAnimation on scale {
-                loops: Animation.Infinite
-                running: compact.visible
-                NumberAnimation { to: 1.08; duration: 4000; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 1.0; duration: 4000; easing.type: Easing.InOutSine }
-            }
-        }
-
-        Image {
-            id: emblem
+        // The whole control is one calm piece of mineral glass. The earlier
+        // version rendered a large spinning logo in an empty slot, which made
+        // the bar read as a row of unrelated icons.
+        Rectangle {
             anchors.centerIn: parent
-            // Fuller-bleed than a themed icon: the transparent vector mark can
-            // use nearly the whole panel height and still breathe.
-            width: Math.round(Math.min(parent.height, parent.width) * 0.92)
-            height: width
-            source: "file:///usr/share/moos/moos-logo.png"
-            fillMode: Image.PreserveAspectFit
-            asynchronous: true
-            smooth: true
-            sourceSize: Qt.size(width * 2, height * 2)
-
-            // The idle breath — slow enough to feel alive, never busy.
-            SequentialAnimation on scale {
-                loops: Animation.Infinite
-                running: compact.visible && !spinFlourish.running
-                NumberAnimation { to: 1.05; duration: 4000; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 1.0; duration: 4000; easing.type: Easing.InOutSine }
-            }
-
-            // The press flourish: one quick full turn, settling with a spring.
-            RotationAnimation {
-                id: spinFlourish
-                target: emblem
-                property: "rotation"
-                from: 0
-                to: 360
-                duration: 650
-                easing.type: Easing.OutBack
-                onStopped: emblem.rotation = 0
-            }
+            width: Math.round(compact.contentWidth * 0.94)
+            height: Math.round(compact.height * 0.78)
+            radius: height / 2
+            color: Qt.alpha(compact.containsMouse
+                                ? Kirigami.Theme.highlightColor
+                                : Kirigami.Theme.textColor,
+                            compact.pressed ? 0.23 : (compact.containsMouse ? 0.14 : 0.065))
+            border.width: 1
+            border.color: Qt.alpha(compact.containsMouse
+                                       ? Kirigami.Theme.highlightColor
+                                       : Kirigami.Theme.textColor,
+                                   compact.containsMouse ? 0.48 : 0.13)
+            scale: compact.pressed ? 0.97 : 1.0
+            Behavior on color { ColorAnimation { duration: 150 } }
+            Behavior on border.color { ColorAnimation { duration: 150 } }
+            Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
         }
 
-        // A fainter inner ring, counter-rotating — two orbits crossing gives the
-        // mark real depth instead of one flat spin. Smaller, dimmer, mirrored, and
-        // it too quickens under the pointer.
-        Image {
-            anchors.centerIn: emblem
-            width: Math.round(Math.min(compact.height, compact.width) * 0.72)
-            height: width
-            source: "../images/ring.png"
-            mirror: true
-            opacity: compact.containsMouse ? 0.5 : 0.22
-            Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            sourceSize: Qt.size(width * 2, height * 2)
-            RotationAnimator on rotation {
-                from: 360; to: 0
-                duration: compact.containsMouse ? 12000 : 22000
-                loops: Animation.Infinite
-                running: compact.visible
-            }
-        }
+        RowLayout {
+            anchors.centerIn: parent
+            width: Math.round(compact.contentWidth * 0.78)
+            height: Math.round(compact.height * 0.68)
+            spacing: Math.max(4, Math.round(Kirigami.Units.smallSpacing * 0.75))
+            layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
-        // The comet ring — the same orbit every doorway surface carries, now
-        // living in the bar. Sized to the panel height (not the emblem) so
-        // its circle stays inside the panel window and never clips; it leans
-        // brighter under the pointer, and quickens with it.
-        Image {
-            id: panelRing
-            anchors.centerIn: emblem
-            width: Math.round(Math.min(compact.height, compact.width) * 0.995)
-            height: width
-            source: "../images/ring.png"
-            opacity: compact.containsMouse ? 0.98 : 0.55
-            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-            sourceSize: Qt.size(width * 2, height * 2)
-            RotationAnimator on rotation {
-                from: 0; to: 360
-                duration: compact.containsMouse ? 9000 : 16000
-                loops: Animation.Infinite
-                running: compact.visible
+            Item {
+                Layout.preferredWidth: parent.height
+                Layout.preferredHeight: parent.height
+
+                Image {
+                    anchors.centerIn: emblem
+                    width: emblem.width * 1.65
+                    height: width
+                    source: "../images/glow-cyan.png"
+                    opacity: compact.containsMouse ? 0.75 : 0.30
+                    Behavior on opacity { NumberAnimation { duration: 180 } }
+                }
+                Image {
+                    id: emblem
+                    anchors.centerIn: parent
+                    width: Math.round(parent.height * 0.82)
+                    height: width
+                    source: "file:///usr/share/moos/moos-logo.png"
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                    smooth: true
+                    sourceSize: Qt.size(width * 2, height * 2)
+
+                    SequentialAnimation on scale {
+                        loops: Animation.Infinite
+                        running: compact.visible && !spinFlourish.running
+                        NumberAnimation { to: 1.035; duration: 4200; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 1.0; duration: 4200; easing.type: Easing.InOutSine }
+                    }
+                    RotationAnimation {
+                        id: spinFlourish
+                        target: emblem
+                        property: "rotation"
+                        from: 0
+                        to: 360
+                        duration: 620
+                        easing.type: Easing.OutBack
+                        onStopped: emblem.rotation = 0
+                    }
+                }
+                Image {
+                    anchors.centerIn: emblem
+                    width: emblem.width * 1.22
+                    height: width
+                    source: "../images/ring.png"
+                    opacity: compact.containsMouse ? 0.84 : 0.42
+                    sourceSize: Qt.size(width * 2, height * 2)
+                    RotationAnimator on rotation {
+                        from: 0; to: 360
+                        duration: compact.containsMouse ? 9000 : 18000
+                        loops: Animation.Infinite
+                        running: compact.visible
+                    }
+                }
             }
 
-            // The comet HEAD — a bright spark riding the ring's leading edge, so
-            // the orbit reads as an actual comet rounding the mark, not just a
-            // spinning texture. A child of the ring, so it inherits the same turn
-            // and stays locked to the head. It flares brighter under the pointer.
-            Image {
-                source: "../images/spark.png"
-                width: panelRing.width * 0.22
-                height: width
-                x: (panelRing.width - width) / 2
-                y: -height * 0.30
-                smooth: true
-                sourceSize: Qt.size(width * 2, height * 2)
-                opacity: compact.containsMouse ? 1.0 : 0.85
-                Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-                // A twinkle so the head has life even mid-orbit — quicker and
-                // brighter the moment the pointer lands.
-                SequentialAnimation on scale {
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: -1
+                Text {
+                    text: "MoOS"
+                    color: Kirigami.Theme.textColor
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.max(12, Math.round(compact.height * 0.26))
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 1.5
+                }
+                Text {
+                    text: compact.containsMouse
+                        ? (root.rtl ? "مركز التحكم" : "CONTROL")
+                        : (root.rtl ? "جاهز" : "READY")
+                    color: compact.containsMouse
+                        ? Kirigami.Theme.highlightColor
+                        : Kirigami.Theme.positiveTextColor
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.max(7, Math.round(compact.height * 0.13))
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 1.2
+                    opacity: 0.84
+                    Behavior on color { ColorAnimation { duration: 160 } }
+                }
+            }
+
+            Rectangle {
+                Layout.preferredWidth: Math.max(5, Math.round(compact.height * 0.11))
+                Layout.preferredHeight: width
+                radius: width / 2
+                color: Kirigami.Theme.positiveTextColor
+                opacity: compact.containsMouse ? 1.0 : 0.72
+                SequentialAnimation on opacity {
                     loops: Animation.Infinite
-                    running: compact.visible
-                    NumberAnimation { to: compact.containsMouse ? 1.4 : 1.25
-                        duration: compact.containsMouse ? 800 : 1400; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 1.0
-                        duration: compact.containsMouse ? 800 : 1400; easing.type: Easing.InOutSine }
+                    running: compact.visible && !compact.containsMouse
+                    NumberAnimation { to: 0.36; duration: 1800; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 0.72; duration: 1800; easing.type: Easing.InOutSine }
                 }
             }
         }
@@ -271,7 +269,7 @@ PlasmoidItem {
 
     // ── The MoOS glance ───────────────────────────────────────────────────────
     fullRepresentation: Item {
-        implicitWidth: Kirigami.Units.gridUnit * 19
+        implicitWidth: Kirigami.Units.gridUnit * 22
         implicitHeight: mainColumn.implicitHeight + Kirigami.Units.largeSpacing * 4
 
         ColumnLayout {
@@ -369,6 +367,94 @@ PlasmoidItem {
 
             Rectangle {
                 Layout.fillWidth: true
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 3.35
+                radius: Kirigami.Units.cornerRadius * 1.45
+                color: Qt.alpha(Kirigami.Theme.highlightColor,
+                                launchMouse.pressed ? 0.24 : (launchMouse.containsMouse ? 0.17 : 0.11))
+                border.width: 1
+                border.color: Qt.alpha(Kirigami.Theme.highlightColor,
+                                       launchMouse.containsMouse ? 0.62 : 0.34)
+                scale: launchMouse.pressed ? 0.985 : 1.0
+                Behavior on color { ColorAnimation { duration: 140 } }
+                Behavior on border.color { ColorAnimation { duration: 140 } }
+                Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Kirigami.Units.largeSpacing * 1.4
+                    anchors.rightMargin: Kirigami.Units.largeSpacing * 1.4
+                    spacing: Kirigami.Units.largeSpacing
+                    layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+
+                    Rectangle {
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 2.1
+                        Layout.preferredHeight: width
+                        radius: width / 2
+                        color: Qt.alpha(Kirigami.Theme.highlightColor, 0.20)
+                        Kirigami.Icon {
+                            anchors.centerIn: parent
+                            width: Kirigami.Units.iconSizes.medium
+                            height: width
+                            source: "system-search-symbolic"
+                            color: Kirigami.Theme.highlightColor
+                        }
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 1
+                        Text {
+                            text: root.rtl ? "ابحث وافتح" : "Search & launch"
+                            color: Kirigami.Theme.textColor
+                            font.family: "IBM Plex Sans"
+                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.78)
+                            font.weight: Font.DemiBold
+                        }
+                        Text {
+                            text: root.rtl ? "التطبيقات والملفات والإعدادات" : "Apps, files and settings"
+                            color: Kirigami.Theme.textColor
+                            opacity: 0.55
+                            font.family: "IBM Plex Sans"
+                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.56)
+                        }
+                    }
+                    Kirigami.Icon {
+                        Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
+                        Layout.preferredHeight: width
+                        source: root.rtl ? "arrow-left-symbolic" : "arrow-right-symbolic"
+                        color: Kirigami.Theme.textColor
+                        opacity: launchMouse.containsMouse ? 0.9 : 0.45
+                    }
+                }
+                MouseArea {
+                    id: launchMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.run("gdbus call --session -d org.kde.plasmashell -o /PlasmaShell -m org.kde.PlasmaShell.activateLauncherMenu")
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+                layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+
+                StatusChip {
+                    icon: "security-high-symbolic"
+                    label: root.rtl ? "النظام محمي" : "System protected"
+                    accent: Kirigami.Theme.positiveTextColor
+                }
+                StatusChip {
+                    icon: "chronometer-symbolic"
+                    label: root.uptimeLine.length > 0
+                        ? (root.rtl ? "تشغيل " : "Up ") + root.uptimeLine
+                        : (root.rtl ? "جلسة نشطة" : "Session active")
+                    accent: Kirigami.Theme.highlightColor
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
                 Layout.preferredHeight: 1
                 color: Kirigami.Theme.textColor
                 opacity: 0.12
@@ -376,7 +462,7 @@ PlasmoidItem {
 
             GridLayout {
                 Layout.fillWidth: true
-                columns: 3
+                columns: 2
                 rowSpacing: Kirigami.Units.smallSpacing
                 columnSpacing: Kirigami.Units.smallSpacing
                 layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
@@ -412,10 +498,85 @@ PlasmoidItem {
                     onActivated: root.run("moos-rollback")
                 }
             }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 2.45
+                radius: Kirigami.Units.cornerRadius
+                color: Qt.alpha(Kirigami.Theme.textColor,
+                                sessionMouse.containsMouse ? 0.11 : 0.055)
+                Behavior on color { ColorAnimation { duration: 120 } }
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Kirigami.Units.largeSpacing
+                    anchors.rightMargin: Kirigami.Units.largeSpacing
+                    layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+                    Kirigami.Icon {
+                        Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
+                        Layout.preferredHeight: width
+                        source: "system-shutdown-symbolic"
+                        color: Kirigami.Theme.negativeTextColor
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: root.rtl ? "القفل والطاقة والجلسة" : "Lock, power & session"
+                        color: Kirigami.Theme.textColor
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.62)
+                        font.weight: Font.Medium
+                    }
+                    Kirigami.Icon {
+                        Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                        Layout.preferredHeight: width
+                        source: root.rtl ? "arrow-left-symbolic" : "arrow-right-symbolic"
+                        color: Kirigami.Theme.textColor
+                        opacity: 0.45
+                    }
+                }
+                MouseArea {
+                    id: sessionMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.run("ksmserver-logout-greeter")
+                }
+            }
         }
     }
 
-    // A quiet, premium action tile: icon over a caption, hover lift, press dip.
+    component StatusChip: Rectangle {
+        property alias icon: chipIcon.source
+        property string label: ""
+        property color accent: Kirigami.Theme.highlightColor
+
+        Layout.fillWidth: true
+        Layout.preferredHeight: Kirigami.Units.gridUnit * 1.7
+        radius: height / 2
+        color: Qt.alpha(accent, 0.085)
+        border.width: 1
+        border.color: Qt.alpha(accent, 0.22)
+        RowLayout {
+            anchors.centerIn: parent
+            spacing: Kirigami.Units.smallSpacing
+            Kirigami.Icon {
+                id: chipIcon
+                Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                Layout.preferredHeight: width
+                color: accent
+            }
+            Text {
+                text: label
+                color: accent
+                font.family: "IBM Plex Sans"
+                font.pixelSize: Math.max(9, Math.round(Kirigami.Units.gridUnit * 0.51))
+                font.weight: Font.Medium
+            }
+        }
+    }
+
+    // A quiet, premium action tile: compact horizontal composition, hover lift,
+    // and a restrained accent rail instead of a generic icon grid.
     component GlanceAction: Rectangle {
         id: tile
 
@@ -424,7 +585,7 @@ PlasmoidItem {
         signal activated()
 
         Layout.fillWidth: true
-        Layout.preferredHeight: Kirigami.Units.gridUnit * 4.2
+        Layout.preferredHeight: Kirigami.Units.gridUnit * 2.85
         radius: Kirigami.Units.cornerRadius
         // Translucent fill via the colour's alpha, NOT item opacity — opacity
         // multiplies into children and would dim the icon and caption with it.
@@ -434,19 +595,33 @@ PlasmoidItem {
         Behavior on color { ColorAnimation { duration: 120 } }
         Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
 
-        ColumnLayout {
-            anchors.centerIn: parent
-            spacing: Math.round(Kirigami.Units.smallSpacing * 0.8)
+        Rectangle {
+            width: 2
+            height: parent.height * 0.42
+            radius: 1
+            anchors.left: root.rtl ? undefined : parent.left
+            anchors.right: root.rtl ? parent.right : undefined
+            anchors.verticalCenter: parent.verticalCenter
+            color: Kirigami.Theme.highlightColor
+            opacity: tileMouse.containsMouse ? 0.9 : 0.28
+            Behavior on opacity { NumberAnimation { duration: 120 } }
+        }
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: Kirigami.Units.largeSpacing
+            anchors.rightMargin: Kirigami.Units.largeSpacing
+            spacing: Kirigami.Units.smallSpacing
+            layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             Kirigami.Icon {
                 id: tileIcon
-                Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: Kirigami.Units.iconSizes.medium
                 Layout.preferredHeight: Kirigami.Units.iconSizes.medium
                 color: Kirigami.Theme.textColor
             }
             Text {
-                Layout.alignment: Qt.AlignHCenter
+                Layout.fillWidth: true
                 text: tile.label
                 color: Kirigami.Theme.textColor
                 font.family: "IBM Plex Sans"

@@ -1594,7 +1594,7 @@ require('PORT="${MOAI_PORT:-8081}"' in moai_start_code,
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=19" in apply_theme_code, "MoOS UI2 visual schema must be revision 19")
+require("THEME_REV=20" in apply_theme_code, "MoOS UI2 visual schema must be revision 20")
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
@@ -2033,14 +2033,14 @@ require('addWidget("org.moos.nova.clock")' in layout,
         "new users must receive the compact Nova clock")
 # The living brand: org.moos.brand is the ONE MoOS mark in the bar (animated
 # emblem + glance popup), and Kickoff hands the logo role to it. Both sides of
-# that trade are gated together — brand present AND kickoff on the app-grid
+# that trade are gated together — brand present AND Kickoff on a search glyph
 # glyph — because shipping only half re-creates the double-logo bar one way,
 # or a logo-less bar the other.
 require('addWidget("org.moos.brand")' in layout,
         "new users must receive the animated MoOS brand applet in the panel")
-require('writeConfig("icon", "view-app-grid-symbolic")' in layout,
-        "Kickoff must wear the app-grid glyph — the MoOS logo in the bar is the "
-        "brand applet now, and two identical marks side by side reads as a bug")
+require('writeConfig("icon", "system-search-symbolic")' in layout,
+        "Kickoff must wear the search glyph — the MoOS wordmark owns identity "
+        "while the adjacent launcher communicates its real purpose")
 for package in ("org.moos.nova.clock", "org.moos.brand", "org.moos.heroclock"):
     root = ROOT / "system_files/usr/share/plasma/plasmoids" / package
     require((root / "metadata.json").is_file() and
@@ -2052,6 +2052,10 @@ brand_qml = code(read(
 require("if (root.expanded)" in brand_qml and "if (expanded)" not in brand_qml,
         "the brand applet must qualify root.expanded; the bare signal argument "
         "uses deprecated parameter injection and warns on every Plasma login")
+require("height * 2.45" in brand_qml and 'text: "MoOS"' in brand_qml
+        and '"READY"' in brand_qml,
+        "the panel brand must remain the MoOS wordmark control, not regress to "
+        "an anonymous circular dock icon")
 # The brand applet must never grow a shader/Lottie dependency (it lives in
 # plasmashell, forever), and its actions must stay user-session binaries —
 # a pkexec here would put a password prompt behind a panel click. code():
@@ -2062,6 +2066,12 @@ for always_on in ("org.moos.brand", "org.moos.heroclock"):
     for banned in ("ShaderEffect", "MultiEffect", "Lottie", "pkexec", "sudo "):
         require(banned not in applet_qml,
                 f"{always_on} must not use {banned.strip()!r}")
+logout_qml = read(
+    "system_files/usr/share/plasma/look-and-feel/org.moos.ui2/contents/logout/Logout.qml"
+)
+require("gridUnit * 55 ? 2 : 3" in logout_qml,
+        "the desktop logout surface must keep its balanced 3x2 command deck "
+        "with a two-column narrow-screen fallback")
 require("try {" in layout,
         "the floating setter must be guarded -- a throw in the layout template "
         "leaves the session with NO panel")

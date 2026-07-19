@@ -10,9 +10,9 @@
         "Id": "MoOSUI2",
         "License": "GPL-3.0-or-later",
         "Name": "MoOS",
+        "Name[ar]": "MoOS",
         "Version": "2.0.0",
-        "Website": "https://github.com/moalfarras-sys/moos-image",
-        "Name[ar]": "MoOS"
+        "Website": "https://github.com/moalfarras-sys/moos-image"
     },
     "X-Plasma-API": "5.0"
 }

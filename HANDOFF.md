@@ -34,6 +34,33 @@ Evidence priority:
 - Date: 2026-07-19, Europe/Berlin.
 - Local repository: `/var/home/moos/moos-image`.
 - Branch: `main`.
+- Visual-polish candidate (not published at the time of this checkpoint):
+  the bottom shell is now a 54 px floating command dock with a restrained
+  multi-layer FrameSvg, a wide MoOS status/wordmark control, a separate search
+  launcher, and a smaller default set of first-party task pins. The MoOS
+  control opens a 420x430 search/action surface and supports middle-click
+  launcher activation.
+- The dark base experience now uses the original **Quiet Horizon** 4K master.
+  It is wired into the canonical generator, Graphite wallpaper package,
+  look-and-feel previews, desktop and lock-screen defaults; it is not a renamed
+  third-party theme. Light/Tidal remains available and was live-tested.
+- Logout is a balanced 3x2 action grid on normal/4K widths (2 columns only on
+  narrow surfaces) across all 16 MoOS look-and-feel variants. Theme revision
+  is 20, including migration of the existing user's panel geometry, search
+  glyph and MoOS-control popup size.
+- Live development proof exists under
+  `test-results/live-polish-20260719/bar-v20/`: the previous bar, MoOS Control,
+  launcher, Graphite dark, Tidal light, final Quiet Horizon desktop, and a
+  real 3840x2160@60/200% capture. The display was restored to
+  1920x1080@60/100%. Arabic RTL and English/German LTR content remained
+  correctly ordered in the live session.
+- One full local image build passed all experience/identity/QML/Plymouth/
+  initramfs gates and `bootc container lint` (9 checks passed). Candidate
+  image: `localhost/moos:latest`, ID
+  `76d656577f22306449428935dd072d70d34867363888fb4c19a0e1d903529820`.
+- The candidate is deliberately still local: commit/push, CI, signed GHCR
+  image, exact-digest update, reboot and immutable live verification are the
+  next release steps. Do not remove the retained rollback deployment.
 - Live doorway audit captured the real Plasma Login Manager (`plasmalogin`),
   the shell lock screen, and the UI2 logout greeter. Before this work:
   accounts without a photo showed Plasma's generic outline avatar; the login
@@ -59,6 +86,13 @@ Evidence priority:
   `bootc container lint` (9 checks passed). Local image:
   `localhost/moos:latest` / image ID
   `1fa54323d04459a6a1655ffc97090a4de1d5d65a441a67cdf4a5488ce74c8f3c`.
+- Commit `7f2405e` contains the doorway fixes. GitHub image run
+  `29702830044` passed both editions, pushed `.259`, signed it, and verified
+  the signature against the OS-enforced key. Exact NVIDIA digest:
+  `sha256:6bb673b6583d597048079610ab5b2a91e7bf5f1d2f3e2773a9265ba4b7bae134`.
+- `.259` is staged by that exact signed digest for the next boot. `.258`
+  remains the booted deployment and `.257` is also still present; no rollback
+  deployment was deleted.
 - Live `.256` verification exposed that the first RTL clock fix was incomplete:
   the dashboard showed `73:02` while the panel showed `20:37`. Plasma's
   inherited `LayoutMirroring` overrides `RowLayout.layoutDirection` alone.
@@ -126,14 +160,16 @@ Evidence priority:
 - MoOS 44 on KDE Plasma 6.7.3, Wayland, kernel 7.1.3.
 - Booted origin: exact signed `ghcr.io/moalfarras-sys/moos-nvidia` image.
 - Booted signed NVIDIA digest:
-  `sha256:7bb194c28894aa07ad732a5eb302394f8e1f3587fd1795b9de4491c4460eeb88`.
-- The booted image is version `44.20260719.258`; its digest exactly matches
+  `sha256:6bb673b6583d597048079610ab5b2a91e7bf5f1d2f3e2773a9265ba4b7bae134`.
+- The booted image is version `44.20260719.259`; its digest exactly matches
   GHCR `latest` and its signature was verified locally with `cosign.pub`.
 - NVIDIA, Wayland, Plasma login and CUDA/NVIDIA operation are live and healthy;
   `nvidia-smi` reports the RTX 2080 SUPER with driver `610.43.03`.
-- The previous signed NVIDIA `.257` deployment remains available as rollback:
-  `sha256:c794fc6715c2cb63fec9a6520c22081f95717f5d3f7af31ecc074b1b8f7b4fc8`.
-- `moos-selfcheck`: 39 passed.
+- The previous signed NVIDIA `.258` deployment remains available as rollback:
+  `sha256:7bb194c28894aa07ad732a5eb302394f8e1f3587fd1795b9de4491c4460eeb88`.
+- `moos-selfcheck`: 38 passed, 1 expected development warning for the local
+  Quiet Horizon staging wallpaper; it must return to 39/39 after the signed
+  image boots and local staging shadows are removed.
 - Failed system units: 0.
 - Failed user units: 0.
 - `tests/post-update-check.sh`: 39 passed on `.256`; the booted digest exactly
@@ -206,10 +242,14 @@ stale.
 
 ## Highest-priority observed issues
 
-1. Publish the `org.moos.brand` signal-handler cleanup, wait for both CI
-   editions and the signed GHCR image, then update/reboot and confirm the MoOS
-   warning is absent from the new Plasma session.
-2. Capture/inspect Plymouth and the login greeter during the new-image boot.
+1. Publish this visual-polish candidate once, wait for both CI editions and
+   the signed GHCR image, then stage the NVIDIA image by exact digest.
+2. Reboot, remove only the known local development shadows, reapply the signed
+   dark theme, and verify autologin, dock/control, launcher, lock, logout,
+   Plymouth and login from immutable `/usr`.
+3. Require `moos-selfcheck` and `post-update-check.sh` to return 39/39, verify
+   the exact booted digest/signature and rollback, and inspect system/user
+   journals for new MoOS-owned QML or NVIDIA/Wayland failures.
 4. ~~Replace deprecated `Qt.btoa(string)`~~ DONE — replaced with the Qt 6.11
    array-like overload `Qt.btoa(Array.from(svg))` (verified QML-host-safe; a
    sibling session's PR #10 added a gate forbidding browser-only `TextEncoder`).
@@ -239,16 +279,17 @@ stale.
 
 ## Exact next action
 
-Commit and push the doorway fixes with this handoff, wait for the one image
-build, verify its signature/digest, stage that exact NVIDIA digest, and reboot:
+Reboot into staged `.259`, then live-verify the doorway surfaces and exact
+digest:
 
 ```bash
-git add HANDOFF.md system_files/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml \
-  system_files/usr/share/plasma/look-and-feel/org.moos.ui2*/contents/logout/Logout.qml \
-  tests/verify_user_experience.py
-git commit -m "fix(session): polish MoOS doorway identity and bilingual text"
-git push origin main
-# Then verify signed GHCR, rpm-ostree upgrade, reboot, and recapture login/lock/logout.
+systemctl reboot
+# After login:
+rpm-ostree status --json
+moos-selfcheck
+bash tests/post-update-check.sh
+# Recapture login, lock/password and logout. Confirm initial avatar + MoOS badge,
+# bidi punctuation, and no new QML errors in both greeter and user journals.
 ```
 
 ## Mo PC Remote (remote control) — status 2026-07-19
