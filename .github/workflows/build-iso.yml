@@ -137,20 +137,30 @@ jobs:
           sudo mkdir -p "${store}"
           echo "disk after unsquash:"; df -h / | tail -1
 
-          # 2) copy the image into the live rootfs's OWN containers-storage. The
-          #    overlay driver is named IN the destination reference ([overlay@…]);
-          #    Ubuntu's skopeo has no --dest-storage-driver flag. Source is the
-          #    runner's rootful store (pulled earlier) — no network needed.
+          # 2) copy the pinned source into the live rootfs's OWN containers-storage
+          #    under the exact ref the installer will request. IMAGE_REF may be a
+          #    digest; using that digest as the destination makes skopeo reject an
+          #    overlay representation change ("Destination specifies a digest").
+          #    The image itself carries the canonical install ref, so read it from
+          #    the extracted rootfs and use that tagged ref as the local alias.
+          offline_ref="$(sudo tr -d '\r\n' < "${rootfs}/usr/lib/moos/install-imageref")"
+          case "${offline_ref}" in
+            ghcr.io/moalfarras-sys/moos:latest|ghcr.io/moalfarras-sys/moos-nvidia:latest) ;;
+            *) echo "FATAL: unsafe or missing install-imageref: ${offline_ref}" >&2; exit 1 ;;
+          esac
+          # The overlay driver is named IN the destination reference
+          # ([overlay@…]); Ubuntu's skopeo has no --dest-storage-driver flag.
+          # Source is the runner's rootful store (pulled earlier) — no network.
           sudo skopeo copy \
                "containers-storage:${IMAGE_REF}" \
-               "containers-storage:[overlay@${store}+${runroot}]${IMAGE_REF}"
+               "containers-storage:[overlay@${store}+${runroot}]${offline_ref}"
 
           # 3) GATE (fail-loud): the image MUST now be present in that store, or the
           #    offline install would silently fall back to a network pull — exactly
           #    the bug this step fixes. A wrong embed fails the BUILD, never ships.
           sudo podman --root "${store}" --runroot "${runroot}" \
-               --storage-driver overlay image exists "${IMAGE_REF}"
-          echo "OFFLINE EMBED OK: ${IMAGE_REF} is present in the live ISO's containers-storage"
+               --storage-driver overlay image exists "${offline_ref}"
+          echo "OFFLINE EMBED OK: ${IMAGE_REF} is stored as ${offline_ref} in the live ISO"
 
           # Free the runner's rootful store now (Titanoboa and the copy are done with
           # it) so the re-squash and ISO write have headroom on the ~25GB runner.

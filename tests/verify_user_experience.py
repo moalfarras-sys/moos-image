@@ -3154,6 +3154,13 @@ require("org.moos.nova" not in _legacy_art and "--previews" not in _legacy_art,
 _isoyml = read(".github/workflows/build-iso.yml")
 require("containers-storage:[overlay@" in _isoyml and "image exists" in _isoyml,
         "build-iso.yml must embed the MoOS image into the live ISO's containers-storage and verify it")
+require(
+    'offline_ref="$(sudo tr -d' in _isoyml
+    and '${rootfs}/usr/lib/moos/install-imageref' in _isoyml
+    and ']${offline_ref}"' in _isoyml
+    and 'image exists "${offline_ref}"' in _isoyml,
+    "digest-pinned ISO builds must alias the source to the exact tagged ref the offline installer requests",
+)
 
 # #14 CI must verify the signature against the SAME public key the OS enforces.
 # (The theme-safety and UI2 gates already run transitively via this file's own
