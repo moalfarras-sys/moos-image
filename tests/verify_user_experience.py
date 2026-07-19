@@ -2497,6 +2497,25 @@ for icon_name in re.findall(r'iconName:\s*(?:[^"\n]*\?\s*)?"([^"]+)"(?:\s*:\s*"(
         require(name.endswith("-symbolic"),
                 f"logout button icon {name!r} is not a -symbolic glyph — isMask "
                 "turns the theme's full-colour icon into a solid blob")
+require('function bilingual(arabic, english)' in logout_qml
+        and '"\\u2067" + arabic + "\\u2069"' in logout_qml
+        and '"\\u2066" + english + "\\u2069"' in logout_qml,
+        "the logout screen must isolate its Arabic and English phrases; without "
+        "Unicode bidi isolation RTL moves punctuation and reverses the language order")
+require('bilingual("ماذا تريد أن تفعل؟", "What would you like to do?")' in logout_qml,
+        "the logout heading bypasses the shared bilingual formatter")
+
+# plasma-login-manager's wallpaper is a separate process. If it is late or
+# unavailable, the compiled greeter falls back to a flat colour; the shared user
+# delegate must still identify the surface as MoOS and must not regress to the
+# cheap generic outline avatar for accounts without a custom photo.
+user_delegate = read("system_files/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml")
+require('source: "file:///usr/share/pixmaps/moos-logo.png"' in user_delegate,
+        "the login user delegate lost its MoOS fallback badge")
+require("wrapper.name.charAt(0).toUpperCase()" in user_delegate
+        and "visible: faceIcon.visible" in user_delegate,
+        "accounts without a custom photo must use an intentional initial avatar, "
+        "not Plasma's generic outline")
 
 # Every selectable palette is one MoOS UI engine, not another login/session
 # design hiding under a different colour name. KDE needs a look-and-feel package

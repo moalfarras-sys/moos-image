@@ -118,6 +118,23 @@ Item {
             source: wrapper.iconSource
             visible: face.status === Image.Error || face.status === Image.Null
             anchors.fill: parent
+            opacity: 0
+        }
+
+        // A generated profile should still look intentional. Plasma's generic
+        // outline avatar made the first MoOS screen look like an unthemed
+        // fallback whenever the account had no custom photo. Use the user's
+        // first character instead; the accessible/user identity remains the
+        // name immediately below and multi-user selection still stays clear.
+        Text {
+            anchors.centerIn: parent
+            visible: faceIcon.visible
+            text: wrapper.name.length > 0 ? wrapper.name.charAt(0).toUpperCase() : "M"
+            color: Kirigami.Theme.textColor
+            font.family: "IBM Plex Sans"
+            font.pixelSize: imageSource.width * 0.42
+            font.weight: Font.Medium
+            renderType: Text.NativeRendering
         }
     }
 
@@ -153,6 +170,35 @@ Item {
             : Kirigami.Theme.textColor
 
         fragmentShader: "qrc:/qt/qml/org/kde/breeze/components/shaders/UserDelegate.frag.qsb"
+    }
+
+    // The wallpaper service normally carries the full scene, but the login
+    // manager must retain MoOS identity even while that service is starting or
+    // when it falls back to a plain colour. Keep this badge small: it certifies
+    // the surface without competing with the person being authenticated.
+    Rectangle {
+        anchors {
+            right: imageSource.right
+            bottom: imageSource.bottom
+            rightMargin: -Kirigami.Units.smallSpacing
+            bottomMargin: -Kirigami.Units.smallSpacing
+        }
+        width: Kirigami.Units.gridUnit * 2
+        height: width
+        radius: width / 2
+        color: Kirigami.Theme.backgroundColor
+        border.width: 1
+        border.color: Kirigami.Theme.highlightColor
+        visible: wrapper.isCurrent
+
+        Image {
+            anchors.fill: parent
+            anchors.margins: Math.max(3, Math.round(parent.width * 0.16))
+            source: "file:///usr/share/pixmaps/moos-logo.png"
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+            asynchronous: false
+        }
     }
 
     PlasmaComponents3.Label {

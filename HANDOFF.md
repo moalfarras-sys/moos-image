@@ -34,6 +34,31 @@ Evidence priority:
 - Date: 2026-07-19, Europe/Berlin.
 - Local repository: `/var/home/moos/moos-image`.
 - Branch: `main`.
+- Live doorway audit captured the real Plasma Login Manager (`plasmalogin`),
+  the shell lock screen, and the UI2 logout greeter. Before this work:
+  accounts without a photo showed Plasma's generic outline avatar; the login
+  surface had no MoOS identity if its separate wallpaper service was absent;
+  and the bilingual logout text reordered Arabic/English and moved the question
+  mark under RTL.
+- The source now gives the shared login/lock `UserDelegate` an intentional
+  initial avatar plus a small MoOS badge, so identity survives a wallpaper
+  fallback without changing any authentication wiring. All 16 UI2 logout
+  packages now use one direction-aware `bilingual()` formatter with Unicode
+  isolates for every heading, action and description.
+- Live source-path rendering verified the logout fix visually. Before:
+  `?What would you like to do | ماذا تريد أن تفعل؟`; after, the Arabic phrase
+  and its punctuation remain together and the English phrase remains intact.
+  No QML error was logged by the test greeter. Screenshots are under
+  `test-results/live-audit-20260719/`.
+- The login/lock avatar change is present in the locally built image and gated,
+  but is not applied to the immutable live `/usr`; it requires the next signed
+  image. The existing login wallpaper service was confirmed healthy in the
+  real greeter session (`plasma-wallpaper.service`, 3m13s, no QML failure).
+- A single full `just build` passed the image-experience gate, identity
+  firewall, all QML smoke tests, initramfs/Plymouth proof, and
+  `bootc container lint` (9 checks passed). Local image:
+  `localhost/moos:latest` / image ID
+  `1fa54323d04459a6a1655ffc97090a4de1d5d65a441a67cdf4a5488ce74c8f3c`.
 - Live `.256` verification exposed that the first RTL clock fix was incomplete:
   the dashboard showed `73:02` while the panel showed `20:37`. Plasma's
   inherited `LayoutMirroring` overrides `RowLayout.layoutDirection` alone.
@@ -51,6 +76,12 @@ Evidence priority:
   Qt 6 resolves through deprecated signal-parameter injection. The source now
   explicitly reads `root.expanded`, with a regression assertion in the
   experience gate.
+- Commit `6a64ddd` contains that cleanup. GitHub image run `29701307417`
+  passed both editions, signed them, and verified each signature against the
+  OS-enforced public key. GHCR NVIDIA `.258` is
+  `sha256:7bb194c28894aa07ad732a5eb302394f8e1f3587fd1795b9de4491c4460eeb88`.
+- `.258` is staged by that exact signed digest for the next boot. `.257`
+  remains the running deployment until reboot and `.256` remains rollback.
 - The NFS-root initramfs fix from `9fe30a9` is now verified on the live system:
   this boot contains no `rpcbind`, `rpc.statd`, or `nfs-start-rpc` errors.
 - The live `.252` image verified the previous `moai-control` class-scope fix,
@@ -95,13 +126,13 @@ Evidence priority:
 - MoOS 44 on KDE Plasma 6.7.3, Wayland, kernel 7.1.3.
 - Booted origin: exact signed `ghcr.io/moalfarras-sys/moos-nvidia` image.
 - Booted signed NVIDIA digest:
-  `sha256:c794fc6715c2cb63fec9a6520c22081f95717f5d3f7af31ecc074b1b8f7b4fc8`.
-- The booted image is version `44.20260719.257`; its digest exactly matches
+  `sha256:7bb194c28894aa07ad732a5eb302394f8e1f3587fd1795b9de4491c4460eeb88`.
+- The booted image is version `44.20260719.258`; its digest exactly matches
   GHCR `latest` and its signature was verified locally with `cosign.pub`.
 - NVIDIA, Wayland, Plasma login and CUDA/NVIDIA operation are live and healthy;
   `nvidia-smi` reports the RTX 2080 SUPER with driver `610.43.03`.
-- The previous signed NVIDIA `.256` deployment remains available as rollback:
-  `sha256:93f82d4399471bc3b5008814db9440425fb7e935eccc881c8207c18908f10aa8`.
+- The previous signed NVIDIA `.257` deployment remains available as rollback:
+  `sha256:c794fc6715c2cb63fec9a6520c22081f95717f5d3f7af31ecc074b1b8f7b4fc8`.
 - `moos-selfcheck`: 39 passed.
 - Failed system units: 0.
 - Failed user units: 0.
@@ -208,17 +239,16 @@ stale.
 
 ## Exact next action
 
-Commit and push the `org.moos.brand` warning fix plus this handoff, wait for
-both CI editions and the signed NVIDIA image, then update by exact digest:
+Commit and push the doorway fixes with this handoff, wait for the one image
+build, verify its signature/digest, stage that exact NVIDIA digest, and reboot:
 
 ```bash
-git add HANDOFF.md \
-  system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml \
+git add HANDOFF.md system_files/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml \
+  system_files/usr/share/plasma/look-and-feel/org.moos.ui2*/contents/logout/Logout.qml \
   tests/verify_user_experience.py
-git commit -m "fix(desktop): qualify brand applet expanded state"
+git commit -m "fix(session): polish MoOS doorway identity and bilingual text"
 git push origin main
-# Wait for CI, verify the signed digest, stage it, reboot, and confirm the
-# parameter-injection warning no longer appears in the fresh user journal.
+# Then verify signed GHCR, rpm-ostree upgrade, reboot, and recapture login/lock/logout.
 ```
 
 ## Mo PC Remote (remote control) — status 2026-07-19

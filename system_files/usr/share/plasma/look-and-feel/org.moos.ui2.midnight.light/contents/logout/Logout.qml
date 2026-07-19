@@ -120,14 +120,27 @@ Item {
     function headingText() {
         switch (sdtype) {
         case ShutdownType.ShutdownTypeReboot:
-            return "إعادة تشغيل MoOS | Restart MoOS";
+            return bilingual("إعادة تشغيل MoOS", "Restart MoOS");
         case ShutdownType.ShutdownTypeHalt:
-            return "إيقاف MoOS | Shut down MoOS";
+            return bilingual("إيقاف MoOS", "Shut down MoOS");
         case ShutdownType.ShutdownTypeNone:
-            return "تسجيل الخروج | Log out";
+            return bilingual("تسجيل الخروج", "Log out");
         default:
-            return "ماذا تريد أن تفعل؟ | What would you like to do?";
+            return bilingual("ماذا تريد أن تفعل؟", "What would you like to do?");
         }
+    }
+
+    // Mixed Arabic/English strings need explicit directional isolation. Without
+    // it the inherited RTL layout moved punctuation across the sentence and
+    // rendered the English half before the Arabic half on the live logout
+    // screen. Keep the primary session language first while each phrase retains
+    // its own natural direction.
+    function bilingual(arabic, english) {
+        const ar = "\u2067" + arabic + "\u2069";
+        const en = "\u2066" + english + "\u2069";
+        return Qt.application.layoutDirection === Qt.RightToLeft
+            ? ar + "  ·  " + en
+            : en + "  ·  " + ar;
     }
 
     KCoreAddons.KUser {
@@ -538,7 +551,8 @@ Item {
                 QQC2.Label {
                     Layout.alignment: Qt.AlignHCenter
                     horizontalAlignment: Text.AlignHCenter
-                    text: "سيتم التنفيذ خلال %1 ثانية | Action in %1 seconds".arg(root.remainingTime)
+                    text: root.bilingual("سيتم التنفيذ خلال %1 ثانية".arg(root.remainingTime),
+                                         "Action in %1 seconds".arg(root.remainingTime))
                     color: Kirigami.Theme.hoverColor
                     visible: countdownTimer.running
                     font.family: "IBM Plex Sans"
@@ -589,7 +603,8 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
-                    text: "تحديثات النظام جاهزة للتثبيت | System updates are ready to install"
+                    text: root.bilingual("تحديثات النظام جاهزة للتثبيت",
+                                         "System updates are ready to install")
                     color: Kirigami.Theme.positiveTextColor
                     visible: softwareUpdatePending
                     wrapMode: Text.WordWrap
@@ -610,8 +625,8 @@ Item {
                         id: suspendButton
                         Layout.fillWidth: true
                         iconName: "system-suspend-symbolic"
-                        text: "تعليق | Sleep"
-                        description: "إبقاء الجلسة | Keep session"
+                        text: root.bilingual("تعليق", "Sleep")
+                        description: root.bilingual("إبقاء الجلسة", "Keep session")
                         visible: root.showAllOptions && spdMethods.SuspendState
                         onClicked: {
                             root.stopCountdown();
@@ -624,8 +639,8 @@ Item {
                         id: hibernateButton
                         Layout.fillWidth: true
                         iconName: "system-suspend-hibernate-symbolic"
-                        text: "إسبات | Hibernate"
-                        description: "حفظ الجلسة | Save session"
+                        text: root.bilingual("إسبات", "Hibernate")
+                        description: root.bilingual("حفظ الجلسة", "Save session")
                         visible: root.showAllOptions && spdMethods.HibernateState
                         onClicked: {
                             root.stopCountdown();
@@ -639,11 +654,11 @@ Item {
                         Layout.fillWidth: true
                         iconName: softwareUpdatePending ? "system-reboot-update-symbolic" : "system-reboot-symbolic"
                         text: softwareUpdatePending
-                            ? "تحديث وإعادة تشغيل | Update & Restart"
-                            : "إعادة التشغيل | Restart"
+                            ? root.bilingual("تحديث وإعادة تشغيل", "Update & Restart")
+                            : root.bilingual("إعادة التشغيل", "Restart")
                         description: softwareUpdatePending
-                            ? "تثبيت التحديثات أولًا | Install updates first"
-                            : "بدء جلسة جديدة | Start fresh"
+                            ? root.bilingual("تثبيت التحديثات أولًا", "Install updates first")
+                            : root.bilingual("بدء جلسة جديدة", "Start fresh")
                         emphasized: sdtype === ShutdownType.ShutdownTypeReboot
                         visible: maysd && (sdtype === ShutdownType.ShutdownTypeReboot || root.showAllOptions)
                         onClicked: {
@@ -661,8 +676,8 @@ Item {
                         id: rebootWithoutUpdatesButton
                         Layout.fillWidth: true
                         iconName: "system-reboot-symbolic"
-                        text: "إعادة التشغيل الآن | Restart now"
-                        description: "بدون تحديث | Without updating"
+                        text: root.bilingual("إعادة التشغيل الآن", "Restart now")
+                        description: root.bilingual("بدون تحديث", "Without updating")
                         visible: maysd && softwareUpdatePending
                             && (sdtype === ShutdownType.ShutdownTypeReboot || root.showAllOptions)
                         onClicked: {
@@ -677,11 +692,11 @@ Item {
                         Layout.fillWidth: true
                         iconName: softwareUpdatePending ? "system-shutdown-update-symbolic" : "system-shutdown-symbolic"
                         text: softwareUpdatePending
-                            ? "تحديث وإيقاف | Update & Shut Down"
-                            : "إيقاف التشغيل | Shut Down"
+                            ? root.bilingual("تحديث وإيقاف", "Update & Shut Down")
+                            : root.bilingual("إيقاف التشغيل", "Shut Down")
                         description: softwareUpdatePending
-                            ? "تثبيت التحديثات أولًا | Install updates first"
-                            : "إيقاف الجهاز بأمان | Power off safely"
+                            ? root.bilingual("تثبيت التحديثات أولًا", "Install updates first")
+                            : root.bilingual("إيقاف الجهاز بأمان", "Power off safely")
                         emphasized: sdtype === ShutdownType.ShutdownTypeHalt
                         destructive: true
                         visible: maysd && (sdtype === ShutdownType.ShutdownTypeHalt || root.showAllOptions)
@@ -700,8 +715,8 @@ Item {
                         id: shutdownWithoutUpdatesButton
                         Layout.fillWidth: true
                         iconName: "system-shutdown-symbolic"
-                        text: "إيقاف الآن | Shut down now"
-                        description: "بدون تحديث | Without updating"
+                        text: root.bilingual("إيقاف الآن", "Shut down now")
+                        description: root.bilingual("بدون تحديث", "Without updating")
                         destructive: true
                         visible: maysd && softwareUpdatePending
                             && (sdtype === ShutdownType.ShutdownTypeHalt || root.showAllOptions)
@@ -716,8 +731,8 @@ Item {
                         id: logoutButton
                         Layout.fillWidth: true
                         iconName: "system-log-out-symbolic"
-                        text: "تسجيل الخروج | Log Out"
-                        description: "إنهاء الجلسة | End session"
+                        text: root.bilingual("تسجيل الخروج", "Log Out")
+                        description: root.bilingual("إنهاء الجلسة", "End session")
                         visible: canLogout
                             && (sdtype === ShutdownType.ShutdownTypeNone || root.showAllOptions)
                         onClicked: {
@@ -731,8 +746,8 @@ Item {
                         id: lockButton
                         Layout.fillWidth: true
                         iconName: "system-lock-screen-symbolic"
-                        text: "قفل الشاشة | Lock Screen"
-                        description: "العودة لاحقًا | Return later"
+                        text: root.bilingual("قفل الشاشة", "Lock Screen")
+                        description: root.bilingual("العودة لاحقًا", "Return later")
                         visible: root.showAllOptions
                         onClicked: {
                             root.stopCountdown();
@@ -745,8 +760,8 @@ Item {
                         id: cancelButton
                         Layout.fillWidth: true
                         iconName: "cancel-operation-symbolic"
-                        text: "إلغاء | Cancel"
-                        description: "العودة إلى سطح المكتب | Back to desktop"
+                        text: root.bilingual("إلغاء", "Cancel")
+                        description: root.bilingual("العودة إلى سطح المكتب", "Back to desktop")
                         emphasized: root.showAllOptions
                         onClicked: root.cancelRequested()
                         onNavigate: root.moveFocus(cancelButton, step)
