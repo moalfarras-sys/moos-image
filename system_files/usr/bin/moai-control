@@ -1251,7 +1251,7 @@ class H(BaseHTTPRequestHandler):
         sysctl("enable", "--now", GATEWAY_UNIT)
     else:
         sysctl("enable", GATEWAY_UNIT)
-        self._send(200, {"ok": True, "mode": mode})
+    self._send(200, {"ok": True, "mode": mode})
 
 
 if __name__ == "__main__":

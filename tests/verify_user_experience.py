@@ -313,6 +313,22 @@ require('heroOrb.pulse()' in moai_qml_code,
         "launch() must pulse the hero orb by id (heroOrb.pulse()), the in-scope way to fire "
         "the launch feedback")
 
+# Saving Mo AI's mode must always answer the HTTP request. A prior bind-race fix
+# accidentally indented self._send() under the "gateway already active" branch,
+# so the first save that had to start the gateway succeeded server-side but left
+# the UI waiting forever.
+_moai_control_for_save = code(read("system_files/usr/bin/moai-control"), "hash")
+_gateway_start = re.search(
+    r"if not user_unit_active\(GATEWAY_UNIT\):\s+"
+    r"sysctl\(\"enable\", \"--now\", GATEWAY_UNIT\)\s+"
+    r"else:\s+sysctl\(\"enable\", GATEWAY_UNIT\)\s+"
+    r"self\._send\(200, \{\"ok\": True, \"mode\": mode\}\)",
+    _moai_control_for_save,
+)
+require(_gateway_start is not None,
+        "Mo AI config save must answer after either starting or reusing the gateway; "
+        "self._send() cannot be conditional on the gateway already being active")
+
 # ── The camera the user actually gets must run on THIS desktop ────────────────
 #
 # "Install a camera" resolved, on Flathub's top hit, to io.github.cosmic_utils.camera:
