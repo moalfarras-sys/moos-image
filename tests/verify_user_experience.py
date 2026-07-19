@@ -1215,6 +1215,15 @@ require("qrencode" in panel and "qrencode" in build,
 require("remote-anywhere" in read("system_files/usr/bin/moai-do"),
         "enabling access from anywhere touches Tailscale's operator bit, which is privileged, "
         "so it must be a moai-do action and not something the panel does behind the user's back")
+require('"up","--operator"' in panel and 'BackendState' in panel,
+        "the panel's one-click setup must log Tailscale in when a fresh installation is in "
+        "NeedsLogin; calling serve alone can never produce a working remote address")
+require("subprocess.Popen" in panel and "threading.Thread" in panel,
+        "Tailscale login waits for the owner to authenticate; it must run outside GTK's main "
+        "thread so the login URL and QR can appear without freezing the panel")
+require('re.search(r"https://' in panel and "mo-remote-login-" in panel,
+        "the panel must surface Tailscale's authentication URL and QR instead of sending the "
+        "owner to a terminal after its setup button fails")
 
 # The phone UI that ships is the COMMITTED build output. MoRemoteLinux.csproj copies
 # ../agent/wwwroot/** into the image; nothing in the image build ever runs vite. So editing

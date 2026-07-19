@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """Native MoOS control panel for Mo PC Remote. Never embeds or opens a browser."""
-import json, os, socket, subprocess, sys, urllib.request
+import json, os, pwd, re, socket, subprocess, sys, threading, urllib.request
 
 sys.path.insert(0, "/usr/lib/moos")
 
@@ -189,22 +189,88 @@ class App(Gtk.Application):
         return False
 
     def on_enable_anywhere(self,*_):
-        ok,err=enable_anywhere()
-        if not ok:
-            # The only thing serve needs that the user may not have is Tailscale's operator
-            # bit, and that is a privileged change — so it goes through moai-do, not through us.
+        # This used to call `tailscale serve` immediately. On a fresh MoOS install Tailscale is
+        # in NeedsLogin and the user is not its operator, so the promised one-click button could
+        # only fail and tell the owner to open a terminal. Do the complete first-run flow here:
+        # Polkit asks for the local password, `tailscale up` prints the private login URL, and
+        # after authentication the same worker enables HTTPS serve. Keep it off GTK's main
+        # thread because `tailscale up` deliberately waits for the browser/QR login to finish.
+        if getattr(self,"_setup_running",False): return
+        self._setup_running=True
+        self.anywhere_btn.set_sensitive(False)
+        self._show_setup(
+            "<b>Starting secure sign-in… / جارٍ بدء تسجيل الدخول الآمن…</b>\n"
+            "Approve the local administrator prompt once.\n"
+            "وافق على طلب صلاحية المسؤول مرة واحدة.")
+        threading.Thread(target=self._setup_anywhere,daemon=True).start()
+
+    def _show_setup(self,markup,url=None):
+        self._setup_markup=markup
+        self.address.set_markup(markup)
+        if url:
+            path=os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp",f"mo-remote-login-{os.getuid()}.png")
+            if qr_png(url,path): self.qr.set_filename(path); self.qr.set_visible(True)
+        return False
+
+    def _setup_anywhere(self):
+        output=[]
+        try:
+            state=json.loads(run("tailscale","status","--json").stdout or "{}").get("BackendState")
+            if state != "Running":
+                user=pwd.getpwuid(os.getuid()).pw_name
+                proc=subprocess.Popen(
+                    ["/usr/bin/pkexec","/usr/bin/tailscale","up","--operator",user],
+                    text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+                for line in proc.stdout or ():
+                    output.append(line.strip())
+                    match=re.search(r"https://[^\s]+",line)
+                    if match:
+                        url=match.group(0).rstrip(".,)")
+                        markup=(
+                            "<b>Finish Tailscale sign-in / أكمل تسجيل دخول Tailscale</b>\n"
+                            "Scan this QR code or open the address, then return here.\n"
+                            "امسح الرمز أو افتح العنوان، ثم ارجع هنا.\n\n"
+                            f"<tt>{GLib.markup_escape_text(url)}</tt>")
+                        GLib.idle_add(self._show_setup,markup,url)
+                if proc.wait() != 0:
+                    raise RuntimeError("\n".join(output[-4:]) or "Tailscale sign-in was cancelled.")
+            else:
+                # Existing installations can be logged in but still lack the operator bit.
+                user=pwd.getpwuid(os.getuid()).pw_name
+                elevated=subprocess.run(
+                    ["/usr/bin/pkexec","/usr/bin/tailscale","set",f"--operator={user}"],
+                    text=True,capture_output=True)
+                if elevated.returncode != 0:
+                    raise RuntimeError(elevated.stderr or elevated.stdout or "Administrator approval was cancelled.")
+            ok,err=enable_anywhere()
+            if not ok: raise RuntimeError(err or "tailscale serve failed")
+            GLib.idle_add(self._setup_done,None)
+        except (OSError,ValueError,subprocess.SubprocessError,RuntimeError) as exc:
+            GLib.idle_add(self._setup_done,str(exc))
+
+    def _setup_done(self,error):
+        self._setup_running=False
+        self._setup_markup=None
+        self.anywhere_btn.set_sensitive(True)
+        if error:
             self.address.set_markup(
-                "<b>Could not enable it from here / تعذّر التفعيل من هنا</b>\n"
-                +GLib.markup_escape_text(err[:200])
-                +"\n\nRun once in a terminal / نفّذ مرة واحدة:  <tt>moai-do remote-anywhere</tt>")
+                "<b>Setup did not finish / لم يكتمل الإعداد</b>\n"
+                +GLib.markup_escape_text(error[:400])
+                +"\n\nTry the button again. / حاول الزر مرة أخرى.")
+            return False
         self.refresh()
+        return False
 
     def refresh(self,*_):
         on=active(UNIT)
         far=tailscale_url() if on else None
         self.status.set_markup(f"<b>Service:</b> {'Running' if on else 'Stopped'}    <b>Device:</b> {GLib.markup_escape_text(socket.gethostname())}")
 
-        if not on:
+        if getattr(self,"_setup_markup",None):
+            # Do not let the three-second status poll erase the login URL while the owner is
+            # authenticating in Tailscale.
+            self.address.set_markup(self._setup_markup)
+        elif not on:
             self.address.set_text("Remote control is off. Press Start to enable it.\nالتحكم عن بُعد متوقف. اضغط تشغيل.")
             self.anywhere_btn.set_visible(False); self.qr.set_visible(False)
         elif far:
