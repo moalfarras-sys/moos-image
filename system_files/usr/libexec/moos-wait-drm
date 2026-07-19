@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# moos-wait-drm — bound Plasma Login Manager to a usable DRM device.
+#
+# udevadm settle can return successfully before a slow GPU driver has created
+# /dev/dri/card*. KWin then starts once, cannot resolve a DRM node, and the
+# greeter remains black even though plasmalogin.service itself still says
+# "active". This happened on the installed-system second-boot release gate.
+#
+# Do not guess a card number: hybrid systems may expose card1 first. The wait is
+# bounded and costs zero time on normal hardware. Overrides exist only so the
+# helper can be exercised against a temporary directory in tests.
+set -u
+
+drm_dir="${MOOS_DRM_DIR:-/dev/dri}"
+steps="${MOOS_DRM_WAIT_STEPS:-150}"
+delay="${MOOS_DRM_WAIT_SLEEP:-0.2}"
+i=0
+
+while [ "$i" -lt "$steps" ]; do
+    for node in "$drm_dir"/card*; do
+        if [ -e "$node" ]; then
+            echo "MoOS login: DRM device ready ($node)"
+            exit 0
+        fi
+    done
+    i=$((i + 1))
+    sleep "$delay"
+done
+
+echo "MoOS login: no DRM card appeared within the bounded wait" >&2
+exit 1

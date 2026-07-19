@@ -1822,6 +1822,7 @@ rpm -q microcode_ctl >/dev/null 2>&1 || rpm -q amd-ucode-firmware >/dev/null 2>&
     echo "note: microcode package check inconclusive (linux-firmware ships amd-ucode)"
 
 chmod 0755 /usr/libexec/moos-hardware-adapt
+chmod 0755 /usr/libexec/moos-wait-drm
 systemctl enable moos-hardware-adapt.service
 
 # Live-session polish: on rd.live.image boots ONLY, the demo/installer session
