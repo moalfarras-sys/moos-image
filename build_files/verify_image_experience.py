@@ -228,6 +228,15 @@ if "plasmalogin" in dm_target:
     login_conf = config("\n".join(p.read_text(encoding="utf-8") for p in drop_ins))
     require("WallpaperPluginId" in login_conf,
             "the login screen has no MoOS wallpaper configured — it would show Plasma's default")
+    effective_login_conf = login_conf
+    etc_login_dir = Path("/etc/plasmalogin.conf.d")
+    if etc_login_dir.exists():
+        effective_login_conf += "\n" + config("\n".join(
+            p.read_text(encoding="utf-8") for p in etc_login_dir.glob("*.conf")
+        ))
+    require(re.search(r"^\s*\[Autologin\]\s*$", effective_login_conf, re.MULTILINE) is None,
+            "the installed image enables automatic sign-in; MoOS must always show "
+            "the password greeter")
 
     # The plugin the drop-in names must actually be installed. plasma-login-wallpaper
     # loads it as a KPackage by id; an id that resolves to nothing draws a BLACK login
@@ -509,8 +518,8 @@ if fb.is_file():
     _fb = text(str(fb))
     require("useradd" in _fb and "chpasswd" in _fb,
             "moos-firstboot does not create the user / set the password")
-    require("plasmalogin.conf.d" in _fb and "Autologin" in _fb,
-            "moos-firstboot does not configure the optional autologin choice")
+    require("autologin" not in _fb.lower() and "plasmalogin.conf.d" not in _fb,
+            "moos-firstboot must always leave the password greeter enabled")
     require("account recipe has no password hash" in _fb,
             "moos-firstboot must reject an account recipe without a password hash")
     require("NOPASSWD" not in _fb and "49-moos-passwordless.rules" not in _fb,
@@ -532,15 +541,46 @@ if inst_qml.is_file():
     _iq = text(str(inst_qml))
     require("MoosInstaller.writeRecipe" in _iq,
             "the installer does not hand the account recipe to the helper (no secure bridge call)")
-    require("acctUser" in _iq and "acctPass" in _iq and "acctAutologin" in _iq,
-            "the installer has no secure account screen (username / password / autologin)")
+    require("acctUser" in _iq and "acctPass" in _iq,
+            "the installer has no secure username / password account screen")
     require("acctPass.length >= 8" in _iq,
             "the installer must require a real password before installation")
+    require("acctAutologin" not in _iq and "autologin:" not in _iq.lower(),
+            "the installer must not expose an automatic-sign-in choice")
     require("moalfarras.space" in _iq,
             "the installer's finish screen does not carry the moalfarras.space signature")
 # The QR asset the finish screen shows must ship.
 require(Path("/usr/share/moos/apps/installer/qr-moalfarras.png").is_file(),
         "the installer QR code asset is missing")
+
+# Welcome owns the live landing experience, then hands off to the one installer
+# window. After installation it is autostarted once for the password-authenticated
+# user, and every app choice uses Mo Store's real install/status contract.
+welcome = Path("/usr/share/moos/apps/welcome/main.qml")
+welcome_launcher = Path("/usr/bin/moos-welcome")
+firstrun = Path("/usr/bin/moos-firstrun")
+firstrun_desktop = Path("/etc/xdg/autostart/org.moos.firstrun.desktop")
+require(welcome.is_file() and welcome_launcher.is_file()
+        and firstrun.is_file() and firstrun_desktop.is_file(),
+        "the integrated Welcome / installer first-run chain is incomplete")
+if welcome.is_file():
+    _wq = text(str(welcome))
+    require("handoffToInstaller" in _wq and "moos://installer/open" in _wq
+            and "onTriggered: Qt.quit()" in _wq,
+            "the live Welcome must close after handing off to the installer")
+    require("Object.keys(win.picks)" in _wq and "moos://store/install/" in _wq
+            and 'ln === "DONE"' in _wq and 'ln.indexOf("FAIL")' in _wq,
+            "Welcome app choices are not wired to the real install/status path")
+if welcome_launcher.is_file():
+    _wl = text(str(welcome_launcher))
+    require('rd.live.image' in _wl and '--live="$LIVE"' in _wl,
+            "the Welcome launcher does not distinguish live and installed sessions")
+if firstrun.is_file() and firstrun_desktop.is_file():
+    _fr = text(str(firstrun))
+    _frd = text(str(firstrun_desktop))
+    require("moos-firstrun-done" in _fr and "moos-welcome && exit 0" in _fr
+            and "Exec=/usr/bin/moos-firstrun" in _frd,
+            "Welcome is not guaranteed exactly once on the installed user's first login")
 
 # The name is MoOS, not "MoOS 44": no release file may carry the bare Fedora version.
 for _rel in ("/etc/system-release", "/etc/redhat-release", "/etc/fedora-release"):

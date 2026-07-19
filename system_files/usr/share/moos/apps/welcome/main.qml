@@ -216,6 +216,26 @@ ApplicationWindow {
     // --live=1. Drives the "Install MoOS on this computer" call-to-action on the
     // hero so the Welcome hands off cleanly into the installer.
     readonly property bool live: win.argValue("--live=") === "1"
+    property bool installerHandoff: false
+
+    // Welcome is the live session's single front door. Opening the installer is a
+    // hand-off, not a second wizard layered on top: start the unique installer
+    // instance, show immediate feedback, then retire this window. On the installed
+    // system Welcome starts again after the first password login, with --live=0,
+    // so personalisation and app choices are applied to the real user account.
+    function handoffToInstaller() {
+        if (!win.live || win.installerHandoff) return
+        win.installerHandoff = true
+        Qt.openUrlExternally("moos://installer/open")
+        installerHandoffTimer.restart()
+    }
+
+    Timer {
+        id: installerHandoffTimer
+        interval: 700
+        repeat: false
+        onTriggered: Qt.quit()
+    }
 
     function argValue(prefix) {
         var a = Qt.application.arguments
@@ -716,14 +736,19 @@ ApplicationWindow {
                         Behavior on border.color { ColorAnimation { duration: 120 } }
                         Behavior on color { ColorAnimation { duration: 120 } }
                         HoverHandler { id: installHover }
-                        TapHandler { onTapped: Qt.openUrlExternally("moos://installer/open") }
+                        TapHandler {
+                            enabled: !win.installerHandoff
+                            onTapped: win.handoffToInstaller()
+                        }
                         RowLayout {
                             id: installRow
                             anchors.centerIn: parent
                             spacing: 10
                             Text {
-                                text: win.rtl ? "ثبّت MoOS على هذا الكمبيوتر"
-                                              : "Install MoOS on this computer"
+                                text: win.installerHandoff
+                                      ? (win.rtl ? "نفتح المثبّت…" : "Opening installer…")
+                                      : (win.rtl ? "ثبّت MoOS على هذا الكمبيوتر"
+                                                 : "Install MoOS on this computer")
                                 color: win.txt
                                 font.family: "IBM Plex Sans"
                                 font.pixelSize: 15
