@@ -246,9 +246,25 @@ if "plasmalogin" in dm_target:
     plugin_id = re.search(r"^WallpaperPluginId=(\S+)", login_conf, re.MULTILINE)
     require(plugin_id is not None, "WallpaperPluginId has no value in the login drop-in")
     if plugin_id is not None and not plugin_id.group(1).startswith("org.kde."):
-        require(Path(f"/usr/share/plasma/wallpapers/{plugin_id.group(1)}/contents/ui/main.qml").is_file(),
+        login_scene_qml = Path(
+            f"/usr/share/plasma/wallpapers/{plugin_id.group(1)}/contents/ui/main.qml"
+        )
+        require(login_scene_qml.is_file(),
                 f"the login screen names wallpaper plugin {plugin_id.group(1)} but no such "
                 "package is installed — the first screen after boot would be black")
+        if login_scene_qml.is_file():
+            scene_code = "\n".join(
+                line for line in login_scene_qml.read_text(encoding="utf-8").splitlines()
+                if not line.lstrip().startswith("//")
+            )
+            for expensive in ("Repeater", "Animation", "ShaderEffect", "Canvas"):
+                require(expensive not in scene_code,
+                        f"the login wallpaper uses {expensive}; the password boundary "
+                        "must render immediately under software fallback")
+            require("anchors.left: parent.left" in scene_code
+                    and "anchors.top: parent.top" in scene_code,
+                    "the login brand is not confined to its safe corner and can "
+                    "overlap the centred password surface")
 
     # The login screen is the FIRST surface of the running system, and the ONLY themed surface a
     # Global Theme cannot reach: LookAndFeelManager runs inside the user's session, long after the
@@ -326,13 +342,13 @@ if "plasmalogin" in dm_target:
                     "rejects that by failing the entire component with no error "
                     "message — the login screen would draw no avatar/button at all.")
 
-    # The clock is MoOS's now, so it must be SHOWN. It was hidden (ShowClock=false)
-    # only because the stock face could not be re-skinned; that premise is dead,
-    # and MoOS does not hide Plasma's surfaces — it owns them.
-    require(re.search(r"^ShowClock=true", login_conf, re.MULTILINE),
-            "the login screen's clock is switched off. It is MoOS's own clock now "
-            "(org.kde.breeze.components/Clock.qml); hiding a surface MoOS has "
-            "already branded is the workaround this replaced")
+    # Login and lock are not two copies of the same state machine. The lock
+    # screen owns the clock; a cold boot owns authentication. Keeping the login
+    # clock enabled adds an idle layout before the password layout and competes
+    # with the wallpaper's brand in the same top-centre region.
+    require(re.search(r"^ShowClock=false", login_conf, re.MULTILINE),
+            "Plasma Login Manager must present the password surface directly; "
+            "its idle clock page is a second login layout and can overlap branding")
 else:
     # There is deliberately no SDDM branch any more. SDDM is not installed on this
     # base (plasmalogin replaced it), the dead theme tree it kept alive is gone,
@@ -485,6 +501,13 @@ if helper.is_file():
     # The install must re-arm SIGNED day-2 verification (else updates go unverified).
     require("ostree-image-signed" in _h,
             "moos-install-to-disk does not re-arm signed day-2 verification after install")
+    require("/usr/lib/systemd/systemd-update-done --root=" in _h
+            and ".updated" in _h,
+            "moos-install-to-disk does not mark the deployed caches current — "
+            "the first password greeter would wait for a cold ldconfig rebuild")
+    require(Path("/usr/lib/systemd/systemd-update-done").is_file(),
+            "systemd-update-done is absent, so the installer cannot create the "
+            "documented ConditionNeedsUpdate stamp")
 _open = Path("/usr/bin/moos-open")
 if _open.is_file():
     _o = text(str(_open))

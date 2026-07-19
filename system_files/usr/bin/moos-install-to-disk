@@ -291,7 +291,7 @@ stop_ticker
 # re-arm SIGNED day-2 verification. Seeding is mandatory: without the encrypted
 # account recipe the target would boot with no usable user.
 seed_target() {
-    local part etc mnt=/run/moos-target origin
+    local part etc deployment_root mnt=/run/moos-target origin
     part="$(lsblk -nrpo NAME,FSTYPE "$NODE" 2>/dev/null | awk '$2=="btrfs"{print $1; exit}')"
     [ -n "$part" ] || { echo "seed: no btrfs partition found" >>"$LOG"; return 1; }
     mkdir -p "$mnt"
@@ -308,6 +308,29 @@ seed_target() {
             printf 'TIMEZONE=%s\n'      "$R_TZ"
         } > "$etc/moos-setup.conf" 2>>"$LOG"
         chmod 0600 "$etc/moos-setup.conf" 2>/dev/null || true
+
+        # bootc already deployed a complete /usr and its matching linker/font/
+        # hardware caches.  A fresh deployment has no /etc/.updated stamp,
+        # however, so systemd treats it like an offline /usr upgrade and runs
+        # every ConditionNeedsUpdate=/etc helper before the first greeter.
+        # On the 11.6-GiB MoOS deployment ldconfig's cold scan held the first
+        # graphical boot for more than six minutes under the release QEMU
+        # profile even though a warm run took only seconds.  Nothing in the
+        # account recipe changes /usr, so rebuilding those image-time caches is
+        # both unnecessary and user-visible.
+        #
+        # Use systemd's own installer-safe helper rather than inventing a stamp:
+        # it records /usr's exact mtime in and on /etc/.updated (and /var when
+        # available), which is the documented ConditionNeedsUpdate contract.
+        deployment_root="${etc%/etc}"
+        if /usr/lib/systemd/systemd-update-done --root="$deployment_root" >>"$LOG" 2>&1 \
+            && [ -e "$etc/.updated" ]; then
+            echo "seed: marked deployed /etc caches current with /usr" >>"$LOG"
+        else
+            echo "seed: failed to create $etc/.updated; first boot would rebuild image caches" >>"$LOG"
+            umount "$mnt" 2>>"$LOG" || true
+            return 1
+        fi
     fi
     # Re-arm signed day-2 updates: rewrite the deployment origin so every future
     # `bootc upgrade` verifies the cosign signature (matches the Anaconda %post).

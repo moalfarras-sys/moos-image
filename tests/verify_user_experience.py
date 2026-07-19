@@ -1954,7 +1954,7 @@ login_config = code(
 )
 # The plugin id is a RELATIONSHIP too, not a constant. This line used to pin
 # "org.kde.image", and went stale the day the login scene became MoOS's own
-# plugin (org.moos.ui2.greeter — the animated brand behind the auth card).
+# plugin. Whatever the drop-in names must still resolve in this tree.
 # Whatever the drop-in names must be loadable: org.kde.* ships with Plasma; an
 # org.moos.* id must be a wallpaper package in THIS tree, main.qml and all —
 # otherwise plasma-login-wallpaper resolves nothing and the first screen after
@@ -1974,6 +1974,25 @@ if login_plugin is not None and not login_plugin.group(1).startswith("org.kde.")
     require(f"[Greeter][Wallpaper][{login_plugin.group(1)}][General]" in login_config,
             "the login drop-in's wallpaper group does not match the plugin it names — "
             "the greeter would load the scene with an empty config")
+    login_scene_qml = code(
+        (login_scene / "contents/ui/main.qml").read_text(encoding="utf-8"),
+        style="slash",
+    )
+    for expensive in ("Repeater", "Animation", "ShaderEffect", "Canvas"):
+        require(expensive not in login_scene_qml,
+                f"the login wallpaper uses {expensive}; authentication must paint "
+                "immediately even with software rendering")
+    require("anchors.left: parent.left" in login_scene_qml
+            and "anchors.top: parent.top" in login_scene_qml,
+            "the MoOS login signature is not pinned to its safe corner — a "
+            "centred brand can overlap Plasma's password/user surface again")
+
+# Login is one security surface, not an idle clock page followed by a second
+# authentication layout. The clock remains on the lock screen; a cold boot
+# presents the password prompt directly.
+require(re.search(r"^ShowClock=false$", login_config, re.MULTILINE) is not None,
+        "Plasma Login Manager must open directly on the password surface; its "
+        "idle clock page reintroduces a second layout and can overlap branding")
 
 lock_wallpaper = re.search(r"^Image=.*/wallpapers/([A-Za-z0-9_.-]+)",
                            code(lock_config), re.MULTILINE)
@@ -3030,6 +3049,10 @@ require('fail "password-required"' in _i2d and '${#R_PASS}' in _i2d,
         "moos-install-to-disk must reject a missing/short password in the privileged backend")
 require('fail "seed-failed"' in _i2d,
         "the installer must not report success when the target account recipe could not be saved")
+require("/usr/lib/systemd/systemd-update-done --root=" in _i2d
+        and '.updated' in _i2d,
+        "the installer must mark the deployed /etc caches current; otherwise "
+        "ldconfig performs a long cold rebuild before the first password greeter")
 _iqml = read("system_files/usr/share/moos/apps/installer/main.qml")
 require("acctPass.length >= 8" in _iqml,
         "the account page must require a password")
