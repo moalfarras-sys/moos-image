@@ -283,6 +283,36 @@ require('moos://do/setup-windows' in moai_qml,
         "Mo AI's Compatibility panel must expose the Windows (Bottles) setup as a real flow, "
         "not a bare Flatpak install that leaves the user staring at an unopened Bottles")
 
+# ── launch() must not reach an out-of-scope anim id (orbPulse) ─────────────────
+#
+# Mo AI's launch(url, label) used to call orbPulse.restart() to play the "heard
+# you" pulse. orbPulse is the id of a SequentialAnimation declared INSIDE the
+# MoOrb component, so a root-scope function cannot see it — QML threw
+# "ReferenceError: orbPulse is not defined" every time a link opened, confirmed
+# live in the journal. The pulse must be driven by a signal ON the component
+# (MoOrb.signal pulse()), and launch() must call it on the hero orb instance by
+# id (heroOrb.pulse()), never by the bare nested id. Strip comments: the fix's
+# own comment names "orbPulse", so a gate that matched the word would pass green
+# while the call came back.
+moai_qml_code = code(moai_qml, "slash")
+require("signal pulse()" in moai_qml_code,
+        "MoOrb must expose a signal pulse() so the launch feedback can be triggered from "
+        "scope — a root function cannot reach a nested id like orbPulse")
+require("id: heroOrb" in moai_qml_code,
+        "the visible Mo AI orb must carry id heroOrb, so launch() can pulse it by id")
+# The nested component may legitimately call orbPulse.restart() (it is in scope
+# there). Only the ROOT launch() function must not — that is the line that threw
+# "orbPulse is not defined". Gate the function body, not the whole file.
+_launch = re.search(r"function\s+launch\([^)]*\)\s*\{(.*?)\n    \}", moai_qml_code, re.S)
+require(_launch is not None, "Mo AI must define launch(url, label)")
+if _launch:
+    require("orbPulse.restart()" not in _launch.group(1),
+            "launch() must not call orbPulse.restart() — orbPulse is a nested component id "
+            "and is out of scope from root, which threw 'orbPulse is not defined' on every open")
+require('heroOrb.pulse()' in moai_qml_code,
+        "launch() must pulse the hero orb by id (heroOrb.pulse()), the in-scope way to fire "
+        "the launch feedback")
+
 # ── The camera the user actually gets must run on THIS desktop ────────────────
 #
 # "Install a camera" resolved, on Flathub's top hit, to io.github.cosmic_utils.camera:

@@ -781,7 +781,21 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    srv = None
+    # Two units (this one and moai-control's ensure_front_door) can race to bind
+    # 127.0.0.1:%d at boot, so a transient "Address already in use" must back off
+    # and retry instead of dying and burning a restart cycle.
+    deadline = time.time() + 60
+    while srv is None:
+        try:
+            srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+        except OSError as e:
+            if e.errno == 98 and time.time() < deadline:
+                sys.stderr.write("moai-gateway: port %d busy, retrying in 2s (%s)\n" % (PORT, e))
+                sys.stderr.flush()
+                time.sleep(2)
+                continue
+            raise
     sys.stderr.write("moai-gateway: front door on 127.0.0.1:%d "
                      "(local brain: %s on 127.0.0.1:%d)\n"
                      % (PORT, LOCAL_UNIT, LOCAL_PORT))

@@ -430,7 +430,7 @@ ApplicationWindow {
                 + "stroke='" + win.hexColor(c) + "' stroke-opacity='" + c.a.toFixed(3) + "' "
                 + "stroke-width='" + w + "' stroke-linecap='round' stroke-linejoin='round'>"
                 + inner + "</svg>"
-        return "data:image/svg+xml;base64," + Qt.btoa(svg)
+        return "data:image/svg+xml;base64," + Qt.btoa(Array.from(new TextEncoder().encode(svg)))
     }
 
     // ── reusable glyph image ───────────────────────────────────────────────────

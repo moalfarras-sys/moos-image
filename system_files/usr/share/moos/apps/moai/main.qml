@@ -624,7 +624,7 @@ Kirigami.ApplicationWindow {
     function launch(url, label) {
         Qt.openUrlExternally(url)
         toast.show(label || url)
-        orbPulse.restart()
+        if (typeof heroOrb !== "undefined") heroOrb.pulse()
     }
 
     function startBrain() {
@@ -1041,6 +1041,12 @@ Kirigami.ApplicationWindow {
         property real coreScale: 1.0
         property real haloScale: 1.0
 
+        // Ask the orb to play its "heard you" pulse. Living inside the
+        // component means it is always in scope, unlike a root function that
+        // tries to reach a nested id (which is why `orbPulse.restart()` used
+        // to throw "orbPulse is not defined").
+        signal pulse()
+
         readonly property bool alive: mood !== "offline"
         readonly property color accent:
               mood === "success" ? root.okColor
@@ -1179,7 +1185,9 @@ Kirigami.ApplicationWindow {
             id: orbPulse
             NumberAnimation { target: orb; property: "coreScale"; from: 1.0; to: 1.13; duration: 140; easing.type: Easing.OutQuad }
             NumberAnimation { target: orb; property: "coreScale"; to: 1.0; duration: 240; easing.type: Easing.InQuad }
+            onRunningChanged: if (!running) orb.coreScale = 1.0
         }
+        onPulse: orbPulse.restart()
     }
 
     // A card.
@@ -1361,6 +1369,7 @@ Kirigami.ApplicationWindow {
                     spacing: 4
 
                     MoOrb {
+                        id: heroOrb
                         Layout.alignment: Qt.AlignHCenter
                         Layout.preferredWidth: 42
                         Layout.preferredHeight: 42
