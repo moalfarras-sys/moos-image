@@ -3124,6 +3124,23 @@ require("dnf5 -y install rasdaemon" in _build
 require("systemctl mask mcelog.service" in _build,
         "the AMD-incompatible mcelog unit must be masked to avoid a failed boot unit")
 
+# A slow DRM driver can outlive udevadm settle. Starting the login KWin before
+# /dev/dri/card* exists leaves the manager active but the greeter permanently
+# black, so the manager owns one bounded, card-number-agnostic preflight.
+_drm_wait = code(read("system_files/usr/libexec/moos-wait-drm"), "hash")
+_login_drm_dropin = code(
+    read("system_files/usr/lib/systemd/system/plasmalogin.service.d/10-moos-wait-drm.conf"),
+    "hash",
+)
+require('"$drm_dir"/card*' in _drm_wait and 'i=$((i + 1))' in _drm_wait,
+        "the login DRM preflight must wait for any card number with a bounded loop")
+require("MOOS_DRM_WAIT_STEPS" in _drm_wait and "exit 1" in _drm_wait,
+        "the login DRM preflight needs a testable hard timeout, not an infinite boot wait")
+require("ExecStartPre=/usr/libexec/moos-wait-drm" in _login_drm_dropin,
+        "plasmalogin.service must run the DRM preflight before starting KWin")
+require("chmod 0755 /usr/libexec/moos-wait-drm" in _build,
+        "build.sh must make the login DRM preflight executable")
+
 # Retired SDDM/org.moos.nova generators used to recreate a second login/theme
 # stack even after runtime files were removed.
 _legacy_art = code(read("artwork/generate_nova_visuals.py"), "hash")
