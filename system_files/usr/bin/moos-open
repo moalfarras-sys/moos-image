@@ -41,11 +41,33 @@ notify() { command -v kdialog >/dev/null 2>&1 && kdialog --title "MoOS" --passiv
 # act, so a drive-by URL can never silently trigger these. Trusted local UIs (the
 # installer success page, the logout screen) simply show one confirm dialog, which is
 # normal, expected UX for reboot/logout anyway.
+#
+# Route labels are kept as "Arabic | English" pairs in this whitelist so one
+# audited string serves both locales. Never hand that mixed-direction pair to a
+# dialog: Qt's bidi layout visibly reorders punctuation and the question mark.
+# Pick exactly one side from the session locale first.
+localized_message() {
+    local pair="${1:-}" ar en locale
+    if [[ "$pair" != *" | "* ]]; then
+        printf '%s' "$pair"
+        return
+    fi
+    ar="${pair%% | *}"
+    en="${pair#* | }"
+    locale="${LC_ALL:-${LC_MESSAGES:-${LANG:-en}}}"
+    case "$locale" in
+        ar*|AR*) printf '%s' "$ar" ;;
+        *)       printf '%s' "$en" ;;
+    esac
+}
+
 confirm() {
+    local message
+    message="$(localized_message "${1:-}")"
     if command -v kdialog >/dev/null 2>&1; then
-        kdialog --title "MoOS" --warningyesno "$1" >/dev/null 2>&1
+        kdialog --title "MoOS" --warningyesno "$message" >/dev/null 2>&1
     elif command -v zenity >/dev/null 2>&1; then
-        zenity --question --text="$1" >/dev/null 2>&1
+        zenity --question --text="$message" >/dev/null 2>&1
     else
         return 1
     fi

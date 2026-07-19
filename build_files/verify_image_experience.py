@@ -75,6 +75,21 @@ require(any(p.exists() or p.is_symlink() for p in hw_wants),
         "moos-hardware-adapt.service is not enabled (no multi-user.target.wants symlink) — "
         "the hardware adaptation would never run")
 
+# Machine-check logging has one cross-vendor owner. mcelog exits failed on AMD
+# CPUs, while Fedora's rasdaemon consumes the kernel RAS/EDAC trace events on
+# supported AMD and Intel hardware.
+mcelog_mask = Path("/etc/systemd/system/mcelog.service")
+require(mcelog_mask.is_symlink() and os.readlink(mcelog_mask) == "/dev/null",
+        "mcelog.service is not masked — AMD systems would boot with a failed unit")
+rasdaemon_wants = [
+    Path("/etc/systemd/system/multi-user.target.wants/rasdaemon.service"),
+    Path("/usr/lib/systemd/system/multi-user.target.wants/rasdaemon.service"),
+]
+require(Path("/usr/sbin/rasdaemon").is_file() or Path("/usr/bin/rasdaemon").is_file(),
+        "rasdaemon is missing — machine-check errors would have no cross-vendor logger")
+require(any(p.exists() or p.is_symlink() for p in rasdaemon_wants),
+        "rasdaemon.service is installed but not enabled")
+
 # The static I/O-scheduler udev rule (the build-time half of hardware adaptation)
 # must ship and pick a scheduler per device type.
 iosched = Path("/usr/lib/udev/rules.d/60-moos-ioschedulers.rules")

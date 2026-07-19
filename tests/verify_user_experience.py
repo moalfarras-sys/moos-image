@@ -3105,6 +3105,25 @@ require("Exec=/usr/bin/moos-firstrun" in _firstrun_desktop
         and "moos-firstrun-done" in _firstrun and "moos-welcome && exit 0" in _firstrun,
         "the installed account must receive the MoOS Welcome exactly once on first login")
 
+# Confirmation dialogs must render one locale, not a mixed RTL/LTR sentence.
+# The latter visibly moves the question mark and swaps the clauses in kdialog.
+_open_router = code(read("system_files/usr/bin/moos-open"), "hash")
+require("localized_message" in _open_router
+        and 'message="$(localized_message "${1:-}")"' in _open_router,
+        "moos-open confirmations must choose one localized message before opening the dialog")
+require('--warningyesno "$message"' in _open_router
+        and '--warningyesno "$1"' not in _open_router,
+        "kdialog must receive the locale-selected confirmation, never the raw RTL/LTR pair")
+
+# Fedora's legacy mcelog unit exits failed on AMD and explicitly asks for
+# rasdaemon. Ship one cross-vendor RAS owner and lock the build contract in.
+_build = code(read("build_files/build.sh"), "hash")
+require("dnf5 -y install rasdaemon" in _build
+        and "systemctl enable rasdaemon.service" in _build,
+        "the image must install and enable Fedora's cross-vendor rasdaemon")
+require("systemctl mask mcelog.service" in _build,
+        "the AMD-incompatible mcelog unit must be masked to avoid a failed boot unit")
+
 # Retired SDDM/org.moos.nova generators used to recreate a second login/theme
 # stack even after runtime files were removed.
 _legacy_art = code(read("artwork/generate_nova_visuals.py"), "hash")
