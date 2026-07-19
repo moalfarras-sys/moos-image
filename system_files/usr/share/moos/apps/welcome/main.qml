@@ -430,7 +430,9 @@ ApplicationWindow {
                 + "stroke='" + win.hexColor(c) + "' stroke-opacity='" + c.a.toFixed(3) + "' "
                 + "stroke-width='" + w + "' stroke-linecap='round' stroke-linejoin='round'>"
                 + inner + "</svg>"
-        return "data:image/svg+xml;base64," + Qt.btoa(Array.from(new TextEncoder().encode(svg)))
+        // Qt 6.11's non-deprecated overload accepts an array-like value;
+        // QML does not provide the browser-only TextEncoder host API.
+        return "data:image/svg+xml;base64," + Qt.btoa(Array.from(svg))
     }
 
     // ── reusable glyph image ───────────────────────────────────────────────────

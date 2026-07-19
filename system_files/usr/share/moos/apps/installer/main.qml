@@ -441,7 +441,10 @@ ApplicationWindow {
                 + "stroke='" + win.hexColor(c) + "' stroke-opacity='" + c.a.toFixed(3) + "' "
                 + "stroke-width='" + w + "' stroke-linecap='round' stroke-linejoin='round'>"
                 + inner + "</svg>"
-        return "data:image/svg+xml;base64," + Qt.btoa(Array.from(new TextEncoder().encode(svg)))
+        // Qt 6.11's non-deprecated overload accepts an array-like value,
+        // including a list of one-character strings. TextEncoder is a browser
+        // host API and is not part of QML's JavaScript host environment.
+        return "data:image/svg+xml;base64," + Qt.btoa(Array.from(svg))
     }
     component Glyph: Image {
         property string name: "spark"
