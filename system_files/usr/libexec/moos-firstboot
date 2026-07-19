@@ -10,10 +10,10 @@
 #
 # INPUT: /etc/moos-setup.conf (written by moos-install-to-disk into the target),
 # a KEY=VALUE file:
-#   USERNAME, FULLNAME, PASSWORD_HASH (crypt string, empty ⇒ passwordless),
+#   USERNAME, FULLNAME, PASSWORD_HASH (required crypt string),
 #   AUTOLOGIN (1|0), TIMEZONE, KEYMAP, XKBLAYOUT, LOCALE
-# If the file is ABSENT (e.g. the Anaconda advanced path), a safe default `moos`
-# user with passwordless autologin is created so the system is ALWAYS usable.
+# If another installer already created an interactive user, no recipe is needed.
+# Otherwise a missing recipe is a hard failure rather than an insecure default.
 #
 # Gated by the unit's ConditionPathExists=!/etc/moos-firstboot-done; stamps that
 # file when finished so it runs exactly once.
@@ -23,14 +23,24 @@ CONF="/etc/moos-setup.conf"
 STAMP="/etc/moos-firstboot-done"
 log() { printf 'moos-firstboot: %s\n' "$*"; }
 
-# Defaults (used verbatim when no answers file exists). Keyboard defaults match
-# the image's own shipped defaults (/etc/vconsole.conf, 00-keyboard.conf,
-# /etc/xdg/kxkbrc): German hardware, de,ara toggle — the old "us" fallback
-# would have silently reverted the image's identity on the no-recipe path.
+# Defensive defaults for optional locale fields. Account creation never uses
+# defaults: it requires either an installer recipe with a password hash or an
+# already-provisioned interactive user.
 USERNAME="moos"; FULLNAME="MoOS User"; PASSWORD_HASH=""
-AUTOLOGIN="1"; TIMEZONE=""; KEYMAP="de"; XKBLAYOUT="de,ara"; LOCALE=""
+AUTOLOGIN="0"; TIMEZONE=""; KEYMAP="de"; XKBLAYOUT="de,ara"; LOCALE=""
 
-if [ -r "$CONF" ]; then
+if [ ! -r "$CONF" ]; then
+    # bootc-image-builder/Anaconda may provision an account themselves. In that
+    # case do not create a second user or overwrite their credentials.
+    existing_user="$(getent passwd | awk -F: '$3 >= 1000 && $3 < 65534 && $7 !~ /(nologin|false)$/ {print $1; exit}')"
+    if [ -n "$existing_user" ]; then
+        log "account '${existing_user}' already provisioned; no installer recipe needed"
+        : > "$STAMP" 2>/dev/null || true
+        exit 0
+    fi
+    log "missing account recipe and no existing interactive user; refusing insecure fallback"
+    exit 1
+else
     # Parse KEY=VALUE safely (no eval): only our known keys, value is the rest of line.
     while IFS='=' read -r k v; do
         case "$k" in
@@ -39,6 +49,8 @@ if [ -r "$CONF" ]; then
         esac
     done < "$CONF"
 fi
+
+[ -n "$PASSWORD_HASH" ] || { log "account recipe has no password hash; refusing insecure fallback"; exit 1; }
 
 # Sanitise the username to a valid POSIX login name; fall back to moos.
 if ! printf '%s' "$USERNAME" | grep -Eq '^[a-z_][a-z0-9_-]{0,31}$'; then
@@ -51,7 +63,7 @@ fi
 #    fall back to a foreign language, broke typing, and disabled autologin. Guard
 #    each value here (defence in depth — also protects the Anaconda path) so even a
 #    bad conf yields a sane, English-by-default, US-keyboard system. ─────────────
-case "$AUTOLOGIN" in 0|1) ;; *) log "invalid autologin '${AUTOLOGIN}', using 1"; AUTOLOGIN="1" ;; esac
+case "$AUTOLOGIN" in 0|1) ;; *) log "invalid autologin '${AUTOLOGIN}', using 0"; AUTOLOGIN="0" ;; esac
 # LOCALE must look like ll_CC(.enc) or C/POSIX; an empty or bogus value (e.g. a bare
 # timezone) becomes en_US.UTF-8 so LANG is always valid and never falls back to a
 # stray image language.
@@ -76,35 +88,17 @@ fi
 # ── create the user (home lands in /var/home on Atomic; /home is a symlink) ────
 if ! id "$USERNAME" >/dev/null 2>&1; then
     useradd -m -G wheel -c "$FULLNAME" -s /bin/bash "$USERNAME" \
-        || { log "useradd failed"; }
+        || { log "useradd failed — NOT stamping; next boot will retry"; exit 1; }
 fi
 
-# ── password / passwordless ───────────────────────────────────────────────────
-if [ -n "$PASSWORD_HASH" ]; then
-    printf '%s:%s\n' "$USERNAME" "$PASSWORD_HASH" | chpasswd -e || log "chpasswd failed"
-    passwd -u "$USERNAME" >/dev/null 2>&1 || true
-else
-    # Passwordless: lock the password field (never leave it EMPTY — pam_unix
-    # rejects empty passwords and it breaks sudo/polkit/unlock). Reaching the
-    # desktop is via autologin; privileged actions go through the rules below.
-    passwd -l "$USERNAME" >/dev/null 2>&1 || true
-    # No password to type for admin actions in the passwordless model.
-    printf '%%wheel ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/10-moos-nopasswd
-    chmod 0440 /etc/sudoers.d/10-moos-nopasswd
-    install -d -m 0755 /etc/polkit-1/rules.d
-    cat > /etc/polkit-1/rules.d/49-moos-passwordless.rules <<POLKIT
-// Passwordless MoOS: the sole local desktop user does not type a password for
-// admin prompts (mirrors the autologin choice). Written only when the user chose
-// no password at install; a password install does NOT ship this file.
-polkit.addRule(function(action, subject) {
-    if (subject.isInGroup("wheel") && subject.local && subject.active) {
-        return polkit.Result.YES;
-    }
-});
-POLKIT
+# ── password ──────────────────────────────────────────────────────────────────
+if ! printf '%s:%s\n' "$USERNAME" "$PASSWORD_HASH" | chpasswd -e; then
+    log "chpasswd failed — NOT stamping; next boot will retry"
+    exit 1
 fi
+passwd -u "$USERNAME" >/dev/null 2>&1 || true
 
-# ── autologin (plasmalogin — Fedora 44 KDE greeter, SDDM-compatible INI) ───────
+# ── autologin (plasma-login-manager) ──────────────────────────────────────────
 # Only if the user actually exists — an autologin drop-in pointing at a user that
 # useradd failed to create is an unrecoverable login loop.
 if [ "$AUTOLOGIN" = "1" ] && id "$USERNAME" >/dev/null 2>&1; then
@@ -117,9 +111,6 @@ Session=plasma.desktop
 [General]
 DisplayServer=wayland
 AUTOEOF
-    # SDDM fallback path, in case a variant still uses sddm.
-    install -d -m 0755 /etc/sddm.conf.d
-    cp -f /etc/plasmalogin.conf.d/10-moos-autologin.conf /etc/sddm.conf.d/10-moos-autologin.conf 2>/dev/null || true
 fi
 
 # ── locale / timezone / keyboard ──────────────────────────────────────────────
@@ -146,7 +137,7 @@ rm -f "$CONF" 2>/dev/null || true
 # Stamp completion ONLY when the account truly exists. Stamping regardless (the old
 # behaviour) turned a failed useradd into a permanent userless, unrecoverable login
 # that never retries (ConditionPathExists=!$STAMP). If the seeded user is missing,
-# leave no stamp: the next boot re-runs first-boot and creates the default user.
+# leave no stamp: the next boot re-runs first-boot and retries the recipe.
 if ! id "$USERNAME" >/dev/null 2>&1; then
     log "user '${USERNAME}' was not created — NOT stamping; next boot will retry"
     exit 1

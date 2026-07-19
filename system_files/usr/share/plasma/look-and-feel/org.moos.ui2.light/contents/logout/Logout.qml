@@ -363,9 +363,21 @@ Item {
         width: Math.min(root.width - Kirigami.Units.gridUnit * 4, Kirigami.Units.gridUnit * 62)
         height: Math.min(root.height - Kirigami.Units.gridUnit * 4, contentColumn.implicitHeight + Kirigami.Units.gridUnit * 4)
         radius: Kirigami.Units.gridUnit
-        color: Kirigami.Theme.backgroundColor
+        // UI2 glass: a near-opaque vertical depth gradient rather than one flat
+        // fill, and a TRANSLUCENT inner border — the old full-strength highlight
+        // read as a hard teal outline, not a premium edge.
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                                                         Kirigami.Theme.backgroundColor.g,
+                                                         Kirigami.Theme.backgroundColor.b, 0.97) }
+            GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                                                         Kirigami.Theme.backgroundColor.g,
+                                                         Kirigami.Theme.backgroundColor.b, 0.93) }
+        }
         border.width: 1
-        border.color: Kirigami.Theme.highlightColor
+        border.color: Qt.rgba(Kirigami.Theme.highlightColor.r,
+                              Kirigami.Theme.highlightColor.g,
+                              Kirigami.Theme.highlightColor.b, 0.35)
 
         // Premium entrance: the panel fades and rises into place, scaling up a
         // touch — the calm, confident motion of a finished OS, not a jump-cut.

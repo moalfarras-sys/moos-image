@@ -84,19 +84,6 @@ def save_png(image: Image.Image, path: Path) -> None:
     )
 
 
-def save_jpeg(image: Image.Image, path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    image.convert("RGB").save(
-        path,
-        format="JPEG",
-        quality=92,
-        optimize=True,
-        progressive=True,
-        subsampling=0,
-        icc_profile=SRGB,
-    )
-
-
 def vertical_gradient(size: tuple[int, int], stops: list[tuple[float, str]]) -> Image.Image:
     width, height = size
     positions = np.array([s[0] for s in stops], dtype=np.float32)
@@ -526,33 +513,6 @@ def generate_grub() -> None:
     save_png(image.convert("RGB").resize((1920, 1080), RESAMPLE), SHARE / "moos" / "grub-theme" / "background.png")
 
 
-def generate_sddm() -> None:
-    theme = SHARE / "sddm" / "themes" / "moos"
-    background = Image.open(theme / "backgrounds" / "nova-dark.png").convert("RGB")
-    save_jpeg(background, theme / "backgrounds" / "default.jpg")
-    source = ROOT / "artwork" / "nova-session-icon.svg"
-    for name in (
-        "awesome",
-        "bspwm",
-        "cinnamon",
-        "default",
-        "dwm",
-        "gnome",
-        "hyprland",
-        "i3",
-        "moos",
-        "niri",
-        "plasma",
-        "qtile",
-        "sway",
-        "ubuntu",
-        "xfce",
-    ):
-        target = theme / "icons" / "sessions" / f"{name}.svg"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, target)
-
-
 FRAME_POSITIONS = (
     "top",
     "topright",
@@ -801,85 +761,12 @@ def generate_plasma_style() -> None:
     )
 
 
-def glass_panel(base: Image.Image, box: tuple[int, int, int, int], radius: int, opacity: int = 206) -> None:
-    mask = Image.new("L", base.size, 0)
-    ImageDraw.Draw(mask).rounded_rectangle(box, radius=radius, fill=opacity)
-    panel = Image.new("RGBA", base.size, rgba(P["surface"], 255))
-    panel.putalpha(mask)
-    base.alpha_composite(panel)
-    edge = ImageDraw.Draw(base)
-    edge.rounded_rectangle(box, radius=radius, outline=rgba(P["white"], 30), width=2)
-
-
-def generate_previews() -> None:
-    out = SHARE / "plasma" / "look-and-feel" / "org.moos.nova" / "contents" / "previews"
-    wallpaper = Image.open(
-        SHARE / "wallpapers" / "NovaHorizon" / "contents" / "images_dark" / "3840x2160.png"
-    ).convert("RGBA").resize((1920, 1080), RESAMPLE)
-    desktop = wallpaper.copy()
-
-    # Edge-attached status bar and floating application dock mirror the v14
-    # shell while remaining a static, dependency-free preview.
-    top = Image.new("RGBA", desktop.size, (0, 0, 0, 0))
-    ImageDraw.Draw(top).rectangle((0, 0, 1920, 34), fill=rgba(P["surface"], 218))
-    ImageDraw.Draw(top).line((0, 34, 1920, 34), fill=rgba(P["cyan"], 70), width=1)
-    desktop.alpha_composite(top)
-    logo = Image.open(LOGO).convert("RGBA").resize((27, 27), RESAMPLE)
-    desktop.alpha_composite(logo, (13, 4))
-    status = ImageDraw.Draw(desktop)
-    for x in (1810, 1842, 1874):
-        status.ellipse((x, 12, x + 10, 22), fill=rgba(P["text"], 210))
-
-    dock_box = (585, 970, 1335, 1055)
-    glass_panel(desktop, dock_box, 26, 224)
-    icon_names = (
-        "moos-moai",
-        "moos-welcome",
-        "moos-hardware",
-        "moos-compat",
-        "moos-updater",
-        "moos-recovery",
-    )
-    x = 675
-    for name in icon_names:
-        icon = Image.open(SHARE / "icons" / "hicolor" / "64x64" / "apps" / f"{name}.png").convert("RGBA")
-        desktop.alpha_composite(icon, (x, 981))
-        x += 104
-    active = ImageDraw.Draw(desktop)
-    active.rounded_rectangle((686, 1044, 728, 1048), radius=2, fill=rgba(P["cyan"], 235))
-
-    save_jpeg(desktop.convert("RGB"), out / "fullscreenpreview.jpg")
-    save_png(desktop.convert("RGB").resize((600, 337), RESAMPLE).convert("RGBA"), out / "preview.png")
-
-    lock = Image.open(SHARE / "sddm" / "themes" / "moos" / "backgrounds" / "nova-dark.png").convert("RGBA")
-    lock = lock.resize((1200, 674), RESAMPLE).filter(ImageFilter.GaussianBlur(8))
-    shade = Image.new("RGBA", lock.size, rgba(P["deepest"], 90))
-    lock.alpha_composite(shade)
-    glass_panel(lock, (420, 128, 780, 562), 48, 220)
-    emblem = Image.open(LOGO).convert("RGBA").resize((150, 150), RESAMPLE)
-    lock.alpha_composite(emblem, (525, 175))
-    ld = ImageDraw.Draw(lock)
-    ld.rounded_rectangle((490, 390, 710, 442), radius=26, fill=rgba(P["raised"], 235), outline=rgba(P["blue"], 170), width=3)
-    ld.ellipse((674, 403, 700, 429), fill=rgba(P["cyan"], 235))
-    save_png(lock.resize((600, 337), RESAMPLE), out / "lockscreen.png")
-
-    splash = vertical_gradient((600, 338), [(0.0, P["deepest"]), (1.0, P["navy"])])
-    emblem = Image.open(LOGO).convert("RGBA").resize((190, 190), RESAMPLE)
-    splash.alpha_composite(emblem, (205, 54))
-    sd = ImageDraw.Draw(splash)
-    sd.rounded_rectangle((215, 284, 385, 292), radius=4, fill=rgba(P["raised"], 255))
-    sd.rounded_rectangle((215, 284, 336, 292), radius=4, fill=rgba(P["cyan"], 255))
-    save_png(splash.convert("RGB").resize((300, 169), RESAMPLE), out / "splash.png")
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--icons", action="store_true", help="Generate Nova app icons")
     parser.add_argument("--installer", action="store_true", help="Generate Anaconda artwork")
     parser.add_argument("--wallpapers", action="store_true", help="Generate Nova wallpaper set")
     parser.add_argument("--grub", action="store_true", help="Generate GRUB artwork")
-    parser.add_argument("--sddm", action="store_true", help="Generate safe SDDM fallback and session art")
-    parser.add_argument("--previews", action="store_true", help="Generate Plasma Global Theme previews")
     parser.add_argument("--plasma-style", action="store_true", help="Generate low-risk Nova Plasma FrameSvg surfaces")
     return parser.parse_args()
 
@@ -891,8 +778,6 @@ def main() -> None:
         or args.installer
         or args.wallpapers
         or args.grub
-        or args.sddm
-        or args.previews
         or args.plasma_style
     )
     if args.icons or not selected:
@@ -903,10 +788,6 @@ def main() -> None:
         generate_wallpapers()
     if args.grub or not selected:
         generate_grub()
-    if args.sddm or not selected:
-        generate_sddm()
-    if args.previews or not selected:
-        generate_previews()
     if args.plasma_style or not selected:
         generate_plasma_style()
 

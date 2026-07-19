@@ -51,11 +51,18 @@ jobs:
       - name: Build qcow2 with bootc-image-builder
         run: |
           mkdir -p output
+          # Never publish a disk artifact with a repository-known password.
+          # The random CI-only credential is intentionally not printed or saved.
+          TEST_PASSWORD="$(openssl rand -hex 20)"
+          sed "s/__MOOS_CI_RANDOM_PASSWORD__/${TEST_PASSWORD}/" \
+            bib/config.toml > /tmp/moos-bib-config.toml
+          unset TEST_PASSWORD
+          chmod 0600 /tmp/moos-bib-config.toml
           # --rootfs btrfs matches the real-hardware Anaconda install (and the
           # 00-moos.toml default), so this qcow2 boots the SAME on-disk layout.
           sudo podman run --rm --privileged \
             --security-opt label=type:unconfined_t \
-            -v "$PWD/bib/config.toml:/config.toml:ro" \
+            -v "/tmp/moos-bib-config.toml:/config.toml:ro" \
             -v "$PWD/output:/output" \
             -v /var/lib/containers/storage:/var/lib/containers/storage \
             quay.io/centos-bootc/bootc-image-builder:latest \
@@ -141,16 +148,31 @@ jobs:
             -device virtio-gpu-pci -nic none \
             -serial file:/tmp/serial.log -display none -no-reboot 2>/tmp/qemu.err || true
           echo "=== serial console (tail) ==="; tail -80 /tmp/serial.log 2>/dev/null || true
+          [ -s /tmp/serial.log ] || { echo "FATAL: QEMU produced no serial boot log."; exit 1; }
+          # systemd colours the unit state and target name separately. Grepping
+          # the raw stream therefore misses visible text such as
+          # "Reached target Basic System" because ANSI bytes sit in the middle
+          # of the phrase. Normalise once, then run every decision on the same
+          # plain log so colour can never turn a successful boot into a failure
+          # (or hide a real emergency signature).
+          python3 - <<'PY' || { echo "FATAL: could not normalise the QEMU serial log."; exit 1; }
+          import pathlib
+          import re
+
+          source = pathlib.Path("/tmp/serial.log").read_bytes()
+          ansi = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|[@-_])")
+          pathlib.Path("/tmp/serial.plain.log").write_bytes(ansi.sub(b"", source))
+          PY
           # Negative gate: any boot failure signature fails the build.
-          if grep -qiE "Kernel panic|Entering emergency|emergency mode|Cannot open root device|Failed to mount /sysroot|unable to allocate memory|out of memory|can't allocate|ostree-prepare-root: .*(fail|error)" /tmp/serial.log; then
+          if grep -qiE "Kernel panic|Entering emergency|emergency mode|Cannot open root device|Failed to mount /sysroot|unable to allocate memory|out of memory|can't allocate|ostree-prepare-root: .*(fail|error)" /tmp/serial.plain.log; then
             echo "FATAL: boot failure detected in the QEMU serial log."; exit 1
           fi
           # Positive gate: reached a systemd target => GRUB+kernel+initramfs+ostree
           # +root+systemd all worked (the exact chain that failed on real hardware).
-          if grep -qiE "Reached target (Graphical|Multi-User|Login Prompts|Basic System)|Startup finished|Started .*Display Manager|Welcome to MoOS|sddm-greeter" /tmp/serial.log; then
-            echo "PASS: MoOS-nvidia booted in QEMU UEFI to a systemd target with no emergency/panic."
+          if grep -qiE "Reached target (Graphical|Multi-User|Login Prompts|Basic System)|Startup finished|Started .*Display Manager|Welcome to MoOS|plasma-login-manager|plasmalogin" /tmp/serial.plain.log; then
+            echo "PASS: MoOS booted in QEMU UEFI to a systemd target with no emergency/panic."
           else
-            echo "FATAL: boot did not reach a systemd target within the timeout."; tail -120 /tmp/serial.log; exit 1
+            echo "FATAL: boot did not reach a systemd target within the timeout."; tail -120 /tmp/serial.plain.log; exit 1
           fi
 
       - name: Upload qcow2

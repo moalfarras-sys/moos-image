@@ -27,7 +27,8 @@ python artwork/verify_nova_visuals.py
 ```
 
 Or run one family with `--icons`, `--installer`, `--wallpapers`, `--grub`,
-`--sddm`, `--previews`, or `--plasma-style`.
+or `--plasma-style`. SDDM and the retired `org.moos.nova` preview generator
+were removed: MoOS uses plasma-login-manager and the UI2 look-and-feel family.
 
 The first Nova Plasma Style geometry batch generates complete `button.svg` and
 `viewitem.svg` FrameSvg contracts. Their IDs and margins are pinned to official
@@ -59,12 +60,8 @@ The installer assets are also mirrored under
 not owned by Anaconda packages, so the build can restore the authored 200×160
 logo and companion backgrounds after `anaconda-live` writes its stock pixmaps.
 
-`nova-session-icon.svg` is the neutral MoOS session mark. The SDDM generator
-installs it under every compatibility filename that SilentSDDM can request, so
-an unexpected session name can never expose an upstream desktop logo.
-
 Some upstream lookup filenames must remain (`fedora-logo-icon.png`,
-`org.fedoraproject.AnacondaInstaller.png`, session names such as `ubuntu.svg`).
+`org.fedoraproject.AnacondaInstaller.png`).
 Their bytes are MoOS artwork, not foreign art. The verifier enforces equality
 with the canonical MoOS assets and rejects every unreviewed foreign-named visual
 file; removing these aliases would allow package-owned logos to return.

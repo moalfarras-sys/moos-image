@@ -1,12 +1,14 @@
 # bootc-image-builder config — produces a PRE-INSTALLED MoOS disk image (qcow2)
 # straight from the OCI image, bypassing the live ISO + Anaconda entirely.
 # Booting the resulting qcow2 exercises the exact installed-disk boot path
-# (initramfs -> ostree-prepare-root -> /sysroot -> systemd -> SDDM) — i.e. the
+# (initramfs -> ostree-prepare-root -> /sysroot -> systemd -> plasmalogin) — i.e. the
 # path that regressed in v19 (dracut emergency mode) and was fixed in v20.
 #
-# A login user is added so the booted system can be verified past SDDM.
+# A login user is added so the booted system can be verified past
+# plasma-login-manager. CI replaces the placeholder with a fresh random value;
+# no reusable test credential is committed or published.
 
 [[customizations.user]]
 name = "mo"
-password = "moostest2026"
+password = "__MOOS_CI_RANDOM_PASSWORD__"
 groups = ["wheel"]

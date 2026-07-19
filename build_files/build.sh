@@ -629,7 +629,7 @@ unset -v _disc
 # -----------------------------------------------------------------------------
 # (c3) Qt runtime extras — on-screen keyboard + media/image plugins
 # -----------------------------------------------------------------------------
-# These arrived as SilentSDDM theme deps, but the SDDM stack is gone from this
+# These were originally pulled for the retired SDDM theme, but that stack is gone from this
 # image (Kinoite 44 boots plasmalogin; the dead theme tree was deleted, and
 # verify_image_experience.py now fails the build if /usr/share/sddm returns).
 # They stay because the RUNNING system uses them:

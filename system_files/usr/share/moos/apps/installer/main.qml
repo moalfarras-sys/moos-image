@@ -10,7 +10,7 @@
 //   2 disk      a card per eligible internal disk (name/model/size/data). The USB
 //               you booted from is shown as a PROTECTED, non-selectable row.
 //   3 method    "Erase & install" — the single, honest MoOS install path.
-//   4 account   username + optional password (or passwordless auto sign-in).
+//   4 account   username + required password; auto sign-in is an explicit choice.
 //   5 confirm   the point of no return — a press-and-HOLD control, never a click.
 //   6 progress  one long job, human PHASES, honest stepped progress. No logs.
 //   7 success   remove USB → restart → first boot continues into Welcome.
@@ -98,12 +98,12 @@ ApplicationWindow {
 
     // ── account (step 4). Applied on the target's FIRST boot by moos-firstboot
     // from the recipe the secure bridge writes — bootc install itself makes no
-    // user. Default is passwordless autologin (the smooth "just use it" path);
-    // the user can instead set a password. Keyboard/locale/timezone are derived
+    // user. A password is always required; automatic sign-in is independent and
+    // never grants passwordless administration. Keyboard/locale/timezone are derived
     // from the chosen language (Apple-style zero-click) and applied too. ─────────
     property string acctUser: "moos"
     property string acctFull: ""
-    property bool   acctPassword: false      // false = passwordless autologin (default)
+    property bool   acctAutologin: false
     property string acctPass: ""
     property string acctPass2: ""
     // The CONSOLE keymap (/etc/vconsole.conf). It describes the same physical keyboard the
@@ -174,7 +174,7 @@ ApplicationWindow {
     function zoneLabel(z) { return z.replace(/_/g, " ").replace("/", " › ") }
     readonly property bool acctUserValid: /^[a-z_][a-z0-9_-]{0,31}$/.test(win.acctUser)
     readonly property bool acctValid: win.acctUserValid
-        && (!win.acctPassword || (win.acctPass.length >= 4 && win.acctPass === win.acctPass2))
+        && win.acctPass.length >= 8 && win.acctPass === win.acctPass2
 
     function goNext() { if (win.step < win.stepCount - 1) win.step++ }
     function goBack() { if (win.step > 0) win.step-- }
@@ -291,6 +291,15 @@ ApplicationWindow {
                                        "Couldn't reach the internet to fetch MoOS. Connect to a network (the network icon in the panel), then retry.")
         case "no-image": return win.tr("صورة MoOS غير متوفّرة محلّياً ولا شبكة لجلبها.",
                                        "The MoOS image isn't available locally and there's no network to fetch it.")
+        case "password-required":
+            return win.tr("أنشئ كلمة سر من 8 محارف على الأقل قبل بدء التثبيت.",
+                          "Create a password with at least 8 characters before installing.")
+        case "hash-failed":
+            return win.tr("تعذّر تأمين كلمة السر. لم نبدأ التثبيت حفاظاً على حسابك.",
+                          "Couldn't secure the password. Installation did not start, to protect your account.")
+        case "seed-failed":
+            return win.tr("نُسخ النظام، لكن تعذّر حفظ الحساب بأمان. أوقفنا العملية كي لا نترك نظاماً غير قابل للدخول.",
+                          "The system was copied, but the account could not be saved safely. We stopped instead of leaving an unusable install.")
         case "stalled":  return win.tr("توقّف التثبيت عن الاستجابة.", "The installation stopped responding.")
         default:         return win.tr("حدث خطأ غير متوقّع أثناء التثبيت.", "Something unexpected happened during installation.")
         }
@@ -304,8 +313,8 @@ ApplicationWindow {
             node:      win.targetNode,       // the helper takes the target from HERE, not the URL
             username:  win.acctUser,
             fullname:  win.acctFull,
-            password:  win.acctPassword ? win.acctPass : "",
-            autologin: win.acctPassword ? 0 : 1,
+            password:  win.acctPass,
+            autologin: win.acctAutologin ? 1 : 0,
             keymap:    win.keymapForLang(),
             xkblayout: win.xkbForLang(),
             locale:    win.localeForLang(),
@@ -1223,8 +1232,8 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
-                            text: win.tr("اسم تدخل به — بكلمة سر أو بلا (دخول تلقائي). لك الحرية الكاملة.",
-                                         "A name to sign in with — with a password or without (auto sign-in). Your choice.")
+                            text: win.tr("أنشئ حسابك الآمن. كلمة السر تحمي القفل وإجراءات الإدارة، ويمكنك اختيار الدخول التلقائي.",
+                                         "Create your secure account. The password protects lock and admin actions; auto sign-in stays optional.")
                             color: win.txt2
                             font.family: "IBM Plex Sans"; font.pixelSize: 14; lineHeight: 1.3
                         }
@@ -1307,21 +1316,23 @@ ApplicationWindow {
                         }
                         Item { Layout.preferredHeight: 22 }
 
-                        // sign-in method: passwordless (default) vs password
+                        // Sign-in behaviour. Both choices keep the required
+                        // password for lock-screen and privileged actions.
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 14
                             Repeater {
                                 model: [
-                                    { pw: false, glyph: "bolt",  ar: "دخول تلقائي", en: "Auto sign-in",
-                                      arD: "بلا كلمة سر — يفتح مباشرة", enD: "No password — opens straight to the desktop" },
-                                    { pw: true,  glyph: "lock",  ar: "بكلمة سر", en: "With a password",
-                                      arD: "يطلب كلمة سرك عند الدخول", enD: "Asks for your password to sign in" }
+                                    { autoLogin: false, glyph: "lock", ar: "الدخول بكلمة السر", en: "Password at sign-in",
+                                      arD: "الخيار الآمن الموصى به", enD: "Recommended — asks at startup" },
+                                    { autoLogin: true, glyph: "bolt", ar: "دخول تلقائي", en: "Auto sign-in",
+                                      arD: "يفتح سطح المكتب مباشرة — تبقى كلمة السر للإدارة والقفل",
+                                      enD: "Opens the desktop directly — password still protects admin and lock" }
                                 ]
                                 delegate: Rectangle {
                                     id: pwCard
                                     required property var modelData
-                                    readonly property bool selected: win.acctPassword === pwCard.modelData.pw
+                                    readonly property bool selected: win.acctAutologin === pwCard.modelData.autoLogin
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 92
                                     radius: 16
@@ -1331,7 +1342,7 @@ ApplicationWindow {
                                     border.color: pwCard.selected ? win.accent : win.outline
                                     Behavior on border.color { ColorAnimation { duration: 120 } }
                                     HoverHandler { id: pwHover }
-                                    TapHandler { onTapped: win.acctPassword = pwCard.modelData.pw }
+                                    TapHandler { onTapped: win.acctAutologin = pwCard.modelData.autoLogin }
                                     ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: 14
@@ -1359,10 +1370,10 @@ ApplicationWindow {
                             }
                         }
 
-                        // password fields (only in password mode)
+                        // Password fields are always required. Auto sign-in only
+                        // controls the greeter; it never weakens sudo or Polkit.
                         ColumnLayout {
                             Layout.fillWidth: true
-                            visible: win.acctPassword
                             spacing: 0
                             Item { Layout.preferredHeight: 16 }
                             Rectangle {
@@ -1418,6 +1429,13 @@ ApplicationWindow {
                                     text: win.tr("أعد كلمة السر", "Repeat password")
                                     color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 15
                                 }
+                            }
+                            Text {
+                                visible: win.acctPass !== "" && win.acctPass.length < 8
+                                text: win.tr("استخدم 8 محارف على الأقل.", "Use at least 8 characters.")
+                                color: win.danger
+                                font.family: "IBM Plex Sans"; font.pixelSize: 11
+                                Layout.topMargin: 4
                             }
                             Text {
                                 visible: win.acctPass2 !== "" && win.acctPass !== win.acctPass2

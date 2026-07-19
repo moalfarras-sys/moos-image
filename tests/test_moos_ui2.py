@@ -417,7 +417,10 @@ class TestMoOSUI2(unittest.TestCase):
             before = {path: snapshot(path) for path in outputs}
             fake_bin = fixture / "test-bin"
             fake_bin.mkdir()
-            fake_ffmpeg = fake_bin / "ffmpeg"
+            # shutil.which() honours PATHEXT on Windows, so an extensionless
+            # Unix-style fixture is invisible there even though the generator
+            # is never supposed to execute it in this test.
+            fake_ffmpeg = fake_bin / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
             fake_ffmpeg.write_text("#!/bin/sh\nexit 99\n", encoding="utf-8")
             fake_ffmpeg.chmod(0o755)
             environment = os.environ.copy()
@@ -539,8 +542,8 @@ class TestMoOSUI2(unittest.TestCase):
     def test_dark_and_light_own_complete_distinct_svg_suites(self) -> None:
         dark = SHARE / "plasma/desktoptheme/MoOSUI2"
         light = SHARE / "plasma/desktoptheme/MoOSUI2Light"
-        dark_svgs = {str(path.relative_to(dark)) for path in dark.rglob("*.svg")}
-        light_svgs = {str(path.relative_to(light)) for path in light.rglob("*.svg")}
+        dark_svgs = {path.relative_to(dark).as_posix() for path in dark.rglob("*.svg")}
+        light_svgs = {path.relative_to(light).as_posix() for path in light.rglob("*.svg")}
 
         self.assertTrue(REQUIRED_DESKTOP_SVGS <= dark_svgs)
         self.assertEqual(dark_svgs, light_svgs,
