@@ -351,6 +351,13 @@ kver=$(basename "$(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d)")
 # (The generic edition has no NVIDIA and is ~124MB.)
 cat > /usr/lib/dracut/dracut.conf.d/99-moos-boot.conf <<'DRC'
 add_dracutmodules+=" ostree dmsquash-live dmsquash-live-autooverlay "
+# MoOS always boots its local OSTree/composefs deployment (or the local live
+# squashfs). With --no-hostonly dracut otherwise includes 74nfs merely because
+# nfs-utils is installed, and its pre-udev hook starts rpcbind + rpc.statd in
+# the initrd on every boot. They cannot persist state there and log hard errors
+# before switch-root. Omitting the *initrd* module does not remove NFS client
+# support from the real system after boot.
+omit_dracutmodules+=" nfs "
 add_drivers+=" erofs overlay loop "
 # Trim only the NON-NVIDIA GPU drivers (not present/needed on this hardware).
 # NVIDIA stays (base force_drivers) for a working desktop.
@@ -363,6 +370,7 @@ DRC
 # "*** Including module: ostree ***". So we gate on dracut's log, not lsinitrd.)
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
     --add "ostree dmsquash-live dmsquash-live-autooverlay" \
+    --omit "nfs" \
     --add-drivers "erofs overlay loop" \
     --omit-drivers "nouveau amdgpu radeon i915 xe nvidiafb" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tee /tmp/moos-dracut.log
@@ -2361,6 +2369,7 @@ unset -v _active_theme
 
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
     --add "ostree plymouth dmsquash-live dmsquash-live-autooverlay" \
+    --omit "nfs" \
     --add-drivers "erofs overlay loop" \
     --omit-drivers "nouveau amdgpu radeon i915 xe nvidiafb" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tee /tmp/moos-final-dracut.log

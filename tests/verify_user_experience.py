@@ -2251,6 +2251,10 @@ require("grep -qx 'Theme=moos' /etc/plymouth/plymouthd.conf" in build,
         "image build must fail if the active Plymouth selector is not MoOS")
 require("final initramfs contains the Fedora BGRT/spinner branding path" in build,
         "image build must reject Fedora BGRT/spinner paths in initramfs")
+require('omit_dracutmodules+=" nfs "' in build and build.count('--omit "nfs"') >= 2,
+        "the generic --no-hostonly initramfs must omit dracut's NFS-root module: otherwise "
+        "its pre-udev hook starts rpcbind/rpc.statd on every local OSTree boot and logs hard "
+        "state-directory errors before switch-root")
 
 # ── The kde-settings profile must name the theme the image actually defaults to ─
 #

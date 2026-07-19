@@ -34,12 +34,12 @@ Evidence priority:
 - Date: 2026-07-19, Europe/Berlin.
 - Local repository: `/var/home/moos/moos-image`.
 - Branch: `main`.
-- Local and `origin/main`: `d63fa01733d32bd4032a496c61dfa89a61e07192`.
-- Current commit: `fix(login): wait for DRM before starting greeter`.
-- Working tree was clean immediately before this handoff was created.
-- The GitHub image build for `d63fa01` was still running at the checkpoint.
-- The ISO and qcow2 jobs for `8c9f34a` were cancelled by the newer work.
-- The previous image build for `8c9f34a` completed successfully.
+- Starting `main` and `origin/main`: `a623cb29e0b29b865313422b53978df1749edbb3`.
+- Current source change: omit dracut's NFS-root module from both generated
+  initramfs passes; this stops its initrd-only `rpcbind`/`rpc.statd` startup on
+  local OSTree boots without removing post-switch-root NFS client support.
+- The change passed the full local image build and is awaiting commit, push,
+  CI, signed-image deployment, reboot, and live-journal verification.
 
 ## Installed system
 
@@ -47,12 +47,14 @@ Evidence priority:
 - Booted origin: `ghcr.io/moalfarras-sys/moos:latest`.
 - Booted digest:
   `sha256:43f0c86fd739312bd91ecaea37f70ec42532a6a5e403669095741c9df2786584`.
-- A switch/update to `ghcr.io/moalfarras-sys/moos-nvidia:latest` is staged.
+- An exact signed switch to `ghcr.io/moalfarras-sys/moos-nvidia` is staged.
 - Staged NVIDIA digest:
-  `sha256:115141c550c166e645fab4de2febade8df66d19ae854b5e047b377458a976a7e`.
+  `sha256:96f9e0e64c5d4027233ed50c2344436f2217e1dd8b69e3831be67039a56dcdc9`.
+- The staged image is revision `a623cb29`, version `44.20260719.250`, and its
+  signature was verified locally with `cosign.pub`.
 - Do not assume the staged deployment is healthy until it has booted and the
   NVIDIA, Wayland, login, CUDA, and rollback checks have passed.
-- `moos-selfcheck`: 39/39 passed.
+- `moos-selfcheck`: 39 passed, with one informational staged-update note.
 - Failed system units: 0.
 - Failed user units: 0.
 - `tests/post-update-check.sh` reports that the booted digest is older than the
@@ -61,21 +63,27 @@ Evidence priority:
 
 ## Repository checks
 
-Passed at `d63fa01`:
+Passed from the live tree based on `a623cb29`, including the NFS-initramfs fix:
 
 - `just check`
 - `python3 tests/test_moos_theme_safety.py` (3 tests)
 - `python3 tests/test_moos_ui2.py` (7 tests)
+- `bash -n build_files/build.sh`
+- `python3 tests/verify_user_experience.py`
+- `just build` (full local bootc image, including `bootc container lint`)
+- Direct inspection of the built initramfs confirmed that the `nfs` dracut
+  module, `nfs-start-rpc`, and `rpc.statd` are absent.
 
-Local `pytest` is not installed. The two unittest files above are not currently
-part of `just check`; wiring every maintained test into the mandatory gate is
-still required.
+The two unittest files are reached by the recursive experience verifier invoked
+by `just check`; the older handoff statement that they were outside the gate was
+stale.
 
 ## Highest-priority observed issues
 
-1. Do not update/reboot into a newly published image until its GitHub image
-   workflow completes successfully.
-2. After CI succeeds, stage the exact signed NVIDIA image, reboot deliberately,
+1. Commit and push the tested initramfs fix, then do not update/reboot into its
+   image until the GitHub image workflow completes successfully.
+2. After CI succeeds, replace the currently staged NVIDIA image with the exact
+   newly signed digest, reboot deliberately,
    then run the complete live verification and prove rollback.
 3. The live journal recorded
    `ReferenceError: orbPulse is not defined` from Mo AI's `launch()` function.
@@ -83,41 +91,33 @@ still required.
 4. Investigate repeated `No QSGTexture provided from updateSampledImage()`.
 5. Investigate previous `moai-gateway.service` and `moai-control.service`
    restart failures even though both recovered.
-6. Fix or intentionally disable unused NFS/rpcbind startup paths and their
-   missing state directories. (No NFS/rpcbind unit present in repo as of this
-   session — likely already handled or lives outside system_files; recheck.)
+6. Verify on the newly booted live image that the initrd NFS/RPC errors are gone.
 7. Identify the tmpfiles rules that mishandle `/home`, `/srv`, and `/root` on
    the bootc/composefs layout.
 8. ~~Replace deprecated `Qt.btoa(string)`~~ DONE — replaced with the Qt 6.11
    array-like overload `Qt.btoa(Array.from(svg))` (verified QML-host-safe; a
    sibling session's PR #10 added a gate forbidding browser-only `TextEncoder`).
-9. Add all maintained tests to `just check` and CI.
-10. Introduce testing/candidate/stable image channels before treating the
+9. Introduce testing/candidate/stable image channels before treating the
     maintainer's daily driver as a general release target.
 
 ## Open issues / blockers (this session)
 
-1. **Cannot push OR deploy from the agent** — the session had no GitHub token
-   until late, and `sudo` needs the maintainer's password (not scriptable).
-   The fix commit `b7a2175` was pushed (now merged via `dfe1b37` + `11cb3e9`).
-   The **deployment + reboot step requires the maintainer** to run the commands
-   in "Exact next action" below.
-2. **This NVIDIA machine is currently BOOTED on the GENERIC `moos` image with
+1. **This NVIDIA machine is currently BOOTED on the GENERIC `moos` image with
    no NVIDIA driver.** This is the top live priority and is NOT yet fixed
-   (needs the reboot below).
-3. `No QSGTexture provided from updateSampledImage()` — benign Qt/plasmashell
+   (the exact NVIDIA image is staged, but reboot is intentionally deferred until
+   the new fix passes CI so only one reboot is needed).
+2. `No QSGTexture provided from updateSampledImage()` — benign Qt/plasmashell
    internal warning; left as-is (non-blocking, not our QML).
 
-## Exact next action (maintainer, needs sudo password)
+## Exact next action
 
-This RTX 2080 SUPER box is on the driverless generic image. Deploy the freshly
-built + signed NVIDIA image (rev `11cb3e9`, version `44.20260719.247`) and
-reboot, then verify the driver, login, Wayland and rollback:
+Commit and push the initramfs fix, wait for the image workflow, resolve and
+verify the new exact NVIDIA digest, then replace the staged deployment with it.
+Only then reboot and verify driver, login, Wayland, journal, and rollback safety:
 
 ```bash
-# 1. Deploy the exact signed NVIDIA digest (keeps the current generic deploy as rollback)
-sudo rpm-ostree rebase \
-  ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:eacf979c3f1e36fd787f76446a143b47d90332f76a5c7d6fb5326c4b4bd50097
+# 1. After CI, deploy the new exact signed NVIDIA digest (keep generic rollback)
+sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:NEW_CI_DIGEST
 
 # 2. Reboot into it
 sudo systemctl reboot
@@ -127,14 +127,10 @@ lsmod | grep -E '^nvidia '            # must show the nvidia driver
 nvidia-smi                              # must report the RTX 2080 SUPER
 rpm-ostree status                       # booted edition must now be moos-nvidia
 moos-selfcheck                          # expect 39/39
-journalctl -b 0 | grep -iE 'orbPulse|Address already in use|Qt.btoa'   # expect nothing
-# 4. Prove rollback safety:
-sudo rpm-ostree rollback               # returns to the previous (generic) deploy
-sudo systemctl reboot                  # confirm it still boots, then re-deploy nvidia
+journalctl -b 0 | grep -iE 'rpc\.statd|rpcbind|orbPulse|Address already in use|Qt.btoa'
+# Expect no initrd rpc.statd/rpcbind hard errors. Confirm the previous generic
+# deployment remains listed and usable as the rollback entry.
 ```
-
-Do NOT trust the old staged NVIDIA digest `115141c5…` — it is an orphan that no
-longer exists in GHCR. The generic image is now `sha256:81e10d12…` (same rev);
 
 ## Mo PC Remote (remote control) — status 2026-07-19
 
