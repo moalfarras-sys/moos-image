@@ -11,7 +11,7 @@
 # INPUT: /etc/moos-setup.conf (written by moos-install-to-disk into the target),
 # a KEY=VALUE file:
 #   USERNAME, FULLNAME, PASSWORD_HASH (required crypt string),
-#   AUTOLOGIN (1|0), TIMEZONE, KEYMAP, XKBLAYOUT, LOCALE
+#   TIMEZONE, KEYMAP, XKBLAYOUT, LOCALE
 # If another installer already created an interactive user, no recipe is needed.
 # Otherwise a missing recipe is a hard failure rather than an insecure default.
 #
@@ -27,7 +27,7 @@ log() { printf 'moos-firstboot: %s\n' "$*"; }
 # defaults: it requires either an installer recipe with a password hash or an
 # already-provisioned interactive user.
 USERNAME="moos"; FULLNAME="MoOS User"; PASSWORD_HASH=""
-AUTOLOGIN="0"; TIMEZONE=""; KEYMAP="de"; XKBLAYOUT="de,ara"; LOCALE=""
+TIMEZONE=""; KEYMAP="de"; XKBLAYOUT="de,ara"; LOCALE=""
 
 if [ ! -r "$CONF" ]; then
     # bootc-image-builder/Anaconda may provision an account themselves. In that
@@ -44,7 +44,7 @@ else
     # Parse KEY=VALUE safely (no eval): only our known keys, value is the rest of line.
     while IFS='=' read -r k v; do
         case "$k" in
-            USERNAME|FULLNAME|PASSWORD_HASH|AUTOLOGIN|TIMEZONE|KEYMAP|XKBLAYOUT|LOCALE)
+            USERNAME|FULLNAME|PASSWORD_HASH|TIMEZONE|KEYMAP|XKBLAYOUT|LOCALE)
                 printf -v "$k" '%s' "$v" ;;
         esac
     done < "$CONF"
@@ -59,11 +59,10 @@ fi
 
 # ── validate every locale/keyboard answer so a malformed conf can NEVER break the
 #    language or keyboard. A past installer bug shifted the tab-delimited fields and
-#    wrote LOCALE=UTC / XKBLAYOUT=en_US.UTF-8 / AUTOLOGIN=us, which made the desktop
-#    fall back to a foreign language, broke typing, and disabled autologin. Guard
+#    wrote LOCALE=UTC / XKBLAYOUT=en_US.UTF-8, which made the desktop fall back to
+#    a foreign language and broke typing. Guard
 #    each value here (defence in depth — also protects the Anaconda path) so even a
 #    bad conf yields a sane, English-by-default, US-keyboard system. ─────────────
-case "$AUTOLOGIN" in 0|1) ;; *) log "invalid autologin '${AUTOLOGIN}', using 0"; AUTOLOGIN="0" ;; esac
 # LOCALE must look like ll_CC(.enc) or C/POSIX; an empty or bogus value (e.g. a bare
 # timezone) becomes en_US.UTF-8 so LANG is always valid and never falls back to a
 # stray image language.
@@ -98,21 +97,6 @@ if ! printf '%s:%s\n' "$USERNAME" "$PASSWORD_HASH" | chpasswd -e; then
 fi
 passwd -u "$USERNAME" >/dev/null 2>&1 || true
 
-# ── autologin (plasma-login-manager) ──────────────────────────────────────────
-# Only if the user actually exists — an autologin drop-in pointing at a user that
-# useradd failed to create is an unrecoverable login loop.
-if [ "$AUTOLOGIN" = "1" ] && id "$USERNAME" >/dev/null 2>&1; then
-    install -d -m 0755 /etc/plasmalogin.conf.d
-    cat > /etc/plasmalogin.conf.d/10-moos-autologin.conf <<AUTOEOF
-[Autologin]
-User=${USERNAME}
-Session=plasma.desktop
-
-[General]
-DisplayServer=wayland
-AUTOEOF
-fi
-
 # ── locale / timezone / keyboard ──────────────────────────────────────────────
 [ -n "$LOCALE" ]   && printf 'LANG=%s\n' "$LOCALE" > /etc/locale.conf
 [ -n "$KEYMAP" ]   && printf 'KEYMAP=%s\n' "$KEYMAP" > /etc/vconsole.conf
@@ -143,5 +127,5 @@ if ! id "$USERNAME" >/dev/null 2>&1; then
     exit 1
 fi
 : > "$STAMP" 2>/dev/null || true
-log "done (user=${USERNAME} autologin=${AUTOLOGIN})"
+log "done (user=${USERNAME}; password sign-in required)"
 exit 0

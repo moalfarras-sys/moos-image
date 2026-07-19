@@ -2924,7 +2924,7 @@ require("ConditionKernelCommandLine=rd.live.image" in _lp_unit,
         "rd.live.image — without it an INSTALLED MoOS loses its lock screen")
 require("Before=display-manager.service" in _lp_unit,
         "moos-live-polish.service must run Before=display-manager.service — the "
-        "autologin session reads kscreenlockerrc once, at session start")
+        "live session reads kscreenlockerrc once, at session start")
 require("After=livesys.service" in _lp_unit,
         "moos-live-polish.service must order After=livesys.service — livesys "
         "creates the live user whose home it writes into")
@@ -2994,6 +2994,9 @@ require("NOPASSWD" not in _fb and "49-moos-passwordless.rules" not in _fb,
         "moos-firstboot must never create passwordless sudo/polkit access")
 require("sddm" not in _fb.lower(),
         "moos-firstboot must not recreate a retired SDDM login stack")
+require("autologin" not in _fb.lower() and "plasmalogin.conf.d" not in _fb,
+        "installed MoOS must always show the password greeter; moos-firstboot "
+        "must not create an automatic-sign-in configuration")
 _fb_unit = code(read("system_files/usr/lib/systemd/system/moos-firstboot.service"), "hash")
 require("sddm" not in _fb_unit.lower(),
         "moos-firstboot.service still orders against retired SDDM")
@@ -3028,8 +3031,18 @@ require('fail "password-required"' in _i2d and '${#R_PASS}' in _i2d,
 require('fail "seed-failed"' in _i2d,
         "the installer must not report success when the target account recipe could not be saved")
 _iqml = read("system_files/usr/share/moos/apps/installer/main.qml")
-require("acctPass.length >= 8" in _iqml and "acctAutologin" in _iqml,
-        "the account page must require a password and keep autologin as a separate choice")
+require("acctPass.length >= 8" in _iqml,
+        "the account page must require a password")
+require("acctAutologin" not in _iqml and "autologin:" not in _iqml.lower(),
+        "the installer must not expose or write an automatic-sign-in choice")
+require("AUTOLOGIN=" not in _i2d,
+        "the privileged installer backend must not seed an automatic-sign-in value")
+_login_dropins = "\n".join(
+    p.read_text(encoding="utf-8")
+    for p in (ROOT / "system_files/usr/lib/plasmalogin/plasmalogin.conf.d").glob("*.conf")
+)
+require(re.search(r"^\s*\[Autologin\]\s*$", _login_dropins, re.MULTILINE) is None,
+        "the shipped plasma-login-manager configuration must not enable automatic sign-in")
 for _installer_failure in ("password-required", "hash-failed", "seed-failed"):
     require(f'case "{_installer_failure}"' in _iqml,
             f"the installer has no actionable UI message for {_installer_failure}")
@@ -3045,6 +3058,29 @@ require("__MOOS_CI_RANDOM_PASSWORD__" in _bib and "moostest2026" not in _bib,
 require("openssl rand -hex" in disk_workflow
         and "/tmp/moos-bib-config.toml:/config.toml:ro" in disk_workflow,
         "build-disk.yml must inject a fresh private password before publishing qcow2")
+
+# Welcome is the one live-session landing surface, hands off to the unique
+# installer without leaving two wizard windows stacked, and returns once on the
+# first password-authenticated login of the installed account. Its app choices
+# must drive the same catalogued install/status contract as Mo Store.
+_welcome = read("system_files/usr/share/moos/apps/welcome/main.qml")
+_welcome_launch = code(read("system_files/usr/bin/moos-welcome"), "hash")
+_firstrun = code(read("system_files/usr/bin/moos-firstrun"), "hash")
+_firstrun_desktop = read("system_files/etc/xdg/autostart/org.moos.firstrun.desktop")
+require("--live=\"$LIVE\"" in _welcome_launch and "rd.live.image" in _welcome_launch,
+        "moos-welcome must tell the QML whether it runs from the live image")
+require("moos://installer/open" in _welcome and "handoffToInstaller" in _welcome
+        and "onTriggered: Qt.quit()" in _welcome,
+        "the live Welcome must hand off to the installer and close instead of "
+        "leaving two onboarding windows layered")
+require("Object.keys(win.picks)" in _welcome
+        and "moos://store/install/" in _welcome
+        and 'ln === "DONE"' in _welcome and 'ln.indexOf("FAIL")' in _welcome,
+        "Welcome selections must execute the real Mo Store install route and "
+        "surface both success and failure")
+require("Exec=/usr/bin/moos-firstrun" in _firstrun_desktop
+        and "moos-firstrun-done" in _firstrun and "moos-welcome && exit 0" in _firstrun,
+        "the installed account must receive the MoOS Welcome exactly once on first login")
 
 # Retired SDDM/org.moos.nova generators used to recreate a second login/theme
 # stack even after runtime files were removed.

@@ -1818,8 +1818,8 @@ systemctl enable moos-hardware-adapt.service
 chmod 0755 /usr/libexec/moos-live-polish
 systemctl enable moos-live-polish.service
 
-# First-boot setup: create the user + apply account/locale/timezone/keyboard from
-# the installer's answers (or a safe default `moos` autologin user). This REPLACES
+# First-boot setup: create the password-protected user and apply
+# account/locale/timezone/keyboard from the installer's answers. This REPLACES
 # the masked plasma-setup (Plasma's OOBE, masked in section (z)) with MoOS's own —
 # without it a fresh install would reach the greeter with NO user to log in as.
 # Runs only on the installed system (ConditionPathExists=/run/ostree-booted).

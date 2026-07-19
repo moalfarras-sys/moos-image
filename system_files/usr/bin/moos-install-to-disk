@@ -90,14 +90,14 @@ def g(k):
     return str(v).replace("\x00", " ")
 # Terminate EVERY field with NUL (trailing one included) so an empty LAST field
 # (e.g. no timezone) still counts — `mapfile -d ''` drops a trailing delimiter, so
-# "a\0b\0" is 2 elements, but "a\0b\0\0" is 3 with an empty tail. Always 9 here.
-for k in ("node","username","fullname","password","autologin","keymap","xkblayout","locale","timezone"):
+# "a\0b\0" is 2 elements, but "a\0b\0\0" is 3 with an empty tail. Always 8 here.
+for k in ("node","username","fullname","password","keymap","xkblayout","locale","timezone"):
     sys.stdout.write(g(k)); sys.stdout.write("\x00")
 PY
 ) || { wipe_recipe; fail "no-recipe"; }
-[ "${#_RF[@]}" -ge 9 ] || { wipe_recipe; fail "no-recipe"; }
+[ "${#_RF[@]}" -ge 8 ] || { wipe_recipe; fail "no-recipe"; }
 NODE="${_RF[0]}"; R_USER="${_RF[1]}"; R_FULL="${_RF[2]}"; R_PASS="${_RF[3]}"
-R_AUTO="${_RF[4]}"; R_KEYMAP="${_RF[5]}"; R_XKB="${_RF[6]}"; R_LOCALE="${_RF[7]}"; R_TZ="${_RF[8]}"
+R_KEYMAP="${_RF[4]}"; R_XKB="${_RF[5]}"; R_LOCALE="${_RF[6]}"; R_TZ="${_RF[7]}"
 
 # Hash the password now (stdin, never argv) so the plaintext can be discarded with
 # the recipe immediately after — nothing plaintext survives the long install.
@@ -302,7 +302,6 @@ seed_target() {
             printf 'USERNAME=%s\n'      "$R_USER"
             printf 'FULLNAME=%s\n'      "$R_FULL"
             printf 'PASSWORD_HASH=%s\n' "$PASS_HASH"
-            printf 'AUTOLOGIN=%s\n'     "${R_AUTO:-0}"
             printf 'KEYMAP=%s\n'        "${R_KEYMAP:-us}"
             printf 'XKBLAYOUT=%s\n'     "${R_XKB:-us}"
             printf 'LOCALE=%s\n'        "$R_LOCALE"

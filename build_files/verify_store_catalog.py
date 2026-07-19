@@ -29,6 +29,7 @@ in the other verifiers).
 """
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -42,6 +43,7 @@ MOOS_WELCOME = "/usr/bin/moos-welcome"
 MOOS_SELFCHECK = "/usr/bin/moos-selfcheck"
 
 errors = []
+IMAGE_ROOT = Path(os.environ.get("MOOS_TEST_ROOT", "/"))
 
 
 def require(ok, message):
@@ -50,7 +52,9 @@ def require(ok, message):
 
 
 def text(path):
-    return Path(path).read_text(encoding="utf-8")
+    # In the image build the root is `/`. Developers can run the identical gate
+    # against system_files on Windows/Linux with MOOS_TEST_ROOT=<repo>/system_files.
+    return (IMAGE_ROOT / str(path).lstrip("/")).read_text(encoding="utf-8")
 
 
 def code(raw, marker):
