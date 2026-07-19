@@ -31,9 +31,15 @@ Evidence priority:
 
 ## Current checkpoint
 
-- Date: 2026-07-19, Europe/Berlin.
+- Date: 2026-07-20, Europe/Berlin.
 - Local repository: `/var/home/moos/moos-image`.
-- Branch: `main`.
+- Branch: `main`, clean, `origin/main` == `HEAD` == `13359ab`.
+- The visual-polish candidate described below is no longer a candidate: it was
+  published as `44.20260719.260` and is the booted image.
+- Session note: development ran from inside the VS Code **Flatpak sandbox**,
+  which has no `rpm-ostree`, `bootc` or `systemctl`. Reach the real host with
+  `flatpak-spawn --host <cmd>`; without it every live check silently inspects
+  the Freedesktop runtime instead of MoOS and reports nonsense.
 - Visual-polish candidate (not published at the time of this checkpoint):
   the bottom shell is now a 54 px floating command dock with a restrained
   multi-layer FrameSvg, a wide MoOS status/wordmark control, a separate search
@@ -160,20 +166,21 @@ Evidence priority:
 - MoOS 44 on KDE Plasma 6.7.3, Wayland, kernel 7.1.3.
 - Booted origin: exact signed `ghcr.io/moalfarras-sys/moos-nvidia` image.
 - Booted signed NVIDIA digest:
+  `sha256:bc7d68117e2be0d21c161efd1c54277169fddb8c239173cfd58fe1fc85695b16`.
+- The booted image is version `44.20260719.260`, built from commit `13359ab`.
+  Verified 2026-07-20: this digest is byte-identical to GHCR `latest`, so the
+  three states have **converged** — last commit on `main`, last signed
+  published image, and the digest the machine actually boots are the same.
+- NVIDIA, Wayland, Plasma login and CUDA/NVIDIA operation are live and healthy.
+- The previous signed NVIDIA `.259` deployment remains available as rollback:
   `sha256:6bb673b6583d597048079610ab5b2a91e7bf5f1d2f3e2773a9265ba4b7bae134`.
-- The booted image is version `44.20260719.259`; its digest exactly matches
-  GHCR `latest` and its signature was verified locally with `cosign.pub`.
-- NVIDIA, Wayland, Plasma login and CUDA/NVIDIA operation are live and healthy;
-  `nvidia-smi` reports the RTX 2080 SUPER with driver `610.43.03`.
-- The previous signed NVIDIA `.258` deployment remains available as rollback:
-  `sha256:7bb194c28894aa07ad732a5eb302394f8e1f3587fd1795b9de4491c4460eeb88`.
-- `moos-selfcheck`: 38 passed, 1 expected development warning for the local
-  Quiet Horizon staging wallpaper; it must return to 39/39 after the signed
-  image boots and local staging shadows are removed.
-- Failed system units: 0.
+- `moos-selfcheck`: **39/39 passed** on the booted `.260` — the local staging
+  shadows noted in the previous checkpoint are gone, as required.
+- Failed system units: 29, **all** `drkonqi-coredump-processor@*` — the
+  symptom of the compositor race below, not 29 distinct defects.
 - Failed user units: 0.
-- `tests/post-update-check.sh`: 39 passed on `.256`; the booted digest exactly
-  matches GHCR `latest` and signature enforcement is active.
+- `tests/post-update-check.sh`: 39 passed, 1 failed. The single failure is the
+  new compositor-race check added this session, and it is a TRUE POSITIVE.
 
 ## Repository checks
 
@@ -242,19 +249,39 @@ stale.
 
 ## Highest-priority observed issues
 
-1. Publish this visual-polish candidate once, wait for both CI editions and
-   the signed GHCR image, then stage the NVIDIA image by exact digest.
-2. Reboot, remove only the known local development shadows, reapply the signed
-   dark theme, and verify autologin, dock/control, launcher, lock, logout,
-   Plymouth and login from immutable `/usr`.
-3. Require `moos-selfcheck` and `post-update-check.sh` to return 39/39, verify
-   the exact booted digest/signature and rollback, and inspect system/user
-   journals for new MoOS-owned QML or NVIDIA/Wayland failures.
-4. ~~Replace deprecated `Qt.btoa(string)`~~ DONE — replaced with the Qt 6.11
+1. **The session loses a race with the compositor at boot. NOT YET FIXED —
+   only detected.** `plasma-kwin_wayland.service` declares
+   `Before=plasma-core.target`, but its `WantedBy=` is **empty**: nothing pulls
+   the compositor into the boot transaction, and systemd only honours ordering
+   between units it is already starting. So `plasma-core.target`'s members
+   (`plasmashell`, `kded6`, `kglobalacceld`, `org_kde_powerdevil`, `ksmserver`,
+   `kaccess`, `kcminit_startup`, `gmenudbusmenuproxy`, `xembedsniproxy`) start
+   before any display exists, Qt's `init_platform` calls `qFatal`, and every one
+   of them SIGABRTs. Confirmed by stack trace on core `2385`
+   (`qAbort` -> `QMessageLogger::fatal` -> `init_platform`).
+   - It is **self-healing**: systemd restarts them and they succeed once kwin is
+     up (`kded6` active at `01:09:55`, `plasmashell` at `01:10:03`). The desktop
+     comes up correctly, which is precisely why nothing caught it.
+   - It is a **race, not a constant**: occurrences by boot were
+     `-4: 0, -3: 0, -2: 0, -1: 8, 0: 39`. The last two images began losing it
+     consistently.
+   - Cost: ~12 s of login time and ~25-39 aborted processes per boot. No disk
+     risk — `/var/lib/systemd/coredump` is 133 MB against the 1 G cap in
+     `10-moos-cap.conf`, with 414 G free.
+   - **No MoOS unit is implicated.** Nothing under
+     `system_files/usr/lib/systemd/user/` orders against `plasma-core.target`;
+     the empty `WantedBy=` is upstream's. The recent commits are QML, theme and
+     artwork only. `moos-theme-sync` taking 12.3 s is unrelated and expected —
+     it is the one-time `THEME_REV` 19->20 re-apply from `13359ab`, and it ran
+     at `01:17`, eight minutes after the storm.
+   - **Do not fix this on the live machine.** The fix touches session startup on
+     the maintainer's daily driver; a wrong ordering drop-in means no desktop.
+     Per `AGENTS.md` rule 9 it must be proven in a booted VM first.
+2. Introduce testing/candidate/stable image channels before treating the
+   maintainer's daily driver as a general release target.
+3. ~~Replace deprecated `Qt.btoa(string)`~~ DONE — replaced with the Qt 6.11
    array-like overload `Qt.btoa(Array.from(svg))` (verified QML-host-safe; a
    sibling session's PR #10 added a gate forbidding browser-only `TextEncoder`).
-5. Introduce testing/candidate/stable image channels before treating the
-    maintainer's daily driver as a general release target.
 
 ## Open issues / blockers (this session)
 
@@ -279,18 +306,38 @@ stale.
 
 ## Exact next action
 
-Reboot into staged `.259`, then live-verify the doorway surfaces and exact
-digest:
+The previous next-action ("reboot into staged `.259`") was already **superseded**
+before this session began: the machine went on to `.260` and is booted on it.
+Nothing is pending on the release path — commit, signed image and booted digest
+all agree, and CI is green on all five recent pushes.
+
+The one open engineering task is issue 1 above: the compositor race. It is
+detected but **not fixed**, and it must not be fixed on the live machine.
+
+Fix it in a VM, in this order:
 
 ```bash
-systemctl reboot
-# After login:
-rpm-ostree status --json
-moos-selfcheck
-bash tests/post-update-check.sh
-# Recapture login, lock/password and logout. Confirm initial avatar + MoOS badge,
-# bidi punctuation, and no new QML errors in both greeter and user journals.
+# 1. Reproduce in a booted VM (a fast VM may WIN the race — force a loss by
+#    slowing the compositor, e.g. software rendering, before trusting a green run).
+just build
+# bootc-image-builder --type qcow2, then boot under qemu. NOT in /tmp:
+# a qcow2 of this image is ~10GB and /tmp here is a 7.8GB tmpfs.
+
+# 2. The candidate fix is a user drop-in that puts the compositor in the
+#    transaction, so its existing Before= actually binds:
+#      system_files/usr/lib/systemd/user/plasma-kwin_wayland.service.d/10-moos-order.conf
+#      [Install]
+#      WantedBy=plasma-workspace-wayland.target
+#    Confirm against the real unit graph first — `systemctl --user show
+#    plasma-kwin_wayland.service -p WantedBy` must stop returning empty.
+
+# 3. Prove it in the VM across several cold boots, then:
+bash tests/post-update-check.sh   # the new check must go GREEN (it is red today)
 ```
+
+Only after the VM is green: commit, push, wait for CI and the signed GHCR
+image, stage the NVIDIA image by exact digest, reboot, and re-verify live.
+Keep `.260` as the rollback.
 
 ## Mo PC Remote (remote control) — status 2026-07-19
 

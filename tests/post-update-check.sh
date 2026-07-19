@@ -430,5 +430,34 @@ failed_user="$(systemctl --user --failed --no-legend 2>/dev/null | grep -v drkon
     systemctl --user --failed --no-legend | grep -v drkonqi-coredump | sed 's/^/      /' | head -5
 }
 
+head_ "The session won its race with the compositor"
+
+# WHAT THIS CATCHES, AND WHY THE CHECK ABOVE CANNOT. The failed-unit check filters
+# drkonqi-coredump-* on purpose: those template units fail as noise. But that filter also
+# hides the one thing they are a symptom of. plasma-kwin_wayland.service declares
+# `Before=plasma-core.target` and its `WantedBy=` is EMPTY — nothing pulls the compositor
+# into the boot transaction, and systemd only honours ordering BETWEEN units it is already
+# starting. So plasma-core.target's members (plasmashell, kded6, kglobalacceld, powerdevil,
+# ksmserver, kaccess) are free to start before any display exists. Qt has no recovery for
+# that: `init_platform` calls qFatal, and every one of them SIGABRTs.
+#
+# It is self-healing — systemd restarts them and they succeed once kwin is up — which is
+# exactly why it needs a check. On 2026-07-20 the live machine aborted ~25 session
+# processes at every boot while `moos-selfcheck`, this script, and CI were all green: the
+# desktop came up, so nothing anyone looked at said otherwise. The cost is ~12s of login
+# time and a coredump storm (harmless only because 10-moos-cap.conf caps it at 1G).
+#
+# Boots -4/-3/-2 scored 0 and boots -1/0 scored 8 and 25+, so this is a RACE, not a
+# constant. Zero is the correct expectation; any hit means the session lost it.
+aborts="$(journalctl --user -b --no-pager 2>/dev/null | grep -c "could not connect to display")"
+if [ "${aborts:-0}" -eq 0 ]; then
+    ok "no session process aborted for want of a display"
+else
+    bad "$aborts session start(s) aborted with 'could not connect to display' this boot"
+    printf '      the compositor lost its race; these processes SIGABRTed and were restarted:\n'
+    journalctl --user -b --no-pager 2>/dev/null | grep "could not connect to display" \
+        | sed -E 's/^.* ([a-z0-9_-]+)\[[0-9]+\]:.*/\1/' | sort -u | sed 's/^/      /' | head -8
+fi
+
 printf '\n\033[1m%d passed, %d failed\033[0m\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
