@@ -750,8 +750,10 @@ class TestMoOSUI2(unittest.TestCase):
         clock_card = qml_by_path[DASHBOARD / "contents/ui/ClockCard.qml"]
         self.assertRegex(
             clock_card,
-            r"RowLayout\s*\{[^}]*layoutDirection:\s*Qt\.LeftToRight",
-            "the HH:mm glyph row must stay chronological in Arabic/RTL sessions",
+            r"RowLayout\s*\{[^}]*LayoutMirroring\.enabled:\s*false"
+            r"[^}]*LayoutMirroring\.childrenInherit:\s*true"
+            r"[^}]*layoutDirection:\s*Qt\.LeftToRight",
+            "the HH:mm glyph row must opt out of Plasma's inherited RTL mirroring",
         )
         # The identity badge names the ACTIVE theme (e.g. "MIDNIGHT GLASS"),
         # driven by themeLabel threaded from main.qml -> DashboardBento -> here,

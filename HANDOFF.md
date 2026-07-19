@@ -34,6 +34,12 @@ Evidence priority:
 - Date: 2026-07-19, Europe/Berlin.
 - Local repository: `/var/home/moos/moos-image`.
 - Branch: `main`.
+- Live `.256` verification exposed that the first RTL clock fix was incomplete:
+  the dashboard showed `73:02` while the panel showed `20:37`. Plasma's
+  inherited `LayoutMirroring` overrides `RowLayout.layoutDirection` alone.
+  The new source fix explicitly disables mirroring on the HH:mm row and
+  propagates that non-mirrored state to its rolling digits. Both regression
+  gates now require the complete invariant.
 - Current code fix commit: `5d49e84` (`fix(boot): silence OSTree tmpfiles
   conflicts`). Repository HEAD and `origin/main` are both `eabee96`
   (`docs(handoff): record signed 254 deployment`).
@@ -81,22 +87,22 @@ Evidence priority:
 - MoOS 44 on KDE Plasma 6.7.3, Wayland, kernel 7.1.3.
 - Booted origin: exact signed `ghcr.io/moalfarras-sys/moos-nvidia` image.
 - Booted signed NVIDIA digest:
-  `sha256:274c18b2daddeb86ff62f958de3f36a633cca4dea1aabbbb5bfc859d426ddb00`.
-- The booted image is version `44.20260719.254`; its digest exactly matches
+  `sha256:93f82d4399471bc3b5008814db9440425fb7e935eccc881c8207c18908f10aa8`.
+- The booted image is version `44.20260719.256`; its digest exactly matches
   GHCR `latest` and its signature was verified locally with `cosign.pub`.
 - NVIDIA, Wayland, Plasma login and CUDA/NVIDIA operation are live and healthy;
   `nvidia-smi` reports the RTX 2080 SUPER with driver `610.43.03`.
-- The previous signed NVIDIA `.253` deployment remains available as rollback:
-  `sha256:8ac01ccbba3f14c374d9534062290a12119498ab84ecbf88f0c49745b60b3a85`.
+- The previous signed NVIDIA `.254` deployment remains available as rollback:
+  `sha256:274c18b2daddeb86ff62f958de3f36a633cca4dea1aabbbb5bfc859d426ddb00`.
 - `moos-selfcheck`: 39 passed.
 - Failed system units: 0.
 - Failed user units: 0.
-- `tests/post-update-check.sh`: 39 passed on `.254`; the booted digest exactly
+- `tests/post-update-check.sh`: 39 passed on `.256`; the booted digest exactly
   matches GHCR `latest` and signature enforcement is active.
 
 ## Repository checks
 
-Passed from the live tree with the two new fixes:
+Passed from the live tree:
 
 - `just check`
 - `python3 tests/test_moos_theme_safety.py` (3 tests)
@@ -104,6 +110,15 @@ Passed from the live tree with the two new fixes:
 - `bash -n build_files/build.sh`
 - `python3 tests/verify_user_experience.py`
 - `just build` (full local bootc image, including `bootc container lint`)
+- `.256` live checks: `moos-selfcheck` 39/39,
+  `tests/post-update-check.sh` 39/39, `just check`, theme-safety 3/3, UI2
+  7/7, direct experience gate, and build-script syntax all passed.
+- `.256` live screenshot at 1920x1080 confirmed the HEALTHY verdict is no
+  longer clipped and the dashboard cards do not overlap. It also provided the
+  decisive counterexample to the old clock gate: dashboard `73:02` versus
+  panel `20:37`.
+- Full local image build with the complete mirroring fix passed every identity,
+  image-experience and QML smoke gate plus `bootc container lint`.
 - forced occupied-port test: repository `moai-control` retried for five seconds
   with no traceback or `NameError`.
 - real local Mo AI chat through gateway → RamaLama → CUDA answered exactly
@@ -142,9 +157,10 @@ stale.
 
 ## Highest-priority observed issues
 
-1. Publish this bundled MoPlayer + dashboard fix, wait for both CI editions and
-   signed GHCR image, then update/reboot and visually verify the fixed clock and
-   verdict on the live deployment while preserving `.253` as rollback.
+1. Publish the complete RTL mirroring fix, wait for both CI editions and the
+   signed GHCR image, then update/reboot and visually verify the dashboard time
+   matches the panel in chronological HH:mm order while preserving `.256` as
+   rollback.
 2. Capture/inspect Plymouth and the login greeter during the new-image boot.
 4. ~~Replace deprecated `Qt.btoa(string)`~~ DONE — replaced with the Qt 6.11
    array-like overload `Qt.btoa(Array.from(svg))` (verified QML-host-safe; a
@@ -175,22 +191,22 @@ stale.
 
 ## Exact next action
 
-Commit and push the code plus this handoff together, wait for CI and signed
-GHCR publication, then update to the exact new NVIDIA digest:
+Commit and push the clock fix plus this handoff together, wait for CI and
+signed GHCR publication, then update to the exact new NVIDIA digest:
 
 ```bash
 git status --short
 git diff --check
-git add HANDOFF.md moplayer system_files/usr/share/plasma/wallpapers/\
-org.moos.ui2.wallpaper/contents/ui/{ClockCard,SystemCard}.qml \
-tests/test_moos_ui2.py tests/verify_user_experience.py
-git commit -m "fix(desktop): correct RTL clock and MoPlayer close"
+git add HANDOFF.md system_files/usr/share/plasma/wallpapers/\
+org.moos.ui2.wallpaper/contents/ui/ClockCard.qml tests/test_moos_ui2.py \
+tests/verify_user_experience.py
+git commit -m "fix(desktop): prevent inherited RTL clock mirroring"
 git push origin main
 
 # Wait for both image editions, inspect/signature-verify the resulting NVIDIA
 # digest, stage it with bootc/rpm-ostree, reboot, then rerun post-update checks.
-# At 4K/200% capture dark and light screenshots confirming chronological HH:mm
-# and an untruncated HEALTHY. Test the image-installed MoPlayer close once more.
+# Capture a live screenshot confirming chronological HH:mm and an untruncated
+# HEALTHY. Then continue the broader screen-by-screen polish audit.
 ```
 
 ## Mo PC Remote (remote control) — status 2026-07-19

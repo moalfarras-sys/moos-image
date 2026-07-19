@@ -65,8 +65,12 @@ Item {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignLeft
                 // Time is a left-to-right technical token even when the shell
-                // language is Arabic.  Without this, RowLayout inherits the
-                // session's RTL direction and visually turns 19:54 into 45:91.
+                // language is Arabic. Plasma enables LayoutMirroring on the
+                // wallpaper tree, which overrides layoutDirection alone; stop
+                // that inheritance here and keep the rolling digits in HH:mm
+                // order.
+                LayoutMirroring.enabled: false
+                LayoutMirroring.childrenInherit: true
                 layoutDirection: Qt.LeftToRight
                 spacing: 0
 
