@@ -84,21 +84,57 @@ still required.
 5. Investigate previous `moai-gateway.service` and `moai-control.service`
    restart failures even though both recovered.
 6. Fix or intentionally disable unused NFS/rpcbind startup paths and their
-   missing state directories.
+   missing state directories. (No NFS/rpcbind unit present in repo as of this
+   session — likely already handled or lives outside system_files; recheck.)
 7. Identify the tmpfiles rules that mishandle `/home`, `/srv`, and `/root` on
    the bootc/composefs layout.
-8. Replace deprecated `Qt.btoa(string)` calls in Welcome, Store, and Installer.
+8. ~~Replace deprecated `Qt.btoa(string)`~~ DONE — replaced with the Qt 6.11
+   array-like overload `Qt.btoa(Array.from(svg))` (verified QML-host-safe; a
+   sibling session's PR #10 added a gate forbidding browser-only `TextEncoder`).
 9. Add all maintained tests to `just check` and CI.
 10. Introduce testing/candidate/stable image channels before treating the
     maintainer's daily driver as a general release target.
 
-## Exact next action
+## Open issues / blockers (this session)
 
-Check the GitHub Actions result for commit `d63fa01`. If both MoOS image variants
-are green, fetch the newly published digests and compare them with the staged
-deployment. Do not reboot until the staged NVIDIA digest is confirmed to be the
-successful build intended for this commit. Then perform the controlled reboot
-and run the full post-update hardware verification.
+1. **Cannot push OR deploy from the agent** — the session had no GitHub token
+   until late, and `sudo` needs the maintainer's password (not scriptable).
+   The fix commit `b7a2175` was pushed (now merged via `dfe1b37` + `11cb3e9`).
+   The **deployment + reboot step requires the maintainer** to run the commands
+   in "Exact next action" below.
+2. **This NVIDIA machine is currently BOOTED on the GENERIC `moos` image with
+   no NVIDIA driver.** This is the top live priority and is NOT yet fixed
+   (needs the reboot below).
+3. `No QSGTexture provided from updateSampledImage()` — benign Qt/plasmashell
+   internal warning; left as-is (non-blocking, not our QML).
+
+## Exact next action (maintainer, needs sudo password)
+
+This RTX 2080 SUPER box is on the driverless generic image. Deploy the freshly
+built + signed NVIDIA image (rev `11cb3e9`, version `44.20260719.247`) and
+reboot, then verify the driver, login, Wayland and rollback:
+
+```bash
+# 1. Deploy the exact signed NVIDIA digest (keeps the current generic deploy as rollback)
+sudo rpm-ostree rebase \
+  ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:eacf979c3f1e36fd787f76446a143b47d90332f76a5c7d6fb5326c4b4bd50097
+
+# 2. Reboot into it
+sudo systemctl reboot
+
+# 3. After boot, verify (as the desktop user):
+lsmod | grep -E '^nvidia '            # must show the nvidia driver
+nvidia-smi                              # must report the RTX 2080 SUPER
+rpm-ostree status                       # booted edition must now be moos-nvidia
+moos-selfcheck                          # expect 39/39
+journalctl -b 0 | grep -iE 'orbPulse|Address already in use|Qt.btoa'   # expect nothing
+# 4. Prove rollback safety:
+sudo rpm-ostree rollback               # returns to the previous (generic) deploy
+sudo systemctl reboot                  # confirm it still boots, then re-deploy nvidia
+```
+
+Do NOT trust the old staged NVIDIA digest `115141c5…` — it is an orphan that no
+longer exists in GHCR. The generic image is now `sha256:81e10d12…` (same rev);
 
 ## New-conversation prompt
 
