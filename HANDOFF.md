@@ -34,34 +34,45 @@ Evidence priority:
 - Date: 2026-07-19, Europe/Berlin.
 - Local repository: `/var/home/moos/moos-image`.
 - Branch: `main`.
-- `main` and `origin/main`: `9fe30a96fd310ac95454df9fe5c6dd196395611c`.
+- `main` and `origin/main`: `8ccfeff08d25b80e60ced7fe4ebee24e95047a08`.
 - The NFS-root initramfs fix from `9fe30a9` is now verified on the live system:
   this boot contains no `rpcbind`, `rpc.statd`, or `nfs-start-rpc` errors.
-- Current source change fixes `moai-control` crashing at class definition with
-  `NameError: self is not defined`; the gateway/response block is restored to
-  `H.do_POST`, with an AST regression gate that catches class-scope request code.
+- The live `.252` image verified the previous `moai-control` class-scope fix,
+  but exposed a second recovery-path bug: an occupied port called
+  `sys.stderr.write()` without importing `sys`, causing three startup crashes.
+- Commit `8ccfeff` imports `sys`, gates the import, and fixes
+  `moos-device-plan` falling back to “NVIDIA image required” because current
+  `bootc status` needs root. It now uses unprivileged `rpm-ostree status --json`.
+- GitHub image run `29694295811` passed for both editions, pushed and verified
+  signed image `.253`. Exact signed NVIDIA digest:
+  `sha256:8ac01ccbba3f14c374d9534062290a12119498ab84ecbf88f0c49745b60b3a85`.
+- `.253` is now booted and live-verified. `moai-control` survived the observed
+  occupied-port startup path without a traceback, then a controlled restart
+  bound `8079` immediately and served valid JSON.
+- The next fix removes only the three generic tmpfiles creation rules that
+  conflict with OSTree's `/home`, `/srv`, and `/root` symlinks. It is locally
+  built and tested; commit/push and signed-image CI remain.
 
 ## Installed system
 
 - MoOS 44 on KDE Plasma 6.7.3, Wayland, kernel 7.1.3.
 - Booted origin: exact signed `ghcr.io/moalfarras-sys/moos-nvidia` image.
 - Booted signed NVIDIA digest:
-  `sha256:284a8f229046c77199ff7c0a6bc576b967a02e9279042a37826f5cf49c758ea7`.
-- The booted image is revision `9fe30a96`, version `44.20260719.251`, and its
+  `sha256:8ac01ccbba3f14c374d9534062290a12119498ab84ecbf88f0c49745b60b3a85`.
+- The booted image is revision `8ccfeff`, version `44.20260719.253`, and its
   signature was verified locally with `cosign.pub`.
 - NVIDIA, Wayland, Plasma login and CUDA/NVIDIA operation are live and healthy;
   `nvidia-smi` reports the RTX 2080 SUPER with driver `610.43.03`.
-- The previous generic `.241` deployment remains available as rollback.
-- `moos-selfcheck`: 38 passed, one note because the broken installed
-  `moai-control` is intentionally stopped until the fixed image is deployed.
+- The previous signed NVIDIA `.252` deployment remains available as rollback.
+- `moos-selfcheck`: 39 passed.
 - Failed system units: 0.
 - Failed user units: 0.
-- `tests/post-update-check.sh`: 39 passed; the booted digest is exactly the
-  published `moos-nvidia:latest` digest and signature enforcement is active.
+- `tests/post-update-check.sh`: 39 passed on `.253`; the booted digest exactly
+  matches GHCR `latest` and signature enforcement is active.
 
 ## Repository checks
 
-Passed from the live tree with the `moai-control` fix:
+Passed from the live tree with the two new fixes:
 
 - `just check`
 - `python3 tests/test_moos_theme_safety.py` (3 tests)
@@ -69,10 +80,23 @@ Passed from the live tree with the `moai-control` fix:
 - `bash -n build_files/build.sh`
 - `python3 tests/verify_user_experience.py`
 - `just build` (full local bootc image, including `bootc container lint`)
-- isolated live HTTP test: service startup, `GET /config`, `POST /config`, and
-  follow-up `/status` all succeeded; the process remained alive.
-- the new AST gate was proven to bite by deliberately moving the block back to
-  class scope, observing both expected failures, then restoring the fix.
+- forced occupied-port test: repository `moai-control` retried for five seconds
+  with no traceback or `NameError`.
+- real local Mo AI chat through gateway → RamaLama → CUDA answered exactly
+  `MoOS AI OK`; generation was ~8 ms/token and `llama-server` used 3386 MiB VRAM.
+- live device plan from the fixed helper reports `nvidia_image=true` and
+  `NVIDIA proprietary driver active`.
+- temporary 4K hardware test: 3840x2160@60, scale 2; screenshot is 3840x2160
+  and fonts, icons, panel, dashboard and windows remained coherent. The display
+  was restored to its original 1920x1080@60, scale 1 afterward.
+- `just build` full local image succeeded, including identity/experience
+  firewalls, QML smoke tests and `bootc container lint`.
+- tmpfiles root simulation: after scrubbing only the three conflicting
+  top-level rules, `/home`, `/srv`, and `/root` remained symlinks and emitted no
+  “already exists and is not a directory” messages.
+- inspection of the built `moos:latest` image confirms `home.conf` no longer
+  creates `/home` or `/srv`, and `provision.conf` still provisions
+  `/root/.ssh` while no longer trying to recreate `/root`.
 
 The two unittest files are reached by the recursive experience verifier invoked
 by `just check`; the older handoff statement that they were outside the gate was
@@ -80,11 +104,10 @@ stale.
 
 ## Highest-priority observed issues
 
-1. Commit/push the tested `moai-control` fix, wait for signed-image CI, deploy
-   its exact NVIDIA digest, reboot, and verify the installed service/API live.
+1. Commit/push the locally built tmpfiles fix, wait for signed-image CI, stage
+   the exact NVIDIA digest, reboot, and confirm the three errors are absent.
 2. Investigate repeated `No QSGTexture provided from updateSampledImage()`.
-3. Identify the tmpfiles rules that mishandle `/home`, `/srv`, and `/root` on
-   the bootc/composefs layout.
+3. Investigate MoPlayer's display-change/UI-close crash path.
 4. ~~Replace deprecated `Qt.btoa(string)`~~ DONE — replaced with the Qt 6.11
    array-like overload `Qt.btoa(Array.from(svg))` (verified QML-host-safe; a
    sibling session's PR #10 added a gate forbidding browser-only `TextEncoder`).
@@ -93,31 +116,34 @@ stale.
 
 ## Open issues / blockers (this session)
 
-1. The installed `.251` image has a broken `moai-control`; its user service was
-   stopped to end the restart loop. The repository fix is locally verified but
-   is not live until a new signed image is built, staged, and booted.
-2. `No QSGTexture provided from updateSampledImage()` — likely Qt/plasmashell
+1. Suspend/resume was not triggered during this session: Mo Remote intentionally
+   holds a sleep inhibitor, and no prior successful suspend cycle was present in
+   the retained journal. NVIDIA's suspend unit/drop-in is installed.
+2. Boot logs in `.253` contain tmpfiles errors for the composefs symlinks
+   `/home`, `/srv`, and `/root`. The exact owning rules are now identified and
+   the fix is locally built, but it is not live until a new image boots.
+3. MoPlayer produced one real core dump after 25 seconds:
+   `eglMakeCurrent failed` → libepoxy assertion during
+   `fl_compositor_opengl_cleanup`. A controlled 15-second launch followed by
+   SIGTERM exited without a crash, so startup/playback rendering is not enough
+   to reproduce it; test the UI close path and display-change path separately.
+4. `No QSGTexture provided from updateSampledImage()` — likely Qt/plasmashell
    internal warning; left as-is (non-blocking, not our QML).
+5. CI warns that several upstream actions still target deprecated Node.js 20.
 
 ## Exact next action
 
-Commit and push the tested `moai-control` fix. After image CI succeeds, resolve
-and verify the exact signed NVIDIA digest, deploy it, reboot, then verify:
+Commit and push the tmpfiles fix. After image CI passes, resolve and verify the
+exact signed NVIDIA digest, stage it, reboot, then verify:
 
 ```bash
-# 1. Deploy only the exact digest emitted by the successful image workflow
-sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:NEW_DIGEST
-sudo systemctl reboot
-
-# 2. After boot, verify (as the desktop user):
-lsmod | grep -E '^nvidia '            # must show the nvidia driver
-nvidia-smi                              # must report the RTX 2080 SUPER
-rpm-ostree status                       # booted edition must now be moos-nvidia
-moos-selfcheck                          # expect 39/39
-systemctl --user status moai-control.service
-curl -H 'X-Moai-Control: 1' http://127.0.0.1:8079/config
-journalctl --user -b 0 -u moai-control.service
-# Expect an active service, a JSON response, and no NameError/restart loop.
+rpm-ostree status
+moos-selfcheck
+systemctl --failed
+systemctl --user --failed
+journalctl -b 0 -p err..alert --no-pager
+# Expect the new signed NVIDIA image, 39/39, zero failed units, and no tmpfiles
+# errors for /home, /srv, or /root. Keep the previous deployment for rollback.
 ```
 
 ## Mo PC Remote (remote control) — status 2026-07-19

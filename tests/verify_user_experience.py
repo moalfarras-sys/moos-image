@@ -3286,6 +3286,24 @@ require("ExecStartPre=/usr/libexec/moos-wait-drm" in _login_drm_dropin,
 require("chmod 0755 /usr/libexec/moos-wait-drm" in _build,
         "build.sh must make the login DRM preflight executable")
 
+# bootc/OSTree owns these root paths as symlinks into persistent /var. Generic
+# home.conf/provision.conf directory rules otherwise emit three errors on every
+# boot. Scrub only those exact top-level rules and fail loudly if upstream moves
+# them; never mask either whole vendor file and lose unrelated provisioning.
+require(
+    'home_tmpfiles="/usr/lib/tmpfiles.d/home.conf"' in _build
+    and 'provision_tmpfiles="/usr/lib/tmpfiles.d/provision.conf"' in _build,
+    "the build must target the two vendor tmpfiles files that conflict with OSTree",
+)
+require(
+    "_tmpfiles" in _build
+    and "/(home|srv)" in _build
+    and "/root" in _build
+    and "conflicting /home or /srv tmpfiles rule survived" in _build
+    and "conflicting /root tmpfiles rule survived" in _build,
+    "the build must remove and verify all three conflicting top-level rules",
+)
+
 # Retired SDDM/org.moos.nova generators used to recreate a second login/theme
 # stack even after runtime files were removed.
 _legacy_art = code(read("artwork/generate_nova_visuals.py"), "hash")

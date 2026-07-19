@@ -1748,6 +1748,25 @@ systemctl --global enable moos-reclaim-disk.timer
 # remount processing while preserving /boot, /boot/efi, /home and /var.
 systemctl enable moos-fstab-sanitize.service
 
+# OSTree exposes /home, /srv and /root as symlinks into persistent /var. The
+# generic tmpfiles rules try to create those three paths as directories and log
+# an error on every boot. Remove only the conflicting top-level creation rules;
+# provisioning below /root (for example /root/.ssh) still follows the symlink.
+home_tmpfiles="/usr/lib/tmpfiles.d/home.conf"
+provision_tmpfiles="/usr/lib/tmpfiles.d/provision.conf"
+grep -Eq '^Q[[:space:]]+/home[[:space:]]' "$home_tmpfiles" \
+    || { echo "FATAL: upstream home.conf no longer has the expected /home rule"; exit 1; }
+grep -Eq '^q[[:space:]]+/srv[[:space:]]' "$home_tmpfiles" \
+    || { echo "FATAL: upstream home.conf no longer has the expected /srv rule"; exit 1; }
+grep -Eq '^d-[[:space:]]+/root[[:space:]]' "$provision_tmpfiles" \
+    || { echo "FATAL: upstream provision.conf no longer has the expected /root rule"; exit 1; }
+sed -i -E '/^[Qq][[:space:]]+\/(home|srv)[[:space:]]/d' "$home_tmpfiles"
+sed -i -E '/^d-[[:space:]]+\/root[[:space:]]/d' "$provision_tmpfiles"
+grep -Eq '^[Qq][[:space:]]+/(home|srv)[[:space:]]' "$home_tmpfiles" \
+    && { echo "FATAL: conflicting /home or /srv tmpfiles rule survived"; exit 1; }
+grep -Eq '^d-[[:space:]]+/root[[:space:]]' "$provision_tmpfiles" \
+    && { echo "FATAL: conflicting /root tmpfiles rule survived"; exit 1; }
+
 # -----------------------------------------------------------------------------
 # The login screen is Plasma's, and Plasma's login screen is MoOS
 # -----------------------------------------------------------------------------
