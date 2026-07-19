@@ -97,7 +97,13 @@ def detect():
                 k, v = line.rstrip().split("=", 1); os_release[k] = v.strip('"')
     except OSError:
         pass
-    image = run("bootc", "status", "--format=json")
+    # bootc status became root-only on the installed host, so an unprivileged
+    # desktop helper cannot rely on it. rpm-ostree exposes the same deployed
+    # container reference read-only and remains available to the user.
+    image = (
+        run("bootc", "status", "--format=json")
+        or run("rpm-ostree", "status", "--json")
+    )
     nvidia_image = "moos-nvidia" in image
     mem_kib = 0
     try:

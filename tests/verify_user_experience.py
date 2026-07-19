@@ -388,6 +388,16 @@ require(_gateway_start is not None,
 # then crashes immediately because neither `self` nor `mode` exists there. Check
 # the syntax tree: the gateway activation and response must belong to do_POST.
 _control_tree = ast.parse(read("system_files/usr/bin/moai-control"))
+_control_imports = {
+    alias.name
+    for node in _control_tree.body
+    if isinstance(node, ast.Import)
+    for alias in node.names
+}
+require(
+    "sys" in _control_imports,
+    "moai-control's port-busy recovery writes to sys.stderr, so sys must be imported",
+)
 _handler = next((n for n in _control_tree.body
                  if isinstance(n, ast.ClassDef) and n.name == "H"), None)
 _post = next((n for n in (_handler.body if _handler else [])

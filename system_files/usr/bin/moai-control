@@ -18,7 +18,7 @@
 #   GET  /scan     full snapshot incl. the cached device plan.
 #   GET  /search?q=…  Flathub app search (this is Mo AI's App Centre).
 #   POST /config   set the DEFAULT mode/base/model/key.
-import json, os, re, shutil, subprocess, threading, time
+import json, os, re, shutil, subprocess, sys, threading, time
 import urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
