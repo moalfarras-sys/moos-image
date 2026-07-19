@@ -15,8 +15,9 @@
 # 49-moos-installer.rules). stdout is the machine-readable contract the QML polls:
 #     PHASE partition|format|copy|bootloader|finalize
 #     PROGRESS 0..100
-#     DONE / FAIL <code>   code ∈ no-recipe|not-root|not-live|no-node|live-node|
-#                                 no-image|no-network|no-space|disk-io|generic
+#     DONE / FAIL <code>   code ∈ no-recipe|password-required|hash-failed|
+#                                 not-root|not-live|no-node|live-node|no-image|
+#                                 no-network|no-space|disk-io|seed-failed|generic
 #
 # ENGINE: `bootc install to-disk` run inside the image via podman (the container IS
 # the image). Uses the LOCAL copy if the ISO embedded it (offline) else pulls it
@@ -71,7 +72,7 @@ DISKS_JSON="$(dirname "$RECIPE")/disks.json"
 # Parse the recipe with NUL-delimited fields, NOT tab. `IFS=$'\t' read` collapses a
 # run of tabs into ONE delimiter (tab is IFS-whitespace) and drops any EMPTY field,
 # shifting every field after it left by one. That is a real, reproduced corruption:
-# an empty `password` (the default passwordless flow) or empty `autologin` made the
+# an empty field in an older recipe made the
 # installed system get LOCALE=<timezone>, XKBLAYOUT=<locale> → LANG=UTC (invalid) →
 # the desktop fell back to the image's default language and the keyboard broke.
 # NUL delimiters + `mapfile -d ''` preserve empty fields exactly, in order.
@@ -101,14 +102,12 @@ R_AUTO="${_RF[4]}"; R_KEYMAP="${_RF[5]}"; R_XKB="${_RF[6]}"; R_LOCALE="${_RF[7]}
 # Hash the password now (stdin, never argv) so the plaintext can be discarded with
 # the recipe immediately after — nothing plaintext survives the long install.
 PASS_HASH=""
-if [ -n "$R_PASS" ]; then
-    command -v mkpasswd >/dev/null 2>&1 && PASS_HASH="$(printf '%s' "$R_PASS" | mkpasswd -m yescrypt -s 2>/dev/null)"
-    [ -z "$PASS_HASH" ] && command -v openssl >/dev/null 2>&1 && PASS_HASH="$(printf '%s' "$R_PASS" | openssl passwd -6 -stdin 2>/dev/null)"
-    # A chosen password that could not be hashed must NOT silently become a
-    # PASSWORDLESS machine (moos-firstboot would then ship NOPASSWD sudo + a
-    # passwordless polkit rule). Fail loudly so the user knows it was not set.
-    [ -z "$PASS_HASH" ] && { R_PASS=""; wipe_recipe; fail "hash-failed"; }
-fi
+[ "${#R_PASS}" -ge 8 ] || { R_PASS=""; wipe_recipe; fail "password-required"; }
+command -v mkpasswd >/dev/null 2>&1 && PASS_HASH="$(printf '%s' "$R_PASS" | mkpasswd -m yescrypt -s 2>/dev/null)"
+[ -z "$PASS_HASH" ] && command -v openssl >/dev/null 2>&1 && PASS_HASH="$(printf '%s' "$R_PASS" | openssl passwd -6 -stdin 2>/dev/null)"
+# A required password that cannot be hashed must fail loudly. There is no
+# passwordless administrative fallback in MoOS.
+[ -z "$PASS_HASH" ] && { R_PASS=""; wipe_recipe; fail "hash-failed"; }
 R_PASS=""
 wipe_recipe   # done with the recipe — no plaintext lingers during the install
 
@@ -289,9 +288,8 @@ done
 stop_ticker
 
 # On success: mount the target ONCE to (a) plant the first-boot answers and (b)
-# re-arm SIGNED day-2 verification. Both best-effort for (a) — the system stays
-# usable via moos-firstboot's default user — but the signing rewrite matters, so
-# it is logged loudly if it cannot run.
+# re-arm SIGNED day-2 verification. Seeding is mandatory: without the encrypted
+# account recipe the target would boot with no usable user.
 seed_target() {
     local part etc mnt=/run/moos-target origin
     part="$(lsblk -nrpo NAME,FSTYPE "$NODE" 2>/dev/null | awk '$2=="btrfs"{print $1; exit}')"
@@ -304,7 +302,7 @@ seed_target() {
             printf 'USERNAME=%s\n'      "$R_USER"
             printf 'FULLNAME=%s\n'      "$R_FULL"
             printf 'PASSWORD_HASH=%s\n' "$PASS_HASH"
-            printf 'AUTOLOGIN=%s\n'     "${R_AUTO:-1}"
+            printf 'AUTOLOGIN=%s\n'     "${R_AUTO:-0}"
             printf 'KEYMAP=%s\n'        "${R_KEYMAP:-us}"
             printf 'XKBLAYOUT=%s\n'     "${R_XKB:-us}"
             printf 'LOCALE=%s\n'        "$R_LOCALE"
@@ -369,7 +367,7 @@ register_uefi_boot() {
 
 if [ "$rc" -eq 0 ]; then
     phase finalize; raise 99
-    seed_target || echo "target seeding incomplete (non-fatal for boot; check log)" >>"$LOG"
+    seed_target || { echo "target seeding failed; refusing to report an unusable install" >>"$LOG"; fail "seed-failed"; }
     register_uefi_boot || echo "uefi: boot entry NOT registered — user may need to pick the disk in the firmware menu (check log)" >>"$LOG"
     prog 100
     emit "DONE"

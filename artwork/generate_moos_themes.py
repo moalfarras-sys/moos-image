@@ -21,9 +21,14 @@ Usage:
 Every output is a NEW package; nothing existing is overwritten. Re-runnable.
 """
 from __future__ import annotations
-import argparse, importlib.util, json, math, pathlib, random, shutil, sys
+import argparse, importlib.util, json, math, os, pathlib, random, shutil, sys
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+# Honour the same isolated-root contract as generate_moos_ui2.py. Previously
+# this wrapper imported the base generator from the test tree but still wrote
+# the family packages into the real checkout, silently changing committed art.
+TEST_ROOT = os.environ.get("MOOS_UI2_TEST_ROOT")
+ROOT = (pathlib.Path(TEST_ROOT).resolve() if TEST_ROOT
+        else pathlib.Path(__file__).resolve().parent.parent)
 ART = ROOT / "artwork"
 SHARE = ROOT / "system_files/usr/share"
 
@@ -368,7 +373,9 @@ def build_lnf(key: str, meta: dict) -> None:
     if dst.exists():
         shutil.rmtree(dst)
     dst.mkdir(parents=True, exist_ok=True)
-    # copy contents/{logout,splash} with SVG/QML recolour
+    # One session-screen implementation across every palette. QML is copied
+    # byte-for-byte so splash/logout behaviour, layout and motion cannot fork.
+    # Only artwork SVGs are recoloured; QML consumes Kirigami palette roles.
     for sub in ("logout", "splash"):
         s = SRC_LNF / "contents" / sub
         if not s.exists():
@@ -378,7 +385,7 @@ def build_lnf(key: str, meta: dict) -> None:
             out = dst / rel
             if src.is_dir():
                 out.mkdir(parents=True, exist_ok=True)
-            elif src.suffix in (".qml", ".svg"):
+            elif src.suffix == ".svg":
                 write(out, recolor(src.read_text(encoding="utf-8"), m))
             else:
                 out.parent.mkdir(parents=True, exist_ok=True)
@@ -857,7 +864,7 @@ def build_theme(key: str) -> None:
     write(SHARE / "konsole" / f"{meta['style']}.profile", konsole_profile_for(key, meta))
     build_gtk(key, meta)
     wp = build_wallpaper(key, meta)
-    print(f"  ✓ {meta['name']:<16} style={meta['style']} lnf={meta['lnf']} "
+    print(f"  [ok] {meta['name']:<16} style={meta['style']} lnf={meta['lnf']} "
           f"wallpaper={'yes' if wp else 'SKIPPED (no PIL)'}")
 
 

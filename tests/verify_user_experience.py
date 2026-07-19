@@ -2328,6 +2328,55 @@ for icon_name in re.findall(r'iconName:\s*(?:[^"\n]*\?\s*)?"([^"]+)"(?:\s*:\s*"(
                 f"logout button icon {name!r} is not a -symbolic glyph — isMask "
                 "turns the theme's full-colour icon into a solid blob")
 
+# Every selectable palette is one MoOS UI engine, not another login/session
+# design hiding under a different colour name. KDE needs a look-and-feel package
+# per palette, but the doorway QML must remain byte-identical across all of them.
+lnf_packages = sorted(
+    path for path in (ROOT / "system_files/usr/share/plasma/look-and-feel").glob("org.moos.ui2*")
+    if path.is_dir()
+)
+require(len(lnf_packages) >= 2,
+        "MoOS must ship at least the matched dark/light UI2 pair")
+for doorway in (
+    "contents/splash/Splash.qml",
+    "contents/logout/Logout.qml",
+    "contents/logout/MoOSUI2ActionButton.qml",
+):
+    variants = {
+        (package / doorway).read_bytes()
+        for package in lnf_packages
+        if (package / doorway).is_file()
+    }
+    require(
+        len(variants) == 1
+        and all((package / doorway).is_file() for package in lnf_packages),
+        f"{doorway} must be one shared MoOS design across every UI2 palette; "
+        "a drifting package creates overlapping/inconsistent session screens",
+    )
+family_generator = code(read("artwork/generate_moos_themes.py"), "hash")
+family_lnf = family_generator.split("def build_lnf(", 1)[1].split("\ndef ", 1)[0]
+require('src.suffix == ".svg"' in family_lnf
+        and 'src.suffix in (".qml", ".svg")' not in family_lnf
+        and "shutil.copy2(src, out)" in family_lnf,
+        "the family generator must copy session-screen QML byte-for-byte and "
+        "recolour only artwork; otherwise one rebuild forks 16 login/logout designs")
+
+# The installed-disk release gate must make decisions on an ANSI-free serial
+# log. systemd colours individual words, so grepping the raw stream previously
+# reported failure after the disk had visibly reached Basic System and login.
+disk_workflow = read(".github/workflows/build-disk.yml")
+require(
+    "serial.plain.log" in disk_workflow
+    and "ansi = re.compile" in disk_workflow
+    and disk_workflow.count("/tmp/serial.plain.log") >= 3,
+    "the qcow2 boot gate must strip ANSI once and use the normalised serial log "
+    "for both failure and success decisions",
+)
+require(
+    "sddm-greeter" not in code(disk_workflow),
+    "the installed-disk gate must not wait for retired SDDM; MoOS uses plasma-login-manager",
+)
+
 # ── Arabic in the terminal ────────────────────────────────────────────────────
 #
 # MoOS brands itself Arabic/English and shipped a terminal an Arabic user could not
@@ -2897,13 +2946,12 @@ require(re.search(r"systemctl enable moos-live-polish\.service", read("build_fil
 # regression would break, comment-stripped so prose cannot satisfy it.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# #1 The dev-mode passwordless-root polkit rule must NOT ship in the image; the
-#    convenience is opt-in locally via moos-devmode-enable instead.
+# #1 Passwordless-root shortcuts must not ship at all — not as an active rule
+#    and not as a helper that can create one later.
 require(not (ROOT / "system_files/usr/share/polkit-1/rules.d/50-moos-devmode.rules").exists(),
-        "the dev-mode passwordless-root polkit rule must not ship in the image "
-        "(it defeats Mo AI's pkexec model); enable it locally with moos-devmode-enable")
-require((ROOT / "system_files/usr/bin/moos-devmode-enable").exists(),
-        "moos-devmode-enable (local opt-in for passwordless admin) must ship")
+        "the dev-mode passwordless-root polkit rule must not ship in the image")
+require(not (ROOT / "system_files/usr/bin/moos-devmode-enable").exists(),
+        "the image must not ship a helper that creates broad passwordless admin rules")
 
 # #10/#20 The desktop dashboard clock: 24-hour digits with NO AM/PM meridiem, and
 #         its second date line pinned to English (the ar+en pair every clock uses).
@@ -2940,6 +2988,15 @@ require(_ws > 0 and "moos-gpu-headroom" in _moaido[max(0, _ws - 400):_ws],
 _fb = code(read("system_files/usr/libexec/moos-firstboot"), "hash")
 require('id "$USERNAME"' in _fb and "NOT stamping" in _fb,
         "moos-firstboot must not stamp a userless install; it must retry next boot")
+require("account recipe has no password hash" in _fb,
+        "moos-firstboot must reject a missing password hash instead of creating an insecure account")
+require("NOPASSWD" not in _fb and "49-moos-passwordless.rules" not in _fb,
+        "moos-firstboot must never create passwordless sudo/polkit access")
+require("sddm" not in _fb.lower(),
+        "moos-firstboot must not recreate a retired SDDM login stack")
+_fb_unit = code(read("system_files/usr/lib/systemd/system/moos-firstboot.service"), "hash")
+require("sddm" not in _fb_unit.lower(),
+        "moos-firstboot.service still orders against retired SDDM")
 
 # #25 moos-hardware-adapt must APPLY the sysctl it writes (daemon-reload does not).
 _hw = code(read("system_files/usr/libexec/moos-hardware-adapt"), "hash")
@@ -2966,10 +3023,36 @@ require("flock -n 9" in _i2d,
         "moos-install-to-disk must hold an flock so a re-fired begin cannot double-wipe")
 require('fail "hash-failed"' in _i2d,
         "a chosen password that cannot be hashed must fail, not become passwordless")
+require('fail "password-required"' in _i2d and '${#R_PASS}' in _i2d,
+        "moos-install-to-disk must reject a missing/short password in the privileged backend")
+require('fail "seed-failed"' in _i2d,
+        "the installer must not report success when the target account recipe could not be saved")
 _iqml = read("system_files/usr/share/moos/apps/installer/main.qml")
+require("acctPass.length >= 8" in _iqml and "acctAutologin" in _iqml,
+        "the account page must require a password and keep autologin as a separate choice")
+for _installer_failure in ("password-required", "hash-failed", "seed-failed"):
+    require(f'case "{_installer_failure}"' in _iqml,
+            f"the installer has no actionable UI message for {_installer_failure}")
 _m = re.search(r"instPoll\.miss\s*>\s*(\d+)", _iqml)
 require(_m is not None and int(_m.group(1)) >= 150,
         "installer stall threshold must exceed the online ensure_network worst case")
+
+# The published qcow2 is a downloadable disk, so it must never contain a
+# repository-known credential. CI substitutes a random value in a private temp file.
+_bib = read("bib/config.toml")
+require("__MOOS_CI_RANDOM_PASSWORD__" in _bib and "moostest2026" not in _bib,
+        "bib/config.toml must contain only the CI-random password placeholder")
+require("openssl rand -hex" in disk_workflow
+        and "/tmp/moos-bib-config.toml:/config.toml:ro" in disk_workflow,
+        "build-disk.yml must inject a fresh private password before publishing qcow2")
+
+# Retired SDDM/org.moos.nova generators used to recreate a second login/theme
+# stack even after runtime files were removed.
+_legacy_art = code(read("artwork/generate_nova_visuals.py"), "hash")
+require("generate_sddm" not in _legacy_art and "--sddm" not in _legacy_art,
+        "the legacy artwork generator can still recreate the retired SDDM stack")
+require("org.moos.nova" not in _legacy_art and "--previews" not in _legacy_art,
+        "the legacy artwork generator can still recreate the retired Nova look-and-feel")
 
 # #2/#6 The ISO build must embed the image into the live containers-storage for
 #       OFFLINE install AND verify it (fail-loud), not assume Titanoboa did it.

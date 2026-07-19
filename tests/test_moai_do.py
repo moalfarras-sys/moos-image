@@ -21,7 +21,9 @@ script, not by reading it:
 Nothing here installs, removes, or escalates anything: the only arguments given to moai-do
 are ones it must refuse before it reaches a confirmation prompt or pkexec.
 """
+import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -31,6 +33,21 @@ MOAI_DO = ROOT / "system_files/usr/bin/moai-do"
 MOOS_OPEN = ROOT / "system_files/usr/bin/moos-open"
 
 errors = []
+
+
+def bash_executable() -> str:
+    """Use real Git Bash on Windows instead of the WSL app-execution alias."""
+    override = os.environ.get("MOOS_TEST_BASH")
+    if override:
+        return override
+    if os.name == "nt":
+        candidate = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Git/bin/bash.exe"
+        if candidate.is_file():
+            return str(candidate)
+    return shutil.which("bash") or "bash"
+
+
+BASH = bash_executable()
 
 
 def check(condition, message):
@@ -110,8 +127,9 @@ for qml in sorted((ROOT / "system_files/usr/share/moos/apps").glob("*/main.qml")
 # ── 2. Refusal — run it ──────────────────────────────────────────────────────
 def run(*args):
     """moai-do with no stdin: a prompt would read EOF and cancel, never hang."""
-    return subprocess.run(["bash", str(MOAI_DO), *args],
-                          capture_output=True, text=True, timeout=30,
+    return subprocess.run([BASH, str(MOAI_DO), *args],
+                          capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", timeout=30,
                           stdin=subprocess.DEVNULL)
 
 

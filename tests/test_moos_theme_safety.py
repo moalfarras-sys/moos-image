@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 import unittest
@@ -14,6 +16,21 @@ APPLY = ROOT / "system_files/usr/bin/moos-apply-theme"
 SWITCH = ROOT / "system_files/usr/bin/moos-theme"
 PATH_UNIT = ROOT / "system_files/usr/lib/systemd/user/moos-theme-sync.path"
 SERVICE_UNIT = ROOT / "system_files/usr/lib/systemd/user/moos-theme-sync.service"
+
+
+def bash_executable() -> str:
+    """Use real Git Bash on Windows instead of the WSL app-execution alias."""
+    override = os.environ.get("MOOS_TEST_BASH")
+    if override:
+        return override
+    if os.name == "nt":
+        candidate = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Git/bin/bash.exe"
+        if candidate.is_file():
+            return str(candidate)
+    return shutil.which("bash") or "bash"
+
+
+BASH = bash_executable()
 
 
 def function(text: str, name: str) -> str:
@@ -69,7 +86,7 @@ target_lnf "$1" "$2"
         for (current, completed), expected in cases.items():
             with self.subTest(current=current, completed=completed):
                 result = subprocess.run(
-                    ["bash", "-c", harness, "test", current, completed],
+                    [BASH, "-c", harness, "test", current, completed],
                     check=True,
                     text=True,
                     stdout=subprocess.PIPE,

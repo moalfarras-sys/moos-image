@@ -1,6 +1,6 @@
 # MoOS first-boot setup: create the user + apply account/locale/timezone/keyboard
-# from the installer's answers (/etc/moos-setup.conf), or a safe default user if
-# none. Runs ONCE, before the greeter, on the freshly installed system — where
+# from the installer's answers (/etc/moos-setup.conf), or accept an account
+# already provisioned by Anaconda/bootc-image-builder. Runs ONCE before the greeter,
 # SELinux labels and PAM are correct. See /usr/libexec/moos-firstboot.
 [Unit]
 Description=MoOS first-boot setup
@@ -10,7 +10,7 @@ ConditionPathExists=!/etc/moos-firstboot-done
 ConditionPathExists=/run/ostree-booted
 After=local-fs.target systemd-machine-id-commit.service
 # Must finish before the login manager so autologin/user exist at greeter time.
-Before=display-manager.service plasmalogin.service sddm.service
+Before=display-manager.service plasmalogin.service
 
 [Service]
 Type=oneshot

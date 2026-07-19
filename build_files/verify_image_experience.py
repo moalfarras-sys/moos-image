@@ -510,10 +510,16 @@ if fb.is_file():
     require("useradd" in _fb and "chpasswd" in _fb,
             "moos-firstboot does not create the user / set the password")
     require("plasmalogin.conf.d" in _fb and "Autologin" in _fb,
-            "moos-firstboot does not configure autologin — the passwordless choice would not work")
-    # Never ship an empty password (pam_unix rejects it and it breaks sudo/polkit).
-    require("passwd -l" in _fb,
-            "moos-firstboot must lock (not empty) the password in the passwordless path")
+            "moos-firstboot does not configure the optional autologin choice")
+    require("account recipe has no password hash" in _fb,
+            "moos-firstboot must reject an account recipe without a password hash")
+    require("NOPASSWD" not in _fb and "49-moos-passwordless.rules" not in _fb,
+            "moos-firstboot must never create passwordless sudo/polkit access")
+    require("sddm" not in _fb.lower(),
+            "moos-firstboot must not recreate a retired SDDM login stack")
+fb_unit = text("/usr/lib/systemd/system/moos-firstboot.service")
+require("sddm" not in fb_unit.lower(),
+        "moos-firstboot.service still orders against retired SDDM")
 # plasma-setup (Fedora KDE's own OOBE) must stay masked, or it double-runs with ours.
 require(Path("/etc/plasma-setup-done").exists()
         or Path("/etc/systemd/system/plasma-setup.service").is_symlink(),
@@ -526,8 +532,10 @@ if inst_qml.is_file():
     _iq = text(str(inst_qml))
     require("MoosInstaller.writeRecipe" in _iq,
             "the installer does not hand the account recipe to the helper (no secure bridge call)")
-    require("acctUser" in _iq and "acctPassword" in _iq,
-            "the installer has no account screen (username / password choice)")
+    require("acctUser" in _iq and "acctPass" in _iq and "acctAutologin" in _iq,
+            "the installer has no secure account screen (username / password / autologin)")
+    require("acctPass.length >= 8" in _iq,
+            "the installer must require a real password before installation")
     require("moalfarras.space" in _iq,
             "the installer's finish screen does not carry the moalfarras.space signature")
 # The QR asset the finish screen shows must ship.

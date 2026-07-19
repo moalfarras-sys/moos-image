@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-"""Generate the isolated MoOS UI2 Graphite/Tidal visual family.
+"""Generate the canonical MoOS UI2 Graphite/Tidal visual family.
 
-MoOS UI (UI1) and Nova are protected inputs/fallbacks. This program writes only
-UI2 package IDs and proves that every protected input has the same digest before
-and after generation. Plasma Dark and Light each receive a complete SVG suite;
-Light never inherits UI2 Dark's fixed-colour artwork.
+The committed Graphite UI2 packages are the maintained geometry source.
+Generation is transactional, and Plasma Dark and Light each receive a complete
+SVG suite; Light never inherits UI2 Dark's fixed-colour artwork.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import pathlib
@@ -39,21 +37,6 @@ WEATHER_KINDS = (
     "rain", "snow", "fog", "storm",
 )
 
-PROTECTED = (
-    SHARE / "plasma/desktoptheme/MoOSUI",
-    SHARE / "plasma/desktoptheme/MoOSUILight",
-    SHARE / "plasma/look-and-feel/org.moos.ui",
-    SHARE / "plasma/look-and-feel/org.moos.ui.light",
-    SHARE / "aurorae/themes/MoOSUI",
-    SHARE / "aurorae/themes/MoOSUILight",
-    SHARE / "color-schemes/MoOSUIDark.colors",
-    SHARE / "color-schemes/MoOSUILight.colors",
-    SHARE / "konsole/MoOSUIDark.colorscheme",
-    SHARE / "konsole/MoOSUILight.colorscheme",
-    SHARE / "wallpapers/MoOSUIAtmosphere",
-    SHARE / "plasma/plasmoids/org.moos.nova.deskclock",
-)
-
 OUTPUTS = (
     SHARE / "plasma/desktoptheme/MoOSUI2",
     SHARE / "plasma/desktoptheme/MoOSUI2Light",
@@ -72,21 +55,17 @@ OUTPUTS = (
     DASHBOARD_WEATHER,
 )
 
-IDENTITY = {
-    "org.moos.ui.light": "org.moos.ui2.light",
-    "org.moos.ui": "org.moos.ui2",
-    "MoOS UI Light": "MoOS UI2 Light",
-    "MoOS UI": "MoOS UI2",
-    "MoOSUILight": "MoOSUI2Light",
-    "MoOSUIDark": "MoOSUI2Dark",
-    "MoOSUI": "MoOSUI2",
-    "Nova Dark": "MoOS UI2 Dark",
-    "Nova Light": "MoOS UI2 Light",
-    "Nova navy": "UI2 graphite",
-    "Nova cyan": "UI2 turquoise",
-    "Nova palette": "UI2 palette",
-    "NovaActionButton": "MoOSUI2ActionButton",
-}
+# UI1 was intentionally removed from the shipped image in July 2026.  The
+# generator nevertheless kept reading that deleted tree and became impossible
+# to run.  UI2 Graphite is now the canonical visual source.  During generation
+# these three packages are moved into the transaction backup and read from
+# there, so the process remains deterministic and can still restore every byte
+# if a later export fails.
+CANONICAL_SOURCES = (
+    SHARE / "plasma/desktoptheme/MoOSUI2",
+    SHARE / "plasma/look-and-feel/org.moos.ui2",
+    SHARE / "aurorae/themes/MoOSUI2",
+)
 
 # UI1's Plasma SVGs contain older Nova colours as literal fills. Every source
 # colour is assigned a semantic role here so UI2 cannot reproduce the Light
@@ -143,24 +122,6 @@ EXTRAS = {
 }
 
 
-def digest(path: pathlib.Path) -> str:
-    h = hashlib.sha256()
-    paths = [path] if path.is_file() else sorted(p for p in path.rglob("*") if p.is_file())
-    for item in paths:
-        h.update(str(item.relative_to(ROOT)).encode())
-        h.update(b"\0")
-        h.update(item.read_bytes())
-        h.update(b"\0")
-    return h.hexdigest()
-
-
-def protected_snapshot() -> dict[pathlib.Path, str]:
-    missing = [path for path in PROTECTED if not path.exists()]
-    if missing:
-        raise SystemExit(f"missing protected UI1 input: {missing[0]}")
-    return {path: digest(path) for path in PROTECTED}
-
-
 def rgb(value: str) -> str:
     value = value.lstrip("#")
     return ",".join(str(int(value[i:i + 2], 16)) for i in (0, 2, 4))
@@ -174,6 +135,19 @@ def palette_map(variant: str) -> dict[str, str]:
     roles = variant_roles(variant)
     mapping = {source: roles[role] for source, role in SOURCE_HEX_ROLE.items()}
     mapping |= {source: rgb(roles[role]) for source, role in SOURCE_RGB_ROLE.items()}
+    # The maintained template is the current Graphite package rather than the
+    # retired UI1 package.  Map every dark semantic role into the requested
+    # half so Light inherits the exact same geometry, spacing, and motion while
+    # still owning a distinct palette.
+    dark = variant_roles("dark")
+    mapping |= {
+        dark[role]: roles[role]
+        for role in dark.keys() & roles.keys()
+    }
+    mapping |= {
+        rgb(dark[role]): rgb(roles[role])
+        for role in dark.keys() & roles.keys()
+    }
     return mapping
 
 
@@ -200,12 +174,12 @@ def rewrite_tree(root: pathlib.Path, mapping: dict[str, str]) -> None:
 
 
 def copy_generated(source: pathlib.Path, target: pathlib.Path, variant: str) -> None:
-    if target in PROTECTED or any(target.is_relative_to(path) for path in PROTECTED if path.is_dir()):
-        raise SystemExit(f"refusing to overwrite protected UI1 path: {target}")
     if target.exists():
         shutil.rmtree(target)
     shutil.copytree(source, target)
-    rewrite_tree(target, palette_map(variant) | IDENTITY)
+    # The canonical source is already UI2. Re-applying the retired UI1 identity
+    # substitutions would turn MoOSUI2 into MoOSUI22 and break QML types.
+    rewrite_tree(target, palette_map(variant))
 
 
 def write(path: pathlib.Path, content: str) -> None:
@@ -602,12 +576,22 @@ def scale_crop(source: pathlib.Path, target: pathlib.Path, width: int, height: i
     subprocess.run(command, check=True)
 
 
-def generate_desktop_theme(variant: str) -> None:
+def source_from_backup(backup_root: pathlib.Path, shipped_path: pathlib.Path) -> pathlib.Path:
+    source = backup_root / shipped_path.relative_to(ROOT)
+    if not source.exists():
+        raise SystemExit(f"missing canonical UI2 source in transaction backup: {source}")
+    return source
+
+
+def generate_desktop_theme(variant: str, backup_root: pathlib.Path) -> None:
     light = variant == "light"
     style = "MoOSUI2Light" if light else "MoOSUI2"
     wallpaper = "MoOSUI2Tide" if light else "MoOSUI2Graphite"
     target = SHARE / f"plasma/desktoptheme/{style}"
-    copy_generated(SHARE / "plasma/desktoptheme/MoOSUI", target, variant)
+    source = source_from_backup(
+        backup_root, SHARE / "plasma/desktoptheme/MoOSUI2"
+    )
+    copy_generated(source, target, variant)
     write(target / "metadata.json", desktop_metadata(style, light))
     write(target / "plasmarc", desktop_plasmarc(wallpaper, light))
     scheme = color_scheme(variant)
@@ -615,16 +599,23 @@ def generate_desktop_theme(variant: str) -> None:
     render_panel(target / "widgets/panel-background.svg", variant)
 
 
-def generate_aurorae(variant: str) -> None:
+def generate_aurorae(variant: str, backup_root: pathlib.Path) -> None:
     light = variant == "light"
     name = "MoOSUI2Light" if light else "MoOSUI2"
     target = SHARE / f"aurorae/themes/{name}"
-    copy_generated(SHARE / "aurorae/themes/MoOSUI", target, variant)
-    # rewrite_tree changes selectors inside files, not filesystem names.
-    source_rc = target / "MoOSUIrc"
+    source = source_from_backup(
+        backup_root, SHARE / "aurorae/themes/MoOSUI2"
+    )
+    copy_generated(source, target, variant)
+    # rewrite_tree changes selectors inside files, not filesystem names.  The
+    # canonical Graphite source already uses the UI2 name, so rename whichever
+    # single rc file was copied to the requested sibling name.
     target_rc = target / f"{name}rc"
-    if source_rc != target_rc:
-        source_rc.rename(target_rc)
+    source_rcs = [path for path in target.glob("*rc") if path != target_rc]
+    if len(source_rcs) > 1:
+        raise SystemExit(f"{name} contains multiple Aurorae rc files")
+    if source_rcs:
+        source_rcs[0].rename(target_rc)
     metadata = target / "metadata.desktop"
     text = metadata.read_text(encoding="utf-8")
     text = re.sub(r"^Name=.*$", f"Name={'MoOS UI2 Light' if light else 'MoOS UI2'}", text, flags=re.M)
@@ -636,11 +627,14 @@ def generate_aurorae(variant: str) -> None:
     metadata.write_text(text, encoding="utf-8")
 
 
-def generate_lnf(variant: str) -> None:
+def generate_lnf(variant: str, backup_root: pathlib.Path) -> None:
     light = variant == "light"
     package = "org.moos.ui2.light" if light else "org.moos.ui2"
     target = SHARE / f"plasma/look-and-feel/{package}"
-    copy_generated(SHARE / "plasma/look-and-feel/org.moos.ui", target, variant)
+    source = source_from_backup(
+        backup_root, SHARE / "plasma/look-and-feel/org.moos.ui2"
+    )
+    copy_generated(source, target, variant)
     button = target / "contents/logout/NovaActionButton.qml"
     if button.exists():
         button.rename(target / "contents/logout/MoOSUI2ActionButton.qml")
@@ -686,6 +680,9 @@ def preflight() -> None:
     """Fail before touching any shipped output when an input/tool is missing."""
     if shutil.which("ffmpeg") is None:
         raise SystemExit("ffmpeg is required to export MoOS UI2 raster assets")
+    for source in CANONICAL_SOURCES:
+        if not source.exists():
+            raise SystemExit(f"missing canonical UI2 source: {source}")
     for master in (
         ART / "wallpapers/moos-ui2-graphite-master.png",
         ART / "wallpapers/moos-ui2-tide-master.png",
@@ -760,7 +757,6 @@ def validate_outputs() -> None:
 
 
 def main() -> None:
-    before = protected_snapshot()
     preflight()
 
     # Generation is transactional. A missing encoder was once able to delete
@@ -797,9 +793,9 @@ def main() -> None:
             backup_complete = True
 
             for variant in ("dark", "light"):
-                generate_desktop_theme(variant)
-                generate_aurorae(variant)
-                generate_lnf(variant)
+                generate_desktop_theme(variant, backup_root)
+                generate_aurorae(variant, backup_root)
+                generate_lnf(variant, backup_root)
                 scheme_name = "MoOSUI2Light" if variant == "light" else "MoOSUI2Dark"
                 write(SHARE / f"color-schemes/{scheme_name}.colors", color_scheme(variant))
                 write(SHARE / f"konsole/{scheme_name}.colorscheme", konsole_scheme(variant))
@@ -810,10 +806,6 @@ def main() -> None:
 
             generate_weather_runtime()
             validate_outputs()
-            after = protected_snapshot()
-            changed = [path for path in PROTECTED if before[path] != after[path]]
-            if changed:
-                raise SystemExit(f"generator mutated protected UI1 path: {changed[0]}")
         except BaseException:
             # During generation, remove every partial output (including paths
             # that did not exist before the run). During an interrupted backup,
@@ -831,7 +823,7 @@ def main() -> None:
                     output.parent.mkdir(parents=True, exist_ok=True)
                     backup.rename(output)
             raise
-    print("generated isolated MoOS UI2 Graphite/Tidal packages; UI1 unchanged")
+    print("generated unified MoOS UI2 Graphite/Tidal packages from the canonical UI2 source")
 
 
 if __name__ == "__main__":
