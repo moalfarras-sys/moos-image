@@ -29,11 +29,68 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-20 — Mo Store / Mo PC Remote icons and Arabic input
+
+- Code checkpoint: `cf8dad5` (`feat(remote): improve Arabic input and refresh app icons`).
+  The following HANDOFF update is documentation-only on top of that checkpoint.
+- Booted image remains signed `moos-nvidia` `44.20260719.260`,
+  digest `sha256:bc7d68117e2be0d21c161efd1c54277169fddb8c239173cfd58fe1fc85695b16`.
+  The retained rollback deployment is `.259` at digest `sha256:6bb673…`.
+- At session start `main` and `origin/main` were `9ad2028`; GHCR `moos-nvidia:latest`
+  and the booted deployment both pointed to `.260` / `bc7d…` (image revision
+  `13359ab`). No rpm-ostree update was available.
+- Added original new Mo Store and Mo PC Remote icon masters, RGBA raster fallbacks
+  for every KDE size, a new vector Remote master, and regenerated Remote's PWA,
+  Windows ICO, and shipping web bundle. The image-generation source PNGs are in
+  `artwork/generated/`.
+- Fixed the Arabic path at both ends:
+  - the controller now respects browser IME composition boundaries, so Arabic
+    word edits are not streamed as duplicate text and Backspaces;
+  - the Linux agent maps the core Arabic Unicode block to the legacy XKB
+    `0x05xx` keysyms KWin actually injects, instead of relying on clipboard paste;
+  - the unit suite now asserts representative Arabic mappings, and the experience
+    gate protects both the KWin mapping and phone composition handlers.
+- Live Remote services were active (`mo-remote-personal`, PipeWire helper and
+  `ydotoold`). The journal nevertheless recorded Plasma screencast failures for
+  stale window UUIDs during use. Do not call video reliability complete until
+  source restoration/reconnect is reproduced and fixed on a booted candidate.
+- Research conclusion: the current PipeWire + H.264 design is a sound low-latency
+  base, but a TeamViewer-class next step should move media/input transport toward
+  WebRTC plus portal/libei semantics. XDG ScreenCast v6 also recommends
+  `pipewire-serial`/`PW_KEY_TARGET_OBJECT` rather than reusable numeric node IDs.
+
+Tests completed:
+
+- live `moos-selfcheck`: 40/40.
+- live `tests/post-update-check.sh`: 39 passed, 1 failed only on the already-known
+  compositor startup race (39 processes aborted before KWin became ready).
+- controller `npm test` and production PWA build passed.
+- Remote .NET unit suite passed inside the SDK container: 22 mapping/validation/
+  Unicode tests.
+- `just check`, theme-safety 3/3, UI2 7/7 and build-script syntax passed.
+- full `just build` passed, including .NET publish, image identity/experience/QML
+  gates, identity firewall and `bootc container lint`.
+
+Open issues and exact next step:
+
+1. Push `cf8dad5` plus this HANDOFF update, wait for CI and signed NVIDIA image.
+   Do not update the daily driver before all checks are green and the new digest
+   is visible and signed.
+2. Boot the candidate while retaining `.260`, then test real Arabic typing from
+   an Arabic phone keyboard into at least KWrite and Firefox, including composing,
+   Backspace, spaces and punctuation. Test touch tap/drag/scroll on the same run.
+3. Reproduce the stale screencast UUID failure across window close, display-mode
+   change and reconnect. Implement stream targeting/recovery using the portal's
+   stable stream identity where supported; then measure RTT, FPS and bitrate.
+4. The compositor startup race remains the highest system-wide issue and still
+   requires the VM-first procedure documented below.
+
 ## Current checkpoint
 
 - Date: 2026-07-20, Europe/Berlin.
 - Local repository: `/var/home/moos/moos-image`.
-- Branch: `main`, clean, `origin/main` == `HEAD` == `13359ab`.
+- Historical checkpoint below predates the session section above; use the newer
+  section for the current commit/image/test state.
 - The visual-polish candidate described below is no longer a candidate: it was
   published as `44.20260719.260` and is the booted image.
 - Session note: development ran from inside the VS Code **Flatpak sandbox**,
