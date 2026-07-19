@@ -2,6 +2,7 @@
 """Static gates for the active MoOS login/desktop experience."""
 
 from pathlib import Path
+import ast
 import json
 import re
 import subprocess
@@ -381,6 +382,28 @@ _gateway_start = re.search(
 require(_gateway_start is not None,
         "Mo AI config save must answer after either starting or reusing the gateway; "
         "self._send() cannot be conditional on the gateway already being active")
+
+# Whitespace-sensitive Python can satisfy the sequence above while placing the
+# whole sequence in H's class body. That imports as far as the class definition,
+# then crashes immediately because neither `self` nor `mode` exists there. Check
+# the syntax tree: the gateway activation and response must belong to do_POST.
+_control_tree = ast.parse(read("system_files/usr/bin/moai-control"))
+_handler = next((n for n in _control_tree.body
+                 if isinstance(n, ast.ClassDef) and n.name == "H"), None)
+_post = next((n for n in (_handler.body if _handler else [])
+              if isinstance(n, ast.FunctionDef) and n.name == "do_POST"), None)
+require(_post is not None, "moai-control must define H.do_POST")
+if _handler:
+    require(not any(isinstance(n, (ast.If, ast.Expr)) for n in _handler.body),
+            "moai-control H class body must contain only definitions/assignments; request code "
+            "at class scope crashes the service during startup")
+if _post:
+    _post_calls = [n for n in ast.walk(_post) if isinstance(n, ast.Call)]
+    require(any(isinstance(n.func, ast.Attribute)
+                and isinstance(n.func.value, ast.Name)
+                and n.func.value.id == "self" and n.func.attr == "_send"
+                and n.lineno > 1235 for n in _post_calls),
+            "Mo AI config save response must execute inside H.do_POST")
 
 # ── The camera the user actually gets must run on THIS desktop ────────────────
 #

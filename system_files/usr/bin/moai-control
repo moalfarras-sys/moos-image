@@ -1244,14 +1244,14 @@ class H(BaseHTTPRequestHandler):
             _models_cache["data"] = None
         with _cloud_lock:
             _cloud_cache["ts"] = 0.0
-    # `enable` (no --now) is enough: the unit is already WantedBy=default.target,
-    # so starting it here too just races the boot activation for the port. Only
-    # start it if it is not already running, to avoid a double-bind at boot.
-    if not user_unit_active(GATEWAY_UNIT):
-        sysctl("enable", "--now", GATEWAY_UNIT)
-    else:
-        sysctl("enable", GATEWAY_UNIT)
-    self._send(200, {"ok": True, "mode": mode})
+        # `enable` (no --now) is enough: the unit is already WantedBy=default.target,
+        # so starting it here too just races the boot activation for the port. Only
+        # start it if it is not already running, to avoid a double-bind at boot.
+        if not user_unit_active(GATEWAY_UNIT):
+            sysctl("enable", "--now", GATEWAY_UNIT)
+        else:
+            sysctl("enable", GATEWAY_UNIT)
+        self._send(200, {"ok": True, "mode": mode})
 
 
 if __name__ == "__main__":
