@@ -735,21 +735,43 @@ stale.
 
 ## Exact next action
 
-**Superseded by the 2026-07-20 (evening) session. Do this first:**
+**Superseded by the 2026-07-20 (evening) session.**
 
-1. Confirm CI is green for the newest commit on `main` and note the published
-   digest: `gh run list --limit 3` then
-   `skopeo inspect docker://ghcr.io/moalfarras-sys/moos-nvidia:latest`.
-   Every build from `5eab2dc` (13:45) until `f250006` failed on the `moai-do` help
-   gate, so do not assume a recent `:latest` carries the Mo Remote work — compare
-   the digest's creation time against the fix commits.
-2. Stage that image **by exact digest** (this machine is digest-pinned by design;
-   `rpm-ostreed-automatic` will never do it) and keep `.264` as the rollback.
-3. Reboot, then verify live: `moos-selfcheck`, `tests/post-update-check.sh`, and
-   Mo PC Remote from the phone at `https://moos-3.tailab78a5.ts.net` (no port).
-4. **Then delete the temporary local override** — see the ⚠️ block in that
-   session's section. Until it is gone the machine runs a hand-built agent from
-   `~/.local/lib/mo-remote` and the image copy is never exercised.
+CI is green and the fix image is **already staged**. Nothing is pending except the
+reboot, which was deliberately left to the owner (the machine was in use):
+
+    staged   44.20260720.272  sha256:75daa80e…  revision b95b74fc…  (2026-07-20T19:42Z)
+    booted   44.20260720.264  sha256:b7a12e65…  ← becomes the rollback
+    also     44.20260720.263  sha256:35d13c7b…
+
+Verified before staging: the image's `org.opencontainers.image.revision` label is
+`b95b74fc21014f26c4429eb34534f8c5503ece06`, i.e. exactly the commit carrying the
+fixes — not merely "a recent `:latest`". Worth repeating the check, because every
+build from `5eab2dc` (13:45) to `f250006` failed on the `moai-do` help gate and
+published nothing.
+
+⚠️ This update also bumps the **kernel, 7.1.3-201 → 7.1.4-200**. The NVIDIA kmod is
+built into the same image so they match by construction, but this is the machine's
+historical failure mode. If the desktop comes up without NVIDIA, roll back to
+`.264` rather than debugging live:
+
+    rpm-ostree rollback && systemctl reboot
+
+Do this after rebooting:
+
+1. `moos-selfcheck` and `tests/post-update-check.sh`.
+2. **Delete the temporary local override** — until it is gone the machine still
+   runs the hand-built agent from `~/.local/lib/mo-remote` and the image copy is
+   never exercised, so "verified live" would mean nothing:
+
+       rm ~/.config/systemd/user/mo-remote-personal.service.d/zz-local-build.conf
+       systemctl --user daemon-reload
+       systemctl --user restart mo-remote-personal.service
+
+   `post-update-check.sh` now fails while that drop-in exists and should go green
+   once it is removed — that pair is the actual test.
+3. Check Mo PC Remote from the phone at `https://moos-3.tailab78a5.ts.net` (port
+   443, no port number in the URL). Expect H.264, not JPEG.
 
 Everything below this line is the older backlog and still applies afterwards.
 
