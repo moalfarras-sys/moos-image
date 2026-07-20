@@ -67,8 +67,9 @@ Evidence priority:
 
 ### Current Status
 - Booted Image: `ghcr.io/moalfarras-sys/moos-nvidia@sha256:75daa80ef2073cee1cbd3a7873e922a3b41a87f6a200942862fc3252c18f55fc`
-- Gates: `verify_user_experience.py` PASSED, `test_device_plan.py` PASSED
-- Open Tasks: Commit, push, CI build verification.
+- Staged Image (Ready on Reboot): `ghcr.io/moalfarras-sys/moos-nvidia@sha256:509bdf6887296340a2891397a65eb9952f021aeb88a54f4d8c32beb5a07d0cc2` (Version `44.20260720.275`)
+- Gates: `verify_user_experience.py` PASSED, `test_device_plan.py` PASSED, CI Build `29783730674` SUCCESS
+- Open Tasks: System reboot to boot into the upgraded 3D visual screens.
 
 ## Session 2026-07-20 (evening) — Mo PC Remote: typing, H.264, TLS topology, CI unblock
 
