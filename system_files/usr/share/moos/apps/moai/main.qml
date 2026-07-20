@@ -3559,6 +3559,7 @@ Kirigami.ApplicationWindow {
                                 { id: "channel", ar: "القناة",    en: "Channel" },
                                 { id: "voice",   ar: "الصوت",     en: "Voice" },
                                 { id: "power",   ar: "الطاقة",    en: "Power" },
+                                { id: "perms",   ar: "الصلاحيات", en: "Access" },
                                 { id: "models",  ar: "النماذج",   en: "Models" },
                                 { id: "health",  ar: "الصحة",     en: "Health" }
                             ]
@@ -3812,11 +3813,97 @@ Kirigami.ApplicationWindow {
                                     text: "«لا ينام أبداً» يحجز ٤ جيجا باستمرار. مع متصفح مكبّر قد يستنزف الذاكرة ويُسقط سطح المكتب."
                                 }
 
-                                SectionTitle { text: "الصلاحيات" ; Layout.topMargin: 6 }
+                            }
+
+                            // ══ ACCESS ═════════════════════════════════════
+                            // Three tiers, mapped onto OpenClaw's OWN enforcement:
+                            //   read  → elevatedDefault=off,  workspaceAccess=ro, exec denied
+                            //   ask   → elevatedDefault=ask,  approvals.exec forwarded to the
+                            //           originating chat, so a Telegram request is approved
+                            //           from Telegram before anything runs
+                            //   full  → elevatedDefault=full, nothing withheld
+                            // Nothing here is a local invention layered on top; each switch
+                            // writes the key the engine already obeys.
+                            ColumnLayout {
+                                visible: root.cfgTab === "perms"
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: "ماذا يُسمح للوكيل أن يفعله بجهازك. ابدأ بالأوسط وارفعه حين تثق."
+                                }
+
+                                Repeater {
+                                    model: [
+                                        { id: "read", ar: "قراءة فقط",
+                                          d: "يقرأ الحالة والملفات ولا يغيّر شيئاً" },
+                                        { id: "ask",  ar: "قراءة وكتابة بموافقة",
+                                          d: "كل فعل يكتب يسألك أولاً — والسؤال يصلك في تليجرام" },
+                                        { id: "full", ar: "كاملة بلا سؤال",
+                                          d: "ينفّذ مباشرة. لا تستخدمها مع عقل محلي صغير" }
+                                    ]
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        readonly property bool on_: root.cfgTier === modelData.id
+                                        readonly property bool risky: modelData.id === "full"
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 54
+                                        radius: 11
+                                        color: on_ ? (risky
+                                                ? Qt.rgba(root.badColor.r, root.badColor.g, root.badColor.b, 0.13)
+                                                : Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.13))
+                                            : "transparent"
+                                        border.width: 1
+                                        border.color: on_ ? (risky ? root.badColor : root.novaBlue) : root.hairline
+                                        ColumnLayout {
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            anchors.margins: 12
+                                            spacing: 1
+                                            Text {
+                                                text: modelData.ar
+                                                color: on_ ? (risky ? root.badColor : root.novaBlue) : root.palette.text
+                                                font.family: root.uiFont
+                                                font.pixelSize: 12
+                                                font.weight: Font.DemiBold
+                                            }
+                                            Text {
+                                                text: modelData.d
+                                                color: root.textMute
+                                                font.family: root.uiFont
+                                                font.pixelSize: 10
+                                                wrapMode: Text.Wrap
+                                            }
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.cfgTier = modelData.id
+                                        }
+                                    }
+                                }
+
+                                SectionTitle { text: "مجلد المشروع" ; Layout.topMargin: 6 }
+                                QQC2.TextField {
+                                    id: projectField
+                                    Layout.fillWidth: true
+                                    text: root.cfgProject
+                                    placeholderText: "/var/home/moos/… (فارغ = بلا نطاق)"
+                                    font.family: root.uiFont
+                                    font.pixelSize: 11
+                                }
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: "يحصر عمل الوكيل في مجلد واحد. مسار مطلق داخل مجلد المنزل فقط — أي شيء آخر يُرفض."
+                                }
+
+                                SectionTitle { text: "الإنترنت" ; Layout.topMargin: 6 }
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text {
-                                        text: "الإنترنت للوكيل"
+                                        text: "بحث وقراءة صفحات"
                                         color: root.palette.text
                                         font.family: root.uiFont
                                         font.pixelSize: 12
@@ -3826,7 +3913,7 @@ Kirigami.ApplicationWindow {
                                 }
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "نموذج 4B ضعيف أمام حقن التعليمات — صفحة خبيثة تقدر تعطيه أوامر. فعّله فقط مع العقل السحابي."
+                                    text: "نموذج 4B ضعيف أمام حقن التعليمات — صفحة خبيثة تقدر تعطيه أوامر باعتبارها محتوى. فعّله مع العقل السحابي فقط."
                                 }
                             }
 
@@ -4042,7 +4129,9 @@ Kirigami.ApplicationWindow {
                                 ttsOn: ttsSwitch.checked,
                                 ttsAuto: ttsAutoBox.currentIndex,
                                 keep: keepBox.currentIndex,
-                                web: webSwitch.checked
+                                web: webSwitch.checked,
+                                tier: root.cfgTier,
+                                project: projectField.text
                             }, function () {
                                 keyField.text = ""
                                 tokenField.text = ""
@@ -4088,6 +4177,8 @@ Kirigami.ApplicationWindow {
     property bool   cfgHasToken: false
     property bool   cfgSaving: false
     property string cfgError: ""
+    property string cfgTier: "ask"
+    property string cfgProject: ""
 
     function cfgLoad(done) {
         const xhr = new XMLHttpRequest()
@@ -4107,6 +4198,8 @@ Kirigami.ApplicationWindow {
                 root.cfgProviderNames = c.providers.map(function (p) { return p.name })
                 root.cfgHasKey = c.cloud.has_key
                 root.cfgHasToken = c.telegram.has_token
+                root.cfgTier = (c.permissions && c.permissions.tier) || "ask"
+                root.cfgProject = (c.permissions && c.permissions.project) || ""
                 if (done) done(c)
             } catch (e) {
                 root.cfgError = "رد غير مفهوم من لوحة التحكم"
@@ -4131,7 +4224,7 @@ Kirigami.ApplicationWindow {
             },
             voice: { tts_enabled: v.ttsOn, tts_auto: AUTO[v.ttsAuto] || "inbound" },
             power: { keep_alive: KEEP[v.keep] || "15m" },
-            permissions: { web: v.web }
+            permissions: { web: v.web, tier: v.tier, project: v.project }
         }
         const xhr = new XMLHttpRequest()
         xhr.open("POST", root.agentApi + "/api/config")
