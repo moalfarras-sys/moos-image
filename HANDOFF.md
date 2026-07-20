@@ -29,6 +29,30 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-21 — Post-Reboot Verification & Interactive Brand Search & Mo AI Prompt Bar
+
+### What was done
+1. **Post-Reboot Verification of Image 44.20260720.275**:
+   - Machine successfully booted into signed digest `sha256:509bdf6887296340a2891397a65eb9952f021aeb88a54f4d8c32beb5a07d0cc2`.
+   - Verified 0 failed system units and 0 failed user units.
+   - Session won its race with the compositor at boot (0 process crashes).
+   - Cleaned up local shadow files (`~/.config/systemd/user/mo-remote-personal.service.d/zz-local-build.conf`, `~/.local/bin/moai`, `~/.config/kxkbrc`) so system runs 100% pure image code.
+
+2. **Interactive Live Search & Mo AI Prompt Bar in `org.moos.brand`**:
+   - Upgraded `system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml`.
+   - Transformed static "Search & launch" card into an active, sleek glass `TextInput` prompt bar.
+   - Integrated live query detection:
+     - `ai ...` / `ذكاء ...`: triggers Mo AI.
+     - `store ...` / `متجر ...`: opens Mo Store.
+     - search text: triggers KRunner / app launcher menu.
+   - Added clear button and dynamic action indicator pills (`↵ Open Mo AI`, `↵ Open Mo Store`, `↵ Search apps & system`).
+
+3. **Verification**:
+   - `just check` (UX gate, device plan, moai-do test, visual checks) — **PASSED**.
+   - `python3 tests/test_moos_ui2.py` (7 tests) — **PASSED**.
+   - `python3 tests/test_moos_theme_safety.py` (3 tests) — **PASSED**.
+   - `bash -n build_files/build.sh` — **PASSED**.
+
 ## Session 2026-07-20 (late night) — MoOS Screens 3D & Animation Upgrade (Plymouth, Login, Logout, Splash)
 
 ### What was done

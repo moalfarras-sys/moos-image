@@ -370,10 +370,10 @@ PlasmoidItem {
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 3.35
                 radius: Kirigami.Units.cornerRadius * 1.45
                 color: Qt.alpha(Kirigami.Theme.highlightColor,
-                                launchMouse.pressed ? 0.24 : (launchMouse.containsMouse ? 0.17 : 0.11))
+                                searchInput.activeFocus ? 0.22 : (launchMouse.containsMouse ? 0.17 : 0.11))
                 border.width: 1
                 border.color: Qt.alpha(Kirigami.Theme.highlightColor,
-                                       launchMouse.containsMouse ? 0.62 : 0.34)
+                                       searchInput.activeFocus ? 0.85 : (launchMouse.containsMouse ? 0.62 : 0.34))
                 scale: launchMouse.pressed ? 0.985 : 1.0
                 Behavior on color { ColorAnimation { duration: 140 } }
                 Behavior on border.color { ColorAnimation { duration: 140 } }
@@ -381,43 +381,107 @@ PlasmoidItem {
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: Kirigami.Units.largeSpacing * 1.4
-                    anchors.rightMargin: Kirigami.Units.largeSpacing * 1.4
-                    spacing: Kirigami.Units.largeSpacing
+                    anchors.leftMargin: Kirigami.Units.largeSpacing * 1.2
+                    anchors.rightMargin: Kirigami.Units.largeSpacing * 1.2
+                    spacing: Kirigami.Units.mediumSpacing
                     layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
                     Rectangle {
                         Layout.preferredWidth: Kirigami.Units.gridUnit * 2.1
                         Layout.preferredHeight: width
                         radius: width / 2
-                        color: Qt.alpha(Kirigami.Theme.highlightColor, 0.20)
+                        color: Qt.alpha(Kirigami.Theme.highlightColor, searchInput.activeFocus ? 0.35 : 0.20)
+                        Behavior on color { ColorAnimation { duration: 140 } }
+
                         Kirigami.Icon {
                             anchors.centerIn: parent
                             width: Kirigami.Units.iconSizes.medium
                             height: width
-                            source: "system-search-symbolic"
+                            source: searchInput.text.trim().length > 0 ? (root.rtl ? "arrow-left-symbolic" : "arrow-right-symbolic") : "system-search-symbolic"
                             color: Kirigami.Theme.highlightColor
                         }
                     }
+
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 1
-                        Text {
-                            text: root.rtl ? "ابحث وافتح" : "Search & launch"
-                            color: Kirigami.Theme.textColor
+                        spacing: 2
+
+                        TextInput {
+                            id: searchInput
+                            Layout.fillWidth: true
                             font.family: "IBM Plex Sans"
-                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.78)
+                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.72)
                             font.weight: Font.DemiBold
-                        }
-                        Text {
-                            text: root.rtl ? "التطبيقات والملفات والإعدادات" : "Apps, files and settings"
                             color: Kirigami.Theme.textColor
-                            opacity: 0.55
+                            selectByMouse: true
+                            clip: true
+
+                            Text {
+                                text: root.rtl ? "ابحث أو اكتب لـ Mo AI..." : "Search or type for Mo AI..."
+                                color: Kirigami.Theme.textColor
+                                opacity: 0.45
+                                visible: searchInput.text.length === 0
+                                font: searchInput.font
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                            }
+
+                            onAccepted: {
+                                const query = text.trim();
+                                if (query.startsWith("ai ") || query.startsWith("ذكاء ") || query === "ai" || query === "ذكاء") {
+                                    root.run("moai");
+                                } else if (query.startsWith("store ") || query.startsWith("متجر ") || query === "store" || query === "متجر") {
+                                    root.run("moos-store");
+                                } else if (query.length > 0) {
+                                    const escaped = query.replace(/'/g, "'\\''");
+                                    root.run("gdbus call --session -d org.kde.krunner -o /App -m org.kde.krunner.displaySingleRunner '" + escaped + "' || gdbus call --session -d org.kde.plasmashell -o /PlasmaShell -m org.kde.PlasmaShell.activateLauncherMenu");
+                                } else {
+                                    root.run("gdbus call --session -d org.kde.plasmashell -o /PlasmaShell -m org.kde.PlasmaShell.activateLauncherMenu");
+                                }
+                                searchInput.text = "";
+                            }
+                        }
+
+                        Text {
+                            text: {
+                                const q = searchInput.text.trim();
+                                if (q.startsWith("ai ") || q.startsWith("ذكاء ")) return root.rtl ? "↵ تشغيل Mo AI" : "↵ Open Mo AI";
+                                if (q.startsWith("store ") || q.startsWith("متجر ")) return root.rtl ? "↵ فتح متجر MoOS" : "↵ Open Mo Store";
+                                if (q.length > 0) return root.rtl ? "↵ بحث في التطبيقات والنظام" : "↵ Search apps & system";
+                                return root.rtl ? "التطبيقات والملفات والإعدادات" : "Apps, files and settings";
+                            }
+                            color: searchInput.text.trim().length > 0 ? Kirigami.Theme.highlightColor : Kirigami.Theme.textColor
+                            opacity: searchInput.text.trim().length > 0 ? 0.9 : 0.55
                             font.family: "IBM Plex Sans"
-                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.56)
+                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.54)
+                            font.weight: searchInput.text.trim().length > 0 ? Font.Medium : Font.Normal
                         }
                     }
+
+                    Rectangle {
+                        Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
+                        Layout.preferredHeight: width
+                        radius: width / 2
+                        color: Qt.alpha(Kirigami.Theme.textColor, 0.1)
+                        visible: searchInput.text.length > 0
+
+                        Kirigami.Icon {
+                            anchors.centerIn: parent
+                            width: Kirigami.Units.iconSizes.small
+                            height: width
+                            source: "edit-clear-symbolic"
+                            color: Kirigami.Theme.textColor
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: searchInput.text = ""
+                        }
+                    }
+
                     Kirigami.Icon {
+                        visible: searchInput.text.length === 0
                         Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
                         Layout.preferredHeight: width
                         source: root.rtl ? "arrow-left-symbolic" : "arrow-right-symbolic"
@@ -425,12 +489,13 @@ PlasmoidItem {
                         opacity: launchMouse.containsMouse ? 0.9 : 0.45
                     }
                 }
+
                 MouseArea {
                     id: launchMouse
                     anchors.fill: parent
                     hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.run("gdbus call --session -d org.kde.plasmashell -o /PlasmaShell -m org.kde.PlasmaShell.activateLauncherMenu")
+                    cursorShape: Qt.IBeamCursor
+                    onClicked: searchInput.forceActiveFocus()
                 }
             }
 
