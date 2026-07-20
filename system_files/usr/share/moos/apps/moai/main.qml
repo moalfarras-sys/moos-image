@@ -423,7 +423,8 @@ Kirigami.ApplicationWindow {
         { id: "apps",   icon: "moos-install",      ar: "التطبيقات", en: "Apps" },
         { id: "compat", icon: "moos-gaming",       ar: "التوافق",  en: "Compat" },
         { id: "remote", icon: "moos-phone",        ar: "التحكّم",   en: "Remote" },
-        { id: "dev",    icon: "utilities-terminal", ar: "المطوّر",  en: "Dev" }
+        { id: "dev",    icon: "utilities-terminal", ar: "المطوّر",  en: "Dev" },
+        { id: "agent",  icon: "moos-phone",        ar: "الوكيل",   en: "Agent" }
     ]
 
     // Compatibility targets. `key` matches moai-control's /scan compatibility
@@ -504,7 +505,7 @@ Kirigami.ApplicationWindow {
             const i = argv.indexOf("--panel")
             if (i !== -1 && i + 1 < argv.length) {
                 const p = argv[i + 1]
-                if (["chat", "device", "apps", "compat", "remote", "dev"].indexOf(p) !== -1)
+                if (["chat", "device", "apps", "compat", "remote", "dev", "agent"].indexOf(p) !== -1)
                     root.panel = p
             }
         }
@@ -1590,7 +1591,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     currentIndex: {
-                        const i = ["chat", "device", "apps", "compat", "remote", "dev"].indexOf(root.panel)
+                        const i = ["chat", "device", "apps", "compat", "remote", "dev", "agent"].indexOf(root.panel)
                         return i < 0 ? 0 : i
                     }
 
@@ -2928,7 +2929,210 @@ Kirigami.ApplicationWindow {
                             }
                         }
                     }
-                }
+                    // ══ AGENT — the OpenClaw agent, same brain, same sessions ══
+                    // Loads on first open, not at startup: polling the console
+                    // before the user asks would wake services for nothing.
+                    // Reads and writes through moapp-console on 8077. Pure QML
+                    // cannot touch ~/.openclaw directly, so the console is the seam.
+                    ColumnLayout {
+                        spacing: 10
+
+                        property bool loadedOnce: false
+                        onVisibleChanged: if (visible && !loadedOnce) {
+                            loadedOnce = true
+                            root.agentLoadSessions()
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+                            SectionTitle { text: "الوكيل  |  Agent" }
+                            Item { Layout.fillWidth: true }
+                            StatusPill {
+                                good: root.agentError === ""
+                                goodText: root.agentBusy ? "يفكّر… | Thinking" : "جاهز | Ready"
+                                badText: "غير متصل | Offline"
+                            }
+                            MoButton {
+                                label: "تحديث | Refresh"
+                                icon: "moos-report"
+                                onClicked: root.agentLoadSessions()
+                            }
+                        }
+
+                        SectionNote {
+                            Layout.fillWidth: true
+                            text: "نفس المحادثات التي تراها في تليجرام — تقرأها هنا وتكمل من الشاشة."
+                        }
+
+                        Text {
+                            visible: root.agentError !== ""
+                            Layout.fillWidth: true
+                            text: root.agentError + "   —   شغّل: systemctl --user start moapp-console"
+                            color: root.badColor
+                            font.family: root.uiFont
+                            font.pixelSize: 11
+                            wrapMode: Text.Wrap
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            spacing: 10
+
+                            // ── sessions ──
+                            Card {
+                                Layout.preferredWidth: 190
+                                Layout.fillHeight: true
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    spacing: 4
+                                    Text {
+                                        text: "المحادثات | Sessions"
+                                        color: root.textMute
+                                        font.family: root.uiFont
+                                        font.pixelSize: 10
+                                        font.weight: Font.DemiBold
+                                    }
+                                    Flickable {
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        contentWidth: width
+                                        contentHeight: sessCol.implicitHeight
+                                        clip: true
+                                        boundsBehavior: Flickable.StopAtBounds
+                                        QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+                                        ColumnLayout {
+                                            id: sessCol
+                                            width: parent.width
+                                            spacing: 2
+                                            Repeater {
+                                                model: root.agentSessions
+                                                delegate: Rectangle {
+                                                    required property var modelData
+                                                    Layout.fillWidth: true
+                                                    Layout.preferredHeight: 34
+                                                    radius: 7
+                                                    color: root.agentCurrent === modelData.id
+                                                           ? Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.16)
+                                                           : "transparent"
+                                                    Text {
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                        anchors.left: parent.left
+                                                        anchors.right: parent.right
+                                                        anchors.margins: 8
+                                                        text: modelData.label
+                                                        elide: Text.ElideRight
+                                                        color: root.agentCurrent === modelData.id ? root.novaBlue : root.textMute
+                                                        font.family: root.uiFont
+                                                        font.pixelSize: 11
+                                                    }
+                                                    MouseArea {
+                                                        anchors.fill: parent
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        onClicked: root.agentOpen(modelData.id, modelData.key)
+                                                    }
+                                                }
+                                            }
+                                            Text {
+                                                visible: root.agentSessions.length === 0
+                                                Layout.fillWidth: true
+                                                Layout.topMargin: 10
+                                                text: "لا محادثات بعد"
+                                                horizontalAlignment: Text.AlignHCenter
+                                                color: root.textMute
+                                                font.family: root.uiFont
+                                                font.pixelSize: 10
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ── thread ──
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                spacing: 8
+
+                                Card {
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    Flickable {
+                                        id: threadFlick
+                                        anchors.fill: parent
+                                        anchors.margins: 10
+                                        contentWidth: width
+                                        contentHeight: msgCol.implicitHeight
+                                        clip: true
+                                        boundsBehavior: Flickable.StopAtBounds
+                                        QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+                                        onContentHeightChanged: contentY = Math.max(0, contentHeight - height)
+                                        ColumnLayout {
+                                            id: msgCol
+                                            width: parent.width
+                                            spacing: 6
+                                            Repeater {
+                                                model: root.agentThread
+                                                delegate: Rectangle {
+                                                    required property var modelData
+                                                    readonly property bool mine: modelData.role === "user"
+                                                    Layout.fillWidth: true
+                                                    Layout.preferredHeight: agentBubble.implicitHeight + 16
+                                                    radius: 10
+                                                    color: mine
+                                                        ? Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.14)
+                                                        : Qt.rgba(root.hairline.r, root.hairline.g, root.hairline.b, 0.18)
+                                                    Text {
+                                                        id: agentBubble
+                                                        anchors.left: parent.left
+                                                        anchors.right: parent.right
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                        anchors.margins: 10
+                                                        text: modelData.text
+                                                        wrapMode: Text.Wrap
+                                                        color: root.palette.text
+                                                        font.family: root.uiFont
+                                                        font.pixelSize: 12
+                                                    }
+                                                }
+                                            }
+                                            Text {
+                                                visible: root.agentThread.length === 0
+                                                Layout.fillWidth: true
+                                                Layout.topMargin: 30
+                                                text: "اختر محادثة، أو اكتب رسالة لتبدأ واحدة جديدة"
+                                                horizontalAlignment: Text.AlignHCenter
+                                                color: root.textMute
+                                                font.family: root.uiFont
+                                                font.pixelSize: 11
+                                            }
+                                        }
+                                    }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    QQC2.TextField {
+                                        id: agentInput
+                                        Layout.fillWidth: true
+                                        placeholderText: "اكتب رسالة…  |  Message"
+                                        enabled: !root.agentBusy
+                                        font.family: root.uiFont
+                                        font.pixelSize: 12
+                                        onAccepted: { root.agentSend(text); text = "" }
+                                    }
+                                    MoButton {
+                                        label: root.agentBusy ? "…" : "إرسال | Send"
+                                        enabled_: !root.agentBusy
+                                        onClicked: { root.agentSend(agentInput.text); agentInput.text = "" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
             }
         }
 
@@ -3283,6 +3487,13 @@ Kirigami.ApplicationWindow {
         }
 
         // ── Settings ────────────────────────────────────────────────────────
+        // Redesigned: one sectioned sheet backed by moapp-console (127.0.0.1:8077),
+        // which owns the SAME openclaw.json that drives the Telegram bot. Mo AI and
+        // OpenClaw therefore cannot disagree about the brain, the key or the channel —
+        // there is exactly one place each of those lives.
+        //
+        // Secrets are WRITE-ONLY here, as in moai-control: the API reports has_key /
+        // has_token and never returns the value, so this sheet cannot leak what it saved.
         Rectangle {
             anchors.fill: parent
             z: 300
@@ -3293,482 +3504,515 @@ Kirigami.ApplicationWindow {
 
             Rectangle {
                 anchors.centerIn: parent
-                width: Math.min(parent.width - 40, 440)
-                height: Math.min(parent.height - 40, setCol.implicitHeight + 40)
+                width: Math.min(parent.width - 48, 560)
+                height: Math.min(parent.height - 48, 640)
                 radius: 18
                 color: root.surface1
-                border.width: 1
                 border.color: root.hairline
-                MouseArea { anchors.fill: parent }   // swallow clicks on the card
+                border.width: 1
+                MouseArea { anchors.fill: parent }   // ابتلع النقر حتى لا يُغلق
 
                 ColumnLayout {
-                    id: setCol
                     anchors.fill: parent
-                    anchors.margins: 20
-                    spacing: 13
+                    anchors.margins: 18
+                    spacing: 12
 
+                    // ── header ──
                     RowLayout {
                         Layout.fillWidth: true
-                        SectionTitle { text: "إعدادات Mo AI  |  Settings" }
+                        spacing: 10
+                        ColumnLayout {
+                            spacing: 0
+                            Text {
+                                text: "الإعدادات  |  Settings"
+                                color: root.palette.text
+                                font.family: root.uiFont
+                                font.pixelSize: 17
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                text: "تسري على المحادثة هنا وعلى بوت تليجرام معاً"
+                                color: root.textMute
+                                font.family: root.uiFont
+                                font.pixelSize: 10
+                            }
+                        }
                         Item { Layout.fillWidth: true }
+                        StatusPill {
+                            good: root.cfgError === ""
+                            goodText: root.cfgSaving ? "يحفظ… | Saving" : "متصل | Linked"
+                            badText: "لوحة التحكم متوقفة"
+                        }
                         MoButton {
-                            label: "✕"
+                            label: "إغلاق | Close"
                             onClicked: root.settingsOpen = false
                         }
                     }
 
-                    // ── System health & repair ───────────────────────────────
-                    // Mo AI reasons about what's wrong (moos-selfcheck) and offers
-                    // one-tap SAFE repairs. The diagnosis reads only; every fix is a
-                    // moai-do action behind confirmation + Polkit — no free commands.
-                    Rectangle {
+                    // ── section tabs ──
+                    RowLayout {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: sysCol.implicitHeight + 22
-                        radius: 13
-                        color: root.surface0
-                        border.width: 1
-                        border.color: root.diagResult.healthy === false ? root.badColor : root.hairline
+                        spacing: 4
+                        Repeater {
+                            model: [
+                                { id: "brain",   ar: "العقل",     en: "Brain" },
+                                { id: "channel", ar: "القناة",    en: "Channel" },
+                                { id: "voice",   ar: "الصوت",     en: "Voice" },
+                                { id: "power",   ar: "الطاقة",    en: "Power" },
+                                { id: "models",  ar: "النماذج",   en: "Models" },
+                                { id: "health",  ar: "الصحة",     en: "Health" }
+                            ]
+                            delegate: Rectangle {
+                                required property var modelData
+                                readonly property bool on_: root.cfgTab === modelData.id
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 32
+                                radius: 9
+                                color: on_ ? Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.18)
+                                           : "transparent"
+                                border.width: 1
+                                border.color: on_ ? root.novaBlue : root.hairline
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: modelData.ar
+                                    color: on_ ? root.novaBlue : root.textMute
+                                    font.family: root.uiFont
+                                    font.pixelSize: 12
+                                    font.weight: on_ ? Font.DemiBold : Font.Normal
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.cfgTab = modelData.id
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        visible: root.cfgError !== ""
+                        Layout.fillWidth: true
+                        text: root.cfgError
+                        color: root.badColor
+                        font.family: root.uiFont
+                        font.pixelSize: 11
+                        wrapMode: Text.Wrap
+                    }
+
+                    // ── body ──
+                    Flickable {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        contentWidth: width
+                        contentHeight: cfgBody.implicitHeight
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
 
                         ColumnLayout {
-                            id: sysCol
-                            anchors.fill: parent
-                            anchors.margins: 11
-                            spacing: 8
+                            id: cfgBody
+                            width: parent.width
+                            spacing: 12
 
-                            RowLayout {
+                            // ══ BRAIN ══════════════════════════════════════
+                            ColumnLayout {
+                                visible: root.cfgTab === "brain"
                                 Layout.fillWidth: true
-                                Text {
-                                    text: "صحة النظام | System health"
-                                    color: root.textHi
-                                    font.family: root.uiFont
-                                    font.pixelSize: 13
-                                    font.weight: Font.DemiBold
-                                }
-                                Item { Layout.fillWidth: true }
-                                MoButton {
-                                    label: root.diagLoading ? "…جارٍ | working" : "افحص وأصلح | Diagnose"
-                                    primary: true
-                                    enabled_: !root.diagLoading
-                                    onClicked: root.diagnoseSystem()
-                                }
-                            }
+                                spacing: 8
 
-                            Text {
-                                Layout.fillWidth: true
-                                visible: root.diagResult.ok !== undefined
-                                text: root.diagResult.healthy
-                                      ? ("✓ نظامك سليم — " + (root.diagResult.ok || 0)
-                                         + " فحص ناجح | healthy — " + (root.diagResult.ok || 0) + " checks passed")
-                                      : ("✗ " + (root.diagResult.fail || 0)
-                                         + " مشكلة بحاجة انتباه | issue(s) need attention")
-                                color: root.diagResult.healthy ? root.okColor : root.badColor
-                                font.family: root.uiFont
-                                font.pixelSize: 11
-                                wrapMode: Text.Wrap
-                            }
-                            Repeater {
-                                model: root.diagResult.issues || []
-                                delegate: Text {
-                                    required property var modelData
+                                SectionNote {
                                     Layout.fillWidth: true
-                                    text: "•  " + modelData
+                                    text: "المحلي مجاني وخاص. السحابي أذكى للمهام الصعبة."
+                                }
+
+                                Repeater {
+                                    model: [
+                                        { id: "local",  ar: "محلي فقط",  d: "لا شيء يغادر الجهاز" },
+                                        { id: "hybrid", ar: "هجين",      d: "محلي افتراضاً، سحابي عند الطلب" },
+                                        { id: "cloud",  ar: "سحابي",     d: "الأقوى — كل رسالة تذهب للمزوّد" }
+                                    ]
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        readonly property bool on_: root.cfgMode === modelData.id
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 50
+                                        radius: 11
+                                        color: on_ ? Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.13)
+                                                   : "transparent"
+                                        border.width: 1
+                                        border.color: on_ ? root.novaBlue : root.hairline
+                                        ColumnLayout {
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            anchors.margins: 12
+                                            spacing: 1
+                                            Text {
+                                                text: modelData.ar
+                                                color: on_ ? root.novaBlue : root.palette.text
+                                                font.family: root.uiFont
+                                                font.pixelSize: 12
+                                                font.weight: Font.DemiBold
+                                            }
+                                            Text {
+                                                text: modelData.d
+                                                color: root.textMute
+                                                font.family: root.uiFont
+                                                font.pixelSize: 10
+                                            }
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.cfgMode = modelData.id
+                                        }
+                                    }
+                                }
+
+                                SectionTitle { text: "المزوّد السحابي" ; Layout.topMargin: 6 }
+
+                                QQC2.ComboBox {
+                                    id: provBox
+                                    Layout.fillWidth: true
+                                    model: root.cfgProviderNames
+                                    font.family: root.uiFont
+                                    onActivated: {
+                                        const p = root.cfgProviders[currentIndex]
+                                        if (p && p.base) { baseField.text = p.base; modelField.text = p.model }
+                                        root.cfgProvider = p ? p.id : ""
+                                    }
+                                }
+                                QQC2.TextField {
+                                    id: baseField
+                                    Layout.fillWidth: true
+                                    placeholderText: "https://…/v1"
+                                    font.family: root.uiFont
+                                    font.pixelSize: 11
+                                }
+                                QQC2.TextField {
+                                    id: modelField
+                                    Layout.fillWidth: true
+                                    placeholderText: "اسم النموذج | model id"
+                                    font.family: root.uiFont
+                                    font.pixelSize: 11
+                                }
+                                QQC2.TextField {
+                                    id: keyField
+                                    Layout.fillWidth: true
+                                    echoMode: TextInput.Password
+                                    placeholderText: root.cfgHasKey
+                                        ? "المفتاح محفوظ — اتركه فارغاً لإبقائه"
+                                        : "sk-…  (يُكتب ولا يُقرأ)"
+                                    font.family: root.uiFont
+                                    font.pixelSize: 11
+                                }
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: root.cfgHasKey
+                                        ? "مفتاح محفوظ في الإعداد. لن يُعرض هنا أبداً."
+                                        : "لا مفتاح محفوظ — الوضع السحابي لن يعمل بدونه."
+                                }
+                            }
+
+                            // ══ CHANNEL ════════════════════════════════════
+                            ColumnLayout {
+                                visible: root.cfgTab === "channel"
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: "بوت تليجرام — تكلّمه من جوالك وترى المحادثة في لوحة «الوكيل»."
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text {
+                                        text: "مفعّلة"
+                                        color: root.palette.text
+                                        font.family: root.uiFont
+                                        font.pixelSize: 12
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    QQC2.Switch { id: tgSwitch }
+                                }
+                                QQC2.TextField {
+                                    id: tokenField
+                                    Layout.fillWidth: true
+                                    echoMode: TextInput.Password
+                                    placeholderText: root.cfgHasToken
+                                        ? "التوكن محفوظ — اتركه فارغاً لإبقائه"
+                                        : "123456:AA…  من @BotFather"
+                                    font.family: root.uiFont
+                                    font.pixelSize: 11
+                                }
+                                QQC2.TextField {
+                                    id: allowField
+                                    Layout.fillWidth: true
+                                    placeholderText: "معرّفك الرقمي — 1142563280"
+                                    font.family: root.uiFont
+                                    font.pixelSize: 11
+                                }
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: "المعرّف الرقمي لا اسم المستخدم: الأسماء تُغيَّر ويُعاد تخصيصها، والرقم ثابت. اتركه فارغاً فيعود الوضع إلى الاقتران حتى لا تُقفل خارج بوتك."
+                                }
+                            }
+
+                            // ══ VOICE ══════════════════════════════════════
+                            ColumnLayout {
+                                visible: root.cfgTab === "voice"
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: "تكتب فيرد نصاً، وترسل رسالة صوتية فيرد صوتاً."
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text {
+                                        text: "الرد بصوت"
+                                        color: root.palette.text
+                                        font.family: root.uiFont
+                                        font.pixelSize: 12
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    QQC2.Switch { id: ttsSwitch }
+                                }
+                                QQC2.ComboBox {
+                                    id: ttsAutoBox
+                                    Layout.fillWidth: true
+                                    model: ["حين أرسل صوتاً فقط", "دائماً", "أبداً"]
+                                    font.family: root.uiFont
+                                }
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: "الفصحى ممتازة · الشامي مقبول · المغاربية غير مفهومة. صوت واحد: ar_JO-kareem."
+                                }
+                            }
+
+                            // ══ POWER ══════════════════════════════════════
+                            ColumnLayout {
+                                visible: root.cfgTab === "power"
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: "متى ينزل النموذج من كرت الشاشة ويترك الجهاز يتنفّس."
+                                }
+                                QQC2.ComboBox {
+                                    id: keepBox
+                                    Layout.fillWidth: true
+                                    model: ["٥ دقائق — أقل ضغط", "١٥ دقيقة — موصى به", "ساعة", "لا ينام أبداً"]
+                                    font.family: root.uiFont
+                                }
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: "«لا ينام أبداً» يحجز ٤ جيجا باستمرار. مع متصفح مكبّر قد يستنزف الذاكرة ويُسقط سطح المكتب."
+                                }
+
+                                SectionTitle { text: "الصلاحيات" ; Layout.topMargin: 6 }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text {
+                                        text: "الإنترنت للوكيل"
+                                        color: root.palette.text
+                                        font.family: root.uiFont
+                                        font.pixelSize: 12
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    QQC2.Switch { id: webSwitch }
+                                }
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: "نموذج 4B ضعيف أمام حقن التعليمات — صفحة خبيثة تقدر تعطيه أوامر. فعّله فقط مع العقل السحابي."
+                                }
+                            }
+
+                            // ══ MODELS ═════════════════════════════════════
+                            ColumnLayout {
+                                visible: root.cfgTab === "models"
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    SectionTitle { text: "النماذج المحلية" }
+                                    Item { Layout.fillWidth: true }
+                                    MoButton {
+                                        label: "تحديث | Refresh"
+                                        onClicked: root.loadModels()
+                                    }
+                                }
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: "تُحمَّل من الجهاز — بلا إنترنت وبلا اشتراك. التنزيل بضغطة واحدة."
+                                }
+
+                                Repeater {
+                                    model: root.localModels
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 52
+                                        radius: 11
+                                        color: "transparent"
+                                        border.width: 1
+                                        border.color: root.hairline
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.margins: 10
+                                            spacing: 8
+                                            ColumnLayout {
+                                                spacing: 1
+                                                Text {
+                                                    text: modelData.label || modelData.id
+                                                    color: root.palette.text
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: 12
+                                                    font.weight: Font.DemiBold
+                                                }
+                                                Text {
+                                                    text: modelData.pulled
+                                                        ? ("محمّل" + (modelData.size ? " · " + modelData.size : ""))
+                                                        : "غير محمّل — اضغط للتنزيل"
+                                                    color: root.textMute
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: 10
+                                                }
+                                            }
+                                            Item { Layout.fillWidth: true }
+                                            MoButton {
+                                                label: modelData.pulled ? "استخدم | Use" : "نزّل | Get"
+                                                onClicked: root.pickOrPull(modelData)
+                                            }
+                                            MoButton {
+                                                visible: !!modelData.pulled
+                                                label: "حذف"
+                                                danger: true
+                                                onClicked: root.deleteModel(modelData.id)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    visible: root.pullModel !== ""
+                                    Layout.fillWidth: true
+                                    text: "جارٍ تنزيل " + root.pullModel + " — " + root.pullPercent + "٪"
+                                    color: root.novaBlue
+                                    font.family: root.uiFont
+                                    font.pixelSize: 11
+                                }
+                                Text {
+                                    visible: root.pullError !== ""
+                                    Layout.fillWidth: true
+                                    text: root.pullError
                                     color: root.badColor
                                     font.family: root.uiFont
-                                    font.pixelSize: 10
+                                    font.pixelSize: 11
                                     wrapMode: Text.Wrap
                                 }
                             }
 
-                            // The repair menu is ALWAYS here — you never have to
-                            // diagnose first to reach a tool. Two clear groups so
-                            // nothing is ambiguous: «عرض» only READS information
-                            // (safe), «إصلاح» CHANGES the system (each still asks to
-                            // confirm via Polkit). Every button is a real moai-do
-                            // action — nothing here is a placeholder.
-                            Text {
-                                Layout.topMargin: 2
-                                text: "عرض — قراءة فقط | Inspect (read-only)"
-                                color: root.textLo
-                                font.family: root.uiFont
-                                font.pixelSize: 10
-                            }
-                            Flow {
+                            // ══ HEALTH ═════════════════════════════════════
+                            // Repairs are moos://do/<id> — a NAMED action that moai-do
+                            // confirms and runs behind Polkit. Never a composed command:
+                            // that is the safety contract the build gate enforces.
+                            ColumnLayout {
+                                visible: root.cfgTab === "health"
                                 Layout.fillWidth: true
-                                spacing: 6
-                                Repeater {
-                                    model: (root.diagResult.fixes || root.defaultRepairs)
-                                           .filter(function (f) { return f.read })
-                                    delegate: MoButton {
-                                        required property var modelData
-                                        icon: "documentinfo"
-                                        label: modelData.label
-                                        onClicked: Qt.openUrlExternally("moos://do/" + modelData.id)
-                                    }
-                                }
-                            }
-                            Text {
-                                Layout.topMargin: 2
-                                text: "إصلاح — بتأكيد | Repair (asks to confirm)"
-                                color: root.textLo
-                                font.family: root.uiFont
-                                font.pixelSize: 10
-                            }
-                            Flow {
-                                Layout.fillWidth: true
-                                spacing: 6
-                                Repeater {
-                                    model: (root.diagResult.fixes || root.defaultRepairs)
-                                           .filter(function (f) { return !f.read })
-                                    delegate: MoButton {
-                                        required property var modelData
-                                        icon: "system-run"
-                                        label: modelData.label
-                                        onClicked: Qt.openUrlExternally("moos://do/" + modelData.id)
-                                    }
-                                }
-                            }
-                            SectionNote {
-                                Layout.fillWidth: true
-                                text: "«عرض» يقرأ فقط، و«إصلاح» يطلب تأكيداً وصلاحيات — بلا أوامر حرّة.\n"
-                                    + "Inspect only reads; Repair asks to confirm — no free-form commands."
-                            }
-                        }
-                    }
-
-                    Text {
-                        text: "العقل | Brain"
-                        color: root.textLo
-                        font.family: root.uiFont
-                        font.pixelSize: 12
-                    }
-
-                    // Local / Cloud
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 46
-                        radius: 12
-                        color: root.surface0
-                        border.width: 1
-                        border.color: root.hairline
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 4
-                            spacing: 4
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                radius: 9
-                                color: !root.settingsCloud ? root.novaBlue : "transparent"
-                                Behavior on color { ColorAnimation { duration: 130 } }
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "محلي | Local"
-                                    color: !root.settingsCloud ? root.onAccent : root.textLo
-                                    font.family: root.uiFont
-                                    font.pixelSize: 13
-                                    font.weight: Font.DemiBold
-                                }
-                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.settingsCloud = false }
-                            }
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                radius: 9
-                                color: root.settingsCloud ? root.novaViolet : "transparent"
-                                Behavior on color { ColorAnimation { duration: 130 } }
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "سحابي | Cloud"
-                                    color: root.settingsCloud ? root.onAccent : root.textLo
-                                    font.family: root.uiFont
-                                    font.pixelSize: 13
-                                    font.weight: Font.DemiBold
-                                }
-                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.settingsCloud = true }
-                            }
-                        }
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        visible: root.settingsCloud
-                        spacing: 7
-
-                        Text { text: "الوكيل | Agent"; color: root.textLo; font.family: root.uiFont; font.pixelSize: 11 }
-
-                        // The provider picker. Each preset fills in the base URL,
-                        // the wire protocol and a CHEAP default model — a key is
-                        // never part of a preset and never leaves the keyring.
-                        Flow {
-                            Layout.fillWidth: true
-                            spacing: 6
-                            Repeater {
-                                model: root.providers
-                                delegate: Rectangle {
-                                    id: prov
-                                    required property var modelData
-                                    readonly property bool on_: root.settingsProvider === modelData.id
-                                    height: 30
-                                    width: provText.implicitWidth + 22
-                                    radius: 9
-                                    color: on_ ? root.novaBlue
-                                         : provMa.containsMouse ? root.surface3 : root.surface2
-                                    border.width: 1
-                                    border.color: on_ ? "transparent" : root.hairline
-                                    Behavior on color { ColorAnimation { duration: 120 } }
-                                    Text {
-                                        id: provText
-                                        anchors.centerIn: parent
-                                        text: prov.modelData.name
-                                        color: prov.on_ ? root.onAccent : root.textHi
-                                        font.family: root.uiFont
-                                        font.pixelSize: 11
-                                        font.weight: prov.on_ ? Font.DemiBold : Font.Normal
-                                    }
-                                    MouseArea {
-                                        id: provMa
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.pickProvider(prov.modelData)
-                                    }
-                                }
-                            }
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            visible: text !== ""
-                            text: {
-                                for (let i = 0; i < root.providers.length; i++)
-                                    if (root.providers[i].id === root.settingsProvider)
-                                        return root.providers[i].hint || ""
-                                return ""
-                            }
-                            color: root.textMute
-                            font.family: root.uiFont
-                            font.pixelSize: 10
-                            wrapMode: Text.Wrap
-                        }
-
-                        Text {
-                            text: "الرابط | Base URL"
-                            color: root.textLo; font.family: root.uiFont; font.pixelSize: 11
-                        }
-                        QQC2.TextField {
-                            id: fBase
-                            Layout.fillWidth: true
-                            placeholderText: "https://api.openai.com/v1"
-                            placeholderTextColor: root.textMute
-                            color: root.textHi
-                            font.family: root.uiFont
-                            font.pixelSize: 12
-                            background: Rectangle { color: root.surface2; radius: 8; border.width: 1; border.color: fBase.activeFocus ? root.novaBlue : root.hairline }
-                            onTextChanged: root.settingsProvider = root.matchProvider(text.trim(), root.settingsWire)
-                        }
-
-                        Text {
-                            text: "النموذج | Model  " + (root.settingsWire === "anthropic" ? "(Anthropic)" : "(OpenAI-compatible)")
-                            color: root.textLo; font.family: root.uiFont; font.pixelSize: 11
-                        }
-                        QQC2.TextField {
-                            id: fModel
-                            Layout.fillWidth: true
-                            placeholderText: "gpt-5.4-mini"
-                            placeholderTextColor: root.textMute
-                            color: root.textHi
-                            font.family: root.uiFont
-                            font.pixelSize: 12
-                            background: Rectangle { color: root.surface2; radius: 8; border.width: 1; border.color: fModel.activeFocus ? root.novaBlue : root.hairline }
-                        }
-
-                        Text {
-                            text: "مفتاح API | API key — يُحفظ في خزنة النظام، لا في ملف"
-                            color: root.textLo; font.family: root.uiFont; font.pixelSize: 11
-                        }
-                        QQC2.TextField {
-                            id: fKey
-                            Layout.fillWidth: true
-                            echoMode: TextInput.Password
-                            placeholderText: "sk-…"
-                            placeholderTextColor: root.textMute
-                            color: root.textHi
-                            font.family: root.uiFont
-                            font.pixelSize: 12
-                            background: Rectangle { color: root.surface2; radius: 8; border.width: 1; border.color: fKey.activeFocus ? root.novaBlue : root.hairline }
-                        }
-
-                        // Test — sends a real request and reports what came back.
-                        // "Saved ✓" proves nothing: the URL can be wrong, the key
-                        // dead, the model missing, or the provider behind a CDN
-                        // that refuses us. This is the only honest confirmation.
-                        MoButton {
-                            Layout.fillWidth: true
-                            Layout.topMargin: 2
-                            label: root.settingsTesting ? "جارٍ الاختبار… | Testing…"
-                                                        : "اختبر الاتصال  |  Test connection"
-                            icon: "moos-network"
-                            enabled_: !root.settingsTesting
-                            onClicked: root.testConfig()
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            visible: root.settingsTestMsg !== ""
-                            radius: 9
-                            implicitHeight: testText.implicitHeight + 18
-                            color: root.settingsTestOk
-                                ? Qt.rgba(root.okColor.r, root.okColor.g,
-                                          root.okColor.b, 0.10)
-                                : Qt.rgba(root.badColor.r, root.badColor.g,
-                                          root.badColor.b, 0.10)
-                            border.width: 1
-                            border.color: root.settingsTestOk
-                                ? Qt.rgba(root.okColor.r, root.okColor.g,
-                                          root.okColor.b, 0.45)
-                                : Qt.rgba(root.badColor.r, root.badColor.g,
-                                          root.badColor.b, 0.45)
-                            Text {
-                                id: testText
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.leftMargin: 11
-                                anchors.rightMargin: 11
-                                text: root.settingsTestMsg
-                                color: root.settingsTestOk ? root.okColor : root.badColor
-                                font.family: root.uiFont
-                                font.pixelSize: 11
-                                wrapMode: Text.Wrap
-                            }
-                        }
-                    }
-
-                    SectionNote {
-                        Layout.fillWidth: true
-                        visible: !root.settingsCloud
-                        text: "العقل المحلي خاص بالكامل (RamaLama) — لا إنترنت بعد التحميل الأول.\n"
-                            + "The local brain is fully private — no Internet after the first download."
-                    }
-
-                    // ── Local models: download, switch, delete — right here in ──
-                    // Settings, not only on the chat picker. This is the manage
-                    // surface the owner asked for: add a brain, make it the active
-                    // one, or free its disk when done.
-                    Text {
-                        Layout.fillWidth: true
-                        visible: !root.settingsCloud
-                        text: "النماذج المحلية | Local models"
-                        color: root.textLo
-                        font.family: root.uiFont
-                        font.pixelSize: 11
-                    }
-                    Repeater {
-                        model: root.settingsCloud ? [] : root.localModels
-                        delegate: Rectangle {
-                            id: mRow
-                            required property var modelData
-                            readonly property bool active_: root.route === mRow.modelData.id
-                            readonly property bool dl: root.pullModel !== ""
-                                && (mRow.modelData.id === "local:" + root.pullModel
-                                    || mRow.modelData.id === root.pullModel)
-                            readonly property bool busy: root.deleteBusy !== ""
-                                && ("local:" + root.deleteBusy === mRow.modelData.id
-                                    || root.deleteBusy === mRow.modelData.id)
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 50
-                            radius: 11
-                            color: active_ ? Qt.rgba(root.okColor.r, root.okColor.g, root.okColor.b, 0.12)
-                                           : root.surface0
-                            border.width: 1
-                            border.color: active_ ? root.okColor : root.hairline
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 11
-                                anchors.rightMargin: 8
                                 spacing: 8
-                                ColumnLayout {
+
+                                RowLayout {
                                     Layout.fillWidth: true
-                                    spacing: 0
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: mRow.modelData.label
-                                        color: root.textHi
-                                        font.family: root.uiFont
-                                        font.pixelSize: 12
-                                        font.weight: mRow.active_ ? Font.DemiBold : Font.Normal
-                                        elide: Text.ElideRight
-                                    }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: mRow.dl
-                                              ? ("يُنزَّل — " + root.pullPercent + "% | downloading…")
-                                              : mRow.busy ? "يُحذف… | deleting…"
-                                              : !mRow.modelData.pulled
-                                                ? ((mRow.modelData.size_gb > 0 ? "~" + mRow.modelData.size_gb + " GB · " : "")
-                                                   + "غير مثبّت | not installed")
-                                              : mRow.modelData.serving ? "فعّال الآن | active brain"
-                                              : "مثبّت | installed"
-                                        color: root.textMute
-                                        font.family: root.uiFont
-                                        font.pixelSize: 9
-                                        elide: Text.ElideRight
+                                    SectionTitle { text: "صحة النظام" }
+                                    Item { Layout.fillWidth: true }
+                                    MoButton {
+                                        label: root.diagLoading ? "يفحص…" : "افحص الآن"
+                                        enabled_: !root.diagLoading
+                                        icon: "moos-report"
+                                        onClicked: root.diagnoseSystem()
                                     }
                                 }
-                                MoButton {
-                                    visible: !mRow.modelData.pulled && !mRow.dl
-                                    label: "تحميل | Download"
-                                    primary: true
-                                    onClicked: root.pickOrPull(mRow.modelData)
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: "فحص للقراءة فقط من moos-selfcheck. كل إصلاح فعل مسمّى يسألك قبل تنفيذه."
                                 }
-                                MoButton {
-                                    visible: mRow.modelData.pulled && !mRow.modelData.serving && !mRow.busy
-                                    label: "استخدام | Use"
-                                    onClicked: root.pickRoute(mRow.modelData.id)
-                                }
-                                MoButton {
-                                    visible: mRow.modelData.pulled && !mRow.modelData.serving && !mRow.busy
-                                    label: "حذف | Delete"
-                                    danger: true
-                                    onClicked: root.deleteModel(mRow.modelData.id)
-                                }
+
                                 Text {
-                                    visible: mRow.modelData.serving && !mRow.dl
-                                    text: "✓"
+                                    visible: !root.diagLoading && (root.diagResult.summary !== undefined)
+                                    Layout.fillWidth: true
+                                    text: root.diagResult.summary || ""
+                                    color: root.palette.text
+                                    font.family: root.uiFont
+                                    font.pixelSize: 12
+                                    wrapMode: Text.Wrap
+                                }
+
+                                Repeater {
+                                    model: root.diagResult.fixes || []
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 52
+                                        radius: 11
+                                        color: "transparent"
+                                        border.width: 1
+                                        border.color: root.hairline
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.margins: 10
+                                            spacing: 8
+                                            ColumnLayout {
+                                                spacing: 1
+                                                Text {
+                                                    text: modelData.title || modelData.id
+                                                    color: root.palette.text
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: 12
+                                                    font.weight: Font.DemiBold
+                                                }
+                                                Text {
+                                                    text: modelData.note || ""
+                                                    visible: !!modelData.note
+                                                    color: root.textMute
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: 10
+                                                    wrapMode: Text.Wrap
+                                                }
+                                            }
+                                            Item { Layout.fillWidth: true }
+                                            MoButton {
+                                                label: "أصلح | Fix"
+                                                onClicked: Qt.openUrlExternally("moos://do/" + modelData.id)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    visible: !root.diagLoading
+                                             && (root.diagResult.fixes === undefined
+                                                 || root.diagResult.fixes.length === 0)
+                                             && root.diagResult.summary !== undefined
+                                    Layout.fillWidth: true
+                                    text: "لا مشاكل تحتاج إصلاحاً."
                                     color: root.okColor
                                     font.family: root.uiFont
-                                    font.pixelSize: 15
-                                    font.weight: Font.Bold
+                                    font.pixelSize: 11
                                 }
                             }
                         }
                     }
-                    Text {
-                        Layout.fillWidth: true
-                        visible: !root.settingsCloud && root.pullError !== ""
-                        text: root.pullError
-                        color: root.badColor
-                        font.family: root.uiFont
-                        font.pixelSize: 10
-                        wrapMode: Text.Wrap
-                    }
 
-                    Text {
-                        Layout.fillWidth: true
-                        visible: root.settingsError !== ""
-                        text: root.settingsError
-                        color: root.badColor
-                        font.family: root.uiFont
-                        font.pixelSize: 11
-                        wrapMode: Text.Wrap
-                    }
-
+                    // ── save ──
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 44
                         radius: 12
-                        opacity: root.settingsSaving ? 0.6 : 1
+                        opacity: root.cfgSaving ? 0.6 : 1
                         gradient: Gradient {
                             orientation: Gradient.Horizontal
                             GradientStop { position: 0.0; color: root.novaBlue }
@@ -3776,7 +4020,7 @@ Kirigami.ApplicationWindow {
                         }
                         Text {
                             anchors.centerIn: parent
-                            text: root.settingsSaving ? "جارٍ الحفظ… | Saving…" : "حفظ | Save"
+                            text: root.cfgSaving ? "جارٍ الحفظ… | Saving…" : "حفظ | Save"
                             color: root.onAccent
                             font.family: root.uiFont
                             font.pixelSize: 14
@@ -3785,13 +4029,193 @@ Kirigami.ApplicationWindow {
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            enabled: !root.settingsSaving
-                            onClicked: root.saveConfig()
+                            enabled: !root.cfgSaving
+                            onClicked: root.cfgSave({
+                                mode: root.cfgMode,
+                                provider: root.cfgProvider,
+                                base: baseField.text,
+                                model: modelField.text,
+                                key: keyField.text,
+                                tgOn: tgSwitch.checked,
+                                token: tokenField.text,
+                                allow: allowField.text,
+                                ttsOn: ttsSwitch.checked,
+                                ttsAuto: ttsAutoBox.currentIndex,
+                                keep: keepBox.currentIndex,
+                                web: webSwitch.checked
+                            }, function () {
+                                keyField.text = ""
+                                tokenField.text = ""
+                            })
                         }
+                    }
+                }
+
+                // يملأ الحقول عند كل فتح — لا عند الإقلاع
+                Connections {
+                    target: root
+                    function onSettingsOpenChanged() {
+                        if (!root.settingsOpen) return
+                        root.cfgLoad(function (c) {
+                            provBox.currentIndex = Math.max(0, root.cfgProviders.findIndex(
+                                function (p) { return p.id === c.cloud.provider }))
+                            baseField.text  = c.cloud.base
+                            modelField.text = c.cloud.model
+                            tgSwitch.checked = c.telegram.enabled
+                            allowField.text  = (c.telegram.allow || []).join(", ")
+                            ttsSwitch.checked = c.voice.tts_enabled
+                            ttsAutoBox.currentIndex = ["inbound", "always", "off"].indexOf(c.voice.tts_auto)
+                            keepBox.currentIndex = ["5m", "15m", "60m", "-1"].indexOf(c.power.keep_alive)
+                            webSwitch.checked = c.permissions.web
+                        })
                     }
                 }
             }
         }
+    }
+    }
+
+    // ── Settings plumbing (moapp-console) ───────────────────────────────────
+    // One backend for BOTH surfaces: this sheet and the Telegram bot read and
+    // write the same ~/.openclaw/openclaw.json through moapp-console. There is
+    // no second copy of "which brain" or "which key" to drift out of sync.
+    property string cfgTab: "brain"
+    property string cfgMode: "local"
+    property string cfgProvider: "synterolink"
+    property var    cfgProviders: []
+    property var    cfgProviderNames: []
+    property bool   cfgHasKey: false
+    property bool   cfgHasToken: false
+    property bool   cfgSaving: false
+    property string cfgError: ""
+
+    function cfgLoad(done) {
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/config")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status !== 200) {
+                root.cfgError = "لوحة التحكم لا تستجيب — systemctl --user start moapp-console"
+                return
+            }
+            try {
+                const c = JSON.parse(xhr.responseText)
+                root.cfgError = ""
+                root.cfgMode = c.brain.mode
+                root.cfgProvider = c.cloud.provider
+                root.cfgProviders = c.providers
+                root.cfgProviderNames = c.providers.map(function (p) { return p.name })
+                root.cfgHasKey = c.cloud.has_key
+                root.cfgHasToken = c.telegram.has_token
+                if (done) done(c)
+            } catch (e) {
+                root.cfgError = "رد غير مفهوم من لوحة التحكم"
+            }
+        }
+        xhr.send()
+    }
+
+    function cfgSave(v, done) {
+        root.cfgSaving = true
+        root.cfgError = ""
+        const AUTO = ["inbound", "always", "off"]
+        const KEEP = ["5m", "15m", "60m", "-1"]
+        const body = {
+            mode: v.mode,
+            cloud: { provider: v.provider, base: v.base, model: v.model, key: v.key },
+            telegram: {
+                enabled: v.tgOn,
+                token: v.token,
+                allow: v.allow.split(",").map(function (x) { return x.trim() })
+                                        .filter(function (x) { return x.length > 0 })
+            },
+            voice: { tts_enabled: v.ttsOn, tts_auto: AUTO[v.ttsAuto] || "inbound" },
+            power: { keep_alive: KEEP[v.keep] || "15m" },
+            permissions: { web: v.web }
+        }
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/config")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            root.cfgSaving = false
+            if (xhr.status === 200) {
+                let r = {}
+                try { r = JSON.parse(xhr.responseText) } catch (e) { }
+                if (r.error) { root.cfgError = r.error; return }
+                if (done) done()
+                root.cfgLoad()
+            } else {
+                root.cfgError = "تعذّر الحفظ (HTTP " + xhr.status + ")"
+            }
+        }
+        xhr.send(JSON.stringify(body))
+    }
+
+    // ── Agent plumbing ──────────────────────────────────────────────────────
+    // moapp-console (127.0.0.1:8077) is the ONLY bridge: pure QML has no Process
+    // API and cannot read ~/.openclaw itself. Same pattern as controlApi above.
+    readonly property string agentApi: "http://127.0.0.1:8077"
+    property var  agentSessions: []
+    property var  agentThread: []
+    property string agentCurrent: ""
+    property string agentCurrentKey: "console"
+    property bool agentBusy: false
+    property string agentError: ""
+
+    function agentLoadSessions() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/sessions")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                try { root.agentSessions = JSON.parse(xhr.responseText); root.agentError = "" }
+                catch (e) { root.agentError = "رد غير مفهوم | Bad response" }
+            } else {
+                root.agentError = "لوحة الوكيل لا تستجيب — moapp-console"
+            }
+        }
+        xhr.send()
+    }
+
+    function agentOpen(id, key) {
+        root.agentCurrent = id
+        root.agentCurrentKey = String(key).split(":").pop()
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/session?id=" + encodeURIComponent(id))
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                try { root.agentThread = JSON.parse(xhr.responseText) } catch (e) { root.agentThread = [] }
+            }
+        }
+        xhr.send()
+    }
+
+    function agentSend(text) {
+        if (!text || root.agentBusy) return
+        root.agentBusy = true
+        root.agentError = ""
+        // Echo locally so the message appears instantly; the reply lands on return.
+        root.agentThread = root.agentThread.concat([{ role: "user", text: text }])
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/send")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            root.agentBusy = false
+            let reply = "لا رد | No reply"
+            if (xhr.status === 200) {
+                try { const r = JSON.parse(xhr.responseText); reply = r.reply || r.error || reply }
+                catch (e) { reply = "رد غير مفهوم" }
+            } else {
+                reply = "تعذّر الاتصال بالوكيل"
+                root.agentError = reply
+            }
+            root.agentThread = root.agentThread.concat([{ role: "assistant", text: reply }])
+            root.agentLoadSessions()
+        }
+        xhr.send(JSON.stringify({ key: root.agentCurrentKey, text: text }))
     }
 
     // ── Settings plumbing ───────────────────────────────────────────────────
