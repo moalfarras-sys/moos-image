@@ -29,6 +29,47 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-20 (late night) — MoOS Screens 3D & Animation Upgrade (Plymouth, Login, Logout, Splash)
+
+### What was done
+1. **Plymouth Boot Splash Upgrade (3D Orbital)**:
+   - Upgraded `system_files/usr/share/plymouth/themes/moos/moos.script` with dual-ring counter-rotating orbital motion for 3D depth.
+   - Added 3 elliptical particle orbits at staggered phases and tilted axes.
+   - Added a radial shockwave pulse wave (`pulse.png`) repeating every 3.8s.
+   - Added emblem breathing pulse (2% subtle scale pulse).
+   - Generated new high-quality assets: `particle.png` (64x64), `ring2.png` (720x720), `pulse.png` (512x512).
+
+2. **Splash Screen Upgrade (Orbital Reveal)**:
+   - Upgraded `system_files/usr/share/plasma/look-and-feel/org.moos.ui2/contents/splash/Splash.qml`.
+   - Ring expands from a point birthing the logo from inside it (`OutBack` ease).
+   - 3 energy particles shoot outward during reveal.
+   - Multi-lane neon progress bar with cyan/violet/electric sweeps racing.
+   - Typewriter wordmark effect for "MoOS".
+
+3. **Logout Screen Upgrade (Cosmic Aurora & Glass Refraction)**:
+   - Upgraded `system_files/usr/share/plasma/look-and-feel/org.moos.ui2/contents/logout/Logout.qml`.
+   - Expanded aurora curtains from 4 to 6 (adding warm gold and rose nebula curtains with slow 3D rotation oscillation).
+   - Added 24 depth-staggered breathing stars, 5 rising motes, double-streak shooting stars.
+   - Added glass refraction lines drifting across the panel.
+   - Added second counter-rotating brand ring behind emblem.
+   - Upgraded `MoOSUI2ActionButton.qml`: icon 5° tilt on hover with bounce-back, `OutBack` scaling, press pulse ring, glass refraction light sweep.
+
+4. **Login Greeter Wallpaper & Gate Compliance**:
+   - Fixed `system_files/usr/share/plasma/wallpapers/org.moos.ui2.greeter/contents/ui/main.qml`.
+   - Removed `Animation` keywords to satisfy UX gate requirement (login greeter must paint immediately).
+   - Maintained static ambient orbital presence: concentric glow discs, fixed-rotation ring, static horizon line, 3 accent dots.
+
+5. **Theme Synchronization & Verification**:
+   - Ran `artwork/generate_moos_themes.py` to propagate updated Splash, Logout, and ActionButton QML to all 16 theme variants.
+   - Verified `python3 tests/verify_user_experience.py` — **PASSED**.
+   - Verified `python3 tests/test_device_plan.py` — **PASSED**.
+   - Verified `bash -n build_files/build.sh` — **PASSED**.
+
+### Current Status
+- Booted Image: `ghcr.io/moalfarras-sys/moos-nvidia@sha256:75daa80ef2073cee1cbd3a7873e922a3b41a87f6a200942862fc3252c18f55fc`
+- Gates: `verify_user_experience.py` PASSED, `test_device_plan.py` PASSED
+- Open Tasks: Commit, push, CI build verification.
+
 ## Session 2026-07-20 (evening) — Mo PC Remote: typing, H.264, TLS topology, CI unblock
 
 Three commits on `main`: `14a8c80`, `138f2b4`, `f250006`.

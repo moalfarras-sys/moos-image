@@ -1,5 +1,5 @@
 /*
-    MoOS UI2 splash screen (org.moos.ui2)
+    MoOS UI2 splash screen (org.moos.ui2) — v2
 
     Stage contract VERIFIED against Breeze's Splash.qml
     (plasma-workspace/lookandfeel/org.kde.breeze/contents/splash/Splash.qml,
@@ -9,14 +9,15 @@
     We must not change those two triggers or the session hands off with a
     frozen splash.
 
-    Premium intro, kept deliberately GPU-LIGHT:
-      • logo fade + scale entrance (OutCubic, ~500ms) via render-thread Animators
-      • a soft brand glow that "breathes" — faked with concentric translucent
-        discs (NO blur, NO shader, no Qt5Compat/GraphicalEffects dependency)
-      • a neon cyan→blue light that sweeps the progress line, timed fast
-    Everything is transforms + opacity only, so it renders instantly on weak
-    GPUs. RTL-safe: the layout is centre-anchored (mirror-neutral) and the only
-    horizontal motion is a symmetric light sweep, not directional text.
+    Premium intro — "Orbital Reveal":
+      • The ring appears first as a point and expands outward (scale 0→1)
+      • The logo materialises FROM INSIDE the ring — the ring births the mark
+      • 3 energy particles shoot outward from the centre during the reveal
+      • A multi-lane progress bar with 3 sweeps in cyan/violet/electric
+      • The MoOS wordmark types in letter by letter
+
+    GPU-LIGHT: transforms + opacity only via render-thread Animators, NO blur,
+    NO shader, no Qt5Compat/GraphicalEffects. RTL-safe: centre-anchored.
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */
@@ -33,6 +34,7 @@ Rectangle {
     readonly property color navy: Kirigami.Theme.alternateBackgroundColor
     readonly property color electric: Kirigami.Theme.highlightColor
     readonly property color cyan: Kirigami.Theme.hoverColor
+    readonly property color violet: Qt.rgba(0.545, 0.361, 0.965, 1.0) // #8B5CF6
     readonly property color secondaryText: Kirigami.Theme.disabledTextColor
 
     color: deepest
@@ -42,15 +44,17 @@ Rectangle {
     onStageChanged: {
         if (stage == 2) {
             introAnimation.running = true;
+            ringReveal.running = true;
             shineSweep.running = true;
             bloomFlash.running = true;
+            particleBurst.running = true;
+            typewriterTimer.running = true;
         } else if (stage == 5) {
             outroAnimation.running = true;
         }
     }
 
-    // Subtle vertical brand wash (plain linear gradient — no shader) so the
-    // black field reads as deep navy, not flat.
+    // Subtle vertical brand wash
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
@@ -65,9 +69,6 @@ Rectangle {
         opacity: 0
 
         // ── Ambient glow behind the logo ────────────────────────────────────
-        // Concentric low-opacity discs approximate a radial glow WITHOUT any
-        // blur/shader: alpha stacks toward the centre, so the middle is brighter
-        // than the rim. A gentle scale+opacity breathe makes it feel alive.
         Item {
             id: glow
             anchors.centerIn: logo
@@ -94,9 +95,7 @@ Rectangle {
             Rectangle { anchors.centerIn: parent; width: 100; height: 100; radius: 50;  color: root.cyan; opacity: 0.055 }
         }
 
-        // Arrival bloom: a soft disc that expands and fades the instant the mark
-        // lands — the burst of energy behind the reveal. GPU-light: one rounded
-        // rect, scale + opacity only. Sits behind the logo (declared before it).
+        // Arrival bloom: soft disc that expands and fades
         Rectangle {
             id: bloomFlash
             anchors.centerIn: logo
@@ -111,21 +110,74 @@ Rectangle {
                 id: bloomAnim
                 running: false
                 NumberAnimation { target: bloomFlash; property: "scale"
-                    from: 0.4; to: 2.4; duration: 900; easing.type: Easing.OutCubic }
+                    from: 0.4; to: 2.8; duration: 1100; easing.type: Easing.OutCubic }
                 SequentialAnimation {
                     NumberAnimation { target: bloomFlash; property: "opacity"
-                        from: 0; to: 0.5; duration: 180; easing.type: Easing.OutCubic }
+                        from: 0; to: 0.55; duration: 200; easing.type: Easing.OutCubic }
                     NumberAnimation { target: bloomFlash; property: "opacity"
-                        to: 0; duration: 720; easing.type: Easing.InCubic }
+                        to: 0; duration: 900; easing.type: Easing.InCubic }
                 }
             }
         }
 
-        // The logo, kept CRISP and READABLE — his brief's first rule. The mark is
-        // his full-detail 1024px master rendered at 512, never a traced/low-res
-        // frame; the cinema is in the LIGHT around it (bloom, sweep, orbit), not in
-        // deforming the logo. The intro pops it to full size with a confident
-        // OutBack settle.
+        // ── Orbital ring — starts as a point, expands to full size ──────────
+        // This is the "3D reveal": the ring births the logo from inside it.
+        Image {
+            id: orbitalRing
+            anchors.centerIn: logo
+            width: 330
+            height: 330
+            asynchronous: true
+            source: "images/ring.png"
+            sourceSize.width: 660
+            sourceSize.height: 660
+            opacity: 0
+            scale: 0.0
+
+            RotationAnimator on rotation {
+                from: 0; to: 360
+                duration: 8000
+                loops: Animation.Infinite
+                running: true
+            }
+
+            // Ring reveal: scale from 0 to 1 with bounce
+            ParallelAnimation {
+                id: ringReveal
+                running: false
+                NumberAnimation {
+                    target: orbitalRing; property: "scale"
+                    from: 0.0; to: 1.0
+                    duration: 900; easing.type: Easing.OutBack; easing.overshoot: 1.2
+                }
+                NumberAnimation {
+                    target: orbitalRing; property: "opacity"
+                    from: 0; to: 0.85
+                    duration: 600; easing.type: Easing.OutCubic
+                }
+            }
+        }
+
+        // ── Counter-rotating inner ring (3D depth) ──────────────────────────
+        Image {
+            anchors.centerIn: logo
+            width: 260
+            height: 260
+            asynchronous: true
+            source: "images/ring.png"
+            sourceSize.width: 520
+            sourceSize.height: 520
+            opacity: orbitalRing.opacity * 0.45
+            scale: orbitalRing.scale * 0.85
+            RotationAnimator on rotation {
+                from: 360; to: 0
+                duration: 14000
+                loops: Animation.Infinite
+                running: true
+            }
+        }
+
+        // ── The logo ────────────────────────────────────────────────────────
         Image {
             id: logo
             anchors.centerIn: parent
@@ -140,14 +192,18 @@ Rectangle {
             sourceSize.height: 512
             smooth: true
             mipmap: true
+            scale: 0.0
 
-            // Pre-scaled small; the intro ScaleAnimator pops it to 1.0 (OutBack).
-            scale: 0.35
+            // Logo breathing after arrival
+            SequentialAnimation on scale {
+                id: logoBreathe
+                running: false
+                loops: Animation.Infinite
+                NumberAnimation { from: 1.0; to: 1.025; duration: 2400; easing.type: Easing.InOutSine }
+                NumberAnimation { from: 1.025; to: 1.0; duration: 2400; easing.type: Easing.InOutSine }
+            }
 
-            // A single studio light-sweep crosses the mark once as it arrives —
-            // a bright diagonal band clipped to the logo's square, fading at both
-            // ends so it reads as a glint travelling over the glass, not a bar.
-            // GPU-light: one gradient rect + one x animation, no shader/mask.
+            // Studio light-sweep across the mark
             Item {
                 anchors.fill: parent
                 clip: true
@@ -159,9 +215,6 @@ Rectangle {
                     y: -parent.height * 0.4
                     x: -width * 1.4
                     opacity: 0.0
-                    // A bright cyan glint (theme hoverColor, never a hardcoded
-                    // white — the identity gate forbids pure-white literals and
-                    // the theme keeps the glint on-brand across looks).
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
                         GradientStop { position: 0.0; color: Qt.rgba(root.cyan.r, root.cyan.g, root.cyan.b, 0) }
@@ -171,7 +224,7 @@ Rectangle {
                     SequentialAnimation {
                         id: shineSweep
                         running: false
-                        PauseAnimation { duration: 520 }
+                        PauseAnimation { duration: 620 }
                         ParallelAnimation {
                             NumberAnimation { target: shine; property: "x"
                                 from: -shine.width * 1.4; to: logo.width + shine.width * 0.4
@@ -186,33 +239,81 @@ Rectangle {
             }
         }
 
-        // The comet ring — the same pre-baked orbit every doorway surface
-        // carries (artwork/generate_login_scene.py), here circling the mark
-        // while the system comes up. One Image + a render-thread
-        // RotationAnimator: exactly as GPU-light as the discs above. A bit
-        // quicker than the login scene's orbit — a splash lives for seconds,
-        // and the motion should be seen, not suspected.
+        // ── Energy particles that shoot outward during reveal ────────────────
+        // 3 particles radiating from centre in different directions
         Image {
-            anchors.centerIn: logo
-            width: 330
-            height: 330
-            asynchronous: true
-            source: "images/ring.png"
-            sourceSize.width: 660
-            sourceSize.height: 660
-            opacity: 0.8
-            RotationAnimator on rotation {
-                from: 0; to: 360
-                duration: 9000
-                loops: Animation.Infinite
-                running: true
+            id: p1
+            source: "images/particle.png"
+            width: 16; height: 16
+            x: root.width / 2 - 8
+            y: root.height * 0.46 - 8
+            opacity: 0
+            property alias running: p1Anim.running
+        }
+        Image {
+            id: p2
+            source: "images/particle.png"
+            width: 12; height: 12
+            x: root.width / 2 - 6
+            y: root.height * 0.46 - 6
+            opacity: 0
+        }
+        Image {
+            id: p3
+            source: "images/particle.png"
+            width: 10; height: 10
+            x: root.width / 2 - 5
+            y: root.height * 0.46 - 5
+            opacity: 0
+        }
+
+        ParallelAnimation {
+            id: particleBurst
+            running: false
+
+            // Particle 1: shoots upper-right
+            SequentialAnimation {
+                PauseAnimation { duration: 400 }
+                ParallelAnimation {
+                    id: p1Anim
+                    NumberAnimation { target: p1; property: "x"; to: root.width * 0.62; duration: 1200; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: p1; property: "y"; to: root.height * 0.28; duration: 1200; easing.type: Easing.OutCubic }
+                    SequentialAnimation {
+                        NumberAnimation { target: p1; property: "opacity"; to: 0.9; duration: 200 }
+                        NumberAnimation { target: p1; property: "opacity"; to: 0; duration: 1000; easing.type: Easing.InCubic }
+                    }
+                }
+            }
+
+            // Particle 2: shoots lower-left
+            SequentialAnimation {
+                PauseAnimation { duration: 500 }
+                ParallelAnimation {
+                    NumberAnimation { target: p2; property: "x"; to: root.width * 0.35; duration: 1100; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: p2; property: "y"; to: root.height * 0.62; duration: 1100; easing.type: Easing.OutCubic }
+                    SequentialAnimation {
+                        NumberAnimation { target: p2; property: "opacity"; to: 0.8; duration: 180 }
+                        NumberAnimation { target: p2; property: "opacity"; to: 0; duration: 920; easing.type: Easing.InCubic }
+                    }
+                }
+            }
+
+            // Particle 3: shoots upper-left
+            SequentialAnimation {
+                PauseAnimation { duration: 600 }
+                ParallelAnimation {
+                    NumberAnimation { target: p3; property: "x"; to: root.width * 0.38; duration: 1000; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: p3; property: "y"; to: root.height * 0.30; duration: 1000; easing.type: Easing.OutCubic }
+                    SequentialAnimation {
+                        NumberAnimation { target: p3; property: "opacity"; to: 0.7; duration: 160 }
+                        NumberAnimation { target: p3; property: "opacity"; to: 0; duration: 840; easing.type: Easing.InCubic }
+                    }
+                }
             }
         }
 
-        // ── Neon progress line ──────────────────────────────────────────────
-        // A dim track with a bright cyan→blue light pill sweeping across it. The
-        // pill's gradient fades to transparent at both ends so it reads as a
-        // moving glow, not a hard bar.
+        // ── Multi-lane neon progress bar ─────────────────────────────────────
+        // Three sweeps in cyan/violet/electric racing across the track
         Rectangle {
             id: progressTrack
             anchors.horizontalCenter: parent.horizontalCenter
@@ -227,50 +328,118 @@ Rectangle {
             color: Kirigami.Theme.backgroundColor
             clip: true
 
+            // Sweep 1: cyan (fastest)
             Rectangle {
-                id: sweep
-                width: 96
+                id: sweep1
+                width: 80
                 height: parent.height
                 radius: height / 2
                 x: -width
-
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
                     GradientStop { position: 0.0; color: Qt.rgba(root.cyan.r, root.cyan.g, root.cyan.b, 0) }
                     GradientStop { position: 0.5; color: root.cyan }
-                    GradientStop { position: 1.0; color: Qt.rgba(root.electric.r, root.electric.g, root.electric.b, 0) }
+                    GradientStop { position: 1.0; color: Qt.rgba(root.cyan.r, root.cyan.g, root.cyan.b, 0) }
                 }
-
                 NumberAnimation on x {
-                    from: -sweep.width
+                    from: -sweep1.width
                     to: progressTrack.width
-                    duration: 900
+                    duration: 800
                     loops: Animation.Infinite
                     easing.type: Easing.InOutQuad
                     running: true
                 }
             }
+
+            // Sweep 2: violet (medium speed, delayed)
+            Rectangle {
+                id: sweep2
+                width: 64
+                height: parent.height
+                radius: height / 2
+                x: -width
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: Qt.rgba(root.violet.r, root.violet.g, root.violet.b, 0) }
+                    GradientStop { position: 0.5; color: root.violet }
+                    GradientStop { position: 1.0; color: Qt.rgba(root.violet.r, root.violet.g, root.violet.b, 0) }
+                }
+                SequentialAnimation on x {
+                    PauseAnimation { duration: 300 }
+                    NumberAnimation {
+                        from: -sweep2.width
+                        to: progressTrack.width
+                        duration: 1100
+                        loops: Animation.Infinite
+                        easing.type: Easing.InOutQuad
+                    }
+                }
+            }
+
+            // Sweep 3: electric blue (slowest, most delayed)
+            Rectangle {
+                id: sweep3
+                width: 48
+                height: parent.height
+                radius: height / 2
+                x: -width
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: Qt.rgba(root.electric.r, root.electric.g, root.electric.b, 0) }
+                    GradientStop { position: 0.5; color: root.electric }
+                    GradientStop { position: 1.0; color: Qt.rgba(root.electric.r, root.electric.g, root.electric.b, 0) }
+                }
+                SequentialAnimation on x {
+                    PauseAnimation { duration: 550 }
+                    NumberAnimation {
+                        from: -sweep3.width
+                        to: progressTrack.width
+                        duration: 1400
+                        loops: Animation.Infinite
+                        easing.type: Easing.InOutQuad
+                    }
+                }
+            }
         }
 
+        // ── Typewriter MoOS wordmark ─────────────────────────────────────────
         Text {
+            id: brandText
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 32
 
-            text: "MoOS"
+            property string fullText: "MoOS"
+            property int charCount: 0
+
+            text: fullText.substring(0, charCount)
             color: root.secondaryText
             font.family: "IBM Plex Sans"
             font.pixelSize: 14
             font.letterSpacing: 2
             textFormat: Text.PlainText
-            Accessible.name: text
+            Accessible.name: fullText
             Accessible.role: Accessible.StaticText
+
+            Timer {
+                id: typewriterTimer
+                interval: 140
+                repeat: true
+                running: false
+                onTriggered: {
+                    if (brandText.charCount < brandText.fullText.length) {
+                        brandText.charCount++;
+                    } else {
+                        stop();
+                    }
+                }
+            }
         }
     }
 
-    // Entrance: fade the whole scene in while the logo settles up to full size.
-    // Render-thread Animators (OpacityAnimator/ScaleAnimator) so weak GPUs stay
-    // smooth. ~500ms OutCubic = quick, premium, never sluggish.
+    // Entrance: fade the whole scene in while the logo zooms from 0 to full.
+    // OutBack gives the confident settle. Ring expands first (via ringReveal),
+    // then the logo pops out of it.
     ParallelAnimation {
         id: introAnimation
         running: false
@@ -284,15 +453,19 @@ Rectangle {
         }
         ScaleAnimator {
             target: logo
-            from: 0.35
+            from: 0.0
             to: 1.0
-            duration: 720
+            duration: 850
             easing.type: Easing.OutBack
+        }
+        // After the logo lands, start the breathing
+        SequentialAnimation {
+            PauseAnimation { duration: 900 }
+            ScriptAction { script: logoBreathe.running = true }
         }
     }
 
-    // Stage 5: fade the progress line out before the desktop takes over. No
-    // `from` so it eases down from whatever its current opacity is (no snap).
+    // Stage 5: fade the progress line out before the desktop takes over.
     OpacityAnimator {
         id: outroAnimation
         running: false

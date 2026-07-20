@@ -25,7 +25,7 @@ QQC2.AbstractButton {
     hoverEnabled: true
     implicitWidth: Kirigami.Units.gridUnit * 10
     implicitHeight: Kirigami.Units.gridUnit * 8
-    scale: down ? 0.98 : (hovered ? 1.03 : 1.0)
+    scale: down ? 0.96 : (hovered ? 1.04 : 1.0)
 
     Keys.onLeftPressed: navigate(-1)
     Keys.onRightPressed: navigate(1)
@@ -35,7 +35,8 @@ QQC2.AbstractButton {
     Behavior on scale {
         NumberAnimation {
             duration: Kirigami.Units.shortDuration
-            easing.type: Easing.OutCubic
+            easing.type: Easing.OutBack
+            easing.overshoot: 1.5
         }
     }
 
@@ -56,6 +57,7 @@ QQC2.AbstractButton {
                 ? Kirigami.Theme.hoverColor
                 : Kirigami.Theme.highlightColor)
 
+        // Top highlight
         Rectangle {
             anchors {
                 top: parent.top
@@ -69,8 +71,7 @@ QQC2.AbstractButton {
             opacity: 0.10
         }
 
-        // a bottom inner shadow — the mirror of the top highlight — so the tile
-        // reads as a raised piece of glass, not a flat swatch.
+        // Bottom inner shadow
         Rectangle {
             anchors {
                 bottom: parent.bottom
@@ -83,6 +84,58 @@ QQC2.AbstractButton {
             color: Kirigami.Theme.backgroundColor
             opacity: 0.30
         }
+
+        // Animated light sweep across the card on hover — glass refraction effect
+        Item {
+            anchors.fill: parent
+            clip: true
+            visible: control.hovered
+
+            Rectangle {
+                id: cardSweep
+                width: parent.width * 0.25
+                height: parent.height * 2
+                rotation: 20
+                y: -parent.height * 0.5
+                x: -width
+                color: Kirigami.Theme.textColor
+                opacity: 0.04
+                NumberAnimation on x {
+                    from: -cardSweep.width * 1.5
+                    to: control.width + cardSweep.width * 0.5
+                    duration: 2200
+                    loops: Animation.Infinite
+                    easing.type: Easing.InOutSine
+                    running: control.hovered
+                }
+            }
+        }
+
+        // Press pulse — ring that expands outward on click
+        Rectangle {
+            id: pressPulse
+            anchors.centerIn: parent
+            width: 0
+            height: 0
+            radius: width / 2
+            color: control.destructive ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.highlightColor
+            opacity: 0
+
+            states: State {
+                name: "pressed"
+                when: control.down
+                PropertyChanges { target: pressPulse; width: control.width * 1.2; height: control.width * 1.2; opacity: 0 }
+            }
+            transitions: Transition {
+                from: ""; to: "pressed"
+                ParallelAnimation {
+                    NumberAnimation { target: pressPulse; properties: "width,height"; from: 0; to: control.width * 1.2; duration: 400; easing.type: Easing.OutCubic }
+                    SequentialAnimation {
+                        NumberAnimation { target: pressPulse; property: "opacity"; from: 0.3; to: 0; duration: 400; easing.type: Easing.OutCubic }
+                    }
+                }
+            }
+        }
     }
 
     contentItem: Column {
@@ -94,6 +147,7 @@ QQC2.AbstractButton {
 
             readonly property bool active: control.hovered || control.down
 
+            // Glow disc behind icon
             Rectangle {
                 anchors.centerIn: parent
                 width: Kirigami.Units.gridUnit * 3
@@ -106,13 +160,11 @@ QQC2.AbstractButton {
                     : (control.emphasized
                         ? Kirigami.Theme.textColor
                         : Kirigami.Theme.highlightColor)
-                // the disc lights up and swells as the pointer lands — the tile
-                // gains depth and life instead of sitting flat.
                 opacity: parent.active ? (control.emphasized ? 0.24 : 0.30)
                                        : (control.emphasized ? 0.14 : 0.18)
-                scale: parent.active ? 1.12 : 1.0
+                scale: parent.active ? 1.18 : 1.0
                 Behavior on opacity { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
-                Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+                Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
             }
 
             Kirigami.Icon {
@@ -127,8 +179,11 @@ QQC2.AbstractButton {
                         ? Kirigami.Theme.highlightedTextColor
                         : Kirigami.Theme.negativeTextColor)
                     : Kirigami.Theme.highlightColor
-                scale: parent.active ? 1.08 : 1.0
-                Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+                scale: parent.active ? 1.10 : 1.0
+                // Subtle rotation on hover — icon tilts 5° with bounce back
+                rotation: parent.active ? 5 : 0
+                Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutBack; easing.overshoot: 1.5 } }
+                Behavior on rotation { NumberAnimation { duration: 300; easing.type: Easing.OutBack; easing.overshoot: 2.0 } }
             }
         }
 

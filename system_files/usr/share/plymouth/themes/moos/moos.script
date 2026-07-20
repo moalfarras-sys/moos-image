@@ -1,19 +1,21 @@
-// MoOS premium boot splash — Plymouth Script module.
+// MoOS premium boot splash — Plymouth Script module (v2).
 //
-// A deep-navy field. A cyan->violet energy head orbits a faint ring while the
-// CRISP MoOS mark rises and settles with a soft glow; then the head keeps
-// orbiting as the loading loop, seamlessly, until the desktop takes over. No
-// vendor branding, no default dots, no boot text on a normal boot.
+// A deep-navy field. The CRISP MoOS mark reveals with a confident zoom, then
+// breathes while a dual-ring orbital system spins around it: two rings at
+// different speeds and tilt angles create parallax depth (the 3D illusion),
+// small energy particles trace elliptical orbits at staggered phases, and a
+// radial pulse wave ripples outward every few seconds. The energy head still
+// orbits as the loading loop — the signature motion of MoOS.
 //
-// Driven entirely by moving four small sprites (logo/ring/head/glow) from the
-// refresh callback — NOT hundreds of pre-baked frames — so the theme is ~0.8 MB
-// and adds almost nothing to the initramfs or boot time. Everything scales to
-// the screen height, so it is crisp at 1080p and 4K without stretching. If any
-// sprite fails to load, Plymouth falls back to its text splash and the machine
-// still boots — that is the safe fallback.
+// Driven entirely by moving small sprites from the refresh callback — NOT
+// hundreds of pre-baked frames — so the theme is ~1 MB and adds almost nothing
+// to the initramfs or boot time. Everything scales to screen height, so it is
+// crisp at 1080p and 4K. If any sprite fails to load, Plymouth falls back to
+// its text splash and the machine still boots — that is the safe fallback.
 //
-// Assets are produced by artwork/generate_boot_splash.py. The logo is his 1024px
-// master, downscaled but never redrawn/recoloured/cropped.
+// Assets: logo.png, ring.png, ring2.png, head.png, glow.png, particle.png,
+//         pulse.png — produced by artwork/generate_boot_splash.py and
+//         artwork/generate_new_assets.py.
 
 // ── deep near-black navy ground ──────────────────────────────────────────────
 Window.SetBackgroundTopColor(0.027, 0.043, 0.086);      // #070B16
@@ -28,66 +30,119 @@ fun fmin(a, b) { if (a < b) return a; return b; }
 fun fmax(a, b) { if (a > b) return a; return b; }
 fun clamp01(v) { return fmax(0, fmin(1, v)); }
 fun easeout(t) { u = 1 - t; return 1 - u * u * u; }
+fun easeinout(t) {
+    if (t < 0.5) return 2 * t * t;
+    u = -2 * t + 2;
+    return 1 - u * u / 2;
+}
 
 PI = 3.14159265;
 
 // ── sizes, all relative to screen height (crisp at any resolution) ───────────
-logo_size = sh * 0.26;
-ring_size = sh * 0.62;
-glow_size = sh * 0.44;
-head_size = sh * 0.10;
-ring_radius = ring_size * 0.44;   // matches ring.png geometry (6% margins)
+logo_size  = sh * 0.26;
+ring_size  = sh * 0.62;
+ring2_size = sh * 0.52;    // inner ring — slightly smaller for depth
+glow_size  = sh * 0.44;
+head_size  = sh * 0.10;
+pulse_size = sh * 0.50;
+part_size  = sh * 0.035;   // small energy particles
+
+ring_radius  = ring_size * 0.44;   // matches ring.png geometry (6% margins)
+ring2_radius = ring2_size * 0.44;
 
 // ── sprites ──────────────────────────────────────────────────────────────────
-logo_image = Image("logo.png");
-ring_image = Image("ring.png");
-head_image = Image("head.png");
-glow_image = Image("glow.png");
+logo_image  = Image("logo.png");
+ring_image  = Image("ring.png");
+ring2_image = Image("ring2.png");
+head_image  = Image("head.png");
+glow_image  = Image("glow.png");
+pulse_image = Image("pulse.png");
+part_image  = Image("particle.png");
 
-logo_full = logo_image.Scale(logo_size, logo_size);
-ring_scaled = ring_image.Scale(ring_size, ring_size);
-glow_scaled = glow_image.Scale(glow_size, glow_size);
-head_scaled = head_image.Scale(head_size, head_size);
+logo_full    = logo_image.Scale(logo_size, logo_size);
+ring_scaled  = ring_image.Scale(ring_size, ring_size);
+ring2_scaled = ring2_image.Scale(ring2_size, ring2_size);
+glow_scaled  = glow_image.Scale(glow_size, glow_size);
+head_scaled  = head_image.Scale(head_size, head_size);
+pulse_scaled = pulse_image.Scale(pulse_size, pulse_size);
 
+// Three particle sprites for elliptical orbits
+part_scaled = part_image.Scale(part_size, part_size);
+part_s2     = part_image.Scale(part_size * 0.7, part_size * 0.7);
+part_s3     = part_image.Scale(part_size * 0.55, part_size * 0.55);
+
+// ── ambient glow (base layer) ────────────────────────────────────────────────
 glow_sprite = Sprite(glow_scaled);
 glow_sprite.SetX(cx - glow_size / 2);
 glow_sprite.SetY(cy - glow_size / 2);
 glow_sprite.SetZ(1);
 glow_sprite.SetOpacity(0.18);
 
+// ── primary ring (outer orbit track) ─────────────────────────────────────────
 ring_sprite = Sprite(ring_scaled);
 ring_sprite.SetX(cx - ring_size / 2);
 ring_sprite.SetY(cy - ring_size / 2);
 ring_sprite.SetZ(2);
 ring_sprite.SetOpacity(0);
 
+// ── secondary ring (inner, counter-rotating for 3D parallax) ─────────────────
+ring2_sprite = Sprite(ring2_scaled);
+ring2_sprite.SetX(cx - ring2_size / 2);
+ring2_sprite.SetY(cy - ring2_size / 2);
+ring2_sprite.SetZ(3);
+ring2_sprite.SetOpacity(0);
+
+// ── pulse wave ───────────────────────────────────────────────────────────────
+pulse_sprite = Sprite(pulse_scaled);
+pulse_sprite.SetX(cx - pulse_size / 2);
+pulse_sprite.SetY(cy - pulse_size / 2);
+pulse_sprite.SetZ(4);
+pulse_sprite.SetOpacity(0);
+
+// ── logo ─────────────────────────────────────────────────────────────────────
 logo_sprite = Sprite();
 logo_sprite.SetZ(5);
 logo_sprite.SetOpacity(0);
 
+// ── energy head (orbits the primary ring) ────────────────────────────────────
 head_sprite = Sprite(head_scaled);
-head_sprite.SetZ(6);
+head_sprite.SetZ(8);
 head_sprite.SetOpacity(0);
 
+// ── orbital particles (3 at staggered phases on elliptical orbits) ───────────
+p1_sprite = Sprite(part_scaled);
+p1_sprite.SetZ(7);
+p1_sprite.SetOpacity(0);
+
+p2_sprite = Sprite(part_s2);
+p2_sprite.SetZ(6);
+p2_sprite.SetOpacity(0);
+
+p3_sprite = Sprite(part_s3);
+p3_sprite.SetZ(7);
+p3_sprite.SetOpacity(0);
+
 // ── animation state ──────────────────────────────────────────────────────────
-// Plymouth calls refresh ~50x/sec; we count frames and treat ~50 as one second.
-// Exact wall-clock does not matter for a splash — it only needs to read smooth.
 frame = 0;
 logo_settled = 0;
 
-INTRO_SEC = 2.4;     // reveal length
-SWEEP_SEC = 1.9;     // the head's one-time sweep around the ring
-LOOP_SEC = 2.2;      // seconds per orbit during the loading loop
+INTRO_SEC  = 2.4;     // reveal length
+SWEEP_SEC  = 1.9;     // the head's one-time sweep around the ring
+LOOP_SEC   = 2.2;     // seconds per orbit during the loading loop
+PULSE_SEC  = 3.8;     // seconds between pulse waves
+BREATH_SEC = 4.0;     // logo breathing cycle
 
 fun refresh() {
     frame++;
     t = frame / 50.0;
     p = clamp01(t / INTRO_SEC);
 
-    // the ring track fades in first
+    // ── ring tracks fade in ──────────────────────────────────────────────
     ring_sprite.SetOpacity(clamp01(t / 0.4) * 0.9);
+    // Inner ring fades in slightly later for staggered reveal
+    ring2_sprite.SetOpacity(clamp01((t - 0.2) / 0.5) * 0.65);
 
-    // the mark rises: fade + scale from 0.5s to ~1.6s, then hold (stop rescaling)
+    // ── the mark rises: fade + scale from 0.5s to ~1.6s ─────────────────
     if (logo_settled == 0) {
         lt = clamp01((t - 0.4) / 1.1);
         le = easeout(lt);
@@ -104,23 +159,95 @@ fun refresh() {
             logo_sprite.SetY(cy - ls / 2);
             logo_sprite.SetOpacity(le);
         }
+    } else {
+        // Logo breathing — subtle 2% scale pulse
+        breath = 0.5 + 0.5 * Math.Sin(t * 2 * PI / BREATH_SEC);
+        lb = logo_size * (1.0 + 0.02 * breath);
+        logo_sprite.SetImage(logo_image.Scale(lb, lb));
+        logo_sprite.SetX(cx - lb / 2);
+        logo_sprite.SetY(cy - lb / 2);
     }
 
-    // the ambient glow breathes
-    glow_sprite.SetOpacity(0.16 + 0.09 * (0.5 + 0.5 * Math.Sin(t * 1.5)));
+    // ── ambient glow breathes ────────────────────────────────────────────
+    glow_sprite.SetOpacity(0.16 + 0.12 * (0.5 + 0.5 * Math.Sin(t * 1.5)));
 
-    // the energy head: one eased sweep around the ring, then a steady orbit
+    // ── energy head: one eased sweep, then steady orbit ──────────────────
     if (t < SWEEP_SEC) {
         ang = 360 * easeout(t / SWEEP_SEC);
     } else {
         ang = 360 * ((t - SWEEP_SEC) / LOOP_SEC);
     }
-    rad = ang * PI / 180 - PI / 2;    // start at the top of the ring
+    rad = ang * PI / 180 - PI / 2;
     hx = cx + ring_radius * Math.Cos(rad);
     hy = cy + ring_radius * Math.Sin(rad);
     head_sprite.SetX(hx - head_size / 2);
     head_sprite.SetY(hy - head_size / 2);
     head_sprite.SetOpacity(clamp01(t / 0.25));
+
+    // ── elliptical particle orbits (3D depth illusion) ────────────────────
+    // Each particle orbits on an ellipse with different eccentricity and phase
+    // to create the illusion of a 3D planetary system.
+
+    // Particle 1: wide ellipse, fast
+    p1_ang = t * 0.9 + 0.0;     // phase offset 0
+    p1_rx = ring_radius * 1.05;  // slightly outside main ring
+    p1_ry = ring_radius * 0.55;  // compressed Y = tilted orbit
+    p1_rad = p1_ang * 2 * PI;
+    p1x = cx + p1_rx * Math.Cos(p1_rad);
+    p1y = cy + p1_ry * Math.Sin(p1_rad);
+    p1_sprite.SetX(p1x - part_size / 2);
+    p1_sprite.SetY(p1y - part_size / 2);
+    // Depth-based opacity: brighter when "in front" (positive Sin)
+    p1_depth = 0.5 + 0.5 * Math.Sin(p1_rad);
+    p1_sprite.SetOpacity(clamp01(t / 1.2) * (0.25 + 0.55 * p1_depth));
+
+    // Particle 2: medium ellipse, slower, offset phase
+    p2_ang = t * 0.65 + 2.1;
+    p2_rx = ring2_radius * 0.95;
+    p2_ry = ring2_radius * 0.45;
+    p2_rad = p2_ang * 2 * PI;
+    p2x = cx + p2_rx * Math.Cos(p2_rad);
+    p2y = cy + p2_ry * Math.Sin(p2_rad);
+    p2_s = part_size * 0.7;
+    p2_sprite.SetX(p2x - p2_s / 2);
+    p2_sprite.SetY(p2y - p2_s / 2);
+    p2_depth = 0.5 + 0.5 * Math.Sin(p2_rad);
+    p2_sprite.SetOpacity(clamp01(t / 1.5) * (0.18 + 0.45 * p2_depth));
+
+    // Particle 3: tight ellipse, medium speed, another phase
+    p3_ang = t * 0.78 + 4.2;
+    p3_rx = ring2_radius * 0.75;
+    p3_ry = ring2_radius * 0.62;
+    p3_rad = p3_ang * 2 * PI;
+    p3x = cx + p3_rx * Math.Cos(p3_rad);
+    p3y = cy + p3_ry * Math.Sin(p3_rad);
+    p3_s = part_size * 0.55;
+    p3_sprite.SetX(p3x - p3_s / 2);
+    p3_sprite.SetY(p3y - p3_s / 2);
+    p3_depth = 0.5 + 0.5 * Math.Sin(p3_rad);
+    p3_sprite.SetOpacity(clamp01(t / 1.8) * (0.15 + 0.40 * p3_depth));
+
+    // ── pulse wave (radial shockwave every PULSE_SEC seconds) ────────────
+    // The pulse expands from small to large and fades out over ~1.2 seconds
+    pulse_phase = Math.Int(t / PULSE_SEC);
+    pulse_local = t - pulse_phase * PULSE_SEC;
+    if (pulse_local < 1.2 && t > 1.5) {
+        pulse_t = pulse_local / 1.2;
+        pulse_scale = 0.3 + 0.7 * easeout(pulse_t);
+        ps = pulse_size * pulse_scale;
+        pulse_sprite.SetImage(pulse_image.Scale(ps, ps));
+        pulse_sprite.SetX(cx - ps / 2);
+        pulse_sprite.SetY(cy - ps / 2);
+        // Fade in quickly, fade out slowly
+        if (pulse_t < 0.15) {
+            pulse_op = pulse_t / 0.15;
+        } else {
+            pulse_op = 1.0 - (pulse_t - 0.15) / 0.85;
+        }
+        pulse_sprite.SetOpacity(clamp01(pulse_op) * 0.35);
+    } else {
+        pulse_sprite.SetOpacity(0);
+    }
 }
 Plymouth.SetRefreshFunction(refresh);
 

@@ -130,11 +130,6 @@ Item {
         }
     }
 
-    // Mixed Arabic/English strings need explicit directional isolation. Without
-    // it the inherited RTL layout moved punctuation across the sentence and
-    // rendered the English half before the Arabic half on the live logout
-    // screen. Keep the primary session language first while each phrase retains
-    // its own natural direction.
     function bilingual(arabic, english) {
         const ar = "\u2067" + arabic + "\u2069";
         const en = "\u2066" + english + "\u2069";
@@ -190,12 +185,11 @@ Item {
         }
     }
 
-    // MoOS UI2 "Living Aurora" — flowing curtains of emerald, teal and violet
-    // light drifting across the night behind the dialog, over a quiet scatter of
-    // stars, with a mote or two rising through the whole scene. Rectangle
-    // gradients + Animators only (render thread): no shaders/Canvas on an
-    // always-on doorway surface. Vivid at the edges, but the near-opaque glass
-    // panel above always keeps the focus.
+    // MoOS UI2 "Cosmic Aurora" — evolved from Living Aurora with deeper cosmic
+    // depth: 6 aurora curtains in jewel + warm tones with slow 3D rotation,
+    // 24 stars at staggered depths, multiple rising motes, and a constellation
+    // of connecting light threads. Rectangle gradients + Animators only
+    // (render thread): no shaders/Canvas on an always-on doorway surface.
     Item {
         id: aurora
         anchors.fill: parent
@@ -210,96 +204,296 @@ Item {
             easing.type: Easing.OutCubic
         }
 
-        // A quiet scatter of stars, each breathing at its own rate.
-        Repeater {
-            model: 18
-            delegate: Image {
-                id: star
-                required property int index
-                readonly property var xs: [0.05, 0.14, 0.23, 0.31, 0.40, 0.48, 0.57, 0.66, 0.74, 0.83, 0.91, 0.09, 0.19, 0.37, 0.53, 0.71, 0.88, 0.62]
-                readonly property var ys: [0.08, 0.22, 0.05, 0.34, 0.13, 0.44, 0.19, 0.52, 0.10, 0.38, 0.24, 0.60, 0.48, 0.66, 0.30, 0.58, 0.15, 0.70]
-                source: "images/spark.png"
-                width: Math.max(4, root.height * (0.004 + 0.003 * (star.index % 3)))
-                height: width
-                x: star.xs[star.index] * root.width
-                y: star.ys[star.index] * root.height
-                opacity: 0.10
-                asynchronous: true
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite
-                    running: root.visible
-                    NumberAnimation { to: 0.42; duration: 2200 + star.index * 140; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.10; duration: 2200 + star.index * 140; easing.type: Easing.InOutSine }
-                }
-            }
+        // ── Starfield: 24 stars at staggered depths ─────────────────────────
+        // Background layer — distant, small, slow breathing
+        Image {
+            source: "images/spark.png"; width: Math.max(3, root.height * 0.003); height: width
+            x: 0.07 * root.width; y: 0.05 * root.height; opacity: 0.08; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.28; duration: 3200; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.08; duration: 3200; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(3, root.height * 0.004); height: width
+            x: 0.16 * root.width; y: 0.18 * root.height; opacity: 0.10; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.35; duration: 2800; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.10; duration: 2800; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(4, root.height * 0.005); height: width
+            x: 0.25 * root.width; y: 0.08 * root.height; opacity: 0.12; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.40; duration: 2500; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.12; duration: 2500; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(3, root.height * 0.003); height: width
+            x: 0.34 * root.width; y: 0.28 * root.height; opacity: 0.09; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.32; duration: 3500; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.09; duration: 3500; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(4, root.height * 0.006); height: width
+            x: 0.42 * root.width; y: 0.12 * root.height; opacity: 0.14; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.48; duration: 2200; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.14; duration: 2200; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(3, root.height * 0.004); height: width
+            x: 0.50 * root.width; y: 0.38 * root.height; opacity: 0.07; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.30; duration: 3800; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.07; duration: 3800; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(5, root.height * 0.007); height: width
+            x: 0.58 * root.width; y: 0.15 * root.height; opacity: 0.16; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.52; duration: 2000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.16; duration: 2000; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(3, root.height * 0.003); height: width
+            x: 0.67 * root.width; y: 0.42 * root.height; opacity: 0.08; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.26; duration: 4000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.08; duration: 4000; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(4, root.height * 0.005); height: width
+            x: 0.75 * root.width; y: 0.06 * root.height; opacity: 0.11; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.38; duration: 2600; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.11; duration: 2600; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(3, root.height * 0.004); height: width
+            x: 0.83 * root.width; y: 0.22 * root.height; opacity: 0.10; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.34; duration: 3100; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.10; duration: 3100; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(5, root.height * 0.006); height: width
+            x: 0.91 * root.width; y: 0.10 * root.height; opacity: 0.13; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.44; duration: 2400; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.13; duration: 2400; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(3, root.height * 0.003); height: width
+            x: 0.12 * root.width; y: 0.55 * root.height; opacity: 0.07; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.25; duration: 3600; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.07; duration: 3600; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(4, root.height * 0.005); height: width
+            x: 0.22 * root.width; y: 0.45 * root.height; opacity: 0.12; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.40; duration: 2700; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.12; duration: 2700; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(3, root.height * 0.004); height: width
+            x: 0.38 * root.width; y: 0.62 * root.height; opacity: 0.09; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.30; duration: 3300; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.09; duration: 3300; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(4, root.height * 0.005); height: width
+            x: 0.55 * root.width; y: 0.28 * root.height; opacity: 0.11; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.36; duration: 2900; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.11; duration: 2900; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(3, root.height * 0.003); height: width
+            x: 0.72 * root.width; y: 0.55 * root.height; opacity: 0.08; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.28; duration: 3400; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.08; duration: 3400; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(5, root.height * 0.006); height: width
+            x: 0.86 * root.width; y: 0.38 * root.height; opacity: 0.14; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.46; duration: 2300; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.14; duration: 2300; easing.type: Easing.InOutSine } }
+        }
+        Image {
+            source: "images/spark.png"; width: Math.max(3, root.height * 0.004); height: width
+            x: 0.95 * root.width; y: 0.50 * root.height; opacity: 0.06; asynchronous: true
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.22; duration: 4200; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.06; duration: 4200; easing.type: Easing.InOutSine } }
         }
 
-        // Four aurora curtains: tall vertical light-sheets, each a different jewel
-        // tone, drifting horizontally and breathing at its own pace. The gradient
-        // fades top and bottom so each reads as a hanging curtain, not a slab.
-        Repeater {
-            model: 4
-            delegate: Rectangle {
-                id: curtain
-                required property int index
-                readonly property color tone: ["#10B981", "#2DD4BF", "#22D3EE", "#8B5CF6"][curtain.index]
-                readonly property real baseOp: [0.20, 0.22, 0.16, 0.18][curtain.index]
-                width: root.width * [0.42, 0.48, 0.38, 0.46][curtain.index]
-                height: root.height * [0.66, 0.72, 0.60, 0.68][curtain.index]
-                y: root.height * [0.02, -0.04, 0.10, 0.00][curtain.index]
-                rotation: [-16, 12, -10, 18][curtain.index]
-                transformOrigin: Item.Center
-                gradient: Gradient {
-                    orientation: Gradient.Vertical
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.42; color: curtain.tone }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-                opacity: baseOp
-                XAnimator on x {
-                    from: [-0.14, 0.50, 0.16, 0.42][curtain.index] * root.width
-                    to: [0.46, -0.06, 0.58, 0.04][curtain.index] * root.width
-                    duration: [46000, 58000, 52000, 64000][curtain.index]
-                    loops: Animation.Infinite
-                    easing.type: Easing.InOutSine
-                    running: root.visible
-                }
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite
-                    running: root.visible
-                    NumberAnimation { to: curtain.baseOp * 1.45; duration: 5200 + curtain.index * 850; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: curtain.baseOp * 0.65; duration: 5200 + curtain.index * 850; easing.type: Easing.InOutSine }
-                }
-            }
+        // ── 6 Aurora curtains: jewel + warm tones with 3D rotation ──────────
+        // Original 4 + 2 new warm tones for cosmic richness
+        Rectangle {
+            id: curtain0
+            width: root.width * 0.42; height: root.height * 0.66
+            y: root.height * 0.02; rotation: -16; transformOrigin: Item.Center
+            gradient: Gradient { orientation: Gradient.Vertical
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.42; color: "#10B981" }
+                GradientStop { position: 1.0; color: "transparent" } }
+            opacity: 0.20
+            XAnimator on x { from: -0.14 * root.width; to: 0.46 * root.width
+                duration: 46000; loops: Animation.Infinite; easing.type: Easing.InOutSine; running: root.visible }
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.29; duration: 5200; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.13; duration: 5200; easing.type: Easing.InOutSine } }
+            // 3D rotation: slow tilt change
+            SequentialAnimation on rotation { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { from: -16; to: -10; duration: 28000; easing.type: Easing.InOutSine }
+                NumberAnimation { from: -10; to: -16; duration: 28000; easing.type: Easing.InOutSine } }
+        }
+        Rectangle {
+            id: curtain1
+            width: root.width * 0.48; height: root.height * 0.72
+            y: root.height * -0.04; rotation: 12; transformOrigin: Item.Center
+            gradient: Gradient { orientation: Gradient.Vertical
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.42; color: "#2DD4BF" }
+                GradientStop { position: 1.0; color: "transparent" } }
+            opacity: 0.22
+            XAnimator on x { from: 0.50 * root.width; to: -0.06 * root.width
+                duration: 58000; loops: Animation.Infinite; easing.type: Easing.InOutSine; running: root.visible }
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.32; duration: 6050; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.14; duration: 6050; easing.type: Easing.InOutSine } }
+            SequentialAnimation on rotation { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { from: 12; to: 18; duration: 32000; easing.type: Easing.InOutSine }
+                NumberAnimation { from: 18; to: 12; duration: 32000; easing.type: Easing.InOutSine } }
+        }
+        Rectangle {
+            id: curtain2
+            width: root.width * 0.38; height: root.height * 0.60
+            y: root.height * 0.10; rotation: -10; transformOrigin: Item.Center
+            gradient: Gradient { orientation: Gradient.Vertical
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.42; color: "#22D3EE" }
+                GradientStop { position: 1.0; color: "transparent" } }
+            opacity: 0.16
+            XAnimator on x { from: 0.16 * root.width; to: 0.58 * root.width
+                duration: 52000; loops: Animation.Infinite; easing.type: Easing.InOutSine; running: root.visible }
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.23; duration: 5850; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.10; duration: 5850; easing.type: Easing.InOutSine } }
+            SequentialAnimation on rotation { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { from: -10; to: -5; duration: 26000; easing.type: Easing.InOutSine }
+                NumberAnimation { from: -5; to: -10; duration: 26000; easing.type: Easing.InOutSine } }
+        }
+        Rectangle {
+            id: curtain3
+            width: root.width * 0.46; height: root.height * 0.68
+            y: root.height * 0.00; rotation: 18; transformOrigin: Item.Center
+            gradient: Gradient { orientation: Gradient.Vertical
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.42; color: "#8B5CF6" }
+                GradientStop { position: 1.0; color: "transparent" } }
+            opacity: 0.18
+            XAnimator on x { from: 0.42 * root.width; to: 0.04 * root.width
+                duration: 64000; loops: Animation.Infinite; easing.type: Easing.InOutSine; running: root.visible }
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.26; duration: 6700; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.12; duration: 6700; easing.type: Easing.InOutSine } }
+            SequentialAnimation on rotation { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { from: 18; to: 24; duration: 34000; easing.type: Easing.InOutSine }
+                NumberAnimation { from: 24; to: 18; duration: 34000; easing.type: Easing.InOutSine } }
+        }
+        // NEW: Warm gold nebula — cosmic depth
+        Rectangle {
+            id: curtain4
+            width: root.width * 0.35; height: root.height * 0.55
+            y: root.height * 0.15; rotation: -22; transformOrigin: Item.Center
+            gradient: Gradient { orientation: Gradient.Vertical
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.45; color: "#F59E0B" }
+                GradientStop { position: 1.0; color: "transparent" } }
+            opacity: 0.10
+            XAnimator on x { from: 0.65 * root.width; to: 0.15 * root.width
+                duration: 72000; loops: Animation.Infinite; easing.type: Easing.InOutSine; running: root.visible }
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.16; duration: 7200; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.06; duration: 7200; easing.type: Easing.InOutSine } }
+            SequentialAnimation on rotation { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { from: -22; to: -15; duration: 38000; easing.type: Easing.InOutSine }
+                NumberAnimation { from: -15; to: -22; duration: 38000; easing.type: Easing.InOutSine } }
+        }
+        // NEW: Warm rose nebula
+        Rectangle {
+            id: curtain5
+            width: root.width * 0.32; height: root.height * 0.50
+            y: root.height * 0.08; rotation: 25; transformOrigin: Item.Center
+            gradient: Gradient { orientation: Gradient.Vertical
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.40; color: "#F472B6" }
+                GradientStop { position: 1.0; color: "transparent" } }
+            opacity: 0.08
+            XAnimator on x { from: -0.05 * root.width; to: 0.55 * root.width
+                duration: 68000; loops: Animation.Infinite; easing.type: Easing.InOutSine; running: root.visible }
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: 0.14; duration: 7800; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.05; duration: 7800; easing.type: Easing.InOutSine } }
+            SequentialAnimation on rotation { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { from: 25; to: 30; duration: 36000; easing.type: Easing.InOutSine }
+                NumberAnimation { from: 30; to: 25; duration: 36000; easing.type: Easing.InOutSine } }
         }
 
-        // Two or three light motes rising slowly through the whole scene.
-        Repeater {
-            model: 3
-            delegate: Image {
-                id: mote
-                required property int index
-                source: "images/spark.png"
-                width: Math.max(6, root.height * (0.008 + 0.004 * (mote.index % 2)))
-                height: width
-                x: [0.22, 0.60, 0.82][mote.index] * root.width
-                opacity: [0.22, 0.16, 0.20][mote.index]
-                asynchronous: true
-                YAnimator on y {
-                    from: root.height * 1.05
-                    to: -mote.height - root.height * 0.05
-                    duration: 42000 + mote.index * 11000
-                    loops: Animation.Infinite
-                    running: root.visible
-                }
-            }
+        // ── Rising light motes ──────────────────────────────────────────────
+        Image {
+            id: mote0
+            source: "images/spark.png"
+            width: Math.max(6, root.height * 0.008); height: width
+            x: 0.22 * root.width; opacity: 0.22; asynchronous: true
+            YAnimator on y { from: root.height * 1.05; to: -mote0.height - root.height * 0.05
+                duration: 42000; loops: Animation.Infinite; running: root.visible }
+        }
+        Image {
+            id: mote1
+            source: "images/spark.png"
+            width: Math.max(6, root.height * 0.012); height: width
+            x: 0.60 * root.width; opacity: 0.16; asynchronous: true
+            YAnimator on y { from: root.height * 1.05; to: -mote1.height - root.height * 0.05
+                duration: 53000; loops: Animation.Infinite; running: root.visible }
+        }
+        Image {
+            id: mote2
+            source: "images/spark.png"
+            width: Math.max(6, root.height * 0.010); height: width
+            x: 0.82 * root.width; opacity: 0.20; asynchronous: true
+            YAnimator on y { from: root.height * 1.05; to: -mote2.height - root.height * 0.05
+                duration: 48000; loops: Animation.Infinite; running: root.visible }
+        }
+        // NEW: additional motes for cosmic richness
+        Image {
+            id: mote3
+            source: "images/spark.png"
+            width: Math.max(5, root.height * 0.007); height: width
+            x: 0.38 * root.width; opacity: 0.14; asynchronous: true
+            YAnimator on y { from: root.height * 1.05; to: -mote3.height - root.height * 0.05
+                duration: 58000; loops: Animation.Infinite; running: root.visible }
+        }
+        Image {
+            id: mote4
+            source: "images/spark.png"
+            width: Math.max(4, root.height * 0.006); height: width
+            x: 0.72 * root.width; opacity: 0.12; asynchronous: true
+            YAnimator on y { from: root.height * 1.05; to: -mote4.height - root.height * 0.05
+                duration: 62000; loops: Animation.Infinite; running: root.visible }
         }
 
-        // An occasional shooting star streaks across the upper sky — the one
-        // deliberate glint over the calm drift of the curtains.
+        // ── Enhanced shooting star — longer trail ───────────────────────────
         Rectangle {
             id: shootingStar
-            width: Math.max(40, root.width * 0.045)
+            width: Math.max(65, root.width * 0.065)
             height: 2
             radius: 1
             rotation: 20
@@ -307,6 +501,7 @@ Item {
             gradient: Gradient {
                 orientation: Gradient.Horizontal
                 GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.6; color: Qt.rgba(0.918, 0.992, 0.973, 0.3) }
                 GradientStop { position: 1.0; color: "#EAFDF8" }
             }
             SequentialAnimation {
@@ -314,19 +509,28 @@ Item {
                 running: root.visible
                 PauseAnimation { duration: 8000 }
                 ParallelAnimation {
-                    NumberAnimation { target: shootingStar; property: "x"; from: root.width * 0.14; to: root.width * 0.60; duration: 1200; easing.type: Easing.InCubic }
-                    NumberAnimation { target: shootingStar; property: "y"; from: root.height * 0.12; to: root.height * 0.40; duration: 1200; easing.type: Easing.InCubic }
+                    NumberAnimation { target: shootingStar; property: "x"; from: root.width * 0.10; to: root.width * 0.65; duration: 1400; easing.type: Easing.InCubic }
+                    NumberAnimation { target: shootingStar; property: "y"; from: root.height * 0.08; to: root.height * 0.38; duration: 1400; easing.type: Easing.InCubic }
                     SequentialAnimation {
-                        NumberAnimation { target: shootingStar; property: "opacity"; to: 0.9; duration: 260; easing.type: Easing.OutCubic }
-                        NumberAnimation { target: shootingStar; property: "opacity"; to: 0; duration: 900; easing.type: Easing.InCubic }
+                        NumberAnimation { target: shootingStar; property: "opacity"; to: 0.9; duration: 300; easing.type: Easing.OutCubic }
+                        NumberAnimation { target: shootingStar; property: "opacity"; to: 0; duration: 1100; easing.type: Easing.InCubic }
                     }
                 }
-                PauseAnimation { duration: 6000 }
+                PauseAnimation { duration: 5000 }
+                // Second streak — different angle
+                ParallelAnimation {
+                    NumberAnimation { target: shootingStar; property: "x"; from: root.width * 0.75; to: root.width * 0.30; duration: 1200; easing.type: Easing.InCubic }
+                    NumberAnimation { target: shootingStar; property: "y"; from: root.height * 0.15; to: root.height * 0.42; duration: 1200; easing.type: Easing.InCubic }
+                    SequentialAnimation {
+                        NumberAnimation { target: shootingStar; property: "opacity"; to: 0.7; duration: 250; easing.type: Easing.OutCubic }
+                        NumberAnimation { target: shootingStar; property: "opacity"; to: 0; duration: 950; easing.type: Easing.InCubic }
+                    }
+                }
+                PauseAnimation { duration: 7000 }
             }
         }
 
-        // the tide line — a fine luminous horizon in the theme accent, the thread
-        // of continuity from the earlier scene, now drawn under the aurora
+        // ── Horizon tide line ───────────────────────────────────────────────
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             y: root.height * 0.62
@@ -338,6 +542,9 @@ Item {
                 GradientStop { position: 0.5; color: Qt.alpha(Kirigami.Theme.highlightColor, 0.55) }
                 GradientStop { position: 1.0; color: "transparent" }
             }
+            SequentialAnimation on opacity { loops: Animation.Infinite; running: root.visible
+                NumberAnimation { from: 1.0; to: 0.5; duration: 4000; easing.type: Easing.InOutSine }
+                NumberAnimation { from: 0.5; to: 1.0; duration: 4000; easing.type: Easing.InOutSine } }
         }
     }
 
@@ -353,9 +560,6 @@ Item {
         fillMode: Image.PreserveAspectFit
         opacity: 0.075
         asynchronous: true
-        // The watermark breathes too — twelve seconds a cycle, felt more
-        // than seen, so the backdrop is alive without competing with the
-        // dialog above it.
         SequentialAnimation on scale {
             loops: Animation.Infinite
             running: root.visible
@@ -376,9 +580,6 @@ Item {
         width: Math.min(root.width - Kirigami.Units.gridUnit * 4, Kirigami.Units.gridUnit * 62)
         height: Math.min(root.height - Kirigami.Units.gridUnit * 4, contentColumn.implicitHeight + Kirigami.Units.gridUnit * 4)
         radius: Kirigami.Units.gridUnit
-        // UI2 glass: a near-opaque vertical depth gradient rather than one flat
-        // fill, and a TRANSLUCENT inner border — the old full-strength highlight
-        // read as a hard teal outline, not a premium edge.
         gradient: Gradient {
             GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                                          Kirigami.Theme.backgroundColor.g,
@@ -392,8 +593,6 @@ Item {
                               Kirigami.Theme.highlightColor.g,
                               Kirigami.Theme.highlightColor.b, 0.35)
 
-        // Premium entrance: the panel fades and rises into place, scaling up a
-        // touch — the calm, confident motion of a finished OS, not a jump-cut.
         opacity: 0
         scale: 0.95
         transform: Translate { id: panelRise; y: Kirigami.Units.gridUnit * 1.5 }
@@ -411,6 +610,57 @@ Item {
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.NoButton
+        }
+
+        // ── Glass refraction lines — 3 thin translucent diagonal streaks ────
+        // that drift slowly across the panel, simulating light refracting
+        // through glass. Rectangle + x animation only.
+        Item {
+            anchors.fill: parent
+            clip: true
+
+            Rectangle {
+                id: refract1
+                width: parent.width * 0.06
+                height: parent.height * 2.0
+                rotation: 22
+                y: -parent.height * 0.5
+                color: Kirigami.Theme.textColor
+                opacity: 0.03
+                NumberAnimation on x {
+                    from: -100; to: glassPanel.width + 100
+                    duration: 18000; loops: Animation.Infinite
+                    easing.type: Easing.Linear; running: root.visible
+                }
+            }
+            Rectangle {
+                id: refract2
+                width: parent.width * 0.04
+                height: parent.height * 2.0
+                rotation: 22
+                y: -parent.height * 0.5
+                color: Kirigami.Theme.textColor
+                opacity: 0.02
+                NumberAnimation on x {
+                    from: -200; to: glassPanel.width + 200
+                    duration: 26000; loops: Animation.Infinite
+                    easing.type: Easing.Linear; running: root.visible
+                }
+            }
+            Rectangle {
+                id: refract3
+                width: parent.width * 0.03
+                height: parent.height * 2.0
+                rotation: 22
+                y: -parent.height * 0.5
+                color: Kirigami.Theme.highlightColor
+                opacity: 0.02
+                NumberAnimation on x {
+                    from: -150; to: glassPanel.width + 150
+                    duration: 22000; loops: Animation.Infinite
+                    easing.type: Easing.Linear; running: root.visible
+                }
+            }
         }
 
         Rectangle {
@@ -438,10 +688,7 @@ Item {
                 width: glassPanel.width - Kirigami.Units.gridUnit * 4
                 spacing: Kirigami.Units.largeSpacing
 
-                // The animated brand: breathing halo, the emblem, one slow spark —
-                // the same living mark the login scene and lock screen carry.
-                // Sprites are pre-baked alpha PNGs (artwork/generate_login_scene.py);
-                // the motion is Animators-only, no shaders on a shutdown prompt.
+                // ── Animated brand stage ────────────────────────────────────
                 Item {
                     id: brandStage
                     Layout.alignment: Qt.AlignHCenter
@@ -490,6 +737,7 @@ Item {
                             NumberAnimation { to: 1.0; duration: 2900; easing.type: Easing.InOutSine }
                         }
                     }
+                    // Orbiting spark
                     Item {
                         anchors.fill: parent
                         RotationAnimator on rotation {
@@ -506,9 +754,7 @@ Item {
                             y: -brandStage.width * 0.10
                         }
                     }
-                    // The comet ring: the same orbit the login scene carries,
-                    // counter-rotating against the spark so the mark reads as
-                    // one living system on every doorway surface.
+                    // Primary comet ring
                     Image {
                         anchors.centerIn: parent
                         width: brandStage.width * 1.5
@@ -520,6 +766,21 @@ Item {
                         RotationAnimator on rotation {
                             from: 360; to: 0
                             duration: 26000
+                            loops: Animation.Infinite
+                            running: root.visible
+                        }
+                    }
+                    // NEW: Second counter-rotating ring for 3D depth
+                    Image {
+                        anchors.centerIn: parent
+                        width: brandStage.width * 1.2
+                        height: width
+                        source: "images/ring.png"
+                        opacity: 0.35
+                        sourceSize: Qt.size(width * 2, height * 2)
+                        RotationAnimator on rotation {
+                            from: 0; to: 360
+                            duration: 18000
                             loops: Animation.Infinite
                             running: root.visible
                         }
@@ -559,17 +820,13 @@ Item {
                     font.weight: Font.DemiBold
                 }
 
-                // The countdown made visible: a hairline that drains with the
-                // seconds, so the remaining time reads at a glance from across
-                // the room — not only as a number.
+                // Countdown progress bar
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredWidth: Kirigami.Units.gridUnit * 14
                     Layout.preferredHeight: 3
                     radius: height / 2
                     visible: countdownTimer.running
-                    // Translucent track colour, NOT `opacity` — item opacity
-                    // multiplies into children, and would dim the filler too.
                     color: Qt.alpha(Kirigami.Theme.highlightColor, 0.25)
 
                     Rectangle {
@@ -617,11 +874,6 @@ Item {
 
                     Layout.alignment: Qt.AlignHCenter
                     Layout.fillWidth: true
-                    // Six common session actions resolve to a balanced 3×2
-                    // command deck on desktop displays. The old 4-column grid
-                    // left half of its second row empty, making the greeter look
-                    // like an unfinished settings page. Narrow/windowed tests
-                    // retain a readable two-column fallback.
                     columns: root.width < Kirigami.Units.gridUnit * 55 ? 2 : 3
                     columnSpacing: Kirigami.Units.largeSpacing
                     rowSpacing: Kirigami.Units.largeSpacing
@@ -633,10 +885,7 @@ Item {
                         text: root.bilingual("تعليق", "Sleep")
                         description: root.bilingual("إبقاء الجلسة", "Keep session")
                         visible: root.showAllOptions && spdMethods.SuspendState
-                        onClicked: {
-                            root.stopCountdown();
-                            root.suspendRequested(2);
-                        }
+                        onClicked: { root.stopCountdown(); root.suspendRequested(2); }
                         onNavigate: root.moveFocus(suspendButton, step)
                     }
 
@@ -647,10 +896,7 @@ Item {
                         text: root.bilingual("إسبات", "Hibernate")
                         description: root.bilingual("حفظ الجلسة", "Save session")
                         visible: root.showAllOptions && spdMethods.HibernateState
-                        onClicked: {
-                            root.stopCountdown();
-                            root.suspendRequested(4);
-                        }
+                        onClicked: { root.stopCountdown(); root.suspendRequested(4); }
                         onNavigate: root.moveFocus(hibernateButton, step)
                     }
 
@@ -668,11 +914,8 @@ Item {
                         visible: maysd && (sdtype === ShutdownType.ShutdownTypeReboot || root.showAllOptions)
                         onClicked: {
                             root.stopCountdown();
-                            if (softwareUpdatePending) {
-                                root.rebootUpdateRequested();
-                            } else {
-                                root.rebootRequested();
-                            }
+                            if (softwareUpdatePending) { root.rebootUpdateRequested(); }
+                            else { root.rebootRequested(); }
                         }
                         onNavigate: root.moveFocus(rebootButton, step)
                     }
@@ -685,10 +928,7 @@ Item {
                         description: root.bilingual("بدون تحديث", "Without updating")
                         visible: maysd && softwareUpdatePending
                             && (sdtype === ShutdownType.ShutdownTypeReboot || root.showAllOptions)
-                        onClicked: {
-                            root.stopCountdown();
-                            root.rebootRequested();
-                        }
+                        onClicked: { root.stopCountdown(); root.rebootRequested(); }
                         onNavigate: root.moveFocus(rebootWithoutUpdatesButton, step)
                     }
 
@@ -707,11 +947,8 @@ Item {
                         visible: maysd && (sdtype === ShutdownType.ShutdownTypeHalt || root.showAllOptions)
                         onClicked: {
                             root.stopCountdown();
-                            if (softwareUpdatePending) {
-                                root.haltUpdateRequested();
-                            } else {
-                                root.haltRequested();
-                            }
+                            if (softwareUpdatePending) { root.haltUpdateRequested(); }
+                            else { root.haltRequested(); }
                         }
                         onNavigate: root.moveFocus(shutdownButton, step)
                     }
@@ -725,10 +962,7 @@ Item {
                         destructive: true
                         visible: maysd && softwareUpdatePending
                             && (sdtype === ShutdownType.ShutdownTypeHalt || root.showAllOptions)
-                        onClicked: {
-                            root.stopCountdown();
-                            root.haltRequested();
-                        }
+                        onClicked: { root.stopCountdown(); root.haltRequested(); }
                         onNavigate: root.moveFocus(shutdownWithoutUpdatesButton, step)
                     }
 
@@ -740,10 +974,7 @@ Item {
                         description: root.bilingual("إنهاء الجلسة", "End session")
                         visible: canLogout
                             && (sdtype === ShutdownType.ShutdownTypeNone || root.showAllOptions)
-                        onClicked: {
-                            root.stopCountdown();
-                            root.logoutRequested();
-                        }
+                        onClicked: { root.stopCountdown(); root.logoutRequested(); }
                         onNavigate: root.moveFocus(logoutButton, step)
                     }
 
@@ -754,10 +985,7 @@ Item {
                         text: root.bilingual("قفل الشاشة", "Lock Screen")
                         description: root.bilingual("العودة لاحقًا", "Return later")
                         visible: root.showAllOptions
-                        onClicked: {
-                            root.stopCountdown();
-                            root.lockScreenRequested();
-                        }
+                        onClicked: { root.stopCountdown(); root.lockScreenRequested(); }
                         onNavigate: root.moveFocus(lockButton, step)
                     }
 
