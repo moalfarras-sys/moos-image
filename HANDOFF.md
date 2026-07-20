@@ -29,6 +29,67 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-21 — live theme-family health and self-heal repair
+
+### What was done
+
+- Fetched `origin/main` without touching the existing untracked development files; local
+  `main` was already identical to the remote at `596125b` before this work.
+- Verified the machine is booted from the signature-enforced NVIDIA image
+  `44.20260720.275`, digest
+  `sha256:509bdf6887296340a2891397a65eb9952f021aeb88a54f4d8c32beb5a07d0cc2`.
+  GHCR `moos-nvidia:latest` resolves to the same digest. The previous deployment remains
+  available for rollback.
+- Verified zero failed system units and zero failed user units. Reviewed the current system
+  and user journals. The notable visual noise is Aurorae probing a nonexistent user-data
+  candidate before resolving the complete Midnight theme from `/usr`; no user asset shadows
+  the image and the live decoration renders correctly.
+- Captured and inspected the live 3840x2160 desktop. The active Midnight selectors all agree:
+  look-and-feel, Aurorae decoration, colour scheme, icon theme, Plasma style, scene plugin and
+  `MoOSUI2Midnight` wallpaper. The MoOS panel capsule is live and its popup already exposes
+  search, Mo AI, Mo Store, updates, theme, settings and recovery.
+- Fixed `moos-selfcheck` and `tests/post-update-check.sh`, which still accepted only the old
+  Graphite/Tidal base pair and falsely called every newer family member non-MoOS.
+- Fixed `moos-apply-theme` self-heal so all 16 UI2 family members—including light variants and
+  Arena/Forge/Scholar—count as intact when their selectors agree. Previously those legitimate
+  choices could trigger needless repair work at login.
+- Added a relationship regression test requiring the switcher, both live checks and login
+  self-heal to recognize every dark/light family pair.
+
+### What was tested
+
+- `just check` — passed.
+- `python3 tests/test_moos_theme_safety.py` — 3/3 passed.
+- `python3 tests/test_moos_ui2.py` — 7/7 passed.
+- Shell syntax for all three changed Bash programs — passed.
+- Repository copies of both live checks against the running desktop now identify Midnight
+  correctly; the only remaining failure is the keyboard runtime drift below.
+- `just build` / full `podman build` — passed. The built image passed the identity gate,
+  image-experience gate, foreign-identity firewall, QML smoke tests, initramfs/Plymouth proof,
+  store catalogue gate and `bootc container lint` (lint completed with the four existing
+  warnings for `/boot`, runtime dirs, `plugdev` sysusers and `/var` tmpfiles).
+
+### Commits and image state
+
+- Implementation commit: `7285101` (`fix(themes): recognize every UI2 family in live health checks`).
+- Booted/published image at handoff time: `44.20260720.275`, digest
+  `sha256:509bdf6887296340a2891397a65eb9952f021aeb88a54f4d8c32beb5a07d0cc2`.
+- The implementation is not in the booted image yet; CI/published-image/update verification
+  must complete before claiming it live.
+
+### Open issue and exact next step
+
+- KWin's running keyboard list is still `de,ara`, while the current image default is
+  `de,us,ara`. There is no `~/.config/kxkbrc` shadow, and a KWin reconfigure does not replace
+  the already-loaded layout model. Do not create a permanent user shadow merely to make the
+  check green. After the next signed image is published, stage it, reboot once, and verify the
+  session loads `de,us,ara`; if it remains stale, add a bounded image-owned migration with a
+  regression test.
+- Push the handoff commit, wait for both image editions in CI, confirm the new signed GHCR
+  digest, stage that digest explicitly, reboot, then run installed `moos-selfcheck` and
+  `tests/post-update-check.sh`. Only after that live proof continue visual iteration on the
+  MoOS panel popup / Mo AI / Mo Store.
+
 ## Session 2026-07-21 — Post-Reboot Verification & Interactive Brand Search & Mo AI Prompt Bar
 
 ### What was done
