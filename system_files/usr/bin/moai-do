@@ -570,6 +570,100 @@ do_install_claude() {
 # Verified end-to-end on this hardware: brain stopped, `opencode run "Reply with exactly
 # one word: ready"` → the gateway woke it and OpenCode printed `ready`.
 # -----------------------------------------------------------------------------
+# ── The phone agent ──────────────────────────────────────────────────────────
+# OpenClaw is what lets you talk to this machine from Telegram. It is a per-user
+# npm install like the other agents, with one extra step: its engines field
+# demands Node >= 22.22.3 and the image ships 22.22.2 — one patch below. Layering
+# a newer Node onto /usr would fight every ostree update, so a private runtime
+# goes in ~/.local/node instead and only this agent sees it.
+OPENCLAW_NODE="v24.18.0"
+
+do_install_openclaw() {
+    hdr "تثبيت وكيل الهاتف (OpenClaw)" "Install the phone agent (OpenClaw)"
+    echo "${D}يتيح لك مراسلة جهازك من تليجرام. يُثبَّت في ~/.local بلا صلاحيات مسؤول.${N}"
+    echo "${D}Lets you message this machine from Telegram. Installs into ~/.local, no admin rights.${N}"
+    echo
+    confirm || return 0
+
+    local node_dir="$HOME/.local/node"
+    local node_bin="${node_dir}/bin"
+
+    # A private Node only if the system one is too old for the engines field.
+    if ! "${node_bin}/node" --version >/dev/null 2>&1; then
+        echo "${C}▸ تنزيل Node ${OPENCLAW_NODE} إلى ~/.local/node${N}"
+        local tmp; tmp="$(mktemp -d)" || return 1
+        if ! curl -fsSL --max-time 600 -o "${tmp}/node.tar.xz" \
+             "https://nodejs.org/dist/${OPENCLAW_NODE}/node-${OPENCLAW_NODE}-linux-x64.tar.xz"; then
+            echo "${Y}تعذّر تنزيل Node | could not download Node${N}" >&2
+            rm -rf "$tmp"; return 1
+        fi
+        # Verify before extracting: this lands on PATH for an agent with shell access.
+        if curl -fsSL --max-time 120 -o "${tmp}/SHASUMS256.txt" \
+             "https://nodejs.org/dist/${OPENCLAW_NODE}/SHASUMS256.txt"; then
+            ( cd "$tmp" && grep "node-${OPENCLAW_NODE}-linux-x64.tar.xz\$" SHASUMS256.txt \
+              | sed "s#node-${OPENCLAW_NODE}-linux-x64.tar.xz#node.tar.xz#" | sha256sum -c - ) \
+              || { echo "${R}فشل التحقق من البصمة | checksum mismatch${N}" >&2; rm -rf "$tmp"; return 1; }
+        else
+            echo "${Y}تعذّر جلب البصمات — أُلغي التثبيت | checksums unavailable, aborting${N}" >&2
+            rm -rf "$tmp"; return 1
+        fi
+        mkdir -p "$node_dir" && tar -xJf "${tmp}/node.tar.xz" -C "$node_dir" --strip-components=1
+        rm -rf "$tmp"
+        echo "${G}✓ Node $("${node_bin}/node" --version)${N}"
+    fi
+
+    echo "${C}▸ تثبيت OpenClaw${N}"
+    if ! PATH="${node_bin}:$PATH" npm install -g --prefix "$HOME/.local" openclaw; then
+        echo "${Y}لم يكتمل التثبيت | install did not complete${N}" >&2
+        return 1
+    fi
+
+    # Point it at the local brain. The NATIVE endpoint, not /v1: the OpenAI
+    # compatibility path silently drops tool calls and the model prints raw JSON
+    # as prose — the most common local-model misconfiguration there is.
+    PATH="${node_bin}:$HOME/.local/bin:$PATH" openclaw config set \
+        models.providers.ollama.baseUrl "http://127.0.0.1:11434" >/dev/null 2>&1 || true
+    PATH="${node_bin}:$HOME/.local/bin:$PATH" openclaw config set \
+        models.providers.ollama.api "ollama" >/dev/null 2>&1 || true
+    PATH="${node_bin}:$HOME/.local/bin:$PATH" openclaw config set \
+        models.providers.ollama.apiKey "ollama-local" >/dev/null 2>&1 || true
+    PATH="${node_bin}:$HOME/.local/bin:$PATH" openclaw config set \
+        gateway.mode local >/dev/null 2>&1 || true
+
+    echo "${G}✓ تم تثبيت OpenClaw | OpenClaw installed${N}"
+    echo
+    echo "${C}الخطوة التالية | Next:${N}"
+    echo "${D}  افتح Mo AI ← الإعدادات ← القناة، وضع توكن البوت من @BotFather.${N}"
+    echo "${D}  Open Mo AI → Settings → Channel and paste the bot token from @BotFather.${N}"
+}
+
+do_setup_brain() {
+    hdr "تجهيز العقل المحلي" "Set up the local brain"
+    echo "${D}يشغّل خادم النماذج ومحرّك الصوت العربي كحاويتين بلا صلاحيات مسؤول.${N}"
+    echo "${D}Starts the model server and the Arabic speech engine as rootless containers.${N}"
+    echo
+    confirm || return 0
+
+    local dst="${XDG_CONFIG_HOME:-$HOME/.config}/containers/systemd"
+    mkdir -p "$dst" "$HOME/.ollama" || return 1
+    install -m 0644 /usr/share/moos/containers/moai-brain.container  "$dst/" || return 1
+    install -m 0644 /usr/share/moos/containers/moai-speech.container "$dst/" || return 1
+
+    # Without linger the containers die at logout and never start at boot —
+    # the classic "it worked until I signed out".
+    loginctl enable-linger "$(id -un)" >/dev/null 2>&1 || true
+    systemctl --user daemon-reload
+
+    echo "${C}▸ تشغيل الخدمات${N}"
+    systemctl --user start moai-brain.service  || true
+    systemctl --user start moai-speech.service || true
+    systemctl --user start moai-agent-api.service || true
+
+    echo "${G}✓ جاهز | ready${N}"
+    echo "${D}اختر نموذجاً من Mo AI ← الإعدادات ← النماذج.${N}"
+    echo "${D}Pick a model in Mo AI → Settings → Models.${N}"
+}
+
 do_install_opencode() {
     install_agent "opencode-ai" "opencode" "OpenCode" || return 1
 
@@ -678,6 +772,8 @@ main() {
         install-codex) do_install_codex ;;
         install-claude) do_install_claude ;;
         install-opencode) do_install_opencode ;;
+        install-openclaw) do_install_openclaw ;;
+        setup-brain)      do_setup_brain ;;
         optimize)      do_optimize ;;
         diagnose-services) do_diagnose_services ;;
         inspect-boot)  do_inspect_boot ;;

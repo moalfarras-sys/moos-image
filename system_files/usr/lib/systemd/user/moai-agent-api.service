@@ -1,0 +1,40 @@
+[Unit]
+Description=Mo AI agent API (settings, sessions and status for the Agent panel)
+Documentation=man:moai-agent-api
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# ~/.local/node/bin carries the Node that OpenClaw needs (>= 22.22.3); the image
+# ships 22.22.2, one patch below the engine floor, so `moai-do install-openclaw`
+# puts a newer one in the user's home rather than layering onto /usr.
+Environment=PATH=%h/.local/node/bin:%h/.local/bin:/usr/bin:/bin
+Environment=OLLAMA_API_KEY=ollama-local
+ExecStart=/usr/bin/moai-agent-api
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+# ── Hardening, and what is deliberately absent ─────────────────────────
+# This service writes the API key and the Telegram bot token, and shells out to
+# `openclaw` and `systemctl --user`. It binds 127.0.0.1 only. Never expose it,
+# never place it behind a reverse proxy.
+#
+# The following are NOT set because each one, alone, breaks rootless podman —
+# which this service reaches indirectly through `openclaw agent` (sandboxed tool
+# calls) and `podman exec` (model status):
+#
+#   ProtectKernelTunables  ProtectKernelModules  ProtectClock  ProtectKernelLogs
+#   PrivateUsers           PrivateTmp            NoNewPrivileges
+#   CapabilityBoundingSet  RestrictSUIDSGID      ProtectControlGroups
+#   KeyringMode=private    InaccessiblePaths
+#
+# They all fail with the same message, which blames podman and suggests
+# `podman system migrate` — that never helps, the cause is always a directive
+# here. Measured individually with `systemd-run --user` on 2026-07-20.
+RestrictRealtime=true
+LockPersonality=true
+
+[Install]
+WantedBy=default.target

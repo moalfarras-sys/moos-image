@@ -1,0 +1,60 @@
+[Unit]
+Description=Ollama LLM server (rootless podman, NVIDIA CDI)
+Documentation=https://github.com/ollama/ollama
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName=moai-brain
+Image=docker.io/ollama/ollama:latest
+AutoUpdate=registry
+
+# ── GPU ────────────────────────────────────────────────────────────
+# AddDevice passes the card via CDI (/etc/cdi/nvidia.yaml, auto-generated
+# by the nvidia-cdi-refresh service — do NOT run `nvidia-ctk cdi generate`
+# by hand, it produces a spec that goes stale on the next image update).
+AddDevice=nvidia.com/gpu=all
+# SELinux is Enforcing on MoOS. Without this, the container dies with
+# "Failed to initialize NVML: Insufficient Permissions" — a message that
+# never mentions SELinux. This is NVIDIA's documented fix; --privileged
+# would also work but is a far bigger hammer than needed.
+SecurityLabelDisable=true
+
+# ── Networking ─────────────────────────────────────────────────────
+# 0.0.0.0 is the bind INSIDE the container namespace only. PublishPort
+# pins the host side to loopback, so nothing is reachable off-machine.
+Environment=OLLAMA_HOST=0.0.0.0:11434
+PublishPort=127.0.0.1:11434:11434
+
+# ── Performance ────────────────────────────────────────────────────
+# Both of the next two are required together: setting KV_CACHE_TYPE
+# without FLASH_ATTENTION is a silent no-op.
+Environment=OLLAMA_FLASH_ATTENTION=1
+Environment=OLLAMA_KV_CACHE_TYPE=q8_0
+# Ollama's default context is 4096 tokens with SILENT truncation — a single
+# agent loop can burn that and the model just "forgets" its task with no
+# error. Note a Modelfile `PARAMETER num_ctx` overrides this; verify the
+# effective value with /show info inside `ollama run`.
+# 22528 is the MEASURED ceiling on this box: it keeps qwen3-vl:4b at "100% GPU"
+# (4.8GB) while 24576 spills 17% to CPU and collapses throughput. Re-measure with
+# `ollama ps` after any change to desktop VRAM usage or model.
+Environment=OLLAMA_CONTEXT_LENGTH=22528
+# One model resident at a time: 8GB VRAM cannot hold two ~5GB models, and
+# letting Ollama try causes swap thrashing.
+Environment=OLLAMA_MAX_LOADED_MODELS=1
+Environment=OLLAMA_KEEP_ALIVE=15m
+
+Volume=%h/.ollama:/root/.ollama:Z
+
+[Service]
+# Rootless podman does NOT create the source directory of a bind mount —
+# it fails with "statfs ...: no such file or directory" and restart-loops.
+ExecStartPre=/usr/bin/mkdir -p %h/.ollama
+Restart=always
+RestartSec=5
+# The first model pull is several GB. systemd's default 90s start timeout
+# would kill it mid-pull and leave a confusing failed state.
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

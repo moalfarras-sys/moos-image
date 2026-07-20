@@ -1,0 +1,511 @@
+#!/usr/bin/env python3
+"""
+moai-agent-api — لوحة تحكم MOAPP: إعدادات + محادثات + حالة.
+
+يتبع نفس مبدأ moai-control: الأسرار تُستقبل ولا تُعاد أبداً. GET يخبرك
+has_key/has_token فقط، ولا يعيد القيمة نفسها ولو للواجهة المحلية.
+
+يستمع على 127.0.0.1 حصراً. يكتب مفتاح API وتوكن البوت، فلا يُعرَّض للشبكة أبداً.
+
+    GET  /                     الواجهة
+    GET  /api/status           الخدمات + الكرت + النموذج المحمّل
+    GET  /api/config           الإعداد الحالي (بلا أسرار)
+    POST /api/config           كتابة الإعداد + إعادة تشغيل ما يلزم فقط
+    GET  /api/sessions         قائمة المحادثات
+    GET  /api/session?id=…     رسائل محادثة
+    POST /api/send             إرسال رسالة والحصول على الرد
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+import urllib.parse
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+HOME = Path.home()
+OC_CFG = HOME / ".openclaw/openclaw.json"
+# Our own state lives OUTSIDE openclaw.json on purpose: OpenClaw's schema is
+# additionalProperties:false at the root, so an extra "_moapp" key there makes
+# the whole config invalid and the gateway refuses to start.
+STATE = HOME / ".config/moapp/state.json"
+SESSIONS = HOME / ".openclaw/agents/main/sessions"
+QUADLET = HOME / ".config/containers/systemd/ollama.container"
+# Shipped by the image: the UI lives under /usr/share, not beside the script.
+# A dev checkout can override it for iteration without touching /usr.
+UI = Path(os.environ.get("MOAI_AGENT_UI",
+                         "/usr/share/moos/apps/moai-agent/console.html"))
+PORT = int(os.environ.get("MOAI_AGENT_PORT", "8077"))
+
+# OpenClaw is a per-user npm install (~386 MB, needs Node >= 22.22.3), so the
+# image does NOT ship it — `moai-do install-openclaw` puts it in ~/.local, the
+# same shape as install-codex / install-claude / install-opencode.
+BIN = str(HOME / ".local/bin/openclaw")
+ENV = {**os.environ, "PATH": f"{HOME}/.local/node/bin:{HOME}/.local/bin:/usr/bin:/bin",
+       "OLLAMA_API_KEY": "ollama-local"}
+
+# Cloud providers Mo AI already knows about, kept identical so the two settings
+# surfaces never disagree about what "cloud" means.
+# `api` must be one of OpenClaw's wire protocols. "openai" alone is REJECTED —
+# the schema wants the specific dialect, and the error names the whole allowed
+# list, so read it if you add a provider here.
+PROVIDERS = [
+    {"id": "synterolink", "name": "Synterolink", "base": "https://api.synterolink.com/v1",
+     "model": "gpt-5.4-mini", "api": "openai-responses"},
+    {"id": "openai", "name": "OpenAI", "base": "https://api.openai.com/v1",
+     "model": "gpt-5.4-mini", "api": "openai-responses"},
+    {"id": "anthropic", "name": "Anthropic", "base": "https://api.anthropic.com/v1",
+     "model": "claude-haiku-4-5-20251001", "api": "anthropic-messages"},
+    {"id": "google", "name": "Google Gemini", "base": "https://generativelanguage.googleapis.com/v1beta/openai",
+     "model": "gemini-2.0-flash", "api": "google-generative-ai"},
+    {"id": "openrouter", "name": "OpenRouter", "base": "https://openrouter.ai/api/v1",
+     "model": "google/gemini-2.0-flash-001", "api": "openai-completions"},
+    {"id": "custom", "name": "مخصص", "base": "", "model": "", "api": "openai-completions"},
+]
+PROVIDER_API = {p["id"]: p["api"] for p in PROVIDERS}
+
+
+# ── permission tiers ────────────────────────────────────────────────────
+# These are OpenClaw's OWN enforcement knobs, not a layer we invented on top:
+#
+#   agents.defaults.elevatedDefault   off | ask | full
+#   agents.defaults.sandbox.workspaceAccess   none | ro | rw
+#   approvals.exec.enabled + mode=session     prompt lands in the origin chat
+#
+# "ask" with approvals forwarding is what makes phone approval work: the agent
+# stops, Telegram shows the prompt, and nothing runs until you answer there.
+TIERS = {
+    # قراءة فقط — يقرأ ولا يغيّر شيئاً
+    "read": {
+        "elevated": "off",
+        "workspace": "ro",
+        "approvals": False,
+        "deny": ["group:web", "browser", "exec"],
+    },
+    # قراءة وكتابة بموافقة — كل فعل يكتب يسألك أولاً
+    "ask": {
+        "elevated": "ask",
+        "workspace": "rw",
+        "approvals": True,
+        "deny": ["group:web", "browser"],
+    },
+    # كاملة — ينفّذ بلا سؤال. لا تستخدمها مع عقل محلي صغير.
+    "full": {
+        "elevated": "full",
+        "workspace": "rw",
+        "approvals": False,
+        "deny": [],
+    },
+}
+
+TOKEN_RE = re.compile(r"^\d{6,}:[A-Za-z0-9_-]{30,}$")
+
+
+def sh(argv: list[str], timeout: int = 20) -> str:
+    try:
+        p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, env=ENV)
+        return (p.stdout or "").strip()
+    except Exception:
+        return ""
+
+
+def load_cfg() -> dict:
+    try:
+        return json.loads(OC_CFG.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def save_cfg(cfg: dict) -> None:
+    tmp = OC_CFG.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+    os.chmod(tmp, 0o600)
+    tmp.replace(OC_CFG)
+
+
+def load_state() -> dict:
+    try:
+        return json.loads(STATE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def save_state(st: dict) -> None:
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    STATE.write_text(json.dumps(st, indent=2, ensure_ascii=False), encoding="utf-8")
+    os.chmod(STATE, 0o600)
+
+
+def unit_active(name: str) -> bool:
+    return sh(["systemctl", "--user", "is-active", name], 8) == "active"
+
+
+# ── status ──────────────────────────────────────────────────────────────
+
+def status() -> dict:
+    gpu = sh(["nvidia-smi", "--query-gpu=memory.used,memory.total,temperature.gpu",
+              "--format=csv,noheader,nounits"], 8)
+    used = total = temp = 0
+    if gpu:
+        parts = [p.strip() for p in gpu.split(",")]
+        if len(parts) >= 3:
+            used, total, temp = (int(float(x)) for x in parts[:3])
+
+    loaded = None
+    ps = sh(["podman", "exec", "ollama", "ollama", "ps"], 10)
+    for line in ps.splitlines()[1:]:
+        f = line.split()
+        if len(f) >= 5:
+            loaded = {"name": f[0], "size": f"{f[1]} {f[2]}" if not f[1][0].isdigit() else f[1],
+                      "processor": " ".join(f[3:5])}
+            break
+
+    return {
+        "services": {
+            "ollama": unit_active("ollama.service"),
+            "gateway": unit_active("openclaw-gateway.service"),
+            "speaches": unit_active("speaches.service"),
+            "moai": unit_active("moai-gateway.service"),
+        },
+        "gpu": {"used": used, "total": total, "temp": temp},
+        "model": loaded,
+        "ts": int(time.time()),
+    }
+
+
+# ── config ──────────────────────────────────────────────────────────────
+
+def read_config() -> dict:
+    c = load_cfg()
+    st = load_state()
+    prov = (c.get("models", {}).get("providers", {}) or {})
+    agents = c.get("agents", {}).get("defaults", {}) or {}
+    tg = c.get("channels", {}).get("telegram", {}) or {}
+    tts = c.get("messages", {}).get("tts", {}) or {}
+    deny = ((c.get("tools", {}).get("byProvider", {}) or {})
+            .get(agents.get("model", {}).get("primary", ""), {}) or {}).get("deny", [])
+
+    keep = "15m"
+    try:
+        m = re.search(r"OLLAMA_KEEP_ALIVE=(\S+)", QUADLET.read_text(encoding="utf-8"))
+        if m:
+            keep = m.group(1)
+    except Exception:
+        pass
+
+    cloud = prov.get("cloud", {}) or {}
+    return {
+        "brain": {
+            "mode": st.get("mode", "local"),
+            "local_model": (agents.get("model", {}) or {}).get("primary", "ollama/default"),
+            "context": agents.get("contextTokens", 14336),
+            "thinking": agents.get("thinkingDefault", "off"),
+        },
+        "cloud": {
+            "provider": st.get("provider", "synterolink"),
+            "base": cloud.get("baseUrl", ""),
+            "model": st.get("cloud_model", ""),
+            "has_key": bool(cloud.get("apiKey")),
+        },
+        "telegram": {
+            "enabled": bool(tg.get("enabled")),
+            "has_token": bool(tg.get("botToken")),
+            "policy": tg.get("dmPolicy", "pairing"),
+            "allow": tg.get("allowFrom", []),
+        },
+        "voice": {
+            "tts_enabled": bool(tts.get("enabled")),
+            "tts_auto": tts.get("auto", "inbound"),
+            "stt_on": bool((c.get("audio", {}).get("transcription", {}) or {}).get("command")),
+        },
+        "power": {"keep_alive": keep},
+        "permissions": {
+            "tier": st.get("tier", "ask"),
+            "web": "group:web" not in deny,
+            "exec": "exec" not in deny,
+            "workspace": ((agents.get("sandbox", {}) or {}).get("workspaceAccess", "rw")),
+            "elevated": agents.get("elevatedDefault", "ask"),
+            "approvals": bool(((c.get("approvals", {}) or {}).get("exec", {}) or {}).get("enabled")),
+            "project": st.get("project", ""),
+        },
+        "providers": PROVIDERS,
+        "tiers": list(TIERS.keys()),
+    }
+
+
+def write_config(body: dict) -> dict:
+    """Apply only the sections present. Returns which services need a restart."""
+    c = load_cfg()
+    st = load_state()
+    restart: set[str] = set()
+    moapp = st
+
+    # ── brain mode ──
+    if "mode" in body:
+        moapp["mode"] = body["mode"]
+
+    # ── cloud provider + key ──
+    cl = body.get("cloud") or {}
+    if cl:
+        provs = c.setdefault("models", {}).setdefault("providers", {})
+        node = provs.setdefault("cloud", {})
+        if cl.get("provider"):
+            moapp["provider"] = cl["provider"]
+        if cl.get("base"):
+            node["baseUrl"] = cl["base"].rstrip("/")
+        if cl.get("model"):
+            moapp["cloud_model"] = cl["model"]
+            node.setdefault("models", [])
+        # The key is WRITE-ONLY from the UI's perspective. An empty string means
+        # "leave it alone"; the explicit sentinel "__clear__" removes it.
+        key = cl.get("key")
+        if key == "__clear__":
+            node.pop("apiKey", None)
+        elif key:
+            node["apiKey"] = key
+        node["api"] = PROVIDER_API.get(moapp.get("provider", ""), "openai-completions")
+
+    # ── telegram ──
+    tg_in = body.get("telegram") or {}
+    if tg_in:
+        tg = c.setdefault("channels", {}).setdefault("telegram", {})
+        tok = tg_in.get("token")
+        if tok:
+            if not TOKEN_RE.match(tok):
+                raise ValueError("شكل توكن البوت غير صحيح")
+            tg["botToken"] = tok
+        if "enabled" in tg_in:
+            tg["enabled"] = bool(tg_in["enabled"])
+        allow = tg_in.get("allow")
+        if allow is not None:
+            ids = [str(a).strip() for a in allow if str(a).strip().isdigit()]
+            tg["allowFrom"] = ids
+            # An allowlist with nobody on it would lock you out of your own bot;
+            # fall back to pairing so you can re-approve yourself.
+            tg["dmPolicy"] = "allowlist" if ids else "pairing"
+        tg.setdefault("groups", {"*": {"requireMention": True}})
+        restart.add("openclaw-gateway")
+
+    # ── voice ──
+    v = body.get("voice") or {}
+    if v:
+        tts = c.setdefault("messages", {}).setdefault("tts", {})
+        if "tts_enabled" in v:
+            tts["enabled"] = bool(v["tts_enabled"])
+        if v.get("tts_auto"):
+            tts["auto"] = v["tts_auto"]
+
+    # ── permissions ──
+    p = body.get("permissions") or {}
+
+    # المستوى يضبط كل شيء دفعة واحدة، ثم تُطبَّق الاستثناءات الفردية فوقه.
+    tier = p.get("tier")
+    if tier in TIERS:
+        t = TIERS[tier]
+        moapp["tier"] = tier
+        ad = c.setdefault("agents", {}).setdefault("defaults", {})
+        ad["elevatedDefault"] = t["elevated"]
+        ad.setdefault("sandbox", {})["workspaceAccess"] = t["workspace"]
+        c.setdefault("approvals", {}).setdefault("exec", {})["enabled"] = t["approvals"]
+        if t["approvals"]:
+            # session = the prompt goes back to the chat the request came from,
+            # so a Telegram request is approved from Telegram.
+            c["approvals"]["exec"]["mode"] = "session"
+        primary = (ad.get("model", {}) or {}).get("primary", "")
+        if primary:
+            byp = c.setdefault("tools", {}).setdefault("byProvider", {}).setdefault(primary, {})
+            byp["deny"] = list(t["deny"])
+        restart.add("openclaw-gateway")
+
+    # مجلد المشروع: نطاق الوكيل. مسار مطلق داخل المنزل فقط.
+    proj = p.get("project")
+    if proj is not None:
+        proj = str(proj).strip()
+        if proj:
+            rp = Path(proj).expanduser()
+            if not rp.is_absolute() or not str(rp).startswith(str(HOME)):
+                raise ValueError("مجلد المشروع يجب أن يكون مساراً مطلقاً داخل مجلد المنزل")
+            if not rp.is_dir():
+                raise ValueError("المجلد غير موجود")
+            moapp["project"] = str(rp)
+            c.setdefault("agents", {}).setdefault("defaults", {})["workspace"] = str(rp)
+        else:
+            moapp.pop("project", None)
+            c.get("agents", {}).get("defaults", {}).pop("workspace", None)
+        restart.add("openclaw-gateway")
+
+    if "web" in p:
+        primary = (c.get("agents", {}).get("defaults", {}).get("model", {}) or {}).get("primary", "")
+        byp = c.setdefault("tools", {}).setdefault("byProvider", {}).setdefault(primary, {})
+        if p["web"]:
+            byp["deny"] = [d for d in byp.get("deny", []) if d not in ("group:web", "browser")]
+        else:
+            byp["deny"] = sorted(set(byp.get("deny", [])) | {"group:web", "browser"})
+
+    save_cfg(c)
+    save_state(st)
+
+    # ── power: lives in the Quadlet, not openclaw.json ──
+    pw = body.get("power") or {}
+    ka = pw.get("keep_alive")
+    if ka and re.match(r"^(-1|\d+[ms])$", ka):
+        try:
+            src = QUADLET
+            txt = src.read_text(encoding="utf-8")
+            txt = re.sub(r"^Environment=OLLAMA_KEEP_ALIVE=.*$",
+                         f"Environment=OLLAMA_KEEP_ALIVE={ka}", txt, flags=re.M)
+            src.write_text(txt, encoding="utf-8")
+            shutil.copy(src, QUADLET)
+            sh(["systemctl", "--user", "daemon-reload"], 20)
+            restart.add("ollama")
+        except Exception:
+            pass
+
+    for unit in restart:
+        sh(["systemctl", "--user", "restart", f"{unit}.service"], 60)
+
+    return {"ok": True, "restarted": sorted(restart)}
+
+
+# ── conversations ───────────────────────────────────────────────────────
+
+def list_sessions() -> list[dict]:
+    idx = SESSIONS / "sessions.json"
+    try:
+        data = json.loads(idx.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    out = []
+    for key, meta in (data.items() if isinstance(data, dict) else []):
+        sid = meta.get("sessionId")
+        if not sid:
+            continue
+        f = SESSIONS / f"{sid}.jsonl"
+        if not f.exists():
+            continue
+        out.append({
+            "key": key,
+            "id": sid,
+            "label": key.split(":")[-1],
+            "updated": int(meta.get("updatedAt", 0) / 1000) or int(f.stat().st_mtime),
+        })
+    return sorted(out, key=lambda s: s["updated"], reverse=True)[:60]
+
+
+def _text_of(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(b.get("text", "") for b in content
+                         if isinstance(b, dict) and b.get("type") == "text").strip()
+    return ""
+
+
+def read_session(sid: str) -> list[dict]:
+    # Reject anything that is not a bare uuid — this value reaches a path join.
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", sid or ""):
+        return []
+    f = SESSIONS / f"{sid}.jsonl"
+    if not f.exists():
+        return []
+    msgs = []
+    for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.strip():
+            continue
+        try:
+            d = json.loads(line)
+        except Exception:
+            continue
+        if d.get("type") != "message":
+            continue
+        m = d.get("message") or {}
+        role = m.get("role")
+        if role not in ("user", "assistant"):
+            continue
+        text = _text_of(m.get("content"))
+        if not text:
+            continue
+        msgs.append({"role": role, "text": text, "ts": d.get("timestamp", "")})
+    return msgs
+
+
+def send(key: str, text: str) -> dict:
+    key = re.sub(r"[^A-Za-z0-9_-]", "", key or "console")[:48] or "console"
+    if not text.strip():
+        return {"error": "رسالة فارغة"}
+    p = subprocess.run([BIN, "agent", "--session-key", key, "-m", text],
+                       capture_output=True, text=True, timeout=600, env=ENV)
+    out = "\n".join(l for l in (p.stdout or "").splitlines()
+                    if l.strip() and not l.startswith("["))
+    return {"reply": out.strip() or (p.stderr or "").strip()[:400] or "لا رد"}
+
+
+# ── http ────────────────────────────────────────────────────────────────
+
+class H(BaseHTTPRequestHandler):
+    server_version = "moai-agent-api"
+
+    def log_message(self, *a):  # quiet
+        pass
+
+    def _send(self, obj, code=200, ctype="application/json"):
+        body = obj if isinstance(obj, bytes) else json.dumps(obj, ensure_ascii=False).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", f"{ctype}; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        u = urllib.parse.urlparse(self.path)
+        q = urllib.parse.parse_qs(u.query)
+        try:
+            if u.path in ("/", "/index.html"):
+                return self._send(UI.read_bytes(), ctype="text/html")
+            if u.path == "/api/status":
+                return self._send(status())
+            if u.path == "/api/config":
+                return self._send(read_config())
+            if u.path == "/api/sessions":
+                return self._send(list_sessions())
+            if u.path == "/api/session":
+                return self._send(read_session((q.get("id") or [""])[0]))
+        except Exception as e:
+            return self._send({"error": str(e)[:300]}, 500)
+        self._send({"error": "not found"}, 404)
+
+    def do_POST(self):
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            body = json.loads(self.rfile.read(n) or b"{}")
+        except Exception:
+            return self._send({"error": "bad json"}, 400)
+        u = urllib.parse.urlparse(self.path)
+        try:
+            if u.path == "/api/config":
+                return self._send(write_config(body))
+            if u.path == "/api/send":
+                return self._send(send(body.get("key", "console"), body.get("text", "")))
+        except ValueError as e:
+            return self._send({"error": str(e)}, 400)
+        except Exception as e:
+            return self._send({"error": str(e)[:300]}, 500)
+        self._send({"error": "not found"}, 404)
+
+
+def main():
+    if not UI.exists():
+        sys.exit(f"واجهة غير موجودة: {UI}")
+    srv = ThreadingHTTPServer(("127.0.0.1", PORT), H)
+    print(f"moapp-console → http://127.0.0.1:{PORT}/", flush=True)
+    srv.serve_forever()
+
+
+if __name__ == "__main__":
+    main()

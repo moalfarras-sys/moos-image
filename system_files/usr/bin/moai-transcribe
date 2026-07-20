@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────
+# moai-transcribe — يفرّغ ملف صوت إلى نص عربي، ويطبع النص على stdout.
+#
+# لماذا هذا الغلاف موجود:
+#   OpenClaw لا يتكلم واجهة OpenAI للتفريغ — إعداده `audio.transcription.command`
+#   ينتظر **أمراً** يستقبل مسار ملف ويطبع نصاً. وSpeaches خادم HTTP.
+#   هذا الغلاف هو الجسر بينهما، ولا شيء غيره.
+#
+#   الاستخدام:  moai-transcribe <ملف-صوت>
+# ─────────────────────────────────────────────────────────────────────────
+set -euo pipefail
+
+ENDPOINT="${MOAI_STT_URL:-http://127.0.0.1:8000/v1/audio/transcriptions}"
+MODEL="${MOAI_STT_MODEL:-Systran/faster-whisper-medium}"
+# Forcing ar matters: left to auto-detect, Whisper sometimes decides a short
+# Arabic clip is Farsi or Urdu and transliterates it into noise.
+LANG_="${MOAI_STT_LANG:-ar}"
+
+FILE="${1:-}"
+[[ -z "$FILE" ]] && { echo "الاستخدام: $0 <ملف-صوت>" >&2; exit 1; }
+[[ -r "$FILE" ]] || { echo "تعذّرت قراءة الملف: $FILE" >&2; exit 1; }
+
+# OGG/Opus from Telegram needs no conversion: Speaches decodes via faster_whisper's
+# PyAV-based decoder, and PyAV bundles the FFmpeg libraries. Undecodable input
+# comes back as HTTP 415 rather than silence.
+RESP="$(curl -sS --max-time 300 \
+    -X POST "$ENDPOINT" \
+    -F "file=@${FILE}" \
+    -F "model=${MODEL}" \
+    -F "language=${LANG_}" \
+    -F "response_format=json" 2>&1)" || {
+    echo "تعذّر الوصول إلى خادم التفريغ على ${ENDPOINT}" >&2
+    echo "تحقّق: systemctl --user status moai-speech" >&2
+    exit 1
+}
+
+python3 - "$RESP" <<'PY'
+import json, sys
+raw = sys.argv[1]
+try:
+    text = (json.loads(raw).get("text") or "").strip()
+except json.JSONDecodeError:
+    sys.stderr.write(f"رد غير متوقع من خادم التفريغ:\n{raw[:400]}\n")
+    sys.exit(1)
+if not text:
+    # VAD is on by default (_unstable_vad_filter) and strips non-speech to
+    # suppress hallucinations — it can swallow a very short or quiet clip
+    # entirely. Empty output is a real, expected outcome, not a crash.
+    sys.stderr.write("لم يُلتقط كلام في التسجيل (قد يكون قصيراً جداً أو منخفضاً).\n")
+    sys.exit(0)
+print(text)
+PY

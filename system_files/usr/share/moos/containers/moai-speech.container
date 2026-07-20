@@ -1,0 +1,50 @@
+[Unit]
+Description=Speaches — Arabic STT/TTS, OpenAI-compatible, CPU only
+Documentation=https://github.com/speaches-ai/speaches
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+# Pinned, not :latest-cpu — although both currently resolve to the same digest
+# (sha256:21e3df06d842…), an unpinned tag turns a silent upstream bump into a
+# silent Arabic-quality change.
+Image=localhost/speaches-ar:0.8.3-cpu
+ContainerName=moai-speech
+PublishPort=127.0.0.1:8000:8000
+
+# Named volume, NOT a host bind mount. The image pre-creates this path owned by
+# UID 1000, so podman's copy-up gives correct ownership for free. A host bind
+# mount would need --userns=keep-id:uid=1000,gid=1000 or writes fail silently.
+Volume=speaches-hf-cache:/home/ubuntu/.cache/huggingface/hub:Z
+
+# ── CPU only, deliberately ─────────────────────────────────────────────
+# The LLM holds ~4.1GB of the 8GB card and the KDE desktop another ~1.4-2.1GB.
+# Putting Whisper on the GPU too is how moai.service died earlier:
+#   ggml_backend_cuda_buffer_type_alloc_buffer: cudaMalloc failed: out of memory
+# NOTE: WHISPER__INFERENCE_DEVICE only governs CTranslate2/faster-whisper. The
+# ONNX executors (Piper TTS, VAD) are separate — but with no GPU device passed
+# to this container, they fall back to CPU anyway. Do NOT add AddDevice here.
+Environment=WHISPER__INFERENCE_DEVICE=cpu
+Environment=WHISPER__COMPUTE_TYPE=int8
+# Default is 0, which lets CTranslate2 grab every core and starve Ollama during
+# a concurrent request. 10 of 16 threads leaves headroom.
+Environment=WHISPER__CPU_THREADS=10
+Environment=WHISPER__NUM_WORKERS=1
+
+# Defaults are 300s: after 5 idle minutes the model unloads and the next voice
+# note stalls several seconds reloading from disk. -1 = never unload.
+# Costs ~1.5GB resident RAM for medium; ~9GB is free.
+Environment=STT_MODEL_TTL=900
+Environment=TTS_MODEL_TTL=900
+
+Environment=ENABLE_UI=false
+Environment=LOG_LEVEL=info
+
+[Service]
+Restart=always
+RestartSec=5
+# Model downloads are ~1.4GB; the default 90s start timeout would kill it.
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mo AI — لوحة الوكيل</title>
+<style>
+:root{
+  --ink:#151A22;--soft:#525C6E;--faint:#8791A3;
+  --bg:#F4F6F8;--panel:#FFF;--line:#E3E7ED;--field:#FAFBFC;
+  --accent:#1F6F6B;--accent-dim:#E0EFED;
+  --ok:#2E7D5B;--warn:#A8631C;--crit:#A63A3A;
+  --mono:ui-monospace,"JetBrains Mono",Menlo,monospace;
+  --ar:"Noto Kufi Arabic","IBM Plex Sans Arabic","Tajawal","Segoe UI",system-ui,sans-serif;
+  --r:9px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --ink:#E8ECF2;--soft:#A5AEBF;--faint:#6C7687;
+  --bg:#0C1015;--panel:#141A21;--line:#232A35;--field:#1A212A;
+  --accent:#4FBDB4;--accent-dim:#122624;
+  --ok:#5DBE8E;--warn:#D69A4A;--crit:#D9736B;}}
+:root[data-theme=dark]{
+  --ink:#E8ECF2;--soft:#A5AEBF;--faint:#6C7687;
+  --bg:#0C1015;--panel:#141A21;--line:#232A35;--field:#1A212A;
+  --accent:#4FBDB4;--accent-dim:#122624;
+  --ok:#5DBE8E;--warn:#D69A4A;--crit:#D9736B;}
+:root[data-theme=light]{
+  --ink:#151A22;--soft:#525C6E;--faint:#8791A3;
+  --bg:#F4F6F8;--panel:#FFF;--line:#E3E7ED;--field:#FAFBFC;
+  --accent:#1F6F6B;--accent-dim:#E0EFED;
+  --ok:#2E7D5B;--warn:#A8631C;--crit:#A63A3A;}
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:var(--ar);background:var(--bg);color:var(--ink);line-height:1.7;
+  -webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+
+/* header */
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:.85rem 1.4rem;
+  display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+.brand{font-weight:800;font-size:1.05rem;letter-spacing:-.01em}
+.brand span{color:var(--accent)}
+.stat{display:flex;gap:.5rem;flex-wrap:wrap;margin-inline-start:auto;align-items:center}
+.chip{font-family:var(--mono);font-size:.72rem;direction:ltr;padding:.22rem .6rem;
+  border-radius:100px;border:1px solid var(--line);color:var(--soft);background:var(--field);
+  display:flex;align-items:center;gap:.35rem;white-space:nowrap}
+.led{width:.45rem;height:.45rem;border-radius:50%;background:var(--faint);flex:none}
+.led.on{background:var(--ok);box-shadow:0 0 0 2px color-mix(in srgb,var(--ok) 22%,transparent)}
+.led.off{background:var(--crit)}
+
+/* tabs */
+nav{display:flex;gap:.25rem;padding:0 1.4rem;background:var(--panel);
+  border-bottom:1px solid var(--line);overflow-x:auto}
+nav button{font-family:inherit;font-size:.9rem;font-weight:600;color:var(--faint);
+  background:none;border:0;border-bottom:2px solid transparent;padding:.75rem .9rem;
+  cursor:pointer;white-space:nowrap}
+nav button:hover{color:var(--soft)}
+nav button[aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent)}
+nav button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px}
+
+main{flex:1;overflow-y:auto;padding:1.6rem 1.4rem 2rem}
+.wrap{max-width:58rem;margin:0 auto;display:flex;flex-direction:column;gap:1.1rem}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:1.15rem 1.3rem}
+.panel h2{margin:0 0 .25rem;font-size:1rem;font-weight:700}
+.panel .hint{margin:0 0 1rem;font-size:.85rem;color:var(--faint)}
+
+/* form */
+.row{display:grid;grid-template-columns:11rem 1fr;gap:.85rem;align-items:center;
+  padding:.6rem 0;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:0}
+@media(max-width:36rem){.row{grid-template-columns:1fr;gap:.4rem}}
+.row label{font-size:.88rem;font-weight:600}
+.row .sub{font-size:.78rem;color:var(--faint);font-weight:400;display:block}
+input,select{font-family:inherit;font-size:.88rem;width:100%;padding:.5rem .7rem;
+  background:var(--field);border:1px solid var(--line);border-radius:7px;color:var(--ink)}
+input[type=password],input[dir=ltr]{font-family:var(--mono);direction:ltr;text-align:left;font-size:.82rem}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+.sw{position:relative;width:2.6rem;height:1.45rem;flex:none;cursor:pointer}
+.sw input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.sw i{position:absolute;inset:0;background:var(--line);border-radius:100px;transition:background .18s}
+.sw i::after{content:"";position:absolute;top:.17rem;right:.17rem;width:1.1rem;height:1.1rem;
+  background:#fff;border-radius:50%;transition:transform .18s;box-shadow:0 1px 3px #0003}
+.sw input:checked + i{background:var(--accent)}
+.sw input:checked + i::after{transform:translateX(-1.15rem)}
+.sw input:focus-visible + i{outline:2px solid var(--accent);outline-offset:2px}
+
+.btn{font-family:inherit;font-size:.87rem;font-weight:600;padding:.5rem 1.1rem;border-radius:7px;
+  border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.actions{display:flex;gap:.6rem;align-items:center;margin-top:1rem;flex-wrap:wrap}
+.saved{font-size:.83rem;color:var(--ok);opacity:0;transition:opacity .25s}
+.saved.show{opacity:1}
+
+.note{font-size:.85rem;color:var(--soft);background:var(--accent-dim);
+  border-inline-start:3px solid var(--accent);border-radius:0 7px 7px 0;padding:.75rem .95rem;margin:.9rem 0 0}
+.note.warn{background:color-mix(in srgb,var(--warn) 12%,transparent);border-color:var(--warn)}
+.note b{color:var(--ink)}
+code{font-family:var(--mono);font-size:.8rem;direction:ltr;background:var(--field);
+  border:1px solid var(--line);padding:.06rem .32rem;border-radius:4px}
+
+/* chat */
+.chat{display:grid;grid-template-columns:15rem 1fr;gap:1.1rem;min-height:26rem}
+@media(max-width:44rem){.chat{grid-template-columns:1fr}}
+.slist{display:flex;flex-direction:column;gap:.3rem;height:30.5rem;overflow-y:auto}
+.sitem{text-align:right;font-family:inherit;font-size:.85rem;padding:.55rem .7rem;border-radius:7px;
+  border:1px solid transparent;background:none;color:var(--soft);cursor:pointer;width:100%}
+.sitem:hover{background:var(--field)}
+.sitem[aria-current=true]{background:var(--accent-dim);color:var(--accent);border-color:var(--accent);font-weight:600}
+.sitem .when{display:block;font-family:var(--mono);font-size:.68rem;color:var(--faint);direction:ltr;text-align:right}
+.thread{display:flex;flex-direction:column;gap:.7rem;height:26rem;overflow-y:auto;
+  background:var(--field);border:1px solid var(--line);border-radius:var(--r);padding:.9rem}
+.slist{border:1px solid var(--line);border-radius:var(--r);padding:.4rem;background:var(--field)}
+.msg{max-width:82%;padding:.6rem .85rem;border-radius:12px;font-size:.9rem;white-space:pre-wrap;word-break:break-word}
+.msg.user{align-self:flex-start;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.msg.assistant{align-self:flex-end;background:var(--field);border:1px solid var(--line);border-bottom-left-radius:4px}
+.composer{display:flex;gap:.5rem;margin-top:.9rem}
+.composer input{flex:1}
+.empty{color:var(--faint);font-size:.87rem;text-align:center;padding:2.5rem 1rem}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem}
+@media(max-width:40rem){.grid2{grid-template-columns:1fr}}
+.metric{text-align:center;padding:1rem}
+.metric .v{font-size:1.7rem;font-weight:700;color:var(--accent)}
+/* Numbers only: a mono face with direction:ltr breaks Arabic letter joining,
+   turning "نائم" into disconnected glyphs. Text metrics keep the Arabic face. */
+.metric .v.num{font-family:var(--mono);direction:ltr;font-variant-numeric:tabular-nums}
+.metric .k{font-size:.8rem;color:var(--faint)}
+.bar{height:.4rem;background:var(--line);border-radius:100px;overflow:hidden;margin-top:.5rem}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:100px;transition:width .4s}
+[hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Mo AI <span>·</span> الوكيل</div>
+  <div class="stat" id="stat"></div>
+</header>
+
+<nav id="tabs">
+  <button aria-selected="true" data-t="chat">المحادثات</button>
+  <button aria-selected="false" data-t="brain">العقل</button>
+  <button aria-selected="false" data-t="channel">القناة</button>
+  <button aria-selected="false" data-t="voice">الصوت</button>
+  <button aria-selected="false" data-t="power">الطاقة والصلاحيات</button>
+</nav>
+
+<main>
+  <div class="wrap">
+
+    <!-- ── chat ── -->
+    <section id="p-chat">
+      <div class="panel">
+        <h2>المحادثات</h2>
+        <p class="hint">نفس الجلسات التي تراها في تليجرام — تقرأها هنا وتكمل الحديث من الشاشة.</p>
+        <div class="chat">
+          <div class="slist" id="slist"></div>
+          <div>
+            <div class="thread" id="thread"><div class="empty">اختر محادثة من القائمة</div></div>
+            <form class="composer" id="composer">
+              <input id="msg" placeholder="اكتب رسالة…" autocomplete="off">
+              <button class="btn" id="sendBtn">إرسال</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── brain ── -->
+    <section id="p-brain" hidden>
+      <div class="panel">
+        <h2>العقل</h2>
+        <p class="hint">النموذج المحلي هو الافتراضي دائماً. السحابي يُستدعى للمهام الصعبة.</p>
+        <div class="row">
+          <label for="mode">الوضع <span class="sub">أين تُعالَج طلباتك</span></label>
+          <select id="mode">
+            <option value="local">محلي فقط — لا شيء يغادر الجهاز</option>
+            <option value="hybrid">هجين — محلي افتراضاً، سحابي عند الطلب</option>
+            <option value="cloud">سحابي — الأقوى، والأبطأ في الشبكة</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>النموذج المحلي</label>
+          <input id="localModel" dir="ltr" readonly>
+        </div>
+        <div class="note" id="modeNote"></div>
+      </div>
+
+      <div class="panel" style="margin-top:1.1rem">
+        <h2>المزوّد السحابي</h2>
+        <p class="hint">المفتاح يُكتب ولا يُقرأ. بعد الحفظ لا يعرضه أحد — ولا هذه الصفحة.</p>
+        <div class="row">
+          <label for="prov">المزوّد</label>
+          <select id="prov"></select>
+        </div>
+        <div class="row">
+          <label for="base">العنوان</label>
+          <input id="base" dir="ltr" placeholder="https://…/v1">
+        </div>
+        <div class="row">
+          <label for="cmodel">النموذج</label>
+          <input id="cmodel" dir="ltr" placeholder="gpt-5.4-mini">
+        </div>
+        <div class="row">
+          <label for="key">مفتاح API <span class="sub" id="keyState"></span></label>
+          <input id="key" type="password" placeholder="sk-… (اتركه فارغاً لإبقاء الحالي)">
+        </div>
+        <div class="actions">
+          <button class="btn" data-save="cloud">حفظ</button>
+          <button class="btn ghost" id="clearKey">حذف المفتاح</button>
+          <span class="saved" id="s-cloud">حُفظ</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── channel ── -->
+    <section id="p-channel" hidden>
+      <div class="panel">
+        <h2>قناة تليجرام</h2>
+        <p class="hint">التوكن يُكتب ولا يُقرأ. غيّره متى شئت — تُعاد البوابة وحدها.</p>
+        <div class="row">
+          <label for="tgOn">مفعّلة</label>
+          <span class="sw"><input type="checkbox" id="tgOn"><i></i></span>
+        </div>
+        <div class="row">
+          <label for="token">توكن البوت <span class="sub" id="tokState"></span></label>
+          <input id="token" type="password" placeholder="123456:AA… (فارغ = إبقاء الحالي)">
+        </div>
+        <div class="row">
+          <label for="allow">المسموح لهم <span class="sub">معرّفات رقمية، فاصلة بينها</span></label>
+          <input id="allow" dir="ltr" placeholder="1142563280">
+        </div>
+        <div class="actions">
+          <button class="btn" data-save="telegram">حفظ</button>
+          <span class="saved" id="s-telegram">حُفظ</span>
+        </div>
+        <div class="note warn">
+          <b>المعرّف الرقمي لا اسم المستخدم.</b> أسماء تليجرام تُغيَّر ويُعاد تخصيصها —
+          من يأخذ اسمك بعدك يرث صلاحيتك. الرقم ثابت للأبد.
+          وإذا تركت القائمة فارغة يعود الوضع إلى <code>pairing</code> حتى لا تُقفل خارج بوتك.
+        </div>
+      </div>
+    </section>
+
+    <!-- ── voice ── -->
+    <section id="p-voice" hidden>
+      <div class="panel">
+        <h2>الصوت العربي</h2>
+        <p class="hint">تكتب فيرد نصاً، وترسل صوتاً فيرد صوتاً.</p>
+        <div class="row">
+          <label for="ttsOn">الرد بصوت</label>
+          <span class="sw"><input type="checkbox" id="ttsOn"><i></i></span>
+        </div>
+        <div class="row">
+          <label for="ttsAuto">متى ينطق</label>
+          <select id="ttsAuto">
+            <option value="inbound">حين أرسل رسالة صوتية فقط</option>
+            <option value="always">دائماً</option>
+            <option value="off">أبداً</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button class="btn" data-save="voice">حفظ</button>
+          <span class="saved" id="s-voice">حُفظ</span>
+        </div>
+        <div class="note">
+          الفصحى ممتازة · الشامي مقبول · <b>المغاربية غير مفهومة</b> (خطأ ٨٧٪).
+          الصوت واحد: <code>ar_JO-kareem</code> — وهو الصوت العربي الوحيد في Piper.
+        </div>
+      </div>
+    </section>
+
+    <!-- ── power ── -->
+    <section id="p-power" hidden>
+      <div class="panel">
+        <h2>الطاقة</h2>
+        <p class="hint">متى ينزل النموذج من كرت الشاشة ويترك الجهاز يتنفّس.</p>
+        <div class="row">
+          <label for="keep">النوم بعد <span class="sub">صمت بلا رسائل</span></label>
+          <select id="keep">
+            <option value="5m">٥ دقائق — أقل ضغط</option>
+            <option value="15m">١٥ دقيقة — موصى به</option>
+            <option value="60m">ساعة</option>
+            <option value="-1">لا ينام أبداً — أسرع رد</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button class="btn" data-save="power">حفظ</button>
+          <span class="saved" id="s-power">حُفظ</span>
+        </div>
+        <div class="note warn">
+          <b>«لا ينام أبداً» يحجز ٤ جيجا من الكرت باستمرار.</b> مع متصفح مكبّر قد يستنزف
+          الذاكرة ويُسقط <code>kwin_wayland</code> فيتجمّد سطح المكتب. لا تختره إلا وأنت تعرف ذلك.
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:1.1rem">
+        <h2>الصلاحيات</h2>
+        <div class="row">
+          <label for="web">الإنترنت <span class="sub">بحث وقراءة صفحات</span></label>
+          <span class="sw"><input type="checkbox" id="web"><i></i></span>
+        </div>
+        <div class="actions">
+          <button class="btn" data-save="permissions">حفظ</button>
+          <span class="saved" id="s-permissions">حُفظ</span>
+        </div>
+        <div class="note warn">
+          <b>الإنترنت مع النموذج المحلي خطر حقيقي.</b> نموذج 4B ضعيف أمام حقن التعليمات:
+          صفحة خبيثة تقدر تعطيه أوامر باعتبارها محتوى. فعّله فقط حين يكون العقل سحابياً.
+        </div>
+      </div>
+
+      <div class="panel grid2" style="margin-top:1.1rem">
+        <div class="metric">
+          <div class="v num" id="vram">—</div><div class="k">ميجابايت من الكرت</div>
+          <div class="bar"><i id="vramBar" style="width:0"></i></div>
+        </div>
+        <div class="metric">
+          <div class="v" id="mstate">—</div><div class="k">حالة النموذج</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = async (p, o) => (await fetch(p, o)).json();
+let CFG = null, CUR = null;
+
+/* tabs */
+const TABS = ['chat','brain','channel','voice','power'];
+function showTab(t){
+  if (!TABS.includes(t)) t = 'chat';
+  document.querySelectorAll('#tabs button').forEach(x => x.setAttribute('aria-selected', x.dataset.t === t));
+  TABS.forEach(x => $('#p-' + x).hidden = (x !== t));
+  if (location.hash.slice(1) !== t) history.replaceState(null, '', '#' + t);
+}
+$('#tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (b) showTab(b.dataset.t);
+});
+addEventListener('hashchange', () => showTab(location.hash.slice(1)));
+showTab(location.hash.slice(1) || 'chat');
+
+/* status */
+const SVC = {ollama:'Ollama', gateway:'البوابة', speaches:'الصوت', moai:'Mo AI'};
+async function tick() {
+  let s; try { s = await api('/api/status'); } catch { return; }
+  $('#stat').innerHTML = Object.entries(s.services).map(([k,v]) =>
+    `<span class="chip"><i class="led ${v?'on':'off'}"></i>${SVC[k]}</span>`).join('') +
+    (s.gpu.total ? `<span class="chip">${s.gpu.used} / ${s.gpu.total} MiB</span>` : '');
+  $('#vram').textContent = s.gpu.used || '—';
+  $('#vramBar').style.width = s.gpu.total ? (s.gpu.used / s.gpu.total * 100) + '%' : '0';
+  $('#mstate').textContent = s.model ? (s.model.processor || 'محمّل') : 'نائم';
+}
+
+/* config */
+async function loadCfg() {
+  CFG = await api('/api/config');
+  $('#mode').value = CFG.brain.mode;
+  $('#localModel').value = CFG.brain.local_model;
+  $('#prov').innerHTML = CFG.providers.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  $('#prov').value = CFG.cloud.provider;
+  $('#base').value = CFG.cloud.base;
+  $('#cmodel').value = CFG.cloud.model;
+  $('#keyState').textContent = CFG.cloud.has_key ? '— محفوظ' : '— غير مضبوط';
+  $('#tgOn').checked = CFG.telegram.enabled;
+  $('#tokState').textContent = CFG.telegram.has_token ? '— محفوظ' : '— غير مضبوط';
+  $('#allow').value = (CFG.telegram.allow || []).join(', ');
+  $('#ttsOn').checked = CFG.voice.tts_enabled;
+  $('#ttsAuto').value = CFG.voice.tts_auto;
+  $('#keep').value = CFG.power.keep_alive;
+  $('#web').checked = CFG.permissions.web;
+  noteMode();
+}
+const NOTES = {
+  local:'كل شيء يبقى على جهازك. لا شبكة، ولا طرف ثالث، ولا فاتورة.',
+  hybrid:'المحلي يجيب أغلب الوقت. أرسل <code>/cloud</code> أو «فكّر بعمق» ليصعد للسحابي.',
+  cloud:'كل رسالة تذهب للمزوّد. <b>لا تستخدمه لملفات حسّاسة</b> ما لم تكن واثقاً من الوجهة.'
+};
+$('#mode').addEventListener('change', noteMode);
+function noteMode() { $('#modeNote').innerHTML = NOTES[$('#mode').value]; }
+$('#prov').addEventListener('change', () => {
+  const p = CFG.providers.find(x => x.id === $('#prov').value);
+  if (p && p.base) { $('#base').value = p.base; $('#cmodel').value = p.model; }
+});
+
+/* save */
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-save]'); if (!b) return;
+  const sec = b.dataset.save; b.disabled = true;
+  const body = {};
+  if (sec === 'cloud') {
+    body.mode = $('#mode').value;
+    body.cloud = {provider:$('#prov').value, base:$('#base').value.trim(),
+                  model:$('#cmodel').value.trim(), key:$('#key').value.trim()};
+  }
+  if (sec === 'telegram') body.telegram = {enabled:$('#tgOn').checked, token:$('#token').value.trim(),
+    allow:$('#allow').value.split(',').map(x => x.trim()).filter(Boolean)};
+  if (sec === 'voice') body.voice = {tts_enabled:$('#ttsOn').checked, tts_auto:$('#ttsAuto').value};
+  if (sec === 'power') body.power = {keep_alive:$('#keep').value};
+  if (sec === 'permissions') body.permissions = {web:$('#web').checked};
+
+  const r = await api('/api/config', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)});
+  b.disabled = false;
+  if (r.error) { alert(r.error); return; }
+  $('#key').value = ''; $('#token').value = '';
+  const s = $('#s-' + sec); if (s) { s.classList.add('show'); setTimeout(() => s.classList.remove('show'), 2200); }
+  loadCfg();
+});
+$('#clearKey').addEventListener('click', async () => {
+  if (!confirm('حذف مفتاح API المحفوظ؟')) return;
+  await api('/api/config', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({cloud:{key:'__clear__'}})});
+  loadCfg();
+});
+
+/* chat */
+async function loadSessions() {
+  const list = await api('/api/sessions');
+  $('#slist').innerHTML = list.length ? list.map(s =>
+    `<button class="sitem" data-id="${s.id}" data-key="${s.key}" aria-current="${s.id===CUR}">
+       ${s.label}<span class="when">${new Date(s.updated*1000).toLocaleString('ar')}</span></button>`
+  ).join('') : '<div class="empty">لا محادثات بعد</div>';
+}
+$('#slist').addEventListener('click', async e => {
+  const b = e.target.closest('.sitem'); if (!b) return;
+  CUR = b.dataset.id; $('#composer').dataset.key = b.dataset.key.split(':').pop();
+  document.querySelectorAll('.sitem').forEach(x => x.setAttribute('aria-current', x === b));
+  const msgs = await api('/api/session?id=' + encodeURIComponent(CUR));
+  renderThread(msgs);
+});
+function renderThread(msgs) {
+  const t = $('#thread');
+  t.innerHTML = msgs.length ? msgs.map(m =>
+    `<div class="msg ${m.role}"></div>`).join('') : '<div class="empty">لا رسائل</div>';
+  // textContent, never innerHTML — message bodies are untrusted input.
+  msgs.forEach((m, i) => { t.children[i].textContent = m.text; });
+  t.scrollTop = t.scrollHeight;
+}
+$('#composer').addEventListener('submit', async e => {
+  e.preventDefault();
+  const inp = $('#msg'), text = inp.value.trim(); if (!text) return;
+  const key = $('#composer').dataset.key || 'console';
+  inp.value = ''; $('#sendBtn').disabled = true;
+  const t = $('#thread');
+  if (t.querySelector('.empty')) t.innerHTML = '';
+  const u = document.createElement('div'); u.className = 'msg user'; u.textContent = text; t.appendChild(u);
+  const a = document.createElement('div'); a.className = 'msg assistant'; a.textContent = '…'; t.appendChild(a);
+  t.scrollTop = t.scrollHeight;
+  try {
+    const r = await api('/api/send', {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({key, text})});
+    a.textContent = r.reply || r.error || 'لا رد';
+  } catch { a.textContent = 'تعذّر الاتصال'; }
+  $('#sendBtn').disabled = false; t.scrollTop = t.scrollHeight;
+  loadSessions();
+});
+
+tick(); loadCfg(); loadSessions();
+setInterval(tick, 6000);
+</script>
+</body>
+</html>
