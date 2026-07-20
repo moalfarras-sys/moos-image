@@ -206,8 +206,12 @@ export class RemoteConnection {
   text(value: string) {
     this.pendingText+=value;
     if(this.textTimer)window.clearTimeout(this.textTimer);
-    // Coalesce adjacent mobile input events without adding visible keyboard latency.
-    this.textTimer=window.setTimeout(()=>this.flushText(),12);
+    // Coalesce adjacent mobile input events without adding visible keyboard latency. 45ms rather
+    // than 12: anything the agent cannot type by keysym (Arabic, and punctuation that needs a
+    // shift level) is typed by briefly borrowing the clipboard, and at 12ms that was one clipboard
+    // round trip PER LETTER. Batching into words makes Arabic one paste instead of five, and 45ms
+    // is still well under the ~100ms where typing starts to feel detached.
+    this.textTimer=window.setTimeout(()=>this.flushText(),45);
   }
   private flushText(){if(this.textTimer)window.clearTimeout(this.textTimer);this.textTimer=null;if(!this.pendingText)return;const value=this.pendingText;this.pendingText="";this.input({type:"text",value});}
   settings(quality: number, fps: number, scale: number) {

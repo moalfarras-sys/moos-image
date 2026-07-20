@@ -12,5 +12,11 @@ const gestures = readFileSync(join(lib, "gestures.ts"), "utf8");
 const ws = readFileSync(join(lib, "ws.ts"), "utf8");
 assert.match(gestures, /MOVE_THRESHOLD = 5/);
 assert.match(gestures, /Continue below and deliver this first meaningful delta/);
-assert.match(ws, /setTimeout\(\(\)=>this\.flushText\(\),12\)/);
+// Text is coalesced before it is sent. The window has to be big enough that Arabic — which the
+// agent types by borrowing the clipboard, one round trip per flush — batches into words rather
+// than letters, and small enough to stay under the ~100ms where typing feels detached.
+const coalesce = ws.match(/setTimeout\(\(\)=>this\.flushText\(\),(\d+)\)/);
+assert.ok(coalesce, "ws.ts must coalesce text before sending");
+assert.ok(Number(coalesce[1]) >= 30 && Number(coalesce[1]) <= 80,
+  `text coalescing window should be 30-80ms, got ${coalesce[1]}ms`);
 console.log("PASS: client letterbox/orientation/invalid-coordinate tests");

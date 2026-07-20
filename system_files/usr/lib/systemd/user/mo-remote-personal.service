@@ -1,8 +1,11 @@
 [Unit]
 Description=Mo Remote
 ConditionUser=!@system
-After=plasma-workspace.target network-online.target ydotoold-moremote.service
-Wants=network-online.target ydotoold-moremote.service
+After=plasma-workspace.target network-online.target ydotoold-moremote.service mo-remote-cert.service
+# The certificate must exist BEFORE we start: Kestrel loads it once, at startup, so a cert that
+# arrives afterwards leaves the phone on plain http — no H.264, no clipboard — until the next
+# restart. Ordering it ahead of us costs a few seconds on a cold boot and nothing after that.
+Wants=network-online.target ydotoold-moremote.service mo-remote-cert.service
 PartOf=plasma-workspace.target
 
 [Service]

@@ -1,19 +1,19 @@
 namespace MoRemote;
 
-/// <summary>Maps Unicode text to keysyms accepted by KWin's RemoteDesktop portal.</summary>
+/// <summary>
+/// Maps Unicode to X keysyms for the portal's NotifyKeyboardKeysym.
+///
+/// This is only used for characters that are reachable on the ACTIVE keymap group at shift level
+/// one — in practice ASCII. It deliberately no longer tries to reach Arabic: KWin resolves a
+/// keysym against the active group only, so on a `de,ara` keymap sitting in the German group an
+/// Arabic keysym (legacy 0x05xx or the 0x01000000+Unicode form alike) resolves to no real key.
+/// Measured: 'م' arrived as keycode 247 / keyval 0x1008ffb5 — a key that types nothing. Arabic is
+/// typed through the clipboard instead; see InputInjector.PasteText.
+/// </summary>
 public static class TextKeysym
 {
-    public static int ForCodepoint(int codepoint)
-    {
-        // XKB represents the core Arabic block with legacy 0x05xx keysyms. The generic
-        // 0x01000000+Unicode form is accepted by D-Bus but silently produces no key event.
-        if (codepoint == 0x060c) return 0x05ac;
-        if (codepoint == 0x061b) return 0x05bb;
-        if (codepoint == 0x061f) return 0x05bf;
-        if (codepoint is >= 0x0621 and <= 0x063a) return 0x05c1 + (codepoint - 0x0621);
-        if (codepoint is >= 0x0640 and <= 0x0652) return 0x05e0 + (codepoint - 0x0640);
-        return codepoint is >= 0x20 and <= 0x7e or >= 0xa0 and <= 0xff
+    public static int ForCodepoint(int codepoint) =>
+        codepoint is >= 0x20 and <= 0x7e or >= 0xa0 and <= 0xff
             ? codepoint
             : 0x01000000 + codepoint;
-    }
 }

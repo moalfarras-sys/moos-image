@@ -22,9 +22,13 @@ Eq((0,785),CoordinateMapper.NormalizedToDesktop(-5,9,normal),"out-of-range clamp
 var guard=new InputSequenceGuard();Eq(true,guard.Accept(1,1000,1000,out _),"sequence first");Eq(false,guard.Accept(1,1001,1001,out _),"sequence duplicate");Eq(false,guard.Accept(0,1002,1002,out _),"sequence reordered");Eq(false,new InputSequenceGuard().Accept(1,0,40000,out _),"stale event");
 
 var unicode="مرحباً Grüße English";Eq(unicode,System.Text.Encoding.UTF8.GetString(System.Text.Encoding.UTF8.GetBytes(unicode)),"clipboard unicode");
-Eq(0x05e5,TextKeysym.ForCodepoint('م'),"Arabic meem legacy keysym");
-Eq(0x05d1,TextKeysym.ForCodepoint('ر'),"Arabic reh legacy keysym");
-Eq(0x05c8,TextKeysym.ForCodepoint('ب'),"Arabic beh legacy keysym");
-Eq(0x05ac,TextKeysym.ForCodepoint('،'),"Arabic comma legacy keysym");
-Eq(0x010020ac,TextKeysym.ForCodepoint('€'),"non-Arabic Unicode keysym");
+// ASCII is the only thing the keysym path is allowed to carry: KWin resolves a keysym against the
+// ACTIVE keymap group only, so on a `de,ara` keymap in the German group an Arabic keysym — legacy
+// 0x05xx or 0x01000000+Unicode alike — resolves to no real key. Measured on a live KWin 6.7
+// session: 'م' arrived as keycode 247 / keyval 0x1008ffb5, which types nothing. Arabic therefore
+// goes through the clipboard, and this asserts we no longer pretend otherwise.
+Eq((int)'a',TextKeysym.ForCodepoint('a'),"ASCII keysym is the codepoint");
+Eq((int)'Z',TextKeysym.ForCodepoint('Z'),"ASCII capital keysym is the codepoint");
+Eq(0x010020ac,TextKeysym.ForCodepoint('€'),"non-ASCII Unicode keysym form");
+Eq(0x01000645,TextKeysym.ForCodepoint('م'),"Arabic no longer claims a legacy keysym");
 Console.WriteLine($"PASS: {passed} mapping/validation/Unicode tests");

@@ -262,6 +262,12 @@ public sealed class StreamSession
                 case "ping":
                     await SendJson(new { type = "pong", t = GetNum(root, "t") }, ct);
                     return;
+                // "video" is what the PWA actually sends to declare its decoder, on connect and
+                // again if the decoder gives up mid-session. It used to fall through to the input
+                // switch, which has no case for it — so the declaration was silently discarded and
+                // every phone, however capable, was served JPEG forever. "settings" carries the
+                // same field, so both names route here.
+                case "video":
                 case "settings":
                     if (TryGetInt(root, "quality", out var q)) _quality = Math.Clamp(q, 10, 95);
                     if (TryGetInt(root, "fps", out var f)) { _fps = Math.Clamp(f, 1, 30); _svc.Capture.SetFps(_fps); }

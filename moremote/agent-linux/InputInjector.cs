@@ -29,6 +29,13 @@ public sealed class InputInjector : IDisposable
     // lets *Current()-style calls (click where the cursor already is) work on the portal path.
     private double _lastX = 0.5, _lastY = 0.5;
 
+    /// <summary>Keys that modify another key rather than producing a character of their own.</summary>
+    private static readonly Dictionary<string, ushort> Modifiers = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Control"] = 29, ["Ctrl"] = 29, ["Alt"] = 56, ["Shift"] = 42,
+        ["Meta"] = 125, ["Super"] = 125, ["Win"] = 125, ["AltGr"] = 100,
+    };
+
     private static readonly Dictionary<string, ushort> Keys = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Control"] = 29, ["Ctrl"] = 29, ["Alt"] = 56, ["Shift"] = 42, ["Meta"] = 125, ["Super"] = 125, ["Win"] = 125,
@@ -148,57 +155,152 @@ public sealed class InputInjector : IDisposable
     public void KeyDown(string k) { if (Keys.TryGetValue(k, out var c)) Set(c, true); }
     public void KeyUp(string k) { if (Keys.TryGetValue(k, out var c)) Set(c, false); }
 
+    /// <summary>
+    /// Modifiers are physical keys, so they go by keycode. The key they modify is a CHARACTER, so
+    /// it goes by keysym: the keycode table above is QWERTY, and the owner's keymap is German
+    /// QWERTZ, where evdev 44 is 'y' — which is why Ctrl+Z was performing redo instead of undo.
+    /// A keysym lets the compositor find the right physical key for whatever layout is loaded.
+    /// </summary>
     public void Combo(IReadOnlyList<string> keys)
+    {
+        var mods = new List<ushort>();
+        var rest = new List<Stroke>();
+        foreach (var k in keys)
+        {
+            if (Modifiers.TryGetValue(k, out var mod)) { if (!mods.Contains(mod)) mods.Add(mod); }
+            else if (k.Length == 1 && k[0] is > ' ' and <= '~')
+                rest.Add(Stroke.Keysym(char.ToLowerInvariant(k[0])));
+            else if (Keys.TryGetValue(k, out var code))
+                rest.Add(Stroke.Code(code));
+        }
+
+        foreach (var m in mods) Set(m, true);            // tracked, so ReleaseAll can undo them
+        var events = new List<object>();
+        foreach (var s in rest) events.Add(s.Event(down: true));
+        for (int i = rest.Count - 1; i >= 0; i--) events.Add(rest[i].Event(down: false));
+        if (events.Count > 0 && !_portal.Send(new { type = "keysyms", events }))
+            FallbackCombo(keys);
+        for (int i = mods.Count - 1; i >= 0; i--) Set(mods[i], false);
+    }
+
+    /// <summary>One press in an ordered batch: a keysym (a character) or a raw evdev code (a key).</summary>
+    private readonly record struct Stroke(int Value, bool IsKeysym)
+    {
+        public static Stroke Keysym(char c) => new(TextKeysym.ForCodepoint(c), true);
+        public static Stroke Code(ushort code) => new(code, false);
+        public object Event(bool down) => IsKeysym
+            ? new { keysym = Value, down }
+            : (object)new { code = Value, down };
+    }
+
+    /// <summary>ydotool has no keysyms; on that path the QWERTY table is all there is.</summary>
+    private void FallbackCombo(IReadOnlyList<string> keys)
     {
         var codes = keys.Select(k => Keys.TryGetValue(k, out var c) ? c : (ushort)0).Where(c => c > 0).ToArray();
         foreach (var c in codes) Set(c, true);
-        foreach (var c in codes.Reverse()) Set(c, false);
+        for (int i = codes.Length - 1; i >= 0; i--) Set(codes[i], false);
     }
 
     /// <summary>
-    /// Types text through the portal whenever every character has a proven keysym. Arabic uses
-    /// XKB's legacy 0x05xx keysyms (see TextKeysym); sending Unicode keysyms for those letters
-    /// makes KWin acknowledge the call while injecting nothing. Other Unicode and the ydotool
-    /// fallback still use clipboard+paste.
+    /// Types text, choosing between two paths because KWin's keysym injection only reaches the
+    /// FIRST shift level of the ACTIVE layout group. Measured against a live KWin 6.7 session on
+    /// the owner's `de,ara` keymap:
+    ///   'a'  -> 'a'                              (level 1 of the active group: correct)
+    ///   'Z'  -> 'z'                              (the shift level is never applied)
+    ///   'م'  -> keycode 247, keyval 0x1008ffb5   (a keysym from an inactive group: garbage)
+    /// So the fast path is restricted to characters that are level 1 on any Latin layout, with
+    /// capitals produced by holding a real Shift keycode around the lowercase keysym. Everything
+    /// else — Arabic, punctuation that needs a shift level, emoji — goes through the clipboard,
+    /// which is layout-independent and carries any Unicode exactly.
     /// </summary>
     public void TypeText(string text)
     {
         if (string.IsNullOrEmpty(text)) return;
 
-        // Keysyms are typed one at a time with a small gap, so a long paste would crawl. Above a
-        // paragraph or so, one clipboard paste is far quicker and the user is pasting anyway.
-        if (_portal.IsReady && text.Length <= BulkPasteThreshold && IsKeysymSafe(text))
-        {
-            var events = new List<object>();
-            foreach (var rune in text.EnumerateRunes())
-            {
-                int keysym = TextKeysym.ForCodepoint(rune.Value);
-                events.Add(new { keysym, down = true });
-                events.Add(new { keysym, down = false });
-            }
-            // One ordered pipe write per committed mobile edit. The helper performs the D-Bus
-            // calls serially, preserving key order without 2N JSON writes and artificial sleeps.
-            if (_portal.Send(new { type = "keysyms", events })) return;
-        }
-        ClipboardBridge.SetText(text);
-        Combo(["Control", "V"]);
+        // Keysyms are typed one at a time, so a long run would crawl. Above a paragraph or so one
+        // clipboard paste is far quicker, and the user is pasting anyway.
+        if (_portal.IsReady && text.Length <= BulkPasteThreshold && TryDirectStrokes(text, out var events)
+            && _portal.Send(new { type = "keysyms", events })) return;
+
+        PasteText(text);
     }
 
     private const int BulkPasteThreshold = 64;
 
     /// <summary>
-    /// True only for ranges verified against the live KWin keymap.
+    /// Builds an ordered press/release batch, or fails if any character cannot be typed correctly
+    /// by keysym on an arbitrary Latin layout.
     /// </summary>
-    private static bool IsKeysymSafe(string text)
+    private static bool TryDirectStrokes(string text, out List<object> events)
     {
+        events = [];
         foreach (var rune in text.EnumerateRunes())
         {
-            if (rune.Value is >= 0x20 and <= 0x7e) continue;
-            if (rune.Value is 0x060c or 0x061b or 0x061f) continue;
-            if (rune.Value is >= 0x0621 and <= 0x063a or >= 0x0640 and <= 0x0652) continue;
-            return false;
+            int c = rune.Value;
+            if (c is >= 'a' and <= 'z' or >= '0' and <= '9' || c == ' ')
+            {
+                events.Add(new { keysym = c, down = true });
+                events.Add(new { keysym = c, down = false });
+            }
+            else if (c is >= 'A' and <= 'Z')
+            {
+                // The capital's own keysym resolves to the same physical key but types lowercase,
+                // so the shift has to be a real key press around it.
+                int lower = c + ('a' - 'A');
+                events.Add(new { code = (int)ShiftCode, down = true });
+                events.Add(new { keysym = lower, down = true });
+                events.Add(new { keysym = lower, down = false });
+                events.Add(new { code = (int)ShiftCode, down = false });
+            }
+            else { events = []; return false; }
         }
-        return true;
+        return events.Count > 0;
+    }
+
+    private const ushort ShiftCode = 42;
+
+    // ---------------------------------------------------------------- clipboard typing
+
+    private readonly object _clipGate = new();
+    private ClipContent? _borrowedClip;
+    private int _pasteGeneration;
+
+    /// <summary>
+    /// Types by borrowing the clipboard. Shift+Insert rather than Ctrl+V: Ctrl+V is not paste in a
+    /// terminal (Konsole needs Ctrl+Shift+V), which is why typing Arabic into a shell did nothing
+    /// at all. Shift+Insert is paste in Konsole, GTK, Qt and browsers alike.
+    /// </summary>
+    private void PasteText(string text)
+    {
+        int gen = Interlocked.Increment(ref _pasteGeneration);
+        lock (_clipGate)
+        {
+            // Snapshot once per burst. Re-reading between consecutive chunks would "save" the text
+            // we just pasted and hand the user that instead of what they had.
+            _borrowedClip ??= ClipboardBridge.GetContent();
+        }
+        ClipboardBridge.SetText(text);
+        Combo(["Shift", "Insert"]);
+        ScheduleClipboardReturn(gen);
+    }
+
+    /// <summary>Hand the clipboard back once typing has settled, so a borrow is not a theft.</summary>
+    private void ScheduleClipboardReturn(int gen)
+    {
+        _ = Task.Delay(TimeSpan.FromMilliseconds(700)).ContinueWith(_ =>
+        {
+            // More text arrived; that paste now owns the borrow and will return it.
+            if (Volatile.Read(ref _pasteGeneration) != gen) return;
+            ClipContent? saved;
+            lock (_clipGate) { saved = _borrowedClip; _borrowedClip = null; }
+            if (saved is null) return;
+            try
+            {
+                if (saved.Kind == "text" && !string.IsNullOrEmpty(saved.Text)) ClipboardBridge.SetText(saved.Text);
+                else if (saved.Kind == "image" && saved.ImagePng is { Length: > 0 } png) ClipboardBridge.SetImagePng(png);
+            }
+            catch (Exception ex) { Log.Warn("Clipboard restore failed: " + ex.Message); }
+        });
     }
 
     // ---------------------------------------------------------------- shared

@@ -1264,8 +1264,14 @@ dnf5 -y install tailscale ydotool wl-clipboard spectacle python3-gobject qrencod
     gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good pipewire-gstreamer
 systemctl enable tailscaled.service
 systemctl --global disable mo-remote-personal.service || true
+# The certificate timer, unlike the agent, IS enabled by default. It is inert until someone has
+# actually set Mo Remote up (the script checks for its config first), and enabling it is what
+# makes HTTPS the default rather than a step nobody knows to take. Plain http costs the phone
+# WebCodecs and the clipboard, which is most of what the feature is for.
+systemctl --global enable mo-remote-cert.timer || true
 chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
     /usr/lib/mo-remote/mo-remote-portal.py \
+    /usr/lib/mo-remote/refresh-cert.sh \
     /usr/bin/mo-pc-remote
 
 # Fail the build if the capture pipeline's GStreamer elements are missing: a shipped image

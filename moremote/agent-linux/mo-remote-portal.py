@@ -279,8 +279,15 @@ def pick_h264():
 
 def h264_bitrate():
     """Reuse the existing 10..95 quality slider. The phone already has one; a second control that
-    means almost the same thing is a worse UI than a single one that means both."""
-    return max(800, min(8000, int(state["quality"] * 60)))
+    means almost the same thing is a worse UI than a single one that means both.
+
+    The multiplier is 100, not the 60 it started at, because a remote DESKTOP is mostly small text
+    and thin window chrome — the content H.264 finds hardest and the content the user is actually
+    reading. At the old mapping the 62 default meant 3.7 Mbit/s at 1080p, where terminal text goes
+    soft and never quite settles. 6.2 Mbit/s holds it crisp, costs nothing on NVENC, and is still
+    well under a twentieth of what the JPEG path it replaced was spending (measured here: 1.18 MB
+    frames, ~280 Mbit/s) to look worse."""
+    return max(1200, min(12000, int(state["quality"] * 100)))
 
 
 def target_size():
@@ -546,10 +553,17 @@ def handle(m):
     elif t == "keysym":
         notify("NotifyKeyboardKeysym", "(oa{sv}iu)", (session, empty, int(m["keysym"]), 1 if m["down"] else 0))
     elif t == "keysyms":
-        # A committed phone edit arrives as one ordered batch.
+        # A committed phone edit arrives as one ordered batch. Entries carry EITHER a keysym (the
+        # character, resolved against whatever layout is loaded) or a raw evdev code (a modifier,
+        # which has no character to resolve). Both are needed in one ordered stream: a capital
+        # letter is Shift-down, keysym, Shift-up, and splitting that across messages races.
         for event in m.get("events", []):
-            notify("NotifyKeyboardKeysym", "(oa{sv}iu)",
-                   (session, empty, int(event["keysym"]), 1 if event["down"] else 0))
+            if "code" in event:
+                notify("NotifyKeyboardKeycode", "(oa{sv}iu)",
+                       (session, empty, int(event["code"]), 1 if event["down"] else 0))
+            else:
+                notify("NotifyKeyboardKeysym", "(oa{sv}iu)",
+                       (session, empty, int(event["keysym"]), 1 if event["down"] else 0))
     elif t == "keyframe":
         # A phone that just connected has no reference frame. Asking costs one larger frame;
         # not asking costs it up to a whole GOP of garbage.
