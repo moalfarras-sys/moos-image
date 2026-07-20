@@ -111,6 +111,24 @@ QQC2.AbstractButton {
             }
         }
 
+        // Active neon indicator rail
+        Rectangle {
+            anchors {
+                bottom: parent.bottom
+                horizontalCenter: parent.horizontalCenter
+                bottomMargin: 2
+            }
+            width: control.hovered || control.visualFocus ? parent.width * 0.55 : (control.emphasized ? parent.width * 0.32 : 0)
+            height: 2
+            radius: 1
+            color: control.destructive
+                ? Kirigami.Theme.negativeTextColor
+                : Kirigami.Theme.highlightColor
+            opacity: control.hovered || control.visualFocus || control.emphasized ? 0.95 : 0
+            Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+            Behavior on opacity { NumberAnimation { duration: 150 } }
+        }
+
         // Press pulse — ring that expands outward on click
         Rectangle {
             id: pressPulse

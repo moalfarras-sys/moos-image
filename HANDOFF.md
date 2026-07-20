@@ -47,7 +47,11 @@ Evidence priority:
      - search text: triggers KRunner / app launcher menu.
    - Added clear button and dynamic action indicator pills (`↵ Open Mo AI`, `↵ Open Mo Store`, `↵ Search apps & system`).
 
-3. **Verification**:
+3. **Logout Screen Action Buttons Upgrade**:
+   - Upgraded `MoOSUI2ActionButton.qml` with dynamic bottom neon active indicator rail, smooth hover scaling, and responsive press animations.
+   - Synchronized across all 16 MoOS UI2 theme variants via `generate_moos_themes.py`.
+
+4. **Verification**:
    - `just check` (UX gate, device plan, moai-do test, visual checks) — **PASSED**.
    - `python3 tests/test_moos_ui2.py` (7 tests) — **PASSED**.
    - `python3 tests/test_moos_theme_safety.py` (3 tests) — **PASSED**.
