@@ -3,15 +3,18 @@
 
 The animation is driven by moos.script at boot — it MOVES a few small sprites
 (rotates the energy head around the ring, scales/fades the logo, breathes the
-glow), rather than playing hundreds of pre-baked frames. That keeps the theme a
-few hundred KB instead of tens of MB, so the initramfs stays small and boot
-stays fast. The logo is his 1024px master, never redrawn/recoloured/cropped.
+glow, orbits 3D particles, and expands pulse waves), rather than playing
+hundreds of pre-baked frames. That keeps the theme ~1 MB instead of tens of MB,
+so the initramfs stays small and boot stays fast. The logo is his 1024px master.
 
 Sprites written to system_files/usr/share/plymouth/themes/moos/:
-  logo.png   — the crisp MoOS mark (his master, downscaled to 512)
-  ring.png   — a faint circular track the energy head runs on
-  head.png   — the cyan→violet energy head (a glowing comet blob)
-  glow.png   — a soft ambient bloom that sits behind the mark
+  logo.png     — the crisp MoOS mark (his master, downscaled to 512)
+  ring.png     — primary circular track the energy head runs on
+  ring2.png    — secondary inner orbital ring for 3D parallax depth
+  head.png     — the cyan→violet energy head (a glowing comet blob)
+  glow.png     — a soft ambient bloom that sits behind the mark
+  particle.png — small energy sprite for 3D elliptical particle orbits
+  pulse.png    — radial shockwave ring for periodic pulse waves
 
 Also writes artwork/boot-splash-grid.png (a static preview of the composed look).
 Pure PIL, deterministic.
@@ -65,6 +68,17 @@ def make_ring():
     img.save(THEME / "ring.png")
 
 
+def make_ring2():
+    """Inner secondary ring for 3D parallax depth."""
+    S = 720
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    m = S * 0.12
+    d.ellipse([m, m, S - m, S - m], outline=VIOLET + (80,), width=2)
+    img = img.filter(ImageFilter.GaussianBlur(1))
+    img.save(THEME / "ring2.png")
+
+
 def make_head():
     """The energy head: a bright cyan core in a violet halo with a short trailing
     comet tail, so its motion around the ring reads as a comet, not a dot."""
@@ -90,6 +104,32 @@ def make_head():
     img.save(THEME / "head.png")
 
 
+def make_particle():
+    """Small energy particle for 3D elliptical orbits."""
+    S = 64
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    cx = cy = S / 2
+    for r in range(int(S * 0.45), 0, -1):
+        t = r / (S * 0.45)
+        col = _lerp((240, 253, 255), CYAN, t)
+        a = int(220 * (1 - t) ** 1.8)
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=col + (a,))
+    img = img.filter(ImageFilter.GaussianBlur(1))
+    img.save(THEME / "particle.png")
+
+
+def make_pulse():
+    """Pulse wave ring for expanding shockwave effect."""
+    S = 512
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    m = S * 0.10
+    d.ellipse([m, m, S - m, S - m], outline=CYAN + (120,), width=3)
+    img = img.filter(ImageFilter.GaussianBlur(2))
+    img.save(THEME / "pulse.png")
+
+
 def preview():
     """A static composite so the look can be eyeballed without booting."""
     S = 720
@@ -99,8 +139,9 @@ def preview():
     bg.alpha_composite(glow, (int(S / 2 - glow.width / 2), int(S / 2 - glow.height / 2)))
     ring = Image.open(THEME / "ring.png")
     bg.alpha_composite(ring, (0, 0))
+    ring2 = Image.open(THEME / "ring2.png")
+    bg.alpha_composite(ring2, (0, 0))
     head = Image.open(THEME / "head.png")
-    # place head at top of ring
     hx, hy = S / 2, S * 0.08
     bg.alpha_composite(head, (int(hx - head.width / 2), int(hy - head.height / 2)))
     logo = Image.open(THEME / "logo.png").resize((int(S * 0.36), int(S * 0.36)))
@@ -113,10 +154,13 @@ def render():
     make_logo()
     make_glow()
     make_ring()
+    make_ring2()
     make_head()
+    make_particle()
+    make_pulse()
     preview()
     total = sum(p.stat().st_size for p in THEME.glob("*.png"))
-    print(f"sprites -> {THEME}  (logo, ring, head, glow) total {total/1024:.0f} KiB")
+    print(f"sprites -> {THEME}  (logo, ring, ring2, head, glow, particle, pulse) total {total/1024:.0f} KiB")
     print(f"preview: {ART/'boot-splash-grid.png'}")
 
 
