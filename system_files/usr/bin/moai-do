@@ -737,6 +737,10 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Install the Claude Code agent into ~/.local (no privileges)
   ${C}install-opencode${N}  تثبيت OpenCode — وكيل برمجة يعمل على عقلك المحلي (بلا حساب)
                     Install OpenCode — a coding agent on your LOCAL brain (no account)
+  ${C}install-openclaw${N}  تثبيت وكيل الهاتف — راسل جهازك من تليجرام (بلا صلاحيات)
+                    Install the phone agent — message this machine from Telegram
+  ${C}setup-brain${N}       تشغيل العقل المحلي: خادم النماذج ومحرّك الصوت العربي
+                    Start the local brain: model server and Arabic speech engine
   ${C}remote-anywhere${N}   تشغيل Mo PC Remote من خارج البيت (Tailscale HTTPS)
                     Reach Mo PC Remote from outside the house
   ${C}diagnose-services${N} عرض الخدمات الفاشلة (قراءة فقط)
