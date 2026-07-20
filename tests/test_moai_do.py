@@ -26,6 +26,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -165,6 +166,52 @@ for bad_id in ("../../etc/passwd",
 # And with no id at all it must ask for one rather than doing anything.
 result = run("install")
 check(result.returncode == 2, "moai-do install with no id must exit 2")
+
+# The updater must turn the mutable official `:latest` tag into an exact digest before
+# privilege escalation. Run it against command doubles: nothing here reaches rpm-ostreed,
+# the registry or Polkit, but the captured pkexec argv proves the security boundary.
+with tempfile.TemporaryDirectory() as tmp:
+    bindir = Path(tmp)
+    log = bindir / "pkexec.log"
+    digest = "sha256:" + "d" * 64
+    current = "sha256:" + "b" * 64
+    status = (
+        '{"deployments":[{"booted":true,"container-image-reference":'
+        f'"ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@{current}"'
+        "}]}"
+    )
+    doubles = {
+        "rpm-ostree": f"#!/bin/sh\nprintf '%s\\n' '{status}'\n",
+        "skopeo": f"#!/bin/sh\nprintf '%s\\n' '{digest}'\n",
+        "pkexec": '#!/bin/sh\nprintf "%s\\n" "$@" > "$MOOS_TEST_PKEXEC_LOG"\n',
+    }
+    for name, body in doubles.items():
+        path = bindir / name
+        path.write_text(body, encoding="utf-8")
+        path.chmod(0o755)
+    env = os.environ.copy()
+    env["PATH"] = f"{bindir}{os.pathsep}{env.get('PATH', '')}"
+    env["MOOS_TEST_PKEXEC_LOG"] = str(log)
+    result = subprocess.run(
+        [BASH, str(MOAI_DO), "update"],
+        input="y\n",
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=30,
+        env=env,
+    )
+    check(result.returncode == 0, f"exact-digest update simulation failed: {result.stderr}")
+    expected = (
+        "rpm-ostree\nrebase\n"
+        "ostree-image-signed:docker://ghcr.io/moalfarras-sys/"
+        f"moos-nvidia@{digest}\n"
+    )
+    actual = log.read_text(encoding="utf-8") if log.exists() else ""
+    check(actual == expected,
+          "update must escalate only an exact signature-enforced official MoOS reference; "
+          f"got {actual!r}")
 
 if errors:
     print("MoOS moai-do test failed:", file=sys.stderr)

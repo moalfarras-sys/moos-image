@@ -32,7 +32,7 @@ Evidence priority:
 ## Session 2026-07-20 — Mo Store / Mo PC Remote icons and Arabic input
 
 - Code checkpoint: `cf8dad5` (`feat(remote): improve Arabic input and refresh app icons`).
-  The following HANDOFF update is documentation-only on top of that checkpoint.
+  Current pushed HEAD is the documentation-only `d457024` on top of it.
 - Booted image remains signed `moos-nvidia` `44.20260719.260`,
   digest `sha256:bc7d68117e2be0d21c161efd1c54277169fddb8c239173cfd58fe1fc85695b16`.
   The retained rollback deployment is `.259` at digest `sha256:6bb673…`.
@@ -73,10 +73,23 @@ Tests completed:
 
 Open issues and exact next step:
 
-1. Push `cf8dad5` plus this HANDOFF update, wait for CI and signed NVIDIA image.
-   Do not update the daily driver before all checks are green and the new digest
-   is visible and signed.
-2. Boot the candidate while retaining `.260`, then test real Arabic typing from
+1. CI run `29708715032` completed successfully for both editions, including
+   signing and verification. Signed `moos-nvidia` `.262` is published at
+   `sha256:dde50286ccfc1623ea47e49431ca18050eecf1d8a3509255780b350f4f95b9ea`
+   with revision `d457024`; generic `.262` is
+   `sha256:8e88afe04987c4b85584d7ac1df38056ce4909d1dfdef4fa5a0f6f6c37a1b96e`.
+   It is **not staged**: the installed origin is pinned to the old exact digest,
+   so `rpm-ostree upgrade` says no update, while an exact `rpm-ostree rebase`
+   is correctly denied to the unprivileged session.
+2. The pending working tree fixes that updater dead end in `moai-do update`: it
+   identifies the booted MoOS edition, resolves only the official GHCR `:latest`
+   tag, validates an exact SHA-256 digest, and escalates only a constructed
+   `ostree-image-signed:` rebase. The previous deployment remains available.
+   `tests/test_moai_do.py` now executes the complete update flow against command
+   doubles and proves the exact privileged argv. `bash -n`, that test, and
+   `just check` pass. Commit/push this change, wait for signed CI, then use this
+   audited repo copy of `moai-do update` to stage the resulting NVIDIA digest.
+3. Boot the candidate while retaining `.260`, then test real Arabic typing from
    an Arabic phone keyboard into at least KWrite and Firefox, including composing,
    Backspace, spaces and punctuation. Test touch tap/drag/scroll on the same run.
 3. Reproduce the stale screencast UUID failure across window close, display-mode

@@ -10,7 +10,7 @@
 # prompt) for privileged calls — NEVER a passwordless sudo.
 #
 # External commands VERIFIED 2026-07-10:
-#   - bootc upgrade                  (bootc.dev man pages) stages update, applies on reboot
+#   - rpm-ostree rebase <signed-ref> stages an exact signed image, applies on reboot
 #   - flatpak install -y REMOTE REF  (flatpak docs; -y/--assumeyes; flathub remote)
 #   - flatpak uninstall --unused -y  (flatpak-uninstall(1)) drop unused runtimes
 #   - fwupdmgr get-devices           (fwupd.github.io) READ-ONLY device list
@@ -21,8 +21,9 @@
 # =============================================================================
 set -euo pipefail
 
-# lspci lives under /usr/sbin on Fedora — make sure it is reachable.
-export PATH="/usr/sbin:/sbin:${PATH}"
+# lspci lives under /usr/sbin on Fedora — make sure it is reachable. Keep the
+# caller's normal command order; Polkit applies its own trusted execution path.
+export PATH="${PATH}:/usr/sbin:/sbin"
 
 # ---- colors (disabled when stdout is not a terminal) ------------------------
 if [ -t 1 ]; then
@@ -113,19 +114,65 @@ launch_app() {
 }
 
 # -----------------------------------------------------------------------------
-# update — atomic system update via bootc (applies on reboot).
+# update — resolve the official latest image to an immutable digest, then stage it
+# through the signature-enforcing rpm-ostree transport. A digest-pinned installation
+# cannot advance with `bootc upgrade`: its origin deliberately names the old immutable
+# object. We therefore discover `:latest` without privilege, reject every repository
+# except MoOS's two official editions, validate the digest shape, and pass only the
+# constructed exact reference across Polkit.
 # -----------------------------------------------------------------------------
 do_update() {
-    hdr "تحديث النظام (ذرّي عبر bootc)" "System update (atomic via bootc)"
+    hdr "تحديث النظام (صورة MoOS موقّعة وثابتة)" "System update (exact signed MoOS image)"
     echo "${D}يُنزّل ويُجهّز نسخة جديدة — تُطبَّق عند إعادة التشغيل. لا يمسّ ملفاتك.${N}"
     echo "${D}Downloads & stages a new version — applies on reboot. Files untouched.${N}"
     echo
-    need bootc || { echo "${Y}شغّل هذا داخل MoOS | run this on a MoOS system${N}"; return 1; }
+    need rpm-ostree || { echo "${Y}شغّل هذا داخل MoOS | run this on a MoOS system${N}"; return 1; }
+    need skopeo || return 1
+    need python3 || return 1
+
+    local status ref edition registry latest current target
+    status="$(rpm-ostree status --json)" || return 1
+    ref="$(python3 -c '
+import json, sys
+for deployment in json.load(sys.stdin).get("deployments", []):
+    if deployment.get("booted"):
+        print(deployment.get("container-image-reference", ""))
+        break
+' <<<"$status")"
+
+    registry="ghcr.io/moalfarras-sys"
+    case "$ref" in
+        *"/moos-nvidia@"*|*"/moos-nvidia:"*) edition="moos-nvidia" ;;
+        *"/moos@"*|*"/moos:"*) edition="moos" ;;
+        *)
+            echo "${R}تعذّر تحديد إصدار MoOS المشغّل بأمان.${N}" >&2
+            echo "${R}Could not safely identify the booted MoOS edition.${N}" >&2
+            return 1
+            ;;
+    esac
+
+    echo "${C}الإصدار | Edition:${N} ${edition}"
+    echo "${D}يفحص أحدث صورة من ghcr.io/moalfarras-sys فقط…${N}"
+    echo "${D}Checking only the official ghcr.io/moalfarras-sys image…${N}"
+    latest="$(skopeo inspect --format '{{.Digest}}' "docker://${registry}/${edition}:latest")" || return 1
+    if ! printf '%s' "$latest" | grep -Eq '^sha256:[0-9a-f]{64}$'; then
+        echo "${R}رفض digest غير صالح من السجل | refused invalid registry digest${N}" >&2
+        return 1
+    fi
+    current="$(printf '%s' "$ref" | grep -Eo 'sha256:[0-9a-f]{64}' | tail -n 1 || true)"
+    if [ "$latest" = "$current" ]; then
+        echo "${G}✓ النظام على أحدث صورة موقّعة | already on the latest signed image${N}"
+        return 0
+    fi
+
+    target="ostree-image-signed:docker://${registry}/${edition}@${latest}"
+    echo "${C}الحالي | Current:${N} ${current:-unknown}"
+    echo "${C}الجديد | New:    ${N} ${latest}"
     confirm || return 0
     echo "${C}قد يظهر طلب إذن المسؤول | an admin prompt may appear…${N}"
-    if run_priv bootc upgrade; then
+    if run_priv rpm-ostree rebase "$target"; then
         echo "${G}✓ تم التجهيز — أعد التشغيل لإكمال التحديث.${N}"
-        echo "${G}  Staged — reboot to finish. ${D}(لا تغيير = محدّث بالفعل | no change = already up to date)${N}"
+        echo "${G}  Staged — reboot to finish. The previous deployment remains available.${N}"
     else
         echo "${Y}لم يكتمل التحديث | update did not complete${N}"
         return 1
@@ -569,8 +616,8 @@ ${B}Mo AI · moai-do${N}  —  ${D}منفّذ أوامر MoOS الآمن | MoOS 
 
 ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
 
-  ${C}update${N}            تحديث النظام (bootc، يُطبَّق عند إعادة التشغيل)
-                    Update the system (bootc, applies on reboot)
+  ${C}update${N}            تجهيز أحدث صورة MoOS موقّعة وثابتة بالـdigest
+                    Stage the latest signed MoOS image by exact digest
   ${C}install <id>${N}      تثبيت تطبيق Flatpak من Flathub ثم فتحه
                     Install a Flatpak app from Flathub, then open it
   ${C}fix-audio${N}         إعادة تشغيل خدمات الصوت (PipeWire)
