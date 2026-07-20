@@ -29,6 +29,124 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-20 — Mo AI × OpenClaw: Agent panel, Settings rebuild, access tiers
+
+Mo AI and the OpenClaw agent now share one brain, one key, one channel and one
+config file. Two commits, both pushed to `main`.
+
+### What was done
+
+**`5f16f80` — Agent panel + Settings rebuilt around one config source**
+
+- Seventh nav entry, `agent`, after Dev. Lists the same Telegram sessions,
+  renders the thread, sends from the desktop. Pure QML has no Process API and
+  cannot read `~/.openclaw`, so it talks to `moapp-console` on
+  `127.0.0.1:8077` — that service is the only seam.
+- Settings replaced wholesale (511 lines → 409, then +2 sections), sectioned as
+  Brain / Channel / Voice / Power / Access / Models / Health.
+- Secrets stay write-only, matching `moai-control`: the API answers
+  `has_key` / `has_token` and never returns a value.
+
+**`798d7f9` — three-tier access control**
+
+Each tier writes the key OpenClaw already enforces; none of it is a local layer:
+
+| Tier | elevatedDefault | workspaceAccess | approvals.exec | deny |
+|---|---|---|---|---|
+| read | off | ro | off | web, browser, exec |
+| ask | ask | rw | on, `mode=session` | web, browser |
+| full | full | rw | off | — |
+
+`mode=session` is what makes phone approval real: the prompt returns to the chat
+the request came from, so a Telegram request is approved from Telegram and
+nothing runs before it is answered.
+
+Project-folder scoping writes `agents.defaults.workspace`. Absolute paths inside
+`$HOME` only; `/etc` and non-existent paths are refused with a reason.
+
+### The brain, and why the app said "offline"
+
+The local brain moved from RamaLama on 8081 to Ollama on 11434, serving
+`default` (a `qwen3-vl:4b` derivative with thinking suppressed). Two drop-ins
+carry it, and **both** are required — the gateway alone is not enough:
+
+- `moai-gateway.service.d/ollama.conf` — routes chat
+- `moai-control.service.d/ollama.conf` — routes the liveness probe
+
+Without the second, `local_online()` polls the dead 8081, the app renders
+`غير متصل`, and its "Start local brain" button tries to load a SECOND model onto
+the same 8 GB card. That is the `cudaMalloc failed: out of memory` path already
+documented in `moai-idle`.
+
+### Tested
+
+- `tests/verify_user_experience.py` — passed
+- `tests/test_device_plan.py` — passed
+- `bash -n build_files/build.sh` — clean
+- `qmllint-qt6 main.qml` — 0 errors
+- `QT_QPA_PLATFORM=offscreen qml-qt6 main.qml` — loads (the enforced gate)
+- `moos-selfcheck` — 40 checks passed
+- All three tiers round-tripped against the live config; it stayed schema-valid
+  at every step
+- Telegram verified end to end in the journal: `Inbound message` →
+  `sendMessage ok`
+
+### Traps found here, worth not rediscovering
+
+1. **The user-experience gate caught three regressions from the Settings
+   rebuild** — model deletion, the one-tap download section, and
+   `moos://do/<id>` repairs. They are back as the Models and Health sections.
+   The last one is the safety contract: a repair is a named action behind
+   `moai-do` confirmation and Polkit, never a composed command.
+2. **Adding a panel needs three edits, not one**: `navItems`, the `StackLayout`
+   `indexOf` array, and the `--panel` whitelist. Missing the third makes
+   `moai --panel agent` fail silently and open on chat.
+3. **A pattern that eats a closing brace produces no error message.** The app
+   simply printed `qml: Did not load any objects`. A brace-balance count against
+   the pre-edit copy located it; `qml-qt6` alone never will.
+4. **`qmllint-qt6` finds duplicate ids that a normal load does not.** `bubble`
+   and `body` collided with existing ids and still "loaded".
+5. **A root key OpenClaw does not know invalidates the whole config.** The
+   schema is `additionalProperties:false` at the root, so console state lives in
+   `~/.config/moapp/state.json`, not inside `openclaw.json`.
+6. **`api: "openai"` is rejected**; the schema wants the dialect
+   (`openai-responses`, `anthropic-messages`, …).
+7. **Repeated gateway restarts suppress the Telegram channel.** The health
+   monitor logs `channel autostart suppressed; treating as expected stopped` and
+   polling stops. `moapp-console` now restarts the gateway for the Telegram
+   token only — OpenClaw applies the rest live.
+8. **Twelve systemd hardening directives each break rootless podman**
+   (`ProtectKernelTunables`, `PrivateUsers`, `NoNewPrivileges`,
+   `CapabilityBoundingSet`, `ProtectClock`, `ProtectKernelLogs`, `PrivateTmp`,
+   `RestrictSUIDSGID`, `ProtectControlGroups`, `KeyringMode`,
+   `InaccessiblePaths`, `ProtectKernelModules`). All fail with the same message
+   blaming podman and suggesting `podman system migrate`, which does not help.
+   Only `RestrictRealtime`, `LockPersonality` and `UMask` survive alongside the
+   agent sandbox.
+
+### Open issues
+
+1. **`~/.local/bin/moai` shadows the image copy.** It was the way to see the
+   change before a rebuild, and it contradicts the `moos-selfcheck` rule that no
+   user-level copy shadows a MoOS asset. **Delete it once `798d7f9` is booted.**
+2. **The Settings sheet has not been clicked through.** Code-side is clean
+   (gate, lint, load) but the window could not be raised for a visual pass —
+   no `kdotool` or `wmctrl` on this host, and clicks cannot be automated here.
+3. **MOAPP support files live outside the repo** in `/var/home/moos/عام/MOAPP`
+   (`moapp-console`, `console.html`, `moapp-transcribe`, quadlets for Ollama and
+   Speaches). They are not shipped by the image yet. Deciding whether they
+   belong in `system_files/` is the natural next step.
+
+### Exact next action
+
+1. Wait for CI run `29744624343` on `798d7f9`, confirm both editions signed.
+2. Stage that exact signed NVIDIA digest, reboot, re-run `moos-selfcheck` and
+   `tests/post-update-check.sh`.
+3. Delete `~/.local/bin/moai`, then confirm the icon still opens the Agent panel
+   from the image copy.
+4. Click through Settings: all seven sections, save each, verify the config
+   stays valid and Telegram keeps polling.
+
 ## Session 2026-07-20 — fast Remote input and complete Mo Store redesign
 
 - The machine now boots the signed `moos-nvidia` image `44.20260720.263`,
@@ -65,10 +183,18 @@ Tests completed:
 
 Open issues and exact next step:
 
-1. Commit and push this candidate, wait for both signed-image jobs and
-   verification, then stage only its exact signed NVIDIA digest.
-2. Reboot while retaining `.260`, repeat all live gates, and test the installed
-   immutable Mo Store.
+1. Candidate commit `4e619cb` is pushed. CI run `29722350344` passed both
+   editions, pushed them, signed them, and verified each signature against the
+   OS-enforced public key. The resulting `.264` NVIDIA image is
+   `sha256:b7a12e6525e6e08fb8351b4394f9251adde0aee0c0740e05a69dc0787b2ce7e3`
+   with revision `4e619cb`.
+2. The audited repo copy of `moai-do update` resolved only the official NVIDIA
+   `:latest`, pinned the exact digest above, and staged it through
+   `ostree-image-signed:` after interactive Polkit approval. Pre-reboot
+   `rpm-ostree status --json` proves `.264` is staged, `.263` remains booted,
+   and signed `.260` remains the rollback. Exact next step: reboot into `.264`,
+   confirm the booted digest, repeat all live gates, and test the installed
+   immutable Mo Store and Remote services.
 3. Real-phone acceptance remains mandatory: Arabic composition, Backspace,
    spaces and punctuation in KWrite and Firefox; tap/drag/scroll; and
    bidirectional clipboard text. Source and automated contract tests are green,
