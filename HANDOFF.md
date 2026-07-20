@@ -29,6 +29,184 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-20 (evening) — Mo PC Remote: typing, H.264, TLS topology, CI unblock
+
+Three commits on `main`: `14a8c80`, `138f2b4`, `f250006`.
+
+### The measuring rig (reuse it — it is why this session found real causes)
+
+Everything below was measured, not reasoned about. Two throwaway GTK4 diagnostics
+driven through the agent's **real** authenticated WebSocket path:
+
+- a focused window logging every key the compositor delivers (`evdev`, keyval,
+  modifier state) plus the text that actually landed in its buffer;
+- a scrollable window reporting its own scroll offset, kinetic scrolling **off**
+  (with it on, the offset drifts for seconds and direction tests are worthless).
+
+The agent already ships the hook that makes this possible:
+`/api/local-diagnostic-token`, loopback-only and gated behind
+`MOREMOTE_LOCAL_DIAGNOSTICS=1`. Set it with a user drop-in, measure, then remove
+the drop-in — it is off again now (verified 404).
+
+Two traps this rig has already sprung, both of which produce confident wrong
+answers: a GTK controller in the default *bubble* phase never sees Tab, Enter or
+the arrows (the focused TextView eats them, so working keys look broken), and a
+handler returning `True` consumes the event so nothing is ever pasted or typed.
+Use CAPTURE phase and return `False`.
+
+### What was actually wrong
+
+**H.264 never engaged, for any phone.** The PWA declares its decoder with
+`{"type":"video","h264":true}`, but `StreamSession` only read that field under
+`"settings"`, so the message fell through to the input switch, matched nothing and
+was discarded on every connect. Proven by sending both forms: `"video"` came back
+`inputState`, `"settings"` came back `codec:h264`. The stream was JPEG at
+**1.18 MB per frame** at 1080p. Fixed; both names now route to the same handler.
+Measured after: **27 KB per frame**, `nvh264enc` (NVENC, no CPU cost).
+
+**Typing was broken three ways**, all one root cause: KWin resolves a keysym
+against the ACTIVE keymap group only, at shift level one. On this `de,ara` keymap:
+
+| sent | arrived |
+|---|---|
+| `'a'` | `'a'` — correct |
+| `'Z'` | `'z'` — shift level never applied |
+| `'م'` | keycode 247 / keyval `0x1008ffb5` — a key that types nothing |
+
+So capitals typed lowercase, Arabic typed nothing, and shifted punctuation typed
+the wrong character — `/` became `7`, i.e. every path the owner tried to type. The
+keysym fast path is now restricted to what is provably level 1 on any Latin layout,
+capitals hold a real Shift keycode around the lowercase keysym, and everything else
+is typed by briefly **borrowing the clipboard** (layout-independent, any Unicode),
+pasted with **Shift+Insert** — Ctrl+V is not paste in a terminal, which is why
+Arabic into Konsole silently did nothing. The borrow is returned afterwards.
+
+**Combos were QWERTY-keycoded**, so on German QWERTZ `Ctrl+Z` landed on Y and did
+redo instead of undo. Modifiers still go by keycode; the modified key goes by
+keysym.
+
+**Arrows, Enter and Tab were never broken.** The first diagnostic said otherwise
+and was wrong (bubble-phase trap above).
+
+### The TLS topology — read this before touching HTTPS again
+
+`14a8c80` provisioned a `tailscale cert` and had Kestrel serve HTTPS on 8765.
+**That broke the phone entirely** and `138f2b4` reverts it. The reason:
+
+```text
+phone ── https :443 ──► tailscale serve ── PLAIN http ──► agent :8765
+```
+
+`tailscale serve` was already terminating TLS on 443 and proxying **plain HTTP**
+to 8765. An HTTPS listener there answers the proxy with a TLS handshake, so the
+only URL the phone has returned **502**. It was also redundant: serve already
+supplies and renews the certificate, on a nicer URL with no port number. The
+certificate helper and renewal timer added in `14a8c80` are removed.
+
+`TlsManager` stays dormant unless something writes `tls/host.txt`; nothing in the
+image should. `MO_PC_REMOTE_ARCHITECTURE.md` now says this explicitly — its old
+claim that "the agent is plain http so we are stuck on JPEG" is what sent me down
+this path, and it was describing a topology this has not had for a while.
+
+### Scrolling was not a sign error
+
+Measured with kinetic scrolling off: `dy=+4` moved the offset `3300 -> 2550`,
+`dy=-4` moved it `2550 -> 3300`, exactly back. A finger swipe up sends negative
+`dy`, so content follows the finger — phone-native, and already correct.
+
+What was broken: the **"Natural scroll" toggle, both sensitivity sliders and the
+gesture mode were plain `useState` with no persistence**, so every reconnect
+silently reset them. A preference the user cannot make stick reads as the app
+ignoring them. They persist in `localStorage` now (`moremote.*`).
+
+The owner confirmed they want phone-native ("content follows my finger"), which is
+the default.
+
+### Two gates were asserting things that are false
+
+Both in `tests/verify_user_experience.py`, both replaced rather than weakened:
+
+- *"must map core Arabic Unicode to XKB's legacy Arabic keysyms"* — measured false
+  (see the table). Replaced with a gate on what was measured to work: the clipboard
+  borrow, its Shift+Insert paste, the borrow being returned, **and** an assertion
+  that the legacy keysyms are not reintroduced.
+- *"text batching must stay below one 60 Hz frame"*, pinned to the literal `12`.
+  Rather than widen it, coalescing is now **adaptive**: keysym-typable text still
+  flushes in one frame (English typing is exactly as immediate as before), while
+  text needing a clipboard borrow batches into words instead of one borrow per
+  letter. Both halves are pinned.
+
+### CI was red on main before this session, for an unrelated reason
+
+`tests/test_moai_do.py` runs as a gate before the build; it derives the action list
+from `moai-do`'s own dispatch block and requires each to appear in `usage()`.
+`install-openclaw` and `setup-brain` shipped in `5eab2dc` with a dispatch entry and
+no help line, so **every build since 13:45 failed and produced no image**.
+`f250006` documents both. The gate was right and was left intact.
+
+### Verified
+
+Through the real phone path (`wss://moos-3.tailab78a5.ts.net/ws`, port 443, not
+loopback):
+
+- codec `jpeg -> h264`; 370 frames averaging **27 KB** (JPEG was ~1180 KB);
+- `'Hello مرحبا /home/mo --flag'` lands intact — capitals, Arabic, `/`, `--`;
+- clipboard still holds its original contents afterwards;
+- `Ctrl+z` reaches the German `z` key (evdev 21), not `y`;
+- diagnostic endpoint returns **404** with the drop-in removed;
+- CI gate set (`test_moai_do`, `verify_user_experience`, `test_device_plan`,
+  `artwork/verify_visuals`) all pass locally;
+- `moos-selfcheck` 39/40, `post-update-check.sh` 37/40 — remaining failures are
+  pre-existing and unrelated (below).
+
+### ⚠️ Temporary local override — REMOVE after the next image update
+
+`/usr` is read-only, so the fixed agent runs from `~/.local/lib/mo-remote` via:
+
+    ~/.config/systemd/user/mo-remote-personal.service.d/zz-local-build.conf
+
+Once the image carrying `f250006` is booted, delete it so the image copy takes
+over — otherwise the machine keeps running a hand-built binary forever and the
+image is no longer the thing being tested:
+
+    rm ~/.config/systemd/user/mo-remote-personal.service.d/zz-local-build.conf
+    systemctl --user daemon-reload
+    systemctl --user restart mo-remote-personal.service
+
+`post-update-check.sh` now **does** catch this class of shadow. It previously only
+looked at `$HOME` `.desktop` files and `~/.local/bin` on `PATH`; a drop-in replaces
+no file and puts nothing on `PATH`, so a redirected unit stayed invisible while
+`systemctl is-active` reported green. The new check flags any
+`~/.config/systemd/user/<unit>.d/` drop-in whose `ExecStart=` leaves `/usr` for a
+home directory. Verified it fires on the override above, and it is expected to go
+green the moment that drop-in is deleted.
+
+### Pre-existing issues, not from this session
+
+- **Automatic updates are a permanent no-op.** The deployment is *digest-pinned*
+  (`ostree-image-signed:docker://…moos-nvidia@sha256:b7a12e65…`), so
+  `rpm-ostreed-automatic.timer` runs, resolves nothing newer, and exits in ~1s.
+  This matches the deliberate update-by-digest protocol, so it is a finding, not
+  necessarily a bug — but nobody should expect this machine to update itself.
+- **The phone is on a DERP relay, not a direct path** — and this is now the
+  remaining latency floor, not anything in the code:
+
+      tailscale ping iphone182
+      pong ... via DERP(fra) in ~50ms
+      direct connection not established
+
+  Every input event and every frame pays that round trip. `tailscale netcheck` on
+  this side is healthy (`UDP: true`, `MappingVariesByDestIP: false`), so the
+  blockers are (a) `PortMapping:` empty — no UPnP/NAT-PMP/PCP on the router, and
+  (b) `IPv6: no, but OS has support` — the ISP/router provides no IPv6, which is
+  what mobile carriers usually need to hole-punch. Neither is fixable from the
+  image: enabling UPnP/NAT-PMP and IPv6 on the home router is the actual fix, and
+  it is worth doing — a direct path would cut ~50 ms off every interaction.
+- `fwupd-refresh.service` failed: `Failed to obtain auth` after downloading LVFS
+  metadata. Unrelated to the image.
+- `~/.local` shadows the image's `moai` binary — Kickoff and PATH run the copy.
+  `post-update-check.sh` flags it; left alone as it may be a deliberate dev copy.
+
 ## Session 2026-07-20 — Mo AI × OpenClaw: Agent panel, Settings rebuild, access tiers
 
 Mo AI and the OpenClaw agent now share one brain, one key, one channel and one
@@ -557,10 +735,23 @@ stale.
 
 ## Exact next action
 
-The previous next-action ("reboot into staged `.259`") was already **superseded**
-before this session began: the machine went on to `.260` and is booted on it.
-Nothing is pending on the release path — commit, signed image and booted digest
-all agree, and CI is green on all five recent pushes.
+**Superseded by the 2026-07-20 (evening) session. Do this first:**
+
+1. Confirm CI is green for the newest commit on `main` and note the published
+   digest: `gh run list --limit 3` then
+   `skopeo inspect docker://ghcr.io/moalfarras-sys/moos-nvidia:latest`.
+   Every build from `5eab2dc` (13:45) until `f250006` failed on the `moai-do` help
+   gate, so do not assume a recent `:latest` carries the Mo Remote work — compare
+   the digest's creation time against the fix commits.
+2. Stage that image **by exact digest** (this machine is digest-pinned by design;
+   `rpm-ostreed-automatic` will never do it) and keep `.264` as the rollback.
+3. Reboot, then verify live: `moos-selfcheck`, `tests/post-update-check.sh`, and
+   Mo PC Remote from the phone at `https://moos-3.tailab78a5.ts.net` (no port).
+4. **Then delete the temporary local override** — see the ⚠️ block in that
+   session's section. Until it is gone the machine runs a hand-built agent from
+   `~/.local/lib/mo-remote` and the image copy is never exercised.
+
+Everything below this line is the older backlog and still applies afterwards.
 
 The one open engineering task is issue 1 above: the compositor race. It is
 detected but **not fixed**, and it must not be fixed on the live machine.

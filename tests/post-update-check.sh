@@ -354,6 +354,35 @@ for b in $shadow_other; do
     printf '  · %s in $HOME shadows the image'"'"'s copy — fine if you meant it\n' "$b"
 done
 
+# A systemd drop-in is the third way to shadow the image, and the checks above cannot see it:
+# it replaces no file and puts nothing on PATH. It rewrites ExecStart= to run a binary from
+# somewhere else entirely, and the unit keeps its original name, so `systemctl is-active` is
+# green and every /usr check still passes while the machine runs something that was never built
+# by CI.
+#
+# It happened on 2026-07-20: Mo Remote ran a hand-built agent out of ~/.local/lib/mo-remote for a
+# whole session because /usr is read-only and that was the only way to test a fix live. That is
+# still the right way to prove a fix. Just delete the drop-in afterwards — otherwise the image
+# copy is never exercised again and the next "verified live" means nothing.
+drop_shadow=""
+for d in "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/*.service.d; do
+    [ -d "$d" ] || continue
+    unit="$(basename "${d%.d}")"
+    [ -e "/usr/lib/systemd/user/$unit" ] || continue
+    # Only flag an ExecStart= that actually leaves /usr — plenty of legitimate drop-ins set
+    # Environment= or Restart= and touch ExecStart not at all.
+    grep -rhs '^ExecStart=' "$d" 2>/dev/null \
+        | grep -qE '(^ExecStart=[^ ]*(%h|/home/|/var/home/))|( (%h|/home/|/var/home/))' \
+        && drop_shadow="$drop_shadow $unit"
+done
+if [ -z "$drop_shadow" ]; then
+    ok "no systemd drop-in redirects a MoOS unit outside /usr"
+else
+    bad "these MoOS units are redirected by a \$HOME drop-in — the unit is green but the image binary is NOT what runs:"
+    for u in $drop_shadow; do printf '      %s\n' "$u"; done
+    printf '      \033[2m(delete the drop-in under ~/.config/systemd/user/<unit>.d/, then daemon-reload)\033[0m\n'
+fi
+
 head_ "The image is not carrying the build machine's litter"
 
 stray="$(find /usr/bin /usr/share/moos -type d -name __pycache__ 2>/dev/null | head -3)"
