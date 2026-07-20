@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RemoteConnection } from "../lib/ws";
 import { GestureController } from "../lib/gestures";
 import {normalizeContentPoint} from "../lib/coordinates";
@@ -53,6 +53,34 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
   }
 }
 
+/**
+ * A setting that survives a reload.
+ *
+ * These are feel preferences, and scroll direction is the one that matters: it was state that
+ * reset to its default on every reconnect, so toggling it appeared to do nothing that lasted. A
+ * preference the user cannot make stick is worse than no preference at all — it reads as the app
+ * ignoring them, which is exactly how "the scrolling is inverted" survived a toggle that existed
+ * and worked.
+ */
+function usePref<T>(key: string, initial: T): [T, (v: T | ((prev: T) => T)) => void] {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const raw = localStorage.getItem("moremote." + key);
+      return raw === null ? initial : (JSON.parse(raw) as T);
+    } catch {
+      return initial;   // private mode, or a value written by an older build
+    }
+  });
+  const set = useCallback((v: T | ((prev: T) => T)) => {
+    setValue((prev) => {
+      const next = typeof v === "function" ? (v as (p: T) => T)(prev) : v;
+      try { localStorage.setItem("moremote." + key, JSON.stringify(next)); } catch { /* not fatal */ }
+      return next;
+    });
+  }, [key]);
+  return [value, set];
+}
+
 export function RemoteScreen({ token, onExit }: { token: string; onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
@@ -77,7 +105,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const hideTimer = useRef<number | null>(null);
 
   const [status, setStatus] = useState<Conn>("connecting");
-  const [mode, setMode] = useState<GestureMode>("touch");
+  const [mode, setMode] = usePref<GestureMode>("mode", "touch");
   const [viewMode, setViewMode] = useState<ViewMode>("fit");
   const [presetIdx, setPresetIdx] = useState(1);
   // Auto quality ON by default. The complaint that keeps coming back is "the remote is slow",
@@ -100,10 +128,10 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const [screenOk, setScreenOk] = useState(true);
   const [inputOk, setInputOk] = useState(false);
   const [clipboardOk, setClipboardOk] = useState(false);
-  const [mouseSensitivity,setMouseSensitivity]=useState(1);
-  const [scrollSensitivity,setScrollSensitivity]=useState(1);
-  const [naturalScroll,setNaturalScroll]=useState(true);
-  const [haptics,setHaptics]=useState(true);
+  const [mouseSensitivity,setMouseSensitivity]=usePref("mouseSensitivity",1);
+  const [scrollSensitivity,setScrollSensitivity]=usePref("scrollSensitivity",1);
+  const [naturalScroll,setNaturalScroll]=usePref("naturalScroll",true);
+  const [haptics,setHaptics]=usePref("haptics",true);
   const mouseSensitivityRef=useRef(mouseSensitivity);mouseSensitivityRef.current=mouseSensitivity;
   const scrollSensitivityRef=useRef(scrollSensitivity);scrollSensitivityRef.current=scrollSensitivity;
   const naturalScrollRef=useRef(naturalScroll);naturalScrollRef.current=naturalScroll;

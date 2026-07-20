@@ -2,6 +2,13 @@ import type { Hello, MouseButton } from "../types";
 
 import { canDecodeH264 } from "./decode";
 
+/** One 60 Hz frame: text the agent types by keysym must not wait longer than this. */
+const FAST_FLUSH_MS = 12;
+/** Text that needs a clipboard borrow batches into words instead of one round trip per letter. */
+const CLIPBOARD_FLUSH_MS = 45;
+/** Exactly what the agent can type by keysym — see InputInjector.TryDirectStrokes. */
+const FAST_TEXT = /^[a-zA-Z0-9 ]*$/;
+
 interface Handlers {
   onOpen?: () => void;
   onHello?: (h: Hello) => void;
@@ -206,12 +213,17 @@ export class RemoteConnection {
   text(value: string) {
     this.pendingText+=value;
     if(this.textTimer)window.clearTimeout(this.textTimer);
-    // Coalesce adjacent mobile input events without adding visible keyboard latency. 45ms rather
-    // than 12: anything the agent cannot type by keysym (Arabic, and punctuation that needs a
-    // shift level) is typed by briefly borrowing the clipboard, and at 12ms that was one clipboard
-    // round trip PER LETTER. Batching into words makes Arabic one paste instead of five, and 45ms
-    // is still well under the ~100ms where typing starts to feel detached.
-    this.textTimer=window.setTimeout(()=>this.flushText(),45);
+    // How long to coalesce depends on how the agent will have to type this.
+    //
+    // Text it can inject by keysym goes out within one 60 Hz frame, exactly as before — English
+    // typing must not get slower to serve Arabic. Anything else (Arabic, punctuation needing a
+    // shift level) is typed by briefly borrowing the clipboard, which costs a round trip per
+    // flush; at one frame that was one clipboard borrow PER LETTER. Batching those into words
+    // costs three frames nobody can feel and turns five round trips into one.
+    //
+    // The test mirrors the agent's own fast-path rule (InputInjector.TryDirectStrokes).
+    const fast = FAST_TEXT.test(this.pendingText);
+    this.textTimer=window.setTimeout(()=>this.flushText(),fast?FAST_FLUSH_MS:CLIPBOARD_FLUSH_MS);
   }
   private flushText(){if(this.textTimer)window.clearTimeout(this.textTimer);this.textTimer=null;if(!this.pendingText)return;const value=this.pendingText;this.pendingText="";this.input({type:"text",value});}
   settings(quality: number, fps: number, scale: number) {

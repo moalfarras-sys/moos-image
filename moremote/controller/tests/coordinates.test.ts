@@ -12,11 +12,15 @@ const gestures = readFileSync(join(lib, "gestures.ts"), "utf8");
 const ws = readFileSync(join(lib, "ws.ts"), "utf8");
 assert.match(gestures, /MOVE_THRESHOLD = 5/);
 assert.match(gestures, /Continue below and deliver this first meaningful delta/);
-// Text is coalesced before it is sent. The window has to be big enough that Arabic — which the
-// agent types by borrowing the clipboard, one round trip per flush — batches into words rather
-// than letters, and small enough to stay under the ~100ms where typing feels detached.
-const coalesce = ws.match(/setTimeout\(\(\)=>this\.flushText\(\),(\d+)\)/);
-assert.ok(coalesce, "ws.ts must coalesce text before sending");
-assert.ok(Number(coalesce[1]) >= 30 && Number(coalesce[1]) <= 80,
-  `text coalescing window should be 30-80ms, got ${coalesce[1]}ms`);
+// Text coalescing is adaptive: keysym-typable text flushes within one 60 Hz frame, while text the
+// agent must type by borrowing the clipboard batches into words (one borrow per letter is both
+// slower and clobbers the clipboard repeatedly).
+const fastMs = ws.match(/FAST_FLUSH_MS = (\d+)/);
+const clipMs = ws.match(/CLIPBOARD_FLUSH_MS = (\d+)/);
+assert.ok(fastMs && clipMs, "ws.ts must define both coalescing windows");
+assert.ok(Number(fastMs[1]) <= 16, `keysym flush must stay within one 60Hz frame, got ${fastMs[1]}ms`);
+assert.ok(Number(clipMs[1]) > Number(fastMs[1]) && Number(clipMs[1]) <= 80,
+  `clipboard flush should batch but stay imperceptible, got ${clipMs[1]}ms`);
+// The client's fast-path test must match the agent's, or text routes down the wrong path.
+assert.match(ws, /FAST_TEXT = \/\^\[a-zA-Z0-9 \]\*\$\//);
 console.log("PASS: client letterbox/orientation/invalid-coordinate tests");

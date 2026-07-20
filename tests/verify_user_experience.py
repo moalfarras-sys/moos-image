@@ -1207,15 +1207,27 @@ require("NotifyPointerMotionAbsolute" in portal,
 require("CURSOR_HIDDEN" in portal,
         "The stream must be able to hide the cursor — drawing it re-encodes a full frame per move")
 
-# Arabic from a phone is two separate contracts. KWin/XKB expects the legacy 0x05xx Arabic
-# keysyms, while phone keyboards commit words through composition events. Losing either half
-# makes the D-Bus call look successful while letters vanish or arrive duplicated.
+# Arabic from a phone is two separate contracts: getting the characters INTO the desktop, and
+# getting the phone keyboard to commit them once rather than streaming composition edits.
+#
+# The first contract used to be "map Arabic to XKB's legacy 0x05xx keysyms". That was measured
+# against a live KWin 6.7 session on a `de,ara` keymap and it is false: KWin resolves a keysym
+# against the ACTIVE group only, so 'م' arrived as keycode 247 / keyval 0x1008ffb5 — a key that
+# types nothing — while the D-Bus call reported success. Capitals failed the same way ('Z' typed
+# 'z'), because the shift level is never applied. So Arabic is typed by borrowing the clipboard,
+# which is layout-independent and carries any Unicode exactly, and this gate pins THAT — including
+# the paste shortcut, because Ctrl+V is not paste in a terminal and Arabic into Konsole was
+# silently doing nothing at all.
 text_keysym = read("moremote/agent-linux/TextKeysym.cs")
 input_injector = read("moremote/agent-linux/InputInjector.cs")
 remote_screen = read("moremote/controller/src/ui/RemoteScreen.tsx")
-require("0x05c1" in text_keysym and "0x05e0" in text_keysym
-        and "TextKeysym.ForCodepoint" in input_injector,
-        "Mo PC Remote must map core Arabic Unicode to XKB's legacy Arabic keysyms")
+require("ClipboardBridge.SetText" in input_injector and '"Shift", "Insert"' in input_injector,
+        "Arabic must be typed via a clipboard borrow pasted with Shift+Insert (Ctrl+V is not "
+        "paste in a terminal)")
+require("_borrowedClip" in input_injector,
+        "the clipboard borrow must be returned — typing must not silently eat the user's clipboard")
+require("0x05c1" not in text_keysym,
+        "legacy 0x05xx Arabic keysyms are measured NOT to work on KWin; do not reintroduce them")
 require("onCompositionStart" in remote_screen and "onCompositionEnd" in remote_screen
         and "composingRef.current" in remote_screen,
         "the phone keyboard must send committed Arabic/IME text once, not stream composition edits")
@@ -1223,8 +1235,13 @@ require('type = "keysyms"' in input_injector and 'elif t == "keysyms":' in porta
         "committed phone text must cross the helper pipe as one ordered keysym batch")
 remote_ws = read("moremote/controller/src/lib/ws.ts")
 gestures = read("moremote/controller/src/lib/gestures.ts")
-require("flushText(),12" in remote_ws,
-        "phone text batching must stay below one 60 Hz frame")
+# Coalescing is adaptive, because the two typing paths cost wildly different amounts. Keysym text
+# must still go out within one 60 Hz frame — English typing does not get slower to serve Arabic —
+# while text needing a clipboard borrow batches into words rather than one round trip per letter.
+require("FAST_FLUSH_MS = 12" in remote_ws,
+        "phone text the agent can type by keysym must still flush within one 60 Hz frame")
+require("CLIPBOARD_FLUSH_MS" in remote_ws and "FAST_TEXT" in remote_ws,
+        "text needing a clipboard borrow must batch into words, not one borrow per letter")
 require("MOVE_THRESHOLD = 5" in gestures
         and "Continue below and deliver this first meaningful delta" in gestures,
         "touch must deliver its first meaningful movement instead of feeling sticky")

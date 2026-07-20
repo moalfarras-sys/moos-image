@@ -62,10 +62,34 @@ one: a helper that stays alive on a dead session, serving a frozen frame and swa
 click while still reporting healthy. A permission dialog the user *declines* backs off for five
 minutes instead of re-prompting once a second, forever.
 
+## TLS is `tailscale serve`, and the agent must stay plain HTTP
+
+The phone reaches `https://moos-3.<tailnet>.ts.net` on port 443. That is **`tailscale serve`**
+terminating TLS with a certificate Tailscale manages and renews, proxying to the agent:
+
+```text
+phone ── https :443 ──► tailscale serve ── http ──► agent :8765
+```
+
+Two consequences, both learned the hard way:
+
+**Never enable Kestrel-side HTTPS.** `TlsManager` can load a `tailscale cert` and serve HTTPS on
+8765 directly. Turning that on breaks everything: `tailscale serve` proxies *plain HTTP* to 8765,
+an HTTPS listener answers that with a TLS handshake, and the only URL the phone has starts
+returning `502 Bad Gateway`. It is also redundant — serve already supplies the certificate, on a
+nicer URL with no port number, and renews it with nobody owning a timer. `TlsManager` stays dormant
+unless something writes `tls/host.txt`; nothing in the image should.
+
+**The phone is therefore already in a secure context.** That is what makes WebCodecs — and so the
+H.264 path — and the native clipboard available at all. Any reasoning that starts "the agent is
+plain http, so we are stuck on JPEG" is describing a topology this has not had for a while.
+
 ## Encoding
 
-JPEG, because it needs no secure context on the phone. WebCodecs — and therefore VP8/H.264 —
-is gated behind HTTPS, and the agent is reached over plain http on a LAN/Tailscale address.
+H.264 when the phone can decode it, JPEG when it cannot. The phone declares which on connect
+(`{"type":"video","h264":…}`) and the agent never guesses: a browser outside a secure context
+answers false and correctly keeps JPEG. That declaration once had no handler and was silently
+discarded, which pinned every phone to JPEG at ~1.18 MB a frame regardless of what it could decode.
 
 JPEG has no temporal compression, so a *changing* screen is expensive (~20–40 Mbit/s at 1280px
 on a busy desktop) while a still one is free. The quality preset is the real resolution knob:

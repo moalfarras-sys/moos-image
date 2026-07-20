@@ -221,18 +221,6 @@ if helper.is_file():
             "Mo Remote does not position the pointer absolutely")
     require("cursor_mode" in portal, "Mo Remote does not control the stream cursor mode")
 
-# HTTPS is load-bearing, not decoration. A phone only gets WebCodecs — and therefore the H.264
-# stream — and the native clipboard in a secure context, so an agent reachable only over plain
-# http silently serves 1.18 MB JPEG frames and cannot copy or paste. That is precisely the state
-# this image shipped in for months, because TlsManager.Provision() had no caller at all. These
-# two artifacts are what now provision and renew the certificate without anyone remembering to.
-cert_script = Path("/usr/lib/mo-remote/refresh-cert.sh")
-require(cert_script.is_file(), "Mo Remote HTTPS certificate helper is missing from the image")
-require(cert_script.is_file() and os.access(cert_script, os.X_OK),
-        "Mo Remote HTTPS certificate helper is not executable")
-require(Path("/usr/lib/systemd/user/mo-remote-cert.timer").is_file(),
-        "Mo Remote HTTPS certificate renewal timer is missing — the cert would expire unnoticed")
-
 desktop_dir = Path("/usr/share/applications")
 remote_launchers = []
 for path in desktop_dir.glob("*.desktop"):
