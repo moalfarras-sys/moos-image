@@ -372,21 +372,22 @@ ApplicationWindow {
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: win.canvas }
+            GradientStop { position: 0.0; color: Qt.darker(win.canvas, 1.08) }
+            GradientStop { position: 0.55; color: win.canvas }
             GradientStop { position: 1.0; color: win.chrome }
         }
     }
-    Rectangle {   // ambient turquoise glow, trailing-top
-        width: 520; height: 520; radius: 260
+    Rectangle {
+        width: 680; height: 680; radius: 340
         anchors.right: parent.right; anchors.top: parent.top
-        anchors.rightMargin: -180; anchors.topMargin: -200
-        color: win.accent; opacity: 0.10
+        anchors.rightMargin: -240; anchors.topMargin: -310
+        color: win.accent; opacity: 0.13
     }
-    Rectangle {   // ambient blue glow, leading-bottom
-        width: 420; height: 420; radius: 210
+    Rectangle {
+        width: 560; height: 560; radius: 280
         anchors.left: parent.left; anchors.bottom: parent.bottom
-        anchors.leftMargin: -160; anchors.bottomMargin: -180
-        color: win.blue; opacity: 0.07
+        anchors.leftMargin: -260; anchors.bottomMargin: -250
+        color: win.blue; opacity: 0.10
     }
 
     // ═══════════════════════════════ ROOT ═════════════════════════════════════
@@ -399,40 +400,67 @@ ApplicationWindow {
         // ───────────────────────────── HEADER ─────────────────────────────────
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 78
-            color: Qt.rgba(win.chrome.r, win.chrome.g, win.chrome.b, 0.55)
+            Layout.preferredHeight: 92
+            color: Qt.rgba(win.chrome.r, win.chrome.g, win.chrome.b, 0.76)
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 26; anchors.rightMargin: 26
-                spacing: 16
+                anchors.leftMargin: 30; anchors.rightMargin: 30
+                spacing: 14
 
-                Image {
-                    source: "file:///usr/share/moos/moos-logo.png"
-                    sourceSize.width: 40; sourceSize.height: 40
-                    Layout.preferredWidth: 40; Layout.preferredHeight: 40
+                Rectangle {
+                    Layout.preferredWidth: 52; Layout.preferredHeight: 52
+                    radius: 17
+                    color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.12)
+                    border.width: 1
+                    border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.32)
+                    Image {
+                        anchors.centerIn: parent
+                        source: "file:///usr/share/moos/moos-logo.png"
+                        sourceSize.width: 40; sourceSize.height: 40
+                        width: 40; height: 40
+                    }
                 }
                 ColumnLayout {
-                    spacing: 0
+                    spacing: 2
                     Text {
-                        text: win.rtl ? "متجر MoOS" : "Mo Store"
+                        text: "MO STORE"
                         color: win.txt; font.family: "IBM Plex Sans"
                         font.pixelSize: 20; font.bold: true
+                        font.letterSpacing: 1.8
                     }
                     Text {
-                        text: win.rtl ? "اختر تطبيقاتك — وثبّتها بنقرة، بلا طرفية"
-                                      : "Pick your apps — one tap, no terminal"
+                        text: win.rtl ? "مساحتك الآمنة للتطبيقات" : "Your trusted app space"
                         color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 12
                     }
                 }
 
                 Item { Layout.fillWidth: true }
 
+                Rectangle {
+                    Layout.preferredHeight: 34
+                    implicitWidth: trustedRow.implicitWidth + 24
+                    radius: 17
+                    color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.10)
+                    border.width: 1
+                    border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.26)
+                    RowLayout {
+                        id: trustedRow
+                        anchors.centerIn: parent; spacing: 7
+                        Rectangle { width: 7; height: 7; radius: 4; color: win.accent }
+                        Text {
+                            text: win.rtl ? "مختار لنظام MoOS" : "Curated for MoOS"
+                            color: win.accent; font.family: "IBM Plex Sans"
+                            font.pixelSize: 11; font.bold: true
+                        }
+                    }
+                }
+
                 // search field (also the command palette's twin)
                 Rectangle {
-                    Layout.preferredWidth: Math.min(340, win.width * 0.34)
-                    Layout.preferredHeight: 42
-                    radius: 21
+                    Layout.preferredWidth: Math.min(390, win.width * 0.34)
+                    Layout.preferredHeight: 46
+                    radius: 15
                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.85)
                     border.width: searchField.activeFocus ? 1.5 : 1
                     border.color: searchField.activeFocus ? win.accent : win.outline
@@ -470,9 +498,9 @@ ApplicationWindow {
                 // remove) via the Bazaar engine — installed on demand and kept out
                 // of the app menu, so Mo Store stays the one visible store.
                 Rectangle {
-                    Layout.preferredHeight: 42
+                    Layout.preferredHeight: 46
                     implicitWidth: browseRow.implicitWidth + 30
-                    radius: 21
+                    radius: 15
                     color: browseTap.pressed ? Qt.darker(win.surface, 1.1)
                          : browseHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
                                                : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.75)
@@ -504,8 +532,8 @@ ApplicationWindow {
         // ─────────────────────────── CATEGORY PILLS ───────────────────────────
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 60
-            color: "transparent"
+            Layout.preferredHeight: 68
+            color: Qt.rgba(win.canvas.r, win.canvas.g, win.canvas.b, 0.44)
 
             RowLayout {
                 anchors.fill: parent
@@ -523,9 +551,9 @@ ApplicationWindow {
                         id: pill
                         required property var modelData
                         readonly property bool isOn: win.activeCat === pill.modelData.id
-                        Layout.preferredHeight: 38
+                        Layout.preferredHeight: 40
                         implicitWidth: pillRow.implicitWidth + 30
-                        radius: 19
+                        radius: 13
                         color: pill.isOn ? win.accent
                               : pillHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.9)
                               : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.55)
@@ -588,33 +616,39 @@ ApplicationWindow {
                 // ── QUICK START (recommended essentials) ───────────────────────
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 132
+                    Layout.preferredHeight: 196
                     visible: win.activeCat === "all" && win.query === "" && win.loaded
-                    radius: 20
+                    radius: 28
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16) }
-                        GradientStop { position: 1.0; color: Qt.rgba(win.blue.r, win.blue.g, win.blue.b, 0.06) }
+                        GradientStop { position: 0.0; color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.20) }
+                        GradientStop { position: 0.58; color: Qt.rgba(win.blue.r, win.blue.g, win.blue.b, 0.10) }
+                        GradientStop { position: 1.0; color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.86) }
                     }
                     border.width: 1
                     border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.35)
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.margins: 20
-                        spacing: 18
+                        anchors.margins: 28
+                        spacing: 28
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 6
+                            spacing: 8
                             Text {
-                                text: win.rtl ? "بداية سريعة" : "Quick start"
-                                color: win.txt; font.family: "IBM Plex Sans"
-                                font.pixelSize: 18; font.bold: true
+                                text: win.rtl ? "ابدأ من هنا" : "START HERE"
+                                color: win.accent; font.family: "IBM Plex Sans"
+                                font.pixelSize: 11; font.bold: true; font.letterSpacing: 1.6
                             }
                             Text {
-                                text: win.rtl ? "الأساسيات الموصى بها لنظامك — مختارة مسبقاً وجاهزة للتثبيت."
-                                              : "The essentials we recommend — pre-selected and ready."
+                                text: win.rtl ? "نظامك، تطبيقاتك، بطريقتك." : "Make MoOS yours."
+                                color: win.txt; font.family: "IBM Plex Sans"
+                                font.pixelSize: 30; font.bold: true
+                            }
+                            Text {
+                                text: win.rtl ? "مجموعة ذكية من الأساسيات الموثوقة. اختر مرة واحدة ودع Mo Store يرتّب الباقي."
+                                              : "A smart set of trusted essentials. Choose once and let Mo Store handle the rest."
                                 color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 13
                                 wrapMode: Text.WordWrap; Layout.fillWidth: true
                             }
@@ -646,7 +680,7 @@ ApplicationWindow {
                         }
 
                         PrimaryButton {
-                            label: win.rtl ? "أضِف الموصى به" : "Add recommended"
+                            label: win.rtl ? "جهّز مجموعتي" : "Build my starter set"
                             glyphName: "spark"
                             action: function() {
                                 var ids = []
@@ -677,8 +711,8 @@ ApplicationWindow {
                                 id: bundle
                                 required property var modelData
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 128
-                                radius: 18
+                                Layout.preferredHeight: 156
+                                radius: 22
                                 color: bundleHover.hovered
                                      ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.95)
                                      : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.8)

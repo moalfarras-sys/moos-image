@@ -206,7 +206,8 @@ export class RemoteConnection {
   text(value: string) {
     this.pendingText+=value;
     if(this.textTimer)window.clearTimeout(this.textTimer);
-    this.textTimer=window.setTimeout(()=>this.flushText(),45);
+    // Coalesce adjacent mobile input events without adding visible keyboard latency.
+    this.textTimer=window.setTimeout(()=>this.flushText(),12);
   }
   private flushText(){if(this.textTimer)window.clearTimeout(this.textTimer);this.textTimer=null;if(!this.pendingText)return;const value=this.pendingText;this.pendingText="";this.input({type:"text",value});}
   settings(quality: number, fps: number, scale: number) {

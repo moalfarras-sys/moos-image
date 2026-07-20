@@ -545,6 +545,11 @@ def handle(m):
         notify("NotifyKeyboardKeycode", "(oa{sv}iu)", (session, empty, int(m["code"]), 1 if m["down"] else 0))
     elif t == "keysym":
         notify("NotifyKeyboardKeysym", "(oa{sv}iu)", (session, empty, int(m["keysym"]), 1 if m["down"] else 0))
+    elif t == "keysyms":
+        # A committed phone edit arrives as one ordered batch.
+        for event in m.get("events", []):
+            notify("NotifyKeyboardKeysym", "(oa{sv}iu)",
+                   (session, empty, int(event["keysym"]), 1 if event["down"] else 0))
     elif t == "keyframe":
         # A phone that just connected has no reference frame. Asking costs one larger frame;
         # not asking costs it up to a whole GOP of garbage.

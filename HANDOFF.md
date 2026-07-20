@@ -29,6 +29,53 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-20 — fast Remote input and complete Mo Store redesign
+
+- The machine now boots the signed `moos-nvidia` image `44.20260720.263`,
+  digest `sha256:35d13c7b37bf8178cb9aaac2362158ef2ea43e1d8c6c8e9ab0f251fa2d97f00e`,
+  revision `a04f46f`. This exactly matches the current signed GHCR image at the
+  start of the session. Signed `.260` (`sha256:bc7d…`) remains the rollback.
+- Live health is clean: no failed system or user units; `moos-selfcheck` and
+  `tests/post-update-check.sh` both passed 40/40.
+- Remote text latency was reduced by batching controller edits every 12 ms.
+  The Linux agent now sends an Arabic word's ordered keysym press/release
+  sequence to the portal helper in one IPC message instead of two pipe writes
+  plus a delay for every character.
+- Touch now begins after a 5 px movement and preserves the first meaningful
+  delta instead of dropping it. This makes tap/drag response noticeably more
+  immediate while retaining click-vs-drag separation.
+- Mo Store was redesigned as a new MoOS-specific surface: new identity header,
+  curated status capsule, deeper atmospheric background, angular search and
+  category controls, a new “Make MoOS yours” onboarding hero, and larger
+  unclipped bundle cards. Source preview:
+  `test-results/mo-store-redesign.png` (comparison:
+  `test-results/mo-store-before.png`).
+
+Tests completed:
+
+- controller unit tests and production PWA build passed;
+- Remote .NET suite passed in the SDK container: 22/22;
+- `just check`, theme safety 3/3, UI2 7/7, `test_moai_do`, build-script syntax,
+  and Python compile checks passed;
+- full `just build` passed, including Remote publish, QML smoke tests, image
+  experience/identity/catalog gates, initramfs proof and `bootc container lint`
+  (9 checks passed, 4 non-blocking content warnings). Local image:
+  `localhost/moos:latest`, ID
+  `c9dcb3fd91e2ce39817644d92ae40a17bc64360821fd0f5f31da0e9fcce8a167`.
+
+Open issues and exact next step:
+
+1. Commit and push this candidate, wait for both signed-image jobs and
+   verification, then stage only its exact signed NVIDIA digest.
+2. Reboot while retaining `.260`, repeat all live gates, and test the installed
+   immutable Mo Store.
+3. Real-phone acceptance remains mandatory: Arabic composition, Backspace,
+   spaces and punctuation in KWrite and Firefox; tap/drag/scroll; and
+   bidirectional clipboard text. Source and automated contract tests are green,
+   but this session does not claim phone hardware verification.
+4. The stale screencast UUID/reconnect failure and a future WebRTC/libei
+   transport remain open. Do not call TeamViewer-class video recovery complete.
+
 ## Session 2026-07-20 — Mo Store / Mo PC Remote icons and Arabic input
 
 - Code checkpoint: `cf8dad5` (`feat(remote): improve Arabic input and refresh app icons`).
@@ -81,14 +128,22 @@ Open issues and exact next step:
    It is **not staged**: the installed origin is pinned to the old exact digest,
    so `rpm-ostree upgrade` says no update, while an exact `rpm-ostree rebase`
    is correctly denied to the unprivileged session.
-2. The pending working tree fixes that updater dead end in `moai-do update`: it
+2. Commit `a04f46f` fixes that updater dead end in `moai-do update`: it
    identifies the booted MoOS edition, resolves only the official GHCR `:latest`
    tag, validates an exact SHA-256 digest, and escalates only a constructed
    `ostree-image-signed:` rebase. The previous deployment remains available.
    `tests/test_moai_do.py` now executes the complete update flow against command
    doubles and proves the exact privileged argv. `bash -n`, that test, and
-   `just check` pass. Commit/push this change, wait for signed CI, then use this
-   audited repo copy of `moai-do update` to stage the resulting NVIDIA digest.
+   `just check` pass. CI run `29717267108` passed both editions, signing, and
+   OS-key verification. The resulting `.263` NVIDIA image is
+   `sha256:35d13c7b37bf8178cb9aaac2362158ef2ea43e1d8c6c8e9ab0f251fa2d97f00e`
+   (generic: `sha256:ef1c008e40fb6e287bf723b9a02ae5df9d14d85ef8ff7c46ec3cb9f311c70667`).
+   The audited repo copy of `moai-do update` was then run live with interactive
+   Polkit approval. It pulled the signature-enforced exact digest and staged
+   `.263` successfully. Pre-reboot `rpm-ostree status --json` confirms `.263`
+   is staged with the exact digest above, `.260` remains booted, and `.259`
+   remains present. Exact next step: reboot into `.263`, confirm its booted
+   digest, then run the full live self-check/post-update suite and Remote tests.
 3. Boot the candidate while retaining `.260`, then test real Arabic typing from
    an Arabic phone keyboard into at least KWrite and Firefox, including composing,
    Backspace, spaces and punctuation. Test touch tap/drag/scroll on the same run.

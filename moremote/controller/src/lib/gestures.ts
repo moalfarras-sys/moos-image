@@ -16,7 +16,7 @@ export interface GestureCallbacks {
 
 interface Ptr { id: number; x: number; y: number; sx: number; sy: number; st: number; }
 
-const MOVE_THRESHOLD = 8;
+const MOVE_THRESHOLD = 5;
 const LONGPRESS_MS = 500; // matches Android's own long-press feel, so a slow tap stays a tap
 const PX_PER_NOTCH = 24;
 const TRACKPAD_GAIN = 1.7;
@@ -160,8 +160,8 @@ export class GestureController {
       } else {
         this.phase = "scroll"; // touch mode: a swipe scrolls, like on any phone
       }
-      this.lastX = p.x; this.lastY = p.y;
-      return;
+      // Continue below and deliver this first meaningful delta. Dropping it made every
+      // pointer/scroll gesture feel sticky by one event, especially on 120 Hz phones.
     }
 
     this.lastX = p.x; this.lastY = p.y;

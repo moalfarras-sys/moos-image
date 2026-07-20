@@ -1219,6 +1219,15 @@ require("0x05c1" in text_keysym and "0x05e0" in text_keysym
 require("onCompositionStart" in remote_screen and "onCompositionEnd" in remote_screen
         and "composingRef.current" in remote_screen,
         "the phone keyboard must send committed Arabic/IME text once, not stream composition edits")
+require('type = "keysyms"' in input_injector and 'elif t == "keysyms":' in portal,
+        "committed phone text must cross the helper pipe as one ordered keysym batch")
+remote_ws = read("moremote/controller/src/lib/ws.ts")
+gestures = read("moremote/controller/src/lib/gestures.ts")
+require("flushText(),12" in remote_ws,
+        "phone text batching must stay below one 60 Hz frame")
+require("MOVE_THRESHOLD = 5" in gestures
+        and "Continue below and deliver this first meaningful delta" in gestures,
+        "touch must deliver its first meaningful movement instead of feeling sticky")
 
 # build.sh installs into the image by name; a stale filename here fails the image build.
 build = read("build_files/build.sh")

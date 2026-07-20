@@ -1,5 +1,5 @@
 // Bump this on each frontend change so you can confirm the phone loaded the latest build.
-export const BUILD = "v8 · PipeWire stream + instant touch";
+export const BUILD = "v9 · fast Arabic + instant touch";
 
 export interface ServerStatus {
   name: string;

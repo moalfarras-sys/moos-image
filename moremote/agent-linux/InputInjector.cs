@@ -169,16 +169,16 @@ public sealed class InputInjector : IDisposable
         // paragraph or so, one clipboard paste is far quicker and the user is pasting anyway.
         if (_portal.IsReady && text.Length <= BulkPasteThreshold && IsKeysymSafe(text))
         {
-            bool ok = true;
+            var events = new List<object>();
             foreach (var rune in text.EnumerateRunes())
             {
                 int keysym = TextKeysym.ForCodepoint(rune.Value);
-                if (!_portal.Send(new { type = "keysym", keysym, down = true }) ||
-                    !_portal.Send(new { type = "keysym", keysym, down = false }))
-                { ok = false; break; }
-                Thread.Sleep(2); // let the compositor's virtual keyboard keep up
+                events.Add(new { keysym, down = true });
+                events.Add(new { keysym, down = false });
             }
-            if (ok) return;
+            // One ordered pipe write per committed mobile edit. The helper performs the D-Bus
+            // calls serially, preserving key order without 2N JSON writes and artificial sleeps.
+            if (_portal.Send(new { type = "keysyms", events })) return;
         }
         ClipboardBridge.SetText(text);
         Combo(["Control", "V"]);
