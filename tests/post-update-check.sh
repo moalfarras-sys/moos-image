@@ -84,6 +84,31 @@ case "$theme_lnf" in
         want_icons=MoOSUI2Light; want_style=MoOSUI2Light; want_wallpaper=MoOSUI2Tide
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light
         ;;
+    org.moos.ui2.nova|org.moos.ui2.amethyst|org.moos.ui2.midnight|org.moos.ui2.aurora|\
+    org.moos.ui2.nova.light|org.moos.ui2.amethyst.light|org.moos.ui2.midnight.light|org.moos.ui2.aurora.light|\
+    org.moos.ui2.gaming|org.moos.ui2.dev|org.moos.ui2.study|\
+    org.moos.ui2.gaming.light|org.moos.ui2.dev.light|org.moos.ui2.study.light)
+        case "$theme_lnf" in
+            org.moos.ui2.nova*) theme_family=nova; Name=Nova ;;
+            org.moos.ui2.amethyst*) theme_family=amethyst; Name=Amethyst ;;
+            org.moos.ui2.midnight*) theme_family=midnight; Name=Midnight ;;
+            org.moos.ui2.aurora*) theme_family=aurora; Name=Aurora ;;
+            org.moos.ui2.gaming*) theme_family=gaming; Name=Arena ;;
+            org.moos.ui2.dev*) theme_family=dev; Name=Forge ;;
+            *) theme_family=study; Name=Scholar ;;
+        esac
+        # Automatic mode deliberately remains the conservative Graphite/Tidal
+        # pair; selecting a family member manually must not rewrite that safety pair.
+        pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light
+        if [[ "$theme_lnf" == *.light ]]; then
+            [ "$theme_family" = midnight ] && Name=Daylight || Name="${Name}Light"
+            want_icons=MoOSUI2Light; theme_name="UI2 ${Name} Light"
+        else
+            want_icons=MoOSUI2; theme_name="UI2 ${Name} Dark"
+        fi
+        want_deco="__aurorae__svg__MoOSUI2${Name}"
+        want_scheme="MoOSUI2${Name}"; want_style="MoOSUI2${Name}"; want_wallpaper="MoOSUI2${Name}"
+        ;;
     *)
         theme_family=""; theme_name=""; want_deco=""; want_scheme=""; want_icons=""
         want_style=""; want_wallpaper=""; pair_dark=""; pair_light=""

@@ -53,6 +53,16 @@ NOVA_LNF="org.moos.ui2.nova"
 AMETHYST_LNF="org.moos.ui2.amethyst"
 MIDNIGHT_LNF="org.moos.ui2.midnight"
 AURORA_LNF="org.moos.ui2.aurora"
+NOVA_LIGHT_LNF="org.moos.ui2.nova.light"
+AMETHYST_LIGHT_LNF="org.moos.ui2.amethyst.light"
+AURORA_LIGHT_LNF="org.moos.ui2.aurora.light"
+DAYLIGHT_LNF="org.moos.ui2.midnight.light"
+GAMING_LNF="org.moos.ui2.gaming"
+DEV_LNF="org.moos.ui2.dev"
+STUDY_LNF="org.moos.ui2.study"
+GAMING_LIGHT_LNF="org.moos.ui2.gaming.light"
+DEV_LIGHT_LNF="org.moos.ui2.dev.light"
+STUDY_LIGHT_LNF="org.moos.ui2.study.light"
 
 # UI1 remains installed as an explicit rollback. It counts as intact after the
 # UI2 migration marker exists, so `moos-theme ui1-dark|ui1-light` is a durable
@@ -349,6 +359,41 @@ theme_intact() {
             expected_deco="__aurorae__svg__MoOSUI2${Fam}"
             expected_scheme="MoOSUI2${Fam}"; expected_style="MoOSUI2${Fam}"
             expected_icons=MoOSUI2; expected_cursor=MoOS
+            expected_scene=scene-each
+            ;;
+        "$NOVA_LIGHT_LNF"|"$AMETHYST_LIGHT_LNF"|"$AURORA_LIGHT_LNF")
+            local fam="${lnf%.light}"; fam="${fam##*.}"; local Fam="${fam^}"
+            expected_deco="__aurorae__svg__MoOSUI2${Fam}Light"
+            expected_scheme="MoOSUI2${Fam}Light"; expected_style="MoOSUI2${Fam}Light"
+            expected_icons=MoOSUI2Light; expected_cursor=MoOSDark
+            expected_scene=scene-each
+            ;;
+        "$DAYLIGHT_LNF")
+            expected_deco=__aurorae__svg__MoOSUI2Daylight
+            expected_scheme=MoOSUI2Daylight; expected_style=MoOSUI2Daylight
+            expected_icons=MoOSUI2Light; expected_cursor=MoOSDark
+            expected_scene=scene-each
+            ;;
+        "$GAMING_LNF"|"$DEV_LNF"|"$STUDY_LNF")
+            case "$lnf" in
+                "$GAMING_LNF") local Fam=Arena ;;
+                "$DEV_LNF") local Fam=Forge ;;
+                *) local Fam=Scholar ;;
+            esac
+            expected_deco="__aurorae__svg__MoOSUI2${Fam}"
+            expected_scheme="MoOSUI2${Fam}"; expected_style="MoOSUI2${Fam}"
+            expected_icons=MoOSUI2; expected_cursor=MoOS
+            expected_scene=scene-each
+            ;;
+        "$GAMING_LIGHT_LNF"|"$DEV_LIGHT_LNF"|"$STUDY_LIGHT_LNF")
+            case "$lnf" in
+                "$GAMING_LIGHT_LNF") local Fam=ArenaLight ;;
+                "$DEV_LIGHT_LNF") local Fam=ForgeLight ;;
+                *) local Fam=ScholarLight ;;
+            esac
+            expected_deco="__aurorae__svg__MoOSUI2${Fam}"
+            expected_scheme="MoOSUI2${Fam}"; expected_style="MoOSUI2${Fam}"
+            expected_icons=MoOSUI2Light; expected_cursor=MoOSDark
             expected_scene=scene-each
             ;;
         *) return 1 ;;

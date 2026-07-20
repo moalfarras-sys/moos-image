@@ -94,8 +94,33 @@ case "$lnf" in
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui2
         mode="UI2 تركواز | Tidal Light"
         ;;
-    # There is one MoOS look now (dark + light). The older Nova and UI generations no longer ship,
-    # so anything that is not one of the two halves above is simply "not a MoOS look".
+    org.moos.ui2.nova|org.moos.ui2.amethyst|org.moos.ui2.midnight|org.moos.ui2.aurora|\
+    org.moos.ui2.nova.light|org.moos.ui2.amethyst.light|org.moos.ui2.midnight.light|org.moos.ui2.aurora.light|\
+    org.moos.ui2.gaming|org.moos.ui2.dev|org.moos.ui2.study|\
+    org.moos.ui2.gaming.light|org.moos.ui2.dev.light|org.moos.ui2.study.light)
+        case "$lnf" in
+            org.moos.ui2.nova*) family=nova; Name=Nova ;;
+            org.moos.ui2.amethyst*) family=amethyst; Name=Amethyst ;;
+            org.moos.ui2.midnight*) family=midnight; Name=Midnight ;;
+            org.moos.ui2.aurora*) family=aurora; Name=Aurora ;;
+            org.moos.ui2.gaming*) family=gaming; Name=Arena ;;
+            org.moos.ui2.dev*) family=dev; Name=Forge ;;
+            *) family=study; Name=Scholar ;;
+        esac
+        # Automatic mode deliberately remains the conservative Graphite/Tidal
+        # pair; selecting a family member manually must not rewrite that safety pair.
+        pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light
+        if [[ "$lnf" == *.light ]]; then
+            [ "$family" = midnight ] && Name=Daylight || Name="${Name}Light"
+            want_ico=MoOSUI2Light
+            mode="UI2 ${Name} Light"
+        else
+            want_ico=MoOSUI2
+            mode="UI2 ${Name} Dark"
+        fi
+        want_deco="__aurorae__svg__MoOSUI2${Name}"
+        want_sch="MoOSUI2${Name}"; want_sty="MoOSUI2${Name}"; want_wall="MoOSUI2${Name}"
+        ;;
     *) want_deco=""; want_wall=""; pair_dark=""; pair_light=""; family=""; mode="" ;;
 esac
 

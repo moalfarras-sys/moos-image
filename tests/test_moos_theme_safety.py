@@ -265,6 +265,19 @@ target_lnf "$1" "$2"
                                     f"{fam}: missing wallpaper {style}")
             # moos-theme must be able to apply the light id (a load_profile arm)
             self.assertIn(light_lnf, switch, f"moos-theme cannot drive {light_lnf}")
+            # Live verification and login self-heal must agree with the switcher.
+            # A family member is not healthy if our own diagnostics call it foreign,
+            # or if every login needlessly reapplies it despite intact selectors.
+            for checker_name in ("moos-selfcheck", "post-update-check.sh"):
+                checker_path = (ROOT / "system_files/usr/bin/moos-selfcheck"
+                                if checker_name == "moos-selfcheck"
+                                else ROOT / "tests/post-update-check.sh")
+                checker = checker_path.read_text(encoding="utf-8")
+                self.assertIn(dark_lnf, checker, f"{checker_name} rejects {dark_lnf}")
+                self.assertIn(light_lnf, checker, f"{checker_name} rejects {light_lnf}")
+            apply_theme = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
+            self.assertIn(dark_lnf, apply_theme, f"login self-heal rejects {dark_lnf}")
+            self.assertIn(light_lnf, apply_theme, f"login self-heal rejects {light_lnf}")
         # toggle flips ANY family by the ".light" suffix rule, in both directions
         self.assertIn('target="${cur%.light}"', switch)
         self.assertIn('target="${cur}.light"', switch)
