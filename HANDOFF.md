@@ -44,6 +44,8 @@ shutdown / restart). The root cause is not the design — it is the pipeline.**
     - `027afd8` polish(login): legible signature + soft-sprite glow, visually verified
     - `83042d5` chore(repo): ignore agent-tool scaffolding / test evidence / stale publish output
     - `2d84592` feat(logout): iOS-style Liquid Glass power screen — retire the noisy aurora
+    - `2ea8418` feat(login+fonts): ship Inter + a clean Liquid Glass login greeter
+    - `f983c6a` feat(logout): switch the power screen + tiles to Inter (Latin)
   The booted image v288 (`2a3a9558`) was built from `a86df17`, whose recent work was
   Mo AI, **not** the login/logout screens — so those looked identical v281→v288, which
   is exactly what the user perceives. **Until `gh` is re-authed and these push, the
@@ -133,6 +135,30 @@ aware with `highlightedTextColor`; logout must keep ≥6 `auroraTint()` curtains
 the component and a full-scene mock are rendered; the composed screen confirms live after
 boot (rollback safe). Render tooling: scratch `glass_power.qml`, `render_themes.py`, the
 `btndir`/`logoutnew` harnesses.
+
+### Design toolkit (installed this session, in `~/design-tools`)
+
+The owner asked for real design tooling before more design. Installed via npm:
+**Lucide** (chosen icon set, ~2k SVGs), Phosphor (9k, 6 weights), Tabler (6k), and
+**Inter** (chosen UI font). Verified on-system: **`MultiEffect` (QtQuick.Effects)** —
+the real frosted-glass/blur/shadow engine (Qt6) — plus Qt Quick Shapes and Kirigami
+6.28. The full Liquid-Glass design language (login/lock/power) was rendered offscreen
+with these tools and approved. Reusable render tooling in the session scratchpad
+(`glass2.qml` power, `login.qml`, `lock.qml`, `render_themes.py`, harness dirs).
+
+Wallpaper note: a procedural 4K bg was generated but **MoOSUI2Graphite is more premium**
+(sculpted glass vs flat gradient) — kept it. A genuinely better wallpaper needs an AI
+image model this env lacks.
+
+### Integration status (design language → real image)
+
+- **DONE & committed:** Inter font shipped; login greeter reglassed clean (Inter, calm
+  Graphite, quiet top-left brand); power screen = Liquid Glass tiles + calm scene + Inter.
+- **NOT done (next):** real `MultiEffect` frosted glass on the composed logout/lock (needs
+  care — those files don't render headless); an Inter clock on the power screen; a
+  Lucide-based symbolic icon THEME (so `Kirigami.Icon` can mask+recolor Lucide per theme);
+  the lock screen (`LockScreenUi.qml`) reglassed (auth-critical — go slow). Targets are the
+  approved mocks (`glass2.png` power, `login2.png`, `lock2.png`).
 
 ### Next precise steps
 
