@@ -29,6 +29,61 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-21 (night) — login scene elevated + SHIP PIPELINE BLOCKED
+
+### RESUME HERE
+
+**The user reports seeing NO visual change across recent sessions (login / logout /
+shutdown / restart). The root cause is not the design — it is the pipeline.**
+
+- **`gh` token is INVALID → nothing new can ship.** `gh auth status` = "token in
+  keyring is invalid"; `git push` = "Authentication failed". Two local commits are
+  stranded on `main`, ahead of `origin/main` (`a86df17`):
+    - `3a91287` feat(moai): make the brain FAST (from the prior session)
+    - `6f16024` feat(login): premium glass identity chip + living halo (this session)
+  The booted image v288 (`2a3a9558`) was built from `a86df17`, whose recent work was
+  Mo AI, **not** the login/logout screens — so those looked identical v281→v288, which
+  is exactly what the user perceives. **Until `gh` is re-authed and these push, the
+  machine keeps booting the same pixels no matter what we change.**
+- **The one action that unblocks everything:** the user runs `! gh auth login`
+  (device flow), then `git -C ~/moos-image push origin main` → CI builds & signs →
+  `rpm-ostree upgrade` → reboot → new login scene is live.
+
+### What was done
+
+1. **Deep live audit of the named surfaces.** Confirmed against the live `/usr` tree:
+   the logout/shutdown/restart screen (`.../look-and-feel/*/contents/logout/Logout.qml`,
+   identical across all 16 variants), the lock screen (`shells/.../lockscreen/`), the
+   splash and the action buttons are **already high-craft and already deployed** — the
+   active theme is `org.moos.ui2.midnight`, and its live files byte-match the repo. The
+   only genuinely plain, first-seen surface was the **login greeter** background scene.
+
+2. **Login scene redesigned** (`wallpapers/org.moos.ui2.greeter/contents/ui/main.qml`,
+   commit `6f16024`). Within the `verify_image_experience.py` login contract (no
+   `Animation`/`Repeater`/`ShaderEffect`/`Canvas`; brand pinned top-left; base image
+   paints synchronously): a frosted glass identity chip with two continuously
+   counter-rotating halo rings (render-thread `RotationAnimator`, finite loops), an
+   accent-tinted depth glow + vignette, a refined horizon thread, and a MoOS wordmark
+   lockup over an accent underline + soft welcome. All colours from the active scheme,
+   so login now tracks each theme's accent like lock/logout do.
+
+### What was tested
+
+- Gate logic replicated locally: no forbidden tokens in non-comment lines, brand
+  anchored `top-left`. `qmllint` clean (exit 0, same as baseline).
+- `just check` green (user-experience, device-plan, moai-do, fwupd, visuals);
+  `tests/test_moos_ui2.py`, `tests/test_moos_theme_safety.py` green;
+  `bash -n build_files/build.sh` OK. `systemctl --failed` empty.
+- **Not yet run:** the real `verify_image_experience.py` (reads live `/usr`, so it can
+  only judge the *deployed* greeter, not the new one) and a full local `podman build`.
+  CI is the first place the new greeter meets that gate — watch that build.
+
+### Next precise step
+
+Re-auth `gh`, push both commits, watch CI go green, `rpm-ostree upgrade`, reboot, and
+confirm the new login scene live. Then continue cohesive polish only where a surface is
+genuinely plain — the rest of the doorway system is already premium.
+
 ## Session 2026-07-21 (evening) — live fwupd/zram proof + full doorway & app visual polish
 
 ### What was done
