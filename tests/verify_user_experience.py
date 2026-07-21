@@ -2135,15 +2135,17 @@ require("control.emphasized || control.down" in _action_btn
         "an accent fill makes the Cancel icon invisible")
 # 3) The doorway splash/logout must track the ACTIVE theme, not ship Nova's cosmic
 #    literals on all 16 family members. The splash's third sweep is the linkColor
-#    (secondary) role; the six logout aurora curtains route through auroraTint().
+#    (secondary) role; the logout aurora ribbons route their accent through auroraTint().
+#    (The engine was slimmed from six curtains to two ribbons for GPU headroom; the
+#    invariant is unchanged — every accent stop still tracks the theme, not Nova.)
 _splash = code(read("system_files/usr/share/plasma/look-and-feel/org.moos.ui2/"
                     "contents/splash/Splash.qml"), style="slash")
 require("Kirigami.Theme.linkColor" in _splash,
         "the splash's third progress sweep is a hardcoded violet again — it must be "
         "Kirigami.Theme.linkColor so every family member tracks its own secondary")
 _logout_code = code(logout_qml, style="slash")
-require(_logout_code.count("root.auroraTint(") >= 6,
-        "the logout aurora curtains bypass auroraTint() — they would ship Nova's "
+require(_logout_code.count("root.auroraTint(") >= 2,
+        "the logout aurora ribbons bypass auroraTint() — they would ship Nova's "
         "cyan-violet-rose on every theme instead of tracking the accent")
 require("try {" in layout,
         "the floating setter must be guarded -- a throw in the layout template "

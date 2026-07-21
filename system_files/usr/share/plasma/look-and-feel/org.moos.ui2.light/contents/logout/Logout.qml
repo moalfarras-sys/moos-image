@@ -218,64 +218,41 @@ Item {
     }
     Rectangle { anchors.fill: parent; color: "#070A0C"; opacity: 0.45 }
 
+    // MoOS signature: ONE slow aurora ribbon that tracks the live theme accent,
+    // plus a single companion veil for depth. Two animated surfaces replace the
+    // former six — the scene still breathes, the GPU barely wakes.
     Item {
         anchors.fill: parent
         opacity: 0
         Component.onCompleted: auroraCalmFade.start()
         OpacityAnimator { id: auroraCalmFade; target: parent; from: 0; to: 1; duration: Kirigami.Units.veryLongDuration; easing.type: Easing.OutCubic }
         Rectangle {
-            width: root.width*0.5; height: root.height*0.72; x: root.width*0.02; y: root.height*0.0
-            rotation: -14; transformOrigin: Item.Center; opacity: 0.12
+            width: root.width * 1.5; height: root.height * 0.66
+            x: -root.width * 0.25; y: root.height * 0.04
+            rotation: -9; transformOrigin: Item.Center; opacity: 0.17
             gradient: Gradient { orientation: Gradient.Vertical
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.44; color: root.auroraTint("#10B981") }
+                GradientStop { position: 0.5; color: root.auroraTint("#2DD4BF") }
                 GradientStop { position: 1.0; color: "transparent" } }
-            XAnimator on x { from: root.width*-0.1; to: root.width*0.4; duration: 96000; loops: Animation.Infinite; easing.type: Easing.InOutSine; running: root.visible }
+            SequentialAnimation on x {
+                loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: -root.width * 0.08; duration: 40000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: -root.width * 0.25; duration: 40000; easing.type: Easing.InOutSine }
+            }
         }
         Rectangle {
-            width: root.width*0.54; height: root.height*0.78; x: root.width*0.3; y: root.height*-0.04
-            rotation: 10; transformOrigin: Item.Center; opacity: 0.14
+            width: root.width * 1.2; height: root.height * 0.5
+            x: root.width * 0.1; y: root.height * 0.34
+            rotation: 12; transformOrigin: Item.Center; opacity: 0.08
             gradient: Gradient { orientation: Gradient.Vertical
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.44; color: root.auroraTint("#2DD4BF") }
+                GradientStop { position: 0.5; color: root.auroraTint("#8B5CF6") }
                 GradientStop { position: 1.0; color: "transparent" } }
-            XAnimator on x { from: root.width*0.46; to: root.width*-0.02; duration: 120000; loops: Animation.Infinite; easing.type: Easing.InOutSine; running: root.visible }
-        }
-        Rectangle {
-            width: root.width*0.44; height: root.height*0.64; x: root.width*0.55; y: root.height*0.08
-            rotation: -8; transformOrigin: Item.Center; opacity: 0.1
-            gradient: Gradient { orientation: Gradient.Vertical
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.44; color: root.auroraTint("#22D3EE") }
-                GradientStop { position: 1.0; color: "transparent" } }
-            XAnimator on x { from: root.width*0.14; to: root.width*0.54; duration: 108000; loops: Animation.Infinite; easing.type: Easing.InOutSine; running: root.visible }
-        }
-        Rectangle {
-            width: root.width*0.5; height: root.height*0.72; x: root.width*0.1; y: root.height*0.0
-            rotation: 16; transformOrigin: Item.Center; opacity: 0.11
-            gradient: Gradient { orientation: Gradient.Vertical
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.44; color: root.auroraTint("#8B5CF6") }
-                GradientStop { position: 1.0; color: "transparent" } }
-            XAnimator on x { from: root.width*0.4; to: root.width*0.02; duration: 132000; loops: Animation.Infinite; easing.type: Easing.InOutSine; running: root.visible }
-        }
-        Rectangle {
-            width: root.width*0.38; height: root.height*0.58; x: root.width*0.62; y: root.height*0.14
-            rotation: -20; transformOrigin: Item.Center; opacity: 0.07
-            gradient: Gradient { orientation: Gradient.Vertical
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.44; color: root.auroraTint("#F59E0B") }
-                GradientStop { position: 1.0; color: "transparent" } }
-            XAnimator on x { from: root.width*0.62; to: root.width*0.16; duration: 150000; loops: Animation.Infinite; easing.type: Easing.InOutSine; running: root.visible }
-        }
-        Rectangle {
-            width: root.width*0.34; height: root.height*0.52; x: root.width*0.02; y: root.height*0.08
-            rotation: 24; transformOrigin: Item.Center; opacity: 0.06
-            gradient: Gradient { orientation: Gradient.Vertical
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.44; color: root.auroraTint("#F472B6") }
-                GradientStop { position: 1.0; color: "transparent" } }
-            XAnimator on x { from: root.width*-0.04; to: root.width*0.52; duration: 142000; loops: Animation.Infinite; easing.type: Easing.InOutSine; running: root.visible }
+            SequentialAnimation on x {
+                loops: Animation.Infinite; running: root.visible
+                NumberAnimation { to: root.width * 0.02; duration: 52000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: root.width * 0.1; duration: 52000; easing.type: Easing.InOutSine }
+            }
         }
     }
 
@@ -485,50 +462,18 @@ Item {
                             NumberAnimation { to: 1.0; duration: 2900; easing.type: Easing.InOutSine }
                         }
                     }
-                    // Orbiting spark
-                    Item {
-                        anchors.fill: parent
-                        RotationAnimator on rotation {
-                            from: 0; to: 360
-                            duration: 20000
-                            loops: Animation.Infinite
-                            running: root.visible
-                        }
-                        Image {
-                            source: "images/spark.png"
-                            width: brandStage.width * 0.15
-                            height: width
-                            x: (brandStage.width - width) / 2
-                            y: -brandStage.width * 0.10
-                        }
-                    }
-                    // Primary comet ring
+                    // A single slow halo ring — the one piece of orbital motion.
                     Image {
                         anchors.centerIn: parent
                         width: brandStage.width * 1.5
                         height: width
                         source: "images/ring.png"
                         mirror: true
-                        opacity: 0.7
+                        opacity: 0.6
                         sourceSize: Qt.size(width * 2, height * 2)
                         RotationAnimator on rotation {
                             from: 360; to: 0
-                            duration: 26000
-                            loops: Animation.Infinite
-                            running: root.visible
-                        }
-                    }
-                    // NEW: Second counter-rotating ring for 3D depth
-                    Image {
-                        anchors.centerIn: parent
-                        width: brandStage.width * 1.2
-                        height: width
-                        source: "images/ring.png"
-                        opacity: 0.35
-                        sourceSize: Qt.size(width * 2, height * 2)
-                        RotationAnimator on rotation {
-                            from: 0; to: 360
-                            duration: 18000
+                            duration: 30000
                             loops: Animation.Infinite
                             running: root.visible
                         }
