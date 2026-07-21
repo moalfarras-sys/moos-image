@@ -42,6 +42,7 @@ shutdown / restart). The root cause is not the design — it is the pipeline.**
     - `3a91287` feat(moai): make the brain FAST (from the prior session)
     - `6f16024` feat(login): premium glass identity chip + living halo (this session)
     - `027afd8` polish(login): legible signature + soft-sprite glow, visually verified
+    - `83042d5` chore(repo): ignore agent-tool scaffolding / test evidence / stale publish output
   The booted image v288 (`2a3a9558`) was built from `a86df17`, whose recent work was
   Mo AI, **not** the login/logout screens — so those looked identical v281→v288, which
   is exactly what the user perceives. **Until `gh` is re-authed and these push, the
@@ -78,11 +79,23 @@ A faithful standalone harness mirrors the greeter with the concrete
 Rendered at 1920×1080 and 1280×800. This caught two real faults the source review
 missed (hard-edged glow discs; a small dark emblem), fixed in `027afd8`, and re-rendered
 to confirm — the corner signature now reads as a bright, confident mark.
-- Scripts live in the session scratchpad (`render.sh`, `_harness_*.qml`).
-- **Logout/lock cannot be rendered this way:** they instantiate `SessionsModel`
-  (org.kde.plasma.private.sessions) / the authenticator, which need a live logind/session
-  bus and fail to construct headless (grab comes back blank). They are already premium
-  and already deployed, so they were reviewed as source only, not re-rendered.
+- Scripts live in the session scratchpad (`render.sh`, `render_themes.py`, `_harness_*.qml`).
+- **Splash was rendered from the real `Splash.qml`** (QtQuick + Kirigami, no session deps).
+  Headless it falls back to a light scheme (Kirigami has no scheme loaded) → white ground;
+  with `QT_QPA_PLATFORMTHEME=kde` + an injected `XDG_CONFIG_HOME/kdeglobals` it renders on
+  the dark ground it uses in-session. The orbital-reveal splash is premium and correct.
+- **The whole theme family was verified side-by-side.** `render_themes.py` reproduces the
+  doorway (aurora + glass panel + action grid) driven by the SAME `auroraTint` math and each
+  scheme's real colours from `/usr/share/color-schemes/*.colors`, rendered into a 12-tile
+  contact sheet (Graphite, Midnight, Nova, Amethyst, Aurora, Arena, Forge, Scholar + four
+  lights). Conclusion: **every theme is cohesive and legible — none is broken or off-brand**,
+  so no palette/`auroraTint` change was needed. (A found-broken theme would be fixed in
+  `artwork/moos-themes/palettes.json` + regenerate, not per-surface.)
+- **Logout/lock (the real files) cannot be rendered this way:** they instantiate
+  `SessionsModel` / the authenticator, which need a live logind/session bus and fail to
+  construct headless (grab comes back blank). Already premium and deployed; reviewed as source.
+- Proof images copied to the owner's Desktop; the gallery artifact bundles login + splash +
+  the 12-theme sheet.
 
 ### What was tested
 
