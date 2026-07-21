@@ -1602,10 +1602,14 @@ Kirigami.ApplicationWindow {
                     ColumnLayout {
                         spacing: 0
 
-                        ListView {
-                            id: listView
+                        Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
+
+                        ListView {
+                            id: listView
+                            anchors.fill: parent
+                            visible: chatModel.count > 1
                             clip: true
                             spacing: 4
                             topMargin: 14
@@ -1683,6 +1687,72 @@ Kirigami.ApplicationWindow {
                                     }
                                 }
                             }
+                        }
+
+                        // ══ Empty-state hero — a warm modern welcome, not a black void ══
+                        // Shown only before the first exchange (chatModel holds just the
+                        // seeded greeting). Fills the chat area with the brand orb, a
+                        // bilingual greeting and an accent glow that tracks the theme;
+                        // the ListView (and its greeting bubble) take over on the first reply.
+                        Item {
+                            anchors.fill: parent
+                            visible: chatModel.count <= 1
+
+                            Rectangle {
+                                anchors.centerIn: parent
+                                anchors.verticalCenterOffset: -70
+                                width: 380; height: 380; radius: 190
+                                gradient: Gradient {
+                                    GradientStop { position: 0.0; color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.11) }
+                                    GradientStop { position: 1.0; color: "transparent" }
+                                }
+                            }
+
+                            Column {
+                                anchors.centerIn: parent
+                                spacing: 20
+                                width: Math.min(parent.width - 96, 540)
+
+                                Item {
+                                    width: 122; height: 122
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    Rectangle {
+                                        anchors.centerIn: parent; width: 122; height: 122; radius: 61
+                                        color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.05)
+                                        border.width: 1
+                                        border.color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.16)
+                                    }
+                                    Rectangle {
+                                        anchors.centerIn: parent; width: 98; height: 98; radius: 49
+                                        color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.08)
+                                    }
+                                    MoOrb { anchors.centerIn: parent; width: 78; height: 78; mood: "idle" }
+                                }
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: Qt.application.layoutDirection === Qt.RightToLeft ? "أهلاً، أنا Mo AI" : "Hi, I'm Mo AI"
+                                    color: root.textHi
+                                    font.family: root.uiFont
+                                    font.pixelSize: 30
+                                    font.weight: Font.DemiBold
+                                }
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.Wrap
+                                    lineHeight: 1.28
+                                    text: Qt.application.layoutDirection === Qt.RightToLeft
+                                        ? "مساعد MoOS — أُصلّح التعريفات، أُحدّث النظام، أُثبّت أي تطبيق وأُنظّف الجهاز. اسألني، أو اختر بطاقة أدناه."
+                                        : "Your MoOS assistant — fix drivers, update the system, install any app and tidy things up. Ask me anything, or pick a card below."
+                                    color: root.textLo
+                                    font.family: root.uiFont
+                                    font.pixelSize: 14
+                                }
+                            }
+                        }
                         }
 
                         // The device banner — Mo AI opens already knowing.
