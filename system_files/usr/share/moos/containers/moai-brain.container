@@ -25,6 +25,11 @@ SecurityLabelDisable=true
 # pins the host side to loopback, so nothing is reachable off-machine.
 Environment=OLLAMA_HOST=0.0.0.0:11434
 PublishPort=127.0.0.1:11434:11434
+# MoOS's brain is offline-first — the local model serves Mo AI, and any cloud
+# route goes through moai-gateway with its own key, never Ollama's cloud. Turn
+# off Ollama's own ollama.com probing so a fresh boot (network not yet up) stops
+# logging "cloud cache hydration failed" / "recommendations refresh failed".
+Environment=OLLAMA_NO_CLOUD=true
 
 # ── Performance ────────────────────────────────────────────────────
 # Both of the next two are required together: setting KV_CACHE_TYPE

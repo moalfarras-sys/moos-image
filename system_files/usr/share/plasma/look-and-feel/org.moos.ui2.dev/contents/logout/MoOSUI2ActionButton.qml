@@ -142,7 +142,7 @@ QQC2.AbstractButton {
             states: State {
                 name: "pressed"
                 when: control.down
-                PropertyChanges { target: pressPulse; width: control.width * 1.2; height: control.width * 1.2; opacity: 0 }
+                PropertyChanges { pressPulse.width: control.width * 1.2; pressPulse.height: control.width * 1.2; pressPulse.opacity: 0 }
             }
             transitions: Transition {
                 from: ""; to: "pressed"
@@ -192,11 +192,17 @@ QQC2.AbstractButton {
                 height: width
                 selected: control.emphasized
                 isMask: true
+                // The background turns highlightColor on emphasized/down (see
+                // background:, above), so a highlightColor glyph would vanish into
+                // it — the primary logout Cancel button was exactly this. Use the
+                // contrasting highlightedTextColor whenever the fill is the accent.
                 color: control.destructive
                     ? (control.destructiveActive
                         ? Kirigami.Theme.highlightedTextColor
                         : Kirigami.Theme.negativeTextColor)
-                    : Kirigami.Theme.highlightColor
+                    : (control.emphasized || control.down
+                        ? Kirigami.Theme.highlightedTextColor
+                        : Kirigami.Theme.highlightColor)
                 scale: parent.active ? 1.10 : 1.0
                 // Subtle rotation on hover — icon tilts 5° with bounce back
                 rotation: parent.active ? 5 : 0
@@ -214,7 +220,7 @@ QQC2.AbstractButton {
             text: control.text
             color: control.destructive && !control.destructiveActive
                 ? Kirigami.Theme.negativeTextColor
-                : ((control.emphasized || control.destructiveActive)
+                : ((control.emphasized || control.down || control.destructiveActive)
                     ? Kirigami.Theme.highlightedTextColor
                     : Kirigami.Theme.textColor)
             font.family: "IBM Plex Sans"

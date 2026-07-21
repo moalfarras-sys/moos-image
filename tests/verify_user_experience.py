@@ -2111,6 +2111,40 @@ logout_qml = read(
 require("gridUnit * 55 ? 2 : 3" in logout_qml,
         "the desktop logout surface must keep its balanced 3x2 command deck "
         "with a two-column narrow-screen fallback")
+
+# ── Doorway polish regressions (2026-07-21), each gated on the code, not prose ─
+# 1) The lock-screen date must not use Qt.formatDate(date, locale, string): the
+#    3-arg form silently discards the format string and applies the locale's own
+#    LongFormat, so the English date rendered month-first ("July 21" not
+#    "21 July"). The fix is Qt.locale(...).toString(date, fmt).
+_moosclock = code(read("system_files/usr/share/plasma/shells/org.kde.plasma.desktop/"
+                       "contents/lockscreen/MoOSClock.qml"), style="slash")
+require("Qt.formatDate" not in _moosclock and _moosclock.count(".toString(") >= 2,
+        "MoOSClock must render both dates with Qt.locale(...).toString(date, fmt), "
+        "never Qt.formatDate(date, locale, string) — the 3-arg form discards the "
+        "format string and the English lock date reverts to month-first.")
+# 2) The logout action button's background turns highlightColor when emphasized
+#    or pressed; a highlightColor glyph vanishes into it (the primary Cancel
+#    button did exactly this). The non-destructive icon colour must switch to a
+#    contrasting role on emphasized/down.
+_action_btn = code(read("system_files/usr/share/plasma/look-and-feel/org.moos.ui2/"
+                        "contents/logout/MoOSUI2ActionButton.qml"), style="slash")
+require("control.emphasized || control.down" in _action_btn
+        and "highlightedTextColor" in _action_btn,
+        "the logout action icon is not emphasized/down-aware — an accent glyph on "
+        "an accent fill makes the Cancel icon invisible")
+# 3) The doorway splash/logout must track the ACTIVE theme, not ship Nova's cosmic
+#    literals on all 16 family members. The splash's third sweep is the linkColor
+#    (secondary) role; the six logout aurora curtains route through auroraTint().
+_splash = code(read("system_files/usr/share/plasma/look-and-feel/org.moos.ui2/"
+                    "contents/splash/Splash.qml"), style="slash")
+require("Kirigami.Theme.linkColor" in _splash,
+        "the splash's third progress sweep is a hardcoded violet again — it must be "
+        "Kirigami.Theme.linkColor so every family member tracks its own secondary")
+_logout_code = code(logout_qml, style="slash")
+require(_logout_code.count("root.auroraTint(") >= 6,
+        "the logout aurora curtains bypass auroraTint() — they would ship Nova's "
+        "cyan-violet-rose on every theme instead of tracking the accent")
 require("try {" in layout,
         "the floating setter must be guarded -- a throw in the layout template "
         "leaves the session with NO panel")

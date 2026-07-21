@@ -29,6 +29,128 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-21 (evening) — live fwupd/zram proof + full doorway & app visual polish
+
+### What was done
+
+1. **fwupd-refresh polkit fix — VERIFIED LIVE and closed.** Booted the signed
+   image `be91759a` (v281). Manually triggered `fwupd-refresh.service`: it ran the
+   session-less DynamicUser, downloaded the full LVFS metadata and exited
+   `0/SUCCESS` with **no "Failed to obtain auth"** anywhere this boot;
+   `systemctl --failed` empty before and after. ROADMAP item flipped to `[x]`;
+   committed `1b4f910` (pushed). The registry drift (`c06a9420`/v282) is the
+   benign gate-image (revision `1038550`, test-only, no runtime effect).
+
+2. **zram first-boot fix — mechanism VERIFIED LIVE and closed.** The shipped
+   drop-in `systemd-zram-setup@.service.d/10-moos-reset-on-retry.conf` (commit
+   `2e7b7d0`) was validated on real zram hardware via a privileged podman
+   container sharing `/sys` (scratch zram1, never touching the live zram0 swap):
+   reproduced the EBUSY wedge (initialised device rejects comp_algorithm),
+   confirmed the exact `ExecStartPre` reset clears it, and confirmed the
+   `/proc/swaps` guard never resets an active swap. `systemctl show` proves
+   systemd loads the reset before every (re)start (ignore_errors=yes). ROADMAP
+   `[x]`; the full fresh-install VM first-boot repro is the one residual (no
+   `qemu`/`bootc-image-builder` in this dev env — do it on the next ISO round).
+
+3. **Full visual + functional polish pass, driven by a 4-agent deep audit**
+   (doorway screens · panel widget + Mo AI · live health · apps + themes). All
+   fixes land in canonical sources; the 16 look-and-feel packages were
+   re-propagated (QML is copied byte-for-byte by the generator, verified: one md5
+   per file across all 16). Doorway now tracks each theme instead of shipping
+   Nova's cosmic literals on all 16:
+   - **Lock date (BUG):** English date rendered US month-first ("July 21");
+     `MoOSClock.qml` used the 3-arg `Qt.formatDate(date,locale,string)` trap that
+     discards the format string. Both dates now use `Qt.locale(..).toString(..)`.
+   - **Invisible Cancel icon (BUG):** the logout action background turns
+     highlightColor on emphasized/pressed, and the non-destructive glyph was
+     always highlightColor → it vanished (the primary Cancel button). Icon+label
+     now switch to `highlightedTextColor` on emphasized/down (`MoOSUI2ActionButton.qml`).
+   - **Aurora + splash now theme-aware:** the six logout aurora curtains route
+     through a new `auroraTint()` (each jewel tone pulled 40% toward the live
+     `highlightColor` via `Qt.tint` — rich spectrum kept, per-theme mood gained);
+     the splash's third progress sweep is now `Kirigami.Theme.linkColor` (== each
+     family's `secondary` role; byte-identical violet on Nova). Verified
+     `linkColor`==palette `secondary` across every scheme (incl. Complementary).
+   - Logout `bilingual()` BiDi fix (two labels bypassed the isolate-wrapping
+     helper), `onNavigate: (step) =>` arrow form (Qt6 injected-param deprecation),
+     `PropertyChanges` grouped form, lock `MainBlock` unlock arrow `isMask:true`,
+     `LockScreenUi` redundant `property Item shadow` → assignment.
+   - **Mo AI (`apps/moai/main.qml`):** the toast/brain-picker/Settings-sheet
+     overlays were children of the main `RowLayout` (undefined-behaviour anchors,
+     mis-size/shift at 200%/4K) → moved to be `Kirigami.Page` children (0
+     layout-positioning warnings now, verified by brace/child analysis). Silent
+     model-delete error now routes to the displayed `cfgError`. Removed 149 lines
+     of dead pre-`moapp-console` settings plumbing (fired two useless XHRs on
+     every gear-open). Added the missing `agent` panel header/subtitle, made rail
+     labels session-aware (were Arabic-only), gave Agent its own `moos-identity`
+     icon (was sharing `moos-phone`).
+   - **Plasmoid `org.moos.brand`:** `StatusChip` unqualified access → `id: chip`
+     (its only qmllint warnings).
+   - **Mo Store:** two layout-positioning bugs (status dot, progress track) →
+     `Layout.preferredWidth/Height`.
+   - **Journal hygiene (MoOS-owned):** `fwupd-refresh` drop-in gains
+     `Environment=HOME=%T` (silences 10 dconf lines/refresh); `moai-brain.container`
+     gains `OLLAMA_NO_CLOUD=true` (stops ollama.com probe warnings at boot).
+   - Deprecation banner on the stale `MOOS_NOVA_DESIGN_TOKENS.md` (its Nova-navy
+     values are exactly where the splash/logout literals came from).
+
+### What was tested
+
+- Live: fwupd + zram as above; `moos-selfcheck` 39+note (keyboard now `de,us,ara`,
+  the old drift resolved); `tests/post-update-check.sh` 40/1 (the 1 = benign v282
+  digest drift).
+- `qmllint-qt6` clean (exit 0) on all edited QML: canonical Logout/ActionButton/
+  Splash, `moai/main.qml`, `store/main.qml`, `org.moos.brand`, and the three
+  lockscreen files. The moai overlay move was verified structurally (brace balance
+  0, RowLayout now closes after the panel, 0 layout-positioning warnings).
+- Gates: `verify_user_experience.py`, `test_device_plan.py`,
+  `test_moos_theme_safety.py` (3), `test_moos_ui2.py` (7), `test_moai_do.py` (19),
+  `bash -n build.sh` — all pass. Three NEW regression gates added to
+  `verify_user_experience.py` (date-trap, Cancel-icon visibility, splash/aurora
+  theme-tracking); each was proven to fire on the pre-fix content and pass on the
+  fix.
+- Full `just build` — **GREEN** (`localhost/moos:latest` `9f245a09`): the QML
+  smoke test LOADED the restructured `moai/main.qml` (no scene-load error →
+  the 4K overlay move is runtime-valid), identity firewall OK, image-experience +
+  user-experience + fwupd-policy gates passed, initramfs ostree proof passed,
+  `bootc container lint` 9 passed / 1 skipped / the 4 known warnings.
+
+### Commit and image state
+
+- The `polish(doorway+apps)` commit sits on top of `1b4f910` (the pushed
+  fwupd-live commit); local image `localhost/moos:latest` `9f245a09` built GREEN.
+- Booted: v281 `be91759a`; rollback `509bdf68` (v275). The polish reaches the
+  desktop only after CI signs the next image and it is staged + rebooted.
+
+### Deferred (safe follow-ups, not blockers)
+
+- Mo AI NICE items P8 (route chip shows "Local" before models resolve) and P9
+  (projectField stale on reopen); installer/welcome layout-positioning (~15
+  sites); MoPlayer `.desktop` leftover `[de]` strings; generator hardening
+  (A4 widen `build_lnf` subdir coverage, A5 add a variant↔canonical sync gate,
+  A1 encode "run generate_moos_ui2 before generate_moos_themes" in the Justfile);
+  radius-token consolidation across Store/Remote.
+- `mo-remote-portal.py` uses ~45-55% of a core while a viewer is connected —
+  this is real streaming cost (pipeline is idle-gated), not a spin; a lower-FPS/
+  buffered-relay optimization needs the phone path to validate, so it is left for
+  a session that can measure it.
+
+### RESUME HERE (exact next step)
+
+1. Confirm `just build` GREEN (QML smoke test must load the restructured
+   `moai/main.qml`). Then commit the polish batch and push.
+2. Wait for CI on the push; confirm BOTH editions signed; capture the new signed
+   `moos-nvidia` digest.
+3. Stage that exact digest, write the Desktop resume file
+   (`~/سطح المكتب/MoOS-متابعة.md`) so the owner can hand it back after reboot,
+   then reboot.
+4. Live-verify on the new image: `moos-selfcheck`, `tests/post-update-check.sh`
+   (the digit-drift check should go green once booted == published), the lock
+   screen English date reads "…, 21 July 2026", the logout Cancel icon is visible
+   and the aurora tint tracks the active theme, and Mo AI's Settings/picker
+   overlays sit correctly at 200%/4K. Roll back with `sudo rpm-ostree rollback`
+   (`509bdf68` kept) if anything regresses.
+
 ## Session 2026-07-21 (afternoon) — fwupd-refresh polkit fix + workstation triage
 
 ### What was done

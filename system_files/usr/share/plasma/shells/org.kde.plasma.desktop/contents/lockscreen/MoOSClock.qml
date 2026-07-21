@@ -91,7 +91,7 @@ Item {
             Layout.alignment: Qt.AlignHCenter
             Layout.maximumWidth: Kirigami.Units.gridUnit * 30
             elide: Text.ElideRight
-            text: Qt.formatDate(timeSource.now, Qt.locale("ar"), Qt.locale("ar").dateFormat(Locale.LongFormat))
+            text: Qt.locale("ar").toString(timeSource.now, Qt.locale("ar").dateFormat(Locale.LongFormat))
             color: Kirigami.Theme.textColor
             opacity: 0.92
             font.family: "IBM Plex Sans Arabic"
@@ -105,7 +105,7 @@ Item {
             Layout.alignment: Qt.AlignHCenter
             Layout.maximumWidth: Kirigami.Units.gridUnit * 30
             elide: Text.ElideRight
-            text: Qt.formatDate(timeSource.now, Qt.locale("en"), "dddd, d MMMM yyyy")
+            text: Qt.locale("en").toString(timeSource.now, "dddd, d MMMM yyyy")
             color: Kirigami.Theme.textColor
             opacity: 0.62
             font.family: "IBM Plex Sans"

@@ -447,7 +447,7 @@ ApplicationWindow {
                     RowLayout {
                         id: trustedRow
                         anchors.centerIn: parent; spacing: 7
-                        Rectangle { width: 7; height: 7; radius: 4; color: win.accent }
+                        Rectangle { Layout.preferredWidth: 7; Layout.preferredHeight: 7; radius: 4; color: win.accent }
                         Text {
                             text: win.rtl ? "مختار لنظام MoOS" : "Curated for MoOS"
                             color: win.accent; font.family: "IBM Plex Sans"
@@ -1178,7 +1178,7 @@ ApplicationWindow {
                             // progress track
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: 6; radius: 3
+                                Layout.preferredHeight: 6; radius: 3
                                 color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.5)
                                 Rectangle {
                                     height: parent.height; radius: 3

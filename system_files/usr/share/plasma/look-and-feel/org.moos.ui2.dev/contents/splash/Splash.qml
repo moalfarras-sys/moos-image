@@ -34,7 +34,11 @@ Rectangle {
     readonly property color navy: Kirigami.Theme.alternateBackgroundColor
     readonly property color electric: Kirigami.Theme.highlightColor
     readonly property color cyan: Kirigami.Theme.hoverColor
-    readonly property color violet: Qt.rgba(0.545, 0.361, 0.965, 1.0) // #8B5CF6
+    // The third progress sweep. linkColor is the family's `secondary` role in
+    // every color-scheme (Nova #8B5CF6 violet, Amethyst amber, Aurora blue, …),
+    // so this now tracks each theme instead of shipping Nova's violet on all 16 —
+    // and stays byte-for-byte the old violet on Nova itself.
+    readonly property color violet: Kirigami.Theme.linkColor
     readonly property color secondaryText: Kirigami.Theme.disabledTextColor
 
     color: deepest

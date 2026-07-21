@@ -424,7 +424,7 @@ Kirigami.ApplicationWindow {
         { id: "compat", icon: "moos-gaming",       ar: "التوافق",  en: "Compat" },
         { id: "remote", icon: "moos-phone",        ar: "التحكّم",   en: "Remote" },
         { id: "dev",    icon: "utilities-terminal", ar: "المطوّر",  en: "Dev" },
-        { id: "agent",  icon: "moos-phone",        ar: "الوكيل",   en: "Agent" }
+        { id: "agent",  icon: "moos-identity",     ar: "الوكيل",   en: "Agent" }
     ]
 
     // Compatibility targets. `key` matches moai-control's /scan compatibility
@@ -937,7 +937,7 @@ Kirigami.ApplicationWindow {
         if (root.deleteBusy !== "")
             return
         root.deleteBusy = bare
-        root.settingsError = ""
+        root.cfgError = ""
         const xhr = new XMLHttpRequest()
         xhr.open("POST", controlApi + "/delete")
         xhr.setRequestHeader("X-Moai-Control", "1")
@@ -949,7 +949,7 @@ Kirigami.ApplicationWindow {
             try { res = JSON.parse(xhr.responseText) } catch (e) { res = {} }
             root.deleteBusy = ""
             if (xhr.status !== 200 || !res.ok) {
-                root.settingsError = res.error || "تعذّر الحذف | could not delete the model"
+                root.cfgError = res.error || "تعذّر الحذف | could not delete the model"
                 return
             }
             root.loadModels()          // the row must disappear now
@@ -1434,7 +1434,8 @@ Kirigami.ApplicationWindow {
                                     }
                                     Text {
                                         Layout.alignment: Qt.AlignHCenter
-                                        text: nav.modelData.ar
+                                        text: Qt.application.layoutDirection === Qt.RightToLeft
+                                            ? nav.modelData.ar : nav.modelData.en
                                         color: nav.active ? root.textHi : root.textMute
                                         font.family: root.uiFont
                                         font.pixelSize: 9
@@ -1490,7 +1491,7 @@ Kirigami.ApplicationWindow {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: { root.loadConfig(); root.settingsOpen = true }
+                            onClicked: { root.settingsOpen = true }
                         }
                     }
                 }
@@ -1535,6 +1536,7 @@ Kirigami.ApplicationWindow {
                                     case "compat": return "التوافق  |  Compatibility"
                                     case "remote": return "Mo PC Remote"
                                     case "dev":    return "المطوّر  |  Developer"
+                                    case "agent":  return "الوكيل  |  Agent"
                                     default:       return "Mo AI"
                                     }
                                 }
@@ -1553,6 +1555,7 @@ Kirigami.ApplicationWindow {
                                     case "compat": return "Windows · Android · الألعاب"
                                     case "remote": return "تحكّم بجهازك من هاتفك | control this PC from your phone"
                                     case "dev":    return "OpenCode · Claude Code · Codex"
+                                    case "agent":  return "OpenClaw · Telegram · الجلسات"
                                     default:       return "مساعد MoOS | MoOS assistant"
                                     }
                                 }
@@ -1815,7 +1818,7 @@ Kirigami.ApplicationWindow {
                                     label: "اضبط العقل السحابي  |  Set up the cloud brain"
                                     icon: "configure"
                                     primary: true
-                                    onClicked: { root.loadConfig(); root.settingsOpen = true }
+                                    onClicked: { root.settingsOpen = true }
                                 }
                             }
                         }
@@ -3135,6 +3138,7 @@ Kirigami.ApplicationWindow {
 
             }
         }
+        }
 
         // ── Toast ───────────────────────────────────────────────────────────
         Rectangle {
@@ -3478,7 +3482,6 @@ Kirigami.ApplicationWindow {
                         icon: "configure"
                         onClicked: {
                             root.pickerOpen = false
-                            root.loadConfig()
                             root.settingsOpen = true
                         }
                     }
@@ -4162,7 +4165,6 @@ Kirigami.ApplicationWindow {
             }
         }
     }
-    }
 
     // ── Settings plumbing (moapp-console) ───────────────────────────────────
     // One backend for BOTH surfaces: this sheet and the Telegram bot read and
@@ -4313,153 +4315,4 @@ Kirigami.ApplicationWindow {
 
     // ── Settings plumbing ───────────────────────────────────────────────────
     property bool settingsOpen: false
-    property bool settingsCloud: false
-    property bool settingsSaving: false
-    property string settingsError: ""
-
-    // The cloud provider. `wire` is the protocol the provider actually speaks;
-    // moai-gateway translates it, so this app only ever speaks one dialect.
-    property var providers: []
-    property string settingsProvider: "custom"
-    property string settingsWire: "openai"
-
-    // The result of a REAL request to the provider — not "Saved ✓".
-    property bool settingsTesting: false
-    property bool settingsTestOk: false
-    property string settingsTestMsg: ""
-
-    function loadProviders() {
-        const xhr = new XMLHttpRequest()
-        xhr.open("GET", controlApi + "/providers")
-        xhr.setRequestHeader("X-Moai-Control", "1")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200)
-                return
-            try {
-                root.providers = JSON.parse(xhr.responseText).providers || []
-            } catch (e) {}
-        }
-        xhr.send()
-    }
-
-    /** Fill the form from a preset. The key is never part of a preset. */
-    function pickProvider(p) {
-        root.settingsProvider = p.id
-        root.settingsWire = p.wire || "openai"
-        if (p.base)
-            fBase.text = p.base
-        if (p.model)
-            fModel.text = p.model
-        root.settingsTestMsg = ""
-    }
-
-    /** Which preset (if any) the current form matches. */
-    function matchProvider(base, wire) {
-        for (let i = 0; i < providers.length; i++)
-            if (providers[i].base && providers[i].base === base
-                    && (providers[i].wire || "openai") === wire)
-                return providers[i].id
-        return "custom"
-    }
-
-    function loadConfig() {
-        settingsError = ""
-        settingsTestMsg = ""
-        loadProviders()
-        const xhr = new XMLHttpRequest()
-        xhr.open("GET", controlApi + "/config")
-        xhr.setRequestHeader("X-Moai-Control", "1")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
-            if (xhr.status === 200) {
-                try {
-                    const c = JSON.parse(xhr.responseText)
-                    root.settingsCloud = (c.mode === "cloud")
-                    fBase.text = c.cloud_base || ""
-                    fModel.text = c.cloud_model || ""
-                    root.settingsWire = c.cloud_wire || "openai"
-                    root.settingsProvider = root.matchProvider(fBase.text, root.settingsWire)
-                    fKey.text = ""
-                    fKey.placeholderText = c.has_key
-                        ? "•••• محفوظ في خزنة النظام | saved (اتركه فارغاً للإبقاء)"
-                        : "sk-…  مفتاحك | your API key"
-                } catch (e) {}
-            } else {
-                root.settingsError = "خدمة الإعدادات غير متاحة | settings service unavailable"
-            }
-        }
-        xhr.send()
-    }
-
-    /** Actually call the provider and say what came back. */
-    function testConfig() {
-        root.settingsTesting = true
-        root.settingsTestMsg = ""
-        const body = {
-            cloud_base: fBase.text.trim(),
-            cloud_model: fModel.text.trim(),
-            cloud_wire: root.settingsWire
-        }
-        if (fKey.text.length > 0)
-            body.cloud_key = fKey.text     // still being typed; not saved yet
-        const xhr = new XMLHttpRequest()
-        xhr.open("POST", controlApi + "/test")
-        xhr.setRequestHeader("Content-Type", "application/json")
-        xhr.setRequestHeader("X-Moai-Control", "1")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
-            root.settingsTesting = false
-            try {
-                const r = JSON.parse(xhr.responseText)
-                root.settingsTestOk = !!r.ok
-                if (r.ok) {
-                    const u = r.usage || {}
-                    root.settingsTestMsg = "✓ ردّ: “" + (r.reply || "") + "”\n"
-                        + (r.model || "") + "  ·  " + (u["in"] || 0) + " in / "
-                        + (u.out || 0) + " out tokens"
-                } else {
-                    root.settingsTestMsg = "✕ " + (r.error || "فشل | failed")
-                }
-            } catch (e) {
-                root.settingsTestOk = false
-                root.settingsTestMsg = "✕ تعذّر الاختبار | test failed"
-            }
-        }
-        xhr.send(JSON.stringify(body))
-    }
-
-    function saveConfig() {
-        const body = {
-            mode: settingsCloud ? "cloud" : "local",
-            cloud_base: fBase.text.trim(),
-            cloud_model: fModel.text.trim(),
-            cloud_wire: root.settingsWire
-        }
-        if (fKey.text.length > 0)
-            body.cloud_key = fKey.text
-        root.settingsError = ""
-        root.settingsSaving = true
-        const xhr = new XMLHttpRequest()
-        xhr.open("POST", controlApi + "/config")
-        xhr.setRequestHeader("Content-Type", "application/json")
-        xhr.setRequestHeader("X-Moai-Control", "1")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
-            root.settingsSaving = false
-            if (xhr.status === 200) {
-                root.settingsOpen = false
-                // The provider may have changed under the picker: re-ask for the
-                // real model list, and re-resolve the default route.
-                root.route = ""
-                root.defaultRoute = ""
-                root.loadModels()
-            } else {
-                root.settingsError = "تعذّر الحفظ | couldn't save"
-            }
-        }
-        xhr.send(JSON.stringify(body))
-    }
 }

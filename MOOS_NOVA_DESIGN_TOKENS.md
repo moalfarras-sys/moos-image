@@ -1,5 +1,16 @@
 # MoOS Nova design tokens
 
+> **⚠️ DEPRECATED — this describes the retired Nova navy palette, NOT the shipped
+> system.** MoOS ships the **UI2 Graphite/Tidal family** (teal accent `#4ED7C8`,
+> canvas `#14191C`, text `#E8F1EF`), a family of 8 palettes on one engine — not
+> Nova's navy `#0B1220` / cyan-blue-violet gradient. Do **not** treat the colours
+> below as source of truth: doing so reintroduces Nova navy into a teal system
+> (it is exactly where the splash/logout hardcoded literals came from, since
+> fixed to track `Kirigami.Theme` roles). The live token sources are:
+> `artwork/moos-ui2/palette.json` + `artwork/moos-themes/palettes.json` (colours,
+> per family) and `artwork/MOOS_UI2_DESIGN.md` (the design system). This file is
+> kept only as provenance of the earlier Nova generation.
+
 Nova uses a compact, calm scale shared by the shell and first-party apps. Values
 are logical pixels and therefore follow Qt/Plasma scaling at 100–200%.
 

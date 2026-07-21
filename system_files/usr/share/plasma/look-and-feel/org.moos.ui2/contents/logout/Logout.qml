@@ -138,6 +138,19 @@ Item {
             : en + "  ·  " + ar;
     }
 
+    // The aurora curtains were authored with fixed cosmic jewel tones, so every
+    // theme in the family (Midnight, Amethyst, Forge, …) showed the identical
+    // cyan-violet-rose logout — the one doorway that never tracked its own accent.
+    // auroraTint() keeps each designed hue but pulls it 40% toward the live
+    // Kirigami highlightColor, so the aurora stays a rich multi-colour sweep while
+    // taking on the current theme's identity. Qt.tint composites the accent (at
+    // 0.4 alpha) over the base, i.e. a bounded lerp — it can never yield a broken
+    // colour, and a palette change now reaches this surface for free.
+    function auroraTint(base) {
+        const a = Kirigami.Theme.highlightColor;
+        return Qt.tint(base, Qt.rgba(a.r, a.g, a.b, 0.40));
+    }
+
     KCoreAddons.KUser {
         id: currentUser
     }
@@ -341,7 +354,7 @@ Item {
             y: root.height * 0.02; rotation: -16; transformOrigin: Item.Center
             gradient: Gradient { orientation: Gradient.Vertical
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.42; color: "#10B981" }
+                GradientStop { position: 0.42; color: root.auroraTint("#10B981") }
                 GradientStop { position: 1.0; color: "transparent" } }
             opacity: 0.20
             XAnimator on x { from: -0.14 * root.width; to: 0.46 * root.width
@@ -360,7 +373,7 @@ Item {
             y: root.height * -0.04; rotation: 12; transformOrigin: Item.Center
             gradient: Gradient { orientation: Gradient.Vertical
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.42; color: "#2DD4BF" }
+                GradientStop { position: 0.42; color: root.auroraTint("#2DD4BF") }
                 GradientStop { position: 1.0; color: "transparent" } }
             opacity: 0.22
             XAnimator on x { from: 0.50 * root.width; to: -0.06 * root.width
@@ -378,7 +391,7 @@ Item {
             y: root.height * 0.10; rotation: -10; transformOrigin: Item.Center
             gradient: Gradient { orientation: Gradient.Vertical
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.42; color: "#22D3EE" }
+                GradientStop { position: 0.42; color: root.auroraTint("#22D3EE") }
                 GradientStop { position: 1.0; color: "transparent" } }
             opacity: 0.16
             XAnimator on x { from: 0.16 * root.width; to: 0.58 * root.width
@@ -396,7 +409,7 @@ Item {
             y: root.height * 0.00; rotation: 18; transformOrigin: Item.Center
             gradient: Gradient { orientation: Gradient.Vertical
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.42; color: "#8B5CF6" }
+                GradientStop { position: 0.42; color: root.auroraTint("#8B5CF6") }
                 GradientStop { position: 1.0; color: "transparent" } }
             opacity: 0.18
             XAnimator on x { from: 0.42 * root.width; to: 0.04 * root.width
@@ -415,7 +428,7 @@ Item {
             y: root.height * 0.15; rotation: -22; transformOrigin: Item.Center
             gradient: Gradient { orientation: Gradient.Vertical
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.45; color: "#F59E0B" }
+                GradientStop { position: 0.45; color: root.auroraTint("#F59E0B") }
                 GradientStop { position: 1.0; color: "transparent" } }
             opacity: 0.10
             XAnimator on x { from: 0.65 * root.width; to: 0.15 * root.width
@@ -434,7 +447,7 @@ Item {
             y: root.height * 0.08; rotation: 25; transformOrigin: Item.Center
             gradient: Gradient { orientation: Gradient.Vertical
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.40; color: "#F472B6" }
+                GradientStop { position: 0.40; color: root.auroraTint("#F472B6") }
                 GradientStop { position: 1.0; color: "transparent" } }
             opacity: 0.08
             XAnimator on x { from: -0.05 * root.width; to: 0.55 * root.width
@@ -847,8 +860,10 @@ Item {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: otherSessionsModel.count === 1
-                        ? "يوجد مستخدم آخر مسجّل الدخول وقد يفقد عمله | Another user is signed in and may lose work"
-                        : "يوجد %1 مستخدمين آخرين مسجّلي الدخول وقد يفقدون عملهم | %1 other users are signed in and may lose work".arg(otherSessionsModel.count)
+                        ? root.bilingual("يوجد مستخدم آخر مسجّل الدخول وقد يفقد عمله",
+                                         "Another user is signed in and may lose work")
+                        : root.bilingual("يوجد %1 مستخدمين آخرين مسجّلي الدخول وقد يفقدون عملهم".arg(otherSessionsModel.count),
+                                         "%1 other users are signed in and may lose work".arg(otherSessionsModel.count))
                     color: Kirigami.Theme.neutralTextColor
                     visible: otherSessionsModel.count > 0
                         && (sdtype !== ShutdownType.ShutdownTypeNone || root.showAllOptions)
@@ -886,7 +901,7 @@ Item {
                         description: root.bilingual("إبقاء الجلسة", "Keep session")
                         visible: root.showAllOptions && spdMethods.SuspendState
                         onClicked: { root.stopCountdown(); root.suspendRequested(2); }
-                        onNavigate: root.moveFocus(suspendButton, step)
+                        onNavigate: (step) => root.moveFocus(suspendButton, step)
                     }
 
                     MoOSUI2ActionButton {
@@ -897,7 +912,7 @@ Item {
                         description: root.bilingual("حفظ الجلسة", "Save session")
                         visible: root.showAllOptions && spdMethods.HibernateState
                         onClicked: { root.stopCountdown(); root.suspendRequested(4); }
-                        onNavigate: root.moveFocus(hibernateButton, step)
+                        onNavigate: (step) => root.moveFocus(hibernateButton, step)
                     }
 
                     MoOSUI2ActionButton {
@@ -917,7 +932,7 @@ Item {
                             if (softwareUpdatePending) { root.rebootUpdateRequested(); }
                             else { root.rebootRequested(); }
                         }
-                        onNavigate: root.moveFocus(rebootButton, step)
+                        onNavigate: (step) => root.moveFocus(rebootButton, step)
                     }
 
                     MoOSUI2ActionButton {
@@ -929,7 +944,7 @@ Item {
                         visible: maysd && softwareUpdatePending
                             && (sdtype === ShutdownType.ShutdownTypeReboot || root.showAllOptions)
                         onClicked: { root.stopCountdown(); root.rebootRequested(); }
-                        onNavigate: root.moveFocus(rebootWithoutUpdatesButton, step)
+                        onNavigate: (step) => root.moveFocus(rebootWithoutUpdatesButton, step)
                     }
 
                     MoOSUI2ActionButton {
@@ -950,7 +965,7 @@ Item {
                             if (softwareUpdatePending) { root.haltUpdateRequested(); }
                             else { root.haltRequested(); }
                         }
-                        onNavigate: root.moveFocus(shutdownButton, step)
+                        onNavigate: (step) => root.moveFocus(shutdownButton, step)
                     }
 
                     MoOSUI2ActionButton {
@@ -963,7 +978,7 @@ Item {
                         visible: maysd && softwareUpdatePending
                             && (sdtype === ShutdownType.ShutdownTypeHalt || root.showAllOptions)
                         onClicked: { root.stopCountdown(); root.haltRequested(); }
-                        onNavigate: root.moveFocus(shutdownWithoutUpdatesButton, step)
+                        onNavigate: (step) => root.moveFocus(shutdownWithoutUpdatesButton, step)
                     }
 
                     MoOSUI2ActionButton {
@@ -975,7 +990,7 @@ Item {
                         visible: canLogout
                             && (sdtype === ShutdownType.ShutdownTypeNone || root.showAllOptions)
                         onClicked: { root.stopCountdown(); root.logoutRequested(); }
-                        onNavigate: root.moveFocus(logoutButton, step)
+                        onNavigate: (step) => root.moveFocus(logoutButton, step)
                     }
 
                     MoOSUI2ActionButton {
@@ -986,7 +1001,7 @@ Item {
                         description: root.bilingual("العودة لاحقًا", "Return later")
                         visible: root.showAllOptions
                         onClicked: { root.stopCountdown(); root.lockScreenRequested(); }
-                        onNavigate: root.moveFocus(lockButton, step)
+                        onNavigate: (step) => root.moveFocus(lockButton, step)
                     }
 
                     MoOSUI2ActionButton {
@@ -997,7 +1012,7 @@ Item {
                         description: root.bilingual("العودة إلى سطح المكتب", "Back to desktop")
                         emphasized: root.showAllOptions
                         onClicked: root.cancelRequested()
-                        onNavigate: root.moveFocus(cancelButton, step)
+                        onNavigate: (step) => root.moveFocus(cancelButton, step)
                     }
                 }
 
@@ -1007,12 +1022,13 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     text: rebootToFirmwareSetup
                         ? (isUefi
-                            ? "ستفتح إعدادات UEFI بعد إعادة التشغيل | UEFI settings will open after restart"
-                            : "ستفتح إعدادات البرنامج الثابت بعد إعادة التشغيل | Firmware setup will open after restart")
+                            ? root.bilingual("ستفتح إعدادات UEFI بعد إعادة التشغيل", "UEFI settings will open after restart")
+                            : root.bilingual("ستفتح إعدادات البرنامج الثابت بعد إعادة التشغيل", "Firmware setup will open after restart"))
                         : (rebootToBootLoaderMenu
-                            ? "ستفتح قائمة الإقلاع بعد إعادة التشغيل | Boot menu will open after restart"
+                            ? root.bilingual("ستفتح قائمة الإقلاع بعد إعادة التشغيل", "Boot menu will open after restart")
                             : (rebootToBootLoaderEntry.length > 0
-                                ? "سيتم الإقلاع إلى %1 | Restarting into %1".arg(rebootToBootLoaderEntry)
+                                ? root.bilingual("سيتم الإقلاع إلى %1".arg(rebootToBootLoaderEntry),
+                                                 "Restarting into %1".arg(rebootToBootLoaderEntry))
                                 : ""))
                     color: Kirigami.Theme.disabledTextColor
                     visible: text.length > 0

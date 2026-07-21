@@ -719,7 +719,7 @@ Item {
 
         MoOSClock {
             id: clock
-            property Item shadow: clockShadow
+            shadow: clockShadow
             visible: y > 0 && config.alwaysShowClock
             anchors.horizontalCenter: parent.horizontalCenter
             // Never above the brand: the halfway formula alone parked the clock

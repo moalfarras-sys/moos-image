@@ -192,6 +192,7 @@ SessionManagementScreen {
             }
             contentItem: Kirigami.Icon {
                 source: loginButton.icon.name
+                isMask: true
                 color: "white"
                 implicitWidth: Kirigami.Units.iconSizes.smallMedium
                 implicitHeight: Kirigami.Units.iconSizes.smallMedium

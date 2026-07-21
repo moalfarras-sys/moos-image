@@ -611,6 +611,7 @@ PlasmoidItem {
     }
 
     component StatusChip: Rectangle {
+        id: chip
         property alias icon: chipIcon.source
         property string label: ""
         property color accent: Kirigami.Theme.highlightColor
@@ -628,11 +629,11 @@ PlasmoidItem {
                 id: chipIcon
                 Layout.preferredWidth: Kirigami.Units.iconSizes.small
                 Layout.preferredHeight: width
-                color: accent
+                color: chip.accent
             }
             Text {
-                text: label
-                color: accent
+                text: chip.label
+                color: chip.accent
                 font.family: "IBM Plex Sans"
                 font.pixelSize: Math.max(9, Math.round(Kirigami.Units.gridUnit * 0.51))
                 font.weight: Font.Medium
