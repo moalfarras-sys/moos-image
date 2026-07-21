@@ -23,6 +23,9 @@ Thumbs.db
 # Local agent settings (Claude Code) — machine-local, never shipped
 .claude/
 
+# Local editor workspace settings — machine-local, never shipped
+.vscode/
+
 # Controller dev deps — the SHIPPED UI is the built output in moremote/agent/wwwroot,
 # which IS committed (MoRemoteLinux.csproj copies it into the image). These are not.
 node_modules/
