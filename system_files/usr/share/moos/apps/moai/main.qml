@@ -1229,7 +1229,7 @@ Kirigami.ApplicationWindow {
 
         implicitHeight: 34
         implicitWidth: row.implicitWidth + 26
-        radius: 10
+        radius: 11
         color: !enabled_ ? base
              : ma.pressed ? Qt.darker(base, 1.12)
              : ma.containsMouse ? Qt.lighter(base, 1.16)
@@ -1238,7 +1238,22 @@ Kirigami.ApplicationWindow {
         border.color: primary || danger ? "transparent"
                     : ma.containsMouse ? root.novaBlue : root.hairline
         opacity: enabled_ ? 1.0 : 0.45
+        scale: !enabled_ ? 1.0 : (ma.pressed ? 0.97 : (ma.containsMouse ? 1.03 : 1.0))
         Behavior on color { ColorAnimation { duration: 120 } }
+        Behavior on scale { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
+
+        // glass top sheen — a hairline of light for premium depth
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.topMargin: 1
+            anchors.leftMargin: 6
+            anchors.rightMargin: 6
+            height: 1
+            radius: 1
+            color: Qt.rgba(1, 1, 1, btn.primary || btn.danger ? 0.20 : 0.07)
+        }
 
         RowLayout {
             id: row
