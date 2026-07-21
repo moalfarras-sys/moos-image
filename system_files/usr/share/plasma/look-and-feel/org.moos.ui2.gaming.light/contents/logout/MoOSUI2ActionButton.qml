@@ -181,7 +181,7 @@ QQC2.AbstractButton {
                 ? Kirigami.Theme.negativeTextColor
                 : ((control.emphasized || control.down || control.destructiveActive)
                     ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor)
-            font.family: "IBM Plex Sans"
+            font.family: "Inter"
             font.weight: Font.DemiBold
             font.pointSize: Kirigami.Theme.defaultFont.pointSize + 1
             renderType: Text.NativeRendering
@@ -198,7 +198,7 @@ QQC2.AbstractButton {
                 ? Kirigami.Theme.highlightedTextColor
                 : (control.destructive ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor)
             opacity: 0.62
-            font.family: "IBM Plex Sans"
+            font.family: "Inter"
             font.pointSize: Kirigami.Theme.smallFont.pointSize
             renderType: Text.NativeRendering
         }

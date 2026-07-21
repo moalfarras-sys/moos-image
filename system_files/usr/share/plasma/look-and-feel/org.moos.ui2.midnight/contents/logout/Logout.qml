@@ -545,7 +545,7 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     text: root.headingText()
                     color: Kirigami.Theme.textColor
-                    font.family: "IBM Plex Sans"
+                    font.family: "Inter"
                     font.pointSize: Kirigami.Theme.defaultFont.pointSize + 8
                     font.weight: Font.DemiBold
                     wrapMode: Text.WordWrap
@@ -558,7 +558,7 @@ Item {
                     text: currentUser.fullName
                     color: Kirigami.Theme.disabledTextColor
                     visible: text.length > 0
-                    font.family: "IBM Plex Sans"
+                    font.family: "Inter"
                 }
 
                 QQC2.Label {
@@ -568,7 +568,7 @@ Item {
                                          "Action in %1 seconds".arg(root.remainingTime))
                     color: Kirigami.Theme.hoverColor
                     visible: countdownTimer.running
-                    font.family: "IBM Plex Sans"
+                    font.family: "Inter"
                     font.weight: Font.DemiBold
                 }
 
@@ -607,7 +607,7 @@ Item {
                     visible: otherSessionsModel.count > 0
                         && (sdtype !== ShutdownType.ShutdownTypeNone || root.showAllOptions)
                     wrapMode: Text.WordWrap
-                    font.family: "IBM Plex Sans"
+                    font.family: "Inter"
                 }
 
                 QQC2.Label {
@@ -619,7 +619,7 @@ Item {
                     color: Kirigami.Theme.positiveTextColor
                     visible: softwareUpdatePending
                     wrapMode: Text.WordWrap
-                    font.family: "IBM Plex Sans"
+                    font.family: "Inter"
                     font.weight: Font.DemiBold
                 }
 
@@ -772,7 +772,7 @@ Item {
                     color: Kirigami.Theme.disabledTextColor
                     visible: text.length > 0
                     wrapMode: Text.WordWrap
-                    font.family: "IBM Plex Sans"
+                    font.family: "Inter"
                     font.pointSize: Kirigami.Theme.smallFont.pointSize
                 }
             }
