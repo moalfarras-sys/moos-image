@@ -1728,6 +1728,11 @@ systemctl --global enable moos-theme-sync.path
 # moai.service is deliberately NOT --global enabled: the local brain is on demand.
 systemctl --global enable moai-gateway.service
 
+# Keep Mo AI's brain FAST: build/serve the instruct (non-thinking) model from
+# system_files/.../moai-brain.Modelfile. A thinking model made trivial replies
+# cost ~97 s; the instruct model answers in <0.5 s. Idempotent + failure-tolerant.
+systemctl --global enable moos-ensure-brain.service
+
 # Free the local brain's VRAM when it goes idle. moai.service loads ~6 GB into an 8 GB
 # GPU and never releases it while up, which starves the compositor — a maximised browser
 # on a loaded brain has crashed kwin_wayland (NVRM: invalid mmap context) and frozen the

@@ -117,10 +117,47 @@ Evidence priority:
 
 ### Commit and image state
 
-- The `polish(doorway+apps)` commit sits on top of `1b4f910` (the pushed
-  fwupd-live commit); local image `localhost/moos:latest` `9f245a09` built GREEN.
-- Booted: v281 `be91759a`; rollback `509bdf68` (v275). The polish reaches the
-  desktop only after CI signs the next image and it is staged + rebooted.
+- `4f133a0` `polish(doorway+apps)` — CI **success**, published signed
+  `moos-nvidia` **v284** (`rev 4f133a0f`); local `just build` was GREEN first.
+- `278e1a5` `feat(moai): empty-state hero` (v285) then **`911362d`
+  `feat(moai): premium empty-state`** superseding it — CI building **v286**. The
+  Mo AI empty chat is now an image-driven premium surface: a generated
+  mesh-gradient aurora (`artwork/generate_moai_hero_bg.py` → `hero-bg.png`), the
+  brand orb over a layered glow, and **four glass suggestion cards** (crafted MoOS
+  icon + bilingual title + hint, hover, seed the chat via sendPrompt). Previewed
+  LIVE via `moos-qml-shell`; before/after on the Desktop
+  (`MoOS-MoAI-قبل-وبعد.png`, `MoOS-MoAI-فاخر-قبل-وبعد.png`).
+- Booted: v281 `be91759a`; rollback `509bdf68` (v275). Everything reaches the
+  desktop only after v285 is staged + rebooted.
+- `f63f1f1` `fix(moai): theme-adaptive hero bg` — a light aurora variant so the
+  premium hero is correct on Tidal/Daylight too (picks by
+  `palette.window.hslLightness`).
+- `a86df17` `polish(moai): premium glass MoButton` — a hairline top sheen + hover
+  micro-interaction on the shared chip component (systemwide). **This is the head**;
+  CI building **v288** = the comprehensive image (all polish + theme-aware doorway
+  + premium adaptive Mo AI hero + glass buttons). Rapid iterations v285–v287 were
+  auto-cancelled by the workflow's concurrency group, so only v288 builds to
+  completion — no wasted compute.
+- **ENGINE FIX — the heart, made fast (owner-approved model swap).** Diagnosed the
+  real cause of Mo AI's ~97 s replies: the live brain had drifted to a Qwen3-VL
+  *thinking* build whose renderer forces 3700+ reasoning tokens on trivial turns
+  and a baked prompt that forced Arabic even for English. `think:false`, template
+  and renderer overrides all failed (proven live). Fix: swapped the served brain
+  to **Qwen2.5-7B-Instruct** (non-thinking) — measured **100% GPU / 4.8 GB /
+  num_ctx 8192**, **0.27 s** for "2+2", **0.39 s through the gateway** (was 97 s),
+  and it answers in the language asked (EN→EN, AR→AR) via the app's own bilingual
+  system prompt. Applied LIVE (retagged `default`/`moai-brain` from the fast
+  model; persists in `~/.ollama`) and made reproducible for the image:
+  `system_files/usr/share/moos/containers/moai-brain.Modelfile`,
+  `/usr/bin/moos-ensure-brain` (idempotent + failure-tolerant), a
+  `moos-ensure-brain.service` (enabled in build.sh), and `DEFAULT_LOCAL_MODEL` →
+  qwen2.5:7b-instruct. `qwen3-vl:4b` kept locally as rollback.
+- Live-look this session (spectacle, 4K): Midnight desktop is clean and modern;
+  **Mo Store is already strongly designed** (identity, onboarding hero, bundle
+  cards); **Welcome already has a theme-adaptive gradient + accent glows**
+  (`win.look`) — both left as-is on purpose (forcing more would clash). The one
+  real void was Mo AI's empty chat, now the premium hero. Not yet elevated (safe
+  follow-ups): Mo AI's device/apps panels and the desktop weather widget.
 
 ### Deferred (safe follow-ups, not blockers)
 
@@ -137,19 +174,24 @@ Evidence priority:
 
 ### RESUME HERE (exact next step)
 
-1. Confirm `just build` GREEN (QML smoke test must load the restructured
-   `moai/main.qml`). Then commit the polish batch and push.
-2. Wait for CI on the push; confirm BOTH editions signed; capture the new signed
-   `moos-nvidia` digest.
-3. Stage that exact digest, write the Desktop resume file
-   (`~/سطح المكتب/MoOS-متابعة.md`) so the owner can hand it back after reboot,
-   then reboot.
-4. Live-verify on the new image: `moos-selfcheck`, `tests/post-update-check.sh`
-   (the digit-drift check should go green once booted == published), the lock
-   screen English date reads "…, 21 July 2026", the logout Cancel icon is visible
-   and the aurora tint tracks the active theme, and Mo AI's Settings/picker
-   overlays sit correctly at 200%/4K. Roll back with `sudo rpm-ostree rollback`
-   (`509bdf68` kept) if anything regresses.
+The comprehensive image is **v288 (`a86df17`)** on CI. The exact next steps:
+
+1. When v288 CI is signed, stage the exact signed `moos-nvidia` digest:
+   `sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:<v288-digest>`
+   (rpm-ostree is passwordless; signature enforced; `509bdf68` stays as rollback).
+2. Write the Desktop resume file `~/سطح المكتب/MoOS-متابعة.md` with the staged
+   digest so the owner can hand it back after reboot. **Reboot is the owner's**
+   (do not force it on the daily driver).
+3. Live-verify on the new image: `moos-selfcheck`, `tests/post-update-check.sh`
+   (the digest-drift check goes green once booted == published), then the visible
+   wins — lock date reads "…, 21 July 2026"; the logout Cancel icon is visible and
+   the aurora tint tracks the active theme; Mo AI opens to the **premium hero**
+   (aurora bg + glass suggestion cards) and its overlays sit correctly at 200%/4K.
+   Roll back with `sudo rpm-ostree rollback` if anything regresses.
+4. Optional next tier of premium polish (offered, not blocking): elevate the
+   Welcome/other surfaces only where genuinely weak (most are already well
+   designed — Store, Welcome, the Mo AI device panel), and the desktop weather
+   widget. Preview each live via `moos-qml-shell` before shipping.
 
 ## Session 2026-07-21 (afternoon) — fwupd-refresh polkit fix + workstation triage
 

@@ -1,0 +1,19 @@
+# MoOS Mo AI brain — the fast, instruct (non-thinking) chat model.
+#
+# WHY: the desktop chat was migrated live to a Qwen3-VL *thinking* build whose
+# renderer forces long chains of thought — a trivial "reply with three words"
+# cost 3700+ reasoning tokens and ~97 s, and a baked system prompt forced Arabic
+# even for English input. Measured. A non-thinking instruct model answers the
+# same query in <0.5 s, in the language it was asked in, and follows the app's
+# own bilingual system prompt.
+#
+# Qwen2.5-7B-Instruct Q4 is GPU-resident on the 8 GB RTX 2080 SUPER (measured
+# 100% GPU, 4.8 GB, num_ctx 8192) — stronger than the old 4B and far faster.
+# No baked SYSTEM: main.qml sends the real Mo AI system prompt + live machine
+# context, so the model must not carry its own.
+FROM qwen2.5:7b-instruct
+SYSTEM ""
+PARAMETER num_ctx 8192
+PARAMETER temperature 0.7
+PARAMETER top_p 0.8
+PARAMETER top_k 20

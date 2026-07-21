@@ -93,7 +93,7 @@ LOCAL_TIMEOUT = float(os.environ.get("MOAI_LOCAL_TIMEOUT", "180"))
 # Must stay in step with Environment=MOAI_MODEL in moai.service. This is only the
 # fallback: ~/.config/moos/moai.env is an EnvironmentFile and therefore OUTRANKS
 # the unit's Environment=, so env_model() reads the file that actually decides.
-DEFAULT_LOCAL_MODEL = "ollama://qwen3:4b-instruct"
+DEFAULT_LOCAL_MODEL = "ollama://qwen2.5:7b-instruct"
 
 # Identify ourselves. Python's urllib defaults to "Python-urllib/3.x", and
 # Cloudflare — which fronts a large share of AI providers — answers that with

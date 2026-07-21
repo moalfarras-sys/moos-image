@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# moos-ensure-brain — make Mo AI's local brain the FAST instruct model, idempotently.
+#
+# The desktop chat must not run a *thinking* model: it forces 3700+ reasoning
+# tokens (~97 s) on trivial turns and ignores the app's system prompt. This
+# builds moai-brain/default from the shipped Modelfile (Qwen2.5-7B-Instruct,
+# GPU-resident on 8 GB, <0.5 s replies) the first time — or after an update that
+# re-introduced a thinking model. Failure-tolerant: if anything goes wrong the
+# existing brain is left untouched, so Mo AI never ends up with NO brain.
+set -u
+OLLAMA="http://127.0.0.1:11434"
+MF="/usr/share/moos/containers/moai-brain.Modelfile"
+BASE="qwen2.5:7b-instruct"
+CT="$(podman ps --format '{{.Names}}' 2>/dev/null | grep -ixE 'ollama|moai-brain' | head -1)"
+
+log(){ echo "moos-ensure-brain: $*"; }
+[ -f "$MF" ] || { log "no Modelfile — nothing to do"; exit 0; }
+[ -n "$CT" ] || { log "ollama container not running — skip"; exit 0; }
+
+# Wait (bounded) for the API.
+for _ in $(seq 1 30); do curl -sf "$OLLAMA/api/tags" >/dev/null 2>&1 && break; sleep 2; done
+curl -sf "$OLLAMA/api/tags" >/dev/null 2>&1 || { log "ollama API not up — skip"; exit 0; }
+
+# Already fast? default resolves to a qwen2.5 base → done (idempotent, no-op).
+if curl -sf "$OLLAMA/api/show" -d '{"model":"default"}' 2>/dev/null | grep -qi "qwen2.5"; then
+    log "brain already fast (qwen2.5) — nothing to do"; exit 0
+fi
+
+# Ensure the base model is present (pull only if missing; tolerate no network).
+if ! curl -sf "$OLLAMA/api/tags" 2>/dev/null | grep -q "$BASE"; then
+    log "pulling $BASE …"
+    podman exec "$CT" ollama pull "$BASE" >/dev/null 2>&1 || { log "pull failed — leaving current brain"; exit 0; }
+fi
+
+# Build the fast brain from the shipped Modelfile, then repoint the served tags.
+podman cp "$MF" "$CT":/tmp/moai-brain.Modelfile >/dev/null 2>&1 || exit 0
+if podman exec "$CT" ollama create moai-brain -f /tmp/moai-brain.Modelfile >/dev/null 2>&1; then
+    podman exec "$CT" ollama cp moai-brain default >/dev/null 2>&1
+    log "fast brain built and served (moai-brain/default → $BASE)"
+else
+    log "create failed — leaving current brain"
+fi
+exit 0

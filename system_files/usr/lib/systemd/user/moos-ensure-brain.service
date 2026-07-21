@@ -1,0 +1,17 @@
+[Unit]
+Description=Ensure Mo AI runs the fast instruct brain (not a slow thinking model)
+# The brain container (Quadlet) must be up first; this only ever talks to it.
+After=moai-brain.service network-online.target
+Wants=network-online.target
+# Do not fail the session if the brain isn't installed on this edition.
+ConditionPathExists=/usr/bin/moos-ensure-brain
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/moos-ensure-brain
+# Idempotent + failure-tolerant by design; never let it block the session.
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target
