@@ -52,6 +52,10 @@ Kirigami.ApplicationWindow {
     readonly property color novaBlue:   root.palette.highlight
     readonly property color novaViolet: root.palette.linkVisited
     readonly property color onAccent:   root.palette.highlightedText
+    // Mo AI is theme-adaptive (its palette comes from the active KDE scheme), so
+    // the hero's baked aurora must follow suit: light themes (Tidal/Daylight) get
+    // the pale variant, dark themes the deep one.
+    readonly property bool isLight: root.palette.window.hslLightness > 0.5
     readonly property color okColor:   Kirigami.Theme.positiveTextColor
     readonly property color warnColor: Kirigami.Theme.neutralTextColor
     readonly property color badColor:  Kirigami.Theme.negativeTextColor
@@ -1701,9 +1705,9 @@ Kirigami.ApplicationWindow {
 
                             Image {
                                 anchors.fill: parent
-                                source: "hero-bg.png"
+                                source: root.isLight ? "hero-bg-light.png" : "hero-bg.png"
                                 fillMode: Image.PreserveAspectCrop
-                                opacity: 0.92
+                                opacity: root.isLight ? 0.75 : 0.92
                                 asynchronous: true
                             }
 
