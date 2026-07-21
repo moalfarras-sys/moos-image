@@ -26,3 +26,22 @@ Thumbs.db
 # Controller dev deps — the SHIPPED UI is the built output in moremote/agent/wwwroot,
 # which IS committed (MoRemoteLinux.csproj copies it into the image). These are not.
 node_modules/
+
+# ── Not part of MoOS — keep the repo (and `git status`) about the OS ──────────
+# Scaffolding dropped in by a local agent framework (openclaw); unrelated to the
+# image. Ignored so none of it can be committed and `git status` stays clean.
+# These files are left on disk (delete them yourself if you don't use that tool).
+HEARTBEAT.md
+IDENTITY.md
+SOUL.md
+TOOLS.md
+USER.md
+openclaw-workspace-state.json
+memory/
+
+# Local test evidence: screenshots and live-run logs. Useful locally, not source.
+test-results/
+
+# Mo Remote local .NET publish output — regenerable; the image builds its own in
+# the Containerfile `moremote-build` stage and never reads these bytes.
+moremote/dist-linux/
