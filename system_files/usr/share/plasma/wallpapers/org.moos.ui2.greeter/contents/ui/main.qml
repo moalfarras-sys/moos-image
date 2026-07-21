@@ -5,8 +5,8 @@
 // veil paint synchronously so the password boundary is never delayed, and the
 // only motion is a pair of continuously-rotating halo rings on the corner
 // signature — driven by render-thread Animators, which cannot block first
-// paint. Everything else (vignette, brand-tinted depth glow, horizon thread,
-// glass identity chip) is static geometry.
+// paint. Depth is built from soft pre-baked glow sprites (the same ones the
+// lock and logout scenes use), not hard-edged discs.
 //
 // Gate contract (build_files/verify_image_experience.py): this file may NOT
 // contain the tokens "Repeater", "Animation", "ShaderEffect" or "Canvas", and
@@ -27,8 +27,8 @@ WallpaperItem {
     readonly property string fallbackImage:
         "/usr/share/wallpapers/MoOSUI2Graphite/contents/images_dark/3840x2160.jpg"
 
-    // The corner signature colours, resolved once from the active scheme so the
-    // login scene carries the same accent identity as the lock and logout doors.
+    // The signature colours, resolved once from the active scheme so the login
+    // scene carries the same accent identity as the lock and logout doors.
     readonly property color accent: Kirigami.Theme.highlightColor
     readonly property color accentSoft: Kirigami.Theme.hoverColor
 
@@ -70,58 +70,48 @@ WallpaperItem {
     }
 
     // ── Brand-tinted depth glow ─────────────────────────────────────────────
-    // A large, soft column of accent light rising behind the signature corner,
-    // and a cooler counter-glow in the far corner. Concentric translucent discs
-    // approximate a radial bloom without a shader — pure static geometry that
-    // gives the flat wallpaper a sense of atmosphere and depth.
-    Item {
-        anchors.fill: parent
-        Rectangle {
-            x: root.width * 0.10 - width / 2
-            y: root.height * 0.14 - height / 2
-            width: Math.max(root.width, root.height) * 0.85
-            height: width
-            radius: width / 2
-            color: root.accent
-            opacity: 0.05
-        }
-        Rectangle {
-            x: root.width * 0.10 - width / 2
-            y: root.height * 0.14 - height / 2
-            width: Math.max(root.width, root.height) * 0.52
-            height: width
-            radius: width / 2
-            color: root.accentSoft
-            opacity: 0.06
-        }
-        Rectangle {
-            x: root.width * 0.92 - width / 2
-            y: root.height * 0.90 - height / 2
-            width: Math.max(root.width, root.height) * 0.60
-            height: width
-            radius: width / 2
-            color: root.accentSoft
-            opacity: 0.045
-        }
+    // Soft radial sprites (no hard edge): a teal pool rising behind the
+    // signature corner and a cooler violet counter-glow in the far corner give
+    // the flat wallpaper atmosphere without ever washing out the centred card.
+    Image {
+        source: "../images/glow-cyan.png"
+        width: Math.max(root.width, root.height) * 0.62
+        height: width
+        x: root.width * 0.10 - width / 2
+        y: root.height * 0.16 - height / 2
+        opacity: 0.55
+        asynchronous: true
+        smooth: true
+        sourceSize: Qt.size(width, width)
+    }
+    Image {
+        source: "../images/glow-violet.png"
+        width: Math.max(root.width, root.height) * 0.58
+        height: width
+        x: root.width * 0.94 - width / 2
+        y: root.height * 0.92 - height / 2
+        opacity: 0.42
+        asynchronous: true
+        smooth: true
+        sourceSize: Qt.size(width, width)
     }
 
     // ── Legibility veil + vignette ──────────────────────────────────────────
     // A gentle overall tint keeps the password card and clock readable over any
     // wallpaper; the vertical vignette darkens the top and bottom edges so the
-    // scene frames the centred authentication surface rather than competing
-    // with it. Both are cheap, static gradients.
+    // scene frames the centred authentication surface. Cheap static gradients.
     Rectangle {
         anchors.fill: parent
         color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                        Kirigami.Theme.backgroundColor.g,
-                       Kirigami.Theme.backgroundColor.b, 0.14)
+                       Kirigami.Theme.backgroundColor.b, 0.12)
     }
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
             GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                                          Kirigami.Theme.backgroundColor.g,
-                                                         Kirigami.Theme.backgroundColor.b, 0.42) }
+                                                         Kirigami.Theme.backgroundColor.b, 0.40) }
             GradientStop { position: 0.42; color: "transparent" }
             GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                                          Kirigami.Theme.backgroundColor.g,
@@ -159,67 +149,67 @@ WallpaperItem {
 
     // ── Static ambient accent dots — depth-staggered light points ───────────
     Rectangle {
-        x: 0.16 * root.width; y: 0.13 * root.height
+        x: 0.17 * root.width; y: 0.14 * root.height
         width: Math.max(4, root.height * 0.005); height: width; radius: width / 2
-        color: root.accent; opacity: 0.16
+        color: root.accent; opacity: 0.20
     }
     Rectangle {
         x: 0.80 * root.width; y: 0.20 * root.height
         width: Math.max(5, root.height * 0.007); height: width; radius: width / 2
-        color: root.accent; opacity: 0.12
+        color: root.accent; opacity: 0.14
     }
     Rectangle {
         x: 0.52 * root.width; y: 0.09 * root.height
         width: Math.max(3, root.height * 0.004); height: width; radius: width / 2
-        color: root.accentSoft; opacity: 0.12
+        color: root.accentSoft; opacity: 0.14
     }
     Rectangle {
-        x: 0.88 * root.width; y: 0.58 * root.height
+        x: 0.88 * root.width; y: 0.56 * root.height
         width: Math.max(3, root.height * 0.004); height: width; radius: width / 2
-        color: root.accentSoft; opacity: 0.10
+        color: root.accentSoft; opacity: 0.12
     }
 
     // ── MoOS signature — a glass identity chip with a living halo ───────────
     // Anchored to the top-left corner (gate requirement): the brand can never
     // reach the centred password. The halo rings rotate continuously via
-    // Animators — the scene's only motion, and one that runs on the render
-    // thread without ever delaying the greeter's first paint.
+    // Animators — the scene's only motion, running on the render thread without
+    // ever delaying the greeter's first paint.
     Row {
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.leftMargin: Math.max(Kirigami.Units.gridUnit * 2,
-                                     Math.round(root.width * 0.035))
+                                     Math.round(root.width * 0.038))
         anchors.topMargin: Math.max(Kirigami.Units.gridUnit * 2,
-                                    Math.round(root.height * 0.045))
-        spacing: Kirigami.Units.largeSpacing * 1.2
+                                    Math.round(root.height * 0.05))
+        spacing: Kirigami.Units.largeSpacing * 1.4
 
         Item {
             id: emblemStage
-            width: Math.max(58, Math.round(root.height * 0.082))
+            width: Math.max(72, Math.round(root.height * 0.10))
             height: width
             anchors.verticalCenter: parent.verticalCenter
 
-            // Concentric ambient glow behind the chip — static depth.
-            Rectangle {
+            // Soft teal pool behind the chip — makes the emblem read brightly
+            // against the dark scene without a light-coloured chip.
+            Image {
                 anchors.centerIn: parent
-                width: parent.width * 2.4; height: width; radius: width / 2
-                color: root.accentSoft; opacity: 0.09
-            }
-            Rectangle {
-                anchors.centerIn: parent
-                width: parent.width * 1.7; height: width; radius: width / 2
-                color: root.accent; opacity: 0.07
+                width: parent.width * 2.3; height: width
+                source: "../images/glow-cyan.png"
+                opacity: 0.7
+                asynchronous: true
+                smooth: true
+                sourceSize: Qt.size(width, width)
             }
 
             // Outer halo ring — a slow, continuous clockwise turn.
             Image {
                 anchors.centerIn: parent
-                width: parent.width * 1.9; height: width
+                width: parent.width * 1.92; height: width
                 source: "../images/ring.png"
-                opacity: 0.30
+                opacity: 0.5
                 asynchronous: true
                 smooth: true
-                sourceSize: Qt.size(width * 2, height * 2)
+                sourceSize: Qt.size(width * 2, width * 2)
                 RotationAnimator on rotation {
                     from: 0; to: 360
                     duration: 44000
@@ -230,13 +220,13 @@ WallpaperItem {
             // Inner halo ring — counter-rotating, fainter, for quiet depth.
             Image {
                 anchors.centerIn: parent
-                width: parent.width * 1.42; height: width
+                width: parent.width * 1.46; height: width
                 source: "../images/ring.png"
                 mirror: true
-                opacity: 0.16
+                opacity: 0.3
                 asynchronous: true
                 smooth: true
-                sourceSize: Qt.size(width * 2, height * 2)
+                sourceSize: Qt.size(width * 2, width * 2)
                 RotationAnimator on rotation {
                     from: 360; to: 0
                     duration: 64000
@@ -248,14 +238,14 @@ WallpaperItem {
             // The frosted chip that holds the mark.
             Rectangle {
                 anchors.centerIn: parent
-                width: parent.width * 0.82
+                width: parent.width * 0.84
                 height: width
                 radius: width * 0.30
                 color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                Kirigami.Theme.backgroundColor.g,
-                               Kirigami.Theme.backgroundColor.b, 0.74)
+                               Kirigami.Theme.backgroundColor.b, 0.66)
                 border.width: 1
-                border.color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.55)
+                border.color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.6)
 
                 // Silk highlight along the chip's crest — the UI2 glass tell.
                 Rectangle {
@@ -264,12 +254,12 @@ WallpaperItem {
                     radius: 1
                     color: Qt.rgba(Kirigami.Theme.textColor.r,
                                    Kirigami.Theme.textColor.g,
-                                   Kirigami.Theme.textColor.b, 0.18)
+                                   Kirigami.Theme.textColor.b, 0.20)
                 }
 
                 Image {
                     anchors.fill: parent
-                    anchors.margins: Math.round(parent.width * 0.18)
+                    anchors.margins: Math.round(parent.width * 0.14)
                     source: "file:///usr/share/pixmaps/moos-logo.png"
                     fillMode: Image.PreserveAspectFit
                     asynchronous: false
@@ -283,20 +273,20 @@ WallpaperItem {
         // localized welcome. Left-aligned beside the chip.
         Column {
             anchors.verticalCenter: parent.verticalCenter
-            spacing: Math.round(root.height * 0.006)
+            spacing: Math.round(root.height * 0.008)
 
             Text {
                 text: "MoOS"
                 color: Kirigami.Theme.textColor
                 font.family: "IBM Plex Sans"
-                font.pixelSize: Math.max(24, Math.round(root.height * 0.036))
+                font.pixelSize: Math.max(26, Math.round(root.height * 0.04))
                 font.weight: Font.DemiBold
                 font.letterSpacing: 1.5
                 renderType: Text.NativeRendering
             }
 
             Rectangle {
-                width: Math.max(30, Math.round(root.height * 0.05))
+                width: Math.max(34, Math.round(root.height * 0.055))
                 height: 2
                 radius: 1
                 gradient: Gradient {
@@ -309,9 +299,9 @@ WallpaperItem {
             Text {
                 text: "أهلاً بعودتك"
                 color: Kirigami.Theme.textColor
-                opacity: 0.62
+                opacity: 0.66
                 font.family: "IBM Plex Sans"
-                font.pixelSize: Math.max(12, Math.round(root.height * 0.016))
+                font.pixelSize: Math.max(13, Math.round(root.height * 0.017))
                 font.weight: Font.Normal
                 font.letterSpacing: 0.5
                 renderType: Text.NativeRendering
