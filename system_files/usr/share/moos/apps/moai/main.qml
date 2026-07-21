@@ -410,10 +410,10 @@ Kirigami.ApplicationWindow {
            "_Ask me, or use the side rail._")
 
     readonly property var starters: [
-        { ar: "حدّث نظامي",     en: "Update my system", send: "حدّث نظام MoOS من فضلك" },
-        { ar: "افحص جهازي",     en: "Check my device",  send: "افحص جهازي وقل لي إذا في مشاكل تعريفات أو تحديثات" },
-        { ar: "سرّع ونظّف",      en: "Speed up & clean", send: "نظّف النظام وسرّعه من فضلك" },
-        { ar: "صلّح الصوت",      en: "Fix audio",        send: "الصوت لا يعمل عندي، ساعدني" }
+        { ar: "حدّث نظامي",     en: "Update my system", icon: "moos-safe-update", hint: "آمن وموقّع | signed & safe", send: "حدّث نظام MoOS من فضلك" },
+        { ar: "افحص جهازي",     en: "Check my device",  icon: "moos-cpu",         hint: "تعريفات وصحّة | drivers & health", send: "افحص جهازي وقل لي إذا في مشاكل تعريفات أو تحديثات" },
+        { ar: "سرّع ونظّف",      en: "Speed up & clean", icon: "moos-optimize",    hint: "مساحة وذاكرة | space & memory", send: "نظّف النظام وسرّعه من فضلك" },
+        { ar: "صلّح الصوت",      en: "Fix audio",        icon: "moos-audio",       hint: "صوت لا يعمل | no sound", send: "الصوت لا يعمل عندي، ساعدني" }
     ]
 
     // ── The rail ────────────────────────────────────────────────────────────
@@ -1689,44 +1689,44 @@ Kirigami.ApplicationWindow {
                             }
                         }
 
-                        // ══ Empty-state hero — a warm modern welcome, not a black void ══
-                        // Shown only before the first exchange (chatModel holds just the
-                        // seeded greeting). Fills the chat area with the brand orb, a
-                        // bilingual greeting and an accent glow that tracks the theme;
-                        // the ListView (and its greeting bubble) take over on the first reply.
+                        // ══ Empty-state hero — premium welcome (aurora art + brand + suggestion cards) ══
+                        // Shown before the first exchange (chatModel holds only the seeded
+                        // greeting). A generated mesh-gradient aurora fills the void; the
+                        // brand orb sits over a soft accent glow; four glass cards (crafted
+                        // icon + prompt + hint) seed the conversation via sendPrompt. The
+                        // ListView and its greeting bubble take over on the first reply.
                         Item {
                             anchors.fill: parent
                             visible: chatModel.count <= 1
 
-                            Rectangle {
-                                anchors.centerIn: parent
-                                anchors.verticalCenterOffset: -70
-                                width: 380; height: 380; radius: 190
-                                gradient: Gradient {
-                                    GradientStop { position: 0.0; color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.11) }
-                                    GradientStop { position: 1.0; color: "transparent" }
-                                }
+                            Image {
+                                anchors.fill: parent
+                                source: "hero-bg.png"
+                                fillMode: Image.PreserveAspectCrop
+                                opacity: 0.92
+                                asynchronous: true
                             }
 
                             Column {
                                 anchors.centerIn: parent
-                                spacing: 20
-                                width: Math.min(parent.width - 96, 540)
+                                spacing: 22
+                                width: Math.min(parent.width - 80, 620)
 
+                                // brand orb over a layered glow
                                 Item {
-                                    width: 122; height: 122
+                                    width: 130; height: 130
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     Rectangle {
-                                        anchors.centerIn: parent; width: 122; height: 122; radius: 61
-                                        color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.05)
+                                        anchors.centerIn: parent; width: 130; height: 130; radius: 65
+                                        color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.06)
                                         border.width: 1
-                                        border.color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.16)
+                                        border.color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.20)
                                     }
                                     Rectangle {
-                                        anchors.centerIn: parent; width: 98; height: 98; radius: 49
-                                        color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.08)
+                                        anchors.centerIn: parent; width: 102; height: 102; radius: 51
+                                        color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.10)
                                     }
-                                    MoOrb { anchors.centerIn: parent; width: 78; height: 78; mood: "idle" }
+                                    MoOrb { anchors.centerIn: parent; width: 82; height: 82; mood: "idle" }
                                 }
 
                                 Text {
@@ -1734,22 +1734,92 @@ Kirigami.ApplicationWindow {
                                     text: Qt.application.layoutDirection === Qt.RightToLeft ? "أهلاً، أنا Mo AI" : "Hi, I'm Mo AI"
                                     color: root.textHi
                                     font.family: root.uiFont
-                                    font.pixelSize: 30
+                                    font.pixelSize: 32
                                     font.weight: Font.DemiBold
                                 }
 
                                 Text {
                                     anchors.horizontalCenter: parent.horizontalCenter
-                                    width: parent.width
-                                    horizontalAlignment: Text.AlignHCenter
-                                    wrapMode: Text.Wrap
-                                    lineHeight: 1.28
                                     text: Qt.application.layoutDirection === Qt.RightToLeft
-                                        ? "مساعد MoOS — أُصلّح التعريفات، أُحدّث النظام، أُثبّت أي تطبيق وأُنظّف الجهاز. اسألني، أو اختر بطاقة أدناه."
-                                        : "Your MoOS assistant — fix drivers, update the system, install any app and tidy things up. Ask me anything, or pick a card below."
+                                        ? "مساعد MoOS — اختر بداية، أو اكتب طلبك."
+                                        : "Your MoOS assistant — pick a starting point, or just type."
                                     color: root.textLo
                                     font.family: root.uiFont
                                     font.pixelSize: 14
+                                }
+
+                                // four premium glass suggestion cards (2×2)
+                                Grid {
+                                    id: heroCards
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    columns: parent.width > 520 ? 2 : 1
+                                    columnSpacing: 12
+                                    rowSpacing: 12
+                                    Repeater {
+                                        model: root.starters
+                                        delegate: Rectangle {
+                                            required property var modelData
+                                            width: heroCards.columns === 2 ? (heroCards.parent.width - 12) / 2 : heroCards.parent.width
+                                            height: 74
+                                            radius: 16
+                                            color: Qt.rgba(root.surface1.r, root.surface1.g, root.surface1.b, cardMA.containsMouse ? 0.94 : 0.66)
+                                            border.width: 1
+                                            border.color: cardMA.containsMouse
+                                                ? Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.55)
+                                                : root.hairline
+                                            scale: cardMA.containsMouse ? 1.02 : 1.0
+                                            Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                                            Behavior on border.color { ColorAnimation { duration: 140 } }
+                                            Behavior on color { ColorAnimation { duration: 140 } }
+
+                                            RowLayout {
+                                                anchors.fill: parent
+                                                anchors.margins: 13
+                                                spacing: 12
+                                                layoutDirection: Qt.application.layoutDirection
+
+                                                Rectangle {
+                                                    Layout.preferredWidth: 42; Layout.preferredHeight: 42
+                                                    radius: 12
+                                                    color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.13)
+                                                    Kirigami.Icon {
+                                                        anchors.centerIn: parent
+                                                        width: 22; height: 22
+                                                        source: modelData.icon
+                                                        color: root.novaCyan
+                                                    }
+                                                }
+                                                ColumnLayout {
+                                                    Layout.fillWidth: true
+                                                    spacing: 1
+                                                    Text {
+                                                        Layout.fillWidth: true
+                                                        text: Qt.application.layoutDirection === Qt.RightToLeft ? modelData.ar : modelData.en
+                                                        color: root.textHi
+                                                        font.family: root.uiFont
+                                                        font.pixelSize: 14
+                                                        font.weight: Font.DemiBold
+                                                        elide: Text.ElideRight
+                                                    }
+                                                    Text {
+                                                        Layout.fillWidth: true
+                                                        text: modelData.hint
+                                                        color: root.textMute
+                                                        font.family: root.uiFont
+                                                        font.pixelSize: 11
+                                                        elide: Text.ElideRight
+                                                    }
+                                                }
+                                            }
+                                            MouseArea {
+                                                id: cardMA
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.sendPrompt(modelData.send)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1819,7 +1889,7 @@ Kirigami.ApplicationWindow {
                             Layout.rightMargin: 16
                             Layout.bottomMargin: 6
                             spacing: 8
-                            visible: chatModel.count <= 1
+                            visible: false   // superseded by the hero's premium suggestion cards
                             Repeater {
                                 model: root.starters
                                 delegate: MoButton {
