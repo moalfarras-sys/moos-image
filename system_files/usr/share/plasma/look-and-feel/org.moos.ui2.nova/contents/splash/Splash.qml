@@ -418,7 +418,7 @@ Rectangle {
 
             text: fullText.substring(0, charCount)
             color: root.secondaryText
-            font.family: "IBM Plex Sans"
+            font.family: "Inter"
             font.pixelSize: 14
             font.letterSpacing: 2
             textFormat: Text.PlainText
