@@ -43,6 +43,7 @@ shutdown / restart). The root cause is not the design — it is the pipeline.**
     - `6f16024` feat(login): premium glass identity chip + living halo (this session)
     - `027afd8` polish(login): legible signature + soft-sprite glow, visually verified
     - `83042d5` chore(repo): ignore agent-tool scaffolding / test evidence / stale publish output
+    - `2d84592` feat(logout): iOS-style Liquid Glass power screen — retire the noisy aurora
   The booted image v288 (`2a3a9558`) was built from `a86df17`, whose recent work was
   Mo AI, **not** the login/logout screens — so those looked identical v281→v288, which
   is exactly what the user perceives. **Until `gh` is re-authed and these push, the
@@ -108,11 +109,39 @@ to confirm — the corner signature now reads as a bright, confident mark.
   only judge the *deployed* greeter, not the new one) and a full local `podman build`.
   CI is the first place the new greeter meets that gate — watch that build.
 
-### Next precise step
+### Liquid Glass redesign (owner asked for an iOS-26/27 direction, "clean not busy")
 
-Re-auth `gh`, push both commits, watch CI go green, `rpm-ostree upgrade`, reboot, and
-confirm the new login scene live. Then continue cohesive polish only where a surface is
-genuinely plain — the rest of the doorway system is already premium.
+Searched the current Apple **Liquid Glass** language (WWDC 2025): translucent controls
+that float above a calm scene, content-first, respond on touch. Applied to the **power
+screen** (`2d84592`, all 16 variants):
+- **MoOSUI2ActionButton is now a frosted glass TILE** — milky translucent card on a soft
+  RectangularGlow shadow, accent focus ring, crest highlight, icon glow; emphasized/any-
+  pressed tile fills with the accent and flips the glyph to `highlightedTextColor`. Glass
+  is `Kirigami.Theme.textColor`, never pure white. Rendered standalone → verified.
+- **Logout.qml scene de-noised** — the 24-star starfield, motes, shooting stars and glass
+  refraction lines (the "busy" the owner rejected) are deleted; SIX soft aurora veils stay,
+  each still routed through `auroraTint()` so every theme keeps its accent (the UX gate
+  requires ≥6). Panel is now frosted (0.62/0.50). **Every signal/visibility/countdown/key
+  path is byte-for-byte original — only the surface changed.**
+
+Two gates bit and were satisfied *correctly*, not bypassed: `test_moos_ui2` (no pure-white
+literal — even in a comment) and `verify_user_experience` (button must be emphasized/down-
+aware with `highlightedTextColor`; logout must keep ≥6 `auroraTint()` curtains). All green.
+
+**Verification limit:** the composed `Logout.qml` cannot be rendered headless (its
+`SessionsModel` + createObject path never grabs a frame). It is qmllint-clean + gated;
+the component and a full-scene mock are rendered; the composed screen confirms live after
+boot (rollback safe). Render tooling: scratch `glass_power.qml`, `render_themes.py`, the
+`btndir`/`logoutnew` harnesses.
+
+### Next precise steps
+
+1. **Re-auth `gh` and push** — nothing below reaches the machine until this happens.
+2. After boot, confirm the composed power screen live; if the frosted panel + tile grid
+   wants the fuller mock layout (big clock + free-floating tiles, no panel), that rewrite
+   of `glassPanel` is the next step — the mock (`glass_power.qml`) is the target.
+3. Carry the same Liquid Glass language to the **lock screen** and **login action row**
+   (they share `ActionButton.qml` in `org.kde.breeze.components`, not yet reglassed).
 
 ## Session 2026-07-21 (evening) — live fwupd/zram proof + full doorway & app visual polish
 
