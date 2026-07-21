@@ -76,26 +76,68 @@ Evidence priority:
   store-catalog gate passed, foreign-identity firewall OK, `bootc container lint`
   (1 check skipped, the 4 known warnings). Image `localhost/moos:latest`
   `acf5ca1a2e16`.
-- NOT yet verified live: the polkit rule only takes effect once an image carrying
-  it is booted. Live proof is pending the next signed image.
+- **VERIFIED LIVE 2026-07-21** on the booted signed image `be91759a…` (v281):
+  - `rpm-ostree status` confirms booted digest == `sha256:be91759a…` (v281),
+    signed origin, with `509bdf68…` (v275) retained as rollback.
+  - The polkit rule is present in the booted read-only `/usr`
+    (`/usr/share/polkit-1/rules.d/60-moos-fwupd-refresh.rules`).
+  - Manually triggered `sudo systemctl start fwupd-refresh.service`: it ran the
+    DynamicUser `fwupd-refresh` with **no session**, downloaded the full LVFS
+    metadata ("نُزّلت معلومات وصفيّة جديدة بنجاح", 12 updatable / 3 supported
+    devices) and exited **`0/SUCCESS`** — `journalctl -u fwupd-refresh.service -b`
+    shows **no "Failed to obtain auth"** anywhere this boot. The polkit rule is
+    doing exactly its job on a headless timer-style run.
+  - `systemctl --failed` is empty both before and after the run.
+  - `moos-selfcheck`: 39 checks passed, 1 note (the tray items, user-owned — not a
+    failure). Keyboard is now live `de,us,ara` from KWin, so the earlier
+    `de,ara` drift is resolved on this boot.
+  - `tests/post-update-check.sh`: 40 passed, 1 failed — the single failure is the
+    benign digest-drift check (`booted be91759a… but the registry publishes
+    c06a9420…`). That newer image is v282, built from revision `10385506…` = the
+    regression-gate commit `1038550`; the gate is test-only with **no runtime
+    effect**, so booting it is optional and be91759a already carries the verified
+    fix. Every other post-update check is green (0 failed system/user units,
+    session won the compositor race, no $HOME shadow).
 
 ### Commit and image state
 
-- fwupd fix: commit `448f926`. Plus this handoff/roadmap documentation commit.
-- Booted at session time: 44.20260720.275 (sha256:509bdf68…), rollback kept.
-- GHCR `moos-nvidia:latest`: sha256:e1cf1672… (pre-fwupd).
+- fwupd fix: commit `448f926`; docs `7822e55`; regression gate `1038550` — ALL
+  pushed to origin/main. CI for the fix (run on `7822e55`) SUCCEEDED and published
+  the signed `moos-nvidia` digest sha256:be91759a… = version 44.20260721.281.
+- **STAGED, awaiting reboot**: the workstation was rebased (signed,
+  `ostree-image-signed:`) to sha256:be91759a… (v281); it applies on next boot.
+  Booted now: 44.20260720.275 (sha256:509bdf68…), kept as rollback (272 also
+  present).
+- The gate commit `1038550` triggered a later CI run; its image (fix + gate) is
+  NOT needed for the reboot — the gate has no runtime effect and be91759a already
+  carries the fix.
 
-### Open issues and exact next step
+### RESUME HERE (exact next step)
 
-- **Live-verify the fix**: after CI builds the image carrying `448f926` and it is
-  booted, `systemctl --failed` must be empty and
-  `journalctl -u fwupd-refresh.service -b` must show a clean refresh (no
-  "Failed to obtain auth"). Only then mark the roadmap fwupd item done.
-- Push `448f926` + docs → wait for BOTH editions in CI → stage the new signed
-  `moos-nvidia` digest → one reboot → run installed `moos-selfcheck` +
-  `tests/post-update-check.sh`. Roll back to sha256:509bdf68… if anything
-  regresses.
-- Re-check the keyboard-layout drift (de,ara vs de,us,ara) on that boot.
+**fwupd is DONE and live-verified** (see "What was tested" above); the ROADMAP
+item is flipped to `[x]` and this handoff is pushed. The keyboard drift is also
+resolved on this boot (`de,us,ara` live). Remaining work, in order:
+
+1. **zram0 first-boot failure on fresh installs** (the highest safe open
+   release-gate item). Observed only in the QEMU install round (gate 190), never
+   on the owner's machine: one transient `systemd-zram-setup@zram0.service`
+   failure at boot leaves the device initialised, so every retry then dies with
+   `EBUSY` writing `/sys/block/zram0/comp_algorithm` and swap stays off. **Do NOT
+   ship a swap change untested** — reproduce in a booted VM first, add a drop-in
+   that resets zram0 before setup on retry (or otherwise handles the first
+   transient failure), then a regression gate. ROADMAP section 2, the `[ ]` item
+   flagged "عطل اكتشفته جولة 190". A cosmetic companion: the live installer
+   session locks the screen after 5 min idle (Esc unlocks — liveuser has no
+   password); worth suppressing the lock in the live image.
+2. Then the installer end-to-end round (timezone step) on a real ISO.
+
+Optional, non-blocking: the machine may be converged to v282 (`c06a9420…`) on any
+future update to silence the digest-drift check — it is the same fix plus a
+test-only gate, so it is not required and is deliberately not forced here.
+
+Environment carried into resume: scoped `/etc/sudoers.d/10-moos-dev` is active
+(passwordless for rpm-ostree/systemctl/etc. ONLY — not blanket); `gh` is logged
+in for push; the VS Code Codex + .NET fixes need only a window reload.
 
 ## Session 2026-07-21 — live theme-family health and self-heal repair
 
