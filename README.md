@@ -1,8 +1,10 @@
 # moos-image — مستودع بناء صورة MoOS
 
-هذا هو مستودع المصدر والبناء لنظام **MoOS**: صورة bootc/OCI مبنية تقنياً فوق `ghcr.io/ublue-os/kinoite-main:44` مع Plasma Wayland. GitHub Actions يبني الصورة ويوقعها بـcosign ويدفعها إلى GHCR. كل تغيير دائم في النظام يبدأ هنا، يمر عبر CI، ثم يُنشر إلى الأجهزة بواسطة bootc.
+هذا هو مستودع المصدر والبناء لنظام **MoOS**: صورة bootc/OCI مبنية تقنياً فوق `ghcr.io/ublue-os/kinoite-main:44` مع Plasma 6 Wayland. GitHub Actions يبني الصورة ويوقعها بـcosign ويدفعها إلى GHCR. كل تغيير دائم في النظام يبدأ هنا، يمر عبر CI، ثم يُنشر إلى الأجهزة بواسطة bootc/rpm-ostree.
 
-آخر تحديث: 2026-07-12
+**نظام التصميم (Nova · Liquid Glass 2026):** الشاشات كلها بخط **Inter** (Latin) بلغة زجاجية موحّدة — دخول/قفل/طاقة — فوق ثيمات `org.moos.ui2.*` (Midnight داكن، Daylight فاتح). اللون الأساسي هو أزرق MoOS `#2E7BFF`، ولمسة الفيروزي `#24E0CE` هي التفصيل الحيّ الوحيد لكل شاشة. تسجيل الدخول يُرسم بواسطة **plasma-login-manager** (بديل SDDM في Kinoite 44)، وشاشة القفل من حزمة الصدفة مباشرة.
+
+آخر تحديث: 2026-07-22
 
 > ## ⚠️ اقرأ [`AGENTS.md`](AGENTS.md) قبل أي تعديل
 >
@@ -30,9 +32,10 @@ moos-image/
 ├── system_files/              # ملفات تُنسخ كما هي إلى / داخل الصورة
 │   ├── etc/moos/              # إعدادات MoOS (هيكل)
 │   └── usr/share/
-│       ├── plasma/look-and-feel/org.moos.nova/   # Global Theme (هيكل + metadata)
-│       ├── plymouth/themes/moos-nova/            # ثيم الإقلاع (Phase 5)
-│       └── wallpapers/NovaHorizon/               # خلفيات kpackage (Phase 3)
+│       ├── plasma/look-and-feel/org.moos.ui2.*/  # ثيمات UI2 (Midnight/Daylight/… splash+logout)
+│       ├── plasma/shells/.../lockscreen/         # شاشة القفل الزجاجية (تُرسم من الصدفة)
+│       ├── plasma/wallpapers/org.moos.ui2.greeter/ # مشهد تسجيل الدخول
+│       └── wallpapers/MoOSUI2Graphite|Daylight/  # خلفيات kpackage (داكن/فاتح)
 ├── .github/workflows/
 │   ├── build.yml              # بناء + دفع + توقيع cosign (أسبوعي + عند كل push)
 │   └── build-iso.yml          # Titanoboa live ISO (يدوي + شهري) — CI فقط
@@ -107,7 +110,7 @@ sudo systemctl reboot
 بعد الإقلاع تحقق من deployment الفعلي:
 
 ```bash
-cat /etc/os-release        # NAME="MoOS" و PRETTY_NAME="MoOS 0.1 (Nova Seed)"
+cat /etc/os-release        # NAME="MoOS" · VERSION="44.YYYYMMDD.N" · PRETTY_NAME="MoOS"
 systemctl status uupd.timer
 bootc status
 ```
