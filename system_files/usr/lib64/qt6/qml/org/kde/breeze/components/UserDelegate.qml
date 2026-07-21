@@ -131,7 +131,7 @@ Item {
             visible: faceIcon.visible
             text: wrapper.name.length > 0 ? wrapper.name.charAt(0).toUpperCase() : "M"
             color: Kirigami.Theme.textColor
-            font.family: "IBM Plex Sans"
+            font.family: "Inter"
             font.pixelSize: imageSource.width * 0.42
             font.weight: Font.Medium
             renderType: Text.NativeRendering
@@ -209,7 +209,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
 
         // Make it bigger than other fonts to match the scale of the avatar better
-        font.family: "IBM Plex Sans"
+        font.family: "Inter"
         font.pointSize: wrapper.fontSize + 4
 
         width: wrapper.constrainText ? parent.width : undefined

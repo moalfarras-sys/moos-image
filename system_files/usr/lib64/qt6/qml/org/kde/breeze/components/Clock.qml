@@ -68,7 +68,7 @@ ColumnLayout {
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
             color: Kirigami.Theme.textColor
-            font.family: "IBM Plex Sans"
+            font.family: "Inter"
             font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 7.4)
             font.weight: Font.Light
             renderType: Text.NativeRendering // looks better than QtTextRendering at large size, while CurveRendering suffers from jagged diagonals with some fonts (QTBUG-146898)
@@ -80,7 +80,7 @@ ColumnLayout {
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
             color: Kirigami.Theme.highlightColor
-            font.family: "IBM Plex Sans"
+            font.family: "Inter"
             font.pointSize: hours.font.pointSize
             font.weight: Font.Light
             renderType: Text.NativeRendering
@@ -99,7 +99,7 @@ ColumnLayout {
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
             color: Kirigami.Theme.textColor
-            font.family: "IBM Plex Sans"
+            font.family: "Inter"
             font.pointSize: hours.font.pointSize
             font.weight: Font.Light
             renderType: Text.NativeRendering
@@ -146,7 +146,7 @@ ColumnLayout {
         styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
         color: Kirigami.Theme.textColor
         opacity: 0.62
-        font.family: "IBM Plex Sans"
+        font.family: "Inter"
         font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.05)
         font.weight: Font.Normal
         horizontalAlignment: Text.AlignHCenter

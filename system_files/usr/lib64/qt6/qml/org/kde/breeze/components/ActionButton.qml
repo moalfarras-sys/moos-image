@@ -82,7 +82,7 @@ PlasmaComponents3.AbstractButton {
     readonly property bool destructive: root.icon.name === "system-shutdown"
     readonly property bool lit: root.activeFocus || root.hovered
 
-    font.family: "IBM Plex Sans"
+    font.family: "Inter"
     font.pointSize: Kirigami.Theme.defaultFont.pointSize + 1
     font.underline: root.activeFocus
 
@@ -203,7 +203,7 @@ PlasmaComponents3.AbstractButton {
             text: root.Kirigami.MnemonicData.richTextLabel
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: Kirigami.Theme.backgroundColor // Unused without outline
-            font.family: "IBM Plex Sans"
+            font.family: "Inter"
             font.weight: Font.DemiBold
             color: root.destructive ? Kirigami.Theme.negativeTextColor
                                     : Kirigami.Theme.textColor
