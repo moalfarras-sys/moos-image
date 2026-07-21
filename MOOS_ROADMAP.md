@@ -75,7 +75,15 @@ Mo AI مساعد محلي أولاً. لا ينفذ نصاً عشوائياً ب
      يفحص الـ switch الذي ينفّذه النظام العامل. أُصلح في `moai-do` ومحروس في
      `tests/verify_user_experience.py`. التفاصيل في `FIXES_2026-07-16b.md`.
    - اختبار rollback بعد تحديث ناجح وتحديث فاشل محاكى.
-   - [ ] **مفتوح (لا يتكرر منذ 2026-07-16 12:03)**: `fwupd-refresh.service` كان يفشل في كل
+   - [~] **أُصلح 2026-07-21 — بانتظار تحقق حي** (تحديث لبند "مفتوح 2026-07-16"): عاد الفشل على
+     إقلاع 2026-07-21، وهذه المرة أظهر journal السبب الصريح `Failed to obtain auth` — وهو توقيع
+     polkit لا لبس فيه. الجذر: الخدمة تعمل بـ DynamicUser بلا جلسة، فيُقيَّم أكشن
+     `org.freedesktop.fwupd.refresh-remote` (الافتراضي `allow_any=auth_admin`) بلا وكيل يوثّق.
+     الإصلاح: قاعدة polkit محصورة `system_files/usr/share/polkit-1/rules.d/60-moos-fwupd-refresh.rules`
+     (commit 448f926) تمنح `refresh-remote`/`get-remotes` لمستخدم `fwupd-refresh` فقط، دون أي مساس
+     بأكشنات فلاش/تخفيض/تعديل الـ firmware (تبقى `auth_admin`). لا يُعتمد نهائياً حتى يُثبَت حياً على
+     الصورة التالية (`systemctl --failed` فارغة + refresh نظيف في journal). السجل التاريخي أدناه:
+     `fwupd-refresh.service` كان يفشل في كل
      تشغيل يحتاج تنزيلاً فعلياً (يخرج 1 بعد `Updating lvfs` مباشرة). فرضيتا polkit
      وصندوق العزل **مرفوضتان بتجربة** (نسخة طبق الأصل session-less من الوحدة نجحت)،
      والسيناريو الفاشل نفسه صار يمر: تنزيل stale نجح من الوحدة ذاتها (12:03) ومن العميل
