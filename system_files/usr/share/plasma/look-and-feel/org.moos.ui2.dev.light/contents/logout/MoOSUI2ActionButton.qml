@@ -28,9 +28,12 @@ QQC2.AbstractButton {
     readonly property color accent: destructive
         ? Kirigami.Theme.negativeTextColor
         : Kirigami.Theme.highlightColor
-    // The glass is the theme's own near-white foreground (MoOS bans pure white),
-    // which also lets the tile invert to a dark-tinted frost under a light theme.
-    readonly property color glass: Kirigami.Theme.textColor
+    // The logout is a dark, dramatic power moment on every theme, so the tile
+    // frost is a fixed near-white (MoOS bans pure white) that reads as bright
+    // glass over the dark scrim — the theme supplies only the accent, not the
+    // scene. glassInk is the light label colour that rides on that frost.
+    readonly property color glass: "#EFF4F2"
+    readonly property color glassInk: "#EFF4F2"
 
     signal navigate(int step)
 
@@ -90,26 +93,26 @@ QQC2.AbstractButton {
             readonly property bool filled: control.emphasized || control.down
             gradient: Gradient {
                 GradientStop { position: 0.0; color: card.filled
-                    ? Qt.rgba(control.accent.r, control.accent.g, control.accent.b, 0.94)
-                    : Qt.rgba(control.glass.r, control.glass.g, control.glass.b, control.lit ? 0.18 : 0.12) }
+                    ? Qt.rgba(control.accent.r, control.accent.g, control.accent.b, 0.96)
+                    : Qt.rgba(control.glass.r, control.glass.g, control.glass.b, control.lit ? 0.26 : 0.17) }
                 GradientStop { position: 0.5; color: card.filled
-                    ? Qt.rgba(control.accent.r, control.accent.g, control.accent.b, 0.82)
-                    : Qt.rgba(control.glass.r, control.glass.g, control.glass.b, control.lit ? 0.10 : 0.065) }
+                    ? Qt.rgba(control.accent.r, control.accent.g, control.accent.b, 0.84)
+                    : Qt.rgba(control.glass.r, control.glass.g, control.glass.b, control.lit ? 0.16 : 0.10) }
                 GradientStop { position: 1.0; color: card.filled
-                    ? Qt.rgba(control.accent.r, control.accent.g, control.accent.b, 0.68)
-                    : Qt.rgba(control.glass.r, control.glass.g, control.glass.b, control.lit ? 0.08 : 0.045) }
+                    ? Qt.rgba(control.accent.r, control.accent.g, control.accent.b, 0.70)
+                    : Qt.rgba(control.glass.r, control.glass.g, control.glass.b, control.lit ? 0.12 : 0.07) }
             }
-            border.width: 1
+            border.width: 1.5
             border.color: (control.lit || control.emphasized)
-                ? Qt.rgba(control.accent.r, control.accent.g, control.accent.b, 0.7)
-                : Qt.rgba(control.glass.r, control.glass.g, control.glass.b, 0.16)
+                ? Qt.rgba(control.accent.r, control.accent.g, control.accent.b, 0.85)
+                : Qt.rgba(control.glass.r, control.glass.g, control.glass.b, 0.26)
 
             // Crest highlight — the light along the top rim.
             Rectangle {
                 anchors { top: parent.top; left: parent.left; right: parent.right; margins: 2 }
                 height: 1.5
                 radius: 1
-                color: Qt.rgba(control.glass.r, control.glass.g, control.glass.b, control.lit ? 0.34 : 0.22)
+                color: Qt.rgba(control.glass.r, control.glass.g, control.glass.b, control.lit ? 0.46 : 0.30)
             }
             // A faint diagonal specular.
             Rectangle {
@@ -164,7 +167,7 @@ QQC2.AbstractButton {
                 // the contrasting highlightedTextColor so it never vanishes.
                 color: control.destructive
                     ? (control.destructiveActive ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.negativeTextColor)
-                    : ((control.emphasized || control.down) ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor)
+                    : ((control.emphasized || control.down) ? Kirigami.Theme.highlightedTextColor : control.glassInk)
                 scale: control.lit ? 1.08 : 1.0
                 Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutBack; easing.overshoot: 1.6 } }
             }
@@ -180,7 +183,7 @@ QQC2.AbstractButton {
             color: control.destructive && !control.destructiveActive
                 ? Kirigami.Theme.negativeTextColor
                 : ((control.emphasized || control.down || control.destructiveActive)
-                    ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor)
+                    ? Kirigami.Theme.highlightedTextColor : control.glassInk)
             font.family: "Inter"
             font.weight: Font.DemiBold
             font.pointSize: Kirigami.Theme.defaultFont.pointSize + 1
@@ -196,7 +199,7 @@ QQC2.AbstractButton {
             visible: text.length > 0
             color: (control.emphasized || control.down)
                 ? Kirigami.Theme.highlightedTextColor
-                : (control.destructive ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor)
+                : (control.destructive ? Kirigami.Theme.negativeTextColor : control.glassInk)
             opacity: 0.62
             font.family: "Inter"
             font.pointSize: Kirigami.Theme.smallFont.pointSize

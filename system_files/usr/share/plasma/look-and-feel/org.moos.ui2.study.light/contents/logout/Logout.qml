@@ -185,14 +185,14 @@ Item {
     Rectangle {
         id: backdrop
         anchors.fill: parent
-        color: Kirigami.Theme.backgroundColor
+        color: "#070A0C"
         opacity: 0
         Component.onCompleted: backdropFade.start()
         OpacityAnimator {
             id: backdropFade
             target: backdrop
             from: 0
-            to: 0.72
+            to: 0.88
             duration: Kirigami.Units.longDuration
             easing.type: Easing.OutCubic
         }
@@ -216,7 +216,7 @@ Item {
         cache: true
         sourceSize: Qt.size(root.width, root.height)
     }
-    Rectangle { anchors.fill: parent; color: Kirigami.Theme.backgroundColor; opacity: 0.5 }
+    Rectangle { anchors.fill: parent; color: "#070A0C"; opacity: 0.45 }
 
     Item {
         anchors.fill: parent
@@ -333,17 +333,13 @@ Item {
         height: Math.min(root.height - Kirigami.Units.gridUnit * 4, contentColumn.implicitHeight + Kirigami.Units.gridUnit * 4)
         radius: Kirigami.Units.gridUnit
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                                                         Kirigami.Theme.backgroundColor.g,
-                                                         Kirigami.Theme.backgroundColor.b, 0.62) }
-            GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                                                         Kirigami.Theme.backgroundColor.g,
-                                                         Kirigami.Theme.backgroundColor.b, 0.50) }
+            GradientStop { position: 0.0; color: Qt.rgba(0.94, 0.97, 0.96, 0.085) }
+            GradientStop { position: 1.0; color: Qt.rgba(0.94, 0.97, 0.96, 0.035) }
         }
-        border.width: 1
+        border.width: 1.5
         border.color: Qt.rgba(Kirigami.Theme.highlightColor.r,
                               Kirigami.Theme.highlightColor.g,
-                              Kirigami.Theme.highlightColor.b, 0.35)
+                              Kirigami.Theme.highlightColor.b, 0.55)
 
         opacity: 0
         scale: 0.95
@@ -544,10 +540,11 @@ Item {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: root.headingText()
-                    color: Kirigami.Theme.textColor
+                    color: "#F2F7F5"
                     font.family: "Inter"
-                    font.pointSize: Kirigami.Theme.defaultFont.pointSize + 8
-                    font.weight: Font.DemiBold
+                    font.pointSize: Kirigami.Theme.defaultFont.pointSize + 12
+                    font.weight: Font.Bold
+                    font.letterSpacing: -0.5
                     wrapMode: Text.WordWrap
                 }
 
@@ -556,7 +553,7 @@ Item {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: currentUser.fullName
-                    color: Kirigami.Theme.disabledTextColor
+                    color: "#AEBFBB"
                     visible: text.length > 0
                     font.family: "Inter"
                 }
