@@ -1,0 +1,24 @@
+// MoOS: let fwupd's background metadata refresh actually succeed.
+//
+// fwupd-refresh.service runs `fwupdmgr refresh` as the DynamicUser
+// "fwupd-refresh" with no login session or seat. polkit therefore evaluates it
+// under `allow_any`, and the LVFS metadata action
+// org.freedesktop.fwupd.refresh-remote defaults allow_any=auth_admin — so a
+// headless timer run has no agent to authenticate with and dies with
+// "Failed to obtain auth" every time the metadata cache goes stale (~daily).
+// That is the sole reason fwupd-refresh.service shows up in `systemctl --failed`.
+//
+// This authorises ONLY:
+//   - org.freedesktop.fwupd.refresh-remote  (download LVFS metadata)
+//   - org.freedesktop.fwupd.get-remotes     (implied by refresh-remote)
+// and ONLY for the fwupd-refresh system user. It grants NOTHING about
+// installing, downgrading or modifying firmware: every update-*/downgrade-*/
+// modify-* action keeps its auth_admin default, so flashing hardware still
+// requires a real administrator. This fixes the feature; it does not weaken it.
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.freedesktop.fwupd.refresh-remote" ||
+         action.id == "org.freedesktop.fwupd.get-remotes") &&
+        subject.user == "fwupd-refresh") {
+        return polkit.Result.YES;
+    }
+});
