@@ -37,10 +37,11 @@ Evidence priority:
 shutdown / restart). The root cause is not the design — it is the pipeline.**
 
 - **`gh` token is INVALID → nothing new can ship.** `gh auth status` = "token in
-  keyring is invalid"; `git push` = "Authentication failed". Two local commits are
+  keyring is invalid"; `git push` = "Authentication failed". Local commits are
   stranded on `main`, ahead of `origin/main` (`a86df17`):
     - `3a91287` feat(moai): make the brain FAST (from the prior session)
     - `6f16024` feat(login): premium glass identity chip + living halo (this session)
+    - `027afd8` polish(login): legible signature + soft-sprite glow, visually verified
   The booted image v288 (`2a3a9558`) was built from `a86df17`, whose recent work was
   Mo AI, **not** the login/logout screens — so those looked identical v281→v288, which
   is exactly what the user perceives. **Until `gh` is re-authed and these push, the
@@ -66,6 +67,22 @@ shutdown / restart). The root cause is not the design — it is the pipeline.**
    accent-tinted depth glow + vignette, a refined horizon thread, and a MoOS wordmark
    lockup over an accent underline + soft welcome. All colours from the active scheme,
    so login now tracks each theme's accent like lock/logout do.
+
+### Visual verification (new capability this session)
+
+Built an **offscreen QML render loop on the live system** to actually *look* at the
+design instead of trusting the source: `QT_QPA_PLATFORM=offscreen /usr/lib64/qt6/bin/qml`
++ `Item.grabToImage(...).saveToFile(...)`, then `magick` to downscale and read the PNG.
+A faithful standalone harness mirrors the greeter with the concrete
+`MoOSUI2Midnight.colors` palette and the real Graphite wallpaper / ring / glow / logo.
+Rendered at 1920×1080 and 1280×800. This caught two real faults the source review
+missed (hard-edged glow discs; a small dark emblem), fixed in `027afd8`, and re-rendered
+to confirm — the corner signature now reads as a bright, confident mark.
+- Scripts live in the session scratchpad (`render.sh`, `_harness_*.qml`).
+- **Logout/lock cannot be rendered this way:** they instantiate `SessionsModel`
+  (org.kde.plasma.private.sessions) / the authenticator, which need a live logind/session
+  bus and fail to construct headless (grab comes back blank). They are already premium
+  and already deployed, so they were reviewed as source only, not re-rendered.
 
 ### What was tested
 
