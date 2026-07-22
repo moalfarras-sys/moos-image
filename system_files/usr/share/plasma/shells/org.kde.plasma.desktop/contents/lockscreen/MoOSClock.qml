@@ -25,6 +25,28 @@ Item {
     // A quiet minute pulse on the colon — motion that reads even in a still frame.
     property bool tick: true
 
+    // Floating iOS 27 Glass Capsule Backdrop
+    Rectangle {
+        id: glassContainer
+        anchors.fill: column
+        anchors.margins: -Kirigami.Units.gridUnit * 1.6
+        radius: Kirigami.Units.gridUnit * 2.1
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r, Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 0.36) }
+            GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r, Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 0.22) }
+        }
+        border.width: 1
+        border.color: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.28)
+
+        // Top specular crest light
+        Rectangle {
+            anchors { top: parent.top; left: parent.left; right: parent.right; margins: 1.5 }
+            height: 1.5
+            radius: glassContainer.radius
+            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.30)
+        }
+    }
+
     ColumnLayout {
         id: column
         anchors.horizontalCenter: parent.horizontalCenter
@@ -32,16 +54,18 @@ Item {
 
         RowLayout {
             Layout.alignment: Qt.AlignHCenter
+            // Time is always LTR (HH:mm), never mm:HH. LayoutMirroring (inherited
+            // from the RTL lock screen) overrides layoutDirection, so it must be
+            // switched off here or the hour and minute groups swap sides.
+            LayoutMirroring.enabled: false
+            layoutDirection: Qt.LeftToRight
             spacing: 0
 
             Text {
                 id: hours
-                // Qt.formatTime has NO (date, locale, string) overload: the extra
-                // locale made it IGNORE "HH" and render the full long time —
-                // "20:03:56 UTC+00:00" — at 7.4x, twice, across the lock screen.
                 text: Qt.formatTime(timeSource.now, "HH")
                 color: Kirigami.Theme.textColor
-                font.family: "IBM Plex Sans"
+                font.family: "Inter"
                 font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 7.4)
                 font.weight: Font.Light
                 renderType: Text.NativeRendering
@@ -50,7 +74,7 @@ Item {
                 id: colon
                 text: ":"
                 color: Kirigami.Theme.highlightColor
-                font.family: "IBM Plex Sans"
+                font.family: "Inter"
                 font.pointSize: hours.font.pointSize
                 font.weight: Font.Light
                 renderType: Text.NativeRendering
@@ -61,7 +85,7 @@ Item {
                 id: minutes
                 text: Qt.formatTime(timeSource.now, "mm")
                 color: Kirigami.Theme.textColor
-                font.family: "IBM Plex Sans"
+                font.family: "Inter"
                 font.pointSize: hours.font.pointSize
                 font.weight: Font.Light
                 renderType: Text.NativeRendering
@@ -69,8 +93,6 @@ Item {
         }
 
         // A short turquoise tick under the time — the one luminous accent.
-        // It breathes: a slow width swell, in period with the brand above it,
-        // so the lock screen's two living elements share one pulse.
         Rectangle {
             id: accentTick
             Layout.alignment: Qt.AlignHCenter
@@ -108,7 +130,7 @@ Item {
             text: Qt.locale("en").toString(timeSource.now, "dddd, d MMMM yyyy")
             color: Kirigami.Theme.textColor
             opacity: 0.62
-            font.family: "IBM Plex Sans"
+            font.family: "Inter"
             font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.05)
             font.weight: Font.Normal
             horizontalAlignment: Text.AlignHCenter
