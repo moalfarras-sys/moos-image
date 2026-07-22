@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# MoOS Theme Picker — launches the Kirigami chooser (applies via `moos-theme`).
+set -euo pipefail
+QML="/usr/share/moos/theme-picker/main.qml"
+for bin in qml-qt6 qml6 qml; do
+    if command -v "$bin" >/dev/null 2>&1; then
+        exec "$bin" "$QML" "$@"
+    fi
+done
+# Fallback: the Qt6 qml runner installed under the private libdir.
+if [ -x /usr/lib64/qt6/bin/qml ]; then
+    exec /usr/lib64/qt6/bin/qml "$QML" "$@"
+fi
+echo "moos-theme-picker: no QML runtime (qml-qt6) found" >&2
+exit 1

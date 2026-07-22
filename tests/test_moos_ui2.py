@@ -539,6 +539,46 @@ class TestMoOSUI2(unittest.TestCase):
                 self.assertIsNone(pure_white.search(text),
                                   f"pure-white runtime literal in {path}")
 
+    def test_family_palette_contrast_and_no_pure_white(self) -> None:
+        # The 7 accent families (nova, amethyst, midnight, aurora, gaming, dev,
+        # study) carry their OWN palettes in artwork/moos-themes/palettes.json.
+        # test_palette_contrast_and_no_pure_white only covers the Graphite/Tidal
+        # base, so a hand-edit to a family palette that wrecked contrast or slipped
+        # in pure white used to pass every gate. This closes that gap. Pure BLACK
+        # is allowed (Midnight is a deliberate true-black OLED canvas); pure white
+        # never is; and text must stay legible on every surface it lands on.
+        family = load_json(ROOT / "artwork/moos-themes/palettes.json")
+        required_roles = {
+            "canvas", "surface", "card", "raised", "primary", "secondary",
+            "luminous", "positive", "warning", "negative", "text", "muted",
+            "outline", "shadow", "panel_top", "panel_mid", "panel_bottom",
+        }
+        themes = [k for k in family if not k.startswith("_")]
+        self.assertGreaterEqual(len(themes), 7,
+                                "expected at least the 7 accent-family palettes")
+        for theme in themes:
+            with self.subTest(theme=theme):
+                roles = {k: v for k, v in family[theme].items()
+                         if not k.startswith("_")}
+                self.assertEqual(set(roles), required_roles,
+                                 f"{theme} palette is missing/extra colour roles")
+                for role, literal in roles.items():
+                    self.assertNotEqual(
+                        hex_rgb(literal), (255, 255, 255),
+                        f"{theme}.{role} must not be pure white")
+                for surface in ("canvas", "surface", "card", "raised"):
+                    ratio = contrast_ratio(hex_rgb(roles["text"]),
+                                           hex_rgb(roles[surface]))
+                    self.assertGreaterEqual(
+                        ratio, 4.5,
+                        f"{theme} text/{surface} contrast is only {ratio:.2f}:1")
+                for surface in ("canvas", "surface", "card"):
+                    ratio = contrast_ratio(hex_rgb(roles["muted"]),
+                                           hex_rgb(roles[surface]))
+                    self.assertGreaterEqual(
+                        ratio, 4.5,
+                        f"{theme} muted/{surface} contrast is only {ratio:.2f}:1")
+
     def test_dark_and_light_own_complete_distinct_svg_suites(self) -> None:
         dark = SHARE / "plasma/desktoptheme/MoOSUI2"
         light = SHARE / "plasma/desktoptheme/MoOSUI2Light"

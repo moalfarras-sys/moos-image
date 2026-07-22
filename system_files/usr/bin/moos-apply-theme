@@ -444,19 +444,26 @@ target_lnf() {
         completed=false
     fi
 
-    # There is ONE MoOS look now, in a light half and a dark half. The older generations (Nova,
-    # then UI) are no longer installed — they were what made System Settings offer the user six
-    # MoOS themes to choose between.
-    #
-    # This case used to have a branch that PRESERVED a user on UI1 whenever the migration marker
-    # existed, on the reasoning that they had rolled back on purpose. With UI1 gone that branch
-    # would have pinned somebody to a Global Theme that is not on the disk — and Plasma does not
-    # error on a missing theme, it silently serves Breeze. So: any look that is not one of MoOS's
-    # two halves resolves to the dark half, which is the one the image ships as the default.
+    # MoOS ships a FAMILY of looks now (the Graphite/Tidal base pair plus nova,
+    # amethyst, midnight, aurora, gaming, dev, study — each with a light sibling:
+    # 16 installed Global Themes). ANY of them is a deliberate user choice and must
+    # be PRESERVED on a self-heal — the source of truth for "is this a real theme"
+    # is whether its package is on disk, not a hand-kept list here (that list is
+    # exactly what silently drifted and dragged gaming/dev/study/*-light back to
+    # Dark). Only a look that is NOT an installed MoOS package (an old Nova/UI1, a
+    # Fedora look, or Breeze) resolves to the dark default — the one guaranteed to
+    # exist. Plasma does not error on a missing theme, it silently serves Breeze,
+    # so the on-disk check is what keeps a stale name from persisting.
     case "$current" in
-        "$LIGHT_LNF") echo "$LIGHT_LNF" ;;
-        "$DARK_LNF") echo "$DARK_LNF" ;;
-        "$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF") echo "$current" ;;
+        org.moos.ui2|org.moos.ui2.*)
+            # LNF_ROOT is overridable so the gate can point the existence check at
+            # the in-tree packages; at runtime it defaults to the installed path.
+            if [ -d "${LNF_ROOT:-/usr/share/plasma/look-and-feel}/$current" ]; then
+                echo "$current"
+            else
+                echo "$DARK_LNF"
+            fi
+            ;;
         *) echo "$DARK_LNF" ;;
     esac
 }
@@ -674,6 +681,65 @@ case "$want_lnf" in
         want_wallpaper="${want_wallpaper_package}/contents/images_dark/3840x2160.jpg"
         want_gtk_dark=true
         want_cursor=MoOS
+        ;;
+    "$NOVA_LIGHT_LNF"|"$AMETHYST_LIGHT_LNF"|"$AURORA_LIGHT_LNF")
+        # Light siblings of the accent families: light canvas, dark cursor, light
+        # icons, GTK light. Assets follow the LNF suffix (nova.light -> NovaLight).
+        want_fam="${want_lnf%.light}"; want_fam="${want_fam##*.}"; want_Fam="${want_fam^}Light"
+        want_scheme="MoOSUI2${want_Fam}"
+        want_style="MoOSUI2${want_Fam}"
+        want_deco="__aurorae__svg__MoOSUI2${want_Fam}"
+        want_icons=MoOSUI2Light
+        want_konsole="MoOSUI2${want_Fam}.profile"
+        want_wallpaper_package="/usr/share/wallpapers/MoOSUI2${want_Fam}"
+        want_wallpaper="${want_wallpaper_package}/contents/images/3840x2160.jpg"
+        want_gtk_dark=false
+        want_cursor=MoOSDark
+        ;;
+    "$DAYLIGHT_LNF")
+        # Midnight's light sibling is named "Daylight" (not MidnightLight).
+        want_scheme=MoOSUI2Daylight
+        want_style=MoOSUI2Daylight
+        want_deco=__aurorae__svg__MoOSUI2Daylight
+        want_icons=MoOSUI2Light
+        want_konsole=MoOSUI2Daylight.profile
+        want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Daylight
+        want_wallpaper=${want_wallpaper_package}/contents/images/3840x2160.jpg
+        want_gtk_dark=false
+        want_cursor=MoOSDark
+        ;;
+    "$GAMING_LNF"|"$DEV_LNF"|"$STUDY_LNF")
+        # Purpose-built dark editions: gaming->Arena, dev->Forge, study->Scholar.
+        case "$want_lnf" in
+            "$GAMING_LNF") want_Fam=Arena ;;
+            "$DEV_LNF") want_Fam=Forge ;;
+            *) want_Fam=Scholar ;;
+        esac
+        want_scheme="MoOSUI2${want_Fam}"
+        want_style="MoOSUI2${want_Fam}"
+        want_deco="__aurorae__svg__MoOSUI2${want_Fam}"
+        want_icons=MoOSUI2
+        want_konsole="MoOSUI2${want_Fam}.profile"
+        want_wallpaper_package="/usr/share/wallpapers/MoOSUI2${want_Fam}"
+        want_wallpaper="${want_wallpaper_package}/contents/images_dark/3840x2160.jpg"
+        want_gtk_dark=true
+        want_cursor=MoOS
+        ;;
+    "$GAMING_LIGHT_LNF"|"$DEV_LIGHT_LNF"|"$STUDY_LIGHT_LNF")
+        case "$want_lnf" in
+            "$GAMING_LIGHT_LNF") want_Fam=ArenaLight ;;
+            "$DEV_LIGHT_LNF") want_Fam=ForgeLight ;;
+            *) want_Fam=ScholarLight ;;
+        esac
+        want_scheme="MoOSUI2${want_Fam}"
+        want_style="MoOSUI2${want_Fam}"
+        want_deco="__aurorae__svg__MoOSUI2${want_Fam}"
+        want_icons=MoOSUI2Light
+        want_konsole="MoOSUI2${want_Fam}.profile"
+        want_wallpaper_package="/usr/share/wallpapers/MoOSUI2${want_Fam}"
+        want_wallpaper="${want_wallpaper_package}/contents/images/3840x2160.jpg"
+        want_gtk_dark=false
+        want_cursor=MoOSDark
         ;;
     *)
         echo "cannot resolve a MoOS theme target from '${want_lnf:-unset}'" >>"$log" 2>/dev/null || true

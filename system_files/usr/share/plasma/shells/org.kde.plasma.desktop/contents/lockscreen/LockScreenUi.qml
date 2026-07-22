@@ -50,6 +50,23 @@ Item {
         return Qt.tint(base, Qt.rgba(a.r, a.g, a.b, 0.5));
     }
 
+    // ── Two-tone MoOS accent ──────────────────────────────────────────────
+    // accentA is the live theme highlight; accentB is a second hue derived
+    // from it (a small rotation in HSL), so every palette gets its own
+    // coherent TWO-colour signature — never one flat tint. Achromatic
+    // highlights fall back to a brighter shade of themselves. Used by the
+    // avatar ring, the unlock button and the ambient light shaft.
+    readonly property color accentA: Kirigami.Theme.highlightColor
+    readonly property color accentB: {
+        const c = Kirigami.Theme.highlightColor;
+        if (c.hslSaturation < 0.08 || c.hslHue < 0) {
+            return Qt.lighter(c, 1.28);
+        }
+        let nh = c.hslHue + 0.09;
+        if (nh > 1) { nh -= 1; }
+        return Qt.hsla(nh, Math.min(1, c.hslSaturation), Math.min(0.72, c.hslLightness * 1.08), 1);
+    }
+
     function handleMessage(msg) {
         if (!root.notification) {
             root.notification += msg;
@@ -251,290 +268,28 @@ Item {
             alwaysShowClock: config.alwaysShowClock && !config.hideClockWhenIdle
         }
 
-        // ── MoOS "Living Aurora" — four drifting curtains of emerald, teal, cyan
-        //    and violet light over the wallpaper, the same living sky the login
-        //    and logout scenes carry, so lock, login and logout read as one brand.
-        //    Explicit Rectangles (no Repeater → no ComponentBehavior pragma in the
-        //    unlock file); Animators only, no shaders. Kept quiet so the clock and
-        //    password never lose legibility, and drawn UNDER the scrim + brand.
-        Item {
-            id: lockAurora
-            anchors.fill: parent
-
-            Rectangle {
-                width: lockAurora.width * 0.42
-                height: lockAurora.height * 0.66
-                y: 0
-                rotation: -16
-                transformOrigin: Item.Center
-                opacity: 0.24
-                gradient: Gradient {
-                    orientation: Gradient.Vertical
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.42; color: lockScreenUi.auroraTint("#10B981") }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-                XAnimator on x {
-                    from: -lockAurora.width * 0.14; to: lockAurora.width * 0.46
-                    duration: 64000; loops: Animation.Infinite
-                    easing.type: Easing.InOutSine; running: lockAurora.visible
-                }
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.20; duration: 6000; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.08; duration: 6000; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: lockAurora.width * 0.48
-                height: lockAurora.height * 0.72
-                y: -lockAurora.height * 0.05
-                rotation: 12
-                transformOrigin: Item.Center
-                opacity: 0.28
-                gradient: Gradient {
-                    orientation: Gradient.Vertical
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.42; color: lockScreenUi.auroraTint("#2DD4BF") }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-                XAnimator on x {
-                    from: lockAurora.width * 0.50; to: -lockAurora.width * 0.06
-                    duration: 82000; loops: Animation.Infinite
-                    easing.type: Easing.InOutSine; running: lockAurora.visible
-                }
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.24; duration: 6900; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.10; duration: 6900; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: lockAurora.width * 0.38
-                height: lockAurora.height * 0.60
-                y: lockAurora.height * 0.08
-                rotation: -10
-                transformOrigin: Item.Center
-                opacity: 0.20
-                gradient: Gradient {
-                    orientation: Gradient.Vertical
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.42; color: lockScreenUi.auroraTint("#22D3EE") }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-                XAnimator on x {
-                    from: lockAurora.width * 0.16; to: lockAurora.width * 0.58
-                    duration: 72000; loops: Animation.Infinite
-                    easing.type: Easing.InOutSine; running: lockAurora.visible
-                }
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.17; duration: 7600; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.07; duration: 7600; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: lockAurora.width * 0.46
-                height: lockAurora.height * 0.68
-                y: -lockAurora.height * 0.02
-                rotation: 18
-                transformOrigin: Item.Center
-                opacity: 0.24
-                gradient: Gradient {
-                    orientation: Gradient.Vertical
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.42; color: lockScreenUi.auroraTint("#8B5CF6") }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-                XAnimator on x {
-                    from: lockAurora.width * 0.42; to: lockAurora.width * 0.04
-                    duration: 92000; loops: Animation.Infinite
-                    easing.type: Easing.InOutSine; running: lockAurora.visible
-                }
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.20; duration: 8200; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.08; duration: 8200; easing.type: Easing.InOutSine }
-                }
-            }
-            // A faint scatter of stars behind the curtains, each breathing on its own.
-            Rectangle {
-                width: 3; height: 3; radius: 1.5
-                color: "#E8F1EF"
-                x: lockAurora.width * 0.07; y: lockAurora.height * 0.1
-                opacity: 0.12
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.5; duration: 2400; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.12; duration: 2400; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: 2; height: 2; radius: 1.0
-                color: "#E8F1EF"
-                x: lockAurora.width * 0.16; y: lockAurora.height * 0.24
-                opacity: 0.12
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.5; duration: 2900; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.12; duration: 2900; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: 4; height: 4; radius: 2.0
-                color: "#E8F1EF"
-                x: lockAurora.width * 0.27; y: lockAurora.height * 0.07
-                opacity: 0.12
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.5; duration: 3300; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.12; duration: 3300; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: 2; height: 2; radius: 1.0
-                color: "#E8F1EF"
-                x: lockAurora.width * 0.35; y: lockAurora.height * 0.33
-                opacity: 0.12
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.5; duration: 2600; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.12; duration: 2600; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: 3; height: 3; radius: 1.5
-                color: "#E8F1EF"
-                x: lockAurora.width * 0.44; y: lockAurora.height * 0.15
-                opacity: 0.12
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.5; duration: 3100; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.12; duration: 3100; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: 2; height: 2; radius: 1.0
-                color: "#E8F1EF"
-                x: lockAurora.width * 0.55; y: lockAurora.height * 0.42
-                opacity: 0.12
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.5; duration: 2800; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.12; duration: 2800; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: 4; height: 4; radius: 2.0
-                color: "#E8F1EF"
-                x: lockAurora.width * 0.63; y: lockAurora.height * 0.19
-                opacity: 0.12
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.5; duration: 3500; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.12; duration: 3500; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: 3; height: 3; radius: 1.5
-                color: "#E8F1EF"
-                x: lockAurora.width * 0.72; y: lockAurora.height * 0.3
-                opacity: 0.12
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.5; duration: 2700; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.12; duration: 2700; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: 2; height: 2; radius: 1.0
-                color: "#E8F1EF"
-                x: lockAurora.width * 0.81; y: lockAurora.height * 0.12
-                opacity: 0.12
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.5; duration: 3000; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.12; duration: 3000; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: 3; height: 3; radius: 1.5
-                color: "#E8F1EF"
-                x: lockAurora.width * 0.9; y: lockAurora.height * 0.26
-                opacity: 0.12
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.5; duration: 3200; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.12; duration: 3200; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: 2; height: 2; radius: 1.0
-                color: "#E8F1EF"
-                x: lockAurora.width * 0.12; y: lockAurora.height * 0.46
-                opacity: 0.12
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.5; duration: 2500; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.12; duration: 2500; easing.type: Easing.InOutSine }
-                }
-            }
-            Rectangle {
-                width: 4; height: 4; radius: 2.0
-                color: "#E8F1EF"
-                x: lockAurora.width * 0.48; y: lockAurora.height * 0.52
-                opacity: 0.12
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite; running: lockAurora.visible
-                    NumberAnimation { to: 0.5; duration: 3400; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.12; duration: 3400; easing.type: Easing.InOutSine }
-                }
-            }
-            // An occasional shooting star streaks across the upper sky — the one
-            // deliberate glint over the calm drift of the curtains.
-            Rectangle {
-                id: lockShootingStar
-                width: Math.max(40, lockAurora.width * 0.045)
-                height: 2
-                radius: 1
-                rotation: 20
-                opacity: 0
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 1.0; color: "#EAFDF8" }
-                }
-                SequentialAnimation {
-                    loops: Animation.Infinite
-                    running: lockAurora.visible
-                    PauseAnimation { duration: 8000 }
-                    ParallelAnimation {
-                        NumberAnimation { target: lockShootingStar; property: "x"; from: lockAurora.width * 0.14; to: lockAurora.width * 0.60; duration: 1200; easing.type: Easing.InCubic }
-                        NumberAnimation { target: lockShootingStar; property: "y"; from: lockAurora.height * 0.12; to: lockAurora.height * 0.40; duration: 1200; easing.type: Easing.InCubic }
-                        SequentialAnimation {
-                            NumberAnimation { target: lockShootingStar; property: "opacity"; to: 0.9; duration: 260; easing.type: Easing.OutCubic }
-                            NumberAnimation { target: lockShootingStar; property: "opacity"; to: 0; duration: 900; easing.type: Easing.InCubic }
-                        }
-                    }
-                    PauseAnimation { duration: 6000 }
-                }
-            }
-        }
+        // The idle background is simply the wallpaper (blurred on focus by the
+        // WallpaperFader above) — no drifting curtains, no shooting stars, no
+        // busy motion. Calm and clean, and it takes each theme’s own wallpaper.
+        // The only accent light is the soft theme bloom behind the auth cluster.
 
         // ── MoOS visual layer — ON TOP of the wallpaper ──────────────────────
-        // A soft graphite scrim: a gentle darkening at the top and bottom edges so
-        // the brand, clock and password stay legible over any wallpaper. Full-bleed,
-        // low opacity, purely cosmetic.
+        // MoOS token — the ONE session scrim (0.52 / 0.30 / 0.60), identical to the
+        // power screen and the login scene so every surface veils the wallpaper the
+        // same way. A gentle darkening top & foot keeps the brand, clock and
+        // password legible over any wallpaper. Full-bleed, purely cosmetic.
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
                 GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                                              Kirigami.Theme.backgroundColor.g,
-                                                             Kirigami.Theme.backgroundColor.b, 0.45) }
-                GradientStop { position: 0.4; color: "transparent" }
+                                                             Kirigami.Theme.backgroundColor.b, 0.52) }
+                GradientStop { position: 0.45; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                                                             Kirigami.Theme.backgroundColor.g,
+                                                             Kirigami.Theme.backgroundColor.b, 0.30) }
                 GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                                              Kirigami.Theme.backgroundColor.g,
-                                                             Kirigami.Theme.backgroundColor.b, 0.5) }
+                                                             Kirigami.Theme.backgroundColor.b, 0.60) }
             }
         }
 
@@ -646,7 +401,9 @@ Item {
                 text: "MoOS"
                 color: Kirigami.Theme.textColor
                 opacity: 0.85
-                font.family: "IBM Plex Sans"
+                // MoOS token: the wordmark is Inter (matching the login scene) —
+                // one Latin type for the brand across every surface.
+                font.family: "Inter"
                 font.pointSize: Kirigami.Theme.defaultFont.pointSize + 2
                 font.weight: Font.DemiBold
                 font.letterSpacing: 2
@@ -654,56 +411,68 @@ Item {
             }
         }
 
-        // A soft shadow beneath the auth card — the UI2 glass sits ON the
-        // wallpaper, not painted into it. Behind the card, tied to its state.
-        // Purely decorative; never touches the auth path.
-        RectangularGlow {
-            anchors.fill: authCard
-            visible: !lockScreenUi.softwareRendering && authCard.opacity > 0
-            glowRadius: Kirigami.Units.gridUnit * 1.1
-            spread: 0.06
-            color: Qt.rgba(0, 0, 0, 0.34)
-            cornerRadius: authCard.radius + glowRadius
-            opacity: authCard.opacity
-            scale: authCard.scale
-        }
-
-        // The frosted card behind the auth cluster. Fades and lifts in only when
-        // the UI is summoned, so the idle screen stays clean wallpaper + clock.
-        // Real UI2 glass: a vertical depth gradient (lighter crest, deeper foot),
-        // a 1px translucent inner border, a top highlight, and the shadow above.
+        // ── MoOS Lumen: NO card, NO box. `authCard` is now just a transparent
+        // geometry anchor — it keeps the id, the fade/scale and the y the auth
+        // cluster + WallpaperFader expect, but paints nothing. All depth comes
+        // from soft ELLIPTICAL light blooms below (RadialGradient → no
+        // rectangular edges), so the cluster floats in the theme's own light.
         Rectangle {
             id: authCard
             anchors.horizontalCenter: parent.horizontalCenter
             y: mainStack.y + mainStack.height * 0.5 - height * 0.5
-            width: Math.min(parent.width - Kirigami.Units.gridUnit * 4, Kirigami.Units.gridUnit * 30)
-            height: Kirigami.Units.gridUnit * 21
-            radius: Kirigami.Units.gridUnit * 1.9
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                                                             Kirigami.Theme.backgroundColor.g,
-                                                             Kirigami.Theme.backgroundColor.b, 0.70) }
-                GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                                                             Kirigami.Theme.backgroundColor.g,
-                                                             Kirigami.Theme.backgroundColor.b, 0.55) }
-            }
-            border.width: 1
-            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r,
-                                  Kirigami.Theme.highlightColor.g,
-                                  Kirigami.Theme.highlightColor.b, 0.30)
+            width: Math.min(parent.width - Kirigami.Units.gridUnit * 4, Kirigami.Units.gridUnit * 23)
+            height: Kirigami.Units.gridUnit * 32
+            radius: Kirigami.Units.gridUnit * 8
+            color: "transparent"
+            border.width: 0
             visible: opacity > 0
             opacity: lockScreenRoot.uiVisible ? 1 : 0
             scale: lockScreenRoot.uiVisible ? 1 : 0.96
             Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
             Behavior on scale { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+        }
 
-            // One soft inner highlight along the top edge — the UI2 glass tell:
-            // silk catching the light where the card meets the sky.
-            Rectangle {
-                anchors { top: parent.top; left: parent.left; right: parent.right; margins: 1 }
-                height: 1
-                radius: 1
-                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.16)
+        // Ambient light pool — a soft, tall elliptical bloom of the theme accent
+        // behind the whole cluster. RadialGradient fades to nothing on every
+        // side, so there is no panel, no edge — just light. Decorative only.
+        RadialGradient {
+            anchors.fill: authCard
+            visible: authCard.opacity > 0 && !lockScreenUi.softwareRendering
+            opacity: authCard.opacity
+            scale: authCard.scale
+            horizontalRadius: authCard.width * 0.46
+            verticalRadius: authCard.height * 0.5
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(lockScreenUi.accentA.r, lockScreenUi.accentA.g, lockScreenUi.accentA.b, 0.17) }
+                GradientStop { position: 0.45; color: Qt.rgba(lockScreenUi.accentA.r, lockScreenUi.accentA.g, lockScreenUi.accentA.b, 0.06) }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+        }
+
+        // Jewel bloom behind the user avatar — a soft two-tone circle so the
+        // photo reads as set into the theme's light. RadialGradient keeps it a
+        // clean circular glow (never a square). The SessionManagementScreen
+        // centres the avatar just above the cluster centre; tuned to sit behind
+        // it. Decorative only — never touches the auth path.
+        RadialGradient {
+            id: avatarHalo
+            anchors.horizontalCenter: authCard.horizontalCenter
+            y: authCard.y + authCard.height / 2 - height / 2 - Kirigami.Units.gridUnit * 4.6
+            width: Kirigami.Units.gridUnit * 13
+            height: width
+            visible: authCard.opacity > 0 && !lockScreenUi.softwareRendering
+            opacity: authCard.opacity
+            scale: authCard.scale
+            // Explicit radii so the bloom fades to nothing WELL inside the item
+            // box — otherwise the default radius fills the corners and it reads as
+            // a square. Transparent by 0.72 of the radius → a clean soft circle.
+            horizontalRadius: width * 0.5
+            verticalRadius: height * 0.5
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(lockScreenUi.accentB.r, lockScreenUi.accentB.g, lockScreenUi.accentB.b, 0.50) }
+                GradientStop { position: 0.34; color: Qt.rgba(lockScreenUi.accentA.r, lockScreenUi.accentA.g, lockScreenUi.accentA.b, 0.30) }
+                GradientStop { position: 0.72; color: "transparent" }
+                GradientStop { position: 1.0; color: "transparent" }
             }
         }
 

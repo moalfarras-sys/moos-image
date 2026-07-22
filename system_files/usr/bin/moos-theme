@@ -62,6 +62,7 @@ moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switc
   moos-theme midnight   MoOS Midnight — true-black OLED (+ daylight)
   moos-theme aurora     MoOS Aurora   — teal aurora    (+ aurora-light)
   moos-theme toggle     بدّل   | flip the current family light <-> dark
+  moos-theme undo       تراجع  | revert to the previously applied theme
   moos-theme auto       تلقائي | follow sunrise/sunset (Graphite/Tidal)
 
 Every family has a matched light + dark sibling; `toggle` flips the current one.
@@ -711,7 +712,7 @@ acquire_theme_lock() {
 
 command_name="${1:-status}"
 case "$command_name" in
-    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|toggle|auto|sync-auto|reconcile)
+    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|toggle|auto|sync-auto|reconcile|undo|apply-lnf)
         acquire_theme_lock \
             || { echo "moos-theme: another theme transition is still running" >&2; exit 1; }
         ;;
@@ -722,19 +723,62 @@ esac
 # Graphite/Tidal. apply() writes the whole cascade, so the switch is instant.
 apply_manual() {
     kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
-    apply "$1"
+    local target="$1" prev sd
+    prev="$(current 2>/dev/null)"
+    if apply "$target"; then
+        # Record where we came from so `moos-theme undo` can return there. Only a
+        # real, installed MoOS look is worth remembering as a revert point.
+        if [ -n "$prev" ] && [ "$prev" != "$target" ] \
+           && [ -d "/usr/share/plasma/look-and-feel/$prev" ]; then
+            sd="${XDG_STATE_HOME:-$HOME/.local/state}/moos"
+            mkdir -p "$sd" 2>/dev/null \
+                && printf '%s\n' "$prev" > "$sd/theme-previous" 2>/dev/null || true
+        fi
+        return 0
+    fi
+    # A clean apply failed. Never strand the user on a half-applied look: roll the
+    # whole theme back to where they were. (A missing-package apply fails BEFORE any
+    # write, so this only re-applies a look that was already working a moment ago.)
+    if [ -n "$prev" ] && [ "$prev" != "$target" ] \
+       && [ -d "/usr/share/plasma/look-and-feel/$prev" ]; then
+        echo "moos-theme: '$target' did not apply cleanly — reverting to $prev" >&2
+        apply "$prev" >/dev/null 2>&1 || true
+    fi
+    return 1
 }
 
 case "$command_name" in
     dark)
         pin_switch_targets
-        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
-        apply "$DARK_LNF"
+        apply_manual "$DARK_LNF"
         ;;
     light)
         pin_switch_targets
-        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
-        apply "$LIGHT_LNF"
+        apply_manual "$LIGHT_LNF"
+        ;;
+    apply-lnf)
+        # Apply by look-and-feel ID directly (the GUI picker's entry point). The
+        # installed package IS the source of truth — no friendly-name table. Goes
+        # through apply_manual, so it gets undo/save-previous + revert-on-failure.
+        target="$2"
+        case "$target" in
+            org.moos.ui2|org.moos.ui2.*) ;;
+            *) echo "moos-theme: '$target' is not a MoOS look" >&2; exit 1 ;;
+        esac
+        [ -d "/usr/share/plasma/look-and-feel/$target" ] \
+            || { echo "moos-theme: look '$target' is not installed" >&2; exit 1; }
+        pin_switch_targets
+        apply_manual "$target"
+        ;;
+    undo)
+        sd="${XDG_STATE_HOME:-$HOME/.local/state}/moos"
+        prev="$(cat "$sd/theme-previous" 2>/dev/null)"
+        if [ -z "$prev" ] || [ ! -d "/usr/share/plasma/look-and-feel/$prev" ]; then
+            echo "moos-theme: no previous theme recorded to undo to" >&2
+            exit 1
+        fi
+        pin_switch_targets
+        apply_manual "$prev"
         ;;
     nova)           apply_manual "$NOVA_LNF" ;;
     amethyst)       apply_manual "$AMETHYST_LNF" ;;

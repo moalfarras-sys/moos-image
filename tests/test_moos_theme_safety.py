@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import shlex
 import os
 import re
 import shutil
@@ -51,6 +52,11 @@ class TestMoOSThemeSafety(unittest.TestCase):
         """
         text = APPLY.read_text(encoding="utf-8")
         resolver = function(text, "target_lnf")
+        # Point the resolver's on-disk check at the in-tree packages, so the gate
+        # tests the ACTUAL installed set of MoOS looks — the single source of truth
+        # for "is this a real theme" — instead of a hand-kept list. (This is the
+        # gap that let the self-heal quietly reset 10 of 16 looks to Dark.)
+        lnf_root = ROOT / "system_files/usr/share/plasma/look-and-feel"
         harness = f"""
 set -uo pipefail
 DARK_LNF=org.moos.ui2
@@ -59,30 +65,32 @@ NOVA_LNF=org.moos.ui2.nova
 AMETHYST_LNF=org.moos.ui2.amethyst
 MIDNIGHT_LNF=org.moos.ui2.midnight
 AURORA_LNF=org.moos.ui2.aurora
+LNF_ROOT={shlex.quote(str(lnf_root))}
 marker=/definitely/not/present
 current_lookandfeel() {{ printf '%s\\n' "$CURRENT"; }}
 {resolver}
 target_lnf "$1" "$2"
 """
-        cases = {
-            # the two base halves stay where they are
-            ("org.moos.ui2", "true"): "org.moos.ui2",
-            ("org.moos.ui2.light", "true"): "org.moos.ui2.light",
-            ("org.moos.ui2", "false"): "org.moos.ui2",
-            ("org.moos.ui2.light", "false"): "org.moos.ui2.light",
-            # a chosen family member is a durable choice — PRESERVED, not reset to dark
-            ("org.moos.ui2.nova", "true"): "org.moos.ui2.nova",
-            ("org.moos.ui2.amethyst", "false"): "org.moos.ui2.amethyst",
-            ("org.moos.ui2.midnight", "true"): "org.moos.ui2.midnight",
-            ("org.moos.ui2.aurora", "true"): "org.moos.ui2.aurora",
-            # the DELETED old generations (top-level namespace), and anything else, land on the
-            # dark half — NOT on a theme that is no longer installed
+        installed = sorted(p.name for p in lnf_root.glob("org.moos.ui2*") if p.is_dir())
+        self.assertGreaterEqual(
+            len(installed), 16,
+            f"expected all 16 MoOS looks in-tree, found {len(installed)}")
+        # EVERY installed MoOS look is a durable choice and must be PRESERVED, at
+        # both migration states. This asserts the resolver never silently downgrades
+        # gaming/dev/study/daylight/any *-light back to Dark again.
+        cases = {}
+        for lnf in installed:
+            cases[(lnf, "true")] = lnf
+            cases[(lnf, "false")] = lnf
+        # The DELETED old generations (top-level namespace) and anything not on disk
+        # land on the dark half — never on a theme that is no longer installed.
+        cases.update({
             ("org.moos.ui", "true"): "org.moos.ui2",
             ("org.moos.ui.light", "true"): "org.moos.ui2",
             ("org.moos.nova", "true"): "org.moos.ui2",
             ("org.kde.breezedark.desktop", "true"): "org.moos.ui2",
             ("org.example.foreign", "true"): "org.moos.ui2",
-        }
+        })
         for (current, completed), expected in cases.items():
             with self.subTest(current=current, completed=completed):
                 result = subprocess.run(

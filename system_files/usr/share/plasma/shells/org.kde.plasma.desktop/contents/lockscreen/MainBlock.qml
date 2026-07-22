@@ -45,6 +45,21 @@ SessionManagementScreen {
     property bool lockScreenUiVisible: false
     property alias showPassword: passwordBox.showPassword
 
+    // ── Two-tone MoOS accent (visual only) ──────────────────────────────────
+    // A second hue derived from the live theme highlight, so the unlock button
+    // spans TWO of the palette's colours instead of one flat tint. Mirrors the
+    // accentB used across the lock scene. Never touches the auth path.
+    readonly property color accentA: Kirigami.Theme.highlightColor
+    readonly property color accentB: {
+        const c = Kirigami.Theme.highlightColor;
+        if (c.hslSaturation < 0.08 || c.hslHue < 0) {
+            return Qt.lighter(c, 1.28);
+        }
+        let nh = c.hslHue + 0.09;
+        if (nh > 1) { nh -= 1; }
+        return Qt.hsla(nh, Math.min(1, c.hslSaturation), Math.min(0.72, c.hslLightness * 1.08), 1);
+    }
+
     //the y position that should be ensured visible when the on screen keyboard is visible
     property int visibleBoundary: mapFromItem(loginButton, 0, 0).y
     onHeightChanged: visibleBoundary = mapFromItem(loginButton, 0, 0).y + loginButton.height + Kirigami.Units.smallSpacing
@@ -193,13 +208,13 @@ SessionManagementScreen {
                 gradient: Gradient {
                     GradientStop {
                         position: 0.0
-                        color: Qt.lighter(Kirigami.Theme.highlightColor, loginButton.down ? 1.0 : 1.18)
+                        color: loginButton.down ? Qt.darker(sessionManager.accentB, 1.08) : sessionManager.accentB
                     }
                     GradientStop {
                         position: 1.0
                         color: loginButton.down
-                            ? Qt.darker(Kirigami.Theme.highlightColor, 1.12)
-                            : Kirigami.Theme.highlightColor
+                            ? Qt.darker(sessionManager.accentA, 1.12)
+                            : sessionManager.accentA
                     }
                 }
                 border.width: 1

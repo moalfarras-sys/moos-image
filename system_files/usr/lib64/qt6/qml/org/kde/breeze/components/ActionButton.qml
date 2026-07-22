@@ -86,8 +86,11 @@ PlasmaComponents3.AbstractButton {
     font.pointSize: Kirigami.Theme.defaultFont.pointSize + 1
     font.underline: root.activeFocus
 
-    icon.width: Kirigami.Units.iconSizes.large
-    icon.height: Kirigami.Units.iconSizes.large
+    // MoOS token: medium glyph inside a gridUnit*4.6 disc — identical to the
+    // logout dock's orb, so the lock's session buttons and the power dock are
+    // the same control at the same size.
+    icon.width: Kirigami.Units.iconSizes.medium
+    icon.height: Kirigami.Units.iconSizes.medium
 
     hoverEnabled: true
 
@@ -101,8 +104,8 @@ PlasmaComponents3.AbstractButton {
     // No padding below label
     bottomPadding: 0
 
-    // padding for circle and spacing between circle and label
-    spacing: padding + Kirigami.Units.smallSpacing
+    // MoOS token: the same disc-to-label gap as the logout orb.
+    spacing: Kirigami.Units.smallSpacing
 
     opacity: root.lit ? 1 : 0.85
     Behavior on opacity {
@@ -133,8 +136,9 @@ PlasmaComponents3.AbstractButton {
     }
 
     background: Rectangle {
-        implicitWidth: root.icon.width + root.padding * 2
-        implicitHeight: root.icon.height + root.padding * 2
+        // MoOS token: the orb disc size (gridUnit * 4.6), matching the logout dock.
+        implicitWidth: Kirigami.Units.gridUnit * 4.6
+        implicitHeight: Kirigami.Units.gridUnit * 4.6
         // explicitly set size to keep it from expanding or shrinking
         width: implicitWidth
         height: implicitHeight
@@ -142,15 +146,19 @@ PlasmaComponents3.AbstractButton {
         // MoOS glass: the brand tint, warmed by the pointer. Software rendering
         // keeps upstream's opaque fallback — a tint over an unblurred surface
         // reads as dirt, and that path exists for machines with no GPU at all.
+        // MoOS UI2 — the SAME frosted disc as the logout dock's orbs: a neutral
+        // ink fill (not an accent-tinted blob), so the lock's session buttons and
+        // the power dock read as one control family. The accent lives on the
+        // border when lit, exactly like the orb.
         color: root.softwareRendering
              ? Kirigami.Theme.backgroundColor
              : (root.destructive ? Kirigami.Theme.negativeTextColor
-                                 : Kirigami.Theme.highlightColor)
+                                 : Kirigami.Theme.textColor)
         opacity: {
             if (root.softwareRendering) {
                 return root.lit ? 0.8 : 0.6
             }
-            return root.lit ? 0.26 : 0.14
+            return root.lit ? 0.16 : 0.08
         }
         Behavior on opacity {
             PropertyAnimation { // OpacityAnimator makes it turn black at random intervals
@@ -166,8 +174,12 @@ PlasmaComponents3.AbstractButton {
             color: "transparent"
             visible: !root.softwareRendering
             border.width: 1
-            border.color: Kirigami.Theme.textColor
-            opacity: root.lit ? 0.22 : 0.10
+            // Accent border when lit (hover/focus), hairline ink when idle —
+            // matching the logout orb's border exactly.
+            border.color: root.lit
+                ? (root.destructive ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.highlightColor)
+                : Kirigami.Theme.textColor
+            opacity: root.lit ? 0.8 : 0.16
         }
         Rectangle {
             anchors.fill: parent
@@ -191,8 +203,10 @@ PlasmaComponents3.AbstractButton {
             // MoOS: the symbolic glyph, painted in the brand colour.
             source: root.symbolicName(root.icon.name)
             isMask: !root.softwareRendering
+            // Ink glyph (not accent) — the logout orbs paint their glyph in ink
+            // too; the accent shows on the border/hover, keeping one language.
             color: root.destructive ? Kirigami.Theme.negativeTextColor
-                                    : Kirigami.Theme.highlightColor
+                                    : Kirigami.Theme.textColor
             implicitWidth: root.icon.width
             implicitHeight: root.icon.height
             active: root.lit
