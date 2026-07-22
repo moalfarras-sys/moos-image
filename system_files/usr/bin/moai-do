@@ -646,7 +646,19 @@ do_setup_brain() {
 
     local dst="${XDG_CONFIG_HOME:-$HOME/.config}/containers/systemd"
     mkdir -p "$dst" "$HOME/.ollama" || return 1
-    install -m 0644 /usr/share/moos/containers/moai-brain.container  "$dst/" || return 1
+
+    # NEVER stand up a SECOND model server: an 8 GB card holds ONE 4-5 GB model, so
+    # two Ollamas fighting for 127.0.0.1:11434 is the failure to avoid. If a model
+    # server is already provisioned — a hand-tuned ollama.container, or a running
+    # ollama/moai-brain container — REUSE it instead of installing a rival quadlet.
+    local model_unit=moai-brain.service
+    if [ -f "$dst/ollama.container" ] \
+       || podman ps -a --format '{{.Names}}' 2>/dev/null | grep -qxE 'ollama|moai-brain'; then
+        [ -f "$dst/ollama.container" ] && model_unit=ollama.service
+        echo "${G}✓ خادم النماذج موجود — أعيد استخدامه بلا تكرار | model server present — reusing, not duplicating${N}"
+    else
+        install -m 0644 /usr/share/moos/containers/moai-brain.container "$dst/" || return 1
+    fi
     install -m 0644 /usr/share/moos/containers/moai-speech.container "$dst/" || return 1
 
     # Without linger the containers die at logout and never start at boot —
@@ -655,7 +667,7 @@ do_setup_brain() {
     systemctl --user daemon-reload
 
     echo "${C}▸ تشغيل الخدمات${N}"
-    systemctl --user start moai-brain.service  || true
+    systemctl --user start "$model_unit"       || true
     systemctl --user start moai-speech.service || true
     systemctl --user start moai-agent-api.service || true
 
