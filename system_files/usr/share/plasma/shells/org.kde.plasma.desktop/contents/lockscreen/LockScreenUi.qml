@@ -41,6 +41,15 @@ Item {
     // If we're using software rendering, draw outlines instead of shadows
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
 
+    // The aurora curtains keep their designed hue but pull toward the live accent,
+    // so the lock background is theme-driven — it lights up in each palette's own
+    // colour (turquoise on Tidal, amber on Study, indigo on Nova …) instead of a
+    // fixed cosmic sweep. One shared helper, used by all four curtains below.
+    function auroraTint(base) {
+        const a = Kirigami.Theme.highlightColor;
+        return Qt.tint(base, Qt.rgba(a.r, a.g, a.b, 0.5));
+    }
+
     function handleMessage(msg) {
         if (!root.notification) {
             root.notification += msg;
@@ -258,11 +267,11 @@ Item {
                 y: 0
                 rotation: -16
                 transformOrigin: Item.Center
-                opacity: 0.13
+                opacity: 0.24
                 gradient: Gradient {
                     orientation: Gradient.Vertical
                     GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.42; color: "#10B981" }
+                    GradientStop { position: 0.42; color: lockScreenUi.auroraTint("#10B981") }
                     GradientStop { position: 1.0; color: "transparent" }
                 }
                 XAnimator on x {
@@ -282,11 +291,11 @@ Item {
                 y: -lockAurora.height * 0.05
                 rotation: 12
                 transformOrigin: Item.Center
-                opacity: 0.16
+                opacity: 0.28
                 gradient: Gradient {
                     orientation: Gradient.Vertical
                     GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.42; color: "#2DD4BF" }
+                    GradientStop { position: 0.42; color: lockScreenUi.auroraTint("#2DD4BF") }
                     GradientStop { position: 1.0; color: "transparent" }
                 }
                 XAnimator on x {
@@ -306,11 +315,11 @@ Item {
                 y: lockAurora.height * 0.08
                 rotation: -10
                 transformOrigin: Item.Center
-                opacity: 0.11
+                opacity: 0.20
                 gradient: Gradient {
                     orientation: Gradient.Vertical
                     GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.42; color: "#22D3EE" }
+                    GradientStop { position: 0.42; color: lockScreenUi.auroraTint("#22D3EE") }
                     GradientStop { position: 1.0; color: "transparent" }
                 }
                 XAnimator on x {
@@ -330,11 +339,11 @@ Item {
                 y: -lockAurora.height * 0.02
                 rotation: 18
                 transformOrigin: Item.Center
-                opacity: 0.13
+                opacity: 0.24
                 gradient: Gradient {
                     orientation: Gradient.Vertical
                     GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.42; color: "#8B5CF6" }
+                    GradientStop { position: 0.42; color: lockScreenUi.auroraTint("#8B5CF6") }
                     GradientStop { position: 1.0; color: "transparent" }
                 }
                 XAnimator on x {
