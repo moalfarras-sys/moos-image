@@ -36,6 +36,18 @@ case "$resident" in
     *) exit 0 ;;
 esac
 
+# Is the Telegram agent's PRIMARY brain a cloud model? Then the gateway holds no
+# local model at all, so ollama residency is a meaningless idle signal for it —
+# it would read "idle" forever and stop the gateway every cycle. Worse, stopping
+# the gateway kills every app the agent opened (they share its cgroup), which is
+# the "apps close by themselves" bug. On a cloud brain, KEEP the gateway (and its
+# apps) up; the ollama/speaches sleep below still runs for the desktop's local model.
+cloud_primary=0
+primary="$(python3 -c 'import json,os
+try: print((json.load(open(os.path.expanduser("~/.openclaw/openclaw.json"))).get("agents",{}).get("defaults",{}).get("model",{}) or {}).get("primary",""))
+except Exception: print("")' 2>/dev/null)"
+case "$primary" in cloud/*) cloud_primary=1 ;; esac
+
 stop_unit() {  # stop + normalise, but only if active and past its start grace
     local u="$1" started now start_s
     systemctl --user is-active --quiet "$u" || return 0
@@ -53,8 +65,12 @@ stop_unit() {  # stop + normalise, but only if active and past its start grace
 }
 
 # Sleep the heavy stack, requirer before requirement (openclaw needs ollama).
-stop_unit openclaw-gateway.service
-stop_unit speaches.service
+# On a cloud brain, leave the gateway + speaches up (see cloud_primary above) so
+# the bot stays responsive and apps it opened are not torn down.
+if [ "$cloud_primary" != 1 ]; then
+    stop_unit openclaw-gateway.service
+    stop_unit speaches.service
+fi
 if [ "$resident" = "0" ]; then
     stop_unit ollama.service   # was up but idle → free its ~943 MB + any VRAM
 fi
