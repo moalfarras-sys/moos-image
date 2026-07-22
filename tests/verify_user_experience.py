@@ -2108,9 +2108,9 @@ for always_on in ("org.moos.brand", "org.moos.heroclock"):
 logout_qml = read(
     "system_files/usr/share/plasma/look-and-feel/org.moos.ui2/contents/logout/Logout.qml"
 )
-require("gridUnit * 55 ? 2 : 3" in logout_qml,
-        "the desktop logout surface must keep its balanced 3x2 command deck "
-        "with a two-column narrow-screen fallback")
+require("Math.min(root.width" in logout_qml,
+        "the logout command sheet must stay responsive — its width bound to the "
+        "screen so the vertical action rows never overflow on a narrow display")
 
 # ── Doorway polish regressions (2026-07-21), each gated on the code, not prose ─
 # 1) The lock-screen date must not use Qt.formatDate(date, locale, string): the
