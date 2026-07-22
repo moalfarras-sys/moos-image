@@ -1,0 +1,29 @@
+[Unit]
+Description=Mo AI Telegram wake receiver (lightweight; starts OpenClaw on demand)
+Documentation=file:///usr/bin/moai-wake
+# Only needs the network for the Telegram long-poll — NOT the AI stack. It must
+# stay up whether or not Ollama/OpenClaw are running, so it depends on neither.
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/moai-wake
+Restart=always
+RestartSec=5
+# This is the ONLY piece of Mo AI that is always resident. Keep it tiny: pure
+# Python stdlib, no model, no Node, no podman — a few MB. The cap is a backstop.
+MemoryMax=128M
+CPUWeight=20
+Nice=10
+# Light hardening — it only reads ~/.openclaw/openclaw.json and shells
+# `systemctl --user`. Kept conservative so nothing blocks the user D-Bus it needs
+# to start openclaw-gateway (ProtectHome/aggressive filters are deliberately omitted).
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=default.target

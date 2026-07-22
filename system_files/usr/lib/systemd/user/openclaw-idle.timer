@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodically check whether the Mo AI Telegram agent can sleep
+Documentation=file:///usr/bin/openclaw-idle
+
+[Timer]
+# Mirror moai-idle's cadence: poll every 5 min; the script enforces the 15-min
+# idle window itself.
+OnBootSec=5min
+OnUnitActiveSec=5min
+Persistent=false
+
+[Install]
+WantedBy=timers.target

@@ -1740,6 +1740,17 @@ systemctl --global enable moos-ensure-brain.service
 # the next request. Enabled for every user so stability is the default, not an opt-in.
 systemctl --global enable moai-idle.timer
 
+# Mo AI on Telegram is ON-DEMAND. The heavy agent (openclaw-gateway: a ~386 MB Node
+# runtime + a rootless-podman sandbox + an Ollama model) is NOT enabled at boot — it
+# would sit resident just to hear "hi". Instead, moai-wake is the only always-on
+# piece: a few-MB Python stdlib receiver that holds the Telegram long-poll and starts
+# openclaw-gateway the instant an allowlisted user speaks, then steps aside (one bot
+# allows one getUpdates consumer). openclaw-idle.timer sleeps the agent again when the
+# conversation goes idle (Ollama's model unloaded), and moai-wake resumes the poll.
+# openclaw-gateway itself stays --user-managed, started on demand, never --global.
+systemctl --global enable moai-wake.service
+systemctl --global enable openclaw-idle.timer
+
 # Collect the build litter. Every `just build` leaves its intermediate layers behind as
 # untagged images and nothing ever reaps them: 125 GB accumulated in days on the
 # maintainer's own machine, in ~/.local/share/containers, i.e. out of his home directory.

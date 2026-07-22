@@ -1,0 +1,9 @@
+[Unit]
+Description=Sleep the Mo AI Telegram agent (openclaw-gateway) when idle; moai-wake resumes
+Documentation=file:///usr/bin/openclaw-idle
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/openclaw-idle
+# It only reads Ollama's /api/ps and shells `systemctl --user stop`.
+NoNewPrivileges=true

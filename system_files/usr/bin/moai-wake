@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+# =============================================================================
+# moai-wake — the lightweight, always-on Telegram WAKE receiver for Mo AI.
+# =============================================================================
+# WHY THIS EXISTS
+#   Mo AI's Telegram agent is OpenClaw (`openclaw gateway`, a ~386 MB Node
+#   process + a rootless-podman sandbox + an Ollama model). Keeping it resident
+#   just to hear "hi" wastes RAM/CPU/VRAM around the clock. This receiver is the
+#   only thing that stays up: a few MB of Python stdlib that holds the Telegram
+#   long-poll, and the instant an ALLOWLISTED user speaks, it wakes OpenClaw and
+#   steps aside. When OpenClaw goes back to sleep (openclaw-idle), this resumes.
+#
+# THE ONE HARD RULE (Telegram getUpdates):
+#   A bot allows exactly ONE getUpdates consumer. A second poller gets HTTP 409.
+#   So moai-wake polls ONLY while openclaw-gateway is inactive, and the moment it
+#   wakes OpenClaw it STOPS polling — handing the connection over. It never
+#   confirms the triggering update, so Telegram redelivers it to OpenClaw, which
+#   processes the actual command. (Non-allowlisted messages are confirmed and
+#   dropped so they can't wake the box or pile up.)
+#
+# SECRETS: read-only from ~/.openclaw/openclaw.json (the same file OpenClaw uses):
+#   channels.telegram.botToken   and   channels.telegram.allowFrom
+#   No second secret store, no token on the command line, no model loaded here.
+# =============================================================================
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+HOME = os.path.expanduser("~")
+CONFIG = os.path.join(HOME, ".openclaw", "openclaw.json")
+GATEWAY_UNIT = "openclaw-gateway.service"
+API = "https://api.telegram.org/bot{token}/{method}"
+LONG_POLL = 25          # getUpdates long-poll seconds
+IDLE_RECHECK = 8        # while OpenClaw owns the connection, re-check this often
+BACKOFF_MAX = 60
+
+
+def log(msg):
+    print(f"moai-wake: {msg}", flush=True)
+
+
+def load_telegram():
+    """Return (token, set(allow_ids)) from openclaw.json, or (None, set())."""
+    try:
+        with open(CONFIG, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return None, set()
+    tg = (((data.get("channels") or {}).get("telegram")) or {})
+    token = tg.get("botToken") or None
+    allow = tg.get("allowFrom") or []
+    # allowFrom entries may be ints or strings; normalise to string ids.
+    allow_ids = {str(x).strip() for x in allow if str(x).strip()}
+    return token, allow_ids
+
+
+def gateway_active():
+    return subprocess.run(
+        ["systemctl", "--user", "is-active", "--quiet", GATEWAY_UNIT]
+    ).returncode == 0
+
+
+def start_gateway():
+    log(f"waking {GATEWAY_UNIT}")
+    # Clear any lingering "failed" from the previous sleep so this is a clean start
+    # (openclaw's sandbox teardown can leave the unit failed-but-stopped).
+    subprocess.run(
+        ["systemctl", "--user", "reset-failed", GATEWAY_UNIT],
+        check=False,
+    )
+    subprocess.run(
+        ["systemctl", "--user", "start", GATEWAY_UNIT],
+        check=False,
+    )
+
+
+def tg_call(token, method, params=None, timeout=35):
+    url = API.format(token=token, method=method)
+    data = urllib.parse.urlencode(params or {}).encode()
+    req = urllib.request.Request(url, data=data if params else None)
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.load(resp)
+
+
+def send_ack(token, chat_id):
+    try:
+        tg_call(token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": "⚡ Mo AI is waking up…",
+        }, timeout=10)
+    except Exception as exc:  # noqa: BLE001 - ack is best-effort
+        log(f"ack failed (non-fatal): {exc}")
+
+
+def poll_until_wake(token, allow_ids):
+    """Long-poll Telegram until an allowlisted user speaks, then wake OpenClaw.
+
+    Returns when OpenClaw has been started (connection handed over). Confirms and
+    drops non-allowlisted updates; never confirms the update that triggers a wake.
+    """
+    offset = None
+    backoff = 1
+    while True:
+        # If OpenClaw came up by any other path, yield the connection immediately.
+        if gateway_active():
+            return
+        params = {"timeout": LONG_POLL, "allowed_updates": json.dumps(["message"])}
+        if offset is not None:
+            params["offset"] = offset
+        try:
+            res = tg_call(token, "getUpdates", params, timeout=LONG_POLL + 10)
+            backoff = 1
+        except urllib.error.HTTPError as exc:
+            if exc.code == 409:
+                # Another consumer (OpenClaw) is polling — stand down.
+                log("409 conflict: OpenClaw owns Telegram; standing down")
+                return
+            log(f"getUpdates HTTP {exc.code}; backoff {backoff}s")
+            time.sleep(backoff); backoff = min(backoff * 2, BACKOFF_MAX); continue
+        except Exception as exc:  # noqa: BLE001 - network hiccups
+            log(f"getUpdates error: {exc}; backoff {backoff}s")
+            time.sleep(backoff); backoff = min(backoff * 2, BACKOFF_MAX); continue
+
+        if not res.get("ok"):
+            time.sleep(backoff); backoff = min(backoff * 2, BACKOFF_MAX); continue
+
+        for upd in res.get("result", []):
+            uid = upd.get("update_id")
+            msg = upd.get("message") or {}
+            frm = str((msg.get("from") or {}).get("id", ""))
+            chat_id = (msg.get("chat") or {}).get("id")
+            if frm and frm in allow_ids:
+                # Authorised: ack, wake OpenClaw, and DO NOT confirm this update —
+                # OpenClaw will pick it up from the same offset.
+                log(f"authorised message from {frm}; waking")
+                if chat_id is not None:
+                    send_ack(token, chat_id)
+                start_gateway()
+                return
+            # Not on the allowlist (or a non-message update): confirm past it so it
+            # neither wakes the box nor is seen again. Never wake for a stranger.
+            if uid is not None:
+                offset = uid + 1
+
+
+def main():
+    log("started (Telegram wake receiver; no model loaded)")
+    backoff = 1
+    while True:
+        token, allow_ids = load_telegram()
+        if not token or not allow_ids:
+            # Not configured yet (no bot token / empty allowlist). Wait quietly;
+            # the Agent panel writes these, then this picks them up.
+            time.sleep(min(BACKOFF_MAX, backoff * 5))
+            backoff = min(backoff + 1, 12)
+            continue
+        backoff = 1
+        if gateway_active():
+            # OpenClaw owns the Telegram connection. Idle here until it sleeps.
+            time.sleep(IDLE_RECHECK)
+            continue
+        poll_until_wake(token, allow_ids)
+        # After a wake, give OpenClaw a moment to grab the connection before we
+        # consider polling again.
+        time.sleep(IDLE_RECHECK)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit(0)

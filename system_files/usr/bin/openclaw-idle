@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# =============================================================================
+# openclaw-idle — the Mo AI RUNTIME sleeper. When the local model has been idle
+# (Ollama unloaded it after OLLAMA_KEEP_ALIVE=15m with no inference), stop the whole
+# heavy runtime so only the lightweight moai-wake receiver stays resident:
+#   - openclaw-gateway  (Telegram Node agent + rootless-podman sandbox, ~386 MB)
+#   - speaches          (STT/TTS container, ~410 MB)
+#   - ollama            (model-server container, ~943 MB) → frees its RAM + all VRAM
+# =============================================================================
+# Loss-free & self-healing:
+#   • The DESKTOP front door (moai-gateway) restarts ollama on the next local chat
+#     via ensure_local (MOAI_LOCAL_UNIT=ollama.service).
+#   • moai-wake re-wakes openclaw-gateway on the next allowlisted Telegram message,
+#     which pulls ollama back up (Requires=ollama.service). Telegram redelivers any
+#     message that arrived during the handoff, so nothing is dropped.
+# ONE signal covers both clients (they share one Ollama): the model's residency.
+# A resident model means someone is mid-conversation — leave everything up. A
+# per-unit start grace stops us tearing down a stack that only just came up (the
+# few seconds between "ollama started" and "model finished loading").
+# =============================================================================
+set -uo pipefail
+
+OLLAMA="http://127.0.0.1:11434"
+GRACE_SEC="${MOAI_RUNTIME_GRACE_SEC:-120}"
+
+# Model residency: 0 = up but idle (keep-alive expired) → sleep the runtime.
+#                  N>0 = active chat → leave everything up.
+#                  "missing" = Ollama API unreachable = already down → nothing for it.
+resident="$(curl -sf --max-time 4 "$OLLAMA/api/ps" 2>/dev/null \
+    | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("models",[])))' 2>/dev/null \
+    || echo missing)"
+
+# Only sleep when the model is NOT resident. If a model is loaded, bail entirely.
+case "$resident" in
+    0|missing) : ;;
+    *) exit 0 ;;
+esac
+
+stop_unit() {  # stop + normalise, but only if active and past its start grace
+    local u="$1" started now start_s
+    systemctl --user is-active --quiet "$u" || return 0
+    started="$(systemctl --user show "$u" -p ActiveEnterTimestamp --value 2>/dev/null)"
+    start_s="$(date -d "$started" +%s 2>/dev/null || echo 0)"
+    now="$(date +%s)"
+    if [ "$start_s" -gt 0 ] && [ $(( now - start_s )) -lt "$GRACE_SEC" ]; then
+        return 0   # just came up — a request is probably still loading the model
+    fi
+    systemctl --user stop "$u" 2>/dev/null || true
+    # openclaw's sandbox teardown can leave the unit "failed" though the stop
+    # succeeded; normalise so moai-wake / ensure_local see a clean restartable unit.
+    systemctl --user reset-failed "$u" 2>/dev/null || true
+    logger -t openclaw-idle "slept $u (Mo AI runtime idle)" 2>/dev/null || true
+}
+
+# Sleep the heavy stack, requirer before requirement (openclaw needs ollama).
+stop_unit openclaw-gateway.service
+stop_unit speaches.service
+if [ "$resident" = "0" ]; then
+    stop_unit ollama.service   # was up but idle → free its ~943 MB + any VRAM
+fi
+exit 0
