@@ -14,16 +14,60 @@ BASE="qwen2.5:7b-instruct"
 CT="$(podman ps --format '{{.Names}}' 2>/dev/null | grep -ixE 'ollama|moai-brain' | head -1)"
 
 log(){ echo "moos-ensure-brain: $*"; }
+
+# Keep OpenClaw's context budget in lockstep with the model's num_ctx. The desktop
+# chat sends a short prompt, but the SAME shared model serves the Telegram agent
+# (OpenClaw) whose system+tools prompt is ~11.5k tokens. If openclaw.json still
+# says contextTokens 14336 / reserve 4096 (prompt budget 10240) while the model is
+# 16384, the agent's precheck computes a budget smaller than its own base prompt
+# and every Telegram turn dies with "Context overflow (precheck)". Idempotent;
+# atomic write; leaves the file untouched if already correct or absent.
+reconcile_openclaw_ctx() {
+    local cfg="${HOME}/.openclaw/openclaw.json"
+    [ -f "$cfg" ] || return 0
+    if python3 - "$cfg" 2>/dev/null <<'PY'
+import json,os,sys
+p=sys.argv[1]
+try: c=json.load(open(p))
+except Exception: sys.exit(0)
+CTX=16384; RESERVE=2048; MAXOUT=2048; changed=False
+ad=c.setdefault("agents",{}).setdefault("defaults",{})
+if ad.get("contextTokens")!=CTX: ad["contextTokens"]=CTX; changed=True
+comp=ad.setdefault("compaction",{})
+for k in ("reserveTokens","reserveTokensFloor"):
+    if comp.get(k)!=RESERVE: comp[k]=RESERVE; changed=True
+for m in c.get("models",{}).get("providers",{}).get("ollama",{}).get("models",[]):
+    if m.get("id")=="default" or m.get("name")=="default":
+        if m.get("contextWindow")!=CTX: m["contextWindow"]=CTX; changed=True
+        if m.get("maxTokens")!=MAXOUT: m["maxTokens"]=MAXOUT; changed=True
+if changed:
+    tmp=p+".tmp"; json.dump(c,open(tmp,"w"),ensure_ascii=False,indent=2); os.replace(tmp,p)
+    print("changed")
+PY
+    then log "openclaw context reconciled to num_ctx 16384"; fi
+}
+
 [ -f "$MF" ] || { log "no Modelfile — nothing to do"; exit 0; }
+
+# openclaw.json reconciliation needs no model server, so do it BEFORE the "no
+# container" skip: on an on-demand system ollama is down at login, and we still
+# want the context budget healed so the first Telegram turn does not overflow.
+reconcile_openclaw_ctx
+
 [ -n "$CT" ] || { log "ollama container not running — skip"; exit 0; }
 
 # Wait (bounded) for the API.
 for _ in $(seq 1 30); do curl -sf "$OLLAMA/api/tags" >/dev/null 2>&1 && break; sleep 2; done
 curl -sf "$OLLAMA/api/tags" >/dev/null 2>&1 || { log "ollama API not up — skip"; exit 0; }
 
-# Already fast? default resolves to a qwen2.5 base → done (idempotent, no-op).
-if curl -sf "$OLLAMA/api/show" -d '{"model":"default"}' 2>/dev/null | grep -qi "qwen2.5"; then
-    log "brain already fast (qwen2.5) — nothing to do"; exit 0
+# Already fast AND wide enough? default = qwen2.5 with num_ctx >= 16384 → no-op.
+# (Still reconcile openclaw.json, which drifts independently of the model.) An
+# older 8192 brain falls through and is rebuilt from the 16384 Modelfile.
+show="$(curl -sf "$OLLAMA/api/show" -d '{"model":"default"}' 2>/dev/null)"
+ctx="$(printf '%s' "$show" | grep -oE 'num_ctx[^0-9]*[0-9]+' | grep -oE '[0-9]+' | tail -1)"
+if printf '%s' "$show" | grep -qi "qwen2.5" && [ "${ctx:-0}" -ge 16384 ]; then
+    log "brain already fast (qwen2.5, num_ctx ${ctx}) — nothing to do"
+    exit 0
 fi
 
 # Ensure the base model is present (pull only if missing; tolerate no network).
