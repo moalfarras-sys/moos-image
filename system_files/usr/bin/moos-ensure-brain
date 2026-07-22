@@ -32,10 +32,18 @@ try: c=json.load(open(p))
 except Exception: sys.exit(0)
 CTX=24576; RESERVE=2048; MAXOUT=2048; changed=False
 ad=c.setdefault("agents",{}).setdefault("defaults",{})
-if ad.get("contextTokens")!=CTX: ad["contextTokens"]=CTX; changed=True
-comp=ad.setdefault("compaction",{})
-for k in ("reserveTokens","reserveTokensFloor"):
-    if comp.get(k)!=RESERVE: comp[k]=RESERVE; changed=True
+primary=(ad.get("model",{}) or {}).get("primary","")
+local_primary = primary.startswith("ollama/") or primary in ("", "default")
+# Only pin the AGENT context budget to the small local ceiling when the local
+# brain is actually primary. A cloud brain (e.g. gpt-5.x) has a far larger window,
+# and forcing 24576 there causes needless overflow/compaction and empty replies —
+# leave the cloud budget alone.
+if local_primary:
+    if ad.get("contextTokens")!=CTX: ad["contextTokens"]=CTX; changed=True
+    comp=ad.setdefault("compaction",{})
+    for k in ("reserveTokens","reserveTokensFloor"):
+        if comp.get(k)!=RESERVE: comp[k]=RESERVE; changed=True
+# The ollama model's own window is model-specific — always keep it in lockstep.
 for m in c.get("models",{}).get("providers",{}).get("ollama",{}).get("models",[]):
     if m.get("id")=="default" or m.get("name")=="default":
         if m.get("contextWindow")!=CTX: m["contextWindow"]=CTX; changed=True
@@ -44,7 +52,7 @@ if changed:
     tmp=p+".tmp"; json.dump(c,open(tmp,"w"),ensure_ascii=False,indent=2); os.replace(tmp,p)
     print("changed")
 PY
-    then log "openclaw context reconciled to num_ctx 16384"; fi
+    then log "openclaw context reconciled (local brain → 24576; cloud left as-is)"; fi
 }
 
 [ -f "$MF" ] || { log "no Modelfile — nothing to do"; exit 0; }
