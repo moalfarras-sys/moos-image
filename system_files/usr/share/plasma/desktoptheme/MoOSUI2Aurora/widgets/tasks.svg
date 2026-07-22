@@ -3,13 +3,13 @@
   <!-- MoOS UI2 — task tiles. Original art. -->
   <style id="current-color-scheme" type="text/css">
     .ColorScheme-Background { color: #172236; }
-    .ColorScheme-Highlight  { color: #2DD4BF; }
+    .ColorScheme-Highlight  { color: #3B82F6; }
     .ColorScheme-Text       { color: #ECF2FB; }
   </style>
   <defs>
     <linearGradient id="nova-accent" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="32" y2="0">
       <stop offset="0" stop-color="#60A5FA"/>
-      <stop offset="1" stop-color="#2DD4BF"/>
+      <stop offset="1" stop-color="#3B82F6"/>
     </linearGradient>
   </defs>
   <g id="normal-topleft">

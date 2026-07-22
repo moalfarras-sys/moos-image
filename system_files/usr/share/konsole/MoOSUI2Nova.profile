@@ -20,7 +20,7 @@ HistorySize=20000
 [Cursor Options]
 CursorShape=0
 UseCustomCursorColor=true
-CustomCursorColor=56,189,248
+CustomCursorColor=99,102,241
 
 [Terminal Features]
 BlinkingCursorEnabled=true

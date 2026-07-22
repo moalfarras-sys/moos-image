@@ -3,8 +3,8 @@
   <defs>
     <linearGradient id="nova-brand" x1="3" y1="2" x2="76" y2="14" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#60A5FA"/>
-      <stop offset="0.52" stop-color="#2DD4BF"/>
-      <stop offset="1" stop-color="#A5F3FC"/>
+      <stop offset="0.52" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#93C5FD"/>
     </linearGradient>
   </defs>
   <g id="brilliant">

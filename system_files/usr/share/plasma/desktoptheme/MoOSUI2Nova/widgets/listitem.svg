@@ -2,7 +2,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="112" height="148" viewBox="0 0 112 148">
   <style id="current-color-scheme" type="text/css">
     .ColorScheme-Background { color: #111A2E; }
-    .ColorScheme-Highlight  { color: #38BDF8; }
+    .ColorScheme-Highlight  { color: #6366F1; }
     .ColorScheme-Text       { color: #EAF2FF; }
   </style>
   <g id="normal-topleft">
@@ -32,24 +32,24 @@
   <rect id="normal-hint-right-margin" x="87" y="14" width="7" height="4" fill="none" opacity="0"/>
   <g id="pressed-topleft">
     <path d="M 0,53 A 9,9 0 0 1 9,44 L 9,53 Z" fill="#1E2E4A" fill-opacity="0.94"/>
-    <path d="M 0,53 A 9,9 0 0 1 9,44 L 9,45.0 A 8.0,8.0 0 0 0 1.0,53 Z" fill="#7DEBFF" fill-opacity="0.82"/>
+    <path d="M 0,53 A 9,9 0 0 1 9,44 L 9,45.0 A 8.0,8.0 0 0 0 1.0,53 Z" fill="#A5B4FC" fill-opacity="0.82"/>
   </g>
   <g id="pressed-topright">
     <path d="M 33,44 A 9,9 0 0 1 42,53 L 33,53 Z" fill="#1E2E4A" fill-opacity="0.94"/>
-    <path d="M 33,44 A 9,9 0 0 1 42,53 L 41.0,53 A 8.0,8.0 0 0 0 33,45.0 Z" fill="#7DEBFF" fill-opacity="0.82"/>
+    <path d="M 33,44 A 9,9 0 0 1 42,53 L 41.0,53 A 8.0,8.0 0 0 0 33,45.0 Z" fill="#A5B4FC" fill-opacity="0.82"/>
   </g>
   <g id="pressed-bottomleft">
     <path d="M 9,86 A 9,9 0 0 1 0,77 L 9,77 Z" fill="#1E2E4A" fill-opacity="0.94"/>
-    <path d="M 9,86 A 9,9 0 0 1 0,77 L 1.0,77 A 8.0,8.0 0 0 0 9,85.0 Z" fill="#7DEBFF" fill-opacity="0.82"/>
+    <path d="M 9,86 A 9,9 0 0 1 0,77 L 1.0,77 A 8.0,8.0 0 0 0 9,85.0 Z" fill="#A5B4FC" fill-opacity="0.82"/>
   </g>
   <g id="pressed-bottomright">
     <path d="M 42,77 A 9,9 0 0 1 33,86 L 33,77 Z" fill="#1E2E4A" fill-opacity="0.94"/>
-    <path d="M 42,77 A 9,9 0 0 1 33,86 L 33,85.0 A 8.0,8.0 0 0 0 41.0,77 Z" fill="#7DEBFF" fill-opacity="0.82"/>
+    <path d="M 42,77 A 9,9 0 0 1 33,86 L 33,85.0 A 8.0,8.0 0 0 0 41.0,77 Z" fill="#A5B4FC" fill-opacity="0.82"/>
   </g>
-  <g id="pressed-top"><rect x="9" y="44" width="24" height="9" fill="#1E2E4A" fill-opacity="0.94"/><rect x="9" y="44" width="24" height="1" fill="#7DEBFF" fill-opacity="0.82"/></g>
-  <g id="pressed-bottom"><rect x="9" y="77" width="24" height="9" fill="#1E2E4A" fill-opacity="0.94"/><rect x="9" y="85" width="24" height="1" fill="#7DEBFF" fill-opacity="0.451"/></g>
-  <g id="pressed-left"><rect x="0" y="53" width="9" height="24" fill="#1E2E4A" fill-opacity="0.94"/><rect x="0" y="53" width="1" height="24" fill="#7DEBFF" fill-opacity="0.574"/></g>
-  <g id="pressed-right"><rect x="33" y="53" width="9" height="24" fill="#1E2E4A" fill-opacity="0.94"/><rect x="41" y="53" width="1" height="24" fill="#7DEBFF" fill-opacity="0.574"/></g>
+  <g id="pressed-top"><rect x="9" y="44" width="24" height="9" fill="#1E2E4A" fill-opacity="0.94"/><rect x="9" y="44" width="24" height="1" fill="#A5B4FC" fill-opacity="0.82"/></g>
+  <g id="pressed-bottom"><rect x="9" y="77" width="24" height="9" fill="#1E2E4A" fill-opacity="0.94"/><rect x="9" y="85" width="24" height="1" fill="#A5B4FC" fill-opacity="0.451"/></g>
+  <g id="pressed-left"><rect x="0" y="53" width="9" height="24" fill="#1E2E4A" fill-opacity="0.94"/><rect x="0" y="53" width="1" height="24" fill="#A5B4FC" fill-opacity="0.574"/></g>
+  <g id="pressed-right"><rect x="33" y="53" width="9" height="24" fill="#1E2E4A" fill-opacity="0.94"/><rect x="41" y="53" width="1" height="24" fill="#A5B4FC" fill-opacity="0.574"/></g>
   <rect id="pressed-center" x="9" y="53" width="24" height="24" fill="#1E2E4A" fill-opacity="0.94"/>
   <rect id="pressed-hint-top-margin" x="80" y="24" width="4" height="5" fill="none" opacity="0"/>
   <rect id="pressed-hint-bottom-margin" x="80" y="31" width="4" height="5" fill="none" opacity="0"/>

@@ -2,50 +2,50 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="96" viewBox="0 0 128 96">
   <style id="current-color-scheme" type="text/css">
     .ColorScheme-Background { color: #172236; }
-    .ColorScheme-Highlight  { color: #2DD4BF; }
+    .ColorScheme-Highlight  { color: #3B82F6; }
     .ColorScheme-Text       { color: #ECF2FB; }
   </style>
   <g id="header-topleft">
     <path d="M 0,8 A 8,8 0 0 1 8,0 L 8,8 Z" fill="#172236" fill-opacity="0.72"/>
-    <path d="M 0,8 A 8,8 0 0 1 8,0 L 8,1.0 A 7.0,7.0 0 0 0 1.0,8 Z" fill="#A5F3FC" fill-opacity="0.13"/>
+    <path d="M 0,8 A 8,8 0 0 1 8,0 L 8,1.0 A 7.0,7.0 0 0 0 1.0,8 Z" fill="#93C5FD" fill-opacity="0.13"/>
   </g>
   <g id="header-topright">
     <path d="M 40,0 A 8,8 0 0 1 48,8 L 40,8 Z" fill="#172236" fill-opacity="0.72"/>
-    <path d="M 40,0 A 8,8 0 0 1 48,8 L 47.0,8 A 7.0,7.0 0 0 0 40,1.0 Z" fill="#A5F3FC" fill-opacity="0.13"/>
+    <path d="M 40,0 A 8,8 0 0 1 48,8 L 47.0,8 A 7.0,7.0 0 0 0 40,1.0 Z" fill="#93C5FD" fill-opacity="0.13"/>
   </g>
   <g id="header-bottomleft">
     <path d="M 8,48 A 8,8 0 0 1 0,40 L 8,40 Z" fill="#172236" fill-opacity="0.72"/>
-    <path d="M 8,48 A 8,8 0 0 1 0,40 L 1.0,40 A 7.0,7.0 0 0 0 8,47.0 Z" fill="#A5F3FC" fill-opacity="0.13"/>
+    <path d="M 8,48 A 8,8 0 0 1 0,40 L 1.0,40 A 7.0,7.0 0 0 0 8,47.0 Z" fill="#93C5FD" fill-opacity="0.13"/>
   </g>
   <g id="header-bottomright">
     <path d="M 48,40 A 8,8 0 0 1 40,48 L 40,40 Z" fill="#172236" fill-opacity="0.72"/>
-    <path d="M 48,40 A 8,8 0 0 1 40,48 L 40,47.0 A 7.0,7.0 0 0 0 47.0,40 Z" fill="#A5F3FC" fill-opacity="0.13"/>
+    <path d="M 48,40 A 8,8 0 0 1 40,48 L 40,47.0 A 7.0,7.0 0 0 0 47.0,40 Z" fill="#93C5FD" fill-opacity="0.13"/>
   </g>
-  <g id="header-top"><rect x="8" y="0" width="32" height="8" fill="#172236" fill-opacity="0.72"/><rect x="8" y="0" width="32" height="1" fill="#A5F3FC" fill-opacity="0.13"/></g>
-  <g id="header-bottom"><rect x="8" y="40" width="32" height="8" fill="#172236" fill-opacity="0.72"/><rect x="8" y="47" width="32" height="1" fill="#A5F3FC" fill-opacity="0.07150000000000001"/></g>
-  <g id="header-left"><rect x="0" y="8" width="8" height="32" fill="#172236" fill-opacity="0.72"/><rect x="0" y="8" width="1" height="32" fill="#A5F3FC" fill-opacity="0.091"/></g>
-  <g id="header-right"><rect x="40" y="8" width="8" height="32" fill="#172236" fill-opacity="0.72"/><rect x="47" y="8" width="1" height="32" fill="#A5F3FC" fill-opacity="0.091"/></g>
+  <g id="header-top"><rect x="8" y="0" width="32" height="8" fill="#172236" fill-opacity="0.72"/><rect x="8" y="0" width="32" height="1" fill="#93C5FD" fill-opacity="0.13"/></g>
+  <g id="header-bottom"><rect x="8" y="40" width="32" height="8" fill="#172236" fill-opacity="0.72"/><rect x="8" y="47" width="32" height="1" fill="#93C5FD" fill-opacity="0.07150000000000001"/></g>
+  <g id="header-left"><rect x="0" y="8" width="8" height="32" fill="#172236" fill-opacity="0.72"/><rect x="0" y="8" width="1" height="32" fill="#93C5FD" fill-opacity="0.091"/></g>
+  <g id="header-right"><rect x="40" y="8" width="8" height="32" fill="#172236" fill-opacity="0.72"/><rect x="47" y="8" width="1" height="32" fill="#93C5FD" fill-opacity="0.091"/></g>
   <rect id="header-center" x="8" y="8" width="32" height="32" fill="#172236" fill-opacity="0.72"/>
   <g id="footer-topleft">
     <path d="M 0,56 A 8,8 0 0 1 8,48 L 8,56 Z" fill="#0E1524" fill-opacity="0.78"/>
-    <path d="M 0,56 A 8,8 0 0 1 8,48 L 8,49.0 A 7.0,7.0 0 0 0 1.0,56 Z" fill="#A5F3FC" fill-opacity="0.14"/>
+    <path d="M 0,56 A 8,8 0 0 1 8,48 L 8,49.0 A 7.0,7.0 0 0 0 1.0,56 Z" fill="#93C5FD" fill-opacity="0.14"/>
   </g>
   <g id="footer-topright">
     <path d="M 40,48 A 8,8 0 0 1 48,56 L 40,56 Z" fill="#0E1524" fill-opacity="0.78"/>
-    <path d="M 40,48 A 8,8 0 0 1 48,56 L 47.0,56 A 7.0,7.0 0 0 0 40,49.0 Z" fill="#A5F3FC" fill-opacity="0.14"/>
+    <path d="M 40,48 A 8,8 0 0 1 48,56 L 47.0,56 A 7.0,7.0 0 0 0 40,49.0 Z" fill="#93C5FD" fill-opacity="0.14"/>
   </g>
   <g id="footer-bottomleft">
     <path d="M 8,96 A 8,8 0 0 1 0,88 L 8,88 Z" fill="#0E1524" fill-opacity="0.78"/>
-    <path d="M 8,96 A 8,8 0 0 1 0,88 L 1.0,88 A 7.0,7.0 0 0 0 8,95.0 Z" fill="#A5F3FC" fill-opacity="0.14"/>
+    <path d="M 8,96 A 8,8 0 0 1 0,88 L 1.0,88 A 7.0,7.0 0 0 0 8,95.0 Z" fill="#93C5FD" fill-opacity="0.14"/>
   </g>
   <g id="footer-bottomright">
     <path d="M 48,88 A 8,8 0 0 1 40,96 L 40,88 Z" fill="#0E1524" fill-opacity="0.78"/>
-    <path d="M 48,88 A 8,8 0 0 1 40,96 L 40,95.0 A 7.0,7.0 0 0 0 47.0,88 Z" fill="#A5F3FC" fill-opacity="0.14"/>
+    <path d="M 48,88 A 8,8 0 0 1 40,96 L 40,95.0 A 7.0,7.0 0 0 0 47.0,88 Z" fill="#93C5FD" fill-opacity="0.14"/>
   </g>
-  <g id="footer-top"><rect x="8" y="48" width="32" height="8" fill="#0E1524" fill-opacity="0.78"/><rect x="8" y="48" width="32" height="1" fill="#A5F3FC" fill-opacity="0.14"/></g>
-  <g id="footer-bottom"><rect x="8" y="88" width="32" height="8" fill="#0E1524" fill-opacity="0.78"/><rect x="8" y="95" width="32" height="1" fill="#A5F3FC" fill-opacity="0.07700000000000001"/></g>
-  <g id="footer-left"><rect x="0" y="56" width="8" height="32" fill="#0E1524" fill-opacity="0.78"/><rect x="0" y="56" width="1" height="32" fill="#A5F3FC" fill-opacity="0.098"/></g>
-  <g id="footer-right"><rect x="40" y="56" width="8" height="32" fill="#0E1524" fill-opacity="0.78"/><rect x="47" y="56" width="1" height="32" fill="#A5F3FC" fill-opacity="0.098"/></g>
+  <g id="footer-top"><rect x="8" y="48" width="32" height="8" fill="#0E1524" fill-opacity="0.78"/><rect x="8" y="48" width="32" height="1" fill="#93C5FD" fill-opacity="0.14"/></g>
+  <g id="footer-bottom"><rect x="8" y="88" width="32" height="8" fill="#0E1524" fill-opacity="0.78"/><rect x="8" y="95" width="32" height="1" fill="#93C5FD" fill-opacity="0.07700000000000001"/></g>
+  <g id="footer-left"><rect x="0" y="56" width="8" height="32" fill="#0E1524" fill-opacity="0.78"/><rect x="0" y="56" width="1" height="32" fill="#93C5FD" fill-opacity="0.098"/></g>
+  <g id="footer-right"><rect x="40" y="56" width="8" height="32" fill="#0E1524" fill-opacity="0.78"/><rect x="47" y="56" width="1" height="32" fill="#93C5FD" fill-opacity="0.098"/></g>
   <rect id="footer-center" x="8" y="56" width="32" height="32" fill="#0E1524" fill-opacity="0.78"/>
   <rect id="hint-top-margin" x="100" y="0" width="4" height="6" fill="none" opacity="0"/>
   <rect id="hint-bottom-margin" x="100" y="8" width="4" height="6" fill="none" opacity="0"/>

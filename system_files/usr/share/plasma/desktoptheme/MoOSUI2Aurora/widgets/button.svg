@@ -3,7 +3,7 @@
   <!-- Original MoOS UI2 art. Frame IDs follow the official Plasma 6.7.2 contract. -->
   <style id="current-color-scheme" type="text/css">
     .ColorScheme-Background { color: #172236; }
-    .ColorScheme-Highlight { color: #2DD4BF; }
+    .ColorScheme-Highlight { color: #3B82F6; }
     .ColorScheme-Text { color: #ECF2FB; }
   </style>
   <defs>
@@ -202,98 +202,98 @@
     <linearGradient id="focus-top-gradient" gradientUnits="userSpaceOnUse" x1="84" y1="84" x2="84" y2="74">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.980"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.980"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.980"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.980"/>
     </linearGradient>
     <linearGradient id="focus-right-gradient" gradientUnits="userSpaceOnUse" x1="116" y1="84" x2="126" y2="84">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.980"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.980"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.980"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.980"/>
     </linearGradient>
     <linearGradient id="focus-bottom-gradient" gradientUnits="userSpaceOnUse" x1="84" y1="116" x2="84" y2="126">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.980"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.980"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.980"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.980"/>
     </linearGradient>
     <linearGradient id="focus-left-gradient" gradientUnits="userSpaceOnUse" x1="84" y1="84" x2="74" y2="84">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.980"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.980"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.980"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.980"/>
     </linearGradient>
     <radialGradient id="focus-topleft-gradient" gradientUnits="userSpaceOnUse" cx="84" cy="84" r="10">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.980"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.980"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.980"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.980"/>
     </radialGradient>
     <radialGradient id="focus-topright-gradient" gradientUnits="userSpaceOnUse" cx="116" cy="84" r="10">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.980"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.980"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.980"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.980"/>
     </radialGradient>
     <radialGradient id="focus-bottomright-gradient" gradientUnits="userSpaceOnUse" cx="116" cy="116" r="10">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.980"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.980"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.980"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.980"/>
     </radialGradient>
     <radialGradient id="focus-bottomleft-gradient" gradientUnits="userSpaceOnUse" cx="84" cy="116" r="10">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.980"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.980"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.980"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.980"/>
     </radialGradient>
     <linearGradient id="pressed-top-gradient" gradientUnits="userSpaceOnUse" x1="148" y1="84" x2="148" y2="74">
       <stop offset="0" stop-color="#60A5FA" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#60A5FA" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#A5F3FC" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#A5F3FC" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#93C5FD" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#93C5FD" stop-opacity="0.960"/>
     </linearGradient>
     <linearGradient id="pressed-right-gradient" gradientUnits="userSpaceOnUse" x1="180" y1="84" x2="190" y2="84">
       <stop offset="0" stop-color="#60A5FA" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#60A5FA" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#A5F3FC" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#A5F3FC" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#93C5FD" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#93C5FD" stop-opacity="0.960"/>
     </linearGradient>
     <linearGradient id="pressed-bottom-gradient" gradientUnits="userSpaceOnUse" x1="148" y1="116" x2="148" y2="126">
       <stop offset="0" stop-color="#60A5FA" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#60A5FA" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#A5F3FC" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#A5F3FC" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#93C5FD" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#93C5FD" stop-opacity="0.960"/>
     </linearGradient>
     <linearGradient id="pressed-left-gradient" gradientUnits="userSpaceOnUse" x1="148" y1="84" x2="138" y2="84">
       <stop offset="0" stop-color="#60A5FA" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#60A5FA" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#A5F3FC" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#A5F3FC" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#93C5FD" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#93C5FD" stop-opacity="0.960"/>
     </linearGradient>
     <radialGradient id="pressed-topleft-gradient" gradientUnits="userSpaceOnUse" cx="148" cy="84" r="10">
       <stop offset="0" stop-color="#60A5FA" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#60A5FA" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#A5F3FC" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#A5F3FC" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#93C5FD" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#93C5FD" stop-opacity="0.960"/>
     </radialGradient>
     <radialGradient id="pressed-topright-gradient" gradientUnits="userSpaceOnUse" cx="180" cy="84" r="10">
       <stop offset="0" stop-color="#60A5FA" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#60A5FA" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#A5F3FC" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#A5F3FC" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#93C5FD" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#93C5FD" stop-opacity="0.960"/>
     </radialGradient>
     <radialGradient id="pressed-bottomright-gradient" gradientUnits="userSpaceOnUse" cx="180" cy="116" r="10">
       <stop offset="0" stop-color="#60A5FA" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#60A5FA" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#A5F3FC" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#A5F3FC" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#93C5FD" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#93C5FD" stop-opacity="0.960"/>
     </radialGradient>
     <radialGradient id="pressed-bottomleft-gradient" gradientUnits="userSpaceOnUse" cx="148" cy="116" r="10">
       <stop offset="0" stop-color="#60A5FA" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#60A5FA" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#A5F3FC" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#A5F3FC" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#93C5FD" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#93C5FD" stop-opacity="0.960"/>
     </radialGradient>
     <linearGradient id="toolbutton_hover-top-gradient" gradientUnits="userSpaceOnUse" x1="20" y1="148" x2="20" y2="138">
       <stop offset="0" stop-color="#263651" stop-opacity="0.720"/>
@@ -346,50 +346,50 @@
     <linearGradient id="toolbutton_focus-top-gradient" gradientUnits="userSpaceOnUse" x1="84" y1="148" x2="84" y2="138">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.960"/>
     </linearGradient>
     <linearGradient id="toolbutton_focus-right-gradient" gradientUnits="userSpaceOnUse" x1="116" y1="148" x2="126" y2="148">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.960"/>
     </linearGradient>
     <linearGradient id="toolbutton_focus-bottom-gradient" gradientUnits="userSpaceOnUse" x1="84" y1="180" x2="84" y2="190">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.960"/>
     </linearGradient>
     <linearGradient id="toolbutton_focus-left-gradient" gradientUnits="userSpaceOnUse" x1="84" y1="148" x2="74" y2="148">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.960"/>
     </linearGradient>
     <radialGradient id="toolbutton_focus-topleft-gradient" gradientUnits="userSpaceOnUse" cx="84" cy="148" r="10">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.960"/>
     </radialGradient>
     <radialGradient id="toolbutton_focus-topright-gradient" gradientUnits="userSpaceOnUse" cx="116" cy="148" r="10">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.960"/>
     </radialGradient>
     <radialGradient id="toolbutton_focus-bottomright-gradient" gradientUnits="userSpaceOnUse" cx="116" cy="180" r="10">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.960"/>
     </radialGradient>
     <radialGradient id="toolbutton_focus-bottomleft-gradient" gradientUnits="userSpaceOnUse" cx="84" cy="180" r="10">
       <stop offset="0" stop-color="#172236" stop-opacity="0.004"/>
       <stop offset="0.72" stop-color="#172236" stop-opacity="0.004"/>
-      <stop offset="0.90" stop-color="#2DD4BF" stop-opacity="0.960"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.960"/>
+      <stop offset="0.90" stop-color="#3B82F6" stop-opacity="0.960"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0.960"/>
     </radialGradient>
     <linearGradient id="toolbutton_pressed-top-gradient" gradientUnits="userSpaceOnUse" x1="148" y1="148" x2="148" y2="138">
       <stop offset="0" stop-color="#60A5FA" stop-opacity="0.800"/>
@@ -521,38 +521,38 @@
   <rect id="toolbutton-pressed-left" x="138" y="148" width="10" height="32" fill="url(#toolbutton_pressed-left-gradient)"/>
   <path id="toolbutton-pressed-topleft" d="M 148,138 L 148,148 L 138,148 A 10,10 0 0 1 148,138 Z" fill="url(#toolbutton_pressed-topleft-gradient)"/>
   <rect id="toolbutton-pressed-center" x="148" y="148" width="32" height="32" fill="#60A5FA" fill-opacity="0.800"/>
-  <rect id="shadow-hint-top-margin" x="216" y="10" width="2" height="3" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="shadow-hint-right-margin" x="226" y="18" width="3" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="shadow-hint-bottom-margin" x="216" y="28" width="2" height="3" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="shadow-hint-left-margin" x="208" y="18" width="3" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="normal-hint-top-margin" x="246" y="10" width="2" height="6" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="normal-hint-right-margin" x="256" y="18" width="6" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="normal-hint-bottom-margin" x="246" y="28" width="2" height="6" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="normal-hint-left-margin" x="238" y="18" width="6" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="hover-hint-top-margin" x="216" y="48" width="2" height="0.001" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="hover-hint-right-margin" x="226" y="56" width="0.001" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="hover-hint-bottom-margin" x="216" y="66" width="2" height="0.001" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="hover-hint-left-margin" x="208" y="56" width="0.001" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="focus-hint-top-margin" x="246" y="48" width="2" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="focus-hint-right-margin" x="256" y="56" width="2" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="focus-hint-bottom-margin" x="246" y="66" width="2" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="focus-hint-left-margin" x="238" y="56" width="2" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="pressed-hint-top-margin" x="216" y="86" width="2" height="6" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="pressed-hint-right-margin" x="226" y="94" width="6" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="pressed-hint-bottom-margin" x="216" y="104" width="2" height="6" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="pressed-hint-left-margin" x="208" y="94" width="6" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="toolbutton-hover-hint-top-margin" x="246" y="86" width="2" height="4" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="toolbutton-hover-hint-right-margin" x="256" y="94" width="4" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="toolbutton-hover-hint-bottom-margin" x="246" y="104" width="2" height="4" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="toolbutton-hover-hint-left-margin" x="238" y="94" width="4" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="toolbutton-focus-hint-top-margin" x="216" y="124" width="2" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="toolbutton-focus-hint-right-margin" x="226" y="132" width="2" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="toolbutton-focus-hint-bottom-margin" x="216" y="142" width="2" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="toolbutton-focus-hint-left-margin" x="208" y="132" width="2" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="toolbutton-pressed-hint-top-margin" x="246" y="124" width="2" height="4" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="toolbutton-pressed-hint-right-margin" x="256" y="132" width="4" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="toolbutton-pressed-hint-bottom-margin" x="246" y="142" width="2" height="4" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="toolbutton-pressed-hint-left-margin" x="238" y="132" width="4" height="2" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="normal-hint-compose-over-border" x="270" y="166" width="1" height="1" fill="#2DD4BF" fill-opacity="0.004"/>
-  <rect id="pressed-hint-compose-over-border" x="274" y="166" width="1" height="1" fill="#2DD4BF" fill-opacity="0.004"/>
+  <rect id="shadow-hint-top-margin" x="216" y="10" width="2" height="3" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="shadow-hint-right-margin" x="226" y="18" width="3" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="shadow-hint-bottom-margin" x="216" y="28" width="2" height="3" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="shadow-hint-left-margin" x="208" y="18" width="3" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="normal-hint-top-margin" x="246" y="10" width="2" height="6" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="normal-hint-right-margin" x="256" y="18" width="6" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="normal-hint-bottom-margin" x="246" y="28" width="2" height="6" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="normal-hint-left-margin" x="238" y="18" width="6" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="hover-hint-top-margin" x="216" y="48" width="2" height="0.001" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="hover-hint-right-margin" x="226" y="56" width="0.001" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="hover-hint-bottom-margin" x="216" y="66" width="2" height="0.001" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="hover-hint-left-margin" x="208" y="56" width="0.001" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="focus-hint-top-margin" x="246" y="48" width="2" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="focus-hint-right-margin" x="256" y="56" width="2" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="focus-hint-bottom-margin" x="246" y="66" width="2" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="focus-hint-left-margin" x="238" y="56" width="2" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="pressed-hint-top-margin" x="216" y="86" width="2" height="6" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="pressed-hint-right-margin" x="226" y="94" width="6" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="pressed-hint-bottom-margin" x="216" y="104" width="2" height="6" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="pressed-hint-left-margin" x="208" y="94" width="6" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="toolbutton-hover-hint-top-margin" x="246" y="86" width="2" height="4" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="toolbutton-hover-hint-right-margin" x="256" y="94" width="4" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="toolbutton-hover-hint-bottom-margin" x="246" y="104" width="2" height="4" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="toolbutton-hover-hint-left-margin" x="238" y="94" width="4" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="toolbutton-focus-hint-top-margin" x="216" y="124" width="2" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="toolbutton-focus-hint-right-margin" x="226" y="132" width="2" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="toolbutton-focus-hint-bottom-margin" x="216" y="142" width="2" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="toolbutton-focus-hint-left-margin" x="208" y="132" width="2" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="toolbutton-pressed-hint-top-margin" x="246" y="124" width="2" height="4" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="toolbutton-pressed-hint-right-margin" x="256" y="132" width="4" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="toolbutton-pressed-hint-bottom-margin" x="246" y="142" width="2" height="4" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="toolbutton-pressed-hint-left-margin" x="238" y="132" width="4" height="2" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="normal-hint-compose-over-border" x="270" y="166" width="1" height="1" fill="#3B82F6" fill-opacity="0.004"/>
+  <rect id="pressed-hint-compose-over-border" x="274" y="166" width="1" height="1" fill="#3B82F6" fill-opacity="0.004"/>
 </svg>
