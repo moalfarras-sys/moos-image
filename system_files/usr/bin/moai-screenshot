@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# =============================================================================
+# moai-screenshot — grab the current screen and send it to the owner's Telegram
+# chat. The reliable path for "take a screenshot and send it to me". Same shape
+# as moai-camera-shot: owner-only (allowlist), one command for the agent to run.
+#
+# Usage: moai-screenshot ["optional caption"]
+# =============================================================================
+set -uo pipefail
+
+CONFIG="${HOME}/.openclaw/openclaw.json"
+CAPTION="${1:-🖥️ Mo AI screenshot}"
+TMP="$(mktemp --suffix=.png 2>/dev/null || echo /tmp/moai-shot.png)"
+trap 'rm -f "$TMP" 2>/dev/null || true' EXIT
+fail() { echo "moai-screenshot: $*" >&2; exit 1; }
+
+uid="$(id -u)"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/${uid}}"
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+export DISPLAY="${DISPLAY:-:0}"
+
+[ -f "$CONFIG" ] || fail "no openclaw config"
+read -r TOKEN CHAT < <(python3 - "$CONFIG" <<'PY'
+import json,sys
+try:
+    tg=json.load(open(sys.argv[1])).get("channels",{}).get("telegram",{})
+    allow=tg.get("allowFrom",[])
+    print(tg.get("botToken",""), (allow[0] if allow else ""))
+except Exception: print("","")
+PY
+)
+[ -n "${TOKEN:-}" ] || fail "no bot token"
+[ -n "${CHAT:-}" ]  || fail "no allowlisted owner to send to"
+
+# Capture the whole screen. spectacle (KDE) first, then grim (wlroots), then a
+# gnome-screenshot fallback. -b/-n = background, no notification.
+shot() {
+    if command -v spectacle >/dev/null 2>&1; then
+        spectacle -b -n -f -o "$TMP" >/dev/null 2>&1 && return 0
+    fi
+    if command -v grim >/dev/null 2>&1; then
+        grim "$TMP" >/dev/null 2>&1 && return 0
+    fi
+    if command -v gnome-screenshot >/dev/null 2>&1; then
+        gnome-screenshot -f "$TMP" >/dev/null 2>&1 && return 0
+    fi
+    return 1
+}
+shot || fail "capture failed (no spectacle/grim available or Wayland refused)"
+[ -s "$TMP" ] || fail "captured an empty image"
+
+resp="$(curl -sf --max-time 40 \
+    -F "chat_id=${CHAT}" -F "photo=@${TMP}" -F "caption=${CAPTION}" \
+    "https://api.telegram.org/bot${TOKEN}/sendPhoto" 2>/dev/null)" \
+    || fail "Telegram sendPhoto failed (network?)"
+echo "$resp" | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("ok") else 1)' 2>/dev/null \
+    || fail "Telegram rejected the image"
+echo "sent"
