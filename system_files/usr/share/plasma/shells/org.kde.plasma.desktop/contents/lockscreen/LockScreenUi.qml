@@ -669,19 +669,19 @@ Item {
             y: mainStack.y + mainStack.height * 0.5 - height * 0.5
             width: Math.min(parent.width - Kirigami.Units.gridUnit * 4, Kirigami.Units.gridUnit * 30)
             height: Kirigami.Units.gridUnit * 21
-            radius: Kirigami.Units.gridUnit * 1.2
+            radius: Kirigami.Units.gridUnit * 1.9
             gradient: Gradient {
                 GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                                              Kirigami.Theme.backgroundColor.g,
-                                                             Kirigami.Theme.backgroundColor.b, 0.64) }
+                                                             Kirigami.Theme.backgroundColor.b, 0.70) }
                 GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                                              Kirigami.Theme.backgroundColor.g,
-                                                             Kirigami.Theme.backgroundColor.b, 0.50) }
+                                                             Kirigami.Theme.backgroundColor.b, 0.55) }
             }
             border.width: 1
-            border.color: Qt.rgba(Kirigami.Theme.textColor.r,
-                                  Kirigami.Theme.textColor.g,
-                                  Kirigami.Theme.textColor.b, 0.14)
+            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r,
+                                  Kirigami.Theme.highlightColor.g,
+                                  Kirigami.Theme.highlightColor.b, 0.30)
             visible: opacity > 0
             opacity: lockScreenRoot.uiVisible ? 1 : 0
             scale: lockScreenRoot.uiVisible ? 1 : 0.96
@@ -717,17 +717,16 @@ Item {
             }
         }
 
+        // New arrangement: the clock is a hero anchored to the LEADING top corner
+        // (top-right under RTL, top-left otherwise), free of the centred auth
+        // cluster — a modern lock composition instead of one stacked column.
         MoOSClock {
             id: clock
             shadow: clockShadow
             visible: y > 0 && config.alwaysShowClock
-            anchors.horizontalCenter: parent.horizontalCenter
-            // Never above the brand: the halfway formula alone parked the clock
-            // inside the emblem+wordmark on a 4K panel (the two were designed on
-            // different rulers — the brand in gridUnits, the clock from the
-            // userlist geometry). The floor keeps a clear breath below the brand.
-            y: Math.max(brand.y + brand.height + Kirigami.Units.gridUnit * 1.5,
-                        (mainBlock.userList.y + mainStack.y) / 2 - height / 2)
+            anchors.left: parent.left
+            anchors.leftMargin: Kirigami.Units.gridUnit * 5
+            y: Kirigami.Units.gridUnit * 4.5
             Layout.alignment: Qt.AlignBaseline
         }
 

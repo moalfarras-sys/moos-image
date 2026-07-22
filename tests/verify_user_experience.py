@@ -2514,9 +2514,10 @@ require(re.search(r"^Theme=", read("system_files/etc/xdg/kscreenlockerrc"), re.M
 # formula parked the clock INSIDE the emblem+wordmark (seen live 2026-07-16 via
 # kscreenlocker_greet --testing). The floor below the brand is what keeps them
 # apart; a rewrite that loses it re-ships the collision on every tall screen.
-require(re.search(r"y:\s*Math\.max\(\s*brand\.y\s*\+\s*brand\.height", lock_ui) is not None,
-        "the lock screen clock lost its floor below the brand — on a 4K panel "
-        "the time draws through the MoOS emblem and wordmark again")
+require(re.search(r"MoOSClock\s*\{(?:[^{}]|\{[^{}]*\})*anchors\.(?:left|right):\s*parent\.(?:left|right)",
+                  lock_ui, re.DOTALL) is not None,
+        "the lock clock must anchor to a top CORNER (a hero, off the centred brand) "
+        "so it never draws through the MoOS emblem and wordmark on a tall panel")
 # The auth cluster INSIDE the card (avatar, password field, unlock button) was
 # the last stock-Breeze surface — the deferred "auth card". MoOS now overrides
 # the shell's lockscreen MainBlock.qml too. It is THE unlock path: this gate
