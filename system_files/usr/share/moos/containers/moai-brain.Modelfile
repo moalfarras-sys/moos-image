@@ -8,18 +8,19 @@
 # own bilingual system prompt.
 #
 # Qwen2.5-7B-Instruct Q4 is GPU-resident on the 8 GB RTX 2080 SUPER. num_ctx is
-# 16384, NOT 8192: the desktop chat sends a short prompt, but the SAME model also
-# serves the Telegram agent (OpenClaw), whose system+tools prompt alone is ~11.5k
-# tokens. At 8192 that overflowed before a single user word ("Context overflow:
-# prompt too large for the model (precheck)") and the bot replied only with an
-# error. 16384 fits that prompt with room to talk; measured 4.9 GB model / 6.8 GB
-# total on this card (the model natively supports 32768). OpenClaw's contextTokens
-# must match — moos-ensure-brain reconciles openclaw.json to this value.
+# 24576, NOT 8192: the desktop chat sends a short prompt, but the SAME model also
+# serves the Telegram agent (OpenClaw), whose system+tools prompt ALONE is ~11.5k
+# tokens. At 8192 it overflowed before a single user word; at 16384 the first
+# reply worked but a few multi-turn messages (base ~11.5k + history) overran the
+# ~14.3k budget and the bot errored again. 24576 leaves ~11k tokens for the actual
+# conversation on top of the base prompt; measured 4.7 GB model / 6.8 GB total on
+# this card (the model natively supports 32768). OpenClaw's contextTokens must
+# match — moos-ensure-brain reconciles openclaw.json to this value.
 # No baked SYSTEM: main.qml sends the real Mo AI system prompt + live machine
 # context, so the model must not carry its own.
 FROM qwen2.5:7b-instruct
 SYSTEM ""
-PARAMETER num_ctx 16384
+PARAMETER num_ctx 24576
 PARAMETER temperature 0.7
 PARAMETER top_p 0.8
 PARAMETER top_k 20

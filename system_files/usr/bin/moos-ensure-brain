@@ -30,7 +30,7 @@ import json,os,sys
 p=sys.argv[1]
 try: c=json.load(open(p))
 except Exception: sys.exit(0)
-CTX=16384; RESERVE=2048; MAXOUT=2048; changed=False
+CTX=24576; RESERVE=2048; MAXOUT=2048; changed=False
 ad=c.setdefault("agents",{}).setdefault("defaults",{})
 if ad.get("contextTokens")!=CTX: ad["contextTokens"]=CTX; changed=True
 comp=ad.setdefault("compaction",{})
@@ -60,12 +60,12 @@ reconcile_openclaw_ctx
 for _ in $(seq 1 30); do curl -sf "$OLLAMA/api/tags" >/dev/null 2>&1 && break; sleep 2; done
 curl -sf "$OLLAMA/api/tags" >/dev/null 2>&1 || { log "ollama API not up — skip"; exit 0; }
 
-# Already fast AND wide enough? default = qwen2.5 with num_ctx >= 16384 → no-op.
+# Already fast AND wide enough? default = qwen2.5 with num_ctx >= 24576 → no-op.
 # (Still reconcile openclaw.json, which drifts independently of the model.) An
-# older 8192 brain falls through and is rebuilt from the 16384 Modelfile.
+# older 8192/16384 brain falls through and is rebuilt from the 24576 Modelfile.
 show="$(curl -sf "$OLLAMA/api/show" -d '{"model":"default"}' 2>/dev/null)"
 ctx="$(printf '%s' "$show" | grep -oE 'num_ctx[^0-9]*[0-9]+' | grep -oE '[0-9]+' | tail -1)"
-if printf '%s' "$show" | grep -qi "qwen2.5" && [ "${ctx:-0}" -ge 16384 ]; then
+if printf '%s' "$show" | grep -qi "qwen2.5" && [ "${ctx:-0}" -ge 24576 ]; then
     log "brain already fast (qwen2.5, num_ctx ${ctx}) — nothing to do"
     exit 0
 fi
