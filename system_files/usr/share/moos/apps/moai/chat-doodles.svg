@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="440" viewBox="0 0 440 440">
+  <!--
+    Mo AI chat doodle tile — a WhatsApp-style, low-contrast line-art pattern of the
+    things Mo AI does: AI, code, terminal, files, security, automation, Telegram,
+    computers, MoOS. Single stroke colour (#fff) so the app can tint it to the live
+    theme's text colour and set the opacity per dark/light. Seamless: every glyph is
+    kept inside the tile with margin, laid on an even grid with slight per-glyph
+    rotation for the hand-drawn scatter. Vector, a few KB — never a raster.
+    The exact Mo AI logo is composited OVER this tile by the app (not embedded here),
+    unrecoloured, as the repeated brand element.
+  -->
+  <defs>
+    <g id="ai" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="0" cy="0" r="15"/>
+      <circle cx="0" cy="0" r="3.2" fill="#fff" stroke="none"/>
+      <path d="M0,-15 V-21 M0,15 V21 M-15,0 H-21 M15,0 H21 M-10.6,-10.6 L-14.8,-14.8 M10.6,10.6 L14.8,14.8 M10.6,-10.6 L14.8,-14.8 M-10.6,10.6 L-14.8,14.8"/>
+    </g>
+    <g id="code" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-8,-9 L-17,0 L-8,9 M8,-9 L17,0 L8,9 M2,-11 L-2,11"/>
+    </g>
+    <g id="term" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="-17" y="-13" width="34" height="26" rx="4"/>
+      <path d="M-10,-3 L-4,2 L-10,7 M-1,8 H9"/>
+    </g>
+    <g id="file" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-11,-16 H5 L13,-8 V16 H-11 Z M5,-16 V-8 H13 M-6,0 H8 M-6,6 H8 M-6,-6 H1"/>
+    </g>
+    <g id="shield" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M0,-17 L14,-11 V2 C14,11 7,16 0,18 C-7,16 -14,11 -14,2 V-11 Z"/>
+      <path d="M-6,0 L-1,6 L7,-5"/>
+    </g>
+    <g id="gear" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="0" cy="0" r="6.5"/>
+      <path d="M0,-16 V-10 M0,16 V10 M-16,0 H-10 M16,0 H10 M-11.3,-11.3 L-7,-7 M11.3,11.3 L7,7 M11.3,-11.3 L7,-7 M-11.3,11.3 L-7,7"/>
+    </g>
+    <g id="tg" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20,-15 L-18,-1 L-6,4 L-2,15 L4,6 L14,12 Z M-6,4 L14,-9"/>
+    </g>
+    <g id="chip" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="-12" y="-12" width="24" height="24" rx="3"/>
+      <rect x="-5" y="-5" width="10" height="10" rx="1.5"/>
+      <path d="M-6,-12 V-18 M6,-12 V-18 M-6,12 V18 M6,12 V18 M-12,-6 H-18 M-12,6 H-18 M12,-6 H18 M12,6 H18"/>
+    </g>
+    <g id="cloud" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-13,7 A8,8 0 0,1 -11,-8 A11,11 0 0,1 10,-6 A7,7 0 0,1 12,7 Z"/>
+    </g>
+    <g id="lock" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="-12" y="-2" width="24" height="18" rx="3.5"/>
+      <path d="M-7,-2 V-8 A7,7 0 0,1 7,-8 V-2"/>
+      <circle cx="0" cy="6.5" r="2.4" fill="#fff" stroke="none"/>
+    </g>
+    <g id="spark" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M0,-16 C1.5,-6 6,-1.5 16,0 C6,1.5 1.5,6 0,16 C-1.5,6 -6,1.5 -16,0 C-6,-1.5 -1.5,-6 0,-16 Z"/>
+    </g>
+    <g id="folder" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-15,-9 H-3 L1,-4 H15 V13 H-15 Z"/>
+    </g>
+  </defs>
+
+  <g opacity="0.9">
+    <use href="#ai"     transform="translate(56,54)   rotate(-8)"/>
+    <use href="#code"   transform="translate(168,42)  rotate(6)"/>
+    <use href="#term"   transform="translate(300,58)  rotate(-5)"/>
+    <use href="#tg"     transform="translate(392,150) rotate(10)"/>
+    <use href="#shield" transform="translate(112,150) rotate(7)"/>
+    <use href="#chip"   transform="translate(236,150) rotate(-9)"/>
+    <use href="#file"   transform="translate(48,244)  rotate(9)"/>
+    <use href="#gear"   transform="translate(160,250) rotate(-7)"/>
+    <use href="#cloud"  transform="translate(300,244) rotate(5)"/>
+    <use href="#spark"  transform="translate(392,300) rotate(-6)"/>
+    <use href="#lock"   transform="translate(96,352)  rotate(-8)"/>
+    <use href="#folder" transform="translate(212,356) rotate(8)"/>
+    <use href="#code"   transform="translate(328,352) rotate(-10)"/>
+    <use href="#term"   transform="translate(408,404) rotate(6)"/>
+    <use href="#ai"     transform="translate(24,404)  rotate(9)"/>
+  </g>
+</svg>

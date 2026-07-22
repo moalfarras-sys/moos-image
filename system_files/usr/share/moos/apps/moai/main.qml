@@ -28,6 +28,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import QtQuick.Shapes
+import QtQuick.Effects
 import org.kde.kirigami as Kirigami
 
 Kirigami.ApplicationWindow {
@@ -50,6 +51,11 @@ Kirigami.ApplicationWindow {
                                                root.palette.placeholderText.b, 0.78)
     readonly property color novaCyan:   root.palette.link
     readonly property color novaBlue:   root.palette.highlight
+    // Is the active canvas dark? Drives the chat doodle backdrop's opacity so the
+    // low-contrast pattern reads on both a graphite and a porcelain surface.
+    readonly property bool isDark: (0.299 * root.palette.base.r
+                                    + 0.587 * root.palette.base.g
+                                    + 0.114 * root.palette.base.b) < 0.5
     readonly property color novaViolet: root.palette.linkVisited
     readonly property color onAccent:   root.palette.highlightedText
     // Mo AI is theme-adaptive (its palette comes from the active KDE scheme), so
@@ -1624,6 +1630,59 @@ Kirigami.ApplicationWindow {
                         Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
+
+                        // ── Chat doodle backdrop ──────────────────────────────────
+                        // A subtle WhatsApp-style tech line-art pattern (AI, code,
+                        // terminal, files, security, automation, Telegram, chips…) with
+                        // the exact Mo AI mark repeated over it, behind the messages.
+                        // Tinted to the theme's text colour; opacity adapts to dark/
+                        // light. Purely decorative: z:-1, no input, no layout impact —
+                        // messages render on top and stay fully legible.
+                        Item {
+                            anchors.fill: parent
+                            z: -1
+                            clip: true
+
+                            Image {
+                                id: chatDoodles
+                                anchors.fill: parent
+                                source: Qt.resolvedUrl("chat-doodles.svg")
+                                fillMode: Image.Tile
+                                horizontalAlignment: Image.AlignLeft
+                                verticalAlignment: Image.AlignTop
+                                sourceSize: Qt.size(220, 220)
+                                smooth: true
+                                asynchronous: true
+                                opacity: root.isDark ? 0.05 : 0.06
+                                // Tint the white line-art to the live theme's text colour
+                                // via a static MultiEffect colorization — no blur, so no
+                                // per-frame GPU buffers (that concern is blur-only). Qt6's
+                                // native effect module; loads under moos-qml-shell.
+                                layer.enabled: true
+                                layer.effect: MultiEffect {
+                                    colorization: 1.0
+                                    colorizationColor: root.textHi
+                                }
+                            }
+                            // The exact Mo AI logo (same file as the app icon), repeated
+                            // sparsely and UNRECOLOURED, as the brand element in the weave.
+                            Repeater {
+                                id: brandWeave
+                                readonly property int step: 264
+                                readonly property int cols: Math.max(1, Math.ceil(chatDoodles.width / step))
+                                readonly property int rows: Math.max(1, Math.ceil(chatDoodles.height / step))
+                                model: cols * rows
+                                delegate: Kirigami.Icon {
+                                    source: "moos-moai"
+                                    width: 34
+                                    height: 34
+                                    smooth: true
+                                    opacity: root.isDark ? 0.06 : 0.07
+                                    x: (index % brandWeave.cols) * brandWeave.step + brandWeave.step / 2 - width / 2 + 60
+                                    y: Math.floor(index / brandWeave.cols) * brandWeave.step + brandWeave.step / 2 - height / 2 + 30
+                                }
+                            }
+                        }
 
                         ListView {
                             id: listView
