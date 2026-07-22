@@ -84,6 +84,19 @@ WallpaperItem {
         }
     }
 
+    // ── A single static breath of the theme accent along the lower edge ─────
+    // The calm, motionless echo of the power screen's aurora, so the login and
+    // the logout share one identity. Static gradient only — no animation, per
+    // the greeter contract; it never touches the centred password surface.
+    Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "transparent" }
+            GradientStop { position: 0.74; color: "transparent" }
+            GradientStop { position: 1.0; color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.11) }
+        }
+    }
+
     // ── MoOS signature — quiet, top-left (gate: brand stays in its corner) ──
     Row {
         anchors.left: parent.left
