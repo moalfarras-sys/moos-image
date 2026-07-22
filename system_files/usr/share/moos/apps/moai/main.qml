@@ -4069,6 +4069,66 @@ Kirigami.ApplicationWindow {
                                     text: "كم يتحكّم الوكيل بجهازك فعلياً من تليجرام (كاميرا، برامج، ترمنال، تحديث، تطوير). ابدأ بـ«مع إذن»."
                                 }
 
+                                // ── Quick toggle: host control ON / OFF ────────────
+                                // One tap flips between full host control (sandbox off)
+                                // and fully sandboxed (read). It writes the tier through
+                                // moapp-console, which restarts openclaw so Telegram picks
+                                // it up at once. The three tiers below stay for the middle
+                                // "with approval" choice.
+                                Rectangle {
+                                    id: hostToggle
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 60
+                                    radius: 12
+                                    readonly property bool hostOn: root.cfgTier !== "read"
+                                    color: hostOn ? Qt.rgba(root.okColor.r, root.okColor.g, root.okColor.b, 0.12)
+                                                  : Qt.rgba(root.textMute.r, root.textMute.g, root.textMute.b, 0.07)
+                                    border.width: 1
+                                    border.color: hostOn ? root.okColor : root.hairline
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 14
+                                        anchors.rightMargin: 14
+                                        spacing: 12
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 1
+                                            Text {
+                                                text: "تحكّم البوت بجهازك"
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: 13
+                                                font.weight: Font.DemiBold
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: hostToggle.hostOn
+                                                    ? "مُفعّل — يصل للكاميرا والترمنال وتحديث النظام من تليجرام"
+                                                    : "معزول — يردّ فقط، لا يتحكّم بشيء"
+                                                color: root.textMute
+                                                font.family: root.uiFont
+                                                font.pixelSize: 10
+                                                wrapMode: Text.Wrap
+                                            }
+                                        }
+                                        QQC2.Switch {
+                                            checked: root.cfgTier !== "read"
+                                            enabled: !root.cfgSaving
+                                            onToggled: {
+                                                root.cfgTier = checked ? "full" : "read"
+                                                root.cfgSave({
+                                                    mode: root.cfgMode, provider: root.cfgProvider,
+                                                    base: baseField.text, model: modelField.text, key: keyField.text,
+                                                    tgOn: tgSwitch.checked, token: tokenField.text, allow: allowField.text,
+                                                    ttsOn: ttsSwitch.checked, ttsAuto: ttsAutoBox.currentIndex,
+                                                    keep: keepBox.currentIndex, web: webSwitch.checked,
+                                                    tier: root.cfgTier, project: projectField.text
+                                                }, function () { keyField.text = ""; tokenField.text = "" })
+                                            }
+                                        }
+                                    }
+                                }
+
                                 Repeater {
                                     model: [
                                         { id: "read", ar: "معطّل — بلا تحكّم",
