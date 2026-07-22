@@ -4049,14 +4049,16 @@ Kirigami.ApplicationWindow {
                             }
 
                             // ══ ACCESS ═════════════════════════════════════
-                            // Three tiers, mapped onto OpenClaw's OWN enforcement:
-                            //   read  → elevatedDefault=off,  workspaceAccess=ro, exec denied
-                            //   ask   → elevatedDefault=ask,  approvals.exec forwarded to the
-                            //           originating chat, so a Telegram request is approved
-                            //           from Telegram before anything runs
-                            //   full  → elevatedDefault=full, nothing withheld
-                            // Nothing here is a local invention layered on top; each switch
-                            // writes the key the engine already obeys.
+                            // Three tiers, mapped onto OpenClaw's OWN enforcement. The
+                            // decisive knob is sandbox.mode (all=boxed, off=host):
+                            //   read → معطّل: sandbox=all, exec denied — no reach to the machine
+                            //   ask  → مع إذن: sandbox=off (HOST) + approvals forwarded to the
+                            //          origin chat, so a Telegram request is approved from
+                            //          Telegram before the command runs on the real computer
+                            //   full → كامل: sandbox=off (HOST), elevatedDefault=full, nothing
+                            //          withheld — runs on the machine immediately, no prompt
+                            // Only the allowlisted owner can drive any of it. Each switch
+                            // writes the key the engine already obeys — no invented layer.
                             ColumnLayout {
                                 visible: root.cfgTab === "perms"
                                 Layout.fillWidth: true
@@ -4064,17 +4066,17 @@ Kirigami.ApplicationWindow {
 
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "ماذا يُسمح للوكيل أن يفعله بجهازك. ابدأ بالأوسط وارفعه حين تثق."
+                                    text: "كم يتحكّم الوكيل بجهازك فعلياً من تليجرام (كاميرا، برامج، ترمنال، تحديث، تطوير). ابدأ بـ«مع إذن»."
                                 }
 
                                 Repeater {
                                     model: [
-                                        { id: "read", ar: "قراءة فقط",
-                                          d: "يقرأ الحالة والملفات ولا يغيّر شيئاً" },
-                                        { id: "ask",  ar: "قراءة وكتابة بموافقة",
-                                          d: "كل فعل يكتب يسألك أولاً — والسؤال يصلك في تليجرام" },
-                                        { id: "full", ar: "كاملة بلا سؤال",
-                                          d: "ينفّذ مباشرة. لا تستخدمها مع عقل محلي صغير" }
+                                        { id: "read", ar: "معطّل — بلا تحكّم",
+                                          d: "يردّ ويحلّل داخل عزل فقط. لا كاميرا ولا برامج ولا ترمنال" },
+                                        { id: "ask",  ar: "مع إذن — تحكّم بموافقة",
+                                          d: "يتحكّم بالجهاز الحقيقي، لكن يعرض كل أمر وتوافق عليه في تليجرام قبل تنفيذه" },
+                                        { id: "full", ar: "كامل — تحكّم بلا سؤال",
+                                          d: "ينفّذ أي شيء على جهازك فوراً بلا موافقة. الأقوى والأخطر — لك وحدك" }
                                     ]
                                     delegate: Rectangle {
                                         required property var modelData

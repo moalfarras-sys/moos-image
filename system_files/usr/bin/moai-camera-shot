@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# =============================================================================
+# moai-camera-shot — capture one still from the webcam and send it to the
+# owner's Telegram chat. This is the reliable path for "open the camera, take a
+# photo and send it to me" — the agent only has to run this one command instead
+# of assembling ffmpeg + the Telegram API itself (a small local model gets that
+# wrong). Only reachable when the Telegram tier is "ask"/"full" (sandbox off),
+# and it sends ONLY to the allowlisted owner id — never to an arbitrary chat.
+#
+# Usage: moai-camera-shot ["optional caption"]
+# Exit:  0 + prints "sent" on success; non-zero + reason on failure.
+# =============================================================================
+set -uo pipefail
+
+CONFIG="${HOME}/.openclaw/openclaw.json"
+CAPTION="${1:-📷 Mo AI camera}"
+TMP="$(mktemp --suffix=.jpg 2>/dev/null || echo /tmp/moai-cam.jpg)"
+cleanup() { rm -f "$TMP" 2>/dev/null || true; }
+trap cleanup EXIT
+
+fail() { echo "moai-camera-shot: $*" >&2; exit 1; }
+
+[ -f "$CONFIG" ] || fail "no openclaw config"
+
+# Token + the allowlisted owner id (send target). Same file OpenClaw/moai-wake use.
+read -r TOKEN CHAT < <(python3 - "$CONFIG" <<'PY'
+import json,sys
+try:
+    c=json.load(open(sys.argv[1]))
+    tg=c.get("channels",{}).get("telegram",{})
+    tok=tg.get("botToken","")
+    allow=tg.get("allowFrom",[])
+    print(tok, (allow[0] if allow else ""))
+except Exception:
+    print("", "")
+PY
+)
+[ -n "${TOKEN:-}" ] || fail "no bot token"
+[ -n "${CHAT:-}" ]  || fail "no allowlisted owner to send to"
+
+# Pick the first real capture device.
+DEV=""
+for d in /dev/video0 /dev/video1 /dev/video2; do [ -e "$d" ] && { DEV="$d"; break; }; done
+[ -n "$DEV" ] || fail "no camera device (/dev/video*) found"
+
+# Capture a single frame. ffmpeg (v4l2) first, fswebcam as a fallback. A short
+# warm-up (-ss) lets auto-exposure settle so the frame is not black.
+shot() {
+    if command -v ffmpeg >/dev/null 2>&1; then
+        ffmpeg -hide_banner -loglevel error -y -f v4l2 -i "$DEV" \
+               -ss 0.4 -frames:v 1 -q:v 3 "$TMP" >/dev/null 2>&1 && return 0
+    fi
+    if command -v fswebcam >/dev/null 2>&1; then
+        fswebcam -d "$DEV" -r 1280x720 --no-banner "$TMP" >/dev/null 2>&1 && return 0
+    fi
+    return 1
+}
+shot || fail "capture failed (is the camera free / drivers present?)"
+[ -s "$TMP" ] || fail "captured an empty frame"
+
+# Send it to the owner.
+resp="$(curl -sf --max-time 30 \
+    -F "chat_id=${CHAT}" \
+    -F "photo=@${TMP}" \
+    -F "caption=${CAPTION}" \
+    "https://api.telegram.org/bot${TOKEN}/sendPhoto" 2>/dev/null)" \
+    || fail "Telegram sendPhoto failed (network?)"
+
+echo "$resp" | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("ok") else 1)' 2>/dev/null \
+    || fail "Telegram rejected the photo"
+
+echo "sent"

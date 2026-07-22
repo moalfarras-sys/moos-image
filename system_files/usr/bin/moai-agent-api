@@ -73,32 +73,51 @@ PROVIDER_API = {p["id"]: p["api"] for p in PROVIDERS}
 # ── permission tiers ────────────────────────────────────────────────────
 # These are OpenClaw's OWN enforcement knobs, not a layer we invented on top:
 #
-#   agents.defaults.elevatedDefault   off | ask | full
+#   agents.defaults.elevatedDefault           off | ask | full
 #   agents.defaults.sandbox.workspaceAccess   none | ro | rw
+#   agents.defaults.sandbox.mode              all | off
 #   approvals.exec.enabled + mode=session     prompt lands in the origin chat
 #
+# The DECISIVE knob for "control the real computer" is sandbox.mode. With
+# mode="all" every tool call runs inside a throwaway podman container — the
+# agent can read/write its workspace but can NEVER touch the host session, so
+# no camera, no launching apps, no reboot, no host terminal. mode="off" runs
+# tool calls as the gateway user ON THE HOST, which is what makes a Telegram
+# request able to open the camera, run a terminal command, update the system,
+# or work on a project. That reach is exactly why "off" is gated behind an
+# explicit, per-user choice here and is NEVER the shipped default.
+#
 # "ask" with approvals forwarding is what makes phone approval work: the agent
-# stops, Telegram shows the prompt, and nothing runs until you answer there.
+# stops, Telegram shows the exact command, and nothing runs until you tap yes.
+#
+# Only the owner can drive any of this — channels.telegram.allowFrom is the
+# hard boundary; a non-allowlisted sender is dropped before the agent ever runs.
 TIERS = {
-    # قراءة فقط — يقرأ ولا يغيّر شيئاً
+    # معطّل — يردّ ويحلّل داخل الحاوية فقط، لا يتحكّم بالجهاز إطلاقاً.
+    # (disabled) sandboxed, exec denied — replies/analyses but reaches nothing.
     "read": {
         "elevated": "off",
         "workspace": "ro",
         "approvals": False,
+        "sandbox": "all",
         "deny": ["group:web", "browser", "exec"],
     },
-    # قراءة وكتابة بموافقة — كل فعل يكتب يسألك أولاً
+    # مع إذن — تحكّم حقيقي بالجهاز، لكن يقترح كل أمر وتوافق من Telegram قبله.
+    # (approve) HOST reach, every command shown in the chat and run only on yes.
     "ask": {
         "elevated": "ask",
         "workspace": "rw",
         "approvals": True,
+        "sandbox": "off",
         "deny": ["group:web", "browser"],
     },
-    # كاملة — ينفّذ بلا سؤال. لا تستخدمها مع عقل محلي صغير.
+    # كامل — تحكّم حقيقي بالجهاز وينفّذ فوراً بلا سؤال. الأقوى والأخطر.
+    # (full) HOST reach, no prompt. Owner-only, still — but nothing is withheld.
     "full": {
         "elevated": "full",
         "workspace": "rw",
         "approvals": False,
+        "sandbox": "off",
         "deny": [],
     },
 }
@@ -225,10 +244,14 @@ def read_config() -> dict:
         },
         "power": {"keep_alive": keep},
         "permissions": {
-            "tier": st.get("tier", "ask"),
+            # Safe default when nothing is set yet: sandboxed, no host reach.
+            "tier": st.get("tier", "read"),
             "web": "group:web" not in deny,
             "exec": "exec" not in deny,
             "workspace": ((agents.get("sandbox", {}) or {}).get("workspaceAccess", "rw")),
+            # The host/container switch, surfaced so the UI can show it plainly.
+            "sandbox": ((agents.get("sandbox", {}) or {}).get("mode", "all")),
+            "host_control": ((agents.get("sandbox", {}) or {}).get("mode", "all")) == "off",
             "elevated": agents.get("elevatedDefault", "ask"),
             "approvals": bool(((c.get("approvals", {}) or {}).get("exec", {}) or {}).get("enabled")),
             "project": st.get("project", ""),
@@ -311,6 +334,9 @@ def write_config(body: dict) -> dict:
         ad = c.setdefault("agents", {}).setdefault("defaults", {})
         ad["elevatedDefault"] = t["elevated"]
         ad.setdefault("sandbox", {})["workspaceAccess"] = t["workspace"]
+        # The host/container switch — the knob that decides whether a Telegram
+        # request can reach the camera, apps, terminal and system, or stays boxed.
+        ad["sandbox"]["mode"] = t["sandbox"]
         c.setdefault("approvals", {}).setdefault("exec", {})["enabled"] = t["approvals"]
         if t["approvals"]:
             # session = the prompt goes back to the chat the request came from,
