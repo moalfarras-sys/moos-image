@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# =============================================================================
+# moai-open — open a desktop app / run a command DETACHED, so it keeps running
+# after the Telegram agent's exec turn ends and after openclaw-gateway stops.
+#
+# WHY: openclaw-gateway.service uses the default KillMode=control-group. Anything
+# the agent spawns directly (e.g. `firefox`) lands in the gateway's own systemd
+# cgroup, so the moment openclaw-idle stops the gateway — or the gateway restarts
+# — systemd tears down the whole cgroup and the app dies with it. That is exactly
+# the "the program the bot opens closes by itself" bug. systemd-run --user starts
+# the command in its OWN transient unit/cgroup, owned by the user manager, immune
+# to the gateway's lifecycle.
+#
+# Usage: moai-open <command> [args...]     e.g.  moai-open firefox
+#        moai-open xdg-open https://…       moai-open kate /etc/hosts
+# =============================================================================
+set -uo pipefail
+
+[ $# -ge 1 ] || { echo "usage: moai-open <command> [args...]" >&2; exit 2; }
+
+uid="$(id -u)"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/${uid}}"
+# GUI apps need the session bus + display. Fall back to the usual MoOS values.
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+export DISPLAY="${DISPLAY:-:0}"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
+
+unit="moai-open-$$-${RANDOM}"
+
+if command -v systemd-run >/dev/null 2>&1; then
+    if systemd-run --user --collect --quiet --unit="${unit}" \
+            --setenv=WAYLAND_DISPLAY="${WAYLAND_DISPLAY}" \
+            --setenv=DISPLAY="${DISPLAY}" \
+            --setenv=XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR}" \
+            --setenv=DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS}" \
+            -- "$@" 2>/dev/null; then
+        echo "opened (detached unit ${unit}): $*"
+        exit 0
+    fi
+fi
+
+# Fallback: a brand-new session, fully disconnected from this process tree.
+setsid -f "$@" >/dev/null 2>&1 </dev/null && echo "opened (setsid): $*"
