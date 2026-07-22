@@ -337,6 +337,20 @@ def write_config(body: dict) -> dict:
         # The host/container switch — the knob that decides whether a Telegram
         # request can reach the camera, apps, terminal and system, or stays boxed.
         ad["sandbox"]["mode"] = t["sandbox"]
+        # With host control on, teach the agent about the real machine + the one-shot
+        # camera helper, and forbid fabricating results — this is what makes a model
+        # actually RUN moai-camera-shot instead of claiming it did. Cleared when boxed.
+        if t["sandbox"] == "off":
+            ad["instructions"] = (
+                "You are Mo AI running ON this MoOS Linux computer with a REAL shell as the owner. "
+                "When asked to do something, ACTUALLY run the command via your shell/exec tool and report the "
+                "REAL result. NEVER claim you did something (took a photo, opened/installed an app, ran a command, "
+                "updated the system) unless a tool call truly executed and returned output. To take a webcam photo "
+                "and send it to this chat, run: moai-camera-shot . To update the system: rpm-ostree upgrade . Use "
+                "the shell for opening/installing apps and terminal tasks. Reply in the user's language."
+            )
+        else:
+            ad.pop("instructions", None)
         c.setdefault("approvals", {}).setdefault("exec", {})["enabled"] = t["approvals"]
         if t["approvals"]:
             # session = the prompt goes back to the chat the request came from,
