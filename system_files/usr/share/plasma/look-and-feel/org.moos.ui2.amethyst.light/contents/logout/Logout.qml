@@ -577,6 +577,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: suspendButton
                         Layout.fillWidth: true
+                        Layout.columnSpan: emphasized ? actionGrid.columns : 1
                         iconName: "system-suspend-symbolic"
                         text: root.bilingual("تعليق", "Sleep")
                         description: root.bilingual("إبقاء الجلسة", "Keep session")
@@ -588,6 +589,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: hibernateButton
                         Layout.fillWidth: true
+                        Layout.columnSpan: emphasized ? actionGrid.columns : 1
                         iconName: "system-suspend-hibernate-symbolic"
                         text: root.bilingual("إسبات", "Hibernate")
                         description: root.bilingual("حفظ الجلسة", "Save session")
@@ -599,6 +601,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: rebootButton
                         Layout.fillWidth: true
+                        Layout.columnSpan: emphasized ? actionGrid.columns : 1
                         iconName: softwareUpdatePending ? "system-reboot-update-symbolic" : "system-reboot-symbolic"
                         text: softwareUpdatePending
                             ? root.bilingual("تحديث وإعادة تشغيل", "Update & Restart")
@@ -619,6 +622,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: rebootWithoutUpdatesButton
                         Layout.fillWidth: true
+                        Layout.columnSpan: emphasized ? actionGrid.columns : 1
                         iconName: "system-reboot-symbolic"
                         text: root.bilingual("إعادة التشغيل الآن", "Restart now")
                         description: root.bilingual("بدون تحديث", "Without updating")
@@ -631,6 +635,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: shutdownButton
                         Layout.fillWidth: true
+                        Layout.columnSpan: emphasized ? actionGrid.columns : 1
                         iconName: softwareUpdatePending ? "system-shutdown-update-symbolic" : "system-shutdown-symbolic"
                         text: softwareUpdatePending
                             ? root.bilingual("تحديث وإيقاف", "Update & Shut Down")
@@ -652,6 +657,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: shutdownWithoutUpdatesButton
                         Layout.fillWidth: true
+                        Layout.columnSpan: emphasized ? actionGrid.columns : 1
                         iconName: "system-shutdown-symbolic"
                         text: root.bilingual("إيقاف الآن", "Shut down now")
                         description: root.bilingual("بدون تحديث", "Without updating")
@@ -665,6 +671,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: logoutButton
                         Layout.fillWidth: true
+                        Layout.columnSpan: emphasized ? actionGrid.columns : 1
                         iconName: "system-log-out-symbolic"
                         text: root.bilingual("تسجيل الخروج", "Log Out")
                         description: root.bilingual("إنهاء الجلسة", "End session")
@@ -677,6 +684,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: lockButton
                         Layout.fillWidth: true
+                        Layout.columnSpan: emphasized ? actionGrid.columns : 1
                         iconName: "system-lock-screen-symbolic"
                         text: root.bilingual("قفل الشاشة", "Lock Screen")
                         description: root.bilingual("العودة لاحقًا", "Return later")
@@ -688,6 +696,7 @@ Item {
                     MoOSUI2ActionButton {
                         id: cancelButton
                         Layout.fillWidth: true
+                        Layout.columnSpan: emphasized ? actionGrid.columns : 1
                         iconName: "cancel-operation-symbolic"
                         text: root.bilingual("إلغاء", "Cancel")
                         description: root.bilingual("العودة إلى سطح المكتب", "Back to desktop")

@@ -12,6 +12,7 @@
 
 import QtQuick
 import QtQuick.Controls as QQC2
+import QtQuick.Layouts
 import Qt5Compat.GraphicalEffects
 
 import org.kde.kirigami as Kirigami
@@ -45,6 +46,13 @@ QQC2.AbstractButton {
     implicitHeight: Kirigami.Units.gridUnit * 8.5
     padding: Kirigami.Units.largeSpacing
     scale: down ? 0.97 : (lit ? 1.03 : 1.0)
+
+    // Bento: the contextual primary (emphasized) tile is the hero and stands
+    // taller; the grid instance sets its columnSpan to the live column count so
+    // it fills the whole row. The composition is asymmetric and the likely
+    // action leads.
+    Layout.preferredHeight: emphasized ? Kirigami.Units.gridUnit * 10
+                                       : Kirigami.Units.gridUnit * 8.5
 
     Keys.onLeftPressed: navigate(-1)
     Keys.onRightPressed: navigate(1)
