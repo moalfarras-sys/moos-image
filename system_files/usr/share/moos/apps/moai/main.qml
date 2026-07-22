@@ -1330,6 +1330,57 @@ Kirigami.ApplicationWindow {
         wrapMode: Text.Wrap
     }
 
+    // ── ChatDoodle ───────────────────────────────────────────────────────────
+    // The reusable chat backdrop: a WhatsApp-style tech line-art tile (AI, code,
+    // terminal, files, security, automation, Telegram, chips, cloud, MoOS) tinted
+    // to the live theme's text colour, with the exact Mo AI mark woven in and left
+    // UNRECOLOURED. Purely decorative — no input, no layout. Instantiated BOTH over
+    // the welcome aurora (below the hero content) AND behind the message list, so
+    // the pattern reads across the whole conversation surface, dark and light.
+    component ChatDoodle: Item {
+        id: doodleRoot
+        clip: true
+        // Clearly visible as texture, never enough to compete with message text.
+        property real lineOpacity: root.isDark ? 0.13 : 0.12
+        property real markOpacity: root.isDark ? 0.11 : 0.10
+
+        Image {
+            id: doodleTile
+            anchors.fill: parent
+            source: Qt.resolvedUrl("chat-doodles.svg")
+            fillMode: Image.Tile
+            horizontalAlignment: Image.AlignLeft
+            verticalAlignment: Image.AlignTop
+            sourceSize: Qt.size(220, 220)
+            smooth: true
+            asynchronous: true
+            opacity: doodleRoot.lineOpacity
+            // Static, blur-free colorization — recolours the white strokes to the
+            // theme text colour without allocating per-frame GPU buffers.
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                colorization: 1.0
+                colorizationColor: root.textHi
+            }
+        }
+        Repeater {
+            id: mark
+            readonly property int step: 264
+            readonly property int cols: Math.max(1, Math.ceil(doodleTile.width / step))
+            readonly property int rows: Math.max(1, Math.ceil(doodleTile.height / step))
+            model: cols * rows
+            delegate: Kirigami.Icon {
+                source: "moos-moai"
+                width: 34
+                height: 34
+                smooth: true
+                opacity: doodleRoot.markOpacity
+                x: (index % mark.cols) * mark.step + mark.step / 2 - width / 2 + 60
+                y: Math.floor(index / mark.cols) * mark.step + mark.step / 2 - height / 2 + 30
+            }
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  The window
     // ═══════════════════════════════════════════════════════════════════════
@@ -1631,57 +1682,11 @@ Kirigami.ApplicationWindow {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
 
-                        // ── Chat doodle backdrop ──────────────────────────────────
-                        // A subtle WhatsApp-style tech line-art pattern (AI, code,
-                        // terminal, files, security, automation, Telegram, chips…) with
-                        // the exact Mo AI mark repeated over it, behind the messages.
-                        // Tinted to the theme's text colour; opacity adapts to dark/
-                        // light. Purely decorative: z:-1, no input, no layout impact —
-                        // messages render on top and stay fully legible.
-                        Item {
+                        // The doodle backdrop, behind the message list (shows once the
+                        // conversation begins; the welcome hero carries its own copy).
+                        ChatDoodle {
                             anchors.fill: parent
                             z: -1
-                            clip: true
-
-                            Image {
-                                id: chatDoodles
-                                anchors.fill: parent
-                                source: Qt.resolvedUrl("chat-doodles.svg")
-                                fillMode: Image.Tile
-                                horizontalAlignment: Image.AlignLeft
-                                verticalAlignment: Image.AlignTop
-                                sourceSize: Qt.size(220, 220)
-                                smooth: true
-                                asynchronous: true
-                                opacity: root.isDark ? 0.05 : 0.06
-                                // Tint the white line-art to the live theme's text colour
-                                // via a static MultiEffect colorization — no blur, so no
-                                // per-frame GPU buffers (that concern is blur-only). Qt6's
-                                // native effect module; loads under moos-qml-shell.
-                                layer.enabled: true
-                                layer.effect: MultiEffect {
-                                    colorization: 1.0
-                                    colorizationColor: root.textHi
-                                }
-                            }
-                            // The exact Mo AI logo (same file as the app icon), repeated
-                            // sparsely and UNRECOLOURED, as the brand element in the weave.
-                            Repeater {
-                                id: brandWeave
-                                readonly property int step: 264
-                                readonly property int cols: Math.max(1, Math.ceil(chatDoodles.width / step))
-                                readonly property int rows: Math.max(1, Math.ceil(chatDoodles.height / step))
-                                model: cols * rows
-                                delegate: Kirigami.Icon {
-                                    source: "moos-moai"
-                                    width: 34
-                                    height: 34
-                                    smooth: true
-                                    opacity: root.isDark ? 0.06 : 0.07
-                                    x: (index % brandWeave.cols) * brandWeave.step + brandWeave.step / 2 - width / 2 + 60
-                                    y: Math.floor(index / brandWeave.cols) * brandWeave.step + brandWeave.step / 2 - height / 2 + 30
-                                }
-                            }
                         }
 
                         ListView {
@@ -1783,6 +1788,13 @@ Kirigami.ApplicationWindow {
                                 fillMode: Image.PreserveAspectCrop
                                 opacity: root.isLight ? 0.75 : 0.92
                                 asynchronous: true
+                            }
+
+                            // Same doodle weave as the conversation, over the aurora and
+                            // below the brand content — so the pattern is already visible
+                            // the moment the app opens, not only once a chat begins.
+                            ChatDoodle {
+                                anchors.fill: parent
                             }
 
                             Column {
