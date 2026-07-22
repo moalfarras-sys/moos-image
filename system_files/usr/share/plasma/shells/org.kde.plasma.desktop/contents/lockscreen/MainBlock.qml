@@ -92,25 +92,41 @@ SessionManagementScreen {
             // ── MoOS UI2 visual only (see AUTH SAFETY CONTRACT) ──────────────
             // A little more air than Breeze's default so the field reads as a
             // premium glass control on the card.
-            topPadding: Kirigami.Units.smallSpacing * 1.5
-            bottomPadding: Kirigami.Units.smallSpacing * 1.5
-            leftPadding: Kirigami.Units.largeSpacing
-            // The MoOS glass field: translucent fill, a hairline border that
-            // lights up in the active theme's accent when the field has focus.
+            topPadding: Kirigami.Units.largeSpacing * 1.1
+            bottomPadding: Kirigami.Units.largeSpacing * 1.1
+            leftPadding: Kirigami.Units.gridUnit * 1.4
+            rightPadding: Kirigami.Units.gridUnit * 1.4
+            // The MoOS glass field: a full-height translucent pill with a hairline
+            // border that swells into the active accent (plus a soft accent glow)
+            // when the field has focus — a premium control, not a boxy input.
             background: Rectangle {
-                radius: Kirigami.Units.gridUnit * 0.55
+                radius: height / 2
                 color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                Kirigami.Theme.backgroundColor.g,
-                               Kirigami.Theme.backgroundColor.b, 0.55)
-                border.width: 1
+                               Kirigami.Theme.backgroundColor.b, passwordBox.activeFocus ? 0.62 : 0.48)
+                border.width: passwordBox.activeFocus ? 1.5 : 1
                 border.color: passwordBox.activeFocus
                     ? Qt.rgba(Kirigami.Theme.highlightColor.r,
                               Kirigami.Theme.highlightColor.g,
-                              Kirigami.Theme.highlightColor.b, 0.9)
+                              Kirigami.Theme.highlightColor.b, 0.95)
                     : Qt.rgba(Kirigami.Theme.textColor.r,
                               Kirigami.Theme.textColor.g,
                               Kirigami.Theme.textColor.b, 0.18)
                 Behavior on border.color { ColorAnimation { duration: Kirigami.Units.longDuration } }
+                // soft accent glow when focused
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width + Kirigami.Units.gridUnit
+                    height: parent.height + Kirigami.Units.gridUnit
+                    radius: height / 2
+                    z: -1
+                    color: "transparent"
+                    border.width: Kirigami.Units.smallSpacing
+                    border.color: Qt.rgba(Kirigami.Theme.highlightColor.r,
+                                          Kirigami.Theme.highlightColor.g,
+                                          Kirigami.Theme.highlightColor.b, passwordBox.activeFocus ? 0.14 : 0.0)
+                    Behavior on border.color { ColorAnimation { duration: Kirigami.Units.longDuration } }
+                }
             }
 
             // In Qt this is implicitly active based on focus rather than visibility
