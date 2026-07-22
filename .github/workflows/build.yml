@@ -69,6 +69,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ubuntu-latest ships only ~14 GB free on /, and the NVIDIA driver + i686
+      # multilib + supergfxctl transaction alone needs ~1.1 GB at install time.
+      # As MoOS grew (16 themes, wallpapers, Mo AI), the buildah overlay crept up
+      # until that transaction no longer fit and dnf5 aborted with "needs NNN MB
+      # more space on the / filesystem" (build 29928182488). Reclaim the runner's
+      # pre-baked toolchains up front — the same step build-disk.yml and
+      # build-iso.yml already run — to give the image build ~23 GB of headroom.
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          docker-images: true
+          # Keep swap: buildah + dnf5 are memory-heavy and we only need ~2 GB of
+          # disk, which the caches above already reclaim many times over.
+          swap-storage: false
+
       # The repo gates, before a single layer is built.
       #
       # They were not running anywhere. build.sh runs the in-image identity gate, but the
