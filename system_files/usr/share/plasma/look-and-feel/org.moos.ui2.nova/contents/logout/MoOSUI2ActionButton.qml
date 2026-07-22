@@ -28,8 +28,10 @@ QQC2.AbstractButton {
     readonly property color accent: destructive
         ? Kirigami.Theme.negativeTextColor
         : Kirigami.Theme.highlightColor
-    readonly property color ink: "#EFF4F2"     // light label on the dark scene
-    readonly property color frost: "#E9F1EF"   // near-white glass (MoOS bans pure white)
+    // Theme-driven, so the row follows the active palette (dark on a dark theme,
+    // dark-on-light on a light one) — the scene is never forced to one mood.
+    readonly property color ink: Kirigami.Theme.textColor
+    readonly property color frost: Kirigami.Theme.textColor
 
     signal navigate(int step)
 

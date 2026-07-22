@@ -140,24 +140,22 @@ Item {
     Component.onCompleted: Qt.callLater(root.focusInitialAction)
 
     // ── Immersive dark scene ────────────────────────────────────────────────
+    // Theme-driven scene: the doorway takes the active palette's own canvas, so a
+    // light theme reads light and a dark theme reads dark — never forced to one mood.
     Rectangle {
         id: backdrop
         anchors.fill: parent
-        color: "#070A0C"
         opacity: 0
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 0.98) }
+            GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 0.90) }
+        }
         Component.onCompleted: backdropFade.start()
-        OpacityAnimator { id: backdropFade; target: backdrop; from: 0; to: 0.90
+        OpacityAnimator { id: backdropFade; target: backdrop; from: 0; to: 1.0
             duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
     }
-    Image {
-        anchors.fill: parent
-        source: "file:///usr/share/wallpapers/MoOSUI2Graphite/contents/images_dark/3840x2160.jpg"
-        fillMode: Image.PreserveAspectCrop
-        opacity: 0.15
-        asynchronous: true; cache: true
-        sourceSize: Qt.size(root.width, root.height)
-    }
-    Rectangle { anchors.fill: parent; color: "#070A0C"; opacity: 0.5 }
 
     Item {
         anchors.fill: parent
@@ -253,7 +251,7 @@ Item {
                     spacing: 0
                     QQC2.Label {
                         text: root.nowTime
-                        color: "#F2F7F5"
+                        color: Kirigami.Theme.textColor
                         font.family: "Inter"; font.weight: Font.Bold
                         font.pointSize: Kirigami.Theme.defaultFont.pointSize + 17
                         font.letterSpacing: -1
@@ -261,7 +259,7 @@ Item {
                     QQC2.Label {
                         Layout.fillWidth: true
                         text: root.headingText()
-                        color: "#AEBFBB"
+                        color: Kirigami.Theme.disabledTextColor
                         elide: Text.ElideRight
                         font.family: "Inter"
                     }
