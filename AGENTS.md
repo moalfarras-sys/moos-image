@@ -272,11 +272,15 @@ gh auth refresh -h github.com -s workflow
 
 Being honest about this list is more useful than shrinking it.
 
-- **The signed install path has not been exercised on real hardware.** The kickstart now
-  verifies the signature at install time (and therefore deploys a signed origin, so updates stay
-  verified for life). The policy, the key and the sigstore attachment config were each verified
-  against the real registry — but nobody has yet run an actual ISO install end to end. If an
-  install fails with a signature error, that is where to look.
+- **The install path has been run end to end in a VM, but never on real hardware.** On
+  2026-07-23 the published ISO was booted in UEFI QEMU and driven through the whole MoOS
+  installer: it offered only the target disk (never the live medium), gated the wipe behind a
+  press-and-hold, installed **offline** from the image embedded in the ISO, reported "MoOS is
+  installed", and the disk then booted on its own to the MoOS login greeter. What that does
+  NOT cover: real firmware, real disks, and first-login account creation from the planted
+  answers. The kickstart verifies the signature at install time (and therefore deploys a
+  signed origin, so updates stay verified for life); if an install fails with a signature
+  error, that is still where to look.
 - **Qt WebEngine spell-check dictionaries are empty.** `qwebengine_convert_dict` crashes inside
   the build container, so `/usr/share/qt6/qtwebengine_dictionaries/` ships with zero `.bdic`
   files.

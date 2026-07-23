@@ -147,6 +147,36 @@ sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-
 **If a future session reports "the update did nothing", check the origin line in
 `rpm-ostree status` first.** A digest-pinned origin looks completely healthy.
 
+### The ISO was installed end to end — the longest-standing open item is closed
+
+`AGENTS.md` has said since the ISO existed: *"The signed install path has not been
+exercised. Nobody has yet run an actual ISO install end to end."* It has now been
+run, in a UEFI QEMU VM driven over QMP (absolute pointer via `-device usb-tablet`
++ `input-send-event`), against the real published artifact:
+
+1. The ISO boots to the **MoOS Plymouth splash** (so the live medium does carry
+   the `rhgb` karg the bootc-image-builder qcow2 lacks), then to a full MoOS live
+   desktop: Welcome with العربية/English, launcher panel, "Install MoOS" icon.
+2. The installer enumerated **only the 64 GB target disk** and not the live
+   medium, kept Next disabled until a disk was chosen, showed "Erase & install"
+   with its consequences, and gated the destructive step behind a
+   **press-and-hold**.
+3. The install ran offline from the image embedded in the ISO — real progress,
+   `Copying MoOS`, target qcow2 growing to 12 GB — and finished at
+   **"MoOS is installed"**.
+4. Booted again with the ISO detached: the installed disk comes up on its own to
+   the **MoOS login greeter**.
+
+Remaining gap: this is a VM, not real hardware, and first-login (account
+creation from the planted answers) was not driven. Do not upgrade the claim
+beyond what the four steps above show.
+
+Harness (session scratchpad): `vm-up.sh` starts a named `moos-vm` with a QMP
+socket; `vmctl.py` does `shot` / `click` / `hold` / `type` in 0..1 screen
+fractions. Two traps: the helper container needs `python3` installed, and
+**every** podman run touching the bind mounts needs `--security-opt
+label=disable` or `qemu-img create` fails with a bare "Permission denied".
+
 ## Session 2026-07-21 (night) — login scene elevated + SHIP PIPELINE BLOCKED
 
 ### RESUME HERE
