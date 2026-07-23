@@ -224,5 +224,21 @@ jobs:
           IMAGE_NAME: ${{ matrix.image_name }}
           DIGEST: ${{ steps.push.outputs.digest }}
         run: |
-          cosign verify --key cosign.pub \
-            "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
+          # GHCR does not always serve a sigstore attachment the instant the
+          # push that created it returns: this step has failed with "no
+          # signatures found" seconds after `cosign sign` reported success, on
+          # an image whose signature verified fine minutes later. That is a
+          # read-after-write race in the registry, not an unsigned image — but
+          # the gate must still FAIL if the signature genuinely never appears,
+          # so retry with backoff and let the last attempt decide.
+          for attempt in 1 2 3 4 5 6; do
+            if cosign verify --key cosign.pub \
+                 "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"; then
+              echo "signature verified on attempt ${attempt}"
+              exit 0
+            fi
+            echo "attempt ${attempt}: signature not visible yet; retrying in $(( attempt * 10 ))s"
+            sleep $(( attempt * 10 ))
+          done
+          echo "::error::signature never became verifiable for ${IMAGE_NAME}@${DIGEST}"
+          exit 1
