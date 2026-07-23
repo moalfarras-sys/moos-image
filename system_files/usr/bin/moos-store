@@ -40,6 +40,9 @@ chmod 700 "$CACHEDIR" 2>/dev/null || true
 INDEX="${CACHEDIR}/index.json"
 JOB="${CACHEDIR}/job.json"
 READY="${CACHEDIR}/index.ready"
+# Pending updates are their own document: a read-only check must never look
+# like a transaction to the UI, which correlates job.json to its own request.
+UPDATES="${CACHEDIR}/updates.json"
 
 # Rebuild from on-disk AppStream metadata without delaying the first frame.
 # flock coalesces launches; the indexer itself token-caches unchanged inputs and
@@ -64,14 +67,15 @@ fi
 if [ -x /usr/bin/moos-qml-shell ]; then
     exec /usr/bin/moos-qml-shell \
         --app-id org.moos.store --icon moos-store --qml "$QML" \
-        -- --cache="$CACHEDIR" --index="$INDEX" --job="$JOB" --ready="$READY"
+        -- --cache="$CACHEDIR" --index="$INDEX" --job="$JOB" --ready="$READY" \
+           --updates="$UPDATES"
 fi
 
 # Fallback: wrong icon beats no window.
 for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
     if command -v "$runner" >/dev/null 2>&1 || [ -x "$runner" ]; then
         exec "$runner" "$QML" -- --cache="$CACHEDIR" --index="$INDEX" \
-            --job="$JOB" --ready="$READY"
+            --job="$JOB" --ready="$READY" --updates="$UPDATES"
     fi
 done
 echo "Mo Store: no Qt6 QML runtime found (install qt6-qtdeclarative-devel). | لا يوجد محرّك QML." >&2

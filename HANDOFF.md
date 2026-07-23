@@ -97,10 +97,36 @@ instead of failing at the last stage of a 20-minute build.
 
 ### Not done
 
-- **The Updates page cannot list what needs updating.** It offers "Update apps
-  now" and the backend has `update_refs()`, but nothing surfaces a pending-update
-  count or list to the UI — that needs a new `moos-storectl` read-only subcommand
-  plus a bridge method. This is the next increment.
+### The Updates page can now say what is pending (done in the same session)
+
+It used to be a button and nothing else — "Update apps now" was a leap of faith.
+Now `moos-storectl check-updates` asks libflatpak what `update` would act on and
+publishes its own `updates.json`; `StoreBridge::checkUpdates()` starts it; the
+page lists every app by name, version and origin, and the nav rail carries a
+count badge.
+
+Three decisions worth keeping:
+
+- **It never touches `job.json` and never takes the global lock.** The UI
+  correlates `job.json` against a request *it* made, so a read-only check
+  writing there would be indistinguishable from a transaction — and the check
+  has to stay answerable while an install is running. A gate asserts the body of
+  `check_updates` contains no `_begin(`, no `GlobalLock` and no `store.write(`.
+- **`updatesState` is three-valued: `unknown` / `known` / `failed`.** Showing
+  "0 updates" before looking is a lie the user cannot detect, and offline
+  "could not check" must never render as "up to date". The count badge appears
+  only when the answer is genuinely known.
+- **Runtimes are counted separately from apps.** An app update usually drags a
+  runtime with it; saying "2 apps have updates" when one is a shared runtime is
+  misleading, so the headline counts apps and the sub-line mentions components.
+
+Verified with a real pending update, not just an empty list: Flatseal was
+installed, downgraded to an older commit with `flatpak update --commit=`, and
+the page then showed **"تطبيق واحد ينتظر التحديث."** with the row
+`فلاتسيل · com.github.tchx84.Flatseal · 2.4.0 · flathub` and a `1` badge. Then
+it was updated forward and removed, and the check returned to zero. Both new
+backend tests were also proven to bite by breaking the code and watching them go
+red.
 
 ### The bridge was proven on the compiled binary, not only by gate
 

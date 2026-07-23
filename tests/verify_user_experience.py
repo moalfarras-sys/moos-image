@@ -240,6 +240,33 @@ require("&& !win.jobIsActive()" in store_qml
         and "anchors.bottomMargin > -100 && win.pickCount === 0" not in store_qml,
         "real transaction progress and Cancel must replace the selection shelf "
         "while an install is running, including partial/failed jobs")
+# The Updates page used to be a button and nothing else: it could not tell the
+# user WHAT was pending, so "Update apps now" was a leap of faith. It must now
+# name every app, and must distinguish "not checked yet" from "nothing pending"
+# — showing 0 before looking is a lie the user cannot detect.
+require("function updateItems()" in store_qml
+        and "function checkUpdates()" in store_qml
+        and "MoosStore.checkUpdates()" in store_qml
+        and 'property string updatesState: "unknown"' in store_qml,
+        "Mo Store's Updates page must ask the backend what is pending")
+require('"بانتظار التحديث"' in store_qml
+        and '"Waiting to update"' in store_qml
+        and "model: win.updatesState === \"known\" ? win.updateItems() : []" in store_qml,
+        "Mo Store must LIST the apps that have updates, not just offer a button")
+require('win.updatesState === "known" && win.updates.count === 0' in store_qml
+        and 'win.updatesState === "unknown"' in store_qml
+        and '"Could not check for updates"' in store_qml,
+        "Mo Store must distinguish unknown / none / failed on the Updates page "
+        "instead of rendering every one of them as 'up to date'")
+require("win.updatesState = \"unknown\"" in store_qml
+        and 'document.action === "update"' in store_qml,
+        "installing, removing or updating must invalidate the pending-update "
+        "answer — a stale list outlives the transaction that changed it")
+storectl_text = read("system_files/usr/bin/moos-storectl")
+require("def check_updates(" in storectl_text
+        and "def update_candidates(" in storectl_text
+        and '"check-updates"' in storectl_text,
+        "the trusted backend must expose a read-only pending-update report")
 
 # Launch feedback must be CALM but present. An earlier revision shipped the "prominent"
 # form (bouncing icon AND a launching-state task-manager button) as a SYSTEM default, so

@@ -159,6 +159,14 @@ public:
         return m_enabled && start({QStringLiteral("update")});
     }
 
+    Q_INVOKABLE bool checkUpdates()
+    {
+        // Read-only counterpart of updateApps(): the backend reports what an
+        // update would act on and writes updates.json.  It takes no lock, so
+        // the Store can answer "what is pending?" while a job is running.
+        return m_enabled && start({QStringLiteral("check-updates")});
+    }
+
     Q_INVOKABLE bool refreshIndex()
     {
         return m_enabled && start({QStringLiteral("refresh-index")});

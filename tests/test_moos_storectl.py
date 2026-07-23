@@ -52,11 +52,15 @@ class FakeAdapter:
         system=(),
         fail=(),
         updates=(),
+        candidates=(),
+        candidates_error=None,
     ):
         self.user = set(user)
         self.system = set(system)
         self.fail = set(fail)
         self.updates = list(updates)
+        self.candidates = list(candidates)
+        self.candidates_error = candidates_error
         self.installs: list[list[str]] = []
         self.removes: list[str] = []
         self.launches: list[str] = []
@@ -93,6 +97,11 @@ class FakeAdapter:
 
     def update_refs(self):
         return list(self.updates)
+
+    def update_candidates(self):
+        if self.candidates_error:
+            raise MODULE.StoreError(self.candidates_error)
+        return [dict(item) for item in self.candidates]
 
     def update_many(self, refs, events, should_cancel):
         events.plan(len(refs))
@@ -597,6 +606,98 @@ class LifecycleTests(StoreTestCase):
         controller, _ = self.controller([])
         with self.assertRaises(MODULE.StoreError):
             controller.open_engine("../../bin/sh")
+
+
+class CheckUpdatesTests(StoreTestCase):
+    """The Updates page's read-only source of truth.
+
+    An app store that cannot say what is pending is not one, but a *wrong*
+    answer here is worse than none: it either nags about updates that do not
+    exist or hides ones that do. These pin the honest behaviour.
+    """
+
+    APP = {
+        "id": "org.kde.okular",
+        "ref": "app/org.kde.okular/x86_64/stable",
+        "kind": "app",
+        "branch": "stable",
+        "arch": "x86_64",
+        "origin": "flathub",
+        "name": "Okular",
+        "version": "24.2",
+        "installed_size": 1024,
+    }
+    RUNTIME = dict(APP, id="org.kde.Platform", kind="runtime", name="KDE Platform")
+
+    def test_check_updates_never_touches_job_json_or_the_global_lock(self):
+        # It must stay answerable while a transaction runs, and the UI
+        # correlates job.json against a request IT made — a read-only check
+        # writing there would be indistinguishable from a real job.
+        controller, _ = self.controller([], adapter=FakeAdapter(candidates=[self.APP]))
+        store = controller.store
+        lock = MODULE.GlobalLock(store).acquire()
+        self.addCleanup(lock.release)
+        code, document = controller.check_updates()
+        self.assertEqual(code, 0)
+        self.assertFalse(store.path.exists(), "check-updates wrote job.json")
+        self.assertTrue(store.updates_path.exists())
+
+    def test_pending_updates_are_reported_with_apps_counted_separately(self):
+        controller, _ = self.controller(
+            [], adapter=FakeAdapter(candidates=[self.APP, self.RUNTIME])
+        )
+        code, document = controller.check_updates()
+        self.assertEqual(code, 0)
+        self.assertEqual(document["state"], "success")
+        self.assertEqual(document["count"], 2)
+        # Runtimes update alongside apps but are not apps: a user told "2 apps
+        # have updates" when one is a shared runtime has been misled.
+        self.assertEqual(document["app_count"], 1)
+        written = json.loads(controller.store.updates_path.read_text(encoding="utf-8"))
+        self.assertEqual(written, document)
+        self.assertEqual(written["action"], "check-updates")
+
+    def test_nothing_pending_is_reported_as_success_not_as_an_error(self):
+        controller, _ = self.controller([], adapter=FakeAdapter(candidates=[]))
+        code, document = controller.check_updates()
+        self.assertEqual(code, 0)
+        self.assertEqual(document["state"], "success")
+        self.assertEqual(document["count"], 0)
+        self.assertEqual(document["app_count"], 0)
+        self.assertEqual(document["items"], [])
+
+    def test_a_failed_check_is_written_as_failed_not_as_zero_updates(self):
+        # Offline, "could not check" must never render as "up to date".
+        controller, _ = self.controller(
+            [], adapter=FakeAdapter(candidates_error="no network")
+        )
+        code, document = controller.check_updates()
+        self.assertEqual(code, 2)
+        self.assertEqual(document["state"], "failed")
+        self.assertIn("no network", document["message"])
+        written = json.loads(controller.store.updates_path.read_text(encoding="utf-8"))
+        self.assertEqual(written["state"], "failed")
+        self.assertEqual(written["count"], 0)
+
+    def test_the_updates_document_is_published_atomically(self):
+        controller, _ = self.controller([], adapter=FakeAdapter(candidates=[self.APP]))
+        path = controller.store.updates_path
+        for _ in range(25):
+            controller.check_updates()
+            # A partially written document would raise here; the UI polls this
+            # file while it is being replaced.
+            json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_cli_exposes_check_updates_without_arguments(self):
+        adapter = FakeAdapter(candidates=[self.APP])
+        code = MODULE.main(
+            ["check-updates"],
+            store=self.store(),
+            adapter_factory=lambda: adapter,
+            runner=FakeRunner(),
+        )
+        self.assertEqual(code, 0)
 
 
 if __name__ == "__main__":

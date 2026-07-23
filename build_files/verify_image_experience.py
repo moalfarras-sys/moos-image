@@ -551,8 +551,10 @@ if store_launcher_path.is_file():
             "Mo Store marks the index ready without requiring a successful index build")
     require('--index="$INDEX"' in _store_launcher
             and '--job="$JOB"' in _store_launcher
-            and '--ready="$READY"' in _store_launcher,
-            "Mo Store does not pass the index, job and ready sidecar paths to its QML")
+            and '--ready="$READY"' in _store_launcher
+            and '--updates="$UPDATES"' in _store_launcher
+            and 'UPDATES="${CACHEDIR}/updates.json"' in _store_launcher,
+            "Mo Store does not pass the index, job, ready and updates paths to its QML")
     require("/usr/bin/moos-qml-shell" in _store_launcher
             and "--app-id org.moos.store" in _store_launcher,
             "Mo Store does not run under the app id that enables its private StoreBridge")
@@ -578,6 +580,22 @@ if store_backend_path.is_file():
     require("def _atomic_bytes(" in _store_backend
             and "os.replace(temporary, path)" in _store_backend,
             "the Store backend can expose a partially-written job.json")
+    # The pending-update answer is READ-ONLY: its own document, no global lock,
+    # and never job.json — which the UI correlates against a request it made.
+    require("def check_updates(" in _store_backend
+            and "def update_candidates(" in _store_backend
+            and "def write_updates(" in _store_backend
+            and '"updates.json"' in _store_backend
+            and 'commands.add_parser(\n        "check-updates"' in _store_backend,
+            "the Store backend cannot report pending updates without changing anything")
+    _check_updates_body = _store_backend.split("def check_updates(", 1)[-1]
+    _check_updates_body = _check_updates_body.split("\n    def ", 1)[0]
+    require("self.store.write_updates(document)" in _check_updates_body
+            and "self.store.write(" not in _check_updates_body
+            and "GlobalLock" not in _check_updates_body
+            and "self._begin(" not in _check_updates_body,
+            "check-updates must not take the global lock or write job.json — it "
+            "has to stay answerable while a transaction is running")
 
 if store_qml_path.is_file():
     _store_qml = source(text(str(store_qml_path)))
@@ -590,9 +608,19 @@ if store_qml_path.is_file():
     require('argValue("--index=")' in _store_qml
             and 'argValue("--job=")' in _store_qml
             and 'argValue("--ready=")' in _store_qml
+            and 'argValue("--updates=")' in _store_qml
             and "indexBuildReady()" in _store_qml
             and "if (win.indexBuildReady())" in _store_qml,
             "Mo Store does not wait on the ready sidecar before accepting a rebuilt index")
+    # An Updates page that shows a number it has not looked up is lying. The
+    # state is three-valued on purpose: unknown is not the same as none.
+    require("MoosStore.checkUpdates()" in _store_qml
+            and 'property string updatesState: "unknown"' in _store_qml
+            and "function updateItems()" in _store_qml
+            and "function adoptRecentUpdates()" in _store_qml
+            and 'win.updatesState === "known"' in _store_qml,
+            "Mo Store cannot say what is pending, or presents an unchecked page "
+            "as if it were up to date")
     for _token in (
         "expectedAction",
         "expectedIds",
@@ -632,6 +660,8 @@ if store_bridge_source.is_file():
         "Q_INVOKABLE bool installApps",
         "Q_INVOKABLE bool removeApp",
         "Q_INVOKABLE bool updateApps",
+        "Q_INVOKABLE bool checkUpdates",
+        'QStringLiteral("check-updates")',
         "Q_INVOKABLE bool openSystemUpdater",
         'QStringLiteral("/usr/bin/moos-storectl")',
         'QStringLiteral("/usr/bin/moos-update")',

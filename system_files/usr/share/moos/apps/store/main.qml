@@ -49,6 +49,7 @@ ApplicationWindow {
     readonly property string indexPath: win.argValue("--index=")
     readonly property string jobPath: win.argValue("--job=")
     readonly property string readyPath: win.argValue("--ready=")
+    readonly property string updatesPath: win.argValue("--updates=")
 
     // Catalogue and navigation state.
     property var curatedApps: []
@@ -78,6 +79,15 @@ ApplicationWindow {
     property var installedOverrides: ({})
     property var installedScopeOverrides: ({})
     property bool catalogRefreshRequested: false
+
+    // Pending updates. `updatesState` is deliberately three-valued: "unknown"
+    // is not the same as "none", and a page that shows 0 before it has looked
+    // is lying. Nothing here is derived from the index — only from the backend's
+    // own read-only answer.
+    property var updates: ({})
+    property string updatesState: "unknown"
+    property bool updatesChecking: false
+    property string updatesCheckedAt: ""
 
     readonly property var categoryDefs: [
         { id: "internet",      ar: "الإنترنت",         en: "Internet",       glyph: "globe" },
@@ -474,12 +484,83 @@ ApplicationWindow {
                 }
                 if (document.action !== "refresh-index")
                     Qt.callLater(function() { win.maybeRefreshCatalog(false) })
+                // Anything that installs, removes or updates invalidates the
+                // pending-update answer. Drop it rather than show a stale list.
+                if (document.action === "update"
+                        || document.action === "install"
+                        || document.action === "remove") {
+                    win.updatesState = "unknown"
+                    win.updates = ({})
+                    win.updatesCheckedAt = ""
+                    if (win.page === "updates")
+                        Qt.callLater(function() { win.checkUpdates() })
+                }
             }
             win.recompute()
             return true
         } catch (error) {
             return false
         }
+    }
+
+    function updateItems() {
+        var items = win.updates.items || []
+        var apps = []
+        for (var i = 0; i < items.length; ++i)
+            if (items[i].kind === "app") apps.push(items[i])
+        return apps
+    }
+
+    function updateComponentCount() {
+        var items = win.updates.items || []
+        return Math.max(0, items.length - win.updateItems().length)
+    }
+
+    function loadUpdates() {
+        if (!win.updatesPath || win.updatesPath === "") return false
+        try {
+            var document = win.readJson(win.updatesPath)
+            if (!document || document.action !== "check-updates") return false
+            if (document.checked_at === win.updatesCheckedAt) return false
+            win.updatesCheckedAt = document.checked_at || ""
+            win.updates = document
+            win.updatesState = document.state === "success" ? "known" : "failed"
+            win.updatesChecking = false
+            return true
+        } catch (error) {
+            return false
+        }
+    }
+
+    function adoptRecentUpdates() {
+        // Reopening the Store should not forget what it learned a minute ago —
+        // but it must not present an hours-old answer as current either. Older
+        // than six hours stays "unknown", so the page checks again instead of
+        // quietly showing a number that may have moved.
+        if (!win.updatesPath || win.updatesPath === "") return false
+        try {
+            var document = win.readJson(win.updatesPath)
+            if (!document || document.action !== "check-updates") return false
+            if (document.state !== "success") return false
+            var checked = Date.parse(document.checked_at || "")
+            if (!isFinite(checked) || Date.now() - checked > 21600000) return false
+            win.updatesCheckedAt = document.checked_at || ""
+            win.updates = document
+            win.updatesState = "known"
+            return true
+        } catch (error) {
+            return false
+        }
+    }
+
+    function checkUpdates() {
+        if (win.updatesChecking) return
+        if (typeof MoosStore === "undefined" || !MoosStore.checkUpdates()) {
+            win.updatesState = "failed"
+            return
+        }
+        win.updatesChecking = true
+        updatePoll.restart()
     }
 
     function matchesExpectedJob(document) {
@@ -692,13 +773,21 @@ ApplicationWindow {
             win.flash(win.rtl ? "تعذّر فتح محدّث MoOS" : "Could not open MoOS Updater")
     }
 
-    onPageChanged: recompute()
+    onPageChanged: {
+        recompute()
+        // Ask only when the user is actually looking at the page, and only when
+        // the answer is not already in hand — the check costs a process and can
+        // touch the network.
+        if (win.page === "updates" && win.updatesState === "unknown")
+            Qt.callLater(function() { win.checkUpdates() })
+    }
     onActiveCategoryChanged: recompute()
     onQueryChanged: recompute()
 
     Component.onCompleted: {
         win.loadCurated()
         win.loadIndex()
+        win.adoptRecentUpdates()
         win.loadJob()
         if (win.jobIsActive()) jobPoll.start()
         Qt.callLater(function() { win.maybeRefreshCatalog(false) })
@@ -717,6 +806,26 @@ ApplicationWindow {
                 stop()
             }
             if (ticks > 36) stop()
+        }
+        onRunningChanged: if (running) ticks = 0
+    }
+
+    // The check is a separate detached process, so poll for its document the
+    // same way the job is polled. Bounded: a check that never lands leaves the
+    // page saying so rather than spinning forever.
+    Timer {
+        id: updatePoll
+        interval: 500
+        repeat: true
+        property int ticks: 0
+        onTriggered: {
+            ++ticks
+            if (win.loadUpdates()) { stop(); return }
+            if (ticks > 60) {
+                stop()
+                win.updatesChecking = false
+                if (win.updatesState === "unknown") win.updatesState = "failed"
+            }
         }
         onRunningChanged: if (running) ticks = 0
     }
@@ -1193,6 +1302,25 @@ ApplicationWindow {
                                     id: installedBadge
                                     anchors.centerIn: parent
                                     text: win.installedCount()
+                                    color: win.accent
+                                    font.family: "IBM Plex Sans"
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                }
+                            }
+                            // Only once the count is genuinely known — an
+                            // un-checked page must not imply "nothing pending".
+                            Rectangle {
+                                visible: !win.compactRail && nav.modelData.id === "updates"
+                                    && win.updatesState === "known" && win.updateItems().length > 0
+                                implicitWidth: updatesBadge.implicitWidth + 12
+                                implicitHeight: 22
+                                radius: 11
+                                color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
+                                Text {
+                                    id: updatesBadge
+                                    anchors.centerIn: parent
+                                    text: win.updateItems().length
                                     color: win.accent
                                     font.family: "IBM Plex Sans"
                                     font.pixelSize: 10
@@ -2001,7 +2129,22 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     spacing: 7
                                     Text {
-                                        text: win.rtl ? "تطبيقاتك محدثة، ونظامك يبقى ذريًا." : "Fresh apps. Atomic system."
+                                        // Say what is true, and say "not checked yet" when
+                                        // that is what is true. Never show 0 before looking.
+                                        text: {
+                                            if (win.updatesChecking)
+                                                return win.rtl ? "نفحص التحديثات…" : "Checking for updates…"
+                                            if (win.updatesState === "failed")
+                                                return win.rtl ? "تعذّر فحص التحديثات" : "Could not check for updates"
+                                            if (win.updatesState === "unknown")
+                                                return win.rtl ? "تطبيقاتك، وتحديثاتها." : "Your apps, and their updates."
+                                            var n = win.updateItems().length
+                                            if (n === 0)
+                                                return win.rtl ? "كل تطبيقاتك محدّثة." : "Everything is up to date."
+                                            return win.rtl
+                                                ? (n === 1 ? "تطبيق واحد ينتظر التحديث." : n + " تطبيقات تنتظر التحديث.")
+                                                : (n === 1 ? "1 app has an update." : n + " apps have updates.")
+                                        }
                                         color: win.txt
                                         font.family: "IBM Plex Sans"
                                         font.pixelSize: 24
@@ -2009,9 +2152,20 @@ ApplicationWindow {
                                     }
                                     Text {
                                         Layout.fillWidth: true
-                                        text: win.rtl
-                                            ? "حدّث تطبيقات Flatpak هنا. تحديث صورة MoOS والبرامج الثابتة يبقيان في مسارات النظام الموقّعة."
-                                            : "Update Flatpak apps here. MoOS image and firmware updates stay on their signed system paths."
+                                        text: {
+                                            if (win.updatesState === "failed")
+                                                return win.rtl
+                                                    ? "تحقّق من اتصالك ثم أعد الفحص. تحديث صورة MoOS والبرامج الثابتة تبقى في مسارات النظام الموقّعة."
+                                                    : "Check your connection and try again. MoOS image and firmware updates stay on their signed system paths."
+                                            var extra = win.updateComponentCount()
+                                            if (win.updatesState === "known" && extra > 0)
+                                                return win.rtl
+                                                    ? "بالإضافة إلى " + extra + " مكوّن مشترك يُحدَّث معها. تحديث صورة MoOS والبرامج الثابتة تبقى في مسارات النظام الموقّعة."
+                                                    : "Plus " + extra + " shared component(s) that update with them. MoOS image and firmware updates stay on their signed system paths."
+                                            return win.rtl
+                                                ? "حدّث تطبيقات Flatpak هنا. تحديث صورة MoOS والبرامج الثابتة يبقيان في مسارات النظام الموقّعة."
+                                                : "Update Flatpak apps here. MoOS image and firmware updates stay on their signed system paths."
+                                        }
                                         color: win.txt2
                                         font.family: "IBM Plex Sans"
                                         font.pixelSize: 12
@@ -2023,13 +2177,99 @@ ApplicationWindow {
                                             label: win.rtl ? "تحديث التطبيقات الآن" : "Update apps now"
                                             glyphName: "refresh"
                                             primary: true
-                                            enabled: !win.jobIsActive()
+                                            // Nothing pending is a reason not to offer the
+                                            // button, once we actually know that.
+                                            enabled: !win.jobIsActive() && !win.updatesChecking
+                                                && !(win.updatesState === "known" && win.updates.count === 0)
                                             triggered: function() { win.updateAll() }
+                                        }
+                                        ActionButton {
+                                            label: win.rtl ? "إعادة الفحص" : "Check again"
+                                            glyphName: "search"
+                                            enabled: !win.updatesChecking
+                                            triggered: function() {
+                                                win.updatesState = "unknown"
+                                                win.updatesCheckedAt = ""
+                                                win.checkUpdates()
+                                            }
                                         }
                                         ActionButton {
                                             label: win.rtl ? "تحديث MoOS" : "Update MoOS"
                                             glyphName: "shield"
                                             triggered: function() { win.openSystemUpdater() }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // The list the page was missing: what actually has an
+                        // update, named, with the version currently installed.
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 9
+                            visible: win.updatesState === "known" && win.updateItems().length > 0
+                            Text {
+                                text: win.rtl ? "بانتظار التحديث" : "Waiting to update"
+                                color: win.txt2
+                                font.family: "IBM Plex Sans"
+                                font.pixelSize: 12
+                                font.bold: true
+                            }
+                            Repeater {
+                                model: win.updatesState === "known" ? win.updateItems() : []
+                                delegate: Rectangle {
+                                    id: pendingRow
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 62
+                                    radius: 16
+                                    color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
+                                    border.width: 1
+                                    border.color: win.outline
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 16
+                                        anchors.rightMargin: 16
+                                        spacing: 13
+                                        Rectangle {
+                                            Layout.preferredWidth: 36
+                                            Layout.preferredHeight: 36
+                                            radius: 11
+                                            color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
+                                            Glyph {
+                                                anchors.centerIn: parent
+                                                width: 19; height: 19
+                                                name: "download"; tint: win.accent
+                                            }
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 1
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: pendingRow.modelData.name || pendingRow.modelData.id
+                                                color: win.txt
+                                                font.family: "IBM Plex Sans"
+                                                font.pixelSize: 14
+                                                font.bold: true
+                                                elide: Text.ElideRight
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: pendingRow.modelData.id
+                                                    + (pendingRow.modelData.version
+                                                        ? " · " + pendingRow.modelData.version : "")
+                                                color: win.txt2
+                                                font.family: "IBM Plex Sans"
+                                                font.pixelSize: 11
+                                                elide: Text.ElideRight
+                                            }
+                                        }
+                                        Text {
+                                            text: pendingRow.modelData.origin || ""
+                                            color: win.txt2
+                                            font.family: "IBM Plex Sans"
+                                            font.pixelSize: 11
                                         }
                                     }
                                 }

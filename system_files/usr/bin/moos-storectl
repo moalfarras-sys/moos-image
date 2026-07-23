@@ -196,6 +196,10 @@ class JobStore:
         self.path = self.directory / "job.json"
         self.lock_path = self.directory / "job.lock"
         self.cancel_path = self.directory / "cancel"
+        # Pending updates live in their OWN document. Writing them into job.json
+        # would make a read-only check indistinguishable from a transaction, and
+        # the UI correlates job.json against a request it made.
+        self.updates_path = self.directory / "updates.json"
 
     def prepare(self) -> None:
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -212,6 +216,15 @@ class JobStore:
             separators=(",", ":"),
         ).encode("utf-8") + b"\n"
         _atomic_bytes(self.path, payload)
+
+    def write_updates(self, document: dict[str, Any]) -> None:
+        payload = json.dumps(
+            document,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8") + b"\n"
+        _atomic_bytes(self.updates_path, payload)
 
     def read(self) -> dict[str, Any] | None:
         try:
@@ -916,6 +929,48 @@ class FlatpakAdapter:
                 result.append((name, formatted))
         return result
 
+    def update_candidates(self) -> list[dict[str, Any]]:
+        """Describe every installed ref that has a pending update.
+
+        Read-only: this asks libflatpak what `update` would act on and adds
+        nothing of its own.  Runtimes are reported alongside apps and marked as
+        such — an app update usually drags a runtime with it, and hiding that
+        would make the size the user sees disagree with the download they get.
+        """
+
+        try:
+            refs = self.user.list_installed_refs_for_update(None)
+        except Exception as error:
+            raise StoreError(f"Could not resolve Flatpak updates: {error}") from error
+        candidates: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for ref in refs:
+            formatted = ref.format_ref()
+            if formatted in seen:
+                continue
+            seen.add(formatted)
+            try:
+                is_app = ref.get_kind() == self.Flatpak.RefKind.APP
+            except Exception:
+                is_app = True
+            entry: dict[str, Any] = {
+                "id": ref.get_name(),
+                "ref": formatted,
+                "kind": "app" if is_app else "runtime",
+                "branch": ref.get_branch(),
+                "arch": ref.get_arch(),
+                "origin": ref.get_origin(),
+                "name": ref.get_appdata_name() or ref.get_name(),
+                "version": ref.get_appdata_version() or None,
+                # Bytes already on disk. libflatpak exposes no reliable size for
+                # the pending download here, so report what is knowable rather
+                # than estimating a number the download will not match.
+                "installed_size": int(ref.get_installed_size() or 0),
+            }
+            candidates.append(entry)
+        candidates.sort(key=lambda item: (item["kind"] != "app", item["name"].casefold()))
+        return candidates
+
     def update_many(
         self,
         refs: Sequence[tuple[str, str]],
@@ -1424,6 +1479,49 @@ class Controller:
                 job.fail(error, [app_id])
             return exit_code(job.document["state"]), job.snapshot()
 
+    def check_updates(self) -> tuple[int, dict[str, Any]]:
+        """Report what `update` would act on, changing nothing.
+
+        Deliberately takes NO global lock and never touches job.json: it must
+        stay answerable while an install is running, and the UI correlates
+        job.json against a request it made.  A failure here is reported in the
+        document rather than raised, so an offline machine gets an honest "could
+        not check" instead of a Store that looks broken.
+        """
+
+        now = utc_now()
+        document: dict[str, Any] = {
+            "schema": SCHEMA,
+            "action": "check-updates",
+            "state": "success",
+            "checked_at": now,
+            "count": 0,
+            "app_count": 0,
+            "items": [],
+            "message": "Apps are up to date",
+        }
+        try:
+            candidates = self.adapter.update_candidates()
+        except StoreError as error:
+            document["state"] = "failed"
+            document["message"] = clean_message(error)
+            self.store.prepare()
+            self.store.write_updates(document)
+            return 2, document
+        apps = [item for item in candidates if item["kind"] == "app"]
+        document["items"] = candidates
+        document["count"] = len(candidates)
+        document["app_count"] = len(apps)
+        if candidates:
+            document["message"] = (
+                f"{len(apps)} app update(s) available"
+                if apps
+                else f"{len(candidates)} component update(s) available"
+            )
+        self.store.prepare()
+        self.store.write_updates(document)
+        return 0, document
+
     def update(self) -> tuple[int, dict[str, Any]]:
         try:
             lock, job = self._begin("update", [])
@@ -1638,6 +1736,9 @@ def parser() -> argparse.ArgumentParser:
     run = commands.add_parser("run", help="run an installed Flatpak")
     run.add_argument("id")
     commands.add_parser("update", help="update user Flatpaks")
+    commands.add_parser(
+        "check-updates", help="report pending updates without changing anything"
+    )
     commands.add_parser("refresh-index", help="refresh the Flathub app index")
     engine = commands.add_parser("open-engine", help="open a store engine")
     engine.add_argument("name", choices=tuple(ENGINE_COMMANDS))
@@ -1671,6 +1772,8 @@ def main(
             code, document = controller.run(options.id)
         elif options.command == "update":
             code, document = controller.update()
+        elif options.command == "check-updates":
+            code, document = controller.check_updates()
         elif options.command == "refresh-index":
             code, document = controller.refresh_index()
         elif options.command == "open-engine":
