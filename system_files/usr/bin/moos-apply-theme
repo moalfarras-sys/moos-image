@@ -17,11 +17,11 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-# 19: MoOS took Plasma's own greeter components (login/lock/logout action buttons
-#     and the greeter clock). Qt's qmlcache keys on mtime and OSTree pins every
-#     mtime under /usr to the epoch, so without this bump an upgraded machine
-#     would keep executing the STALE compiled Breeze components off disk.
-THEME_REV=20
+# 21: the historic org.moos.brand panel item becomes MoOS's single integrated
+#     launcher. The revision removes the duplicated Kickoff button only after it
+#     has handed its KActivities favorites client to the MoOS launcher, expands
+#     the popup, retires user-level QML shadows, and refreshes Baloo coverage.
+THEME_REV=21
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -637,6 +637,16 @@ find "${cache_dir}" -mindepth 2 -maxdepth 2 -type d -name qmlcache \
 # (this whole body does), so it is not a per-login cost.
 command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 --noincremental >>"$log" 2>&1 || true
 
+# Revision 21 expands Baloo from the inherited media-folder profile to the
+# user's whole visible HOME. Ask the already-running daemon to re-read the new
+# /etc/xdg/baloofilerc; a fresh login would pick it up naturally, but an update
+# must not require another logout before launcher file results become complete.
+if command -v gdbus >/dev/null 2>&1; then
+    gdbus call --session --dest org.kde.baloo --object-path / \
+        --method org.kde.baloo.main.updateConfig >>"$log" 2>&1 || true
+fi
+command -v balooctl6 >/dev/null 2>&1 && balooctl6 check >>"$log" 2>&1 || true
+
 applied=0
 
 # Repair the look the user is ACTUALLY on. Dark is only the default, not the
@@ -873,10 +883,15 @@ fi
 # NOTE: escaping. gdbus unescapes its argument, so a literal \n inside the script
 # string becomes a real newline and truncates the JS string it sits in. Keep this
 # script free of backslash escapes.
+launcher_migration_ok=0
+launcher_changed=0
+launcher_force_restart=0
 if command -v gdbus >/dev/null 2>&1; then
-    gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+    if launcher_mutation_state="$(
+        gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
         -m org.kde.PlasmaShell.evaluateScript '
             var ps = panels();
+            var launcherChanged = 0;
             for (var i = 0; i < ps.length; i++) {
                 var p = ps[i];
                 if (p.location != "bottom") { continue; }
@@ -884,15 +899,13 @@ if command -v gdbus >/dev/null 2>&1; then
                 try { if ("lengthMode" in p) { p.lengthMode = "fit"; } } catch (e) {}
                 try { if ("alignment" in p) { p.alignment = "center"; } } catch (e) {}
                 /* Plasma panel height is a logical size and therefore scales at
-                   200%. Revision 20 gives the command dock enough presence for
+                   200%. Revision 21 gives the command dock enough presence for
                    the wordmark and 32px application marks without becoming a
                    taskbar slab. */
                 try { p.height = 54; } catch (e) {}
-                /* THEME_REV 18: the living brand. org.moos.brand (the animated
-                   MoOS emblem + glance popup) opens the dock, and Kickoff hands
-                   the logo role over to it, wearing the app-grid glyph instead —
-                   one MoOS mark in the bar, and it moves. Add-only: an existing
-                   brand applet is left exactly where the user put it. */
+                /* THEME_REV 21: org.moos.brand keeps its id and panel position,
+                   but is now the complete MoOS launcher. Keeping the id lets an
+                   upgraded shell replace the old glance in place. */
                 var hasBrand = false;
                 var brandWidget = null;
                 var wsScan = p.widgets();
@@ -907,22 +920,16 @@ if command -v gdbus >/dev/null 2>&1; then
                         var brand = p.addWidget("org.moos.brand");
                         try { brand.index = 0; } catch (e) {}
                         brandWidget = brand;
+                        launcherChanged++;
                     } catch (e) {}
                 }
                 var ws = p.widgets();
+                var kickoffWidget = null;
                 for (var j = 0; j < ws.length; j++) {
                     var w = ws[j];
                     try {
                         if (w.type == "org.kde.plasma.kickoff") {
-                            w.currentConfigGroup = ["General"];
-                            w.writeConfig("icon", "system-search-symbolic");
-                            w.writeConfig("appNameFormat", 0);
-                            w.writeConfig("favoritesDisplay", 0);
-                            w.writeConfig("applicationsDisplay", 1);
-                            w.writeConfig("primaryActions", 3);
-                            w.writeConfig("showActionButtonCaptions", true);
-                            w.writeConfig("switchCategoryOnHover", true);
-                            w.reloadConfig();
+                            kickoffWidget = w;
                         } else if (w.type == "org.kde.plasma.digitalclock") {
                             var clockIndex = w.index;
                             w.remove();
@@ -933,11 +940,101 @@ if command -v gdbus >/dev/null 2>&1; then
                         }
                     } catch (e) {}
                 }
+                /* Remove the duplicate launcher only after the replacement is
+                   present. Reuse the exact per-applet Kickoff KAStats client, so
+                   every pin and its order survives the visual redesign. */
+                if (brandWidget != null) {
+                    try {
+                        brandWidget.currentConfigGroup = ["General"];
+                        if (kickoffWidget != null) {
+                            kickoffWidget.currentConfigGroup = ["General"];
+                            brandWidget.writeConfig("favoritesClient",
+                                "org.kde.plasma.kickoff.favorites.instance-" + kickoffWidget.id);
+                            var oldFavorites = String(kickoffWidget.readConfig("favorites", ""));
+                            if (oldFavorites.length > 0) {
+                                brandWidget.writeConfig("favoriteApps", oldFavorites);
+                            }
+                            brandWidget.writeConfig("favoritesSeeded", true);
+                        } else if (String(brandWidget.readConfig("favoritesClient", "")).length == 0) {
+                            brandWidget.writeConfig("favoritesClient", "org.moos.launcher.favorites");
+                            launcherChanged++;
+                        }
+                        brandWidget.reloadConfig();
+                        if (kickoffWidget != null) {
+                            kickoffWidget.remove();
+                            launcherChanged++;
+                        }
+                    } catch (e) {}
+                }
             }
-        ' >>"$log" 2>&1 || echo "panel polish migration skipped" >>"$log" 2>&1
+            print("MOOS_LAUNCHER_CHANGED=" + launcherChanged);
+        ' 2>>"$log"
+    )"; then
+        printf '%s\n' "$launcher_mutation_state" >>"$log" 2>/dev/null || true
+        if printf '%s\n' "$launcher_mutation_state" \
+                | grep -qE 'MOOS_LAUNCHER_CHANGED=[1-9][0-9]*'; then
+            launcher_changed=1
+        fi
+        # evaluateScript can return success even when JavaScript caught an
+        # applet/config failure. Read the resulting shell state in a separate
+        # event-loop turn: only one Brand, no Kickoff, and a persisted
+        # favorites client on every managed bottom panel is a completed
+        # launcher migration. The version marker below is forbidden otherwise,
+        # so a transient shell/package failure retries next login.
+        launcher_migration_state="$(
+            gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+                -m org.kde.PlasmaShell.evaluateScript '
+                    var ps = panels();
+                    var bottoms = 0, valid = 0, brands = 0;
+                    var legacy = 0, configured = 0;
+                    for (var i = 0; i < ps.length; i++) {
+                        var p = ps[i];
+                        if (p.location != "bottom") { continue; }
+                        bottoms++;
+                        var panelBrands = 0, panelLegacy = 0, panelConfigured = 0;
+                        var ws = p.widgets();
+                        for (var j = 0; j < ws.length; j++) {
+                            var kind = String(ws[j].type);
+                            if (kind == "org.moos.brand") {
+                                panelBrands++;
+                                ws[j].currentConfigGroup = ["General"];
+                                if (String(ws[j].readConfig("favoritesClient", "")).length > 0) {
+                                    panelConfigured++;
+                                }
+                            } else if (kind == "org.kde.plasma.kickoff") {
+                                panelLegacy++;
+                            }
+                        }
+                        brands += panelBrands;
+                        legacy += panelLegacy;
+                        configured += panelConfigured;
+                        if (panelBrands == 1 && panelLegacy == 0 && panelConfigured == 1) {
+                            valid++;
+                        }
+                    }
+                    var ok = bottoms > 0 && valid == bottoms;
+                    print("MOOS_LAUNCHER_MIGRATION_OK=" + (ok ? "1" : "0")
+                        + ";bottom=" + bottoms + ";brand=" + brands
+                        + ";legacy=" + legacy + ";configured=" + configured);
+                ' 2>>"$log"
+        )" || launcher_migration_state=""
+        printf '%s\n' "$launcher_migration_state" >>"$log" 2>/dev/null || true
+        if printf '%s\n' "$launcher_migration_state" \
+                | grep -q 'MOOS_LAUNCHER_MIGRATION_OK=1'; then
+            launcher_migration_ok=1
+            dock_applied=1
+            if [ "$launcher_changed" = "1" ]; then
+                launcher_force_restart=1
+            fi
+        else
+            echo "panel launcher migration did not pass runtime readback — will retry" >>"$log" 2>&1
+        fi
+    else
+        echo "panel polish migration skipped" >>"$log" 2>&1
+    fi
 fi
 
-# THEME_REV 20: MoOS Control is deliberately richer than the old six-tile
+# THEME_REV 21: the integrated launcher is deliberately richer than the old
 # glance. Popup geometry is shell-owned state (not an applet configuration key),
 # so Plasma's scripting writeConfig API cannot update it. Locate only the MoOS
 # brand applet's exact containment/applet pair and migrate its persisted size.
@@ -949,10 +1046,10 @@ if [[ -f "$applets_rc" ]] && command -v kwriteconfig6 >/dev/null 2>&1; then
         [[ "$containment_id" =~ ^[0-9]+$ && "$applet_id" =~ ^[0-9]+$ ]] || continue
         kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
             --group Containments --group "$containment_id" --group Applets \
-            --group "$applet_id" --group Configuration --key popupWidth 420
+            --group "$applet_id" --group Configuration --key popupWidth 720
         kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
             --group Containments --group "$containment_id" --group Applets \
-            --group "$applet_id" --group Configuration --key popupHeight 430
+            --group "$applet_id" --group Configuration --key popupHeight 590
     done < <(
         awk '
             match($0, /^\[Containments\]\[([0-9]+)\]\[Applets\]\[([0-9]+)\]$/, m) {
@@ -1397,6 +1494,8 @@ for rel in \
 done
 
 for rel in \
+    "plasma/plasmoids/org.moos.brand" \
+    "plasma/plasmoids/org.moos.heroclock" \
     "plasma/plasmoids/org.moos.nova.clock" \
     "plasma/wallpapers/org.moos.ui2.wallpaper" \
     "plasma/look-and-feel/org.moos.nova" \
@@ -1459,6 +1558,14 @@ done
 # The dock reconcile above needs exactly the same restart for exactly the same reason —
 # icontasks keeps drawing the launcher model it booted with — so one restart serves both.
 tray_marker="${state_dir}/moos-tray-collapsed.v${THEME_REV}"
+# A previous incomplete attempt may already have written the restart marker.
+# If this attempt really added Brand, handed off its favorites client, or
+# removed Kickoff, invalidate that stale marker so the running QML reconstructs
+# against the new persisted client. A no-change retry leaves it intact and does
+# not cause a per-login shell restart.
+if [ "${launcher_force_restart:-0}" = "1" ]; then
+    rm -f "$tray_marker" 2>/dev/null || true
+fi
 if { [ "${tray_applied:-0}" = "1" ] || [ "${dock_applied:-0}" = "1" ]; } && [ ! -e "$tray_marker" ]; then
     if ! systemctl --user restart plasma-plasmashell.service >>"$log" 2>&1; then
         kquitapp6 plasmashell >>"$log" 2>&1 || true
@@ -1476,6 +1583,7 @@ fi
 lnf_after="$(current_lookandfeel)" || lnf_after=""
 deco_after="$(current_decoration)" || deco_after=""
 if [ "$applied" = "1" ] \
+        && [ "${launcher_migration_ok:-0}" = "1" ] \
         && [ "$lnf_after" = "$want_lnf" ] \
         && theme_complete "$lnf_after" "$deco_after" "$want_wallpaper_package"; then
     if touch "$marker" 2>/dev/null; then

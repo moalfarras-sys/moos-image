@@ -1,0 +1,11 @@
+[Basic Settings]
+Indexing-Enabled=true
+
+[General]
+# Search every visible item in the user's home directory. Hidden paths stay out
+# of the index so secrets and large application-state trees are not exposed to
+# a launcher query; Baloo's normal performance exclusions remain in force.
+folders[$e]=$HOME/
+exclude folders=
+index hidden folders=false
+only basic indexing=false

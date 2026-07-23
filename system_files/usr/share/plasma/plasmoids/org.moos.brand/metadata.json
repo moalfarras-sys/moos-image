@@ -6,19 +6,20 @@
                 "Name": "Moalfarras"
             }
         ],
-        "Category": "System Information",
-        "Description": "The living MoOS emblem in the panel, with a quick glance popup: updates, theme, store, AI and recovery one press away.",
-        "Description[ar]": "شعار MoOS الحي في الشريط، مع نافذة لمحة سريعة: التحديثات والثيم والمتجر والذكاء والاستعادة بضغطة واحدة.",
+        "Category": "Application Launchers",
+        "Description": "The MoOS launcher for applications, files, folders, settings, places and system actions.",
+        "Description[ar]": "قائمة MoOS للتطبيقات والملفات والمجلدات والإعدادات والأماكن وإجراءات النظام.",
         "EnabledByDefault": true,
         "Icon": "moos-logo",
         "Id": "org.moos.brand",
         "License": "GPL-3.0-or-later",
-        "Name": "MoOS Brand",
-        "Name[ar]": "علامة MoOS",
-        "Version": "1.0.0"
+        "Name": "MoOS Launcher",
+        "Name[ar]": "قائمة MoOS",
+        "Version": "2.0.0"
     },
     "X-Plasma-API-Minimum-Version": "6.0",
     "X-Plasma-Provides": [
-        "org.moos.brand"
+        "org.moos.brand",
+        "org.kde.plasma.launchermenu"
     ]
 }

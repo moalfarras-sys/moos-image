@@ -1633,7 +1633,7 @@ require('PORT="${MOAI_PORT:-8081}"' in moai_start_code,
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=20" in apply_theme_code, "MoOS UI2 visual schema must be revision 20")
+require("THEME_REV=21" in apply_theme_code, "MoOS UI2 visual schema must be revision 21")
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
@@ -1643,6 +1643,148 @@ require("qmlcache" in apply_theme_code,
         "moos-apply-theme must purge the QML disk cache on a THEME_REV bump — OSTree's frozen "
         "mtimes mean a rebuilt plasmoid is invisible to qmlcache, and the old widget keeps "
         "running")
+
+# Existing users never re-run layout.js.  Their live panel becomes the new
+# one-launcher architecture only through this revisioned migration.  Require
+# creation-before-removal: if the new package fails to add, keeping Kickoff for
+# one more login is preferable to removing the user's only launcher.
+brand_add_pos = apply_theme_code.find('addWidget("org.moos.brand")')
+kickoff_capture_pos = apply_theme_code.find('w.type == "org.kde.plasma.kickoff"')
+brand_guard_pos = apply_theme_code.find("if (brandWidget != null)", kickoff_capture_pos)
+brand_reload_pos = apply_theme_code.find("brandWidget.reloadConfig()", brand_guard_pos)
+kickoff_remove_pos = apply_theme_code.find("kickoffWidget.remove()", brand_guard_pos)
+require(brand_add_pos >= 0 and kickoff_capture_pos >= 0
+        and "brandWidget = wsScan[b]" in apply_theme_code
+        and "brandWidget = brand" in apply_theme_code
+        and brand_guard_pos >= 0 and brand_reload_pos >= 0 and kickoff_remove_pos >= 0
+        and apply_theme_code.count("kickoffWidget.remove()") == 1
+        and brand_add_pos < kickoff_capture_pos < brand_guard_pos
+        < brand_reload_pos < kickoff_remove_pos,
+        "THEME_REV 21 must ensure org.moos.brand exists before removing the old Kickoff "
+        "from an existing user's panel")
+require(re.search(r"--key\s+popupWidth\s+720\b", apply_theme_code) is not None
+        and re.search(r"--key\s+popupHeight\s+590\b", apply_theme_code) is not None,
+        "the existing org.moos.brand applet's shell-owned popup geometry must migrate to "
+        "720x590; QML implicitWidth/Height cannot override persisted appletsrc values")
+
+# evaluateScript returning over D-Bus proves only that the JavaScript finished;
+# its guarded applet operations may all have failed.  Revision 21 therefore has
+# a second event-loop readback with a machine-readable sentinel.  The permanent
+# version marker is allowed only after that sentinel was parsed as OK=1, or one
+# transient Plasma/package failure would suppress every future retry.
+launcher_ok_init_pos = apply_theme_code.find("launcher_migration_ok=0")
+launcher_state_pos = apply_theme_code.find('launcher_migration_state="$(')
+launcher_sentinel_pos = apply_theme_code.find("MOOS_LAUNCHER_MIGRATION_OK=", launcher_state_pos)
+launcher_invariant_pos = apply_theme_code.find(
+    "panelBrands == 1 && panelLegacy == 0 && panelConfigured == 1",
+    launcher_state_pos,
+)
+launcher_parse_pos = apply_theme_code.find(
+    "grep -q 'MOOS_LAUNCHER_MIGRATION_OK=1'", launcher_sentinel_pos,
+)
+launcher_ok_set_pos = apply_theme_code.find("launcher_migration_ok=1", launcher_parse_pos)
+marker_launcher_guard_pos = apply_theme_code.find(
+    '[ "${launcher_migration_ok:-0}" = "1" ]', launcher_ok_set_pos,
+)
+version_marker_touch_pos = apply_theme_code.find('touch "$marker"', marker_launcher_guard_pos)
+require(launcher_ok_init_pos >= 0 and launcher_state_pos > launcher_ok_init_pos
+        and launcher_sentinel_pos > launcher_state_pos
+        and launcher_invariant_pos > launcher_state_pos
+        and launcher_parse_pos > launcher_sentinel_pos
+        and launcher_ok_set_pos > launcher_parse_pos
+        and marker_launcher_guard_pos > launcher_ok_set_pos
+        and version_marker_touch_pos > marker_launcher_guard_pos
+        and apply_theme_code.count('touch "$marker"') == 1,
+        "THEME_REV 21 must read the live panel back through its "
+        "MOOS_LAUNCHER_MIGRATION_OK sentinel and must not write the permanent "
+        "version marker unless that readback produced OK=1")
+
+# A retry can begin with the revision's tray restart marker already present:
+# the first attempt may have restarted Plasma for an unrelated dock/tray write
+# while leaving the launcher migration incomplete.  Track actual launcher
+# mutations, and invalidate that stale restart marker only after a successful
+# live readback.  Conversely, an already-converged retry must not restart the
+# shell on every login.
+launcher_changed_init_pos = apply_theme_code.find("launcher_changed=0", launcher_ok_init_pos)
+launcher_force_init_pos = apply_theme_code.find(
+    "launcher_force_restart=0", launcher_changed_init_pos,
+)
+launcher_mutation_pos = apply_theme_code.find(
+    'launcher_mutation_state="$(' , launcher_force_init_pos,
+)
+launcher_changed_sentinel_pos = apply_theme_code.find(
+    "MOOS_LAUNCHER_CHANGED=", launcher_mutation_pos,
+)
+launcher_changed_parse_pos = apply_theme_code.find(
+    "MOOS_LAUNCHER_CHANGED=[1-9][0-9]*", launcher_changed_sentinel_pos,
+)
+launcher_changed_set_pos = apply_theme_code.find(
+    "launcher_changed=1", launcher_changed_parse_pos,
+)
+launcher_force_set_pos = apply_theme_code.find(
+    "launcher_force_restart=1", launcher_ok_set_pos,
+)
+tray_marker_pos = apply_theme_code.find('tray_marker="${state_dir}/', launcher_force_set_pos)
+launcher_force_guard_pos = apply_theme_code.find(
+    '[ "${launcher_force_restart:-0}" = "1" ]', tray_marker_pos,
+)
+tray_marker_remove_pos = apply_theme_code.find(
+    'rm -f "$tray_marker"', launcher_force_guard_pos,
+)
+tray_restart_pos = apply_theme_code.find(
+    '[ ! -e "$tray_marker" ]', tray_marker_remove_pos,
+)
+require(launcher_changed_init_pos > launcher_ok_init_pos
+        and launcher_force_init_pos > launcher_changed_init_pos
+        and launcher_mutation_pos > launcher_force_init_pos
+        and apply_theme_code.count("launcherChanged++") >= 3
+        and launcher_changed_sentinel_pos > launcher_mutation_pos
+        and launcher_changed_parse_pos > launcher_changed_sentinel_pos
+        and launcher_changed_set_pos > launcher_changed_parse_pos
+        and launcher_force_set_pos > launcher_ok_set_pos
+        and tray_marker_pos > launcher_force_set_pos
+        and launcher_force_guard_pos > tray_marker_pos
+        and tray_marker_remove_pos > launcher_force_guard_pos
+        and tray_restart_pos > tray_marker_remove_pos,
+        "launcher retries must force one Plasma restart after a real, verified Brand/client/"
+        "Kickoff mutation, while an already-converged retry must keep the restart marker")
+
+# The live diagnostics must measure the same surface the migration owns.  A
+# user may intentionally place Kicker/KickerDash on a side or top panel; MoOS
+# manages bottom panels and replaces only the old default Kickoff there.
+post_update_check = code(read("tests/post-update-check.sh"))
+for runtime_check, check_name in (
+    (selfcheck, "moos-selfcheck"),
+    (post_update_check, "post-update-check"),
+):
+    launcher_check_start = runtime_check.find("launcher_runtime_state()")
+    launcher_check_end = runtime_check.find("head_", launcher_check_start + 1)
+    launcher_check = runtime_check[launcher_check_start:launcher_check_end]
+    require(launcher_check_start >= 0
+            and 'location != "bottom"' in launcher_check
+            and 'print("bottom="' in launcher_check
+            and 'kind == "org.kde.plasma.kickoff"' in launcher_check
+            and "org.kde.plasma.kicker" not in launcher_check
+            and "org.kde.plasma.kickerdash" not in launcher_check
+            and 'currentConfigGroup = []' in launcher_check
+            and "panelBrands == 1 && panelLegacy == 0 && panelSized == 1" in launcher_check
+            and '";valid=" + valid' in launcher_check
+            and 'brand_count" = "$bottom_count' in runtime_check
+            and 'sized_count" = "$brand_count' in runtime_check
+            and 'valid_count" = "$bottom_count' in runtime_check,
+            f"{check_name} must validate one sized Brand and no old Kickoff per managed "
+            "bottom panel, while ignoring intentional top/side Kicker launchers")
+
+# A package staged under ~/.local/share outranks the new image forever.  Brand
+# and Hero Clock were both staged during live visual work, so they belong in the
+# same MoOS-owned cleanup list as the other first-party plasmoids.
+shadow_cleanup_start = apply_theme_code.find('user_share="${XDG_DATA_HOME:-$HOME/.local/share}"')
+shadow_cleanup_end = apply_theme_code.find("tray_marker=", shadow_cleanup_start)
+shadow_cleanup = apply_theme_code[shadow_cleanup_start:shadow_cleanup_end]
+for shadowed_plasmoid in ("org.moos.brand", "org.moos.heroclock"):
+    require(f'"plasma/plasmoids/{shadowed_plasmoid}"' in shadow_cleanup,
+            f"moos-apply-theme must remove a user-local {shadowed_plasmoid} copy that "
+            "would otherwise shadow every future image update")
 
 # Nova must survive Plasma, not just reach it.
 #
@@ -2064,37 +2206,224 @@ require("konsolestaterc" in apply_theme_code and "sessionToolbar" in apply_theme
         "moos-apply-theme must hide Konsole's toolbars by patching the State blob in "
         "konsolestaterc — no config file can do it, so if this drops out the terminal silently "
         "grows its toolbar back")
-require('addWidget("org.kde.plasma.kickoff")' in layout,
-        "MoOS must preserve the integrated Kickoff launcher")
-require("org.moos.nova.launcher" not in layout,
-        "MoOS must not ship a competing launcher in the panel")
-require('addWidget("org.moos.nova.clock")' in layout,
+# ── One launcher, one engine: org.moos.brand IS the MoOS menu ───────────────
+#
+# The old panel contained two adjacent controls: org.moos.brand opened a glance
+# card while Kickoff opened applications/search.  A visual redesign could make
+# that look like one control without making it one.  Gate the relationship
+# instead: the package in the layout is the package that advertises Plasma's
+# launcher capability, and no second launcher is added beside it.
+layout_code = code(re.sub(r"/\*.*?\*/", "", layout, flags=re.DOTALL), "slash")
+panel_applets = re.findall(r'addWidget\(\s*"([^"]+)"\s*\)', layout_code)
+require(panel_applets.count("org.moos.brand") == 1,
+        "the default panel must add org.moos.brand exactly once")
+legacy_panel_launchers = {
+    "org.kde.plasma.kickoff", "org.kde.plasma.kicker", "org.kde.plasma.kickerdash",
+}.intersection(panel_applets)
+require(not legacy_panel_launchers,
+        f"a second KDE launcher is back in the default panel: {sorted(legacy_panel_launchers)}; "
+        "org.moos.brand must be the one MoOS launcher")
+require("org.moos.nova.launcher" not in panel_applets,
+        "the retired Nova launcher must not compete with org.moos.brand")
+require('addWidget("org.moos.nova.clock")' in layout_code,
         "new users must receive the compact Nova clock")
-# The living brand: org.moos.brand is the ONE MoOS mark in the bar (animated
-# emblem + glance popup), and Kickoff hands the logo role to it. Both sides of
-# that trade are gated together — brand present AND Kickoff on a search glyph
-# glyph — because shipping only half re-creates the double-logo bar one way,
-# or a logo-less bar the other.
-require('addWidget("org.moos.brand")' in layout,
-        "new users must receive the animated MoOS brand applet in the panel")
-require('writeConfig("icon", "system-search-symbolic")' in layout,
-        "Kickoff must wear the search glyph — the MoOS wordmark owns identity "
-        "while the adjacent launcher communicates its real purpose")
+
+# An existing profile receives this root-group geometry through the revisioned
+# migration. A fresh profile never runs that migration against a pre-existing
+# applet, so layout.js must seed the same shell-owned values itself. Writing
+# them while currentConfigGroup is still General silently puts them where the
+# popup host never reads them.
+launcher_layout_pos = layout_code.find('var launcher = panel.addWidget("org.moos.brand")')
+launcher_general_group_pos = layout_code.find(
+    'launcher.currentConfigGroup = ["General"]', launcher_layout_pos,
+)
+launcher_root_group_pos = layout_code.find(
+    "launcher.currentConfigGroup = []", launcher_general_group_pos,
+)
+launcher_popup_width_pos = layout_code.find(
+    'launcher.writeConfig("popupWidth", 720)', launcher_root_group_pos,
+)
+launcher_popup_height_pos = layout_code.find(
+    'launcher.writeConfig("popupHeight", 590)', launcher_popup_width_pos,
+)
+require(launcher_layout_pos >= 0 and launcher_general_group_pos > launcher_layout_pos
+        and launcher_root_group_pos > launcher_general_group_pos
+        and launcher_popup_width_pos > launcher_root_group_pos
+        and launcher_popup_height_pos > launcher_popup_width_pos,
+        "the fresh-profile org.moos.brand launcher must leave General and seed its "
+        "shell-owned root popup geometry at 720x590; otherwise live selfcheck fails "
+        "until the user manually opens or resizes the menu")
+
+brand_root = ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.brand"
+brand_metadata_path = brand_root / "metadata.json"
+brand_metadata = json.loads(brand_metadata_path.read_text(encoding="utf-8")) \
+    if brand_metadata_path.is_file() else {}
+brand_id = brand_metadata.get("KPlugin", {}).get("Id")
+brand_provides = set(brand_metadata.get("X-Plasma-Provides", []))
+require(brand_id == "org.moos.brand" and brand_id in panel_applets,
+        "the panel launcher and the org.moos.brand metadata id must name the same package")
+require(brand_provides == {"org.moos.brand", "org.kde.plasma.launchermenu"},
+        "org.moos.brand must advertise exactly its brand identity and Plasma's "
+        "org.kde.plasma.launchermenu capability — Meta/launcher activation depends on it")
+
 for package in ("org.moos.nova.clock", "org.moos.brand", "org.moos.heroclock"):
     root = ROOT / "system_files/usr/share/plasma/plasmoids" / package
     require((root / "metadata.json").is_file() and
             (root / "contents/ui/main.qml").is_file(),
             f"missing complete Plasma package: {package}")
-brand_qml = code(read(
+
+brand_main_qml = code(read(
     "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml"
 ), style="slash")
-require("if (root.expanded)" in brand_qml and "if (expanded)" not in brand_qml,
+brand_qml_files = sorted((brand_root / "contents/ui").glob("*.qml"))
+brand_qml = "\n".join(code(path.read_text(encoding="utf-8"), "slash")
+                       for path in brand_qml_files)
+launcher_view_qml = code(read(
+    "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml"
+), style="slash")
+require("if (root.expanded)" in brand_main_qml and "if (expanded)" not in brand_main_qml,
         "the brand applet must qualify root.expanded; the bare signal argument "
         "uses deprecated parameter injection and warns on every Plasma login")
-require("height * 2.45" in brand_qml and 'text: "MoOS"' in brand_qml
-        and '"READY"' in brand_qml,
-        "the panel brand must remain the MoOS wordmark control, not regress to "
-        "an anonymous circular dock icon")
+require('text: "MoOS"' in brand_main_qml and '"LAUNCHER"' in brand_main_qml
+        and "system-search-symbolic" in brand_main_qml,
+        "the one panel launcher must visibly remain the MoOS wordmark plus search affordance")
+
+# Search and browsing are native model operations, not shell commands wearing a
+# search field.  Each engine is instantiated in main.qml and handed to the full
+# representation; this catches both a missing engine and a beautiful but dead UI.
+launcher_models = {
+    "Milou.ResultsModel": "searchModel: searchResults",
+    "Kicker.RootModel": "applicationsModel: root.appsModel",
+    "Kicker.RecentUsageModel": "recentUsageModel: recentModel",
+    "Kicker.ComputerModel": "placesModel: computerModel",
+    "Kicker.SystemModel": "sessionModel: systemModel",
+}
+for model_type, handoff in launcher_models.items():
+    require(model_type in brand_main_qml and handoff in brand_main_qml,
+            f"the MoOS launcher must instantiate {model_type} and hand that exact model "
+            "to its visible full representation")
+for visible_model in (
+    "model: view.searchModel", "model: view.applicationsModel",
+    "model: view.favoritesModel", "model: view.recentUsageModel",
+    "model: view.placesModel", "model: view.sessionModel",
+):
+    require(visible_model in brand_qml,
+            f"the launcher declares a native model but does not render it: {visible_model}")
+
+# The recent strip is a deliberately short horizontal shelf below the pinned
+# grid.  Qt 6's implicit layout size policy can otherwise let its nested
+# ColumnLayout consume all spare height, turning each recent item into a tall,
+# mostly-empty slab even though its preferred height is correct.
+recent_visibility_pos = launcher_view_qml.find(
+    "visible: Plasmoid.configuration.showRecent",
+)
+recent_layout_start = launcher_view_qml.rfind(
+    "ColumnLayout {", 0, recent_visibility_pos,
+)
+recent_layout = launcher_view_qml[recent_layout_start:recent_visibility_pos]
+require(recent_layout_start >= 0
+        and "Layout.fillHeight: false" in recent_layout
+        and "Layout.minimumHeight: Layout.preferredHeight" in recent_layout
+        and "Layout.maximumHeight: Layout.preferredHeight" in recent_layout,
+        "the recent-items shelf must be height-locked; allowing it to absorb the Home "
+        "page's spare height produces giant empty cards in the live launcher")
+require("queryString: root.searchQuery" in brand_main_qml
+        and "searchResults.run(searchResults.index(" in brand_main_qml
+        and "text: view.launcher.searchQuery" in brand_qml
+        and "onTextEdited: view.launcher.searchQuery = text" in brand_qml,
+        "launcher search must bind the typed query to Milou and execute Milou's result; "
+        "opening a second launcher or interpolating the query into a command is not search")
+require("sourceModel.trigger(" in brand_main_qml,
+        "applications, recent items, places and session actions must execute through their "
+        "own Kicker model so desktop actions and system semantics remain intact")
+require("Kicker.SimpleFavoritesModel" in brand_main_qml
+        and "launcherDestinations.trigger(" in brand_main_qml,
+        "the launcher settings/theme buttons must activate desktop entries through Kicker; "
+        "applications: is an internal Kicker URL, not a registered desktop URL scheme")
+require('Qt.openUrlExternally("applications:' not in brand_main_qml
+        and "Qt.openUrlExternally('applications:" not in brand_main_qml,
+        "desktop actions must not use the unregistered applications: URL scheme")
+require("activateLauncherMenu" not in brand_main_qml
+        and "runner.connectSource" not in brand_main_qml,
+        "org.moos.brand must contain the launcher internally, not forward to Kickoff or a "
+        "free-form executable DataSource")
+require('"moos-ci-full-representation"' in brand_main_qml
+        and "preferredRepresentation: root.smokeFullRepresentation" in brand_main_qml,
+        "the launcher needs a build-only full-representation mode; plasmawindowed otherwise "
+        "loads only the compact panel button and gives the launcher a false green smoke")
+require("Layout.minimumWidth: implicitWidth" in launcher_view_qml
+        and "Layout.minimumHeight: implicitHeight" in launcher_view_qml
+        and "MOOS_LAUNCHER_FULL_READY size=" in launcher_view_qml,
+        "the full launcher must enforce and report its unclipped 720x590 representation to "
+        "the plasmawindowed smoke")
+
+# Favorites are user state.  Defining helper functions is not enough: require a
+# second occurrence in the composed UI so pin/unpin/reorder are reachable from
+# controls, and require all of them to operate on RootModel.favoritesModel.
+for operation, model_call in (
+    ("toggleFavorite(", ("addFavorite(", "removeFavorite(")),
+    ("moveFavorite(", ("moveRow(",)),
+):
+    require(brand_qml.count(operation) >= 2 and all(call in brand_main_qml for call in model_call),
+            f"launcher favorite operation {operation.rstrip('(')!r} must be reachable in the "
+            "UI and persist through Kicker's favorites model")
+require("favoritesModel.favorites" not in brand_main_qml
+        and "favorites.favorites" not in brand_main_qml,
+        "KAStatsFavoritesModel.favorites is a compatibility stub that returns nothing; "
+        "enumerating it makes favorite markers/reset silently empty (proven in plasmawindowed)")
+
+# Every Plasmoid.configuration property the QML reads must exist in a schema.
+# ConfigPropertyMap lets an absent key look plausible until assignment, when the
+# applet warns and forgets the value after restart.
+brand_config_path = brand_root / "contents/config/main.xml"
+brand_config = brand_config_path.read_text(encoding="utf-8") \
+    if brand_config_path.is_file() else ""
+require(brand_config_path.is_file(),
+        "the launcher uses persistent favorites/page settings but has no contents/config/main.xml")
+for config_key in sorted(set(re.findall(r"Plasmoid\.configuration\.([A-Za-z_]\w*)",
+                                       brand_qml))):
+    require(re.search(rf'<entry\s+name="{re.escape(config_key)}"(?:\s|>)', brand_config) is not None,
+            f"launcher config key {config_key!r} is used by QML but absent from main.xml")
+shipped_favorites_block = re.search(
+    r"readonly property var shippedFavorites:\s*\[(.*?)\]", brand_main_qml, re.DOTALL,
+)
+favorite_default = re.search(
+    r'<entry\s+name="favoriteApps"[^>]*>.*?<default>(.*?)</default>',
+    brand_config, re.DOTALL,
+)
+qml_shipped_favorites = re.findall(r'"([^"]+)"', shipped_favorites_block.group(1)) \
+    if shipped_favorites_block else []
+schema_shipped_favorites = [item.strip() for item in favorite_default.group(1).split(",")] \
+    if favorite_default else []
+require(qml_shipped_favorites and qml_shipped_favorites == schema_shipped_favorites,
+        "the QML shippedFavorites order and main.xml favoriteApps default must be identical; "
+        "fresh profiles and reset-to-default must not seed two different launchers")
+
+# The launcher is a theme surface shared by every UI2 family member.  A literal
+# palette here can look right in Graphite and become unreadable in Tidal/Aurora.
+require("Kirigami.Theme" in brand_qml,
+        "the MoOS launcher must derive its palette from Kirigami.Theme")
+require(re.search(r"['\"]#[0-9A-Fa-f]{3,8}['\"]", brand_qml) is None,
+        "the MoOS launcher contains a hard-coded hex colour instead of a theme role")
+
+# Milou can only return the whole visible home when Baloo indexes it.  The
+# kde-settings profile inherited below /etc/xdg explicitly excludes $HOME, so
+# merely enabling Baloo is insufficient: MoOS must both include the root and
+# clear that inherited exclusion, while keeping hidden files out of results.
+baloo_path = ROOT / "system_files/etc/xdg/baloofilerc"
+baloo_config = code(baloo_path.read_text(encoding="utf-8")) if baloo_path.is_file() else ""
+include_home = re.search(r"^folders\[\$e\]=(.*)$", baloo_config, re.MULTILINE)
+exclude_home = re.search(r"^exclude folders(?:\[\$e\])?=(.*)$", baloo_config, re.MULTILINE)
+require("[Basic Settings]" in baloo_config and "Indexing-Enabled=true" in baloo_config,
+        "Baloo must be enabled in /etc/xdg/baloofilerc for launcher file search")
+require(include_home is not None and "$HOME" in include_home.group(1),
+        "Baloo must include visible $HOME, not only the standard media folders")
+require(exclude_home is not None and "$HOME" not in exclude_home.group(1),
+        "MoOS must clear kde-settings' inherited '$HOME' exclusion or the launcher finds no files")
+require("only basic indexing=false" in baloo_config,
+        "Baloo content indexing must stay on so launcher search reaches file contents too")
+require("index hidden folders=false" in baloo_config,
+        "launcher search must cover visible HOME without leaking hidden config/cache files")
 # The brand applet must never grow a shader/Lottie dependency (it lives in
 # plasmashell, forever), and its actions must stay user-session binaries —
 # a pkexec here would put a password prompt behind a panel click. code():
@@ -2764,6 +3093,34 @@ require("rd.live.image" not in apply_theme_code,
         "moos-apply-theme must not skip the desktop scene on the live ISO — the bento lives "
         "below the icons now, and the live desktop is where it makes the first impression")
 build_script_code = code(read("build_files/build.sh"))
+normalized_build_script = " ".join(build_script_code.replace("\\", " ").split())
+
+# The launcher uses APIs that only exist in a Plasma applet host.  It must be
+# instantiated as the installed PACKAGE, under a session bus; qmlformat/qmllint
+# cannot catch a wrong Kicker property or a missing LauncherView component.
+require("dbus-run-session -- /usr/bin/plasmawindowed org.moos.brand "
+        "moos-ci-full-representation" in normalized_build_script,
+        "the image build must force org.moos.brand's full LauncherView through plasmawindowed "
+        "under an isolated session bus, not load only its compact panel button")
+require('_launcher_smoke_rc" -ne 124' in build_script_code,
+        "the launcher smoke must accept only a process that stayed alive to the timeout; "
+        "an early clean exit is still a dead applet")
+require("MOOS_LAUNCHER_FULL_READY size=720x590" in build_script_code
+        and re.search(r"geometry=.*720,590", build_script_code) is not None,
+        "the launcher smoke must prove both LauncherView construction and plasmawindowed's "
+        "real 720x590 full-representation geometry")
+for launcher_runtime_failure in (
+    "component is not ready", "error loading qml file", "invalid empty url",
+    "compactrepresentationexpander .* is not an item", "type .* unavailable",
+    "module .* is not installed", "referenceerror", "typeerror",
+    "unable to assign", "binding loop", "is not a type",
+    "qml (image|pixmap): cannot open",
+    "kastatsfavoritesmodel::favorites returns nothing",
+):
+    require(launcher_runtime_failure.lower() in build_script_code.lower(),
+            "the launcher smoke must reject live QML diagnostic %r; a Plasma host can "
+            "stay alive while the search or one page is broken" % launcher_runtime_failure)
+
 # The bento is deliberately plain QtQuick/Kirigami so the build can genuinely
 # LOAD it (a WallpaperItem root only exists inside plasmashell). The smoke hosts
 # DashboardBento in a window via moos-qml-shell under a real session bus and
@@ -2772,7 +3129,6 @@ require("moos-scene-smoke.qml" in build_script_code
         and "DashboardBento.qml" in build_script_code,
         "the image build must load the scene bento through a real QML host; "
         "a package that only exists on disk is not a package that loads")
-normalized_build_script = " ".join(build_script_code.replace("\\", " ").split())
 require("dbus-run-session -- /usr/bin/moos-qml-shell --app-id org.moos.scene-smoke" in
         normalized_build_script,
         "the headless scene smoke needs a session bus; without one even KDE's stock "
