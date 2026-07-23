@@ -101,9 +101,51 @@ instead of failing at the last stage of a 20-minute build.
   now" and the backend has `update_refs()`, but nothing surfaces a pending-update
   count or list to the UI — that needs a new `moos-storectl` read-only subcommand
   plus a bridge method. This is the next increment.
-- Mo Store has not yet been driven by hand on a *booted* image with the real
-  `StoreBridge` compiled in; the bridge is gated by source token and the backend
-  is proven live, but the button-to-backend hop is proven by gate, not by click.
+
+### The bridge was proven on the compiled binary, not only by gate
+
+`moos-qml-shell` was extracted from the built image and run on the live desktop
+against a probe QML, because a gate that greps the *source* cannot prove the
+*binary* behaves. Three results, all observed:
+
+- Under `--app-id org.moos.store`, `MoosStore.installApps([...])` from QML
+  produced a real `job.json` — the QML → C++ bridge → `moos-storectl` hop works.
+- Under `--app-id org.moos.moai`, the same QML found no `MoosStore` and produced
+  no job document: the bridge is genuinely scoped to the two trusted app ids.
+- Eight malformed calls (`../../etc/passwd`, `-rf`, `""`, `a;flatpak`,
+  `removeApp("../evil")`, `runApp("-x")`, `openEngine("rm")`,
+  `openEngine("bash")`) produced **no** job document at all — every one was
+  refused inside the bridge before a process existed.
+
+Reproduce with the probe QML pattern in the session scratchpad: assert on the
+*absence* of `~/.cache/moos-store/job.json`, not on log output — QML
+`console.log` does not reliably reach stderr under `moos-qml-shell`.
+
+### The image was booted and looked at
+
+`tests/boot-in-vm.sh localhost/moos:latest` built a qcow2 with
+bootc-image-builder and photographed the boot. It reaches the **MoOS login
+greeter** — MoOS wordmark top-left on the Graphite scene — with no foreign name
+or logo at any stage. (The text console at ~25 s is expected here: the qcow2
+bootc-image-builder produces does not carry the image's `rhgb` karg, so Plymouth
+does not draw. That is a property of this test harness, not of the installed
+system, which gets its kargs from the installer.)
+
+### The maintainer's machine could not have updated at all
+
+`rpm-ostree upgrade` reported only a layered-package bump and never moved the
+base image. The cause: this deployment's origin was **pinned to a digest** —
+`ostree-image-signed:docker://…/moos-nvidia@sha256:db359fae…` — not to
+`:latest`. `upgrade` re-resolves whatever the origin names, so a digest origin
+can never see a newer build; `AutomaticUpdates: stage` was equally inert. Fixed
+by rebasing back onto the tag:
+
+```
+sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia:latest
+```
+
+**If a future session reports "the update did nothing", check the origin line in
+`rpm-ostree status` first.** A digest-pinned origin looks completely healthy.
 
 ## Session 2026-07-21 (night) — login scene elevated + SHIP PIPELINE BLOCKED
 
