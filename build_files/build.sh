@@ -1356,6 +1356,63 @@ done
 rm -rf "$_qml_home"
 unset -v _qml_shell _qml_home _qml_app _qml_id _qml_log _qml_rc
 
+# org.moos.brand is not a standalone QML application: it is a real Plasma
+# applet, and its launcher depends on the private Kicker models, Milou runners,
+# Plasmoid.configuration and the shell's full-representation host.  A syntax
+# check (or loading main.qml in moos-qml-shell) cannot construct that world.
+# Launch the INSTALLED package through plasmawindowed, which is Plasma's applet
+# host.  The build-only positional argument forces fullRepresentation: without
+# it plasmawindowed obeys the panel's compact preference and tests only the MoOS
+# button. A sound full launcher stays alive to the timeout and prints its ready
+# marker; a missing component, invalid model property, or unavailable import
+# makes the host exit early.
+_launcher_smoke_log="$(mktemp /tmp/moos-launcher-smoke.XXXXXX.log)"
+_launcher_smoke_home="$(mktemp -d /tmp/moos-launcher-home.XXXXXX)"
+_launcher_smoke_runtime="$(mktemp -d /tmp/moos-launcher-runtime.XXXXXX)"
+chmod 0700 "$_launcher_smoke_runtime"
+command -v plasmawindowed >/dev/null 2>&1 \
+    || { echo "FATAL: plasmawindowed is required to load-test the MoOS launcher"; exit 1; }
+command -v dbus-run-session >/dev/null 2>&1 \
+    || { echo "FATAL: dbus-run-session is required for the MoOS launcher smoke"; exit 1; }
+set +e
+HOME="$_launcher_smoke_home" XDG_RUNTIME_DIR="$_launcher_smoke_runtime" \
+    QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+    QT_FORCE_STDERR_LOGGING=1 QML_DISABLE_DISK_CACHE=1 \
+    timeout --kill-after=2s 8 dbus-run-session -- \
+        /usr/bin/plasmawindowed org.moos.brand moos-ci-full-representation \
+        >"$_launcher_smoke_log" 2>&1
+_launcher_smoke_rc=$?
+set -e
+if [ "$_launcher_smoke_rc" -ne 124 ]; then
+    echo "FATAL: org.moos.brand did not stay loaded in Plasma's applet host (exit=$_launcher_smoke_rc)"
+    cat "$_launcher_smoke_log"
+    exit 1
+fi
+if ! grep -Fq 'MOOS_LAUNCHER_FULL_READY size=720x590' "$_launcher_smoke_log"; then
+    echo "FATAL: org.moos.brand stayed alive but LauncherView was not constructed at 720x590"
+    cat "$_launcher_smoke_log"
+    exit 1
+fi
+_launcher_smoke_config="${_launcher_smoke_home}/.config/plasmawindowedrc"
+if ! grep -qE '^geometry=[^,]+,[^,]+,720,590$' "$_launcher_smoke_config"; then
+    echo "FATAL: plasmawindowed did not host the full 720x590 MoOS launcher"
+    cat "$_launcher_smoke_config" 2>/dev/null || true
+    cat "$_launcher_smoke_log"
+    exit 1
+fi
+# Kicker's `KAStatsFavoritesModel::favorites returns nothing` line is not benign
+# here: the property is a compatibility stub.  Reading it makes favoriteIds and
+# reset/enumeration paths silently empty even though the launcher stays alive.
+if grep -qiE 'QQmlApplicationEngine failed|component is not ready|error loading qml file|error loading applet|invalid empty url|compactRepresentationExpander .* is not an Item|type .* unavailable|module .* is not installed|referenceerror|typeerror|cannot assign to|unable to assign|binding loop|is not a type|non-existent attached object|cannot override final property|qml (image|pixmap): cannot open|KAStatsFavoritesModel::favorites returns nothing' \
+        "$_launcher_smoke_log"; then
+    echo "FATAL: org.moos.brand stayed open but reported a live QML/model error"
+    cat "$_launcher_smoke_log"
+    exit 1
+fi
+rm -rf "$_launcher_smoke_log" "$_launcher_smoke_home" "$_launcher_smoke_runtime"
+unset -v _launcher_smoke_log _launcher_smoke_home _launcher_smoke_runtime \
+    _launcher_smoke_config _launcher_smoke_rc
+
 # The desktop scene (org.moos.ui2.wallpaper) is not covered by the pure-QML app
 # loop above: its root is a WallpaperItem, which only exists inside plasmashell's
 # wallpaper loader, so the PACKAGE cannot be launched headless. What CAN be

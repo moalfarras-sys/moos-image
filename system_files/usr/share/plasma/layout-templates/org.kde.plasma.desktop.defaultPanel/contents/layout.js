@@ -49,37 +49,38 @@ try { panel.floating = true; } catch (e) { /* keep the dock, lose the gap */ }
 try { panel.lengthMode = "fit"; } catch (e) { /* a full bar, not a broken one */ }
 try { panel.alignment = "center"; } catch (e) { /* a left capsule, still a dock */ }
 
-/* The LIVING brand opens the bar: org.moos.brand is the animated MoOS emblem
- * (idle breath, hover glow, press flourish) whose popup is the MoOS glance —
- * version, uptime, and store/AI/updates/theme/settings/recovery one press
- * away. Kickoff's compiled-in button cannot animate, so the emblem lives in
- * a first-party applet and the launcher wears the app-grid glyph instead:
- * ONE logo in the bar, and it moves. */
-try { panel.addWidget("org.moos.brand"); } catch (e) { /* the bar survives brandless */ }
-
-/* Keep Plasma's fully integrated Kickoff (search, KAStats, favorites, recent
- * usage, keyboard and session models) and skin it through the Nova Plasma
- * Style. MoOS does not ship a competing launcher implementation. */
-var launcher = panel.addWidget("org.kde.plasma.kickoff");
-launcher.currentConfigGroup = ["General"];
-launcher.writeConfig("icon", "system-search-symbolic");
-launcher.writeConfig("appNameFormat", 0);
-launcher.writeConfig("favoritesDisplay", 0);
-launcher.writeConfig("applicationsDisplay", 1);
-launcher.writeConfig("primaryActions", 3);
-launcher.writeConfig("showActionButtonCaptions", true);
-launcher.writeConfig("switchCategoryOnHover", true);
-launcher.writeConfig("favorites", [
-    "org.moos.moai.desktop",
-    "org.moos.store.desktop",
-    "preferred://browser",
-    "org.moos.moplayer.desktop",
-    "org.kde.dolphin.desktop",
-    "systemsettings.desktop",
-    "org.moos.updater.desktop",
-    "org.moos.recovery.desktop",
-    "org.kde.konsole.desktop"
-].join(","));
+/* One button, one search surface. org.moos.brand keeps its historic package id
+ * so upgrades replace the existing emblem in place, but it now provides
+ * org.kde.plasma.launchermenu and owns the complete launcher. Its implementation
+ * uses Plasma's native Kicker, KActivities and KRunner/Milou models; this is not
+ * a second application database or a shell-command launcher. Keep the whole
+ * block guarded: an absent optional applet must never leave a fresh session with
+ * no panel. */
+try {
+    var launcher = panel.addWidget("org.moos.brand");
+    launcher.currentConfigGroup = ["General"];
+    launcher.writeConfig("favoritesClient", "org.moos.launcher.favorites");
+    launcher.writeConfig("favoriteApps", [
+        "org.moos.moai.desktop",
+        "org.moos.store.desktop",
+        "preferred://browser",
+        "org.moos.moplayer.desktop",
+        "org.kde.dolphin.desktop",
+        "systemsettings.desktop",
+        "org.moos.updater.desktop",
+        "org.moos.recovery.desktop"
+    ].join(","));
+    launcher.writeConfig("defaultPage", 0);
+    launcher.writeConfig("showRecent", true);
+    launcher.writeConfig("compactTiles", false);
+    /* Popup geometry belongs to the applet's root Configuration group, not
+     * General. Seed it for a brand-new profile too: otherwise the launcher is
+     * visually 720x590 through its QML minimum, but live readback remains zero
+     * until the user opens/resizes it for the first time. */
+    launcher.currentConfigGroup = [];
+    launcher.writeConfig("popupWidth", 720);
+    launcher.writeConfig("popupHeight", 590);
+} catch (e) { /* the bar survives launcherless */ }
 
 /* Icons-Only Task Manager — Mo AI pinned FIRST, then browser, files, Mo PC
  * Remote, System Settings and the terminal.

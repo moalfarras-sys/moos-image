@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+    <kcfgfile name=""/>
+
+    <group name="General">
+        <entry name="favoritesClient" type="String">
+            <label>The KActivities Stats client that owns this launcher's favorites.</label>
+            <default>org.moos.launcher.favorites</default>
+        </entry>
+        <entry name="favoriteApps" type="StringList">
+            <label>Initial favorites used only when the selected client has no favorites yet.</label>
+            <default>org.moos.moai.desktop,org.moos.store.desktop,preferred://browser,org.moos.moplayer.desktop,org.kde.dolphin.desktop,systemsettings.desktop,org.moos.updater.desktop,org.moos.recovery.desktop</default>
+        </entry>
+        <entry name="favoritesSeeded" type="Bool">
+            <label>Whether the initial favorites have been imported into KActivities Stats.</label>
+            <default>false</default>
+        </entry>
+        <entry name="defaultPage" type="Int">
+            <label>The page to show when the launcher opens.</label>
+            <default>0</default>
+        </entry>
+        <entry name="showRecent" type="Bool">
+            <label>Whether recent applications and documents appear on the home page.</label>
+            <default>true</default>
+        </entry>
+        <entry name="compactTiles" type="Bool">
+            <label>Whether application tiles use the compact size.</label>
+            <default>false</default>
+        </entry>
+    </group>
+</kcfg>

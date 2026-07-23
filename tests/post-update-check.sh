@@ -371,13 +371,25 @@ done
 if [ -z "$shadow_first" ]; then
     ok "no copy in \$HOME is overriding a MoOS app the image ships"
 else
-    bad "\$HOME overrides these MoOS apps — Kickoff and PATH run the copy, NOT the image:"
+    bad "\$HOME overrides these MoOS apps — the launcher and PATH run the copy, NOT the image:"
     for b in $shadow_first; do printf '      %s\n' "$b"; done
     printf '      \033[2m(delete it: the image is the one that gets fixed)\033[0m\n'
 fi
 for b in $shadow_other; do
     printf '  · %s in $HOME shadows the image'"'"'s copy — fine if you meant it\n' "$b"
 done
+
+plasmoid_shadows=""
+for rel in plasma/plasmoids/org.moos.brand plasma/plasmoids/org.moos.heroclock; do
+    if [ -e "/usr/share/$rel" ] && [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
+        plasmoid_shadows="${plasmoid_shadows} ${rel##*/}"
+    fi
+done
+if [ -z "$plasmoid_shadows" ]; then
+    ok "no user-local Brand/Hero Clock package shadows the updated image"
+else
+    bad "user-local Plasma package(s) shadow the new image:$plasmoid_shadows — run moos-apply-theme"
+fi
 
 # A systemd drop-in is the third way to shadow the image, and the checks above cannot see it:
 # it replaces no file and puts nothing on PATH. It rewrites ExecStart= to run a binary from
@@ -427,6 +439,100 @@ if systemctl is-enabled moos-appstream-refresh.timer >/dev/null 2>&1; then
     ok "the app-store index is a timer, not a boot-blocker"
 else
     bad "moos-appstream-refresh.timer is not enabled — the index may be back on the critical path"
+fi
+
+head_ "The one MoOS launcher is live"
+
+# layout.js proves only a fresh profile.  Query the panel instances the user is
+# looking at so a stale Kickoff, duplicate Brand, or old persisted popup size is
+# a failed update rather than a green file check.
+launcher_runtime_state() {
+    local result
+    command -v gdbus >/dev/null 2>&1 || return 1
+    command -v timeout >/dev/null 2>&1 || return 1
+    result="$(timeout 5s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var ps = panels();
+            var bottoms = 0, brands = 0, legacy = 0, sized = 0, valid = 0;
+            for (var i = 0; i < ps.length; i++) {
+                if (ps[i].location != "bottom") { continue; }
+                bottoms++;
+                var panelBrands = 0, panelLegacy = 0, panelSized = 0;
+                var ws = ps[i].widgets();
+                for (var j = 0; j < ws.length; j++) {
+                    var kind = String(ws[j].type);
+                    if (kind == "org.moos.brand") {
+                        brands++;
+                        panelBrands++;
+                        ws[j].currentConfigGroup = [];
+                        var pw = Number(ws[j].readConfig("popupWidth", 0));
+                        var ph = Number(ws[j].readConfig("popupHeight", 0));
+                        if (pw >= 600 && ph >= 540) { sized++; panelSized++; }
+                    } else if (kind == "org.kde.plasma.kickoff") {
+                        legacy++;
+                        panelLegacy++;
+                    }
+                }
+                if (panelBrands == 1 && panelLegacy == 0 && panelSized == 1) {
+                    valid++;
+                }
+            }
+            print("bottom=" + bottoms + ";brand=" + brands
+                + ";legacy=" + legacy + ";sized=" + sized + ";valid=" + valid);
+        ' 2>/dev/null)" || return 1
+    printf '%s\n' "$result" \
+        | grep -oE 'bottom=[0-9]+;brand=[0-9]+;legacy=[0-9]+;sized=[0-9]+;valid=[0-9]+' \
+        | head -n1
+}
+
+launcher_field() {
+    printf '%s\n' "$launcher_state" | tr ';' '\n' | sed -n "s/^$1=//p"
+}
+
+if launcher_state="$(launcher_runtime_state)" && [ -n "$launcher_state" ]; then
+    bottom_count="$(launcher_field bottom)"
+    brand_count="$(launcher_field brand)"
+    legacy_count="$(launcher_field legacy)"
+    sized_count="$(launcher_field sized)"
+    valid_count="$(launcher_field valid)"
+    [ "$bottom_count" -gt 0 ] \
+        && ok "the running shell has ${bottom_count} managed bottom panel(s)" \
+        || bad "the running shell has no managed bottom panel"
+    [ "$bottom_count" -gt 0 ] \
+        && [ "$brand_count" = "$bottom_count" ] \
+        && [ "$legacy_count" = "0" ] \
+        && [ "$sized_count" = "$brand_count" ] \
+        && [ "$valid_count" = "$bottom_count" ] \
+        && ok "every managed bottom panel has one sized MoOS launcher and no old Kickoff" \
+        || bad "launcher invariant failed: bottom=${bottom_count}, brand=${brand_count}, old-kickoff=${legacy_count}, sized=${sized_count}, valid=${valid_count}"
+else
+    bad "could not inspect launcher instances in the running Plasma shell"
+fi
+
+head_ "Launcher search covers visible HOME"
+if command -v balooctl6 >/dev/null 2>&1; then
+    baloo_status="$(LC_ALL=C balooctl6 status 2>/dev/null)"
+    if printf '%s\n' "$baloo_status" | grep -qx 'Baloo File Indexer is running' \
+            && ! printf '%s\n' "$baloo_status" | grep -qi '^Indexer state:.*suspend'; then
+        ok "the Baloo file indexer is running"
+    else
+        bad "Baloo is stopped or suspended — Milou cannot return local files/folders"
+    fi
+
+    baloo_includes="$(LC_ALL=C balooctl6 config list includeFolders 2>/dev/null \
+        | sed 's/^[[:space:]]*//')"
+    { printf '%s\n' "$baloo_includes" | grep -Fxq "$HOME" \
+        || printf '%s\n' "$baloo_includes" | grep -Fxq "$HOME/"; } \
+        && ok "Baloo includes ${HOME}" \
+        || bad "Baloo does not include ${HOME} — launcher search covers only part of the computer"
+    [ "$(LC_ALL=C balooctl6 config list contentIndexing 2>/dev/null | tail -n1)" = "yes" ] \
+        && ok "file-content indexing is enabled" \
+        || bad "file-content indexing is disabled"
+    [ "$(LC_ALL=C balooctl6 config list hidden 2>/dev/null | tail -n1)" = "no" ] \
+        && ok "hidden config/cache files stay out of results" \
+        || bad "Baloo is indexing hidden files into launcher results"
+else
+    bad "balooctl6 is missing — local launcher search cannot be verified"
 fi
 
 head_ "The dock actually has MoOS's apps in it"
