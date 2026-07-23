@@ -299,6 +299,32 @@ curl -sf --max-time 6 -H 'X-Moai-Control: 1' http://127.0.0.1:8079/status >/dev/
     && ok "the control API answers on 8079" \
     || note "the control API is not up yet (it starts with the session)"
 
+# ── Is somebody watching this screen right now? ───────────────────────────────
+#
+# A live Mo PC Remote viewer costs REAL money on this desktop: the PipeWire
+# capture plus the encoder ran kwin_wayland at ~80% of a core here, and kwin is
+# single-threaded, so every window operation on the machine queues behind it.
+# The desktop felt broken and looked like a bad update.
+#
+# It was a phone left connected over Tailscale. Nothing on screen said so, and
+# this script — the thing you run when the machine feels wrong — said nothing
+# either. So say it. This is a NOTE, not a failure: streaming your own screen on
+# purpose is the feature working. It is only a problem when you did not know.
+head_ "البث عن بُعد | Remote viewing"
+if systemctl --user is-active mo-remote-personal.service >/dev/null 2>&1; then
+    # Count the server side of established connections to the agent's port, so a
+    # Tailscale-proxied viewer (which arrives from 127.0.0.1) is counted too.
+    viewers="$(ss -tn state established '( sport = :8765 )' 2>/dev/null | tail -n +2 | wc -l)"
+    if [ "${viewers:-0}" -gt 0 ]; then
+        note "your screen is being streamed to ${viewers} viewer(s) RIGHT NOW — this is why the desktop may feel slow"
+        note "  stop it with: systemctl --user stop mo-remote-personal.service (or the switch in Mo AI → Access)"
+    else
+        ok "Mo PC Remote is on and idle — no viewer, so nothing is being captured"
+    fi
+else
+    ok "Mo PC Remote is off — nothing is capturing this screen"
+fi
+
 # ── The MoOS Store ────────────────────────────────────────────────────────────
 # `bootc upgrade` replaces /usr atomically, so reading the booted /usr IS reading
 # the running system: these prove the storefront, local index, and private

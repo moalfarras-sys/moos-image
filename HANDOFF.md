@@ -29,6 +29,70 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-23 (later) — "the machine got slow after the update" was a phone
+
+### The finding
+
+The owner reported the desktop became very slow right after booting v327. It was
+not the update. **An iPhone was still connected to Mo PC Remote over Tailscale**
+(`tailscale status`: `iphone182 ... active; relay "fra", tx 214380280`), so the
+PipeWire capture and the JPEG/H.264 encoder were running continuously.
+
+Measured, with nobody at the machine using it:
+
+| | kwin_wayland | mo-remote-portal.py | load |
+|---|---|---|---|
+| Phone connected | **~80%** | ~40–75% | 2.21 |
+| Stream stopped | **~13%** | not spawned | 1.12 |
+| Idle, Mo Remote still on | **~4%** | alive, no pipeline | 0.40 |
+
+**Why ~1.5 cores of 16 wrecks the feel of a 16-thread machine:** `kwin_wayland`
+is single-threaded. At 80% of its one core, every window operation on the whole
+desktop queues behind the compositor. Aggregate CPU looks fine; the desktop does
+not.
+
+Mo Remote itself behaved correctly the whole time — `SetStreaming(!sessions.IsEmpty)`
+in `ScreenCapture.Reconcile()` and the `if not state["streaming"]: return teardown()`
+guard in the portal both did their job. There was a real viewer. Nothing to fix
+in the capture path.
+
+### The trap this session fell into (read this before "optimising" anything)
+
+With the stream running, **every other process looked like a CPU hog too**:
+Mo AI's `moos-qml-shell` read 13%, plasmashell 13%, VS Code 12%. The remote
+capture forces continuous full-surface repaints, so every window's cost is
+inflated. A fix was written for Mo AI's "13% idle animation" — gating its
+ambient animations on `visibility !== Window.Minimized` instead of `visible`.
+
+**It was reverted, because an A/B measurement disproved the premise.** Two probe
+apps with an identical infinite `RotationAnimator`, one gated on `visible` and
+one on `visible && !Minimized`, both cost **0%** while minimised: KWin stops
+delivering frame callbacks to a minimised window, so the animation never runs
+regardless of the QML gate. And once the stream was stopped, Mo AI measured
+**1%**, not 13%.
+
+Two lessons worth keeping:
+
+- **Measure one suspect at a time, with the loudest one silenced.** Profiling a
+  desktop while it is being screen-captured measures the capture, not the app.
+- **`running: root.visible` is not the bug it looks like** on a minimised
+  Wayland window. Don't "fix" it without an A/B that shows a difference.
+
+### What was actually changed
+
+`moos-selfcheck` gained a **Remote viewing** section. It reports the service
+state and counts established connections to the agent's port 8765 (server side,
+so a Tailscale-proxied viewer arriving from 127.0.0.1 is counted). Three states,
+verified by holding synthetic TCP connections open:
+
+- off → "nothing is capturing this screen"
+- on, no viewer → "on and idle — nothing is being captured"
+- on, N viewers → a NOTE naming the count and the exact stop command
+
+It is a note, not a failure: streaming your own screen on purpose is the feature
+working. It is only a problem when you did not know it was happening — and
+nothing on the desktop, and nothing in this script, used to say so.
+
 ## Session 2026-07-23 — Mo Store becomes MoOS's own app centre
 
 ### What shipped
