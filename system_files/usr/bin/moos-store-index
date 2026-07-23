@@ -1,0 +1,2018 @@
+#!/usr/bin/env python3
+"""Build Mo Store's offline, unified application index.
+
+The indexer deliberately reads files only: it never contacts a service and it
+never invokes flatpak (or any other command).  Flatpak AppStream indexes and
+deployed refs are both already present on disk, which also makes this helper
+usable while the machine is offline and straightforward to test.
+"""
+
+from __future__ import annotations
+
+import argparse
+import configparser
+import contextlib
+import datetime as dt
+import gzip
+import hashlib
+import ipaddress
+import json
+import os
+from pathlib import Path
+import re
+import sys
+import tempfile
+import unicodedata
+from urllib.parse import unquote, urlsplit
+from xml.etree import ElementTree as ET
+
+
+DEFAULT_CATALOG = Path("/usr/share/moos/store/catalog.json")
+MAX_XML_BYTES = 512 * 1024 * 1024
+XML_LANG = "{http://www.w3.org/XML/1998/namespace}lang"
+SCHEMA_VERSION = 1
+
+FLATPAK_ID_RE = re.compile(
+    r"^[A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)+$"
+)
+GENERIC_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$")
+REMOTE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+REF_PART_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+ICON_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+@-]{0,255}$")
+NPM_PACKAGE_RE = re.compile(
+    r"^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+)
+
+PRIMARY_CATEGORIES = {
+    "internet",
+    "communication",
+    "office",
+    "development",
+    "graphics",
+    "audio-video",
+    "games",
+    "education",
+    "science",
+    "utilities",
+    "system",
+    "finance",
+    "ai",
+    "other",
+}
+
+CATEGORY_GROUPS = (
+    (
+        "ai",
+        {
+            "artificialintelligence",
+            "machinelearning",
+            "ai",
+        },
+    ),
+    (
+        "games",
+        {
+            "game",
+            "games",
+            "actiongame",
+            "adventuregame",
+            "arcadegame",
+            "blocksgame",
+            "boardgame",
+            "cardgame",
+            "emulator",
+            "gametool",
+            "kidsgame",
+            "logicgame",
+            "roleplaying",
+            "shootergame",
+            "simulation",
+            "sportsgame",
+            "strategygame",
+        },
+    ),
+    (
+        "development",
+        {
+            "development",
+            "building",
+            "computerScience",
+            "database",
+            "debugger",
+            "guidesigner",
+            "ide",
+            "profiling",
+            "revisioncontrol",
+            "texteditor",
+            "webdevelopment",
+        },
+    ),
+    (
+        "graphics",
+        {
+            "2dgraphics",
+            "3dgraphics",
+            "graphics",
+            "imageprocessing",
+            "ocr",
+            "photography",
+            "rastergraphics",
+            "scanning",
+            "vectorgraphics",
+        },
+    ),
+    (
+        "audio-video",
+        {
+            "audio",
+            "audiovideo",
+            "audiovideoediting",
+            "discburning",
+            "midi",
+            "mixer",
+            "music",
+            "player",
+            "recorder",
+            "sequencer",
+            "tuner",
+            "tv",
+            "video",
+        },
+    ),
+    (
+        "communication",
+        {
+            "chat",
+            "contactmanagement",
+            "email",
+            "instantmessaging",
+            "ircclient",
+            "telephony",
+            "telephonytools",
+            "videoconference",
+        },
+    ),
+    (
+        "internet",
+        {
+            "feed",
+            "filetransfer",
+            "maps",
+            "network",
+            "news",
+            "p2p",
+            "remoteaccess",
+            "webbrowser",
+            "x-internet",
+        },
+    ),
+    (
+        "office",
+        {
+            "calendar",
+            "office",
+            "presentation",
+            "productivity",
+            "projectmanagement",
+            "publishing",
+            "spreadsheet",
+            "wordprocessor",
+            "x-csuite",
+        },
+    ),
+    (
+        "education",
+        {
+            "art",
+            "dictionary",
+            "documentation",
+            "education",
+            "humanities",
+            "languages",
+            "literature",
+            "translation",
+        },
+    ),
+    (
+        "science",
+        {
+            "astronomy",
+            "biology",
+            "chemistry",
+            "construction",
+            "datavisualization",
+            "electricity",
+            "electronics",
+            "engineering",
+            "geography",
+            "geology",
+            "geoscience",
+            "hamradio",
+            "math",
+            "medicalsoftware",
+            "numericalanalysis",
+            "parallelcomputing",
+            "physics",
+            "robotics",
+            "science",
+        },
+    ),
+    ("finance", {"economy", "finance"}),
+    (
+        "system",
+        {
+            "coresystem",
+            "desktopsettings",
+            "filesystem",
+            "hardwareSettings",
+            "launcherstore",
+            "packagemanager",
+            "security",
+            "settings",
+            "system",
+            "terminalemulator",
+        },
+    ),
+    (
+        "utilities",
+        {
+            "accessibility",
+            "archiving",
+            "calculator",
+            "clock",
+            "compression",
+            "filemanager",
+            "filetools",
+            "monitor",
+            "texttools",
+            "utility",
+            "viewer",
+        },
+    ),
+)
+
+CURATED_CATEGORY_FALLBACK = {
+    "ess": "utilities",
+    "fun": "games",
+    "dev": "development",
+    "work": "office",
+    "ai": "ai",
+}
+
+
+class IndexErrorBase(Exception):
+    """Expected input error with a concise user-facing message."""
+
+
+class CatalogError(IndexErrorBase):
+    """The curated catalog is absent or unsafe."""
+
+
+class XmlLimitError(IndexErrorBase):
+    """A decompressed AppStream file exceeded its safety limit."""
+
+
+class LimitedReader:
+    """Small read proxy that caps decompressed XML, including gzip streams."""
+
+    def __init__(self, stream, limit: int = MAX_XML_BYTES):
+        self.stream = stream
+        self.limit = limit
+        self.seen = 0
+
+    def read(self, size: int = -1) -> bytes:
+        if size < 0 or size > self.limit - self.seen + 1:
+            size = self.limit - self.seen + 1
+        data = self.stream.read(size)
+        self.seen += len(data)
+        if self.seen > self.limit:
+            raise XmlLimitError("AppStream XML exceeds the decompressed size limit")
+        return data
+
+
+def local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def direct_children(element: ET.Element, name: str):
+    for child in element:
+        if local_name(child.tag) == name:
+            yield child
+
+
+def first_child(element: ET.Element, name: str) -> ET.Element | None:
+    return next(direct_children(element, name), None)
+
+
+def clean_text(value: str | None, limit: int) -> str:
+    if not value:
+        return ""
+    value = unicodedata.normalize("NFKC", value)
+    value = " ".join(value.split())
+    value = "".join(
+        char for char in value if unicodedata.category(char) not in {"Cc", "Cs"}
+    )
+    if len(value) <= limit:
+        return value
+    return value[: max(1, limit - 1)].rstrip() + "…"
+
+
+def element_text(element: ET.Element | None, limit: int) -> str:
+    if element is None:
+        return ""
+    return clean_text(" ".join(element.itertext()), limit)
+
+
+def normalized_locale(value: str | None) -> str:
+    if not value:
+        return ""
+    value = value.split(".", 1)[0].split("@", 1)[0].replace("_", "-").strip()
+    if not value or not re.fullmatch(r"[A-Za-z]{1,8}(?:-[A-Za-z0-9]{1,8})*", value):
+        return ""
+    return value.casefold()
+
+
+def locale_preferences(requested: str | None) -> list[str]:
+    raw_values: list[str] = []
+    if requested:
+        raw_values.append(requested)
+    else:
+        for key in ("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
+            value = os.environ.get(key, "")
+            if value:
+                raw_values.extend(value.split(":"))
+                break
+
+    result: list[str] = []
+    for raw in raw_values:
+        locale = normalized_locale(raw)
+        if not locale:
+            continue
+        for candidate in (locale, locale.split("-", 1)[0]):
+            if candidate and candidate not in result:
+                result.append(candidate)
+    for fallback in ("", "en"):
+        if fallback not in result:
+            result.append(fallback)
+    return result
+
+
+def localized_values(
+    element: ET.Element, child_name: str, limit: int
+) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for child in direct_children(element, child_name):
+        lang = normalized_locale(child.attrib.get(XML_LANG))
+        if child.attrib.get(XML_LANG) and not lang:
+            continue
+        value = element_text(child, limit)
+        if value and lang not in values:
+            values[lang] = value
+    return values
+
+
+def pick_localized(values: dict[str, str], preferences: list[str]) -> str:
+    for wanted in preferences:
+        if wanted in values:
+            return values[wanted]
+        if wanted:
+            regional = next(
+                (
+                    value
+                    for language, value in values.items()
+                    if language.startswith(wanted + "-")
+                ),
+                "",
+            )
+            if regional:
+                return regional
+    return next(iter(values.values()), "")
+
+
+def valid_flatpak_id(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) <= 255
+        and bool(FLATPAK_ID_RE.fullmatch(value))
+    )
+
+
+def valid_generic_id(value: object) -> bool:
+    return isinstance(value, str) and bool(GENERIC_ID_RE.fullmatch(value))
+
+
+def parse_flatpak_ref(value: str | None) -> tuple[str, str, str, str] | None:
+    if not value or len(value) > 512:
+        return None
+    parts = value.strip().split("/")
+    if len(parts) != 4 or parts[0] != "app":
+        return None
+    app_id, arch, branch = parts[1:]
+    if not valid_flatpak_id(app_id):
+        return None
+    if not REF_PART_RE.fullmatch(arch) or not REF_PART_RE.fullmatch(branch):
+        return None
+    return app_id, arch, branch, "/".join(parts)
+
+
+def safe_https_url(value: str | None) -> str:
+    """Return a safe public HTTPS URL, or an empty string."""
+
+    value = clean_text(value, 2048)
+    if not value or "\\" in value:
+        return ""
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError:
+        return ""
+    if (
+        parsed.scheme.casefold() != "https"
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.fragment
+        or port not in (None, 443)
+    ):
+        return ""
+
+    hostname = parsed.hostname
+    if not hostname:
+        return ""
+    try:
+        address = ipaddress.ip_address(hostname.strip("[]"))
+    except ValueError:
+        try:
+            ascii_host = hostname.encode("idna").decode("ascii")
+        except UnicodeError:
+            return ""
+        labels = ascii_host.rstrip(".").split(".")
+        if (
+            len(labels) < 2
+            or any(
+                not label
+                or len(label) > 63
+                or label.startswith("-")
+                or label.endswith("-")
+                or not re.fullmatch(r"[A-Za-z0-9-]+", label)
+                for label in labels
+            )
+        ):
+            return ""
+    else:
+        if not address.is_global:
+            return ""
+
+    decoded = unquote(parsed.path + parsed.query)
+    if any(ord(char) < 32 or ord(char) == 127 for char in decoded):
+        return ""
+    return value
+
+
+def is_within(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def cached_icon_uri(component: ET.Element, index_path: Path) -> str:
+    candidates: list[tuple[int, ET.Element]] = []
+    for icon in direct_children(component, "icon"):
+        if icon.attrib.get("type", "").casefold() != "cached":
+            continue
+        name = element_text(icon, 256)
+        if not ICON_NAME_RE.fullmatch(name):
+            continue
+        try:
+            width = int(icon.attrib.get("width", "0"))
+            height = int(icon.attrib.get("height", "0"))
+        except ValueError:
+            continue
+        if not (1 <= width <= 1024 and 1 <= height <= 1024):
+            continue
+        score = 10_000 - abs(128 - min(width, height))
+        candidates.append((score, icon))
+
+    base = index_path.parent.resolve()
+    for _score, icon in sorted(candidates, key=lambda item: item[0], reverse=True):
+        name = element_text(icon, 256)
+        width = int(icon.attrib["width"])
+        height = int(icon.attrib["height"])
+        candidate = (base / "icons" / f"{width}x{height}" / name).resolve()
+        if is_within(candidate, base) and candidate.is_file():
+            return candidate.as_uri()
+    return ""
+
+
+def remote_icon_uri(component: ET.Element) -> str:
+    candidates: list[tuple[int, str]] = []
+    for icon in direct_children(component, "icon"):
+        if icon.attrib.get("type", "").casefold() != "remote":
+            continue
+        url = safe_https_url(element_text(icon, 2048))
+        if not url:
+            continue
+        try:
+            width = int(icon.attrib.get("width", "0"))
+            height = int(icon.attrib.get("height", "0"))
+        except ValueError:
+            width = height = 0
+        score = 10_000 - abs(128 - min(width, height)) if width and height else 0
+        candidates.append((score, url))
+    return max(candidates, default=(0, ""), key=lambda item: item[0])[1]
+
+
+def first_screenshot_uri(component: ET.Element) -> str:
+    screenshots = first_child(component, "screenshots")
+    if screenshots is None:
+        return ""
+    screenshot = first_child(screenshots, "screenshot")
+    if screenshot is None:
+        return ""
+    images: list[tuple[int, str]] = []
+    for image in direct_children(screenshot, "image"):
+        url = safe_https_url(element_text(image, 2048))
+        if not url:
+            continue
+        image_type = image.attrib.get("type", "").casefold()
+        score = 2 if image_type == "source" else 1
+        images.append((score, url))
+    return max(images, default=(0, ""), key=lambda item: item[0])[1]
+
+
+def developer_name(component: ET.Element, preferences: list[str]) -> str:
+    developer = first_child(component, "developer")
+    if developer is not None:
+        value = pick_localized(localized_values(developer, "name", 160), preferences)
+        if value:
+            return value
+    return pick_localized(
+        localized_values(component, "developer_name", 160), preferences
+    )
+
+
+def component_categories(component: ET.Element) -> list[str]:
+    parent = first_child(component, "categories")
+    if parent is None:
+        return []
+    categories: list[str] = []
+    for item in direct_children(parent, "category"):
+        category = element_text(item, 80)
+        if (
+            category
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9+_.-]{0,79}", category)
+            and category not in categories
+        ):
+            categories.append(category)
+    return categories
+
+
+def normalized_category(categories: list[str]) -> str:
+    folded = {category.casefold() for category in categories}
+    for primary, aliases in CATEGORY_GROUPS:
+        if folded.intersection(alias.casefold() for alias in aliases):
+            return primary
+    return "other"
+
+
+def latest_version(component: ET.Element) -> str:
+    releases = first_child(component, "releases")
+    if releases is None:
+        return ""
+    for release in direct_children(releases, "release"):
+        version = clean_text(release.attrib.get("version"), 120)
+        if version:
+            return version
+    return ""
+
+
+def component_verified(component: ET.Element) -> bool:
+    custom = first_child(component, "custom")
+    if custom is None:
+        return False
+    for value in direct_children(custom, "value"):
+        if value.attrib.get("key") == "flathub::verification::verified":
+            return element_text(value, 16).casefold() in {"1", "true", "yes"}
+    return False
+
+
+def parse_component(
+    component: ET.Element,
+    index_path: Path,
+    origin: str,
+    scope: str,
+    preferences: list[str],
+) -> dict | None:
+    flatpak_ref = None
+    for bundle in direct_children(component, "bundle"):
+        if bundle.attrib.get("type", "").casefold() != "flatpak":
+            continue
+        flatpak_ref = parse_flatpak_ref(element_text(bundle, 512))
+        if flatpak_ref:
+            break
+    if flatpak_ref is None:
+        return None
+
+    app_id, arch, branch, canonical_ref = flatpak_ref
+    name = pick_localized(localized_values(component, "name", 160), preferences)
+    summary = pick_localized(
+        localized_values(component, "summary", 240), preferences
+    )
+    description = pick_localized(
+        localized_values(component, "description", 420), preferences
+    )
+    categories = component_categories(component)
+    license_value = element_text(first_child(component, "project_license"), 160)
+    icon = cached_icon_uri(component, index_path) or remote_icon_uri(component)
+
+    return {
+        "id": app_id,
+        "source": "flatpak",
+        "origin": origin,
+        "scope": scope,
+        "installable": True,
+        "flatpak_ref": canonical_ref,
+        "arch": arch,
+        "branch": branch,
+        "name": name or app_id.rsplit(".", 1)[-1],
+        "summary": summary,
+        "description": description or summary,
+        "developer": developer_name(component, preferences),
+        "license": license_value,
+        "category": normalized_category(categories),
+        "categories": categories,
+        "icon": icon or None,
+        "screenshot": first_screenshot_uri(component) or None,
+        "verified": component_verified(component),
+        "installed": False,
+        "version": latest_version(component),
+        "curated": False,
+        "origins": [
+            {
+                "origin": origin,
+                "scope": scope,
+                "arch": arch,
+                "branch": branch,
+                "ref": canonical_ref,
+            }
+        ],
+    }
+
+
+def rejected_component_is_invalid(component: ET.Element) -> bool:
+    """Distinguish an unsafe app ref from a normal runtime/add-on component."""
+
+    for bundle in direct_children(component, "bundle"):
+        if bundle.attrib.get("type", "").casefold() != "flatpak":
+            continue
+        value = element_text(bundle, 512)
+        if value == "app" or value.startswith("app/"):
+            return True
+    return False
+
+
+@contextlib.contextmanager
+def open_appstream(path: Path):
+    raw = path.open("rb")
+    try:
+        if path.name.endswith(".gz"):
+            compressed = gzip.GzipFile(fileobj=raw, mode="rb")
+            try:
+                yield LimitedReader(compressed)
+            finally:
+                compressed.close()
+        else:
+            yield LimitedReader(raw)
+    finally:
+        raw.close()
+
+
+def iter_components(path: Path):
+    with open_appstream(path) as stream:
+        context = ET.iterparse(stream, events=("start", "end"))
+        try:
+            _event, root = next(context)
+        except StopIteration:
+            return
+        for event, element in context:
+            if event == "end" and local_name(element.tag) == "component":
+                yield element
+                element.clear()
+                root.clear()
+
+
+def source_rank(app: dict, installed_refs: list[dict]) -> tuple:
+    installed_match = any(
+        item["origin"] == app["origin"]
+        and item["arch"] == app["arch"]
+        and item["branch"] == app["branch"]
+        for item in installed_refs
+    )
+    scope_rank = {"user": 3, "system": 2, "custom": 1}.get(app["scope"], 0)
+    completeness = sum(
+        bool(app.get(field))
+        for field in (
+            "name",
+            "summary",
+            "description",
+            "developer",
+            "license",
+            "icon",
+            "screenshot",
+            "version",
+        )
+    )
+    return installed_match, scope_rank, bool(app["verified"]), completeness
+
+
+def merge_duplicate(current: dict, candidate: dict, installed_refs: list[dict]) -> dict:
+    if source_rank(candidate, installed_refs) > source_rank(current, installed_refs):
+        primary, secondary = candidate, current
+    else:
+        primary, secondary = current, candidate
+
+    for field in (
+        "summary",
+        "description",
+        "developer",
+        "license",
+        "icon",
+        "screenshot",
+        "version",
+    ):
+        if not primary.get(field) and secondary.get(field):
+            primary[field] = secondary[field]
+
+    primary["categories"] = list(
+        dict.fromkeys(primary["categories"] + secondary["categories"])
+    )
+    if primary["category"] == "other":
+        primary["category"] = normalized_category(primary["categories"])
+
+    seen = {
+        (item["origin"], item["scope"], item["ref"]) for item in primary["origins"]
+    }
+    for item in secondary["origins"]:
+        marker = item["origin"], item["scope"], item["ref"]
+        if marker not in seen:
+            primary["origins"].append(item)
+            seen.add(marker)
+    primary["origins"].sort(
+        key=lambda item: (item["origin"], item["scope"], item["ref"])
+    )
+    return primary
+
+
+def clone_app_for_source(template: dict, source: dict) -> dict:
+    """Clone cached metadata while recording this remote installation's scope."""
+
+    app = dict(template)
+    app["origin"] = source["origin"]
+    app["scope"] = source["scope"]
+    app["categories"] = list(template["categories"])
+    app["origins"] = [
+        {
+            "origin": source["origin"],
+            "scope": source["scope"],
+            "arch": template["arch"],
+            "branch": template["branch"],
+            "ref": template["flatpak_ref"],
+        }
+    ]
+    return app
+
+
+def scope_for_path(
+    path: Path, user_installation: Path, system_installation: Path
+) -> str:
+    resolved = path.resolve()
+    if is_within(resolved, user_installation.resolve()):
+        return "user"
+    if is_within(resolved, system_installation.resolve()):
+        return "system"
+    return "custom"
+
+
+def flatpak_locations() -> tuple[Path, Path]:
+    xdg_data_home = Path(
+        os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local/share"))
+    )
+    user = Path(os.environ.get("FLATPAK_USER_DIR", str(xdg_data_home / "flatpak")))
+    system = Path(os.environ.get("FLATPAK_SYSTEM_DIR", "/var/lib/flatpak"))
+    return user, system
+
+
+def extra_system_installations() -> list[Path]:
+    paths: list[Path] = []
+    config_dirs = [Path("/etc/flatpak/installations.d")]
+    for entry in os.environ.get("XDG_CONFIG_DIRS", "/etc/xdg").split(":"):
+        if entry:
+            config_dirs.append(Path(entry) / "flatpak/installations.d")
+
+    seen_configs: set[Path] = set()
+    for directory in config_dirs:
+        try:
+            files = sorted(directory.glob("*.conf"))
+        except OSError:
+            continue
+        for config_path in files:
+            try:
+                resolved_config = config_path.resolve()
+            except OSError:
+                continue
+            if resolved_config in seen_configs:
+                continue
+            seen_configs.add(resolved_config)
+            parser = configparser.ConfigParser(interpolation=None, strict=False)
+            try:
+                with config_path.open(encoding="utf-8") as handle:
+                    parser.read_file(handle)
+            except (OSError, UnicodeError, configparser.Error):
+                continue
+            for section in parser.sections():
+                if not section.casefold().startswith("installation "):
+                    continue
+                value = parser.get(section, "Path", fallback="").strip()
+                candidate = Path(os.path.expandvars(value))
+                if candidate.is_absolute():
+                    paths.append(candidate)
+    return paths
+
+
+def unique_locations(items: list[tuple[Path, str]]) -> list[tuple[Path, str]]:
+    result: list[tuple[Path, str]] = []
+    seen: set[Path] = set()
+    for path, scope in items:
+        try:
+            marker = path.resolve()
+        except OSError:
+            marker = path.absolute()
+        if marker not in seen:
+            result.append((path, scope))
+            seen.add(marker)
+    return result
+
+
+def discover_roots(
+    requested_appstream: list[str] | None,
+    requested_installations: list[str] | None,
+) -> tuple[list[tuple[Path, str]], list[tuple[Path, str]]]:
+    user_installation, system_installation = flatpak_locations()
+
+    if requested_appstream:
+        appstream_roots = [
+            (
+                Path(value),
+                scope_for_path(
+                    Path(value), user_installation, system_installation
+                ),
+            )
+            for value in requested_appstream
+        ]
+    else:
+        appstream_roots = [
+            (user_installation / "appstream", "user"),
+            (system_installation / "appstream", "system"),
+        ]
+        appstream_roots.extend(
+            (path / "appstream", "system") for path in extra_system_installations()
+        )
+
+    if requested_installations:
+        installation_roots = [
+            (
+                Path(value),
+                scope_for_path(
+                    Path(value), user_installation, system_installation
+                ),
+            )
+            for value in requested_installations
+        ]
+    elif requested_appstream:
+        installation_roots = [
+            (Path(value).parent, scope) for value, (_path, scope) in zip(
+                requested_appstream, appstream_roots
+            )
+        ]
+    else:
+        installation_roots = [
+            (user_installation, "user"),
+            (system_installation, "system"),
+        ]
+        installation_roots.extend(
+            (path, "system") for path in extra_system_installations()
+        )
+
+    return unique_locations(appstream_roots), unique_locations(installation_roots)
+
+
+def appstream_sources(
+    roots: list[tuple[Path, str]],
+    *,
+    official_only: bool = False,
+) -> list[dict]:
+    sources: list[dict] = []
+    for root, scope in roots:
+        if not root.is_dir():
+            continue
+        allowed_origins = official_flatpak_origins(root) if official_only else None
+        try:
+            root_resolved = root.resolve()
+            remote_dirs = sorted(root.iterdir(), key=lambda path: path.name)
+        except OSError:
+            continue
+        for remote_dir in remote_dirs:
+            origin = remote_dir.name
+            if (
+                not remote_dir.is_dir()
+                or not REMOTE_RE.fullmatch(origin)
+                or remote_dir.is_symlink()
+                or (allowed_origins is not None and origin not in allowed_origins)
+            ):
+                continue
+            try:
+                arch_dirs = sorted(remote_dir.iterdir(), key=lambda path: path.name)
+            except OSError:
+                continue
+            for arch_dir in arch_dirs:
+                arch = arch_dir.name
+                if not arch_dir.is_dir() or not REF_PART_RE.fullmatch(arch):
+                    continue
+                candidates: list[Path] = []
+                try:
+                    # Prefer Flatpak's active revision explicitly. pathlib's
+                    # recursive walk intentionally does not descend through
+                    # that symlink, so add its two supported filenames first.
+                    for filename in ("appstream.xml", "appstream.xml.gz"):
+                        active_candidate = arch_dir / "active" / filename
+                        if (
+                            active_candidate.is_file()
+                            and is_within(active_candidate.resolve(), root_resolved)
+                        ):
+                            candidates.append(active_candidate)
+                    for candidate in arch_dir.rglob("*"):
+                        if (
+                            candidate.is_file()
+                            and candidate.name in {"appstream.xml", "appstream.xml.gz"}
+                        ):
+                            resolved = candidate.resolve()
+                            if is_within(resolved, root_resolved):
+                                candidates.append(candidate)
+                except OSError:
+                    continue
+                if not candidates:
+                    continue
+
+                by_parent: dict[Path, list[Path]] = {}
+                for candidate in candidates:
+                    by_parent.setdefault(
+                        candidate.parent.resolve(), []
+                    ).append(candidate)
+                revisions: list[Path] = []
+                for siblings in by_parent.values():
+                    plain = next(
+                        (item for item in siblings if item.name == "appstream.xml"),
+                        None,
+                    )
+                    revisions.append(plain or siblings[0])
+
+                def candidate_key(path: Path):
+                    try:
+                        modified = path.stat().st_mtime_ns
+                    except OSError:
+                        modified = 0
+                    active = "active" in path.parts
+                    return active, modified, str(path)
+
+                chosen = max(revisions, key=candidate_key)
+                revision_name = chosen.parent.resolve().name
+                revision = (
+                    revision_name
+                    if re.fullmatch(r"[0-9a-f]{64}", revision_name)
+                    else None
+                )
+                sources.append(
+                    {
+                        "kind": "flatpak-appstream",
+                        "origin": origin,
+                        "scope": scope,
+                        "arch": arch,
+                        "revision": revision,
+                        "path": chosen,
+                    }
+                )
+    return sources
+
+
+def official_flatpak_origins(appstream_root: Path) -> set[str]:
+    """Return configured, enabled remotes backed by the official Flathub repo.
+
+    AppStream directories can survive remote removal.  Treating every leftover
+    directory as live metadata lets an orphan/custom remote claim verification,
+    shadow a real app ID, and advertise apps the backend will not install from
+    that source.  Production auto-discovery therefore reads the installation's
+    own repo config and keeps only remotes whose URL/GPG policy matches the
+    backend. Explicit --appstream-root fixtures remain available for tests.
+    """
+
+    config = appstream_root.parent / "repo" / "config"
+    parser = configparser.ConfigParser(interpolation=None, strict=False)
+    try:
+        with config.open(encoding="utf-8") as handle:
+            parser.read_file(handle)
+    except (OSError, UnicodeError, configparser.Error):
+        return set()
+    result: set[str] = set()
+    for section in parser.sections():
+        match = re.fullmatch(r'remote "([^"]+)"', section)
+        if not match:
+            continue
+        name = match.group(1)
+        if not REMOTE_RE.fullmatch(name):
+            continue
+        url = parser.get(section, "url", fallback="").rstrip("/") + "/"
+        gpg = parser.getboolean(section, "gpg-verify", fallback=False)
+        disabled = parser.getboolean(section, "xa.disable", fallback=False)
+        if url == "https://dl.flathub.org/repo/" and gpg and not disabled:
+            result.add(name)
+    return result
+
+
+def deployed_origin(active: Path) -> str:
+    deploy = active / "deploy"
+    try:
+        if not deploy.is_file() or not is_within(deploy.resolve(), active.resolve()):
+            return ""
+        with deploy.open("rb") as handle:
+            prefix = handle.read(256).split(b"\0", 1)[0]
+        value = prefix.decode("ascii")
+    except (OSError, UnicodeError):
+        return ""
+    return value if REMOTE_RE.fullmatch(value) else ""
+
+
+def scan_installed(roots: list[tuple[Path, str]]) -> dict[str, list[dict]]:
+    installed: dict[str, list[dict]] = {}
+    for root, scope in roots:
+        app_root = root / "app"
+        if not app_root.is_dir():
+            continue
+        try:
+            ids = sorted(app_root.iterdir(), key=lambda path: path.name)
+        except OSError:
+            continue
+        for id_dir in ids:
+            app_id = id_dir.name
+            if not id_dir.is_dir() or not valid_flatpak_id(app_id):
+                continue
+            try:
+                arch_dirs = id_dir.iterdir()
+            except OSError:
+                continue
+            for arch_dir in arch_dirs:
+                if not arch_dir.is_dir() or not REF_PART_RE.fullmatch(arch_dir.name):
+                    continue
+                try:
+                    branches = arch_dir.iterdir()
+                except OSError:
+                    continue
+                for branch_dir in branches:
+                    if (
+                        not branch_dir.is_dir()
+                        or not REF_PART_RE.fullmatch(branch_dir.name)
+                    ):
+                        continue
+                    active = branch_dir / "active"
+                    try:
+                        is_deployed = active.exists() and is_within(
+                            active.resolve(), branch_dir.resolve()
+                        )
+                    except OSError:
+                        is_deployed = False
+                    if not is_deployed:
+                        continue
+                    installed.setdefault(app_id, []).append(
+                        {
+                            "origin": deployed_origin(active),
+                            "scope": scope,
+                            "arch": arch_dir.name,
+                            "branch": branch_dir.name,
+                        }
+                    )
+    return installed
+
+
+def installed_scopes_for_refs(refs: list[dict]) -> list[str]:
+    """Return each installed Flatpak scope once, in stable lifecycle order."""
+
+    return [
+        scope
+        for scope in ("user", "system")
+        if any(item.get("scope") == scope for item in refs)
+    ]
+
+
+def safe_catalog_text(entry: dict, key: str, limit: int) -> str:
+    value = entry.get(key, "")
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise CatalogError(f"catalog field {key!r} must be text")
+    return clean_text(value, limit)
+
+
+def sanitize_install(entry: dict, app_id: str) -> dict:
+    raw = entry.get("install")
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise CatalogError(f"catalog install recipe for {app_id!r} must be an object")
+    kind = safe_catalog_text(raw, "kind", 32)
+    if not SLUG_RE.fullmatch(kind):
+        raise CatalogError(f"catalog install kind for {app_id!r} is invalid")
+
+    result = {"kind": kind}
+    url_value = safe_catalog_text(raw, "url", 2048)
+    if url_value:
+        safe_url = safe_https_url(url_value)
+        if not safe_url:
+            raise CatalogError(f"catalog URL for {app_id!r} is not safe HTTPS")
+        result["url"] = safe_url
+
+    package = safe_catalog_text(raw, "pkg", 180)
+    if package:
+        if not NPM_PACKAGE_RE.fullmatch(package):
+            raise CatalogError(f"catalog package for {app_id!r} is invalid")
+        result["pkg"] = package
+
+    binary = safe_catalog_text(raw, "bin", 128)
+    if binary:
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", binary):
+            raise CatalogError(f"catalog binary for {app_id!r} is invalid")
+        result["bin"] = binary
+
+    name = safe_catalog_text(raw, "name", 160)
+    if name:
+        result["name"] = name
+    version = safe_catalog_text(raw, "version", 80)
+    if version:
+        result["version"] = version
+    digest = safe_catalog_text(raw, "sha256", 64)
+    if digest:
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", digest):
+            raise CatalogError(f"catalog SHA-256 for {app_id!r} is invalid")
+        result["sha256"] = digest.lower()
+    risk = safe_catalog_text(raw, "risk", 64)
+    if risk:
+        if not SLUG_RE.fullmatch(risk):
+            raise CatalogError(f"catalog risk for {app_id!r} is invalid")
+        result["risk"] = risk
+    for key in ("requires_review", "external"):
+        if key in raw:
+            if not isinstance(raw[key], bool):
+                raise CatalogError(
+                    f"catalog install field {key!r} for {app_id!r} is invalid"
+                )
+            result[key] = raw[key]
+    return result
+
+
+def sanitize_catalog_app(entry: object) -> dict:
+    if not isinstance(entry, dict):
+        raise CatalogError("every catalog app must be an object")
+    app_id = entry.get("id")
+    source = safe_catalog_text(entry, "source", 32)
+    if not SLUG_RE.fullmatch(source):
+        raise CatalogError(f"catalog source for {app_id!r} is invalid")
+    if source in {"flathub", "flatpak"}:
+        if not valid_flatpak_id(app_id):
+            raise CatalogError(f"catalog Flatpak id {app_id!r} is invalid")
+    elif not valid_generic_id(app_id):
+        raise CatalogError(f"catalog app id {app_id!r} is invalid")
+
+    result: dict = {"id": app_id, "source": source}
+    for key, limit in (
+        ("cat", 64),
+        ("glyph", 64),
+        ("en", 160),
+        ("ar", 160),
+        ("desc_en", 420),
+        ("desc_ar", 420),
+        ("reviews", 64),
+    ):
+        value = safe_catalog_text(entry, key, limit)
+        if value:
+            if key in {"cat", "glyph"} and not SLUG_RE.fullmatch(value):
+                raise CatalogError(f"catalog field {key!r} for {app_id!r} is invalid")
+            result[key] = value
+
+    rating = entry.get("rating")
+    if rating is not None:
+        if (
+            isinstance(rating, bool)
+            or not isinstance(rating, (int, float))
+            or not 0 <= rating <= 5
+        ):
+            raise CatalogError(f"catalog rating for {app_id!r} is invalid")
+        result["rating"] = rating
+    for key in ("popular", "preselect"):
+        if key in entry:
+            if not isinstance(entry[key], bool):
+                raise CatalogError(f"catalog field {key!r} for {app_id!r} is invalid")
+            result[key] = entry[key]
+
+    install = sanitize_install(entry, app_id)
+    if install:
+        result["install"] = install
+    return result
+
+
+def sanitize_catalog_group(entry: object, kind: str) -> dict:
+    if not isinstance(entry, dict):
+        raise CatalogError(f"every catalog {kind} must be an object")
+    group_id = safe_catalog_text(entry, "id", 64)
+    if not SLUG_RE.fullmatch(group_id):
+        raise CatalogError(f"catalog {kind} id {group_id!r} is invalid")
+    result = {"id": group_id}
+    for key, limit in (
+        ("en", 160),
+        ("ar", 160),
+        ("glyph", 64),
+        ("desc_en", 420),
+        ("desc_ar", 420),
+    ):
+        value = safe_catalog_text(entry, key, limit)
+        if value:
+            if key == "glyph" and not SLUG_RE.fullmatch(value):
+                raise CatalogError(f"catalog glyph for {group_id!r} is invalid")
+            result[key] = value
+    if kind == "bundle":
+        raw_apps = entry.get("apps", [])
+        if not isinstance(raw_apps, list) or not all(
+            valid_generic_id(item) for item in raw_apps
+        ):
+            raise CatalogError(f"catalog bundle apps for {group_id!r} are invalid")
+        result["apps"] = list(dict.fromkeys(raw_apps))
+    return result
+
+
+def load_catalog(path: Path) -> dict:
+    try:
+        with path.open(encoding="utf-8") as handle:
+            raw = json.load(handle)
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise CatalogError(f"cannot read catalog {path}: {error}") from error
+    if not isinstance(raw, dict):
+        raise CatalogError("catalog root must be an object")
+    raw_apps = raw.get("apps")
+    if not isinstance(raw_apps, list):
+        raise CatalogError("catalog apps must be a list")
+
+    apps = [sanitize_catalog_app(item) for item in raw_apps]
+    ids = [item["id"] for item in apps]
+    if len(ids) != len(set(ids)):
+        raise CatalogError("catalog contains duplicate app ids")
+    categories = [
+        sanitize_catalog_group(item, "category")
+        for item in raw.get("categories", [])
+    ]
+    bundles = [
+        sanitize_catalog_group(item, "bundle") for item in raw.get("bundles", [])
+    ]
+    return {"apps": apps, "categories": categories, "bundles": bundles}
+
+
+def catalog_localized(entry: dict, preferences: list[str], prefix: str = "") -> str:
+    values = {}
+    for language in ("en", "ar"):
+        key = f"{prefix}{language}"
+        value = entry.get(key, "")
+        if value:
+            values[language] = value
+    return pick_localized(values, preferences)
+
+
+def catalog_installable(entry: dict) -> bool:
+    if entry["source"] in {"flathub", "flatpak"}:
+        return True
+    install = entry.get("install", {})
+    kind = install.get("kind")
+    if kind == "npm":
+        return bool(install.get("pkg") and install.get("bin"))
+    if kind == "appimage":
+        return bool(install.get("url") and install.get("bin"))
+    if kind == "web":
+        return bool(install.get("url"))
+    return False
+
+
+def nonflatpak_installed(entry: dict) -> bool:
+    install = entry.get("install", {})
+    binary = install.get("bin")
+    if not binary:
+        return False
+    local_bin = Path.home() / ".local/bin"
+    candidates = [local_bin / binary]
+    if install.get("kind") == "appimage":
+        candidates.append(local_bin / f"{binary}.AppImage")
+    return any(path.is_file() for path in candidates)
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def digest_json(value: object) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def input_tokens(
+    catalog_path: Path,
+    catalog: dict,
+    sources: list[dict],
+    installed: dict[str, list[dict]],
+    preferences: list[str],
+) -> dict[str, str]:
+    """Fingerprint every input that can change the generated application state."""
+
+    source_state = []
+    for source in sources:
+        path = source["path"]
+        try:
+            stat_result = path.stat()
+            size = stat_result.st_size
+            modified = stat_result.st_mtime_ns
+        except OSError:
+            size = modified = None
+        source_state.append(
+            {
+                "origin": source["origin"],
+                "scope": source["scope"],
+                "arch": source["arch"],
+                "revision": source.get("revision"),
+                # mtime/size also protect injected non-content-addressed fixtures
+                # and catch an unexpectedly rewritten revision on a damaged host.
+                "size": size,
+                "mtime_ns": modified,
+            }
+        )
+
+    installed_refs_state = sorted(
+        (
+            app_id,
+            item["origin"],
+            item["scope"],
+            item["arch"],
+            item["branch"],
+        )
+        for app_id, refs in installed.items()
+        for item in refs
+    )
+    nonflatpak_state = sorted(
+        (entry["id"], nonflatpak_installed(entry))
+        for entry in catalog["apps"]
+        if entry["source"] not in {"flathub", "flatpak"}
+    )
+    metadata_state = {
+        "schema_version": SCHEMA_VERSION,
+        "generator": sha256_file(Path(__file__)),
+        "catalog": sha256_file(catalog_path),
+        "locale_preferences": preferences,
+        "sources": sorted(
+            source_state,
+            key=lambda item: (
+                item["origin"],
+                item["scope"],
+                item["arch"],
+                item["revision"] or "",
+            ),
+        ),
+    }
+    installed_state = {
+        "installed": installed_refs_state,
+        "nonflatpak_installed": nonflatpak_state,
+    }
+    metadata_digest = digest_json(metadata_state)
+    installed_digest = digest_json(installed_state)
+    return {
+        "metadata": metadata_digest,
+        "installed": installed_digest,
+        "input": digest_json(
+            {"metadata": metadata_digest, "installed": installed_digest}
+        ),
+    }
+
+
+def input_token(
+    catalog_path: Path,
+    catalog: dict,
+    sources: list[dict],
+    installed: dict[str, list[dict]],
+    preferences: list[str],
+) -> str:
+    """Compatibility helper for callers that need only the combined token."""
+
+    return input_tokens(
+        catalog_path, catalog, sources, installed, preferences
+    )["input"]
+
+
+def existing_output_tokens(path: Path) -> dict[str, str] | None:
+    """Read generation tokens without materializing the multi-megabyte app list."""
+
+    try:
+        size = path.stat().st_size
+        if not path.is_file() or not 128 <= size <= 64 * 1024 * 1024:
+            return None
+        with path.open("rb") as handle:
+            head = handle.read(8192)
+            handle.seek(-2, os.SEEK_END)
+            tail = handle.read(2)
+    except OSError:
+        return None
+    if (
+        f'"schema_version":{SCHEMA_VERSION}'.encode("ascii") not in head
+        or tail != b"}\n"
+    ):
+        return None
+    tokens: dict[str, str] = {}
+    for output_key, json_key in (
+        ("input", "input_token"),
+        ("metadata", "metadata_token"),
+        ("installed", "installed_token"),
+    ):
+        match = re.search(
+            rb'"' + json_key.encode("ascii") + rb'":"([0-9a-f]{64})"',
+            head,
+        )
+        if match is None:
+            return None
+        tokens[output_key] = match.group(1).decode("ascii")
+    return tokens
+
+
+def existing_output_matches(path: Path, token: str) -> bool:
+    """Cheaply recognize an atomically-written index for the current inputs."""
+
+    existing = existing_output_tokens(path)
+    return existing is not None and existing["input"] == token
+
+
+def load_refreshable_output(path: Path, metadata_token: str) -> dict | None:
+    try:
+        with path.open(encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    if not (
+        isinstance(payload, dict)
+        and payload.get("schema_version") == SCHEMA_VERSION
+        and isinstance(payload.get("generation"), dict)
+        and payload["generation"].get("metadata_token") == metadata_token
+        and isinstance(payload.get("stats"), dict)
+        and isinstance(payload.get("categories"), list)
+        and isinstance(payload.get("bundles"), list)
+        and isinstance(payload.get("apps"), list)
+    ):
+        return None
+    return payload
+
+
+def refresh_installed_flags(
+    payload: dict,
+    installed: dict[str, list[dict]],
+    catalog: dict,
+) -> bool:
+    """Refresh lifecycle state in a cached metadata index without reparsing XML."""
+
+    catalog_by_id = {entry["id"]: entry for entry in catalog["apps"]}
+    for app in payload["apps"]:
+        if not isinstance(app, dict) or not valid_generic_id(app.get("id")):
+            return False
+        app.pop("installed_origin", None)
+        app.pop("installed_scope", None)
+        app.pop("installed_scopes", None)
+        if app.get("source") == "flatpak":
+            refs = installed.get(app["id"], [])
+            app["installed"] = bool(refs)
+            if not refs:
+                continue
+            app["installed_scopes"] = installed_scopes_for_refs(refs)
+            matching = next(
+                (
+                    item
+                    for item in refs
+                    if item["origin"] == app.get("origin")
+                    and item["arch"] == app.get("arch")
+                    and item["branch"] == app.get("branch")
+                ),
+                None,
+            )
+            if matching is None:
+                matching = next(
+                    (
+                        item
+                        for item in refs
+                        if item["origin"] == app.get("origin")
+                    ),
+                    refs[0],
+                )
+            app["installed_origin"] = matching["origin"] or app.get("origin", "")
+            app["installed_scope"] = matching["scope"]
+        else:
+            entry = catalog_by_id.get(app["id"])
+            app["installed"] = (
+                nonflatpak_installed(entry) if entry is not None else False
+            )
+    payload["stats"]["installed_apps"] = sum(
+        bool(app.get("installed")) for app in payload["apps"]
+    )
+    return True
+
+
+def content_generation_id(payload: dict) -> str:
+    return digest_json(
+        {
+            "categories": payload["categories"],
+            "bundles": payload["bundles"],
+            "apps": payload["apps"],
+        }
+    )[:20]
+
+
+def catalog_fallback_app(entry: dict, preferences: list[str]) -> dict:
+    flatpak = entry["source"] in {"flathub", "flatpak"}
+    name = catalog_localized(entry, preferences) or entry["id"]
+    description = catalog_localized(entry, preferences, "desc_")
+    category = CURATED_CATEGORY_FALLBACK.get(entry.get("cat", ""), "other")
+    if category not in PRIMARY_CATEGORIES:
+        category = "other"
+    app = {
+        "id": entry["id"],
+        "source": "flatpak" if flatpak else entry["source"],
+        "origin": "flathub" if entry["source"] == "flathub" else entry["source"],
+        "scope": "user" if flatpak or entry.get("install", {}).get("kind") != "web"
+        else "external",
+        "installable": catalog_installable(entry),
+        # A curated fallback has a validated app id but no AppStream bundle,
+        # so inventing an arch/branch ref here would violate the ref contract.
+        "flatpak_ref": None,
+        "arch": None,
+        "branch": None,
+        "name": name,
+        "summary": description,
+        "description": description,
+        "developer": "",
+        "license": "",
+        "category": category,
+        "categories": [],
+        "icon": None,
+        "screenshot": None,
+        "verified": False,
+        "installed": False if flatpak else nonflatpak_installed(entry),
+        "version": "",
+        "curated": True,
+        "origins": (
+            [
+                {
+                    "origin": "flathub",
+                    "scope": "user",
+                    "arch": None,
+                    "branch": None,
+                    "ref": None,
+                }
+            ]
+            if flatpak
+            else []
+        ),
+    }
+    app.update(entry)
+    app["source"] = "flatpak" if flatpak else entry["source"]
+    return app
+
+
+def overlay_catalog(app: dict, entry: dict, preferences: list[str]) -> None:
+    app["curated"] = True
+    app["catalog_category"] = entry.get("cat")
+    curated_name = catalog_localized(entry, preferences)
+    curated_description = catalog_localized(entry, preferences, "desc_")
+    if curated_name:
+        app["name"] = curated_name
+    if curated_description:
+        app["summary"] = curated_description
+        app["description"] = curated_description
+    for key in (
+        "cat",
+        "glyph",
+        "en",
+        "ar",
+        "desc_en",
+        "desc_ar",
+        "rating",
+        "reviews",
+        "popular",
+        "preselect",
+    ):
+        if key in entry:
+            app[key] = entry[key]
+    if entry.get("cat") == "ai":
+        app["category"] = "ai"
+
+
+def generation_time() -> str:
+    epoch = os.environ.get("SOURCE_DATE_EPOCH", "")
+    try:
+        moment = dt.datetime.fromtimestamp(int(epoch), tz=dt.timezone.utc)
+    except (ValueError, OverflowError, OSError):
+        moment = dt.datetime.now(tz=dt.timezone.utc)
+    return moment.isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def build_index(
+    catalog_path: Path,
+    appstream_roots: list[tuple[Path, str]],
+    installation_roots: list[tuple[Path, str]],
+    requested_locale: str | None,
+    *,
+    catalog_data: dict | None = None,
+    installed_data: dict[str, list[dict]] | None = None,
+    source_data: list[dict] | None = None,
+    cache_tokens: dict[str, str] | None = None,
+) -> dict:
+    preferences = locale_preferences(requested_locale)
+    catalog = catalog_data if catalog_data is not None else load_catalog(catalog_path)
+    installed = (
+        installed_data
+        if installed_data is not None
+        else scan_installed(installation_roots)
+    )
+    discovered_sources = (
+        source_data if source_data is not None else appstream_sources(appstream_roots)
+    )
+    if cache_tokens is None:
+        cache_tokens = input_tokens(
+            catalog_path, catalog, discovered_sources, installed, preferences
+        )
+
+    apps_by_id: dict[str, dict] = {}
+    sources_output: list[dict] = []
+    metadata_cache: dict[tuple[str, str, str], dict] = {}
+    duplicate_count = 0
+    invalid_count = 0
+    source_error_count = 0
+    component_count = 0
+    accepted_count = 0
+    skipped_count = 0
+    metadata_indexes_parsed = 0
+    metadata_indexes_reused = 0
+
+    def add_app(app: dict) -> None:
+        nonlocal duplicate_count
+        refs = installed.get(app["id"], [])
+        if app["id"] in apps_by_id:
+            duplicate_count += 1
+            apps_by_id[app["id"]] = merge_duplicate(
+                apps_by_id[app["id"]], app, refs
+            )
+        else:
+            apps_by_id[app["id"]] = app
+
+    for source in discovered_sources:
+        source_components = 0
+        source_accepted = 0
+        source_invalid = 0
+        source_skipped = 0
+        source_error = None
+        metadata_reused = False
+        reused_from = None
+        path = source["path"]
+        revision = source.get("revision")
+        metadata_key = (
+            (source["origin"], source["arch"], revision) if revision else None
+        )
+        cached = metadata_cache.get(metadata_key) if metadata_key else None
+        if cached is not None:
+            metadata_reused = True
+            metadata_indexes_reused += 1
+            reused_from = cached["path"]
+            source_components = cached["components"]
+            source_accepted = cached["accepted"]
+            source_invalid = cached["invalid"]
+            source_skipped = cached["skipped"]
+            for template in cached["apps"]:
+                add_app(clone_app_for_source(template, source))
+        else:
+            metadata_indexes_parsed += 1
+            parsed_apps: list[dict] = []
+            try:
+                for component in iter_components(path):
+                    source_components += 1
+                    app = parse_component(
+                        component,
+                        path,
+                        source["origin"],
+                        source["scope"],
+                        preferences,
+                    )
+                    if app is None:
+                        if rejected_component_is_invalid(component):
+                            source_invalid += 1
+                        else:
+                            source_skipped += 1
+                        continue
+                    source_accepted += 1
+                    # Keep an unmerged template for another installation that
+                    # exposes this exact content-addressed metadata revision.
+                    parsed_apps.append(clone_app_for_source(app, source))
+                    add_app(app)
+            except (OSError, EOFError, ET.ParseError, IndexErrorBase) as error:
+                source_error_count += 1
+                source_error = clean_text(str(error), 240) or type(error).__name__
+            if metadata_key is not None and source_error is None:
+                metadata_cache[metadata_key] = {
+                    "path": str(path),
+                    "components": source_components,
+                    "accepted": source_accepted,
+                    "invalid": source_invalid,
+                    "skipped": source_skipped,
+                    "apps": parsed_apps,
+                }
+
+        component_count += source_components
+        accepted_count += source_accepted
+        invalid_count += source_invalid
+        skipped_count += source_skipped
+
+        sources_output.append(
+            {
+                "kind": source["kind"],
+                "origin": source["origin"],
+                "scope": source["scope"],
+                "arch": source["arch"],
+                "revision": revision,
+                "path": str(path),
+                "components": source_components,
+                "accepted": source_accepted,
+                "skipped": source_skipped,
+                "invalid": source_invalid,
+                "error": source_error,
+                "metadata_reused": metadata_reused,
+                "metadata_reused_from": reused_from,
+            }
+        )
+
+    for app_id, app in apps_by_id.items():
+        refs = installed.get(app_id, [])
+        if not refs:
+            continue
+        app["installed"] = True
+        app["installed_scopes"] = installed_scopes_for_refs(refs)
+        matching = next(
+            (
+                item
+                for item in refs
+                if item["origin"] == app["origin"]
+                and item["arch"] == app["arch"]
+                and item["branch"] == app["branch"]
+            ),
+            refs[0],
+        )
+        app["installed_origin"] = matching["origin"] or app["origin"]
+        app["installed_scope"] = matching["scope"]
+
+    catalog_fallbacks = 0
+    for entry in catalog["apps"]:
+        current = apps_by_id.get(entry["id"])
+        if current is None:
+            current = catalog_fallback_app(entry, preferences)
+            if current["source"] == "flatpak" and entry["id"] in installed:
+                current["installed"] = True
+                refs = installed[entry["id"]]
+                current["installed_scopes"] = installed_scopes_for_refs(refs)
+                ref = refs[0]
+                current["installed_origin"] = ref["origin"] or current["origin"]
+                current["installed_scope"] = ref["scope"]
+            apps_by_id[entry["id"]] = current
+            catalog_fallbacks += 1
+        else:
+            overlay_catalog(current, entry, preferences)
+
+    apps = sorted(
+        apps_by_id.values(),
+        key=lambda app: (app["name"].casefold(), app["id"].casefold()),
+    )
+    sources_output.append(
+        {
+            "kind": "curated-catalog",
+            "origin": "moos",
+            "scope": "system",
+            "arch": None,
+            "revision": None,
+            "path": str(catalog_path),
+            "components": len(catalog["apps"]),
+            "accepted": len(catalog["apps"]),
+            "skipped": 0,
+            "invalid": 0,
+            "error": None,
+            "metadata_reused": False,
+            "metadata_reused_from": None,
+        }
+    )
+
+    stats = {
+        "total_apps": len(apps),
+        "flatpak_apps": sum(app["source"] == "flatpak" for app in apps),
+        "non_flatpak_apps": sum(app["source"] != "flatpak" for app in apps),
+        "curated_apps": sum(bool(app["curated"]) for app in apps),
+        "installed_apps": sum(bool(app["installed"]) for app in apps),
+        "verified_apps": sum(bool(app["verified"]) for app in apps),
+        "installable_apps": sum(bool(app["installable"]) for app in apps),
+        "appstream_components": component_count,
+        "appstream_entries": accepted_count,
+        "duplicates_merged": duplicate_count,
+        "skipped_components": skipped_count,
+        "invalid_components": invalid_count,
+        "source_errors": source_error_count,
+        "catalog_fallback_apps": catalog_fallbacks,
+        "metadata_indexes_parsed": metadata_indexes_parsed,
+        "metadata_indexes_reused": metadata_indexes_reused,
+    }
+
+    content_for_id = {
+        "categories": catalog["categories"],
+        "bundles": catalog["bundles"],
+        "apps": apps,
+    }
+    generation_id = digest_json(content_for_id)[:20]
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "generation": {
+            "id": generation_id,
+            "input_token": cache_tokens["input"],
+            "metadata_token": cache_tokens["metadata"],
+            "installed_token": cache_tokens["installed"],
+            "generated_at": generation_time(),
+            "locale": preferences[0] if preferences else "en",
+            "offline": True,
+        },
+        "sources": sources_output,
+        "stats": stats,
+        "categories": catalog["categories"],
+        "bundles": catalog["bundles"],
+        "apps": apps,
+    }
+
+
+def atomic_write_json(path: Path, payload: dict) -> None:
+    parent = path.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            # The index includes the local installed-app inventory and source
+            # paths.  It belongs to the current user, not every local account.
+            os.fchmod(handle.fileno(), 0o600)
+            json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        temporary = None
+        try:
+            directory_fd = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        except OSError:
+            return
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    default_output = (
+        Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache")))
+        / "moos-store/index.json"
+    )
+    parser = argparse.ArgumentParser(
+        description="Build Mo Store's local, unified application index"
+    )
+    parser.add_argument("--output", type=Path, default=default_output)
+    parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
+    parser.add_argument(
+        "--appstream-root",
+        action="append",
+        metavar="PATH",
+        help=(
+            "AppStream root to scan; repeat for multiple installations. "
+            "Providing one replaces automatic discovery."
+        ),
+    )
+    parser.add_argument(
+        "--installation-root",
+        action="append",
+        metavar="PATH",
+        help=(
+            "Flatpak installation root used to detect deployed apps; repeatable. "
+            "Defaults to roots corresponding to --appstream-root."
+        ),
+    )
+    parser.add_argument(
+        "--locale",
+        help="preferred AppStream locale (for example ar or en_US)",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    try:
+        if args.output.resolve() == args.catalog.resolve():
+            raise CatalogError("output path must not overwrite the curated catalog")
+        appstream_roots, installation_roots = discover_roots(
+            args.appstream_root, args.installation_root
+        )
+        preferences = locale_preferences(args.locale)
+        catalog = load_catalog(args.catalog)
+        installed = scan_installed(installation_roots)
+        sources = appstream_sources(
+            appstream_roots,
+            official_only=args.appstream_root is None,
+        )
+        tokens = input_tokens(
+            args.catalog, catalog, sources, installed, preferences
+        )
+        existing_tokens = existing_output_tokens(args.output)
+        if (
+            existing_tokens is not None
+            and existing_tokens["input"] == tokens["input"]
+        ):
+            return 0
+        if (
+            existing_tokens is not None
+            and existing_tokens["metadata"] == tokens["metadata"]
+        ):
+            payload = load_refreshable_output(
+                args.output, tokens["metadata"]
+            )
+            if payload is not None and refresh_installed_flags(
+                payload, installed, catalog
+            ):
+                payload["generation"].update(
+                    {
+                        "id": content_generation_id(payload),
+                        "input_token": tokens["input"],
+                        "metadata_token": tokens["metadata"],
+                        "installed_token": tokens["installed"],
+                        "generated_at": generation_time(),
+                    }
+                )
+                atomic_write_json(args.output, payload)
+                return 0
+        payload = build_index(
+            args.catalog,
+            appstream_roots,
+            installation_roots,
+            args.locale,
+            catalog_data=catalog,
+            installed_data=installed,
+            source_data=sources,
+            cache_tokens=tokens,
+        )
+        atomic_write_json(args.output, payload)
+    except (CatalogError, OSError) as error:
+        print(f"moos-store-index: {error}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

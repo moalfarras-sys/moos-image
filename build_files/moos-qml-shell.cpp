@@ -55,6 +55,9 @@
 #include <QDir>
 #include <QFile>
 #include <QFileDevice>
+#include <QProcess>
+#include <QRegularExpression>
+#include <QVariantList>
 
 #include <KDBusService>
 #include <KWindowSystem>
@@ -98,6 +101,117 @@ public:
         f.close();
         QFile::setPermissions(path, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
         return true;
+    }
+};
+
+// StoreBridge — a narrow process boundary for Mo Store and the Welcome.
+//
+// A `moos:` URL is a public desktop URL scheme: any web page can ask the
+// desktop to open one.  It therefore must never be the authority that installs,
+// updates or removes software.  The old Store fired
+// `moos://store/install/<id>` and the URL handler performed the install; that
+// made a browser tab capable of starting a catalogue install.
+//
+// This bridge is exposed only to the two trusted QML files loaded from the
+// read-only image (org.moos.store and org.moos.welcome).  It starts one fixed
+// backend with an argv list — never a shell — and that backend validates every
+// identifier again, owns the Flatpak transaction and publishes job state.  The
+// bridge deliberately contains no package-manager behaviour itself.
+class StoreBridge : public QObject
+{
+    Q_OBJECT
+public:
+    explicit StoreBridge(bool enabled, QObject *parent = nullptr)
+        : QObject(parent), m_enabled(enabled)
+    {
+    }
+
+    Q_INVOKABLE bool installApps(const QVariantList &values)
+    {
+        if (!m_enabled || values.isEmpty() || values.size() > 64) {
+            return false;
+        }
+        QStringList args{QStringLiteral("install")};
+        for (const QVariant &value : values) {
+            const QString id = value.toString();
+            if (!validId(id)) {
+                return false;
+            }
+            args.append(id);
+        }
+        return start(args);
+    }
+
+    Q_INVOKABLE bool removeApp(const QString &id)
+    {
+        return m_enabled && validId(id)
+            && start({QStringLiteral("remove"), id});
+    }
+
+    Q_INVOKABLE bool runApp(const QString &id)
+    {
+        return m_enabled && validId(id)
+            && start({QStringLiteral("run"), id});
+    }
+
+    Q_INVOKABLE bool updateApps()
+    {
+        return m_enabled && start({QStringLiteral("update")});
+    }
+
+    Q_INVOKABLE bool refreshIndex()
+    {
+        return m_enabled && start({QStringLiteral("refresh-index")});
+    }
+
+    Q_INVOKABLE bool cancelJob()
+    {
+        return m_enabled && start({QStringLiteral("cancel")});
+    }
+
+    Q_INVOKABLE bool openEngine(const QString &name)
+    {
+        static const QStringList allowed{
+            QStringLiteral("bazaar"),
+            QStringLiteral("discover"),
+            QStringLiteral("firmware"),
+            QStringLiteral("permissions")
+        };
+        return m_enabled && allowed.contains(name)
+            && start({QStringLiteral("open-engine"), name});
+    }
+
+    Q_INVOKABLE bool openSystemUpdater()
+    {
+        // The updater is a fixed, signed MoOS application.  It owns its own
+        // confirmation and privilege boundary; no identifier or command comes
+        // from QML.
+        return m_enabled
+            && QProcess::startDetached(QStringLiteral("/usr/bin/moos-update"),
+                                       QStringList{});
+    }
+
+private:
+    bool m_enabled = false;
+
+    static bool validId(const QString &id)
+    {
+        // Flatpak reverse-DNS ids and the small, signed MoOS catalogue both fit
+        // this character set.  The backend applies the stricter source-specific
+        // schema; this first gate keeps control chars, paths and option-looking
+        // values out of argv before a process is even created.
+        static const QRegularExpression pattern(
+            QStringLiteral("^[A-Za-z0-9][A-Za-z0-9._-]{1,254}$"));
+        return pattern.match(id).hasMatch()
+            && !id.contains(QStringLiteral(".."))
+            && !id.startsWith(QLatin1Char('-'))
+            && !id.endsWith(QLatin1Char('.'));
+    }
+
+    static bool start(const QStringList &args)
+    {
+        return QProcess::startDetached(QStringLiteral("/usr/bin/moos-storectl"),
+                                       args);
     }
 };
 
@@ -188,6 +302,14 @@ int main(int argc, char *argv[])
     InstallerBridge installerBridge;
     engine.rootContext()->setContextProperty(QStringLiteral("MoosInstaller"),
                                              &installerBridge);
+    const bool storeBridgeEnabled =
+        appId == QLatin1String("org.moos.store")
+        || appId == QLatin1String("org.moos.welcome");
+    StoreBridge storeBridge(storeBridgeEnabled);
+    if (storeBridgeEnabled) {
+        engine.rootContext()->setContextProperty(QStringLiteral("MoosStore"),
+                                                 &storeBridge);
+    }
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty()) {
         std::fprintf(stderr, "moos-qml-shell: %s produced no root object\n",

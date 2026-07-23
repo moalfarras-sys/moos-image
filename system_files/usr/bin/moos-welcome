@@ -3,7 +3,7 @@
 # A smart first-run wizard: pick a look, pick the system's direction (gaming /
 # development / study / office), pick the optional apps, watch them install —
 # then it hands over to Mo Store (/usr/bin/moos-store), which is a SEPARATE app.
-# Pure-QML script app; tries the Fedora qml runner names in order.
+# Pure-QML script app; tries the available Qt QML runner names in order.
 set -euo pipefail
 QML="/usr/share/moos/apps/welcome/main.qml"
 export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
@@ -26,14 +26,9 @@ else
     export QML_DISABLE_DISK_CACHE=1
 fi
 
-# The Welcome installs from the same catalog the store does: it reads
-# /usr/share/moos/store/catalog.json and polls per-app install status files,
-# both via QML's XMLHttpRequest. Qt6 gates local-file reads behind this flag,
-# so set it or the wizard shows no apps.
+# The Welcome installs from the same catalog and private backend as Mo Store,
+# then polls their shared atomic job document via QML's XMLHttpRequest.
 export QML_XHR_ALLOW_FILE_READ=1
-# Where moos-open writes each install's PROGRESS/DONE/FAIL status. Passed to the
-# QML as --cache= (pure QML can't read $HOME), and kept identical to the path
-# moos-open uses so the two always agree.
 CACHEDIR="${XDG_CACHE_HOME:-$HOME/.cache}/moos-store"
 mkdir -p "$CACHEDIR" 2>/dev/null || true
 

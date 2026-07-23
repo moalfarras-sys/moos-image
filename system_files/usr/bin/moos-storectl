@@ -1,0 +1,1700 @@
+#!/usr/bin/env python3
+"""Trusted, non-interactive backend for Mo Store.
+
+The UI never constructs commands.  It passes app IDs to this process, and this
+process validates every dynamic Flatpak ID, resolves curated recipes from the
+shipped catalog, and exposes one atomic JSON job document for the UI to poll.
+
+Flatpak installs, removals and updates use libflatpak transactions.  In
+particular, progress comes from FlatpakTransactionProgress; indeterminate work
+is represented as JSON null instead of a timer or invented percentage.
+"""
+
+from __future__ import annotations
+
+import argparse
+import configparser
+import contextlib
+import dataclasses
+import datetime as dt
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import secrets
+import signal
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from typing import Any, Callable, Iterable, Sequence
+import urllib.parse
+import urllib.request
+
+
+SCHEMA = 1
+MAX_BATCH = 64
+DEFAULT_CATALOG = Path("/usr/share/moos/store/catalog.json")
+FLATHUB_REPO_FILE = Path("/etc/flatpak/remotes.d/flathub.flatpakrepo")
+FLATHUB_REPO_URL = "https://dl.flathub.org/repo/flathub.flatpakrepo"
+FLATHUB_REPO_BASE = "https://dl.flathub.org/repo/"
+GPU_GUARD = "/usr/bin/moos-gpu-headroom"
+NPM = "/usr/bin/npm"
+XDG_OPEN = "/usr/bin/xdg-open"
+STORE_INDEX = "/usr/bin/moos-store-index"
+ONE_STORE = "/usr/bin/moos-one-store"
+BAZAAR_ID = "io.github.kolunmi.Bazaar"
+
+ENGINE_COMMANDS: dict[str, tuple[str, ...]] = {
+    # Bazaar is special-cased in open_engine: this fixed launch command is used
+    # only after installation through the verified libflatpak adapter.
+    "bazaar": ("/usr/bin/flatpak", "run", BAZAAR_ID),
+    "discover": ("/usr/bin/plasma-discover", "--mode", "Browsing"),
+    "firmware": ("/usr/bin/plasma-discover", "--mode", "Update"),
+    "permissions": (
+        "/usr/bin/flatpak",
+        "run",
+        "com.github.tchx84.Flatseal",
+    ),
+}
+
+# Flatpak IDs are reverse-DNS names.  Keep this stricter than the Flatpak CLI:
+# no refs/triples, empty labels, leading/trailing punctuation, control chars, or
+# two-component aliases.  Hyphens in the product component and underscores
+# used for domain demangling are both present in real Flathub IDs.
+_FLATPAK_ID_RE = re.compile(
+    r"^[A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)+$"
+)
+_CURATED_ID_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$")
+_NPM_PACKAGE_RE = re.compile(
+    r"^(?:@[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?/"
+    r")?[a-z0-9](?:[a-z0-9._-]{0,212}[a-z0-9])?$"
+)
+_BIN_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$")
+_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+_ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+_REVIEW_RISKS = {
+    "developer-tool",  # accepted during upgrades from the first catalog draft
+    "downloaded-executable",
+    "external-download",
+    "runs-package-scripts",
+}
+_UNSET = object()
+
+
+class StoreError(RuntimeError):
+    """A user-visible, expected store failure."""
+
+
+class BusyError(StoreError):
+    """Another store operation owns the global lock."""
+
+
+class CancelledError(StoreError):
+    """The current job was cancelled."""
+
+
+def utc_now() -> str:
+    return (
+        dt.datetime.now(dt.timezone.utc)
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
+    )
+
+
+def clean_message(value: object, limit: int = 600) -> str:
+    text = _ANSI_RE.sub("", str(value)).replace("\x00", " ")
+    text = " ".join(text.split())
+    return text[:limit] or "Operation failed"
+
+
+def validate_flatpak_id(app_id: str) -> bool:
+    """Return whether *app_id* is a canonical, unqualified reverse-DNS ID."""
+
+    if not isinstance(app_id, str) or not 3 <= len(app_id) <= 255:
+        return False
+    parts = app_id.split(".")
+    # Flatpak has real canonical IDs such as org.telegram.desktop,
+    # com.mattermost.Desktop and com.VK.Messenger. Do not confuse suffixes or
+    # case conventions with syntax: use the same grammar as the AppStream
+    # indexer, while still requiring a three-part reverse-DNS-style name.
+    return len(parts) >= 3 and bool(_FLATPAK_ID_RE.fullmatch(app_id))
+
+
+def validate_curated_id(app_id: str) -> bool:
+    return bool(isinstance(app_id, str) and _CURATED_ID_RE.fullmatch(app_id))
+
+
+def continue_after_transaction_error(
+    details: object, nonfatal_flag: int, cancelled: bool
+) -> bool:
+    """Return true only when libflatpak marks an error as non-fatal.
+
+    PyGObject exposes bit 1 as ``TransactionErrorDetails.FATAL`` on the image,
+    while the underlying C API defines that bit as
+    ``FLATPAK_TRANSACTION_ERROR_DETAILS_NON_FATAL``.  Naming the argument by
+    its real semantics prevents that introspection quirk from inverting the
+    transaction policy.
+    """
+
+    return not cancelled and bool(int(details) & nonfatal_flag)
+
+
+def dedupe(values: Iterable[str]) -> list[str]:
+    return list(dict.fromkeys(values))
+
+
+def cache_dir() -> Path:
+    configured = os.environ.get("XDG_CACHE_HOME")
+    if configured and Path(configured).is_absolute():
+        base = Path(configured)
+    else:
+        base = Path.home() / ".cache"
+    return base / "moos-store"
+
+
+def _atomic_bytes(path: Path, data: bytes, mode: int = 0o600) -> None:
+    """Replace *path* atomically with bytes created in the same directory."""
+
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        path.parent.chmod(0o700)
+    except OSError:
+        pass
+    temporary = path.with_name(
+        f".{path.name}.{os.getpid()}.{secrets.token_hex(6)}.tmp"
+    )
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    fd = os.open(temporary, flags, mode)
+    try:
+        with os.fdopen(fd, "wb", closefd=True) as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        try:
+            directory_fd = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        except OSError:
+            pass
+    finally:
+        with contextlib.suppress(FileNotFoundError):
+            temporary.unlink()
+
+
+class JobStore:
+    def __init__(self, directory: Path | None = None):
+        self.directory = directory or cache_dir()
+        self.path = self.directory / "job.json"
+        self.lock_path = self.directory / "job.lock"
+        self.cancel_path = self.directory / "cancel"
+
+    def prepare(self) -> None:
+        self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        try:
+            self.directory.chmod(0o700)
+        except OSError:
+            pass
+
+    def write(self, document: dict[str, Any]) -> None:
+        payload = json.dumps(
+            document,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8") + b"\n"
+        _atomic_bytes(self.path, payload)
+
+    def read(self) -> dict[str, Any] | None:
+        try:
+            value = json.loads(self.path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            return None
+        return value if isinstance(value, dict) else None
+
+    def request_cancel(self, job_id: str) -> None:
+        _atomic_bytes(self.cancel_path, (job_id + "\n").encode("ascii"))
+
+    def clear_cancel(self) -> None:
+        with contextlib.suppress(FileNotFoundError):
+            self.cancel_path.unlink()
+
+    def cancel_requested(self, job_id: str) -> bool:
+        try:
+            return self.cancel_path.read_text(encoding="ascii").strip() == job_id
+        except (FileNotFoundError, OSError, UnicodeError):
+            return False
+
+
+class GlobalLock:
+    def __init__(self, store: JobStore):
+        self.store = store
+        self.fd: int | None = None
+
+    def acquire(self) -> "GlobalLock":
+        self.store.prepare()
+        flags = os.O_RDWR | os.O_CREAT
+        if hasattr(os, "O_CLOEXEC"):
+            flags |= os.O_CLOEXEC
+        self.fd = os.open(self.store.lock_path, flags, 0o600)
+        os.fchmod(self.fd, 0o600)
+        try:
+            fcntl.flock(self.fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            os.close(self.fd)
+            self.fd = None
+            raise BusyError("Another Mo Store operation is already running") from error
+        return self
+
+    def release(self) -> None:
+        if self.fd is not None:
+            with contextlib.suppress(OSError):
+                fcntl.flock(self.fd, fcntl.LOCK_UN)
+            os.close(self.fd)
+            self.fd = None
+
+    def __enter__(self) -> "GlobalLock":
+        return self if self.fd is not None else self.acquire()
+
+    def __exit__(self, *_args: object) -> None:
+        self.release()
+
+
+@dataclasses.dataclass
+class Job:
+    store: JobStore
+    action: str
+    item_ids: Sequence[str]
+    job_id: str = dataclasses.field(default_factory=lambda: secrets.token_hex(16))
+    _lock: Any = dataclasses.field(init=False, repr=False)
+    _last_persist: float = dataclasses.field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self._lock = threading.RLock()
+        self._last_persist = time.monotonic()
+        now = utc_now()
+        self.document: dict[str, Any] = {
+            "schema": SCHEMA,
+            "job_id": self.job_id,
+            "action": self.action,
+            "state": "starting",
+            "progress": None,
+            "current_id": None,
+            "message": "Starting",
+            "items": [
+                {
+                    "id": item_id,
+                    "state": "queued",
+                    "progress": None,
+                    "message": "Queued",
+                }
+                for item_id in self.item_ids
+            ],
+            "started_at": now,
+            "updated_at": now,
+        }
+        self._items = {item["id"]: item for item in self.document["items"]}
+        self.store.write(self.document)
+
+    def snapshot(self) -> dict[str, Any]:
+        with self._lock:
+            return json.loads(json.dumps(self.document))
+
+    def heartbeat(self) -> None:
+        """Keep an active, possibly indeterminate operation observably alive."""
+
+        with self._lock:
+            if self.document["state"] not in {"starting", "running"}:
+                return
+            now = time.monotonic()
+            if now - self._last_persist < 10:
+                return
+            self.document["updated_at"] = utc_now()
+            self.store.write(self.document)
+            self._last_persist = now
+
+    def replace_items(self, item_ids: Sequence[str]) -> None:
+        """Replace a late-resolved operation plan without exposing torn state."""
+
+        with self._lock:
+            self.document["items"] = [
+                {
+                    "id": item_id,
+                    "state": "queued",
+                    "progress": None,
+                    "message": "Queued",
+                }
+                for item_id in item_ids
+            ]
+            self._items = {
+                item["id"]: item for item in self.document["items"]
+            }
+            self.document["updated_at"] = utc_now()
+            self.store.write(self.document)
+            self._last_persist = time.monotonic()
+
+    def update(
+        self,
+        *,
+        state: str | object = _UNSET,
+        progress: int | None | object = _UNSET,
+        current_id: str | None | object = _UNSET,
+        message: str | object = _UNSET,
+    ) -> None:
+        with self._lock:
+            changed = False
+            for key, value in (
+                ("state", state),
+                ("progress", progress),
+                ("current_id", current_id),
+                ("message", message),
+            ):
+                if value is not _UNSET and self.document.get(key) != value:
+                    self.document[key] = value
+                    changed = True
+            if changed:
+                self.document["updated_at"] = utc_now()
+                self.store.write(self.document)
+                self._last_persist = time.monotonic()
+
+    def update_item(
+        self,
+        item_id: str,
+        *,
+        state: str | object = _UNSET,
+        progress: int | None | object = _UNSET,
+        message: str | object = _UNSET,
+    ) -> None:
+        with self._lock:
+            item = self._items.get(item_id)
+            if item is None:
+                return
+            changed = False
+            for key, value in (
+                ("state", state),
+                ("progress", progress),
+                ("message", message),
+            ):
+                if value is not _UNSET and item.get(key) != value:
+                    item[key] = value
+                    changed = True
+            if changed:
+                self.document["updated_at"] = utc_now()
+                self.store.write(self.document)
+                self._last_persist = time.monotonic()
+
+    def fail(self, message: object, item_ids: Iterable[str] | None = None) -> None:
+        with self._lock:
+            reason = clean_message(message)
+            targets = set(item_ids if item_ids is not None else self._items)
+            for item_id, item in self._items.items():
+                if item_id in targets and item["state"] in {"queued", "running"}:
+                    item.update(state="failed", message=reason)
+            states = [item["state"] for item in self._items.values()]
+            has_success = any(state in {"done", "opened", "skipped"} for state in states)
+            has_failure = any(state == "failed" for state in states)
+            state = "partial" if has_success and has_failure else "failed"
+            self.update(
+                state=state,
+                progress=100 if state == "partial" else self.document["progress"],
+                current_id=None,
+                message=reason,
+            )
+
+    def cancelled(self) -> None:
+        with self._lock:
+            for item in self._items.values():
+                if item["state"] == "running":
+                    item.update(state="failed", message="Cancelled")
+                elif item["state"] == "queued":
+                    item.update(state="skipped", message="Cancelled before starting")
+            self.update(state="cancelled", current_id=None, message="Cancelled")
+
+    def finish_from_items(self, success_message: str = "Completed") -> None:
+        with self._lock:
+            states = [item["state"] for item in self.document["items"]]
+            failed = sum(state == "failed" for state in states)
+            succeeded = sum(state in {"done", "opened", "skipped"} for state in states)
+            if failed and succeeded:
+                state, message = "partial", f"Completed with {failed} failure(s)"
+            elif failed:
+                state, message = "failed", f"{failed} operation(s) failed"
+            else:
+                state, message = "success", success_message
+            self.update(
+                state=state,
+                progress=100 if state in {"success", "partial"} else self.document["progress"],
+                current_id=None,
+                message=message,
+            )
+
+
+@dataclasses.dataclass(frozen=True)
+class CommandResult:
+    returncode: int
+    reason: str = ""
+    cancelled: bool = False
+
+
+class CommandRunner:
+    """Subprocess boundary: every invocation receives a fixed argv list."""
+
+    def spawn(self, argv: Sequence[str]) -> None:
+        subprocess.Popen(
+            list(argv),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+            start_new_session=True,
+        )
+
+    def gpu_guard(self) -> None:
+        if not Path(GPU_GUARD).is_file():
+            return
+        try:
+            subprocess.run(
+                [GPU_GUARD],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=20,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+
+    def run_cancellable(
+        self, argv: Sequence[str], should_cancel: Callable[[], bool]
+    ) -> CommandResult:
+        with tempfile.TemporaryFile() as errors:
+            try:
+                process = subprocess.Popen(
+                    list(argv),
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=errors,
+                    close_fds=True,
+                    start_new_session=True,
+                )
+            except OSError as error:
+                return CommandResult(127, clean_message(error))
+            cancelled = False
+            while process.poll() is None:
+                if should_cancel():
+                    cancelled = True
+                    with contextlib.suppress(ProcessLookupError):
+                        os.killpg(process.pid, signal.SIGTERM)
+                    try:
+                        process.wait(timeout=4)
+                    except subprocess.TimeoutExpired:
+                        with contextlib.suppress(ProcessLookupError):
+                            os.killpg(process.pid, signal.SIGKILL)
+                        process.wait()
+                    break
+                time.sleep(0.15)
+            errors.seek(0, os.SEEK_END)
+            length = errors.tell()
+            errors.seek(max(0, length - 4096))
+            reason = clean_message(errors.read().decode("utf-8", "replace"))
+            return CommandResult(process.returncode or 0, reason, cancelled)
+
+
+class TransactionEvents:
+    """Translate libflatpak operation signals into the stable job schema."""
+
+    def __init__(self, job: Job, requested_ids: Sequence[str]):
+        self.job = job
+        self.requested = set(requested_ids)
+
+    @staticmethod
+    def ref_id(ref: str) -> str:
+        fields = ref.split("/")
+        if len(fields) >= 2 and fields[0] in {"app", "runtime"}:
+            return fields[1]
+        return fields[0]
+
+    def plan(self, operation_count: int) -> None:
+        self.job.update(
+            state="running",
+            message=f"Resolved {operation_count} Flatpak operation(s)",
+        )
+
+    def started(self, ref: str, status: str = "Starting") -> None:
+        app_id = self.ref_id(ref)
+        if app_id in self.requested:
+            self.job.update_item(
+                app_id, state="running", progress=None, message=clean_message(status)
+            )
+            current: str | None = app_id
+        else:
+            current = self.job.document.get("current_id")
+        self.job.update(
+            state="running",
+            current_id=current,
+            message=clean_message(status or f"Processing {app_id}"),
+        )
+
+    def progress(
+        self,
+        ref: str,
+        percent: int | None,
+        status: str,
+        overall_percent: int | None,
+    ) -> None:
+        app_id = self.ref_id(ref)
+        message = clean_message(status or f"Processing {app_id}")
+        if app_id in self.requested:
+            self.job.update_item(
+                app_id, state="running", progress=percent, message=message
+            )
+        self.job.update(
+            state="running",
+            progress=overall_percent,
+            current_id=app_id if app_id in self.requested else self.job.document["current_id"],
+            message=message,
+        )
+
+    def done(self, ref: str) -> None:
+        app_id = self.ref_id(ref)
+        if app_id in self.requested:
+            self.job.update_item(
+                app_id, state="done", progress=100, message="Completed"
+            )
+
+    def error(self, ref: str, error: object) -> None:
+        app_id = self.ref_id(ref)
+        message = clean_message(error)
+        if app_id in self.requested:
+            self.job.update_item(
+                app_id, state="failed", progress=None, message=message
+            )
+        self.job.update(message=message)
+
+
+class FlatpakAdapter:
+    """Thin, test-replaceable adapter around PyGObject libflatpak."""
+
+    def __init__(self):
+        try:
+            import gi
+
+            gi.require_version("Flatpak", "1.0")
+            from gi.repository import Flatpak, Gio, GLib
+        except (ImportError, ValueError) as error:
+            raise StoreError(f"libflatpak Python bindings are unavailable: {error}") from error
+        self.Flatpak = Flatpak
+        self.Gio = Gio
+        self.GLib = GLib
+        try:
+            self.user = Flatpak.Installation.new_user(None)
+            self.system = Flatpak.Installation.new_system(None)
+        except Exception as error:
+            raise StoreError(f"Could not open Flatpak installations: {error}") from error
+
+    def _installed(self, installation: Any, app_id: str) -> bool:
+        try:
+            installation.get_current_installed_app(app_id, None)
+            return True
+        except self.GLib.Error as error:
+            if error.matches(
+                self.Flatpak.error_quark(), self.Flatpak.Error.NOT_INSTALLED
+            ):
+                return False
+            raise StoreError(
+                f"Could not inspect whether {app_id} is installed: {error}"
+            ) from error
+
+    def is_user_installed(self, app_id: str) -> bool:
+        return self._installed(self.user, app_id)
+
+    def is_system_installed(self, app_id: str) -> bool:
+        return self._installed(self.system, app_id)
+
+    @staticmethod
+    def _official_remote(remote: Any) -> bool:
+        try:
+            url = (remote.get_url() or "").rstrip("/") + "/"
+            return (
+                url == FLATHUB_REPO_BASE
+                and bool(remote.get_gpg_verify())
+                and not bool(remote.get_disabled())
+                and not bool(remote.get_nodeps())
+            )
+        except Exception:
+            return False
+
+    def _repo_data(self) -> bytes:
+        if FLATHUB_REPO_FILE.is_file():
+            data = FLATHUB_REPO_FILE.read_bytes()
+        else:
+            request = urllib.request.Request(
+                FLATHUB_REPO_URL,
+                headers={"User-Agent": "MoOS-Store/1"},
+                method="GET",
+            )
+            with urllib.request.urlopen(request, timeout=20) as response:
+                if urllib.parse.urlsplit(response.geturl()).scheme != "https":
+                    raise StoreError("Flathub repository metadata used an insecure redirect")
+                data = response.read(1024 * 1024 + 1)
+            if len(data) > 1024 * 1024:
+                raise StoreError("Flathub repository metadata is unexpectedly large")
+
+        parser = configparser.ConfigParser(interpolation=None)
+        try:
+            parser.read_string(data.decode("utf-8"))
+            section = parser["Flatpak Repo"]
+            url = section.get("Url", "").rstrip("/") + "/"
+            key = "".join(section.get("GPGKey", "").split())
+        except (UnicodeError, configparser.Error, KeyError) as error:
+            raise StoreError(f"Invalid Flathub repository metadata: {error}") from error
+        if url != FLATHUB_REPO_BASE or len(key) < 100:
+            raise StoreError("Flathub repository metadata failed URL/GPG validation")
+        return data
+
+    def ensure_flathub(self) -> str:
+        """Return a verified user remote, never trusting the name alone."""
+
+        try:
+            remotes = list(self.user.list_remotes(None))
+        except Exception as error:
+            raise StoreError(f"Could not inspect Flatpak remotes: {error}") from error
+        for remote in remotes:
+            if self._official_remote(remote):
+                return remote.get_name()
+
+        occupied = {remote.get_name() for remote in remotes}
+        remote_name = next(
+            (name for name in ("flathub", "moos-flathub") if name not in occupied),
+            None,
+        )
+        if remote_name is None:
+            raise StoreError(
+                "Remote names flathub and moos-flathub are occupied by untrusted sources"
+            )
+        data = self._repo_data()
+        try:
+            remote = self.Flatpak.Remote.new_from_file(
+                remote_name, self.GLib.Bytes.new(data)
+            )
+            if not self._official_remote(remote):
+                raise StoreError("Parsed Flathub remote failed URL/GPG validation")
+            self.user.add_remote(remote, True, None)
+            installed = self.user.get_remote_by_name(remote_name, None)
+        except StoreError:
+            raise
+        except Exception as error:
+            raise StoreError(f"Could not add the verified Flathub remote: {error}") from error
+        if not self._official_remote(installed):
+            raise StoreError("Installed Flathub remote failed URL/GPG validation")
+        return remote_name
+
+    def _transaction(
+        self,
+        configure: Callable[[Any], None],
+        events: TransactionEvents,
+        should_cancel: Callable[[], bool],
+    ) -> None:
+        cancellable = self.Gio.Cancellable()
+        try:
+            transaction = self.Flatpak.Transaction.new_for_installation(
+                self.user, cancellable
+            )
+            transaction.set_no_interaction(True)
+            configure(transaction)
+        except Exception as error:
+            raise StoreError(f"Could not prepare Flatpak transaction: {error}") from error
+
+        completed: set[int] = set()
+        total_operations = 0
+
+        def operation_key(operation: Any) -> int:
+            try:
+                return int(operation.__gpointer__)
+            except Exception:
+                return id(operation)
+
+        def on_ready(tx: Any) -> bool:
+            nonlocal total_operations
+            total_operations = len(tx.get_operations())
+            events.plan(total_operations)
+            return not should_cancel()
+
+        def on_new_operation(_tx: Any, operation: Any, progress: Any) -> None:
+            ref = operation.get_ref()
+            progress.set_update_frequency(200)
+            events.started(ref, progress.get_status() or "Starting")
+
+            def changed(value: Any) -> None:
+                if should_cancel():
+                    cancellable.cancel()
+                estimating = bool(value.get_is_estimating())
+                percent = None if estimating else max(0, min(100, value.get_progress()))
+                if estimating or total_operations <= 0:
+                    overall = None
+                else:
+                    overall = max(
+                        0,
+                        min(
+                            100,
+                            int(
+                                (
+                                    len(completed)
+                                    + (percent if percent is not None else 0) / 100.0
+                                )
+                                * 100
+                                / total_operations
+                            ),
+                        ),
+                    )
+                events.progress(
+                    ref,
+                    percent,
+                    value.get_status() or "Working",
+                    overall,
+                )
+
+            progress.connect("changed", changed)
+            changed(progress)
+
+        def on_done(
+            _tx: Any, operation: Any, _commit: str | None, _details: object
+        ) -> None:
+            completed.add(operation_key(operation))
+            events.done(operation.get_ref())
+
+        def on_error(
+            _tx: Any, operation: Any, error: object, details: object
+        ) -> bool:
+            events.error(operation.get_ref(), error)
+            # PyGObject currently calls the C API's NON_FATAL bit ``FATAL``.
+            # The helper names and tests the actual semantics so a fatal error
+            # cannot be accidentally continued and a recoverable one aborted.
+            nonfatal_flag = int(self.Flatpak.TransactionErrorDetails.FATAL)
+            return continue_after_transaction_error(
+                details, nonfatal_flag, should_cancel()
+            )
+
+        transaction.connect("ready", on_ready)
+        transaction.connect("new-operation", on_new_operation)
+        transaction.connect("operation-done", on_done)
+        transaction.connect("operation-error", on_error)
+
+        watcher_stop = threading.Event()
+
+        def watch_cancel() -> None:
+            while not watcher_stop.wait(0.2):
+                if should_cancel():
+                    cancellable.cancel()
+                    return
+
+        watcher = threading.Thread(
+            target=watch_cancel, name="moos-store-cancel", daemon=True
+        )
+        watcher.start()
+        try:
+            if should_cancel():
+                raise CancelledError("Cancelled")
+            result = transaction.run(cancellable)
+            if should_cancel() or cancellable.is_cancelled():
+                raise CancelledError("Cancelled")
+            if not result:
+                raise StoreError("Flatpak transaction did not complete")
+        except CancelledError:
+            raise
+        except self.GLib.Error as error:
+            if should_cancel() or cancellable.is_cancelled():
+                raise CancelledError("Cancelled") from error
+            raise StoreError(f"Flatpak transaction failed: {error}") from error
+        finally:
+            watcher_stop.set()
+            watcher.join(timeout=1)
+
+    def install_many(
+        self,
+        app_ids: Sequence[str],
+        events: TransactionEvents,
+        should_cancel: Callable[[], bool],
+    ) -> None:
+        remote = self.ensure_flathub()
+        try:
+            available = list(self.user.list_remote_refs_sync(remote, None))
+        except Exception as error:
+            raise StoreError(
+                f"Could not resolve applications from the verified remote: {error}"
+            ) from error
+
+        default_arch = self.Flatpak.get_default_arch()
+        choices: dict[str, list[Any]] = {app_id: [] for app_id in app_ids}
+        for ref in available:
+            try:
+                name = ref.get_name()
+                if (
+                    name in choices
+                    and ref.get_kind() == self.Flatpak.RefKind.APP
+                    and ref.get_arch() == default_arch
+                ):
+                    choices[name].append(ref)
+            except Exception:
+                continue
+
+        resolved: list[tuple[str, str]] = []
+        for app_id in app_ids:
+            candidates = choices[app_id]
+            if not candidates:
+                raise StoreError(
+                    f"{app_id} is not available from the verified Flatpak remote"
+                )
+            candidates.sort(
+                key=lambda ref: (
+                    ref.get_branch() != "stable",
+                    ref.get_branch() or "",
+                    ref.format_ref(),
+                )
+            )
+            resolved.append((app_id, candidates[0].format_ref()))
+
+        def configure(transaction: Any) -> None:
+            for app_id, full_ref in resolved:
+                if not transaction.add_install(remote, full_ref, None):
+                    raise StoreError(f"Flatpak refused to queue {app_id}")
+
+        self._transaction(configure, events, should_cancel)
+
+    def remove(
+        self,
+        app_id: str,
+        events: TransactionEvents,
+        should_cancel: Callable[[], bool],
+    ) -> None:
+        try:
+            installed_ref = self.user.get_current_installed_app(app_id, None)
+            full_ref = installed_ref.format_ref()
+        except self.GLib.Error as error:
+            if error.matches(
+                self.Flatpak.error_quark(), self.Flatpak.Error.NOT_INSTALLED
+            ):
+                raise StoreError(f"{app_id} is not installed for this user") from error
+            raise StoreError(
+                f"Could not resolve the installed Flatpak ref for {app_id}: {error}"
+            ) from error
+        except Exception as error:
+            raise StoreError(
+                f"Could not resolve the installed Flatpak ref for {app_id}: {error}"
+            ) from error
+
+        def configure(transaction: Any) -> None:
+            if not transaction.add_uninstall(full_ref):
+                raise StoreError(f"Flatpak refused to queue removal of {app_id}")
+
+        self._transaction(
+            configure,
+            events,
+            should_cancel,
+        )
+
+    def update_refs(self) -> list[tuple[str, str]]:
+        try:
+            refs = self.user.list_installed_refs_for_update(None)
+        except Exception as error:
+            raise StoreError(f"Could not resolve Flatpak updates: {error}") from error
+        result: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for ref in refs:
+            name = ref.get_name()
+            formatted = ref.format_ref()
+            if formatted not in seen:
+                seen.add(formatted)
+                result.append((name, formatted))
+        return result
+
+    def update_many(
+        self,
+        refs: Sequence[tuple[str, str]],
+        events: TransactionEvents,
+        should_cancel: Callable[[], bool],
+    ) -> None:
+        def configure(transaction: Any) -> None:
+            for name, ref in refs:
+                if not transaction.add_update(ref, None, None):
+                    raise StoreError(f"Flatpak refused to queue update of {name}")
+
+        self._transaction(configure, events, should_cancel)
+
+    def refresh_index(
+        self,
+        events: TransactionEvents,
+        should_cancel: Callable[[], bool],
+    ) -> None:
+        remote = self.ensure_flathub()
+        cancellable = self.Gio.Cancellable()
+        watcher_stop = threading.Event()
+
+        def watch_cancel() -> None:
+            while not watcher_stop.wait(0.2):
+                if should_cancel():
+                    cancellable.cancel()
+                    return
+
+        def progress(
+            status: str, percentage: int, estimating: bool, *_data: object
+        ) -> None:
+            if should_cancel():
+                cancellable.cancel()
+            measured = None if estimating else max(0, min(100, int(percentage)))
+            events.progress(
+                "app/flathub/current/index",
+                measured,
+                status or "Refreshing app index",
+                measured,
+            )
+
+        events.plan(1)
+        events.started("app/flathub/current/index", "Refreshing app index")
+        watcher = threading.Thread(
+            target=watch_cancel, name="moos-store-index-cancel", daemon=True
+        )
+        watcher.start()
+        try:
+            self.user.update_appstream_full_sync(
+                remote, None, progress, None, None, cancellable
+            )
+            if should_cancel() or cancellable.is_cancelled():
+                raise CancelledError("Cancelled")
+            events.done("app/flathub/current/index")
+        except self.GLib.Error as error:
+            if should_cancel() or cancellable.is_cancelled():
+                raise CancelledError("Cancelled") from error
+            raise StoreError(f"Could not refresh the app index: {error}") from error
+        finally:
+            watcher_stop.set()
+            watcher.join(timeout=1)
+
+    def launch(self, app_id: str) -> None:
+        installation = self.user if self.is_user_installed(app_id) else self.system
+        try:
+            if not installation.launch(app_id, None, None, None, None):
+                raise StoreError(f"Flatpak did not launch {app_id}")
+        except StoreError:
+            raise
+        except Exception as error:
+            raise StoreError(f"Could not launch {app_id}: {error}") from error
+
+
+class Controller:
+    def __init__(
+        self,
+        store: JobStore,
+        adapter_factory: Callable[[], Any] = FlatpakAdapter,
+        runner: CommandRunner | None = None,
+        catalog_path: Path = DEFAULT_CATALOG,
+    ):
+        self.store = store
+        self.adapter_factory = adapter_factory
+        self.runner = runner or CommandRunner()
+        self.catalog_path = catalog_path
+        self._adapter: Any | None = None
+
+    @property
+    def adapter(self) -> Any:
+        if self._adapter is None:
+            self._adapter = self.adapter_factory()
+        return self._adapter
+
+    def _begin(self, action: str, item_ids: Sequence[str]) -> tuple[GlobalLock, Job]:
+        lock = GlobalLock(self.store).acquire()
+        try:
+            self.store.clear_cancel()
+            return lock, Job(self.store, action, item_ids)
+        except Exception:
+            lock.release()
+            raise
+
+    @staticmethod
+    def _busy_document(action: str, item_ids: Sequence[str]) -> dict[str, Any]:
+        now = utc_now()
+        return {
+            "schema": SCHEMA,
+            "job_id": secrets.token_hex(16),
+            "action": action,
+            "state": "busy",
+            "progress": None,
+            "current_id": None,
+            "message": "Another Mo Store operation is already running",
+            "items": [
+                {
+                    "id": item_id,
+                    "state": "queued",
+                    "progress": None,
+                    "message": "Waiting for the active job",
+                }
+                for item_id in item_ids
+            ],
+            "started_at": now,
+            "updated_at": now,
+        }
+
+    def _catalog(self) -> dict[str, dict[str, Any]]:
+        try:
+            data = json.loads(self.catalog_path.read_text(encoding="utf-8"))
+            apps = data["apps"]
+        except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError) as error:
+            raise StoreError(f"Could not read store catalog: {error}") from error
+        if not isinstance(apps, list):
+            raise StoreError("Store catalog apps must be a list")
+        result: dict[str, dict[str, Any]] = {}
+        for app in apps:
+            if not isinstance(app, dict) or not isinstance(app.get("id"), str):
+                raise StoreError("Store catalog contains an invalid app entry")
+            if app["id"] in result:
+                raise StoreError(f"Store catalog repeats app ID {app['id']}")
+            result[app["id"]] = app
+        return result
+
+    def _cancelled(self, job: Job) -> bool:
+        job.heartbeat()
+        return self.store.cancel_requested(job.job_id)
+
+    @staticmethod
+    def _review_note(recipe: dict[str, Any]) -> str:
+        install = recipe.get("install")
+        metadata = install if isinstance(install, dict) else {}
+        # Current catalogs keep trust metadata beside the install mechanism.
+        # The top-level fallback lets an older signed image upgrade cleanly.
+        requires_review = metadata.get(
+            "requires_review", recipe.get("requires_review", False)
+        )
+        risk_value = metadata.get("risk", recipe.get("risk"))
+        if requires_review is not True or risk_value not in _REVIEW_RISKS:
+            raise StoreError("Curated recipe is missing required review metadata")
+        risk = clean_message(risk_value, 80)
+        return f"reviewed risk: {risk}"
+
+    def _install_npm(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
+        install = recipe.get("install")
+        package = install.get("pkg") if isinstance(install, dict) else None
+        binary = install.get("bin") if isinstance(install, dict) else None
+        if not isinstance(package, str) or not _NPM_PACKAGE_RE.fullmatch(package):
+            raise StoreError(f"Catalog has an invalid npm package for {app_id}")
+        if not isinstance(binary, str) or not _BIN_RE.fullmatch(binary):
+            raise StoreError(f"Catalog has an invalid npm executable for {app_id}")
+        prefix = Path.home() / ".local"
+        prefix.mkdir(mode=0o700, parents=True, exist_ok=True)
+        note = self._review_note(recipe)
+        message = "Installing developer tool"
+        if note:
+            message += f" ({note})"
+        job.update_item(app_id, state="running", progress=None, message=message)
+        job.update(
+            state="running", progress=None, current_id=app_id, message=message
+        )
+        result = self.runner.run_cancellable(
+            [
+                NPM,
+                "install",
+                "--global",
+                "--prefix",
+                str(prefix),
+                "--no-audit",
+                "--no-fund",
+                "--",
+                package,
+            ],
+            lambda: self._cancelled(job),
+        )
+        if result.cancelled:
+            raise CancelledError("Cancelled")
+        if result.returncode:
+            raise StoreError(result.reason or f"npm exited with {result.returncode}")
+        done = "Installed"
+        if note:
+            done += f" ({note})"
+        job.update_item(app_id, state="done", progress=100, message=done)
+
+    def _install_web(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
+        install = recipe.get("install")
+        url = install.get("url") if isinstance(install, dict) else None
+        if not isinstance(url, str):
+            raise StoreError(f"Catalog has no download URL for {app_id}")
+        if not isinstance(install, dict) or install.get("external") is not True:
+            raise StoreError(f"External download metadata is missing for {app_id}")
+        parsed = urllib.parse.urlsplit(url)
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
+            raise StoreError(f"Catalog has an unsafe download URL for {app_id}")
+        note = self._review_note(recipe)
+        self.runner.spawn([XDG_OPEN, url])
+        message = "Opened the official download page"
+        if note:
+            message += f" ({note})"
+        job.update_item(app_id, state="opened", progress=100, message=message)
+        job.update(
+            state="running", current_id=app_id, message=message
+        )
+
+    def _install_pinned_appimage(
+        self, job: Job, app_id: str, recipe: dict[str, Any]
+    ) -> None:
+        install = recipe.get("install")
+        if not isinstance(install, dict):
+            raise StoreError(f"Catalog has no AppImage recipe for {app_id}")
+        note = self._review_note(recipe)
+        if install.get("external") is not True:
+            raise StoreError(f"External download metadata is missing for {app_id}")
+        url = install.get("url")
+        digest = install.get("sha256")
+        binary = install.get("bin")
+        parsed = urllib.parse.urlsplit(url) if isinstance(url, str) else None
+        if (
+            not isinstance(url, str)
+            or parsed is None
+            or parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or not isinstance(digest, str)
+            or not _SHA256_RE.fullmatch(digest)
+            or not isinstance(binary, str)
+            or not _BIN_RE.fullmatch(binary)
+        ):
+            raise StoreError(
+                f"AppImage recipe for {app_id} is not pinned to a valid SHA-256"
+            )
+        target_dir = Path.home() / ".local" / "bin"
+        target_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        fd, temporary_name = tempfile.mkstemp(
+            prefix=f".{binary}.", suffix=".download", dir=target_dir
+        )
+        temporary = Path(temporary_name)
+        hasher = hashlib.sha256()
+        try:
+            request = urllib.request.Request(
+                url, headers={"User-Agent": "MoOS-Store/1"}, method="GET"
+            )
+            with os.fdopen(fd, "wb") as output, urllib.request.urlopen(
+                request, timeout=30
+            ) as response:
+                if urllib.parse.urlsplit(response.geturl()).scheme != "https":
+                    raise StoreError("AppImage download used an insecure redirect")
+                total = response.headers.get("Content-Length")
+                total_bytes = int(total) if total and total.isdigit() else 0
+                downloaded = 0
+                while True:
+                    if self._cancelled(job):
+                        raise CancelledError("Cancelled")
+                    block = response.read(1024 * 1024)
+                    if not block:
+                        break
+                    output.write(block)
+                    hasher.update(block)
+                    downloaded += len(block)
+                    percent = (
+                        min(99, int(downloaded * 100 / total_bytes))
+                        if total_bytes
+                        else None
+                    )
+                    job.update_item(
+                        app_id,
+                        state="running",
+                        progress=percent,
+                        message="Downloading verified AppImage",
+                    )
+                    job.update(
+                        state="running",
+                        progress=percent,
+                        current_id=app_id,
+                        message="Downloading verified AppImage",
+                    )
+                output.flush()
+                os.fsync(output.fileno())
+            if hasher.hexdigest().lower() != digest.lower():
+                raise StoreError("AppImage SHA-256 verification failed")
+            os.chmod(temporary, 0o700)
+            os.replace(temporary, target_dir / f"{binary}.AppImage")
+            job.update_item(
+                app_id,
+                state="done",
+                progress=100,
+                message=f"Installed verified AppImage ({note})",
+            )
+        finally:
+            with contextlib.suppress(FileNotFoundError):
+                temporary.unlink()
+
+    def install(self, raw_ids: Sequence[str]) -> tuple[int, dict[str, Any]]:
+        if not raw_ids or len(raw_ids) > MAX_BATCH:
+            raise StoreError(f"install accepts between 1 and {MAX_BATCH} app IDs")
+        if any(
+            not isinstance(app_id, str)
+            or not 1 <= len(app_id) <= 255
+            or "\x00" in app_id
+            for app_id in raw_ids
+        ):
+            raise StoreError("App IDs must be non-empty text of at most 255 characters")
+        app_ids = dedupe(raw_ids)
+        try:
+            lock, job = self._begin("install", app_ids)
+        except BusyError:
+            return 75, self._busy_document("install", app_ids)
+        with lock:
+            try:
+                catalog = self._catalog()
+                flatpak_ids: list[str] = []
+                curated: list[tuple[str, dict[str, Any]]] = []
+                invalid: list[str] = []
+                for app_id in app_ids:
+                    recipe = catalog.get(app_id)
+                    if recipe is None:
+                        if validate_flatpak_id(app_id):
+                            flatpak_ids.append(app_id)
+                        else:
+                            invalid.append(app_id)
+                        continue
+                    source = recipe.get("source")
+                    if source == "flathub":
+                        if validate_flatpak_id(app_id):
+                            flatpak_ids.append(app_id)
+                        else:
+                            invalid.append(app_id)
+                    elif source == "moos" and validate_curated_id(app_id):
+                        curated.append((app_id, recipe))
+                    else:
+                        invalid.append(app_id)
+                if invalid:
+                    raise StoreError(
+                        "Invalid or unsupported app ID(s): " + ", ".join(invalid)
+                    )
+
+                for app_id, recipe in curated:
+                    if self._cancelled(job):
+                        raise CancelledError("Cancelled")
+                    kind = (recipe.get("install") or {}).get("kind")
+                    try:
+                        if kind == "npm":
+                            self._install_npm(job, app_id, recipe)
+                        elif kind == "web":
+                            self._install_web(job, app_id, recipe)
+                        elif kind == "appimage":
+                            self._install_pinned_appimage(job, app_id, recipe)
+                        else:
+                            raise StoreError(
+                                f"Unsupported curated install kind for {app_id}: {kind}"
+                            )
+                    except CancelledError:
+                        raise
+                    except Exception as error:
+                        job.update_item(
+                            app_id,
+                            state="failed",
+                            progress=None,
+                            message=clean_message(error),
+                        )
+
+                pending_flatpaks: list[str] = []
+                for app_id in flatpak_ids:
+                    if self.adapter.is_user_installed(app_id):
+                        job.update_item(
+                            app_id,
+                            state="skipped",
+                            progress=100,
+                            message="Already installed for this user",
+                        )
+                    elif self.adapter.is_system_installed(app_id):
+                        job.update_item(
+                            app_id,
+                            state="skipped",
+                            progress=100,
+                            message="Already installed system-wide",
+                        )
+                    else:
+                        pending_flatpaks.append(app_id)
+
+                if pending_flatpaks:
+                    events = TransactionEvents(job, pending_flatpaks)
+                    try:
+                        self.adapter.install_many(
+                            pending_flatpaks,
+                            events,
+                            lambda: self._cancelled(job),
+                        )
+                        for app_id in pending_flatpaks:
+                            if job._items[app_id]["state"] in {"queued", "running"}:
+                                job.update_item(
+                                    app_id,
+                                    state="done",
+                                    progress=100,
+                                    message="Installed",
+                                )
+                    except CancelledError:
+                        raise
+                    except StoreError as error:
+                        for app_id in pending_flatpaks:
+                            if job._items[app_id]["state"] in {"queued", "running"}:
+                                job.update_item(
+                                    app_id,
+                                    state="failed",
+                                    progress=None,
+                                    message=clean_message(error),
+                                )
+                job.finish_from_items("All requested apps are ready")
+            except CancelledError:
+                job.cancelled()
+            except Exception as error:
+                job.fail(error)
+            return exit_code(job.document["state"]), job.snapshot()
+
+    def remove(self, app_id: str) -> tuple[int, dict[str, Any]]:
+        if not validate_flatpak_id(app_id):
+            raise StoreError(f"Invalid Flatpak app ID: {app_id}")
+        try:
+            lock, job = self._begin("remove", [app_id])
+        except BusyError:
+            return 75, self._busy_document("remove", [app_id])
+        with lock:
+            try:
+                if not self.adapter.is_user_installed(app_id):
+                    if self.adapter.is_system_installed(app_id):
+                        raise StoreError(
+                            "This app is installed system-wide; Mo Store only removes "
+                            "user installations"
+                        )
+                    job.update_item(
+                        app_id,
+                        state="skipped",
+                        progress=100,
+                        message="App is not installed",
+                    )
+                else:
+                    events = TransactionEvents(job, [app_id])
+                    self.adapter.remove(
+                        app_id, events, lambda: self._cancelled(job)
+                    )
+                    job.update_item(
+                        app_id, state="done", progress=100, message="Removed"
+                    )
+                job.finish_from_items("App removed")
+            except CancelledError:
+                job.cancelled()
+            except Exception as error:
+                job.fail(error, [app_id])
+            return exit_code(job.document["state"]), job.snapshot()
+
+    def run(self, app_id: str) -> tuple[int, dict[str, Any]]:
+        if not validate_flatpak_id(app_id):
+            raise StoreError(f"Invalid Flatpak app ID: {app_id}")
+        try:
+            lock, job = self._begin("run", [app_id])
+        except BusyError:
+            return 75, self._busy_document("run", [app_id])
+        with lock:
+            try:
+                if not (
+                    self.adapter.is_user_installed(app_id)
+                    or self.adapter.is_system_installed(app_id)
+                ):
+                    raise StoreError("App is not installed as a Flatpak")
+                job.update_item(
+                    app_id, state="running", progress=None, message="Opening app"
+                )
+                job.update(
+                    state="running",
+                    current_id=app_id,
+                    progress=None,
+                    message="Preparing GPU headroom",
+                )
+                self.runner.gpu_guard()
+                self.adapter.launch(app_id)
+                job.update_item(
+                    app_id, state="done", progress=100, message="Opened"
+                )
+                job.finish_from_items("App opened")
+            except Exception as error:
+                job.fail(error, [app_id])
+            return exit_code(job.document["state"]), job.snapshot()
+
+    def update(self) -> tuple[int, dict[str, Any]]:
+        try:
+            lock, job = self._begin("update", [])
+        except BusyError:
+            return 75, self._busy_document("update", [])
+        with lock:
+            try:
+                refs = self.adapter.update_refs()
+                if not refs:
+                    job.update(
+                        state="success",
+                        progress=100,
+                        current_id=None,
+                        message="Apps are up to date",
+                    )
+                else:
+                    # The update list is discovered after job creation.  Rebuild the
+                    # exact schema before the transaction starts.
+                    names = dedupe(name for name, _ref in refs)
+                    job.replace_items(names)
+                    events = TransactionEvents(job, names)
+                    self.adapter.update_many(
+                        refs, events, lambda: self._cancelled(job)
+                    )
+                    for name in names:
+                        if job._items[name]["state"] in {"queued", "running"}:
+                            job.update_item(
+                                name,
+                                state="done",
+                                progress=100,
+                                message="Updated",
+                            )
+                    job.finish_from_items("Apps updated")
+            except CancelledError:
+                job.cancelled()
+            except Exception as error:
+                job.fail(error)
+            return exit_code(job.document["state"]), job.snapshot()
+
+    def refresh_index(self) -> tuple[int, dict[str, Any]]:
+        item_id = "flathub"
+        try:
+            lock, job = self._begin("refresh-index", [item_id])
+        except BusyError:
+            return 75, self._busy_document("refresh-index", [item_id])
+        with lock:
+            try:
+                events = TransactionEvents(job, [item_id])
+                self.adapter.refresh_index(
+                    events, lambda: self._cancelled(job)
+                )
+                job.update_item(
+                    item_id,
+                    state="running",
+                    progress=None,
+                    message="Rebuilding the unified app index",
+                )
+                job.update(
+                    state="running",
+                    progress=None,
+                    current_id=item_id,
+                    message="Rebuilding the unified app index",
+                )
+                result = self.runner.run_cancellable(
+                    [
+                        STORE_INDEX,
+                        "--catalog",
+                        str(self.catalog_path),
+                        "--output",
+                        str(self.store.directory / "index.json"),
+                    ],
+                    lambda: self._cancelled(job),
+                )
+                if result.cancelled:
+                    raise CancelledError("Cancelled")
+                if result.returncode:
+                    raise StoreError(
+                        result.reason
+                        or f"App indexer exited with {result.returncode}"
+                    )
+                job.update_item(
+                    item_id, state="done", progress=100, message="Index refreshed"
+                )
+                job.finish_from_items("App index refreshed")
+            except CancelledError:
+                job.cancelled()
+            except Exception as error:
+                job.fail(error)
+            return exit_code(job.document["state"]), job.snapshot()
+
+    def open_engine(self, name: str) -> tuple[int, dict[str, Any]]:
+        command = ENGINE_COMMANDS.get(name)
+        if command is None:
+            raise StoreError(f"Unknown engine: {name}")
+        try:
+            lock, job = self._begin("open-engine", [name])
+        except BusyError:
+            return 75, self._busy_document("open-engine", [name])
+        with lock:
+            try:
+                job.update_item(
+                    name, state="running", progress=None, message="Opening"
+                )
+                job.update(
+                    state="running",
+                    progress=None,
+                    current_id=name,
+                    message=f"Opening {name}",
+                )
+                if name == "bazaar":
+                    if not (
+                        self.adapter.is_user_installed(BAZAAR_ID)
+                        or self.adapter.is_system_installed(BAZAAR_ID)
+                    ):
+                        events = TransactionEvents(job, [BAZAAR_ID])
+                        self.adapter.install_many(
+                            [BAZAAR_ID],
+                            events,
+                            lambda: self._cancelled(job),
+                        )
+                    hidden = self.runner.run_cancellable(
+                        [ONE_STORE], lambda: self._cancelled(job)
+                    )
+                    if hidden.cancelled:
+                        raise CancelledError("Cancelled")
+                    if hidden.returncode:
+                        raise StoreError(
+                            hidden.reason
+                            or "Could not prepare the optional Bazaar engine"
+                        )
+                    self.adapter.launch(BAZAAR_ID)
+                elif name == "permissions" and not (
+                    self.adapter.is_user_installed("com.github.tchx84.Flatseal")
+                    or self.adapter.is_system_installed("com.github.tchx84.Flatseal")
+                ):
+                    raise StoreError(
+                        "Flatseal is not installed; install it from Mo Store first"
+                    )
+                else:
+                    self.runner.spawn(command)
+                job.update_item(
+                    name, state="opened", progress=100, message="Opened"
+                )
+                job.finish_from_items(f"Opened {name}")
+            except Exception as error:
+                job.fail(error, [name])
+            return exit_code(job.document["state"]), job.snapshot()
+
+    def cancel(self, requested_job_id: str | None) -> tuple[int, dict[str, Any]]:
+        current = self.store.read()
+        if not current or not isinstance(current.get("job_id"), str):
+            raise StoreError("There is no active Mo Store job")
+        job_id = requested_job_id or current["job_id"]
+        if job_id != current["job_id"]:
+            raise StoreError("Job ID does not match the active Mo Store job")
+        if current.get("state") not in {"starting", "running"}:
+            return 0, current
+        self.store.request_cancel(job_id)
+        response = json.loads(json.dumps(current))
+        response["action"] = "cancel"
+        response["message"] = "Cancellation requested"
+        response["updated_at"] = utc_now()
+        return 0, response
+
+
+def exit_code(state: str) -> int:
+    if state == "success":
+        return 0
+    if state == "cancelled":
+        return 130
+    if state == "busy":
+        return 75
+    return 1
+
+
+def extract_catalog_argument(argv: Sequence[str]) -> tuple[list[str], Path]:
+    """Accept --catalog before or after the subcommand without widening the API."""
+
+    result: list[str] = []
+    catalog: str | None = None
+    index = 0
+    while index < len(argv):
+        value = argv[index]
+        if value == "--catalog":
+            if catalog is not None or index + 1 >= len(argv):
+                raise StoreError("--catalog requires exactly one path")
+            catalog = argv[index + 1]
+            index += 2
+            continue
+        if value.startswith("--catalog="):
+            if catalog is not None:
+                raise StoreError("--catalog may be specified only once")
+            catalog = value.split("=", 1)[1]
+            index += 1
+            continue
+        result.append(value)
+        index += 1
+    path = Path(catalog) if catalog is not None else DEFAULT_CATALOG
+    return result, path
+
+
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(
+        prog="moos-storectl",
+        description="Trusted non-interactive backend for Mo Store",
+    )
+    commands = result.add_subparsers(dest="command", required=True)
+    install = commands.add_parser("install", help="install one or more apps")
+    install.add_argument("ids", nargs="+")
+    remove = commands.add_parser("remove", help="remove a user Flatpak")
+    remove.add_argument("id")
+    run = commands.add_parser("run", help="run an installed Flatpak")
+    run.add_argument("id")
+    commands.add_parser("update", help="update user Flatpaks")
+    commands.add_parser("refresh-index", help="refresh the Flathub app index")
+    engine = commands.add_parser("open-engine", help="open a store engine")
+    engine.add_argument("name", choices=tuple(ENGINE_COMMANDS))
+    cancel = commands.add_parser("cancel", help="cancel the active job")
+    cancel.add_argument("job_id", nargs="?")
+    return result
+
+
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    store: JobStore | None = None,
+    adapter_factory: Callable[[], Any] = FlatpakAdapter,
+    runner: CommandRunner | None = None,
+) -> int:
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    try:
+        arguments, catalog_path = extract_catalog_argument(arguments)
+        options = parser().parse_args(arguments)
+        controller = Controller(
+            store or JobStore(),
+            adapter_factory=adapter_factory,
+            runner=runner,
+            catalog_path=catalog_path,
+        )
+        if options.command == "install":
+            code, document = controller.install(options.ids)
+        elif options.command == "remove":
+            code, document = controller.remove(options.id)
+        elif options.command == "run":
+            code, document = controller.run(options.id)
+        elif options.command == "update":
+            code, document = controller.update()
+        elif options.command == "refresh-index":
+            code, document = controller.refresh_index()
+        elif options.command == "open-engine":
+            code, document = controller.open_engine(options.name)
+        else:
+            code, document = controller.cancel(options.job_id)
+    except StoreError as error:
+        now = utc_now()
+        document = {
+            "schema": SCHEMA,
+            "job_id": secrets.token_hex(16),
+            "action": arguments[0] if arguments else "invalid",
+            "state": "failed",
+            "progress": None,
+            "current_id": None,
+            "message": clean_message(error),
+            "items": [],
+            "started_at": now,
+            "updated_at": now,
+        }
+        code = 2
+    print(json.dumps(document, ensure_ascii=False, separators=(",", ":")))
+    return code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

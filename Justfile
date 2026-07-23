@@ -32,7 +32,15 @@ check:
     python3 tests/test_moai_do.py
     python3 tests/test_fwupd_refresh_policy.py
     python3 tests/test_exec_bits.py
+    python3 tests/test_moos_store_index.py
+    python3 tests/test_moos_storectl.py
+    python3 tests/test_moos_ui2.py
+    python3 tests/test_moos_theme_safety.py
     python3 artwork/verify_visuals.py
+    # Same gate build.sh runs against the finished image, pointed at the tree that
+    # is about to become it. Keeping it here means a drifted catalogue recipe or a
+    # dead store route fails in seconds instead of at the end of an image build.
+    MOOS_TEST_ROOT=system_files python3 build_files/verify_store_catalog.py
 
 # Build the main MoOS image. The base is pinned in the Containerfile on purpose — both
 # editions must share it (see the comment there); it is not a build-arg any more.

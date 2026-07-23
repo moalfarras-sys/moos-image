@@ -23,6 +23,21 @@ def config(raw: str) -> str:
     )
 
 
+def source(raw: str, prefix: str = "//") -> str:
+    """Strip source comments before asserting implementation tokens.
+
+    Store and Welcome deliberately document the security boundary they enforce.
+    Searching the raw source would therefore let that documentation satisfy a
+    gate after the real call had been removed — the same green-but-broken class
+    of failure as searching comments in KConfig above.
+    """
+    raw = re.sub(r"/\*.*?\*/", "", raw, flags=re.DOTALL)
+    return "\n".join(
+        line for line in raw.splitlines()
+        if not line.lstrip().startswith(prefix)
+    )
+
+
 errors = []
 
 
@@ -496,6 +511,149 @@ if disc.is_file():
     require(Path("/usr/share/icons/hicolor/256x256/apps/mo-store.png").is_file(),
             "the mo-store icon is missing — notifier surfaces would fall back to a generic icon")
 
+# Mo Store is one trusted chain: the launcher builds a local AppStream index,
+# signals completion through a sidecar, and gives the read-only QML both that
+# index and the backend's atomic job document.  The old catalogue fired a public
+# moos://store/install URL; any web page can invoke that scheme, so it can open
+# the Store but it must never be an authority for a software change.
+store_qml_path = Path("/usr/share/moos/apps/store/main.qml")
+store_launcher_path = Path("/usr/bin/moos-store")
+store_index_path = Path("/usr/bin/moos-store-index")
+store_backend_path = Path("/usr/bin/moos-storectl")
+for _store_path, _store_message in (
+    (store_qml_path, "the Mo Store QML is missing"),
+    (store_launcher_path, "the Mo Store launcher is missing"),
+    (store_index_path, "the Mo Store AppStream indexer is missing"),
+    (store_backend_path, "the trusted Mo Store transaction backend is missing"),
+):
+    require(_store_path.is_file(), _store_message)
+for _store_executable in (store_launcher_path, store_index_path, store_backend_path):
+    if _store_executable.is_file():
+        require(os.access(_store_executable, os.X_OK),
+                f"{_store_executable} is not executable")
+
+if store_launcher_path.is_file():
+    _store_launcher = config(text(str(store_launcher_path)))
+    require('CACHEDIR="${XDG_CACHE_HOME:-$HOME/.cache}/moos-store"' in _store_launcher
+            and 'INDEX="${CACHEDIR}/index.json"' in _store_launcher
+            and 'JOB="${CACHEDIR}/job.json"' in _store_launcher
+            and 'READY="${CACHEDIR}/index.ready"' in _store_launcher,
+            "Mo Store does not keep its index, job and ready state in one user cache namespace")
+    require("/usr/bin/moos-store-index" in _store_launcher
+            and "--catalog /usr/share/moos/store/catalog.json" in _store_launcher
+            and '--output "$INDEX"' in _store_launcher,
+            "Mo Store does not rebuild the unified AppStream/curated index it displays")
+    require(': >"$READY"' in _store_launcher,
+            "Mo Store does not clear a stale ready sidecar before rebuilding its index")
+    require(re.search(
+                r"if\s+/usr/bin/moos-store-index\b.*?;\s*then.*?>\"\$READY\"",
+                _store_launcher, re.DOTALL) is not None,
+            "Mo Store marks the index ready without requiring a successful index build")
+    require('--index="$INDEX"' in _store_launcher
+            and '--job="$JOB"' in _store_launcher
+            and '--ready="$READY"' in _store_launcher,
+            "Mo Store does not pass the index, job and ready sidecar paths to its QML")
+    require("/usr/bin/moos-qml-shell" in _store_launcher
+            and "--app-id org.moos.store" in _store_launcher,
+            "Mo Store does not run under the app id that enables its private StoreBridge")
+
+if store_index_path.is_file():
+    _store_index = source(text(str(store_index_path)), "#")
+    for _token, _message in (
+        ("def appstream_sources(", "the Store indexer no longer reads local AppStream metadata"),
+        ("def official_flatpak_origins(", "the Store indexer no longer limits automatic discovery to configured origins"),
+        ("official_only=args.appstream_root is None", "automatic Store discovery accepts orphan or custom AppStream origins"),
+        ("def build_index(", "the Store indexer has no unified-index builder"),
+        ("def atomic_write_json(", "the Store indexer can expose a partially-written index"),
+        ("os.replace(temporary, path)", "the Store indexer does not atomically publish its completed index"),
+    ):
+        require(_token in _store_index, _message)
+
+if store_backend_path.is_file():
+    _store_backend = source(text(str(store_backend_path)), "#")
+    require('"job.json"' in _store_backend
+            and '"action": self.action' in _store_backend
+            and '"started_at": now' in _store_backend,
+            "the Store backend no longer publishes the action/time schema its QML correlates")
+    require("def _atomic_bytes(" in _store_backend
+            and "os.replace(temporary, path)" in _store_backend,
+            "the Store backend can expose a partially-written job.json")
+
+if store_qml_path.is_file():
+    _store_qml = source(text(str(store_qml_path)))
+    require("MoosStore.installApps(ids)" in _store_qml
+            and "MoosStore.removeApp(app.id)" in _store_qml
+            and "MoosStore.updateApps()" in _store_qml,
+            "Mo Store software actions do not cross the private StoreBridge")
+    require("moos://store/install/" not in _store_qml,
+            "Mo Store still authorizes installation through the public moos: URL scheme")
+    require('argValue("--index=")' in _store_qml
+            and 'argValue("--job=")' in _store_qml
+            and 'argValue("--ready=")' in _store_qml
+            and "indexBuildReady()" in _store_qml
+            and "if (win.indexBuildReady())" in _store_qml,
+            "Mo Store does not wait on the ready sidecar before accepting a rebuilt index")
+    for _token in (
+        "expectedAction",
+        "expectedIds",
+        "previousJobId",
+        "requestEpoch",
+        "matchesExpectedJob(document)",
+        "document.started_at",
+        "document.action !== win.expectedAction",
+        "items.length !== win.expectedIds.length",
+        "items[j].id === win.expectedIds[i]",
+        "started + 1000 < win.requestEpoch",
+    ):
+        require(_token in _store_qml,
+                f"Mo Store does not correlate job.json to its request ({_token} missing)")
+    require('win.expectJob("install", ids)' in _store_qml
+            and 'win.expectJob("remove", [app.id])' in _store_qml
+            and 'win.expectJob("update", [])' in _store_qml,
+            "Mo Store can display stale job.json state for an unrelated software action")
+    require("MoosStore.openSystemUpdater()" in _store_qml
+            and "moos://app/updater" not in _store_qml,
+            "the MoOS image update card does not use the trusted fixed StoreBridge updater")
+    require(Path("/usr/bin/moos-update").is_file()
+            and os.access("/usr/bin/moos-update", os.X_OK),
+            "the trusted MoOS image updater opened by Mo Store is missing or not executable")
+
+# The bridge source is the exact /ctx file compiled into /usr/bin/moos-qml-shell
+# earlier in build.sh.  Gate its allowlist and fixed argv boundary here: checking
+# that the binary merely exists would still pass if every Store button were dead
+# or if the bridge had accidentally become available to arbitrary QML.
+store_bridge_source = Path("/ctx/moos-qml-shell.cpp")
+require(store_bridge_source.is_file(),
+        "the StoreBridge source used to build moos-qml-shell is unavailable to the final gate")
+if store_bridge_source.is_file():
+    _store_bridge = source(text(str(store_bridge_source)))
+    for _token in (
+        "class StoreBridge",
+        "Q_INVOKABLE bool installApps",
+        "Q_INVOKABLE bool removeApp",
+        "Q_INVOKABLE bool updateApps",
+        "Q_INVOKABLE bool openSystemUpdater",
+        'QStringLiteral("/usr/bin/moos-storectl")',
+        'QStringLiteral("/usr/bin/moos-update")',
+        'appId == QLatin1String("org.moos.store")',
+        'appId == QLatin1String("org.moos.welcome")',
+        'QStringLiteral("MoosStore")',
+        "StoreBridge storeBridge(storeBridgeEnabled)",
+        "if (storeBridgeEnabled)",
+    ):
+        require(_token in _store_bridge,
+                f"moos-qml-shell lost required StoreBridge contract token {_token!r}")
+    require("QProcess::startDetached" in _store_bridge
+            and 'QStringList args{QStringLiteral("install")}' in _store_bridge,
+            "StoreBridge does not use the fixed moos-storectl argv process boundary")
+    require('QStringLiteral("/bin/sh")' not in _store_bridge
+            and 'QStringLiteral("bash")' not in _store_bridge,
+            "StoreBridge gained a shell execution path")
+
+_store_router = config(router)
+require("store/install" not in _store_router,
+        "moos-open still exposes public store/install — a web page could trigger installation")
+
 # ── The MoOS installer (the live-USB disk installer) ──────────────────────────
 # "Install MoOS" must launch the beautiful MoOS QML installer (moos-installer),
 # not raw Anaconda, and every piece it needs must be present. The old registry-pull
@@ -620,17 +778,42 @@ require(welcome.is_file() and welcome_launcher.is_file()
         and firstrun.is_file() and firstrun_desktop.is_file(),
         "the integrated Welcome / installer first-run chain is incomplete")
 if welcome.is_file():
-    _wq = text(str(welcome))
+    _wq = source(text(str(welcome)))
     require("handoffToInstaller" in _wq and "moos://installer/open" in _wq
             and "onTriggered: Qt.quit()" in _wq,
             "the live Welcome must close after handing off to the installer")
-    require("Object.keys(win.picks)" in _wq and "moos://store/install/" in _wq
-            and 'ln === "DONE"' in _wq and 'ln.indexOf("FAIL")' in _wq,
-            "Welcome app choices are not wired to the real install/status path")
+    require("Object.keys(win.picks)" in _wq
+            and "MoosStore.installApps(ids)" in _wq
+            and 'readonly property string jobPath: win.cacheDir + "/job.json"' in _wq,
+            "Welcome app choices are not wired to the private Mo Store transaction")
+    require("moos://store/install/" not in _wq,
+            "Welcome still authorizes installation through the public moos: URL scheme")
+    for _token in (
+        "previousJobId",
+        "requestEpoch",
+        "matchesInstallJob(document)",
+        'document.action !== "install"',
+        "document.started_at",
+        "doc.job_id === win.previousJobId",
+        "items.length !== win.queue.length",
+        "items[j].id === win.queue[i]",
+        "started + 1000 < win.requestEpoch",
+    ):
+        require(_token in _wq,
+                f"Welcome does not correlate job.json to its install request ({_token} missing)")
+    require('doc.state === "success"' in _wq
+            and 'doc.state === "partial"' in _wq
+            and 'doc.state === "failed"' in _wq
+            and "installHadFailures" in _wq,
+            "Welcome does not surface real success/partial/failure state from job.json")
 if welcome_launcher.is_file():
     _wl = text(str(welcome_launcher))
-    require('rd.live.image' in _wl and '--live="$LIVE"' in _wl,
+    require('rd.live.image' in _wl and '--live="$LIVE"' in _wl
+            and '--cache="$CACHEDIR"' in _wl,
             "the Welcome launcher does not distinguish live and installed sessions")
+    require("/usr/bin/moos-qml-shell" in _wl
+            and "--app-id org.moos.welcome" in _wl,
+            "Welcome does not run under the app id that enables its private StoreBridge")
 if firstrun.is_file() and firstrun_desktop.is_file():
     _fr = text(str(firstrun))
     _frd = text(str(firstrun_desktop))

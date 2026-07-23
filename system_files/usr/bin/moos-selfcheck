@@ -301,11 +301,10 @@ curl -sf --max-time 6 -H 'X-Moai-Control: 1' http://127.0.0.1:8079/status >/dev/
 
 # ── The MoOS Store ────────────────────────────────────────────────────────────
 # `bootc upgrade` replaces /usr atomically, so reading the booted /usr IS reading
-# the running system: these prove the store, its install path and the Mo Store
-# rebrand actually LANDED in the deployment you are running, and that a store tap
-# has somewhere to go. The store installs with NO terminal by firing
-# moos://store/install/<id> at moos-open, which runs moos-install for a catalogued
-# id — so all three links are checked, not just that the window exists.
+# the running system: these prove the storefront, local index, and private
+# transaction backend actually LANDED in the deployment you are running. Store
+# and Welcome invoke fixed backend operations through their app-id-scoped bridge;
+# the public URL handler is deliberately not an installation authority.
 head_ "متجر MoOS | Mo Store"
 catalog=/usr/share/moos/store/catalog.json
 if [ -f "$catalog" ] && command -v python3 >/dev/null 2>&1 && \
@@ -315,17 +314,23 @@ if [ -f "$catalog" ] && command -v python3 >/dev/null 2>&1 && \
 else
     bad "the store catalogue is missing or unreadable (${catalog})"
 fi
-[ -x /usr/bin/moos-install ] && ok "moos-install (the no-terminal installer) is present" \
-    || bad "moos-install is missing — the store cannot install anything"
-if [ -x /usr/bin/moos-open ] && grep -q "store/install" /usr/bin/moos-open 2>/dev/null; then
-    ok "moos-open carries the store/install route"
+[ -x /usr/bin/moos-storectl ] && /usr/bin/moos-storectl --help >/dev/null 2>&1 \
+    && ok "the trusted Mo Store transaction backend is present" \
+    || bad "moos-storectl is missing or cannot start — app operations are unavailable"
+[ -x /usr/bin/moos-store-index ] && /usr/bin/moos-store-index --help >/dev/null 2>&1 \
+    && ok "the local AppStream indexer is present" \
+    || bad "moos-store-index is missing or cannot start — full catalogue search is unavailable"
+retired_store_route='store/'$'install/'
+if [ -x /usr/bin/moos-open ] \
+   && ! grep -q "$retired_store_route" /usr/bin/moos-open 2>/dev/null; then
+    ok "public moos:// links cannot authorize store installs"
 else
-    bad "moos-open has no store/install route — the store's install taps would do nothing"
+    bad "the public URL handler still exposes a store install authority"
 fi
 moos_handler="$(xdg-mime query default x-scheme-handler/moos 2>/dev/null)"
 case "$moos_handler" in
     org.moos.urlhandler.desktop) ok "moos:// links route to MoOS" ;;
-    "") bad "nothing handles moos:// — the store's install links are dead" ;;
+    "") bad "nothing handles moos:// — Welcome handoff links are dead" ;;
     *)  note "moos:// is handled by '${moos_handler}' (expected org.moos.urlhandler.desktop)" ;;
 esac
 [ -x /usr/bin/moos-store ] && ok "the Mo Store launcher is present" \

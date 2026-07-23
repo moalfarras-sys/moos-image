@@ -1523,6 +1523,7 @@ chmod 0755 /usr/bin/moplayer
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moos-device-plan /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
     /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome /usr/bin/moos-store /usr/bin/moos-lang \
+    /usr/bin/moos-storectl /usr/bin/moos-store-index /usr/bin/moos-store-browse /usr/bin/moos-one-store \
     /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding /usr/bin/moos-open /usr/bin/moos-install \
     /usr/bin/moai-config /usr/bin/moai-gateway /usr/bin/moai-control /usr/bin/moai-code \
     /usr/bin/moai-idle \
@@ -2585,11 +2586,10 @@ python3 /ctx/verify_image_experience.py
 
 # ── The MoOS Store must be internally consistent end-to-end ───────────────────
 #
-# The store is one fact in five files (catalog, Welcome QML, moos-install,
-# moos-open, moos-welcome). This gate fails the build if they have drifted apart —
-# an app whose glyph the QML can't draw, an install kind moos-install can't
-# perform, or a moos:// route renamed on one side only — so a user never taps
-# Install and watches nothing happen.
+# The store is one contract across its curation layer, local AppStream index,
+# two QML surfaces, app-id-scoped bridge and fixed transaction backend. This
+# gate fails the build if any edge drifts — including an unsupported recipe,
+# missing glyph fallback, dead launcher argument, or public URL install path.
 python3 /ctx/verify_store_catalog.py
 
 # ── The identity firewall — the catch-all, on the finished bytes ──────────────

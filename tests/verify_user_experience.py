@@ -122,6 +122,9 @@ require('remote_ctl enable --now' in router_remote,
         "the Mo PC Remote panel")
 require('remote_ctl disable --now' in router_remote,
         "the remote/stop arm must disable --now (stop AND persist off)")
+require('remote/restart) remote_ctl try-restart' in router_remote,
+        "remote/restart must be a no-op while access is off; a public URL must "
+        "not start an inactive remote-control service")
 require("do_remote_anywhere()" in do_remote and 'remote-anywhere) do_remote_anywhere' in do_remote,
         "moai-do must DEFINE and DISPATCH do_remote_anywhere — the Tailscale "
         "serve path that makes Mo PC Remote reachable from mobile data")
@@ -207,14 +210,36 @@ welcome_palette_code = code(welcome_qml, "slash")
 store_qml = read("system_files/usr/share/moos/apps/store/main.qml")
 store_palette_code = code(store_qml, "slash")
 
-# Mo Store must make the whole section installable in one tap (the group-per-
-# category pick) and must SHOW how each app installs, so the method is never a
-# mystery — the owner's two asks. Both drive real, existing plumbing (addMany
-# feeds the cart; the real install streams from moos-install).
-require('"أضِف كل القسم"' in store_qml and "win.addMany(ids)" in store_qml,
+# Mo Store must make a whole filtered section installable with one reviewed
+# selection, and must SHOW the resolved source for every app. Both drive the
+# unified index/transaction plumbing rather than a second storefront.
+require('"Add this section"' in store_qml
+        and "function addMany(ids)" in store_qml
+        and "win.addMany(ids)" in store_qml,
         "Mo Store must offer a per-section 'Add all' that carts the whole category")
-require('card.modelData.source === "flathub" ? "Flatpak"' in store_qml,
-        "Mo Store cards must show each app's install method (Flatpak / Web / MoOS)")
+require("function sourceLabel(app)" in store_qml
+        and 'install.kind === "npm"' in store_qml
+        and 'install.kind === "web"' in store_qml
+        and '"Flathub"' in store_qml
+        and "SourceBadge { app: card.app }" in store_qml,
+        "Mo Store cards must show each app's resolved source")
+require("property var installedOverrides" in store_qml
+        and "function applyJobInstalledState(document)" in store_qml
+        and 'document.action === "remove"' in store_qml
+        and '"Already installed"' in store_qml,
+        "Mo Store must keep install/remove state accurate until its local index reloads")
+require(store_qml.count("MoosStore.refreshIndex()") == 1
+        and "function maybeRefreshCatalog(force)" in store_qml
+        and "if (win.hasFlatpakCatalog()) return" in store_qml
+        and "if (!force && win.catalogRefreshRequested) return" in store_qml
+        and 'win.expectJob("refresh-index", ["flathub"])' in store_qml,
+        "Mo Store must refresh AppStream only when the full local catalogue is "
+        "missing (or after an explicit retry), never after every app operation")
+require("&& !win.jobIsActive()" in store_qml
+        and "&& !win.jobIsTerminal()" in store_qml
+        and "anchors.bottomMargin > -100 && win.pickCount === 0" not in store_qml,
+        "real transaction progress and Cancel must replace the selection shelf "
+        "while an install is running, including partial/failed jobs")
 
 # Launch feedback must be CALM but present. An earlier revision shipped the "prominent"
 # form (bouncing icon AND a launching-state task-manager button) as a SYSTEM default, so
@@ -229,16 +254,11 @@ require("BusyCursor=true" in klaunch
         "MoOS launch feedback must be calm: busy cursor on, bounce + extra task button off "
         "(the prominent form read as opening a new window on every click)")
 
-# Installing a browser makes it the default — the owner's ask: click a link, YOUR
-# browser opens, the one you just chose. moos-install sets the web + http/https
-# handlers to the just-installed browser (in the user's own config, no root), and
-# knows the common browsers.
-moos_install = read("system_files/usr/bin/moos-install")
-require("xdg-settings set default-web-browser" in moos_install
-        and "x-scheme-handler/https" in moos_install,
-        "installing a browser must set it as the default web + http/https handler")
-require("com.google.Chrome" in moos_install and "org.mozilla.firefox" in moos_install,
-        "the browser-default step must recognise the common browsers (Chrome/Firefox/Brave/…)")
+# Installing an app must not silently change unrelated user preferences. Browser
+# choice remains an explicit desktop setting, never a side effect of Store.
+storectl = read("system_files/usr/bin/moos-storectl")
+require("xdg-settings set default-web-browser" not in storectl,
+        "Mo Store must not silently make a newly installed browser the default")
 
 for token, role in {
     "surface0": "root.palette.base",
@@ -3468,11 +3488,27 @@ require("NoDisplay=true" in one_store,
         "moos-one-store must set NoDisplay=true on the Bazaar override")
 require("flatpak/exports" not in one_store,
         "moos-one-store must not edit flatpak export files — a Bazaar update regenerates them")
-for installer_of_bazaar in ("moos-store-browse", "moos-setup"):
-    text = code(read(f"system_files/usr/bin/{installer_of_bazaar}"), "hash")
-    require("moos-one-store" in text,
-            f"{installer_of_bazaar} can install Bazaar, so it must call moos-one-store "
-            "to keep Mo Store the single visible storefront")
+store_browse = code(read("system_files/usr/bin/moos-store-browse"), "hash")
+store_backend = code(read("system_files/usr/bin/moos-storectl"), "hash")
+store_setup = code(read("system_files/usr/bin/moos-setup"), "hash")
+require("moos-storectl open-engine bazaar" in store_browse,
+        "the Bazaar compatibility launcher must delegate to the trusted backend")
+require("BAZAAR_ID" in store_backend
+        and "self.adapter.install_many" in store_backend
+        and "ONE_STORE" in store_backend,
+        "the trusted backend must install Bazaar through verified libflatpak and "
+        "hide its launcher before opening it")
+require("moos-one-store" in store_setup,
+        "system setup can install Bazaar, so it must keep its launcher hidden")
+bazaar_migration = read(
+    "system_files/usr/lib/tmpfiles.d/moos-bazaar-overrides.conf"
+)
+require(
+    "r /var/lib/flatpak/overrides/io.github.kolunmi.Bazaar"
+    in bazaar_migration
+    and "filesystems=host-etc" not in bazaar_migration,
+    "upgrades must remove Bazaar's obsolete persistent host-/etc permission",
+)
 
 # ── Re-sizing zram must never storm the swap unit ─────────────────────────────
 # On a fresh install's FIRST boot, moos-hardware-adapt re-tiers zram for the
@@ -3714,10 +3750,14 @@ require("moos://installer/open" in _welcome and "handoffToInstaller" in _welcome
         "the live Welcome must hand off to the installer and close instead of "
         "leaving two onboarding windows layered")
 require("Object.keys(win.picks)" in _welcome
-        and "moos://store/install/" in _welcome
-        and 'ln === "DONE"' in _welcome and 'ln.indexOf("FAIL")' in _welcome,
-        "Welcome selections must execute the real Mo Store install route and "
-        "surface both success and failure")
+        and "MoosStore.installApps(ids)" in _welcome
+        and 'doc.state === "success"' in _welcome
+        and 'doc.state === "failed"' in _welcome
+        and "installHadFailures" in _welcome,
+        "Welcome selections must use the private Mo Store transaction and "
+        "surface both success and failure from job.json")
+require("moos://store/install/" not in _welcome,
+        "Welcome must never authorize software changes through the public URL scheme")
 require("Exec=/usr/bin/moos-firstrun" in _firstrun_desktop
         and "moos-firstrun-done" in _firstrun and "moos-welcome && exit 0" in _firstrun,
         "the installed account must receive the MoOS Welcome exactly once on first login")

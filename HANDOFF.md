@@ -29,6 +29,82 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-23 — Mo Store becomes MoOS's own app centre
+
+### What shipped
+
+Mo Store stopped being a 38-app curated card wall driven by a public URL scheme
+and became a real application centre with its own index, its own transaction
+backend and a private bridge between them.
+
+- **`moos-store-index`** — an offline, file-only indexer. It reads the Flatpak
+  AppStream XML and deployed refs already on disk (never the network, never
+  `flatpak`), merges duplicate components across user/system/custom
+  installations, and publishes one atomic `index.json`. Measured on the live
+  machine: **3324 apps from 9308 components in 11.5 s cold, 0.24 s warm**
+  (input-token cache), 3278 with local icons and 3294 with screenshot URLs.
+  Because it only reads files, browsing and search keep working offline.
+- **`moos-storectl`** — the trusted, non-interactive backend. Install / remove /
+  run / update go through **libflatpak transactions**, so progress is
+  `FlatpakTransactionProgress` and indeterminate work is JSON `null`, not an
+  invented timer. It validates every id again, resolves the full ref against the
+  *verified* Flathub remote (a fake remote merely NAMED flathub is refused),
+  holds one non-blocking `flock`, and publishes one atomically-replaced
+  `job.json`.
+- **`StoreBridge`** (in `moos-qml-shell.cpp`) — a context property exposed
+  **only** when the app id is `org.moos.store` or `org.moos.welcome`. It starts
+  `/usr/bin/moos-storectl` with a fixed argv list and contains no
+  package-manager behaviour of its own.
+
+**The security change this replaces.** `moos:` is a registered URL scheme, so
+any web page can hand `moos-open` a URL — and the old Store fired
+`moos://store/install/<id>`, which made a browser tab able to start a catalogue
+install. That route is **deleted**, and three gates now assert it stays deleted
+(`verify_image_experience.py`, `verify_store_catalog.py`, `moos-selfcheck`).
+`remote/restart` became `try-restart` for the same reason: plain `restart` would
+let a public URL switch remote access *on*.
+
+Also retired: the fake progress ticker and the unpinned AppImage downloader in
+`moos-install` (now a thin shim), Bazaar's persistent `host-etc` Flatpak
+override (a tmpfiles `r` line removes it on upgrade — `/var` survives image
+updates, so deleting the source alone would have left the permission forever),
+and the invented `rating`/`reviews` numbers in the catalogue.
+
+### What was actually verified (not just gated)
+
+- **A real install and a real removal on this machine**, driving the repo copy of
+  the backend: `moos-storectl install com.github.tchx84.Flatseal` → `job.json`
+  `state=success`, `flatpak info` confirms it; `remove` → gone. Both exit 0.
+- The indexer run above, twice, to prove the warm cache path.
+- `just check` green, including the four gates newly wired into it.
+- `MOOS_TEST_ROOT=system_files build_files/verify_store_catalog.py` green.
+- A local `podman build` of the generic edition (the gates that only exist
+  inside the image).
+
+**Known noise:** libflatpak's `operation-done` signal makes PyGObject print
+`g_value_get_flags: assertion 'G_VALUE_HOLDS_FLAGS (value)' failed` on every
+transaction. It is an introspection annotation mismatch upstream, it goes to a
+detached process's stderr, and it does not affect the result — both the install
+and the removal above completed with it printed.
+
+### Gates wired that were honour-system before
+
+`just check` and CI's **Repo gates** step now also run `test_moos_store_index`,
+`test_moos_storectl`, `test_moos_ui2`, `test_moos_theme_safety`, and
+`verify_store_catalog.py` against `system_files`. The last one also runs inside
+the image build; running it here too means a drifted recipe costs 3 seconds
+instead of failing at the last stage of a 20-minute build.
+
+### Not done
+
+- **The Updates page cannot list what needs updating.** It offers "Update apps
+  now" and the backend has `update_refs()`, but nothing surfaces a pending-update
+  count or list to the UI — that needs a new `moos-storectl` read-only subcommand
+  plus a bridge method. This is the next increment.
+- Mo Store has not yet been driven by hand on a *booted* image with the real
+  `StoreBridge` compiled in; the bridge is gated by source token and the backend
+  is proven live, but the button-to-backend hop is proven by gate, not by click.
+
 ## Session 2026-07-21 (night) — login scene elevated + SHIP PIPELINE BLOCKED
 
 ### RESUME HERE

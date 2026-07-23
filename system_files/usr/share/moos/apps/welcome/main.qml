@@ -14,13 +14,13 @@
 //                what a direction installs is exactly what the store shows.
 //   3 apps       The optional essentials (camera, recorder, reader…) plus the
 //                apps the chosen directions brought in — all toggleable.
-//   4 install    Fires moos://store/install/<id> per app (the same headless
-//                path the store uses) and polls <cache>/moos-store/<id>.status
-//                for live progress bars. No terminal, ever.
+//   4 install    Sends the reviewed selection once through the private
+//                MoosStore bridge, then follows <cache>/moos-store/job.json
+//                for real transaction progress. No terminal, ever.
 //   5 done       Open Mo Store / open Mo AI / finish.
 //
 // Every app id, category and bundle comes at runtime from
-// /usr/share/moos/store/catalog.json — the SAME file /usr/bin/moos-install
+// /usr/share/moos/store/catalog.json — the SAME curated layer moos-storectl
 // obeys — so the wizard can never offer what the system cannot install.
 //
 // Bilingual, Arabic-first, RTL-safe. Every structural colour comes from the
@@ -141,6 +141,19 @@ ApplicationWindow {
         return null
     }
 
+    function trustLabel(app) {
+        if (!app || !app.install) return ""
+        if (app.install.kind === "npm")
+            return "npm · " + (app.install.pkg || app.id)
+                + (win.rtl ? " · يشغّل سكربتات الحزمة بعد موافقتك"
+                           : " · runs package scripts after approval")
+        if (app.install.kind === "web")
+            return win.rtl ? "الموقع الرسمي · تنزيل خارجي" : "Official website · external download"
+        if (app.install.kind === "appimage")
+            return "AppImage · SHA-256"
+        return ""
+    }
+
     function togglePick(id) {
         var p = Object.assign({}, win.picks)
         if (p[id]) delete p[id]; else p[id] = true
@@ -201,16 +214,25 @@ ApplicationWindow {
         return out
     }
 
-    // ── install engine (step 4) — the exact store contract ────────────────────
-    // installState[id] = { pct: 0..100, state: "queued"|"installing"|"done"|"opened"|"fail" }
+    // ── install engine (step 4) — the same trusted bridge as Mo Store ─────────
+    // No software operation is dispatched through the public moos: URL scheme.
+    // MoosStore is exposed only to the signed Welcome/Store QML and starts the
+    // fixed moos-storectl backend without a shell.  job.json carries real
+    // FlatpakTransaction progress; null means indeterminate, never a fake bar.
     property var installState: ({})
+    property var installJob: ({})
     property bool installing: false
     property bool installFinished: false
+    property bool installHadFailures: false
     property var queue: []
-    property int queueIdx: 0
+    property string previousJobId: ""
+    property bool waitingForJob: false
+    property int jobWaitTicks: 0
+    property double requestEpoch: 0
 
-    // Where moos-open drops per-app status files (from the launcher's --cache=).
+    // The launcher passes the fixed cache root because pure QML has no HOME.
     readonly property string cacheDir: win.argValue("--cache=")
+    readonly property string jobPath: win.cacheDir + "/job.json"
 
     // Live session (booted from the USB, not yet installed): the launcher passes
     // --live=1. Drives the "Install MoOS on this computer" call-to-action on the
@@ -250,14 +272,47 @@ ApplicationWindow {
         win.installState = s
     }
 
+    function currentJobId() {
+        try {
+            var request = new XMLHttpRequest()
+            request.open("GET", "file://" + win.jobPath + "?v=" + Date.now(), false)
+            request.send()
+            var document = JSON.parse(request.responseText || "{}")
+            return document.job_id || ""
+        } catch (error) {
+            return ""
+        }
+    }
+
+    function matchesInstallJob(document) {
+        if (document.action !== "install") return false
+        var started = Date.parse(document.started_at || "")
+        if (!isFinite(started) || started + 1000 < win.requestEpoch) return false
+        var items = document.items || []
+        if (items.length !== win.queue.length) return false
+        for (var i = 0; i < win.queue.length; ++i) {
+            var found = false
+            for (var j = 0; j < items.length; ++j)
+                if (items[j].id === win.queue[i]) { found = true; break }
+            if (!found) return false
+        }
+        return true
+    }
+
     function overallProgress() {
+        if (win.installJob.progress !== undefined && win.installJob.progress !== null)
+            return Math.max(0, Math.min(100, win.installJob.progress)) / 100
         if (win.queue.length === 0) return 0
         var sum = 0
+        var known = 0
         for (var i = 0; i < win.queue.length; i++) {
             var st = win.installState[win.queue[i]]
-            sum += st ? st.pct : 0
+            if (st && st.pct !== null && st.pct !== undefined) {
+                sum += st.pct
+                ++known
+            }
         }
-        return sum / (win.queue.length * 100)
+        return known > 0 ? sum / (known * 100) : 0
     }
 
     function startInstall() {
@@ -265,112 +320,113 @@ ApplicationWindow {
         win.step = 4
         if (ids.length === 0) { win.installFinished = true; return }
         win.queue = ids
-        win.queueIdx = 0
         win.installing = true
         win.installFinished = false
+        win.installHadFailures = false
         var s = {}
-        for (var i = 0; i < ids.length; i++) s[ids[i]] = { pct: 0, state: "queued" }
+        for (var i = 0; i < ids.length; i++) s[ids[i]] = { pct: null, state: "queued", message: "" }
         win.installState = s
-        win.installNext()
-    }
-
-    function installNext() {
-        if (win.queueIdx >= win.queue.length) {
+        if (typeof MoosStore === "undefined") {
             win.installing = false
             win.installFinished = true
-            pollTimer.stop()
+            win.installHadFailures = true
+            for (i = 0; i < ids.length; ++i)
+                win.setState(ids[i], 0, "fail")
             return
         }
-        var id = win.queue[win.queueIdx]
-        win.setState(id, 3, "installing")
-        Qt.openUrlExternally("moos://store/install/" + id)
-        if (win.cacheDir === "") {
-            // No status path (bare-runtime fallback): fire-and-forget, best effort.
-            fallbackTimer.restart()
+        win.previousJobId = win.currentJobId()
+        win.requestEpoch = Date.now()
+        win.waitingForJob = true
+        win.jobWaitTicks = 0
+        if (!MoosStore.installApps(ids)) {
+            win.waitingForJob = false
+            win.installing = false
+            win.installFinished = true
+            win.installHadFailures = true
+            for (i = 0; i < ids.length; ++i)
+                win.setState(ids[i], 0, "fail")
             return
         }
-        pollTimer.targetId = id
-        pollTimer.miss = 0
-        pollTimer.polls = 0
         pollTimer.restart()
     }
 
-    function readStatus(id) {
+    function readJob() {
         try {
             var req = new XMLHttpRequest()
-            req.open("GET", "file://" + win.cacheDir + "/" + id + ".status", false)
+            req.open("GET", "file://" + win.jobPath + "?v=" + Date.now(), false)
             req.send()
-            var t = req.responseText
-            if (!t) return { pct: -1, state: "installing" }
-            var lines = t.split("\n")
-            for (var i = lines.length - 1; i >= 0; i--) {
-                var ln = lines[i].trim()
-                if (ln === "") continue
-                if (ln.indexOf("PROGRESS ") === 0)
-                    return { pct: parseInt(ln.substring(9)) || 0, state: "installing" }
-                if (ln === "DONE")   return { pct: 100, state: "done" }
-                if (ln === "OPENED") return { pct: 100, state: "opened" }
-                if (ln.indexOf("FAIL") === 0) return { pct: 0, state: "fail" }
+            if (!req.responseText) return false
+            var doc = JSON.parse(req.responseText)
+            if (!doc.job_id) return false
+            if (win.waitingForJob
+                    && (doc.job_id === win.previousJobId
+                        || !win.matchesInstallJob(doc))) return false
+            win.waitingForJob = false
+            var active = doc.state === "starting" || doc.state === "running"
+            var updated = Date.parse(doc.updated_at || "")
+            if (active && (!isFinite(updated) || Date.now() - updated > 120000)) {
+                doc.state = "failed"
+                doc.progress = null
+                doc.message = win.rtl
+                    ? "توقفت عملية التثبيت قبل أن تكتمل"
+                    : "The install operation stopped before it completed"
+                var staleItems = doc.items || []
+                for (var stale = 0; stale < staleItems.length; ++stale)
+                    if (staleItems[stale].state === "queued"
+                            || staleItems[stale].state === "running") {
+                        staleItems[stale].state = "failed"
+                        staleItems[stale].progress = null
+                        staleItems[stale].message = doc.message
+                    }
             }
-            return { pct: -1, state: "installing" }
+            win.installJob = doc
+            var next = Object.assign({}, win.installState)
+            var items = doc.items || []
+            for (var i = 0; i < items.length; ++i) {
+                var rawState = items[i].state
+                next[items[i].id] = {
+                    pct: items[i].progress,
+                    state: rawState === "running" ? "installing"
+                         : rawState === "skipped"
+                             ? ((items[i].message || "").indexOf("Already installed") === 0
+                                 ? "done" : "fail")
+                         : rawState === "failed" ? "fail"
+                         : rawState,
+                    message: items[i].message || ""
+                }
+            }
+            win.installState = next
+            var terminal = doc.state === "success" || doc.state === "partial"
+                || doc.state === "failed" || doc.state === "cancelled"
+                || doc.state === "busy"
+            if (terminal) {
+                win.installing = false
+                win.installFinished = true
+                win.installHadFailures = doc.state !== "success"
+                pollTimer.stop()
+            }
+            return true
         } catch (e) {
-            return { pct: -1, state: "installing" }
+            return false
         }
     }
 
     Timer {
         id: pollTimer
         interval: 450; repeat: true
-        property string targetId: ""
-        property int miss: 0
-        property int polls: 0
         onTriggered: {
-            pollTimer.polls++
-            var s = win.readStatus(pollTimer.targetId)
-            // Stale-file grace: moos-open truncates the status file before the
-            // install starts, but the truncation itself is behind xdg-open
-            // dispatch. A terminal line seen in the FIRST beats can be last
-            // run's verdict for the same app — ignore it; a genuine terminal
-            // state is still there on the next poll.
-            var terminal = (s.state === "done" || s.state === "opened" || s.state === "fail")
-            if (terminal && pollTimer.polls <= 3) {
-                return
-            }
-            if (s.pct >= 0) {
-                pollTimer.miss = 0
-                var cur = win.installState[pollTimer.targetId]
-                var pct = Math.max(s.pct, cur ? cur.pct : 0)   // never go backwards
-                win.setState(pollTimer.targetId, pct, s.state)
-            }
-            if (terminal) {
+            ++win.jobWaitTicks
+            win.readJob()
+            if (win.waitingForJob && win.jobWaitTicks > 40) {
+                win.waitingForJob = false
+                win.installing = false
+                win.installFinished = true
+                win.installHadFailures = true
                 pollTimer.stop()
-                win.queueIdx++
-                win.installNext()
-            } else if (s.pct < 0) {
-                // Status file absent/empty. Bounded: if nothing has appeared
-                // after ~27s the moos:// dispatch itself failed (handler not
-                // registered, moos-install unresolvable) — mark this app failed
-                // and move on, or the wizard would sit on this page forever
-                // with no Skip and no Continue.
-                pollTimer.miss++
-                if (pollTimer.miss > 60) {
-                    win.setState(pollTimer.targetId, 0, "fail")
-                    pollTimer.stop()
-                    win.queueIdx++
-                    win.installNext()
-                }
+                for (var i = 0; i < win.queue.length; ++i)
+                    if (win.installState[win.queue[i]].state === "queued")
+                        win.setState(win.queue[i], 0, "fail")
             }
-        }
-    }
-
-    // Bare-runtime fallback with no status file: advance after a beat.
-    Timer {
-        id: fallbackTimer
-        interval: 1400
-        onTriggered: {
-            win.setState(win.queue[win.queueIdx], 100, "opened")
-            win.queueIdx++
-            win.installNext()
         }
     }
 
@@ -1124,7 +1180,7 @@ ApplicationWindow {
                                     required property var modelData
                                     readonly property bool selected: win.picks[appCard.modelData.id] === true
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 74
+                                    Layout.preferredHeight: win.trustLabel(appCard.modelData) === "" ? 74 : 94
                                     radius: 16
                                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
                                                    appHover.hovered || appCard.selected ? 0.95 : 0.55)
@@ -1169,6 +1225,16 @@ ApplicationWindow {
                                                               : (appCard.modelData.desc_en || "")
                                                 color: win.txt2
                                                 font.family: "IBM Plex Sans"; font.pixelSize: 12
+                                                elide: Text.ElideRight
+                                                Layout.fillWidth: true
+                                            }
+                                            Text {
+                                                visible: win.trustLabel(appCard.modelData) !== ""
+                                                text: win.trustLabel(appCard.modelData)
+                                                color: win.violet
+                                                font.family: "IBM Plex Sans"
+                                                font.pixelSize: 10
+                                                font.weight: Font.DemiBold
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
                                             }
@@ -1219,7 +1285,9 @@ ApplicationWindow {
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.installFinished
-                              ? (win.rtl ? "اكتمل التجهيز" : "Setup complete")
+                              ? win.installHadFailures
+                                  ? (win.rtl ? "اكتمل مع عناصر تحتاج مراجعة" : "Finished with items to review")
+                                  : (win.rtl ? "اكتمل التجهيز" : "Setup complete")
                               : (win.rtl ? "نجهّز نظامك…" : "Preparing your system…")
                         color: win.txt
                         font.family: "IBM Plex Sans"; font.pixelSize: 30; font.weight: Font.Bold
@@ -1228,8 +1296,8 @@ ApplicationWindow {
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         visible: !win.installFinished
-                        text: win.rtl ? "بلا طرفية. اترك النافذة مفتوحة حتى ينتهي الطابور"
-                                      : "No terminal. Keep this window open until the queue finishes"
+                        text: win.rtl ? "تثبيت آمن بصلاحيات المستخدم — يمكنك متابعة التقدم الحقيقي هنا"
+                                      : "Safe per-user installation — follow the real transaction progress here"
                         color: win.txt2
                         font.family: "IBM Plex Sans"; font.pixelSize: 14
                     }
@@ -1247,6 +1315,32 @@ ApplicationWindow {
                             radius: 5
                             color: win.accent
                             Behavior on width { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+                        }
+                        Rectangle {
+                            visible: win.installing
+                                     && (win.installJob.progress === undefined
+                                         || win.installJob.progress === null)
+                            width: Math.max(54, parent.width * 0.22)
+                            height: parent.height
+                            radius: 5
+                            color: win.accent
+                            x: 0
+                            SequentialAnimation on x {
+                                running: parent.visible
+                                loops: Animation.Infinite
+                                NumberAnimation {
+                                    from: 0
+                                    to: Math.max(0, parent.parent.width - parent.width)
+                                    duration: 950
+                                    easing.type: Easing.InOutSine
+                                }
+                                NumberAnimation {
+                                    from: Math.max(0, parent.parent.width - parent.width)
+                                    to: 0
+                                    duration: 950
+                                    easing.type: Easing.InOutSine
+                                }
+                            }
                         }
                     }
                     Item { Layout.preferredHeight: 18 }
@@ -1317,7 +1411,9 @@ ApplicationWindow {
                                                         : instRow.st.state === "opened" ? (win.rtl ? "فُتحت صفحته" : "Page opened")
                                                         : instRow.st.state === "fail"   ? (win.rtl ? "تعذّر" : "Failed")
                                                         : instRow.st.state === "queued" ? (win.rtl ? "بالانتظار" : "Queued")
-                                                        : instRow.st.pct + "%"
+                                                        : instRow.st.pct === null || instRow.st.pct === undefined
+                                                            ? (win.rtl ? "جارٍ العمل…" : "Working…")
+                                                            : instRow.st.pct + "%"
                                                     color: instRow.st.state === "done" || instRow.st.state === "opened"
                                                            ? win.accent
                                                            : instRow.st.state === "fail" ? win.violet : win.txt2
@@ -1330,7 +1426,7 @@ ApplicationWindow {
                                                 radius: 2.5
                                                 color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.45)
                                                 Rectangle {
-                                                    width: parent.width * (instRow.st.pct / 100)
+                                                    width: parent.width * ((instRow.st.pct || 0) / 100)
                                                     height: parent.height
                                                     radius: 2.5
                                                     color: instRow.st.state === "fail" ? win.violet : win.accent

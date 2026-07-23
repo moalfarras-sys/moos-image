@@ -6,35 +6,13 @@
 # everything, update, remove, permissions) is provided by the Bazaar engine,
 # which MoOS does NOT preinstall — so a fresh device shows exactly one store.
 #
-# The first time the user asks to browse everything, install Bazaar per-user
-# (no password prompt), keep its launcher OUT of the app menu (Mo Store stays the
-# single visible store, per the one-system rule), and open it. Subsequent calls
-# just re-hide (in case a Bazaar update regenerated its export) and launch.
+# Compatibility entry point. The trusted backend verifies the configured
+# Flathub URL/GPG policy, installs Bazaar per-user when needed, keeps its launcher
+# out of the app menu, and opens it. Do not duplicate remote handling here.
 set -euo pipefail
 
-APP="io.github.kolunmi.Bazaar"
-
-# Keep Bazaar out of the application menu: Mo Store is the only visible store.
-# moos-one-store writes a NoDisplay override into ~/.local/share/applications,
-# which outranks BOTH flatpak export scopes (user and system) — editing only the
-# per-user export, as this script once did, left a system-scope Bazaar visible.
-hide_launcher() {
-    /usr/bin/moos-one-store 2>/dev/null || true
+[ "$#" -eq 0 ] || {
+    echo "moos-store-browse: arguments are not supported" >&2
+    exit 64
 }
-
-err() {
-    if command -v kdialog >/dev/null 2>&1; then
-        kdialog --title "Mo Store" --error \
-            "تعذّر فتح الكتالوج الكامل.\nCould not open the full catalog." 2>/dev/null || true
-    fi
-    exit 1
-}
-
-if ! flatpak info --user "$APP" >/dev/null 2>&1 && ! flatpak info "$APP" >/dev/null 2>&1; then
-    flatpak remote-add --user --if-not-exists flathub \
-        https://dl.flathub.org/repo/flathub.flatpakrepo >/dev/null 2>&1 || true
-    flatpak install -y --user --noninteractive flathub "$APP" >/dev/null 2>&1 || err
-fi
-
-hide_launcher
-exec flatpak run "$APP" "$@"
+exec /usr/bin/moos-storectl open-engine bazaar

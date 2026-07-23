@@ -107,8 +107,18 @@ jobs:
           python3 tests/verify_user_experience.py
           python3 tests/test_device_plan.py
           python3 tests/test_moai_do.py
+          python3 tests/test_exec_bits.py
+          python3 tests/test_moos_store_index.py
+          python3 tests/test_moos_storectl.py
+          python3 tests/test_moos_ui2.py
+          python3 tests/test_moos_theme_safety.py
           python3 tests/test_fwupd_refresh_policy.py
           python3 artwork/verify_visuals.py
+          # The store-chain gate also runs inside the image build (build.sh), where
+          # it reads the finished /usr. It supports MOOS_TEST_ROOT, so run it here
+          # too: a catalogue/recipe/route drift should cost 3 seconds, not a
+          # 20-minute image build that fails at its last stage.
+          MOOS_TEST_ROOT=system_files python3 build_files/verify_store_catalog.py
 
       # GHCR requires a lowercase namespace; github.repository_owner may
       # contain uppercase letters.

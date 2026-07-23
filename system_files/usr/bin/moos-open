@@ -14,10 +14,10 @@
 # visible Konsole (--hold) so the user sees every prompt (moai-do uses pkexec).
 #
 # Because "moos:" is a registered scheme, ANY web page can hand this script a
-# URL. That is why the only route carrying a free-form value (apps/install/<id>)
-# re-validates the id here AND hands it to moai-do, which validates it again and
-# will not install anything without an explicit confirmation. A drive-by page can
-# at worst raise a terminal prompt the user has to answer "y" to.
+# URL. Free-form app ids are therefore re-validated here; installation is handed
+# to moai-do, which validates again and requires an explicit confirmation.
+# Store and Welcome software changes do NOT use this public scheme: they cross a
+# private, fixed-argv bridge available only to those first-party QML app ids.
 #
 # EVERY moos:// URL emitted by a MoOS QML app must have a case below. Three
 # buttons once shipped opening routes that did not exist here; they popped
@@ -106,8 +106,10 @@ case "${cat}/${tgt}" in
     app/moplayer)  gui moplayer ;;
     app/remote)    gui mo-pc-remote ;;
     app/setup)     term moos-setup ;;
-    do/smart-setup) term moos-setup --smart ;;
-    do/setup-gaming) term moos-setup --gaming ;;
+    do/smart-setup) confirm "تشغيل الإعداد الذكي وتطبيق التوصيات؟ | Run smart setup and apply its recommendations?" \
+                          && term moos-setup --smart ;;
+    do/setup-gaming) confirm "تجهيز النظام للألعاب وتثبيت التوصيات؟ | Prepare the system for gaming and install recommendations?" \
+                          && term moos-setup --gaming ;;
     app/compat)    gui moai --device ;;
     app/hardware)  gui moai --device ;;
     app/updater)   term moos-update ;;
@@ -173,7 +175,9 @@ case "${cat}/${tgt}" in
     remote/start)   confirm "تشغيل Mo PC Remote والسماح له بالعمل بعد كل إقلاع؟ | Turn on Mo PC Remote (it will start at every boot)?" \
                           && remote_ctl enable --now ;;
     remote/stop)    remote_ctl disable --now ;;
-    remote/restart) remote_ctl restart ;;
+    # try-restart is a no-op when remote access is off. Plain restart would turn
+    # an inactive service on, letting a public moos: URL open remote access.
+    remote/restart) remote_ctl try-restart ;;
 
     # ── Coding agents: run the one the user picked, or install it ────────────
     dev/code)      term moai-code ;;
@@ -193,39 +197,6 @@ case "${cat}/${tgt}" in
             notify "معرّف تطبيق غير صالح | invalid app id"
             exit 2
         fi ;;
-
-    # ── MoOS Store / Welcome: install a CATALOGUED app, headless, with progress ─
-    # This route only installs apps that are in /usr/share/moos/store/catalog.json
-    # — a fixed, curated, safe set. That is the whole reason it needs NO
-    # confirmation and NO terminal: the worst a drive-by page could do is install
-    # one of MoOS's own vetted apps. moos-install streams PROGRESS/DONE/FAIL/OPENED
-    # to a per-app status file that the Welcome polls for a live bar.
-    store/install/*)
-        id="${tgt#install/}"
-        _statedir="${XDG_CACHE_HOME:-$HOME/.cache}/moos-store"
-        if command -v moos-install >/dev/null 2>&1 \
-           && python3 -c "import json,sys; c=json.load(open('/usr/share/moos/store/catalog.json',encoding='utf-8')); sys.exit(0 if any(a['id']==sys.argv[1] for a in c['apps']) else 1)" "$id" 2>/dev/null; then
-            mkdir -p "$_statedir"
-            # Truncate the status file SYNCHRONOUSLY, before detaching. A retry
-            # of an app that failed (or finished) before would otherwise leave
-            # the OLD terminal line in place for the detached shell's startup
-            # window, and the UI's first poll would consume last run's DONE/FAIL
-            # as if it were this run's verdict.
-            : > "${_statedir}/${id}.status" 2>/dev/null || true
-            # setsid: fully detach so the install outlives this short-lived handler.
-            # stdbuf -oL: moos-install's PROGRESS lines go to a FILE, which glibc
-            # block-buffers by default — without line buffering the bar would sit at
-            # 0 then snap to 100 when the process exits. Fall back if stdbuf is absent.
-            setsid sh -c 'command -v stdbuf >/dev/null 2>&1 && exec stdbuf -oL moos-install "$1" > "$2/$1.status" 2>/dev/null; exec moos-install "$1" > "$2/$1.status" 2>/dev/null' _ "$id" "$_statedir" >/dev/null 2>&1 &
-        else
-            notify "تطبيق غير معروف في المتجر | app not in store: $id"
-            exit 2
-        fi ;;
-
-    # ── Mo Store "Browse all": the full Flathub catalog + app lifecycle, via the
-    #    Bazaar engine — installed on demand and kept OUT of the app menu so Mo
-    #    Store stays the ONE visible store. See /usr/bin/moos-store-browse. ──────
-    store/browse-all)  gui moos-store-browse ;;
 
     # ── App Centre: OPEN an already-installed app by id (no privilege) ────────
     # The counterpart to apps/install. Launching an app the user already has is

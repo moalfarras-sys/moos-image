@@ -2,7 +2,9 @@
 # moos-store — launch Mo Store, MoOS's own storefront (a standalone app; the
 # first-run onboarding is /usr/bin/moos-welcome). Pure-QML script app.
 set -euo pipefail
-QML="/usr/share/moos/apps/store/main.qml"
+umask 077
+STORE_DIR="/usr/share/moos/apps/store"
+QML="${STORE_DIR}/main.qml"
 export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
 
 # QML disk cache, kept WARM. OSTree pins every mtime under /usr to the epoch, so
@@ -16,7 +18,10 @@ export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}"
 if command -v sha256sum >/dev/null 2>&1 && [ -r "$QML" ]; then
     _stamp="${CACHE}/moos-store.qmlstamp"
-    _cur="$(sha256sum "$QML" 2>/dev/null | cut -c1-32)"
+    # Hash the entire QML/JS tree. Splitting a large view into components must
+    # invalidate the cache just as reliably as changing main.qml.
+    _cur="$(find "$STORE_DIR" -type f \( -name '*.qml' -o -name '*.js' \) -print0 \
+        | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -c1-32)"
     if [ -n "$_cur" ] && [ "$(cat "$_stamp" 2>/dev/null)" != "$_cur" ]; then
         rm -rf "${CACHE}/qmlcache" 2>/dev/null || true
         mkdir -p "$CACHE" 2>/dev/null || true
@@ -26,15 +31,31 @@ else
     export QML_DISABLE_DISK_CACHE=1
 fi
 
-# The store reads /usr/share/moos/store/catalog.json and polls per-app install
-# status files, both via QML's XMLHttpRequest. Qt6 gates local-file reads behind
-# this flag, so set it or the store shows no apps.
+# The store reads the shipped curation layer, the generated local AppStream
+# index, and one atomic transaction document via QML's XMLHttpRequest.
 export QML_XHR_ALLOW_FILE_READ=1
-# Where moos-open writes each install's PROGRESS/DONE/FAIL status. Passed to the
-# QML as --cache= (pure QML can't read $HOME), and kept identical to the path
-# moos-open uses so the two always agree.
 CACHEDIR="${XDG_CACHE_HOME:-$HOME/.cache}/moos-store"
 mkdir -p "$CACHEDIR" 2>/dev/null || true
+chmod 700 "$CACHEDIR" 2>/dev/null || true
+INDEX="${CACHEDIR}/index.json"
+JOB="${CACHEDIR}/job.json"
+READY="${CACHEDIR}/index.ready"
+
+# Rebuild from on-disk AppStream metadata without delaying the first frame.
+# flock coalesces launches; the indexer itself token-caches unchanged inputs and
+# publishes atomically, so the UI always sees either the old complete index or
+# the new complete one.
+if [ -x /usr/bin/moos-store-index ]; then
+    : >"$READY"
+    (
+        flock -n 9 || exit 0
+        if /usr/bin/moos-store-index \
+            --catalog /usr/share/moos/store/catalog.json \
+            --output "$INDEX" >"${CACHEDIR}/index.log" 2>&1; then
+            printf '%s-%s\n' "$$" "$(date +%s 2>/dev/null || true)" >"$READY"
+        fi
+    ) 9>"${CACHEDIR}/index.lock" &
+fi
 
 # moos-qml-shell, not the bare runtime: qml-qt6 names every window it hosts
 # org.qt-project.qml-qt6, so Plasma cannot match this window to
@@ -43,13 +64,14 @@ mkdir -p "$CACHEDIR" 2>/dev/null || true
 if [ -x /usr/bin/moos-qml-shell ]; then
     exec /usr/bin/moos-qml-shell \
         --app-id org.moos.store --icon moos-store --qml "$QML" \
-        -- --cache="$CACHEDIR"
+        -- --cache="$CACHEDIR" --index="$INDEX" --job="$JOB" --ready="$READY"
 fi
 
 # Fallback: wrong icon beats no window.
 for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
     if command -v "$runner" >/dev/null 2>&1 || [ -x "$runner" ]; then
-        exec "$runner" "$QML" -- --cache="$CACHEDIR"
+        exec "$runner" "$QML" -- --cache="$CACHEDIR" --index="$INDEX" \
+            --job="$JOB" --ready="$READY"
     fi
 done
 echo "Mo Store: no Qt6 QML runtime found (install qt6-qtdeclarative-devel). | لا يوجد محرّك QML." >&2
