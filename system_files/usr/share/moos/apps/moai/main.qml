@@ -2310,7 +2310,7 @@ Kirigami.ApplicationWindow {
                                             { icon: "moos-gpu",      ar: "الرسوميات", v: (root.snap.gpu || "?") },
                                             { icon: "moos-storage",  ar: "التخزين", v: (root.snap.disk && root.snap.disk.total_gb)
                                                  ? (root.snap.disk.free_gb + " / " + root.snap.disk.total_gb + " GB حرّ") : "?" },
-                                            { icon: "moos-system",   ar: "النواة", v: (root.snap.kernel || "?") }
+                                            { icon: "moos-system",   ar: "نواة MoOS", v: (root.snap.kernel || "?") }
                                         ]
                                         delegate: RowLayout {
                                             required property var modelData

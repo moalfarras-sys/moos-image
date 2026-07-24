@@ -567,7 +567,13 @@ def scan():
             "cpu": _first_line("/proc/cpuinfo", "model name"),
             "cores": os.cpu_count()}
     try:
-        info["kernel"] = os.uname().release
+        # Brand + de-leak the kernel string the Hardware panel shows. os.uname()
+        # returns e.g. "7.1.4-202.fc44.x86_64"; the ".fc44.x86_64" suffix is a
+        # Fedora/arch identity leak on a user-visible surface (the identity
+        # contract keeps that name out of everything the owner looks at). Strip it
+        # to the clean upstream version — the running kernel, module tree and
+        # NVIDIA kmod are untouched; only the label the user reads changes.
+        info["kernel"] = os.uname().release.split(".fc")[0]
     except Exception:
         info["kernel"] = ""
     try:
