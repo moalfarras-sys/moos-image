@@ -121,7 +121,15 @@ tasks.writeConfig("showOnlyCurrentDesktop", false);
  * dock — it reads as a broken widget, and a dock of this kind has no such button
  * anyway. Users who want it back: right-click the dock -> Add Widgets. */
 panel.addWidget("org.kde.plasma.marginsseparator");
-panel.addWidget("org.kde.plasma.systemtray");
+var systray = panel.addWidget("org.kde.plasma.systemtray");
+// MoOS keeps the everyday device toggles one click away in the status area
+// instead of buried behind the tray arrow — reaching Wi-Fi, Bluetooth, volume
+// and brightness is the whole point of a status tray, and hiding them is the
+// single most common "where is my Bluetooth" complaint. Everything else stays
+// auto (shown only when it has something to say). This is the Apple-style
+// "control centre in the corner" without a custom plasmoid.
+systray.currentConfigGroup = ["General"];
+systray.writeConfig("shownItems", "org.kde.plasma.networkmanagement,org.kde.plasma.bluetooth,org.kde.plasma.volume,org.kde.plasma.brightness");
 
 panel.addWidget("org.moos.nova.clock");
 
