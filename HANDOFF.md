@@ -29,6 +29,59 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-24 — reviewed, validated and shipped the overnight Mo AI + UI2 work
+
+### What this session inherited
+
+The booted image was v329 (`409112b`, the selfcheck remote-viewing change). On top
+of it sat a large **uncommitted, undocumented** working tree — ~198 files, roughly
++6000/-1900 — left from an overnight session: a Mo AI/OpenClaw overhaul, a local
+Arabic speech engine, a NumLock/input migration, the Welcome device-guide routes,
+Mo Store follow-ups, and a full UI2 theme regeneration with a new frosted-popup
+master. HANDOFF stopped at 2026-07-23 14:10; the work continued to 01:29, so none
+of it was recorded here. This session's job was to **understand it, prove it, and
+ship it** — not to invent more on top of already-careful work.
+
+### How it was proven before committing
+
+1. **`just check` green** — all repo gates, including the two new Mo AI security
+   suites (`test_moai_control`, `test_moai_http_security`) and the theme gates.
+2. **Security review of the risky surfaces** — `moai-do` (version-pins and
+   validates OpenClaw, refuses to duplicate the one loopback model server, no new
+   privilege), `moai-agent-api`/`moai-control` (reject foreign `Origin` before any
+   config write / agent exec / provider call; atomic+fsync config writes;
+   Telegram `allowFrom`/`dmPolicy`), `moos-open` (new routes are read-only KCM
+   launches), and the new `verify_image_experience.py` gates (additive, none of
+   the existing gates weakened).
+3. **Every changed surface was rendered live** via `moos-qml-shell --app-id … --qml
+   <repo copy>` on the running Wayland session + `spectacle`. Welcome, Mo AI and the
+   theme picker all render as high-craft, cohesive, correct interfaces (the Mo AI
+   "Start local brain" affordance and the 16-theme picker grid both look right).
+   The store launches clean (no QML errors) but did not raise above VS Code for the
+   grab. Helper: `.preview/shot.sh <app-id> <qml> <out.png>` (scratch, not committed).
+4. **A local `podman build` of the generic edition** (validates the image-level
+   gates a `just check` cannot — the same thing that once caught an unbootable
+   NVIDIA image).
+
+### What shipped, as 8 subsystem-scoped commits
+
+`feat(moai)` local speech engine (speaches) + OpenClaw gateway + CSRF-hardened
+control plane · `feat(shell)` Welcome device guide → real Plasma KCMs ·
+`feat(input)` NumLock-on-at-login as a one-time startup preference ·
+`feat(store)` index/backend polish · `polish(ui2)` frosted "Tidal Glass" popups +
+regenerated theme family · `chore(moplayer)` metainfo homepage · `chore(build)`
+enable new units + wire new gates · `ci` run the new Mo AI tests in repo-gates.
+
+### Not done / what the next session confirms
+
+- **Live-after-reboot verification.** The new /usr only becomes live on reboot;
+  until then the running desktop still serves v329's binaries. After the image
+  updates, confirm on the live system: `moos-selfcheck`, Mo AI's local brain/voice
+  start, the Welcome device buttons open real KCMs, and NumLock is on at the greeter.
+- Pushing `.github/workflows/build.yml` needs the `workflow` scope on the token
+  (`gh auth refresh -h github.com -s workflow`) — it is isolated in its own commit
+  so the rest can push even if that one is blocked.
+
 ## Session 2026-07-23 (later) — "the machine got slow after the update" was a phone
 
 ### The finding
