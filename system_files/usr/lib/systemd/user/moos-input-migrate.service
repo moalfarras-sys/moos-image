@@ -1,0 +1,8 @@
+[Unit]
+Description=Apply one-time MoOS input defaults before KWin
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/moos-ui-migrate --input-only
+RemainAfterExit=yes
+TimeoutStartSec=10s

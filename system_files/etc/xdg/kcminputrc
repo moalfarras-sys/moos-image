@@ -4,5 +4,12 @@
 # kscreenlockerrc files next to this one).
 # MoOS = Bibata-Modern-Ice (ful1e5, GPL-3.0) rebranded at image build time
 # in build_files/build.sh section (c6).
+[Keyboard]
+# KWin's startup enum is 0=on, 1=off, 2=leave unchanged. This is deliberately
+# a STARTUP preference, not a key-forcing service: both Plasma Login Manager's
+# KWin and the user's session start with the numeric keypad active, while the
+# physical Num Lock key remains free to turn it off or on at any time.
+NumLock=0
+
 [Mouse]
 cursorTheme=MoOS

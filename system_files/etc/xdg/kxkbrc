@@ -9,6 +9,8 @@
 #
 # System default via the KConfig cascade (/etc/xdg). A user's own ~/.config/kxkbrc
 # still outranks this, so System Settings > Keyboard keeps working as the last word.
+# The UI migration upgrades only the exact uncustomised `de,ara` shadow created
+# by the previous image. Any user-customised kxkbrc remains the last word.
 [Layout]
 Use=true
 LayoutList=de,us,ara

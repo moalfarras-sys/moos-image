@@ -2,13 +2,80 @@
 # Scoped, once-per-revision UI migration for immutable MoOS images.
 set -uo pipefail
 
-MOOS_THEME_REV=8
+# Revision 9: UI2 popup/panel FrameSvgs gained new translucent glass geometry
+# and rounded blur masks. OSTree keeps their mtimes stable, so existing users
+# must drop Plasma's rendered-SVG cache once to see the updated surfaces.
+MOOS_THEME_REV=9
 MOAI_UI_REV=3
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/moos"
 cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
 log_dir="$state_dir/migrations"
 marker="$state_dir/ui-theme-${MOOS_THEME_REV}-moai-${MOAI_UI_REV}.done"
 mkdir -p "$log_dir" 2>/dev/null || exit 0
+
+# KWin reads [Keyboard] NumLock from kcminputrc while its Wayland compositor is
+# starting. /etc/xdg supplies the right default for fresh accounts, but an
+# existing ~/.config/kcminputrc is the stronger KConfig layer and can retain the
+# old 1=off or 2=unchanged value forever. Migrate those two defined legacy
+# states once, before KWin starts, while preserving every unrelated input key.
+#
+# The marker is deliberately independent of the theme migration revisions. A
+# user can choose a different startup preference after this repair and it will
+# not be overwritten on later logins. This writes a startup preference only; it
+# never injects a key event, so the physical Num Lock key remains fully usable.
+migrate_startup_numlock() {
+    local input_conf="${XDG_CONFIG_HOME:-$HOME/.config}/kcminputrc"
+    local input_marker="$state_dir/numlock-startup-v1.done"
+    local input_log="$log_dir/numlock-startup-v1.log"
+    local old_value tmp new_value
+
+    [ -e "$input_marker" ] && return 0
+    if [ ! -f "$input_conf" ]; then
+        touch "$input_marker"
+        return 0
+    fi
+    command -v kreadconfig6 >/dev/null 2>&1 || return 0
+    command -v kwriteconfig6 >/dev/null 2>&1 || return 0
+
+    old_value="$(kreadconfig6 --file "$input_conf" --group Keyboard \
+        --key NumLock --default __missing__ 2>/dev/null || true)"
+    case "$old_value" in
+        0|__missing__)
+            touch "$input_marker"
+            return 0
+            ;;
+        1|2)
+            ;;
+        *)
+            # Preserve unknown/future values rather than guessing their meaning.
+            touch "$input_marker"
+            echo "$(date -u '+%FT%TZ') preserved unknown NumLock value: $old_value" \
+                >>"$input_log" 2>/dev/null || true
+            return 0
+            ;;
+    esac
+
+    tmp="$(mktemp "${input_conf}.moos-numlock.XXXXXX")" || return 0
+    if cp --preserve=mode -- "$input_conf" "$tmp" \
+       && kwriteconfig6 --file "$tmp" --group Keyboard --key NumLock 0 \
+       && new_value="$(kreadconfig6 --file "$tmp" --group Keyboard \
+            --key NumLock --default __missing__ 2>/dev/null)" \
+       && [ "$new_value" = "0" ] \
+       && mv -f -- "$tmp" "$input_conf"; then
+        touch "$input_marker"
+        echo "$(date -u '+%FT%TZ') migrated NumLock $old_value -> 0 before KWin" \
+            >>"$input_log" 2>/dev/null || true
+    else
+        rm -f -- "$tmp"
+        echo "$(date -u '+%FT%TZ') could not migrate NumLock; will retry" \
+            >>"$input_log" 2>/dev/null || true
+    fi
+}
+migrate_startup_numlock
+
+# The early systemd user unit asks for only the input repair so it can finish
+# before either user-session KWin or the Plasma Login Manager's KWin starts.
+[ "${1:-}" = "--input-only" ] && exit 0
 
 # --- GStreamer registry: keyed on the DEPLOYMENT, not on the revisions above ----------------
 #
@@ -39,6 +106,56 @@ if [ -n "${deployment:-}" ] && [ ! -e "$state_dir/gst-registry-${deployment}.don
     echo "$(date -u '+%FT%TZ') dropped the GStreamer registry for deployment ${deployment}" \
         >>"$log_dir/gst-registry.log" 2>/dev/null || true
 fi
+
+# The 2026-07-22 image added a temporary US layout for Fast Remote between the
+# German physical keyboard and Arabic. Existing profiles can carry an exact
+# three-line KConfig shadow written from the previous `de,ara` default, so the
+# new image's `de,us,ara` never reaches them. Migrate ONLY that byte-for-byte
+# known legacy shape. Any extra key means the user customised the layout and is
+# left untouched. A separate marker keeps this repair independent of theme
+# revisions and lets a failed atomic write retry on the next login.
+migrate_legacy_keyboard() {
+    local keyboard_conf="${XDG_CONFIG_HOME:-$HOME/.config}/kxkbrc"
+    local keyboard_marker="$state_dir/keyboard-layout-v2.done"
+    local keyboard_log="$log_dir/keyboard-layout-v2.log"
+    local nonempty tmp
+
+    [ -e "$keyboard_marker" ] && return 0
+    if [ ! -f "$keyboard_conf" ]; then
+        touch "$keyboard_marker"
+        return 0
+    fi
+
+    nonempty="$(grep -Evc '^[[:space:]]*(#|$)' "$keyboard_conf" 2>/dev/null || true)"
+    if [ "$nonempty" != "4" ] \
+       || ! grep -Fxq '[Layout]' "$keyboard_conf" \
+       || ! grep -Fxq 'DisplayNames=DE,ع' "$keyboard_conf" \
+       || ! grep -Fxq 'LayoutList=de,ara' "$keyboard_conf" \
+       || ! grep -Fxq 'VariantList=,' "$keyboard_conf"; then
+        touch "$keyboard_marker"
+        return 0
+    fi
+
+    tmp="$(mktemp "${keyboard_conf}.moos-layout.XXXXXX")" || return 0
+    if cp --preserve=mode -- "$keyboard_conf" "$tmp" \
+       && kwriteconfig6 --file "$tmp" --group Layout --key LayoutList "de,us,ara" \
+       && kwriteconfig6 --file "$tmp" --group Layout --key VariantList ",," \
+       && kwriteconfig6 --file "$tmp" --group Layout --key DisplayNames "DE,,ع" \
+       && mv -f -- "$tmp" "$keyboard_conf"; then
+        touch "$keyboard_marker"
+        echo "$(date -u '+%FT%TZ') migrated exact legacy keyboard de,ara -> de,us,ara" \
+            >>"$keyboard_log" 2>/dev/null || true
+        # The autostart runs after KWin has read kxkbrc. Reload it now so the
+        # first upgraded session, not only the next login, gains the US route.
+        gdbus call --session --dest org.kde.KWin --object-path /KWin \
+            --method org.kde.KWin.reconfigure >/dev/null 2>&1 || true
+    else
+        rm -f -- "$tmp"
+        echo "$(date -u '+%FT%TZ') could not migrate legacy keyboard; will retry" \
+            >>"$keyboard_log" 2>/dev/null || true
+    fi
+}
+migrate_legacy_keyboard
 
 [ -e "$marker" ] && exit 0
 log="$log_dir/ui-theme-${MOOS_THEME_REV}-moai-${MOAI_UI_REV}.log"
