@@ -18,6 +18,16 @@ SWITCH = ROOT / "system_files/usr/bin/moos-theme"
 PATH_UNIT = ROOT / "system_files/usr/lib/systemd/user/moos-theme-sync.path"
 SERVICE_UNIT = ROOT / "system_files/usr/lib/systemd/user/moos-theme-sync.service"
 MIGRATE = ROOT / "system_files/usr/bin/moos-ui-migrate"
+
+# The two migration tests below EXECUTE moos-ui-migrate, which rewrites KConfig
+# files with the real kwriteconfig6 (KF6). That tool exists on any MoOS/KDE
+# machine — so `just check` and the image build both run these for real — but not
+# on the bare ubuntu-latest CI repo-gates runner, where the transform would
+# silently no-op and the exact-output assertions (Arabic display names, comma
+# variant lists) could never match. Skip there instead of failing; the real
+# transform stays gated pre-push by `just check` and live on every login.
+_HAS_KWRITECONFIG6 = shutil.which("kwriteconfig6") is not None
+_KWRITE_REASON = "kwriteconfig6 (KF6 kconfig CLI) not on PATH — migration cannot be executed here"
 INPUT_DEFAULTS = ROOT / "system_files/etc/xdg/kcminputrc"
 INPUT_MIGRATE_SERVICE = (
     ROOT / "system_files/usr/lib/systemd/user/moos-input-migrate.service"
@@ -55,6 +65,7 @@ def function(text: str, name: str) -> str:
 
 
 class TestMoOSThemeSafety(unittest.TestCase):
+    @unittest.skipUnless(_HAS_KWRITECONFIG6, _KWRITE_REASON)
     def test_numlock_default_migrates_before_user_and_greeter_kwin(self) -> None:
         migration = MIGRATE.read_text(encoding="utf-8")
         migrator = function(migration, "migrate_startup_numlock")
@@ -173,6 +184,7 @@ migrate_startup_numlock
             post_migration_choice,
         )
 
+    @unittest.skipUnless(_HAS_KWRITECONFIG6, _KWRITE_REASON)
     def test_keyboard_migration_is_exact_and_preserves_custom_profiles(self) -> None:
         migration = MIGRATE.read_text(encoding="utf-8")
         migrator = function(migration, "migrate_legacy_keyboard")
