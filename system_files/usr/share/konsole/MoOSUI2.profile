@@ -7,7 +7,7 @@ BoldIntense=true
 UseFontLineChararacters=true
 
 [General]
-Name=MoOS UI2
+Name=MoOS UI
 Parent=FALLBACK/
 TerminalMargin=14
 TerminalCenter=false

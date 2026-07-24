@@ -134,7 +134,7 @@ ForegroundVisited=45,164,78
 [General]
 AccentColor=26,127,55
 ColorScheme=MoOSUI2ForgeLight
-Name=MoOS Forge Light
+Name=MoOS UI · Forge Light
 shadeSortColumn=true
 
 [KDE]

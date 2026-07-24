@@ -134,7 +134,7 @@ ForegroundVisited=124,58,237
 [General]
 AccentColor=200,29,122
 ColorScheme=MoOSUI2ArenaLight
-Name=MoOS Arena Light
+Name=MoOS UI · Arena Light
 shadeSortColumn=true
 
 [KDE]

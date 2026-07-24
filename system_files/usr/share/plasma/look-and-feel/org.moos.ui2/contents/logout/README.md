@@ -1,4 +1,4 @@
-# MoOS UI2 logout — Graphite Dark
+# MoOS UI logout — Graphite Dark
 
 واجهة الخروج الرسمية للحزمة `org.moos.ui2`. تحافظ على إشارات وقدرات مضيف
 KDE Plasma 6 الفعلية (logout, lock, suspend, hibernate, restart, shutdown)

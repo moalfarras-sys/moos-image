@@ -83,7 +83,7 @@ Color=169,143,196
 Color=245,233,255
 
 [General]
-Description=MoOS Arena
+Description=MoOS UI · Arena
 Opacity=1
 Blur=false
 Wallpaper=

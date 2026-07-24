@@ -1,6 +1,6 @@
-# org.moos.ui2.light — MoOS UI2 Tidal Light
+# org.moos.ui2.light — MoOS UI Tidal Light
 
-حزمة MoOS UI2 المتكاملة لـ KDE Plasma 6.  تطبق لوحة الألوان والـPlasma Style
+حزمة MoOS UI المتكاملة لـ KDE Plasma 6.  تطبق لوحة الألوان والـPlasma Style
 والزخرفة والخلفية وشاشة البدء المتطابقة، مع إبقاء MoOS UI1 مثبتًا للرجوع.
 
 | Surface | Selector |

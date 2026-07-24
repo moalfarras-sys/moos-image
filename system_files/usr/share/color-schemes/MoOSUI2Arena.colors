@@ -134,7 +134,7 @@ ForegroundVisited=199,125,255
 [General]
 AccentColor=255,45,149
 ColorScheme=MoOSUI2Arena
-Name=MoOS Arena
+Name=MoOS UI · Arena
 shadeSortColumn=true
 
 [KDE]

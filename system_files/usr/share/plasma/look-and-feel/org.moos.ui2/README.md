@@ -1,6 +1,6 @@
-# org.moos.ui2 — MoOS UI2 Graphite Dark
+# org.moos.ui2 — MoOS UI Graphite Dark
 
-حزمة MoOS UI2 المتكاملة لـ KDE Plasma 6.  تطبق لوحة الألوان والـPlasma Style
+حزمة MoOS UI المتكاملة لـ KDE Plasma 6.  تطبق لوحة الألوان والـPlasma Style
 والزخرفة والخلفية وشاشة البدء المتطابقة، مع إبقاء MoOS UI1 مثبتًا للرجوع.
 
 | Surface | Selector |

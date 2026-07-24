@@ -6,7 +6,7 @@ BoldIntense=true
 UseFontLineChararacters=true
 
 [General]
-Name=MoOS Arena Light
+Name=MoOS UI · Arena Light
 Parent=FALLBACK/
 TerminalMargin=14
 TerminalCenter=false

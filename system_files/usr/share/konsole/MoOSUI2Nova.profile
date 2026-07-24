@@ -6,7 +6,7 @@ BoldIntense=true
 UseFontLineChararacters=true
 
 [General]
-Name=MoOS Nova
+Name=MoOS UI · Nova
 Parent=FALLBACK/
 TerminalMargin=14
 TerminalCenter=false

@@ -1,7 +1,7 @@
 {
     "KPlugin": {
         "Id": "org.moos.ui2.study.light",
-        "Name": "MoOS Scholar Light",
+        "Name": "MoOS UI · Scholar Light",
         "Description": "للدراسة نهاراً: ورق دافئ مريح للقراءة | Scholar by day: warm paper, made for reading",
         "Authors": [
             {
@@ -11,7 +11,7 @@
         "Version": "2.0.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/moalfarras-sys/moos-image",
-        "Name[ar]": "MoOS Scholar Light"
+        "Name[ar]": "MoOS UI · Scholar Light"
     },
     "KPackageStructure": "Plasma/LookAndFeel",
     "X-Plasma-APIVersion": "2"

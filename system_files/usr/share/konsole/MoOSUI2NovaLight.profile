@@ -6,7 +6,7 @@ BoldIntense=true
 UseFontLineChararacters=true
 
 [General]
-Name=MoOS Nova Light
+Name=MoOS UI · Nova Light
 Parent=FALLBACK/
 TerminalMargin=14
 TerminalCenter=false

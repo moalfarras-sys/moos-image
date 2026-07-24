@@ -1,7 +1,7 @@
 {
     "KPlugin": {
         "Id": "org.moos.ui2.aurora",
-        "Name": "MoOS Aurora",
+        "Name": "MoOS UI · Aurora",
         "Description": "سليت نظيف بشفق تركوازي‑أزرق حديث | Clean slate with a modern teal-blue aurora",
         "Authors": [
             {
@@ -11,7 +11,7 @@
         "Version": "2.0.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/moalfarras-sys/moos-image",
-        "Name[ar]": "MoOS Aurora"
+        "Name[ar]": "MoOS UI · Aurora"
     },
     "KPackageStructure": "Plasma/LookAndFeel",
     "X-Plasma-APIVersion": "2"

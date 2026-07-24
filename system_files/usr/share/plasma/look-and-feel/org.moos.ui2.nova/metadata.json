@@ -1,7 +1,7 @@
 {
     "KPlugin": {
         "Id": "org.moos.ui2.nova",
-        "Name": "MoOS Nova",
+        "Name": "MoOS UI · Nova",
         "Description": "سديم كحلي بتوهّج سماوي‑بنفسجي | Cosmic navy with a cyan-violet aurora",
         "Authors": [
             {
@@ -11,7 +11,7 @@
         "Version": "2.0.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/moalfarras-sys/moos-image",
-        "Name[ar]": "MoOS Nova"
+        "Name[ar]": "MoOS UI · Nova"
     },
     "KPackageStructure": "Plasma/LookAndFeel",
     "X-Plasma-APIVersion": "2"

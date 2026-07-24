@@ -1,4 +1,4 @@
-# MoOS UI2 logout — Tidal Light
+# MoOS UI logout — Tidal Light
 
 واجهة الخروج الرسمية للحزمة `org.moos.ui2.light`. تحافظ على إشارات وقدرات مضيف
 KDE Plasma 6 الفعلية (logout, lock, suspend, hibernate, restart, shutdown)

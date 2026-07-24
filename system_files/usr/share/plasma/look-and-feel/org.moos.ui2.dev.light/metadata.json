@@ -1,7 +1,7 @@
 {
     "KPlugin": {
         "Id": "org.moos.ui2.dev.light",
-        "Name": "MoOS Forge Light",
+        "Name": "MoOS UI · Forge Light",
         "Description": "للتطوير نهاراً: سليت فاتح مركّز | Forge by day: a light, focused slate",
         "Authors": [
             {
@@ -11,7 +11,7 @@
         "Version": "2.0.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/moalfarras-sys/moos-image",
-        "Name[ar]": "MoOS Forge Light"
+        "Name[ar]": "MoOS UI · Forge Light"
     },
     "KPackageStructure": "Plasma/LookAndFeel",
     "X-Plasma-APIVersion": "2"
