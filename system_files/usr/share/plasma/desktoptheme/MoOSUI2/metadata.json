@@ -9,8 +9,8 @@
         "Description": "زجاج غرافيتي حديث لسطح MoOS | Modern graphite glass for MoOS",
         "Id": "MoOSUI2",
         "License": "GPL-3.0-or-later",
-        "Name": "MoOS",
-        "Name[ar]": "MoOS",
+        "Name": "MoOS UI",
+        "Name[ar]": "MoOS UI",
         "Version": "2.0.0",
         "Website": "https://github.com/moalfarras-sys/moos-image"
     },

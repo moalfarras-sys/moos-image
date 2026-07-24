@@ -258,8 +258,8 @@ def desktop_metadata(style: str, light: bool) -> str:
             "Authors": [{"Name": "Moalfarras"}], "Category": "",
             "Description": description, "Id": style,
             "License": "GPL-3.0-or-later",
-            "Name": "MoOS Light" if light else "MoOS",
-            "Name[ar]": "MoOS الفاتح" if light else "MoOS",
+            "Name": "MoOS UI Light" if light else "MoOS UI",
+            "Name[ar]": "MoOS UI الفاتح" if light else "MoOS UI",
             "Version": "2.0.0",
             "Website": "https://github.com/moalfarras-sys/moos-image",
         },
@@ -536,8 +536,8 @@ def lnf_metadata(package: str, light: bool) -> str:
     return json.dumps({
         "KPlugin": {
             "Id": package,
-            "Name": "MoOS Light" if light else "MoOS",
-            "Name[ar]": "MoOS الفاتح" if light else "MoOS",
+            "Name": "MoOS UI Light" if light else "MoOS UI",
+            "Name[ar]": "MoOS UI الفاتح" if light else "MoOS UI",
             "Description": ("سمة MoOS UI التركواز الفاتحة | MoOS UI tidal light global theme"
                             if light else
                             "سمة MoOS UI الغرافيتية الداكنة | MoOS UI graphite dark global theme"),

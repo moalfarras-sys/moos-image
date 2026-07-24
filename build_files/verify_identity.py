@@ -187,24 +187,28 @@ def main() -> None:
     # foreign look or a reintroduced old generation fails the build rather than reaching the user.
     # Every family is a matched light+dark PAIR; the light sibling's id is the
     # dark id + ".light" and its name is "… Light" (midnight's light is "Daylight").
+    # The visual system is unified under ONE name: "MoOS UI". The base pair is
+    # "MoOS UI" / "MoOS UI Light"; every family member is "MoOS UI · <Colour>"
+    # (midnight's light keeps its own colour name, Daylight). Still MoOS-branded,
+    # never a bare codename — the check below also requires the "MoOS" prefix.
     ALLOWED_LOOKS = {
-        "org.moos.ui2": "MoOS",
-        "org.moos.ui2.light": "MoOS Light",
-        "org.moos.ui2.nova": "MoOS Nova",
-        "org.moos.ui2.nova.light": "MoOS Nova Light",
-        "org.moos.ui2.amethyst": "MoOS Amethyst",
-        "org.moos.ui2.amethyst.light": "MoOS Amethyst Light",
-        "org.moos.ui2.midnight": "MoOS Midnight",
-        "org.moos.ui2.midnight.light": "MoOS Daylight",
-        "org.moos.ui2.aurora": "MoOS Aurora",
-        "org.moos.ui2.aurora.light": "MoOS Aurora Light",
+        "org.moos.ui2": "MoOS UI",
+        "org.moos.ui2.light": "MoOS UI Light",
+        "org.moos.ui2.nova": "MoOS UI · Nova",
+        "org.moos.ui2.nova.light": "MoOS UI · Nova Light",
+        "org.moos.ui2.amethyst": "MoOS UI · Amethyst",
+        "org.moos.ui2.amethyst.light": "MoOS UI · Amethyst Light",
+        "org.moos.ui2.midnight": "MoOS UI · Midnight",
+        "org.moos.ui2.midnight.light": "MoOS UI · Daylight",
+        "org.moos.ui2.aurora": "MoOS UI · Aurora",
+        "org.moos.ui2.aurora.light": "MoOS UI · Aurora Light",
         # Purpose-built editions, each a light+dark pair.
-        "org.moos.ui2.gaming": "MoOS Arena",
-        "org.moos.ui2.gaming.light": "MoOS Arena Light",
-        "org.moos.ui2.dev": "MoOS Forge",
-        "org.moos.ui2.dev.light": "MoOS Forge Light",
-        "org.moos.ui2.study": "MoOS Scholar",
-        "org.moos.ui2.study.light": "MoOS Scholar Light",
+        "org.moos.ui2.gaming": "MoOS UI · Arena",
+        "org.moos.ui2.gaming.light": "MoOS UI · Arena Light",
+        "org.moos.ui2.dev": "MoOS UI · Forge",
+        "org.moos.ui2.dev.light": "MoOS UI · Forge Light",
+        "org.moos.ui2.study": "MoOS UI · Scholar",
+        "org.moos.ui2.study.light": "MoOS UI · Scholar Light",
     }
     lnf_root = ROOT / "usr/share/plasma/look-and-feel"
     moos_looks = sorted(p.name for p in lnf_root.glob("org.moos.*"))

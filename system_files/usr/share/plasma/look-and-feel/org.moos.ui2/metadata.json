@@ -1,8 +1,8 @@
 {
     "KPlugin": {
         "Id": "org.moos.ui2",
-        "Name": "MoOS",
-        "Name[ar]": "MoOS",
+        "Name": "MoOS UI",
+        "Name[ar]": "MoOS UI",
         "Description": "سمة MoOS UI الغرافيتية الداكنة | MoOS UI graphite dark global theme",
         "Authors": [
             {
