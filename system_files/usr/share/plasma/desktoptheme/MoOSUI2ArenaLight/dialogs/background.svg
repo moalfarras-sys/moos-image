@@ -16,22 +16,22 @@
   <defs>
     <linearGradient id="ui2-dialog-glass" gradientUnits="userSpaceOnUse"
                     x1="0" y1="0" x2="0" y2="64">
-      <stop offset="0" stop-color="#DDD0E9" stop-opacity="0.86"/>
-      <stop offset="0.16" stop-color="#E8D7F0" stop-opacity="0.88"/>
-      <stop offset="0.72" stop-color="#E4D4EE" stop-opacity="0.90"/>
-      <stop offset="1" stop-color="#E4D4EE" stop-opacity="0.92"/>
+      <stop offset="0" stop-color="#DDD0E9" stop-opacity="0.70"/>
+      <stop offset="0.16" stop-color="#E8D7F0" stop-opacity="0.74"/>
+      <stop offset="0.72" stop-color="#E4D4EE" stop-opacity="0.78"/>
+      <stop offset="1" stop-color="#E4D4EE" stop-opacity="0.80"/>
     </linearGradient>
   </defs>
 
   <g id="topleft">
     <path d="M0 18A18 18 0 0 1 18 0V18Z" fill="url(#ui2-dialog-glass)"/>
     <path d="M0 18A18 18 0 0 1 18 0V1A17 17 0 0 0 1 18Z"
-          fill="#7C3AED" fill-opacity="0.28"/>
+          fill="#7C3AED" fill-opacity="0.44"/>
   </g>
   <g id="topright">
     <path d="M46 0A18 18 0 0 1 64 18H46Z" fill="url(#ui2-dialog-glass)"/>
     <path d="M46 0A18 18 0 0 1 64 18H63A17 17 0 0 0 46 1Z"
-          fill="#7C3AED" fill-opacity="0.28"/>
+          fill="#7C3AED" fill-opacity="0.44"/>
   </g>
   <g id="bottomleft">
     <path d="M18 64A18 18 0 0 1 0 46H18Z" fill="url(#ui2-dialog-glass)"/>
@@ -45,7 +45,7 @@
   </g>
   <g id="top">
     <rect x="18" width="28" height="18" fill="url(#ui2-dialog-glass)"/>
-    <rect x="18" width="28" height="1" fill="#7C3AED" fill-opacity="0.28"/>
+    <rect x="18" width="28" height="1" fill="#7C3AED" fill-opacity="0.44"/>
   </g>
   <g id="bottom">
     <rect x="18" y="46" width="28" height="18" fill="url(#ui2-dialog-glass)"/>
