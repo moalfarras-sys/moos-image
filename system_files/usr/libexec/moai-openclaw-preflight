@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Start the fixed speech engine OpenClaw needs, then start the selected Ollama
+# engine only when the real OpenClaw primary is local.  Cloud-only operation must
+# not reserve several GB of RAM/VRAM just because the gateway is running.
+set -euo pipefail
+
+ENGINE_HELPER="${MOAI_LOCAL_ENGINE_HELPER:-/usr/libexec/moai-local-engine}"
+OPENCLAW_BIN="${MOAI_OPENCLAW_BIN:-$HOME/.local/bin/openclaw}"
+CFG_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}"
+QUADLET_DIR="${CFG_ROOT}/containers/systemd"
+
+wait_http() {
+    local url="$1" label="$2"
+    for _attempt in $(seq 1 60); do
+        curl -fsS --max-time 2 "$url" >/dev/null 2>&1 && return 0
+        sleep 1
+    done
+    echo "$label did not become ready." >&2
+    return 1
+}
+
+# Both files generate services that publish 127.0.0.1:8000. Never choose one
+# silently: surface the conflict and leave the user's files untouched.
+if [ -f "$QUADLET_DIR/speaches.container" ] \
+        && [ -f "$QUADLET_DIR/moai-speech.container" ]; then
+    echo "Two speech Quadlets conflict; run Mo AI's Set up brain action." >&2
+    exit 1
+elif [ -f "$QUADLET_DIR/speaches.container" ]; then
+    speech_unit=speaches.service
+elif [ -f "$QUADLET_DIR/moai-speech.container" ]; then
+    speech_unit=moai-speech.service
+else
+    echo "OpenClaw needs the local speech engine; run Mo AI's Set up brain action." >&2
+    exit 1
+fi
+systemctl --user start "$speech_unit"
+systemctl --user is-active --quiet "$speech_unit"
+wait_http "http://127.0.0.1:8000/v1/models" "OpenClaw speech engine"
+
+if [ ! -x "$OPENCLAW_BIN" ]; then
+    echo "OpenClaw executable is missing." >&2
+    exit 1
+fi
+primary="$(PATH="$HOME/.local/node/bin:$HOME/.local/bin:/usr/bin:/bin" \
+    "$OPENCLAW_BIN" config get agents.defaults.model.primary 2>/dev/null || true)"
+case "$primary" in
+    cloud/*)
+        exit 0
+        ;;
+    ollama/*)
+        ;;
+    *)
+        echo "OpenClaw primary model is missing or unsupported: ${primary:-unset}" >&2
+        exit 1
+        ;;
+esac
+
+unit="$("$ENGINE_HELPER" unit)"
+case "$unit" in
+    ollama.service|moai-brain.service) ;;
+    *)
+        echo "OpenClaw needs the Ollama local brain; run Mo AI's Set up brain action." >&2
+        exit 1
+        ;;
+esac
+systemctl --user start "$unit"
+systemctl --user is-active --quiet "$unit"
+wait_http "http://127.0.0.1:11434/api/tags" \
+    "OpenClaw local brain on 127.0.0.1:11434"

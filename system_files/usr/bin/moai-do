@@ -577,13 +577,56 @@ do_install_claude() {
 # a newer Node onto /usr would fight every ostree update, so a private runtime
 # goes in ~/.local/node instead and only this agent sees it.
 OPENCLAW_NODE="v24.18.0"
+OPENCLAW_VERSION="2026.7.1-2"
+
+# The first MoOS Quadlets were installable and therefore started at every login,
+# even though every consumer already knows how to wake them on demand. Remove
+# only the exact trailing [Install] block from files that still carry all of the
+# shipped MoOS identity markers. A hand-written or differently sourced Quadlet
+# is user data and is never rewritten here.
+strip_legacy_moos_quadlet_autostart() {
+    local file="$1" kind="$2" tmp tail_block
+    [ -f "$file" ] || return 0
+    tail_block="$(tail -n 2 -- "$file" 2>/dev/null || true)"
+    [ "$tail_block" = $'[Install]\nWantedBy=default.target' ] || return 0
+
+    case "$kind" in
+        model)
+            grep -Eq '^Description=Ollama LLM server \(rootless podman, (NVIDIA CDI|hardware-safe)\)$' \
+                "$file" || return 0
+            grep -Eq '^ContainerName=(ollama|moai-brain)$' "$file" || return 0
+            grep -Fxq 'Image=docker.io/ollama/ollama:latest' "$file" || return 0
+            ;;
+        speech)
+            grep -Fxq 'Description=Speaches — Arabic STT/TTS, OpenAI-compatible, CPU only' \
+                "$file" || return 0
+            grep -Eq '^ContainerName=(speaches|moai-speech)$' "$file" || return 0
+            grep -Eq '^Image=(localhost/speaches-ar:0\.8\.3-cpu|ghcr\.io/speaches-ai/speaches:[^[:space:]]+)$' \
+                "$file" || return 0
+            ;;
+        *) return 2 ;;
+    esac
+
+    tmp="$(mktemp --tmpdir="$(dirname "$file")" '.moos-quadlet.XXXXXX')" || return 1
+    if ! head -n -2 -- "$file" > "$tmp" \
+            || ! chmod --reference="$file" "$tmp" \
+            || ! mv -f -- "$tmp" "$file"; then
+        rm -f -- "$tmp"
+        return 1
+    fi
+    echo "${G}✓ أزيل التشغيل التلقائي القديم: $(basename "$file")${N}"
+    echo "${G}  Removed legacy always-on startup: $(basename "$file")${N}"
+}
 
 do_install_openclaw() {
     hdr "تثبيت وكيل الهاتف (OpenClaw)" "Install the phone agent (OpenClaw)"
-    echo "${D}يتيح لك مراسلة جهازك من تليجرام. يُثبَّت في ~/.local بلا صلاحيات مسؤول.${N}"
-    echo "${D}Lets you message this machine from Telegram. Installs into ~/.local, no admin rights.${N}"
+    echo "${D}يتيح لك مراسلة جهازك من تليجرام. البرنامج في ~/.local؛ ويطلب موافقة مسؤول مرة واحدة ليبقى متاحاً بعد تسجيل الخروج.${N}"
+    echo "${D}Lets you message this machine from Telegram. The app stays in ~/.local; one admin approval keeps it available after logout.${N}"
     echo
     confirm || return 0
+
+    echo "${C}▸ التحقق من العقل والصوت المحليين | checking the local brain and voice${N}"
+    setup_brain_impl || return 1
 
     local node_dir="$HOME/.local/node"
     local node_bin="${node_dir}/bin"
@@ -612,23 +655,47 @@ do_install_openclaw() {
         echo "${G}✓ Node $("${node_bin}/node" --version)${N}"
     fi
 
-    echo "${C}▸ تثبيت OpenClaw${N}"
-    if ! PATH="${node_bin}:$PATH" npm install -g --prefix "$HOME/.local" openclaw; then
+    echo "${C}▸ تثبيت OpenClaw ${OPENCLAW_VERSION}${N}"
+    if ! PATH="${node_bin}:$PATH" npm install -g --prefix "$HOME/.local" \
+            "openclaw@${OPENCLAW_VERSION}"; then
         echo "${Y}لم يكتمل التثبيت | install did not complete${N}" >&2
         return 1
     fi
 
-    # Point it at the local brain. The NATIVE endpoint, not /v1: the OpenAI
-    # compatibility path silently drops tool calls and the model prints raw JSON
-    # as prose — the most common local-model misconfiguration there is.
-    PATH="${node_bin}:$HOME/.local/bin:$PATH" openclaw config set \
-        models.providers.ollama.baseUrl "http://127.0.0.1:11434" >/dev/null 2>&1 || true
-    PATH="${node_bin}:$HOME/.local/bin:$PATH" openclaw config set \
-        models.providers.ollama.api "ollama" >/dev/null 2>&1 || true
-    PATH="${node_bin}:$HOME/.local/bin:$PATH" openclaw config set \
-        models.providers.ollama.apiKey "ollama-local" >/dev/null 2>&1 || true
-    PATH="${node_bin}:$HOME/.local/bin:$PATH" openclaw config set \
-        gateway.mode local >/dev/null 2>&1 || true
+    local openclaw_path="${node_bin}:$HOME/.local/bin:/usr/bin:/bin"
+    local version_text
+    version_text="$(PATH="$openclaw_path" "$HOME/.local/bin/openclaw" --version 2>&1)" \
+        || { echo "${R}تعذّر تشغيل OpenClaw بعد التثبيت | installed OpenClaw did not run${N}" >&2; return 1; }
+    case "$version_text" in
+        *"OpenClaw ${OPENCLAW_VERSION}"*) ;;
+        *)
+            echo "${R}إصدار OpenClaw المثبّت غير متوقع؛ أُلغي الإعداد.${N}" >&2
+            echo "${R}Unexpected OpenClaw version; setup stopped: ${version_text}${N}" >&2
+            return 1
+            ;;
+    esac
+
+    # One schema-complete transaction: local model/provider, STT, loopback
+    # Speaches TTS, safe sandbox/exec defaults, and the literal docker→podman
+    # compatibility shim the sandbox backend invokes. Existing user choices win.
+    if ! PATH="$openclaw_path" /usr/libexec/moai-openclaw-bootstrap; then
+        echo "${R}تثبّت البرنامج لكن تعذّر إنشاء إعداد OpenClaw الآمن.${N}" >&2
+        echo "${R}OpenClaw installed, but its safe baseline could not be created.${N}" >&2
+        return 1
+    fi
+    if ! OPENCLAW_CONFIG_PATH="$HOME/.openclaw/openclaw.json" \
+            PATH="$openclaw_path" "$HOME/.local/bin/openclaw" \
+            config validate --json >/dev/null; then
+        echo "${R}رفض OpenClaw الإعداد الجديد؛ لم أدّعِ أن الوكيل جاهز.${N}" >&2
+        echo "${R}OpenClaw rejected the new config; the phone agent is not ready.${N}" >&2
+        return 1
+    fi
+
+    systemctl --user daemon-reload || return 1
+    if ! systemctl --user cat openclaw-gateway.service >/dev/null 2>&1; then
+        echo "${R}خدمة وكيل الهاتف غير موجودة | phone-agent service is missing${N}" >&2
+        return 1
+    fi
 
     echo "${G}✓ تم تثبيت OpenClaw | OpenClaw installed${N}"
     echo
@@ -637,43 +704,219 @@ do_install_openclaw() {
     echo "${D}  Open Mo AI → Settings → Channel and paste the bot token from @BotFather.${N}"
 }
 
-do_setup_brain() {
-    hdr "تجهيز العقل المحلي" "Set up the local brain"
-    echo "${D}يشغّل خادم النماذج ومحرّك الصوت العربي كحاويتين بلا صلاحيات مسؤول.${N}"
-    echo "${D}Starts the model server and the Arabic speech engine as rootless containers.${N}"
-    echo
-    confirm || return 0
+setup_brain_impl() {
+    local cfg_root="${XDG_CONFIG_HOME:-$HOME/.config}"
+    local dst="${cfg_root}/containers/systemd"
+    local engine_cfg="${cfg_root}/moos/moai-local.env"
 
-    local dst="${XDG_CONFIG_HOME:-$HOME/.config}/containers/systemd"
-    mkdir -p "$dst" "$HOME/.ollama" || return 1
+    # Two generated units would both publish the same loopback port. Refuse the
+    # conflict before creating, editing or selecting anything; the user's files
+    # are evidence to inspect, never something this helper deletes implicitly.
+    if [ -f "$dst/ollama.container" ] && [ -f "$dst/moai-brain.container" ]; then
+        echo "${R}يوجد إعدادا عقل متعارضان؛ لم أغيّر أي إعداد أو خدمة.${N}" >&2
+        echo "${R}Two model Quadlets conflict; config and services were left untouched.${N}" >&2
+        return 1
+    fi
+    if [ -f "$dst/speaches.container" ] && [ -f "$dst/moai-speech.container" ]; then
+        echo "${R}يوجد إعدادا صوت متعارضان؛ لم أغيّر أي إعداد أو خدمة.${N}" >&2
+        echo "${R}Two speech Quadlets conflict; config and services were left untouched.${N}" >&2
+        return 1
+    fi
+    mkdir -p "$dst" "$HOME/.ollama" "$(dirname "$engine_cfg")" || return 1
 
     # NEVER stand up a SECOND model server: an 8 GB card holds ONE 4-5 GB model, so
     # two Ollamas fighting for 127.0.0.1:11434 is the failure to avoid. If a model
-    # server is already provisioned — a hand-tuned ollama.container, or a running
-    # ollama/moai-brain container — REUSE it instead of installing a rival quadlet.
+    # server is already provisioned by a hand-tuned Quadlet, REUSE it instead of
+    # installing a rival. A bare Podman container cannot be adopted by Quadlet:
+    # pretending it maps to ollama.service records a unit that does not exist and
+    # makes every helper target the wrong runtime.
     local model_unit=moai-brain.service
-    if [ -f "$dst/ollama.container" ] \
-       || podman ps -a --format '{{.Names}}' 2>/dev/null | grep -qxE 'ollama|moai-brain'; then
-        [ -f "$dst/ollama.container" ] && model_unit=ollama.service
+    local quadlet="$dst/moai-brain.container"
+    local installed_model_quadlet=0
+    local have_nvidia_cdi=0
+    if command -v nvidia-smi >/dev/null 2>&1 \
+            && command -v nvidia-ctk >/dev/null 2>&1 \
+            && nvidia-smi --query-gpu=name --format=csv,noheader \
+                >/dev/null 2>&1 \
+            && nvidia-ctk cdi list 2>/dev/null \
+                | grep -Fxq 'nvidia.com/gpu=all'; then
+        have_nvidia_cdi=1
+    fi
+    if [ -f "$dst/ollama.container" ]; then
+        model_unit=ollama.service
+        quadlet="$dst/ollama.container"
         echo "${G}✓ خادم النماذج موجود — أعيد استخدامه بلا تكرار | model server present — reusing, not duplicating${N}"
+    elif [ -f "$dst/moai-brain.container" ]; then
+        echo "${G}✓ خادم النماذج موجود — أعيد استخدامه بلا تكرار | model server present — reusing, not duplicating${N}"
+    elif podman ps -a --format '{{.Names}}' 2>/dev/null \
+            | grep -qxE 'ollama|moai-brain'; then
+        echo "${R}يوجد خادم حاوية غير مُدار؛ لم أغيّر إعداد العقل.${N}" >&2
+        echo "${R}An unmanaged model container already exists; brain settings were left unchanged.${N}" >&2
+        echo "${D}أنشئ له Quadlet باسم ollama.container أو أعد تسميته، ثم حاول ثانية.${N}" >&2
+        echo "${D}Give it an ollama.container Quadlet or rename it, then try again.${N}" >&2
+        return 1
     else
         install -m 0644 /usr/share/moos/containers/moai-brain.container "$dst/" || return 1
+        installed_model_quadlet=1
     fi
-    install -m 0644 /usr/share/moos/containers/moai-speech.container "$dst/" || return 1
+
+    # The generic image and VMs must never inherit NVIDIA-only CDI directives:
+    # a generated unit with AddDevice=nvidia.com/gpu=all cannot even start
+    # without the driver. New installs begin from the CPU-safe template and get
+    # acceleration only after the real runtime proves the CDI device exists.
+    if [ "$installed_model_quadlet" -eq 1 ] && [ "$have_nvidia_cdi" -eq 1 ]; then
+        sed -i '/^# MOOS_NVIDIA_CDI_INSERT$/a AddDevice=nvidia.com/gpu=all\nSecurityLabelDisable=true' \
+            "$quadlet"
+        echo "${G}✓ تفعيل تسريع NVIDIA | NVIDIA acceleration enabled${N}"
+    elif [ "$installed_model_quadlet" -eq 1 ]; then
+        echo "${Y}• لا يوجد NVIDIA CDI — سيعمل العقل محلياً بوضع CPU الآمن.${N}"
+        echo "${Y}  NVIDIA CDI not present — using the safe local CPU path.${N}"
+    elif [ "$model_unit" = "moai-brain.service" ] \
+            && grep -qx 'Description=Ollama LLM server (rootless podman, NVIDIA CDI)' \
+                "$quadlet" \
+            && [ "$have_nvidia_cdi" -eq 0 ]; then
+        # Migrate only the exact legacy MoOS template marker. Hand-written
+        # Quadlets and an available NVIDIA setup remain untouched.
+        sed -i \
+            -e 's/^Description=Ollama LLM server (rootless podman, NVIDIA CDI)$/Description=Ollama LLM server (rootless podman, hardware-safe)/' \
+            -e '/^AddDevice=nvidia\\.com\\/gpu=all$/d' \
+            -e '/^SecurityLabelDisable=true$/d' \
+            "$quadlet"
+        echo "${G}✓ حُوّل إعداد العقل القديم إلى مسار CPU المتوافق.${N}"
+        echo "${G}  Migrated the legacy brain config to the compatible CPU path.${N}"
+    fi
+
+    # Standardise new installs on speaches.service, but preserve the first
+    # shipped moai-speech.container name when an upgraded user already has it.
+    # Both are fixed names; two files would fight for 127.0.0.1:8000.
+    local speech_unit=speaches.service
+    local speech_quadlet="$dst/speaches.container"
+    if [ -f "$dst/speaches.container" ] && [ -f "$dst/moai-speech.container" ]; then
+        echo "${R}يوجد إعدادا صوت متعارضان؛ لم أبدأ خدمة ثانية.${N}" >&2
+        echo "${R}Two speech Quadlets conflict; no second service was started.${N}" >&2
+        return 1
+    elif [ -f "$dst/speaches.container" ]; then
+        echo "${G}✓ محرك الصوت موجود — أعيد استخدامه | speech engine present — reusing${N}"
+    elif [ -f "$dst/moai-speech.container" ]; then
+        speech_unit=moai-speech.service
+        speech_quadlet="$dst/moai-speech.container"
+        echo "${G}✓ محرك الصوت القديم موجود — أعيد استخدامه | existing speech engine — reusing${N}"
+    elif podman ps -a --format '{{.Names}}' 2>/dev/null \
+            | grep -qxE 'speaches|moai-speech'; then
+        echo "${R}توجد حاوية صوت غير مُدارة؛ لم أنشئ خدمة متضاربة.${N}" >&2
+        echo "${R}An unmanaged speech container exists; no conflicting service was created.${N}" >&2
+        return 1
+    else
+        install -m 0644 /usr/share/moos/containers/speaches.container "$dst/" || return 1
+    fi
+
+    # Existing hand-tuned Quadlets are preserved, but MoOS's local route never
+    # uses Ollama Cloud.  Reconcile this one privacy switch in place so upgrades
+    # stop the cloud-cache/recommendation probes without replacing user tuning.
+    if [ -f "$quadlet" ]; then
+        if grep -q '^Environment=OLLAMA_NO_CLOUD=' "$quadlet"; then
+            sed -i 's/^Environment=OLLAMA_NO_CLOUD=.*/Environment=OLLAMA_NO_CLOUD=true/' "$quadlet"
+        elif grep -q '^Environment=OLLAMA_HOST=' "$quadlet"; then
+            sed -i '/^Environment=OLLAMA_HOST=/a Environment=OLLAMA_NO_CLOUD=true' "$quadlet"
+        else
+            sed -i '/^\[Container\]$/a Environment=OLLAMA_NO_CLOUD=true' "$quadlet"
+        fi
+    fi
+
+    # Upgrade the exact first-party templates to the same on-demand contract as
+    # fresh installs. The currently requested setup still starts both services
+    # explicitly below and verifies them before reporting ready.
+    strip_legacy_moos_quadlet_autostart "$quadlet" model || return 1
+    strip_legacy_moos_quadlet_autostart "$speech_quadlet" speech || return 1
+
+    if grep -qx 'Image=localhost/speaches-ar:0.8.3-cpu' "$speech_quadlet"; then
+        echo "${C}▸ تنزيل مكوّن Piper المفتوح وبناء الصوت محلياً${N}"
+        echo "${D}  Downloading the open-source Piper component and building voice locally${N}"
+        /usr/libexec/moos-prepare-speech-image || return 1
+    fi
 
     # Without linger the containers die at logout and never start at boot —
-    # the classic "it worked until I signed out".
-    loginctl enable-linger "$(id -un)" >/dev/null 2>&1 || true
-    systemctl --user daemon-reload
+    # the classic "it worked until I signed out". login1 protects this setting
+    # with Polkit, so ask explicitly through the one privileged seam and verify
+    # what logind actually applied. Never print "ready" after a hidden failure.
+    local login_user
+    login_user="$(id -un)"
+    if [ "$(loginctl show-user "$login_user" -p Linger --value 2>/dev/null)" != "yes" ]; then
+        echo "${C}▸ موافقة مسؤول لإبقاء وكيل الهاتف متاحاً بعد تسجيل الخروج${N}"
+        echo "${D}  Admin approval keeps the phone agent available after logout${N}"
+        run_priv /usr/bin/loginctl enable-linger "$login_user" || return 1
+    fi
+    if [ "$(loginctl show-user "$login_user" -p Linger --value 2>/dev/null)" != "yes" ]; then
+        echo "${R}لم يُفعّل التشغيل بعد تسجيل الخروج؛ أُلغي الإعداد.${N}" >&2
+        echo "${R}Background availability after logout was not enabled; setup stopped.${N}" >&2
+        return 1
+    fi
+    systemctl --user daemon-reload || return 1
 
     echo "${C}▸ تشغيل الخدمات${N}"
-    systemctl --user start "$model_unit"       || true
-    systemctl --user start moai-speech.service || true
-    systemctl --user start moai-agent-api.service || true
+    # Quadlet units are generated; `enable` is not a valid operation on them.
+    # Starting the generated unit is mandatory. Never select it in the shared
+    # config or print "ready" unless systemd confirms it is actually active.
+    if ! systemctl --user start "$model_unit" \
+            || ! systemctl --user is-active --quiet "$model_unit"; then
+        echo "${R}تعذّر تشغيل خادم النماذج | model server failed to start${N}" >&2
+        return 1
+    fi
+    if ! systemctl --user start "$speech_unit" \
+            || ! systemctl --user is-active --quiet "$speech_unit"; then
+        echo "${R}تعذّر تشغيل محرك الصوت العربي | Arabic speech engine failed to start${N}" >&2
+        return 1
+    fi
+
+    # Build/reconcile the default alias before testing it. Fresh Ollama stores
+    # are empty; checking /api/tags first made a clean install fail before the
+    # very service responsible for pulling and creating `default` had run.
+    systemctl --user restart moos-ensure-brain.service || return 1
+
+    # The reconciler is deliberately failure-tolerant at login so a temporary
+    # network outage never breaks the session. Bootstrap has the stricter
+    # contract below: do not commit the route or retire the legacy service until
+    # Ollama itself confirms that the `default` alias really exists.
+    if ! curl -fsS --max-time 10 http://127.0.0.1:11434/api/tags \
+            | python3 -c 'import json,sys
+names={(m.get("name") or m.get("model") or "").removesuffix(":latest")
+       for m in json.load(sys.stdin).get("models",[])}
+raise SystemExit(0 if "default" in names else 1)'; then
+        echo "${R}خادم النماذج يعمل، لكن نموذج Mo AI الافتراضي لم يكتمل.${N}" >&2
+        echo "${R}The model server is running, but Mo AI's default model did not finish installing.${N}" >&2
+        echo "${D}تحقق من الإنترنت والمساحة ثم شغّل «تجهيز العقل المحلي» مرة أخرى.${N}" >&2
+        echo "${D}Check network and disk space, then run “Set up local brain” again.${N}" >&2
+        return 1
+    fi
+
+    # One source of truth for every consumer. This commit happens only after the
+    # selected unit is active AND its default model is proven usable.
+    local engine_tmp="${engine_cfg}.new"
+    cat > "$engine_tmp" <<EOF
+MOAI_LOCAL_UNIT=$model_unit
+MOAI_LOCAL_BACKEND=ollama
+MOAI_LOCAL_PORT=11434
+MOAI_LOCAL_MODEL=default
+EOF
+    chmod 0600 "$engine_tmp"
+    mv -f "$engine_tmp" "$engine_cfg"
+
+    systemctl --user disable --now moai.service >/dev/null 2>&1 || true
+    systemctl --user restart moai-gateway.service moai-control.service || return 1
+    systemctl --user start moai-agent-api.service || return 1
 
     echo "${G}✓ جاهز | ready${N}"
     echo "${D}اختر نموذجاً من Mo AI ← الإعدادات ← النماذج.${N}"
     echo "${D}Pick a model in Mo AI → Settings → Models.${N}"
+}
+
+do_setup_brain() {
+    hdr "تجهيز العقل المحلي" "Set up the local brain"
+    echo "${D}ينزّل المكوّنات المفتوحة ويشغّلها كحاويات rootless؛ يطلب موافقة مسؤول مرة واحدة ليبقى الوكيل متاحاً بعد تسجيل الخروج.${N}"
+    echo "${D}Downloads the open components as rootless containers; one admin approval keeps the agent available after logout.${N}"
+    echo
+    confirm || return 0
+    setup_brain_impl
 }
 
 do_install_opencode() {
@@ -700,11 +943,11 @@ do_install_opencode() {
         "apiKey": "moos"
       },
       "models": {
-        "local:qwen3:4b-instruct": { "name": "MoOS local (qwen3 4b)" }
+        "local:qwen2.5:7b-instruct": { "name": "MoOS local (Qwen2.5 7B Instruct)" }
       }
     }
   },
-  "model": "moos/local:qwen3:4b-instruct"
+  "model": "moos/local:qwen2.5:7b-instruct"
 }
 JSON
     echo "${G}✓ مضبوط على عقل MoOS المحلي — بلا حساب وبلا إنترنت.${N}"
@@ -749,8 +992,8 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Install the Claude Code agent into ~/.local (no privileges)
   ${C}install-opencode${N}  تثبيت OpenCode — وكيل برمجة يعمل على عقلك المحلي (بلا حساب)
                     Install OpenCode — a coding agent on your LOCAL brain (no account)
-  ${C}install-openclaw${N}  تثبيت وكيل الهاتف — راسل جهازك من تليجرام (بلا صلاحيات)
-                    Install the phone agent — message this machine from Telegram
+  ${C}install-openclaw${N}  وكيل الهاتف — موافقة مسؤول واحدة للعمل بعد تسجيل الخروج
+                    Phone agent — one admin approval for after-logout availability
   ${C}setup-brain${N}       تشغيل العقل المحلي: خادم النماذج ومحرّك الصوت العربي
                     Start the local brain: model server and Arabic speech engine
   ${C}remote-anywhere${N}   تشغيل Mo PC Remote من خارج البيت (Tailscale HTTPS)

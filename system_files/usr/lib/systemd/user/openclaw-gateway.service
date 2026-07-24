@@ -1,0 +1,32 @@
+[Unit]
+Description=Mo AI phone agent gateway (Telegram, on demand)
+Documentation=https://docs.openclaw.ai/
+After=network-online.target
+Wants=network-online.target
+ConditionFileIsExecutable=%h/.local/bin/openclaw
+
+[Service]
+Type=simple
+Environment=PATH=%h/.local/node/bin:%h/.local/bin:/usr/bin:/bin
+Environment=OLLAMA_API_KEY=ollama-local
+# STT and TTS carry their loopback Speaches endpoint and fixed local key in
+# openclaw.json. Do not export OPENAI_API_KEY globally here: it can shadow a
+# user's real OpenAI model credential even when only local speech needs it.
+# Resolve and start ollama.service or moai-brain.service from the same fixed
+# allowlist used by the desktop. Do not hard-code Requires= to either name.
+ExecStartPre=/usr/libexec/moai-openclaw-preflight
+ExecStart=%h/.local/bin/openclaw gateway
+Restart=on-failure
+RestartSec=10
+UMask=0077
+
+# These are the directives verified compatible with OpenClaw's rootless Podman
+# tool sandbox. PrivateUsers/PrivateTmp/NoNewPrivileges and namespace remount
+# hardening break that sandbox, so containment stays in OpenClaw's own default
+# sandbox.mode=all rather than a systemd setting that disables it.
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+
+[Install]
+WantedBy=default.target

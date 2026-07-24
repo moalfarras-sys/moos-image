@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-moai-agent-api — لوحة تحكم MOAPP: إعدادات + محادثات + حالة.
+moai-agent-api — لوحة تحكم وكيل Mo AI: إعدادات + محادثات + حالة.
 
 يتبع نفس مبدأ moai-control: الأسرار تُستقبل ولا تُعاد أبداً. GET يخبرك
 has_key/has_token فقط، ولا يعيد القيمة نفسها ولو للواجهة المحلية.
@@ -17,30 +17,44 @@ has_key/has_token فقط، ولا يعيد القيمة نفسها ولو للو
 """
 from __future__ import annotations
 
+import copy
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
+import tempfile
+import threading
 import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 HOME = Path.home()
+CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", str(HOME / ".config"))).expanduser()
 OC_CFG = HOME / ".openclaw/openclaw.json"
 # Our own state lives OUTSIDE openclaw.json on purpose: OpenClaw's schema is
-# additionalProperties:false at the root, so an extra "_moapp" key there makes
-# the whole config invalid and the gateway refuses to start.
-STATE = HOME / ".config/moapp/state.json"
+# additionalProperties:false at the root, so the legacy extra "_moapp" key
+# makes the whole config invalid and the gateway refuses to start.
+STATE = CONFIG_HOME / "moai-agent/state.json"
+LEGACY_STATE = CONFIG_HOME / "moapp/state.json"
 SESSIONS = HOME / ".openclaw/agents/main/sessions"
-QUADLET = HOME / ".config/containers/systemd/ollama.container"
+QUADLET_DIR = CONFIG_HOME / "containers/systemd"
+ENGINE_HELPER = Path(os.environ.get(
+    "MOAI_LOCAL_ENGINE_HELPER", "/usr/libexec/moai-local-engine"))
+TRANSCRIBE = Path("/usr/bin/moai-transcribe")
 # Shipped by the image: the UI lives under /usr/share, not beside the script.
 # A dev checkout can override it for iteration without touching /usr.
 UI = Path(os.environ.get("MOAI_AGENT_UI",
                          "/usr/share/moos/apps/moai-agent/console.html"))
 PORT = int(os.environ.get("MOAI_AGENT_PORT", "8077"))
+# This endpoint can write credentials and agent permissions.  It is loopback-only,
+# but loopback alone is not a browser security boundary: any web page can submit a
+# request to localhost.  A small explicit header makes every API request non-simple
+# (so a foreign page would need a CORS preflight, which we deliberately do not
+# implement), while the body cap prevents an accidental local memory sink.
+API_HEADER = "X-Moai-Agent"
+MAX_BODY_BYTES = 1024 * 1024
 
 # OpenClaw is a per-user npm install (~386 MB, needs Node >= 22.22.3), so the
 # image does NOT ship it — `moai-do install-openclaw` puts it in ~/.local, the
@@ -48,6 +62,39 @@ PORT = int(os.environ.get("MOAI_AGENT_PORT", "8077"))
 BIN = str(HOME / ".local/bin/openclaw")
 ENV = {**os.environ, "PATH": f"{HOME}/.local/node/bin:{HOME}/.local/bin:/usr/bin:/bin",
        "OLLAMA_API_KEY": "ollama-local"}
+
+ENGINE_UNITS = {
+    "ollama.service": {
+        "backend": "ollama", "container": "ollama",
+        "quadlet": "ollama.container", "port": 11434,
+    },
+    "moai-brain.service": {
+        "backend": "ollama", "container": "moai-brain",
+        "quadlet": "moai-brain.container", "port": 11434,
+    },
+}
+SPEECH_UNITS = {
+    "speaches.service": {
+        "container": "speaches", "quadlet": "speaches.container", "port": 8000,
+    },
+    "moai-speech.service": {
+        "container": "moai-speech", "quadlet": "moai-speech.container", "port": 8000,
+    },
+}
+AUDIO_TRANSCRIBER = {
+    "type": "cli",
+    "command": "/usr/bin/moai-transcribe",
+    "args": ["{{MediaPath}}"],
+    "timeoutSeconds": 300,
+}
+SPEACHES_TTS = {
+    "apiKey": "speaches-local",
+    "baseUrl": "http://127.0.0.1:8000/v1",
+    "model": "speaches-ai/piper-ar_JO-kareem-medium",
+    "speakerVoice": "kareem",
+    "responseFormat": "mp3",
+}
+CONFIG_WRITE_LOCK = threading.RLock()
 
 # Cloud providers Mo AI already knows about, kept identical so the two settings
 # surfaces never disagree about what "cloud" means.
@@ -100,6 +147,8 @@ TIERS = {
         "workspace": "ro",
         "approvals": False,
         "sandbox": "all",
+        "exec_security": "deny",
+        "exec_ask": "off",
         "deny": ["group:web", "browser", "exec"],
     },
     # مع إذن — تحكّم حقيقي بالجهاز، لكن يقترح كل أمر وتوافق من Telegram قبله.
@@ -109,6 +158,8 @@ TIERS = {
         "workspace": "rw",
         "approvals": True,
         "sandbox": "off",
+        "exec_security": "allowlist",
+        "exec_ask": "always",
         "deny": ["group:web", "browser"],
     },
     # كامل — تحكّم حقيقي بالجهاز وينفّذ فوراً بلا سؤال. الأقوى والأخطر.
@@ -118,6 +169,8 @@ TIERS = {
         "workspace": "rw",
         "approvals": False,
         "sandbox": "off",
+        "exec_security": "full",
+        "exec_ask": "off",
         "deny": [],
     },
 }
@@ -133,6 +186,51 @@ def sh(argv: list[str], timeout: int = 20) -> str:
         return ""
 
 
+def command_ok(argv: list[str], timeout: int = 20,
+               extra_env: dict[str, str] | None = None) -> bool:
+    try:
+        p = subprocess.run(
+            argv, capture_output=True, text=True, timeout=timeout,
+            env={**ENV, **(extra_env or {})},
+        )
+        return p.returncode == 0
+    except Exception:
+        return False
+
+
+def _fsync_dir(directory: Path) -> None:
+    fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _atomic_bytes(path: Path, payload: bytes, mode: int = 0o600,
+                  parent_mode: int = 0o700) -> None:
+    path.parent.mkdir(mode=parent_mode, parents=True, exist_ok=True)
+    os.chmod(path.parent, parent_mode)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    tmp = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
+        _fsync_dir(path.parent)
+    finally:
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _json_bytes(value: dict) -> bytes:
+    return (json.dumps(value, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+
+
 def load_cfg() -> dict:
     try:
         return json.loads(OC_CFG.read_text(encoding="utf-8"))
@@ -140,33 +238,120 @@ def load_cfg() -> dict:
         return {}
 
 
-def save_cfg(cfg: dict) -> None:
-    tmp = OC_CFG.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
-    os.chmod(tmp, 0o600)
-    tmp.replace(OC_CFG)
+def validate_config_file(path: Path) -> None:
+    """Validate a staged file with the installed pinned OpenClaw, when present."""
+    binary = Path(BIN)
+    if not binary.is_file() or not os.access(binary, os.X_OK):
+        return
+    if not command_ok(
+        [BIN, "config", "validate", "--json"],
+        60,
+        {"OPENCLAW_CONFIG_PATH": str(path)},
+    ):
+        # Never reflect validator output: it may contain credential-bearing config.
+        raise ValueError("رفض OpenClaw الإعداد الجديد؛ لم يُحفظ أي تغيير")
+
+
+def save_cfg(cfg: dict, *, validate: bool = True) -> None:
+    with CONFIG_WRITE_LOCK:
+        OC_CFG.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        os.chmod(OC_CFG.parent, 0o700)
+        fd, tmp_name = tempfile.mkstemp(prefix=".openclaw.json.", dir=OC_CFG.parent)
+        tmp = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(_json_bytes(cfg))
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.chmod(tmp, 0o600)
+            if validate:
+                validate_config_file(tmp)
+            os.replace(tmp, OC_CFG)
+            _fsync_dir(OC_CFG.parent)
+        finally:
+            try:
+                tmp.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def load_state() -> dict:
-    try:
-        return json.loads(STATE.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+    for path in (STATE, LEGACY_STATE):
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(value, dict):
+            continue
+        if path == LEGACY_STATE and not STATE.exists():
+            # Preserve the old file as a fallback, but atomically establish the
+            # new product-named path so all future writes leave MOAPP behind.
+            save_state(value)
+        return value
+    return {}
 
 
 def save_state(st: dict) -> None:
-    STATE.parent.mkdir(parents=True, exist_ok=True)
-    STATE.write_text(json.dumps(st, indent=2, ensure_ascii=False), encoding="utf-8")
-    os.chmod(STATE, 0o600)
+    with CONFIG_WRITE_LOCK:
+        _atomic_bytes(STATE, _json_bytes(st))
 
 
 def unit_active(name: str) -> bool:
     return sh(["systemctl", "--user", "is-active", name], 8) == "active"
 
 
+def selected_engine() -> dict:
+    unit = sh([str(ENGINE_HELPER), "unit"], 8)
+    existing = [
+        name for name, spec in ENGINE_UNITS.items()
+        if (QUADLET_DIR / spec["quadlet"]).is_file()
+    ]
+    if len(existing) > 1:
+        return {
+            "unit": unit if unit in ENGINE_UNITS else "",
+            "configured": False, "conflict": True,
+        }
+    spec = ENGINE_UNITS.get(unit)
+    if not spec:
+        return {"unit": unit, "configured": False, "conflict": False}
+    return {
+        "unit": unit,
+        **spec,
+        "quadlet_path": str(QUADLET_DIR / spec["quadlet"]),
+        "configured": (QUADLET_DIR / spec["quadlet"]).is_file(),
+        "conflict": False,
+    }
+
+
+def selected_speech() -> dict:
+    present = [
+        (unit, spec) for unit, spec in SPEECH_UNITS.items()
+        if (QUADLET_DIR / spec["quadlet"]).is_file()
+    ]
+    if len(present) > 1:
+        return {"unit": "", "configured": False, "conflict": True}
+    if not present:
+        return {"unit": "", "configured": False, "conflict": False}
+    unit, spec = present[0]
+    return {
+        "unit": unit,
+        **spec,
+        "quadlet_path": str(QUADLET_DIR / spec["quadlet"]),
+        "configured": True,
+        "conflict": False,
+    }
+
+
 # ── status ──────────────────────────────────────────────────────────────
 
 def status() -> dict:
+    engine = selected_engine()
+    speech = selected_speech()
+    engine_active = bool(
+        engine.get("configured") and unit_active(engine.get("unit", "")))
+    speech_active = bool(
+        speech.get("configured") and unit_active(speech.get("unit", "")))
+
     gpu = sh(["nvidia-smi", "--query-gpu=memory.used,memory.total,temperature.gpu",
               "--format=csv,noheader,nounits"], 8)
     used = total = temp = 0
@@ -176,21 +361,36 @@ def status() -> dict:
             used, total, temp = (int(float(x)) for x in parts[:3])
 
     loaded = None
-    ps = sh(["podman", "exec", "ollama", "ollama", "ps"], 10)
-    for line in ps.splitlines()[1:]:
-        f = line.split()
-        if len(f) >= 5:
-            loaded = {"name": f[0], "size": f"{f[1]} {f[2]}" if not f[1][0].isdigit() else f[1],
-                      "processor": " ".join(f[3:5])}
-            break
+    if engine_active:
+        ps = sh(["podman", "exec", engine["container"], "ollama", "ps"], 10)
+        for line in ps.splitlines()[1:]:
+            f = line.split()
+            if len(f) >= 5:
+                loaded = {
+                    "name": f[0],
+                    "size": f"{f[1]} {f[2]}" if not f[1][0].isdigit() else f[1],
+                    "processor": " ".join(f[3:5]),
+                }
+                break
+
+    cfg = load_cfg()
+    primary = _primary(cfg)
 
     return {
         "services": {
-            "ollama": unit_active("ollama.service"),
+            "ollama": engine_active,
             "gateway": unit_active("openclaw-gateway.service"),
-            "speaches": unit_active("speaches.service"),
+            "speaches": speech_active,
             "moai": unit_active("moai-gateway.service"),
         },
+        "openclaw_installed": Path(BIN).is_file() and os.access(BIN, os.X_OK),
+        "openclaw_configured": _openclaw_configured(cfg, primary),
+        "brain_configured": bool(engine.get("configured")),
+        "speech_configured": bool(
+            speech.get("configured") and TRANSCRIBE.is_file()
+            and os.access(TRANSCRIBE, os.X_OK)),
+        "selected_engine": engine,
+        "selected_speech": speech,
         "gpu": {"used": used, "total": total, "temp": temp},
         "model": loaded,
         "ts": int(time.time()),
@@ -199,6 +399,93 @@ def status() -> dict:
 
 # ── config ──────────────────────────────────────────────────────────────
 
+def _primary(cfg: dict) -> str:
+    return str(
+        (((cfg.get("agents") or {}).get("defaults") or {}).get("model") or {})
+        .get("primary") or ""
+    ).strip()
+
+
+def _primary_mode(primary: str) -> str:
+    return "cloud" if primary.startswith("cloud/") else "local"
+
+
+def _model_from_primary(primary: str, provider: str) -> str:
+    prefix = provider + "/"
+    return primary[len(prefix):] if primary.startswith(prefix) else ""
+
+
+def _clean_model(value, field: str = "model") -> str:
+    model = str(value or "").strip()
+    if not model or len(model) > 256 or any(ord(ch) < 32 for ch in model):
+        raise ValueError(f"{field} غير صالح")
+    if model.startswith("/") or model.endswith("/"):
+        raise ValueError(f"{field} غير صالح")
+    return model
+
+
+def _upsert_model(provider: dict, model_id: str) -> None:
+    models = provider.setdefault("models", [])
+    if not isinstance(models, list):
+        raise ValueError("قائمة نماذج المزوّد غير صالحة")
+    for item in models:
+        if isinstance(item, dict) and item.get("id") == model_id:
+            item.setdefault("name", model_id)
+            return
+    models.append({"id": model_id, "name": model_id})
+
+
+def _valid_base(value: str) -> str:
+    base = str(value or "").strip().rstrip("/")
+    try:
+        parsed = urllib.parse.urlsplit(base)
+    except ValueError as exc:
+        raise ValueError("عنوان المزوّد غير صالح") from exc
+    if parsed.scheme not in ("http", "https") or not parsed.hostname \
+            or parsed.username is not None or parsed.password is not None \
+            or parsed.query or parsed.fragment:
+        raise ValueError("عنوان المزوّد يجب أن يكون HTTP(S) بلا بيانات دخول أو استعلام")
+    return base
+
+
+def _openclaw_configured(cfg: dict, primary: str | None = None) -> bool:
+    primary = primary if primary is not None else _primary(cfg)
+    if "/" not in primary:
+        return False
+    provider_id, model_id = primary.split("/", 1)
+    if provider_id not in ("ollama", "cloud") or not model_id:
+        return False
+    node = (((cfg.get("models") or {}).get("providers") or {}).get(provider_id) or {})
+    models = node.get("models") or []
+    has_model = any(
+        isinstance(item, dict) and item.get("id") == model_id
+        for item in models
+    )
+    if not node.get("baseUrl") or not node.get("api") or not has_model:
+        return False
+    return provider_id != "cloud" or bool(node.get("apiKey"))
+
+
+def _actual_tier(cfg: dict) -> str:
+    tools_exec = ((cfg.get("tools") or {}).get("exec") or {})
+    pair = (tools_exec.get("security", "deny"), tools_exec.get("ask", "off"))
+    for name, tier in TIERS.items():
+        if pair == (tier["exec_security"], tier["exec_ask"]):
+            return name
+    return "read"
+
+
+def _keep_alive(engine: dict) -> str:
+    if not engine.get("configured"):
+        return "15m"
+    try:
+        text = Path(engine["quadlet_path"]).read_text(encoding="utf-8")
+        match = re.search(r"^Environment=OLLAMA_KEEP_ALIVE=(\S+)", text, re.M)
+        return match.group(1) if match else "15m"
+    except Exception:
+        return "15m"
+
+
 def read_config() -> dict:
     c = load_cfg()
     st = load_state()
@@ -206,29 +493,38 @@ def read_config() -> dict:
     agents = c.get("agents", {}).get("defaults", {}) or {}
     tg = c.get("channels", {}).get("telegram", {}) or {}
     tts = c.get("messages", {}).get("tts", {}) or {}
+    primary = _primary(c)
+    mode = _primary_mode(primary)
     deny = ((c.get("tools", {}).get("byProvider", {}) or {})
-            .get(agents.get("model", {}).get("primary", ""), {}) or {}).get("deny", [])
-
-    keep = "15m"
-    try:
-        m = re.search(r"OLLAMA_KEEP_ALIVE=(\S+)", QUADLET.read_text(encoding="utf-8"))
-        if m:
-            keep = m.group(1)
-    except Exception:
-        pass
+            .get(primary, {}) or {}).get("deny", [])
+    engine = selected_engine()
+    speech = selected_speech()
 
     cloud = prov.get("cloud", {}) or {}
+    media_audio = (((c.get("tools") or {}).get("media") or {}).get("audio") or {})
+    media_models = media_audio.get("models") or []
+    local_model = (
+        primary if primary.startswith("ollama/")
+        else str(st.get("local_model") or "ollama/default")
+    )
+    if not local_model.startswith("ollama/"):
+        local_model = "ollama/" + local_model
+    cloud_model = (
+        _model_from_primary(primary, "cloud")
+        if mode == "cloud"
+        else str(st.get("cloud_model") or "")
+    )
     return {
         "brain": {
-            "mode": st.get("mode", "local"),
-            "local_model": (agents.get("model", {}) or {}).get("primary", "ollama/default"),
+            "mode": mode,
+            "local_model": local_model,
             "context": agents.get("contextTokens", 14336),
             "thinking": agents.get("thinkingDefault", "off"),
         },
         "cloud": {
             "provider": st.get("provider", "synterolink"),
             "base": cloud.get("baseUrl", ""),
-            "model": st.get("cloud_model", ""),
+            "model": cloud_model,
             "has_key": bool(cloud.get("apiKey")),
         },
         "telegram": {
@@ -240,168 +536,370 @@ def read_config() -> dict:
         "voice": {
             "tts_enabled": bool(tts.get("enabled")),
             "tts_auto": tts.get("auto", "inbound"),
-            "stt_on": bool((c.get("audio", {}).get("transcription", {}) or {}).get("command")),
+            "stt_on": bool(
+                media_audio.get("enabled", True)
+                and any(
+                    isinstance(item, dict) and item.get("command")
+                    for item in media_models
+                )
+            ),
+            "machine_configured": bool(
+                speech.get("configured") and TRANSCRIBE.is_file()
+                and os.access(TRANSCRIBE, os.X_OK)),
         },
-        "power": {"keep_alive": keep},
+        "power": {
+            "keep_alive": _keep_alive(engine),
+            "engine_configured": bool(engine.get("configured")),
+        },
         "permissions": {
             # Safe default when nothing is set yet: sandboxed, no host reach.
-            "tier": st.get("tier", "read"),
+            "tier": _actual_tier(c),
             "web": "group:web" not in deny,
-            "exec": "exec" not in deny,
-            "workspace": ((agents.get("sandbox", {}) or {}).get("workspaceAccess", "rw")),
+            "exec": ((c.get("tools", {}).get("exec", {}) or {})
+                     .get("security", "deny")) != "deny",
+            "workspace": ((agents.get("sandbox", {}) or {}).get("workspaceAccess", "ro")),
             # The host/container switch, surfaced so the UI can show it plainly.
             "sandbox": ((agents.get("sandbox", {}) or {}).get("mode", "all")),
             "host_control": ((agents.get("sandbox", {}) or {}).get("mode", "all")) == "off",
-            "elevated": agents.get("elevatedDefault", "ask"),
+            "elevated": agents.get("elevatedDefault", "off"),
             "approvals": bool(((c.get("approvals", {}) or {}).get("exec", {}) or {}).get("enabled")),
-            "project": st.get("project", ""),
+            "project": agents.get("workspace", st.get("project", "")),
         },
         "providers": PROVIDERS,
         "tiers": list(TIERS.keys()),
     }
 
 
-def write_config(body: dict) -> dict:
-    """Apply only the sections present. Returns which services need a restart."""
-    c = load_cfg()
-    st = load_state()
-    restart: set[str] = set()
-    moapp = st
-
-    # ── brain mode ──
-    if "mode" in body:
-        moapp["mode"] = body["mode"]
-
-    # ── cloud provider + key ──
-    cl = body.get("cloud") or {}
-    if cl:
-        provs = c.setdefault("models", {}).setdefault("providers", {})
-        node = provs.setdefault("cloud", {})
-        if cl.get("provider"):
-            moapp["provider"] = cl["provider"]
-        if cl.get("base"):
-            node["baseUrl"] = cl["base"].rstrip("/")
-        if cl.get("model"):
-            moapp["cloud_model"] = cl["model"]
-            node.setdefault("models", [])
-        # The key is WRITE-ONLY from the UI's perspective. An empty string means
-        # "leave it alone"; the explicit sentinel "__clear__" removes it.
-        key = cl.get("key")
-        if key == "__clear__":
-            node.pop("apiKey", None)
-        elif key:
-            node["apiKey"] = key
-        node["api"] = PROVIDER_API.get(moapp.get("provider", ""), "openai-completions")
-
-    # ── telegram ──
-    tg_in = body.get("telegram") or {}
-    if tg_in:
-        tg = c.setdefault("channels", {}).setdefault("telegram", {})
-        tok = tg_in.get("token")
-        if tok:
-            if not TOKEN_RE.match(tok):
-                raise ValueError("شكل توكن البوت غير صحيح")
-            tg["botToken"] = tok
-        if "enabled" in tg_in:
-            tg["enabled"] = bool(tg_in["enabled"])
-        allow = tg_in.get("allow")
-        if allow is not None:
-            ids = [str(a).strip() for a in allow if str(a).strip().isdigit()]
-            tg["allowFrom"] = ids
-            # An allowlist with nobody on it would lock you out of your own bot;
-            # fall back to pairing so you can re-approve yourself.
-            tg["dmPolicy"] = "allowlist" if ids else "pairing"
-        tg.setdefault("groups", {"*": {"requireMention": True}})
-        restart.add("openclaw-gateway")
-
-    # ── voice ──
-    v = body.get("voice") or {}
-    if v:
-        tts = c.setdefault("messages", {}).setdefault("tts", {})
-        if "tts_enabled" in v:
-            tts["enabled"] = bool(v["tts_enabled"])
-        if v.get("tts_auto"):
-            tts["auto"] = v["tts_auto"]
-
-    # ── permissions ──
-    p = body.get("permissions") or {}
-
-    # المستوى يضبط كل شيء دفعة واحدة، ثم تُطبَّق الاستثناءات الفردية فوقه.
-    tier = p.get("tier")
-    if tier in TIERS:
-        t = TIERS[tier]
-        moapp["tier"] = tier
-        ad = c.setdefault("agents", {}).setdefault("defaults", {})
-        ad["elevatedDefault"] = t["elevated"]
-        ad.setdefault("sandbox", {})["workspaceAccess"] = t["workspace"]
-        # The host/container switch — the knob that decides whether a Telegram
-        # request can reach the camera, apps, terminal and system, or stays boxed.
-        ad["sandbox"]["mode"] = t["sandbox"]
-        # DO NOT set agents.defaults.instructions here: OpenClaw's config schema
-        # rejects it ("agents.defaults: Invalid input") and the gateway then
-        # crash-loops on startup. Always strip any stale one a previous build or a
-        # hand-edit may have left, so applying ANY tier repairs the config rather
-        # than breaking it. Guidance for the agent belongs in the workspace, not here.
-        ad.pop("instructions", None)
-        c.setdefault("approvals", {}).setdefault("exec", {})["enabled"] = t["approvals"]
-        if t["approvals"]:
-            # session = the prompt goes back to the chat the request came from,
-            # so a Telegram request is approved from Telegram.
-            c["approvals"]["exec"]["mode"] = "session"
-        primary = (ad.get("model", {}) or {}).get("primary", "")
-        if primary:
-            byp = c.setdefault("tools", {}).setdefault("byProvider", {}).setdefault(primary, {})
-            byp["deny"] = list(t["deny"])
-        restart.add("openclaw-gateway")
-
-    # مجلد المشروع: نطاق الوكيل. مسار مطلق داخل المنزل فقط.
-    proj = p.get("project")
-    if proj is not None:
-        proj = str(proj).strip()
-        if proj:
-            rp = Path(proj).expanduser()
-            if not rp.is_absolute() or not str(rp).startswith(str(HOME)):
-                raise ValueError("مجلد المشروع يجب أن يكون مساراً مطلقاً داخل مجلد المنزل")
-            if not rp.is_dir():
-                raise ValueError("المجلد غير موجود")
-            moapp["project"] = str(rp)
-            c.setdefault("agents", {}).setdefault("defaults", {})["workspace"] = str(rp)
-        else:
-            moapp.pop("project", None)
-            c.get("agents", {}).get("defaults", {}).pop("workspace", None)
-        restart.add("openclaw-gateway")
-
-    if "web" in p:
-        primary = (c.get("agents", {}).get("defaults", {}).get("model", {}) or {}).get("primary", "")
-        byp = c.setdefault("tools", {}).setdefault("byProvider", {}).setdefault(primary, {})
-        if p["web"]:
-            byp["deny"] = [d for d in byp.get("deny", []) if d not in ("group:web", "browser")]
-        else:
-            byp["deny"] = sorted(set(byp.get("deny", [])) | {"group:web", "browser"})
-
-    save_cfg(c)
-    save_state(st)
-
-    # ── power: lives in the Quadlet, not openclaw.json ──
-    pw = body.get("power") or {}
-    ka = pw.get("keep_alive")
-    if ka and re.match(r"^(-1|\d+[ms])$", ka):
+def _restore(path: Path, before: bytes | None, mode: int) -> None:
+    if before is None:
         try:
-            src = QUADLET
-            txt = src.read_text(encoding="utf-8")
-            txt = re.sub(r"^Environment=OLLAMA_KEEP_ALIVE=.*$",
-                         f"Environment=OLLAMA_KEEP_ALIVE={ka}", txt, flags=re.M)
-            src.write_text(txt, encoding="utf-8")
-            shutil.copy(src, QUADLET)
-            sh(["systemctl", "--user", "daemon-reload"], 20)
-            restart.add("ollama")
-        except Exception:
+            path.unlink()
+            _fsync_dir(path.parent)
+        except FileNotFoundError:
             pass
+    else:
+        _atomic_bytes(path, before, mode)
 
-    for unit in restart:
-        sh(["systemctl", "--user", "restart", f"{unit}.service"], 60)
 
-    return {"ok": True, "restarted": sorted(restart)}
+def _quadlet_with_keep_alive(text: str, keep_alive: str) -> str:
+    line = f"Environment=OLLAMA_KEEP_ALIVE={keep_alive}"
+    if re.search(r"^Environment=OLLAMA_KEEP_ALIVE=.*$", text, re.M):
+        return re.sub(r"^Environment=OLLAMA_KEEP_ALIVE=.*$", line, text, flags=re.M)
+    if "[Container]" not in text:
+        raise ValueError("ملف محرك النماذج لا يحتوي قسم [Container]")
+    return text.replace("[Container]", "[Container]\n" + line, 1)
+
+
+def write_config(body: dict) -> dict:
+    """Validate, atomically commit, and truthfully activate one config update."""
+    with CONFIG_WRITE_LOCK:
+        c = load_cfg()
+        st = load_state()
+        original_c = copy.deepcopy(c)
+        original_st = copy.deepcopy(st)
+        original_primary = _primary(c)
+        restart: set[str] = set()
+        started: set[str] = set()
+
+        # ── cloud provider + write-only key ──
+        cl = body.get("cloud") or {}
+        if not isinstance(cl, dict):
+            raise ValueError("إعداد المزوّد غير صالح")
+        if cl:
+            provider_id = str(cl.get("provider") or st.get("provider")
+                              or "synterolink")
+            if provider_id not in PROVIDER_API:
+                raise ValueError("المزوّد غير معروف")
+            st["provider"] = provider_id
+            providers = c.setdefault("models", {}).setdefault("providers", {})
+            node = providers.setdefault("cloud", {})
+            if "base" in cl and str(cl.get("base") or "").strip():
+                node["baseUrl"] = _valid_base(cl["base"])
+            if "model" in cl and str(cl.get("model") or "").strip():
+                cloud_model = _clean_model(cl["model"], "نموذج السحابة")
+                st["cloud_model"] = cloud_model
+                _upsert_model(node, cloud_model)
+            key = cl.get("key")
+            if key == "__clear__":
+                node.pop("apiKey", None)
+            elif key:
+                node["apiKey"] = str(key)
+            node["api"] = PROVIDER_API[provider_id]
+
+        # ── the real primary, never a UI-only hybrid flag ──
+        if "mode" in body:
+            mode = str(body["mode"])
+            if mode not in ("local", "cloud"):
+                raise ValueError("الوضع يجب أن يكون محلياً أو سحابياً فقط")
+            defaults = c.setdefault("agents", {}).setdefault("defaults", {})
+            model_node = defaults.setdefault("model", {})
+            providers = c.setdefault("models", {}).setdefault("providers", {})
+            if mode == "local":
+                saved_local = str(st.get("local_model") or "ollama/default")
+                raw_local = body.get("local_model") or saved_local
+                local_id = _clean_model(
+                    str(raw_local).removeprefix("ollama/"), "النموذج المحلي")
+                ollama = providers.setdefault("ollama", {})
+                ollama.setdefault("baseUrl", "http://127.0.0.1:11434")
+                ollama.setdefault("apiKey", "ollama-local")
+                ollama.setdefault("api", "ollama")
+                _upsert_model(ollama, local_id)
+                new_primary = f"ollama/{local_id}"
+                st["local_model"] = new_primary
+            else:
+                cloud = providers.setdefault("cloud", {})
+                cloud_id = _clean_model(
+                    cl.get("model") or st.get("cloud_model"), "نموذج السحابة")
+                if not cloud.get("baseUrl"):
+                    raise ValueError("اضبط عنوان المزوّد قبل اختيار الوضع السحابي")
+                if not cloud.get("apiKey"):
+                    raise ValueError("اضبط مفتاح API قبل اختيار الوضع السحابي")
+                _upsert_model(cloud, cloud_id)
+                new_primary = f"cloud/{cloud_id}"
+                st["cloud_model"] = cloud_id
+            model_node["primary"] = new_primary
+            st["mode"] = mode  # migration breadcrumb; reads use primary only.
+            if original_primary and original_primary != new_primary:
+                policies = c.setdefault("tools", {}).setdefault("byProvider", {})
+                if new_primary not in policies and original_primary in policies:
+                    policies[new_primary] = copy.deepcopy(policies[original_primary])
+            restart.add("openclaw-gateway.service")
+
+        # ── telegram ──
+        tg_in = body.get("telegram") or {}
+        if not isinstance(tg_in, dict):
+            raise ValueError("إعداد تليجرام غير صالح")
+        if tg_in:
+            tg = c.setdefault("channels", {}).setdefault("telegram", {})
+            tok = tg_in.get("token")
+            if tok:
+                if not TOKEN_RE.match(str(tok)):
+                    raise ValueError("شكل توكن البوت غير صحيح")
+                tg["botToken"] = str(tok)
+            if "enabled" in tg_in:
+                tg["enabled"] = bool(tg_in["enabled"])
+            allow = tg_in.get("allow")
+            if allow is not None:
+                if not isinstance(allow, list):
+                    raise ValueError("قائمة تليجرام غير صالحة")
+                ids = [str(a).strip() for a in allow if str(a).strip().isdigit()]
+                tg["allowFrom"] = ids
+                tg["dmPolicy"] = "allowlist" if ids else "pairing"
+            tg.setdefault("groups", {"*": {"requireMention": True}})
+            restart.add("openclaw-gateway.service")
+
+        # ── voice ──
+        voice = body.get("voice") or {}
+        if not isinstance(voice, dict):
+            raise ValueError("إعداد الصوت غير صالح")
+        speech = selected_speech()
+        if voice:
+            tts = c.setdefault("messages", {}).setdefault("tts", {})
+            enabled = bool(voice.get("tts_enabled", tts.get("enabled", False)))
+            auto = voice.get("tts_auto", tts.get("auto", "inbound"))
+            if auto not in ("inbound", "always", "off", "tagged"):
+                raise ValueError("وضع النطق غير صالح")
+            if enabled and not (
+                speech.get("configured") and TRANSCRIBE.is_file()
+                and os.access(TRANSCRIBE, os.X_OK)
+            ):
+                raise ValueError("محرك الصوت غير مُعدّ؛ شغّل «تجهيز العقل المحلي» أولاً")
+            tts.update({
+                "enabled": enabled, "auto": auto, "mode": "final",
+                "provider": "openai", "maxTextLength": 600, "timeoutMs": 120000,
+            })
+            tts.setdefault("providers", {})["openai"] = dict(SPEACHES_TTS)
+            # OpenClaw retired `audio.transcription`; voice notes now enter via
+            # tools.media.audio.models. Preserve a user's existing media model
+            # order and append MoOS's local CLI only when it is not present.
+            legacy_audio = c.get("audio")
+            if isinstance(legacy_audio, dict):
+                legacy_audio.pop("transcription", None)
+                if not legacy_audio:
+                    c.pop("audio", None)
+            media_audio = (
+                c.setdefault("tools", {})
+                .setdefault("media", {})
+                .setdefault("audio", {})
+            )
+            media_audio["enabled"] = True
+            media_models = media_audio.setdefault("models", [])
+            if not isinstance(media_models, list):
+                raise ValueError("قائمة نماذج تفريغ الصوت غير صالحة")
+            if not any(
+                isinstance(item, dict)
+                and item.get("type") == "cli"
+                and item.get("command") == AUDIO_TRANSCRIBER["command"]
+                for item in media_models
+            ):
+                media_models.append(dict(AUDIO_TRANSCRIBER))
+            restart.add("openclaw-gateway.service")
+
+        # ── permissions ──
+        permissions = body.get("permissions") or {}
+        if not isinstance(permissions, dict):
+            raise ValueError("إعداد الصلاحيات غير صالح")
+        tier = permissions.get("tier")
+        if tier is not None and tier not in TIERS:
+            raise ValueError("مستوى الصلاحيات غير معروف")
+        if tier in TIERS:
+            selected = TIERS[tier]
+            st["tier"] = tier
+            defaults = c.setdefault("agents", {}).setdefault("defaults", {})
+            defaults["elevatedDefault"] = selected["elevated"]
+            sandbox = defaults.setdefault("sandbox", {})
+            sandbox["workspaceAccess"] = selected["workspace"]
+            sandbox["mode"] = selected["sandbox"]
+            defaults.pop("instructions", None)
+            approvals = c.setdefault("approvals", {}).setdefault("exec", {})
+            approvals["enabled"] = selected["approvals"]
+            if selected["approvals"]:
+                approvals["mode"] = "session"
+            else:
+                approvals.pop("mode", None)
+            exec_policy = c.setdefault("tools", {}).setdefault("exec", {})
+            exec_policy.pop("mode", None)
+            exec_policy["security"] = selected["exec_security"]
+            exec_policy["ask"] = selected["exec_ask"]
+            primary = _primary(c)
+            if primary:
+                provider_policy = (
+                    c.setdefault("tools", {}).setdefault("byProvider", {})
+                    .setdefault(primary, {})
+                )
+                provider_policy["deny"] = list(selected["deny"])
+            restart.add("openclaw-gateway.service")
+
+        project = permissions.get("project")
+        if project is not None:
+            project = str(project).strip()
+            defaults = c.setdefault("agents", {}).setdefault("defaults", {})
+            if project:
+                candidate = Path(project).expanduser()
+                if not candidate.is_absolute():
+                    raise ValueError("مجلد المشروع يجب أن يكون مساراً مطلقاً داخل مجلد المنزل")
+                try:
+                    home_real = HOME.resolve(strict=True)
+                    resolved = candidate.resolve(strict=True)
+                except OSError as exc:
+                    raise ValueError("المجلد غير موجود") from exc
+                if not resolved.is_dir() or (
+                    resolved != home_real and home_real not in resolved.parents
+                ):
+                    raise ValueError("مجلد المشروع يجب أن يكون داخل مجلد المنزل الحقيقي")
+                st["project"] = str(resolved)
+                defaults["workspace"] = str(resolved)
+            else:
+                st.pop("project", None)
+                defaults.pop("workspace", None)
+            restart.add("openclaw-gateway.service")
+
+        if "web" in permissions:
+            primary = _primary(c)
+            if not primary:
+                raise ValueError("اضبط النموذج الأساسي قبل صلاحية الإنترنت")
+            policy = (c.setdefault("tools", {}).setdefault("byProvider", {})
+                      .setdefault(primary, {}))
+            if permissions["web"]:
+                policy["deny"] = [
+                    item for item in policy.get("deny", [])
+                    if item not in ("group:web", "browser")
+                ]
+            else:
+                policy["deny"] = sorted(
+                    set(policy.get("deny", [])) | {"group:web", "browser"})
+            restart.add("openclaw-gateway.service")
+
+        # ── power: stage the selected fixed Quadlet, never a hard-coded rival ──
+        power = body.get("power") or {}
+        if not isinstance(power, dict):
+            raise ValueError("إعداد الطاقة غير صالح")
+        quadlet_path: Path | None = None
+        quadlet_new: bytes | None = None
+        keep_alive = power.get("keep_alive")
+        if keep_alive is not None:
+            keep_alive = str(keep_alive)
+            if not re.fullmatch(r"-1|\d+[ms]", keep_alive):
+                raise ValueError("مدة إبقاء النموذج غير صالحة")
+            engine = selected_engine()
+            if not engine.get("configured"):
+                raise ValueError("محرك النماذج غير مُعدّ أو توجد إعدادات متعارضة")
+            quadlet_path = Path(engine["quadlet_path"])
+            original_text = quadlet_path.read_text(encoding="utf-8")
+            updated_text = _quadlet_with_keep_alive(original_text, keep_alive)
+            if updated_text != original_text:
+                quadlet_new = updated_text.encode("utf-8")
+                restart.add(engine["unit"])
+
+        cfg_changed = c != original_c
+        state_changed = st != original_st
+        before_cfg = OC_CFG.read_bytes() if OC_CFG.exists() else None
+        before_state = STATE.read_bytes() if STATE.exists() else None
+        before_quadlet = (
+            quadlet_path.read_bytes() if quadlet_path and quadlet_new is not None else None
+        )
+        active_before = {unit: unit_active(unit) for unit in restart}
+
+        try:
+            if cfg_changed:
+                save_cfg(c)
+            if state_changed:
+                save_state(st)
+            if quadlet_path and quadlet_new is not None:
+                mode = quadlet_path.stat().st_mode & 0o777
+                _atomic_bytes(quadlet_path, quadlet_new, mode, 0o700)
+                if not command_ok(["systemctl", "--user", "daemon-reload"], 20):
+                    raise RuntimeError("تعذّرت إعادة تحميل خدمات المستخدم")
+
+            # Enabling voice is an explicit request: start its selected fixed unit
+            # and prove it active instead of merely claiming configuration success.
+            if voice and bool(voice.get("tts_enabled")) \
+                    and speech.get("configured") \
+                    and not unit_active(speech["unit"]):
+                if not command_ok(
+                    ["systemctl", "--user", "start", speech["unit"]], 60
+                ) or not unit_active(speech["unit"]):
+                    raise RuntimeError("تعذّر تشغيل محرك الصوت")
+                started.add(speech["unit"])
+
+            restarted = []
+            pending = []
+            for unit in sorted(restart):
+                if not active_before[unit]:
+                    pending.append(unit)
+                    continue
+                if not command_ok(["systemctl", "--user", "restart", unit], 90) \
+                        or not unit_active(unit):
+                    raise RuntimeError(f"تعذّرت إعادة تشغيل {unit}")
+                restarted.append(unit)
+        except Exception as exc:
+            # Roll back all file commits and best-effort restore the previously
+            # running services. The API must never return success for a config
+            # the actual gateway could not activate.
+            if cfg_changed:
+                _restore(OC_CFG, before_cfg, 0o600)
+            if state_changed:
+                _restore(STATE, before_state, 0o600)
+            if quadlet_path and quadlet_new is not None:
+                _restore(quadlet_path, before_quadlet, 0o644)
+                command_ok(["systemctl", "--user", "daemon-reload"], 20)
+            for unit in started:
+                command_ok(["systemctl", "--user", "stop", unit], 30)
+            for unit, was_active in active_before.items():
+                if was_active:
+                    command_ok(["systemctl", "--user", "restart", unit], 90)
+            if isinstance(exc, ValueError):
+                raise
+            raise ValueError(
+                f"لم يُفعّل التغيير وأُعيد الإعداد السابق: {exc}"
+            ) from exc
+
+        return {
+            "ok": True,
+            "restarted": restarted,
+            "restart_pending": pending,
+            "started": sorted(started),
+        }
 
 
 # ── conversations ───────────────────────────────────────────────────────
@@ -491,11 +989,63 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Content-Type", f"{ctype}; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; connect-src 'self'; "
+            "img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; "
+            "form-action 'none'",
+        )
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header(
+            "Permissions-Policy",
+            "camera=(), microphone=(), geolocation=(), payment=()",
+        )
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def _reject(self, code: int, message: str):
+        # Rejections happen before the body is read.  Close the connection so
+        # unread bytes can never be mistaken for a second keep-alive request.
+        self.close_connection = True
+        self._send({"error": message}, code)
+
+    def _foreign_origin(self) -> bool:
+        origin = self.headers.get("Origin")
+        if not origin:
+            return False
+        try:
+            parsed = urllib.parse.urlsplit(origin)
+            port = parsed.port
+        except ValueError:
+            return True
+        expected_port = getattr(self.server, "server_port", PORT)
+        return not (
+            parsed.scheme == "http"
+            and parsed.hostname in ("127.0.0.1", "localhost", "::1")
+            and port == expected_port
+            and parsed.username is None
+            and parsed.password is None
+            and not parsed.path
+            and not parsed.query
+            and not parsed.fragment
+        )
+
+    @staticmethod
+    def _is_api(path: str) -> bool:
+        return path == "/api" or path.startswith("/api/")
 
     def do_GET(self):
         u = urllib.parse.urlparse(self.path)
+        if self._foreign_origin():
+            return self._reject(403, "foreign origin")
+        if self._is_api(u.path) and self.headers.get(API_HEADER) != "1":
+            return self._reject(403, "missing agent request header")
         q = urllib.parse.parse_qs(u.query)
         try:
             if u.path in ("/", "/index.html"):
@@ -513,12 +1063,33 @@ class H(BaseHTTPRequestHandler):
         self._send({"error": "not found"}, 404)
 
     def do_POST(self):
+        u = urllib.parse.urlparse(self.path)
+        if self._foreign_origin():
+            return self._reject(403, "foreign origin")
+        if self._is_api(u.path) and self.headers.get(API_HEADER) != "1":
+            return self._reject(403, "missing agent request header")
+        media_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+        if media_type != "application/json":
+            return self._reject(415, "content type must be application/json")
+        if self.headers.get("Transfer-Encoding"):
+            return self._reject(400, "transfer encoding is not supported")
+        lengths = self.headers.get_all("Content-Length") or []
+        if len(lengths) != 1:
+            return self._reject(411, "one content length is required")
         try:
-            n = int(self.headers.get("Content-Length") or 0)
+            n = int(lengths[0])
+            if n < 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return self._reject(400, "bad content length")
+        if n > MAX_BODY_BYTES:
+            return self._reject(413, "request body too large")
+        try:
             body = json.loads(self.rfile.read(n) or b"{}")
         except Exception:
             return self._send({"error": "bad json"}, 400)
-        u = urllib.parse.urlparse(self.path)
+        if not isinstance(body, dict):
+            return self._send({"error": "json body must be an object"}, 400)
         try:
             if u.path == "/api/config":
                 return self._send(write_config(body))
@@ -530,12 +1101,17 @@ class H(BaseHTTPRequestHandler):
             return self._send({"error": str(e)[:300]}, 500)
         self._send({"error": "not found"}, 404)
 
+    def do_OPTIONS(self):
+        # Intentionally no CORS headers: a foreign page must never gain
+        # permission to send X-Moai-Agent to this credential-writing API.
+        self._reject(405, "method not allowed")
+
 
 def main():
     if not UI.exists():
         sys.exit(f"واجهة غير موجودة: {UI}")
     srv = ThreadingHTTPServer(("127.0.0.1", PORT), H)
-    print(f"moapp-console → http://127.0.0.1:{PORT}/", flush=True)
+    print(f"moai-agent-api → http://127.0.0.1:{PORT}/", flush=True)
     srv.serve_forever()
 
 

@@ -7,6 +7,13 @@ After=graphical-session.target
 
 [Service]
 Type=simple
+# Must match moai-gateway.service.  setup-brain changes one per-user file, not
+# two unrelated drop-ins that can drift and make a healthy brain look offline.
+Environment=MOAI_LOCAL_UNIT=moai.service
+Environment=MOAI_LOCAL_BACKEND=ramalama
+Environment=MOAI_LOCAL_PORT=8081
+Environment=MOAI_LOCAL_MODEL=ollama://qwen2.5:7b-instruct
+EnvironmentFile=-%h/.config/moos/moai-local.env
 ExecStart=/usr/bin/moai-control
 Restart=on-failure
 RestartSec=5

@@ -29,6 +29,8 @@
 set -uo pipefail
 
 MIN_FREE_MIB="${MOOS_MIN_VRAM_MIB:-900}"
+ENGINE_HELPER="/usr/libexec/moai-local-engine"
+BRAIN_UNIT="$("$ENGINE_HELPER" unit)"
 
 # NVIDIA only, and deliberately: this is a discrete-VRAM problem. AMD and Intel integrated
 # graphics allocate from system RAM, where the kernel can page and nothing aborts on a
@@ -44,10 +46,10 @@ free="$(free_mib)"
 [ "$free" -ge "$MIN_FREE_MIB" ] 2>/dev/null && exit 0
 
 # Not enough room — but only OUR brain is ours to unload.
-systemctl --user is-active --quiet moai.service 2>/dev/null || exit 0
+systemctl --user is-active --quiet "$BRAIN_UNIT" 2>/dev/null || exit 0
 
 echo "moos-gpu-headroom: ${free} MiB free on the GPU (< ${MIN_FREE_MIB}); unloading the local brain so this app can start" >&2
-systemctl --user stop moai.service 2>/dev/null || exit 0
+systemctl --user stop "$BRAIN_UNIT" 2>/dev/null || exit 0
 
 # The driver does not hand the memory back the instant systemd returns, and starting the app
 # into a card that is still being freed is how the crash happened in the first place.

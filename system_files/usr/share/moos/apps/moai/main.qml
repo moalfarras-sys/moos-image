@@ -69,10 +69,11 @@ Kirigami.ApplicationWindow {
 
     // ── Endpoints ───────────────────────────────────────────────────────────
     // 8080 is Mo AI's FRONT DOOR (moai-gateway) and nothing else. It is always
-    // on, and it routes each REQUEST: to the local RamaLama brain on 8081 (which
-    // it starts on demand) or to the configured cloud provider — whose API key it
-    // alone ever sees. This app names the route it wants in the request's `model`
-    // field and never learns the key, the provider, or the port behind the door.
+    // on, and it routes each REQUEST to the selected allowlisted local engine
+    // (Ollama or RamaLama, started on demand) or to the configured cloud
+    // provider — whose API key it alone ever sees. This app names the route it
+    // wants in the request's `model` field and never learns the key, provider,
+    // unit, or port behind the door.
     //
     // It used to be an either/or: the local brain and the cloud proxy both
     // listened on 8080, so only one could run, the choice was a global setting,
@@ -86,7 +87,7 @@ Kirigami.ApplicationWindow {
     property bool brainStarting: false
     property var history: []            // [{role, content}] — last 12 turns
     property var pendingRuns: []        // moai-do actions the model just named
-    property string panel: "chat"       // chat|device|apps|compat|remote|dev
+    property string panel: "chat"       // chat|device|apps|compat|remote|dev|agent
 
     // ── Which brain answers THIS conversation ───────────────────────────────
     // `route` is exactly what goes in the POST's `model` field, and it is the
@@ -96,7 +97,7 @@ Kirigami.ApplicationWindow {
     // /models tells us what that default resolves to.
     property string route: ""
     property string defaultRoute: ""
-    property var localModels: []        // moai-control /models — from `ramalama list`
+    property var localModels: []        // moai-control /models — selected engine's real inventory
     property var cloudModels: []        // …and from the PROVIDER's own /v1/models
     property string modelsError: ""
     property bool modelsLoading: false
@@ -112,7 +113,7 @@ Kirigami.ApplicationWindow {
     readonly property bool routeIsCloud: root.route.indexOf("cloud") === 0
     readonly property bool routeIsLocal: root.route.indexOf("local") === 0
     // The part after the FIRST colon — a model id may contain colons of its own
-    // ("local:qwen3:4b-instruct").
+    // ("local:qwen3:4b").
     readonly property string routeModel: {
         const i = root.route.indexOf(":")
         return i === -1 ? "" : root.route.substring(i + 1)
@@ -364,6 +365,9 @@ Kirigami.ApplicationWindow {
         "it FIRST to anyone who has no AI subscription. The other two are cloud agents and " +
         "each needs its vendor account: `moai-do install-codex`, `moai-do install-claude` — they " +
         "install into ~/.local and run as the user, with no admin rights.\n" +
+        "• Phone agent: `moai-do install-openclaw` installs and fully configures the " +
+        "Telegram agent, local brain and Arabic voice. `moai-do setup-brain` repairs or " +
+        "prepares only the local model and speech engines. Both are fixed, confirmed actions.\n" +
         "• Diagnose: explain the likely cause in plain language, then give the " +
         "SMALLEST safe repair.\n\n" +
         "WHICH BRAIN YOU ARE: the user picks it per conversation, from the chip next " +
@@ -709,7 +713,7 @@ Kirigami.ApplicationWindow {
     // tests/verify_user_experience.py now compares this list against the prompt.
     function extractRuns(text) {
         const out = []
-        const re = /moai-do\s+(update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|update-firmware|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode)\b/g
+        const re = /moai-do\s+(update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|update-firmware|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode|install-openclaw|setup-brain)\b/g
         let m
         while ((m = re.exec(text)) !== null)
             if (out.indexOf(m[1]) === -1)
@@ -900,12 +904,11 @@ Kirigami.ApplicationWindow {
     // ── Tapping a starter that is not on this machine yet ────────────────────
     //
     // The row has always said "one-tap download". Until now the tap only set the
-    // route, and the first chat came back from the gateway with "Pull it first:
-    // ramalama pull <x>" — a terminal instruction on the desktop whose promise is
-    // that there is no terminal. The tap now downloads, shows the bar, and picks
-    // the brain when it lands. The picker STAYS OPEN while it downloads: closing
-    // it over a running download is how you get a user who thinks nothing
-    // happened and taps a second brain.
+    // route, and the first chat came back with a terminal-only pull instruction.
+    // The tap now asks the selected engine through the control API, shows its real
+    // progress, and picks the brain when it lands. The picker STAYS OPEN while it
+    // downloads: closing it over a running download is how you get a user who
+    // thinks nothing happened and taps a second brain.
     function pickOrPull(entry) {
         if (entry.pulled) {
             root.pickRoute(entry.id)
@@ -3165,7 +3168,7 @@ Kirigami.ApplicationWindow {
                     // ══ AGENT — the OpenClaw agent, same brain, same sessions ══
                     // Loads on first open, not at startup: polling the console
                     // before the user asks would wake services for nothing.
-                    // Reads and writes through moapp-console on 8077. Pure QML
+                    // Reads and writes through moai-agent-api on 8077. Pure QML
                     // cannot touch ~/.openclaw directly, so the console is the seam.
                     ColumnLayout {
                         spacing: 10
@@ -3173,7 +3176,13 @@ Kirigami.ApplicationWindow {
                         property bool loadedOnce: false
                         onVisibleChanged: if (visible && !loadedOnce) {
                             loadedOnce = true
-                            root.agentLoadSessions()
+                            root.agentLoadStatus()
+                        }
+                        Timer {
+                            interval: 5000
+                            repeat: true
+                            running: root.panel === "agent"
+                            onTriggered: root.agentLoadStatus()
                         }
 
                         RowLayout {
@@ -3182,14 +3191,22 @@ Kirigami.ApplicationWindow {
                             SectionTitle { text: "الوكيل  |  Agent" }
                             Item { Layout.fillWidth: true }
                             StatusPill {
-                                good: root.agentError === ""
-                                goodText: root.agentBusy ? "يفكّر… | Thinking" : "جاهز | Ready"
-                                badText: "غير متصل | Offline"
+                                good: root.agentReady
+                                goodText: root.agentBusy
+                                    ? "يفكّر… | Thinking"
+                                    : "جاهز عند الطلب | Ready on demand"
+                                badText: !root.agentStatusLoaded
+                                    ? "جارٍ الفحص… | Checking"
+                                    : !root.agentInstalled
+                                        ? "غير مثبّت | Not installed"
+                                        : !root.agentMachineConfigured
+                                            ? "يحتاج إعداد | Setup needed"
+                                            : "غير متصل | Offline"
                             }
                             MoButton {
                                 label: "تحديث | Refresh"
                                 icon: "moos-report"
-                                onClicked: root.agentLoadSessions()
+                                onClicked: root.agentLoadStatus()
                             }
                         }
 
@@ -3198,10 +3215,58 @@ Kirigami.ApplicationWindow {
                             text: "نفس المحادثات التي تراها في تليجرام — تقرأها هنا وتكمل من الشاشة."
                         }
 
-                        Text {
-                            visible: root.agentError !== ""
+                        Card {
+                            visible: root.agentStatusLoaded && !root.agentMachineConfigured
                             Layout.fillWidth: true
-                            text: root.agentError + "   —   شغّل: systemctl --user start moapp-console"
+                            Layout.preferredHeight: agentSetupRow.implicitHeight + 28
+                            border.color: Qt.rgba(root.novaBlue.r, root.novaBlue.g,
+                                                  root.novaBlue.b, 0.55)
+                            RowLayout {
+                                id: agentSetupRow
+                                anchors.fill: parent
+                                spacing: 12
+                                Kirigami.Icon {
+                                    source: root.agentInstalled ? "moos-system" : "moos-install"
+                                    color: root.novaBlue
+                                    Layout.preferredWidth: 28
+                                    Layout.preferredHeight: 28
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 3
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: root.agentInstalled
+                                            ? "أكمل تجهيز الوكيل | Finish agent setup"
+                                            : "ثبّت وكيل الهاتف | Install phone agent"
+                                        color: root.textHi
+                                        font.family: root.uiFont
+                                        font.pixelSize: 14
+                                        font.weight: Font.DemiBold
+                                    }
+                                    SectionNote {
+                                        Layout.fillWidth: true
+                                        text: root.agentSetupNote
+                                        font.pixelSize: 11
+                                    }
+                                }
+                                MoButton {
+                                    primary: true
+                                    icon: root.agentInstalled ? "moos-repair" : "moos-install"
+                                    label: root.agentSetupLabel
+                                    onClicked: root.launch(root.agentSetupAction,
+                                                           root.agentInstalled
+                                                               ? "Agent setup"
+                                                               : "OpenClaw")
+                                }
+                            }
+                        }
+
+                        Text {
+                            visible: root.agentAnyError !== ""
+                            Layout.fillWidth: true
+                            text: root.agentAnyError
+                                + "   —   systemctl --user start moai-agent-api.service"
                             color: root.badColor
                             font.family: root.uiFont
                             font.pixelSize: 11
@@ -3209,6 +3274,7 @@ Kirigami.ApplicationWindow {
                         }
 
                         RowLayout {
+                            visible: root.agentMachineConfigured
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             spacing: 10
@@ -3351,14 +3417,17 @@ Kirigami.ApplicationWindow {
                                         id: agentInput
                                         Layout.fillWidth: true
                                         placeholderText: "اكتب رسالة…  |  Message"
-                                        enabled: !root.agentBusy
+                                        enabled: root.agentReady && !root.agentBusy
                                         font.family: root.uiFont
                                         font.pixelSize: 12
-                                        onAccepted: { root.agentSend(text); text = "" }
+                                        onAccepted: if (root.agentReady) {
+                                            root.agentSend(text)
+                                            text = ""
+                                        }
                                     }
                                     MoButton {
                                         label: root.agentBusy ? "…" : "إرسال | Send"
-                                        enabled_: !root.agentBusy
+                                        enabled_: root.agentReady && !root.agentBusy
                                         onClicked: { root.agentSend(agentInput.text); agentInput.text = "" }
                                     }
                                 }
@@ -3420,10 +3489,10 @@ Kirigami.ApplicationWindow {
         }
 
         // ── The brain picker ────────────────────────────────────────────────
-        // Every entry here is REAL: the local models come from `ramalama list`,
-        // the cloud ones from the provider's own /v1/models. Nothing is invented,
-        // and a provider that has no model list says so instead of being given a
-        // made-up menu.
+        // Every entry here is REAL: local models come from the selected engine's
+        // inventory, cloud ones from the provider's own /v1/models. Nothing is
+        // invented, and a provider with no model list says so instead of being
+        // given a made-up menu.
         Rectangle {
             anchors.fill: parent
             z: 250
@@ -3720,7 +3789,7 @@ Kirigami.ApplicationWindow {
         }
 
         // ── Settings ────────────────────────────────────────────────────────
-        // Redesigned: one sectioned sheet backed by moapp-console (127.0.0.1:8077),
+        // Redesigned: one sectioned sheet backed by moai-agent-api (127.0.0.1:8077),
         // which owns the SAME openclaw.json that drives the Telegram bot. Mo AI and
         // OpenClaw therefore cannot disagree about the brain, the key or the channel —
         // there is exactly one place each of those lives.
@@ -3861,9 +3930,8 @@ Kirigami.ApplicationWindow {
 
                                 Repeater {
                                     model: [
-                                        { id: "local",  ar: "محلي فقط",  d: "لا شيء يغادر الجهاز" },
-                                        { id: "hybrid", ar: "هجين",      d: "محلي افتراضاً، سحابي عند الطلب" },
-                                        { id: "cloud",  ar: "سحابي",     d: "الأقوى — كل رسالة تذهب للمزوّد" }
+                                        { id: "local", ar: "محلي وخاص", d: "كل رسالة تعالج على هذا الجهاز" },
+                                        { id: "cloud", ar: "سحابي", d: "كل رسالة تذهب إلى المزوّد الذي اخترته" }
                                     ]
                                     delegate: Rectangle {
                                         required property var modelData
@@ -3982,7 +4050,7 @@ Kirigami.ApplicationWindow {
                                 QQC2.TextField {
                                     id: allowField
                                     Layout.fillWidth: true
-                                    placeholderText: "معرّفك الرقمي — 1142563280"
+                                    placeholderText: "معرّفك الرقمي — مثال: 123456789"
                                     font.family: root.uiFont
                                     font.pixelSize: 11
                                 }
@@ -4072,7 +4140,7 @@ Kirigami.ApplicationWindow {
                                 // ── Quick toggle: host control ON / OFF ────────────
                                 // One tap flips between full host control (sandbox off)
                                 // and fully sandboxed (read). It writes the tier through
-                                // moapp-console, which restarts openclaw so Telegram picks
+                                // moai-agent-api, which restarts OpenClaw so Telegram picks
                                 // it up at once. The three tiers below stay for the middle
                                 // "with approval" choice.
                                 Rectangle {
@@ -4458,9 +4526,9 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // ── Settings plumbing (moapp-console) ───────────────────────────────────
+    // ── Settings plumbing (moai-agent-api) ──────────────────────────────────
     // One backend for BOTH surfaces: this sheet and the Telegram bot read and
-    // write the same ~/.openclaw/openclaw.json through moapp-console. There is
+    // write the same ~/.openclaw/openclaw.json through moai-agent-api. There is
     // no second copy of "which brain" or "which key" to drift out of sync.
     property string cfgTab: "brain"
     property string cfgMode: "local"
@@ -4477,10 +4545,11 @@ Kirigami.ApplicationWindow {
     function cfgLoad(done) {
         const xhr = new XMLHttpRequest()
         xhr.open("GET", root.agentApi + "/api/config")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
         xhr.onreadystatechange = function () {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             if (xhr.status !== 200) {
-                root.cfgError = "لوحة التحكم لا تستجيب — systemctl --user start moapp-console"
+                root.cfgError = "لوحة التحكم لا تستجيب — شغّل moai-agent-api.service"
                 return
             }
             try {
@@ -4522,6 +4591,7 @@ Kirigami.ApplicationWindow {
         }
         const xhr = new XMLHttpRequest()
         xhr.open("POST", root.agentApi + "/api/config")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
         xhr.setRequestHeader("Content-Type", "application/json")
         xhr.onreadystatechange = function () {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
@@ -4540,7 +4610,7 @@ Kirigami.ApplicationWindow {
     }
 
     // ── Agent plumbing ──────────────────────────────────────────────────────
-    // moapp-console (127.0.0.1:8077) is the ONLY bridge: pure QML has no Process
+    // moai-agent-api (127.0.0.1:8077) is the ONLY bridge: pure QML has no Process
     // API and cannot read ~/.openclaw itself. Same pattern as controlApi above.
     readonly property string agentApi: "http://127.0.0.1:8077"
     property var  agentSessions: []
@@ -4549,17 +4619,74 @@ Kirigami.ApplicationWindow {
     property string agentCurrentKey: "console"
     property bool agentBusy: false
     property string agentError: ""
+    property string agentStatusError: ""
+    property bool agentStatusLoaded: false
+    property bool agentInstalled: false
+    property bool agentOpenClawConfigured: false
+    property bool agentBrainConfigured: false
+    property bool agentSpeechConfigured: false
+    readonly property bool agentMachineConfigured:
+        agentInstalled && agentOpenClawConfigured
+        && agentBrainConfigured && agentSpeechConfigured
+    readonly property string agentAnyError:
+        agentStatusError !== "" ? agentStatusError : agentError
+    readonly property bool agentReady:
+        agentStatusLoaded && agentMachineConfigured && agentAnyError === ""
+    readonly property string agentSetupAction:
+        !agentInstalled || !agentOpenClawConfigured
+            ? "moos://do/install-openclaw"
+            : "moos://do/setup-brain"
+    readonly property string agentSetupLabel:
+        !agentInstalled || !agentOpenClawConfigured
+            ? "ثبّت وأكمل | Install"
+            : "جهّز العقل | Set up"
+    readonly property string agentSetupNote:
+        !agentInstalled
+            ? "إعداد واحد مؤكّد يثبّت OpenClaw والعقل والصوت محلياً، ثم يبقى التشغيل عند الطلب."
+            : !agentOpenClawConfigured
+                ? "إعداد OpenClaw غير مكتمل؛ أعد تشغيل المثبّت الآمن ليصلحه دون مسح اختياراتك."
+                : "العقل أو الصوت المحلي غير مجهّز. الإجراء التالي ينشئهما ويتحقق منهما فعلياً."
+
+    function agentLoadStatus() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/status")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status !== 200) {
+                root.agentStatusLoaded = false
+                root.agentStatusError = "لوحة الوكيل لا تستجيب — moai-agent-api.service"
+                return
+            }
+            try {
+                const s = JSON.parse(xhr.responseText)
+                root.agentInstalled = !!s.openclaw_installed
+                root.agentOpenClawConfigured = !!s.openclaw_configured
+                root.agentBrainConfigured = !!s.brain_configured
+                root.agentSpeechConfigured = !!s.speech_configured
+                root.agentStatusLoaded = true
+                root.agentStatusError = ""
+                if (root.agentMachineConfigured)
+                    root.agentLoadSessions()
+            } catch (e) {
+                root.agentStatusLoaded = false
+                root.agentStatusError = "رد حالة الوكيل غير مفهوم | Bad status response"
+            }
+        }
+        xhr.send()
+    }
 
     function agentLoadSessions() {
         const xhr = new XMLHttpRequest()
         xhr.open("GET", root.agentApi + "/api/sessions")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
         xhr.onreadystatechange = function () {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             if (xhr.status === 200) {
                 try { root.agentSessions = JSON.parse(xhr.responseText); root.agentError = "" }
                 catch (e) { root.agentError = "رد غير مفهوم | Bad response" }
             } else {
-                root.agentError = "لوحة الوكيل لا تستجيب — moapp-console"
+                root.agentError = "لوحة الوكيل لا تستجيب — moai-agent-api.service"
             }
         }
         xhr.send()
@@ -4570,6 +4697,7 @@ Kirigami.ApplicationWindow {
         root.agentCurrentKey = String(key).split(":").pop()
         const xhr = new XMLHttpRequest()
         xhr.open("GET", root.agentApi + "/api/session?id=" + encodeURIComponent(id))
+        xhr.setRequestHeader("X-Moai-Agent", "1")
         xhr.onreadystatechange = function () {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             if (xhr.status === 200) {
@@ -4580,13 +4708,14 @@ Kirigami.ApplicationWindow {
     }
 
     function agentSend(text) {
-        if (!text || root.agentBusy) return
+        if (!text || root.agentBusy || !root.agentReady) return
         root.agentBusy = true
         root.agentError = ""
         // Echo locally so the message appears instantly; the reply lands on return.
         root.agentThread = root.agentThread.concat([{ role: "user", text: text }])
         const xhr = new XMLHttpRequest()
         xhr.open("POST", root.agentApi + "/api/send")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
         xhr.setRequestHeader("Content-Type", "application/json")
         xhr.onreadystatechange = function () {
             if (xhr.readyState !== XMLHttpRequest.DONE) return

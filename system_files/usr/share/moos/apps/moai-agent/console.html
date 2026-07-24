@@ -232,7 +232,7 @@ code{font-family:var(--mono);font-size:.8rem;direction:ltr;background:var(--fiel
         </div>
         <div class="row">
           <label for="allow">المسموح لهم <span class="sub">معرّفات رقمية، فاصلة بينها</span></label>
-          <input id="allow" dir="ltr" placeholder="1142563280">
+          <input id="allow" dir="ltr" placeholder="123456789">
         </div>
         <div class="actions">
           <button class="btn" data-save="telegram">حفظ</button>
@@ -330,7 +330,11 @@ code{font-family:var(--mono);font-size:.8rem;direction:ltr;background:var(--fiel
 
 <script>
 const $ = s => document.querySelector(s);
-const api = async (p, o) => (await fetch(p, o)).json();
+const api = async (p, o = {}) => {
+  const headers = new Headers(o.headers || {});
+  headers.set('X-Moai-Agent', '1');
+  return (await fetch(p, {...o, headers})).json();
+};
 let CFG = null, CUR = null;
 
 /* tabs */

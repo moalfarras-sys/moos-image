@@ -17,7 +17,7 @@ Type=simple
 # correcting the unit alone changes nothing — moai-control's ensure_front_door()
 # rewrites that file on every start. Fix the file that decides, not the one we ship.
 Environment=MOAI_PORT=8081
-Environment=MOAI_MODEL=ollama://qwen3:4b-instruct
+Environment=MOAI_MODEL=ollama://qwen2.5:7b-instruct
 # Cap the context so llama.cpp cannot project a KV cache bigger than the GPU has —
 # the documented SIGABRT-out-of-VRAM that, on an 8 GB card shared with the Wayland
 # compositor, could take the desktop down with it. --ngl auto offloads as many

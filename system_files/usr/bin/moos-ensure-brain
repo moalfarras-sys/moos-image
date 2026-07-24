@@ -49,7 +49,11 @@ for m in c.get("models",{}).get("providers",{}).get("ollama",{}).get("models",[]
         if m.get("contextWindow")!=CTX: m["contextWindow"]=CTX; changed=True
         if m.get("maxTokens")!=MAXOUT: m["maxTokens"]=MAXOUT; changed=True
 if changed:
-    tmp=p+".tmp"; json.dump(c,open(tmp,"w"),ensure_ascii=False,indent=2); os.replace(tmp,p)
+    tmp=p+".tmp"
+    with open(tmp,"w",encoding="utf-8") as fh:
+        json.dump(c,fh,ensure_ascii=False,indent=2)
+    os.chmod(tmp,0o600)
+    os.replace(tmp,p)
     print("changed")
 PY
     then log "openclaw context reconciled (local brain → 24576; cloud left as-is)"; fi

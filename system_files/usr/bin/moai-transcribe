@@ -3,8 +3,8 @@
 # moai-transcribe — يفرّغ ملف صوت إلى نص عربي، ويطبع النص على stdout.
 #
 # لماذا هذا الغلاف موجود:
-#   OpenClaw لا يتكلم واجهة OpenAI للتفريغ — إعداده `audio.transcription.command`
-#   ينتظر **أمراً** يستقبل مسار ملف ويطبع نصاً. وSpeaches خادم HTTP.
+#   OpenClaw يشغّل هذا الغلاف من `tools.media.audio.models` كمدخل CLI ثابت،
+#   ويمرّر {{MediaPath}} كوسيط ثم يقرأ النص من stdout. وSpeaches خادم HTTP.
 #   هذا الغلاف هو الجسر بينهما، ولا شيء غيره.
 #
 #   الاستخدام:  moai-transcribe <ملف-صوت>
@@ -16,10 +16,41 @@ MODEL="${MOAI_STT_MODEL:-Systran/faster-whisper-medium}"
 # Forcing ar matters: left to auto-detect, Whisper sometimes decides a short
 # Arabic clip is Farsi or Urdu and transliterates it into noise.
 LANG_="${MOAI_STT_LANG:-ar}"
+CFG_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}"
+QUADLET_DIR="${CFG_ROOT}/containers/systemd"
 
 FILE="${1:-}"
 [[ -z "$FILE" ]] && { echo "الاستخدام: $0 <ملف-صوت>" >&2; exit 1; }
 [[ -r "$FILE" ]] || { echo "تعذّرت قراءة الملف: $FILE" >&2; exit 1; }
+
+# Resolve only the two shipped fixed unit names. Both Quadlets publish the same
+# port, so a conflict is an error—not an arbitrary first match.
+if [[ -f "$QUADLET_DIR/speaches.container" \
+      && -f "$QUADLET_DIR/moai-speech.container" ]]; then
+    echo "يوجد إعدادا صوت متعارضان؛ شغّل «تجهيز العقل المحلي» لإصلاحهما." >&2
+    exit 1
+elif [[ -f "$QUADLET_DIR/speaches.container" ]]; then
+    SPEECH_UNIT=speaches.service
+elif [[ -f "$QUADLET_DIR/moai-speech.container" ]]; then
+    SPEECH_UNIT=moai-speech.service
+else
+    echo "محرك الصوت غير مُعدّ؛ شغّل «تجهيز العقل المحلي» أولاً." >&2
+    exit 1
+fi
+systemctl --user start "$SPEECH_UNIT"
+systemctl --user is-active --quiet "$SPEECH_UNIT"
+ready=0
+for _attempt in $(seq 1 60); do
+    if curl -fsS --max-time 2 http://127.0.0.1:8000/v1/models >/dev/null 2>&1; then
+        ready=1
+        break
+    fi
+    sleep 1
+done
+if [[ "$ready" -ne 1 ]]; then
+    echo "محرك الصوت لم يصبح جاهزاً: $SPEECH_UNIT" >&2
+    exit 1
+fi
 
 # OGG/Opus from Telegram needs no conversion: Speaches decodes via faster_whisper's
 # PyAV-based decoder, and PyAV bundles the FFmpeg libraries. Undecodable input
@@ -31,7 +62,7 @@ RESP="$(curl -sS --max-time 300 \
     -F "language=${LANG_}" \
     -F "response_format=json" 2>&1)" || {
     echo "تعذّر الوصول إلى خادم التفريغ على ${ENDPOINT}" >&2
-    echo "تحقّق: systemctl --user status moai-speech" >&2
+    echo "تحقّق: systemctl --user status ${SPEECH_UNIT}" >&2
     exit 1
 }
 

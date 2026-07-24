@@ -1,5 +1,5 @@
 [Unit]
-Description=Ollama LLM server (rootless podman, NVIDIA CDI)
+Description=Ollama LLM server (rootless podman, hardware-safe)
 Documentation=https://github.com/ollama/ollama
 After=network-online.target
 Wants=network-online.target
@@ -9,16 +9,12 @@ ContainerName=moai-brain
 Image=docker.io/ollama/ollama:latest
 AutoUpdate=registry
 
-# ── GPU ────────────────────────────────────────────────────────────
-# AddDevice passes the card via CDI (/etc/cdi/nvidia.yaml, auto-generated
-# by the nvidia-cdi-refresh service — do NOT run `nvidia-ctk cdi generate`
-# by hand, it produces a spec that goes stale on the next image update).
-AddDevice=nvidia.com/gpu=all
-# SELinux is Enforcing on MoOS. Without this, the container dies with
-# "Failed to initialize NVML: Insufficient Permissions" — a message that
-# never mentions SELinux. This is NVIDIA's documented fix; --privileged
-# would also work but is a far bigger hammer than needed.
-SecurityLabelDisable=true
+# ── Hardware acceleration ──────────────────────────────────────────
+# CPU-safe by default: this same template ships in both MoOS editions and must
+# also start on Intel/AMD systems and in virtual machines. setup-brain inserts
+# the two NVIDIA CDI directives immediately below this marker only after both
+# nvidia-smi and nvidia-ctk prove the CDI device exists.
+# MOOS_NVIDIA_CDI_INSERT
 
 # ── Networking ─────────────────────────────────────────────────────
 # 0.0.0.0 is the bind INSIDE the container namespace only. PublishPort
@@ -61,5 +57,5 @@ RestartSec=5
 # would kill it mid-pull and leave a confusing failed state.
 TimeoutStartSec=900
 
-[Install]
-WantedBy=default.target
+# Deliberately no [Install]: OpenClaw preflight/moai-gateway start this engine
+# only when a request actually selects the local primary.

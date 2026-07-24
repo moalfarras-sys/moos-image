@@ -1,6 +1,6 @@
 [Unit]
 Description=Mo AI agent API (settings, sessions and status for the Agent panel)
-Documentation=man:moai-agent-api
+Documentation=https://github.com/moalfarras-sys/moos-image
 After=network-online.target
 Wants=network-online.target
 
@@ -11,6 +11,10 @@ Type=simple
 # puts a newer one in the user's home rather than layering onto /usr.
 Environment=PATH=%h/.local/node/bin:%h/.local/bin:/usr/bin:/bin
 Environment=OLLAMA_API_KEY=ollama-local
+# Existing installations pass through the same preserving, schema-validating
+# migration as a fresh install. The leading '-' keeps the status/repair panel
+# available when a user-owned config needs manual attention.
+ExecStartPre=-/usr/libexec/moai-openclaw-bootstrap --existing-only
 ExecStart=/usr/bin/moai-agent-api
 Restart=on-failure
 RestartSec=5

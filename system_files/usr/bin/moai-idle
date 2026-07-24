@@ -17,13 +17,47 @@
 # =============================================================================
 set -uo pipefail
 
-UNIT="moai.service"
+ENGINE_HELPER="/usr/libexec/moai-local-engine"
+UNIT="$("$ENGINE_HELPER" unit)"
+BACKEND="$("$ENGINE_HELPER" backend)"
+LOCAL_PORT="$("$ENGINE_HELPER" port)"
 IDLE_MIN="${MOAI_IDLE_MINUTES:-15}"
 runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 ACT="${runtime}/moai-activity"
 
 # Nothing to free unless the brain is actually loaded.
 systemctl --user is-active --quiet "$UNIT" || exit 0
+
+# openclaw-idle owns teardown order for the phone-agent stack: gateway first,
+# then speech, then Ollama. The two timers can fire in either order. If this
+# desktop-only idle checker stopped a local-primary Ollama while OpenClaw was
+# still active, ExecStartPre would not rerun and the next Telegram turn would
+# hit a dead backend. Defer to openclaw-idle unless the phone agent is explicitly
+# cloud-primary and therefore does not depend on this local engine.
+if [ "$BACKEND" = "ollama" ] \
+        && systemctl --user is-active --quiet openclaw-gateway.service; then
+    openclaw_primary="$(python3 -c 'import json,os
+try:
+    print((json.load(open(os.path.expanduser("~/.openclaw/openclaw.json"))).get("agents",{}).get("defaults",{}).get("model",{}) or {}).get("primary",""))
+except Exception:
+    print("")' 2>/dev/null)"
+    case "$openclaw_primary" in
+        cloud/*) : ;;
+        *) exit 0 ;;
+    esac
+fi
+
+# Gateway activity covers desktop chats.  Ollama can also be serving OpenClaw,
+# so never stop it while its own API says a model is resident.
+if [ "$BACKEND" = "ollama" ]; then
+    resident="$(curl -sf --max-time 4 "http://127.0.0.1:${LOCAL_PORT}/api/ps" 2>/dev/null \
+        | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("models",[])))' \
+        2>/dev/null || echo unknown)"
+    case "$resident" in
+        0) : ;;
+        *) exit 0 ;;
+    esac
+fi
 
 now="$(date +%s)"
 

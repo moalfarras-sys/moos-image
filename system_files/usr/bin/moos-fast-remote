@@ -13,6 +13,7 @@ set -uo pipefail
 STATE="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/moos-fast-remote.on"
 STATIC_WALLPAPER="/usr/share/wallpapers/MoOSUI2Tide"
 LIVE_WALLPAPER="org.moos.ui2.wallpaper"
+ENGINE_HELPER="/usr/libexec/moai-local-engine"
 
 kwin_reconfigure() {
   gdbus call --session --dest org.kde.KWin --object-path /KWin \
@@ -69,6 +70,13 @@ set_wallpaper_live() {
 }
 
 fast_on() {
+  # Repeated desktop-action clicks must preserve the first transition's brain
+  # and layout snapshot instead of overwriting it with the already-suspended
+  # and already-US state.
+  if [ -f "$STATE" ]; then
+    echo "Fast Remote: already ON"
+    return 0
+  fi
   # 1) effects off
   set_effect Plugins blurEnabled false
   set_effect Plugins slideEnabled false
@@ -78,8 +86,15 @@ fast_on() {
   kwin_reconfigure
   # 3) static wallpaper
   set_wallpaper_static
-  # 4) free the GPU: suspend Mo AI local brain (gateway stays; reloads on demand)
-  systemctl --user stop moai.service >/dev/null 2>&1
+  # 4) free the GPU: suspend only the selected Mo AI engine. Remember whether
+  # it was active; OFF must not start a brain the user had deliberately left off.
+  _brain="$("$ENGINE_HELPER" unit)"
+  if systemctl --user is-active --quiet "$_brain" 2>/dev/null; then
+    printf '%s\n' "$_brain" > "${STATE}.brain"
+    systemctl --user stop "$_brain" >/dev/null 2>&1
+  else
+    rm -f "${STATE}.brain"
+  fi
   # 5) US keyboard for correct remote typing (the phone speaks US). Remember the
   #    layout in use FIRST, so OFF restores exactly it — not a hard-coded country.
   get_layout_idx > "${STATE}.prevlayout" 2>/dev/null || true
@@ -89,6 +104,12 @@ fast_on() {
 }
 
 fast_off() {
+  # Without an ON snapshot there is nothing to restore. A repeated OFF must not
+  # manufacture new effect or keyboard settings.
+  if [ ! -f "$STATE" ]; then
+    echo "Fast Remote: already OFF"
+    return 0
+  fi
   # restore effects
   set_effect Plugins blurEnabled true
   set_effect Plugins slideEnabled true
@@ -97,8 +118,14 @@ fast_off() {
   kwin_reconfigure
   # restore live wallpaper
   set_wallpaper_live
-  # bring Mo AI local brain back
-  systemctl --user start moai.service >/dev/null 2>&1
+  # Restore only the engine that was active before ON, and only if it is still
+  # the selected allowlisted engine. A runtime migration while Fast Remote is on
+  # must never resurrect the retired moai.service.
+  _brain="$("$ENGINE_HELPER" unit)"
+  _saved="$(cat "${STATE}.brain" 2>/dev/null)"
+  [ -n "$_saved" ] && [ "$_saved" = "$_brain" ] && \
+    systemctl --user start "$_brain" >/dev/null 2>&1
+  rm -f "${STATE}.brain"
   # restore whatever layout was active before Fast Remote (fallback: index 0),
   # not a hard-coded country — MoOS users are not all on a German keyboard.
   _prev="$(cat "${STATE}.prevlayout" 2>/dev/null)"; [ -n "$_prev" ] || _prev=0

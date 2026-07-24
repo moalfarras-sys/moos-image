@@ -1,7 +1,9 @@
 [Unit]
 Description=Ensure Mo AI runs the fast instruct brain (not a slow thinking model)
-# The brain container (Quadlet) must be up first; this only ever talks to it.
-After=moai-brain.service network-online.target
+# Only one of these two allowlisted Quadlets is selected. After= does not pull
+# either service in; it merely ensures that, when the selected one is also in
+# the boot transaction, its container reaches active state before this oneshot.
+After=network-online.target ollama.service moai-brain.service
 Wants=network-online.target
 # Do not fail the session if the brain isn't installed on this edition.
 ConditionPathExists=/usr/bin/moos-ensure-brain

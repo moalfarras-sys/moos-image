@@ -18,14 +18,14 @@
 #   GET  /scan     full snapshot incl. the cached device plan.
 #   GET  /search?q=…  Flathub app search (this is Mo AI's App Centre).
 #   POST /config   set the DEFAULT mode/base/model/key.
-import json, os, re, shutil, subprocess, sys, threading, time
+import json, os, re, shutil, subprocess, sys, tempfile, threading, time
 import urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # A base URL is expected to carry its API version ("…/v1", "…/v1beta/openai").
 VERSIONED = re.compile(r"/v\d[\w.]*(/|$)")
 
-# "ollama://library/qwen3:4b-instruct" — strip the transport, keep the name.
+# "ollama://library/qwen3:4b" — strip the transport, keep the name.
 SCHEME = re.compile(r"^[a-z0-9+.-]+://")
 
 CFG_DIR = os.path.expanduser("~/.config/moai")
@@ -33,15 +33,34 @@ CFG = os.path.join(CFG_DIR, "config.json")
 MOOS_DIR = os.path.expanduser("~/.config/moos")
 ENV_FILE = os.path.join(MOOS_DIR, "moai.env")
 PORT = int(os.environ.get("MOAI_CONTROL_PORT", "8079"))
+MAX_BODY_BYTES = 1024 * 1024
+CONFIG_LOCK = threading.RLock()
 
 # The brain lives behind ONE always-on front door on 8080 (moai-gateway), which
 # routes each request to the local brain on 8081 or to the cloud provider. See
 # moai-gateway for the contract; these two numbers must agree with it.
 GATEWAY_PORT = int(os.environ.get("MOAI_GATEWAY_PORT", "8080"))
-LOCAL_PORT = int(os.environ.get("MOAI_LOCAL_PORT", "8081"))
 GATEWAY_UNIT = "moai-gateway.service"
-LOCAL_UNIT = "moai.service"
-DEFAULT_LOCAL_MODEL = "ollama://qwen3:4b-instruct"   # == moai.service's default
+RAMALAMA_UNIT = "moai.service"
+OLLAMA_UNITS = ("ollama.service", "moai-brain.service")
+ALLOWED_LOCAL_UNITS = (RAMALAMA_UNIT, *OLLAMA_UNITS)
+_requested_local_unit = os.environ.get("MOAI_LOCAL_UNIT", RAMALAMA_UNIT)
+LOCAL_UNIT = (_requested_local_unit if _requested_local_unit in ALLOWED_LOCAL_UNITS
+              else RAMALAMA_UNIT)
+_derived_backend = "ollama" if LOCAL_UNIT in OLLAMA_UNITS else "ramalama"
+_requested_backend = os.environ.get("MOAI_LOCAL_BACKEND", _derived_backend)
+LOCAL_BACKEND = (_requested_backend
+                 if _requested_backend in ("ollama", "ramalama")
+                 and (_requested_backend == _derived_backend)
+                 else _derived_backend)
+try:
+    LOCAL_PORT = int(os.environ.get(
+        "MOAI_LOCAL_PORT", "11434" if LOCAL_BACKEND == "ollama" else "8081"))
+except (TypeError, ValueError):
+    LOCAL_PORT = 11434 if LOCAL_BACKEND == "ollama" else 8081
+DEFAULT_LOCAL_MODEL = os.environ.get(
+    "MOAI_LOCAL_MODEL",
+    "default" if LOCAL_BACKEND == "ollama" else "ollama://qwen2.5:7b-instruct")
 
 ANTHROPIC_VERSION = "2023-06-01"
 
@@ -92,32 +111,51 @@ PROVIDERS = [
 
 
 def load():
-    try:
-        with open(CFG, encoding="utf-8") as f:
-            data = json.load(f)
-            # One-time migration from the pre-v3 plaintext format. Store the
-            # credential in Secret Service, then immediately rewrite config
-            # without it. Never log the value.
-            had_legacy_key = "cloud_key" in data
-            legacy = data.pop("cloud_key", "")
-            if legacy and not store_secret(legacy):
-                # Keep the legacy file intact if Secret Service is temporarily
-                # unavailable; deleting a real credential would lose user data.
-                data["cloud_key"] = legacy
-            elif had_legacy_key:
-                # Rewrite even when the old value is empty. This permanently
-                # removes the plaintext credential field from pre-v3 configs.
-                save(data)
-            return data
-    except Exception:
-        return {}
+    with CONFIG_LOCK:
+        try:
+            with open(CFG, encoding="utf-8") as f:
+                data = json.load(f)
+                # One-time migration from the pre-v3 plaintext format. Store the
+                # credential in Secret Service, then immediately rewrite config
+                # without it. Never log the value.
+                had_legacy_key = "cloud_key" in data
+                legacy = data.pop("cloud_key", "")
+                if legacy and not store_secret(legacy):
+                    # Keep the legacy file intact if Secret Service is temporarily
+                    # unavailable; deleting a real credential would lose user data.
+                    data["cloud_key"] = legacy
+                elif had_legacy_key:
+                    # Rewrite even when the old value is empty. This permanently
+                    # removes the plaintext credential field from pre-v3 configs.
+                    save(data)
+                return data
+        except Exception:
+            return {}
 
 
 def save(d):
-    os.makedirs(CFG_DIR, exist_ok=True)
-    with open(CFG, "w", encoding="utf-8") as f:
-        json.dump(d, f, ensure_ascii=False, indent=2)
-    os.chmod(CFG, 0o600)
+    with CONFIG_LOCK:
+        os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
+        os.chmod(CFG_DIR, 0o700)
+        fd, tmp_name = tempfile.mkstemp(prefix=".config.json.", dir=CFG_DIR)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(d, f, ensure_ascii=False, indent=2)
+                f.write("\n")
+                f.flush()
+                os.fsync(f.fileno())
+            os.chmod(tmp_name, 0o600)
+            os.replace(tmp_name, CFG)
+            directory_fd = os.open(CFG_DIR, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        finally:
+            try:
+                os.unlink(tmp_name)
+            except FileNotFoundError:
+                pass
 
 
 def secret_tool(*args, value=None):
@@ -143,7 +181,8 @@ def store_secret(value):
 
 def sysctl(*args):
     try:
-        subprocess.run(["systemctl", "--user", *args], check=False, timeout=20)
+        subprocess.run(["systemctl", "--user", *args], check=False, timeout=20,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
 
@@ -200,7 +239,7 @@ def brain_online():
 
 
 def short_model(name):
-    """`ollama://library/qwen3:4b-instruct` → `qwen3:4b-instruct`. Same rule as
+    """`ollama://library/qwen3:4b` → `qwen3:4b`. Same rule as
     moai-gateway's — RamaLama rewrites `ollama://x` to `ollama://library/x`, so a
     raw string compare says two names for the same weights are different."""
     n = SCHEME.sub("", (name or "").strip())
@@ -209,10 +248,26 @@ def short_model(name):
     return n
 
 
+def comparable_model(name):
+    """Comparison-only spelling: Ollama reports ``name:latest`` even when the
+    request used ``name``.  Keep the exact API name for requests and labels, but
+    treat those two spellings as one model when marking the default."""
+    name = short_model(name)
+    return name[:-len(":latest")] if name.endswith(":latest") else name
+
+
+def same_model(left, right):
+    return comparable_model(left) == comparable_model(right)
+
+
 def env_model():
     """The model the local unit will actually serve. moai.env is the unit's
     EnvironmentFile and outranks its Environment= line, so read the file that
     decides rather than the default we ship."""
+    if LOCAL_BACKEND == "ollama":
+        # Ollama selects a model per request; moai.env belongs exclusively to
+        # RamaLama and must never be allowed to change the Ollama default.
+        return DEFAULT_LOCAL_MODEL
     try:
         with open(ENV_FILE, encoding="utf-8") as f:
             for line in f:
@@ -225,8 +280,53 @@ def env_model():
     return DEFAULT_LOCAL_MODEL
 
 
+def ollama_request(path, method="GET", payload=None, timeout=20):
+    """Call the selected Ollama API on loopback.  Model ids remain JSON values;
+    they are never interpolated into a command line."""
+    body = (json.dumps(payload).encode("utf-8") if payload is not None else None)
+    req = urllib.request.Request(
+        "http://127.0.0.1:%d%s" % (LOCAL_PORT, path),
+        data=body, method=method)
+    if body is not None:
+        req.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        raw = response.read()
+        return json.loads(raw.decode("utf-8", "replace")) if raw else {}
+
+
+def ensure_local_api(timeout=20):
+    """Wake the selected, allowlisted engine for model management."""
+    if local_online():
+        return True
+    sysctl("start", LOCAL_UNIT)
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if local_online():
+            return True
+        time.sleep(0.5)
+    return False
+
+
+def ollama_models():
+    if not ensure_local_api():
+        return []
+    try:
+        data = ollama_request("/api/tags", timeout=12)
+    except Exception:
+        return []
+    out = []
+    for item in data.get("models", []) if isinstance(data, dict) else []:
+        if not isinstance(item, dict):
+            continue
+        name = short_model(item.get("name") or item.get("model") or "")
+        if not name:
+            continue
+        out.append({"name": name, "size": int(item.get("size") or 0)})
+    return out
+
+
 def ensure_front_door():
-    """8080 is the gateway's, 8081 is the local brain's — on every machine, always.
+    """8080 is the gateway's; the configured local engine owns its own port.
 
     Shipping the corrected unit file is NOT enough, and this is the whole reason
     this function exists:
@@ -239,39 +339,59 @@ def ensure_front_door():
       • the gateway used to be OPT-IN (moai-cloud.service, enabled only while the
         user was in cloud mode). It is the only door now, so it must be on for
         everybody, including the users who once turned it off.
+      • a machine that moved to Ollama may still have moai.service enabled from
+        the old RamaLama setup. Starting both engines on one GPU is never valid;
+        the retired engine then restart-loops forever against Ollama's model and
+        port. An explicit MOAI_LOCAL_UNIT selects one engine and retires the other.
 
     Repaired here — in the always-on service, on every start — rather than behind
     a once-per-revision migration marker: a marker cannot notice that the state it
     fixed has drifted back.
     """
     fixed_port = False
-    try:
-        if os.path.isfile(ENV_FILE):
-            with open(ENV_FILE, encoding="utf-8") as f:
-                lines = f.read().splitlines()
-            out, seen = [], False
-            for line in lines:
-                if line.startswith("MOAI_PORT="):
-                    seen = True
-                    if line.strip() != "MOAI_PORT=%d" % LOCAL_PORT:
-                        line = "MOAI_PORT=%d" % LOCAL_PORT
-                        fixed_port = True
-                out.append(line)
-            if not seen:
-                out.insert(0, "MOAI_PORT=%d" % LOCAL_PORT)
-                fixed_port = True
-            if fixed_port:
-                tmp = ENV_FILE + ".new"
-                with open(tmp, "w", encoding="utf-8") as f:
-                    f.write("\n".join(out) + "\n")
-                os.chmod(tmp, 0o600)
-                os.replace(tmp, ENV_FILE)
-    except Exception:
-        pass
+    fixed_model = False
+    if LOCAL_UNIT == RAMALAMA_UNIT:
+        try:
+            if os.path.isfile(ENV_FILE):
+                with open(ENV_FILE, encoding="utf-8") as f:
+                    lines = f.read().splitlines()
+                out, seen = [], False
+                for line in lines:
+                    if line.startswith("MOAI_PORT="):
+                        seen = True
+                        if line.strip() != "MOAI_PORT=%d" % LOCAL_PORT:
+                            line = "MOAI_PORT=%d" % LOCAL_PORT
+                            fixed_port = True
+                    elif line.strip() == "MOAI_MODEL=ollama://qwen3:4b-instruct":
+                        # This tag never existed in Ollama's registry. Migrate
+                        # only the exact shipped mistake; every custom model is
+                        # user-owned and remains byte-for-byte untouched.
+                        line = "MOAI_MODEL=ollama://qwen2.5:7b-instruct"
+                        fixed_model = True
+                    out.append(line)
+                if not seen:
+                    out.insert(0, "MOAI_PORT=%d" % LOCAL_PORT)
+                    fixed_port = True
+                if fixed_port or fixed_model:
+                    tmp = ENV_FILE + ".new"
+                    with open(tmp, "w", encoding="utf-8") as f:
+                        f.write("\n".join(out) + "\n")
+                    os.chmod(tmp, 0o600)
+                    os.replace(tmp, ENV_FILE)
+        except Exception:
+            pass
+    else:
+        # MOAI_LOCAL_UNIT is an explicit engine choice. A stale enable symlink
+        # for RamaLama survives image updates and makes it retry every few
+        # seconds even though the gateway correctly talks to Ollama. Stop and
+        # disable only that known legacy unit; never act on an arbitrary name.
+        for retired in ALLOWED_LOCAL_UNITS:
+            if retired != LOCAL_UNIT:
+                sysctl("disable", "--now", retired)
 
     # A local brain that is RUNNING on the old port is still holding 8080. Move it
     # before asking the gateway to bind there.
-    if fixed_port and user_unit_active(LOCAL_UNIT):
+    if (fixed_port or fixed_model) and user_unit_active(RAMALAMA_UNIT):
         sysctl("restart", LOCAL_UNIT)
 
     # The retired opt-in unit. Its enable symlink survives an image update and
@@ -525,8 +645,8 @@ _models_cache = {"data": None, "ts": 0.0, "sig": None}
 # ── Curated LOCAL starters ────────────────────────────────────────────────────
 # The no-invented-menu rule above is about the CLOUD: a provider's account can
 # 404 a model we made up. These are different in kind — fixed registry tags that
-# RamaLama pulls onto THIS machine when picked, so nothing here can 404 on an
-# account, and the picker states the download size before anything happens.
+# the selected local engine pulls onto THIS machine, so nothing here can 404 on
+# an account, and the picker states the download size before anything happens.
 # Without this list a fresh install shows exactly ONE local option and the
 # owner rightly asked where the choices were (2026-07-17).
 #
@@ -539,7 +659,8 @@ _models_cache = {"data": None, "ts": 0.0, "sig": None}
 # not chosen from a leaderboard (2026-07-17):
 #   qwen3:1.7b        answered in Arabic with three real commands. Terse: it drops
 #                     the "explain each" half of the ask. Right for a weak machine.
-#   qwen3:4b-instruct answered Arabic cleanly; drives moai-do. Stays the default.
+#   qwen2.5:7b-instruct is the measured fast, non-thinking MoOS default.
+#   qwen3:4b        is the real Ollama tag (there is no qwen3:4b-instruct tag).
 #   qwen3:8b          the best Arabic of everything tried — correct commands AND
 #                     correct explanations. Wants a real GPU; the size says so.
 # REJECTED, and why (so nobody re-adds them on a hunch):
@@ -551,16 +672,15 @@ _models_cache = {"data": None, "ts": 0.0, "sig": None}
 #                     and languages" claim NOBODY had tested. Replaced by qwen3:8b,
 #                     which was tested. "Ran here and survived" is the bar.
 #
-# `id` is the comparison key (it matches short_model() of what RamaLama lists) and
-# pull_model() prefixes the ollama:// transport. Do NOT drop that prefix: a BARE
-# `ramalama pull qwen3:8b` resolves to hf://Qwen/Qwen3-8B-GGUF — MEASURED — which
-# short_model() renders "Qwen/Qwen3-8B-GGUF", matching no id here, so the gateway
-# would report a downloaded brain as missing forever.
+# `id` is the shared comparison key. The RamaLama adapter adds its required
+# `ollama://` transport; the Ollama adapter sends the same id as JSON.
 RECOMMENDED_LOCAL = [
     {"id": "qwen3:1.7b", "size_gb": 1.4,
      "note": "الأخف — يعمل على أي جهاز حتى بلا كرت شاشة | lightest — runs anywhere, even CPU-only"},
-    {"id": "qwen3:4b-instruct", "size_gb": 2.5,
+    {"id": "qwen3:4b", "size_gb": 2.5,
      "note": "التوازن الموصى به — ذكي وسريع | the recommended balance — smart and quick"},
+    {"id": "qwen2.5:7b-instruct", "size_gb": 4.7,
+     "note": "عقل MoOS السريع بلا تفكير مخفي | MoOS fast instruct brain, no hidden thinking"},
     {"id": "qwen3:8b", "size_gb": 4.9,
      "note": "الأقوى للعربية والكود والصيانة — يحتاج كرت شاشة | strongest Arabic, code and repair — wants a GPU"},
 ]
@@ -580,9 +700,9 @@ RECOMMENDED_LOCAL = [
 # already speaks, with progress the picker can draw.
 #
 # ALLOWLIST, not a passthrough: only an id in RECOMMENDED_LOCAL can be pulled.
-# The id reaches the shell as one argv element and is never interpolated, but the
-# allowlist is what makes that safe by construction rather than by escaping —
-# the same contract moai-do holds for its 17 actions.
+# Ollama receives it as JSON; RamaLama receives one fixed argv element, never an
+# interpolated command. The allowlist is what makes both paths safe by
+# construction — the same contract moai-do holds for its fixed actions.
 STORE = os.path.expanduser("~/.local/share/ramalama/store")
 
 _pull_lock = threading.Lock()
@@ -610,6 +730,35 @@ def store_bytes():
 
 
 def pull_worker(model_id, size_gb):
+    if LOCAL_BACKEND == "ollama":
+        try:
+            if not ensure_local_api():
+                raise RuntimeError("local model server did not start")
+            req = urllib.request.Request(
+                "http://127.0.0.1:%d/api/pull" % LOCAL_PORT,
+                data=json.dumps({"model": model_id, "stream": True}).encode("utf-8"),
+                method="POST", headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=1800) as response:
+                for raw in response:
+                    if not raw.strip():
+                        continue
+                    event = json.loads(raw.decode("utf-8", "replace"))
+                    if event.get("error"):
+                        raise RuntimeError(str(event["error"]))
+                    total = int(event.get("total") or 0)
+                    completed = int(event.get("completed") or 0)
+                    if total:
+                        with _pull_lock:
+                            _pull["percent"] = min(int(completed * 100 / total), 99)
+            with _pull_lock:
+                _pull.update(state="done", percent=100, error="")
+        except Exception as exc:
+            with _pull_lock:
+                _pull.update(state="error", error=str(exc))
+        with _models_lock:
+            _models_cache["data"] = None
+        return
+
     start = store_bytes()
     expected = max(int(size_gb * 1e9), 1)
     try:
@@ -660,29 +809,35 @@ def start_pull(model_id):
 
 
 def delete_model(model_id):
-    """Remove a locally-pulled model. Safe by construction: the id must match a
-    model RamaLama actually lists as installed, so nothing user-typed reaches the
-    shell — the same allowlist discipline as the pull side, but against the live
-    install set rather than the curated catalog. The active brain cannot be
-    deleted out from under a running conversation; switch first.
+    """Remove a locally-pulled model. Safe by construction: the id must match the
+    selected engine's live inventory. Ollama receives it as JSON; RamaLama as one
+    fixed argv element. The default brain cannot be deleted out from under a
+    running conversation.
     """
     model_id = (model_id or "").strip()
     installed = {m["label"] for m in local_models() if m.get("pulled")}
     if model_id not in installed:
         return {"ok": False, "error": "not an installed local model | ليس نموذجًا محلّيًا مثبّتًا"}
-    if model_id == short_model(env_model()):
+    if same_model(model_id, env_model()):
         return {"ok": False,
                 "error": "this is the active brain — switch to another first "
                          "| هذا هو العقل الفعّال — بدّله أولًا"}
     try:
-        result = subprocess.run(
-            ["ramalama", "rm", "ollama://" + model_id],
-            capture_output=True, text=True, timeout=120, check=False)
+        if LOCAL_BACKEND == "ollama":
+            if not ensure_local_api():
+                return {"ok": False, "error": "local model server did not start"}
+            ollama_request("/api/delete", method="DELETE",
+                           payload={"model": model_id}, timeout=120)
+            result = None
+        else:
+            result = subprocess.run(
+                ["ramalama", "rm", "ollama://" + model_id],
+                capture_output=True, text=True, timeout=120, check=False)
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
     with _models_lock:                     # the picker must see it gone now
         _models_cache["data"] = None
-    if result.returncode == 0:
+    if result is None or result.returncode == 0:
         return {"ok": True}
     tail = [ln for ln in (result.stderr or result.stdout or "").replace("\r", "\n").splitlines()
             if ln.strip()]
@@ -738,44 +893,62 @@ def diagnose_system():
 
 
 def local_models():
-    """Every model RamaLama has pulled, and which one the local brain serves.
+    """Every model the selected engine has pulled, and the default local route.
 
-    llama.cpp ignores the request's `model` field — VERIFIED: it answers a request
-    for a model that does not exist with the weights it happens to have loaded. So
-    exactly ONE of these can answer at a time, and moai-gateway restarts the unit
-    to switch between them. `serving` is which one is loaded right now; the picker
-    must not pretend the others are live.
+    RamaLama/llama.cpp serves one model and requires a restart to switch. Ollama
+    genuinely honours the request model, so every pulled row is routable and the
+    ``serving`` marker means "plain local/default", not "the only model usable".
     """
     served = short_model(env_model())
     out, seen = [], set()
-    try:
-        result = subprocess.run(["ramalama", "list", "--json"],
-                                capture_output=True, text=True, timeout=25, check=False)
-        if result.returncode == 0:
-            for item in json.loads(result.stdout or "[]"):
-                name = short_model(item.get("name") or "")
-                if not name or name in seen:
-                    continue
-                seen.add(name)
-                out.append({"id": "local:" + name, "label": name,
-                            "pulled": True, "serving": name == served,
-                            "size_gb": round((item.get("size") or 0) / 1e9, 1)})
-    except Exception:
-        pass
-    if served and served not in seen:
-        # The configured model has not been downloaded yet. Say so — it is still a
-        # valid route, it just costs a download the first time.
+    if LOCAL_BACKEND == "ollama":
+        for item in ollama_models():
+            name = short_model(item.get("name") or "")
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            out.append({"id": "local:" + name, "label": name,
+                        "pulled": True, "serving": same_model(name, served),
+                        "size_gb": round((item.get("size") or 0) / 1e9, 1)})
+    else:
+        try:
+            result = subprocess.run(["ramalama", "list", "--json"],
+                                    capture_output=True, text=True, timeout=25, check=False)
+            if result.returncode == 0:
+                for item in json.loads(result.stdout or "[]"):
+                    name = short_model(item.get("name") or "")
+                    if not name or name in seen:
+                        continue
+                    seen.add(name)
+                    out.append({"id": "local:" + name, "label": name,
+                                "pulled": True, "serving": same_model(name, served),
+                                "size_gb": round((item.get("size") or 0) / 1e9, 1)})
+        except Exception:
+            pass
+    served_starter = next(
+        (rec for rec in RECOMMENDED_LOCAL if same_model(rec["id"], served)),
+        None,
+    )
+    if (served and served_starter is not None
+            and not any(same_model(served, name) for name in seen)):
+        # Show a missing configured route only when the one-tap downloader can
+        # actually fetch it. Ollama's synthetic `default` alias and arbitrary
+        # custom names are not pull allowlist entries; exposing either as a Get
+        # row creates a button that can only answer "unknown model".
         seen.add(served)
         out.insert(0, {"id": "local:" + served, "label": served,
-                       "pulled": False, "serving": True, "size_gb": 0})
+                       "pulled": False, "serving": True,
+                       "size_gb": served_starter["size_gb"],
+                       "note": served_starter["note"]})
     # The curated starters: anything not already on the machine joins the list
-    # as a one-tap download; anything already pulled just inherits its note so
-    # the picker can still explain what it is good at.
+    # as a one-tap download; anything already pulled just inherits its note.
     for rec in RECOMMENDED_LOCAL:
         name = rec["id"]
-        if name in seen:
+        matching = next((existing for existing in seen
+                         if same_model(existing, name)), None)
+        if matching is not None:
             for row in out:
-                if row["label"] == name and not row.get("note"):
+                if same_model(row["label"], name) and not row.get("note"):
                     row["note"] = rec["note"]
             continue
         seen.add(name)
@@ -1121,6 +1294,8 @@ class H(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
         # No Access-Control-Allow-Origin on purpose: the pure-QML XHR client is
         # not a browser and needs none; omitting it means a real browser page
         # cannot read our responses cross-origin.
@@ -1130,6 +1305,33 @@ class H(BaseHTTPRequestHandler):
         except Exception:
             pass
 
+    def _reject(self, code, message):
+        # The rejection happens before reading a request body. Close the socket
+        # so unread bytes cannot be parsed as another keep-alive request.
+        self.close_connection = True
+        self._send(code, {"error": message})
+
+    def _foreign_origin(self):
+        origin = self.headers.get("Origin")
+        if not origin:
+            return False
+        try:
+            parsed = urllib.parse.urlsplit(origin)
+            port = parsed.port
+        except ValueError:
+            return True
+        expected_port = getattr(self.server, "server_port", PORT)
+        return not (
+            parsed.scheme == "http"
+            and parsed.hostname in ("127.0.0.1", "localhost", "::1")
+            and port == expected_port
+            and parsed.username is None
+            and parsed.password is None
+            and not parsed.path
+            and not parsed.query
+            and not parsed.fragment
+        )
+
     def _guard(self):
         # CSRF/cross-origin defense for this localhost API. A browser cannot set
         # a custom header without a CORS preflight, which we never approve (no
@@ -1137,12 +1339,10 @@ class H(BaseHTTPRequestHandler):
         # page the user visits from driving the service. The QML client sets it
         # directly (not subject to CORS).
         if self.headers.get("X-Moai-Control") != "1":
-            self._send(403, {"error": "forbidden"})
+            self._reject(403, "forbidden")
             return False
-        origin = self.headers.get("Origin")
-        if origin and origin != "null" \
-                and "127.0.0.1" not in origin and "localhost" not in origin:
-            self._send(403, {"error": "bad origin"})
+        if self._foreign_origin():
+            self._reject(403, "bad origin")
             return False
         return True
 
@@ -1151,9 +1351,9 @@ class H(BaseHTTPRequestHandler):
             return
         path = urllib.parse.urlparse(self.path)
         route = path.path
-        if route.startswith("/providers"):
+        if route == "/providers":
             self._send(200, {"providers": PROVIDERS})
-        elif route.startswith("/config"):
+        elif route == "/config":
             c = load()
             self._send(200, {
                 "mode": c.get("mode", "local"),
@@ -1162,45 +1362,62 @@ class H(BaseHTTPRequestHandler):
                 "cloud_wire": c.get("cloud_wire", "openai"),
                 "has_key": bool(get_secret()),
             })
-        elif route.startswith("/status"):
+        elif route == "/status":
             self._send(200, {"online": brain_online()})
-        elif route.startswith("/quick"):
+        elif route == "/quick":
             self._send(200, quick())
-        elif route.startswith("/models"):
+        elif route == "/models":
             self._send(200, models())
-        elif route.startswith("/diagnose"):
+        elif route == "/diagnose":
             # Read-only: reason about system health via moos-selfcheck and return
             # the safe repair menu. The repairs themselves are moos://do/<id>.
             self._send(200, diagnose_system())
-        elif route.startswith("/pull"):
+        elif route == "/pull":
             # Polled by the picker while a starter downloads.
             with _pull_lock:
                 self._send(200, dict(_pull))
-        elif route.startswith("/scan"):
+        elif route == "/scan":
             self._send(200, scan())
-        elif route.startswith("/search"):
+        elif route == "/search":
             q = urllib.parse.parse_qs(path.query).get("q", [""])[0]
             self._send(200, search_apps(q))
         else:
             self._send(404, {"error": "not found"})
 
     def do_POST(self):
-        n = int(self.headers.get("Content-Length", 0) or 0)
-        raw = self.rfile.read(n) if n else b"{}"   # drain first (keep-alive safe)
         if not self._guard():
             return
-        # Reject the CORS "simple request" path (text/plain) that skips preflight.
-        if "application/json" not in (self.headers.get("Content-Type") or ""):
-            return self._send(415, {"error": "content-type must be application/json"})
+        media_type = (self.headers.get("Content-Type") or "").split(
+            ";", 1
+        )[0].strip().lower()
+        if media_type != "application/json":
+            return self._reject(415, "content-type must be application/json")
+        if self.headers.get("Transfer-Encoding"):
+            return self._reject(400, "transfer encoding is not supported")
+        lengths = self.headers.get_all("Content-Length") or []
+        if len(lengths) != 1:
+            return self._reject(411, "one content length is required")
+        try:
+            n = int(lengths[0])
+            if n < 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return self._reject(400, "bad content length")
+        if n > MAX_BODY_BYTES:
+            return self._reject(413, "request body too large")
+        raw = self.rfile.read(n) or b"{}"
         try:
             data = json.loads(raw)
         except Exception:
             return self._send(400, {"error": "bad json"})
+        if not isinstance(data, dict):
+            return self._send(400, {"error": "json body must be an object"})
+        route = urllib.parse.urlparse(self.path).path
 
         # /test — try the provider for real, without saving anything. The key may
         # come from the form (the user is still typing it) or from the keyring (it
         # is already saved and the field was left blank).
-        if self.path.startswith("/test"):
+        if route == "/test":
             return self._send(200, test_cloud(
                 data.get("cloud_base", ""),
                 data.get("cloud_model", ""),
@@ -1209,30 +1426,33 @@ class H(BaseHTTPRequestHandler):
 
         # /pull — download a curated starter brain. The picker's "one-tap
         # download" label finally has a machine behind it.
-        if self.path.startswith("/pull"):
+        if route == "/pull":
             return self._send(200, start_pull((data.get("model") or "").strip()))
 
-        # /delete — remove a locally-pulled model. Only something RamaLama already
-        # lists as installed can be removed, and never the active brain; nothing
-        # user-typed reaches the shell. This is the "delete" half of managing the
-        # local brains from Settings, symmetric with /pull.
-        if self.path.startswith("/delete"):
+        # /delete — remove a model the selected engine actually lists, never the
+        # default brain. Nothing user-typed reaches a shell; Ollama receives the
+        # validated name as JSON and RamaLama receives one fixed argv element.
+        if route == "/delete":
             return self._send(200, delete_model(data.get("model") or ""))
 
-        if not self.path.startswith("/config"):
+        if route != "/config":
             return self._send(404, {"error": "not found"})
-        cur = load()
         mode = "cloud" if data.get("mode") == "cloud" else "local"
         key = data.get("cloud_key") or ""
         if key and not store_secret(key):
             return self._send(503, {"error": "Secret Service is unavailable"})
-        out = {
-            "mode": mode,
-            "cloud_base": data.get("cloud_base", cur.get("cloud_base", "")),
-            "cloud_model": data.get("cloud_model", cur.get("cloud_model", "")),
-            "cloud_wire": data.get("cloud_wire", cur.get("cloud_wire", "openai")),
-        }
-        save(out)
+        # One read-modify-write transaction: ThreadingHTTPServer may receive two
+        # settings saves together, and neither may overwrite fields from a
+        # newer request using a stale snapshot.
+        with CONFIG_LOCK:
+            cur = load()
+            out = {
+                "mode": mode,
+                "cloud_base": data.get("cloud_base", cur.get("cloud_base", "")),
+                "cloud_model": data.get("cloud_model", cur.get("cloud_model", "")),
+                "cloud_wire": data.get("cloud_wire", cur.get("cloud_wire", "openai")),
+            }
+            save(out)
 
         # This used to `systemctl disable --now` one brain and `enable --now` the
         # other, because both listened on 8080. They no longer do: the gateway owns
@@ -1252,6 +1472,11 @@ class H(BaseHTTPRequestHandler):
         else:
             sysctl("enable", GATEWAY_UNIT)
         self._send(200, {"ok": True, "mode": mode})
+
+    def do_OPTIONS(self):
+        # No CORS grant: foreign browser pages cannot obtain permission for the
+        # X-Moai-Control header required by every route.
+        self._reject(405, "method not allowed")
 
 
 if __name__ == "__main__":

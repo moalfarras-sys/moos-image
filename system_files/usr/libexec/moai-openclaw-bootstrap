@@ -1,0 +1,280 @@
+#!/usr/bin/env python3
+"""Create the safe, local-first OpenClaw baseline without overwriting user choices.
+
+OpenClaw is installed per-user, so a fresh account has no configuration at all.
+The installer calls this helper after npm succeeds.  Existing values always win;
+only missing schema fields are filled.  The resulting file is written atomically
+with private directory/file modes because it may later contain channel tokens.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+HOME = Path.home()
+CONFIG_DIR = HOME / ".openclaw"
+CONFIG = CONFIG_DIR / "openclaw.json"
+LOCAL_BIN = HOME / ".local/bin"
+DOCKER_SHIM = LOCAL_BIN / "docker"
+PODMAN = Path("/usr/bin/podman")
+DOCKER_SHIM_CONTENT = b'#!/bin/sh\nexec /usr/bin/podman "$@"\n'
+OPENCLAW = HOME / ".local/bin/openclaw"
+OPENCLAW_PATH = (
+    f"{HOME}/.local/node/bin:{HOME}/.local/bin:/usr/bin:/bin"
+)
+
+OLLAMA_PROVIDER = {
+    "baseUrl": "http://127.0.0.1:11434",
+    "apiKey": "ollama-local",
+    "api": "ollama",
+}
+OLLAMA_DEFAULT_MODEL = {
+    "id": "default",
+    "name": "default",
+    "contextWindow": 24576,
+    "maxTokens": 2048,
+}
+AUDIO_TRANSCRIBER = {
+    "type": "cli",
+    "command": "/usr/bin/moai-transcribe",
+    "args": ["{{MediaPath}}"],
+    "timeoutSeconds": 300,
+}
+SPEACHES_TTS = {
+    # OpenClaw's current OpenAI speech provider accepts a custom baseUrl and
+    # responseFormat.  Speaches implements that exact /v1/audio/speech API.
+    "apiKey": "speaches-local",
+    "baseUrl": "http://127.0.0.1:8000/v1",
+    "model": "speaches-ai/piper-ar_JO-kareem-medium",
+    "speakerVoice": "kareem",
+    "responseFormat": "mp3",
+}
+
+
+def object_at(parent: dict, key: str) -> dict:
+    value = parent.get(key)
+    if value is None:
+        value = {}
+        parent[key] = value
+    if not isinstance(value, dict):
+        raise ValueError(f"OpenClaw config field {key!r} must be an object")
+    return value
+
+
+def load_existing() -> dict:
+    if not CONFIG.exists():
+        return {}
+    try:
+        value = json.loads(CONFIG.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"could not read existing OpenClaw config: {exc}") from exc
+    if not isinstance(value, dict):
+        raise ValueError("existing OpenClaw config must be a JSON object")
+    return value
+
+
+def merge_baseline(cfg: dict) -> dict:
+    gateway = object_at(cfg, "gateway")
+    gateway.setdefault("mode", "local")
+
+    providers = object_at(object_at(cfg, "models"), "providers")
+    ollama = object_at(providers, "ollama")
+    for key, value in OLLAMA_PROVIDER.items():
+        ollama.setdefault(key, value)
+    models = ollama.get("models")
+    if models is None:
+        ollama["models"] = [dict(OLLAMA_DEFAULT_MODEL)]
+    elif not isinstance(models, list):
+        raise ValueError("OpenClaw config field 'models.providers.ollama.models' must be an array")
+    elif not any(isinstance(item, dict) and item.get("id") == "default" for item in models):
+        models.append(dict(OLLAMA_DEFAULT_MODEL))
+
+    defaults = object_at(object_at(cfg, "agents"), "defaults")
+    model = object_at(defaults, "model")
+    model.setdefault("primary", "ollama/default")
+    defaults.setdefault("elevatedDefault", "off")
+    sandbox = object_at(defaults, "sandbox")
+    sandbox.setdefault("mode", "all")
+    sandbox.setdefault("workspaceAccess", "ro")
+
+    tools = object_at(cfg, "tools")
+    exec_policy = object_at(tools, "exec")
+    exec_policy.setdefault("security", "deny")
+    exec_policy.setdefault("ask", "off")
+    by_provider = object_at(tools, "byProvider")
+    local_policy = object_at(by_provider, "ollama/default")
+    local_policy.setdefault("deny", ["group:web", "browser", "exec"])
+
+    # `audio.transcription` was retired in OpenClaw 2026.7. Inbound voice now
+    # uses the shared media pipeline. Remove only that obsolete leaf (leaving
+    # any other user-owned audio settings intact), then seed MoOS's fixed local
+    # CLI only when the user has not already chosen media models.
+    legacy_audio = cfg.get("audio")
+    if isinstance(legacy_audio, dict):
+        legacy_audio.pop("transcription", None)
+        if not legacy_audio:
+            cfg.pop("audio", None)
+    media_audio = object_at(object_at(tools, "media"), "audio")
+    media_audio.setdefault("enabled", True)
+    media_models = media_audio.get("models")
+    if media_models is None:
+        media_audio["models"] = [dict(AUDIO_TRANSCRIBER)]
+    elif not isinstance(media_models, list):
+        raise ValueError("OpenClaw config field 'tools.media.audio.models' must be an array")
+
+    approvals = object_at(cfg, "approvals")
+    exec_approvals = object_at(approvals, "exec")
+    exec_approvals.setdefault("enabled", False)
+
+    tts = object_at(object_at(cfg, "messages"), "tts")
+    tts.setdefault("enabled", True)
+    tts.setdefault("auto", "inbound")
+    tts.setdefault("mode", "final")
+    tts.setdefault("provider", "openai")
+    tts.setdefault("maxTextLength", 600)
+    tts.setdefault("timeoutMs", 120000)
+    tts_providers = object_at(tts, "providers")
+    openai_tts = object_at(tts_providers, "openai")
+    for key, value in SPEACHES_TTS.items():
+        openai_tts.setdefault(key, value)
+
+    return cfg
+
+
+def _fsync_dir(directory: Path) -> None:
+    directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
+def ensure_podman_docker_shim() -> None:
+    """Provide the literal `docker` executable OpenClaw's sandbox invokes.
+
+    MoOS ships Podman, not the podman-docker compatibility package. Never
+    replace an existing working user command: a real Docker client, a Podman
+    compatibility client, and MoOS's fixed shim are all valid sandbox fronts.
+    Create the shim only when the path is genuinely absent.
+    """
+    if not PODMAN.is_file() or not os.access(PODMAN, os.X_OK):
+        raise ValueError("/usr/bin/podman is missing or not executable")
+
+    LOCAL_BIN.mkdir(mode=0o755, parents=True, exist_ok=True)
+    if DOCKER_SHIM.exists() or DOCKER_SHIM.is_symlink():
+        if not DOCKER_SHIM.is_file() or not os.access(DOCKER_SHIM, os.X_OK):
+            raise ValueError(
+                "~/.local/bin/docker exists but is not an executable file; "
+                "it was left untouched"
+            )
+    else:
+        fd, tmp_name = tempfile.mkstemp(prefix=".docker.", dir=LOCAL_BIN)
+        tmp = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(DOCKER_SHIM_CONTENT)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.chmod(tmp, 0o755)
+            try:
+                # link(2) is atomic and refuses to overwrite a file that appears
+                # between the existence check and this commit.
+                os.link(tmp, DOCKER_SHIM)
+            except FileExistsError:
+                if not DOCKER_SHIM.is_file() or not os.access(DOCKER_SHIM, os.X_OK):
+                    raise ValueError(
+                        "~/.local/bin/docker appeared during setup but is not executable; "
+                        "it was left untouched"
+                    )
+            _fsync_dir(LOCAL_BIN)
+        finally:
+            try:
+                tmp.unlink()
+            except FileNotFoundError:
+                pass
+
+    smoke = subprocess.run(
+        [str(DOCKER_SHIM), "--version"],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+        env={**os.environ, "PATH": OPENCLAW_PATH},
+    )
+    identity = (smoke.stdout + smoke.stderr).lower()
+    if smoke.returncode != 0 or not any(name in identity for name in ("docker", "podman")):
+        raise ValueError("the existing Docker/Podman sandbox command failed its smoke test")
+
+
+def validate_staged_config(path: Path) -> None:
+    """Ask the installed, pinned OpenClaw runtime to validate before commit."""
+    if not OPENCLAW.is_file() or not os.access(OPENCLAW, os.X_OK):
+        return
+    result = subprocess.run(
+        [str(OPENCLAW), "config", "validate", "--json"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+        env={
+            **os.environ,
+            "PATH": OPENCLAW_PATH,
+            "OPENCLAW_CONFIG_PATH": str(path),
+        },
+    )
+    if result.returncode != 0:
+        raise ValueError("OpenClaw rejected the generated configuration")
+
+
+def atomic_save(cfg: dict) -> None:
+    CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(CONFIG_DIR, 0o700)
+    fd, tmp_name = tempfile.mkstemp(prefix=".openclaw.json.", dir=CONFIG_DIR)
+    tmp = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(cfg, handle, indent=2, ensure_ascii=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(tmp, 0o600)
+        validate_staged_config(tmp)
+        os.replace(tmp, CONFIG)
+        _fsync_dir(CONFIG_DIR)
+    finally:
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def main() -> int:
+    if sys.argv[1:] not in ([], ["--existing-only"]):
+        print(
+            "usage: moai-openclaw-bootstrap [--existing-only]",
+            file=sys.stderr,
+        )
+        return 2
+    if sys.argv[1:] == ["--existing-only"] and (
+        not CONFIG.is_file()
+        or not OPENCLAW.is_file()
+        or not os.access(OPENCLAW, os.X_OK)
+    ):
+        return 0
+    try:
+        ensure_podman_docker_shim()
+        atomic_save(merge_baseline(load_existing()))
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+        print(f"moai-openclaw-bootstrap: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

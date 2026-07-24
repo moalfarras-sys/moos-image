@@ -10,8 +10,9 @@
 #
 #   Now there is one door:
 #
-#       8080   moai-gateway   ALWAYS ON. The only thing the app ever talks to.
-#       8081   moai.service   the local brain (RamaLama). Started ON DEMAND.
+#       8080   moai-gateway       ALWAYS ON. The app's only front door.
+#       8081   moai.service       RamaLama fallback, started on demand.
+#      11434   ollama/moai-brain  Ollama engine, when selected, on demand.
 #
 #   The app still speaks exactly ONE dialect — OpenAI /v1/chat/completions with
 #   SSE deltas — and still never sees the API key. What is new is that it may say
@@ -28,17 +29,15 @@
 #   └──────────────────────────────────────────────────────────────────────────┘
 #
 #   The split is on the FIRST colon, so a model id may contain colons of its own
-#   ("local:qwen3:4b-instruct" → local, "qwen3:4b-instruct").
+#   ("local:qwen3:4b" → local, "qwen3:4b").
 #
-# WHY `local:<model>` RESTARTS THE UNIT INSTEAD OF PASSING THE NAME THROUGH
-#   llama.cpp — which is what RamaLama serves behind — IGNORES the request's
-#   `model` field. VERIFIED on this machine: a request for "totally-made-up" was
-#   answered, without complaint, by the loaded weights. So a picker that listed
-#   three local models and simply forwarded the name would be a lie: all three
-#   would be answered by the same model. The only honest way to serve a different
-#   local model is to point the unit at it and restart, which is what ensure_local
-#   does — and only for a model that is ALREADY pulled, because a chat message
-#   must never be able to start a multi-gigabyte download behind the user's back.
+# WHY THE TWO LOCAL ENGINES SWITCH DIFFERENTLY
+#   Ollama honours the request's model, so its selected tag is passed through
+#   directly and the unit is never restarted. RamaLama serves llama.cpp, which
+#   IGNORES that field (verified with a deliberately made-up model name), so its
+#   unit must be repointed and restarted. Both paths accept only models already
+#   present locally: a chat message must never begin a multi-gigabyte download
+#   behind the user's back.
 #
 # WIRE PROTOCOLS (the cloud side, unchanged)
 #   openai     — OpenAI, OpenRouter, Google Gemini (its OpenAI-compatible
@@ -53,7 +52,7 @@
 # (base URL + model + wire) from ~/.config/moai/config.json and the KEY from Secret
 # Service. Stdlib only (no pip deps).
 import json, os, re, socket, subprocess, sys, threading, time
-import urllib.error, urllib.request
+import urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CONFIG = os.path.expanduser("~/.config/moai/config.json")
@@ -61,8 +60,23 @@ MOOS_DIR = os.path.expanduser("~/.config/moos")
 ENV_FILE = os.path.join(MOOS_DIR, "moai.env")
 
 PORT = int(os.environ.get("MOAI_GATEWAY_PORT", "8080"))
-LOCAL_PORT = int(os.environ.get("MOAI_LOCAL_PORT", "8081"))
-LOCAL_UNIT = os.environ.get("MOAI_LOCAL_UNIT", "moai.service")
+RAMALAMA_UNIT = "moai.service"
+OLLAMA_UNITS = ("ollama.service", "moai-brain.service")
+ALLOWED_LOCAL_UNITS = (RAMALAMA_UNIT, *OLLAMA_UNITS)
+_requested_local_unit = os.environ.get("MOAI_LOCAL_UNIT", RAMALAMA_UNIT)
+LOCAL_UNIT = (_requested_local_unit if _requested_local_unit in ALLOWED_LOCAL_UNITS
+              else RAMALAMA_UNIT)
+_derived_backend = "ollama" if LOCAL_UNIT in OLLAMA_UNITS else "ramalama"
+_requested_backend = os.environ.get("MOAI_LOCAL_BACKEND", _derived_backend)
+LOCAL_BACKEND = (_requested_backend
+                 if _requested_backend in ("ollama", "ramalama")
+                 and _requested_backend == _derived_backend
+                 else _derived_backend)
+try:
+    LOCAL_PORT = int(os.environ.get(
+        "MOAI_LOCAL_PORT", "11434" if LOCAL_BACKEND == "ollama" else "8081"))
+except (TypeError, ValueError):
+    LOCAL_PORT = 11434 if LOCAL_BACKEND == "ollama" else 8081
 LOCAL_BASE = "http://127.0.0.1:%d" % LOCAL_PORT
 
 # The gateway is the one process that sees every local chat, so it stamps the time of
@@ -93,7 +107,9 @@ LOCAL_TIMEOUT = float(os.environ.get("MOAI_LOCAL_TIMEOUT", "180"))
 # Must stay in step with Environment=MOAI_MODEL in moai.service. This is only the
 # fallback: ~/.config/moos/moai.env is an EnvironmentFile and therefore OUTRANKS
 # the unit's Environment=, so env_model() reads the file that actually decides.
-DEFAULT_LOCAL_MODEL = "ollama://qwen2.5:7b-instruct"
+DEFAULT_LOCAL_MODEL = os.environ.get(
+    "MOAI_LOCAL_MODEL",
+    "default" if LOCAL_BACKEND == "ollama" else "ollama://qwen2.5:7b-instruct")
 
 # Identify ourselves. Python's urllib defaults to "Python-urllib/3.x", and
 # Cloudflare — which fronts a large share of AI providers — answers that with
@@ -108,7 +124,7 @@ DEFAULT_MAX_TOKENS = 2048
 # A base URL is expected to carry its API version ("…/v1", "…/v1beta/openai").
 VERSIONED = re.compile(r"/v\d[\w.]*(/|$)")
 
-# "ollama://library/qwen3:4b-instruct" — strip the transport, keep the name.
+# "ollama://library/qwen3:4b" — strip the transport, keep the name.
 SCHEME = re.compile(r"^[a-z0-9+.-]+://")
 
 
@@ -134,7 +150,7 @@ def load_secret():
 # ── The local brain ──────────────────────────────────────────────────────────
 
 def short_model(name):
-    """`ollama://library/qwen3:4b-instruct` → `qwen3:4b-instruct`.
+    """`ollama://library/qwen3:4b` → `qwen3:4b`.
 
     RamaLama normalises `ollama://qwen3:4b` to `ollama://library/qwen3:4b`, so the
     string in moai.env and the string in `ramalama list` name the same weights and
@@ -147,6 +163,15 @@ def short_model(name):
     return n
 
 
+def comparable_model(name):
+    name = short_model(name)
+    return name[:-len(":latest")] if name.endswith(":latest") else name
+
+
+def same_model(left, right):
+    return comparable_model(left) == comparable_model(right)
+
+
 def env_model():
     """The model the local unit will ACTUALLY serve.
 
@@ -154,6 +179,10 @@ def env_model():
     Environment= line. Reading the shipped default here instead of this file is
     the exact mistake that let a stale moai.env keep the local brain on 8080.
     """
+    if LOCAL_BACKEND == "ollama":
+        # Ollama honours the request model.  moai.env is RamaLama's private
+        # EnvironmentFile and must never cause an Ollama service restart.
+        return DEFAULT_LOCAL_MODEL
     try:
         with open(ENV_FILE, encoding="utf-8") as f:
             for line in f:
@@ -174,6 +203,8 @@ def env_port():
     own Environment= lines — so this file wins. A moai.env left over from the old
     single-port layout still says MOAI_PORT=8080.
     """
+    if LOCAL_BACKEND == "ollama":
+        return LOCAL_PORT
     try:
         with open(ENV_FILE, encoding="utf-8") as f:
             for line in f:
@@ -191,6 +222,8 @@ def set_env_model(model):
     gateway's and a rewrite that carried a stale MOAI_PORT forward would put the
     local brain back on top of the front door.
     """
+    if LOCAL_BACKEND != "ramalama":
+        raise RuntimeError("moai.env belongs to RamaLama")
     os.makedirs(MOOS_DIR, exist_ok=True)
     os.chmod(MOOS_DIR, 0o700)
     tmp = ENV_FILE + ".new"
@@ -206,19 +239,28 @@ PULLED_TTL = 30.0
 
 
 def pulled_models():
-    """The models RamaLama has already downloaded. Cached — it is a subprocess."""
+    """The models the selected engine has already downloaded."""
     with _pulled_lock:
         if _pulled_cache["names"] and time.monotonic() - _pulled_cache["ts"] < PULLED_TTL:
             return list(_pulled_cache["names"])
     names = []
     try:
-        result = subprocess.run(["ramalama", "list", "--json"],
-                                capture_output=True, text=True, timeout=25, check=False)
-        if result.returncode == 0:
-            for item in json.loads(result.stdout or "[]"):
-                name = (item.get("name") or "").strip()
+        if LOCAL_BACKEND == "ollama":
+            with urllib.request.urlopen(LOCAL_BASE + "/api/tags", timeout=12) as response:
+                data = json.loads(response.read().decode("utf-8", "replace"))
+            items = data.get("models", []) if isinstance(data, dict) else []
+            for item in items:
+                name = (item.get("name") or item.get("model") or "").strip()
                 if name:
                     names.append(name)
+        else:
+            result = subprocess.run(["ramalama", "list", "--json"],
+                                    capture_output=True, text=True, timeout=25, check=False)
+            if result.returncode == 0:
+                for item in json.loads(result.stdout or "[]"):
+                    name = (item.get("name") or "").strip()
+                    if name:
+                        names.append(name)
     except Exception:
         pass
     with _pulled_lock:
@@ -381,6 +423,34 @@ def ensure_local(want):
     second one should wait for the first rather than start a parallel download.
     """
     with _local_lock:
+        if LOCAL_BACKEND == "ollama":
+            target = short_model(want) or short_model(DEFAULT_LOCAL_MODEL)
+
+            # Starting Ollama loads no model by itself.  It is safe to wake the
+            # server, then verify the requested tag is already present before
+            # forwarding the chat.  A chat message never starts a download.
+            if not local_online():
+                error = systemctl("start")
+                if error:
+                    return ("تعذّر تشغيل العقل المحلي | could not start the local brain\n"
+                            + error)
+                deadline = time.monotonic() + LOCAL_TIMEOUT
+                while time.monotonic() < deadline and not local_online():
+                    reason = local_failure_reason()
+                    if reason:
+                        return reason
+                    time.sleep(1.0)
+                if not local_online():
+                    return ("العقل المحلي لم يبدأ | the local model server did not start")
+
+            installed = pulled_models()
+            if target and not any(same_model(target, name) for name in installed):
+                return ("النموذج «%s» غير محمّل على هذا الجهاز.\n"
+                        "نزّله من Mo AI ← الإعدادات ← النماذج.\n"
+                        "The local model \"%s\" is not downloaded. Download it from "
+                        "Mo AI → Settings → Models." % (target, target))
+            return ""
+
         current = env_model()
         switching = bool(want) and short_model(want) != short_model(current)
 
@@ -601,9 +671,32 @@ class Handler(BaseHTTPRequestHandler):
                 load_secret(),
                 (cfg.get("cloud_wire") or "openai").lower())
 
+    def _foreign_origin(self):
+        origin = self.headers.get("Origin")
+        if not origin:
+            return False
+        try:
+            parsed = urllib.parse.urlsplit(origin)
+            port = parsed.port
+        except ValueError:
+            return True
+        expected_port = getattr(self.server, "server_port", PORT)
+        return not (
+            parsed.scheme == "http"
+            and parsed.hostname in ("127.0.0.1", "localhost", "::1")
+            and port == expected_port
+            and parsed.username is None
+            and parsed.password is None
+            and not parsed.path
+            and not parsed.query
+            and not parsed.fragment
+        )
+
     # ── GET ──────────────────────────────────────────────────────────────────
 
     def do_GET(self):
+        if self._foreign_origin():
+            return self._err(403, "foreign origin")
         cfg = load_cfg()
 
         # The liveness probe. Cheap on purpose — moai-control polls it every few
@@ -623,13 +716,10 @@ class Handler(BaseHTTPRequestHandler):
         # moai-control's /models asks the provider for that list.
         if self.path.startswith("/v1/models"):
             data = [{"id": "default", "object": "model", "owned_by": "moos"}]
-            served = short_model(env_model())
-            names = [short_model(n) for n in pulled_models()] or [served]
-            if served not in names:
-                names.insert(0, served)
+            names = [short_model(n) for n in pulled_models()]
             for name in names:
                 data.append({"id": "local:" + name, "object": "model",
-                             "owned_by": "ramalama"})
+                             "owned_by": LOCAL_BACKEND})
             base, key, _ = self._cloud_cfg(cfg)
             model = (cfg.get("cloud_model") or "").strip()
             if base and key and model:
@@ -647,18 +737,35 @@ class Handler(BaseHTTPRequestHandler):
     # ── POST ─────────────────────────────────────────────────────────────────
 
     def do_POST(self):
-        # Drain the request body FIRST — an early error must not leave unread
-        # bytes in the keep-alive socket (they would desync the next request).
-        length = int(self.headers.get("Content-Length", 0) or 0)
+        if self._foreign_origin():
+            return self._err(403, "foreign origin")
+        media_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+        if media_type != "application/json":
+            return self._err(415, "content type must be application/json")
+        if self.headers.get("Transfer-Encoding"):
+            return self._err(400, "transfer encoding is not supported")
+
+        # Once the headers pass, drain the body in one bounded-by-Content-Length
+        # read.  Header rejections close the connection in _err(), so their
+        # unread bytes can never desynchronise a keep-alive socket.
+        lengths = self.headers.get_all("Content-Length") or []
+        if len(lengths) != 1:
+            return self._err(411, "one content length is required")
+        try:
+            length = int(lengths[0])
+            if length < 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return self._err(400, "bad content length")
         raw = self.rfile.read(length) if length else b""
 
         cfg = load_cfg()
         try:
-            req = json.loads(raw) if raw else {}
+            req = json.loads(raw)
         except Exception:
-            req = {}
+            return self._err(400, "bad json")
         if not isinstance(req, dict):
-            req = {}
+            return self._err(400, "json body must be an object")
 
         brain, model = resolve(req.get("model", ""), cfg)
         if brain == "local":
@@ -678,7 +785,7 @@ class Handler(BaseHTTPRequestHandler):
             # llama.cpp ignores this, but send something coherent rather than the
             # routing token: a proxy that forwards "local:qwen3" as a model name
             # is lying to whatever it is talking to.
-            out["model"] = model or "default"
+            out["model"] = model or short_model(DEFAULT_LOCAL_MODEL) or "default"
             streaming = bool(out.get("stream"))
             body = json.dumps(out).encode("utf-8")
         self._proxy("POST", LOCAL_BASE + self.path, {}, body, "openai", streaming)

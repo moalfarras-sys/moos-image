@@ -7,7 +7,7 @@ Comment[ar]=يشغّل/يوقف وضعاً خفيفاً يسرّع الاتصا�
 Exec=moos-fast-remote toggle
 Icon=preferences-system-network-remote
 Terminal=false
-Categories=System;RemoteAccess;
+Categories=Network;RemoteAccess;
 Keywords=remote;fast;speed;stream;موس;سريع;
 X-KDE-GlobalAccel=Meta+R
 # Fast Remote is no longer a standalone icon — it is merged into Mo PC Remote (the

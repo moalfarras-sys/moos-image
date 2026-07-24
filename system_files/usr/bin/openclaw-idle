@@ -10,8 +10,8 @@
 # Loss-free & self-healing:
 #   • The DESKTOP front door (moai-gateway) restarts ollama on the next local chat
 #     via ensure_local (MOAI_LOCAL_UNIT=ollama.service).
-#   • moai-wake re-wakes openclaw-gateway on the next allowlisted Telegram message,
-#     which pulls ollama back up (Requires=ollama.service). Telegram redelivers any
+#   • moai-wake re-wakes openclaw-gateway on the next allowlisted Telegram message;
+#     its preflight starts the selected Ollama unit. Telegram redelivers any
 #     message that arrived during the handoff, so nothing is dropped.
 # ONE signal covers both clients (they share one Ollama): the model's residency.
 # A resident model means someone is mid-conversation — leave everything up. A
@@ -20,7 +20,10 @@
 # =============================================================================
 set -uo pipefail
 
-OLLAMA="http://127.0.0.1:11434"
+ENGINE_HELPER="/usr/libexec/moai-local-engine"
+[ "$("$ENGINE_HELPER" backend)" = "ollama" ] || exit 0
+OLLAMA_UNIT="$("$ENGINE_HELPER" unit)"
+OLLAMA="http://127.0.0.1:$("$ENGINE_HELPER" port)"
 GRACE_SEC="${MOAI_RUNTIME_GRACE_SEC:-120}"
 
 # Model residency: 0 = up but idle (keep-alive expired) → sleep the runtime.
@@ -64,14 +67,16 @@ stop_unit() {  # stop + normalise, but only if active and past its start grace
     logger -t openclaw-idle "slept $u (Mo AI runtime idle)" 2>/dev/null || true
 }
 
-# Sleep the heavy stack, requirer before requirement (openclaw needs ollama).
+# Sleep the heavy stack, consumer before providers (OpenClaw uses speech/Ollama).
 # On a cloud brain, leave the gateway + speaches up (see cloud_primary above) so
 # the bot stays responsive and apps it opened are not torn down.
 if [ "$cloud_primary" != 1 ]; then
     stop_unit openclaw-gateway.service
     stop_unit speaches.service
+    # Compatibility with the first shipped setup-brain Quadlet name.
+    stop_unit moai-speech.service
 fi
 if [ "$resident" = "0" ]; then
-    stop_unit ollama.service   # was up but idle → free its ~943 MB + any VRAM
+    stop_unit "$OLLAMA_UNIT"   # was up but idle → free its RAM + any VRAM
 fi
 exit 0

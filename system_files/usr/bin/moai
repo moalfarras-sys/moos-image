@@ -47,11 +47,10 @@ LOG="${CACHE}/moai.log"
 mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
 
 # The app always talks to 127.0.0.1:8080, which is moai-gateway — the always-on
-# front door, and the ONLY thing on that port. It routes each request to the local
-# RamaLama brain on 8081 (starting it on demand) or to the configured cloud
-# provider, whose API key it alone ever sees. The app names the brain it wants in
-# the request itself, so the launcher passes nothing brain-specific and no service
-# has to be bounced to change brain.
+# front door, and the ONLY thing on that port. It routes each request to the
+# selected allowlisted local engine (starting it on demand) or to the configured
+# cloud provider, whose API key it alone ever sees. The app names the brain it
+# wants in the request itself, so the launcher passes nothing engine-specific.
 #
 # Run under moos-qml-shell, NOT the bare qml-qt6 runtime. The runtime derives the
 # Wayland app_id from its own executable name — org.qt-project.qml-qt6 — and

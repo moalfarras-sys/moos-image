@@ -9,7 +9,7 @@ Wants=network-online.target
 # (sha256:21e3df06d842…), an unpinned tag turns a silent upstream bump into a
 # silent Arabic-quality change.
 Image=localhost/speaches-ar:0.8.3-cpu
-ContainerName=moai-speech
+ContainerName=speaches
 PublishPort=127.0.0.1:8000:8000
 
 # Named volume, NOT a host bind mount. The image pre-creates this path owned by
@@ -46,5 +46,5 @@ RestartSec=5
 # Model downloads are ~1.4GB; the default 90s start timeout would kill it.
 TimeoutStartSec=900
 
-[Install]
-WantedBy=default.target
+# Deliberately no [Install]: OpenClaw preflight and moai-transcribe start this
+# service on demand, so a machine with no voice traffic carries no idle model.

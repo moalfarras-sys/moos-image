@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# moai-local-engine — resolve Mo AI's selected local runtime without ever
+# accepting a unit name as a command.  Several user-facing helpers run outside
+# moai-gateway's systemd environment; this gives all of them the same answer.
+set -uo pipefail
+
+RAMALAMA_UNIT="moai.service"
+OLLAMA_UNIT="ollama.service"
+MOOS_OLLAMA_UNIT="moai-brain.service"
+CFG="${XDG_CONFIG_HOME:-$HOME/.config}/moos/moai-local.env"
+
+allowed_unit() {
+    case "${1:-}" in
+        "$RAMALAMA_UNIT"|"$OLLAMA_UNIT"|"$MOOS_OLLAMA_UNIT") return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+configured_unit() {
+    local candidate="${MOAI_LOCAL_UNIT:-}" loaded=""
+    if allowed_unit "$candidate"; then
+        printf '%s\n' "$candidate"
+        return
+    fi
+
+    # setup-brain writes the user's explicit selection here.  Read it before the
+    # unit metadata: `systemctl show -p Environment` does not expand
+    # EnvironmentFile= and therefore otherwise exposes the image's RamaLama
+    # default even when the user selected Ollama.
+    candidate="$(sed -n 's/^MOAI_LOCAL_UNIT=//p' "$CFG" 2>/dev/null | tail -n1)"
+    if allowed_unit "$candidate"; then
+        printf '%s\n' "$candidate"
+        return
+    fi
+
+    # Upgrade fallback for pre-selection-file installations that used a user
+    # drop-in with Environment=MOAI_LOCAL_UNIT=... . Only fixed unit names pass
+    # the allowlist below.
+    loaded="$(systemctl --user show moai-gateway.service \
+        -p Environment --value 2>/dev/null || true)"
+    candidate="$(printf '%s\n' "$loaded" | tr ' ' '\n' \
+        | sed -n 's/^MOAI_LOCAL_UNIT=//p' | tail -n1)"
+    if allowed_unit "$candidate"; then
+        printf '%s\n' "$candidate"
+        return
+    fi
+
+    # Upgrade fallback for machines configured before moai-local.env existed.
+    # Only the three known units are ever queried or returned.
+    for candidate in "$OLLAMA_UNIT" "$MOOS_OLLAMA_UNIT" "$RAMALAMA_UNIT"; do
+        if systemctl --user is-active --quiet "$candidate" 2>/dev/null; then
+            printf '%s\n' "$candidate"
+            return
+        fi
+    done
+    if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/containers/systemd/ollama.container" ]; then
+        printf '%s\n' "$OLLAMA_UNIT"
+    elif [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/containers/systemd/moai-brain.container" ]; then
+        printf '%s\n' "$MOOS_OLLAMA_UNIT"
+    else
+        printf '%s\n' "$RAMALAMA_UNIT"
+    fi
+}
+
+unit="$(configured_unit)"
+case "${1:-unit}" in
+    unit)
+        printf '%s\n' "$unit"
+        ;;
+    backend)
+        case "$unit" in
+            "$OLLAMA_UNIT"|"$MOOS_OLLAMA_UNIT") printf 'ollama\n' ;;
+            *) printf 'ramalama\n' ;;
+        esac
+        ;;
+    port)
+        case "$unit" in
+            "$OLLAMA_UNIT"|"$MOOS_OLLAMA_UNIT") printf '11434\n' ;;
+            *) printf '8081\n' ;;
+        esac
+        ;;
+    model)
+        case "$unit" in
+            "$OLLAMA_UNIT"|"$MOOS_OLLAMA_UNIT") printf 'default\n' ;;
+            *) printf 'ollama://qwen2.5:7b-instruct\n' ;;
+        esac
+        ;;
+    *)
+        echo "usage: moai-local-engine {unit|backend|port|model}" >&2
+        exit 2
+        ;;
+esac

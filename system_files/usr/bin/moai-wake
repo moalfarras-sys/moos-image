@@ -73,10 +73,17 @@ def start_gateway():
         ["systemctl", "--user", "reset-failed", GATEWAY_UNIT],
         check=False,
     )
-    subprocess.run(
+    started = subprocess.run(
         ["systemctl", "--user", "start", GATEWAY_UNIT],
         check=False,
     )
+    if started.returncode != 0:
+        log(f"could not start {GATEWAY_UNIT} (systemctl exit {started.returncode})")
+        return False
+    if not gateway_active():
+        log(f"{GATEWAY_UNIT} did not become active")
+        return False
+    return True
 
 
 def tg_call(token, method, params=None, timeout=35):
@@ -95,6 +102,21 @@ def send_ack(token, chat_id):
         }, timeout=10)
     except Exception as exc:  # noqa: BLE001 - ack is best-effort
         log(f"ack failed (non-fatal): {exc}")
+
+
+def send_start_failure(token, chat_id):
+    try:
+        tg_call(token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": (
+                "تعذّر تشغيل Mo AI على الكمبيوتر. افتح Mo AI ← الإعدادات "
+                "لفحص المحرك.\n"
+                "Mo AI could not start on the computer. Open Mo AI → Settings "
+                "to check the engine."
+            ),
+        }, timeout=10)
+    except Exception as exc:  # noqa: BLE001 - reporting is best-effort
+        log(f"start-failure notice failed (non-fatal): {exc}")
 
 
 def poll_until_wake(token, allow_ids):
@@ -135,13 +157,21 @@ def poll_until_wake(token, allow_ids):
             frm = str((msg.get("from") or {}).get("id", ""))
             chat_id = (msg.get("chat") or {}).get("id")
             if frm and frm in allow_ids:
-                # Authorised: ack, wake OpenClaw, and DO NOT confirm this update —
-                # OpenClaw will pick it up from the same offset.
+                # Authorised: wake first. Only claim success and hand off the
+                # unconfirmed update after systemd proves the gateway is active.
+                # A failed start is reported and consumed, otherwise the wake
+                # receiver would retry the same update forever while claiming
+                # that a dead service is waking.
                 log(f"authorised message from {frm}; waking")
+                if start_gateway():
+                    if chat_id is not None:
+                        send_ack(token, chat_id)
+                    return
                 if chat_id is not None:
-                    send_ack(token, chat_id)
-                start_gateway()
-                return
+                    send_start_failure(token, chat_id)
+                if uid is not None:
+                    offset = uid + 1
+                continue
             # Not on the allowlist (or a non-message update): confirm past it so it
             # neither wakes the box nor is seen again. Never wake for a stranger.
             if uid is not None:

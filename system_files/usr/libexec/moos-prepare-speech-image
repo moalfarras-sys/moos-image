@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Build the optional Arabic speech image rootlessly from pinned upstream inputs.
+# The model is downloaded by the user from Piper's official release rather than
+# redistributed by MoOS; both the archive and extracted file are hash-verified.
+set -euo pipefail
+
+IMAGE="localhost/speaches-ar:0.8.3-cpu"
+CONTAINERFILE="/usr/share/moos/containers/speaches-ar.Containerfile"
+PIPER_URL="https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz"
+ARCHIVE_SHA256="a50cb45f355b7af1f6d758c1b360717877ba0a398cc8cbe6d2a7a3a26e225992"
+MODEL_SHA256="9f27090af3e0f661913af048a739632a3f577b3233512551d8c90580ccad4aa8"
+MODEL_PATH="/home/ubuntu/speaches/.venv/lib/python3.12/site-packages/piper_phonemize/libtashkeel_model.ort"
+
+log() { printf 'moos-speech: %s\n' "$*"; }
+
+image_is_valid() {
+    podman image exists "$IMAGE" >/dev/null 2>&1 || return 1
+    podman run --rm --entrypoint /bin/bash "$IMAGE" -lc "
+        set -e
+        printf '%s  %s\n' '$MODEL_SHA256' '$MODEL_PATH' | sha256sum -c - >/dev/null
+        /home/ubuntu/speaches/.venv/bin/python - <<'PY'
+from piper_phonemize import tashkeel_run
+source = 'مرحبا بالعالم'
+result = tashkeel_run(source)
+assert result != source
+assert any(mark in result for mark in 'ًٌٍَُِّْ')
+PY
+    " >/dev/null 2>&1
+}
+
+if image_is_valid; then
+    log "verified Arabic speech image already present"
+    exit 0
+fi
+
+for command in curl podman sha256sum tar; do
+    command -v "$command" >/dev/null 2>&1 || {
+        log "missing required command: $command"
+        exit 1
+    }
+done
+[ -s "$CONTAINERFILE" ] || { log "missing build recipe"; exit 1; }
+
+work="$(mktemp -d /var/tmp/moos-speech-build.XXXXXX)"
+cleanup() {
+    case "$work" in
+        /var/tmp/moos-speech-build.*) rm -rf -- "$work" ;;
+    esac
+}
+trap cleanup EXIT INT TERM
+
+log "downloading the pinned open-source Piper Arabic component"
+curl -fL --retry 3 --connect-timeout 20 --max-time 600 \
+    -o "$work/piper.tar.gz" "$PIPER_URL"
+printf '%s  %s\n' "$ARCHIVE_SHA256" "$work/piper.tar.gz" | sha256sum -c -
+
+# Extract exactly one named member; never unpack an upstream archive over a
+# user-controlled directory.
+tar -xOf "$work/piper.tar.gz" piper/libtashkeel_model.ort \
+    > "$work/libtashkeel_model.ort"
+printf '%s  %s\n' "$MODEL_SHA256" "$work/libtashkeel_model.ort" | sha256sum -c -
+
+log "building the Arabic speech engine locally (rootless)"
+podman build --pull=missing --tag "$IMAGE" --file "$CONTAINERFILE" "$work"
+image_is_valid || { log "built image failed the Arabic runtime check"; exit 1; }
+log "Arabic speech image verified"

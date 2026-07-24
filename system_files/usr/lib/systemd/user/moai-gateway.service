@@ -4,10 +4,10 @@
 #
 # It replaces moai-cloud.service, which was an OPT-IN cloud proxy: local and cloud
 # both wanted 8080, so only one could run and switching brain meant disabling one
-# unit and enabling the other. The gateway now routes each REQUEST — the local
-# brain on 8081 (moai.service, started on demand) or the configured cloud
-# provider — so a conversation can choose its own brain and model without a single
-# service being bounced.
+# unit and enabling the other. The gateway now routes each REQUEST to the
+# selected allowlisted local engine (RamaLama 8081 or Ollama 11434, started on
+# demand) or the configured cloud provider, so a conversation can choose its
+# own brain and model without a global switch.
 #
 # It is also the only process that ever sees the API key (Secret Service). The
 # pure-QML app cannot read the keyring and never learns which provider is behind
@@ -26,6 +26,15 @@ StartLimitBurst=30
 
 [Service]
 Type=simple
+# Fresh installs use the lightweight RamaLama unit.  setup-brain writes the
+# per-user file below when Ollama is selected; both the gateway and control API
+# consume the same file so their liveness, model list and request routing cannot
+# disagree.  Values are still validated against a fixed unit allowlist in code.
+Environment=MOAI_LOCAL_UNIT=moai.service
+Environment=MOAI_LOCAL_BACKEND=ramalama
+Environment=MOAI_LOCAL_PORT=8081
+Environment=MOAI_LOCAL_MODEL=ollama://qwen2.5:7b-instruct
+EnvironmentFile=-%h/.config/moos/moai-local.env
 ExecStart=/usr/bin/moai-gateway
 Restart=on-failure
 RestartSec=4
