@@ -369,6 +369,15 @@ class TestMoOSUI2(unittest.TestCase):
             ):
                 master.parent.mkdir(parents=True, exist_ok=True)
                 master.write_bytes(b"fixture-png")
+            for visual in (
+                "plasma/dialog-background.svg.in",
+                "plasma/panel-background.svg.in",
+            ):
+                target = art / visual
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(
+                    (DEFAULT_ROOT / "artwork/moos-ui2" / visual).read_bytes()
+                )
             for kind in WEATHER_KINDS:
                 weather = art / "weather" / f"{kind}.png"
                 weather.parent.mkdir(parents=True, exist_ok=True)
@@ -476,7 +485,7 @@ class TestMoOSUI2(unittest.TestCase):
                         ratio, 4.5,
                         f"{variant} text/{surface} contrast is only {ratio:.2f}:1",
                     )
-                for surface in ("canvas", "surface", "card"):
+                for surface in ("canvas", "surface", "card", "raised"):
                     ratio = contrast_ratio(hex_rgb(palette["muted"]),
                                            hex_rgb(palette[surface]))
                     self.assertGreaterEqual(
@@ -572,12 +581,207 @@ class TestMoOSUI2(unittest.TestCase):
                     self.assertGreaterEqual(
                         ratio, 4.5,
                         f"{theme} text/{surface} contrast is only {ratio:.2f}:1")
-                for surface in ("canvas", "surface", "card"):
+                for surface in ("canvas", "surface", "card", "raised"):
                     ratio = contrast_ratio(hex_rgb(roles["muted"]),
                                            hex_rgb(roles[surface]))
                     self.assertGreaterEqual(
                         ratio, 4.5,
                         f"{theme} muted/{surface} contrast is only {ratio:.2f}:1")
+
+        # The family generator also derives seven LIGHT siblings which do not
+        # live literally in palettes.json.  Gate the generated schemes too:
+        # selected ink must read on the accent, and the small secondary text
+        # Plasma draws on raised buttons must not disappear into that surface.
+        family_schemes = sorted((SHARE / "color-schemes").glob("MoOSUI2*.colors"))
+        self.assertGreaterEqual(len(family_schemes), 16,
+                                "the complete 8-pair UI2 family is not generated")
+        for scheme_path in family_schemes:
+            scheme = load_kconfig(scheme_path)
+            with self.subTest(generated_scheme=scheme_path.name):
+                selection = scheme["Colors:Selection"]
+                selected_ink = parse_rgb(selection["ForegroundNormal"])
+                selected_fill = parse_rgb(selection["BackgroundNormal"])
+                ratio = contrast_ratio(selected_ink, selected_fill)
+                self.assertGreaterEqual(
+                    ratio, 4.5,
+                    f"{scheme_path}: selected ink/accent contrast is only {ratio:.2f}:1",
+                )
+                self.assertNotEqual(
+                    selected_ink, (255, 255, 255),
+                    f"{scheme_path}: selected text must be soft ink, not pure white",
+                )
+
+                button = scheme["Colors:Button"]
+                muted = parse_rgb(button["ForegroundInactive"])
+                raised = parse_rgb(button["BackgroundNormal"])
+                ratio = contrast_ratio(muted, raised)
+                self.assertGreaterEqual(
+                    ratio, 4.5,
+                    f"{scheme_path}: muted/raised contrast is only {ratio:.2f}:1",
+                )
+
+        # A partially generated Look-and-Feel family can leave a working colour
+        # scheme behind while the picker shows a blank/broken card.  Keep the
+        # exact dark/light package matrix and all four Plasma preview surfaces
+        # in lockstep with the palettes that produced them.
+        expected_package_ids = {"org.moos.ui2", "org.moos.ui2.light"}
+        for theme in themes:
+            expected_package_ids.update({
+                f"org.moos.ui2.{theme}",
+                f"org.moos.ui2.{theme}.light",
+            })
+        look_and_feel_root = SHARE / "plasma/look-and-feel"
+        generated_packages = {
+            path.name: path
+            for path in look_and_feel_root.glob("org.moos.ui2*")
+            if path.is_dir()
+        }
+        self.assertEqual(
+            set(generated_packages), expected_package_ids,
+            "the generated UI2 Look-and-Feel matrix is incomplete or stale",
+        )
+        preview_names = {
+            "preview.png", "lockscreen.png", "splash.png",
+            "fullscreenpreview.jpg",
+        }
+        for package_id, package in generated_packages.items():
+            with self.subTest(generated_package=package_id):
+                previews = package / "contents/previews"
+                self.assert_files(previews, preview_names)
+                self.assertEqual(
+                    {path.name for path in previews.iterdir() if path.is_file()},
+                    preview_names,
+                    f"{package_id}: generated preview set is incomplete or stale",
+                )
+                metadata = load_json(package / "metadata.json")
+                self.assertEqual(metadata["KPlugin"]["Id"], package_id)
+
+    def test_glass_surfaces_keep_rounded_blur_masks_and_translucency(self) -> None:
+        dialog_master = ART / "plasma/dialog-background.svg.in"
+        panel_master = ART / "plasma/panel-background.svg.in"
+        self.assertTrue(dialog_master.is_file(),
+                        "the popup glass must be generated from a reviewed SVG master")
+
+        dialog_template = dialog_master.read_text(encoding="utf-8")
+        panel_template = panel_master.read_text(encoding="utf-8")
+        required_masks = {
+            "mask-topleft", "mask-top", "mask-topright", "mask-left",
+            "mask-center", "mask-right", "mask-bottomleft", "mask-bottom",
+            "mask-bottomright",
+        }
+        self.assertTrue(required_masks <= set(re.findall(
+            r'\bid="([^"]+)"', dialog_template
+        )), "the popup master must ship a complete rounded blur mask")
+
+        panel_opacities = [
+            float(value) for value in re.findall(r'stop-opacity="([0-9.]+)"',
+                                                  panel_template)
+        ]
+        self.assertTrue(panel_opacities)
+        self.assertLessEqual(
+            max(panel_opacities), 0.93,
+            "the dock glass becomes effectively opaque and hides KWin blur",
+        )
+
+        for names in VARIANTS.values():
+            dialog_path = (SHARE / "plasma/desktoptheme"
+                           / names["desktop_theme"] / "dialogs/background.svg")
+            dialog = dialog_path.read_text(encoding="utf-8")
+            ids = set(re.findall(r'\bid="([^"]+)"', dialog))
+            with self.subTest(dialog=dialog_path):
+                self.assertTrue(required_masks <= ids,
+                                "the generated popup lost its rounded blur mask")
+                body_opacities = [
+                    float(value) for value in re.findall(
+                        r'(?:fill|stop)-opacity="([0-9.]+)"', dialog
+                    )
+                ]
+                self.assertTrue(body_opacities)
+                self.assertLessEqual(
+                    max(body_opacities), 0.93,
+                    "popup glass is too opaque for the light KWin frost to show",
+                )
+
+        migration = (ROOT / "system_files/usr/bin/moos-ui-migrate").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "MOOS_THEME_REV=9", migration,
+            "changed FrameSvgs need a new migration revision for existing users",
+        )
+        for stale_cache in (
+            "ksvg-elements", "plasma_theme_", "plasma-svgelements",
+        ):
+            self.assertIn(
+                stale_cache, migration,
+                f"UI migration does not clear the {stale_cache} SVG cache",
+            )
+
+    def test_theme_picker_is_glass_polished_and_hidpi_bounded(self) -> None:
+        picker = (SHARE / "moos/theme-picker/main.qml").read_text(encoding="utf-8")
+        self.assertIn("Screen.desktopAvailableWidth", picker)
+        self.assertIn("Screen.desktopAvailableHeight", picker)
+        self.assertRegex(
+            picker,
+            r"sourceSize:\s*Qt\.size\([^)]*Screen\.devicePixelRatio",
+            "theme previews must decode at their rendered HiDPI size",
+        )
+        self.assertIn("Kirigami.Theme.highlightedTextColor", picker,
+                      "selected theme badges must use the scheme's contrasting ink")
+        self.assertNotRegex(
+            picker,
+            r'color\s*:\s*["\']white["\']',
+            "the picker must not force white ink onto every family's accent",
+        )
+        self.assertGreaterEqual(
+            picker.count("GradientStop"), 4,
+            "the picker lost its layered, palette-driven glass finish",
+        )
+
+    def test_theme_picker_waits_for_the_real_switch_result(self) -> None:
+        picker = (SHARE / "moos/theme-picker/main.qml").read_text(encoding="utf-8")
+        self.assertNotIn(
+            "interval: 1400", picker,
+            "a cosmetic delay must never stand in for moos-theme process completion",
+        )
+        self.assertIn('Number(data["exit code"]) === 0', picker)
+        self.assertIn('Number(data["exit status"]) === 0', picker)
+        self.assertIn(
+            "interval: 30000", picker,
+            "the picker needs a bounded watchdog for a lost completion/readback",
+        )
+        self.assertIn(
+            "Kirigami.MessageType.Error", picker,
+            "theme failures must be visible instead of silently clearing the spinner",
+        )
+
+        completion_match = re.search(
+            r"function handleThemeResult\(.*?\n    }\n\n    function refreshThemes",
+            picker,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(completion_match)
+        completion = completion_match.group(0)
+        exit_check = completion.find("normalExit(data)")
+        readback_state = completion.find("awaitingReadback = true")
+        readback_call = completion.find("refreshCurrent()")
+        self.assertTrue(
+            0 <= exit_check < readback_state < readback_call,
+            "live theme readback must start only after a successful process exit",
+        )
+
+        watchdog_start = picker.find("id: operationTimeout")
+        watchdog_end = picker.find("ListModel { id: themesModel }", watchdog_start)
+        watchdog = picker[watchdog_start:watchdog_end]
+        self.assertIn("root.busy = false", watchdog)
+        self.assertNotIn(
+            "themeExec.disconnectSource", watchdog,
+            "the watchdog must not kill moos-theme halfway through an atomic apply",
+        )
+        self.assertIn(
+            "queryExec.disconnectSource(root.currentQuery)", watchdog,
+            "a hung read-only verification query should be safely released",
+        )
 
     def test_dark_and_light_own_complete_distinct_svg_suites(self) -> None:
         dark = SHARE / "plasma/desktoptheme/MoOSUI2"

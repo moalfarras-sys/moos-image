@@ -74,6 +74,21 @@ def _mix_hex(a: str, b: str, t: float) -> str:
     return _hex(_lerp(_rgbtuple(a), _rgbtuple(b), t))
 
 
+def _relative_luminance(hexv: str) -> float:
+    channels = []
+    for channel in _rgbtuple(hexv):
+        value = channel / 255
+        channels.append(value / 12.92 if value <= 0.04045
+                        else ((value + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+
+
+def _contrast_ratio(a: str, b: str) -> float:
+    lighter, darker = sorted((_relative_luminance(a),
+                              _relative_luminance(b)), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
 def light_roles(base_key: str) -> dict[str, str]:
     """Derive a family's LIGHT palette: the Tidal light neutrals washed toward the
     family hue, carrying the family's own accent trio. Keeps the base light dark
@@ -89,7 +104,17 @@ def light_roles(base_key: str) -> dict[str, str]:
     roles["luminous"] = acc["luminous"]
     for r in ("positive_deep", "negative_deep", "warning_deep", "secondary_deep"):
         roles[r] = _mix_hex(LIGHT_BASE[r], wash, 0.25)
-    roles["selected_text"] = "#FFFFFF"              # white ink on the saturated accent highlight
+    # Selected ink is resolved against the ACTUAL accent. Pure white made every
+    # light sibling glare, and Daylight's sky-blue primary reached only 4.10:1.
+    # Prefer a soft cool white; fall back to near-black when that is the only
+    # WCAG-readable side of the accent.
+    soft_light_ink = "#F7FBFF"
+    dark_ink = "#07111E"
+    roles["selected_text"] = (
+        soft_light_ink
+        if _contrast_ratio(soft_light_ink, roles["primary"]) >= 4.5
+        else dark_ink
+    )
     return roles
 
 

@@ -15,7 +15,7 @@ Color=23,48,46
 Color=201,226,221
 
 [Color0Intense]
-Color=70,99,96
+Color=61,88,84
 [Color1]
 Color=165,47,63
 
@@ -65,19 +65,19 @@ Color=0,109,103
 [Color6Intense]
 Color=11,105,101
 [Color7]
-Color=70,99,96
+Color=61,88,84
 
 [Color7Faint]
-Color=70,99,96
+Color=61,88,84
 
 [Color7Intense]
-Color=70,99,96
+Color=61,88,84
 
 [Foreground]
 Color=23,48,46
 
 [ForegroundFaint]
-Color=70,99,96
+Color=61,88,84
 
 [ForegroundIntense]
 Color=23,48,46

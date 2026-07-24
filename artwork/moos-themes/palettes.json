@@ -87,7 +87,7 @@
       "negative_deep": "#4A2530",
       "warning_deep": "#4A3A1C",
       "secondary_deep": "#3B2E7A",
-      "selected_text": "#0A1120"
+      "selected_text": "#020617"
     },
     "amethyst": {
       "positive_deep": "#17342A",
@@ -165,7 +165,7 @@
     "warning": "#D29922",
     "negative": "#F85149",
     "text": "#E6EDF3",
-    "muted": "#8B949E",
+    "muted": "#8C959F",
     "outline": "#30363D",
     "shadow": "#010409",
     "panel_top": "#232E3A",

@@ -8,10 +8,10 @@
   </style>
   <defs>
     <linearGradient id="ui2-panel-glass" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="60">
-      <stop offset="0" stop-color="#BFDCCE" stop-opacity="0.78"/>
-      <stop offset="0.18" stop-color="#B6D6C8" stop-opacity="0.84"/>
-      <stop offset="0.70" stop-color="#ABCFC0" stop-opacity="0.92"/>
-      <stop offset="1" stop-color="#ABCFC0" stop-opacity="0.96"/>
+      <stop offset="0" stop-color="#BFDCCE" stop-opacity="0.74"/>
+      <stop offset="0.18" stop-color="#B6D6C8" stop-opacity="0.80"/>
+      <stop offset="0.70" stop-color="#ABCFC0" stop-opacity="0.88"/>
+      <stop offset="1" stop-color="#ABCFC0" stop-opacity="0.92"/>
     </linearGradient>
   </defs>
 

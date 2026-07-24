@@ -199,6 +199,24 @@ def render_panel(target: pathlib.Path, variant: str) -> None:
     write(target, rewrite_text(text, substitutions))
 
 
+def render_dialog(target: pathlib.Path, variant: str) -> None:
+    """Render the popup FrameSvg and its rounded KWin blur mask.
+
+    Unlike ordinary fixed-colour assets, the mask is a structural contract:
+    Plasma reads the nine mask-* elements to delimit the frosted region.  Keep
+    the reviewed geometry in artwork and render only semantic palette tokens.
+    """
+    tokens = variant_roles(variant)
+    text = (ART / "plasma/dialog-background.svg.in").read_text(encoding="utf-8")
+    substitutions = {
+        "@CANVAS@": tokens["canvas"], "@SURFACE@": tokens["surface"],
+        "@CARD@": tokens["card"], "@PRIMARY@": tokens["primary"],
+        "@TEXT@": tokens["text"], "@LUMINOUS@": tokens["luminous"],
+        "@OUTLINE@": tokens["outline"],
+    }
+    write(target, rewrite_text(text, substitutions))
+
+
 def desktop_metadata(style: str, light: bool) -> str:
     description = ("تركواز معدني هادئ لسطح MoOS | Mineral turquoise glass for MoOS"
                    if light else
@@ -599,6 +617,7 @@ def generate_desktop_theme(variant: str, backup_root: pathlib.Path) -> None:
     scheme = color_scheme(variant)
     write(target / "colors", scheme)
     render_panel(target / "widgets/panel-background.svg", variant)
+    render_dialog(target / "dialogs/background.svg", variant)
 
 
 def generate_aurorae(variant: str, backup_root: pathlib.Path) -> None:
@@ -690,9 +709,11 @@ def preflight() -> None:
     for master in (
         ART / "wallpapers/moos-ui2-quiet-horizon-master-v2.png",
         ART / "wallpapers/moos-ui2-tide-master.png",
+        ART / "plasma/dialog-background.svg.in",
+        ART / "plasma/panel-background.svg.in",
     ):
         if not master.is_file():
-            raise SystemExit(f"missing UI2 wallpaper master: {master}")
+            raise SystemExit(f"missing UI2 visual master: {master}")
     for kind in WEATHER_KINDS:
         master = ART / f"weather/{kind}.png"
         if not master.is_file():
@@ -751,6 +772,21 @@ def validate_outputs() -> None:
         missing = required - actual
         if missing:
             raise SystemExit(f"{style} is missing its own SVG: {sorted(missing)[0]}")
+
+        dialog = SHARE / f"plasma/desktoptheme/{style}/dialogs/background.svg"
+        dialog_text = dialog.read_text(encoding="utf-8")
+        required_masks = {
+            "mask-topleft", "mask-top", "mask-topright", "mask-left",
+            "mask-center", "mask-right", "mask-bottomleft", "mask-bottom",
+            "mask-bottomright",
+        }
+        dialog_ids = set(re.findall(r'\bid="([^"]+)"', dialog_text))
+        missing_masks = required_masks - dialog_ids
+        if missing_masks:
+            raise SystemExit(
+                f"{style} popup is missing its rounded blur mask: "
+                f"{sorted(missing_masks)[0]}"
+            )
 
         package = "org.moos.ui2.light" if variant == "light" else "org.moos.ui2"
         logout = SHARE / f"plasma/look-and-feel/{package}/contents/logout"

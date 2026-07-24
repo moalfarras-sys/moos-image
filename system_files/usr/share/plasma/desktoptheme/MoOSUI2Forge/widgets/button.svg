@@ -58,50 +58,50 @@
     <linearGradient id="normal-top-gradient" gradientUnits="userSpaceOnUse" x1="84" y1="20" x2="84" y2="10">
       <stop offset="0" stop-color="#131A22" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#131A22" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#8B949E" stop-opacity="0.240"/>
-      <stop offset="1" stop-color="#8B949E" stop-opacity="0.240"/>
+      <stop offset="0.90" stop-color="#8C959F" stop-opacity="0.240"/>
+      <stop offset="1" stop-color="#8C959F" stop-opacity="0.240"/>
     </linearGradient>
     <linearGradient id="normal-right-gradient" gradientUnits="userSpaceOnUse" x1="116" y1="20" x2="126" y2="20">
       <stop offset="0" stop-color="#131A22" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#131A22" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#8B949E" stop-opacity="0.240"/>
-      <stop offset="1" stop-color="#8B949E" stop-opacity="0.240"/>
+      <stop offset="0.90" stop-color="#8C959F" stop-opacity="0.240"/>
+      <stop offset="1" stop-color="#8C959F" stop-opacity="0.240"/>
     </linearGradient>
     <linearGradient id="normal-bottom-gradient" gradientUnits="userSpaceOnUse" x1="84" y1="52" x2="84" y2="62">
       <stop offset="0" stop-color="#131A22" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#131A22" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#8B949E" stop-opacity="0.240"/>
-      <stop offset="1" stop-color="#8B949E" stop-opacity="0.240"/>
+      <stop offset="0.90" stop-color="#8C959F" stop-opacity="0.240"/>
+      <stop offset="1" stop-color="#8C959F" stop-opacity="0.240"/>
     </linearGradient>
     <linearGradient id="normal-left-gradient" gradientUnits="userSpaceOnUse" x1="84" y1="20" x2="74" y2="20">
       <stop offset="0" stop-color="#131A22" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#131A22" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#8B949E" stop-opacity="0.240"/>
-      <stop offset="1" stop-color="#8B949E" stop-opacity="0.240"/>
+      <stop offset="0.90" stop-color="#8C959F" stop-opacity="0.240"/>
+      <stop offset="1" stop-color="#8C959F" stop-opacity="0.240"/>
     </linearGradient>
     <radialGradient id="normal-topleft-gradient" gradientUnits="userSpaceOnUse" cx="84" cy="20" r="10">
       <stop offset="0" stop-color="#131A22" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#131A22" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#8B949E" stop-opacity="0.240"/>
-      <stop offset="1" stop-color="#8B949E" stop-opacity="0.240"/>
+      <stop offset="0.90" stop-color="#8C959F" stop-opacity="0.240"/>
+      <stop offset="1" stop-color="#8C959F" stop-opacity="0.240"/>
     </radialGradient>
     <radialGradient id="normal-topright-gradient" gradientUnits="userSpaceOnUse" cx="116" cy="20" r="10">
       <stop offset="0" stop-color="#131A22" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#131A22" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#8B949E" stop-opacity="0.240"/>
-      <stop offset="1" stop-color="#8B949E" stop-opacity="0.240"/>
+      <stop offset="0.90" stop-color="#8C959F" stop-opacity="0.240"/>
+      <stop offset="1" stop-color="#8C959F" stop-opacity="0.240"/>
     </radialGradient>
     <radialGradient id="normal-bottomright-gradient" gradientUnits="userSpaceOnUse" cx="116" cy="52" r="10">
       <stop offset="0" stop-color="#131A22" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#131A22" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#8B949E" stop-opacity="0.240"/>
-      <stop offset="1" stop-color="#8B949E" stop-opacity="0.240"/>
+      <stop offset="0.90" stop-color="#8C959F" stop-opacity="0.240"/>
+      <stop offset="1" stop-color="#8C959F" stop-opacity="0.240"/>
     </radialGradient>
     <radialGradient id="normal-bottomleft-gradient" gradientUnits="userSpaceOnUse" cx="84" cy="52" r="10">
       <stop offset="0" stop-color="#131A22" stop-opacity="0.940"/>
       <stop offset="0.72" stop-color="#131A22" stop-opacity="0.940"/>
-      <stop offset="0.90" stop-color="#8B949E" stop-opacity="0.240"/>
-      <stop offset="1" stop-color="#8B949E" stop-opacity="0.240"/>
+      <stop offset="0.90" stop-color="#8C959F" stop-opacity="0.240"/>
+      <stop offset="1" stop-color="#8C959F" stop-opacity="0.240"/>
     </radialGradient>
     <linearGradient id="mask_normal-top-gradient" gradientUnits="userSpaceOnUse" x1="148" y1="20" x2="148" y2="10">
       <stop offset="0" stop-color="#E6EDF3" stop-opacity="1.000"/>

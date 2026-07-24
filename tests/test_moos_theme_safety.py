@@ -17,6 +17,19 @@ APPLY = ROOT / "system_files/usr/bin/moos-apply-theme"
 SWITCH = ROOT / "system_files/usr/bin/moos-theme"
 PATH_UNIT = ROOT / "system_files/usr/lib/systemd/user/moos-theme-sync.path"
 SERVICE_UNIT = ROOT / "system_files/usr/lib/systemd/user/moos-theme-sync.service"
+MIGRATE = ROOT / "system_files/usr/bin/moos-ui-migrate"
+INPUT_DEFAULTS = ROOT / "system_files/etc/xdg/kcminputrc"
+INPUT_MIGRATE_SERVICE = (
+    ROOT / "system_files/usr/lib/systemd/user/moos-input-migrate.service"
+)
+USER_KWIN_DROPIN = (
+    ROOT / "system_files/usr/lib/systemd/user/"
+    "plasma-kwin_wayland.service.d/10-moos-input-migrate.conf"
+)
+LOGIN_KWIN_DROPIN = (
+    ROOT / "system_files/usr/lib/systemd/user/"
+    "plasma-login-kwin_wayland.service.d/10-moos-input-migrate.conf"
+)
 
 
 def bash_executable() -> str:
@@ -42,6 +55,171 @@ def function(text: str, name: str) -> str:
 
 
 class TestMoOSThemeSafety(unittest.TestCase):
+    def test_numlock_default_migrates_before_user_and_greeter_kwin(self) -> None:
+        migration = MIGRATE.read_text(encoding="utf-8")
+        migrator = function(migration, "migrate_startup_numlock")
+        defaults = INPUT_DEFAULTS.read_text(encoding="utf-8")
+        service = INPUT_MIGRATE_SERVICE.read_text(encoding="utf-8")
+        user_dropin = USER_KWIN_DROPIN.read_text(encoding="utf-8")
+        login_dropin = LOGIN_KWIN_DROPIN.read_text(encoding="utf-8")
+        build = (ROOT / "build_files/build.sh").read_text(encoding="utf-8")
+
+        self.assertRegex(defaults, r"(?ms)^\[Keyboard\]\s*$.*?^NumLock=0$")
+        self.assertIn(
+            "ExecStart=/usr/bin/moos-ui-migrate --input-only", service
+        )
+        self.assertIn(
+            "/usr/lib/systemd/user/moos-input-migrate.service", build,
+            "the image build must run systemd-analyze over the pre-KWin unit",
+        )
+        for unit_name, dropin in (
+            ("user-session KWin", user_dropin),
+            ("Plasma Login Manager KWin", login_dropin),
+        ):
+            with self.subTest(unit=unit_name):
+                self.assertIn("Wants=moos-input-migrate.service", dropin)
+                self.assertIn("After=moos-input-migrate.service", dropin)
+
+        input_only = '[ "${1:-}" = "--input-only" ] && exit 0'
+        self.assertIn(input_only, migration)
+        self.assertLess(
+            migration.index(input_only),
+            migration.index("# --- GStreamer registry:"),
+            "the pre-KWin input-only path must not run the rest of the UI migration",
+        )
+        for unsafe in (
+            "KWIN_FORCE_NUM_LOCK_EVALUATION",
+            "ydotool",
+            "numlockx",
+            "xset",
+        ):
+            self.assertNotIn(
+                unsafe, migrator + service + user_dropin + login_dropin,
+                f"NumLock startup must not use persistent/key-injection forcing: {unsafe}",
+            )
+
+        def run_profile(
+            contents: str | None,
+            already_migrated: bool = False,
+        ) -> tuple[str | None, bool]:
+            import tempfile
+
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                config = root / "config"
+                state = root / "state/moos"
+                logs = state / "migrations"
+                config.mkdir()
+                logs.mkdir(parents=True)
+                profile = config / "kcminputrc"
+                if contents is not None:
+                    profile.write_text(contents, encoding="utf-8")
+                marker = state / "numlock-startup-v1.done"
+                if already_migrated:
+                    marker.touch()
+                harness = f"""
+set -euo pipefail
+state_dir={shlex.quote(str(state))}
+log_dir={shlex.quote(str(logs))}
+{migrator}
+migrate_startup_numlock
+"""
+                env = dict(os.environ)
+                env["HOME"] = str(root / "home")
+                env["XDG_CONFIG_HOME"] = str(config)
+                subprocess.run(
+                    [BASH, "-c", harness],
+                    check=True,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    env=env,
+                )
+                migrated = (
+                    profile.read_text(encoding="utf-8")
+                    if profile.exists()
+                    else None
+                )
+                return migrated, marker.exists()
+
+        fresh_profile, fresh_marked = run_profile(None)
+        self.assertIsNone(
+            fresh_profile,
+            "fresh users should inherit /etc/xdg, not receive a needless local pin",
+        )
+        self.assertTrue(fresh_marked)
+        for legacy_value in ("1", "2"):
+            with self.subTest(legacy_value=legacy_value):
+                migrated, marked = run_profile(
+                    "[Keyboard]\n"
+                    f"NumLock={legacy_value}\n"
+                    "[Mouse]\n"
+                    "cursorTheme=PersonalCursor\n"
+                )
+                self.assertIn("NumLock=0", migrated)
+                self.assertIn("cursorTheme=PersonalCursor", migrated)
+                self.assertTrue(marked)
+
+        custom = "[Keyboard]\nNumLock=7\n[Mouse]\ncursorTheme=PersonalCursor\n"
+        self.assertEqual(run_profile(custom)[0], custom)
+        no_key = "[Mouse]\ncursorTheme=PersonalCursor\n"
+        self.assertEqual(run_profile(no_key)[0], no_key)
+
+        # The marker makes this a repair, not a policy daemon: a preference the
+        # user chooses after migration remains theirs on every later login.
+        post_migration_choice = "[Keyboard]\nNumLock=1\n"
+        self.assertEqual(
+            run_profile(post_migration_choice, already_migrated=True)[0],
+            post_migration_choice,
+        )
+
+    def test_keyboard_migration_is_exact_and_preserves_custom_profiles(self) -> None:
+        migration = MIGRATE.read_text(encoding="utf-8")
+        migrator = function(migration, "migrate_legacy_keyboard")
+
+        def run_profile(contents: str) -> str:
+            with self.subTest(profile=contents):
+                import tempfile
+
+                with tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary)
+                    config = root / "config"
+                    state = root / "state/moos"
+                    logs = state / "migrations"
+                    config.mkdir()
+                    logs.mkdir(parents=True)
+                    profile = config / "kxkbrc"
+                    profile.write_text(contents, encoding="utf-8")
+                    harness = f"""
+set -euo pipefail
+state_dir={shlex.quote(str(state))}
+log_dir={shlex.quote(str(logs))}
+gdbus() {{ return 0; }}
+{migrator}
+migrate_legacy_keyboard
+"""
+                    env = dict(os.environ)
+                    env["HOME"] = str(root / "home")
+                    env["XDG_CONFIG_HOME"] = str(config)
+                    subprocess.run(
+                        [BASH, "-c", harness],
+                        check=True,
+                        text=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        env=env,
+                    )
+                    return profile.read_text(encoding="utf-8")
+
+        legacy = "[Layout]\nDisplayNames=DE,ع\nLayoutList=de,ara\nVariantList=,\n"
+        migrated = run_profile(legacy)
+        self.assertIn("LayoutList=de,us,ara", migrated)
+        self.assertIn("VariantList=,,", migrated)
+        self.assertIn("DisplayNames=DE,,ع", migrated)
+
+        customised = legacy + "Options=grp:alt_shift_toggle\n"
+        self.assertEqual(run_profile(customised), customised)
+
     def test_any_foreign_look_resolves_to_the_one_moos_look(self) -> None:
         """MoOS now ships a FAMILY of looks on one engine: the Graphite/Tidal base pair plus
         the org.moos.ui2.* members (Nova, Amethyst, Midnight, Aurora). A member the user picked
