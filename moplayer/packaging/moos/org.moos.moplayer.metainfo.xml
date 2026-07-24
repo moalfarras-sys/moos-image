@@ -65,6 +65,7 @@
   </keywords>
 
   <icon type="stock">moos-moplayer</icon>
+  <url type="homepage">https://github.com/moalfarras-sys/MoPlayerMoOS</url>
 
   <developer id="space.moalfarras">
     <name>Moalfarras</name>

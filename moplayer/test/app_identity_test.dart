@@ -173,6 +173,13 @@ void main() {
         contains('<icon type="stock">$iconName</icon>'),
         reason: 'the software centre would otherwise show no icon',
       );
+      expect(
+        xml,
+        contains(
+          '<url type="homepage">https://github.com/moalfarras-sys/MoPlayerMoOS</url>',
+        ),
+        reason: 'AppStream rejects a first-party app with no homepage URL',
+      );
     });
   });
 }
