@@ -88,24 +88,24 @@
        Geometry = the pressed 9-slice translated +106px in y; both hexes are
        dark-palette roles, so both generators recolour it per variant. -->
   <g id="hover-topleft">
-    <path d="M 0,159 A 9,9 0 0 1 9,150 L 9,159 Z" fill="#B45309" fill-opacity="0.12"/>
+    <path d="M 0,159 A 9,9 0 0 1 9,150 L 9,159 Z" fill="#B45309" fill-opacity="0.20"/>
     <path d="M 0,159 A 9,9 0 0 1 9,150 L 9,151.0 A 8.0,8.0 0 0 0 1.0,159 Z" fill="#A16207" fill-opacity="0.34"/>
   </g>
   <g id="hover-topright">
-    <path d="M 33,150 A 9,9 0 0 1 42,159 L 33,159 Z" fill="#B45309" fill-opacity="0.12"/>
+    <path d="M 33,150 A 9,9 0 0 1 42,159 L 33,159 Z" fill="#B45309" fill-opacity="0.20"/>
     <path d="M 33,150 A 9,9 0 0 1 42,159 L 41.0,159 A 8.0,8.0 0 0 0 33,151.0 Z" fill="#A16207" fill-opacity="0.34"/>
   </g>
   <g id="hover-bottomleft">
-    <path d="M 9,192 A 9,9 0 0 1 0,183 L 9,183 Z" fill="#B45309" fill-opacity="0.12"/>
+    <path d="M 9,192 A 9,9 0 0 1 0,183 L 9,183 Z" fill="#B45309" fill-opacity="0.20"/>
     <path d="M 9,192 A 9,9 0 0 1 0,183 L 1.0,183 A 8.0,8.0 0 0 0 9,191.0 Z" fill="#A16207" fill-opacity="0.16"/>
   </g>
   <g id="hover-bottomright">
-    <path d="M 42,183 A 9,9 0 0 1 33,192 L 33,183 Z" fill="#B45309" fill-opacity="0.12"/>
+    <path d="M 42,183 A 9,9 0 0 1 33,192 L 33,183 Z" fill="#B45309" fill-opacity="0.20"/>
     <path d="M 42,183 A 9,9 0 0 1 33,192 L 33,191.0 A 8.0,8.0 0 0 0 41.0,183 Z" fill="#A16207" fill-opacity="0.16"/>
   </g>
-  <g id="hover-top"><rect x="9" y="150" width="24" height="9" fill="#B45309" fill-opacity="0.12"/><rect x="9" y="150" width="24" height="1" fill="#A16207" fill-opacity="0.34"/></g>
-  <g id="hover-bottom"><rect x="9" y="183" width="24" height="9" fill="#B45309" fill-opacity="0.12"/><rect x="9" y="191" width="24" height="1" fill="#A16207" fill-opacity="0.16"/></g>
-  <g id="hover-left"><rect x="0" y="159" width="9" height="24" fill="#B45309" fill-opacity="0.12"/><rect x="0" y="159" width="1" height="24" fill="#A16207" fill-opacity="0.22"/></g>
-  <g id="hover-right"><rect x="33" y="159" width="9" height="24" fill="#B45309" fill-opacity="0.12"/><rect x="41" y="159" width="1" height="24" fill="#A16207" fill-opacity="0.22"/></g>
-  <rect id="hover-center" x="9" y="159" width="24" height="24" fill="#B45309" fill-opacity="0.12"/>
+  <g id="hover-top"><rect x="9" y="150" width="24" height="9" fill="#B45309" fill-opacity="0.20"/><rect x="9" y="150" width="24" height="1" fill="#A16207" fill-opacity="0.34"/></g>
+  <g id="hover-bottom"><rect x="9" y="183" width="24" height="9" fill="#B45309" fill-opacity="0.20"/><rect x="9" y="191" width="24" height="1" fill="#A16207" fill-opacity="0.16"/></g>
+  <g id="hover-left"><rect x="0" y="159" width="9" height="24" fill="#B45309" fill-opacity="0.20"/><rect x="0" y="159" width="1" height="24" fill="#A16207" fill-opacity="0.22"/></g>
+  <g id="hover-right"><rect x="33" y="159" width="9" height="24" fill="#B45309" fill-opacity="0.20"/><rect x="41" y="159" width="1" height="24" fill="#A16207" fill-opacity="0.22"/></g>
+  <rect id="hover-center" x="9" y="159" width="24" height="24" fill="#B45309" fill-opacity="0.20"/>
 </svg>

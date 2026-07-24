@@ -26,12 +26,12 @@
   <g id="topleft">
     <path d="M0 18A18 18 0 0 1 18 0V18Z" fill="url(#ui2-dialog-glass)"/>
     <path d="M0 18A18 18 0 0 1 18 0V1A17 17 0 0 0 1 18Z"
-          fill="#C77DFF" fill-opacity="0.44"/>
+          fill="#C77DFF" fill-opacity="0.60"/>
   </g>
   <g id="topright">
     <path d="M46 0A18 18 0 0 1 64 18H46Z" fill="url(#ui2-dialog-glass)"/>
     <path d="M46 0A18 18 0 0 1 64 18H63A17 17 0 0 0 46 1Z"
-          fill="#C77DFF" fill-opacity="0.44"/>
+          fill="#C77DFF" fill-opacity="0.60"/>
   </g>
   <g id="bottomleft">
     <path d="M18 64A18 18 0 0 1 0 46H18Z" fill="url(#ui2-dialog-glass)"/>
@@ -45,7 +45,7 @@
   </g>
   <g id="top">
     <rect x="18" width="28" height="18" fill="url(#ui2-dialog-glass)"/>
-    <rect x="18" width="28" height="1" fill="#C77DFF" fill-opacity="0.44"/>
+    <rect x="18" width="28" height="1" fill="#C77DFF" fill-opacity="0.60"/>
   </g>
   <g id="bottom">
     <rect x="18" y="46" width="28" height="18" fill="url(#ui2-dialog-glass)"/>

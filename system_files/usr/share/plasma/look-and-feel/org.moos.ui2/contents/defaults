@@ -27,8 +27,8 @@ theme=__aurorae__svg__MoOSUI2
 blurEnabled=true
 
 [kwinrc][Effect-blur]
-BlurStrength=8
-NoiseStrength=2
+BlurStrength=24
+NoiseStrength=4
 
 [kcminputrc][Mouse]
 cursorTheme=MoOS

@@ -195,9 +195,9 @@ def write(path: pathlib.Path, content: str) -> None:
 OPACITY = {
     "dark": {
         "@GLASS_P0@": "0.70", "@GLASS_P1@": "0.76", "@GLASS_P2@": "0.84", "@GLASS_P3@": "0.88",
-        "@RIM_LUM@": "0.42", "@RIM_ACCENT@": "0.14", "@RIM_OUTLINE@": "0.28",
+        "@RIM_LUM@": "0.62", "@RIM_ACCENT@": "0.42", "@RIM_OUTLINE@": "0.28",
         "@DLG_P0@": "0.70", "@DLG_P1@": "0.74", "@DLG_P2@": "0.78", "@DLG_P3@": "0.80",
-        "@DLG_RIM_LUM@": "0.44", "@DLG_RIM_OUTLINE@": "0.24",
+        "@DLG_RIM_LUM@": "0.60", "@DLG_RIM_OUTLINE@": "0.24",
     },
     "light": {
         # Capped at 0.93 so the light dock stays denser than dark (legible dark
@@ -524,8 +524,8 @@ theme=__aurorae__svg__{deco}
 blurEnabled=true
 
 [kwinrc][Effect-blur]
-BlurStrength=8
-NoiseStrength=2
+BlurStrength=24
+NoiseStrength=4
 
 [kcminputrc][Mouse]
 cursorTheme={cursor}
