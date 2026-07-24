@@ -1784,8 +1784,15 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moos-ensure-brain.service \
     /usr/lib/systemd/user/openclaw-idle.service \
     /usr/lib/systemd/user/openclaw-idle.timer \
-    /usr/lib/systemd/user/moai-agent-api.service \
-    /usr/lib/systemd/user/openclaw-gateway.service
+    /usr/lib/systemd/user/moai-agent-api.service
+# openclaw-gateway.service is deliberately NOT verified here: its ExecStart is
+# %h/.local/bin/openclaw, a per-user runtime install (moai-do install-openclaw),
+# which does not exist in the build container — systemd-analyze verify resolves
+# %h to /root and fails the whole build on a binary that is not meant to ship in
+# the image. Its runtime guard is ConditionFileIsExecutable=%h/.local/bin/openclaw,
+# and its in-image ExecStartPre (/usr/libexec/moai-openclaw-preflight) is covered
+# by the exec-bits gate. A unit whose command is a user install cannot be build-
+# time verified; do not add it back.
 systemctl --global enable moos-theme-sync.path
 
 # Mo AI's FRONT DOOR. This is the only thing on 127.0.0.1:8080 and the only thing
