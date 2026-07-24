@@ -29,6 +29,58 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-24 (live, post-reboot to v333/334) — "the machine is slow" was a port clash; Telegram + remote made real
+
+Booted v333, then shipped v334 (`64e8c45`: agent-api StartLimit + zram sysctl).
+
+### The slowness was NOT the update — it was an 8077 port clash crash-loop
+
+`moai-agent-api` (ours, `MOAI_AGENT_PORT=8077`) and the owner's OWN app
+`moapp-console` (`~/عام/MOAPP/bin`, also 8077) fought for the port. moai-agent-api
+has `Restart=on-failure` and its `ExecStartPre` runs `openclaw config validate`
+(a heavy Node process) on EVERY start — so an uncapped restart loop against a
+taken port was a permanent ~1.5-core fire (`openclaw-config` at 149%). **Fixed
+live** by retiring the duplicate `moapp-console.service` (`systemctl --user
+disable`; the owner's files kept — MOAPP was their earlier version of the same
+Mo AI console) and starting moai-agent-api clean on 8077. Load 2.0 → 0.3.
+`fix(moai)` in v334 adds `StartLimitBurst=4` so a future clash can never loop.
+MOAPP↔Mo AI "merge" = Mo AI is now the single console; MOAPP's setup work is
+already replaced by the shipped `moai-do install-openclaw`/`setup-brain`.
+
+### Remote (phone) was slow because it was JPEG, not NVENC — the fix is HTTPS
+
+The iPhone streamed at ~70% CPU (portal) + ~60% (kwin copy) because it was on
+JPEG. `StreamSession.cs` only serves H.264 when the client votes it, and
+**WebCodecs needs a secure context** — a phone on the raw `http://100.x:8765`
+Tailscale IP stays on JPEG forever. The machine already runs **Tailscale Serve**:
+`https://moos-3.tailab78a5.ts.net` → proxy to 127.0.0.1:8765. Opening THAT URL on
+the phone = secure context = H.264/NVENC = ~10% + clearer + secure. Made Serve
+persistent (`tailscale serve --bg`). Idle mode already works (WebSocket drops →
+SessionGone → SetStreaming(false)). **Next ship**: make the Mo Remote UI advertise
+the HTTPS URL (not the raw IP) so this is automatic, and provision the agent's own
+`tailscale cert` (TlsManager path) as a fallback.
+
+### Telegram is live; computer-control must be enabled by the OWNER (classifier blocks the agent)
+
+The owner's real bot token is set in `~/.openclaw/openclaw.json`
+(`channels.telegram.botToken`, `@Moalfarras_bot`, `allowFrom:[1142563280]`);
+`moai-wake` listens. The bot replies. **But giving it host control (exec) is a
+privilege grant the Claude Code classifier refuses to let an agent make** — same
+guard that blocked the polkit rule. The owner sets it themselves in **Mo AI →
+الصلاحيات (Access)**: three tiers (`read`/`ask`/`full`, defined in
+`moai-agent-api` TIERS) + a host-control toggle. Recommended default: `ask`
+(HOST reach,每 command approved from Telegram) — a cloud primary model with
+unsandboxed `full` exec is the risk to weigh. Owner also wants the brain
+selectable cloud-only / local-only / **hybrid** (their preference) with the
+cheapest cloud + a good light local — that switch is the Mo AI model selector.
+
+### Perf: live tuning, coherent
+
+Governor via tuned; `throughput-performance` wrongly forced swappiness=10 (server
+profile) against the 8 GB zram, so reverted to `balanced` + `vm.swappiness=150`
+(shipped as `sysctl.d/90-moos-desktop.conf` in v334). The real speedup was the
+port-clash fix, not the governor. Firmware + flatpaks already current.
+
 ## Session 2026-07-24 — reviewed, validated and shipped the overnight Mo AI + UI2 work
 
 ### What this session inherited
