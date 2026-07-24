@@ -4,6 +4,19 @@ Documentation=https://github.com/moalfarras-sys/moos-image
 After=network-online.target
 Wants=network-online.target
 
+# If 127.0.0.1:8077 is already held by ANOTHER app (e.g. a user's own console),
+# the bind fails "Address already in use" on every start — and because each
+# start first runs the ExecStartPre bootstrap (which shells out to `openclaw
+# config validate`, a heavy Node process), an uncapped Restart=on-failure turns
+# a benign port clash into a permanent CPU fire. Cap it: after 4 failures in
+# 2 min systemd gives up and the unit rests in failed state (recover with
+# `systemctl --user reset-failed moai-agent-api && systemctl --user start` once
+# the port is free). These live in [Unit], not [Service] — systemd moved them
+# in v229. (These sit in front of MOAI_AGENT_PORT, which can also be overridden
+# to sidestep a clash entirely.)
+StartLimitIntervalSec=120
+StartLimitBurst=4
+
 [Service]
 Type=simple
 # ~/.local/node/bin carries the Node that OpenClaw needs (>= 22.22.3); the image
