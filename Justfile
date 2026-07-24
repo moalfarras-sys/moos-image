@@ -30,6 +30,8 @@ check:
     python3 tests/verify_user_experience.py
     python3 tests/test_device_plan.py
     python3 tests/test_moai_do.py
+    python3 tests/test_moai_control.py
+    python3 tests/test_moai_http_security.py
     python3 tests/test_fwupd_refresh_policy.py
     python3 tests/test_exec_bits.py
     python3 tests/test_moos_store_index.py

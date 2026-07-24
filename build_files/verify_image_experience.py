@@ -254,6 +254,122 @@ router = text("/usr/bin/moos-open")
 require("do/smart-setup" in router and "do/install-nvidia" in router,
         "smart setup routes are missing")
 
+# The Welcome's device guide must end at modules that really exist in the built
+# image. Checking only the QML URL and router case is not enough: a missing KCM
+# makes System Settings open an error page, which is still a dead button to the
+# user. Gate QML -> route -> installed Plasma module as one relationship.
+welcome = source(text("/usr/share/moos/apps/welcome/main.qml"))
+router_code = source(router, "#")
+require(Path("/usr/bin/systemsettings").is_file(),
+        "System Settings is missing — the device pairing guide cannot open its pages")
+require(Path("/usr/bin/kinfocenter").is_file(),
+        "Info Centre is missing — the USB device guide cannot open its page")
+for device_route, settings_app, kcm_id in (
+    ("bluetooth", "systemsettings", "kcm_bluetooth"),
+    ("usb", "kinfocenter", "kcm_usb"),
+    ("keyboard", "systemsettings", "kcm_keyboard"),
+    ("mouse", "systemsettings", "kcm_mouse"),
+):
+    require(f'moos://settings/{device_route}"' in welcome,
+            f"the Welcome has no {device_route} settings action")
+    device_arm = re.search(
+        rf"(?ms)^\s{{4}}settings/{re.escape(device_route)}\)(.*?);;",
+        router_code,
+    )
+    require(device_arm is not None
+            and re.search(
+                rf"\bgui\s+{re.escape(settings_app)}\s+{re.escape(kcm_id)}"
+                rf"(?:\s|;|$)",
+                device_arm.group(1),
+            ) is not None,
+            f"the {device_route} guide action does not route to "
+            f"{settings_app}'s {kcm_id}")
+    if device_route == "usb":
+        usb_plugins = list(Path("/usr").glob(
+            "lib*/qt6/plugins/plasma/kcms/kinfocenter/kcm_usb.so"
+        ))
+        require(any(plugin.is_file() for plugin in usb_plugins),
+                "kcm_usb is not installed — the Welcome's USB button would fail")
+    else:
+        require(Path(f"/usr/share/applications/{kcm_id}.desktop").is_file(),
+                f"{kcm_id} is not installed — the Welcome's {device_route} "
+                "button would fail")
+bluetooth_unit = Path("/usr/lib/systemd/system/bluetooth.service")
+bluetooth_links = (
+    Path("/etc/systemd/system/bluetooth.target.wants/bluetooth.service"),
+    Path("/etc/systemd/system/dbus-org.bluez.service"),
+)
+require(bluetooth_unit.is_file(),
+        "the Bluetooth settings page ships but the Bluetooth service does not")
+require(any(link.is_symlink() and link.resolve() == bluetooth_unit
+            for link in bluetooth_links),
+        "bluetooth.service is not enabled or D-Bus activated — pairing would "
+        "open a settings page with no working backend")
+
+# KWin reads this native startup preference in both the Plasma Login Manager
+# compositor and each user's Wayland session. Value 0 is "on"; because KWin
+# evaluates it only at startup, the physical key remains free to toggle the
+# state afterwards. Do not replace this with an autostart key injection.
+input_conf = config(text("/etc/xdg/kcminputrc"))
+keyboard_group = re.search(
+    r"(?ms)^\[Keyboard\]\s*$.*?(?=^\[|\Z)", input_conf
+)
+require(keyboard_group is not None
+        and re.search(r"(?m)^NumLock\s*=\s*0\s*$",
+                      keyboard_group.group(0)) is not None,
+        "kcminputrc does not set [Keyboard] NumLock=0 — the login and user "
+        "sessions would not start with the numeric keypad active")
+
+# /etc/xdg is only KConfig's default layer. Existing users (and the persistent
+# plasmalogin greeter account) can carry a stronger ~/.config/kcminputrc from an
+# older image. Require the one-time repair and, crucially, require it to finish
+# before each real Wayland KWin unit starts and reads this startup-only value.
+numlock_migration = source(text("/usr/bin/moos-ui-migrate"), "#")
+numlock_service = config(text(
+    "/usr/lib/systemd/user/moos-input-migrate.service"
+))
+require("migrate_startup_numlock()" in numlock_migration
+        and "numlock-startup-v1.done" in numlock_migration
+        and re.search(
+            r"kwriteconfig6\s+--file\s+\"\$tmp\"\s+--group\s+Keyboard"
+            r"\s+--key\s+NumLock\s+0",
+            numlock_migration,
+        ) is not None,
+        "existing users have no one-time migration from stale NumLock=off/"
+        "unchanged to the MoOS startup default")
+require("ExecStart=/usr/bin/moos-ui-migrate --input-only" in numlock_service,
+        "the pre-KWin NumLock migration service does not run the input-only path")
+for kwin_unit, dropin_path, surface in (
+    (
+        "/usr/lib/systemd/user/plasma-kwin_wayland.service",
+        "/usr/lib/systemd/user/plasma-kwin_wayland.service.d/"
+        "10-moos-input-migrate.conf",
+        "user Wayland session",
+    ),
+    (
+        "/usr/lib/systemd/user/plasma-login-kwin_wayland.service",
+        "/usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/"
+        "10-moos-input-migrate.conf",
+        "Plasma Login Manager greeter",
+    ),
+):
+    require(Path(kwin_unit).is_file(),
+            f"the real {surface} KWin unit is missing: {kwin_unit}")
+    numlock_dropin = config(text(dropin_path))
+    require("Wants=moos-input-migrate.service" in numlock_dropin
+            and "After=moos-input-migrate.service" in numlock_dropin,
+            f"the NumLock migration is not ordered before the {surface} KWin")
+for forbidden_numlock_force in (
+    "KWIN_FORCE_NUM_LOCK_EVALUATION",
+    "ydotool",
+    "numlockx",
+    "xset",
+):
+    require(forbidden_numlock_force not in numlock_migration
+            and forbidden_numlock_force not in numlock_service,
+            "NumLock must be a one-time startup preference, not a persistent "
+            f"key-forcing mechanism ({forbidden_numlock_force})")
+
 # The LOGIN SCREEN. Gate the display manager that is actually installed, not the one we wish
 # were.
 #

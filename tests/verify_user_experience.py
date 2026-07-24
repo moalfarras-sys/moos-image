@@ -224,9 +224,11 @@ require("function sourceLabel(app)" in store_qml
         and "SourceBadge { app: card.app }" in store_qml,
         "Mo Store cards must show each app's resolved source")
 require("property var installedOverrides" in store_qml
+        and "property var installedScopeOverrides" in store_qml
         and "function applyJobInstalledState(document)" in store_qml
         and 'document.action === "remove"' in store_qml
-        and '"Already installed"' in store_qml,
+        and '"Already installed system-wide"' in store_qml
+        and '"Already installed for this user"' in store_qml,
         "Mo Store must keep install/remove state accurate until its local index reloads")
 require(store_qml.count("MoosStore.refreshIndex()") == 1
         and "function maybeRefreshCatalog(force)" in store_qml
@@ -262,6 +264,85 @@ require("win.updatesState = \"unknown\"" in store_qml
         and 'document.action === "update"' in store_qml,
         "installing, removing or updating must invalidate the pending-update "
         "answer — a stale list outlives the transaction that changed it")
+store_qml_code = code(store_qml, "slash")
+require('function removeSelected(app) {\n        if (win.jobIsActive())' in store_qml_code
+        and re.search(
+            r"visible:\s*win\.canRemove\(win\.selectedApp\).*?"
+            r"enabled:\s*!win\.jobIsActive\(\)",
+            store_qml_code,
+            re.DOTALL,
+        ) is not None,
+        "Mo Store must disable removal while another transaction owns the backend; "
+        "a busy result cannot replace the active job document")
+require("win.openSourceEngine(updateCard.modelData.action)" in store_qml_code
+        and "MoosStore.openEngine(updateCard.modelData.action)" not in store_qml_code,
+        "every Updates-page engine button must use the correlated job helper, "
+        "not fire a detached backend job with no visible result")
+require('"Shared components have updates."' in store_qml_code
+        and "win.updateComponentCount() > 0" in store_qml_code,
+        "the Updates page must not say everything is current while Flatpak "
+        "runtimes or shared components still have pending updates")
+require(re.search(
+            r"id:\s*jobProgressIndeterminate\b.*?"
+            r"SequentialAnimation\s+on\s+x\s*\{\s*"
+            r"running:\s*jobProgressIndeterminate\.visible\b.*?"
+            r"to:\s*jobProgressTrack\.width\b",
+            store_qml_code,
+            re.DOTALL,
+        ) is not None,
+        "Mo Store's indeterminate job bar must use explicit item IDs; `parent` "
+        "inside SequentialAnimation is undefined and breaks the live QML scene")
+require("visible: win.selectedApp !== null && !!win.selectedApp.license" in store_qml_code
+        and re.search(
+            r"visible:\s*win\.selectedApp\s*!==\s*null\s*&&\s*"
+            r"\(win\.selectedApp\.requires_review",
+            store_qml_code,
+        ) is not None,
+        "Mo Store detail visibility must always evaluate to a boolean; null/string "
+        "bindings produce live QML type-assignment errors")
+require("function pickedWebCount()" in store_qml_code
+        and "function onlyWebPicks()" in store_qml_code
+        and '"Review external website"' in store_qml_code
+        and '"Open official website"' in store_qml_code
+        and '"Continue with "' in store_qml_code,
+        "external website recipes must say that they open a publisher page rather "
+        "than presenting the action as an in-store installation")
+require('"Update components now"' in store_qml_code
+        and '"Open MoOS Updater"' in store_qml_code
+        and '"Open firmware updates"' in store_qml_code,
+        "Updates-page buttons must name the distinct action they perform instead "
+        "of showing the same ambiguous Open label")
+require('"io.github.kolunmi.Bazaar"' in store_qml_code
+        and '"Install & open engine"' in store_qml_code,
+        "the optional Bazaar engine button must disclose that its first use "
+        "installs software before opening it")
+require(re.search(
+            r"visible:\s*win\.jobIsActive\(\).*?"
+            r"enabled:\s*!win\.waitingForJob.*?"
+            r"label:\s*win\.rtl\s*\?\s*\"إلغاء\"\s*:\s*\"Cancel\"",
+            store_qml_code,
+            re.DOTALL,
+        ) is not None,
+        "Mo Store must not let a Starting-state Cancel click target the stale "
+        "job document from the preceding transaction")
+require(re.search(
+            r'item\.message\s*\|\|\s*""\)\s*===\s*"Already installed system-wide".*?'
+            r'nextScopes\[item\.id\]\s*=\s*\["system"\]',
+            store_qml_code,
+            re.DOTALL,
+        ) is not None,
+        "an already-installed system Flatpak must retain its system scope in "
+        "live store state so the UI does not offer a non-functional Remove action")
+require(re.search(
+            r"function\s+canRemove\(app\)\s*\{.*?"
+            r"installedScopeOverrides\[app\.id\]\s*!==\s*undefined\)\s*"
+            r"return\s+win\.installedScopeOverrides\[app\.id\]"
+            r"\.indexOf\(\"user\"\)\s*>=\s*0",
+            store_qml_code,
+            re.DOTALL,
+        ) is not None,
+        "a live scope override must decide canRemove before legacy catalogue "
+        "fallbacks; ['system'] must never expose a Remove button")
 storectl_text = read("system_files/usr/bin/moos-storectl")
 require("def check_updates(" in storectl_text
         and "def update_candidates(" in storectl_text
@@ -539,6 +620,42 @@ require("*" not in declared_routes, "the default arm must not count as a route")
 require("apps/install/*" in declared_routes,
         "moos-open must accept an app id to install (apps/install/*)")
 
+# ── Device onboarding buttons must reach real Plasma settings routes ─────────
+#
+# USB receivers work as soon as they are plugged in; Bluetooth devices need
+# pairing. The Welcome explains that distinction and opens the exact settings
+# page it names. Gate the whole QML -> URL router -> KCM-id relationship so these
+# cannot become polished-looking buttons that only raise "unknown action".
+welcome_devices = code(read("system_files/usr/share/moos/apps/welcome/main.qml"), "slash")
+router_devices = code(router)
+for device_route, settings_app, kcm_id in (
+    ("bluetooth", "systemsettings", "kcm_bluetooth"),
+    ("usb", "kinfocenter", "kcm_usb"),
+    ("keyboard", "systemsettings", "kcm_keyboard"),
+    ("mouse", "systemsettings", "kcm_mouse"),
+):
+    require(f'moos://settings/{device_route}"' in welcome_devices,
+            f"the Welcome must offer a real {device_route} settings action")
+    device_arm = re.search(
+        rf"(?ms)^\s{{4}}settings/{re.escape(device_route)}\)(.*?);;",
+        router_devices,
+    )
+    require(device_arm is not None
+            and re.search(
+                rf"\bgui\s+{re.escape(settings_app)}\s+{re.escape(kcm_id)}"
+                rf"(?:\s|;|$)",
+                device_arm.group(1),
+            ) is not None,
+            f"moos-open must send settings/{device_route} to "
+            f"{settings_app}'s {kcm_id} module")
+require("id: overallInstallTrack" in welcome_devices
+        and "id: overallInstallIndeterminate" in welcome_devices
+        and "running: overallInstallIndeterminate.visible" in welcome_devices
+        and "overallInstallTrack.width" in welcome_devices
+        and "parent.parent.width" not in welcome_devices,
+        "the Welcome's indeterminate install bar must use explicit item IDs; "
+        "`parent` is undefined inside SequentialAnimation and stops the live motion")
+
 # ── One language, chosen by the user, applied to the whole session ───────────
 # MoOS shows ONE language (the user's), not both stacked in every window. The
 # Welcome's language pick fires moos://lang/<code>; moos-open routes it to
@@ -661,7 +778,9 @@ require("recommended" in moai_qml and "hit.note" in moai_qml,
 # only when the card is nearly full. If either half of this drops out, the crash comes back
 # and it looks exactly like a broken app.
 headroom = code(read("system_files/usr/bin/moos-gpu-headroom"))
-require("moai.service" in headroom and "nvidia-smi" in headroom,
+require("/usr/libexec/moai-local-engine" in headroom
+        and 'systemctl --user stop "$BRAIN_UNIT"' in headroom
+        and "nvidia-smi" in headroom,
         "moos-gpu-headroom must free the local brain — and nothing else — when the GPU is "
         "too full for an app to make a context")
 require("moos-gpu-headroom" in code(read("system_files/usr/bin/moplayer")),
@@ -1463,7 +1582,7 @@ require("modelData.note" in _moai_qml and "modelData.size_gb" in _moai_qml,
 # to hf://Qwen/Qwen3-8B-GGUF, which short_model() renders "Qwen/Qwen3-8B-GGUF" —
 # matching no id in the catalog — so the gateway reports a fully downloaded brain
 # as missing, forever, with no way out from the UI.
-require('self.path.startswith("/pull")' in code(control)
+require('route == "/pull"' in code(control)
         and "def start_pull" in code(control),
         "moai-control must serve /pull — Mo AI's picker promises a one-tap "
         "download and needs a machine behind the label")
@@ -1528,9 +1647,10 @@ require("Environment=MOAI_PORT=8081" in local_unit,
         "the local brain must serve on 8081 — 8080 is moai-gateway's, and two "
         "processes on one port is the either/or this replaced")
 require('MOAI_GATEWAY_PORT", "8080"' in gateway_code
-        and 'MOAI_LOCAL_PORT", "8081"' in gateway_code,
-        "moai-gateway must default to 8080 (the front door) and reach the local "
-        "brain on 8081")
+        and "ALLOWED_LOCAL_UNITS" in gateway_code
+        and '"11434" if LOCAL_BACKEND == "ollama" else "8081"' in gateway_code,
+        "moai-gateway must keep 8080 as the front door and derive the selected "
+        "allowlisted local engine's real port (RamaLama 8081 / Ollama 11434)")
 
 # The front door must be on for EVERY user. It used to be moai-cloud.service,
 # enabled only while the user's default was cloud — a door that was locked unless
@@ -1553,9 +1673,10 @@ require("moai-cloud" not in code(read("system_files/usr/bin/moai-config")),
 # the NVIDIA driver logged `NVRM: VM: invalid mmap context`, and kwin_wayland SIGSEGV'd —
 # the whole desktop froze. So the brain is unloaded when idle and reloaded on demand.
 idle_watch = code(read("system_files/usr/bin/moai-idle"))
-require("systemctl --user stop" in idle_watch and 'UNIT="moai.service"' in idle_watch,
-        "moai-idle must STOP moai.service when idle — a watchdog that only measures idleness "
-        "frees no VRAM, which is the entire point")
+require('UNIT="$("$ENGINE_HELPER" unit)"' in idle_watch
+        and 'systemctl --user stop "$UNIT"' in idle_watch,
+        "moai-idle must STOP the selected allowlisted local engine when idle — a "
+        "watchdog that only measures idleness frees no VRAM")
 require("moai-activity" in idle_watch and "moai-activity" in gateway_code,
         "moai-idle must key off the same activity stamp moai-gateway writes, or 'idle' is a "
         "guess — and the gateway must actually write it")
@@ -1674,8 +1795,137 @@ require("function pickRoute(" in moai_qml and "root.pickRoute(" in moai_qml
 # literal "MOAI_PORT=8080" is not enough: the file writes MOAI_PORT=$PORT, so the
 # 8080 never appears as a string.)
 moai_start_code = code(read("system_files/usr/bin/moai-start"))
-require('PORT="${MOAI_PORT:-8081}"' in moai_start_code,
-        "moai-start must default the local brain to 8081; 8080 is moai-gateway's")
+require('/usr/libexec/moai-local-engine' in moai_start_code
+        and 'PORT="${MOAI_PORT:-$("$ENGINE_HELPER" port)}"' in moai_start_code,
+        "moai-start must take the selected allowlisted engine and its port from "
+        "the shared resolver; it must never put a migrated Ollama machine back on RamaLama")
+require('if [ "$BACKEND" = "ramalama" ]; then\n            systemctl --user disable --now "$SERVICE"'
+        in moai_start_code
+        and 'systemctl --user stop "$SERVICE"' in moai_start_code,
+        "moai-start stop must disable the native RamaLama unit but only stop a "
+        "generated Quadlet service; systemctl cannot disable a generated unit")
+require('if [ "$BACKEND" = "ramalama" ]; then\n    systemctl --user enable --now "$SERVICE"'
+        in moai_start_code
+        and 'systemctl --user start "$SERVICE"' in moai_start_code
+        and 'systemctl --user is-active --quiet "$SERVICE"' in moai_start_code,
+        "moai-start must start and verify a generated Ollama Quadlet instead of "
+        "trying the unsupported enable --now operation")
+build_script = read("build_files/build.sh")
+for runtime_unit in (
+    "moai.service", "moai-gateway.service", "moai-control.service",
+    "moai-idle.service", "moai-idle.timer", "moos-ensure-brain.service",
+    "openclaw-idle.service", "openclaw-idle.timer", "moai-agent-api.service",
+    "openclaw-gateway.service",
+):
+    require(f"/usr/lib/systemd/user/{runtime_unit}" in build_script,
+            f"the image build must systemd-verify Mo AI runtime unit {runtime_unit}")
+require("systemctl --global enable moai-agent-api.service" in build_script,
+        "the Agent settings API must persist across logout/reboot for every user")
+agent_api_unit = code(
+    read("system_files/usr/lib/systemd/user/moai-agent-api.service"), "hash")
+require("ExecStartPre=-/usr/libexec/moai-openclaw-bootstrap --existing-only"
+        in agent_api_unit,
+        "existing OpenClaw users must receive the preserving schema migration "
+        "without creating configs for accounts that never installed the agent")
+agent_api_code = code(read("system_files/usr/bin/moai-agent-api"))
+control_http_code = code(read("system_files/usr/bin/moai-control"))
+require('API_HEADER = "X-Moai-Agent"' in agent_api_code
+        and "MAX_BODY_BYTES = 1024 * 1024" in agent_api_code
+        and 'self.headers.get("Transfer-Encoding")' in agent_api_code
+        and 'self.headers.get_all("Content-Length")' in agent_api_code
+        and 'self.send_header("X-Frame-Options", "DENY")' in agent_api_code
+        and "Content-Security-Policy" in agent_api_code,
+        "the credential-writing Agent API must require its non-CORS header, bound "
+        "request bodies before reading, reject transfer encoding, and deny framing")
+require('self.headers.get("X-Moai-Control") != "1"' in control_http_code
+        and "MAX_BODY_BYTES = 1024 * 1024" in control_http_code
+        and 'self.headers.get("Transfer-Encoding")' in control_http_code
+        and 'self.headers.get_all("Content-Length")' in control_http_code
+        and "CONFIG_LOCK = threading.RLock()" in control_http_code
+        and "os.replace(tmp_name, CFG)" in control_http_code,
+        "moai-control must enforce the same loopback browser boundary and commit "
+        "private settings atomically under a process-wide lock")
+require("property bool agentStatusLoaded" in moai_qml
+        and "readonly property bool agentMachineConfigured" in moai_qml
+        and "readonly property bool agentReady" in moai_qml
+        and "moos://do/install-openclaw" in moai_qml
+        and "moos://do/setup-brain" in moai_qml
+        and "enabled: root.agentReady && !root.agentBusy" in moai_qml,
+        "the Agent panel must read real installation/configuration status, offer "
+        "working setup actions for missing pieces, and disable chat until ready")
+openclaw_bootstrap = code(
+    read("system_files/usr/libexec/moai-openclaw-bootstrap"))
+require('"type": "cli"' in openclaw_bootstrap
+        and '"args": ["{{MediaPath}}"]' in openclaw_bootstrap
+        and 'object_at(object_at(tools, "media"), "audio")' in openclaw_bootstrap
+        and 'legacy_audio.pop("transcription", None)' in openclaw_bootstrap
+        and '"audio.transcription"' not in openclaw_bootstrap,
+        "OpenClaw voice input must use the current tools.media.audio CLI schema "
+        "and migrate the retired audio.transcription key before validation")
+openclaw_unit = code(
+    read("system_files/usr/lib/systemd/user/openclaw-gateway.service"), "hash")
+require("ExecStartPre=/usr/libexec/moai-openclaw-preflight" in openclaw_unit
+        and "Requires=ollama.service" not in openclaw_unit
+        and "Requires=moai-brain.service" not in openclaw_unit,
+        "the phone agent must resolve either allowlisted Ollama Quadlet at runtime")
+moai_wake = code(read("system_files/usr/bin/moai-wake"))
+require("if started.returncode != 0:" in moai_wake
+        and "if not gateway_active():" in moai_wake
+        and "if start_gateway():" in moai_wake
+        and "send_start_failure" in moai_wake,
+        "the Telegram wake receiver must verify the real gateway start before "
+        "claiming success, and must report a failed start without retrying forever")
+ensure_brain_code = code(read("system_files/usr/bin/moos-ensure-brain"))
+require("os.chmod(tmp,0o600)" in ensure_brain_code
+        and "os.replace(tmp,p)" in ensure_brain_code,
+        "the OpenClaw context migration must preserve credential-file privacy "
+        "when atomically rewriting openclaw.json")
+moai_idle_code = code(read("system_files/usr/bin/moai-idle"))
+require("systemctl --user is-active --quiet openclaw-gateway.service"
+        in moai_idle_code
+        and "case \"$openclaw_primary\" in" in moai_idle_code
+        and "cloud/*) : ;;" in moai_idle_code,
+        "moai-idle must defer local-primary Ollama teardown while OpenClaw is "
+        "active; openclaw-idle owns the required gateway-before-engine ordering")
+
+brain_quadlet = read("system_files/usr/share/moos/containers/moai-brain.container")
+speech_quadlet = read("system_files/usr/share/moos/containers/speaches.container")
+require("AddDevice=nvidia.com/gpu=all" not in brain_quadlet
+        and "SecurityLabelDisable=true" not in brain_quadlet
+        and "# MOOS_NVIDIA_CDI_INSERT" in brain_quadlet,
+        "the shared local-brain template must start on generic/Intel/AMD/VM "
+        "systems; NVIDIA-only CDI directives may be inserted only after runtime detection")
+for runtime_quadlet, runtime_name in (
+    (brain_quadlet, "local brain"),
+    (speech_quadlet, "speech engine"),
+):
+    runtime_lines = {line.strip() for line in runtime_quadlet.splitlines()}
+    require("[Install]" not in runtime_lines
+            and "WantedBy=default.target" not in runtime_lines,
+            f"the {runtime_name} Quadlet must stay on demand instead of starting "
+            "at every login")
+moai_do_code = code(read("system_files/usr/bin/moai-do"))
+require("nvidia-ctk cdi list" in moai_do_code
+        and "nvidia-smi --query-gpu=name" in moai_do_code
+        and "installed_model_quadlet" in moai_do_code
+        and "AddDevice=nvidia.com/gpu=all" in moai_do_code,
+        "setup-brain must add NVIDIA CDI acceleration only when both the driver "
+        "and the exact CDI device are present")
+require('run_priv /usr/bin/loginctl enable-linger "$login_user"' in moai_do_code
+        and moai_do_code.count(
+            'loginctl show-user "$login_user" -p Linger --value') >= 2,
+        "setup-brain must explicitly authorize and verify linger; silently ignoring "
+        "its Polkit failure makes the phone agent disappear after logout")
+require("http://127.0.0.1:11434/api/tags" in moai_do_code
+        and '"default" in names' in moai_do_code
+        and "strip_legacy_moos_quadlet_autostart" in moai_do_code
+        and moai_do_code.index("restart moos-ensure-brain.service")
+            < moai_do_code.index("http://127.0.0.1:11434/api/tags")
+            < moai_do_code.index("MOAI_LOCAL_UNIT=$model_unit")
+            < moai_do_code.index('echo "${G}✓ جاهز | ready${N}"'),
+        "setup-brain must verify Ollama really contains the routed default model "
+        "before committing its route or claiming that the phone agent is ready, "
+        "and migrate only the known legacy always-on Quadlets")
 
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
@@ -2043,7 +2293,7 @@ require("target_lnf()" in apply_theme_code and "theme_intact()" in apply_theme_c
         "the self-heal must accept EITHER MoOS look and repair to the one the user chose")
 
 ui_migrate = read("system_files/usr/bin/moos-ui-migrate")
-require("MOOS_THEME_REV=8" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
+require("MOOS_THEME_REV=9" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
         "UI cache and Mo AI migrations must be explicitly revisioned")
 require('rm -rf "$HOME/.cache"' not in ui_migrate,
         "UI migration must never erase the whole user cache")
@@ -2064,8 +2314,25 @@ require("gstreamer-1.0" in ui_migrate and "gst-registry-" in ui_migrate,
 require(ui_migrate.index("gst-registry-") < ui_migrate.index('[ -e "$marker" ] && exit 0'),
         "the GStreamer registry drop must run BEFORE the once-per-revision marker gate; "
         "an apply-once marker cannot notice that the machine booted a different image")
+require("migrate_legacy_keyboard()" in ui_migrate
+        and "keyboard-layout-v2.done" in ui_migrate
+        and "LayoutList=de,ara" in ui_migrate
+        and 'LayoutList "de,us,ara"' in ui_migrate
+        and 'VariantList ",,"' in ui_migrate
+        and 'DisplayNames "DE,,ع"' in ui_migrate,
+        "the exact previous de,ara keyboard shadow must migrate to de,us,ara")
+require(ui_migrate.index("migrate_legacy_keyboard") <
+        ui_migrate.index('[ -e "$marker" ] && exit 0'),
+        "the keyboard shadow repair needs its own marker and must run before "
+        "the theme revision gate")
 require("secret-tool" not in ui_migrate,
         "UI migration must never inspect or mutate Mo AI credentials")
+for agent_surface in (
+    read("system_files/usr/share/moos/apps/moai/main.qml"),
+    read("system_files/usr/share/moos/apps/moai-agent/console.html"),
+):
+    require("1142563280" not in agent_surface,
+            "a maintainer Telegram id must never ship as user-facing placeholder data")
 
 # Windows must wear the MoOS decoration, not Breeze. Breeze here means Breeze's
 # X / v / ^ title-bar glyphs on every window — the loudest remaining "this is
@@ -3498,6 +3765,73 @@ require(f"KEYMAP={first_layout}" in vconsole,
         f"vconsole.conf must ship KEYMAP={first_layout} (the primary kxkbrc layout, "
         "same derivation the installer uses)")
 
+# KWin owns Num Lock on Wayland. Its kcminputrc enum is 0=on, 1=off,
+# 2=unchanged, and it evaluates the preference only when that KWin process
+# starts. This one system default therefore covers Plasma Login Manager's KWin
+# and the user's session while leaving the physical Num Lock key free after
+# startup. A repeating service or a synthetic key press would break that
+# contract; pin the native preference instead.
+input_defaults = code(read("system_files/etc/xdg/kcminputrc"), "hash")
+keyboard_defaults = re.search(
+    r"(?ms)^\[Keyboard\]\s*$.*?(?=^\[|\Z)", input_defaults
+)
+require(keyboard_defaults is not None
+        and re.search(r"(?m)^NumLock\s*=\s*0\s*$",
+                      keyboard_defaults.group(0)) is not None,
+        "kcminputrc must set [Keyboard] NumLock=0: KWin's native startup-on "
+        "preference for both the login greeter and user session")
+
+# The default above loses to a stale per-user file. Run a scoped, marker-backed
+# repair before both KWin processes, then get out of the way: later preference
+# changes and every physical Num Lock key press remain the user's.
+numlock_migrate = code(read("system_files/usr/bin/moos-ui-migrate"))
+numlock_unit = code(read(
+    "system_files/usr/lib/systemd/user/moos-input-migrate.service"
+))
+require("migrate_startup_numlock()" in numlock_migrate
+        and "numlock-startup-v1.done" in numlock_migrate
+        and re.search(
+            r"(?ms)case\s+\"\$old_value\"\s+in.*?1\|2\).*?"
+            r"kwriteconfig6\s+--file\s+\"\$tmp\"\s+--group\s+Keyboard"
+            r"\s+--key\s+NumLock\s+0",
+            numlock_migrate,
+        ) is not None,
+        "existing users need a one-time, narrowly scoped NumLock 1|2 -> 0 "
+        "migration; /etc/xdg alone loses to ~/.config/kcminputrc")
+require("numlock-startup-v1.done" in numlock_migrate
+        and '[ -e "$input_marker" ] && return 0' in numlock_migrate,
+        "the NumLock repair has no apply-once marker, so it could overwrite a "
+        "preference the user chooses later")
+require("ExecStart=/usr/bin/moos-ui-migrate --input-only" in numlock_unit,
+        "the pre-KWin input service must use the bounded input-only migration path")
+for kwin_surface, dropin_rel in (
+    (
+        "user Wayland session",
+        "system_files/usr/lib/systemd/user/plasma-kwin_wayland.service.d/"
+        "10-moos-input-migrate.conf",
+    ),
+    (
+        "Plasma Login Manager greeter",
+        "system_files/usr/lib/systemd/user/"
+        "plasma-login-kwin_wayland.service.d/10-moos-input-migrate.conf",
+    ),
+):
+    numlock_dropin = code(read(dropin_rel))
+    require("Wants=moos-input-migrate.service" in numlock_dropin
+            and "After=moos-input-migrate.service" in numlock_dropin,
+            f"the NumLock migration must finish before KWin starts in the "
+            f"{kwin_surface}")
+for forbidden_numlock_force in (
+    "KWIN_FORCE_NUM_LOCK_EVALUATION",
+    "ydotool",
+    "numlockx",
+    "xset",
+):
+    require(forbidden_numlock_force not in numlock_migrate
+            and forbidden_numlock_force not in numlock_unit,
+            "NumLock must remain manually toggleable; persistent forcing is "
+            f"forbidden ({forbidden_numlock_force})")
+
 # ── ONE visible store, whatever scope Bazaar lands in ────────────────────────
 # Bazaar (Mo Store's full-catalog engine) can be installed per-user (by
 # moos-store-browse) or system-wide (by moos-setup's checklist). The launcher
@@ -3711,6 +4045,14 @@ require("set_layout de" not in _fr,
         "Fast Remote off must not restore a hard-coded 'de' layout")
 require("prevlayout" in _fr and "set_layout_idx" in _fr,
         "Fast Remote must save the active layout on and restore it on off")
+_fr_on = _fr.split("fast_on() {", 1)[1].split("\n}", 1)[0]
+_fr_off = _fr.split("fast_off() {", 1)[1].split("\n}", 1)[0]
+require('[ -f "$STATE" ]' in _fr_on
+        and _fr_on.index('[ -f "$STATE" ]') < _fr_on.index("set_effect Plugins"),
+        "Fast Remote ON must be idempotent before it overwrites the saved brain/layout")
+require('[ ! -f "$STATE" ]' in _fr_off
+        and _fr_off.index('[ ! -f "$STATE" ]') < _fr_off.index("set_effect Plugins"),
+        "Fast Remote OFF must be a no-op when no ON snapshot exists")
 
 # #19 Every Windows/foreign type runforeign claims must have a default handler.
 _mime = read("system_files/etc/xdg/mimeapps.list")

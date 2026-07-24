@@ -1763,14 +1763,29 @@ systemctl --global mask drkonqi-coredump-pickup.service 2>/dev/null || true
 # for every user's session (bakes the default.target.wants symlink under
 # /etc/systemd/user) without needing a running user manager at build time.
 systemctl --global enable moai-control.service
+# The Agent/phone settings panel talks to this loopback-only API in every
+# session. Starting it once from setup-brain is not persistence; enable the
+# shipped unit globally so it survives logout and reboot.
+systemctl --global enable moai-agent-api.service
 
 # Plasma's automatic day/night switch applies only the Global Theme subset. It
 # does not carry Konsole, GTK or the wallpaper reliably, so watch the effective
 # kdeglobals selection and reconcile those supplements after each transition.
 # The service never writes kdeglobals, which keeps the path activation acyclic.
 systemd-analyze verify \
+    /usr/lib/systemd/user/moos-input-migrate.service \
     /usr/lib/systemd/user/moos-theme-sync.path \
-    /usr/lib/systemd/user/moos-theme-sync.service
+    /usr/lib/systemd/user/moos-theme-sync.service \
+    /usr/lib/systemd/user/moai.service \
+    /usr/lib/systemd/user/moai-gateway.service \
+    /usr/lib/systemd/user/moai-control.service \
+    /usr/lib/systemd/user/moai-idle.service \
+    /usr/lib/systemd/user/moai-idle.timer \
+    /usr/lib/systemd/user/moos-ensure-brain.service \
+    /usr/lib/systemd/user/openclaw-idle.service \
+    /usr/lib/systemd/user/openclaw-idle.timer \
+    /usr/lib/systemd/user/moai-agent-api.service \
+    /usr/lib/systemd/user/openclaw-gateway.service
 systemctl --global enable moos-theme-sync.path
 
 # Mo AI's FRONT DOOR. This is the only thing on 127.0.0.1:8080 and the only thing
