@@ -1,0 +1,5 @@
+[General]
+# MoOS notifications rise from the TOP-RIGHT, the way macOS and the phones do —
+# out of the way of the bottom panel and the work in front of you, next to where
+# the status tray lives. (KConfig default layer; a user can still move them.)
+PopupPosition=TopRight
