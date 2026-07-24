@@ -1260,6 +1260,10 @@ Item {
                 ? Kirigami.Theme.highlightColor
                 : Kirigami.Theme.textColor,
                 recent.hovered || recent.activeFocus ? 0.48 : 0.08)
+            // Ease the hover like every sibling row (FavoriteTile/nav/search) —
+            // was the one Recent row whose prelight snapped instead of gliding.
+            Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
+            Behavior on border.color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
         }
         contentItem: RowLayout {
             spacing: Kirigami.Units.mediumSpacing
@@ -1323,6 +1327,9 @@ Item {
                 ? Kirigami.Theme.highlightColor
                 : Kirigami.Theme.textColor,
                 place.hovered || place.activeFocus ? 0.48 : 0.075)
+            // Same eased-hover parity as the Favorite/Recent/nav rows.
+            Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
+            Behavior on border.color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
         }
         contentItem: RowLayout {
             spacing: Kirigami.Units.mediumSpacing

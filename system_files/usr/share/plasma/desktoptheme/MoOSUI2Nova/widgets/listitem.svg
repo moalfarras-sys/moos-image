@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="112" height="148" viewBox="0 0 112 148">
+<svg xmlns="http://www.w3.org/2000/svg" width="112" height="200" viewBox="0 0 112 200">
   <style id="current-color-scheme" type="text/css">
     .ColorScheme-Background { color: #111A2E; }
     .ColorScheme-Highlight  { color: #6366F1; }
@@ -82,4 +82,30 @@
   <rect id="section-hint-right-margin" x="87" y="62" width="7" height="4" fill="none" opacity="0"/>
   <rect id="separator" x="0" y="140" width="32" height="1" fill="#9FB0C9" fill-opacity="0.24"/>
   <rect id="hint-tile-center" x="104" y="0" width="1" height="1" fill="none" opacity="0"/>
+  <!-- hover: the mouse-over prelight Breeze ships but MoOS lacked. A calm accent
+       lift (#6366F1 @0.12 body + luminous #A5B4FC rim), far softer than pressed
+       (0.94), so hover reads as a gentle glow and press still clearly wins.
+       Geometry = the pressed 9-slice translated +106px in y; both hexes are
+       dark-palette roles, so both generators recolour it per variant. -->
+  <g id="hover-topleft">
+    <path d="M 0,159 A 9,9 0 0 1 9,150 L 9,159 Z" fill="#6366F1" fill-opacity="0.12"/>
+    <path d="M 0,159 A 9,9 0 0 1 9,150 L 9,151.0 A 8.0,8.0 0 0 0 1.0,159 Z" fill="#A5B4FC" fill-opacity="0.34"/>
+  </g>
+  <g id="hover-topright">
+    <path d="M 33,150 A 9,9 0 0 1 42,159 L 33,159 Z" fill="#6366F1" fill-opacity="0.12"/>
+    <path d="M 33,150 A 9,9 0 0 1 42,159 L 41.0,159 A 8.0,8.0 0 0 0 33,151.0 Z" fill="#A5B4FC" fill-opacity="0.34"/>
+  </g>
+  <g id="hover-bottomleft">
+    <path d="M 9,192 A 9,9 0 0 1 0,183 L 9,183 Z" fill="#6366F1" fill-opacity="0.12"/>
+    <path d="M 9,192 A 9,9 0 0 1 0,183 L 1.0,183 A 8.0,8.0 0 0 0 9,191.0 Z" fill="#A5B4FC" fill-opacity="0.16"/>
+  </g>
+  <g id="hover-bottomright">
+    <path d="M 42,183 A 9,9 0 0 1 33,192 L 33,183 Z" fill="#6366F1" fill-opacity="0.12"/>
+    <path d="M 42,183 A 9,9 0 0 1 33,192 L 33,191.0 A 8.0,8.0 0 0 0 41.0,183 Z" fill="#A5B4FC" fill-opacity="0.16"/>
+  </g>
+  <g id="hover-top"><rect x="9" y="150" width="24" height="9" fill="#6366F1" fill-opacity="0.12"/><rect x="9" y="150" width="24" height="1" fill="#A5B4FC" fill-opacity="0.34"/></g>
+  <g id="hover-bottom"><rect x="9" y="183" width="24" height="9" fill="#6366F1" fill-opacity="0.12"/><rect x="9" y="191" width="24" height="1" fill="#A5B4FC" fill-opacity="0.16"/></g>
+  <g id="hover-left"><rect x="0" y="159" width="9" height="24" fill="#6366F1" fill-opacity="0.12"/><rect x="0" y="159" width="1" height="24" fill="#A5B4FC" fill-opacity="0.22"/></g>
+  <g id="hover-right"><rect x="33" y="159" width="9" height="24" fill="#6366F1" fill-opacity="0.12"/><rect x="41" y="159" width="1" height="24" fill="#A5B4FC" fill-opacity="0.22"/></g>
+  <rect id="hover-center" x="9" y="159" width="24" height="24" fill="#6366F1" fill-opacity="0.12"/>
 </svg>

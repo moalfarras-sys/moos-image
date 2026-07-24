@@ -467,6 +467,9 @@ def lnf_defaults(variant: str) -> str:
 [kdeglobals][General]
 ColorScheme={scheme}
 
+[kdeglobals][KDE]
+widgetStyle=Breeze
+
 [plasmarc][Theme]
 name={style}
 

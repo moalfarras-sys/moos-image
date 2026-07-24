@@ -26,6 +26,9 @@ import org.kde.kirigami as Kirigami
 
 PlasmoidItem {
     id: root
+    // Follow the session reading direction (matches org.moos.brand). Under an
+    // Arabic (RTL) session the date lines below hug the reading edge, not left.
+    readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
 
     Plasmoid.backgroundHints: PlasmaCore.Types.NoBackground
     preferredRepresentation: fullRepresentation
@@ -312,7 +315,7 @@ PlasmoidItem {
                 opacity: 0.9
                 Layout.fillWidth: true
                 elide: Text.ElideRight
-                horizontalAlignment: Text.AlignLeft
+                horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
                 font.family: "IBM Plex Sans Arabic"
                 font.pixelSize: Math.round(hero.timePx * 0.30)
                 renderType: Text.NativeRendering
@@ -323,7 +326,7 @@ PlasmoidItem {
                 opacity: 0.55
                 Layout.fillWidth: true
                 elide: Text.ElideRight
-                horizontalAlignment: Text.AlignLeft
+                horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
                 font.family: "IBM Plex Sans"
                 font.pixelSize: Math.round(hero.timePx * 0.24)
                 renderType: Text.NativeRendering

@@ -1257,6 +1257,16 @@ pin_gtk() {
         # apps read ONLY this; they ignore gtk-theme-name entirely.
         gsettings set org.gnome.desktop.interface color-scheme \
             "$([ "$want_gtk_dark" = true ] && echo prefer-dark || echo prefer-light)" 2>/dev/null || true
+        # Icon / cursor / font identity for GTK+libadwaita+Flatpak, pushed
+        # DETERMINISTICALLY here instead of leaning on the race-prone kde-gtk-config
+        # kded module (which this script's own comments document as failing under
+        # the Flatpak sandbox). Values mirror kdeglobals + each L&F defaults exactly.
+        gsettings set org.gnome.desktop.interface icon-theme \
+            "$([ "$want_gtk_dark" = true ] && echo MoOSUI2 || echo MoOSUI2Light)" 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface cursor-theme \
+            "$([ "$want_gtk_dark" = true ] && echo MoOS || echo MoOSDark)" 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface font-name 'IBM Plex Sans 10' 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface monospace-font-name 'JetBrains Mono 10' 2>/dev/null || true
     fi
 
     # X11 / XWayland GTK apps. xsettingsd re-reads its config on SIGHUP and pushes the new
