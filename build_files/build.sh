@@ -782,6 +782,18 @@ done
 # the freedesktop Secret Service API; cloud credentials never enter JSON files.
 dnf5 -y install libsecret
 
+# Gaming/compat host stack, baked in so it is ready before the first game.
+# gamescope is Valve's microcompositor — it hands a game its own fixed-refresh
+# surface with integrated FSR/NIS upscaling and frame limiting, the practical
+# substitute for hardware VRR on a fixed-refresh panel, and is what a Steam
+# "gamescope session" and gamemode drive. gamemode requests the performance
+# governor + realtime scheduling for the lifetime of a game only. mangohud is the
+# in-game overlay. (Steam/Bottles/Lutris stay Flatpak, installed on demand by
+# `moai-do setup-gaming`; these are the host tools those Flatpaks reach into, and
+# they pair with ntsync — see modules-load.d/moos-gaming.conf — for the fast
+# Proton sync path.)
+dnf5 -y install gamescope gamemode mangohud
+
 # Full Arabic + English locale support (glibc locales, hunspell, input) —
 # MoOS is bilingual by design (MOOS_DESIGN_SYSTEM.md §7 RTL rules).
 #

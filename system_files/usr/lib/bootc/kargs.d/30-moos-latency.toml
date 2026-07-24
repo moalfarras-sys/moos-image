@@ -1,0 +1,18 @@
+# MoOS desktop/gaming latency kargs. bootc kargs.d can only ADD a karg, never
+# remove one, so keep this list minimal and boot-safe (none of these touch the
+# NVIDIA/simpledrm boot path handled in 20-moos-simpledrm.toml).
+#
+#   preempt=full        — the Fedora kernel is PREEMPT_DYNAMIC; this selects full
+#                         preemption at boot, so a high-priority thread (the
+#                         compositor, an audio callback, a game's render thread)
+#                         is scheduled with the least latency. Lower input lag,
+#                         smoother frame pacing. No throughput cost that matters
+#                         on a 16-thread desktop.
+#   split_lock_detect=off — a split lock (an atomic op straddling a cache line)
+#                         is penalised hard by the kernel by default; some games
+#                         and anti-cheat modules trigger it and stutter. Off is
+#                         the standard gaming choice on a single-owner desktop.
+kargs = [
+    "preempt=full",
+    "split_lock_detect=off",
+]
