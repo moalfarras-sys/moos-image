@@ -119,6 +119,19 @@ case "${cat}/${tgt}" in
     brain/start)   term moai-start ;;
     ai/config)     gui moai-config ;;
 
+    # ── Connected devices: these are the real Plasma 6 KCM module ids. The
+    # Welcome's pairing guide opens the exact settings page it describes; none
+    # of its buttons are decorative. All four operations are read-only launches
+    # from the public URL handler — the user still performs every pairing or
+    # settings change inside System Settings.
+    settings/bluetooth) gui systemsettings kcm_bluetooth ;;
+    # USB is an Information Centre module, not a System Settings KCM. Plasma 6
+    # embeds its metadata in kcm_usb.so and ships no kcm_usb.desktop, so sending
+    # it to systemsettings produces a polished-looking dead button.
+    settings/usb)       gui kinfocenter kcm_usb ;;
+    settings/keyboard)  gui systemsettings kcm_keyboard ;;
+    settings/mouse)     gui systemsettings kcm_mouse ;;
+
     # ── Theme: instant, cosmetic, reversible — the Welcome's look picker fires
     # these. moos-theme itself serializes concurrent runs behind a flock, so a
     # drive-by page can at worst flip a look the user can flip right back.
@@ -232,7 +245,7 @@ case "${cat}/${tgt}" in
                           && command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logout || true ;;
     session/power) confirm "إيقاف تشغيل الجهاز الآن؟ | Shut the computer down now?" \
                           && command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown || true ;;
-    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/setup-windows|do/install-codex|do/install-claude|do/install-opencode|do/remote-anywhere)
+    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/setup-windows|do/install-codex|do/install-claude|do/install-opencode|do/install-openclaw|do/setup-brain|do/remote-anywhere)
                    term moai-do "$tgt" ;;
     *)
         notify "أمر MoOS غير معروف | unknown MoOS action: ${path}"

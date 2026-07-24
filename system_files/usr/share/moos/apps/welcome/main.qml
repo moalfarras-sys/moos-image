@@ -17,7 +17,8 @@
 //   4 install    Sends the reviewed selection once through the private
 //                MoosStore bridge, then follows <cache>/moos-store/job.json
 //                for real transaction progress. No terminal, ever.
-//   5 done       Open Mo Store / open Mo AI / finish.
+//   5 done       Connect USB/Bluetooth devices through real Plasma settings,
+//                open Mo Store / Mo AI, or finish.
 //
 // Every app id, category and bundle comes at runtime from
 // /usr/share/moos/store/catalog.json — the SAME curated layer moos-storectl
@@ -475,6 +476,10 @@ ApplicationWindow {
         "gem":      "<path d='M12 3L5 9.5 12 21l7-11.5z'/><path d='M5 9.5h14M12 3l-2.6 6.5L12 21l2.6-11.5z'/>",
         "pen":      "<path d='M4 20l1.2-4.2L16.4 4.6a2 2 0 0 1 2.8 0l.2.2a2 2 0 0 1 0 2.8L8.2 18.8z'/><path d='M14.5 6.5l3 3'/>",
         "video":    "<rect x='3' y='6' width='13' height='12' rx='2.5'/><path d='M16 10.5l5-3v9l-5-3z'/>",
+        "bluetooth":"<path d='M12 3v18M12 3l5 5-5 4M12 12l5 4-5 5M7 7l10 9M7 17l10-9'/>",
+        "usb":      "<path d='M12 3v14'/><path d='M9 6l3-3 3 3'/><path d='M12 11h5v3'/><circle cx='17' cy='16' r='2'/><path d='M12 14H7v3'/><rect x='5.5' y='17' width='3' height='3' rx='.5'/><circle cx='12' cy='20' r='2'/>",
+        "keyboard": "<rect x='2.5' y='5' width='19' height='14' rx='2.5'/><path d='M6 9h1M10 9h1M14 9h1M18 9h.01M6 12.5h1M10 12.5h1M14 12.5h1M18 12.5h.01M7 16h10'/>",
+        "mouse":    "<rect x='7' y='2.5' width='10' height='19' rx='5'/><path d='M12 2.5v6M7 9h10'/>",
         "check":    "<path d='M5 12.5l4.5 4.5L19 7'/>",
         "sun":      "<circle cx='12' cy='12' r='4.2'/><path d='M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3L19 19M19 5l-1.7 1.7M6.7 17.3L5 19'/>",
         "moon":     "<path d='M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z'/>"
@@ -501,6 +506,50 @@ ApplicationWindow {
         sourceSize.height: Math.max(2, height)
         smooth: true
         fillMode: Image.PreserveAspectFit
+    }
+
+    // A pairing-guide action always carries its complete literal moos:// URL.
+    // tests/verify_user_experience.py compares every one against moos-open, so a
+    // renamed KCM route cannot leave a button that looks alive and does nothing.
+    component DeviceSettingsButton: Rectangle {
+        id: deviceButton
+        required property string label
+        required property string url
+        property string glyphName: "gear"
+
+        implicitHeight: 44
+        radius: 22
+        color: deviceButtonHover.hovered
+               ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
+               : Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.86)
+        border.width: 1
+        border.color: deviceButtonHover.hovered ? win.accent : win.outline
+        Behavior on color { ColorAnimation { duration: 120 } }
+        Behavior on border.color { ColorAnimation { duration: 120 } }
+        HoverHandler { id: deviceButtonHover }
+        TapHandler {
+            onTapped: {
+                devicesPopup.close()
+                Qt.openUrlExternally(deviceButton.url)
+            }
+        }
+        RowLayout {
+            anchors.centerIn: parent
+            spacing: 8
+            Glyph {
+                name: deviceButton.glyphName
+                tint: deviceButtonHover.hovered ? win.accent : win.txt
+                Layout.preferredWidth: 18
+                Layout.preferredHeight: 18
+            }
+            Text {
+                text: deviceButton.label
+                color: win.txt
+                font.family: "IBM Plex Sans"
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+            }
+        }
     }
 
     // ── catalog load ───────────────────────────────────────────────────────────
@@ -548,6 +597,206 @@ ApplicationWindow {
         anchors.left: parent.left; anchors.bottom: parent.bottom
         anchors.leftMargin: -170; anchors.bottomMargin: -190
         color: win.blue; opacity: 0.07
+    }
+
+    // ── Device pairing help ──────────────────────────────────────────────────
+    // The base system already handles wired USB and 2.4 GHz receivers without a
+    // wizard. Bluetooth needs an intentional pairing flow. Explain that split,
+    // then open the exact Plasma module named by each button.
+    Popup {
+        id: devicesPopup
+        x: Math.round((win.width - width) / 2)
+        y: Math.round((win.height - height) / 2)
+        width: Math.min(780, win.width - 48)
+        height: Math.min(548, win.height - 48)
+        modal: true
+        focus: true
+        padding: 24
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            radius: 24
+            color: win.chrome
+            border.width: 1
+            border.color: win.outline
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 14
+            LayoutMirroring.enabled: win.rtl
+            LayoutMirroring.childrenInherit: true
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 3
+                    Text {
+                        text: win.rtl ? "وصّل لوحة المفاتيح والماوس" : "Connect your keyboard and mouse"
+                        color: win.txt
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: 24
+                        font.weight: Font.Bold
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: win.rtl
+                              ? "اختر طريقة جهازك — لا تحتاج تعريفات يدوية."
+                              : "Choose how your device connects — no manual drivers needed."
+                        color: win.txt2
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: 13
+                    }
+                }
+                Rectangle {
+                    Layout.preferredWidth: 36
+                    Layout.preferredHeight: 36
+                    radius: 18
+                    color: closeDeviceHover.hovered ? win.raised : "transparent"
+                    HoverHandler { id: closeDeviceHover }
+                    TapHandler { onTapped: devicesPopup.close() }
+                    Text {
+                        anchors.centerIn: parent
+                        text: "×"
+                        color: win.txt
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: 24
+                    }
+                }
+            }
+
+            GridLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                columns: 2
+                columnSpacing: 14
+                rowSpacing: 14
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    radius: 18
+                    color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
+                    border.width: 1
+                    border.color: win.outline
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        spacing: 9
+                        RowLayout {
+                            spacing: 10
+                            Glyph {
+                                name: "usb"
+                                tint: win.accent
+                                Layout.preferredWidth: 28
+                                Layout.preferredHeight: 28
+                            }
+                            Text {
+                                text: win.rtl ? "USB أو مستقبِل 2.4 GHz" : "USB or 2.4 GHz receiver"
+                                color: win.txt
+                                font.family: "IBM Plex Sans"
+                                font.pixelSize: 16
+                                font.weight: Font.DemiBold
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            wrapMode: Text.WordWrap
+                            text: win.rtl
+                                  ? "صِل الكابل أو القطعة الصغيرة بمنفذ USB. يعمل الجهاز تلقائياً؛ افتح القائمة فقط للتأكد أنه ظاهر."
+                                  : "Plug the cable or tiny receiver into a USB port. It works automatically; open the list only to verify it appears."
+                            color: win.txt2
+                            font.family: "IBM Plex Sans"
+                            font.pixelSize: 13
+                            lineHeight: 1.25
+                        }
+                        DeviceSettingsButton {
+                            Layout.fillWidth: true
+                            label: win.rtl ? "الأجهزة المتصلة عبر USB" : "Connected USB devices"
+                            glyphName: "usb"
+                            url: "moos://settings/usb"
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    radius: 18
+                    color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
+                    border.width: 1
+                    border.color: win.outline
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        spacing: 9
+                        RowLayout {
+                            spacing: 10
+                            Glyph {
+                                name: "bluetooth"
+                                tint: win.accent
+                                Layout.preferredWidth: 28
+                                Layout.preferredHeight: 28
+                            }
+                            Text {
+                                text: win.rtl ? "بلوتوث" : "Bluetooth"
+                                color: win.txt
+                                font.family: "IBM Plex Sans"
+                                font.pixelSize: 16
+                                font.weight: Font.DemiBold
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            wrapMode: Text.WordWrap
+                            text: win.rtl
+                                  ? "1) فعّل وضع الاقتران في الجهاز. 2) افتح بلوتوث واختر اسمه. 3) وافق على الرمز إن ظهر."
+                                  : "1) Put the device in pairing mode. 2) Open Bluetooth and choose its name. 3) Confirm the code if shown."
+                            color: win.txt2
+                            font.family: "IBM Plex Sans"
+                            font.pixelSize: 13
+                            lineHeight: 1.25
+                        }
+                        DeviceSettingsButton {
+                            Layout.fillWidth: true
+                            label: win.rtl ? "افتح إعدادات بلوتوث" : "Open Bluetooth settings"
+                            glyphName: "bluetooth"
+                            url: "moos://settings/bluetooth"
+                        }
+                    }
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                text: win.rtl
+                      ? "بعد الاتصال: اضبط التخطيط والسرعة والأزرار من الإعدادات الحقيقية."
+                      : "After connecting: tune layout, speed and buttons in the real settings pages."
+                color: win.txt2
+                font.family: "IBM Plex Sans"
+                font.pixelSize: 12
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+                DeviceSettingsButton {
+                    Layout.fillWidth: true
+                    label: win.rtl ? "إعدادات لوحة المفاتيح" : "Keyboard settings"
+                    glyphName: "keyboard"
+                    url: "moos://settings/keyboard"
+                }
+                DeviceSettingsButton {
+                    Layout.fillWidth: true
+                    label: win.rtl ? "إعدادات الماوس" : "Mouse settings"
+                    glyphName: "mouse"
+                    url: "moos://settings/mouse"
+                }
+            }
+        }
     }
 
     // ═══════════════════════════════ ROOT ═════════════════════════════════════
@@ -1305,6 +1554,7 @@ ApplicationWindow {
 
                     // overall bar
                     Rectangle {
+                        id: overallInstallTrack
                         Layout.fillWidth: true
                         Layout.preferredHeight: 10
                         radius: 5
@@ -1317,25 +1567,28 @@ ApplicationWindow {
                             Behavior on width { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
                         }
                         Rectangle {
+                            id: overallInstallIndeterminate
                             visible: win.installing
                                      && (win.installJob.progress === undefined
                                          || win.installJob.progress === null)
-                            width: Math.max(54, parent.width * 0.22)
-                            height: parent.height
+                            width: Math.max(54, overallInstallTrack.width * 0.22)
+                            height: overallInstallTrack.height
                             radius: 5
                             color: win.accent
                             x: 0
                             SequentialAnimation on x {
-                                running: parent.visible
+                                running: overallInstallIndeterminate.visible
                                 loops: Animation.Infinite
                                 NumberAnimation {
                                     from: 0
-                                    to: Math.max(0, parent.parent.width - parent.width)
+                                    to: Math.max(0, overallInstallTrack.width
+                                                   - overallInstallIndeterminate.width)
                                     duration: 950
                                     easing.type: Easing.InOutSine
                                 }
                                 NumberAnimation {
-                                    from: Math.max(0, parent.parent.width - parent.width)
+                                    from: Math.max(0, overallInstallTrack.width
+                                                     - overallInstallIndeterminate.width)
                                     to: 0
                                     duration: 950
                                     easing.type: Easing.InOutSine
@@ -1563,7 +1816,12 @@ ApplicationWindow {
                                 id: aiRow
                                 anchors.centerIn: parent
                                 spacing: 8
-                                Glyph { name: "spark"; tint: win.accent; width: 17; height: 17 }
+                                Glyph {
+                                    name: "spark"
+                                    tint: win.accent
+                                    Layout.preferredWidth: 17
+                                    Layout.preferredHeight: 17
+                                }
                                 Text {
                                     text: win.rtl ? "افتح Mo AI" : "Open Mo AI"
                                     color: win.txt
@@ -1573,7 +1831,43 @@ ApplicationWindow {
                         }
                     }
 
-                    Item { Layout.preferredHeight: 16 }
+                    Item { Layout.preferredHeight: 14 }
+                    Rectangle {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredHeight: 44
+                        implicitWidth: devicesRow.implicitWidth + 42
+                        radius: 22
+                        color: devicesHover.hovered
+                               ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
+                               : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.55)
+                        border.width: 1
+                        border.color: devicesHover.hovered ? win.accent : win.outline
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Behavior on border.color { ColorAnimation { duration: 120 } }
+                        HoverHandler { id: devicesHover }
+                        TapHandler { onTapped: devicesPopup.open() }
+                        RowLayout {
+                            id: devicesRow
+                            anchors.centerIn: parent
+                            spacing: 8
+                            Glyph {
+                                name: "bluetooth"
+                                tint: win.accent
+                                Layout.preferredWidth: 18
+                                Layout.preferredHeight: 18
+                            }
+                            Text {
+                                text: win.rtl ? "وصّل لوحة مفاتيح أو ماوس أو جهازاً"
+                                              : "Connect a keyboard, mouse or device"
+                                color: win.txt
+                                font.family: "IBM Plex Sans"
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                            }
+                        }
+                    }
+
+                    Item { Layout.preferredHeight: 10 }
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.preferredHeight: 38
