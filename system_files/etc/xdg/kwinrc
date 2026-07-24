@@ -128,6 +128,17 @@ translucencyEnabled=false
 BlurStrength=8
 NoiseStrength=2
 
+[Effect-overview]
+# A macOS-style hot corner. Flick the pointer into the TOP-LEFT and Overview fans
+# every window and virtual desktop out over the blurred scene — the effect is
+# already on in [Plugins]; this just gives it a zero-effort trigger alongside the
+# Meta+W shortcut, so window management feels immediate the way Mission Control /
+# Task View do. 7 = ElectricTopLeft in KWin's ElectricBorder enum (the unset
+# default is 9, ElectricNone). Top-left is the safe corner: the panel is at the
+# bottom and windows maximise from the top-left, so it is rarely triggered by
+# accident, and it never fights a bottom-edge or right-edge gesture.
+BorderActivate=7
+
 [Compositing]
 # Nova timing: a hair snappier than stock (1.0) without feeling rushed. macOS
 # window motion is quick (~200-250ms); this shortens KWin's base durations
