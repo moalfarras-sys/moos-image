@@ -304,6 +304,14 @@ def build_desktoptheme(key: str, meta: dict) -> None:
         elif src.name not in ("colors", "metadata.json", "plasmarc"):
             out.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, out)
+    # Light members render their glass through the SHARED masters instead of the
+    # recoloured dark copy, so all 7 light siblings pick up the tuned LIGHT
+    # opacity ramp — keeping Dark and Light ONE glass source with two profiles,
+    # not a light theme forced onto the dark dock's translucency.
+    if meta.get("light"):
+        _register_palette(key)
+        gen.render_panel(dst / "widgets/panel-background.svg", key, light=True)
+        gen.render_dialog(dst / "dialogs/background.svg", key, light=True)
     # fresh metadata + plasmarc + colors
     write(dst / "metadata.json", json.dumps({
         "KPlugin": {

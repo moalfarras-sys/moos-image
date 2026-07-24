@@ -187,7 +187,37 @@ def write(path: pathlib.Path, content: str) -> None:
     path.write_text(content.rstrip() + "\n", encoding="utf-8")
 
 
-def render_panel(target: pathlib.Path, variant: str) -> None:
+# Glass translucency, per half. Dark and Light are ONE material with two
+# profiles, not one dark-tuned value forced onto both: a light glass needs a
+# denser floor so dark tray icons / clock / text stay legible over wallpaper.
+# The DARK values are byte-identical to the shipped Liquid Glass — do not touch
+# them (that is the maintainer's proven dock). Only Light diverges.
+OPACITY = {
+    "dark": {
+        "@GLASS_P0@": "0.70", "@GLASS_P1@": "0.76", "@GLASS_P2@": "0.84", "@GLASS_P3@": "0.88",
+        "@RIM_LUM@": "0.42", "@RIM_ACCENT@": "0.14", "@RIM_OUTLINE@": "0.28",
+        "@DLG_P0@": "0.70", "@DLG_P1@": "0.74", "@DLG_P2@": "0.78", "@DLG_P3@": "0.80",
+        "@DLG_RIM_LUM@": "0.44", "@DLG_RIM_OUTLINE@": "0.24",
+    },
+    "light": {
+        # Capped at 0.93 so the light dock stays denser than dark (legible dark
+        # icons over wallpaper) yet never crosses the 0.93 ceiling above which
+        # KWin's frost stops showing (enforced by test_glass_surfaces_*).
+        "@GLASS_P0@": "0.82", "@GLASS_P1@": "0.87", "@GLASS_P2@": "0.91", "@GLASS_P3@": "0.93",
+        "@RIM_LUM@": "0.46", "@RIM_ACCENT@": "0.14", "@RIM_OUTLINE@": "0.30",
+        "@DLG_P0@": "0.82", "@DLG_P1@": "0.85", "@DLG_P2@": "0.90", "@DLG_P3@": "0.92",
+        "@DLG_RIM_LUM@": "0.44", "@DLG_RIM_OUTLINE@": "0.26",
+    },
+}
+
+
+def _glass_opacity(variant: str, light: bool | None) -> dict[str, str]:
+    if light is None:
+        light = variant == "light"
+    return OPACITY["light" if light else "dark"]
+
+
+def render_panel(target: pathlib.Path, variant: str, light: bool | None = None) -> None:
     tokens = variant_roles(variant)
     text = (ART / "plasma/panel-background.svg.in").read_text(encoding="utf-8")
     substitutions = {
@@ -195,11 +225,12 @@ def render_panel(target: pathlib.Path, variant: str) -> None:
         "@TEXT@": tokens["text"], "@LUMINOUS@": tokens["luminous"],
         "@OUTLINE@": tokens["outline"], "@PANEL_TOP@": tokens["panel_top"],
         "@PANEL_MID@": tokens["panel_mid"], "@PANEL_BOTTOM@": tokens["panel_bottom"],
+        **_glass_opacity(variant, light),
     }
     write(target, rewrite_text(text, substitutions))
 
 
-def render_dialog(target: pathlib.Path, variant: str) -> None:
+def render_dialog(target: pathlib.Path, variant: str, light: bool | None = None) -> None:
     """Render the popup FrameSvg and its rounded KWin blur mask.
 
     Unlike ordinary fixed-colour assets, the mask is a structural contract:
@@ -213,6 +244,7 @@ def render_dialog(target: pathlib.Path, variant: str) -> None:
         "@CARD@": tokens["card"], "@PRIMARY@": tokens["primary"],
         "@TEXT@": tokens["text"], "@LUMINOUS@": tokens["luminous"],
         "@OUTLINE@": tokens["outline"],
+        **_glass_opacity(variant, light),
     }
     write(target, rewrite_text(text, substitutions))
 

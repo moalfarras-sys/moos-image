@@ -673,15 +673,26 @@ class TestMoOSUI2(unittest.TestCase):
             r'\bid="([^"]+)"', dialog_template
         )), "the popup master must ship a complete rounded blur mask")
 
-        panel_opacities = [
-            float(value) for value in re.findall(r'stop-opacity="([0-9.]+)"',
-                                                  panel_template)
-        ]
-        self.assertTrue(panel_opacities)
-        self.assertLessEqual(
-            max(panel_opacities), 0.93,
-            "the dock glass becomes effectively opaque and hides KWin blur",
-        )
+        # Panel glass opacity is now tokenised in the master (@GLASS_P*@) so Dark
+        # and Light are ONE source with two per-half profiles. Assert the master
+        # drives it through tokens, then read the numeric opacities from the
+        # GENERATED panels and hold the 0.93 blur ceiling for EVERY variant.
+        self.assertIn("@GLASS_P0@", panel_template,
+                      "the panel master must drive glass opacity through tokens")
+        for names in VARIANTS.values():
+            panel_path = (SHARE / "plasma/desktoptheme"
+                          / names["desktop_theme"] / "widgets/panel-background.svg")
+            panel_opacities = [
+                float(value) for value in re.findall(
+                    r'stop-opacity="([0-9.]+)"',
+                    panel_path.read_text(encoding="utf-8"))
+            ]
+            with self.subTest(panel=panel_path):
+                self.assertTrue(panel_opacities)
+                self.assertLessEqual(
+                    max(panel_opacities), 0.93,
+                    "the dock glass becomes effectively opaque and hides KWin blur",
+                )
 
         for names in VARIANTS.values():
             dialog_path = (SHARE / "plasma/desktoptheme"

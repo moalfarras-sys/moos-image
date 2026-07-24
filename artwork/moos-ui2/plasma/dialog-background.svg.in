@@ -16,40 +16,40 @@
   <defs>
     <linearGradient id="ui2-dialog-glass" gradientUnits="userSpaceOnUse"
                     x1="0" y1="0" x2="0" y2="64">
-      <stop offset="0" stop-color="@SURFACE@" stop-opacity="0.70"/>
-      <stop offset="0.16" stop-color="@CARD@" stop-opacity="0.74"/>
-      <stop offset="0.72" stop-color="@CANVAS@" stop-opacity="0.78"/>
-      <stop offset="1" stop-color="@CANVAS@" stop-opacity="0.80"/>
+      <stop offset="0" stop-color="@SURFACE@" stop-opacity="@DLG_P0@"/>
+      <stop offset="0.16" stop-color="@CARD@" stop-opacity="@DLG_P1@"/>
+      <stop offset="0.72" stop-color="@CANVAS@" stop-opacity="@DLG_P2@"/>
+      <stop offset="1" stop-color="@CANVAS@" stop-opacity="@DLG_P3@"/>
     </linearGradient>
   </defs>
 
   <g id="topleft">
     <path d="M0 18A18 18 0 0 1 18 0V18Z" fill="url(#ui2-dialog-glass)"/>
     <path d="M0 18A18 18 0 0 1 18 0V1A17 17 0 0 0 1 18Z"
-          fill="@LUMINOUS@" fill-opacity="0.44"/>
+          fill="@LUMINOUS@" fill-opacity="@DLG_RIM_LUM@"/>
   </g>
   <g id="topright">
     <path d="M46 0A18 18 0 0 1 64 18H46Z" fill="url(#ui2-dialog-glass)"/>
     <path d="M46 0A18 18 0 0 1 64 18H63A17 17 0 0 0 46 1Z"
-          fill="@LUMINOUS@" fill-opacity="0.44"/>
+          fill="@LUMINOUS@" fill-opacity="@DLG_RIM_LUM@"/>
   </g>
   <g id="bottomleft">
     <path d="M18 64A18 18 0 0 1 0 46H18Z" fill="url(#ui2-dialog-glass)"/>
     <path d="M18 64A18 18 0 0 1 0 46H1A17 17 0 0 0 18 63Z"
-          fill="@OUTLINE@" fill-opacity="0.24"/>
+          fill="@OUTLINE@" fill-opacity="@DLG_RIM_OUTLINE@"/>
   </g>
   <g id="bottomright">
     <path d="M64 46A18 18 0 0 1 46 64V46Z" fill="url(#ui2-dialog-glass)"/>
     <path d="M64 46A18 18 0 0 1 46 64V63A17 17 0 0 0 63 46Z"
-          fill="@OUTLINE@" fill-opacity="0.24"/>
+          fill="@OUTLINE@" fill-opacity="@DLG_RIM_OUTLINE@"/>
   </g>
   <g id="top">
     <rect x="18" width="28" height="18" fill="url(#ui2-dialog-glass)"/>
-    <rect x="18" width="28" height="1" fill="@LUMINOUS@" fill-opacity="0.44"/>
+    <rect x="18" width="28" height="1" fill="@LUMINOUS@" fill-opacity="@DLG_RIM_LUM@"/>
   </g>
   <g id="bottom">
     <rect x="18" y="46" width="28" height="18" fill="url(#ui2-dialog-glass)"/>
-    <rect x="18" y="63" width="28" height="1" fill="@OUTLINE@" fill-opacity="0.24"/>
+    <rect x="18" y="63" width="28" height="1" fill="@OUTLINE@" fill-opacity="@DLG_RIM_OUTLINE@"/>
   </g>
   <g id="left">
     <rect y="18" width="18" height="28" fill="url(#ui2-dialog-glass)"/>
