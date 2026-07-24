@@ -121,6 +121,12 @@ tasks.writeConfig("showOnlyCurrentDesktop", false);
  * dock — it reads as a broken widget, and a dock of this kind has no such button
  * anyway. Users who want it back: right-click the dock -> Add Widgets. */
 panel.addWidget("org.kde.plasma.marginsseparator");
+// MoOS Control Center — the glass status panel: Wi-Fi, Bluetooth, Night Light,
+// Do Not Disturb and volume as big one-tap tiles, an Apple-style control centre
+// that is genuinely MoOS's own. Sits just before the tray so the whole status
+// corner reads as one thing.
+panel.addWidget("org.moos.controlcenter");
+
 var systray = panel.addWidget("org.kde.plasma.systemtray");
 // MoOS keeps the everyday device toggles one click away in the status area
 // instead of buried behind the tray arrow — reaching Wi-Fi, Bluetooth, volume
