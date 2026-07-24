@@ -1811,11 +1811,17 @@ require('if [ "$BACKEND" = "ramalama" ]; then\n    systemctl --user enable --now
         "moai-start must start and verify a generated Ollama Quadlet instead of "
         "trying the unsupported enable --now operation")
 build_script = read("build_files/build.sh")
+# These units all ship in the image and start /usr binaries, so build.sh can
+# systemd-analyze verify them. openclaw-gateway.service is deliberately NOT in
+# this list: its ExecStart is %h/.local/bin/openclaw, a per-user runtime install
+# (moai-do install-openclaw) that is not in the image, so systemd-analyze verify
+# resolves %h to /root and fails the whole build. A unit whose command is a user
+# install cannot be build-time verified; its runtime guard is
+# ConditionFileIsExecutable and its in-image ExecStartPre is covered elsewhere.
 for runtime_unit in (
     "moai.service", "moai-gateway.service", "moai-control.service",
     "moai-idle.service", "moai-idle.timer", "moos-ensure-brain.service",
     "openclaw-idle.service", "openclaw-idle.timer", "moai-agent-api.service",
-    "openclaw-gateway.service",
 ):
     require(f"/usr/lib/systemd/user/{runtime_unit}" in build_script,
             f"the image build must systemd-verify Mo AI runtime unit {runtime_unit}")
