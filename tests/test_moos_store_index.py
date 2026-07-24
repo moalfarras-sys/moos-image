@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from urllib.parse import unquote, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -372,6 +373,50 @@ class StoreIndexTests(unittest.TestCase):
             self.assertFalse(removed_apps["org.example.Writer"]["installed"])
             self.assertNotIn("installed_scope", removed_apps["org.example.Writer"])
             self.assertNotIn("installed_scopes", removed_apps["org.example.Writer"])
+
+    def test_cached_icon_uri_survives_active_revision_rotation(self) -> None:
+        """Cached indexes must not pin an AppStream revision Flatpak deletes."""
+
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            appstream = base / "flatpak/appstream"
+            installation = base / "flatpak"
+            first = write_source(appstream, "flathub", PRIMARY_XML, compressed=False)
+            first_icon = first / "icons/128x128/org.example.Writer.png"
+            first_icon.parent.mkdir(parents=True)
+            first_icon.write_bytes(b"\x89PNG\r\n\x1a\nfirst")
+            active = first.parent / "active"
+            active.symlink_to(first.name, target_is_directory=True)
+
+            catalog = base / "catalog.json"
+            output = base / "cache/index.json"
+            write_catalog(catalog)
+            result = self.run_indexer(
+                output, catalog, appstream, installation, locale="en"
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            data = json.loads(output.read_text(encoding="utf-8"))
+            writer = next(
+                app for app in data["apps"] if app["id"] == "org.example.Writer"
+            )
+            icon_path = Path(unquote(urlsplit(writer["icon"]).path))
+            self.assertIn("active", icon_path.parts)
+            self.assertTrue(icon_path.is_file())
+
+            # A Flatpak AppStream refresh repoints `active` and removes the old
+            # content-addressed revision. The cached URI must follow the link.
+            second = first.parent / ("b" * 64)
+            second_icon = second / "icons/128x128/org.example.Writer.png"
+            second_icon.parent.mkdir(parents=True)
+            second_icon.write_bytes(b"\x89PNG\r\n\x1a\nsecond")
+            active.unlink()
+            active.symlink_to(second.name, target_is_directory=True)
+            first.rename(first.with_name("retired-revision"))
+
+            self.assertTrue(
+                icon_path.is_file(),
+                "cached icon URI pinned the retired AppStream revision",
+            )
 
     def test_same_revision_is_parsed_once_across_user_and_system_scopes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

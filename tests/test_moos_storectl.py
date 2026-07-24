@@ -380,6 +380,43 @@ class ValidationTests(StoreTestCase):
         adapter.remove("org.example.App", object(), lambda: False)
         self.assertEqual(queued, ["app/org.example.App/x86_64/stable"])
 
+    def test_libflatpak_launch_uses_the_installed_arch_and_branch(self):
+        class Installed:
+            @staticmethod
+            def get_arch():
+                return "aarch64"
+
+            @staticmethod
+            def get_branch():
+                return "stable"
+
+        class Installation:
+            def __init__(self):
+                self.launches = []
+
+            @staticmethod
+            def get_current_installed_app(app_id, _cancellable):
+                self.assertEqual(app_id, "org.example.App")
+                return Installed()
+
+            def launch(self, *args):
+                self.launches.append(args)
+                return True
+
+        installation = Installation()
+        adapter = object.__new__(MODULE.FlatpakAdapter)
+        adapter.user = installation
+        adapter.system = object()
+        adapter.is_user_installed = lambda _app_id: True
+        adapter.is_system_installed = lambda _app_id: False
+
+        adapter.launch("org.example.App")
+
+        self.assertEqual(
+            installation.launches,
+            [("org.example.App", "aarch64", "stable", None, None)],
+        )
+
 
 class StatusAndLockTests(StoreTestCase):
     def test_atomic_job_file_is_never_observed_as_partial_json(self):

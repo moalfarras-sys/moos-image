@@ -207,6 +207,18 @@ ApplicationWindow {
         return app && app.install && app.install.kind === "web"
     }
 
+    function pickedWebCount() {
+        var ids = Object.keys(win.picks)
+        var count = 0
+        for (var i = 0; i < ids.length; ++i)
+            if (win.isWeb(win.appById(ids[i]))) ++count
+        return count
+    }
+
+    function onlyWebPicks() {
+        return win.pickCount > 0 && win.pickedWebCount() === win.pickCount
+    }
+
     function hasFlatpakLifecycle(app) {
         return app && (app.source === "flatpak"
                        || app.source === "flathub"
@@ -223,10 +235,16 @@ ApplicationWindow {
     }
 
     function canRemove(app) {
-        return win.isInstalled(app)
-            && win.hasFlatpakLifecycle(app)
-            && (win.hasInstalledScope(app, "user")
-                || (!app.installed_scopes && app.installed_scope !== "system"))
+        if (!win.isInstalled(app) || !win.hasFlatpakLifecycle(app))
+            return false
+        // A live transaction result outranks stale/legacy catalogue metadata.
+        // In particular ["system"] is conclusive: do not fall through to the
+        // no-scope fallback and expose a Remove action the backend must refuse.
+        if (win.installedScopeOverrides[app.id] !== undefined)
+            return win.installedScopeOverrides[app.id].indexOf("user") >= 0
+        if (app.installed_scopes)
+            return app.installed_scopes.indexOf("user") >= 0
+        return app.installed_scope !== "system"
     }
 
     function systemManagedOnly(app) {
@@ -611,8 +629,15 @@ ApplicationWindow {
                 nextScopes[item.id] = win.hasInstalledScope(installedApp, "system")
                     ? ["user", "system"] : ["user"]
             } else if (item.state === "skipped"
-                       && (item.message || "").indexOf("Already installed") === 0) {
+                       && (item.message || "") === "Already installed system-wide") {
                 next[item.id] = true
+                nextScopes[item.id] = ["system"]
+            } else if (item.state === "skipped"
+                       && (item.message || "") === "Already installed for this user") {
+                next[item.id] = true
+                var skippedApp = win.appById(item.id)
+                nextScopes[item.id] = win.hasInstalledScope(skippedApp, "system")
+                    ? ["user", "system"] : ["user"]
             }
         }
         win.installedOverrides = next
@@ -712,6 +737,10 @@ ApplicationWindow {
     }
 
     function removeSelected(app) {
+        if (win.jobIsActive()) {
+            win.flash(win.rtl ? "انتظر اكتمال العملية الحالية" : "Wait for the current operation")
+            return
+        }
         if (!win.canRemove(app)) {
             win.flash(win.rtl
                 ? "هذا التطبيق مُدار مع النظام ولا يُزال من متجر المستخدم"
@@ -2139,6 +2168,10 @@ ApplicationWindow {
                                             if (win.updatesState === "unknown")
                                                 return win.rtl ? "تطبيقاتك، وتحديثاتها." : "Your apps, and their updates."
                                             var n = win.updateItems().length
+                                            if (n === 0 && win.updateComponentCount() > 0)
+                                                return win.rtl
+                                                    ? "توجد تحديثات لمكوّنات مشتركة."
+                                                    : "Shared components have updates."
                                             if (n === 0)
                                                 return win.rtl ? "كل تطبيقاتك محدّثة." : "Everything is up to date."
                                             return win.rtl
@@ -2174,7 +2207,10 @@ ApplicationWindow {
                                     RowLayout {
                                         spacing: 8
                                         ActionButton {
-                                            label: win.rtl ? "تحديث التطبيقات الآن" : "Update apps now"
+                                            label: win.updateItems().length === 0
+                                                   && win.updateComponentCount() > 0
+                                                ? (win.rtl ? "تحديث المكوّنات الآن" : "Update components now")
+                                                : (win.rtl ? "تحديث التطبيقات الآن" : "Update apps now")
                                             glyphName: "refresh"
                                             primary: true
                                             // Nothing pending is a reason not to offer the
@@ -2321,14 +2357,26 @@ ApplicationWindow {
                                         }
                                         Item { Layout.fillHeight: true }
                                         ActionButton {
-                                            label: win.rtl ? "فتح" : "Open"
-                                            glyphName: "external"
+                                            label: updateCard.modelData.action === "update"
+                                                ? win.updateItems().length === 0
+                                                    && win.updateComponentCount() > 0
+                                                    ? (win.rtl ? "حدّث المكوّنات الآن" : "Update components now")
+                                                    : (win.rtl ? "حدّث تطبيقات Flatpak الآن" : "Update Flatpaks now")
+                                                : updateCard.modelData.action === "system-update"
+                                                    ? (win.rtl ? "افتح محدّث MoOS" : "Open MoOS Updater")
+                                                    : (win.rtl ? "افتح تحديثات البرامج الثابتة" : "Open firmware updates")
+                                            glyphName: updateCard.modelData.action === "update"
+                                                ? "refresh" : "external"
+                                            enabled: updateCard.modelData.action !== "update"
+                                                || (!win.jobIsActive()
+                                                    && !win.updatesChecking
+                                                    && !(win.updatesState === "known"
+                                                         && win.updates.count === 0))
                                             triggered: function() {
                                                 if (updateCard.modelData.action === "update") win.updateAll()
                                                 else if (updateCard.modelData.action === "system-update")
                                                     win.openSystemUpdater()
-                                                else if (typeof MoosStore !== "undefined")
-                                                    MoosStore.openEngine(updateCard.modelData.action)
+                                                else win.openSourceEngine(updateCard.modelData.action)
                                             }
                                         }
                                     }
@@ -2507,15 +2555,21 @@ ApplicationWindow {
                                         Item { Layout.fillHeight: true }
                                         ActionButton {
                                             visible: sourceCard.modelData.action !== ""
+                                            enabled: !win.jobIsActive()
                                             label: sourceCard.modelData.action === "permissions"
                                                 ? win.isInstalled(win.appById("com.github.tchx84.Flatseal"))
                                                     ? (win.rtl ? "افتح الأداة" : "Open tool")
                                                     : (win.rtl ? "ثبّت الأداة" : "Install tool")
                                                 : sourceCard.modelData.action === "refresh"
                                                     ? (win.rtl ? "حدّث الفهرس" : "Refresh catalogue")
+                                                : sourceCard.modelData.action === "bazaar"
+                                                    && !win.isInstalled(win.appById("io.github.kolunmi.Bazaar"))
+                                                    ? (win.rtl ? "ثبّت المحرك وافتحه" : "Install & open engine")
                                                 : (win.rtl ? "فتح المحرك" : "Open engine")
                                             glyphName: sourceCard.modelData.action === "permissions"
                                                 && !win.isInstalled(win.appById("com.github.tchx84.Flatseal"))
+                                                || sourceCard.modelData.action === "bazaar"
+                                                    && !win.isInstalled(win.appById("io.github.kolunmi.Bazaar"))
                                                 ? "download" : "external"
                                             triggered: function() {
                                                 win.openSourceEngine(sourceCard.modelData.action)
@@ -2657,6 +2711,7 @@ ApplicationWindow {
                     }
                 }
                 Rectangle {
+                    id: jobProgressTrack
                     Layout.fillWidth: true
                     Layout.preferredHeight: 6
                     radius: 3
@@ -2671,21 +2726,28 @@ ApplicationWindow {
                         Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
                     }
                     Rectangle {
+                        id: jobProgressIndeterminate
                         visible: win.job.progress === null || win.job.progress === undefined
-                        width: parent.width * 0.28
-                        height: parent.height
+                        width: jobProgressTrack.width * 0.28
+                        height: jobProgressTrack.height
                         radius: 3
                         color: win.accent
                         SequentialAnimation on x {
-                            running: parent.visible
+                            running: jobProgressIndeterminate.visible
                             loops: Animation.Infinite
-                            NumberAnimation { from: -parent.width * 0.28; to: parent.width; duration: 1200; easing.type: Easing.InOutQuad }
+                            NumberAnimation {
+                                from: -jobProgressIndeterminate.width
+                                to: jobProgressTrack.width
+                                duration: 1200
+                                easing.type: Easing.InOutQuad
+                            }
                         }
                     }
                 }
             }
             ActionButton {
                 visible: win.jobIsActive()
+                enabled: !win.waitingForJob
                 label: win.rtl ? "إلغاء" : "Cancel"
                 glyphName: "trash"
                 destructive: true
@@ -2760,7 +2822,7 @@ ApplicationWindow {
                         RowLayout {
                             SourceBadge { app: win.selectedApp }
                             Rectangle {
-                                visible: win.selectedApp && win.selectedApp.license
+                                visible: win.selectedApp !== null && !!win.selectedApp.license
                                 implicitHeight: 22
                                 implicitWidth: licenseText.implicitWidth + 14
                                 radius: 11
@@ -2883,10 +2945,10 @@ ApplicationWindow {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 58
-                    visible: win.selectedApp && (win.selectedApp.requires_review === true
-                                                 || (win.selectedApp.install
-                                                     && win.selectedApp.install.requires_review === true)
-                                                 || (win.selectedApp.install && win.selectedApp.install.kind === "npm"))
+                    visible: win.selectedApp !== null && (win.selectedApp.requires_review === true
+                                                          || (win.selectedApp.install
+                                                              && win.selectedApp.install.requires_review === true)
+                                                          || (win.selectedApp.install && win.selectedApp.install.kind === "npm"))
                     radius: 16
                     color: Qt.rgba(win.violet.r, win.violet.g, win.violet.b, 0.1)
                     border.width: 1
@@ -2922,6 +2984,7 @@ ApplicationWindow {
                     Item { Layout.fillWidth: true }
                     ActionButton {
                         visible: win.canRemove(win.selectedApp)
+                        enabled: !win.jobIsActive()
                         label: win.rtl ? "إزالة" : "Remove"
                         glyphName: "trash"
                         destructive: true
@@ -2989,16 +3052,30 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 1
                     Text {
-                        text: win.rtl ? "راجع قبل التثبيت" : "Review before installing"
+                        text: win.onlyWebPicks()
+                            ? win.pickCount === 1
+                                ? (win.rtl ? "راجع الموقع الخارجي" : "Review external website")
+                                : (win.rtl ? "راجع المواقع الخارجية" : "Review external websites")
+                            : win.pickedWebCount() > 0
+                                ? (win.rtl ? "راجع قبل المتابعة" : "Review before continuing")
+                                : (win.rtl ? "راجع قبل التثبيت" : "Review before installing")
                         color: win.txt
                         font.family: "IBM Plex Sans"
                         font.pixelSize: 18
                         font.bold: true
                     }
                     Text {
-                        text: win.rtl
-                            ? "سيُثبت Flatpak بصلاحيات المستخدم فقط. المصادر الخارجية موضحة أدناه."
-                            : "Flatpaks install for your user only. Advanced sources are clearly marked below."
+                        text: win.onlyWebPicks()
+                            ? (win.rtl
+                                ? "سيفتح Mo Store صفحة الناشر الرسمية عبر HTTPS؛ وأنت تُكمل أي تنزيل من هناك."
+                                : "Mo Store opens the publisher's official HTTPS page; you complete any download there.")
+                            : win.pickedWebCount() > 0
+                                ? (win.rtl
+                                    ? "تُثبت تطبيقات Flatpak للمستخدم فقط، وتفتح العناصر الخارجية صفحات ناشريها الرسمية."
+                                    : "Flatpaks install for your user only; external items open their publishers' official pages.")
+                                : (win.rtl
+                                    ? "سيُثبت Flatpak بصلاحيات المستخدم فقط. المصادر المتقدمة موضحة أدناه."
+                                    : "Flatpaks install for your user only. Advanced sources are clearly marked below.")
                         color: win.txt2
                         font.family: "IBM Plex Sans"
                         font.pixelSize: 10
@@ -3074,8 +3151,8 @@ ApplicationWindow {
                     Text {
                         Layout.fillWidth: true
                         text: win.rtl
-                            ? "لا صلاحية مسؤول ولا تثبيت من الويب؛ أدوات npm المعلّمة قد تشغّل سكربتات الحزمة بعد موافقتك."
-                            : "No administrator access or web-triggered installs. Marked npm tools may run package scripts after your approval."
+                            ? "لا صلاحية مسؤول، والمواقع الخارجية لا تثبّت تلقائياً؛ أدوات npm المعلّمة قد تشغّل سكربتات الحزمة بعد موافقتك."
+                            : "No administrator access, and external websites never install automatically. Marked npm tools may run package scripts after your approval."
                         color: win.txt
                         font.family: "IBM Plex Sans"
                         font.pixelSize: 10
@@ -3092,8 +3169,14 @@ ApplicationWindow {
                 }
                 Item { Layout.fillWidth: true }
                 ActionButton {
-                    label: (win.rtl ? "ثبّت " : "Install ") + win.pickCount
-                    glyphName: "download"
+                    label: win.onlyWebPicks()
+                        ? win.pickCount === 1
+                            ? (win.rtl ? "افتح الموقع الرسمي" : "Open official website")
+                            : (win.rtl ? "افتح المواقع الرسمية" : "Open official websites")
+                        : win.pickedWebCount() > 0
+                            ? (win.rtl ? "تابع مع " : "Continue with ") + win.pickCount
+                            : (win.rtl ? "ثبّت " : "Install ") + win.pickCount
+                    glyphName: win.onlyWebPicks() ? "external" : "download"
                     primary: true
                     enabled: win.pickCount > 0 && !win.jobIsActive()
                     triggered: function() { win.beginInstall() }

@@ -1036,7 +1036,15 @@ class FlatpakAdapter:
     def launch(self, app_id: str) -> None:
         installation = self.user if self.is_user_installed(app_id) else self.system
         try:
-            if not installation.launch(app_id, None, None, None, None):
+            # Flatpak.Installation.launch() does not resolve a missing branch
+            # to the app's current deployment: on this image, passing None made
+            # it try `master` even when the installed ref was `stable`.  Resolve
+            # the deployment first and launch that exact arch/branch, otherwise
+            # a Store "Open" button can fail for a correctly installed app.
+            installed_ref = installation.get_current_installed_app(app_id, None)
+            arch = installed_ref.get_arch()
+            branch = installed_ref.get_branch()
+            if not installation.launch(app_id, arch, branch, None, None):
                 raise StoreError(f"Flatpak did not launch {app_id}")
         except StoreError:
             raise

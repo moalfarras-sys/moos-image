@@ -496,13 +496,24 @@ def cached_icon_uri(component: ET.Element, index_path: Path) -> str:
         score = 10_000 - abs(128 - min(width, height))
         candidates.append((score, icon))
 
-    base = index_path.parent.resolve()
+    # Keep `active` in the published URI. Flatpak stores AppStream metadata in
+    # content-addressed revision directories and repoints the `active` symlink
+    # during a refresh, then removes the old revision. Resolving that symlink
+    # here made a perfectly fresh cached Store index point at files that no
+    # longer existed after the next refresh. Resolve only for containment and
+    # existence checks; publish the stable path through `active`.
+    base = index_path.parent.absolute()
+    resolved_base = base.resolve()
     for _score, icon in sorted(candidates, key=lambda item: item[0], reverse=True):
         name = element_text(icon, 256)
         width = int(icon.attrib["width"])
         height = int(icon.attrib["height"])
-        candidate = (base / "icons" / f"{width}x{height}" / name).resolve()
-        if is_within(candidate, base) and candidate.is_file():
+        candidate = base / "icons" / f"{width}x{height}" / name
+        resolved_candidate = candidate.resolve()
+        if (
+            is_within(resolved_candidate, resolved_base)
+            and resolved_candidate.is_file()
+        ):
             return candidate.as_uri()
     return ""
 
