@@ -72,15 +72,53 @@ control plane · `feat(shell)` Welcome device guide → real Plasma KCMs ·
 regenerated theme family · `chore(moplayer)` metainfo homepage · `chore(build)`
 enable new units + wire new gates · `ci` run the new Mo AI tests in repo-gates.
 
-### Not done / what the next session confirms
+### Shipped as v333, plus three post-push fixes the local build/CI caught
 
-- **Live-after-reboot verification.** The new /usr only becomes live on reboot;
-  until then the running desktop still serves v329's binaries. After the image
-  updates, confirm on the live system: `moos-selfcheck`, Mo AI's local brain/voice
-  start, the Welcome device buttons open real KCMs, and NumLock is on at the greeter.
-- Pushing `.github/workflows/build.yml` needs the `workflow` scope on the token
-  (`gh auth refresh -h github.com -s workflow`) — it is isolated in its own commit
-  so the rest can push even if that one is blocked.
+The work is live-staged. **Booted at handoff time: v329; STAGED for next boot:
+`44.20260724.333` (`86c6d18`, signed origin verified at pull).** A reboot was
+requested and is being issued now.
+
+Three fixes landed after the first push — each a "green here, red there" split the
+initial `just check` could not see, which is exactly why the local image build and
+CI matter:
+
+1. `fix(build)` — the local `podman build` failed: `openclaw-gateway.service`
+   was in build.sh's `systemd-analyze verify` list, but its ExecStart is
+   `%h/.local/bin/openclaw`, a per-user runtime install absent at build time.
+   Removed it (its guard is `ConditionFileIsExecutable`). `just check` never runs
+   systemd-analyze verify, so it stayed green while the image build failed.
+2. `fix(test)` — CI's bare ubuntu runner has no `kwriteconfig6`, so the two
+   `test_moos_theme_safety` tests that EXECUTE `moos-ui-migrate` failed there
+   while passing local `just check` (which has KDE). `skipUnless(kwriteconfig6)`.
+3. `fix(gate)` — `verify_user_experience.py` asserted the opposite of fix #1
+   (openclaw-gateway MUST be in the verify list). Aligned it with fix #1.
+
+Lesson banked: after editing build.sh, re-run `just check` AND simulate the bare
+runner (`PATH` without the KDE tools) before pushing — I did the third fix only
+after simulating CI locally and watching it go green.
+
+### After reboot — verify, then start Phase 1
+
+Post-reboot checklist: `rpm-ostree status` shows booted **333**; `moos-selfcheck`
+no longer reports the keyboard "2 broken" (the stale `~/.config/kxkbrc` = the exact
+`de,ara` legacy shape, which `migrate_legacy_keyboard` in the shipped moos-ui-migrate
+auto-heals to `de,us,ara` on the first login via `org.moos.ui-migrate.desktop`);
+Mo AI local brain/voice start; the Welcome device buttons open real KCMs; NumLock on
+at the greeter; Tidal-Glass popups.
+
+Then the owner's **top priority — a remote (phone) control that never disconnects,
+stays light on CPU/RAM.** Grounded findings for Phase 1 (see the session's roadmap):
+the agent already has NVENC-first H.264 (`mo-remote-portal.py`), a session token
+(`AppConfig.TokenTtlMinutes=60`), `systemd-inhibit` keep-awake, and live-tunable fps.
+The gaps to close: WebSocket `KeepAliveInterval` + a phone-client auto-reconnect that
+resumes by token; `WatchdogSec` + `MemoryMax` on `mo-remote-personal.service`;
+activity-adaptive fps/bitrate. Deepest efficiency win (later): DMA-BUF zero-copy
+capture to bypass the single-threaded `kwin_wayland` frame copy.
+
+Perf levers found live (Phase 2): CPU governor is `powersave`, `vm.swappiness=60`
+with an 8G zstd zram (raise to ~150), NVENC present with ~6.9 GB VRAM free, and there
+is NO touch/libinput tuning yet (Phase 3). All via the existing, idempotent
+`moos-hardware-adapt`.
 
 ## Session 2026-07-23 (later) — "the machine got slow after the update" was a phone
 
