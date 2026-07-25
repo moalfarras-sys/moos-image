@@ -23,8 +23,17 @@ WallpaperItem {
     id: root
 
     property int ambientPhase: 0
+    // Three conditions, and the third is the one that used to be missing: a user
+    // who turns Plasma's animations OFF (System Settings → General Behaviour, or
+    // any accessibility profile) still got a permanently breathing 4K desktop,
+    // because this gate only knew about the plugin's own AmbientMotion key. Plasma
+    // signals "no animation" by collapsing every duration to 0, exactly as the
+    // bento already honours it — so the scene layer honours it too, and the whole
+    // wallpaper falls completely still instead of animating against the setting.
     readonly property bool motionEnabled:
-        root.configuration.AmbientMotion && art.status === Image.Ready
+        root.configuration.AmbientMotion
+        && Kirigami.Units.longDuration > 0
+        && art.status === Image.Ready
 
     readonly property bool lightSurface:
         Kirigami.Theme.backgroundColor.hslLightness > 0.55

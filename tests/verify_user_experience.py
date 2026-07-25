@@ -1213,6 +1213,16 @@ flatpak_idle = read("system_files/usr/lib/systemd/system/flatpak-system-update.s
 require("CPUSchedulingPolicy=idle" in flatpak_idle and "IOSchedulingClass=idle" in flatpak_idle,
         "flatpak-system-update must run at idle CPU and I/O priority — at normal priority it "
         "is what 'the system feels slow right after login' is actually made of")
+# uupd is the OTHER unpriced background updater, and on this machine it is now the more
+# expensive of the two: 1min 16.195s in `systemd-analyze blame`, top of the list. Its timer
+# is OnCalendar=04:00 Persistent=true, so a desktop that was off at 4 AM runs it inside the
+# first fifteen minutes of the session — the same window the flatpak updater was moved out
+# of. Fixing one and leaving the other is fixing half a boot.
+uupd_idle = code(read("system_files/usr/lib/systemd/system/uupd.service.d/moos-idle.conf"))
+require("CPUSchedulingPolicy=idle" in uupd_idle and "IOSchedulingClass=idle" in uupd_idle,
+        "uupd must run at idle CPU and I/O priority — its timer fires straight after boot on "
+        "any machine that was off at 04:00, i.e. exactly while the user opens their first "
+        "windows")
 
 # ── The live session must reach the network on its own ───────────────────────
 # On a slow first boot (a cold WHPX guest, software rendering, a machine thrashing through

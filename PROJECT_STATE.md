@@ -4,8 +4,23 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-25 (session I visual-system audit and local builds;
-signed release rollout pending).
+Last updated: 2026-07-25 (session J — signed release published; staging and
+post-reboot proof are the last open gate).
+
+> **Session J — the release pass (2026-07-25).** Session I's work is now ON
+> `main`: `moos-ui-unify` merged as `1e7991b`, build-resilience as `5823f93`, and
+> CI run `30152979451` published + cosign-signed `moos:latest` and
+> `moos-nvidia:latest` (17m37s, green). Two defects the audit's evidence pointed
+> at were fixed rather than noted: the wallpaper scene's `motionEnabled` now
+> honours Plasma's "animations off" (it consulted only its own `AmbientMotion`
+> key, so the largest surface on screen kept animating against the user's
+> setting), and `uupd` — the most expensive unit of this machine's boot at
+> 1min 16.195s, firing inside the first fifteen minutes of any desktop that was
+> off at 04:00 — got the same idle CPU/IO drop-in `flatpak-system-update` already
+> had. Both are gated (`test_moos_ui2.py`, `verify_user_experience.py`). What is
+> still NOT proven, and must not be claimed until the script has run: the machine
+> booting the **signed** origin with `tests/post-update-check.sh` green. Every
+> earlier boot on this machine was a local containers-storage deployment.
 
 > **Session I — unified visual-system work (2026-07-25, full audit in
 > `artwork/MOOS_VISUAL_AUDIT_2026-07-25.md`).** The repository and live 4K/225%
