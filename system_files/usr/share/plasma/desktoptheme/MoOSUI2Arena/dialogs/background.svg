@@ -16,10 +16,10 @@
   <defs>
     <linearGradient id="ui2-dialog-glass" gradientUnits="userSpaceOnUse"
                     x1="0" y1="0" x2="0" y2="64">
-      <stop offset="0" stop-color="#150C22" stop-opacity="0.70"/>
-      <stop offset="0.16" stop-color="#1D1030" stop-opacity="0.74"/>
-      <stop offset="0.72" stop-color="#0B0714" stop-opacity="0.78"/>
-      <stop offset="1" stop-color="#0B0714" stop-opacity="0.80"/>
+      <stop offset="0" stop-color="#150C22" stop-opacity="0.78"/>
+      <stop offset="0.16" stop-color="#1D1030" stop-opacity="0.82"/>
+      <stop offset="0.72" stop-color="#0B0714" stop-opacity="0.88"/>
+      <stop offset="1" stop-color="#0B0714" stop-opacity="0.92"/>
     </linearGradient>
   </defs>
 

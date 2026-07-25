@@ -13,10 +13,10 @@
   </style>
   <defs>
     <linearGradient id="ui2-panel-glass" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="60">
-      <stop offset="0" stop-color="#263651" stop-opacity="0.70"/>
-      <stop offset="0.18" stop-color="#1D2A42" stop-opacity="0.76"/>
-      <stop offset="0.70" stop-color="#0F1826" stop-opacity="0.84"/>
-      <stop offset="1" stop-color="#0F1826" stop-opacity="0.88"/>
+      <stop offset="0" stop-color="#263651" stop-opacity="0.78"/>
+      <stop offset="0.18" stop-color="#1D2A42" stop-opacity="0.83"/>
+      <stop offset="0.70" stop-color="#0F1826" stop-opacity="0.90"/>
+      <stop offset="1" stop-color="#0F1826" stop-opacity="0.93"/>
     </linearGradient>
   </defs>
 

@@ -194,9 +194,9 @@ def write(path: pathlib.Path, content: str) -> None:
 # them (that is the maintainer's proven dock). Only Light diverges.
 OPACITY = {
     "dark": {
-        "@GLASS_P0@": "0.70", "@GLASS_P1@": "0.76", "@GLASS_P2@": "0.84", "@GLASS_P3@": "0.88",
+        "@GLASS_P0@": "0.78", "@GLASS_P1@": "0.83", "@GLASS_P2@": "0.90", "@GLASS_P3@": "0.93",
         "@RIM_LUM@": "0.62", "@RIM_ACCENT@": "0.42", "@RIM_OUTLINE@": "0.28",
-        "@DLG_P0@": "0.70", "@DLG_P1@": "0.74", "@DLG_P2@": "0.78", "@DLG_P3@": "0.80",
+        "@DLG_P0@": "0.78", "@DLG_P1@": "0.82", "@DLG_P2@": "0.88", "@DLG_P3@": "0.92",
         "@DLG_RIM_LUM@": "0.60", "@DLG_RIM_OUTLINE@": "0.24", "@DLG_RIM_ACCENT@": "0.34",
     },
     "light": {
