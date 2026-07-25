@@ -4322,6 +4322,44 @@ for _qml_root in ("system_files/usr/share/moos/apps",
                 "loop at full frame rate for as long as the surface exists",
             )
 
+# ── The cloud edition is a third image, not a second project ─────────────────
+# MOOS_CLOUD_PLAN.md §1: moos-cloud shares this tree, these gates and this signing
+# key with the two desktop editions, because a second repository means every fix
+# gets made twice or forgotten once. That only holds if the wiring is actually
+# there — a build recipe nobody can run and a matrix row that does not exist are
+# how a "third edition" quietly becomes documentation.
+_build_sh_raw = read("build_files/build.sh")
+require("is_cloud()" in _build_sh_raw and "is_desktop()" in _build_sh_raw,
+        "build.sh must define is_cloud/is_desktop predicates — a dozen inline string "
+        "comparisons is how one of them ends up misspelled and silently builds the "
+        "wrong edition")
+require('moos|moos-nvidia|moos-cloud)' in _build_sh_raw,
+        "build.sh must reject an unknown edition name outright — an unrecognised "
+        "MOOS_IMAGE_NAME currently falls through to a desktop build that exits 0")
+require("if is_desktop; then\n    dnf5 -y install gamescope" in _build_sh_raw,
+        "the gaming host stack must be desktop-only — a headless VPS has no display "
+        "and no controller to justify it")
+require("_core_power+=(waydroid gamemode mangohud steam-devices)" in _build_sh_raw,
+        "waydroid and the gamepad/VR udev rules must be desktop-only in the Core "
+        "Power list")
+for _cloud_promise, _why in (
+    ("systemctl enable sshd.service", "a headless server with sshd off is unreachable"),
+    ("PasswordAuthentication no", "a public IPv4 with password auth is a brute-force queue"),
+    ("console=ttyS0", "without a serial console a failed boot is invisible to the provider's rescue"),
+    ("serial-getty@ttyS0.service", "the serial console needs a getty to be usable, not just kernel output"),
+    ('"blurEnabled": "false"', "llvmpipe cannot afford blur — a cloud VM renders on the CPU"),
+):
+    require(_cloud_promise in _build_sh_raw,
+            f"build.sh's cloud section must set `{_cloud_promise}` — {_why}")
+
+_workflow = read(".github/workflows/build.yml")
+require("image_name: moos-cloud" in _workflow,
+        "the CI matrix must build moos-cloud — an edition CI does not publish is an "
+        "edition nobody can install")
+require("build-cloud:" in read("Justfile"),
+        "the Justfile must carry a build-cloud recipe, or the edition can only be "
+        "built by hand-typing the build args")
+
 # ── A Secret portal is a promise; the wallet has to be allowed to keep it ────
 # kde-portals.conf routes org.freedesktop.impl.portal.Secret to kwallet. If the
 # wallet is not enabled, nothing owns org.freedesktop.secrets — the name is not

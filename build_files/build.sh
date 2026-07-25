@@ -30,6 +30,33 @@ fi
 echo "=== kernel frozen at the base version (dnf.conf exclude added) ==="
 
 # -----------------------------------------------------------------------------
+# (a0) Which edition is being built
+# -----------------------------------------------------------------------------
+# One tree, three images. The Containerfile passes IMAGE_NAME through as
+# MOOS_IMAGE_NAME, and every edition-specific branch in this script asks THESE
+# predicates instead of re-testing the string — a typo in one of a dozen inline
+# comparisons silently builds the wrong thing, and the wrong thing still exits 0.
+#
+#   moos         the desktop, generic graphics
+#   moos-nvidia  the same desktop with the proprietary driver layered in
+#   moos-cloud   headless-capable server edition for a VPS: same identity, same
+#                signed update train, no gaming stack, no Android layer, a serial
+#                console so the provider's rescue works, SSH as a first-class
+#                entry point, and effects tuned for software rendering because a
+#                cloud VM has no GPU. See MOOS_CLOUD_PLAN.md.
+MOOS_EDITION="${MOOS_IMAGE_NAME:-moos}"
+case "$MOOS_EDITION" in
+    moos|moos-nvidia|moos-cloud) ;;
+    *)
+        echo "FATAL: unknown edition '${MOOS_EDITION}' — expected moos, moos-nvidia or moos-cloud."
+        exit 1
+        ;;
+esac
+is_cloud() { [ "$MOOS_EDITION" = "moos-cloud" ]; }
+is_desktop() { [ "$MOOS_EDITION" != "moos-cloud" ]; }
+echo "=== building edition: ${MOOS_EDITION} ==="
+
+# -----------------------------------------------------------------------------
 # (a) os-release branding
 # -----------------------------------------------------------------------------
 # /etc/os-release is a symlink to /usr/lib/os-release on Fedora Atomic,
@@ -793,7 +820,11 @@ dnf5 -y install libsecret
 # `moai-do setup-gaming`; these are the host tools those Flatpaks reach into, and
 # they pair with ntsync — see modules-load.d/moos-gaming.conf — for the fast
 # Proton sync path.)
-dnf5 -y install gamescope gamemode mangohud
+if is_desktop; then
+    dnf5 -y install gamescope gamemode mangohud
+else
+    echo "=== cloud edition: gaming host stack withheld (no display, no controller) ==="
+fi
 
 # Full Arabic + English locale support (glibc locales, hunspell, input) —
 # MoOS is bilingual by design (MOOS_DESIGN_SYSTEM.md §7 RTL rules).
@@ -1173,21 +1204,39 @@ grep -q '^Inherits=MoOS$' /usr/share/icons/default/index.theme \
 #                                     2026-07-10 on packages.fedoraproject.org).
 #                                     Swapped for compiled Kirigami apps in a
 #                                     later phase.
-dnf5 -y install \
-    waydroid \
-    ramalama \
-    gamemode \
-    mangohud \
-    steam-devices \
-    distrobox \
-    btop \
-    fastfetch \
-    pciutils \
-    usbutils \
-    gh \
-    nodejs22 \
-    nodejs22-npm \
+#
+# The cloud edition takes the same list MINUS the four that only mean something in
+# front of a screen — waydroid (an Android container needs a display and a GPU),
+# gamemode, mangohud and steam-devices (udev rules for gamepads and VR headsets on
+# a machine with no USB).
+#
+# Honest footnote: `rpm -q gamemode` still answers on the cloud image, because
+# kinoite-main ships it in the BASE. MoOS does not add it there, and it is inert —
+# gamemoded is D-Bus activated and nothing on a server asks for it. Ripping a base
+# package back out of an OSTree image buys nothing and risks its dependents, so the
+# cloud gate below asserts what MoOS controls (gamescope, waydroid) rather than
+# claiming a removal that did not happen.
+#
+# Everything a developer actually reaches for on a server —
+# ramalama, distrobox, btop, fastfetch, gh, node, the PCI/USB enumerators the
+# hardware report reads — stays, because the point of MoOS Cloud is that it is the
+# same system, not a stripped one.
+_core_power=(
+    ramalama
+    distrobox
+    btop
+    fastfetch
+    pciutils
+    usbutils
+    gh
+    nodejs22
+    nodejs22-npm
     qt6-qtdeclarative-devel
+)
+if is_desktop; then
+    _core_power+=(waydroid gamemode mangohud steam-devices)
+fi
+dnf5 -y install "${_core_power[@]}"
 
 # Photos and video. MoOS shipped NEITHER — there was no image viewer in the
 # image at all, and no default for image/*. Double-clicking a photo therefore
@@ -2712,6 +2761,149 @@ python3 /ctx/verify_store_catalog.py
 # removed a scrub step without understanding what it protected. It runs LAST, so
 # nothing added after the rebrand can slip a foreign identity past it.
 python3 /ctx/verify_no_foreign_identity.py
+
+# -----------------------------------------------------------------------------
+# (z9) The cloud edition — what a server needs that a desktop does not
+# -----------------------------------------------------------------------------
+# Everything above built the SAME MoOS. This section is the whole difference, and
+# it is deliberately last so nothing after it can undo it. Four concerns:
+#
+#   1. you must be able to get in                  (SSH, keys only)
+#   2. you must be able to get in when it breaks   (serial console for rescue)
+#   3. it must not pretend it has a GPU            (effects tuned for llvmpipe)
+#   4. it must not pretend it is being installed   (no live/installer surfaces)
+#
+if is_cloud; then
+    echo "=== cloud edition: server wiring ==="
+
+    # --- 1. SSH is the front door -------------------------------------------
+    # A desktop can leave sshd off; a headless server that leaves it off is a
+    # server you cannot reach. Keys only: a password prompt on a public IPv4 is
+    # a brute-force target within minutes of boot, and `system-reinstall-bootc`
+    # carries the provider's authorized_keys across the conversion for exactly
+    # this reason.
+    dnf5 -y install openssh-server
+    systemctl enable sshd.service
+    install -D -m0644 /dev/stdin /etc/ssh/sshd_config.d/10-moos-cloud.conf <<'SSHD'
+# MoOS Cloud: keys only.
+#
+# This machine has a public address the moment it boots. Password authentication
+# on such a host is not a convenience, it is a queue of login attempts — and the
+# conversion path (`system-reinstall-bootc`) preserves the authorized_keys the
+# provider installed, so there is a working key before there is a public IP.
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin prohibit-password
+SSHD
+
+    # --- 2. A console you can watch when it will not boot --------------------
+    # bootc kargs.d can only ADD kargs, so the desktop's splash arguments are
+    # withdrawn by deleting their file. On a server the splash is worse than
+    # useless: `quiet splash` hides exactly the messages the provider's rescue
+    # console exists to show, and there is no screen for a Plymouth emblem.
+    test -f /usr/lib/bootc/kargs.d/10-moos-boot-splash.toml || {
+        echo "GATE FAIL: 10-moos-boot-splash.toml is gone — the cloud edition can no"
+        echo "           longer opt out of 'quiet splash', and a failing boot would be"
+        echo "           silent on the serial console."
+        exit 1
+    }
+    rm -f /usr/lib/bootc/kargs.d/10-moos-boot-splash.toml \
+          /usr/lib/bootc/kargs.d/20-moos-simpledrm.toml
+    install -D -m0644 /dev/stdin /usr/lib/bootc/kargs.d/40-moos-cloud-console.toml <<'KARGS'
+# MoOS Cloud kernel arguments.
+#
+# console=ttyS0 is what makes the provider's "Rescue"/serial console show the
+# boot. Without it a machine that fails before the network is a black box: the
+# web console prints nothing and SSH never comes up, so the only remaining move
+# is to reinstall and lose the machine's state.
+#
+# ttyS0 is listed LAST on purpose — the kernel sends /dev/console output to the
+# last console= given, which is where the serial log has to land on a headless
+# host.
+kargs = ["console=tty0", "console=ttyS0,115200n8"]
+KARGS
+    systemctl enable serial-getty@ttyS0.service
+    echo "=== cloud edition: serial console on ttyS0, splash kargs withdrawn ==="
+
+    # --- 3. No GPU means no free effects ------------------------------------
+    # A VPS renders through llvmpipe on the CPU. The blur that makes the desktop
+    # feel like glass on the RTX 2080 is, on a 4-vCPU cloud VM, the reason a
+    # window drags at 6 fps and the remote stream costs a whole core to encode.
+    #
+    # Two settings do nearly all of it, and both are ones MoOS already honours
+    # everywhere: blur off, and Plasma's animation duration at 0 — which the
+    # wallpaper's own motion gate reads (Kirigami.Units.longDuration > 0), so the
+    # ambient scene falls still without a second switch.
+    python3 - <<'TUNE'
+import configparser, pathlib
+
+def patch(path, changes):
+    p = pathlib.Path(path)
+    cfg = configparser.RawConfigParser(strict=False)
+    cfg.optionxform = str
+    if p.exists():
+        cfg.read(p, encoding="utf-8")
+    for group, keys in changes.items():
+        if not cfg.has_section(group):
+            cfg.add_section(group)
+        for key, value in keys.items():
+            cfg.set(group, key, value)
+    with p.open("w", encoding="utf-8") as fh:
+        cfg.write(fh, space_around_delimiters=False)
+    print(f"cloud tuning: {path} {changes}")
+
+patch("/etc/xdg/kwinrc", {
+    "Plugins": {"blurEnabled": "false", "contrastEnabled": "false"},
+    "Compositing": {"AnimationDurationFactor": "0"},
+})
+patch("/etc/xdg/kdeglobals", {
+    "KDE": {"AnimationDurationFactor": "0"},
+})
+TUNE
+
+    # --- 4. A server is not being installed ---------------------------------
+    # The live installer, the Welcome wizard's install path and the "Install
+    # MoOS" desktop entry are surfaces for a machine that is about to become a
+    # MoOS install. This one already is, and it got there through
+    # `system-reinstall-bootc`. Leaving Anaconda's launcher in the menu of a
+    # production server is an invitation to a very bad afternoon.
+    for _entry in liveinst org.moos.installer; do
+        _desktop="/usr/share/applications/${_entry}.desktop"
+        if [ -f "$_desktop" ]; then
+            grep -q '^NoDisplay=true' "$_desktop" || printf 'NoDisplay=true\n' >> "$_desktop"
+        fi
+    done
+    echo "=== cloud edition: installer surfaces hidden ==="
+
+    # --- The gate on all four ----------------------------------------------
+    # Every claim above, re-read from the finished filesystem. A cloud image that
+    # cannot be reached, cannot be rescued, or still ships the installer is not a
+    # cloud image, and it must not build green.
+    _cloud_fail=0
+    systemctl is-enabled sshd.service >/dev/null 2>&1 || {
+        echo "GATE FAIL: sshd is not enabled — the server would boot unreachable"; _cloud_fail=1; }
+    grep -q '^PasswordAuthentication no' /etc/ssh/sshd_config.d/10-moos-cloud.conf || {
+        echo "GATE FAIL: password authentication is not disabled"; _cloud_fail=1; }
+    grep -q 'console=ttyS0' /usr/lib/bootc/kargs.d/40-moos-cloud-console.toml || {
+        echo "GATE FAIL: no serial console karg — a failing boot would be invisible"; _cloud_fail=1; }
+    [ -f /usr/lib/bootc/kargs.d/10-moos-boot-splash.toml ] && {
+        echo "GATE FAIL: the splash kargs survived — 'quiet' would hide the serial boot log"; _cloud_fail=1; }
+    grep -q '^blurEnabled=false' /etc/xdg/kwinrc || {
+        echo "GATE FAIL: blur is still on — llvmpipe cannot afford it"; _cloud_fail=1; }
+    rpm -q waydroid >/dev/null 2>&1 && {
+        echo "GATE FAIL: waydroid is installed in the cloud edition"; _cloud_fail=1; }
+    rpm -q gamescope >/dev/null 2>&1 && {
+        echo "GATE FAIL: the gaming stack is installed in the cloud edition"; _cloud_fail=1; }
+    [ "$_cloud_fail" = 0 ] || exit 1
+    echo "=== cloud edition: all server gates passed ==="
+else
+    # The desktop editions must NOT carry the server's compromises. Cheap to
+    # assert, and it catches the copy-paste that would put a serial console and a
+    # keys-only sshd on a laptop.
+    [ -f /usr/lib/bootc/kargs.d/40-moos-cloud-console.toml ] && {
+        echo "GATE FAIL: the cloud console kargs leaked into ${MOOS_EDITION}"; exit 1; }
+    true
+fi
 
 # ── The image must not carry the build machine's litter ───────────────────────
 #

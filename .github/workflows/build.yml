@@ -56,11 +56,20 @@ jobs:
         # ghcr.io/ublue-os/kinoite-nvidia:44, which upstream abandoned in May, so the "NVIDIA
         # image" was really a six-week-old system, ~589 packages behind the generic one.
         # The only thing that differs here now is whether the NVIDIA driver is layered on.
+        # moos-cloud is the third image from that same tree and that same base: a
+        # VPS edition with no gaming stack, no Android layer, SSH as the front
+        # door, a serial console for the provider's rescue, and effects tuned for
+        # software rendering. It layers no driver either, so it takes the same
+        # scratch akmods stage the generic image does. One repository, one gate
+        # suite, one signing key — see MOOS_CLOUD_PLAN.md §1 for why it is a third
+        # matrix row and not a second project.
         include:
           - image_name: moos
             nvidia: "false"
           - image_name: moos-nvidia
             nvidia: "true"
+          - image_name: moos-cloud
+            nvidia: "false"
     permissions:
       contents: read      # checkout
       packages: write     # push to GHCR
