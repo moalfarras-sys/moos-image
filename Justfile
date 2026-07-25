@@ -77,6 +77,22 @@ build-nvidia: check
         -t {{ image_name }}-nvidia:latest \
         .
 
+# Build the CLOUD edition: the same tree, shaped for a VPS.
+#
+# No NVIDIA (a cloud VM has no card to layer a driver onto), no gaming stack, no
+# Android layer; SSH enabled with keys only, a serial console so the provider's
+# rescue shows the boot, and KWin effects off because llvmpipe renders on the CPU.
+# Deployed with `system-reinstall-bootc` onto any VPS that offers Fedora — see
+# MOOS_CLOUD_PLAN.md. It shares the base with the desktop editions on purpose: one
+# identity, one gate suite, one signed update train.
+build-cloud: check
+    podman build \
+        --pull=always \
+        --build-arg IMAGE_NAME={{ image_name }}-cloud \
+        --build-arg AKMODS_IMAGE=scratch \
+        -t {{ image_name }}-cloud:latest \
+        .
+
 # Re-run the bootc lint against the built image (the Containerfile already
 # runs it as the final build stage; this is for ad-hoc re-checks)
 lint:
