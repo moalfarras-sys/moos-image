@@ -4,8 +4,8 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-25 (session J — signed release published; staging and
-post-reboot proof are the last open gate).
+Last updated: 2026-07-25 (session J — signed release published, staged, booted
+and proven live: `post-update-check.sh` 48/0).
 
 > **Session J — the release pass (2026-07-25).** Session I's work is now ON
 > `main`: `moos-ui-unify` merged as `1e7991b`, build-resilience as `5823f93`, and
@@ -17,10 +17,24 @@ post-reboot proof are the last open gate).
 > setting), and `uupd` — the most expensive unit of this machine's boot at
 > 1min 16.195s, firing inside the first fifteen minutes of any desktop that was
 > off at 04:00 — got the same idle CPU/IO drop-in `flatpak-system-update` already
-> had. Both are gated (`test_moos_ui2.py`, `verify_user_experience.py`). What is
-> still NOT proven, and must not be claimed until the script has run: the machine
-> booting the **signed** origin with `tests/post-update-check.sh` green. Every
-> earlier boot on this machine was a local containers-storage deployment.
+> had. Both are gated (`test_moos_ui2.py`, `verify_user_experience.py`).
+> **The release gate is now closed:** the machine staged
+> `ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia:latest`
+> (`sha256:12b44aba…`, `44.20260725.347`), rebooted, and
+> `tests/post-update-check.sh` returned **48 passed / 0 failed** — the first boot
+> on this machine from the signed published image rather than a local
+> containers-storage deployment. `moos-selfcheck`: 46 passed.
+> The live audit that followed found one real defect, now fixed: **Mo Store's rail
+> status dot animated forever with no `running:` guard**, holding the QML render
+> loop at full frame rate and repainting a 4K window for one 8 px dot — ~11% of a
+> CPU core, paid by any session that merely had the Store window restored behind
+> other windows. It was the ONLY unguarded infinite animation among the 30 MoOS
+> ships, and the contract that would have caught it existed but covered the
+> dashboard only; `verify_user_experience.py` now enforces it across `apps/`,
+> `plasmoids/` and `wallpapers/`, broken-once to prove it bites. Everything else
+> sampled was clean: no failed units, no MoOS QML errors in the journal,
+> notifications deliver, the Mo AI stack answers, the Arabic locale resolves,
+> firmware and Flatpaks have nothing pending.
 
 > **Session I — unified visual-system work (2026-07-25, full audit in
 > `artwork/MOOS_VISUAL_AUDIT_2026-07-25.md`).** The repository and live 4K/225%

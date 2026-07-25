@@ -169,11 +169,17 @@ not be hidden by shipping a conflicting shell copy.
 - [x] CI publishes and signs the resulting image — run `30152979451` on
       `5823f93` finished green in 17m37s, publishing and cosign-signing
       `moos:latest` and `moos-nvidia:latest`;
-- [ ] the machine stages that signed origin, reboots, and the live post-update
-      checks remain green — `tests/post-update-check.sh` is the script that
-      answers this, and it must be run **after** the reboot, on the live desktop.
+- [x] the machine stages that signed origin, reboots, and the live post-update
+      checks remain green — staged
+      `ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia:latest`,
+      digest `sha256:12b44aba…` (byte-identical to what the registry publishes),
+      version `44.20260725.347`; rebooted; `tests/post-update-check.sh` returned
+      **48 passed, 0 failed** on the live desktop, including the deployment line
+      that had been red on every previous boot. Kernel `7.1.4-204` with the
+      matching NVIDIA `610.43.03`, `BlurStrength=15`, layered `code` preserved,
+      no failed system or user units. `moos-selfcheck`: 46 passed.
 
-Until every checked item above has real output, this work is not an MoOS release.
+Every item above now has real output. This is an MoOS release.
 
 ## Follow-up pass — 2026-07-25 (session J)
 
