@@ -524,8 +524,8 @@ theme=__aurorae__svg__{deco}
 blurEnabled=true
 
 [kwinrc][Effect-blur]
-BlurStrength=24
-NoiseStrength=4
+BlurStrength=15
+NoiseStrength=3
 
 [kcminputrc][Mouse]
 cursorTheme={cursor}

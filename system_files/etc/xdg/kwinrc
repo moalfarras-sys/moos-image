@@ -125,8 +125,8 @@ translucencyEnabled=false
 # the upstream 150 (keeps colors crisp behind glass rather than washing to grey).
 # Note: there is NO separate background-contrast plugin in kwin master — blur's
 # own Saturation is the only "contrast"-style control, hence nothing more to set.
-BlurStrength=24
-NoiseStrength=4
+BlurStrength=15
+NoiseStrength=3
 
 [Effect-overview]
 # A macOS-style hot corner. Flick the pointer into the TOP-LEFT and Overview fans
