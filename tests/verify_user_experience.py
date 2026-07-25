@@ -3023,6 +3023,16 @@ require("plymouth-set-default-theme moos" in build,
 
 containerfile = read("Containerfile")
 require(
+    build.count("curl -Lf --retry 5 --retry-all-errors") >= 4
+    and "curl -Lf --retry 3" not in build,
+    "build-time asset downloads must retry connection resets, not only HTTP "
+    "errors — a transient GitHub reset otherwise aborts an entire image build",
+)
+require(
+    "curl -fL --retry 5 --retry-all-errors" in containerfile,
+    "the Flutter SDK download must retry all transient curl failures",
+)
+require(
     'io.artifacthub.package.readme-url="https://raw.githubusercontent.com/'
     'moalfarras-sys/moos-image/main/README.md"' in containerfile,
     "the published image must override the base image's Artifact Hub README "
