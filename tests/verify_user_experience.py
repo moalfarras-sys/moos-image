@@ -1218,6 +1218,24 @@ require("CPUSchedulingPolicy=idle" in flatpak_idle and "IOSchedulingClass=idle" 
 # is OnCalendar=04:00 Persistent=true, so a desktop that was off at 4 AM runs it inside the
 # first fifteen minutes of the session — the same window the flatpak updater was moved out
 # of. Fixing one and leaving the other is fixing half a boot.
+# And the update that runs must be able to report success. uupd's Brew module is on by
+# default and points at /home/linuxbrew/.linuxbrew/bin/brew — a path MoOS never creates,
+# because MoOS does not ship Homebrew. The module therefore fails on every machine, every
+# night, and uupd ends the whole run with "Updates finished with errors!" while the image,
+# the Flatpaks and the distroboxes all updated perfectly. Observed on this machine:
+# `module_fail … "Context":"Brew Update"` in the boot's uupd journal.
+#
+# An updater that always reports failure is an updater nobody reads — the night something
+# genuinely breaks looks exactly like every other night.
+_uupd_cfg = json.loads(read("system_files/etc/uupd/config.json"))
+require(_uupd_cfg["modules"]["brew"]["disable"] is True,
+        "uupd's Brew module must be disabled — MoOS ships no Homebrew, so the module can "
+        "only ever fail and make every automatic update report errors")
+for _mod in ("distrobox", "flatpak", "system"):
+    require(_uupd_cfg["modules"][_mod]["disable"] is False,
+            f"uupd's {_mod} module must stay enabled — disabling it silently stops that "
+            "half of the update")
+
 uupd_idle = code(read("system_files/usr/lib/systemd/system/uupd.service.d/moos-idle.conf"))
 require("CPUSchedulingPolicy=idle" in uupd_idle and "IOSchedulingClass=idle" in uupd_idle,
         "uupd must run at idle CPU and I/O priority — its timer fires straight after boot on "
