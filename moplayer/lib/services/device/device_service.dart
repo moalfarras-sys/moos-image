@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -32,15 +33,70 @@ class DeviceService {
     await _loadMetadata();
   }
 
+  static final RegExp _idShape = RegExp(r'^MO-D-[A-Z0-9-]{8,40}$');
+
+  /// The device id must be STABLE, and it must never be able to stop the app.
+  ///
+  /// It used to live in the keyring and nowhere else. On a machine whose wallet
+  /// is disabled — a normal state, not a broken one — the very first read threw
+  /// `PlatformException(Libsecret error, Failed to unlock the keyring)`, the
+  /// exception escaped bootstrap, and MoPlayer died into a black window before
+  /// its first frame. Bootstrap's own contract says a MoOS install with no
+  /// keyring must still start; this method is where that was untrue.
+  ///
+  /// The id is an identifier, not a credential, so the fallback is an ordinary
+  /// file beside the cache. Without it, a machine with no wallet would invent a
+  /// new identity on every launch, and every activation would be against a
+  /// device that had never been seen before.
   Future<String> _ensureDeviceId() async {
-    final existing = await _secureStorage.readDeviceId();
-    if (existing != null &&
-        RegExp(r'^MO-D-[A-Z0-9-]{8,40}$').hasMatch(existing)) {
-      return existing;
+    final stored = await _secureStorage.readDeviceId();
+    if (stored != null && _idShape.hasMatch(stored)) {
+      return stored;
     }
+
+    final onDisk = _readIdFile();
+    if (onDisk != null && _idShape.hasMatch(onDisk)) {
+      // Promote it back into the keyring if one has appeared since.
+      await _secureStorage.writeDeviceId(onDisk);
+      return onDisk;
+    }
+
     final id = _generateId();
-    await _secureStorage.writeDeviceId(id);
+    final storedInKeyring = await _secureStorage.writeDeviceId(id);
+    if (!storedInKeyring) {
+      _writeIdFile(id);
+    }
     return id;
+  }
+
+  /// `$XDG_DATA_HOME/moplayer/device-id` — the same base the cache uses.
+  File _idFile() {
+    final xdg = Platform.environment['XDG_DATA_HOME'];
+    final base = (xdg != null && xdg.isNotEmpty)
+        ? xdg
+        : '${Platform.environment['HOME'] ?? '.'}/.local/share';
+    return File('$base/moplayer/device-id');
+  }
+
+  String? _readIdFile() {
+    try {
+      final file = _idFile();
+      if (!file.existsSync()) return null;
+      return file.readAsStringSync().trim();
+    } on Object {
+      return null;
+    }
+  }
+
+  void _writeIdFile(String id) {
+    try {
+      final file = _idFile();
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync('$id\n', flush: true);
+    } on Object catch (e) {
+      // Not fatal either: a session-scoped id still beats no app at all.
+      debugPrint('DeviceService: could not persist the device id: $e');
+    }
   }
 
   String _generateId() {

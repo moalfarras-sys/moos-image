@@ -4307,6 +4307,74 @@ for _qml_root in ("system_files/usr/share/moos/apps",
                 "loop at full frame rate for as long as the surface exists",
             )
 
+# ── A Secret portal is a promise; the wallet has to be allowed to keep it ────
+# kde-portals.conf routes org.freedesktop.impl.portal.Secret to kwallet. If the
+# wallet is not enabled, nothing owns org.freedesktop.secrets — the name is not
+# even activatable — and every application that stores a credential fails at its
+# first call. MoPlayer did it loudest: it read its device id from the keyring
+# during bootstrap, libsecret threw, the exception escaped main(), and the app
+# died after its window existed but before its first frame. A BLACK WINDOW, with
+# the reason visible only in the journal (2026-07-25).
+#
+# So if the image names kwallet as its Secret backend, the image must also ship
+# the default that lets kwalletd run.
+_portals = read("system_files/etc/xdg-desktop-portal/kde-portals.conf")
+if "impl.portal.Secret=kwallet" in _portals.replace(" ", ""):
+    _walletrc = code(read("system_files/etc/xdg/kwalletrc"))
+    require(re.search(r"^\s*Enabled\s*=\s*true\s*$", _walletrc, re.MULTILINE) is not None,
+            "kde-portals.conf routes the Secret portal to kwallet, so /etc/xdg/kwalletrc "
+            "must enable the wallet — otherwise nothing owns org.freedesktop.secrets and "
+            "every app that keeps a credential breaks, first frame first")
+
+# A disabled wallet must stay VISIBLE. selfcheck is where the user finds out.
+# code() first: a gate that a comment can satisfy is not a gate, and this file's
+# own prose names the bus service it is checking for.
+_selfcheck = code(read("system_files/usr/bin/moos-selfcheck"))
+require("org.freedesktop.secrets" in _selfcheck and "ListNames" in _selfcheck,
+        "moos-selfcheck must actually ASK the session bus whether anything owns "
+        "org.freedesktop.secrets — a missing keyring breaks applications silently, "
+        "one black window at a time")
+
+# ── The vendored MoPlayer must be buildable by the Flutter the image pins ────
+# moplayer/ is a copy of a live project, and a live project is being opened in an
+# editor. A Flutter SDK newer than the pinned one rewrites pubspec.lock's `sdks:`
+# floor on any `pub get` — observed here as `dart: ">=3.9.0 <4.0.0"` becoming
+# `">=3.10.0-0 <4.0.0"` because the workstation runs Flutter 3.44.8 while the
+# Containerfile builds with 3.35.1.
+#
+# Commit that and the image build dies inside the container at `flutter pub get`,
+# twenty minutes in, with a version-solving error that says nothing about the
+# editor that caused it. This gate costs milliseconds and names the cause.
+#
+# The map is deliberately explicit: bumping FLUTTER_VERSION means adding its Dart
+# version here, which is the moment to re-vendor the lock as well.
+_FLUTTER_TO_DART = {
+    "3.35.1": (3, 9, 0),
+}
+_containerfile = read("Containerfile")
+_flutter_pin = re.search(r"ARG FLUTTER_VERSION=([0-9.]+)", _containerfile)
+require(_flutter_pin is not None,
+        "the Containerfile must pin FLUTTER_VERSION — an unpinned SDK builds a "
+        "different MoPlayer every day")
+if _flutter_pin:
+    _pinned = _flutter_pin.group(1)
+    require(_pinned in _FLUTTER_TO_DART,
+            f"Flutter is pinned to {_pinned} but tests/verify_user_experience.py does not "
+            "know which Dart that ships — add it to _FLUTTER_TO_DART and re-vendor "
+            "moplayer/pubspec.lock with that SDK")
+    if _pinned in _FLUTTER_TO_DART:
+        _lock_floor = re.search(r'dart:\s*">=\s*([0-9]+)\.([0-9]+)\.([0-9]+)',
+                                read("moplayer/pubspec.lock"))
+        require(_lock_floor is not None,
+                "moplayer/pubspec.lock has no readable dart SDK floor")
+        if _lock_floor:
+            _floor = tuple(int(g) for g in _lock_floor.groups())
+            require(_floor <= _FLUTTER_TO_DART[_pinned],
+                    f"moplayer/pubspec.lock demands Dart >={'.'.join(map(str, _floor))} but the "
+                    f"image builds with Flutter {_pinned} (Dart "
+                    f"{'.'.join(map(str, _FLUTTER_TO_DART[_pinned]))}) — a newer local SDK "
+                    "rewrote the lock; restore it from MoPlayer's committed copy")
+
 # #14 CI must verify the signature against the SAME public key the OS enforces.
 # (The theme-safety and UI2 gates already run transitively via this file's own
 # subprocess invocations above, so they are wired — no separate build.yml entry.)
