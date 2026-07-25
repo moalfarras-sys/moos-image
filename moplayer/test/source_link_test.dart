@@ -82,16 +82,22 @@ void main() {
       );
     });
 
-    test('a bare .m3u path is absolutised — Kickoff launches from elsewhere', () {
-      final c = SourceLink.parse('assets/demo/demo.m3u')!;
-      expect(c.type, PlaylistType.m3u);
-      expect(c.m3uUrl, startsWith('file:///'));
-      expect(c.m3uUrl, endsWith('assets/demo/demo.m3u'));
-    });
+    test(
+      'a bare .m3u path is absolutised — Kickoff launches from elsewhere',
+      () {
+        final c = SourceLink.parse('assets/demo/demo.m3u')!;
+        expect(c.type, PlaylistType.m3u);
+        expect(c.m3uUrl, startsWith('file:///'));
+        expect(c.m3uUrl, endsWith('assets/demo/demo.m3u'));
+      },
+    );
 
     test('asset:// and file:// survive verbatim', () {
       expect(SourceLink.parse('asset://demo.m3u')!.m3uUrl, 'asset://demo.m3u');
-      expect(SourceLink.parse('file:///tv/list.m3u')!.m3uUrl, 'file:///tv/list.m3u');
+      expect(
+        SourceLink.parse('file:///tv/list.m3u')!.m3uUrl,
+        'file:///tv/list.m3u',
+      );
     });
 
     test('what is not a source at all', () {

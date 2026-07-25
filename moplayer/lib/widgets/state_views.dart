@@ -36,8 +36,7 @@ String failureMessage(S s, Object error) {
 /// pressing Retry. Retrying a wrong password is just a slower way to be wrong.
 bool failureNeedsSettings(Object error) =>
     error is Failure &&
-    (error.kind == FailureKind.auth ||
-        error.kind == FailureKind.notConfigured);
+    (error.kind == FailureKind.auth || error.kind == FailureKind.notConfigured);
 
 /// The last resort. Prefer a skeleton — [PosterGridSkeleton], [RailSkeleton],
 /// [ListSkeleton], [DetailSkeleton] — anywhere the shape of the content is
@@ -140,7 +139,11 @@ class EmptyView extends StatelessWidget {
               ),
               const SizedBox(height: Nova.space4),
               if (title != null) ...[
-                Text(title!, style: AppText.section, textAlign: TextAlign.center),
+                Text(
+                  title!,
+                  style: AppText.section,
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: Nova.space2),
               ],
               Text(message, style: AppText.body, textAlign: TextAlign.center),

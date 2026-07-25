@@ -77,7 +77,10 @@ void main() {
     });
 
     test('an HTML error page is an empty guide, not a crash', () {
-      expect(EpgGuide.parse('<html><body>Forbidden</body></html>').isEmpty, isTrue);
+      expect(
+        EpgGuide.parse('<html><body>Forbidden</body></html>').isEmpty,
+        isTrue,
+      );
       expect(EpgGuide.parse('').isEmpty, isTrue);
       expect(EpgGuide.parse('not xml at all <<<').isEmpty, isTrue);
     });

@@ -195,16 +195,19 @@ class FavoriteHero extends ConsumerWidget {
   /// An episode never reaches here — it is favourited as its series — and if one
   /// somehow did, it gets no primary action rather than a button built out of
   /// the wrong payload.
-  List<Widget> _actions(BuildContext context, S s, PlaybackController playback) {
+  List<Widget> _actions(
+    BuildContext context,
+    S s,
+    PlaybackController playback,
+  ) {
     switch (item.kind) {
       case MediaKind.live:
         return [
           EmberButton(
             label: s.play,
             icon: Icons.play_arrow_rounded,
-            onPressed: () => playback.playLive(
-              LiveChannel.fromPayload(item.payload),
-            ),
+            onPressed: () =>
+                playback.playLive(LiveChannel.fromPayload(item.payload)),
           ),
         ];
 

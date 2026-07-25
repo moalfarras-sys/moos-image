@@ -325,7 +325,13 @@ List<int> _zlibStore(Uint8List data) {
   while (i < data.length) {
     final n = (data.length - i).clamp(0, 65535);
     final last = i + n >= data.length ? 1 : 0;
-    out.addAll([last, n & 0xFF, (n >>> 8) & 0xFF, ~n & 0xFF, (~n >>> 8) & 0xFF]);
+    out.addAll([
+      last,
+      n & 0xFF,
+      (n >>> 8) & 0xFF,
+      ~n & 0xFF,
+      (~n >>> 8) & 0xFF,
+    ]);
     out.addAll(data.sublist(i, i + n));
     i += n;
   }

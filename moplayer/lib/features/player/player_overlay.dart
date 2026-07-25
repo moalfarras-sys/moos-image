@@ -9,6 +9,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/theme/glass.dart';
 import '../../core/theme/nova.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/playback_providers.dart';
@@ -31,12 +32,16 @@ class PlayerOverlay extends ConsumerStatefulWidget {
   ConsumerState<PlayerOverlay> createState() => _PlayerOverlayState();
 }
 
+enum PlayerFitMode { fit, fill, original }
+
 class _PlayerOverlayState extends ConsumerState<PlayerOverlay> {
   static const _idleTimeout = Duration(seconds: 3);
 
   final FocusNode _focus = FocusNode();
   Timer? _idleTimer;
   bool _controlsVisible = true;
+  bool _optionsVisible = false;
+  PlayerFitMode _fitMode = PlayerFitMode.fit;
 
   @override
   void initState() {
@@ -62,7 +67,9 @@ class _PlayerOverlayState extends ConsumerState<PlayerOverlay> {
     _idleTimer = Timer(_idleTimeout, () {
       if (!mounted) return;
       final playing = ref.read(playerServiceProvider).isPlaying;
-      if (playing) setState(() => _controlsVisible = false);
+      if (playing && !_optionsVisible) {
+        setState(() => _controlsVisible = false);
+      }
     });
   }
 
@@ -104,11 +111,26 @@ class _PlayerOverlayState extends ConsumerState<PlayerOverlay> {
     ref.read(playerViewProvider.notifier).minimise();
   }
 
+  void _toggleOptions() {
+    setState(() {
+      _optionsVisible = !_optionsVisible;
+      _controlsVisible = true;
+    });
+    _restartIdleTimer();
+  }
+
+  BoxFit get _videoFit => switch (_fitMode) {
+    PlayerFitMode.fit => BoxFit.contain,
+    PlayerFitMode.fill => BoxFit.cover,
+    PlayerFitMode.original => BoxFit.scaleDown,
+  };
+
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
     final now = ref.watch(playbackProvider);
     final player = ref.watch(playerServiceProvider);
+    final issue = ref.watch(playbackIssueProvider);
 
     if (now == null) return const SizedBox.shrink();
 
@@ -135,10 +157,14 @@ class _PlayerOverlayState extends ConsumerState<PlayerOverlay> {
             _playback.seekBy(const Duration(minutes: 1)),
         const SingleActivator(LogicalKeyboardKey.arrowLeft, shift: true): () =>
             _playback.seekBy(const Duration(minutes: -1)),
-        const SingleActivator(LogicalKeyboardKey.arrowUp): () => _nudgeVolume(5),
-        const SingleActivator(LogicalKeyboardKey.arrowDown): () => _nudgeVolume(-5),
-        const SingleActivator(LogicalKeyboardKey.bracketRight): () => _nudgeRate(0.25),
-        const SingleActivator(LogicalKeyboardKey.bracketLeft): () => _nudgeRate(-0.25),
+        const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
+            _nudgeVolume(5),
+        const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
+            _nudgeVolume(-5),
+        const SingleActivator(LogicalKeyboardKey.bracketRight): () =>
+            _nudgeRate(0.25),
+        const SingleActivator(LogicalKeyboardKey.bracketLeft): () =>
+            _nudgeRate(-0.25),
       },
       child: Focus(
         focusNode: _focus,
@@ -162,11 +188,16 @@ class _PlayerOverlayState extends ConsumerState<PlayerOverlay> {
                   Video(
                     controller: player.controller,
                     controls: NoVideoControls,
-                    fit: BoxFit.contain,
+                    fit: _videoFit,
                     fill: Colors.black,
                   ),
 
-                  _BufferingLayer(player: player, strings: s),
+                  _PlaybackStatusLayer(
+                    player: player,
+                    strings: s,
+                    issue: issue,
+                    onReconnect: _playback.reconnect,
+                  ),
 
                   AnimatedOpacity(
                     opacity: _controlsVisible ? 1 : 0,
@@ -179,6 +210,13 @@ class _PlayerOverlayState extends ConsumerState<PlayerOverlay> {
                         strings: s,
                         onInteract: _restartIdleTimer,
                         onLeave: _leave,
+                        optionsVisible: _optionsVisible,
+                        fitMode: _fitMode,
+                        onToggleOptions: _toggleOptions,
+                        onFitChanged: (value) {
+                          setState(() => _fitMode = value);
+                          _restartIdleTimer();
+                        },
                       ),
                     ),
                   ),
@@ -192,38 +230,93 @@ class _PlayerOverlayState extends ConsumerState<PlayerOverlay> {
   }
 }
 
-/// The spinner, and the only place the player admits something is wrong.
-class _BufferingLayer extends StatelessWidget {
-  const _BufferingLayer({required this.player, required this.strings});
+/// Buffering, automatic recovery, and the terminal error action.
+class _PlaybackStatusLayer extends StatelessWidget {
+  const _PlaybackStatusLayer({
+    required this.player,
+    required this.strings,
+    required this.issue,
+    required this.onReconnect,
+  });
 
   final PlayerService player;
   final S strings;
+  final PlaybackIssue? issue;
+  final VoidCallback onReconnect;
 
   @override
   Widget build(BuildContext context) {
+    if (issue?.kind == PlaybackIssueKind.failed) {
+      return Center(
+        child: GlassPanel(
+          fill: const Color(0xE8121417),
+          glow: true,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.signal_wifi_connected_no_internet_4_rounded,
+                  size: 42,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(height: Nova.space4),
+                Text(
+                  strings.playbackFailed,
+                  textAlign: TextAlign.center,
+                  style: AppText.body.copyWith(color: Colors.white),
+                ),
+                const SizedBox(height: Nova.space5),
+                EmberButton(
+                  label: strings.reconnect,
+                  icon: Icons.refresh_rounded,
+                  onPressed: onReconnect,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (issue?.kind == PlaybackIssueKind.reconnecting) {
+      return _BusyStatus(
+        label: strings.reconnectingAttempt(issue!.attempt, issue!.maxAttempts),
+      );
+    }
+
     return StreamBuilder<bool>(
       stream: player.bufferingStream,
       initialData: player.isBuffering,
       builder: (context, snapshot) {
         if (snapshot.data != true) return const SizedBox.shrink();
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 44,
-                height: 44,
-                child: CircularProgressIndicator(strokeWidth: 3),
-              ),
-              const SizedBox(height: Nova.space4),
-              Text(
-                strings.buffering,
-                style: AppText.body.copyWith(color: Colors.white70),
-              ),
-            ],
-          ),
-        );
+        return _BusyStatus(label: strings.buffering);
       },
+    );
+  }
+}
+
+class _BusyStatus extends StatelessWidget {
+  const _BusyStatus({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 44,
+            height: 44,
+            child: CircularProgressIndicator(strokeWidth: 3),
+          ),
+          const SizedBox(height: Nova.space4),
+          Text(label, style: AppText.body.copyWith(color: Colors.white70)),
+        ],
+      ),
     );
   }
 }
@@ -235,6 +328,10 @@ class _Controls extends ConsumerWidget {
     required this.strings,
     required this.onInteract,
     required this.onLeave,
+    required this.optionsVisible,
+    required this.fitMode,
+    required this.onToggleOptions,
+    required this.onFitChanged,
   });
 
   final NowPlaying now;
@@ -242,152 +339,271 @@ class _Controls extends ConsumerWidget {
   final S strings;
   final VoidCallback onInteract;
   final VoidCallback onLeave;
+  final bool optionsVisible;
+  final PlayerFitMode fitMode;
+  final VoidCallback onToggleOptions;
+  final ValueChanged<PlayerFitMode> onFitChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final playback = ref.read(playbackProvider.notifier);
     final fullscreen = ref.watch(fullscreenProvider);
 
-    return Column(
+    return Stack(
       children: [
-        // Top: who is on, and the way out.
-        Container(
-          padding: const EdgeInsets.fromLTRB(
-            Nova.space4,
-            Nova.space4,
-            Nova.space4,
-            Nova.space6,
-          ),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xCC000000), Color(0x00000000)],
-            ),
-          ),
-          child: Row(
-            children: [
-              IconPill(
-                icon: Icons.keyboard_arrow_down_rounded,
-                tooltip: strings.miniPlayer,
-                size: 42,
-                onPressed: onLeave,
+        Column(
+          children: [
+            // Top: who is on, and the way out.
+            Container(
+              padding: const EdgeInsets.fromLTRB(
+                Nova.space4,
+                Nova.space4,
+                Nova.space4,
+                Nova.space6,
               ),
-              const SizedBox(width: Nova.space3),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        if (now.isLive) ...[
-                          LiveBadge(label: strings.onAir),
-                          const SizedBox(width: Nova.space2),
-                        ],
-                        Flexible(
-                          child: Text(
-                            now.media.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.title.copyWith(color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (now.media.subtitle != null)
-                      Text(
-                        now.media.subtitle!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.caption.copyWith(color: Colors.white60),
-                      ),
-                  ],
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xCC000000), Color(0x00000000)],
                 ),
               ),
-              IconPill(
-                icon: Icons.close_rounded,
-                tooltip: strings.stop,
-                size: 42,
-                onPressed: playback.stop,
-              ),
-            ],
-          ),
-        ),
-
-        const Spacer(),
-
-        // Bottom: the transport.
-        Container(
-          padding: const EdgeInsets.fromLTRB(
-            Nova.space5,
-            Nova.space6,
-            Nova.space5,
-            Nova.space4,
-          ),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [Color(0xE6000000), Color(0x00000000)],
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!now.isLive) _SeekBar(player: player, onInteract: onInteract),
-              const SizedBox(height: Nova.space2),
-              Row(
+              child: Row(
                 children: [
-                  StreamBuilder<bool>(
-                    stream: player.playingStream,
-                    initialData: player.isPlaying,
-                    builder: (context, snapshot) => IconPill(
-                      icon: snapshot.data == true
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                      tooltip: snapshot.data == true ? strings.pause : strings.play,
-                      size: 52,
-                      filled: true,
-                      onPressed: player.playOrPause,
-                    ),
+                  IconPill(
+                    icon: Icons.keyboard_arrow_down_rounded,
+                    tooltip: strings.miniPlayer,
+                    size: 42,
+                    onPressed: onLeave,
                   ),
                   const SizedBox(width: Nova.space3),
-
-                  if (now.hasPrevious || now.hasNext) ...[
-                    IconPill(
-                      icon: Icons.skip_previous_rounded,
-                      tooltip: strings.previousEpisode,
-                      onPressed: now.hasPrevious ? playback.previous : null,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            if (now.isLive) ...[
+                              LiveBadge(label: strings.onAir),
+                              const SizedBox(width: Nova.space2),
+                            ],
+                            Flexible(
+                              child: Text(
+                                now.media.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.title.copyWith(
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (now.media.subtitle != null)
+                          Text(
+                            now.media.subtitle!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.caption.copyWith(
+                              color: Colors.white60,
+                            ),
+                          ),
+                      ],
                     ),
-                    IconPill(
-                      icon: Icons.skip_next_rounded,
-                      tooltip: strings.nextEpisode,
-                      onPressed: now.hasNext ? playback.next : null,
-                    ),
-                    const SizedBox(width: Nova.space2),
-                  ],
-
-                  _VolumeControl(player: player, strings: strings),
-
-                  const Spacer(),
-
-                  if (!now.isLive) _RateMenu(player: player, strings: strings),
-                  _TrackMenu(player: player, strings: strings),
-
+                  ),
                   IconPill(
-                    icon: fullscreen
-                        ? Icons.fullscreen_exit_rounded
-                        : Icons.fullscreen_rounded,
-                    tooltip: fullscreen ? strings.exitFullscreen : strings.fullscreen,
-                    onPressed: () => ref.read(fullscreenProvider.notifier).toggle(),
+                    icon: Icons.close_rounded,
+                    tooltip: strings.stop,
+                    size: 42,
+                    onPressed: playback.stop,
                   ),
                 ],
               ),
-            ],
+            ),
+
+            const Spacer(),
+
+            _CentreTransport(
+              now: now,
+              player: player,
+              strings: strings,
+              playback: playback,
+              onInteract: onInteract,
+            ),
+
+            const Spacer(),
+
+            Container(
+              padding: const EdgeInsets.fromLTRB(
+                Nova.space5,
+                Nova.space7,
+                Nova.space5,
+                Nova.space4,
+              ),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Color(0xF0000000), Color(0x00000000)],
+                ),
+              ),
+              child: GlassPanel(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Nova.space4,
+                  vertical: Nova.space3,
+                ),
+                radius: Nova.radiusHero,
+                blur: 20,
+                fill: const Color(0xD8121417),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!now.isLive)
+                      _SeekBar(player: player, onInteract: onInteract),
+                    if (!now.isLive) const SizedBox(height: Nova.space2),
+                    Row(
+                      children: [
+                        _VolumeControl(player: player, strings: strings),
+                        const Spacer(),
+                        IconPill(
+                          icon: Icons.tune_rounded,
+                          tooltip: strings.playerOptions,
+                          filled: optionsVisible,
+                          onPressed: onToggleOptions,
+                        ),
+                        const SizedBox(width: Nova.space2),
+                        IconPill(
+                          icon: fullscreen
+                              ? Icons.fullscreen_exit_rounded
+                              : Icons.fullscreen_rounded,
+                          tooltip: fullscreen
+                              ? strings.exitFullscreen
+                              : strings.fullscreen,
+                          onPressed: () =>
+                              ref.read(fullscreenProvider.notifier).toggle(),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        PositionedDirectional(
+          top: 92,
+          bottom: 150,
+          end: Nova.space5,
+          width: 340,
+          child: AnimatedSlide(
+            offset: optionsVisible ? Offset.zero : const Offset(0.12, 0),
+            duration: Nova.panel,
+            curve: Curves.easeOutCubic,
+            child: AnimatedOpacity(
+              opacity: optionsVisible ? 1 : 0,
+              duration: Nova.panel,
+              child: IgnorePointer(
+                ignoring: !optionsVisible,
+                child: _PlayerOptionsPanel(
+                  player: player,
+                  strings: strings,
+                  isLive: now.isLive,
+                  fitMode: fitMode,
+                  onFitChanged: onFitChanged,
+                  onInteract: onInteract,
+                ),
+              ),
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CentreTransport extends StatelessWidget {
+  const _CentreTransport({
+    required this.now,
+    required this.player,
+    required this.strings,
+    required this.playback,
+    required this.onInteract,
+  });
+
+  final NowPlaying now;
+  final PlayerService player;
+  final S strings;
+  final PlaybackController playback;
+  final VoidCallback onInteract;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Nova.space3,
+        vertical: Nova.space2,
+      ),
+      radius: Nova.radiusDock,
+      blur: 18,
+      fill: const Color(0xB8121417),
+      shadow: false,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!now.isLive)
+            IconPill(
+              icon: Icons.replay_10_rounded,
+              tooltip: strings.tenSecondsBack,
+              size: 50,
+              onPressed: () {
+                onInteract();
+                playback.seekBy(const Duration(seconds: -10));
+              },
+            ),
+          if (now.hasPrevious)
+            IconPill(
+              icon: Icons.skip_previous_rounded,
+              tooltip: strings.previousEpisode,
+              size: 50,
+              onPressed: playback.previous,
+            ),
+          StreamBuilder<bool>(
+            stream: player.playingStream,
+            initialData: player.isPlaying,
+            builder: (context, snapshot) => IconPill(
+              icon: snapshot.data == true
+                  ? Icons.pause_rounded
+                  : Icons.play_arrow_rounded,
+              tooltip: snapshot.data == true ? strings.pause : strings.play,
+              size: 64,
+              filled: true,
+              onPressed: () {
+                onInteract();
+                player.playOrPause();
+              },
+            ),
+          ),
+          if (now.hasNext)
+            IconPill(
+              icon: Icons.skip_next_rounded,
+              tooltip: strings.nextEpisode,
+              size: 50,
+              onPressed: playback.next,
+            ),
+          if (!now.isLive)
+            IconPill(
+              icon: Icons.forward_10_rounded,
+              tooltip: strings.tenSecondsForward,
+              size: 50,
+              onPressed: () {
+                onInteract();
+                playback.seekBy(const Duration(seconds: 10));
+              },
+            ),
+        ],
+      ),
     );
   }
 }
@@ -411,7 +627,10 @@ class _SeekBar extends ConsumerWidget {
             final position = positionSnap.data ?? Duration.zero;
             final duration = durationSnap.data ?? Duration.zero;
             final max = duration.inMilliseconds.toDouble();
-            final value = position.inMilliseconds.clamp(0, duration.inMilliseconds);
+            final value = position.inMilliseconds.clamp(
+              0,
+              duration.inMilliseconds,
+            );
 
             return Row(
               children: [
@@ -420,7 +639,9 @@ class _SeekBar extends ConsumerWidget {
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 4,
-                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 12,
+                      ),
                     ),
                     child: Slider(
                       // A zero-length media (a still-negotiating stream) would
@@ -440,7 +661,9 @@ class _SeekBar extends ConsumerWidget {
                 ),
                 Text(
                   Fmt.duration(duration),
-                  style: AppText.timecode.copyWith(color: AppColors.textSecondary),
+                  style: AppText.timecode.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             );
@@ -493,171 +716,290 @@ class _VolumeControl extends StatelessWidget {
   }
 }
 
-class _RateMenu extends StatelessWidget {
-  const _RateMenu({required this.player, required this.strings});
+class _PlayerOptionsPanel extends StatelessWidget {
+  const _PlayerOptionsPanel({
+    required this.player,
+    required this.strings,
+    required this.isLive,
+    required this.fitMode,
+    required this.onFitChanged,
+    required this.onInteract,
+  });
 
   final PlayerService player;
   final S strings;
+  final bool isLive;
+  final PlayerFitMode fitMode;
+  final ValueChanged<PlayerFitMode> onFitChanged;
+  final VoidCallback onInteract;
 
   static const _rates = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<double>(
-      stream: player.rateStream,
-      initialData: player.rate,
-      builder: (context, snapshot) {
-        final rate = snapshot.data ?? 1.0;
-        return PopupMenuButton<double>(
-          tooltip: strings.speed,
-          position: PopupMenuPosition.over,
-          onSelected: player.setRate,
-          itemBuilder: (context) => [
-            for (final r in _rates)
-              PopupMenuItem(
-                value: r,
-                child: Row(
-                  children: [
-                    if ((r - rate).abs() < 0.01)
-                      const Icon(Icons.check_rounded, size: 16, color: AppColors.primary)
-                    else
-                      const SizedBox(width: 16),
-                    const SizedBox(width: Nova.space2),
-                    Text('${r}x', textDirection: TextDirection.ltr),
-                  ],
-                ),
-              ),
-          ],
-          child: SizedBox(
-            height: 40,
-            child: Center(
-              child: Text(
-                '${rate}x',
-                style: AppText.control.copyWith(
-                  color: rate == 1.0 ? AppColors.textSecondary : AppColors.primary,
-                ),
-                textDirection: TextDirection.ltr,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Audio and subtitle tracks, in one menu.
-///
-/// IPTV streams routinely carry three audio tracks and no subtitles, or eight
-/// subtitle tracks named `und`. The menu shows whatever the stream declares and
-/// says nothing when the stream declares nothing.
-class _TrackMenu extends StatelessWidget {
-  const _TrackMenu({required this.player, required this.strings});
-
-  final PlayerService player;
-  final S strings;
 
   String _label(dynamic track, int index) {
     final title = (track.title as String?)?.trim();
     final language = (track.language as String?)?.trim();
     if (title != null && title.isNotEmpty) return title;
-    if (language != null && language.isNotEmpty && language != 'und') return language;
+    if (language != null && language.isNotEmpty && language != 'und') {
+      return language;
+    }
     return '#${index + 1}';
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<Tracks>(
-      stream: player.tracksStream,
-      initialData: player.tracks,
-      builder: (context, snapshot) {
-        final tracks = snapshot.data ?? player.tracks;
-        // media_kit always reports an 'auto' and a 'no' pseudo-track; a stream
-        // with nothing real to offer has only those.
-        final audio = tracks.audio.where((t) => t.id != 'auto' && t.id != 'no').toList();
-        final subtitles = tracks.subtitle.where((t) => t.id != 'auto').toList();
-
-        return PopupMenuButton<void Function()>(
-          tooltip: strings.subtitles,
-          position: PopupMenuPosition.over,
-          icon: const Icon(Icons.closed_caption_rounded, size: 22),
-          onSelected: (action) => action(),
-          itemBuilder: (context) => [
-            if (audio.length > 1) ...[
-              PopupMenuItem(
-                enabled: false,
-                height: 32,
-                child: Text(strings.audioTrack, style: AppText.label),
+    return GlassPanel(
+      padding: EdgeInsets.zero,
+      fill: const Color(0xED121417),
+      glow: true,
+      child: ListView(
+        padding: const EdgeInsets.all(Nova.space4),
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.tune_rounded, color: AppColors.primary),
+              const SizedBox(width: Nova.space3),
+              Expanded(
+                child: Text(strings.playerOptions, style: AppText.title),
               ),
-              for (var i = 0; i < audio.length; i++)
-                PopupMenuItem(
-                  value: () => player.setAudioTrack(audio[i]),
-                  child: _TrackRow(
-                    label: _label(audio[i], i),
-                    selected: player.selectedTrack.audio.id == audio[i].id,
-                  ),
-                ),
             ],
-            if (subtitles.isNotEmpty) ...[
-              PopupMenuItem(
-                enabled: false,
-                height: 32,
-                child: Text(strings.subtitles, style: AppText.label),
+          ),
+          const SizedBox(height: Nova.space4),
+          const Divider(color: AppColors.borderSubtle),
+          const SizedBox(height: Nova.space3),
+          _OptionHeading(
+            icon: Icons.aspect_ratio_rounded,
+            label: strings.aspectRatio,
+          ),
+          const SizedBox(height: Nova.space3),
+          Wrap(
+            spacing: Nova.space2,
+            runSpacing: Nova.space2,
+            children: [
+              _OptionChoice(
+                label: strings.aspectFit,
+                selected: fitMode == PlayerFitMode.fit,
+                onTap: () => onFitChanged(PlayerFitMode.fit),
               ),
-              PopupMenuItem(
-                value: () => player.setSubtitleTrack(SubtitleTrack.no()),
-                child: _TrackRow(
-                  label: strings.subtitlesOff,
-                  selected: player.selectedTrack.subtitle.id == 'no',
-                ),
+              _OptionChoice(
+                label: strings.aspectFill,
+                selected: fitMode == PlayerFitMode.fill,
+                onTap: () => onFitChanged(PlayerFitMode.fill),
               ),
-              for (var i = 0; i < subtitles.length; i++)
-                if (subtitles[i].id != 'no')
-                  PopupMenuItem(
-                    value: () => player.setSubtitleTrack(subtitles[i]),
-                    child: _TrackRow(
-                      label: _label(subtitles[i], i),
-                      selected: player.selectedTrack.subtitle.id == subtitles[i].id,
-                    ),
-                  ),
+              _OptionChoice(
+                label: strings.aspectOriginal,
+                selected: fitMode == PlayerFitMode.original,
+                onTap: () => onFitChanged(PlayerFitMode.original),
+              ),
             ],
-            if (audio.length <= 1 && subtitles.isEmpty)
-              PopupMenuItem(
-                enabled: false,
-                child: Text(strings.subtitlesOff, style: AppText.body),
-              ),
+          ),
+          if (!isLive) ...[
+            const SizedBox(height: Nova.space5),
+            _OptionHeading(icon: Icons.speed_rounded, label: strings.speed),
+            const SizedBox(height: Nova.space3),
+            StreamBuilder<double>(
+              stream: player.rateStream,
+              initialData: player.rate,
+              builder: (context, snapshot) {
+                final rate = snapshot.data ?? 1.0;
+                return Wrap(
+                  spacing: Nova.space2,
+                  runSpacing: Nova.space2,
+                  children: [
+                    for (final value in _rates)
+                      _OptionChoice(
+                        label: '${value}x',
+                        textDirection: TextDirection.ltr,
+                        selected: (value - rate).abs() < 0.01,
+                        onTap: () {
+                          onInteract();
+                          player.setRate(value);
+                        },
+                      ),
+                  ],
+                );
+              },
+            ),
           ],
-        );
-      },
+          const SizedBox(height: Nova.space5),
+          StreamBuilder<Tracks>(
+            stream: player.tracksStream,
+            initialData: player.tracks,
+            builder: (context, trackSnapshot) {
+              final tracks = trackSnapshot.data ?? player.tracks;
+              final audio = tracks.audio
+                  .where((track) => track.id != 'auto' && track.id != 'no')
+                  .toList();
+              final subtitles = tracks.subtitle
+                  .where((track) => track.id != 'auto' && track.id != 'no')
+                  .toList();
+
+              return StreamBuilder<Track>(
+                stream: player.selectedTrackStream,
+                initialData: player.selectedTrack,
+                builder: (context, selectedSnapshot) {
+                  final selected =
+                      selectedSnapshot.data ?? player.selectedTrack;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (audio.isNotEmpty) ...[
+                        _OptionHeading(
+                          icon: Icons.graphic_eq_rounded,
+                          label: strings.audioTrack,
+                        ),
+                        const SizedBox(height: Nova.space2),
+                        for (var i = 0; i < audio.length; i++)
+                          _TrackRow(
+                            label: _label(audio[i], i),
+                            selected: selected.audio.id == audio[i].id,
+                            onTap: () {
+                              onInteract();
+                              player.setAudioTrack(audio[i]);
+                            },
+                          ),
+                        const SizedBox(height: Nova.space5),
+                      ],
+                      _OptionHeading(
+                        icon: Icons.closed_caption_rounded,
+                        label: strings.subtitles,
+                      ),
+                      const SizedBox(height: Nova.space2),
+                      _TrackRow(
+                        label: strings.subtitlesOff,
+                        selected:
+                            selected.subtitle.id == 'no' ||
+                            selected.subtitle.id.isEmpty,
+                        onTap: () {
+                          onInteract();
+                          player.setSubtitleTrack(SubtitleTrack.no());
+                        },
+                      ),
+                      for (var i = 0; i < subtitles.length; i++)
+                        _TrackRow(
+                          label: _label(subtitles[i], i),
+                          selected: selected.subtitle.id == subtitles[i].id,
+                          onTap: () {
+                            onInteract();
+                            player.setSubtitleTrack(subtitles[i]);
+                          },
+                        ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _TrackRow extends StatelessWidget {
-  const _TrackRow({required this.label, required this.selected});
+class _OptionHeading extends StatelessWidget {
+  const _OptionHeading({required this.icon, required this.label});
 
+  final IconData icon;
   final String label;
-  final bool selected;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        if (selected)
-          const Icon(Icons.check_rounded, size: 16, color: AppColors.primary)
-        else
-          const SizedBox(width: 16),
+        Icon(icon, size: 18, color: AppColors.textSecondary),
         const SizedBox(width: Nova.space2),
-        Flexible(
+        Text(label, style: AppText.label),
+      ],
+    );
+  }
+}
+
+class _OptionChoice extends StatelessWidget {
+  const _OptionChoice({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.textDirection,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final TextDirection? textDirection;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.primary : AppColors.surface3,
+      borderRadius: BorderRadius.circular(Nova.radiusControl),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Nova.radiusControl),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Nova.space3,
+            vertical: Nova.space2,
+          ),
           child: Text(
             label,
-            overflow: TextOverflow.ellipsis,
+            textDirection: textDirection,
             style: AppText.control.copyWith(
-              color: selected ? AppColors.primary : AppColors.textPrimary,
+              color: selected ? Colors.black : AppColors.textPrimary,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _TrackRow extends StatelessWidget {
+  const _TrackRow({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected
+          ? AppColors.primary.withValues(alpha: 0.12)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(Nova.radiusControl),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Nova.radiusControl),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Nova.space3,
+            vertical: Nova.space2,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                size: 17,
+                color: selected ? AppColors.primary : AppColors.textMuted,
+              ),
+              const SizedBox(width: Nova.space2),
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.control.copyWith(
+                    color: selected ? AppColors.primary : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

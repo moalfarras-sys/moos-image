@@ -37,15 +37,15 @@ class DockDestination {
 ///
 /// ## What it has to survive
 ///
-///  * **Six labels in three languages.** "Einstellungen" is 13 characters;
+///  * **Seven labels in three languages.** "Einstellungen" is 13 characters;
 ///    "الإعدادات" is 9 but sets wider; "Settings" is 8. The dock is laid out
 ///    intrinsically and sizes itself to whatever the longest one turns out to
 ///    be — nothing here is a hard-coded width.
 ///  * **RTL.** The `Row` flips with the `Directionality`, so in Arabic the dock
 ///    reads Search-first from the *right*. The order of the list does not change;
 ///    only the axis it is laid out on does.
-///  * **A window at 1366 px.** Below [_compactWidth] the labels go and the dock
-///    becomes six icons with tooltips — it does *not* become a stretched-out
+///  * **A window at 1366 px.** Below [compactWidth] the labels go and the dock
+///    becomes seven icons with tooltips — it does *not* become a stretched-out
 ///    mobile tab bar pinned to the window edges.
 ///  * **A remote control.** Focus moves along the dock with left/right, leaves it
 ///    upward into the page, and can be summoned from anywhere with F6 — because
@@ -72,11 +72,13 @@ class GlassDock extends StatelessWidget {
   /// Up-arrow or Escape from inside the dock: hand focus back to the page.
   final VoidCallback? onEscape;
 
-  static const double _compactWidth = 1100;
+  /// Seven translated labels are too dense on the 1397-logical-pixel desktop
+  /// used by a scaled 4K display. Tooltips retain every label in compact mode.
+  static const double compactWidth = 1500;
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < _compactWidth;
+    final compact = MediaQuery.sizeOf(context).width < compactWidth;
 
     return FocusTraversalGroup(
       // The dock is one region. Arrowing inside it must not fall through into
@@ -270,7 +272,8 @@ class _DockItemState extends State<_DockItem> {
             widget.destination.icon,
             size: 24,
             color: iconColor,
-            filled: widget.destination.icon == MoIcon.favorites && widget.selected,
+            filled:
+                widget.destination.icon == MoIcon.favorites && widget.selected,
           ),
           if (!widget.compact) ...[
             const SizedBox(height: Nova.space1 + 2),
@@ -342,8 +345,7 @@ class _DockItemState extends State<_DockItem> {
 
     if (!widget.compact) return focusable;
     return Tooltip(
-      message:
-          '${widget.destination.label}  ·  ${widget.destination.shortcut}',
+      message: '${widget.destination.label}  ·  ${widget.destination.shortcut}',
       child: focusable,
     );
   }

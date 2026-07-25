@@ -38,7 +38,9 @@ class LanguageController extends Notifier<Lang> {
   Future<void> set(Lang lang) async {
     if (state == lang) return;
     state = lang;
-    await ref.read(cacheServiceProvider).setSetting(StorageKeys.language, lang.name);
+    await ref
+        .read(cacheServiceProvider)
+        .setSetting(StorageKeys.language, lang.name);
   }
 }
 

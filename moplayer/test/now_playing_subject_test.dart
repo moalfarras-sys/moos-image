@@ -16,15 +16,20 @@ import 'package:moplayer_moos/providers/playback_providers.dart';
 import 'package:moplayer_moos/services/player/player_service.dart';
 
 LiveChannel _ch(String name, {String? logo, String? epg}) => LiveChannel(
-      streamId: 's-$name',
-      name: name,
-      logo: logo,
-      epgChannelId: epg,
-      directUrl: 'http://x/$name',
-    );
+  streamId: 's-$name',
+  name: name,
+  logo: logo,
+  epgChannelId: epg,
+  directUrl: 'http://x/$name',
+);
 
-NowPlaying _live(String title, String refId, {String? image, String? epg}) => NowPlaying(
-      media: PlayableMedia(url: 'http://x/$refId', title: title, kind: MediaKind.live),
+NowPlaying _live(String title, String refId, {String? image, String? epg}) =>
+    NowPlaying(
+      media: PlayableMedia(
+        url: 'http://x/$refId',
+        title: title,
+        kind: MediaKind.live,
+      ),
       refId: refId,
       imageUrl: image,
       payload: {'epgChannelId': ?epg},
@@ -40,27 +45,52 @@ void main() {
       expect(subject, isNotNull);
       expect(subject!.title, 'Bare');
       expect(subject.streamId, 's-Bare');
-      expect(subject.logo, isNull, reason: 'no logo is a logo the pane can draw around');
+      expect(
+        subject.logo,
+        isNull,
+        reason: 'no logo is a logo the pane can draw around',
+      );
       expect(subject.epgChannelId, isNull);
     });
 
-    test('a previewed channel keeps its own fields — it never borrows the stream\'s', () {
-      final playing =
-          _live('Something else', 's-Other', image: 'http://x/other.png', epg: 'other.epg');
+    test(
+      'a previewed channel keeps its own fields — it never borrows the stream\'s',
+      () {
+        final playing = _live(
+          'Something else',
+          's-Other',
+          image: 'http://x/other.png',
+          epg: 'other.epg',
+        );
 
-      final subject = resolveNowPlaying(previewed: _ch('Bare'), playing: playing);
+        final subject = resolveNowPlaying(
+          previewed: _ch('Bare'),
+          playing: playing,
+        );
 
-      expect(subject!.title, 'Bare');
-      expect(subject.streamId, 's-Bare');
-      expect(subject.logo, isNull,
-          reason: 'borrowing the running stream\'s poster labels the wrong channel');
-      expect(subject.epgChannelId, isNull,
-          reason: 'borrowing its epg id would show the wrong guide');
-    });
+        expect(subject!.title, 'Bare');
+        expect(subject.streamId, 's-Bare');
+        expect(
+          subject.logo,
+          isNull,
+          reason:
+              'borrowing the running stream\'s poster labels the wrong channel',
+        );
+        expect(
+          subject.epgChannelId,
+          isNull,
+          reason: 'borrowing its epg id would show the wrong guide',
+        );
+      },
+    );
 
     test('nothing previewed: the pane is about whatever is playing', () {
-      final playing =
-          _live('On air', 's-OnAir', image: 'http://x/onair.png', epg: 'onair.epg');
+      final playing = _live(
+        'On air',
+        's-OnAir',
+        image: 'http://x/onair.png',
+        epg: 'onair.epg',
+      );
 
       final subject = resolveNowPlaying(previewed: null, playing: playing);
 
@@ -70,8 +100,11 @@ void main() {
       expect(subject.epgChannelId, 'onair.epg');
     });
 
-    test('nothing previewed and nothing playing — the empty state owns the pane', () {
-      expect(resolveNowPlaying(previewed: null, playing: null), isNull);
-    });
+    test(
+      'nothing previewed and nothing playing — the empty state owns the pane',
+      () {
+        expect(resolveNowPlaying(previewed: null, playing: null), isNull);
+      },
+    );
   });
 }

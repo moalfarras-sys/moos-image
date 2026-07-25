@@ -116,7 +116,12 @@ final mprisProvider = Provider<MprisService>((ref) {
       onVolume: (v) => player.setVolume(v * 100),
       onRaise: () async {
         await ref.read(desktopServiceProvider).raise();
-        ref.read(playerViewProvider.notifier).expand();
+        // Raising an idle app must not put the shell into an "expanded player"
+        // mode with no player to draw. That state hides the caption and dock
+        // while showing the home page underneath.
+        if (ref.read(playbackProvider) != null) {
+          ref.read(playerViewProvider.notifier).expand();
+        }
       },
       onQuit: () async => ref.read(playbackProvider.notifier).stop(),
     ),
@@ -129,6 +134,44 @@ final mprisProvider = Provider<MprisService>((ref) {
 final playbackProvider = NotifierProvider<PlaybackController, NowPlaying?>(
   PlaybackController.new,
 );
+
+enum PlaybackIssueKind { reconnecting, failed }
+
+class PlaybackIssue {
+  const PlaybackIssue({
+    required this.kind,
+    this.attempt = 0,
+    this.maxAttempts = 0,
+  });
+
+  final PlaybackIssueKind kind;
+  final int attempt;
+  final int maxAttempts;
+}
+
+final playbackIssueProvider =
+    NotifierProvider<PlaybackIssueController, PlaybackIssue?>(
+      PlaybackIssueController.new,
+    );
+
+class PlaybackIssueController extends Notifier<PlaybackIssue?> {
+  @override
+  PlaybackIssue? build() => null;
+
+  void clear() => state = null;
+
+  void reconnecting(int attempt, int maxAttempts) {
+    state = PlaybackIssue(
+      kind: PlaybackIssueKind.reconnecting,
+      attempt: attempt,
+      maxAttempts: maxAttempts,
+    );
+  }
+
+  void failed() {
+    state = const PlaybackIssue(kind: PlaybackIssueKind.failed);
+  }
+}
 
 /// Owns *when* something plays, as opposed to [PlayerService], which owns *how*.
 ///
@@ -153,6 +196,8 @@ class PlaybackController extends Notifier<NowPlaying?> {
   Timer? _progressTimer;
   Timer? _stallTimer;
   int _retries = 0;
+  bool _recovering = false;
+  int _recoveryGeneration = 0;
 
   @override
   NowPlaying? build() {
@@ -176,7 +221,11 @@ class PlaybackController extends Notifier<NowPlaying?> {
         // event so the toggle is honoured from the next play/pause on. An
         // inhibitor left on through a pause is how a laptop cooks in a bag.
         desktop.setKeepAwake(playing && ref.read(settingsProvider).keepAwake);
-        if (playing) _retries = 0;
+        if (playing) {
+          _retries = 0;
+          _recovering = false;
+          ref.read(playbackIssueProvider.notifier).clear();
+        }
       }),
       player.volumeStream.listen((v) => mpris.setVolume(v / 100)),
       player.completedStream.listen((done) {
@@ -204,16 +253,30 @@ class PlaybackController extends Notifier<NowPlaying?> {
   // ── Opening things ─────────────────────────────────────────────────────────
 
   Future<void> _start(NowPlaying next) async {
+    _recoveryGeneration++;
+    _recovering = false;
     _retries = 0;
+    ref.read(playbackIssueProvider.notifier).clear();
     state = next;
     ref.read(playerViewProvider.notifier).expand();
 
-    await _player.open(next.media);
+    try {
+      await _player.open(next.media);
+    } catch (error) {
+      // Opening a broken stream must become a recoverable player state, never
+      // an unhandled asynchronous exception that takes the UI down with it.
+      log.w('playback: initial open failed: $error');
+      ref.read(playbackIssueProvider.notifier).failed();
+      return;
+    }
     await _announce(next);
 
     _progressTimer?.cancel();
     if (next.trackProgress) {
-      _progressTimer = Timer.periodic(_progressInterval, (_) => _saveProgress());
+      _progressTimer = Timer.periodic(
+        _progressInterval,
+        (_) => _saveProgress(),
+      );
     }
 
     // History is written on open, not on finish: a user who watched ten minutes
@@ -279,7 +342,9 @@ class PlaybackController extends Notifier<NowPlaying?> {
     final settings = ref.read(settingsProvider);
 
     if (settings.rememberLastChannel) {
-      await ref.read(settingsRepositoryProvider).setLastLiveChannelId(channel.streamId);
+      await ref
+          .read(settingsRepositoryProvider)
+          .setLastLiveChannelId(channel.streamId);
     }
 
     await _start(
@@ -305,7 +370,9 @@ class PlaybackController extends Notifier<NowPlaying?> {
 
     final resume = fromStart
         ? Duration.zero
-        : ref.read(libraryActionsProvider).resumePosition(MediaKind.movie, movie.streamId);
+        : ref
+              .read(libraryActionsProvider)
+              .resumePosition(MediaKind.movie, movie.streamId);
 
     await _start(
       NowPlaying(
@@ -336,14 +403,17 @@ class PlaybackController extends Notifier<NowPlaying?> {
     final episode = seasonEpisodes[index];
     final resume = fromStart
         ? Duration.zero
-        : ref.read(libraryActionsProvider).resumePosition(MediaKind.episode, episode.id);
+        : ref
+              .read(libraryActionsProvider)
+              .resumePosition(MediaKind.episode, episode.id);
 
     await _start(
       NowPlaying(
         media: PlayableMedia(
           url: repo.episodeUrl(episode),
           title: series.name,
-          subtitle: 'S${episode.seasonNumber} · E${episode.episodeNum} — ${episode.title}',
+          subtitle:
+              'S${episode.seasonNumber} · E${episode.episodeNum} — ${episode.title}',
           artUrl: episode.image ?? series.cover,
           kind: MediaKind.episode,
           startAt: resume,
@@ -419,6 +489,10 @@ class PlaybackController extends Notifier<NowPlaying?> {
   }
 
   Future<void> stop() async {
+    _recoveryGeneration++;
+    _recovering = false;
+    _retries = 0;
+    ref.read(playbackIssueProvider.notifier).clear();
     await _saveProgress();
     _progressTimer?.cancel();
     _stallTimer?.cancel();
@@ -455,7 +529,9 @@ class PlaybackController extends Notifier<NowPlaying?> {
 
     if (current.trackProgress) {
       // A finished item must not linger in "Continue watching".
-      await ref.read(libraryActionsProvider).removeContinue(current.kind, current.refId);
+      await ref
+          .read(libraryActionsProvider)
+          .removeContinue(current.kind, current.refId);
     }
 
     if (ref.read(settingsProvider).autoplayNext && current.hasNext) {
@@ -470,21 +546,67 @@ class PlaybackController extends Notifier<NowPlaying?> {
   /// up and let the UI say so.
   Future<void> _recover(String message) async {
     final current = state;
-    if (current == null) return;
+    if (current == null || _recovering) return;
 
     if (_retries >= _maxRetries) {
-      log.e('playback: giving up on ${current.media.title} after $_retries retries: $message');
+      log.e(
+        'playback: giving up on ${current.media.title} after $_retries retries: $message',
+      );
+      ref.read(playbackIssueProvider.notifier).failed();
       return;
     }
 
+    _recovering = true;
     _retries++;
+    final generation = _recoveryGeneration;
     final wait = Duration(seconds: 2 * _retries);
-    log.w('playback: $message — retry $_retries/$_maxRetries in ${wait.inSeconds}s');
+    ref
+        .read(playbackIssueProvider.notifier)
+        .reconnecting(_retries, _maxRetries);
+    log.w(
+      'playback: $message — retry $_retries/$_maxRetries in ${wait.inSeconds}s',
+    );
     await Future<void>.delayed(wait);
 
-    if (state != current) return; // the user moved on while we waited
+    if (state != current || generation != _recoveryGeneration) {
+      _recovering = false;
+      return;
+    }
     final resumeAt = current.isLive ? Duration.zero : _player.position;
-    await _player.open(current.media.copyWith(startAt: resumeAt));
+    try {
+      await _player.open(current.media.copyWith(startAt: resumeAt));
+    } catch (error) {
+      log.w('playback: retry $_retries failed: $error');
+      _recovering = false;
+      if (_retries >= _maxRetries) {
+        ref.read(playbackIssueProvider.notifier).failed();
+      } else {
+        unawaited(_recover('$error'));
+      }
+      return;
+    }
+    _recovering = false;
+  }
+
+  /// A user-initiated retry does not inherit the automatic backoff and does not
+  /// make them wait another six seconds after they have already chosen Retry.
+  Future<void> reconnect() async {
+    final current = state;
+    if (current == null) return;
+
+    _recoveryGeneration++;
+    _recovering = true;
+    _retries = 0;
+    ref.read(playbackIssueProvider.notifier).reconnecting(1, _maxRetries);
+    final resumeAt = current.isLive ? Duration.zero : _player.position;
+    try {
+      await _player.open(current.media.copyWith(startAt: resumeAt));
+    } catch (error) {
+      log.w('playback: manual reconnect failed: $error');
+      ref.read(playbackIssueProvider.notifier).failed();
+    } finally {
+      _recovering = false;
+    }
   }
 
   void _watchForStall(bool buffering) {
@@ -505,7 +627,9 @@ class PlaybackController extends Notifier<NowPlaying?> {
     final duration = _player.duration;
     // Below five seconds there is nothing worth resuming, and a duration of zero
     // means the demuxer has not reported one yet.
-    if (duration <= Duration.zero || position <= const Duration(seconds: 5)) return;
+    if (duration <= Duration.zero || position <= const Duration(seconds: 5)) {
+      return;
+    }
 
     await ref
         .read(libraryActionsProvider)

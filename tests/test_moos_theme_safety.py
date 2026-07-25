@@ -331,6 +331,80 @@ migrate_legacy_keyboard
         customised = legacy + "Options=grp:alt_shift_toggle\n"
         self.assertEqual(run_profile(customised), customised)
 
+    @unittest.skipUnless(_HAS_KWRITECONFIG6, _KWRITE_REASON)
+    def test_wallet_migration_repairs_only_the_shipped_disabled_shadow(self) -> None:
+        migration = MIGRATE.read_text(encoding="utf-8")
+        migrator = function(migration, "migrate_legacy_disabled_wallet")
+
+        def run_profile(
+            contents: str | None,
+            already_migrated: bool = False,
+        ) -> tuple[str | None, bool]:
+            import tempfile
+
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                config = root / "config"
+                state = root / "state/moos"
+                logs = state / "migrations"
+                config.mkdir()
+                logs.mkdir(parents=True)
+                profile = config / "kwalletrc"
+                if contents is not None:
+                    profile.write_text(contents, encoding="utf-8")
+                marker = state / "secret-service-wallet-v1.done"
+                if already_migrated:
+                    marker.touch()
+                harness = f"""
+set -euo pipefail
+state_dir={shlex.quote(str(state))}
+log_dir={shlex.quote(str(logs))}
+systemctl() {{ return 0; }}
+{migrator}
+migrate_legacy_disabled_wallet
+"""
+                env = dict(os.environ)
+                env["HOME"] = str(root / "home")
+                env["XDG_CONFIG_HOME"] = str(config)
+                subprocess.run(
+                    [BASH, "-c", harness],
+                    check=True,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    env=env,
+                )
+                migrated = (
+                    profile.read_text(encoding="utf-8")
+                    if profile.exists()
+                    else None
+                )
+                return migrated, marker.exists()
+
+        fresh, fresh_marked = run_profile(None)
+        self.assertIsNone(
+            fresh,
+            "fresh users inherit the enabled /etc/xdg default without a local pin",
+        )
+        self.assertTrue(fresh_marked)
+
+        legacy = "[Wallet]\nEnabled=false\nFirst Use=false\n"
+        migrated, marked = run_profile(legacy)
+        self.assertIn("Enabled=true", migrated)
+        self.assertIn("First Use=false", migrated)
+        self.assertTrue(marked)
+
+        custom_disabled = legacy + "Close When Idle=true\n"
+        self.assertEqual(run_profile(custom_disabled)[0], custom_disabled)
+        enabled = "[Wallet]\nEnabled=true\nFirst Use=false\n"
+        self.assertEqual(run_profile(enabled)[0], enabled)
+
+        # A choice made after the one-time repair remains the user's choice.
+        self.assertEqual(
+            run_profile(legacy, already_migrated=True)[0],
+            legacy,
+        )
+
     def test_any_foreign_look_resolves_to_the_one_moos_look(self) -> None:
         """MoOS now ships a FAMILY of looks on one engine: the Graphite/Tidal base pair plus
         the org.moos.ui2.* members (Nova, Amethyst, Midnight, Aurora). A member the user picked

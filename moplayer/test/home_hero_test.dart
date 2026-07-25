@@ -14,14 +14,22 @@ import 'package:moplayer_moos/core/l10n/strings.dart';
 import 'package:moplayer_moos/features/home/home_screen.dart';
 import 'package:moplayer_moos/models/live_channel.dart';
 
-LiveChannel _ch(String name, {String? logo}) =>
-    LiveChannel(streamId: name, name: name, logo: logo, directUrl: 'http://x/$name');
+LiveChannel _ch(String name, {String? logo}) => LiveChannel(
+  streamId: name,
+  name: name,
+  logo: logo,
+  directUrl: 'http://x/$name',
+);
 
 void main() {
   group('pickLiveHero', () {
     test('a live-only catalogue still gets a hero', () {
       final hero = pickLiveHero([_ch('One'), _ch('Two')]);
-      expect(hero, isNotNull, reason: 'an M3U source must not open on an empty page');
+      expect(
+        hero,
+        isNotNull,
+        reason: 'an M3U source must not open on an empty page',
+      );
       expect(hero!.name, 'One');
     });
 

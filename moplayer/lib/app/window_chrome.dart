@@ -257,8 +257,8 @@ class _WindowButtons extends ConsumerWidget {
             tooltip: maximized ? s.windowRestore : s.windowMaximize,
             onTap: () async {
               await desktop.toggleMaximize();
-              ref.read(windowMaximizedProvider.notifier).state =
-                  await desktop.isMaximized();
+              ref.read(windowMaximizedProvider.notifier).state = await desktop
+                  .isMaximized();
             },
           ),
         ],

@@ -167,7 +167,9 @@ class DesktopService {
   static Future<void> showWindow(WindowGeometry? saved) async {
     if (!Platform.isLinux) return;
     try {
-      if (saved != null && saved.isSane && await _fitsOnAnyDisplay(saved.rect)) {
+      if (saved != null &&
+          saved.isSane &&
+          await _fitsOnAnyDisplay(saved.rect)) {
         if (saved.maximized) {
           await windowManager.maximize();
         } else {

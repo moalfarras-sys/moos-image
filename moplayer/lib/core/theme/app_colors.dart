@@ -234,7 +234,10 @@ class AppColors {
   /// the hero's ambient light.
   static RadialGradient glow(Color color, {double opacity = 0.35}) {
     return RadialGradient(
-      colors: [color.withValues(alpha: opacity), color.withValues(alpha: 0.0)],
+      colors: [
+        color.withValues(alpha: opacity),
+        color.withValues(alpha: 0.0),
+      ],
     );
   }
 

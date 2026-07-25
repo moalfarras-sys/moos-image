@@ -231,39 +231,13 @@ class _Team extends StatelessWidget {
   }
 }
 
-/// The one thing on the card that moves. It is a state, not a decoration: a
-/// static red dot and a live red dot look identical in a screenshot, and the
-/// user is trying to answer "is it on *now*".
-class _OnAirDot extends StatefulWidget {
+/// A small state mark beside the explicit LIVE label. Kept static so one match
+/// card cannot keep repainting the whole home screen indefinitely.
+class _OnAirDot extends StatelessWidget {
   const _OnAirDot();
 
   @override
-  State<_OnAirDot> createState() => _OnAirDotState();
-}
-
-class _OnAirDotState extends State<_OnAirDot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _pulse.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (Motion.isReduced(context)) {
-      return const _Dot(opacity: 1);
-    }
-    return AnimatedBuilder(
-      animation: _pulse,
-      builder: (_, _) => _Dot(opacity: 0.45 + 0.55 * _pulse.value),
-    );
-  }
+  Widget build(BuildContext context) => const _Dot(opacity: 1);
 }
 
 class _Dot extends StatelessWidget {

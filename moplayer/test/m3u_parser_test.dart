@@ -21,7 +21,10 @@ http://panel.example/live/user/pass/2.ts
       expect(result.channels.first.name, 'BBC One');
       expect(result.channels.first.logo, 'http://logos/bbc1.png');
       expect(result.channels.first.epgChannelId, 'bbc1.uk');
-      expect(result.channels.first.directUrl, 'http://panel.example/live/user/pass/1.ts');
+      expect(
+        result.channels.first.directUrl,
+        'http://panel.example/live/user/pass/1.ts',
+      );
       expect(result.categories.map((c) => c.name), contains('UK'));
     });
 

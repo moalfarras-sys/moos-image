@@ -41,7 +41,7 @@ an icon set.
 
 ```dockerfile
 # ── MoPlayer ────────────────────────────────────────────────────────────────
-ARG MOPLAYER_VERSION=1.0.0
+ARG MOPLAYER_VERSION=1.1.0
 RUN curl -fsSL -o /tmp/moplayer.tar.gz \
       "https://github.com/moalfarras-sys/MoPlayerMoOS/releases/download/v${MOPLAYER_VERSION}/moplayer-linux-x64.tar.gz" \
  && mkdir -p /usr/lib/moplayer \

@@ -11,15 +11,19 @@ void main() {
   PlaylistConfig m3u(String id, String url) =>
       PlaylistConfig(id: id, type: PlaylistType.m3u, name: 'demo', m3uUrl: url);
 
-  PlaylistConfig xtream(String id, {required String server, required String user, String pass = 'p'}) =>
-      PlaylistConfig(
-        id: id,
-        type: PlaylistType.xtream,
-        name: user,
-        serverUrl: server,
-        username: user,
-        password: pass,
-      );
+  PlaylistConfig xtream(
+    String id, {
+    required String server,
+    required String user,
+    String pass = 'p',
+  }) => PlaylistConfig(
+    id: id,
+    type: PlaylistType.xtream,
+    name: user,
+    serverUrl: server,
+    username: user,
+    password: pass,
+  );
 
   group('PlaylistConfig.identityKey', () {
     test('the same file opened twice is one source, whatever its id', () {
@@ -39,8 +43,18 @@ void main() {
     test('an Xtream account is its panel plus its user, not its password', () {
       // Re-entering a corrected password is the same account, not a new one —
       // duplicating the row there would strand the favourites keyed to the old id.
-      final before = xtream('pl_1', server: 'http://panel.tv:8080', user: 'mo', pass: 'old');
-      final after = xtream('pl_2', server: 'http://panel.tv:8080', user: 'mo', pass: 'new');
+      final before = xtream(
+        'pl_1',
+        server: 'http://panel.tv:8080',
+        user: 'mo',
+        pass: 'old',
+      );
+      final after = xtream(
+        'pl_2',
+        server: 'http://panel.tv:8080',
+        user: 'mo',
+        pass: 'new',
+      );
 
       expect(before.identityKey, after.identityKey);
     });
@@ -48,14 +62,24 @@ void main() {
     test('the same panel with two accounts is two sources', () {
       expect(
         xtream('pl_1', server: 'http://panel.tv:8080', user: 'mo').identityKey,
-        isNot(xtream('pl_2', server: 'http://panel.tv:8080', user: 'sara').identityKey),
+        isNot(
+          xtream(
+            'pl_2',
+            server: 'http://panel.tv:8080',
+            user: 'sara',
+          ).identityKey,
+        ),
       );
     });
 
     test('the panel URL is normalised before it is compared', () {
       // A user who typed the server with a trailing slash once and without it the
       // next time has one account, and expects one row.
-      final withSlash = xtream('pl_1', server: 'http://panel.tv:8080/', user: 'mo');
+      final withSlash = xtream(
+        'pl_1',
+        server: 'http://panel.tv:8080/',
+        user: 'mo',
+      );
       final withScheme = xtream('pl_2', server: 'panel.tv:8080', user: 'MO');
 
       expect(withSlash.identityKey, withScheme.identityKey);
@@ -64,7 +88,9 @@ void main() {
     test('an M3U and an Xtream source never collide', () {
       expect(
         m3u('file_1', 'http://panel.tv:8080').identityKey,
-        isNot(xtream('pl_1', server: 'http://panel.tv:8080', user: '').identityKey),
+        isNot(
+          xtream('pl_1', server: 'http://panel.tv:8080', user: '').identityKey,
+        ),
       );
     });
   });

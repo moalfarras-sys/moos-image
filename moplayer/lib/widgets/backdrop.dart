@@ -112,10 +112,8 @@ class Backdrop extends StatelessWidget {
           switchOutCurve: Ease.fade,
           // Both frames stay put and simply dissolve. A scale here would make
           // the whole window appear to breathe every time the selection moves.
-          layoutBuilder: (current, previous) => Stack(
-            fit: StackFit.expand,
-            children: [...previous, ?current],
-          ),
+          layoutBuilder: (current, previous) =>
+              Stack(fit: StackFit.expand, children: [...previous, ?current]),
           child: art,
         ),
 
@@ -125,16 +123,14 @@ class Backdrop extends StatelessWidget {
           ),
 
         if (scrim)
-          DecoratedBox(
-            decoration: BoxDecoration(gradient: _heroScrim(rtl)),
-          ),
+          DecoratedBox(decoration: BoxDecoration(gradient: _heroScrim(rtl))),
 
         if (floor)
           const DecoratedBox(
             decoration: BoxDecoration(gradient: AppColors.heroFloor),
           ),
 
-        if (child != null) child!,
+        ?child,
       ],
     );
   }
@@ -190,7 +186,11 @@ class SceneBackdrop extends StatelessWidget {
 }
 
 class _Bloom extends StatelessWidget {
-  const _Bloom({required this.color, required this.size, required this.opacity});
+  const _Bloom({
+    required this.color,
+    required this.size,
+    required this.opacity,
+  });
 
   final Color color;
   final double size;

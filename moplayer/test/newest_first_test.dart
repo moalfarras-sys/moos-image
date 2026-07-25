@@ -20,10 +20,11 @@ void main() {
         (name: 'middle', added: DateTime(2024)),
       ];
 
-      expect(
-        newestFirst(items, (i) => i.added).map((i) => i.name),
-        ['newest', 'middle', 'old'],
-      );
+      expect(newestFirst(items, (i) => i.added).map((i) => i.name), [
+        'newest',
+        'middle',
+        'old',
+      ]);
     });
 
     test('a panel that stamps nothing keeps its own order', () {
@@ -35,10 +36,10 @@ void main() {
         (name: 'second', added: null),
       ];
 
-      expect(
-        newestFirst(items, (i) => i.added).map((i) => i.name),
-        ['first', 'second'],
-      );
+      expect(newestFirst(items, (i) => i.added).map((i) => i.name), [
+        'first',
+        'second',
+      ]);
     });
 
     test('undated items sink below dated ones, but are not dropped', () {

@@ -12,20 +12,21 @@ class AppTheme {
   static ThemeData get dark {
     final base = ThemeData.dark(useMaterial3: true);
 
-    final scheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
-      brightness: Brightness.dark,
-    ).copyWith(
-      primary: AppColors.primary,
-      onPrimary: Colors.white,
-      secondary: AppColors.gold,
-      tertiary: AppColors.goldBright,
-      surface: AppColors.surface1,
-      onSurface: AppColors.textPrimary,
-      surfaceContainerHighest: AppColors.surface2,
-      outline: AppColors.borderSubtle,
-      error: AppColors.danger,
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          brightness: Brightness.dark,
+        ).copyWith(
+          primary: AppColors.primary,
+          onPrimary: Colors.white,
+          secondary: AppColors.gold,
+          tertiary: AppColors.goldBright,
+          surface: AppColors.surface1,
+          onSurface: AppColors.textPrimary,
+          surfaceContainerHighest: AppColors.surface2,
+          outline: AppColors.borderSubtle,
+          error: AppColors.danger,
+        );
 
     return base.copyWith(
       colorScheme: scheme,
@@ -153,13 +154,19 @@ class AppTheme {
 
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? Colors.white : AppColors.textMuted,
+          (s) => s.contains(WidgetState.selected)
+              ? Colors.white
+              : AppColors.textMuted,
         ),
         trackColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? AppColors.primary : AppColors.surface3,
+          (s) => s.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.surface3,
         ),
         trackOutlineColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? Colors.transparent : AppColors.borderSubtle,
+          (s) => s.contains(WidgetState.selected)
+              ? Colors.transparent
+              : AppColors.borderSubtle,
         ),
       ),
 

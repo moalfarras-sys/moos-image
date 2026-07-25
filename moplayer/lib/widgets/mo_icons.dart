@@ -151,7 +151,11 @@ class _MoIconPainter extends CustomPainter {
           ),
           stroke,
         );
-        canvas.drawLine(const Offset(5.4, 5.6), const Offset(18.6, 5.6), stroke);
+        canvas.drawLine(
+          const Offset(5.4, 5.6),
+          const Offset(18.6, 5.6),
+          stroke,
+        );
         canvas.drawLine(const Offset(7.8, 3), const Offset(16.2, 3), stroke);
 
       case MoIcon.favorites:

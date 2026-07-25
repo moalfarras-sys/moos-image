@@ -42,11 +42,12 @@ enum Lang {
     _ => fromSystem(PlatformDispatcher.instance.locale),
   };
 
-  static Lang fromSystem(Locale systemLocale) => switch (systemLocale.languageCode) {
-    'ar' => Lang.ar,
-    'de' => Lang.de,
-    _ => Lang.en,
-  };
+  static Lang fromSystem(Locale systemLocale) =>
+      switch (systemLocale.languageCode) {
+        'ar' => Lang.ar,
+        'de' => Lang.de,
+        _ => Lang.en,
+      };
 }
 
 class S {
@@ -66,7 +67,8 @@ class S {
 
   // ── Shell / navigation ─────────────────────────────────────────────────────
   String get appName => 'MoPlayer';
-  String get appTagline => _('من Moalfarras', 'by Moalfarras', 'von Moalfarras');
+  String get appTagline =>
+      _('من Moalfarras', 'by Moalfarras', 'von Moalfarras');
   String get forMoOS => _('لنظام MoOS', 'for MoOS', 'für MoOS');
   String get home => _('الرئيسية', 'Home', 'Start');
   String get live => _('البث المباشر', 'Live TV', 'Live-TV');
@@ -78,7 +80,8 @@ class S {
   String get library => _('مكتبتي', 'Library', 'Bibliothek');
 
   // ── Window ─────────────────────────────────────────────────────────────────
-  String get windowClose => _('إغلاق النافذة', 'Close window', 'Fenster schließen');
+  String get windowClose =>
+      _('إغلاق النافذة', 'Close window', 'Fenster schließen');
   String get windowMinimize => _('تصغير', 'Minimize', 'Minimieren');
   String get windowMaximize => _('تكبير', 'Maximize', 'Maximieren');
   String get windowRestore => _('استعادة', 'Restore', 'Wiederherstellen');
@@ -92,6 +95,11 @@ class S {
   String get refresh => _('تحديث', 'Refresh', 'Aktualisieren');
   String get cancel => _('إلغاء', 'Cancel', 'Abbrechen');
   String get save => _('حفظ', 'Save', 'Speichern');
+  String get sourceNotSaved => _(
+    'تعذّر حفظ السيرفر بشكل مشفّر. أعد تسجيل الدخول إلى النظام ثم حاول مرة أخرى.',
+    'The server could not be saved securely. Sign in to the system again, then retry.',
+    'Der Server konnte nicht sicher gespeichert werden. Melde dich erneut am System an und versuche es noch einmal.',
+  );
   String get remove => _('إزالة', 'Remove', 'Entfernen');
   String get delete => _('حذف', 'Delete', 'Löschen');
   String get close => _('إغلاق', 'Close', 'Schließen');
@@ -108,8 +116,11 @@ class S {
       _('إزالة من المفضلة', 'Remove from favorites', 'Aus Favoriten entfernen');
 
   // ── Login / sources ────────────────────────────────────────────────────────
-  String get welcomeTitle =>
-      _('أهلاً بك في MoPlayer', 'Welcome to MoPlayer', 'Willkommen bei MoPlayer');
+  String get welcomeTitle => _(
+    'أهلاً بك في MoPlayer',
+    'Welcome to MoPlayer',
+    'Willkommen bei MoPlayer',
+  );
   String get welcomeBody => _(
     'أضف مصدرك لتبدأ المشاهدة. كل شيء يبقى على جهازك.',
     'Add your source to start watching. Everything stays on your device.',
@@ -127,7 +138,8 @@ class S {
     'A direct playlist link',
     'Ein direkter Playlist-Link',
   );
-  String get activation => _('رمز التفعيل', 'Activation code', 'Aktivierungscode');
+  String get activation =>
+      _('رمز التفعيل', 'Activation code', 'Aktivierungscode');
   String get activationHint => _(
     'امسح الرمز من الهاتف',
     'Scan the code from your phone',
@@ -136,19 +148,25 @@ class S {
   String get serverUrl => _('رابط الخادم', 'Server URL', 'Server-URL');
   String get username => _('اسم المستخدم', 'Username', 'Benutzername');
   String get password => _('كلمة المرور', 'Password', 'Passwort');
-  String get playlistName => _('اسم القائمة', 'Playlist name', 'Name der Playlist');
+  String get playlistName =>
+      _('اسم القائمة', 'Playlist name', 'Name der Playlist');
   String get playlistUrl => _('رابط القائمة', 'Playlist URL', 'Playlist-URL');
   String get sources => _('المصادر', 'Sources', 'Quellen');
   String get addSource => _('إضافة مصدر', 'Add source', 'Quelle hinzufügen');
-  String get activeSource => _('المصدر النشط', 'Active source', 'Aktive Quelle');
-  String get switchSource => _('تبديل المصدر', 'Switch source', 'Quelle wechseln');
+  String get activeSource =>
+      _('المصدر النشط', 'Active source', 'Aktive Quelle');
+  String get switchSource =>
+      _('تبديل المصدر', 'Switch source', 'Quelle wechseln');
   String get signOut => _('تسجيل الخروج', 'Sign out', 'Abmelden');
   String get connecting => _('جارٍ الاتصال…', 'Connecting…', 'Verbinden…');
   String get connected => _('تم الاتصال', 'Connected', 'Verbunden');
   String channelsFound(int n) =>
       _('تم العثور على $n قناة', 'Found $n channels', '$n Sender gefunden');
-  String get waitingForActivation =>
-      _('بانتظار التفعيل…', 'Waiting for activation…', 'Warte auf Aktivierung…');
+  String get waitingForActivation => _(
+    'بانتظار التفعيل…',
+    'Waiting for activation…',
+    'Warte auf Aktivierung…',
+  );
   String get activationScanHint => _(
     'افتح moalfarras.space/activate وأدخل الرمز، أو امسح رمز QR.',
     'Open moalfarras.space/activate and enter the code, or scan the QR.',
@@ -164,7 +182,8 @@ class S {
   String get continueWatching =>
       _('تابع المشاهدة', 'Continue watching', 'Weiterschauen');
   String get liveNow => _('يُبث الآن', 'On air now', 'Jetzt im Programm');
-  String get recentlyAdded => _('أُضيف حديثاً', 'Recently added', 'Neu hinzugefügt');
+  String get recentlyAdded =>
+      _('أُضيف حديثاً', 'Recently added', 'Neu hinzugefügt');
   String get topRated => _('الأعلى تقييماً', 'Top rated', 'Top bewertet');
   String get yourFavorites => _('مفضلتك', 'Your favorites', 'Ihre Favoriten');
   String get watchAgain => _('شاهد مجدداً', 'Watch again', 'Erneut ansehen');
@@ -172,7 +191,9 @@ class S {
   String get moreInfo => _('تفاصيل أكثر', 'More info', 'Mehr Infos');
   String get recentChannels =>
       _('قنوات شاهدتها مؤخراً', 'Recent channels', 'Zuletzt gesehene Sender');
-  String minutesLeft(int n) => _('بقيت $n دقيقة', '$n min left', 'Noch $n Min.');
+  String minutesLeft(int n) =>
+      _('بقيت $n دقيقة', '$n min left', 'Noch $n Min.');
+
   /// Arabic counts nouns by number, and "5 قناة" is simply wrong — the singular
   /// after 3–10 is the mistake that marks an interface as machine-translated.
   /// One is a word, two is a dual, 3–10 takes the plural, and 11+ goes back to
@@ -190,7 +211,9 @@ class S {
       n == 1 ? '1 Sender verfügbar' : '$n Sender verfügbar',
     );
   }
-  String greeting(String name) => _('أهلاً، $name', 'Hello, $name', 'Hallo, $name');
+
+  String greeting(String name) =>
+      _('أهلاً، $name', 'Hello, $name', 'Hallo, $name');
   String get goodMorning => _('صباح الخير', 'Good morning', 'Guten Morgen');
   String get goodAfternoon => _('مساء الخير', 'Good afternoon', 'Guten Tag');
   String get goodEvening => _('مساء الخير', 'Good evening', 'Guten Abend');
@@ -202,14 +225,17 @@ class S {
   String get subscriptionActive => _('فعّال', 'Active', 'Aktiv');
   String get subscriptionUnlimited => _('غير محدود', 'Unlimited', 'Unbegrenzt');
   String get subscriptionExpired => _('منتهٍ', 'Expired', 'Abgelaufen');
-  String daysLeft(int n) => _('$n يوماً متبقياً', '$n days left', 'Noch $n Tage');
-  String get expiresToday => _('ينتهي اليوم', 'Expires today', 'Läuft heute ab');
+  String daysLeft(int n) =>
+      _('$n يوماً متبقياً', '$n days left', 'Noch $n Tage');
+  String get expiresToday =>
+      _('ينتهي اليوم', 'Expires today', 'Läuft heute ab');
   String get channelCount => _('قناة', 'channels', 'Sender');
   String get movieCount => _('فيلم', 'movies', 'Filme');
   String get seriesCountLabel => _('مسلسل', 'series', 'Serien');
 
   // ── Home widgets: what is on, and what it is like outside ─────────────────
-  String get todaysMatches => _('مباريات اليوم', 'Today\'s matches', 'Spiele heute');
+  String get todaysMatches =>
+      _('مباريات اليوم', 'Today\'s matches', 'Spiele heute');
   String get newestMovies => _('أحدث الأفلام', 'Newest films', 'Neueste Filme');
   String get newestSeries =>
       _('أحدث المسلسلات', 'Newest series', 'Neueste Serien');
@@ -219,7 +245,11 @@ class S {
   /// service: it is a *phrase*, and a phrase is translated.
   String weatherPhrase(WeatherKind kind) => switch (kind) {
     WeatherKind.clear => _('صحو', 'Clear', 'Klar'),
-    WeatherKind.partlyCloudy => _('غائم جزئياً', 'Partly cloudy', 'Teils bewölkt'),
+    WeatherKind.partlyCloudy => _(
+      'غائم جزئياً',
+      'Partly cloudy',
+      'Teils bewölkt',
+    ),
     WeatherKind.cloudy => _('غائم', 'Cloudy', 'Bewölkt'),
     WeatherKind.fog => _('ضباب', 'Fog', 'Nebel'),
     WeatherKind.rain => _('ممطر', 'Rain', 'Regen'),
@@ -258,7 +288,8 @@ class S {
   String get specials => _('حلقات خاصة', 'Specials', 'Specials');
   String episode(int n) => _('الحلقة $n', 'Episode $n', 'Folge $n');
   String get episodes => _('الحلقات', 'Episodes', 'Folgen');
-  String get searchMovies => _('ابحث في الأفلام', 'Search movies', 'Filme suchen');
+  String get searchMovies =>
+      _('ابحث في الأفلام', 'Search movies', 'Filme suchen');
   String get searchSeries =>
       _('ابحث في المسلسلات', 'Search series', 'Serien suchen');
   String get clearSearch => _('مسح البحث', 'Clear search', 'Suche löschen');
@@ -300,7 +331,8 @@ class S {
   );
   String noResults(String q) =>
       _('لا نتائج لـ «$q»', 'No results for “$q”', 'Keine Treffer für „$q“');
-  String get searchHistory => _('عمليات بحث سابقة', 'Recent searches', 'Letzte Suchen');
+  String get searchHistory =>
+      _('عمليات بحث سابقة', 'Recent searches', 'Letzte Suchen');
   String get clearHistory => _('مسح السجل', 'Clear history', 'Verlauf löschen');
   String resultsCount(int n) => _('$n نتيجة', '$n results', '$n Treffer');
 
@@ -316,15 +348,34 @@ class S {
   String get volume => _('الصوت', 'Volume', 'Lautstärke');
   String get mute => _('كتم', 'Mute', 'Stumm');
   String get unmute => _('إلغاء الكتم', 'Unmute', 'Ton an');
-  String get nextEpisode => _('الحلقة التالية', 'Next episode', 'Nächste Folge');
+  String get nextEpisode =>
+      _('الحلقة التالية', 'Next episode', 'Nächste Folge');
   String get previousEpisode =>
       _('الحلقة السابقة', 'Previous episode', 'Vorherige Folge');
-  String get nextChannel => _('القناة التالية', 'Next channel', 'Nächster Sender');
+  String get nextChannel =>
+      _('القناة التالية', 'Next channel', 'Nächster Sender');
   String get previousChannel =>
       _('القناة السابقة', 'Previous channel', 'Vorheriger Sender');
   String get buffering => _('جارٍ التحميل…', 'Buffering…', 'Puffern…');
   String get reconnecting =>
       _('إعادة الاتصال…', 'Reconnecting…', 'Neu verbinden…');
+  String reconnectingAttempt(int attempt, int total) => _(
+    'تتم استعادة البث ($attempt من $total)…',
+    'Restoring playback ($attempt of $total)…',
+    'Wiedergabe wird wiederhergestellt ($attempt von $total)…',
+  );
+  String get playbackFailed => _(
+    'تعذّر تشغيل هذا المحتوى. تحقّق من الاتصال أو أعد المحاولة.',
+    'This content could not be played. Check the connection or try again.',
+    'Dieser Inhalt konnte nicht abgespielt werden. Verbindung prüfen oder erneut versuchen.',
+  );
+  String get reconnect => _('إعادة الاتصال', 'Reconnect', 'Neu verbinden');
+  String get playerOptions =>
+      _('إعدادات المشغّل', 'Player options', 'Player-Optionen');
+  String get tenSecondsBack =>
+      _('للخلف 10 ثوانٍ', 'Back 10 seconds', '10 Sekunden zurück');
+  String get tenSecondsForward =>
+      _('للأمام 10 ثوانٍ', 'Forward 10 seconds', '10 Sekunden vor');
   String get miniPlayer => _('المشغل المصغّر', 'Mini player', 'Mini-Player');
   String get shortcuts =>
       _('اختصارات لوحة المفاتيح', 'Keyboard shortcuts', 'Tastenkürzel');
@@ -334,7 +385,8 @@ class S {
   String get aspectFit => _('احتواء', 'Fit', 'Einpassen');
   String get aspectFill => _('ملء', 'Fill', 'Ausfüllen');
   String get aspectOriginal => _('الأصلية', 'Original', 'Original');
-  String get backToLive => _('العودة للبث المباشر', 'Back to live', 'Zurück zu Live');
+  String get backToLive =>
+      _('العودة للبث المباشر', 'Back to live', 'Zurück zu Live');
   String get channelList => _('قائمة القنوات', 'Channel list', 'Senderliste');
   String get episodeList => _('قائمة الحلقات', 'Episode list', 'Folgenliste');
   String get infoPanel => _('معلومات', 'Information', 'Informationen');
@@ -349,15 +401,26 @@ class S {
       _('التكامل مع MoOS', 'MoOS integration', 'MoOS-Integration');
   String get about => _('حول', 'About', 'Über');
   String get storage => _('التخزين', 'Storage', 'Speicher');
-  String get account => _('الحساب والتفعيل', 'Account & activation', 'Konto & Aktivierung');
+  String get account =>
+      _('الحساب والتفعيل', 'Account & activation', 'Konto & Aktivierung');
   String get audio => _('الصوت', 'Audio', 'Audio');
-  String get network => _('الشبكة والاستعادة', 'Network & recovery', 'Netzwerk & Wiederherstellung');
-  String get remoteAndKeyboard =>
-      _('جهاز التحكم ولوحة المفاتيح', 'Remote & keyboard', 'Fernbedienung & Tastatur');
+  String get network => _(
+    'الشبكة والاستعادة',
+    'Network & recovery',
+    'Netzwerk & Wiederherstellung',
+  );
+  String get remoteAndKeyboard => _(
+    'جهاز التحكم ولوحة المفاتيح',
+    'Remote & keyboard',
+    'Fernbedienung & Tastatur',
+  );
   String get diagnostics => _('التشخيص', 'Diagnostics', 'Diagnose');
 
-  String get preferHls =>
-      _('تفضيل HLS للبث المباشر', 'Prefer HLS for live', 'HLS für Live bevorzugen');
+  String get preferHls => _(
+    'تفضيل HLS للبث المباشر',
+    'Prefer HLS for live',
+    'HLS für Live bevorzugen',
+  );
   String get preferHlsHint => _(
     'أكثر توافقاً؛ أطفئه إن تأخّر بدء القنوات (TS أسرع استجابة).',
     'More compatible; turn it off if channels are slow to start (TS zaps faster).',
@@ -379,7 +442,8 @@ class S {
     'Soft transitions and glass effects. Turn off on a weak GPU.',
     'Weiche Übergänge und Glaseffekte. Bei schwacher GPU ausschalten.',
   );
-  String get compactGrids => _('شبكات مضغوطة', 'Compact grids', 'Kompakte Raster');
+  String get compactGrids =>
+      _('شبكات مضغوطة', 'Compact grids', 'Kompakte Raster');
   String get compactGridsHint => _(
     'بطاقات أصغر، وعدد أكبر منها في الشاشة.',
     'Smaller cards, more of them on screen.',
@@ -399,7 +463,8 @@ class S {
     'Drops cached catalogues only — your favorites stay.',
     'Löscht nur zwischengespeicherte Kataloge — Ihre Favoriten bleiben.',
   );
-  String get wipeData => _('حذف كل البيانات', 'Erase all data', 'Alle Daten löschen');
+  String get wipeData =>
+      _('حذف كل البيانات', 'Erase all data', 'Alle Daten löschen');
   String get wipeDataHint => _(
     'المفضلة والسجل والمصادر. لا يمكن التراجع.',
     'Favorites, history and sources. This cannot be undone.',
@@ -462,20 +527,26 @@ class S {
   String get playbackEngine =>
       _('محرك التشغيل', 'Playback engine', 'Wiedergabe-Engine');
   String get moosVersion => _('إصدار MoOS', 'MoOS version', 'MoOS-Version');
-  String get cacheSize => _('حجم الذاكرة المؤقتة', 'Cache size', 'Größe des Zwischenspeichers');
+  String get cacheSize =>
+      _('حجم الذاكرة المؤقتة', 'Cache size', 'Größe des Zwischenspeichers');
   String get copyDiagnostics =>
       _('نسخ معلومات التشخيص', 'Copy diagnostics', 'Diagnose kopieren');
   String get copied => _('تم النسخ', 'Copied', 'Kopiert');
   String get testConnection =>
       _('اختبار الاتصال', 'Test connection', 'Verbindung testen');
   String get testing => _('جارٍ الاختبار…', 'Testing…', 'Wird getestet…');
-  String get reachable => _('الخادم يستجيب', 'Server is reachable', 'Server erreichbar');
-  String get unreachable =>
-      _('الخادم لا يستجيب', 'Server is not reachable', 'Server nicht erreichbar');
+  String get reachable =>
+      _('الخادم يستجيب', 'Server is reachable', 'Server erreichbar');
+  String get unreachable => _(
+    'الخادم لا يستجيب',
+    'Server is not reachable',
+    'Server nicht erreichbar',
+  );
 
   // ── States / errors ────────────────────────────────────────────────────────
   String get loading => _('جارٍ التحميل…', 'Loading…', 'Wird geladen…');
-  String get empty => _('لا يوجد شيء هنا بعد', 'Nothing here yet', 'Noch nichts hier');
+  String get empty =>
+      _('لا يوجد شيء هنا بعد', 'Nothing here yet', 'Noch nichts hier');
   String get emptyFavorites => _(
     'لم تضف شيئاً إلى المفضلة بعد.',
     'You have not added anything to favorites yet.',
@@ -483,21 +554,28 @@ class S {
   );
   String get emptyFavoritesAction =>
       _('تصفّح المحتوى', 'Browse content', 'Inhalte durchsuchen');
-  String get emptyCategory =>
-      _('هذا التصنيف فارغ.', 'This category is empty.', 'Diese Kategorie ist leer.');
+  String get emptyCategory => _(
+    'هذا التصنيف فارغ.',
+    'This category is empty.',
+    'Diese Kategorie ist leer.',
+  );
   String get emptyHistory => _(
     'لم تشاهد شيئاً بعد.',
     'You have not watched anything yet.',
     'Sie haben noch nichts angesehen.',
   );
-  String get errorTitle => _('حدث خطأ', 'Something went wrong', 'Etwas ist schiefgelaufen');
+  String get errorTitle =>
+      _('حدث خطأ', 'Something went wrong', 'Etwas ist schiefgelaufen');
   String get errNetwork => _(
     'تعذّر الاتصال بالشبكة.',
     'Could not reach the network.',
     'Netzwerk nicht erreichbar.',
   );
-  String get errTimeout =>
-      _('انتهت مهلة الخادم.', 'The server timed out.', 'Zeitüberschreitung beim Server.');
+  String get errTimeout => _(
+    'انتهت مهلة الخادم.',
+    'The server timed out.',
+    'Zeitüberschreitung beim Server.',
+  );
   String get errAuth => _(
     'بيانات الدخول غير صحيحة أو الحساب منتهٍ.',
     'Wrong credentials, or the account has expired.',
@@ -545,10 +623,30 @@ class ShortcutHelp {
   };
 
   static const List<ShortcutHelp> all = [
-    ShortcutHelp('Space / K', 'تشغيل أو إيقاف مؤقت', 'Play or pause', 'Abspielen oder pausieren'),
-    ShortcutHelp('← / →', 'قفز ١٠ ثوانٍ', 'Seek 10 seconds', '10 Sekunden springen'),
-    ShortcutHelp('Shift + ← / →', 'قفز دقيقة', 'Seek one minute', 'Eine Minute springen'),
-    ShortcutHelp('↑ / ↓', 'رفع أو خفض الصوت', 'Volume up or down', 'Lauter oder leiser'),
+    ShortcutHelp(
+      'Space / K',
+      'تشغيل أو إيقاف مؤقت',
+      'Play or pause',
+      'Abspielen oder pausieren',
+    ),
+    ShortcutHelp(
+      '← / →',
+      'قفز ١٠ ثوانٍ',
+      'Seek 10 seconds',
+      '10 Sekunden springen',
+    ),
+    ShortcutHelp(
+      'Shift + ← / →',
+      'قفز دقيقة',
+      'Seek one minute',
+      'Eine Minute springen',
+    ),
+    ShortcutHelp(
+      '↑ / ↓',
+      'رفع أو خفض الصوت',
+      'Volume up or down',
+      'Lauter oder leiser',
+    ),
     ShortcutHelp('F / F11', 'ملء الشاشة', 'Fullscreen', 'Vollbild'),
     ShortcutHelp(
       'Esc',
@@ -557,17 +655,37 @@ class ShortcutHelp {
       'Vollbild verlassen oder zurück',
     ),
     ShortcutHelp('M', 'كتم الصوت', 'Mute', 'Stummschalten'),
-    ShortcutHelp('S', 'تبديل الترجمة', 'Cycle subtitles', 'Untertitel wechseln'),
-    ShortcutHelp('A', 'تبديل المسار الصوتي', 'Cycle audio track', 'Tonspur wechseln'),
+    ShortcutHelp(
+      'S',
+      'تبديل الترجمة',
+      'Cycle subtitles',
+      'Untertitel wechseln',
+    ),
+    ShortcutHelp(
+      'A',
+      'تبديل المسار الصوتي',
+      'Cycle audio track',
+      'Tonspur wechseln',
+    ),
     ShortcutHelp(
       'N / P',
       'الحلقة التالية أو السابقة',
       'Next or previous episode',
       'Nächste oder vorherige Folge',
     ),
-    ShortcutHelp('[ / ]', 'إبطاء أو تسريع', 'Slower or faster', 'Langsamer oder schneller'),
+    ShortcutHelp(
+      '[ / ]',
+      'إبطاء أو تسريع',
+      'Slower or faster',
+      'Langsamer oder schneller',
+    ),
     ShortcutHelp('Ctrl + F', 'بحث', 'Search', 'Suche'),
-    ShortcutHelp('F6', 'الانتقال إلى الشريط السفلي', 'Jump to the dock', 'Zum Dock springen'),
+    ShortcutHelp(
+      'F6',
+      'الانتقال إلى الشريط السفلي',
+      'Jump to the dock',
+      'Zum Dock springen',
+    ),
     ShortcutHelp(
       'Ctrl + 1…5',
       'تنقّل بين الأقسام',

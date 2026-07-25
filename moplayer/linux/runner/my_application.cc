@@ -12,6 +12,7 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  FlMethodChannel* activation_channel;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -62,11 +63,10 @@ static void my_application_activate(GApplication* application) {
   // `max_connections = 1`, so the second copy fights the first for the single stream the account
   // is allowed and knocks it off the air.
   //
-  // Now the app is unique: the second process hands its activation to this one over D-Bus and
-  // exits, and we present the window that already exists. (Its command-line arguments do not
-  // cross that boundary — a `moplayer --section live` against a RUNNING player raises the player
-  // rather than jumping to Live. Launching it fresh still honours the flag, which is what the
-  // flag is for.)
+  // Now the app is unique: the second process hands its command line to this one
+  // over D-Bus and exits. The command-line handler below both presents this
+  // window and forwards its arguments to Dart, so URLs and jump-list sections
+  // work whether this is the first launch or the fiftieth.
   GList* windows = gtk_application_get_windows(GTK_APPLICATION(application));
   if (windows != nullptr) {
     gtk_window_present(GTK_WINDOW(windows->data));
@@ -170,26 +170,62 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
+  FlBinaryMessenger* messenger =
+      fl_engine_get_binary_messenger(fl_view_get_engine(view));
+  self->activation_channel = fl_method_channel_new(
+      messenger,
+      "org.moos.moplayer/activation",
+      FL_METHOD_CODEC(fl_standard_method_codec_new()));
+
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
-// Implements GApplication::local_command_line.
-static gboolean my_application_local_command_line(GApplication* application, gchar*** arguments, int* exit_status) {
+// Implements GApplication::command_line.
+//
+// G_APPLICATION_HANDLES_COMMAND_LINE makes GLib forward every later invocation
+// to this callback in the already-running primary process. The first invocation
+// still becomes Dart's entrypoint argv; subsequent ones travel over a method
+// channel because the Flutter engine is already running.
+static int my_application_command_line(
+    GApplication* application,
+    GApplicationCommandLine* command_line,
+    gpointer user_data) {
+  (void)user_data;
   MyApplication* self = MY_APPLICATION(application);
-  // Strip out the first argument as it is the binary name.
-  self->dart_entrypoint_arguments = g_strdupv(*arguments + 1);
+  int argc = 0;
+  g_auto(GStrv) arguments =
+      g_application_command_line_get_arguments(command_line, &argc);
 
-  g_autoptr(GError) error = nullptr;
-  if (!g_application_register(application, nullptr, &error)) {
-     g_warning("Failed to register: %s", error->message);
-     *exit_status = 1;
-     return TRUE;
+  GList* windows = gtk_application_get_windows(GTK_APPLICATION(application));
+  if (windows == nullptr) {
+    g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
+    self->dart_entrypoint_arguments = g_strdupv(arguments + 1);
+    g_application_activate(application);
+    return EXIT_SUCCESS;
   }
 
-  g_application_activate(application);
-  *exit_status = 0;
+  gtk_window_present(GTK_WINDOW(windows->data));
 
-  return TRUE;
+  if (self->activation_channel != nullptr) {
+    g_message("MoPlayer activation: forwarding %d argument(s)", argc - 1);
+    g_autoptr(FlValue) dart_arguments = fl_value_new_list();
+    for (int i = 1; i < argc; i++) {
+      fl_value_append_take(
+          dart_arguments,
+          fl_value_new_string(arguments[i]));
+    }
+    fl_method_channel_invoke_method(
+        self->activation_channel,
+        "activate",
+        dart_arguments,
+        nullptr,
+        nullptr,
+        nullptr);
+  } else {
+    g_warning("MoPlayer activation: Flutter channel is not ready");
+  }
+
+  return EXIT_SUCCESS;
 }
 
 // Implements GApplication::startup.
@@ -213,13 +249,13 @@ static void my_application_shutdown(GApplication* application) {
 // Implements GObject::dispose.
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
+  g_clear_object(&self->activation_channel);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 
 static void my_application_class_init(MyApplicationClass* klass) {
   G_APPLICATION_CLASS(klass)->activate = my_application_activate;
-  G_APPLICATION_CLASS(klass)->local_command_line = my_application_local_command_line;
   G_APPLICATION_CLASS(klass)->startup = my_application_startup;
   G_APPLICATION_CLASS(klass)->shutdown = my_application_shutdown;
   G_OBJECT_CLASS(klass)->dispose = my_application_dispose;
@@ -236,9 +272,19 @@ MyApplication* my_application_new() {
 
   // NOT G_APPLICATION_NON_UNIQUE (Flutter's template default) — that flag is what let three
   // MoPlayers run at once. Unique means the second launch reaches the first over D-Bus and
-  // my_application_activate() raises the existing window. See the note there.
-  return MY_APPLICATION(g_object_new(my_application_get_type(),
-                                     "application-id", APPLICATION_ID,
-                                     "flags", G_APPLICATION_DEFAULT_FLAGS,
-                                     nullptr));
+  // my_application_command_line() raises the existing window and forwards new
+  // launch arguments to Dart. See the note there.
+  MyApplication* application =
+      MY_APPLICATION(g_object_new(my_application_get_type(),
+                                  "application-id", APPLICATION_ID,
+                                  "flags", G_APPLICATION_HANDLES_COMMAND_LINE,
+                                  nullptr));
+
+  // Connect to the public signal instead of relying on the class closure.
+  // GtkApplication installs its own command-line machinery in the derived
+  // class; an instance handler is the reliable interception point for the
+  // remote invocation that GApplication receives over D-Bus.
+  g_signal_connect(application, "command-line",
+                   G_CALLBACK(my_application_command_line), nullptr);
+  return application;
 }

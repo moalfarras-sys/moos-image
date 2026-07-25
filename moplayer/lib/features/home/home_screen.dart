@@ -134,6 +134,12 @@ class HomeScreen extends ConsumerWidget {
         final liveHero = resumeHero == null && movieHero == null
             ? pickLiveHero(live)
             : null;
+        // List endpoints only carry the poster. Upgrade the lead film to its
+        // cinematic backdrop and story as soon as the cached detail arrives;
+        // the home screen never blocks on this second request.
+        final heroDetail = movieHero == null
+            ? null
+            : ref.watch(movieDetailProvider(movieHero)).valueOrNull;
 
         return ListView(
           padding: EdgeInsets.zero,
@@ -164,11 +170,13 @@ class HomeScreen extends ConsumerWidget {
                 eyebrow: s.featured,
                 title: movieHero.name,
                 meta: _movieMeta(movieHero),
-                imageUrl: movieHero.poster,
+                imageUrl: heroDetail?.backdrop ?? movieHero.poster,
+                description: heroDetail?.plot,
                 playLabel: s.play,
                 onPlay: () => playback.playMovie(movieHero),
                 infoLabel: s.moreInfo,
-                onInfo: () => context.push(Routes.movieDetail, extra: movieHero),
+                onInfo: () =>
+                    context.push(Routes.movieDetail, extra: movieHero),
                 motion: motion,
               )
             else if (liveHero != null)
@@ -297,7 +305,10 @@ class HomeScreen extends ConsumerWidget {
                       itemBuilder: (context, i) => _MovieCard(
                         movie: top[i],
                         playlistId: playlistId,
-                        isFavorite: isFavorite(MediaKind.movie, top[i].streamId),
+                        isFavorite: isFavorite(
+                          MediaKind.movie,
+                          top[i].streamId,
+                        ),
                       ),
                     ),
                 ],
@@ -421,6 +432,7 @@ class _Hero extends StatelessWidget {
     required this.motion,
     this.imageUrl,
     this.logoUrl,
+    this.description,
     this.progress,
     this.onInfo,
   });
@@ -433,6 +445,7 @@ class _Hero extends StatelessWidget {
   final String infoLabel;
   final bool motion;
   final String? imageUrl;
+  final String? description;
 
   /// A channel's logo, when the hero is a live channel. It is drawn as a mark
   /// above the copy — *not* as the backdrop. A logo is a transparent PNG of
@@ -446,7 +459,7 @@ class _Hero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final height = math.max(320.0, MediaQuery.sizeOf(context).height * 0.44);
+    final height = math.max(350.0, MediaQuery.sizeOf(context).height * 0.48);
     final hasLogo = logoUrl != null && logoUrl!.trim().isNotEmpty;
 
     return SizedBox(
@@ -522,9 +535,25 @@ class _Hero extends StatelessWidget {
                       const SizedBox(height: Nova.space2),
                       Text(meta, style: AppText.subtitle),
                     ],
+                    if (description != null &&
+                        description!.trim().isNotEmpty) ...[
+                      const SizedBox(height: Nova.space3),
+                      Text(
+                        description!.trim(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.body.copyWith(
+                          color: AppColors.textSecondary,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
                     if (progress != null) ...[
                       const SizedBox(height: Nova.space3),
-                      SizedBox(width: 260, child: ProgressBar(value: progress!)),
+                      SizedBox(
+                        width: 260,
+                        child: ProgressBar(value: progress!),
+                      ),
                     ],
                     const SizedBox(height: Nova.space5),
                     Row(
@@ -628,7 +657,9 @@ class _MovieCard extends ConsumerWidget {
       title: movie.name,
       subtitle: movie.year,
       imageUrl: movie.poster,
-      badge: (movie.rating ?? 0) > 0 ? RatingBadge(rating: movie.rating!) : null,
+      badge: (movie.rating ?? 0) > 0
+          ? RatingBadge(rating: movie.rating!)
+          : null,
       isFavorite: isFavorite,
       onTap: () => context.push(Routes.movieDetail, extra: movie),
       onPlay: () => ref.read(playbackProvider.notifier).playMovie(movie),

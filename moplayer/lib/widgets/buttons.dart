@@ -309,7 +309,10 @@ class GhostButton extends StatelessWidget {
                   SizedBox(
                     width: 15,
                     height: 15,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: tint),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: tint,
+                    ),
                   )
                 else if (icon != null)
                   Icon(icon, size: compact ? 17 : 18, color: tint),

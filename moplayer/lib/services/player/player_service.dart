@@ -102,7 +102,9 @@ class PlayerService {
         File('/proc/driver/nvidia/version').existsSync() ||
         Directory('/sys/module/nvidia_drm').existsSync();
     if (isNvidia) {
-      log.i('video: NVIDIA detected — using the CPU frame path (see PlayerService)');
+      log.i(
+        'video: NVIDIA detected — using the CPU frame path (see PlayerService)',
+      );
       return false;
     }
     return true;
@@ -176,7 +178,10 @@ class PlayerService {
 
   Future<void> open(PlayableMedia media) async {
     _current = media;
-    await _player.open(Media(media.url, httpHeaders: media.headers), play: true);
+    await _player.open(
+      Media(media.url, httpHeaders: media.headers),
+      play: true,
+    );
     if (media.startAt > Duration.zero && !media.isLive) {
       // Seek only once the demuxer knows how long the file is; seeking before
       // that silently lands at zero.
@@ -207,10 +212,12 @@ class PlayerService {
   }
 
   /// media_kit's volume is 0–100, not 0–1.
-  Future<void> setVolume(double volume) => _player.setVolume(volume.clamp(0, 100));
+  Future<void> setVolume(double volume) =>
+      _player.setVolume(volume.clamp(0, 100));
   Future<void> setRate(double rate) => _player.setRate(rate);
   Future<void> setAudioTrack(AudioTrack track) => _player.setAudioTrack(track);
-  Future<void> setSubtitleTrack(SubtitleTrack track) => _player.setSubtitleTrack(track);
+  Future<void> setSubtitleTrack(SubtitleTrack track) =>
+      _player.setSubtitleTrack(track);
 
   Future<void> stop() async {
     _current = null;

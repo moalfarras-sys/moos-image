@@ -119,11 +119,7 @@ String _describe(String title, String? subtitle) =>
 /// The two lines under every card. Fixed height by construction — one line each,
 /// always — because a grid delegate has to be able to reserve room for it.
 class _CardLabel extends StatelessWidget {
-  const _CardLabel({
-    required this.title,
-    required this.active,
-    this.subtitle,
-  });
+  const _CardLabel({required this.title, required this.active, this.subtitle});
 
   final String title;
   final String? subtitle;
@@ -227,7 +223,8 @@ class PosterCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasProgress = progress != null && progress! > 0.01;
-    final corner = badge ?? ((rating ?? 0) > 0 ? RatingBadge(rating: rating!) : null);
+    final corner =
+        badge ?? ((rating ?? 0) > 0 ? RatingBadge(rating: rating!) : null);
 
     return _CardShell(
       onTap: onTap,
@@ -277,7 +274,9 @@ class PosterCard extends StatelessWidget {
                   ),
 
                 if (onPlay != null)
-                  Center(child: _PlayReveal(active: active, onTap: onPlay!)),
+                  Center(
+                    child: _PlayReveal(active: active, onTap: onPlay!),
+                  ),
               ],
             ),
 
@@ -534,12 +533,7 @@ class EpisodeCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            NetworkPoster(
-              url: imageUrl,
-              title: title,
-              width: width,
-              radius: 0,
-            ),
+            NetworkPoster(url: imageUrl, title: title, width: width, radius: 0),
             const DecoratedBox(
               decoration: BoxDecoration(gradient: AppColors.posterScrim),
             ),
@@ -579,7 +573,10 @@ class EpisodeCard extends StatelessWidget {
                 bottom: hasProgress ? Nova.space2 + 2 : Nova.space2,
                 end: Nova.space2,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xA605070C),
                     borderRadius: BorderRadius.circular(6),
@@ -602,11 +599,8 @@ class EpisodeCard extends StatelessWidget {
           ],
         ),
       ),
-      label: (context, active) => _CardLabel(
-        title: title,
-        subtitle: subtitle,
-        active: active,
-      ),
+      label: (context, active) =>
+          _CardLabel(title: title, subtitle: subtitle, active: active),
     );
   }
 }

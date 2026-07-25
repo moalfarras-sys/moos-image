@@ -109,7 +109,9 @@ class _SourcesPanel extends ConsumerWidget {
             else
               _Row(
                 leading: _Plate(
-                  icon: active.isXtream ? Icons.dns_rounded : Icons.link_rounded,
+                  icon: active.isXtream
+                      ? Icons.dns_rounded
+                      : Icons.link_rounded,
                   accent: true,
                 ),
                 title: active.name,
@@ -357,7 +359,8 @@ class _LanguagePanel extends ConsumerWidget {
               // name, and a user looking for their own tongue looks for its own
               // letters.
               labelOf: (lang) => lang.label,
-              onChanged: (lang) => ref.read(languageProvider.notifier).set(lang),
+              onChanged: (lang) =>
+                  ref.read(languageProvider.notifier).set(lang),
             ),
           ),
         ),
@@ -589,7 +592,11 @@ class _UpdatesPanel extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _Plate(icon: Icons.verified_rounded, accent: true, size: 44),
+              const _Plate(
+                icon: Icons.verified_rounded,
+                accent: true,
+                size: 44,
+              ),
               const SizedBox(width: Nova.space4),
               Expanded(
                 child: Column(

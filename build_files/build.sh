@@ -1905,6 +1905,11 @@ systemctl --global enable moai-control.service
 # session. Starting it once from setup-brain is not persistence; enable the
 # shipped unit globally so it survives logout and reboot.
 systemctl --global enable moai-agent-api.service
+# KWallet provides the storage, while ksecretd owns the standard Secret Service
+# name libsecret clients actually call. A portal preference alone starts
+# neither: without this unit MoPlayer can validate a server and then silently
+# lose it at the credential write.
+systemctl --global enable moos-secret-service.service
 
 # Plasma's automatic day/night switch applies only the Global Theme subset. It
 # does not carry Konsole, GTK or the wallpaper reliably, so watch the effective
@@ -1912,6 +1917,7 @@ systemctl --global enable moai-agent-api.service
 # The service never writes kdeglobals, which keeps the path activation acyclic.
 systemd-analyze verify \
     /usr/lib/systemd/user/moos-input-migrate.service \
+    /usr/lib/systemd/user/moos-secret-service.service \
     /usr/lib/systemd/user/moos-theme-sync.path \
     /usr/lib/systemd/user/moos-theme-sync.service \
     /usr/lib/systemd/user/moai.service \

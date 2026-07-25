@@ -93,7 +93,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   /// The shared tail of all three flows: persist, pull the user's library down,
   /// and get out of the way.
   Future<void> _activate(PlaylistConfig config) async {
-    await ref.read(activePlaylistProvider.notifier).activate(config);
+    final saved = await ref
+        .read(activePlaylistProvider.notifier)
+        .activate(config);
+    if (!mounted) return;
+    if (!saved) {
+      setState(() {
+        _busy = false;
+        _pending = false;
+        _status = null;
+        _error = _s.sourceNotSaved;
+      });
+      return;
+    }
     // Honour the "Sync on launch" toggle instead of always pulling (it defaults
     // to true, so first login still syncs). Makes the switch actually do something.
     if (ref.read(settingsProvider).syncOnLaunch) {
@@ -174,13 +186,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final detected = SourceLink.parse(link, id: _newId());
 
     if (detected != null && detected.isXtream) {
-      final upgraded = name.isEmpty
-          ? detected
-          : detected.copyWith(name: name);
+      final upgraded = name.isEmpty ? detected : detected.copyWith(name: name);
 
-      final probe = await ref
-          .read(authRepositoryProvider)
-          .testXtream(upgraded);
+      final probe = await ref.read(authRepositoryProvider).testXtream(upgraded);
       if (!mounted) return;
 
       if (probe is Ok<XtreamAccountInfo>) {

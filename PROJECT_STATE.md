@@ -4,8 +4,34 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-25 (session J — signed release published, staged, booted
-and proven live: `post-update-check.sh` 48/0).
+Last updated: 2026-07-25 (session K — MoPlayer 1.1 rebuilt, locally installed,
+vendored and image-tested; signed system publication is the remaining release
+step).
+
+> **Session K — MoPlayer 1.1 (2026-07-25).** The canonical
+> `~/MoPlayerMoOS` repository, not only its image snapshot, now owns the rebuilt
+> home and playback experience. The player has complete transport, seek,
+> previous/next, volume, fullscreen, fit/fill/original sizing, speed and
+> audio/subtitle controls; buffering is visible and recovery is bounded,
+> generation-safe and manually retryable instead of silently wedging. The home
+> hero is catalogue-driven and the always-running weather/live animations that
+> kept an idle 4K window near one full core were removed (measured at ~1.6% CPU
+> after the change). Linux single-instance activation now forwards a second
+> file/URL to the existing window and was proven live while playback continued.
+> Flutter is 3.44.8 / Dart 3.12.2 and the media stack is current.
+>
+> The “server disappears after restart” report exposed a system/app relationship
+> bug: a shipped three-line `~/.config/kwalletrc` shadow disabled the encrypted
+> wallet, while the compatibility provider was not active under
+> `org.freedesktop.secrets`. `moos-secret-service.service` now provides that
+> session service, and `moos-ui-migrate` repairs **only** the exact legacy
+> disabled file; custom or later user choices are preserved. MoPlayer itself now
+> treats the two encrypted writes as a transaction result and visibly refuses to
+> claim success if either one fails — there is deliberately no plaintext
+> credential fallback. The canonical app passed analyze + **102 tests**, built
+> in release mode and was installed under `~/.local`; two full local image
+> builds passed every image/identity/initramfs gate, with the second containing
+> the final persistence service and exact existing-user migration.
 
 > **Session J — the release pass (2026-07-25).** Session I's work is now ON
 > `main`: `moos-ui-unify` merged as `1e7991b`, build-resilience as `5823f93`, and
@@ -270,7 +296,7 @@ happens; `moos-image/moplayer/` is a **snapshot** of it, and the snapshot is wha
 the image compiles. A change that lives only in one of them ships as half a change.
 
 ```
-1. work + commit in ~/MoPlayerMoOS   (`just check` there: analyze + 92 tests)
+1. work + commit in ~/MoPlayerMoOS   (`just check` there: analyze + 102 tests)
 2. push it                            → github.com/moalfarras-sys/MoPlayerMoOS
 3. cd ~/moos-image && just sync-moplayer
       ↳ refuses a dirty MoPlayer tree — vendoring copies `git ls-files`, so an
@@ -418,7 +444,7 @@ Measured against the maintainer's real subscription, not assumed:
 | `build_files/verify_image_experience.py` | *inside* the image, after every package and rebrand |
 | `__pycache__` / bytecode-cache gate | inside the image, at the end of `build.sh` |
 | MoPlayer bundle completeness | inside the `moplayer-build` stage |
-| MoPlayer: `flutter analyze` + 92 tests | `just check` in `~/MoPlayerMoOS` |
+| MoPlayer: `flutter analyze` + 102 tests | `just check` in `~/MoPlayerMoOS` |
 
 They were honour-system until today: **not in CI, not in `just build`**. If you add
 a gate, wire it into both, and break it once to prove it fires.

@@ -51,9 +51,13 @@ class ActivePlaylistController extends Notifier<PlaylistConfig?> {
 
   /// Persists + activates a playlist and triggers a cloud sync of the user's
   /// library for that playlist.
-  Future<void> activate(PlaylistConfig config) async {
-    await ref.read(authRepositoryProvider).saveAndActivate(config);
+  Future<bool> activate(PlaylistConfig config) async {
+    final saved = await ref
+        .read(authRepositoryProvider)
+        .saveAndActivate(config);
+    if (!saved) return false;
     state = config;
+    return true;
   }
 
   Future<void> logout() async {

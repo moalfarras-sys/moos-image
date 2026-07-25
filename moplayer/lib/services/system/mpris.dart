@@ -86,8 +86,7 @@ class MprisMetadata {
 /// missing would be an absurd trade. So [start] never throws, and every method
 /// no-ops when the bus never came up.
 class MprisService {
-  MprisService({required MprisHandlers handlers, required this.positionUs})
-    : _handlers = handlers;
+  MprisService({required this._handlers, required this.positionUs});
 
   final MprisHandlers _handlers;
 
@@ -128,7 +127,9 @@ class MprisService {
       await client.registerObject(object);
       _client = client;
       _object = object;
-      log.i('MPRIS: registered as org.mpris.MediaPlayer2.${AppConfig.mprisName}');
+      log.i(
+        'MPRIS: registered as org.mpris.MediaPlayer2.${AppConfig.mprisName}',
+      );
     } on Exception catch (e) {
       // No session bus, or a bus that will not talk to us. Playback is fine.
       log.w('MPRIS unavailable, continuing without desktop media controls: $e');
@@ -237,7 +238,8 @@ class MprisService {
 
 /// The exported object at `/org/mpris/MediaPlayer2`.
 class _MprisObject extends DBusObject {
-  _MprisObject(this._service) : super(DBusObjectPath('/org/mpris/MediaPlayer2'));
+  _MprisObject(this._service)
+    : super(DBusObjectPath('/org/mpris/MediaPlayer2'));
 
   final MprisService _service;
 
@@ -337,7 +339,9 @@ class _MprisObject extends DBusObject {
     final h = _service._handlers;
 
     Future<DBusMethodResponse> run(Future<void> Function()? action) async {
-      if (action == null) return DBusMethodErrorResponse.failed('not supported');
+      if (action == null) {
+        return DBusMethodErrorResponse.failed('not supported');
+      }
       await action();
       return DBusMethodSuccessResponse();
     }
@@ -369,7 +373,9 @@ class _MprisObject extends DBusObject {
         return run(h.onPrevious);
       case 'Seek':
         final onSeek = h.onSeek;
-        if (onSeek == null) return DBusMethodErrorResponse.failed('not seekable');
+        if (onSeek == null) {
+          return DBusMethodErrorResponse.failed('not seekable');
+        }
         final offset = call.values.first.asInt64();
         await onSeek(offset);
         return DBusMethodSuccessResponse();
@@ -453,7 +459,12 @@ class _MprisObject extends DBusObject {
         'Identity' => DBusString('MoPlayer'),
         // Without this, Plasma's applet has no icon and no way back to the app.
         'DesktopEntry' => DBusString(AppConfig.appId),
-        'SupportedUriSchemes' => DBusArray.string(['http', 'https', 'file', 'rtsp']),
+        'SupportedUriSchemes' => DBusArray.string([
+          'http',
+          'https',
+          'file',
+          'rtsp',
+        ]),
         'SupportedMimeTypes' => DBusArray.string([
           'video/mp2t',
           'application/x-mpegurl',

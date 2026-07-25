@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart' hide WindowCaption;
 
 import '../core/constants/app_constants.dart';
+import '../core/utils/app_logger.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/glass.dart';
 import '../core/theme/motion.dart';
@@ -50,6 +51,10 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell> with WindowListener {
+  static const _activationChannel = MethodChannel(
+    'org.moos.moplayer/activation',
+  );
+
   /// Owned here, not by the dock: F6 has to move focus onto the *selected*
   /// destination, and the dock is rebuilt on every navigation.
   final List<FocusNode> _dockNodes = List.generate(
@@ -65,6 +70,7 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
   void initState() {
     super.initState();
     windowManager.addListener(this);
+    _activationChannel.setMethodCallHandler(_handleActivation);
 
     // `moplayer https://…/master.m3u8` starts playing as soon as there is a
     // frame to play into. Not in `main()`: the player has to be able to raise
@@ -79,12 +85,41 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
 
   @override
   void dispose() {
+    _activationChannel.setMethodCallHandler(null);
     _geometryDebounce?.cancel();
     windowManager.removeListener(this);
     for (final node in _dockNodes) {
       node.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _handleActivation(MethodCall call) async {
+    if (call.method != 'activate' || call.arguments is! List) return;
+
+    final args = LaunchArgs.parse(
+      (call.arguments as List).whereType<String>().toList(),
+    );
+    log.i(
+      'activation: section=${args.section} '
+      'playlist=${args.playlist != null} stream=${args.playUrl != null}',
+    );
+    await ref.read(desktopServiceProvider).raise();
+    if (!mounted) return;
+
+    final playlist = args.playlist;
+    if (playlist != null) {
+      await ref.read(activePlaylistProvider.notifier).activate(playlist);
+      if (!mounted) return;
+      context.go(Routes.home);
+    } else if (args.section != null) {
+      context.go(args.section!);
+    }
+
+    final url = args.playUrl;
+    if (url != null) {
+      await ref.read(playbackProvider.notifier).playDirect(url);
+    }
   }
 
   // The caption bar's maximize glyph, and the shell's resize edges, both depend
@@ -275,9 +310,9 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
                           // under it. The shell owns the number because the shell
                           // owns the dock.
                           data: MediaQuery.of(context).copyWith(
-                            padding: MediaQuery.paddingOf(context).copyWith(
-                              bottom: dockReserve,
-                            ),
+                            padding: MediaQuery.paddingOf(
+                              context,
+                            ).copyWith(bottom: dockReserve),
                           ),
                           child: widget.child,
                         ),
@@ -329,7 +364,7 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
   /// margin. Kept in one place because three widgets depend on it and a
   /// disagreement between them is a dock that overlaps the mini player.
   double _dockHeight(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 1100;
+    final compact = MediaQuery.sizeOf(context).width < GlassDock.compactWidth;
     // icon (24) + label + indicator + the dock's own vertical padding.
     final dock = compact ? 60.0 : 88.0;
     return dock + Nova.space5 + Nova.space4;

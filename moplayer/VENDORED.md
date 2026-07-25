@@ -28,11 +28,12 @@ That target copies exactly the files MoPlayer's own git tracks — so build outp
 
 ## Why not a submodule
 
-A submodule is the right answer and it is not available yet: MoPlayer has no
-remote to point one at. When it has one, this directory becomes
-`git submodule add <url> moplayer` and the sync target goes away. Until then the
-snapshot is honest about what it is, which is better than a submodule that
-silently points at a commit nobody can fetch.
+The canonical repository is public, but the OS image deliberately carries a
+plain snapshot rather than making its build depend on a nested checkout. CI
+receives one complete, auditable build context, and `just sync-moplayer` refuses
+dirty source so untracked or half-committed code cannot produce a partial
+snapshot. The OS commit then pins the exact copied tree without a submodule fetch
+during the image build.
 
 ## What must NOT be edited here
 

@@ -32,6 +32,8 @@
       <li>Live television with a programme guide, categories and favourites</li>
       <li>Films and series, with seasons, episodes and resume</li>
       <li>Continue watching, watch history and a global search</li>
+      <li>Full playback controls with aspect, speed, audio and subtitle tracks</li>
+      <li>Automatic stream recovery with visible status and manual retry</li>
       <li>Media keys and the Plasma media applet, over MPRIS</li>
       <li>Arabic, English and German, with a full right-to-left interface</li>
     </ul>
@@ -93,6 +95,15 @@
   </recommends>
 
   <releases>
+    <release version="1.1.0" date="2026-07-25">
+      <description>
+        <p>
+          A redesigned cinematic home and a complete playback control deck,
+          with aspect modes, playback speed, audio and subtitle selection,
+          bounded reconnection, and single-instance URL forwarding.
+        </p>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-07-13">
       <description>
         <p>The first release that ships inside the MoOS image.</p>

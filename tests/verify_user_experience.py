@@ -4379,6 +4379,37 @@ if "impl.portal.Secret=kwallet" in _portals.replace(" ", ""):
             "must enable the wallet — otherwise nothing owns org.freedesktop.secrets and "
             "every app that keeps a credential breaks, first frame first")
 
+# Enabling KWallet is only half the relationship. libsecret clients call the
+# standard org.freedesktop.secrets name, and ksecretd is the process that owns
+# it. It must start in every desktop session; a D-Bus service file under
+# org.kde.secretservicecompat cannot be activated by a client asking for the
+# standard name.
+_secret_unit = code(read(
+    "system_files/usr/lib/systemd/user/moos-secret-service.service"))
+require("ExecStart=/usr/bin/ksecretd" in _secret_unit
+        and "WantedBy=plasma-workspace.target" in _secret_unit
+        and "After=plasma-kwallet-pam.service" in _secret_unit,
+        "the MoOS Secret Service unit must start ksecretd after the PAM wallet "
+        "unlock in every Plasma session")
+require("systemctl --global enable moos-secret-service.service"
+        in code(read("build_files/build.sh")),
+        "build.sh must globally enable moos-secret-service.service — shipping "
+        "the unit without its wants symlink leaves org.freedesktop.secrets absent")
+
+# Existing users carry the old Enabled=false profile in ~/.config, which outranks
+# the corrected image default. The migration is exact-shape and once-only: it
+# repairs what MoOS wrote, while a later deliberate user choice stays durable.
+_ui_migrate = code(read("system_files/usr/bin/moos-ui-migrate"))
+for _wallet_migration_promise in (
+    "migrate_legacy_disabled_wallet",
+    "secret-service-wallet-v1.done",
+    "grep -Fxq 'Enabled=false'",
+    "systemctl --user start moos-secret-service.service",
+):
+    require(_wallet_migration_promise in _ui_migrate,
+            f"the existing-user wallet repair is incomplete: missing "
+            f"{_wallet_migration_promise!r}")
+
 # A disabled wallet must stay VISIBLE. selfcheck is where the user finds out.
 # code() first: a gate that a comment can satisfy is not a gate, and this file's
 # own prose names the bus service it is checking for.
@@ -4392,8 +4423,8 @@ require("org.freedesktop.secrets" in _selfcheck and "ListNames" in _selfcheck,
 # moplayer/ is a copy of a live project, and a live project is being opened in an
 # editor. A Flutter SDK newer than the pinned one rewrites pubspec.lock's `sdks:`
 # floor on any `pub get` — observed here as `dart: ">=3.9.0 <4.0.0"` becoming
-# `">=3.10.0-0 <4.0.0"` because the workstation runs Flutter 3.44.8 while the
-# Containerfile builds with 3.35.1.
+# `">=3.12.0 <4.0.0"` when the workstation moved to Flutter 3.44.8 while the
+# Containerfile was still building with 3.35.1.
 #
 # Commit that and the image build dies inside the container at `flutter pub get`,
 # twenty minutes in, with a version-solving error that says nothing about the
@@ -4403,6 +4434,7 @@ require("org.freedesktop.secrets" in _selfcheck and "ListNames" in _selfcheck,
 # version here, which is the moment to re-vendor the lock as well.
 _FLUTTER_TO_DART = {
     "3.35.1": (3, 9, 0),
+    "3.44.8": (3, 12, 2),
 }
 _containerfile = read("Containerfile")
 _flutter_pin = re.search(r"ARG FLUTTER_VERSION=([0-9.]+)", _containerfile)

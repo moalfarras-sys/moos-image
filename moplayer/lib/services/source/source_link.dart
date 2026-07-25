@@ -106,7 +106,11 @@ abstract final class SourceLink {
     // below, because `get.php?type=m3u_plus` is both at once, and it is a
     // perfectly good playlist even though nobody can log in with it.
     if (_isPlaylistPath(uri.path) || _looksLikeM3uQuery(uri)) {
-      return _m3u(input, name: _fileName(uri.path, fallback: uri.host), id: id);
+      return _m3u(
+        input,
+        name: _fileName(uri.path, fallback: uri.host),
+        id: id,
+      );
     }
 
     // The shape of a panel endpoint and nothing else: we know *where* the panel
@@ -146,7 +150,10 @@ abstract final class SourceLink {
   /// the same host answers something else entirely on the implicit one, and a
   /// source that silently dropped its own port is a source that stops playing on
   /// a server the user can see is up.
-  static final _origins = RegExp(r'^(https?)://([^/?#@]+@)?([^/?#]+)', caseSensitive: false);
+  static final _origins = RegExp(
+    r'^(https?)://([^/?#@]+@)?([^/?#]+)',
+    caseSensitive: false,
+  );
 
   static String _origin(String raw, Uri uri) {
     final m = _origins.firstMatch(raw.trim());

@@ -1,10 +1,10 @@
 name: moplayer_moos
 description: "MoPlayer for MoOS — the cinematic IPTV player, native to the MoOS desktop."
 publish_to: "none"
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
-  sdk: ^3.9.0
+  sdk: ^3.12.0
 
 dependencies:
   flutter:
@@ -21,7 +21,7 @@ dependencies:
   go_router: ^14.6.2
 
   # Networking
-  dio: ^5.7.0
+  dio: ^5.9.0
   connectivity_plus: ^6.1.0
 
   # Backend (optional — the app is fully functional without it)
@@ -29,9 +29,9 @@ dependencies:
 
   # Playback: libmpv, via media_kit. On Linux this binds the system libmpv —
   # the same engine MoOS already ships as mpv-libs.
-  media_kit: ^1.1.11
-  media_kit_video: ^1.2.5
-  media_kit_libs_video: ^1.0.5
+  media_kit: ^1.2.6
+  media_kit_video: ^2.0.1
+  media_kit_libs_video: ^1.0.7
 
   # Local cache / storage
   hive_ce: ^2.7.0

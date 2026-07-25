@@ -28,7 +28,10 @@ void main() {
           const SizedBox(
             height: 300,
             width: 170,
-            child: PosterCard(title: 'A Very Long Film Title', subtitle: '2019'),
+            child: PosterCard(
+              title: 'A Very Long Film Title',
+              subtitle: '2019',
+            ),
           ),
           dir: dir,
         ),
@@ -178,7 +181,8 @@ void main() {
               itemCount: 20,
               itemWidth: 170,
               height: 300,
-              itemBuilder: (_, i) => PosterCard(title: 'Film $i', subtitle: '2020'),
+              itemBuilder: (_, i) =>
+                  PosterCard(title: 'Film $i', subtitle: '2020'),
             ),
           ),
           dir: dir,
@@ -280,10 +284,7 @@ void main() {
                 child: Text('Online'),
               ),
               const MoOSBadge(label: 'MoOS'),
-              const SizedBox(
-                width: 200,
-                child: ProgressBar(value: 0.35),
-              ),
+              const SizedBox(width: 200, child: ProgressBar(value: 0.35)),
             ],
           ),
           dir: dir,
@@ -324,10 +325,12 @@ void main() {
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
-      host(const Padding(
-        padding: EdgeInsets.all(Nova.space6),
-        child: PosterGridSkeleton(count: 8),
-      )),
+      host(
+        const Padding(
+          padding: EdgeInsets.all(Nova.space6),
+          child: PosterGridSkeleton(count: 8),
+        ),
+      ),
     );
     expect(tester.takeException(), isNull);
   });

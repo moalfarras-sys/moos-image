@@ -91,12 +91,16 @@ Two hard rules, and the first one is load-bearing:
 
 ## The dock is the signature
 
-A floating, blurred, warm-bordered pane at the bottom centre, with exactly six
-destinations: **Search · Live · Movies · Series · Favourites · Settings**.
+A floating, blurred, warm-bordered pane at the bottom centre, with exactly seven
+destinations: **Search · Home · Live · Movies · Series · Favourites ·
+Settings**.
 
-Home is *not* one of them. The dashboard is reached by the MoPlayer logo in the
-caption bar (and `Ctrl+Home`), because six destinations plus a seventh "Home" is
-the layout of a website's navigation bar, and this is not a website.
+Home used to be hidden behind the MoPlayer logo. Real use settled the argument:
+a corner logo is a convention the user has to learn, while a dock item is a
+route they can see. The primary screen therefore gets the same-sized target as
+every other primary destination. On scaled or narrower desktops the dock
+switches to icon-only mode with tooltips, keeping seven labels from swallowing
+the screen.
 
 The content scrolls *under* the dock and is given the dock's height as bottom
 padding by the shell — so nothing is ever unreachable beneath it, and the glass
@@ -162,6 +166,30 @@ to turn off the whole desktop's animations to get one. See `Motion.isReduced`.
 
 Reduced motion makes transforms *instant*; it does not delete the 60 ms opacity
 fade. Content that teleports is a worse experience than the one being avoided.
+
+Decorative motion is never allowed to own a permanent ticker. The weather glyph
+and the live indicator are static on purpose: an infinite animation on the home
+screen keeps the whole Flutter scene repainting even when the user is only
+reading it. The brand should feel alive when the user acts, not consume a core
+while nothing happens.
+
+## The player is a control deck, not a row of icons
+
+The video owns the canvas; controls live on three readable glass islands rather
+than one opaque bar across the picture:
+
+- the centre deck carries previous, back 10 seconds, play/pause, forward 10
+  seconds and next;
+- the bottom deck carries seek, time, volume, tuning/options and fullscreen;
+- the options deck slides from the trailing edge and owns aspect mode, playback
+  speed, audio tracks and subtitle tracks.
+
+Every operation has both an icon and a tooltip, every track choice shows its
+current state, and the layout mirrors directionally in Arabic. Buffering and
+bounded reconnection are first-class states over the picture. If automatic
+recovery exhausts its attempts, the player remains alive and offers Retry; a
+network failure must never collapse into a blank surface or an unhandled
+exception.
 
 ## Focus is not decoration
 

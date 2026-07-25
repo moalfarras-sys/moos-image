@@ -65,7 +65,8 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
             error: (error, _) => ErrorView(
               strings: s,
               error: error,
-              onRetry: () => ref.invalidate(seriesDetailProvider(widget.series)),
+              onRetry: () =>
+                  ref.invalidate(seriesDetailProvider(widget.series)),
             ),
             data: _content,
           ),
@@ -105,7 +106,9 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
 
     // A panel can drop a season between two loads; an index held in state must
     // not be allowed to outlive the list it points into.
-    final index = seasons.isEmpty ? 0 : math.min(_seasonIndex, seasons.length - 1);
+    final index = seasons.isEmpty
+        ? 0
+        : math.min(_seasonIndex, seasons.length - 1);
     final season = seasons.isEmpty ? null : seasons[index];
 
     final rating = series.rating ?? 0;

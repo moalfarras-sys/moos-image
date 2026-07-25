@@ -39,11 +39,8 @@ class AppText {
     fontWeight: FontWeight.w600,
   );
 
-  static TextStyle get section => _base.copyWith(
-    fontSize: 17,
-    height: 1.25,
-    fontWeight: FontWeight.w600,
-  );
+  static TextStyle get section =>
+      _base.copyWith(fontSize: 17, height: 1.25, fontWeight: FontWeight.w600);
 
   static TextStyle get subtitle => _base.copyWith(
     fontSize: Nova.typeControl,

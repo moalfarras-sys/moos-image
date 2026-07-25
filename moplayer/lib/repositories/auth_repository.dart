@@ -134,7 +134,7 @@ class AuthRepository {
   /// identical rows in Settings, each with its own id, and the user could delete
   /// two of them and still have one left. Re-using the stored row's id keeps its
   /// favourites and resume positions attached, which are keyed on it.
-  Future<void> saveAndActivate(PlaylistConfig config) async {
+  Future<bool> saveAndActivate(PlaylistConfig config) async {
     final list = [...await _secure.readPlaylists()];
     final existingIndex = list.indexWhere(
       (p) => p.identityKey == config.identityKey,
@@ -159,8 +159,9 @@ class AuthRepository {
       list.add(stamped);
     }
 
-    await _secure.writePlaylists(list);
-    await _secure.writeActivePlaylist(stamped);
+    final listSaved = await _secure.writePlaylists(list);
+    final activeSaved = await _secure.writeActivePlaylist(stamped);
+    return listSaved && activeSaved;
   }
 
   Future<void> setActive(PlaylistConfig config) =>

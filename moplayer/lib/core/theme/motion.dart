@@ -33,7 +33,8 @@ class Motion extends InheritedWidget {
   /// True if motion should be suppressed — checks the app's setting *and* the
   /// platform's, so a caller only has to ask once.
   static bool isReduced(BuildContext context) =>
-      of(context).reduced || MediaQuery.maybeDisableAnimationsOf(context) == true;
+      of(context).reduced ||
+      MediaQuery.maybeDisableAnimationsOf(context) == true;
 
   /// A duration, scaled for the current motion preference.
   ///

@@ -117,7 +117,10 @@ class _SkeletonBoxState extends State<SkeletonBox> {
       return Container(
         width: widget.width,
         height: widget.height,
-        decoration: BoxDecoration(color: AppColors.surface2, borderRadius: radius),
+        decoration: BoxDecoration(
+          color: AppColors.surface2,
+          borderRadius: radius,
+        ),
       );
     }
 
@@ -418,9 +421,17 @@ class DetailSkeleton extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const SkeletonBox(width: 320, height: 30, radius: 6),
+                            const SkeletonBox(
+                              width: 320,
+                              height: 30,
+                              radius: 6,
+                            ),
                             const SizedBox(height: Nova.space3),
-                            const SkeletonBox(width: 200, height: 12, radius: 4),
+                            const SkeletonBox(
+                              width: 200,
+                              height: 12,
+                              radius: 4,
+                            ),
                             const SizedBox(height: Nova.space5),
                             Row(
                               children: const [

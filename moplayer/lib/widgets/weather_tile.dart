@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../core/l10n/strings.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_typography.dart';
-import '../core/theme/motion.dart';
 import '../core/theme/nova.dart';
 import '../services/weather/weather_service.dart';
 
@@ -90,48 +89,19 @@ class WeatherTile extends StatelessWidget {
 /// A drawn weather mark — not an icon-font glyph.
 ///
 /// Vector, because the icon theme is the *desktop's* and a MoPlayer window that
-/// loses its weather symbol when the user changes their Plasma icon set is a
-/// window with a hole in it. Animated, because a still sun and a still cloud are
-/// the same picture: the movement is what says this is now.
-class WeatherGlyph extends StatefulWidget {
+/// loses its weather symbol when the user changes their desktop icon set is a
+/// window with a hole in it. It is deliberately static: an always-running
+/// ticker forced the entire 4K home surface to repaint even while idle.
+class WeatherGlyph extends StatelessWidget {
   const WeatherGlyph({super.key, required this.kind, required this.isDay});
 
   final WeatherKind kind;
   final bool isDay;
 
   @override
-  State<WeatherGlyph> createState() => _WeatherGlyphState();
-}
-
-class _WeatherGlyphState extends State<WeatherGlyph>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 12),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (Motion.isReduced(context)) {
-      return CustomPaint(
-        painter: _WeatherPainter(kind: widget.kind, isDay: widget.isDay, t: 0),
-      );
-    }
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (_, _) => CustomPaint(
-        painter: _WeatherPainter(
-          kind: widget.kind,
-          isDay: widget.isDay,
-          t: _c.value,
-        ),
-      ),
+    return CustomPaint(
+      painter: _WeatherPainter(kind: kind, isDay: isDay, t: 0.18),
     );
   }
 }
@@ -193,14 +163,22 @@ class _WeatherPainter extends CustomPainter {
     final spin = t * 2 * math.pi;
     for (var i = 0; i < 8; i++) {
       final a = spin + i * math.pi / 4;
-      final from = Offset(c.dx + (r * 1.45) * _cos(a), c.dy + (r * 1.45) * _sin(a));
+      final from = Offset(
+        c.dx + (r * 1.45) * _cos(a),
+        c.dy + (r * 1.45) * _sin(a),
+      );
       final to = Offset(c.dx + (r * 1.9) * _cos(a), c.dy + (r * 1.9) * _sin(a));
       canvas.drawLine(from, to, ray);
     }
     canvas.drawCircle(c, r * breathe, disc);
   }
 
-  void _cloud(Canvas canvas, Size size, {required double dy, double scale = 1}) {
+  void _cloud(
+    Canvas canvas,
+    Size size, {
+    required double dy,
+    double scale = 1,
+  }) {
     // The drift is ±3 px over the whole loop. A cloud that visibly slides is a
     // cloud the eye follows instead of reading the temperature next to it.
     final drift = 3 * _wave(t);
@@ -234,7 +212,11 @@ class _WeatherPainter extends CustomPainter {
       final phase = (t * 3 + i / drops) % 1;
       final x = size.width * (0.34 + 0.16 * i);
       final y = size.height * (0.68 + 0.24 * phase);
-      canvas.drawLine(Offset(x, y), Offset(x - 1.5, y + size.height * 0.10), paint);
+      canvas.drawLine(
+        Offset(x, y),
+        Offset(x - 1.5, y + size.height * 0.10),
+        paint,
+      );
     }
   }
 

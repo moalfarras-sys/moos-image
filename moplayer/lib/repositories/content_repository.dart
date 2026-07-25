@@ -52,10 +52,9 @@ List<T> newestFirst<T>(List<T> items, DateTime? Function(T) stamp) {
 class ContentRepository {
   ContentRepository({
     required this.config,
-    required CacheService cache,
+    required this._cache,
     XtreamApi? api,
-  }) : _cache = cache,
-       _api = config.isXtream ? (api ?? XtreamApi(config)) : null,
+  }) : _api = config.isXtream ? (api ?? XtreamApi(config)) : null,
        _urls = XtreamUrlBuilder(config);
 
   final PlaylistConfig config;

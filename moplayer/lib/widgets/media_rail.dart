@@ -133,8 +133,11 @@ class _MediaRailState extends State<MediaRail> {
   void _page(int direction) {
     if (!_controller.hasClients) return;
     final position = _controller.position;
-    final step = (position.viewportDimension - widget.itemWidth - widget.spacing)
-        .clamp(widget.itemWidth, double.infinity);
+    final step =
+        (position.viewportDimension - widget.itemWidth - widget.spacing).clamp(
+          widget.itemWidth,
+          double.infinity,
+        );
     final target = (position.pixels + step * direction).clamp(
       0.0,
       position.maxScrollExtent,

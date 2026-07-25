@@ -43,21 +43,43 @@ void main() {
       );
     });
 
-    test('Linux closes before Flutter tears down an invalid NVIDIA EGL surface', () {
+    test(
+      'Linux closes before Flutter tears down an invalid NVIDIA EGL surface',
+      () {
+        final runner = File(
+          'linux/runner/my_application.cc',
+        ).readAsStringSync();
+        expect(runner, contains('close_before_flutter_egl_teardown'));
+        expect(
+          runner,
+          contains('g_signal_connect(window, "delete-event"'),
+          reason:
+              'KWin and the in-app close button must share the guarded path',
+        );
+        expect(
+          runner,
+          contains('_exit(EXIT_SUCCESS)'),
+          reason:
+              'normal GTK destruction re-enters Flutter after Wayland has '
+              'invalidated the EGL surface and aborts inside libepoxy on NVIDIA',
+        );
+      },
+    );
+
+    test('a second launch forwards URLs and sections to the running app', () {
       final runner = File('linux/runner/my_application.cc').readAsStringSync();
-      expect(runner, contains('close_before_flutter_egl_teardown'));
+      final shell = File('lib/app/main_shell.dart').readAsStringSync();
+
+      expect(runner, contains('G_APPLICATION_HANDLES_COMMAND_LINE'));
+      expect(runner, contains('my_application_command_line'));
+      expect(runner, contains('org.moos.moplayer/activation'));
+      expect(runner, contains('fl_method_channel_invoke_method'));
       expect(
-        runner,
-        contains('g_signal_connect(window, "delete-event"'),
-        reason: 'KWin and the in-app close button must share the guarded path',
+        shell,
+        contains("MethodChannel(\n    'org.moos.moplayer/activation'"),
       );
-      expect(
-        runner,
-        contains('_exit(EXIT_SUCCESS)'),
-        reason:
-            'normal GTK destruction re-enters Flutter after Wayland has '
-            'invalidated the EGL surface and aborts inside libepoxy on NVIDIA',
-      );
+      expect(shell, contains('LaunchArgs.parse('));
+      expect(shell, contains('playDirect(url)'));
     });
 
     test('the launcher entry matches the window it launches', () {
@@ -94,9 +116,7 @@ void main() {
       // when it is not honoured: eleven buttons once shipped that opened routes
       // nobody had implemented, popped an error and did nothing — and every gate
       // was green. So each action's Exec must name a section `LaunchArgs` parses.
-      final sections = File(
-        'lib/app/launch_args.dart',
-      ).readAsStringSync();
+      final sections = File('lib/app/launch_args.dart').readAsStringSync();
 
       final actions = RegExp(
         r'^Exec=moplayer --section (\w+)$',
@@ -105,8 +125,15 @@ void main() {
 
       expect(
         actions,
-        containsAll(['live', 'movies', 'series', 'search', 'favorites', 'settings']),
-        reason: 'the dock has six destinations; the jump list should too',
+        containsAll([
+          'live',
+          'movies',
+          'series',
+          'search',
+          'favorites',
+          'settings',
+        ]),
+        reason: 'the six non-home destinations need launcher jump-list actions',
       );
 
       for (final action in actions) {
@@ -156,16 +183,16 @@ void main() {
     });
 
     test('the app has AppStream metadata, or it has no entry in Discover', () {
-      final metainfo = File(
-        'packaging/moos/org.moos.moplayer.metainfo.xml',
-      );
+      final metainfo = File('packaging/moos/org.moos.moplayer.metainfo.xml');
       expect(metainfo.existsSync(), isTrue);
 
       final xml = metainfo.readAsStringSync();
       expect(xml, contains('<id>$appId</id>'));
       expect(
         xml,
-        contains('<launchable type="desktop-id">org.moos.moplayer.desktop</launchable>'),
+        contains(
+          '<launchable type="desktop-id">org.moos.moplayer.desktop</launchable>',
+        ),
         reason: 'the metadata must point at the launcher it describes',
       );
       expect(
@@ -184,5 +211,4 @@ void main() {
   });
 }
 
-String _titleCase(String value) =>
-    value[0].toUpperCase() + value.substring(1);
+String _titleCase(String value) => value[0].toUpperCase() + value.substring(1);

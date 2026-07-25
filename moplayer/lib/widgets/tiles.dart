@@ -74,7 +74,8 @@ class _ChannelTileState extends State<ChannelTile> {
   @override
   Widget build(BuildContext context) {
     final active = _hovered || _focused;
-    final hasNow = widget.nowTitle != null && widget.nowTitle!.trim().isNotEmpty;
+    final hasNow =
+        widget.nowTitle != null && widget.nowTitle!.trim().isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: Nova.space1),
@@ -98,7 +99,9 @@ class _ChannelTileState extends State<ChannelTile> {
           scale: 1.01,
           bloom: false,
           selected: widget.selected,
-          semanticLabel: hasNow ? '${widget.name}, ${widget.nowTitle}' : widget.name,
+          semanticLabel: hasNow
+              ? '${widget.name}, ${widget.nowTitle}'
+              : widget.name,
           child: AnimatedContainer(
             duration: Motion.duration(context, Nova.hover),
             curve: Ease.enter,
@@ -746,7 +749,9 @@ class StatTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.title.copyWith(
-                    color: accent ? AppColors.primaryBright : AppColors.textPrimary,
+                    color: accent
+                        ? AppColors.primaryBright
+                        : AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -813,7 +818,7 @@ class WidgetTile extends StatelessWidget {
                   style: AppText.label,
                 ),
               ),
-              if (trailing != null) trailing!,
+              ?trailing,
             ],
           ),
           const SizedBox(height: Nova.space3),

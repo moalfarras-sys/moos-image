@@ -5,6 +5,13 @@ Codes أو M3U — مبني على نفس محرّك التشغيل الذي ي�
 ومتكامل مع بلازما تكاملاً حقيقياً: مفاتيح الوسائط، لوحة الوسائط، منع إطفاء الشاشة،
 وواجهة عربية/إنجليزية بدعم RTL كامل.
 
+الإصدار **1.1** يعيد بناء أهم سطحين في التطبيق: هوم سينمائي بملصق خلفي ووصف
+حقيقي للمحتوى، ومشغّل كامل بسطح تحكم احترافي. أصبح فيه تقديم/إرجاع 10 ثوانٍ،
+حلقة سابقة/تالية، شريط زمني، صوت وكتم، ملء الشاشة، اختيار نسبة العرض
+(`احتواء`/`ملء`/`أصلي`)، سرعات التشغيل، مسارات الصوت والترجمة، وحالة واضحة
+للتخزين المؤقت وإعادة الاتصال مع زر محاولة يدوية. فتح رابط أو ملف في MoPlayer
+وهو يعمل يرسله إلى النافذة الموجودة بدل تشغيل نسخة ثانية.
+
 > مستودع جديد. **لم يُعدَّل مستودع `MoPlayerios` إطلاقاً** — أُخذت منه الهوية
 > (الشعار، الألوان) والقلب (Xtream API، محلّل M3U، النماذج، المستودعات)، وأُعيدت
 > كتابة الواجهة بالكامل لسطح المكتب.
@@ -84,7 +91,7 @@ lib/
 | `S` / `A` | تبديل الترجمة / الصوت |
 | `N` / `P` | الحلقة التالية / السابقة |
 | `Esc` | خروج من ملء الشاشة ثم تصغير المشغّل |
-| `Ctrl+1…5` | التنقّل بين الأقسام |
+| `Ctrl+1…5` | الرئيسية · البث · الأفلام · المسلسلات · المفضلة |
 | `Ctrl+F` · `Ctrl+,` | البحث · الإعدادات |
 
 ---
@@ -107,3 +114,10 @@ language.
 
 Build with `just setup && just build && just install`. The design system is in
 [`DESIGN.md`](DESIGN.md); the rules that will bite you are in [`AGENTS.md`](AGENTS.md).
+
+Version 1.1 adds a complete professional playback deck: seek and volume,
+10-second skip, previous/next episode, fit/fill/original aspect modes, playback
+speed, audio and subtitle track selection, fullscreen, visible buffering and
+bounded reconnection with a manual Retry action. A URL or media file opened
+while MoPlayer is already running is forwarded to that window instead of
+starting a competing second player.

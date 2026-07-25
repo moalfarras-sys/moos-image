@@ -60,8 +60,10 @@ void main() {
     second.stop();
 
     // ignore: avoid_print
-    print('  first read: ${first.elapsedMilliseconds}ms · '
-        'second read: ${second.elapsedMicroseconds}µs');
+    print(
+      '  first read: ${first.elapsedMilliseconds}ms · '
+      'second read: ${second.elapsedMicroseconds}µs',
+    );
 
     expect(a, hasLength(20000));
     expect(b, hasLength(20000));
@@ -79,21 +81,24 @@ void main() {
     );
   });
 
-  test('a write invalidates the memo — a stale read is worse than a slow one', () async {
-    await cache.putList('k', [
-      {'name': 'before'},
-    ]);
-    expect(cache.getList('k')!.first['name'], 'before');
+  test(
+    'a write invalidates the memo — a stale read is worse than a slow one',
+    () async {
+      await cache.putList('k', [
+        {'name': 'before'},
+      ]);
+      expect(cache.getList('k')!.first['name'], 'before');
 
-    await cache.putList('k', [
-      {'name': 'after'},
-    ]);
-    expect(
-      cache.getList('k')!.first['name'],
-      'after',
-      reason: 'the memo served a value the cache no longer holds',
-    );
-  });
+      await cache.putList('k', [
+        {'name': 'after'},
+      ]);
+      expect(
+        cache.getList('k')!.first['name'],
+        'after',
+        reason: 'the memo served a value the cache no longer holds',
+      );
+    },
+  );
 
   test('an expired entry is still expired, memo or not', () async {
     await cache.putList('k', [
@@ -108,13 +113,16 @@ void main() {
     );
   });
 
-  test('the envelope on disk is still plain JSON — nothing changed on disk', () async {
-    await cache.putList('k', [
-      {'name': 'x'},
-    ]);
-    final raw = Hive.box<String>('mp_cache').get('k')!;
-    final decoded = jsonDecode(raw) as Map<String, dynamic>;
-    expect(decoded['ts'], isA<int>());
-    expect(decoded['data'], isA<List<dynamic>>());
-  });
+  test(
+    'the envelope on disk is still plain JSON — nothing changed on disk',
+    () async {
+      await cache.putList('k', [
+        {'name': 'x'},
+      ]);
+      final raw = Hive.box<String>('mp_cache').get('k')!;
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      expect(decoded['ts'], isA<int>());
+      expect(decoded['data'], isA<List<dynamic>>());
+    },
+  );
 }

@@ -67,11 +67,13 @@ class SecureStorageService {
     }
   }
 
-  Future<void> _delete(String key) async {
+  Future<bool> _delete(String key) async {
     try {
       await _storage.delete(key: key);
+      return true;
     } on Object catch (e) {
       _markDegraded('delete', key, e);
+      return false;
     }
   }
 
@@ -104,9 +106,12 @@ class SecureStorageService {
     }
   }
 
-  Future<void> writePlaylists(List<PlaylistConfig> playlists) async {
+  /// Returns false when the keyring rejected the write. Callers that are
+  /// confirming a newly-added source must use this instead of claiming it was
+  /// saved merely because the source works in memory for this session.
+  Future<bool> writePlaylists(List<PlaylistConfig> playlists) async {
     final encoded = jsonEncode(playlists.map((e) => e.toJson()).toList());
-    await _write(StorageKeys.playlists, encoded);
+    return _write(StorageKeys.playlists, encoded);
   }
 
   Future<PlaylistConfig?> readActivePlaylist() async {
@@ -121,12 +126,11 @@ class SecureStorageService {
     }
   }
 
-  Future<void> writeActivePlaylist(PlaylistConfig? config) async {
+  Future<bool> writeActivePlaylist(PlaylistConfig? config) async {
     if (config == null) {
-      await _delete(StorageKeys.activePlaylist);
-      return;
+      return _delete(StorageKeys.activePlaylist);
     }
-    await _write(StorageKeys.activePlaylist, jsonEncode(config.toJson()));
+    return _write(StorageKeys.activePlaylist, jsonEncode(config.toJson()));
   }
 
   // --- Device id -----------------------------------------------------------

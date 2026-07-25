@@ -87,7 +87,7 @@ RUN dotnet publish agent-linux/MoRemoteLinux.csproj -c Release -r linux-x64 \
 # Only the *headers* (mpv-libs-devel) are needed here. The library itself is the
 # one already in the image, and nothing from this stage but the bundle ships.
 FROM registry.fedoraproject.org/fedora:44 AS moplayer-build
-ARG FLUTTER_VERSION=3.35.1
+ARG FLUTTER_VERSION=3.44.8
 RUN dnf -y install --setopt=install_weak_deps=False \
         clang cmake ninja-build pkgconf-pkg-config \
         gtk3-devel mpv-libs-devel libsecret-devel \

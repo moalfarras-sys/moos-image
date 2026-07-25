@@ -130,7 +130,8 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
             : null,
         rating: movie?.rating,
         isFavorite:
-            movie != null && library.isFavorite(MediaKind.movie, movie.streamId),
+            movie != null &&
+            library.isFavorite(MediaKind.movie, movie.streamId),
         onPlay: movie == null
             ? null
             : () => ref.read(playbackProvider.notifier).playMovie(movie),

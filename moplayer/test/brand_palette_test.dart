@@ -55,9 +55,12 @@ void main() {
     }
   });
 
-  test('the mark is not empty — the asset is still there and still a flame', () {
-    expect(flame.length, greaterThan(5000));
-  });
+  test(
+    'the mark is not empty — the asset is still there and still a flame',
+    () {
+      expect(flame.length, greaterThan(5000));
+    },
+  );
 
   test('AppColors.ember is the flame\'s core', () {
     // The single most common colour in the mark.
@@ -65,7 +68,9 @@ void main() {
     for (final rgb in flame) {
       counts[rgb] = (counts[rgb] ?? 0) + 1;
     }
-    final dominant = counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    final dominant = counts.entries
+        .reduce((a, b) => a.value >= b.value ? a : b)
+        .key;
     final core = Color(0xFF000000 | dominant);
 
     expect(
@@ -89,20 +94,24 @@ void main() {
     expect(
       nearest,
       lessThan(_tolerance),
-      reason: 'AppColors.primary is not a colour that appears in the logo at all',
+      reason:
+          'AppColors.primary is not a colour that appears in the logo at all',
     );
   });
 
-  test('the ember gradient runs the mark\'s own ramp, dark core to lit crown', () {
-    final colors = AppColors.emberGradient.colors;
-    expect(colors, contains(AppColors.ember));
-    expect(colors, contains(AppColors.primary));
+  test(
+    'the ember gradient runs the mark\'s own ramp, dark core to lit crown',
+    () {
+      final colors = AppColors.emberGradient.colors;
+      expect(colors, contains(AppColors.ember));
+      expect(colors, contains(AppColors.primary));
 
-    // And in that order: a gradient that runs crown-to-core is the flame upside
-    // down, and it is the kind of wrong nobody can name but everybody sees.
-    expect(
-      colors.indexOf(AppColors.primary),
-      lessThan(colors.indexOf(AppColors.ember)),
-    );
-  });
+      // And in that order: a gradient that runs crown-to-core is the flame upside
+      // down, and it is the kind of wrong nobody can name but everybody sees.
+      expect(
+        colors.indexOf(AppColors.primary),
+        lessThan(colors.indexOf(AppColors.ember)),
+      );
+    },
+  );
 }

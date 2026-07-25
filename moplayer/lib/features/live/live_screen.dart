@@ -138,9 +138,9 @@ class _CategoryPane extends ConsumerWidget {
                   label: category.id == Category.allId ? s.all : category.name,
                   count: category.count,
                   selected: category.id == selected,
-                  onTap: () => ref
-                      .read(selectedLiveCategoryProvider.notifier)
-                      .state = category.id,
+                  onTap: () =>
+                      ref.read(selectedLiveCategoryProvider.notifier).state =
+                          category.id,
                 );
               },
             ),
@@ -582,10 +582,7 @@ class _Guide extends ConsumerWidget {
     // A guide that fails to load is not an error worth a red icon and a retry
     // button: most IPTV channels simply carry no EPG at all, and the two cases
     // are indistinguishable from here. Both say the same quiet thing.
-    final nothing = EmptyView(
-      icon: Icons.event_busy_rounded,
-      message: s.noEpg,
-    );
+    final nothing = EmptyView(icon: Icons.event_busy_rounded, message: s.noEpg);
 
     return epg.when(
       loading: () => const LoadingView(),
