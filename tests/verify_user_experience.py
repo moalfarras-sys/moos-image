@@ -4262,6 +4262,33 @@ for _glyph_qml in (
     require("Qt.btoa(Array.from(svg))" in _glyph_text,
             f"{_glyph_qml} must use Qt 6.11's array-like btoa overload for SVG glyphs")
 
+# ── No MoOS surface may animate forever without a guard ──────────────────────
+# The dashboard has had this contract for a while (test_moos_ui2.py enforces it for
+# every wallpaper/plasmoid QML file). The APPS never did, and that is exactly where
+# it broke: Mo Store's rail status dot carried `loops: Animation.Infinite` with no
+# `running:` at all, so it pulsed for the entire life of the window. One 8 px dot is
+# not the cost — holding the QML render loop at full frame rate and repainting a 4K
+# window is, and it measured ~11% of a CPU core on an idle desktop, paid by any
+# session that merely had the Store restored behind other windows.
+#
+# So the contract now covers every QML MoOS ships: an endless animation must say
+# when it runs. `running:` may name any condition (visibility, readiness, focus);
+# what is forbidden is having none.
+_infinite = re.compile(r"loops\s*:\s*Animation\.Infinite")
+for _qml_root in ("system_files/usr/share/moos/apps",
+                  "system_files/usr/share/plasma/plasmoids",
+                  "system_files/usr/share/plasma/wallpapers"):
+    for _qml in sorted(Path(_qml_root).rglob("*.qml")):
+        _text = _qml.read_text(encoding="utf-8")
+        for _loop in _infinite.finditer(_text):
+            _window = _text[max(0, _loop.start() - 320):_loop.end() + 320]
+            require(
+                re.search(r"running\s*:", _window) is not None,
+                f"{_qml}:{_text[:_loop.start()].count(chr(10)) + 1} animates forever with "
+                "no `running:` guard — an unguarded infinite animation keeps the render "
+                "loop at full frame rate for as long as the surface exists",
+            )
+
 # #14 CI must verify the signature against the SAME public key the OS enforces.
 # (The theme-safety and UI2 gates already run transitively via this file's own
 # subprocess invocations above, so they are wired — no separate build.yml entry.)
