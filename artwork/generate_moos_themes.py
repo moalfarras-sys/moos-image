@@ -349,45 +349,10 @@ def build_aurorae(key: str, meta: dict) -> None:
     for src in sorted(SRC_AUR.glob("*")):
         if src.suffix == ".svg":
             write(dst / src.name, recolor(src.read_text(encoding="utf-8"), m))
-    # rc: same geometry, per-theme title colours
-    write(dst / f"{meta['style']}rc", f"""[General]
-# Title centred, macOS-style, rather than hugged to the button cluster.
-TitleAlignment=Center
-TitleVerticalAlignment=Center
-Animation=120
-ActiveTextColor={_rgb(p['text'])},255
-InactiveTextColor={_rgb(p['muted'])},255
-UseTextShadow=false
-HaloActive=false
-HaloInactive=false
-
-[Layout]
-BorderLeft=1
-BorderRight=1
-BorderBottom=1
-TitleEdgeTop=5
-TitleEdgeBottom=5
-TitleEdgeLeft=10
-TitleEdgeRight=10
-TitleBorderLeft=8
-TitleBorderRight=8
-TitleHeight=30
-
-TitleEdgeTopMaximized=0
-TitleEdgeBottomMaximized=0
-TitleEdgeLeftMaximized=10
-TitleEdgeRightMaximized=10
-
-ButtonWidth=18
-ButtonHeight=18
-ButtonSpacing=8
-ButtonMarginTop=0
-
-PaddingLeft=18
-PaddingRight=18
-PaddingTop=12
-PaddingBottom=24
-""")
+    # The family owns one Aurorae geometry and interaction contract. Re-render
+    # the rc from semantic roles so titles, spacing and RTL behaviour cannot
+    # drift from the Graphite/Tidal pair.
+    write(dst / f"{meta['style']}rc", gen.aurorae_art.aurorae_rc(p))
     write(dst / "metadata.desktop", f"""[Desktop Entry]
 Name={meta['name']}
 Comment={meta['desc']}
@@ -444,6 +409,9 @@ def build_lnf(key: str, meta: dict) -> None:
 [kdeglobals][General]
 ColorScheme={meta['style']}
 
+[kdeglobals][KDE]
+widgetStyle=Breeze
+
 [plasmarc][Theme]
 name={meta['style']}
 
@@ -459,15 +427,15 @@ Enable=true
 Theme=moos
 
 [kwinrc][org.kde.kdecoration2]
-library=org.kde.kwin.aurorae
+library=org.kde.kwin.aurorae.v2
 theme=__aurorae__svg__{meta['style']}
 
 [kwinrc][Plugins]
 blurEnabled=true
 
 [kwinrc][Effect-blur]
-BlurStrength=8
-NoiseStrength=2
+BlurStrength={gen.KWIN_BLUR_STRENGTH}
+NoiseStrength={gen.KWIN_NOISE_STRENGTH}
 
 [kcminputrc][Mouse]
 cursorTheme={cursor}
@@ -859,6 +827,24 @@ def build_gtk(key: str, meta: dict) -> None:
     write(SHARE / "moos/gtk" / f"moos-ui2-{key}.css", css)
 
 
+def crop_to_fill(img, size: tuple[int, int]):
+    """Scale without changing geometry, then crop evenly to the target frame.
+
+    MoOS exports 16:9, ultrawide and 16:10 wallpaper packages from one master.
+    A direct resize made every circle, glow and ribbon change shape on the
+    non-16:9 exports. ImageOps.fit preserves the artwork's proportions and
+    discards only the excess edge pixels.
+    """
+    from PIL import Image, ImageOps
+
+    return ImageOps.fit(
+        img,
+        size,
+        method=Image.Resampling.LANCZOS,
+        centering=(0.5, 0.5),
+    )
+
+
 def build_wallpaper(key: str, meta: dict) -> bool:
     img = (make_wallpaper_light(meta["base"]) if meta.get("light")
            else make_wallpaper(key, meta.get("mood", "cosmic")))
@@ -868,10 +854,10 @@ def build_wallpaper(key: str, meta: dict) -> bool:
     for sub in ("contents/images", "contents/images_dark"):
         (pkg / sub).mkdir(parents=True, exist_ok=True)
     for w, h in ((3840, 2160), (3440, 1440), (2560, 1600)):
-        frame = img.resize((w, h))
+        frame = crop_to_fill(img, (w, h))
         for sub in ("images", "images_dark"):
             frame.convert("RGB").save(pkg / "contents" / sub / f"{w}x{h}.jpg", quality=92)
-    img.resize((1920, 1080)).convert("RGB").save(pkg / "contents/screenshot.png")
+    crop_to_fill(img, (1920, 1080)).convert("RGB").save(pkg / "contents/screenshot.png")
     write(pkg / "metadata.json", json.dumps({
         "KPlugin": {"Id": meta["wall"], "Name": meta["name"],
                     "Authors": [{"Name": "Moalfarras"}], "License": "GPL-3.0-or-later"},
@@ -879,10 +865,12 @@ def build_wallpaper(key: str, meta: dict) -> bool:
     # picker previews live in the lnf package
     lnf = SHARE / "plasma/look-and-feel" / meta["lnf"] / "contents/previews"
     lnf.mkdir(parents=True, exist_ok=True)
-    img.resize((600, 337)).convert("RGB").save(lnf / "preview.png")
-    img.resize((600, 337)).convert("RGB").save(lnf / "lockscreen.png")
-    img.resize((300, 169)).convert("RGB").save(lnf / "splash.png")
-    img.resize((1920, 1080)).convert("RGB").save(lnf / "fullscreenpreview.jpg", quality=90)
+    crop_to_fill(img, (600, 337)).convert("RGB").save(lnf / "preview.png")
+    crop_to_fill(img, (600, 337)).convert("RGB").save(lnf / "lockscreen.png")
+    crop_to_fill(img, (300, 169)).convert("RGB").save(lnf / "splash.png")
+    crop_to_fill(img, (1920, 1080)).convert("RGB").save(
+        lnf / "fullscreenpreview.jpg", quality=90
+    )
     return True
 
 

@@ -11,5 +11,10 @@
     <entry name="Image" type="String">
       <default></default>
     </entry>
+    <!-- A low-duty-cycle ambient crossfade: 1.8 seconds of work every
+         90 seconds, never a continuous full-screen animation. -->
+    <entry name="AmbientMotion" type="Bool">
+      <default>true</default>
+    </entry>
   </group>
 </kcfg>

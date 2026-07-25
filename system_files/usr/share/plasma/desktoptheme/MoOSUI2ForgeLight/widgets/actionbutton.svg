@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="472" height="34" viewBox="0 0 472 34">
+  <!-- MoOS compact action buttons: normal, hover, pressed and keyboard focus. -->
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Background { color: #C4DED1; }
+    .ColorScheme-Highlight { color: #1A7F37; }
+    .ColorScheme-Text { color: #17302E; }
+    .ColorScheme-ButtonBackground { color: #BCDACC; }
+    .ColorScheme-ButtonText { color: #17302E; }
+  </style>
+  <g id="normal" transform="translate(0 0)"><rect width="32" height="32" rx="10" fill="#BCDACC" fill-opacity="0.580"/><rect x="0.5" y="0.5" width="31" height="31" rx="9.5" fill="none" stroke="#527F79" stroke-opacity="0.340"/></g>
+  <g id="hover" transform="translate(38 0)"><rect width="32" height="32" rx="10" fill="#BCDACC" fill-opacity="0.880"/><rect x="0.5" y="0.5" width="31" height="31" rx="9.5" fill="none" stroke="#2DA44E" stroke-opacity="0.780"/></g>
+  <g id="pressed" transform="translate(76 0)"><rect width="32" height="32" rx="10" fill="#CEE4D8" fill-opacity="0.980"/><rect x="0.5" y="0.5" width="31" height="31" rx="9.5" fill="none" stroke="#1A7F37" stroke-opacity="0.960"/></g>
+  <g id="focus" transform="translate(114 0)"><rect width="32" height="32" rx="10" fill="#C4DED1" fill-opacity="0.940"/><rect x="0.5" y="0.5" width="31" height="31" rx="9.5" fill="none" stroke="#2DA44E" stroke-opacity="1.000"/></g>
+  <g id="24-24-normal" transform="translate(152 0)"><rect width="24" height="24" rx="8" fill="#BCDACC" fill-opacity="0.580"/><rect x="0.5" y="0.5" width="23" height="23" rx="7.5" fill="none" stroke="#527F79" stroke-opacity="0.340"/></g>
+  <g id="24-24-hover" transform="translate(182 0)"><rect width="24" height="24" rx="8" fill="#BCDACC" fill-opacity="0.880"/><rect x="0.5" y="0.5" width="23" height="23" rx="7.5" fill="none" stroke="#2DA44E" stroke-opacity="0.780"/></g>
+  <g id="24-24-pressed" transform="translate(212 0)"><rect width="24" height="24" rx="8" fill="#CEE4D8" fill-opacity="0.980"/><rect x="0.5" y="0.5" width="23" height="23" rx="7.5" fill="none" stroke="#1A7F37" stroke-opacity="0.960"/></g>
+  <g id="24-24-focus" transform="translate(242 0)"><rect width="24" height="24" rx="8" fill="#C4DED1" fill-opacity="0.940"/><rect x="0.5" y="0.5" width="23" height="23" rx="7.5" fill="none" stroke="#2DA44E" stroke-opacity="1.000"/></g>
+  <g id="22-22-normal" transform="translate(272 0)"><rect width="22" height="22" rx="7" fill="#BCDACC" fill-opacity="0.580"/><rect x="0.5" y="0.5" width="21" height="21" rx="6.5" fill="none" stroke="#527F79" stroke-opacity="0.340"/></g>
+  <g id="22-22-hover" transform="translate(300 0)"><rect width="22" height="22" rx="7" fill="#BCDACC" fill-opacity="0.880"/><rect x="0.5" y="0.5" width="21" height="21" rx="6.5" fill="none" stroke="#2DA44E" stroke-opacity="0.780"/></g>
+  <g id="22-22-pressed" transform="translate(328 0)"><rect width="22" height="22" rx="7" fill="#CEE4D8" fill-opacity="0.980"/><rect x="0.5" y="0.5" width="21" height="21" rx="6.5" fill="none" stroke="#1A7F37" stroke-opacity="0.960"/></g>
+  <g id="22-22-focus" transform="translate(356 0)"><rect width="22" height="22" rx="7" fill="#C4DED1" fill-opacity="0.940"/><rect x="0.5" y="0.5" width="21" height="21" rx="6.5" fill="none" stroke="#2DA44E" stroke-opacity="1.000"/></g>
+  <g id="16-16-normal" transform="translate(384 0)"><rect width="16" height="16" rx="5" fill="#BCDACC" fill-opacity="0.580"/><rect x="0.5" y="0.5" width="15" height="15" rx="4.5" fill="none" stroke="#527F79" stroke-opacity="0.340"/></g>
+  <g id="16-16-hover" transform="translate(406 0)"><rect width="16" height="16" rx="5" fill="#BCDACC" fill-opacity="0.880"/><rect x="0.5" y="0.5" width="15" height="15" rx="4.5" fill="none" stroke="#2DA44E" stroke-opacity="0.780"/></g>
+  <g id="16-16-pressed" transform="translate(428 0)"><rect width="16" height="16" rx="5" fill="#CEE4D8" fill-opacity="0.980"/><rect x="0.5" y="0.5" width="15" height="15" rx="4.5" fill="none" stroke="#1A7F37" stroke-opacity="0.960"/></g>
+  <g id="16-16-focus" transform="translate(450 0)"><rect width="16" height="16" rx="5" fill="#C4DED1" fill-opacity="0.940"/><rect x="0.5" y="0.5" width="15" height="15" rx="4.5" fill="none" stroke="#2DA44E" stroke-opacity="1.000"/></g>
+</svg>

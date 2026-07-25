@@ -170,3 +170,10 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 # (clean /var, valid ostree layout, kernel present, ...). The build FAILS
 # here if the image is not deployable — cheap insurance before CI push.
 RUN bootc container lint
+
+# The base image carries registry-facing Artifact Hub links for its own project.
+# They are not desktop files, but they are public image metadata, so overwrite
+# them after every build step with MoOS-owned documentation and artwork.
+LABEL org.opencontainers.image.documentation="https://github.com/moalfarras-sys/moos-image#readme" \
+      io.artifacthub.package.readme-url="https://raw.githubusercontent.com/moalfarras-sys/moos-image/main/README.md" \
+      io.artifacthub.package.logo-url="https://raw.githubusercontent.com/moalfarras-sys/moos-image/main/system_files/usr/share/pixmaps/moos-logo.png"

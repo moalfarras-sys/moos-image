@@ -57,7 +57,7 @@ VARIANTS = {
         "konsole_scheme": "MoOSUI2Light.colorscheme",
         "wallpaper": "MoOSUI2Tide",
         "icons": "MoOSUI2Light",
-        "fallback": "default",
+        "fallback": "breeze-light",
     },
 }
 
@@ -364,8 +364,8 @@ class TestMoOSUI2(unittest.TestCase):
             # preflight() runs before any rename. Raster validity is irrelevant
             # here because the injected fifth backup failure happens first.
             for master in (
-                art / "wallpapers/moos-ui2-quiet-horizon-master-v2.png",
-                art / "wallpapers/moos-ui2-tide-master.png",
+                art / "wallpapers/moos-ui-graphite-frost-master-v3.png",
+                art / "wallpapers/moos-ui-tidal-frost-master-v2.png",
             ):
                 master.parent.mkdir(parents=True, exist_ok=True)
                 master.write_bytes(b"fixture-png")
@@ -717,7 +717,7 @@ class TestMoOSUI2(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn(
-            "MOOS_THEME_REV=9", migration,
+            "MOOS_THEME_REV=10", migration,
             "changed FrameSvgs need a new migration revision for existing users",
         )
         for stale_cache in (
@@ -727,6 +727,88 @@ class TestMoOSUI2(unittest.TestCase):
                 stale_cache, migration,
                 f"UI migration does not clear the {stale_cache} SVG cache",
             )
+
+    def test_every_theme_keeps_one_safe_kwin_frost_profile(self) -> None:
+        """Applying a family member must not silently weaken or overdrive blur."""
+        shipped_kwin = load_kconfig(ROOT / "system_files/etc/xdg/kwinrc")
+        expected_strength = shipped_kwin["Effect-blur"]["BlurStrength"]
+        expected_noise = shipped_kwin["Effect-blur"]["NoiseStrength"]
+        self.assertEqual(
+            expected_strength, "15",
+            "KWin's supported blur range tops out at 15; the shipped profile drifted",
+        )
+        self.assertEqual(expected_noise, "3")
+
+        defaults_files = sorted(
+            (SHARE / "plasma/look-and-feel").glob("org.moos.ui2*/contents/defaults")
+        )
+        self.assertEqual(
+            len(defaults_files), 16,
+            "the complete eight-pair MoOS UI family must share one frost profile",
+        )
+        for defaults_path in defaults_files:
+            defaults = load_kconfig(defaults_path)
+            with self.subTest(look_and_feel=defaults_path.parent.parent.name):
+                self.assertEqual(
+                    defaults["kwinrc][Effect-blur"]["BlurStrength"],
+                    expected_strength,
+                    "applying this theme weakens or overdrives the shared KWin frost",
+                )
+                self.assertEqual(
+                    defaults["kwinrc][Effect-blur"]["NoiseStrength"],
+                    expected_noise,
+                    "applying this theme changes the shared frost grain",
+                )
+
+    def test_family_wallpaper_exports_crop_without_distortion(self) -> None:
+        """Ultrawide and 16:10 exports must crop the master, never stretch it."""
+        source_path = ROOT / "artwork/generate_moos_themes.py"
+        source = source_path.read_text(encoding="utf-8")
+        wallpaper_builder = source.split("def build_wallpaper(", 1)[1].split(
+            "# ---------------------------------------------------------------- driver", 1
+        )[0]
+        self.assertIn("ImageOps.fit(", source)
+        self.assertIn("Image.Resampling.LANCZOS", source)
+        self.assertNotIn(
+            ".resize(",
+            wallpaper_builder,
+            "wallpaper packages/previews must all use crop-to-fill",
+        )
+
+        # A square painted into a 4:3 synthetic master must still be square
+        # after a 16:9 export. A direct resize would turn it into a 4:3 box.
+        from PIL import Image, ImageDraw
+
+        module_spec = __import__("importlib.util").util.spec_from_file_location(
+            "moos_family_wallpaper_test", source_path
+        )
+        self.assertIsNotNone(module_spec)
+        self.assertIsNotNone(module_spec.loader)
+        family_generator = __import__("importlib.util").util.module_from_spec(module_spec)
+        module_spec.loader.exec_module(family_generator)
+
+        master = Image.new("RGB", (400, 300), "black")
+        ImageDraw.Draw(master).rectangle((150, 100, 249, 199), fill="red")
+        fitted = family_generator.crop_to_fill(master, (160, 90))
+        self.assertEqual(fitted.size, (160, 90))
+        red_pixels = [
+            (x, y)
+            for y in range(fitted.height)
+            for x in range(fitted.width)
+            if fitted.getpixel((x, y))[0] > 200
+            and fitted.getpixel((x, y))[1] < 50
+            and fitted.getpixel((x, y))[2] < 50
+        ]
+        self.assertTrue(red_pixels)
+        xs, ys = zip(*red_pixels)
+        mark_width = max(xs) - min(xs) + 1
+        mark_height = max(ys) - min(ys) + 1
+        self.assertAlmostEqual(
+            mark_width / mark_height,
+            1.0,
+            delta=0.08,
+            msg="crop-to-fill changed a square artwork element's proportions",
+        )
 
     def test_theme_picker_is_glass_polished_and_hidpi_bounded(self) -> None:
         picker = (SHARE / "moos/theme-picker/main.qml").read_text(encoding="utf-8")
@@ -747,6 +829,79 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertGreaterEqual(
             picker.count("GradientStop"), 4,
             "the picker lost its layered, palette-driven glass finish",
+        )
+
+    def test_theme_picker_and_welcome_are_rtl_complete_and_route_safe(self) -> None:
+        picker = (SHARE / "moos/theme-picker/main.qml").read_text(encoding="utf-8")
+        self.assertIsNotNone(
+            re.search(
+            r"Kirigami\.ApplicationWindow\s*\{.*?"
+            r"LayoutMirroring\.enabled:\s*"
+            r"Qt\.application\.layoutDirection\s*===\s*Qt\.RightToLeft.*?"
+            r"LayoutMirroring\.childrenInherit:\s*true",
+                picker,
+                re.DOTALL,
+            ),
+            "the whole picker hierarchy must mirror in Arabic",
+        )
+
+        welcome = (SHARE / "moos/apps/welcome/main.qml").read_text(encoding="utf-8")
+        quick_model = welcome.split("WELCOME_QUICK_THEME_IDS_BEGIN", 1)[1].split(
+            "WELCOME_QUICK_THEME_IDS_END", 1
+        )[0]
+        quick_ids = set(re.findall(r'\{\s*id:\s*"([a-z-]+)"', quick_model))
+        expected_quick_ids = {
+            "dark",
+            "light",
+            "nova",
+            "amethyst",
+            "midnight",
+            "aurora",
+        }
+        self.assertEqual(quick_ids, expected_quick_ids)
+        self.assertIn("6 quick looks from a 16-theme family", welcome)
+        self.assertIn("6 إطلالات سريعة من عائلة تضم 16 ثيمًا", welcome)
+
+        router = (ROOT / "system_files/usr/bin/moos-open").read_text(encoding="utf-8")
+        direct_routes = dict(
+            re.findall(
+                r"theme/([a-z-]+)\)\s+setsid\s+moos-theme\s+([a-z-]+)",
+                router,
+            )
+        )
+        theme_command = (ROOT / "system_files/usr/bin/moos-theme").read_text(
+            encoding="utf-8"
+        )
+        for theme_id in sorted(quick_ids):
+            with self.subTest(welcome_theme=theme_id):
+                self.assertEqual(
+                    direct_routes.get(theme_id),
+                    theme_id,
+                    "a Welcome theme card has no matching fixed moos-open route",
+                )
+                self.assertRegex(
+                    theme_command,
+                    rf"(?m)^\s*{re.escape(theme_id)}\)",
+                    "moos-open points at a moos-theme command with no handler",
+                )
+
+        # The standalone picker discovers all installed members and uses the
+        # validated apply-lnf seam, so it needs no public moos:// route per ID.
+        installed_ids = {
+            path.name
+            for path in (SHARE / "plasma/look-and-feel").glob("org.moos.ui2*")
+            if path.is_dir()
+        }
+        self.assertEqual(len(installed_ids), 16)
+        self.assertTrue(
+            all(re.fullmatch(r"org\.moos\.ui2(?:\.[a-z0-9]+)*", item)
+                for item in installed_ids)
+        )
+        self.assertIn("moos-theme apply-lnf", picker)
+        self.assertIn("org.moos.ui2|org.moos.ui2.*)", theme_command)
+        self.assertIn(
+            '[ -d "/usr/share/plasma/look-and-feel/$target" ]',
+            theme_command,
         )
 
     def test_theme_picker_waits_for_the_real_switch_result(self) -> None:

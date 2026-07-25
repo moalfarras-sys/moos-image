@@ -18,8 +18,8 @@
 # Output (one per matrix variant, each tagged latest + YYYYMMDD, signed):
 #   ghcr.io/<owner>/moos         (base: ghcr.io/ublue-os/kinoite-main:44)
 #   ghcr.io/<owner>/moos-nvidia  (same kinoite-main base + layered NVIDIA open driver)
-# Both variants build from the same Containerfile via the BASE_IMAGE build-arg
-# (see MOOS_BUILD_WORKFLOW.md).
+# Both variants build from the same Containerfile and its one pinned base. The
+# build argument selects only an exact NVIDIA akmods stage, never another base.
 # =============================================================================
 
 name: Build MoOS image
@@ -104,6 +104,7 @@ jobs:
 
       - name: Repo gates
         run: |
+          bash -n build_files/build.sh
           python3 tests/verify_user_experience.py
           python3 tests/test_device_plan.py
           python3 tests/test_moai_do.py
@@ -114,6 +115,7 @@ jobs:
           python3 tests/test_moos_storectl.py
           python3 tests/test_moos_ui2.py
           python3 tests/test_moos_theme_safety.py
+          python3 tests/test_moos_visual_system.py
           python3 tests/test_fwupd_refresh_policy.py
           python3 artwork/verify_visuals.py
           # The store-chain gate also runs inside the image build (build.sh), where

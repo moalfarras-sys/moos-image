@@ -2,6 +2,9 @@
 [kdeglobals][General]
 ColorScheme=MoOSUI2ArenaLight
 
+[kdeglobals][KDE]
+widgetStyle=Breeze
+
 [plasmarc][Theme]
 name=MoOSUI2ArenaLight
 
@@ -17,15 +20,15 @@ Enable=true
 Theme=moos
 
 [kwinrc][org.kde.kdecoration2]
-library=org.kde.kwin.aurorae
+library=org.kde.kwin.aurorae.v2
 theme=__aurorae__svg__MoOSUI2ArenaLight
 
 [kwinrc][Plugins]
 blurEnabled=true
 
 [kwinrc][Effect-blur]
-BlurStrength=8
-NoiseStrength=2
+BlurStrength=15
+NoiseStrength=3
 
 [kcminputrc][Mouse]
 cursorTheme=MoOSDark

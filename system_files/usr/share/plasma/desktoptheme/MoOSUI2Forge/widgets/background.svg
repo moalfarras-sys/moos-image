@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="176" height="64" viewBox="0 0 176 64">
+  <!-- MoOS glass desktop-widget background with a rounded blur mask. -->
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Background { color: #131A22; }
+    .ColorScheme-Highlight { color: #3FB950; }
+    .ColorScheme-Text { color: #E6EDF3; }
+    .ColorScheme-ButtonBackground { color: #232E3A; }
+    .ColorScheme-ButtonText { color: #E6EDF3; }
+  </style>
+  <g id="topleft"><path d="M0 16A16 16 0 0 1 16 0V16H0Z" fill="#1A222C" fill-opacity="0.880"/><path d="M0 16A16 16 0 0 1 16 0V1A15 15 0 0 0 1 16Z" fill="#7EE787" fill-opacity="0.280"/></g>
+  <g id="topright"><path d="M40 0A16 16 0 0 1 56 16H40Z" fill="#1A222C" fill-opacity="0.880"/><path d="M40 0A16 16 0 0 1 56 16H55A15 15 0 0 0 40 1Z" fill="#7EE787" fill-opacity="0.280"/></g>
+  <g id="bottomleft"><path d="M0 40A16 16 0 0 0 16 56V40Z" fill="#1A222C" fill-opacity="0.880"/><path d="M0 40A16 16 0 0 0 16 56V55A15 15 0 0 1 1 40Z" fill="#7EE787" fill-opacity="0.174"/></g>
+  <g id="bottomright"><path d="M56 40A16 16 0 0 1 40 56V40Z" fill="#1A222C" fill-opacity="0.880"/><path d="M56 40A16 16 0 0 1 40 56V55A15 15 0 0 0 55 40Z" fill="#7EE787" fill-opacity="0.174"/></g>
+  <g id="top"><rect x="16" y="0" width="24" height="16" fill="#1A222C" fill-opacity="0.880"/><rect x="16" y="0" width="24" height="1" fill="#7EE787" fill-opacity="0.280"/></g>
+  <g id="bottom"><rect x="16" y="40" width="24" height="16" fill="#1A222C" fill-opacity="0.880"/><rect x="16" y="55" width="24" height="1" fill="#7EE787" fill-opacity="0.174"/></g>
+  <g id="left"><rect x="0" y="16" width="16" height="24" fill="#1A222C" fill-opacity="0.880"/><rect x="0" y="16" width="1" height="24" fill="#7EE787" fill-opacity="0.218"/></g>
+  <g id="right"><rect x="40" y="16" width="16" height="24" fill="#1A222C" fill-opacity="0.880"/><rect x="55" y="16" width="1" height="24" fill="#7EE787" fill-opacity="0.218"/></g>
+  <rect id="center" x="16" y="16" width="24" height="24" fill="#1A222C" fill-opacity="0.880"/>
+  <rect id="hint-top-margin" x="61" y="0" width="3" height="14" fill="none"/>
+  <rect id="hint-bottom-margin" x="61" y="16" width="3" height="14" fill="none"/>
+  <rect id="hint-left-margin" x="66" y="0" width="14" height="3" fill="none"/>
+  <rect id="hint-right-margin" x="66" y="5" width="14" height="3" fill="none"/>
+  <path id="mask-topleft" d="M80 16A16 16 0 0 1 96 0V16Z" fill="#000"/>
+  <rect id="mask-top" x="96" y="0" width="24" height="16" fill="#000"/>
+  <path id="mask-topright" d="M120 0A16 16 0 0 1 136 16H120Z" fill="#000"/>
+  <rect id="mask-left" x="80" y="16" width="16" height="24" fill="#000"/>
+  <rect id="mask-center" x="96" y="16" width="24" height="24" fill="#000"/>
+  <rect id="mask-right" x="120" y="16" width="16" height="24" fill="#000"/>
+  <path id="mask-bottomleft" d="M80 40A16 16 0 0 0 96 56V40Z" fill="#000"/>
+  <rect id="mask-bottom" x="96" y="40" width="24" height="16" fill="#000"/>
+  <path id="mask-bottomright" d="M136 40A16 16 0 0 1 120 56V40Z" fill="#000"/>
+  <rect id="hint-stretch-borders" x="152" y="0" width="4" height="4" fill="none"/>
+  <rect id="hint-top-inset" x="152" y="8" width="4" height="0.01" fill="none"/>
+  <rect id="hint-bottom-inset" x="152" y="12" width="4" height="0.01" fill="none"/>
+  <rect id="hint-left-inset" x="152" y="16" width="0.01" height="4" fill="none"/>
+  <rect id="hint-right-inset" x="156" y="16" width="0.01" height="4" fill="none"/>
+</svg>

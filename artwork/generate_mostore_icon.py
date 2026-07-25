@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""generate_mostore_icon.py — the Mo Store app icon.
+"""Compatibility entry point for the unified MoOS application-icon generator.
 
-A premium MoOS app icon: a graphite rounded-square tile with a soft turquoise
-inner glow and a clean turquoise shopping-bag mark carrying the MoOS spark.
-Rendered at every hicolor size the icon theme needs, deterministically.
+The canonical Mo Store vector now lives in ``generate_moos_app_icons.py`` with
+the rest of the first-party family. Keeping this historical command as a
+delegate prevents an old maintenance note from silently restoring a competing
+store icon.
 
 Usage: python generate_mostore_icon.py   # writes into system_files hicolor dirs
 """
 from pathlib import Path
+import subprocess
+import sys
 from PIL import Image, ImageDraw, ImageFilter
 
 REPO = Path(__file__).resolve().parent.parent
@@ -112,19 +115,10 @@ def render(px: int) -> Image.Image:
 
 
 def main():
-    for px in SIZES:
-        art = render(px)
-        for name in NAMES:
-            out = HICOLOR / f"{px}x{px}" / "apps" / f"{name}.png"
-            out.parent.mkdir(parents=True, exist_ok=True)
-            art.save(out)
-            print(f"wrote {out}")
-    # A flattened preview for review.
-    prev = REPO / "artwork" / "mostore-icon-preview.png"
-    bg = Image.new("RGBA", (256, 256), (28, 34, 38, 255))
-    bg.alpha_composite(render(256))
-    bg.convert("RGB").save(prev)
-    print(f"wrote {prev}")
+    subprocess.run(
+        [sys.executable, str(REPO / "artwork/generate_moos_app_icons.py")],
+        check=True,
+    )
 
 
 if __name__ == "__main__":

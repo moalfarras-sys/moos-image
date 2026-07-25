@@ -1936,7 +1936,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=21" in apply_theme_code, "MoOS UI2 visual schema must be revision 21")
+require("THEME_REV=22" in apply_theme_code, "MoOS visual schema must be revision 22")
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
@@ -2299,7 +2299,7 @@ require("target_lnf()" in apply_theme_code and "theme_intact()" in apply_theme_c
         "the self-heal must accept EITHER MoOS look and repair to the one the user chose")
 
 ui_migrate = read("system_files/usr/bin/moos-ui-migrate")
-require("MOOS_THEME_REV=9" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
+require("MOOS_THEME_REV=10" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
         "UI cache and Mo AI migrations must be explicitly revisioned")
 require('rm -rf "$HOME/.cache"' not in ui_migrate,
         "UI migration must never erase the whole user cache")
@@ -2360,7 +2360,7 @@ require("loginMode=emptySession" in ksmserverrc,
         "and the screen capture at once, and kwin SIGSEGV'd on the VRAM they asked for")
 
 kwinrc = read("system_files/etc/xdg/kwinrc")
-require("library=org.kde.kwin.aurorae" in kwinrc,
+require("library=org.kde.kwin.aurorae.v2" in kwinrc,
         "KWin must load the Aurorae engine, not Breeze")
 require("theme=__aurorae__svg__MoOSUI2" in kwinrc,
         "KWin must use the MoOS UI2 decoration; the __aurorae__svg__ prefix is "
@@ -3020,6 +3020,21 @@ for surface, text in active_selectors.items():
 build = read("build_files/build.sh")
 require("plymouth-set-default-theme moos" in build,
         "image build must select MoOS Plymouth")
+
+containerfile = read("Containerfile")
+require(
+    'io.artifacthub.package.readme-url="https://raw.githubusercontent.com/'
+    'moalfarras-sys/moos-image/main/README.md"' in containerfile,
+    "the published image must override the base image's Artifact Hub README "
+    "with MoOS-owned metadata",
+)
+require(
+    'io.artifacthub.package.logo-url="https://raw.githubusercontent.com/'
+    'moalfarras-sys/moos-image/main/system_files/usr/share/pixmaps/moos-logo.png"'
+    in containerfile,
+    "the published image must override the base image's Artifact Hub logo "
+    "with the MoOS mark",
+)
 require("grep -qx 'Theme=moos' /etc/plymouth/plymouthd.conf" in build,
         "image build must fail if the active Plymouth selector is not MoOS")
 require("final initramfs contains the Fedora BGRT/spinner branding path" in build,

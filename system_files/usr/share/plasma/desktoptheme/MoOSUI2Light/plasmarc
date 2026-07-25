@@ -2,7 +2,7 @@
 # Each UI2 variant owns a complete fixed-colour SVG suite. Light never falls
 # back to UI2 Dark; only missing upstream paths use the matching Breeze side.
 [Settings]
-FallbackTheme=default
+FallbackTheme=breeze-light
 
 [Wallpaper]
 defaultWallpaperTheme=MoOSUI2Tide

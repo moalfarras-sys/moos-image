@@ -2,6 +2,15 @@
 # MoOS Theme Picker — launches the Kirigami chooser (applies via `moos-theme`).
 set -euo pipefail
 QML="/usr/share/moos/theme-picker/main.qml"
+
+# Give KWin/Plasma the real desktop identity so the task switcher, dock and
+# notifications use the owned MoOS Themes icon. A bare qml runner advertises
+# itself as the generic Qt runtime and breaks the otherwise coherent app set.
+if [ -x /usr/bin/moos-qml-shell ]; then
+    exec /usr/bin/moos-qml-shell \
+        --app-id org.moos.themepicker --icon moos-themes --qml "$QML" -- "$@"
+fi
+
 for bin in qml-qt6 qml6 qml; do
     if command -v "$bin" >/dev/null 2>&1; then
         exec "$bin" "$QML" "$@"

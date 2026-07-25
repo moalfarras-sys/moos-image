@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="174" height="44" viewBox="0 0 174 44">
+  <!-- MoOS slider groove, accent progress and scalable focus handles. -->
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Background { color: #172236; }
+    .ColorScheme-Highlight { color: #3B82F6; }
+    .ColorScheme-Text { color: #ECF2FB; }
+    .ColorScheme-ButtonBackground { color: #263651; }
+    .ColorScheme-ButtonText { color: #ECF2FB; }
+  </style>
+  <g id="groove-topleft"><path d="M0 3A3 3 0 0 1 3 0V3H0Z" fill="#2C3D5A" fill-opacity="0.440"/><path d="M0 3A3 3 0 0 1 3 0V1A2 2 0 0 0 1 3Z" fill="#2C3D5A" fill-opacity="0.180"/></g>
+  <g id="groove-topright"><path d="M17 0A3 3 0 0 1 20 3H17Z" fill="#2C3D5A" fill-opacity="0.440"/><path d="M17 0A3 3 0 0 1 20 3H19A2 2 0 0 0 17 1Z" fill="#2C3D5A" fill-opacity="0.180"/></g>
+  <g id="groove-bottomleft"><path d="M0 17A3 3 0 0 0 3 20V17Z" fill="#2C3D5A" fill-opacity="0.440"/><path d="M0 17A3 3 0 0 0 3 20V19A2 2 0 0 1 1 17Z" fill="#2C3D5A" fill-opacity="0.112"/></g>
+  <g id="groove-bottomright"><path d="M20 17A3 3 0 0 1 17 20V17Z" fill="#2C3D5A" fill-opacity="0.440"/><path d="M20 17A3 3 0 0 1 17 20V19A2 2 0 0 0 19 17Z" fill="#2C3D5A" fill-opacity="0.112"/></g>
+  <g id="groove-top"><rect x="3" y="0" width="14" height="3" fill="#2C3D5A" fill-opacity="0.440"/><rect x="3" y="0" width="14" height="1" fill="#2C3D5A" fill-opacity="0.180"/></g>
+  <g id="groove-bottom"><rect x="3" y="17" width="14" height="3" fill="#2C3D5A" fill-opacity="0.440"/><rect x="3" y="19" width="14" height="1" fill="#2C3D5A" fill-opacity="0.112"/></g>
+  <g id="groove-left"><rect x="0" y="3" width="3" height="14" fill="#2C3D5A" fill-opacity="0.440"/><rect x="0" y="3" width="1" height="14" fill="#2C3D5A" fill-opacity="0.140"/></g>
+  <g id="groove-right"><rect x="17" y="3" width="3" height="14" fill="#2C3D5A" fill-opacity="0.440"/><rect x="19" y="3" width="1" height="14" fill="#2C3D5A" fill-opacity="0.140"/></g>
+  <rect id="groove-center" x="3" y="3" width="14" height="14" fill="#2C3D5A" fill-opacity="0.440"/>
+  <g id="groove-highlight-topleft"><path d="M34 3A3 3 0 0 1 37 0V3H34Z" fill="#3B82F6" fill-opacity="0.940"/><path d="M34 3A3 3 0 0 1 37 0V1A2 2 0 0 0 35 3Z" fill="#93C5FD" fill-opacity="0.620"/></g>
+  <g id="groove-highlight-topright"><path d="M51 0A3 3 0 0 1 54 3H51Z" fill="#3B82F6" fill-opacity="0.940"/><path d="M51 0A3 3 0 0 1 54 3H53A2 2 0 0 0 51 1Z" fill="#93C5FD" fill-opacity="0.620"/></g>
+  <g id="groove-highlight-bottomleft"><path d="M34 17A3 3 0 0 0 37 20V17Z" fill="#3B82F6" fill-opacity="0.940"/><path d="M34 17A3 3 0 0 0 37 20V19A2 2 0 0 1 35 17Z" fill="#93C5FD" fill-opacity="0.384"/></g>
+  <g id="groove-highlight-bottomright"><path d="M54 17A3 3 0 0 1 51 20V17Z" fill="#3B82F6" fill-opacity="0.940"/><path d="M54 17A3 3 0 0 1 51 20V19A2 2 0 0 0 53 17Z" fill="#93C5FD" fill-opacity="0.384"/></g>
+  <g id="groove-highlight-top"><rect x="37" y="0" width="14" height="3" fill="#3B82F6" fill-opacity="0.940"/><rect x="37" y="0" width="14" height="1" fill="#93C5FD" fill-opacity="0.620"/></g>
+  <g id="groove-highlight-bottom"><rect x="37" y="17" width="14" height="3" fill="#3B82F6" fill-opacity="0.940"/><rect x="37" y="19" width="14" height="1" fill="#93C5FD" fill-opacity="0.384"/></g>
+  <g id="groove-highlight-left"><rect x="34" y="3" width="3" height="14" fill="#3B82F6" fill-opacity="0.940"/><rect x="34" y="3" width="1" height="14" fill="#93C5FD" fill-opacity="0.484"/></g>
+  <g id="groove-highlight-right"><rect x="51" y="3" width="3" height="14" fill="#3B82F6" fill-opacity="0.940"/><rect x="53" y="3" width="1" height="14" fill="#93C5FD" fill-opacity="0.484"/></g>
+  <rect id="groove-highlight-center" x="37" y="3" width="14" height="14" fill="#3B82F6" fill-opacity="0.940"/>
+  <g id="horizontal-slider-handle"><circle cx="84" cy="10" r="8" fill="#1D2A42" stroke="#3B82F6" stroke-width="2"/></g>
+  <g id="horizontal-slider-hover"><circle cx="104" cy="10" r="9" fill="#263651" stroke="#93C5FD" stroke-width="2"/></g>
+  <g id="horizontal-slider-focus"><circle cx="126" cy="10" r="9" fill="#1D2A42" stroke="#93C5FD" stroke-width="2.5"/></g>
+  <g id="vertical-slider-handle"><circle cx="84" cy="32" r="8" fill="#1D2A42" stroke="#3B82F6" stroke-width="2"/></g>
+  <g id="vertical-slider-hover"><circle cx="104" cy="32" r="9" fill="#263651" stroke="#93C5FD" stroke-width="2"/></g>
+  <g id="vertical-slider-focus"><circle cx="126" cy="32" r="9" fill="#1D2A42" stroke="#93C5FD" stroke-width="2.5"/></g>
+  <rect id="hint-handle-size" x="142" width="20" height="20" fill="none"/>
+  <rect id="hint-stretch-borders" x="166" width="4" height="4" fill="none"/>
+</svg>

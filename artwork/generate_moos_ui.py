@@ -186,16 +186,16 @@ def main() -> None:
         panel_text = panel_text.replace(old, new)
     light_panel.write_text(panel_text, encoding="utf-8")
 
-    # First-party app icons. The SVG is the master; PNGs are deliberate hicolor
-    # fallbacks for Plasma scale factors and third-party desktop readers.
-    icon_sources = {
-        "moos-moai": ROOT / "artwork/moos-ui/icons/moos-moai.svg",
-        "moos-pc-remote": ROOT / "artwork/moos-ui/icons/moos-pc-remote.svg",
-    }
-    for name, source in icon_sources.items():
-        shutil.copy2(source, SHARE / f"icons/hicolor/scalable/apps/{name}.svg")
-        for size in (16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512):
-            render(source, SHARE / f"icons/hicolor/{size}x{size}/apps/{name}.png", size, size)
+    # First-party app icons are shared across visual generations and owned by
+    # generate_moos_app_icons.py. A legacy UI1 regeneration must never restore
+    # the retired Mo AI/Remote artwork over the unified family.
+    for name in ("moos-moai", "moos-pc-remote"):
+        source = SHARE / f"icons/hicolor/scalable/apps/{name}.svg"
+        if not source.is_file():
+            raise SystemExit(
+                f"missing shared first-party icon {source}; "
+                "run artwork/generate_moos_app_icons.py first"
+            )
     remote_512 = SHARE / "icons/hicolor/512x512/apps/moos-pc-remote.png"
     shutil.copy2(remote_512, ROOT / "moremote/Logo.png")
     # Compatibility for an old user-local desktop entry carrying the retired icon name.

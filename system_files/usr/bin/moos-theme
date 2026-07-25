@@ -114,7 +114,7 @@ apply_desktop_scene() {
 }
 
 load_profile() {
-    local lnf="$1"
+    local lnf="$1" konsole_profile_path
     case "$lnf" in
         "$LIGHT_LNF")
             scheme=MoOSUI2Light
@@ -126,7 +126,6 @@ load_profile() {
             deco=__aurorae__svg__MoOSUI2Light
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Tide
             wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
-            konsole_profile_name="MoOS UI2 Light"
             prefer_dark=false
             label="MoOS: فاتح | light"
             ;;
@@ -140,13 +139,12 @@ load_profile() {
             deco=__aurorae__svg__MoOSUI2
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
-            konsole_profile_name="MoOS UI2"
             prefer_dark=true
             label="MoOS: داكن | dark"
             ;;
         "$NOVA_LNF")
             scheme=MoOSUI2Nova; style=MoOSUI2Nova
-            konsole_profile=MoOSUI2Nova.profile; konsole_profile_name="MoOS Nova"
+            konsole_profile=MoOSUI2Nova.profile
             icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-nova.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Nova
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Nova
@@ -155,7 +153,7 @@ load_profile() {
             ;;
         "$AMETHYST_LNF")
             scheme=MoOSUI2Amethyst; style=MoOSUI2Amethyst
-            konsole_profile=MoOSUI2Amethyst.profile; konsole_profile_name="MoOS Amethyst"
+            konsole_profile=MoOSUI2Amethyst.profile
             icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-amethyst.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Amethyst
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Amethyst
@@ -164,7 +162,7 @@ load_profile() {
             ;;
         "$MIDNIGHT_LNF")
             scheme=MoOSUI2Midnight; style=MoOSUI2Midnight
-            konsole_profile=MoOSUI2Midnight.profile; konsole_profile_name="MoOS Midnight"
+            konsole_profile=MoOSUI2Midnight.profile
             icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-midnight.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Midnight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Midnight
@@ -173,7 +171,7 @@ load_profile() {
             ;;
         "$AURORA_LNF")
             scheme=MoOSUI2Aurora; style=MoOSUI2Aurora
-            konsole_profile=MoOSUI2Aurora.profile; konsole_profile_name="MoOS Aurora"
+            konsole_profile=MoOSUI2Aurora.profile
             icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-aurora.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Aurora
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Aurora
@@ -182,7 +180,7 @@ load_profile() {
             ;;
         "$NOVA_LIGHT_LNF")
             scheme=MoOSUI2NovaLight; style=MoOSUI2NovaLight
-            konsole_profile=MoOSUI2NovaLight.profile; konsole_profile_name="MoOS Nova Light"
+            konsole_profile=MoOSUI2NovaLight.profile
             icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-nova-light.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2NovaLight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2NovaLight
@@ -191,7 +189,7 @@ load_profile() {
             ;;
         "$AMETHYST_LIGHT_LNF")
             scheme=MoOSUI2AmethystLight; style=MoOSUI2AmethystLight
-            konsole_profile=MoOSUI2AmethystLight.profile; konsole_profile_name="MoOS Amethyst Light"
+            konsole_profile=MoOSUI2AmethystLight.profile
             icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-amethyst-light.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2AmethystLight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2AmethystLight
@@ -200,7 +198,7 @@ load_profile() {
             ;;
         "$AURORA_LIGHT_LNF")
             scheme=MoOSUI2AuroraLight; style=MoOSUI2AuroraLight
-            konsole_profile=MoOSUI2AuroraLight.profile; konsole_profile_name="MoOS Aurora Light"
+            konsole_profile=MoOSUI2AuroraLight.profile
             icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-aurora-light.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2AuroraLight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2AuroraLight
@@ -209,7 +207,7 @@ load_profile() {
             ;;
         "$DAYLIGHT_LNF")
             scheme=MoOSUI2Daylight; style=MoOSUI2Daylight
-            konsole_profile=MoOSUI2Daylight.profile; konsole_profile_name="MoOS Daylight"
+            konsole_profile=MoOSUI2Daylight.profile
             icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-daylight.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2Daylight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Daylight
@@ -218,7 +216,7 @@ load_profile() {
             ;;
         "$GAMING_LNF")
             scheme=MoOSUI2Arena; style=MoOSUI2Arena
-            konsole_profile=MoOSUI2Arena.profile; konsole_profile_name="MoOS Arena"
+            konsole_profile=MoOSUI2Arena.profile
             icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-gaming.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Arena
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Arena
@@ -227,7 +225,7 @@ load_profile() {
             ;;
         "$DEV_LNF")
             scheme=MoOSUI2Forge; style=MoOSUI2Forge
-            konsole_profile=MoOSUI2Forge.profile; konsole_profile_name="MoOS Forge"
+            konsole_profile=MoOSUI2Forge.profile
             icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-dev.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Forge
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Forge
@@ -236,7 +234,7 @@ load_profile() {
             ;;
         "$STUDY_LNF")
             scheme=MoOSUI2Scholar; style=MoOSUI2Scholar
-            konsole_profile=MoOSUI2Scholar.profile; konsole_profile_name="MoOS Scholar"
+            konsole_profile=MoOSUI2Scholar.profile
             icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-study.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Scholar
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Scholar
@@ -245,7 +243,7 @@ load_profile() {
             ;;
         "$GAMING_LIGHT_LNF")
             scheme=MoOSUI2ArenaLight; style=MoOSUI2ArenaLight
-            konsole_profile=MoOSUI2ArenaLight.profile; konsole_profile_name="MoOS Arena Light"
+            konsole_profile=MoOSUI2ArenaLight.profile
             icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-gaming-light.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2ArenaLight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2ArenaLight
@@ -254,7 +252,7 @@ load_profile() {
             ;;
         "$DEV_LIGHT_LNF")
             scheme=MoOSUI2ForgeLight; style=MoOSUI2ForgeLight
-            konsole_profile=MoOSUI2ForgeLight.profile; konsole_profile_name="MoOS Forge Light"
+            konsole_profile=MoOSUI2ForgeLight.profile
             icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-dev-light.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2ForgeLight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2ForgeLight
@@ -263,7 +261,7 @@ load_profile() {
             ;;
         "$STUDY_LIGHT_LNF")
             scheme=MoOSUI2ScholarLight; style=MoOSUI2ScholarLight
-            konsole_profile=MoOSUI2ScholarLight.profile; konsole_profile_name="MoOS Scholar Light"
+            konsole_profile=MoOSUI2ScholarLight.profile
             icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-study-light.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2ScholarLight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2ScholarLight
@@ -275,6 +273,33 @@ load_profile() {
             return 2
             ;;
     esac
+
+    # Konsole's D-Bus setProfile method takes the user-visible [General] Name,
+    # not the profile filename. Read the shipped profile instead of duplicating
+    # 16 names here: profile metadata was renamed to "MoOS UI …" while this
+    # switcher kept the old names, so every running terminal ignored retinting.
+    konsole_profile_path="/usr/share/konsole/$konsole_profile"
+    if [ ! -r "$konsole_profile_path" ]; then
+        echo "moos-theme: missing Konsole profile: $konsole_profile_path" >&2
+        return 1
+    fi
+    konsole_profile_name="$(
+        awk '
+            /^\[[^]]+\]$/ {
+                in_general = ($0 == "[General]")
+                next
+            }
+            in_general && /^Name=/ {
+                sub(/^Name=/, "")
+                print
+                exit
+            }
+        ' "$konsole_profile_path"
+    )"
+    if [ -z "$konsole_profile_name" ]; then
+        echo "moos-theme: Konsole profile has no [General] Name: $konsole_profile_path" >&2
+        return 1
+    fi
 }
 
 run_with_timeout() {
@@ -397,6 +422,14 @@ apply_supplements() {
         gsettings set org.gnome.desktop.interface color-scheme \
             "$([ "$prefer_dark" = true ] && echo prefer-dark || echo prefer-light)" \
             2>/dev/null || supplement_failed=1
+        gsettings set org.gnome.desktop.interface icon-theme "$icons" \
+            2>/dev/null || supplement_failed=1
+        gsettings set org.gnome.desktop.interface cursor-theme "$cursor" \
+            2>/dev/null || supplement_failed=1
+        gsettings set org.gnome.desktop.interface font-name 'IBM Plex Sans 10' \
+            2>/dev/null || supplement_failed=1
+        gsettings set org.gnome.desktop.interface monospace-font-name 'JetBrains Mono 10' \
+            2>/dev/null || supplement_failed=1
     else
         supplement_failed=1
     fi
@@ -456,6 +489,7 @@ auto_wallpapers_complete() {
 
 automatic_supplements_complete() {
     local expected_color lock_plugin lock_image konsole_actual gtk_actual ini xs
+    local icon_actual cursor_actual font_actual monospace_actual
 
     [ "$(current)" = "$lnf" ] || return 1
     auto_wallpapers_complete "$wallpaper_package" || return 1
@@ -476,6 +510,18 @@ automatic_supplements_complete() {
     gtk_actual="$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null \
         | tr -d "'[:space:]")"
     [ "$gtk_actual" = "$expected_color" ] || return 1
+    icon_actual="$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null \
+        | sed -e "s/^'//" -e "s/'$//")"
+    cursor_actual="$(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null \
+        | sed -e "s/^'//" -e "s/'$//")"
+    font_actual="$(gsettings get org.gnome.desktop.interface font-name 2>/dev/null \
+        | sed -e "s/^'//" -e "s/'$//")"
+    monospace_actual="$(gsettings get org.gnome.desktop.interface monospace-font-name \
+        2>/dev/null | sed -e "s/^'//" -e "s/'$//")"
+    [ "$icon_actual" = "$icons" ] || return 1
+    [ "$cursor_actual" = "$cursor" ] || return 1
+    [ "$font_actual" = "IBM Plex Sans 10" ] || return 1
+    [ "$monospace_actual" = "JetBrains Mono 10" ] || return 1
 
     for ini in "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/settings.ini" \
                "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"; do
@@ -529,7 +575,7 @@ apply() {
         kwriteconfig6 --file kdeglobals --group General --key ColorScheme "$scheme"
         kwriteconfig6 --file plasmarc --group Theme --key name "$style"
         kwriteconfig6 --file kdeglobals --group Icons --key Theme "$icons"
-        kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae
+        kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae.v2
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "$deco"
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft XIA
         kwriteconfig6 --file ksplashrc --group KSplash --key Theme "$lnf"
@@ -887,7 +933,7 @@ EOF
             "$GAMING_LIGHT_LNF")   echo "MoOS Arena Light     ($GAMING_LIGHT_LNF)" ;;
             "$DEV_LIGHT_LNF")      echo "MoOS Forge Light     ($DEV_LIGHT_LNF)" ;;
             "$STUDY_LIGHT_LNF")    echo "MoOS Scholar Light   ($STUDY_LIGHT_LNF)" ;;
-            "")               echo "غير محدّد | unset (default: MoOS UI2)" ;;
+            "")               echo "غير محدّد | unset (default: MoOS UI)" ;;
             *)                echo "ليس MoOS | not a MoOS theme: $active" ;;
         esac
         ;;

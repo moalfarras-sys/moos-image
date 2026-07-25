@@ -23,7 +23,7 @@
 > | **Clean caches** | `rpm-ostree cleanup -m` · `journalctl --user --vacuum-time=2d` · `podman image prune -f` · `rm -rf ~/.cache/thumbnails/*` |
 > | **Install a program** | Flatpak (no reboot): `flatpak install -y flathub <app-id>`. Layered rpm: `rpm-ostree install <pkg>` (needs reboot). |
 > | **Remove a program** | `flatpak uninstall -y <app-id>` · `rpm-ostree uninstall <pkg>` |
-> | **Update the system** | `rpm-ostree upgrade` (reboot to apply) |
+> | **Update the system** | `moai-do update` — resolves and stages the latest immutable signed digest; reboot from the MoOS power UI to apply |
 >
 > Reply in the user's language. Keep replies short; do the work, then confirm what actually happened.
 
@@ -78,7 +78,7 @@ Do not remove a guard because it is inconvenient. If a guard fires, it is tellin
 |---|---|
 | Base | Fedora Atomic (bootc/OSTree) + KDE Plasma 6, from `ghcr.io/ublue-os/kinoite-main:44` |
 | Editions | `moos` (generic) and `moos-nvidia` (**same base**, driver layered on) |
-| Update path | `rpm-ostree upgrade` → applies on reboot; previous deployment is kept for rollback |
+| Update path | `moai-do update` → resolves and stages a signed immutable digest; applies on reboot and keeps the previous deployment for rollback |
 | Signing | every image is cosign-signed; the installed system **enforces** the signature |
 | ISO | built in CI by `build-iso.yml` (Titanoboa), published as a workflow artifact |
 | Identity | MoOS/Nova only on every user-visible surface — see `verify_image_experience.py` |
@@ -97,6 +97,9 @@ These are not conventions, they are gates. The image build fails if you break th
   user-visible MoOS surface reverts to another distribution's branding.
 - **Every shipped QML app must actually load.** A syntax check is not enough; the build starts
   each app and fails if it exits early.
+- **Qt WebEngine must have Arabic and English spell-check dictionaries.** The RPM scriptlet's
+  converter invocation still fails silently in a build container, so `build.sh` converts the
+  Hunspell inputs explicitly and fails unless both `en_US.bdic` and an Arabic `.bdic` exist.
 - **Remote control must ship the PipeWire path.** If `mo-remote-portal.py` is missing or is not
   the PipeWire one, the build fails — the old screenshot-per-frame path was ~1 fps.
 
@@ -281,9 +284,6 @@ Being honest about this list is more useful than shrinking it.
   answers. The kickstart verifies the signature at install time (and therefore deploys a
   signed origin, so updates stay verified for life); if an install fails with a signature
   error, that is still where to look.
-- **Qt WebEngine spell-check dictionaries are empty.** `qwebengine_convert_dict` crashes inside
-  the build container, so `/usr/share/qt6/qtwebengine_dictionaries/` ships with zero `.bdic`
-  files.
 - **Mo AI has no model until the user downloads one.** The chat is real and the local/cloud
   routing is real, but a fresh install cannot answer until the one-time model download is
   accepted.

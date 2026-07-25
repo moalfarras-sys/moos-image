@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="54" height="16" viewBox="0 0 54 16">
+  <!-- MoOS directional glyphs with RTL-safe symmetric geometry. -->
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Background { color: #0A0A0C; }
+    .ColorScheme-Highlight { color: #22D3EE; }
+    .ColorScheme-Text { color: #F5F7FA; }
+    .ColorScheme-ButtonBackground { color: #1C1C22; }
+    .ColorScheme-ButtonText { color: #F5F7FA; }
+  </style>
+  <path id="up-arrow" d="M2 9L8 3l6 6-1.8 1.8L8 6.6l-4.2 4.2Z" fill="#F5F7FA"/>
+  <path id="right-arrow" d="M19 2l6 6-6 6-1.8-1.8L21.4 8l-4.2-4.2Z" fill="#F5F7FA"/>
+  <path id="down-arrow" d="M34 7.2L38.2 3 40 4.8l-6 6-6-6L29.8 3Z" fill="#F5F7FA"/>
+  <path id="left-arrow" d="M49 2l1.8 1.8L46.6 8l4.2 4.2L49 14l-6-6Z" fill="#F5F7FA"/>
+</svg>
