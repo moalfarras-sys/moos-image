@@ -1,7 +1,7 @@
 {
     "KPlugin": {
         "Id": "org.moos.ui2.study",
-        "Name": "MoOS Scholar",
+        "Name": "MoOS UI · Scholar",
         "Description": "للدراسة: دفء كهرماني وسيج هادئ، مريح للعين | Study: amber warmth + calm sage, easy on the eyes",
         "Authors": [
             {
@@ -11,7 +11,7 @@
         "Version": "2.0.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/moalfarras-sys/moos-image",
-        "Name[ar]": "MoOS Scholar"
+        "Name[ar]": "MoOS UI · Scholar"
     },
     "KPackageStructure": "Plasma/LookAndFeel",
     "X-Plasma-APIVersion": "2"

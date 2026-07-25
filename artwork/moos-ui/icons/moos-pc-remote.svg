@@ -1,32 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Mo PC Remote phone-to-display gesture. Original MoOS artwork, © 2026 Moalfarras. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Original MoOS adaptive application icon: moos-pc-remote. -->
   <defs>
-    <linearGradient id="plate" x1="128" y1="100" x2="902" y2="918" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#173B42"/><stop offset=".52" stop-color="#11182A"/><stop offset="1" stop-color="#0A0D17"/>
+    <linearGradient id="plate" x1="128" y1="104" x2="900" y2="934" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#304348"/>
+      <stop offset=".44" stop-color="#1D2B2F"/>
+      <stop offset="1" stop-color="#10181B"/>
     </linearGradient>
-    <linearGradient id="device" x1="256" y1="228" x2="794" y2="796" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#6EE7D2"/><stop offset=".54" stop-color="#6D7CFF"/><stop offset="1" stop-color="#C084FC"/>
+    <linearGradient id="accent" x1="300" y1="280" x2="744" y2="744" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4ED7C8"/>
+      <stop offset=".55" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#A8F1E8"/>
     </linearGradient>
-    <linearGradient id="gesture" x1="302" y1="754" x2="716" y2="392" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FB923C"/><stop offset=".18" stop-color="#6EE7D2"/><stop offset="1" stop-color="#B89BFF"/>
-    </linearGradient>
-    <radialGradient id="touch"><stop stop-color="#FFE0C2"/><stop offset=".45" stop-color="#FB923C"/><stop offset="1" stop-color="#C2410C"/></radialGradient>
+    <radialGradient id="glow" cx=".22" cy=".12" r=".9">
+      <stop stop-color="#A8F1E8" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#A8F1E8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="28" stdDeviation="30" flood-color="#071012" flood-opacity=".50"/>
+    </filter>
   </defs>
-  <rect x="84" y="84" width="856" height="856" rx="226" fill="url(#plate)"/>
-  <rect x="98" y="98" width="828" height="828" rx="212" fill="none" stroke="#B7F7EB" stroke-opacity=".15" stroke-width="14"/>
-  <!-- Monitor remains readable as one loop even at 16px. -->
-  <rect x="278" y="250" width="526" height="390" rx="74" fill="#10162A" stroke="url(#device)" stroke-width="54"/>
-  <path d="M476 650H608L632 746H452L476 650Z" fill="url(#device)"/>
-  <rect x="390" y="724" width="304" height="58" rx="29" fill="url(#device)"/>
-  <!-- Phone. -->
-  <rect x="190" y="516" width="190" height="312" rx="61" fill="#101A27" stroke="#6EE7D2" stroke-width="42"/>
-  <rect x="252" y="555" width="66" height="13" rx="7" fill="#A7F3E4" fill-opacity=".72"/>
-  <!-- A single flowing gesture ties phone, screen and pointer together. -->
-  <path d="M286 742C353 676 398 627 468 594C528 566 571 522 615 461" fill="none" stroke="url(#gesture)" stroke-width="58" stroke-linecap="round"/>
-  <circle cx="286" cy="742" r="56" fill="url(#touch)"/>
-  <circle cx="286" cy="742" r="78" fill="none" stroke="#FB923C" stroke-opacity=".24" stroke-width="18"/>
-  <!-- Pointer head, deliberately broad for the dock. -->
-  <path d="M597 376L739 504L659 517L701 600L645 629L605 548L548 607L540 397Z" fill="#EEE7F0" stroke="#6EE7D2" stroke-width="18" stroke-linejoin="round"/>
-  <circle cx="615" cy="461" r="42" fill="#FB923C" fill-opacity=".92"/>
+  <rect x="72" y="72" width="880" height="880" rx="232" fill="url(#plate)" filter="url(#shadow)"/>
+  <rect x="88" y="88" width="848" height="848" rx="216" fill="url(#glow)"/>
+  <rect x="86" y="86" width="852" height="852" rx="218" fill="none" stroke="url(#accent)" stroke-width="12" stroke-opacity=".68"/>
+  <path d="M178 246c126-120 292-146 442-96" fill="none" stroke="#EAF8F6" stroke-opacity=".11" stroke-width="18" stroke-linecap="round"/>
+
+  <rect x="278" y="324" width="388" height="286" rx="58" fill="none" stroke="url(#accent)" stroke-width="38"/>
+  <path d="M422 660h100l18 64H402l20-64Z" fill="#78AFFF"/>
+  <rect x="606" y="410" width="150" height="326" rx="48" fill="#18262B" stroke="#EAF8F6" stroke-width="28"/>
+  <path d="M352 526c78-76 136 78 222 0 62-56 102-38 142-10"
+        fill="none" stroke="#4ED7C8" stroke-width="32" stroke-linecap="round"/>
+  <circle cx="700" cy="654" r="13" fill="#4ED7C8"/>
 </svg>

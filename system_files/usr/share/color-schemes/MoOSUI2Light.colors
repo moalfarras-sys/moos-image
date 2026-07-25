@@ -134,7 +134,7 @@ ForegroundVisited=11,105,101
 [General]
 AccentColor=0,109,103
 ColorScheme=MoOSUI2Light
-Name=MoOS UI2 Light
+Name=MoOS UI Light
 shadeSortColumn=true
 
 [KDE]

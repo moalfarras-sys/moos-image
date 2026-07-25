@@ -1,7 +1,7 @@
 # MoOS system-wide KDE defaults
 # New users inherit these unless they change them in System Settings.
-# MoOS UI2 defaults are supplied by the org.moos.ui2 Global Theme. MoOS UI1
-# remains installed as the explicit rollback and Nova still provides the icons.
+# MoOS UI defaults are supplied by the org.moos.ui2 Global Theme. There is no
+# separate rollback theme installed on disk; icons come from MoOSUI2 ([Icons] below).
 #
 # Font values use the Qt 6 QFont::toString() 16-field format that Plasma 6
 # writes (family,pointSize,pixelSize,styleHint,weight,style,underline,
@@ -45,6 +45,11 @@ Theme=MoOSUI2
 # sunset is a choice, not a default. `moos-theme auto` turns it on.
 [KDE]
 AutomaticLookAndFeel=false
+# Ship the Qt/KDE widget style explicitly instead of leaning on KDE's implicit
+# Breeze fallback: Breeze is the QStyle that paints the MoOS KColorScheme (teal
+# accent) onto Dolphin/Kate/Gwenview/System Settings. On a Fedora-derived base an
+# unexpected Fusion/other default would otherwise bypass the MoOS look.
+widgetStyle=Breeze
 LookAndFeelPackage=org.moos.ui2
 DefaultDarkLookAndFeel=org.moos.ui2
 DefaultLightLookAndFeel=org.moos.ui2.light

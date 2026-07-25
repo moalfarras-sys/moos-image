@@ -1,32 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Mo PC Remote instant touch stream. Original MoOS artwork, © 2026 Moalfarras. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Original MoOS adaptive application icon: moos-pc-remote. -->
   <defs>
-    <linearGradient id="screen" x1="160" y1="180" x2="780" y2="780" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#263FA8"/><stop offset=".52" stop-color="#182065"/><stop offset="1" stop-color="#100D35"/>
+    <linearGradient id="plate" x1="128" y1="104" x2="900" y2="934" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#304348"/>
+      <stop offset=".44" stop-color="#1D2B2F"/>
+      <stop offset="1" stop-color="#10181B"/>
     </linearGradient>
-    <linearGradient id="rim" x1="180" y1="190" x2="850" y2="810" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#B8C9FF"/><stop offset=".42" stop-color="#677CFF"/><stop offset="1" stop-color="#7C3AED"/>
+    <linearGradient id="accent" x1="300" y1="280" x2="744" y2="744" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4ED7C8"/>
+      <stop offset=".55" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#A8F1E8"/>
     </linearGradient>
-    <linearGradient id="signal" x1="270" y1="650" x2="790" y2="450" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#38BDF8"/><stop offset=".52" stop-color="#22D3EE"/><stop offset="1" stop-color="#A78BFA"/>
-    </linearGradient>
-    <radialGradient id="touch"><stop stop-color="#FFF3E8"/><stop offset=".38" stop-color="#FB923C"/><stop offset="1" stop-color="#F43F5E"/></radialGradient>
+    <radialGradient id="glow" cx=".22" cy=".12" r=".9">
+      <stop stop-color="#A8F1E8" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#A8F1E8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="28" stdDeviation="30" flood-color="#071012" flood-opacity=".50"/>
+    </filter>
   </defs>
-  <!-- One monitor, one phone and one continuous low-latency signal remain clear at dock size. -->
-  <rect x="98" y="174" width="596" height="474" rx="86" fill="url(#screen)" stroke="url(#rim)" stroke-width="42"/>
-  <path d="M340 668H490L516 760H315L340 668Z" fill="url(#rim)"/>
-  <rect x="276" y="744" width="286" height="52" rx="26" fill="url(#rim)"/>
-  <path d="M190 420C325 310 438 518 573 401C620 360 660 344 694 354V530C622 525 594 565 538 607C409 704 322 513 190 614Z"
-        fill="#2563EB" fill-opacity=".42"/>
-  <rect x="660" y="250" width="230" height="520" rx="72" fill="#111346" stroke="url(#rim)" stroke-width="38"/>
-  <rect x="724" y="285" width="102" height="16" rx="8" fill="#C7D2FE" fill-opacity=".62"/>
-  <path d="M258 600C380 574 449 695 570 630C659 582 687 487 768 470" fill="none"
-        stroke="url(#signal)" stroke-width="54" stroke-linecap="round"/>
-  <path d="M258 600C380 574 449 695 570 630C659 582 687 487 768 470" fill="none"
-        stroke="#E0F2FE" stroke-opacity=".72" stroke-width="10" stroke-linecap="round"/>
-  <circle cx="768" cy="470" r="52" fill="url(#touch)"/>
-  <circle cx="768" cy="470" r="82" fill="none" stroke="#FB7185" stroke-opacity=".38" stroke-width="18"/>
-  <path d="M795 642L826 707L897 716L845 765L858 836L795 802L731 836L744 765L692 716L764 707Z"
-        fill="#EEF2FF" stroke="#818CF8" stroke-width="15" stroke-linejoin="round"/>
+  <rect x="72" y="72" width="880" height="880" rx="232" fill="url(#plate)" filter="url(#shadow)"/>
+  <rect x="88" y="88" width="848" height="848" rx="216" fill="url(#glow)"/>
+  <rect x="86" y="86" width="852" height="852" rx="218" fill="none" stroke="url(#accent)" stroke-width="12" stroke-opacity=".68"/>
+  <path d="M178 246c126-120 292-146 442-96" fill="none" stroke="#EAF8F6" stroke-opacity=".11" stroke-width="18" stroke-linecap="round"/>
+
+  <rect x="278" y="324" width="388" height="286" rx="58" fill="none" stroke="url(#accent)" stroke-width="38"/>
+  <path d="M422 660h100l18 64H402l20-64Z" fill="#78AFFF"/>
+  <rect x="606" y="410" width="150" height="326" rx="48" fill="#18262B" stroke="#EAF8F6" stroke-width="28"/>
+  <path d="M352 526c78-76 136 78 222 0 62-56 102-38 142-10"
+        fill="none" stroke="#4ED7C8" stroke-width="32" stroke-linecap="round"/>
+  <circle cx="700" cy="654" r="13" fill="#4ED7C8"/>
 </svg>

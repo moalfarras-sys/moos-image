@@ -27,6 +27,7 @@ default:
 # or a Mo AI button pointing at a command that does not exist should cost you 3 seconds, not a
 # 20-minute image build.
 check:
+    bash -n build_files/build.sh
     python3 tests/verify_user_experience.py
     python3 tests/test_device_plan.py
     python3 tests/test_moai_do.py
@@ -38,6 +39,7 @@ check:
     python3 tests/test_moos_storectl.py
     python3 tests/test_moos_ui2.py
     python3 tests/test_moos_theme_safety.py
+    python3 tests/test_moos_visual_system.py
     python3 artwork/verify_visuals.py
     # Same gate build.sh runs against the finished image, pointed at the tree that
     # is about to become it. Keeping it here means a drifted catalogue recipe or a
@@ -47,8 +49,12 @@ check:
 # Build the main MoOS image. The base is pinned in the Containerfile on purpose — both
 # editions must share it (see the comment there); it is not a build-arg any more.
 build: check
+    # The base is rebuilt daily. Never validate a stale local tag, and never pull
+    # the large NVIDIA stage for the generic image that cannot consume it.
     podman build \
+        --pull=always \
         --build-arg IMAGE_NAME={{ image_name }} \
+        --build-arg AKMODS_IMAGE=scratch \
         -t {{ image_name }}:latest \
         .
 
@@ -62,7 +68,10 @@ build-nvidia: check
     set -euo pipefail
     kernel="$(skopeo inspect docker://{{ base_main }} | jq -er '.Labels["ostree.linux"]')"
     echo "base kernel: ${kernel}"
+    # `--pull=always` makes the Containerfile's base match the remote label used
+    # above; otherwise a stale local base can pair kernel N with akmods N+1.
     podman build \
+        --pull=always \
         --build-arg IMAGE_NAME={{ image_name }}-nvidia \
         --build-arg "AKMODS_IMAGE=ghcr.io/ublue-os/akmods-nvidia-open:main-44-${kernel}" \
         -t {{ image_name }}-nvidia:latest \

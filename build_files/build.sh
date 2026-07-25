@@ -940,8 +940,11 @@ bash /tmp/colloid/install.sh -d /usr/share/icons -t default -s default
 bash /tmp/colloid/install.sh -d /usr/share/icons -t teal -s default
 rm -rf /tmp/colloid
 
-# "MoOSUI2" / "MoOSUI2Light" = the UI2 icon themes: teal folders over the
-# copy-index-then-symlink route.
+# "MoOSUI2" / "MoOSUI2Light" are the stable internal IDs for the MoOS icon
+# themes.  Colloid provides the broad application/file-type vocabulary, while
+# MoOS-owned applications live in a first-party overlay.  That overlay comes
+# first in Directories=, so MoOS surfaces have one coherent silhouette instead
+# of inheriting whichever upstream app icon happens to exist.
 # VERIFIED: an Inherits-only index.theme is NOT enough —
 # - freedesktop icon-theme spec (File Formats, Table 1) marks Directories=
 #   as REQUIRED (Inherits is the optional one);
@@ -968,30 +971,56 @@ rm -rf /usr/share/icons/MoOSUI2
 mkdir -p /usr/share/icons/MoOSUI2
 cp /usr/share/icons/Colloid-Teal-Dark/index.theme /usr/share/icons/MoOSUI2/index.theme
 sed -i \
-    -e 's|^Name=.*|Name=MoOSUI2|' \
-    -e 's|^Comment=.*|Comment=MoOS UI2 icons — teal on graphite (based on Colloid)|' \
+    -e 's|^Name=.*|Name=MoOS UI|' \
+    -e 's|^Comment=.*|Comment=MoOS icons — mineral teal on graphite|' \
     -e 's|^Inherits=.*|Inherits=Colloid-Teal-Dark,Papirus-Dark,breeze-dark,hicolor|' \
+    -e 's|^Directories=|Directories=moos/apps/scalable,|' \
     /usr/share/icons/MoOSUI2/index.theme
 test -d /usr/share/icons/Colloid-Teal-Dark/apps
 for d in /usr/share/icons/Colloid-Teal-Dark/*/; do
     b="$(basename "${d}")"
     ln -snf "../Colloid-Teal-Dark/${b}" "/usr/share/icons/MoOSUI2/${b}"
 done
+mkdir -p /usr/share/icons/MoOSUI2/moos/apps/scalable
+cp /usr/share/icons/hicolor/scalable/apps/moos-*.svg \
+    /usr/share/icons/MoOSUI2/moos/apps/scalable/
+cat >> /usr/share/icons/MoOSUI2/index.theme <<'EOF'
+
+[moos/apps/scalable]
+Size=64
+Context=Applications
+Type=Scalable
+MinSize=16
+MaxSize=512
+EOF
 gtk-update-icon-cache -f /usr/share/icons/MoOSUI2 || true
 
 rm -rf /usr/share/icons/MoOSUI2Light
 mkdir -p /usr/share/icons/MoOSUI2Light
 cp /usr/share/icons/Colloid-Teal-Light/index.theme /usr/share/icons/MoOSUI2Light/index.theme
 sed -i \
-    -e 's|^Name=.*|Name=MoOSUI2Light|' \
-    -e 's|^Comment=.*|Comment=MoOS UI2 Light icons — teal on tidal mist (based on Colloid)|' \
+    -e 's|^Name=.*|Name=MoOS UI Light|' \
+    -e 's|^Comment=.*|Comment=MoOS icons — mineral teal on tidal mist|' \
     -e 's|^Inherits=.*|Inherits=Colloid-Teal-Light,Papirus,breeze,hicolor|' \
+    -e 's|^Directories=|Directories=moos/apps/scalable,|' \
     /usr/share/icons/MoOSUI2Light/index.theme
 test -d /usr/share/icons/Colloid-Teal-Light/apps
 for d in /usr/share/icons/Colloid-Teal-Light/*/; do
     b="$(basename "${d}")"
     ln -snf "../Colloid-Teal-Light/${b}" "/usr/share/icons/MoOSUI2Light/${b}"
 done
+mkdir -p /usr/share/icons/MoOSUI2Light/moos/apps/scalable
+cp /usr/share/icons/hicolor/scalable/apps/moos-*.svg \
+    /usr/share/icons/MoOSUI2Light/moos/apps/scalable/
+cat >> /usr/share/icons/MoOSUI2Light/index.theme <<'EOF'
+
+[moos/apps/scalable]
+Size=64
+Context=Applications
+Type=Scalable
+MinSize=16
+MaxSize=512
+EOF
 gtk-update-icon-cache -f /usr/share/icons/MoOSUI2Light || true
 
 # Gate all four. An icon theme whose Directories= is missing is treated as INVALID by
@@ -1002,6 +1031,11 @@ for t in MoOSUI2 MoOSUI2Light; do
         || { echo "GATE FAIL: ${t} icon theme has no Directories= — KIconTheme will reject it"; exit 1; }
     test -d "/usr/share/icons/${t}/apps" \
         || { echo "GATE FAIL: ${t} icon theme has no apps/ dir"; exit 1; }
+    grep -q '^Directories=moos/apps/scalable,' "/usr/share/icons/${t}/index.theme" \
+        || { echo "GATE FAIL: ${t} does not prioritize the MoOS app overlay"; exit 1; }
+    test -f "/usr/share/icons/${t}/moos/apps/scalable/moos-themes.svg" \
+        && test ! -L "/usr/share/icons/${t}/moos/apps/scalable/moos-themes.svg" \
+        || { echo "GATE FAIL: ${t} has no owned MoOS application artwork"; exit 1; }
 done
 
 # -----------------------------------------------------------------------------
@@ -1033,9 +1067,9 @@ test -d /usr/share/icons/Bibata-Modern-Ice/cursors   # hard-fail if the tarball 
 # installed alongside — harmless, and the copied cursor.theme still says
 # Inherits="Bibata-Modern-Ice", which keeps resolving through it.
 cp -a /usr/share/icons/Bibata-Modern-Ice /usr/share/icons/MoOS
-sed -i 's|^Name=.*|Name=MoOS|' /usr/share/icons/MoOS/index.theme
-sed -i 's|^Name=.*|Name=MoOS|' /usr/share/icons/MoOS/cursor.theme
-sed -i 's|^Comment=.*|Comment=MoOS MoOS cursors (Bibata Modern Ice by ful1e5, GPL-3.0)|' \
+sed -i 's|^Name=.*|Name=MoOS Pointer|' /usr/share/icons/MoOS/index.theme
+sed -i 's|^Name=.*|Name=MoOS Pointer|' /usr/share/icons/MoOS/cursor.theme
+sed -i 's|^Comment=.*|Comment=MoOS light pointer (Bibata Modern Ice by ful1e5, GPL-3.0)|' \
     /usr/share/icons/MoOS/index.theme
 
 # GPL-3.0 attribution notice (Bibata is GPL — keep credit next to the copy).
@@ -1063,9 +1097,9 @@ rm -f /tmp/bibata-modern-classic.tar.xz
 test -d /usr/share/icons/Bibata-Modern-Classic/cursors   # hard-fail if the tarball layout ever changes
 
 cp -a /usr/share/icons/Bibata-Modern-Classic /usr/share/icons/MoOSDark
-sed -i 's|^Name=.*|Name=MoOSDark|' /usr/share/icons/MoOSDark/index.theme
-sed -i 's|^Name=.*|Name=MoOSDark|' /usr/share/icons/MoOSDark/cursor.theme
-sed -i 's|^Comment=.*|Comment=MoOS MoOSDark cursors (Bibata Modern Classic by ful1e5, GPL-3.0)|' \
+sed -i 's|^Name=.*|Name=MoOS Pointer Dark|' /usr/share/icons/MoOSDark/index.theme
+sed -i 's|^Name=.*|Name=MoOS Pointer Dark|' /usr/share/icons/MoOSDark/cursor.theme
+sed -i 's|^Comment=.*|Comment=MoOS dark pointer (Bibata Modern Classic by ful1e5, GPL-3.0)|' \
     /usr/share/icons/MoOSDark/index.theme
 
 cat > /usr/share/icons/MoOSDark/MOOS-NOTICE.txt <<'EOF'
@@ -1079,6 +1113,21 @@ The only modification is the theme name in index.theme / cursor.theme;
 the cursor artwork itself is unmodified. The unmodified upstream theme is
 installed alongside at /usr/share/icons/Bibata-Modern-Classic.
 EOF
+
+# The early session, greeter and any toolkit that asks for the generic
+# "default" cursor must resolve to MoOS too.  Replace only a possible alias;
+# never follow it and accidentally rewrite the inherited cursor package.
+if [ -L /usr/share/icons/default ] || [ -f /usr/share/icons/default ]; then
+    rm -f /usr/share/icons/default
+fi
+mkdir -p /usr/share/icons/default
+cat > /usr/share/icons/default/index.theme <<'EOF'
+[Icon Theme]
+Name=MoOS Default Pointer
+Inherits=MoOS
+EOF
+grep -q '^Inherits=MoOS$' /usr/share/icons/default/index.theme \
+    || { echo "GATE FAIL: the default pointer does not resolve to MoOS"; exit 1; }
 
 # -----------------------------------------------------------------------------
 # (c7) Core Power packages
@@ -1421,9 +1470,33 @@ if grep -qiE 'QQmlApplicationEngine failed|component is not ready|error loading 
     cat "$_launcher_smoke_log"
     exit 1
 fi
-rm -rf "$_launcher_smoke_log" "$_launcher_smoke_home" "$_launcher_smoke_runtime"
+# plasmawindowed and the session bus are terminated as a process group by
+# timeout, but a last Qt cache write can briefly race the recursive removal.
+# Retry only these three build-owned paths for a bounded four seconds; do not
+# weaken the smoke result or leave compose-hostile content under /tmp.
+_launcher_cleanup_ok=0
+for _launcher_cleanup_attempt in 1 2 3 4 5 6 7 8 9 10; do
+    if rm -rf -- \
+            "$_launcher_smoke_log" \
+            "$_launcher_smoke_home" \
+            "$_launcher_smoke_runtime" 2>/dev/null; then
+        sleep 0.2
+        if [ ! -e "$_launcher_smoke_log" ] \
+                && [ ! -e "$_launcher_smoke_home" ] \
+                && [ ! -e "$_launcher_smoke_runtime" ]; then
+            _launcher_cleanup_ok=1
+            break
+        fi
+    fi
+    sleep 0.2
+done
+if [ "$_launcher_cleanup_ok" -ne 1 ]; then
+    echo "FATAL: org.moos.brand smoke passed, but its isolated temporary state stayed active"
+    exit 1
+fi
 unset -v _launcher_smoke_log _launcher_smoke_home _launcher_smoke_runtime \
-    _launcher_smoke_config _launcher_smoke_rc
+    _launcher_smoke_config _launcher_smoke_rc _launcher_cleanup_attempt \
+    _launcher_cleanup_ok
 
 # The desktop scene (org.moos.ui2.wallpaper) is not covered by the pure-QML app
 # loop above: its root is a WallpaperItem, which only exists inside plasmashell's

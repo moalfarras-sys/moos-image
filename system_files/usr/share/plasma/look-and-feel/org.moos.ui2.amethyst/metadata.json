@@ -1,7 +1,7 @@
 {
     "KPlugin": {
         "Id": "org.moos.ui2.amethyst",
-        "Name": "MoOS Amethyst",
+        "Name": "MoOS UI · Amethyst",
         "Description": "باذنجاني دافئ بلمسة أوركيد وكهرمان | Warm aubergine with orchid and amber",
         "Authors": [
             {
@@ -11,7 +11,7 @@
         "Version": "2.0.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/moalfarras-sys/moos-image",
-        "Name[ar]": "MoOS Amethyst"
+        "Name[ar]": "MoOS UI · Amethyst"
     },
     "KPackageStructure": "Plasma/LookAndFeel",
     "X-Plasma-APIVersion": "2"

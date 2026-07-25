@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the canonical MoOS UI2 Graphite/Tidal visual family.
+"""Generate the canonical MoOS UI Graphite/Tidal visual family.
 
 The committed Graphite UI2 packages are the maintained geometry source.
 Generation is transactional, and Plasma Dark and Light each receive a complete
@@ -8,6 +8,7 @@ SVG suite; Light never inherits UI2 Dark's fixed-colour artwork.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import pathlib
@@ -15,6 +16,29 @@ import re
 import shutil
 import subprocess
 import tempfile
+
+
+def _load_sibling(module_name: str):
+    """Load an artwork helper relative to this file, independent of cwd.
+
+    The family generator and tests import this module by absolute file path.
+    Plain sibling imports only worked when artwork/ happened to be on
+    ``sys.path``, making an otherwise valid generator fail from other working
+    directories.
+    """
+    path = pathlib.Path(__file__).resolve().with_name(f"{module_name}.py")
+    spec = importlib.util.spec_from_file_location(
+        f"_moos_artwork_{module_name}", path
+    )
+    if spec is None or spec.loader is None:
+        raise SystemExit(f"cannot load MoOS artwork helper: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+aurorae_art = _load_sibling("generate_moos_aurorae")
+plasma_surfaces = _load_sibling("generate_moos_plasma_surfaces")
 
 
 # Tests may point the generator at a synthetic repository tree.  Production
@@ -187,7 +211,43 @@ def write(path: pathlib.Path, content: str) -> None:
     path.write_text(content.rstrip() + "\n", encoding="utf-8")
 
 
-def render_panel(target: pathlib.Path, variant: str) -> None:
+# Glass translucency, per half. Dark and Light are ONE material with two
+# profiles, not one dark-tuned value forced onto both: a light glass needs a
+# denser floor so dark tray icons / clock / text stay legible over wallpaper.
+# The DARK values are byte-identical to the shipped Liquid Glass — do not touch
+# them (that is the maintainer's proven dock). Only Light diverges.
+OPACITY = {
+    "dark": {
+        "@GLASS_P0@": "0.78", "@GLASS_P1@": "0.83", "@GLASS_P2@": "0.90", "@GLASS_P3@": "0.93",
+        "@RIM_LUM@": "0.62", "@RIM_ACCENT@": "0.42", "@RIM_OUTLINE@": "0.28",
+        "@DLG_P0@": "0.78", "@DLG_P1@": "0.82", "@DLG_P2@": "0.88", "@DLG_P3@": "0.92",
+        "@DLG_RIM_LUM@": "0.60", "@DLG_RIM_OUTLINE@": "0.24", "@DLG_RIM_ACCENT@": "0.34",
+    },
+    "light": {
+        # Capped at 0.93 so the light dock stays denser than dark (legible dark
+        # icons over wallpaper) yet never crosses the 0.93 ceiling above which
+        # KWin's frost stops showing (enforced by test_glass_surfaces_*).
+        "@GLASS_P0@": "0.82", "@GLASS_P1@": "0.87", "@GLASS_P2@": "0.91", "@GLASS_P3@": "0.93",
+        "@RIM_LUM@": "0.46", "@RIM_ACCENT@": "0.14", "@RIM_OUTLINE@": "0.30",
+        "@DLG_P0@": "0.82", "@DLG_P1@": "0.85", "@DLG_P2@": "0.90", "@DLG_P3@": "0.92",
+        "@DLG_RIM_LUM@": "0.44", "@DLG_RIM_OUTLINE@": "0.26", "@DLG_RIM_ACCENT@": "0.22",
+    },
+}
+
+# One supported, measured KWin frost profile for the entire MoOS UI family.
+# KWin accepts BlurStrength only in the range 1..15; a previous value of 24
+# produced zero-sized blur textures and crashed the compositor at boot.
+KWIN_BLUR_STRENGTH = 15
+KWIN_NOISE_STRENGTH = 3
+
+
+def _glass_opacity(variant: str, light: bool | None) -> dict[str, str]:
+    if light is None:
+        light = variant == "light"
+    return OPACITY["light" if light else "dark"]
+
+
+def render_panel(target: pathlib.Path, variant: str, light: bool | None = None) -> None:
     tokens = variant_roles(variant)
     text = (ART / "plasma/panel-background.svg.in").read_text(encoding="utf-8")
     substitutions = {
@@ -195,11 +255,12 @@ def render_panel(target: pathlib.Path, variant: str) -> None:
         "@TEXT@": tokens["text"], "@LUMINOUS@": tokens["luminous"],
         "@OUTLINE@": tokens["outline"], "@PANEL_TOP@": tokens["panel_top"],
         "@PANEL_MID@": tokens["panel_mid"], "@PANEL_BOTTOM@": tokens["panel_bottom"],
+        **_glass_opacity(variant, light),
     }
     write(target, rewrite_text(text, substitutions))
 
 
-def render_dialog(target: pathlib.Path, variant: str) -> None:
+def render_dialog(target: pathlib.Path, variant: str, light: bool | None = None) -> None:
     """Render the popup FrameSvg and its rounded KWin blur mask.
 
     Unlike ordinary fixed-colour assets, the mask is a structural contract:
@@ -213,6 +274,7 @@ def render_dialog(target: pathlib.Path, variant: str) -> None:
         "@CARD@": tokens["card"], "@PRIMARY@": tokens["primary"],
         "@TEXT@": tokens["text"], "@LUMINOUS@": tokens["luminous"],
         "@OUTLINE@": tokens["outline"],
+        **_glass_opacity(variant, light),
     }
     write(target, rewrite_text(text, substitutions))
 
@@ -226,8 +288,8 @@ def desktop_metadata(style: str, light: bool) -> str:
             "Authors": [{"Name": "Moalfarras"}], "Category": "",
             "Description": description, "Id": style,
             "License": "GPL-3.0-or-later",
-            "Name": "MoOS Light" if light else "MoOS",
-            "Name[ar]": "MoOS الفاتح" if light else "MoOS",
+            "Name": "MoOS UI Light" if light else "MoOS UI",
+            "Name[ar]": "MoOS UI الفاتح" if light else "MoOS UI",
             "Version": "2.0.0",
             "Website": "https://github.com/moalfarras-sys/moos-image",
         },
@@ -236,7 +298,7 @@ def desktop_metadata(style: str, light: bool) -> str:
 
 
 def desktop_plasmarc(wallpaper: str, light: bool) -> str:
-    fallback = "default" if light else "breeze-dark"
+    fallback = "breeze-light" if light else "breeze-dark"
     return f"""# Generated by artwork/generate_moos_ui2.py.
 # Each UI2 variant owns a complete fixed-colour SVG suite. Light never falls
 # back to UI2 Dark; only missing upstream paths use the matching Breeze side.
@@ -290,7 +352,7 @@ ForegroundPositive={rgb(selected)}
 ForegroundVisited={rgb(selected)}
 """
     scheme_name = "MoOSUI2Light" if variant == "light" else "MoOSUI2Dark"
-    display_name = "MoOS UI2 Light" if variant == "light" else "MoOS UI2 Dark"
+    display_name = "MoOS UI Light" if variant == "light" else "MoOS UI Dark"
     return f"""# Generated from artwork/moos-ui2/palette.json. Do not hand-edit.
 [ColorEffects:Disabled]
 Color={rgb(p['raised'])}
@@ -346,7 +408,7 @@ def konsole_scheme(variant: str, light: bool | None = None) -> str:
     # light explicitly; the default preserves the base Graphite/Tidal behaviour.
     if light is None:
         light = variant == "light"
-    name = "MoOS UI2 Light" if light else "MoOS UI2 Dark"
+    name = "MoOS UI Light" if light else "MoOS UI Dark"
     background = p["card"] if light else p["canvas"]
     base0 = p["text"] if light else p["raised"]
     base7 = p["muted"] if light else p["text"]
@@ -407,7 +469,7 @@ def konsole_profile(variant: str) -> str:
     p = variant_roles(variant)
     light = variant == "light"
     scheme = "MoOSUI2Light" if light else "MoOSUI2Dark"
-    name = "MoOS UI2 Light" if light else "MoOS UI2"
+    name = "MoOS UI Light" if light else "MoOS UI"
     return f"""# Generated by artwork/generate_moos_ui2.py. Do not hand-edit.
 [Appearance]
 ColorScheme={scheme}
@@ -463,9 +525,12 @@ def lnf_defaults(variant: str) -> str:
     # apply and every sunrise/sunset switch. moos-theme / moos-apply-theme own
     # the desktop wallpaper instead, per half. (`wallpaper` stays a parameter
     # so the generator's call sites don't churn: {wallpaper} is the half's package.)
-    return f"""# MoOS UI2 matched Global Theme defaults. Generated file.
+    return f"""# MoOS UI matched Global Theme defaults. Generated file.
 [kdeglobals][General]
 ColorScheme={scheme}
+
+[kdeglobals][KDE]
+widgetStyle=Breeze
 
 [plasmarc][Theme]
 name={style}
@@ -482,15 +547,15 @@ Enable=true
 Theme=moos
 
 [kwinrc][org.kde.kdecoration2]
-library=org.kde.kwin.aurorae
+library=org.kde.kwin.aurorae.v2
 theme=__aurorae__svg__{deco}
 
 [kwinrc][Plugins]
 blurEnabled=true
 
 [kwinrc][Effect-blur]
-BlurStrength=8
-NoiseStrength=2
+BlurStrength={KWIN_BLUR_STRENGTH}
+NoiseStrength={KWIN_NOISE_STRENGTH}
 
 [kcminputrc][Mouse]
 cursorTheme={cursor}
@@ -501,11 +566,11 @@ def lnf_metadata(package: str, light: bool) -> str:
     return json.dumps({
         "KPlugin": {
             "Id": package,
-            "Name": "MoOS Light" if light else "MoOS",
-            "Name[ar]": "MoOS الفاتح" if light else "MoOS",
-            "Description": ("سمة MoOS UI2 التركواز الفاتحة | MoOS UI2 tidal light global theme"
+            "Name": "MoOS UI Light" if light else "MoOS UI",
+            "Name[ar]": "MoOS UI الفاتح" if light else "MoOS UI",
+            "Description": ("سمة MoOS UI التركواز الفاتحة | MoOS UI tidal light global theme"
                             if light else
-                            "سمة MoOS UI2 الغرافيتية الداكنة | MoOS UI2 graphite dark global theme"),
+                            "سمة MoOS UI الغرافيتية الداكنة | MoOS UI graphite dark global theme"),
             "Authors": [{"Name": "Moalfarras"}], "Version": "2.0.0",
             "License": "GPL-3.0-or-later",
             "Website": "https://github.com/moalfarras-sys/moos-image",
@@ -520,9 +585,9 @@ def lnf_readme(package: str, light: bool) -> str:
     scheme = "MoOSUI2Light" if light else "MoOSUI2Dark"
     style = "MoOSUI2Light" if light else "MoOSUI2"
     wallpaper = "MoOSUI2Tide" if light else "MoOSUI2Graphite"
-    return f"""# {package} — MoOS UI2 {variant}
+    return f"""# {package} — MoOS UI {variant}
 
-حزمة MoOS UI2 المتكاملة لـ KDE Plasma 6.  تطبق لوحة الألوان والـPlasma Style
+حزمة MoOS UI المتكاملة لـ KDE Plasma 6.  تطبق لوحة الألوان والـPlasma Style
 والزخرفة والخلفية وشاشة البدء المتطابقة، مع إبقاء MoOS UI1 مثبتًا للرجوع.
 
 | Surface | Selector |
@@ -545,7 +610,7 @@ Generated by `artwork/generate_moos_ui2.py`; do not hand-edit this package.
 
 def logout_readme(package: str, light: bool) -> str:
     variant = "Tidal Light" if light else "Graphite Dark"
-    return f"""# MoOS UI2 logout — {variant}
+    return f"""# MoOS UI logout — {variant}
 
 واجهة الخروج الرسمية للحزمة `{package}`. تحافظ على إشارات وقدرات مضيف
 KDE Plasma 6 الفعلية (logout, lock, suspend, hibernate, restart, shutdown)
@@ -566,9 +631,9 @@ def wallpaper_metadata(package: str, light: bool) -> str:
             "Id": package,
             "Name": "MoOS Tidal Mist" if light else "MoOS Quiet Horizon",
             "Name[ar]": "ضباب MoOS التركوازي" if light else "أفق MoOS الهادئ",
-            "Description": ("Mineral turquoise daylight for MoOS UI2"
+            "Description": ("Mineral turquoise daylight for MoOS UI"
                             if light else "A calm graphite horizon with restrained cyan and emerald light"),
-            "Description[ar]": ("تركواز معدني هادئ لسمة MoOS UI2 الفاتحة"
+            "Description[ar]": ("تركواز معدني هادئ لسمة MoOS UI الفاتحة"
                                 if light else "أفق غرافيتي هادئ بإضاءة سماوية وزمردية محسوبة"),
             "Authors": [{"Name": "Moalfarras"}], "License": "CC-BY-SA-4.0",
         }
@@ -579,7 +644,7 @@ def scale_crop(source: pathlib.Path, target: pathlib.Path, width: int, height: i
     target.parent.mkdir(parents=True, exist_ok=True)
     ffmpeg = shutil.which("ffmpeg")
     if ffmpeg is None:
-        raise SystemExit("ffmpeg is required to export MoOS UI2 raster assets")
+        raise SystemExit("ffmpeg is required to export MoOS UI raster assets")
     vf = (f"scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,"
           f"crop={width}:{height}")
     command = [ffmpeg, "-y", "-loglevel", "error", "-i", str(source),
@@ -618,6 +683,7 @@ def generate_desktop_theme(variant: str, backup_root: pathlib.Path) -> None:
     write(target / "colors", scheme)
     render_panel(target / "widgets/panel-background.svg", variant)
     render_dialog(target / "dialogs/background.svg", variant)
+    plasma_surfaces.render_surface_suite(target, variant_roles(variant))
 
 
 def generate_aurorae(variant: str, backup_root: pathlib.Path) -> None:
@@ -637,9 +703,12 @@ def generate_aurorae(variant: str, backup_root: pathlib.Path) -> None:
         raise SystemExit(f"{name} contains multiple Aurorae rc files")
     if source_rcs:
         source_rcs[0].rename(target_rc)
+    aurorae_art.render_aurorae_suite(
+        target, variant_roles(variant), plugin_name=name
+    )
     metadata = target / "metadata.desktop"
     text = metadata.read_text(encoding="utf-8")
-    text = re.sub(r"^Name=.*$", f"Name={'MoOS UI2 Light' if light else 'MoOS UI2'}", text, flags=re.M)
+    text = re.sub(r"^Name=.*$", f"Name={'MoOS UI Light' if light else 'MoOS UI'}", text, flags=re.M)
     text = re.sub(r"^Comment=.*$", ("Comment=Mineral turquoise glass window decoration for MoOS"
                                       if light else
                                       "Comment=Graphite glass window decoration for MoOS"), text, flags=re.M)
@@ -668,8 +737,10 @@ def generate_lnf(variant: str, backup_root: pathlib.Path) -> None:
 def generate_wallpaper(variant: str) -> None:
     light = variant == "light"
     package = "MoOSUI2Tide" if light else "MoOSUI2Graphite"
-    source = ART / "wallpapers" / ("moos-ui2-tide-master.png" if light else
-                                    "moos-ui2-quiet-horizon-master-v2.png")
+    source = ART / "wallpapers" / (
+        "moos-ui-tidal-frost-master-v2.png" if light else
+        "moos-ui-graphite-frost-master-v3.png"
+    )
     target = SHARE / f"wallpapers/{package}"
     if target.exists():
         shutil.rmtree(target)
@@ -702,13 +773,13 @@ def generate_weather_runtime() -> None:
 def preflight() -> None:
     """Fail before touching any shipped output when an input/tool is missing."""
     if shutil.which("ffmpeg") is None:
-        raise SystemExit("ffmpeg is required to export MoOS UI2 raster assets")
+        raise SystemExit("ffmpeg is required to export MoOS UI raster assets")
     for source in CANONICAL_SOURCES:
         if not source.exists():
             raise SystemExit(f"missing canonical UI2 source: {source}")
     for master in (
-        ART / "wallpapers/moos-ui2-quiet-horizon-master-v2.png",
-        ART / "wallpapers/moos-ui2-tide-master.png",
+        ART / "wallpapers/moos-ui-graphite-frost-master-v3.png",
+        ART / "wallpapers/moos-ui-tidal-frost-master-v2.png",
         ART / "plasma/dialog-background.svg.in",
         ART / "plasma/panel-background.svg.in",
     ):
@@ -730,8 +801,10 @@ def remove_output(path: pathlib.Path) -> None:
 def generate_previews(variant: str) -> None:
     light = variant == "light"
     package = "org.moos.ui2.light" if light else "org.moos.ui2"
-    source = ART / "wallpapers" / ("moos-ui2-tide-master.png" if light else
-                                    "moos-ui2-quiet-horizon-master-v2.png")
+    source = ART / "wallpapers" / (
+        "moos-ui-tidal-frost-master-v2.png" if light else
+        "moos-ui-graphite-frost-master-v3.png"
+    )
     target = SHARE / f"plasma/look-and-feel/{package}/contents/previews"
     scale_crop(source, target / "preview.png", 600, 337)
     scale_crop(source, target / "lockscreen.png", 600, 337)
@@ -767,11 +840,20 @@ def validate_outputs() -> None:
         style = "MoOSUI2Light" if variant == "light" else "MoOSUI2"
         widgets = SHARE / f"plasma/desktoptheme/{style}/widgets"
         required = {"button.svg", "line.svg", "lineedit.svg", "listitem.svg",
-                    "panel-background.svg", "plasmoidheading.svg", "tasks.svg", "viewitem.svg"}
+                    "panel-background.svg", "plasmoidheading.svg", "tasks.svg",
+                    "viewitem.svg"} | set(plasma_surfaces.SURFACE_FILENAMES)
         actual = {path.name for path in widgets.glob("*.svg")}
         missing = required - actual
         if missing:
             raise SystemExit(f"{style} is missing its own SVG: {sorted(missing)[0]}")
+        plasma_surfaces.validate_surface_suite(
+            SHARE / f"plasma/desktoptheme/{style}"
+        )
+
+        aurorae_art.validate_aurorae_suite(
+            SHARE / f"aurorae/themes/{style}",
+            plugin_name=style,
+        )
 
         dialog = SHARE / f"plasma/desktoptheme/{style}/dialogs/background.svg"
         dialog_text = dialog.read_text(encoding="utf-8")
@@ -863,7 +945,7 @@ def main() -> None:
                     output.parent.mkdir(parents=True, exist_ok=True)
                     backup.rename(output)
             raise
-    print("generated unified MoOS UI2 Graphite/Tidal packages from the canonical UI2 source")
+    print("generated unified MoOS UI Graphite/Tidal packages from the canonical UI2 source")
 
 
 if __name__ == "__main__":

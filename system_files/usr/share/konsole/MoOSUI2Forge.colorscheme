@@ -83,7 +83,7 @@ Color=140,149,159
 Color=230,237,243
 
 [General]
-Description=MoOS Forge
+Description=MoOS UI · Forge
 Opacity=1
 Blur=false
 Wallpaper=

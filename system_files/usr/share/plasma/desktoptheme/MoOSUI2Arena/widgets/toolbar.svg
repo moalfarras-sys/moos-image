@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="52" viewBox="0 0 128 52">
+  <!-- MoOS translucent toolbar frame. -->
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Background { color: #150C22; }
+    .ColorScheme-Highlight { color: #FF2D95; }
+    .ColorScheme-Text { color: #F5E9FF; }
+    .ColorScheme-ButtonBackground { color: #2A1845; }
+    .ColorScheme-ButtonText { color: #F5E9FF; }
+  </style>
+  <g id="topleft"><path d="M0 9A9 9 0 0 1 9 0V9H0Z" fill="#150C22" fill-opacity="0.620"/><path d="M0 9A9 9 0 0 1 9 0V1A8 8 0 0 0 1 9Z" fill="#3D2A5C" fill-opacity="0.240"/></g>
+  <g id="topright"><path d="M33 0A9 9 0 0 1 42 9H33Z" fill="#150C22" fill-opacity="0.620"/><path d="M33 0A9 9 0 0 1 42 9H41A8 8 0 0 0 33 1Z" fill="#3D2A5C" fill-opacity="0.240"/></g>
+  <g id="bottomleft"><path d="M0 33A9 9 0 0 0 9 42V33Z" fill="#150C22" fill-opacity="0.620"/><path d="M0 33A9 9 0 0 0 9 42V41A8 8 0 0 1 1 33Z" fill="#3D2A5C" fill-opacity="0.149"/></g>
+  <g id="bottomright"><path d="M42 33A9 9 0 0 1 33 42V33Z" fill="#150C22" fill-opacity="0.620"/><path d="M42 33A9 9 0 0 1 33 42V41A8 8 0 0 0 41 33Z" fill="#3D2A5C" fill-opacity="0.149"/></g>
+  <g id="top"><rect x="9" y="0" width="24" height="9" fill="#150C22" fill-opacity="0.620"/><rect x="9" y="0" width="24" height="1" fill="#3D2A5C" fill-opacity="0.240"/></g>
+  <g id="bottom"><rect x="9" y="33" width="24" height="9" fill="#150C22" fill-opacity="0.620"/><rect x="9" y="41" width="24" height="1" fill="#3D2A5C" fill-opacity="0.149"/></g>
+  <g id="left"><rect x="0" y="9" width="9" height="24" fill="#150C22" fill-opacity="0.620"/><rect x="0" y="9" width="1" height="24" fill="#3D2A5C" fill-opacity="0.187"/></g>
+  <g id="right"><rect x="33" y="9" width="9" height="24" fill="#150C22" fill-opacity="0.620"/><rect x="41" y="9" width="1" height="24" fill="#3D2A5C" fill-opacity="0.187"/></g>
+  <rect id="center" x="9" y="9" width="24" height="24" fill="#150C22" fill-opacity="0.620"/>
+  <rect id="hint-top-margin" x="47" y="0" width="3" height="7" fill="none"/>
+  <rect id="hint-bottom-margin" x="47" y="9" width="3" height="7" fill="none"/>
+  <rect id="hint-left-margin" x="52" y="0" width="7" height="3" fill="none"/>
+  <rect id="hint-right-margin" x="52" y="5" width="7" height="3" fill="none"/>
+  <rect id="hint-tile-center" x="104" y="0" width="4" height="4" fill="none"/>
+</svg>

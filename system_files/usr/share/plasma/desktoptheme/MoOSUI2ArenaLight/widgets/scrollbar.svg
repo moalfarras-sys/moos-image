@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="244" height="58" viewBox="0 0 244 58">
+  <!-- MoOS slim scrollbar track, accent hover thumb and complete arrow states. -->
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Background { color: #DDD0E9; }
+    .ColorScheme-Highlight { color: #C81D7A; }
+    .ColorScheme-Text { color: #17302E; }
+    .ColorScheme-ButtonBackground { color: #D5CCE4; }
+    .ColorScheme-ButtonText { color: #17302E; }
+  </style>
+  <g id="background-vertical-topleft"><path d="M0 5A5 5 0 0 1 5 0V5H0Z" fill="#DDD0E9" fill-opacity="0.220"/><path d="M0 5A5 5 0 0 1 5 0V1A4 4 0 0 0 1 5Z" fill="#527F79" fill-opacity="0.120"/></g>
+  <g id="background-vertical-topright"><path d="M17 0A5 5 0 0 1 22 5H17Z" fill="#DDD0E9" fill-opacity="0.220"/><path d="M17 0A5 5 0 0 1 22 5H21A4 4 0 0 0 17 1Z" fill="#527F79" fill-opacity="0.120"/></g>
+  <g id="background-vertical-bottomleft"><path d="M0 17A5 5 0 0 0 5 22V17Z" fill="#DDD0E9" fill-opacity="0.220"/><path d="M0 17A5 5 0 0 0 5 22V21A4 4 0 0 1 1 17Z" fill="#527F79" fill-opacity="0.074"/></g>
+  <g id="background-vertical-bottomright"><path d="M22 17A5 5 0 0 1 17 22V17Z" fill="#DDD0E9" fill-opacity="0.220"/><path d="M22 17A5 5 0 0 1 17 22V21A4 4 0 0 0 21 17Z" fill="#527F79" fill-opacity="0.074"/></g>
+  <g id="background-vertical-top"><rect x="5" y="0" width="12" height="5" fill="#DDD0E9" fill-opacity="0.220"/><rect x="5" y="0" width="12" height="1" fill="#527F79" fill-opacity="0.120"/></g>
+  <g id="background-vertical-bottom"><rect x="5" y="17" width="12" height="5" fill="#DDD0E9" fill-opacity="0.220"/><rect x="5" y="21" width="12" height="1" fill="#527F79" fill-opacity="0.074"/></g>
+  <g id="background-vertical-left"><rect x="0" y="5" width="5" height="12" fill="#DDD0E9" fill-opacity="0.220"/><rect x="0" y="5" width="1" height="12" fill="#527F79" fill-opacity="0.094"/></g>
+  <g id="background-vertical-right"><rect x="17" y="5" width="5" height="12" fill="#DDD0E9" fill-opacity="0.220"/><rect x="21" y="5" width="1" height="12" fill="#527F79" fill-opacity="0.094"/></g>
+  <rect id="background-vertical-center" x="5" y="5" width="12" height="12" fill="#DDD0E9" fill-opacity="0.220"/>
+  <g id="background-horizontal-topleft"><path d="M48 5A5 5 0 0 1 53 0V5H48Z" fill="#DDD0E9" fill-opacity="0.220"/><path d="M48 5A5 5 0 0 1 53 0V1A4 4 0 0 0 49 5Z" fill="#527F79" fill-opacity="0.120"/></g>
+  <g id="background-horizontal-topright"><path d="M65 0A5 5 0 0 1 70 5H65Z" fill="#DDD0E9" fill-opacity="0.220"/><path d="M65 0A5 5 0 0 1 70 5H69A4 4 0 0 0 65 1Z" fill="#527F79" fill-opacity="0.120"/></g>
+  <g id="background-horizontal-bottomleft"><path d="M48 17A5 5 0 0 0 53 22V17Z" fill="#DDD0E9" fill-opacity="0.220"/><path d="M48 17A5 5 0 0 0 53 22V21A4 4 0 0 1 49 17Z" fill="#527F79" fill-opacity="0.074"/></g>
+  <g id="background-horizontal-bottomright"><path d="M70 17A5 5 0 0 1 65 22V17Z" fill="#DDD0E9" fill-opacity="0.220"/><path d="M70 17A5 5 0 0 1 65 22V21A4 4 0 0 0 69 17Z" fill="#527F79" fill-opacity="0.074"/></g>
+  <g id="background-horizontal-top"><rect x="53" y="0" width="12" height="5" fill="#DDD0E9" fill-opacity="0.220"/><rect x="53" y="0" width="12" height="1" fill="#527F79" fill-opacity="0.120"/></g>
+  <g id="background-horizontal-bottom"><rect x="53" y="17" width="12" height="5" fill="#DDD0E9" fill-opacity="0.220"/><rect x="53" y="21" width="12" height="1" fill="#527F79" fill-opacity="0.074"/></g>
+  <g id="background-horizontal-left"><rect x="48" y="5" width="5" height="12" fill="#DDD0E9" fill-opacity="0.220"/><rect x="48" y="5" width="1" height="12" fill="#527F79" fill-opacity="0.094"/></g>
+  <g id="background-horizontal-right"><rect x="65" y="5" width="5" height="12" fill="#DDD0E9" fill-opacity="0.220"/><rect x="69" y="5" width="1" height="12" fill="#527F79" fill-opacity="0.094"/></g>
+  <rect id="background-horizontal-center" x="53" y="5" width="12" height="12" fill="#DDD0E9" fill-opacity="0.220"/>
+  <g id="slider-topleft"><path d="M96 5A5 5 0 0 1 101 0V5H96Z" fill="#527F79" fill-opacity="0.620"/><path d="M96 5A5 5 0 0 1 101 0V1A4 4 0 0 0 97 5Z" fill="#527F79" fill-opacity="0.220"/></g>
+  <g id="slider-topright"><path d="M113 0A5 5 0 0 1 118 5H113Z" fill="#527F79" fill-opacity="0.620"/><path d="M113 0A5 5 0 0 1 118 5H117A4 4 0 0 0 113 1Z" fill="#527F79" fill-opacity="0.220"/></g>
+  <g id="slider-bottomleft"><path d="M96 17A5 5 0 0 0 101 22V17Z" fill="#527F79" fill-opacity="0.620"/><path d="M96 17A5 5 0 0 0 101 22V21A4 4 0 0 1 97 17Z" fill="#527F79" fill-opacity="0.136"/></g>
+  <g id="slider-bottomright"><path d="M118 17A5 5 0 0 1 113 22V17Z" fill="#527F79" fill-opacity="0.620"/><path d="M118 17A5 5 0 0 1 113 22V21A4 4 0 0 0 117 17Z" fill="#527F79" fill-opacity="0.136"/></g>
+  <g id="slider-top"><rect x="101" y="0" width="12" height="5" fill="#527F79" fill-opacity="0.620"/><rect x="101" y="0" width="12" height="1" fill="#527F79" fill-opacity="0.220"/></g>
+  <g id="slider-bottom"><rect x="101" y="17" width="12" height="5" fill="#527F79" fill-opacity="0.620"/><rect x="101" y="21" width="12" height="1" fill="#527F79" fill-opacity="0.136"/></g>
+  <g id="slider-left"><rect x="96" y="5" width="5" height="12" fill="#527F79" fill-opacity="0.620"/><rect x="96" y="5" width="1" height="12" fill="#527F79" fill-opacity="0.172"/></g>
+  <g id="slider-right"><rect x="113" y="5" width="5" height="12" fill="#527F79" fill-opacity="0.620"/><rect x="117" y="5" width="1" height="12" fill="#527F79" fill-opacity="0.172"/></g>
+  <rect id="slider-center" x="101" y="5" width="12" height="12" fill="#527F79" fill-opacity="0.620"/>
+  <g id="mouseover-slider-topleft"><path d="M144 5A5 5 0 0 1 149 0V5H144Z" fill="#C81D7A" fill-opacity="0.840"/><path d="M144 5A5 5 0 0 1 149 0V1A4 4 0 0 0 145 5Z" fill="#7C3AED" fill-opacity="0.560"/></g>
+  <g id="mouseover-slider-topright"><path d="M161 0A5 5 0 0 1 166 5H161Z" fill="#C81D7A" fill-opacity="0.840"/><path d="M161 0A5 5 0 0 1 166 5H165A4 4 0 0 0 161 1Z" fill="#7C3AED" fill-opacity="0.560"/></g>
+  <g id="mouseover-slider-bottomleft"><path d="M144 17A5 5 0 0 0 149 22V17Z" fill="#C81D7A" fill-opacity="0.840"/><path d="M144 17A5 5 0 0 0 149 22V21A4 4 0 0 1 145 17Z" fill="#7C3AED" fill-opacity="0.347"/></g>
+  <g id="mouseover-slider-bottomright"><path d="M166 17A5 5 0 0 1 161 22V17Z" fill="#C81D7A" fill-opacity="0.840"/><path d="M166 17A5 5 0 0 1 161 22V21A4 4 0 0 0 165 17Z" fill="#7C3AED" fill-opacity="0.347"/></g>
+  <g id="mouseover-slider-top"><rect x="149" y="0" width="12" height="5" fill="#C81D7A" fill-opacity="0.840"/><rect x="149" y="0" width="12" height="1" fill="#7C3AED" fill-opacity="0.560"/></g>
+  <g id="mouseover-slider-bottom"><rect x="149" y="17" width="12" height="5" fill="#C81D7A" fill-opacity="0.840"/><rect x="149" y="21" width="12" height="1" fill="#7C3AED" fill-opacity="0.347"/></g>
+  <g id="mouseover-slider-left"><rect x="144" y="5" width="5" height="12" fill="#C81D7A" fill-opacity="0.840"/><rect x="144" y="5" width="1" height="12" fill="#7C3AED" fill-opacity="0.437"/></g>
+  <g id="mouseover-slider-right"><rect x="161" y="5" width="5" height="12" fill="#C81D7A" fill-opacity="0.840"/><rect x="165" y="5" width="1" height="12" fill="#7C3AED" fill-opacity="0.437"/></g>
+  <rect id="mouseover-slider-center" x="149" y="5" width="12" height="12" fill="#C81D7A" fill-opacity="0.840"/>
+  <g id="sunken-slider-topleft"><path d="M192 5A5 5 0 0 1 197 0V5H192Z" fill="#C81D7A" fill-opacity="1.000"/><path d="M192 5A5 5 0 0 1 197 0V1A4 4 0 0 0 193 5Z" fill="#7C3AED" fill-opacity="0.820"/></g>
+  <g id="sunken-slider-topright"><path d="M209 0A5 5 0 0 1 214 5H209Z" fill="#C81D7A" fill-opacity="1.000"/><path d="M209 0A5 5 0 0 1 214 5H213A4 4 0 0 0 209 1Z" fill="#7C3AED" fill-opacity="0.820"/></g>
+  <g id="sunken-slider-bottomleft"><path d="M192 17A5 5 0 0 0 197 22V17Z" fill="#C81D7A" fill-opacity="1.000"/><path d="M192 17A5 5 0 0 0 197 22V21A4 4 0 0 1 193 17Z" fill="#7C3AED" fill-opacity="0.508"/></g>
+  <g id="sunken-slider-bottomright"><path d="M214 17A5 5 0 0 1 209 22V17Z" fill="#C81D7A" fill-opacity="1.000"/><path d="M214 17A5 5 0 0 1 209 22V21A4 4 0 0 0 213 17Z" fill="#7C3AED" fill-opacity="0.508"/></g>
+  <g id="sunken-slider-top"><rect x="197" y="0" width="12" height="5" fill="#C81D7A" fill-opacity="1.000"/><rect x="197" y="0" width="12" height="1" fill="#7C3AED" fill-opacity="0.820"/></g>
+  <g id="sunken-slider-bottom"><rect x="197" y="17" width="12" height="5" fill="#C81D7A" fill-opacity="1.000"/><rect x="197" y="21" width="12" height="1" fill="#7C3AED" fill-opacity="0.508"/></g>
+  <g id="sunken-slider-left"><rect x="192" y="5" width="5" height="12" fill="#C81D7A" fill-opacity="1.000"/><rect x="192" y="5" width="1" height="12" fill="#7C3AED" fill-opacity="0.640"/></g>
+  <g id="sunken-slider-right"><rect x="209" y="5" width="5" height="12" fill="#C81D7A" fill-opacity="1.000"/><rect x="213" y="5" width="1" height="12" fill="#7C3AED" fill-opacity="0.640"/></g>
+  <rect id="sunken-slider-center" x="197" y="5" width="12" height="12" fill="#C81D7A" fill-opacity="1.000"/>
+  <polygon id="arrow-top" points="8,42 3,49 13,49" fill="#3D5854" fill-opacity="0.780"/>
+  <polygon id="arrow-right" points="30,46 23,41 23,51" fill="#3D5854" fill-opacity="0.780"/>
+  <polygon id="arrow-bottom" points="44,50 39,43 49,43" fill="#3D5854" fill-opacity="0.780"/>
+  <polygon id="arrow-left" points="58,46 65,41 65,51" fill="#3D5854" fill-opacity="0.780"/>
+  <polygon id="mouseover-arrow-top" points="80,42 75,49 85,49" fill="#7C3AED" fill-opacity="0.960"/>
+  <polygon id="mouseover-arrow-right" points="102,46 95,41 95,51" fill="#7C3AED" fill-opacity="0.960"/>
+  <polygon id="mouseover-arrow-bottom" points="116,50 111,43 121,43" fill="#7C3AED" fill-opacity="0.960"/>
+  <polygon id="mouseover-arrow-left" points="130,46 137,41 137,51" fill="#7C3AED" fill-opacity="0.960"/>
+  <polygon id="sunken-arrow-top" points="152,42 147,49 157,49" fill="#C81D7A" fill-opacity="1.000"/>
+  <polygon id="sunken-arrow-right" points="174,46 167,41 167,51" fill="#C81D7A" fill-opacity="1.000"/>
+  <polygon id="sunken-arrow-bottom" points="188,50 183,43 193,43" fill="#C81D7A" fill-opacity="1.000"/>
+  <polygon id="sunken-arrow-left" points="202,46 209,41 209,51" fill="#C81D7A" fill-opacity="1.000"/>
+  <rect id="hint-scrollbar-size" x="220" y="38" width="12" height="12" fill="none"/>
+  <rect id="hint-tile-center" x="236" y="38" width="4" height="4" fill="none"/>
+</svg>

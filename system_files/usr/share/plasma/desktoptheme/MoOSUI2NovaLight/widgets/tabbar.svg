@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="208" viewBox="0 0 128 208">
+  <!-- MoOS active tabs in all four tab-bar orientations. -->
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Background { color: #C6DCE9; }
+    .ColorScheme-Highlight { color: #0E63C4; }
+    .ColorScheme-Text { color: #17302E; }
+    .ColorScheme-ButtonBackground { color: #BFD7E4; }
+    .ColorScheme-ButtonText { color: #17302E; }
+  </style>
+  <g id="north-active-tab-topleft"><path d="M0 9A9 9 0 0 1 9 0V9H0Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M0 9A9 9 0 0 1 9 0V1A8 8 0 0 0 1 9Z" fill="#0E63C4" fill-opacity="0.880"/></g>
+  <g id="north-active-tab-topright"><path d="M33 0A9 9 0 0 1 42 9H33Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M33 0A9 9 0 0 1 42 9H41A8 8 0 0 0 33 1Z" fill="#0E63C4" fill-opacity="0.880"/></g>
+  <g id="north-active-tab-bottomleft"><path d="M0 33A9 9 0 0 0 9 42V33Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M0 33A9 9 0 0 0 9 42V41A8 8 0 0 1 1 33Z" fill="#0E63C4" fill-opacity="0.546"/></g>
+  <g id="north-active-tab-bottomright"><path d="M42 33A9 9 0 0 1 33 42V33Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M42 33A9 9 0 0 1 33 42V41A8 8 0 0 0 41 33Z" fill="#0E63C4" fill-opacity="0.546"/></g>
+  <g id="north-active-tab-top"><rect x="9" y="0" width="24" height="9" fill="#BFD7E4" fill-opacity="0.840"/><rect x="9" y="0" width="24" height="1" fill="#0E63C4" fill-opacity="0.880"/></g>
+  <g id="north-active-tab-bottom"><rect x="9" y="33" width="24" height="9" fill="#BFD7E4" fill-opacity="0.840"/><rect x="9" y="41" width="24" height="1" fill="#0E63C4" fill-opacity="0.546"/></g>
+  <g id="north-active-tab-left"><rect x="0" y="9" width="9" height="24" fill="#BFD7E4" fill-opacity="0.840"/><rect x="0" y="9" width="1" height="24" fill="#0E63C4" fill-opacity="0.686"/></g>
+  <g id="north-active-tab-right"><rect x="33" y="9" width="9" height="24" fill="#BFD7E4" fill-opacity="0.840"/><rect x="41" y="9" width="1" height="24" fill="#0E63C4" fill-opacity="0.686"/></g>
+  <rect id="north-active-tab-center" x="9" y="9" width="24" height="24" fill="#BFD7E4" fill-opacity="0.840"/>
+  <rect id="north-active-tab-hint-top-margin" x="47" y="0" width="3" height="7" fill="none"/>
+  <rect id="north-active-tab-hint-bottom-margin" x="47" y="9" width="3" height="7" fill="none"/>
+  <rect id="north-active-tab-hint-left-margin" x="52" y="0" width="7" height="3" fill="none"/>
+  <rect id="north-active-tab-hint-right-margin" x="52" y="5" width="7" height="3" fill="none"/>
+  <g id="east-active-tab-topleft"><path d="M0 61A9 9 0 0 1 9 52V61H0Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M0 61A9 9 0 0 1 9 52V53A8 8 0 0 0 1 61Z" fill="#0E63C4" fill-opacity="0.880"/></g>
+  <g id="east-active-tab-topright"><path d="M33 52A9 9 0 0 1 42 61H33Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M33 52A9 9 0 0 1 42 61H41A8 8 0 0 0 33 53Z" fill="#0E63C4" fill-opacity="0.880"/></g>
+  <g id="east-active-tab-bottomleft"><path d="M0 85A9 9 0 0 0 9 94V85Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M0 85A9 9 0 0 0 9 94V93A8 8 0 0 1 1 85Z" fill="#0E63C4" fill-opacity="0.546"/></g>
+  <g id="east-active-tab-bottomright"><path d="M42 85A9 9 0 0 1 33 94V85Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M42 85A9 9 0 0 1 33 94V93A8 8 0 0 0 41 85Z" fill="#0E63C4" fill-opacity="0.546"/></g>
+  <g id="east-active-tab-top"><rect x="9" y="52" width="24" height="9" fill="#BFD7E4" fill-opacity="0.840"/><rect x="9" y="52" width="24" height="1" fill="#0E63C4" fill-opacity="0.880"/></g>
+  <g id="east-active-tab-bottom"><rect x="9" y="85" width="24" height="9" fill="#BFD7E4" fill-opacity="0.840"/><rect x="9" y="93" width="24" height="1" fill="#0E63C4" fill-opacity="0.546"/></g>
+  <g id="east-active-tab-left"><rect x="0" y="61" width="9" height="24" fill="#BFD7E4" fill-opacity="0.840"/><rect x="0" y="61" width="1" height="24" fill="#0E63C4" fill-opacity="0.686"/></g>
+  <g id="east-active-tab-right"><rect x="33" y="61" width="9" height="24" fill="#BFD7E4" fill-opacity="0.840"/><rect x="41" y="61" width="1" height="24" fill="#0E63C4" fill-opacity="0.686"/></g>
+  <rect id="east-active-tab-center" x="9" y="61" width="24" height="24" fill="#BFD7E4" fill-opacity="0.840"/>
+  <rect id="east-active-tab-hint-top-margin" x="47" y="52" width="3" height="7" fill="none"/>
+  <rect id="east-active-tab-hint-bottom-margin" x="47" y="61" width="3" height="7" fill="none"/>
+  <rect id="east-active-tab-hint-left-margin" x="52" y="52" width="7" height="3" fill="none"/>
+  <rect id="east-active-tab-hint-right-margin" x="52" y="57" width="7" height="3" fill="none"/>
+  <g id="south-active-tab-topleft"><path d="M0 113A9 9 0 0 1 9 104V113H0Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M0 113A9 9 0 0 1 9 104V105A8 8 0 0 0 1 113Z" fill="#0E63C4" fill-opacity="0.880"/></g>
+  <g id="south-active-tab-topright"><path d="M33 104A9 9 0 0 1 42 113H33Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M33 104A9 9 0 0 1 42 113H41A8 8 0 0 0 33 105Z" fill="#0E63C4" fill-opacity="0.880"/></g>
+  <g id="south-active-tab-bottomleft"><path d="M0 137A9 9 0 0 0 9 146V137Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M0 137A9 9 0 0 0 9 146V145A8 8 0 0 1 1 137Z" fill="#0E63C4" fill-opacity="0.546"/></g>
+  <g id="south-active-tab-bottomright"><path d="M42 137A9 9 0 0 1 33 146V137Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M42 137A9 9 0 0 1 33 146V145A8 8 0 0 0 41 137Z" fill="#0E63C4" fill-opacity="0.546"/></g>
+  <g id="south-active-tab-top"><rect x="9" y="104" width="24" height="9" fill="#BFD7E4" fill-opacity="0.840"/><rect x="9" y="104" width="24" height="1" fill="#0E63C4" fill-opacity="0.880"/></g>
+  <g id="south-active-tab-bottom"><rect x="9" y="137" width="24" height="9" fill="#BFD7E4" fill-opacity="0.840"/><rect x="9" y="145" width="24" height="1" fill="#0E63C4" fill-opacity="0.546"/></g>
+  <g id="south-active-tab-left"><rect x="0" y="113" width="9" height="24" fill="#BFD7E4" fill-opacity="0.840"/><rect x="0" y="113" width="1" height="24" fill="#0E63C4" fill-opacity="0.686"/></g>
+  <g id="south-active-tab-right"><rect x="33" y="113" width="9" height="24" fill="#BFD7E4" fill-opacity="0.840"/><rect x="41" y="113" width="1" height="24" fill="#0E63C4" fill-opacity="0.686"/></g>
+  <rect id="south-active-tab-center" x="9" y="113" width="24" height="24" fill="#BFD7E4" fill-opacity="0.840"/>
+  <rect id="south-active-tab-hint-top-margin" x="47" y="104" width="3" height="7" fill="none"/>
+  <rect id="south-active-tab-hint-bottom-margin" x="47" y="113" width="3" height="7" fill="none"/>
+  <rect id="south-active-tab-hint-left-margin" x="52" y="104" width="7" height="3" fill="none"/>
+  <rect id="south-active-tab-hint-right-margin" x="52" y="109" width="7" height="3" fill="none"/>
+  <g id="west-active-tab-topleft"><path d="M0 165A9 9 0 0 1 9 156V165H0Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M0 165A9 9 0 0 1 9 156V157A8 8 0 0 0 1 165Z" fill="#0E63C4" fill-opacity="0.880"/></g>
+  <g id="west-active-tab-topright"><path d="M33 156A9 9 0 0 1 42 165H33Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M33 156A9 9 0 0 1 42 165H41A8 8 0 0 0 33 157Z" fill="#0E63C4" fill-opacity="0.880"/></g>
+  <g id="west-active-tab-bottomleft"><path d="M0 189A9 9 0 0 0 9 198V189Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M0 189A9 9 0 0 0 9 198V197A8 8 0 0 1 1 189Z" fill="#0E63C4" fill-opacity="0.546"/></g>
+  <g id="west-active-tab-bottomright"><path d="M42 189A9 9 0 0 1 33 198V189Z" fill="#BFD7E4" fill-opacity="0.840"/><path d="M42 189A9 9 0 0 1 33 198V197A8 8 0 0 0 41 189Z" fill="#0E63C4" fill-opacity="0.546"/></g>
+  <g id="west-active-tab-top"><rect x="9" y="156" width="24" height="9" fill="#BFD7E4" fill-opacity="0.840"/><rect x="9" y="156" width="24" height="1" fill="#0E63C4" fill-opacity="0.880"/></g>
+  <g id="west-active-tab-bottom"><rect x="9" y="189" width="24" height="9" fill="#BFD7E4" fill-opacity="0.840"/><rect x="9" y="197" width="24" height="1" fill="#0E63C4" fill-opacity="0.546"/></g>
+  <g id="west-active-tab-left"><rect x="0" y="165" width="9" height="24" fill="#BFD7E4" fill-opacity="0.840"/><rect x="0" y="165" width="1" height="24" fill="#0E63C4" fill-opacity="0.686"/></g>
+  <g id="west-active-tab-right"><rect x="33" y="165" width="9" height="24" fill="#BFD7E4" fill-opacity="0.840"/><rect x="41" y="165" width="1" height="24" fill="#0E63C4" fill-opacity="0.686"/></g>
+  <rect id="west-active-tab-center" x="9" y="165" width="24" height="24" fill="#BFD7E4" fill-opacity="0.840"/>
+  <rect id="west-active-tab-hint-top-margin" x="47" y="156" width="3" height="7" fill="none"/>
+  <rect id="west-active-tab-hint-bottom-margin" x="47" y="165" width="3" height="7" fill="none"/>
+  <rect id="west-active-tab-hint-left-margin" x="52" y="156" width="7" height="3" fill="none"/>
+  <rect id="west-active-tab-hint-right-margin" x="52" y="161" width="7" height="3" fill="none"/>
+  <rect id="hint-tile-center" x="104" y="0" width="4" height="4" fill="none"/>
+</svg>

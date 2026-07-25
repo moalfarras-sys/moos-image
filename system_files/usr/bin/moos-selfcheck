@@ -86,13 +86,13 @@ case "$lnf" in
         want_deco=__aurorae__svg__MoOSUI2; want_sch=MoOSUI2Dark; want_ico=MoOSUI2
         want_sty=MoOSUI2; want_wall=MoOSUI2Graphite
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui2
-        mode="UI2 غرافيت | Graphite Dark"
+        mode="MoOS غرافيت | Graphite Dark"
         ;;
     org.moos.ui2.light)
         want_deco=__aurorae__svg__MoOSUI2Light; want_sch=MoOSUI2Light; want_ico=MoOSUI2Light
         want_sty=MoOSUI2Light; want_wall=MoOSUI2Tide
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light; family=ui2
-        mode="UI2 تركواز | Tidal Light"
+        mode="MoOS تركواز | Tidal Light"
         ;;
     org.moos.ui2.nova|org.moos.ui2.amethyst|org.moos.ui2.midnight|org.moos.ui2.aurora|\
     org.moos.ui2.nova.light|org.moos.ui2.amethyst.light|org.moos.ui2.midnight.light|org.moos.ui2.aurora.light|\
@@ -113,10 +113,10 @@ case "$lnf" in
         if [[ "$lnf" == *.light ]]; then
             [ "$family" = midnight ] && Name=Daylight || Name="${Name}Light"
             want_ico=MoOSUI2Light
-            mode="UI2 ${Name} Light"
+            mode="MoOS ${Name} Light"
         else
             want_ico=MoOSUI2
-            mode="UI2 ${Name} Dark"
+            mode="MoOS ${Name} Dark"
         fi
         want_deco="__aurorae__svg__MoOSUI2${Name}"
         want_sch="MoOSUI2${Name}"; want_sty="MoOSUI2${Name}"; want_wall="MoOSUI2${Name}"
@@ -141,16 +141,16 @@ default_dark="$(kreadconfig6 --file kdeglobals --group KDE --key DefaultDarkLook
 default_light="$(kreadconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel 2>/dev/null)"
 if [ -n "$pair_dark" ]; then
     [ "$default_dark" = "$pair_dark" ] \
-        && ok "automatic dark target is UI2: ${default_dark}" \
-        || bad "dark target is '${default_dark:-unset}', expected the UI2 safety target ${pair_dark}"
+        && ok "automatic dark target is MoOS: ${default_dark}" \
+        || bad "dark target is '${default_dark:-unset}', expected the MoOS safety target ${pair_dark}"
     [ "$default_light" = "$pair_light" ] \
-        && ok "automatic light target is UI2: ${default_light}" \
-        || bad "light target is '${default_light:-unset}', expected the UI2 safety target ${pair_light}"
+        && ok "automatic light target is MoOS: ${default_light}" \
+        || bad "light target is '${default_light:-unset}', expected the MoOS safety target ${pair_light}"
     if [ -d "/usr/share/plasma/look-and-feel/$pair_dark" ] && \
        [ -d "/usr/share/plasma/look-and-feel/$pair_light" ]; then
-        ok "UI2 Graphite/Tidal automatic pair is installed"
+        ok "MoOS Graphite/Tidal automatic pair is installed"
     else
-        bad "the UI2 automatic dark/light pair is incomplete under /usr/share/plasma/look-and-feel"
+        bad "the MoOS automatic dark/light pair is incomplete under /usr/share/plasma/look-and-feel"
     fi
 fi
 
@@ -178,8 +178,8 @@ for asset in \
     [ -e "$asset" ] || ui2_missing="${ui2_missing} ${asset}"
 done
 [ -z "$ui2_missing" ] \
-    && ok "UI2 themes, wallpapers, the scene plugin and weather art are installed" \
-    || bad "UI2 asset set is incomplete:${ui2_missing}"
+    && ok "MoOS themes, wallpapers, the scene plugin and weather art are installed" \
+    || bad "MoOS visual asset set is incomplete:${ui2_missing}"
 
 # ── The keyboard ─────────────────────────────────────────────────────────────
 # Ask the SESSION what it is typing with, not the system what it was told to type with.

@@ -33,9 +33,10 @@ PlasmoidItem {
 
     property date now: new Date()
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property var displayLocale: rtl ? Qt.locale("ar") : Qt.locale()
 
-    toolTipMainText: Qt.formatTime(now, Locale.LongFormat)
-    toolTipSubText: Qt.formatDate(now, Locale.LongFormat)
+    toolTipMainText: Qt.formatTime(now, displayLocale, Locale.LongFormat)
+    toolTipSubText: Qt.formatDate(now, displayLocale, Locale.LongFormat)
 
     // Tick on the minute boundary, not at 1 Hz: nothing here displays seconds,
     // so a per-second timer was 59 needless wakeups a minute in a process that
@@ -124,10 +125,10 @@ PlasmoidItem {
             }
 
             Text {
-                text: Qt.formatDate(root.now, "ddd d MMM")
+                text: Qt.formatDate(root.now, root.displayLocale, "ddd d MMM")
                 color: Kirigami.Theme.textColor
                 opacity: 0.66
-                font.family: "IBM Plex Sans"
+                font.family: root.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
                 font.pixelSize: Math.max(9, Kirigami.Units.gridUnit * 0.58)
                 font.weight: Font.Medium
             }

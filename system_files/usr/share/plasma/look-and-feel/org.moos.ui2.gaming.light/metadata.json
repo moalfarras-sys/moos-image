@@ -1,7 +1,7 @@
 {
     "KPlugin": {
         "Id": "org.moos.ui2.gaming.light",
-        "Name": "MoOS Arena Light",
+        "Name": "MoOS UI · Arena Light",
         "Description": "للألعاب نهاراً: طاقة الماجنتا على قماشة فاتحة | Arena by day: magenta energy on a light canvas",
         "Authors": [
             {
@@ -11,7 +11,7 @@
         "Version": "2.0.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/moalfarras-sys/moos-image",
-        "Name[ar]": "MoOS Arena Light"
+        "Name[ar]": "MoOS UI · Arena Light"
     },
     "KPackageStructure": "Plasma/LookAndFeel",
     "X-Plasma-APIVersion": "2"

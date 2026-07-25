@@ -6,7 +6,7 @@ BoldIntense=true
 UseFontLineChararacters=true
 
 [General]
-Name=MoOS Midnight
+Name=MoOS UI · Midnight
 Parent=FALLBACK/
 TerminalMargin=14
 TerminalCenter=false

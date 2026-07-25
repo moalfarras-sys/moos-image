@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="34" viewBox="0 0 16 34">
+  <!-- MoOS checked-state glyphs. -->
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Background { color: #1D2529; }
+    .ColorScheme-Highlight { color: #4ED7C8; }
+    .ColorScheme-Text { color: #E8F1EF; }
+    .ColorScheme-ButtonBackground { color: #2C383E; }
+    .ColorScheme-ButtonText { color: #E8F1EF; }
+  </style>
+  <g id="checkbox"><rect x="0" width="16" height="16" rx="5" fill="#4ED7C8"/><path d="M3.5 8.4L6.6 11.3 12.6 4.9" fill="none" stroke="#142220" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <g id="radiobutton"><circle cx="8" cy="26" r="7.5" fill="#4ED7C8"/><circle cx="8" cy="26" r="3" fill="#142220"/></g>
+</svg>

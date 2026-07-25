@@ -4,7 +4,25 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-17 (session H), booted image `44.20260717.190` (`moos-nvidia`, signed origin).
+Last updated: 2026-07-25 (session I visual-system audit and local builds;
+signed release rollout pending).
+
+> **Session I — unified visual-system work (2026-07-25, full audit in
+> `artwork/MOOS_VISUAL_AUDIT_2026-07-25.md`).** The repository and live 4K/225%
+> Plasma session were inventoried rather than judging metadata alone. The 16-theme
+> family now shares one generated MoOS design system: complete high-visibility
+> Plasma controls and blur masks, rebuilt Aurorae frames and functional button
+> states, one safe KWin frost profile, crop-safe Graphite/Tidal wallpaper masters,
+> low-duty ambient motion, RTL clock/picker corrections, exact Qt/GTK/GSettings
+> readback, and an owned nine-application icon family. Existing-user revisions are
+> `THEME_REV=22` and `MOOS_THEME_REV=10`. Both local images then built from the
+> fresh `7.1.4-204.fc44.x86_64` base: generic and NVIDIA passed the identity,
+> experience, initramfs/OSTree, Plymouth and bootc gates; NVIDIA carried the
+> matching 610.43.03 open driver, and both produced 50 Qt WebEngine spell-check
+> dictionaries including Arabic and English. The booted audit image was still
+> `44.20260724.1` from a **local unverified containers-storage origin**, so it is
+> diagnostic evidence only: signed CI publication, signed staging and
+> post-reboot proof remain mandatory and must not be claimed until recorded.
 
 > **Session H — the first-boot session (2026-07-17, full writeup in `FIXES_2026-07-17b.md`).**
 > ISO `44.20260717.190` was walked end-to-end in QEMU (all green: splash+ring, DE live
@@ -208,7 +226,7 @@ is under `artwork/moos-ui/live-tests/*-v2.png`.
 
 | Repository | What it is | How it reaches the user |
 |---|---|---|
-| `~/moos-image` | The OS. A bootc image built from `Containerfile` + `build_files/build.sh` + a literal filesystem tree in `system_files/`. | Push to `main` → GitHub Actions builds **two editions** (`moos`, `moos-nvidia`), signs them with sigstore, pushes to `ghcr.io/moalfarras-sys/`. The user's machine `bootc upgrade`s from the registry. |
+| `~/moos-image` | The OS. A bootc image built from `Containerfile` + `build_files/build.sh` + a literal filesystem tree in `system_files/`. | Push to `main` → GitHub Actions builds **two editions** (`moos`, `moos-nvidia`), signs them with sigstore, pushes to `ghcr.io/moalfarras-sys/`. The user's machine stages the resolved signed digest through `moai-do update`. |
 | `~/MoPlayerMoOS` | The IPTV player. Flutter. Its own repository: **github.com/moalfarras-sys/MoPlayerMoOS**. | **Vendored** into `moos-image/moplayer/` by `just sync-moplayer`, then compiled *inside* the image by a Containerfile stage. The image ships the binary, never the toolchain. |
 | `~/MoPlayerios` | An iOS build of MoPlayer. Not part of the OS. | — |
 
@@ -230,7 +248,7 @@ the image compiles. A change that lives only in one of them ships as half a chan
         UNCOMMITTED file is copied by nobody and the image fails on a missing import
       ↳ also installs the launcher/.desktop/icons into system_files/ itself
 4. commit the re-vendor, push          → CI builds and signs both editions
-5. on the machine: `sudo bootc upgrade && sudo systemctl reboot`
+5. on the machine: `moai-do update`, then reboot from the MoOS power UI after the signed digest is staged
 6. `./tests/post-update-check.sh`      → confirms the booted digest IS the published one
 ```
 

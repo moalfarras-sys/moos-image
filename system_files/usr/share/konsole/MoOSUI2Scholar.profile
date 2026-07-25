@@ -6,7 +6,7 @@ BoldIntense=true
 UseFontLineChararacters=true
 
 [General]
-Name=MoOS Scholar
+Name=MoOS UI · Scholar
 Parent=FALLBACK/
 TerminalMargin=14
 TerminalCenter=false

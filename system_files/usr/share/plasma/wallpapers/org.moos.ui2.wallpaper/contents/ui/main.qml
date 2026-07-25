@@ -22,6 +22,10 @@ import org.kde.plasma.plasmoid
 WallpaperItem {
     id: root
 
+    property int ambientPhase: 0
+    readonly property bool motionEnabled:
+        root.configuration.AmbientMotion && art.status === Image.Ready
+
     readonly property bool lightSurface:
         Kirigami.Theme.backgroundColor.hslLightness > 0.55
 
@@ -102,6 +106,63 @@ WallpaperItem {
         }
     }
 
+    // "Living glass" without turning a 4K desktop into a permanent animation.
+    // Two very low-alpha mineral washes exchange emphasis only once per
+    // 90 seconds. The transition lasts 1.8 s, so the scene is completely idle
+    // 98% of the time and remains safe on fractional-scale / battery systems.
+    Timer {
+        interval: 90000
+        repeat: true
+        running: root.motionEnabled
+        onTriggered: root.ambientPhase = (root.ambientPhase + 1) % 2
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        z: 0.1
+        opacity: root.motionEnabled
+            ? (root.ambientPhase === 0 ? 0.055 : 0.13)
+            : 0
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: "transparent" }
+            GradientStop {
+                position: 0.72
+                color: Qt.rgba(Kirigami.Theme.highlightColor.r,
+                               Kirigami.Theme.highlightColor.g,
+                               Kirigami.Theme.highlightColor.b, 0.16)
+            }
+            GradientStop { position: 1.0; color: "transparent" }
+        }
+        Behavior on opacity {
+            enabled: root.motionEnabled
+            NumberAnimation { duration: 1800; easing.type: Easing.InOutCubic }
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        z: 0.1
+        opacity: root.motionEnabled
+            ? (root.ambientPhase === 0 ? 0.11 : 0.04)
+            : 0
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop {
+                position: 0.0
+                color: Qt.rgba(Kirigami.Theme.linkColor.r,
+                               Kirigami.Theme.linkColor.g,
+                               Kirigami.Theme.linkColor.b, 0.10)
+            }
+            GradientStop { position: 0.42; color: "transparent" }
+            GradientStop { position: 1.0; color: "transparent" }
+        }
+        Behavior on opacity {
+            enabled: root.motionEnabled
+            NumberAnimation { duration: 1800; easing.type: Easing.InOutCubic }
+        }
+    }
+
     // Solid palette canvas behind everything, so a missing/renamed master file
     // degrades to a branded flat colour, never to a black desktop.
     Rectangle {
@@ -120,6 +181,7 @@ WallpaperItem {
     // corner it is anchored to, not toward its centre.
     Item {
         id: bentoFrame
+        z: 1
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.topMargin: Math.max(36, Math.round(parent.height * 0.05))

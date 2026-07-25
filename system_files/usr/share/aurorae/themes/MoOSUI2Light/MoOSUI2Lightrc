@@ -1,13 +1,16 @@
 [General]
-# Title centred, macOS-style, rather than hugged to the button cluster.
+# A centred title remains balanced for both LTR and RTL window captions.
 TitleAlignment=Center
 TitleVerticalAlignment=Center
-Animation=120
+Animation=140
 ActiveTextColor=23,48,46,255
 InactiveTextColor=61,88,84,255
 UseTextShadow=false
 HaloActive=false
 HaloInactive=false
+Shadow=true
+LeftButtons=M
+RightButtons=HIAX
 
 [Layout]
 BorderLeft=1
@@ -17,23 +20,21 @@ TitleEdgeTop=5
 TitleEdgeBottom=5
 TitleEdgeLeft=10
 TitleEdgeRight=10
-TitleBorderLeft=8
-TitleBorderRight=8
-TitleHeight=30
+TitleBorderLeft=10
+TitleBorderRight=10
+TitleHeight=32
 
-# Maximized: no side/bottom frame, no shadow — just the title bar.
 TitleEdgeTopMaximized=0
 TitleEdgeBottomMaximized=0
-TitleEdgeLeftMaximized=10
-TitleEdgeRightMaximized=10
+TitleEdgeLeftMaximized=0
+TitleEdgeRightMaximized=0
 
-ButtonWidth=18
-ButtonHeight=18
-ButtonSpacing=8
-ButtonMarginTop=0
+ButtonWidth=20
+ButtonHeight=20
+ButtonSpacing=6
+ButtonMarginTop=1
+ExplicitButtonSpacer=8
 
-# The shadow lives here. Aurorae paints the decoration SVG across padding too,
-# so this is the room the drop shadow gets to breathe in.
 PaddingLeft=18
 PaddingRight=18
 PaddingTop=12

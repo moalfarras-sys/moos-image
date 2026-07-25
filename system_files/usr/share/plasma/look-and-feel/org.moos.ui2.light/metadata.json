@@ -1,9 +1,9 @@
 {
     "KPlugin": {
         "Id": "org.moos.ui2.light",
-        "Name": "MoOS Light",
-        "Name[ar]": "MoOS الفاتح",
-        "Description": "سمة MoOS UI2 التركواز الفاتحة | MoOS UI2 tidal light global theme",
+        "Name": "MoOS UI Light",
+        "Name[ar]": "MoOS UI الفاتح",
+        "Description": "سمة MoOS UI التركواز الفاتحة | MoOS UI tidal light global theme",
         "Authors": [
             {
                 "Name": "Moalfarras"

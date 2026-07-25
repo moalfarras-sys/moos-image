@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=MoOS Apply UI2 Theme
-Name[ar]=تطبيق سمة MoOS UI2
-Comment=Applies the complete MoOS UI2 Global Theme on first login (once per user)
-Comment[ar]=يطبّق سمة MoOS UI2 المتكاملة عند أول تسجيل دخول
+Name=Apply MoOS Theme
+Name[ar]=تطبيق سمة MoOS
+Comment=Applies the complete MoOS Global Theme after an upgrade
+Comment[ar]=يطبّق سمة MoOS المتكاملة بعد الترقية
 Exec=/usr/bin/moos-apply-theme
 Icon=moos-logo
 Terminal=false

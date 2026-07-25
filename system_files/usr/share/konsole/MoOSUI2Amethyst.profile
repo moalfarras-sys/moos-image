@@ -6,7 +6,7 @@ BoldIntense=true
 UseFontLineChararacters=true
 
 [General]
-Name=MoOS Amethyst
+Name=MoOS UI · Amethyst
 Parent=FALLBACK/
 TerminalMargin=14
 TerminalCenter=false

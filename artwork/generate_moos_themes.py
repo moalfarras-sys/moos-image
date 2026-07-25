@@ -122,51 +122,51 @@ def light_roles(base_key: str) -> dict[str, str]:
 # and a matching LIGHT sibling; moos-theme toggles between them by appending
 # ".light" to the look-and-feel id.
 THEMES = {
-    "nova":     dict(name="MoOS Nova",     style="MoOSUI2Nova",     lnf="org.moos.ui2.nova",
+    "nova":     dict(name="MoOS UI · Nova",     style="MoOSUI2Nova",     lnf="org.moos.ui2.nova",
                      wall="MoOSUI2Nova",     mood="cosmic", light=False, base="nova",
                      desc="سديم كحلي بتوهّج سماوي‑بنفسجي | Cosmic navy with a cyan-violet aurora"),
-    "amethyst": dict(name="MoOS Amethyst", style="MoOSUI2Amethyst", lnf="org.moos.ui2.amethyst",
+    "amethyst": dict(name="MoOS UI · Amethyst", style="MoOSUI2Amethyst", lnf="org.moos.ui2.amethyst",
                      wall="MoOSUI2Amethyst", mood="calm", light=False, base="amethyst",
                      desc="باذنجاني دافئ بلمسة أوركيد وكهرمان | Warm aubergine with orchid and amber"),
-    "midnight": dict(name="MoOS Midnight", style="MoOSUI2Midnight", lnf="org.moos.ui2.midnight",
+    "midnight": dict(name="MoOS UI · Midnight", style="MoOSUI2Midnight", lnf="org.moos.ui2.midnight",
                      wall="MoOSUI2Midnight", mood="minimal", light=False, base="midnight",
                      desc="أسود حقيقي عالي التباين لشاشات OLED | True-black high-contrast for OLED"),
-    "aurora":   dict(name="MoOS Aurora",   style="MoOSUI2Aurora",   lnf="org.moos.ui2.aurora",
+    "aurora":   dict(name="MoOS UI · Aurora",   style="MoOSUI2Aurora",   lnf="org.moos.ui2.aurora",
                      wall="MoOSUI2Aurora",   mood="cosmic", light=False, base="aurora",
                      desc="سليت نظيف بشفق تركوازي‑أزرق حديث | Clean slate with a modern teal-blue aurora"),
-    "nova-light":     dict(name="MoOS Nova Light",     style="MoOSUI2NovaLight",
+    "nova-light":     dict(name="MoOS UI · Nova Light",     style="MoOSUI2NovaLight",
                            lnf="org.moos.ui2.nova.light",     wall="MoOSUI2NovaLight",
                            mood="cosmic", light=True, base="nova",
                            desc="نهار كوني: أزرق سماوي فاتح بشفق بنفسجي | Airy cosmic day, cyan-violet silk"),
-    "amethyst-light": dict(name="MoOS Amethyst Light", style="MoOSUI2AmethystLight",
+    "amethyst-light": dict(name="MoOS UI · Amethyst Light", style="MoOSUI2AmethystLight",
                            lnf="org.moos.ui2.amethyst.light", wall="MoOSUI2AmethystLight",
                            mood="calm", light=True, base="amethyst",
                            desc="غسق أرجواني فاتح بلمسة كهرمان | Light orchid dusk with an amber wash"),
-    "aurora-light":   dict(name="MoOS Aurora Light",   style="MoOSUI2AuroraLight",
+    "aurora-light":   dict(name="MoOS UI · Aurora Light",   style="MoOSUI2AuroraLight",
                            lnf="org.moos.ui2.aurora.light",   wall="MoOSUI2AuroraLight",
                            mood="cosmic", light=True, base="aurora",
                            desc="نهار نعناعي‑تركوازي منعش | Fresh mineral mint-teal daylight"),
-    "daylight":       dict(name="MoOS Daylight",       style="MoOSUI2Daylight",
+    "daylight":       dict(name="MoOS UI · Daylight",       style="MoOSUI2Daylight",
                            lnf="org.moos.ui2.midnight.light", wall="MoOSUI2Daylight",
                            mood="cosmic", light=True, base="midnight",
                            desc="نهار صافٍ عالي التباين، نقيض Midnight | Clean high-contrast day, Midnight's opposite"),
     # ── Purpose-built editions: gaming, dev, study — each MoOS, its own energy ──
-    "gaming":   dict(name="MoOS Arena",   style="MoOSUI2Arena",   lnf="org.moos.ui2.gaming",
+    "gaming":   dict(name="MoOS UI · Arena",   style="MoOSUI2Arena",   lnf="org.moos.ui2.gaming",
                      wall="MoOSUI2Arena",   mood="cosmic", light=False, base="gaming",
                      desc="للألعاب: نيون سينث‑ويف، ماجنتا وسماوي كهربائي | Gaming: synthwave neon, magenta + electric cyan"),
-    "dev":      dict(name="MoOS Forge",   style="MoOSUI2Forge",   lnf="org.moos.ui2.dev",
+    "dev":      dict(name="MoOS UI · Forge",   style="MoOSUI2Forge",   lnf="org.moos.ui2.dev",
                      wall="MoOSUI2Forge",   mood="minimal", light=False, base="dev",
                      desc="للتطوير: سليت هادئ بضوء بناء أخضر، تركيز طويل | Dev: calm slate, a green build-light, low distraction"),
-    "study":    dict(name="MoOS Scholar", style="MoOSUI2Scholar", lnf="org.moos.ui2.study",
+    "study":    dict(name="MoOS UI · Scholar", style="MoOSUI2Scholar", lnf="org.moos.ui2.study",
                      wall="MoOSUI2Scholar", mood="calm", light=False, base="study",
                      desc="للدراسة: دفء كهرماني وسيج هادئ، مريح للعين | Study: amber warmth + calm sage, easy on the eyes"),
-    "gaming-light": dict(name="MoOS Arena Light",   style="MoOSUI2ArenaLight",   lnf="org.moos.ui2.gaming.light",
+    "gaming-light": dict(name="MoOS UI · Arena Light",   style="MoOSUI2ArenaLight",   lnf="org.moos.ui2.gaming.light",
                          wall="MoOSUI2ArenaLight",   mood="cosmic", light=True, base="gaming",
                          desc="للألعاب نهاراً: طاقة الماجنتا على قماشة فاتحة | Arena by day: magenta energy on a light canvas"),
-    "dev-light":    dict(name="MoOS Forge Light",   style="MoOSUI2ForgeLight",   lnf="org.moos.ui2.dev.light",
+    "dev-light":    dict(name="MoOS UI · Forge Light",   style="MoOSUI2ForgeLight",   lnf="org.moos.ui2.dev.light",
                          wall="MoOSUI2ForgeLight",   mood="minimal", light=True, base="dev",
                          desc="للتطوير نهاراً: سليت فاتح مركّز | Forge by day: a light, focused slate"),
-    "study-light":  dict(name="MoOS Scholar Light", style="MoOSUI2ScholarLight", lnf="org.moos.ui2.study.light",
+    "study-light":  dict(name="MoOS UI · Scholar Light", style="MoOSUI2ScholarLight", lnf="org.moos.ui2.study.light",
                          wall="MoOSUI2ScholarLight", mood="calm", light=True, base="study",
                          desc="للدراسة نهاراً: ورق دافئ مريح للقراءة | Scholar by day: warm paper, made for reading"),
 }
@@ -232,12 +232,12 @@ def _register_palette(key: str) -> None:
 
 def color_scheme_for(key: str, meta: dict) -> str:
     _register_palette(key)
-    # color_scheme() names light members "MoOS UI2 Light"/"MoOSUI2Light" and dark
+    # color_scheme() names light members "MoOS UI Light"/"MoOSUI2Light" and dark
     # ones "…Dark"; rename either to this member's own style/display name.
     text = gen.color_scheme(key)
     for scheme in ("MoOSUI2Dark", "MoOSUI2Light"):
         text = text.replace(scheme, meta["style"])
-    for name in ("MoOS UI2 Dark", "MoOS UI2 Light"):
+    for name in ("MoOS UI Dark", "MoOS UI Light"):
         text = text.replace(name, meta["name"])
     return text
 
@@ -245,7 +245,7 @@ def color_scheme_for(key: str, meta: dict) -> str:
 def konsole_scheme_for(key: str, meta: dict) -> str:
     _register_palette(key)
     text = gen.konsole_scheme(key, light=meta.get("light", False))
-    return text.replace("MoOS UI2 Dark", meta["name"]).replace("MoOS UI2 Light", meta["name"])
+    return text.replace("MoOS UI Dark", meta["name"]).replace("MoOS UI Light", meta["name"])
 
 
 def konsole_profile_for(key: str, meta: dict) -> str:
@@ -304,6 +304,14 @@ def build_desktoptheme(key: str, meta: dict) -> None:
         elif src.name not in ("colors", "metadata.json", "plasmarc"):
             out.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, out)
+    # Light members render their glass through the SHARED masters instead of the
+    # recoloured dark copy, so all 7 light siblings pick up the tuned LIGHT
+    # opacity ramp — keeping Dark and Light ONE glass source with two profiles,
+    # not a light theme forced onto the dark dock's translucency.
+    if meta.get("light"):
+        _register_palette(key)
+        gen.render_panel(dst / "widgets/panel-background.svg", key, light=True)
+        gen.render_dialog(dst / "dialogs/background.svg", key, light=True)
     # fresh metadata + plasmarc + colors
     write(dst / "metadata.json", json.dumps({
         "KPlugin": {
@@ -341,45 +349,10 @@ def build_aurorae(key: str, meta: dict) -> None:
     for src in sorted(SRC_AUR.glob("*")):
         if src.suffix == ".svg":
             write(dst / src.name, recolor(src.read_text(encoding="utf-8"), m))
-    # rc: same geometry, per-theme title colours
-    write(dst / f"{meta['style']}rc", f"""[General]
-# Title centred, macOS-style, rather than hugged to the button cluster.
-TitleAlignment=Center
-TitleVerticalAlignment=Center
-Animation=120
-ActiveTextColor={_rgb(p['text'])},255
-InactiveTextColor={_rgb(p['muted'])},255
-UseTextShadow=false
-HaloActive=false
-HaloInactive=false
-
-[Layout]
-BorderLeft=1
-BorderRight=1
-BorderBottom=1
-TitleEdgeTop=5
-TitleEdgeBottom=5
-TitleEdgeLeft=10
-TitleEdgeRight=10
-TitleBorderLeft=8
-TitleBorderRight=8
-TitleHeight=30
-
-TitleEdgeTopMaximized=0
-TitleEdgeBottomMaximized=0
-TitleEdgeLeftMaximized=10
-TitleEdgeRightMaximized=10
-
-ButtonWidth=18
-ButtonHeight=18
-ButtonSpacing=8
-ButtonMarginTop=0
-
-PaddingLeft=18
-PaddingRight=18
-PaddingTop=12
-PaddingBottom=24
-""")
+    # The family owns one Aurorae geometry and interaction contract. Re-render
+    # the rc from semantic roles so titles, spacing and RTL behaviour cannot
+    # drift from the Graphite/Tidal pair.
+    write(dst / f"{meta['style']}rc", gen.aurorae_art.aurorae_rc(p))
     write(dst / "metadata.desktop", f"""[Desktop Entry]
 Name={meta['name']}
 Comment={meta['desc']}
@@ -436,6 +409,9 @@ def build_lnf(key: str, meta: dict) -> None:
 [kdeglobals][General]
 ColorScheme={meta['style']}
 
+[kdeglobals][KDE]
+widgetStyle=Breeze
+
 [plasmarc][Theme]
 name={meta['style']}
 
@@ -451,20 +427,20 @@ Enable=true
 Theme=moos
 
 [kwinrc][org.kde.kdecoration2]
-library=org.kde.kwin.aurorae
+library=org.kde.kwin.aurorae.v2
 theme=__aurorae__svg__{meta['style']}
 
 [kwinrc][Plugins]
 blurEnabled=true
 
 [kwinrc][Effect-blur]
-BlurStrength=8
-NoiseStrength=2
+BlurStrength={gen.KWIN_BLUR_STRENGTH}
+NoiseStrength={gen.KWIN_NOISE_STRENGTH}
 
 [kcminputrc][Mouse]
 cursorTheme={cursor}
 """)
-    write(dst / "README.md", f"# {meta['name']}\n\nGenerated by artwork/generate_moos_themes.py — a MoOS UI2-family look.\n")
+    write(dst / "README.md", f"# {meta['name']}\n\nGenerated by artwork/generate_moos_themes.py — a MoOS UI-family look.\n")
 
 
 # ---------------------------------------------------------------- wallpaper art
@@ -847,8 +823,26 @@ def build_gtk(key: str, meta: dict) -> None:
         return
     m = hexmap(key)
     css = recolor(SRC_GTK.read_text(encoding="utf-8"), m)
-    css = css.replace("MoOS UI2 (Graphite Dark)", f"{meta['name']}")
+    css = css.replace("MoOS UI (Graphite Dark)", f"{meta['name']}")
     write(SHARE / "moos/gtk" / f"moos-ui2-{key}.css", css)
+
+
+def crop_to_fill(img, size: tuple[int, int]):
+    """Scale without changing geometry, then crop evenly to the target frame.
+
+    MoOS exports 16:9, ultrawide and 16:10 wallpaper packages from one master.
+    A direct resize made every circle, glow and ribbon change shape on the
+    non-16:9 exports. ImageOps.fit preserves the artwork's proportions and
+    discards only the excess edge pixels.
+    """
+    from PIL import Image, ImageOps
+
+    return ImageOps.fit(
+        img,
+        size,
+        method=Image.Resampling.LANCZOS,
+        centering=(0.5, 0.5),
+    )
 
 
 def build_wallpaper(key: str, meta: dict) -> bool:
@@ -860,10 +854,10 @@ def build_wallpaper(key: str, meta: dict) -> bool:
     for sub in ("contents/images", "contents/images_dark"):
         (pkg / sub).mkdir(parents=True, exist_ok=True)
     for w, h in ((3840, 2160), (3440, 1440), (2560, 1600)):
-        frame = img.resize((w, h))
+        frame = crop_to_fill(img, (w, h))
         for sub in ("images", "images_dark"):
             frame.convert("RGB").save(pkg / "contents" / sub / f"{w}x{h}.jpg", quality=92)
-    img.resize((1920, 1080)).convert("RGB").save(pkg / "contents/screenshot.png")
+    crop_to_fill(img, (1920, 1080)).convert("RGB").save(pkg / "contents/screenshot.png")
     write(pkg / "metadata.json", json.dumps({
         "KPlugin": {"Id": meta["wall"], "Name": meta["name"],
                     "Authors": [{"Name": "Moalfarras"}], "License": "GPL-3.0-or-later"},
@@ -871,10 +865,12 @@ def build_wallpaper(key: str, meta: dict) -> bool:
     # picker previews live in the lnf package
     lnf = SHARE / "plasma/look-and-feel" / meta["lnf"] / "contents/previews"
     lnf.mkdir(parents=True, exist_ok=True)
-    img.resize((600, 337)).convert("RGB").save(lnf / "preview.png")
-    img.resize((600, 337)).convert("RGB").save(lnf / "lockscreen.png")
-    img.resize((300, 169)).convert("RGB").save(lnf / "splash.png")
-    img.resize((1920, 1080)).convert("RGB").save(lnf / "fullscreenpreview.jpg", quality=90)
+    crop_to_fill(img, (600, 337)).convert("RGB").save(lnf / "preview.png")
+    crop_to_fill(img, (600, 337)).convert("RGB").save(lnf / "lockscreen.png")
+    crop_to_fill(img, (300, 169)).convert("RGB").save(lnf / "splash.png")
+    crop_to_fill(img, (1920, 1080)).convert("RGB").save(
+        lnf / "fullscreenpreview.jpg", quality=90
+    )
     return True
 
 

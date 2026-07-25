@@ -6,7 +6,7 @@ BoldIntense=true
 UseFontLineChararacters=true
 
 [General]
-Name=MoOS Forge
+Name=MoOS UI · Forge
 Parent=FALLBACK/
 TerminalMargin=14
 TerminalCenter=false

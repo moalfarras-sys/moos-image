@@ -6,7 +6,7 @@ BoldIntense=true
 UseFontLineChararacters=true
 
 [General]
-Name=MoOS Aurora
+Name=MoOS UI · Aurora
 Parent=FALLBACK/
 TerminalMargin=14
 TerminalCenter=false

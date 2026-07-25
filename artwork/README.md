@@ -22,7 +22,6 @@ Run all generators from the repository root:
 
 ```powershell
 python artwork/generate_nova_visuals.py
-python artwork/generate_nova_symbols.py
 python artwork/verify_nova_visuals.py
 ```
 
@@ -35,10 +34,6 @@ The first Nova Plasma Style geometry batch generates complete `button.svg` and
 libplasma 6.7.2. Top-level panel/dialog/tooltip masks remain on the verified
 fallback path until this low-risk state batch passes live Plasma testing; this
 prevents an untested mask from clipping a whole popup or panel.
-
-`generate_nova_symbols.py` produces the renderer-safe, font-independent icon
-family used to replace emoji in MoOS Welcome, Hardware Center, and Compatibility
-Hub. Claude's exact QML replacement map is tracked in `NOVA_SYMBOL_MAP.md`.
 
 The four optional sound-theme events use the separate synthesizer and
 PySoundFile 0.14.0 only at generation time:

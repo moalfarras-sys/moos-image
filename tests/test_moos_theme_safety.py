@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import configparser
 import shlex
 import os
 import re
@@ -65,6 +66,104 @@ def function(text: str, name: str) -> str:
 
 
 class TestMoOSThemeSafety(unittest.TestCase):
+    def test_runtime_supplements_follow_konsole_profiles_and_gsettings(self) -> None:
+        """A renamed Konsole profile and GTK identity must follow every theme live."""
+        switch = SWITCH.read_text(encoding="utf-8")
+        loader = function(switch, "load_profile")
+        supplements = function(switch, "apply_supplements")
+        complete = function(switch, "automatic_supplements_complete")
+        profile_root = ROOT / "system_files/usr/share/konsole"
+
+        # Run the real profile selector for every installed MoOS look, but point
+        # its read-only system path at this checkout. This catches the exact bug
+        # where profile metadata was renamed while 16 hard-coded D-Bus names
+        # stayed on the previous generation.
+        constant_block = switch[
+            switch.index('DARK_LNF="'):switch.index("\nusage()")
+        ]
+        loader_in_tree = loader.replace(
+            "/usr/share/konsole", str(profile_root)
+        )
+        harness = f"""
+set -euo pipefail
+{constant_block}
+{loader_in_tree}
+load_profile "$1"
+printf '%s\\t%s\\n' "$konsole_profile" "$konsole_profile_name"
+"""
+        lnfs = re.findall(r'^[A-Z_]+_LNF="([^"]+)"', constant_block, re.M)
+        self.assertEqual(len(lnfs), 16, "the gate must exercise all MoOS looks")
+        for lnf in lnfs:
+            with self.subTest(look_and_feel=lnf):
+                selected = subprocess.run(
+                    [BASH, "-c", harness, "test", lnf],
+                    check=True,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                ).stdout.rstrip("\n").split("\t")
+                self.assertEqual(len(selected), 2)
+                profile_file, selected_name = selected
+                parser = configparser.ConfigParser(interpolation=None)
+                parser.optionxform = str
+                self.assertTrue(
+                    parser.read(profile_root / profile_file, encoding="utf-8"),
+                    f"{lnf}: missing Konsole profile {profile_file}",
+                )
+                self.assertEqual(
+                    selected_name,
+                    parser["General"]["Name"],
+                    f"{lnf}: D-Bus retint must use the profile's live Name value",
+                )
+
+        self.assertEqual(
+            len(re.findall(r"(?m)^\s*konsole_profile_name=", loader)),
+            1,
+            "derive the Konsole name once from its profile; do not duplicate "
+            "user-visible names across 16 case arms",
+        )
+
+        # GSettings is the Wayland/Flatpak source. Synchronising only its
+        # light/dark bit leaves apps on stale icons, cursor and fonts.
+        expected_sets = {
+            "color-scheme": '"$([ "$prefer_dark" = true ] && echo prefer-dark || echo prefer-light)"',
+            "icon-theme": '"$icons"',
+            "cursor-theme": '"$cursor"',
+            "font-name": "'IBM Plex Sans 10'",
+            "monospace-font-name": "'JetBrains Mono 10'",
+        }
+        for key, value in expected_sets.items():
+            with self.subTest(gsettings_key=key):
+                self.assertRegex(
+                    supplements,
+                    rf"gsettings set org\.gnome\.desktop\.interface {re.escape(key)}\s+"
+                    rf"(?:\\\s*)?"
+                    rf"{re.escape(value)}",
+                )
+                self.assertRegex(
+                    complete,
+                    rf"gsettings get org\.gnome\.desktop\.interface {re.escape(key)}",
+                )
+
+    def test_portal_preferences_keep_kde_session_services(self) -> None:
+        """The /etc override must extend the stock KDE map, not erase services."""
+        portal = ROOT / "system_files/etc/xdg-desktop-portal/kde-portals.conf"
+        parser = configparser.ConfigParser(interpolation=None, strict=True)
+        parser.optionxform = str
+        self.assertTrue(parser.read(portal, encoding="utf-8"))
+        self.assertIn("preferred", parser)
+        preferred = dict(parser["preferred"])
+        self.assertEqual(
+            preferred,
+            {
+                "default": "kde",
+                "org.freedesktop.impl.portal.Settings": "kde;gtk;",
+                "org.freedesktop.impl.portal.Secret": "kwallet",
+                "org.freedesktop.impl.portal.Notification": "plasmanotify",
+                "org.freedesktop.impl.portal.FileChooser": "kde",
+            },
+        )
+
     @unittest.skipUnless(_HAS_KWRITECONFIG6, _KWRITE_REASON)
     def test_numlock_default_migrates_before_user_and_greeter_kwin(self) -> None:
         migration = MIGRATE.read_text(encoding="utf-8")

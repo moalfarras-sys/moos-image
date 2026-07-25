@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="162" height="36" viewBox="0 0 162 36">
+  <!-- MoOS pill switch with luminous focus and restrained pressed feedback. -->
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Background { color: #DDD0E9; }
+    .ColorScheme-Highlight { color: #C81D7A; }
+    .ColorScheme-Text { color: #17302E; }
+    .ColorScheme-ButtonBackground { color: #D5CCE4; }
+    .ColorScheme-ButtonText { color: #17302E; }
+  </style>
+  <path id="inactive-left" d="M0 7A7 7 0 0 1 7 0v14A7 7 0 0 1 0 7Z" fill="#527F79" fill-opacity="0.46"/>
+  <rect id="inactive-center" x="7" width="16" height="14" fill="#527F79" fill-opacity="0.46"/>
+  <path id="inactive-right" d="M23 0a7 7 0 0 1 0 14Z" fill="#527F79" fill-opacity="0.46"/>
+  <path id="active-left" d="M0 27a7 7 0 0 1 7-7v14a7 7 0 0 1-7-7Z" fill="#C81D7A"/>
+  <rect id="active-center" x="7" y="20" width="16" height="14" fill="#C81D7A"/>
+  <path id="active-right" d="M23 20a7 7 0 0 1 0 14Z" fill="#C81D7A"/>
+  <g id="handle"><circle cx="43" cy="7" r="7" fill="#17302E"/><circle cx="43" cy="7" r="6" fill="#E8D7F0"/></g>
+  <g id="handle-hover"><circle cx="61" cy="7" r="8" fill="#7C3AED" fill-opacity="0.42"/><circle cx="61" cy="7" r="6" fill="#17302E"/></g>
+  <g id="handle-focus"><circle cx="81" cy="7" r="9" fill="none" stroke="#7C3AED" stroke-width="2"/><circle cx="81" cy="7" r="6" fill="#17302E"/></g>
+  <g id="handle-pressed"><circle cx="101" cy="7" r="7" fill="#C81D7A"/><circle cx="101" cy="7" r="4" fill="#F7FBFF"/></g>
+  <circle id="handle-shadow" cx="119" cy="8" r="7" fill="#668681" fill-opacity="0.28"/>
+  <rect id="hint-bar-size" x="130" width="30" height="14" fill="none"/>
+</svg>

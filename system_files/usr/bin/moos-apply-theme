@@ -17,11 +17,10 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-# 21: the historic org.moos.brand panel item becomes MoOS's single integrated
-#     launcher. The revision removes the duplicated Kickoff button only after it
-#     has handed its KActivities favorites client to the MoOS launcher, expands
-#     the popup, retires user-level QML shadows, and refreshes Baloo coverage.
-THEME_REV=21
+# 22: apply the unified MoOS visual system to existing users: rebuilt Plasma
+#     controls and Aurorae chrome, first-party icons, exact GTK/GSettings pins,
+#     balanced blur, localized RTL clock, and the refreshed 4K wallpaper pair.
+THEME_REV=22
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -1168,7 +1167,7 @@ fi
 #
 # ButtonsOnLeft mirrors /etc/xdg/kwinrc: X=Close I=Minimize A=Maximize.
 if command -v kwriteconfig6 >/dev/null 2>&1; then
-    kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae
+    kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae.v2
     kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "$want_deco"
     kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft XIA
     # The icon theme is not colour-scheme aware: Nova's symbolics are drawn light
@@ -1257,6 +1256,16 @@ pin_gtk() {
         # apps read ONLY this; they ignore gtk-theme-name entirely.
         gsettings set org.gnome.desktop.interface color-scheme \
             "$([ "$want_gtk_dark" = true ] && echo prefer-dark || echo prefer-light)" 2>/dev/null || true
+        # Icon / cursor / font identity for GTK+libadwaita+Flatpak, pushed
+        # DETERMINISTICALLY here instead of leaning on the race-prone kde-gtk-config
+        # kded module (which this script's own comments document as failing under
+        # the Flatpak sandbox). Values mirror kdeglobals + each L&F defaults exactly.
+        gsettings set org.gnome.desktop.interface icon-theme \
+            "$([ "$want_gtk_dark" = true ] && echo MoOSUI2 || echo MoOSUI2Light)" 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface cursor-theme \
+            "$([ "$want_gtk_dark" = true ] && echo MoOS || echo MoOSDark)" 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface font-name 'IBM Plex Sans 10' 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface monospace-font-name 'JetBrains Mono 10' 2>/dev/null || true
     fi
 
     # X11 / XWayland GTK apps. xsettingsd re-reads its config on SIGHUP and pushes the new

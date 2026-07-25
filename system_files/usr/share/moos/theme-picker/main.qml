@@ -30,6 +30,8 @@ Kirigami.ApplicationWindow {
     minimumHeight: Math.min(Kirigami.Units.gridUnit * 26,
                             Screen.desktopAvailableHeight * 0.88)
     color: Kirigami.Theme.backgroundColor
+    LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+    LayoutMirroring.childrenInherit: true
 
     readonly property color accent: Kirigami.Theme.highlightColor
     readonly property bool lightSurface:

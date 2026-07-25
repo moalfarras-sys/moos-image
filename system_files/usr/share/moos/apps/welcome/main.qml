@@ -5,10 +5,9 @@
 //
 // WHAT IT DOES, IN SIX STEPS
 //   0 hero       أهلاً بك — the MoOS mark, breathing.
-//   1 look       Graphite dark / Tidal light — the pick applies INSTANTLY via
-//                moos://theme/{dark,light} (moos-open runs moos-theme detached),
-//                and because the KDE platform theme broadcasts palette changes,
-//                this very window recolours live as proof.
+//   1 look       Six curated quick looks apply INSTANTLY via moos://theme/<id>
+//                (moos-open runs moos-theme detached). The complete 16-theme
+//                family remains available in the dedicated MoOS Themes picker.
 //   2 direction  What is this machine for? gaming / development / study /
 //                office — multi-select. Each direction is a catalog BUNDLE, so
 //                what a direction installs is exactly what the store shows.
@@ -1095,8 +1094,9 @@ ApplicationWindow {
                     Item { Layout.preferredHeight: 8 }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
-                        text: win.rtl ? "يطبَّق فوراً — وهذه النافذة نفسها ستتلوّن أمامك"
-                                      : "Applies instantly — this very window recolours as proof"
+                        text: win.rtl
+                              ? "6 إطلالات سريعة من عائلة تضم 16 ثيمًا — المجموعة الكاملة في تطبيق ثيمات MoOS"
+                              : "6 quick looks from a 16-theme family — find the complete collection in MoOS Themes"
                         color: win.txt2
                         font.family: "IBM Plex Sans"; font.pixelSize: 14
                     }
@@ -1108,8 +1108,10 @@ ApplicationWindow {
                         columnSpacing: 18
                         rowSpacing: 18
 
-                        // one card per MoOS look — the whole family, pick any
+                        // Six curated first-run choices. The dedicated picker
+                        // discovers and exposes the complete 16-theme family.
                         Repeater {
+                            // WELCOME_QUICK_THEME_IDS_BEGIN
                             model: [
                                 { id: "dark",  glyph: "moon", en: "Graphite",    ar: "غرافيت داكن",
                                   canvasC: "#14191C", chromeC: "#1C2226", accentC: "#4ED7C8", txtC: "#E8F1EF" },
@@ -1124,6 +1126,7 @@ ApplicationWindow {
                                 { id: "aurora", glyph: "moon", en: "Aurora",     ar: "أورورا",
                                   canvasC: "#0E1524", chromeC: "#172236", accentC: "#2DD4BF", txtC: "#ECF2FB" }
                             ]
+                            // WELCOME_QUICK_THEME_IDS_END
                             delegate: Rectangle {
                                 id: lookCard
                                 required property var modelData
@@ -1243,8 +1246,9 @@ ApplicationWindow {
                     Item { Layout.preferredHeight: 14 }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
-                        text: win.rtl ? "وضع تلقائي (نهار/ليل)؟ من أي طرفية: moos-theme auto"
-                                      : "Auto day/night? From any terminal: moos-theme auto"
+                        text: win.rtl
+                              ? "كل الإطلالات الفاتحة والداكنة والوضع التلقائي متاحة في تطبيق ثيمات MoOS"
+                              : "All light and dark looks, plus automatic mode, are available in MoOS Themes"
                         color: win.txt2
                         font.family: "IBM Plex Sans"; font.pixelSize: 12
                         opacity: 0.8

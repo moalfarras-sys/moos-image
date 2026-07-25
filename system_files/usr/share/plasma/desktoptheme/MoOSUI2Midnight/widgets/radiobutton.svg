@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="144" height="20" viewBox="0 0 144 20">
+  <!-- MoOS radio states with a clear focus halo. -->
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Background { color: #0A0A0C; }
+    .ColorScheme-Highlight { color: #22D3EE; }
+    .ColorScheme-Text { color: #F5F7FA; }
+    .ColorScheme-ButtonBackground { color: #1C1C22; }
+    .ColorScheme-ButtonText { color: #F5F7FA; }
+  </style>
+  <g id="normal"><circle cx="10" cy="10" r="8" fill="#0A0A0C" stroke="#26262E" stroke-width="1.2"/></g>
+  <g id="hover"><circle cx="30" cy="10" r="8" fill="#1C1C22" stroke="#67E8F9" stroke-width="1.4"/></g>
+  <g id="focus"><circle cx="50" cy="10" r="8" fill="#0A0A0C" stroke="#67E8F9" stroke-width="2"/></g>
+  <g id="checked"><circle cx="70" cy="10" r="8" fill="#22D3EE" stroke="#67E8F9" stroke-width="1.2"/><circle cx="70" cy="10" r="3.2" fill="#000000"/></g>
+  <circle id="symbol" cx="90" cy="10" r="3.2" fill="#000000"/>
+  <circle id="shadow" cx="110" cy="11" r="4" fill="#000000" fill-opacity="0.24"/>
+  <rect id="hint-size" x="122" y="0" width="20" height="20" fill="none"/>
+</svg>

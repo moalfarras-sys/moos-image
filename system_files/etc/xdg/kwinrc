@@ -126,7 +126,7 @@ translucencyEnabled=false
 # Note: there is NO separate background-contrast plugin in kwin master — blur's
 # own Saturation is the only "contrast"-style control, hence nothing more to set.
 BlurStrength=15
-NoiseStrength=2
+NoiseStrength=3
 
 [Effect-overview]
 # A macOS-style hot corner. Flick the pointer into the TOP-LEFT and Overview fans
@@ -197,7 +197,7 @@ AnimationDurationFactor=0.75
 # A decoration with no shadow would have looked FLATTER than the Breeze it
 # replaces, which is why the shadow is part of the art and not an afterthought.
 [org.kde.kdecoration2]
-library=org.kde.kwin.aurorae
+library=org.kde.kwin.aurorae.v2
 theme=__aurorae__svg__MoOSUI2
 ButtonsOnLeft=XIA
 ButtonsOnRight=

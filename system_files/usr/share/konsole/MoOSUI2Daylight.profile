@@ -6,7 +6,7 @@ BoldIntense=true
 UseFontLineChararacters=true
 
 [General]
-Name=MoOS Daylight
+Name=MoOS UI · Daylight
 Parent=FALLBACK/
 TerminalMargin=14
 TerminalCenter=false
