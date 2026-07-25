@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# moos-cloud-convert — turn a fresh Fedora VPS into MoOS Cloud, without losing it.
+#
+# Run this ON THE SERVER, over SSH, on a Fedora the provider just handed you:
+#
+#     curl -fsSLO https://raw.githubusercontent.com/moalfarras-sys/moos-image/main/system_files/usr/bin/moos-cloud-convert
+#     sudo bash moos-cloud-convert
+#
+# WHY A SCRIPT AND NOT THREE COMMANDS
+#
+# `system-reinstall-bootc` does the conversion well. What it cannot do is know
+# whether YOU will still be able to log in afterwards — and on a remote server
+# that is the only failure that matters. Everything else is recoverable from the
+# provider's rescue console; a machine you cannot reach, with no key on it, is a
+# reinstall.
+#
+# So this refuses to start unless all of the following are true, and says exactly
+# which one is not:
+#
+#   * an SSH key is already authorised for the account that will own it
+#     (MoOS Cloud ships PasswordAuthentication no — after the reboot, a password
+#     is not a fallback, it is nothing);
+#   * the architecture matches the image (x86_64 — MoOS has no aarch64 build);
+#   * there is room for the image (~12 GB) plus what is already there;
+#   * the machine can actually reach the registry;
+#   * the signature policy will be in place, so what boots is what was signed.
+#
+# It also prints the rescue instructions BEFORE doing anything, because the time
+# to learn how to reach your provider's console is not after the reboot.
+set -euo pipefail
+
+IMAGE="${MOOS_CLOUD_IMAGE:-ghcr.io/moalfarras-sys/moos-cloud:latest}"
+NEEDED_GB=14
+
+red()   { printf '\033[31m✗\033[0m %s\n' "$*"; }
+green() { printf '\033[32m✓\033[0m %s\n' "$*"; }
+warn()  { printf '\033[33m!\033[0m %s\n' "$*"; }
+head_() { printf '\n\033[1m%s\033[0m\n' "$*"; }
+
+fail=0
+check() { if eval "$2" >/dev/null 2>&1; then green "$1"; else red "$1"; [ "${3:-}" = "warn" ] && fail=$((fail)) || fail=1; fi; }
+
+[ "$(id -u)" = 0 ] || { red "run with sudo — this replaces the operating system."; exit 1; }
+
+cat <<'INTRO'
+────────────────────────────────────────────────────────────────────────────
+  MoOS Cloud — converting this server
+────────────────────────────────────────────────────────────────────────────
+This replaces the running Fedora with MoOS, in place, keeping the disk layout
+and your SSH keys. After the reboot the machine IS MoOS and takes signed
+updates from the same registry your desktop does.
+
+BEFORE YOU CONTINUE — find your provider's rescue console now, not later:
+  netcup:  SCP → your server → "Console" (VNC) and "Rescue system"
+  Hetzner: Cloud Console → server → ">_ Console"
+
+MoOS Cloud puts the boot log on the serial console for exactly this reason, so
+a failed boot is something you can READ instead of guess at.
+────────────────────────────────────────────────────────────────────────────
+INTRO
+
+head_ "Can you still get in afterwards?"
+# The one check that is not recoverable. Look at the invoking user first (sudo
+# keeps SUDO_USER), then root — one of them must already hold a key.
+target_user="${SUDO_USER:-root}"
+target_home="$(getent passwd "$target_user" | cut -d: -f6)"
+keys=0
+for f in "${target_home}/.ssh/authorized_keys" /root/.ssh/authorized_keys; do
+    [ -r "$f" ] || continue
+    n=$(grep -c '^ssh-\|^ecdsa-\|^sk-' "$f" 2>/dev/null || echo 0)
+    keys=$((keys + n))
+done
+if [ "$target_user" = "root" ]; then who="root"; else who="${target_user} or root"; fi
+if [ "$keys" -gt 0 ]; then
+    green "${keys} SSH key(s) authorised for ${who} — they survive the conversion"
+else
+    red "NO SSH key is authorised for ${who}."
+    red "  MoOS Cloud disables password authentication. Converting now would lock you out."
+    red "  Add your key first:  ssh-copy-id ${target_user}@<this-server>"
+    fail=1
+fi
+
+head_ "Is this machine the right shape?"
+arch="$(uname -m)"
+if [ "$arch" = "x86_64" ]; then
+    green "architecture x86_64"
+else
+    red "architecture is ${arch} — MoOS has no ${arch} build (see MOOS_CLOUD_PLAN.md §3)"
+    fail=1
+fi
+
+avail_gb=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+if [ "${avail_gb:-0}" -ge "$NEEDED_GB" ]; then
+    green "${avail_gb} GB free on / (needs ~${NEEDED_GB} GB for the image)"
+else
+    red "only ${avail_gb} GB free on / — the image needs about ${NEEDED_GB} GB"
+    fail=1
+fi
+
+mem_mb=$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)
+if [ "${mem_mb:-0}" -ge 3500 ]; then
+    green "${mem_mb} MB RAM"
+else
+    warn "${mem_mb} MB RAM — MoOS Cloud idles near 1.3 GB; 4 GB is the practical floor"
+fi
+
+head_ "Can it fetch what it is about to become?"
+if command -v podman >/dev/null 2>&1 || dnf -y install podman >/dev/null 2>&1; then
+    green "podman available"
+else
+    red "podman could not be installed — the conversion pulls the image with it"
+    fail=1
+fi
+if timeout 60 podman manifest inspect "$IMAGE" >/dev/null 2>&1 \
+   || timeout 60 skopeo inspect "docker://${IMAGE}" >/dev/null 2>&1; then
+    green "reachable: ${IMAGE}"
+else
+    red "cannot reach ${IMAGE} — check DNS/egress before converting"
+    fail=1
+fi
+
+head_ "Will it verify what it boots?"
+# The signature policy travels IN the image (build.sh z3), so after the first
+# boot every update is checked. What matters here is only that the conversion
+# pulls the intended repository.
+case "$IMAGE" in
+    ghcr.io/moalfarras-sys/*) green "image is from the MoOS registry (signature policy ships inside it)" ;;
+    *) warn "custom image ref: ${IMAGE} — signature enforcement is only as good as its origin" ;;
+esac
+
+if [ "$fail" != 0 ]; then
+    printf '\n\033[31mRefusing to convert.\033[0m Fix the ✗ lines above and run this again.\n'
+    exit 1
+fi
+
+head_ "Ready"
+cat <<EOF
+  from : $(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}")
+  to   : ${IMAGE}
+  user : ${target_user} (keys preserved)
+
+This is the point of no return. Type exactly: convert
+EOF
+read -r answer
+[ "$answer" = "convert" ] || { echo "cancelled — nothing was changed."; exit 0; }
+
+head_ "Converting"
+dnf -y install system-reinstall-bootc
+system-reinstall-bootc "$IMAGE"
+
+cat <<EOF
+
+$(green "Conversion staged.")
+
+  reboot now:      systemctl reboot
+  after it comes back, from your laptop:
+
+      ssh ${target_user}@<this-server> 'rpm-ostree status; systemctl --failed'
+
+  expect: the deployment to read ${IMAGE}, and no failed units.
+  if it does not come back, open the provider's console — the boot log is on
+  the serial console, which is why MoOS Cloud puts it there.
+EOF

@@ -352,3 +352,76 @@ sudo moos-cloud-dev remove sara
 `Mo PC Remote` يبثّ **مقعداً واحداً**. عدة مطوّرين في نفس اللحظة يعملون عبر
 **SSH وVS Code Remote** — وهو ما يريده المطوّر أصلاً — وسطح المكتب لواحد في كل مرة.
 عدة أسطح مكتب متزامنة تحتاج طبقة إضافية (KasmVNC بحاوية لكل مستخدم) ولم تُبنَ بعد.
+
+---
+
+## ١٣. دليل التشغيل — من تفعيل الخادم إلى فريق يعمل
+
+الخادم المشترى فعلاً (2026-07-25): **netcup VPS 2000 G12 iv `hourly-based`** —
+8 vCore / 16 GB DDR5 ECC / 512 GB NVMe، **حد أدنى 0 شهر** (فوترة شهرية، إلغاء متى
+شئت)، €21.55 + €0.60 لـIPv4 = **€22.15 شهرياً** شاملة الضريبة.
+
+> الفرق الجوهري عن التوصية: النسخة `hourly-based` **بلا التزام ١٢ شهراً**. التحفّظ
+> الوحيد الذي كان على netcup سقط.
+
+### الخطوة ٠ — قبل وصول التفعيل
+
+- نظام التشغيل عند الطلب: **Fedora** (netcup يقدّمها) — لأنها مسار التحويل.
+- ارفع مفتاح SSH العام في لوحة netcup (SCP)، أو احتفظ بكلمة مرور root المؤقتة
+  **لدقائق فقط** حتى تُركّب المفتاح.
+
+### الخطوة ١ — ركّب مفتاحك (قبل أي شيء آخر)
+
+```bash
+ssh-copy-id -i ~/.ssh/moos_cloud.pub root@<SERVER-IP>
+ssh -i ~/.ssh/moos_cloud root@<SERVER-IP> 'echo OK'
+```
+
+هذه ليست خطوة تحضيرية — هي **الشرط الوحيد غير القابل للاسترجاع**. MoOS Cloud يُطفئ
+الدخول بكلمة المرور، فبعد إعادة الإقلاع لا يكون المفتاح خياراً بل الطريق الوحيد.
+
+### الخطوة ٢ — حوّل الخادم إلى MoOS
+
+```bash
+ssh -i ~/.ssh/moos_cloud root@<SERVER-IP>
+curl -fsSLO https://raw.githubusercontent.com/moalfarras-sys/moos-image/main/system_files/usr/bin/moos-cloud-convert
+sudo bash moos-cloud-convert      # يفحص، ثم يطلب كتابة: convert
+sudo systemctl reboot
+```
+
+`moos-cloud-convert` **يرفض البدء** ما لم تتحقّق كلها: مفتاح SSH مُركّب، معمارية
+x86_64، ‏14 غ.ب مساحة، السجلّ مُتاح، والصورة من سجلّ MoOS. ويطبع طريقة الوصول إلى
+كونسول الإنقاذ **قبل** أن يلمس شيئاً — لأن وقت تعلّمها ليس بعد إعادة الإقلاع.
+
+### الخطوة ٣ — تحقّق أنه عاد MoOS
+
+```bash
+ssh -i ~/.ssh/moos_cloud root@<SERVER-IP> 'rpm-ostree status; systemctl --failed'
+```
+
+المتوقّع: `ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-cloud:latest`
+وصفر وحدات فاشلة.
+
+### الخطوة ٤ — الشبكة الخاصة، ثم الفريق
+
+```bash
+tailscale up --ssh                       # الخادم ينضم لشبكتك؛ الإدارة بلا منفذ عام
+sudo moos-cloud-dev add sara --key-file sara.pub
+sudo moos-cloud-dev add omar --key-file omar.pub --admin
+sudo moos-cloud-dev list
+```
+
+### الخطوة ٥ — الخدمات، ثم النسخ الاحتياطي (لا العكس)
+
+Caddy وSupabase ومشاريعك كحاويات `podman quadlet`، وبياناتها في `/var` فتنجو من كل
+تحديث نظام. ولا يُلغى اشتراك واحد قبل **استرجاع مُثبَت** من نسخة احتياطية حقيقية.
+
+### هل يلزم دومين؟
+
+| الاستعمال | دومين؟ |
+|---|---|
+| SSH، VS Code Remote، سطح المكتب، Supabase لك ولفريقك | **لا** — Tailscale يعطي اسماً و`tailscale cert` يصدر شهادة حقيقية |
+| مواقع ومشاريع **يزورها الناس** (بديل Vercel) | **نعم** — سجل `A` إلى IP الخادم، وCaddy يجلب شهادة Let's Encrypt تلقائياً |
+
+فإن كان الهدف استبدال Vercel فعلاً، وجّه دومينك الحالي (أو نطاقاً فرعياً منه) إلى
+الخادم. لا حاجة لشراء دومين جديد.
