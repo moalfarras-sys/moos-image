@@ -163,9 +163,36 @@ not be hidden by shipping a conflicting shell copy.
       610.43.03 open driver and eight initramfs module entries. Final local
       image IDs are `23cac443e954` and `8eaece6d8ee4`; both override inherited
       Artifact Hub links with MoOS-owned documentation and artwork;
-- [ ] the branch is reviewed, merged and pushed;
-- [ ] CI publishes and signs the resulting image;
+- [x] the branch is reviewed, merged and pushed — `moos-ui-unify` merged into
+      `main` as `1e7991b`, and the follow-up build-resilience work as `5823f93`;
+      `origin/main` carries both;
+- [x] CI publishes and signs the resulting image — run `30152979451` on
+      `5823f93` finished green in 17m37s, publishing and cosign-signing
+      `moos:latest` and `moos-nvidia:latest`;
 - [ ] the machine stages that signed origin, reboots, and the live post-update
-      checks remain green.
+      checks remain green — `tests/post-update-check.sh` is the script that
+      answers this, and it must be run **after** the reboot, on the live desktop.
 
 Until every checked item above has real output, this work is not an MoOS release.
+
+## Follow-up pass — 2026-07-25 (session J)
+
+Two defects the audit's own evidence pointed at, fixed at the source rather than
+described:
+
+- **The scene ignored "animations off".** `motionEnabled` in the wallpaper's
+  `main.qml` consulted only the plugin's `AmbientMotion` key, so a user who
+  disables animations in System Settings (or lands there through an
+  accessibility profile) still got a permanently breathing 4K desktop. The bento
+  already honoured Plasma's zero-duration signal; the scene layer now honours it
+  too, and `test_moos_ui2.py` fails if that guard is ever dropped again.
+- **The second unpriced updater.** `flatpak-system-update` was moved to idle CPU
+  and I/O in an earlier session precisely because a background updater must not
+  be something the user can feel — but `uupd` was left at normal priority, and on
+  this machine it is now the most expensive unit of the boot (1min 16.195s, top
+  of `systemd-analyze blame`). Its `OnCalendar=04:00 Persistent=true` timer fires
+  inside the first fifteen minutes of any desktop that was off at 4 AM. It now
+  ships the same `moos-idle.conf` treatment, gated by `verify_user_experience.py`.
+  Scope is stated honestly in the drop-in: the ostree fetch itself runs in
+  rpm-ostreed's own cgroup and is deliberately left fast, because the same daemon
+  serves the user's own interactive updates.

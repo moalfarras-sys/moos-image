@@ -1258,6 +1258,15 @@ class TestMoOSUI2(unittest.TestCase):
                       "the scene wallpaper no longer embeds the dashboard bento")
         self.assertIn("root.configuration.Image", wrapper,
                       "the scene must read the Image config key moos-theme writes per half")
+        # The scene layer owns motion too (the ambient wash), and it must obey the
+        # SAME setting the bento obeys. Plasma expresses "animations off" by
+        # collapsing durations to 0; a wallpaper that only consults its own
+        # AmbientMotion key keeps breathing on a desktop whose owner asked every
+        # animation to stop — an accessibility promise broken by the largest
+        # surface on screen.
+        self.assertIn("Kirigami.Units.longDuration > 0", wrapper,
+                      "the wallpaper scene's motion guard must honour Plasma's "
+                      "disabled-animation duration, not only its own AmbientMotion key")
         bento = qml_by_path[DASHBOARD / "contents/ui/DashboardBento.qml"]
         self.assertNotIn("import org.kde.plasma.plasmoid", bento,
                          "DashboardBento must stay plain QtQuick/Kirigami — the build's "
