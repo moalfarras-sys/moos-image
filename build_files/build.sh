@@ -683,7 +683,8 @@ dnf5 -y install ibm-plex-sans-fonts ibm-plex-sans-arabic-fonts \
 kawkab_ver=0.501
 kawkab_sha=11c06f57dddefaf0166d74caaa072865ab6ff8d34076e7ec5d2c20edda145666
 kawkab_zip=/tmp/kawkab-mono.zip
-curl -Lf --retry 3 -o "${kawkab_zip}" \
+curl -Lf --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
+    -o "${kawkab_zip}" \
     "https://github.com/aiaf/kawkab-mono/releases/download/v${kawkab_ver}/kawkab-mono-${kawkab_ver}.zip"
 echo "${kawkab_sha}  ${kawkab_zip}" | sha256sum -c -
 mkdir -p /usr/share/fonts/kawkab-mono
@@ -1056,7 +1057,8 @@ done
 # symlinks — layout verified against the downloaded v2.0.7 asset).
 # HiDPI: Bibata XCursor builds are multi-size (each cursor file embeds all
 # sizes up to 96px), so no separate HiDPI variant is needed.
-curl -Lf --retry 3 -o /tmp/bibata-modern-ice.tar.xz \
+curl -Lf --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
+    -o /tmp/bibata-modern-ice.tar.xz \
     "https://github.com/ful1e5/Bibata_Cursor/releases/download/v2.0.7/Bibata-Modern-Ice.tar.xz"
 tar -xJf /tmp/bibata-modern-ice.tar.xz -C /usr/share/icons/
 rm -f /tmp/bibata-modern-ice.tar.xz
@@ -1090,7 +1092,8 @@ EOF
 # pointer — the light Global Theme selects MoOSDark instead, so each half
 # gets the cursor that reads against ITS canvas. Same pinned release, same
 # rebrand-only treatment as MoOS above.
-curl -Lf --retry 3 -o /tmp/bibata-modern-classic.tar.xz \
+curl -Lf --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
+    -o /tmp/bibata-modern-classic.tar.xz \
     "https://github.com/ful1e5/Bibata_Cursor/releases/download/v2.0.7/Bibata-Modern-Classic.tar.xz"
 tar -xJf /tmp/bibata-modern-classic.tar.xz -C /usr/share/icons/
 rm -f /tmp/bibata-modern-classic.tar.xz
@@ -1573,7 +1576,8 @@ unset -v _scene_dir _scene_log _scene_home _scene_runtime _scene_rc
 # Fail-loud on purpose (-f fails on HTTP errors; no || true): an image without
 # Flathub is broken for app installs and must fail CI, not ship silently.
 mkdir -p /etc/flatpak/remotes.d
-curl -Lf --retry 3 -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
+curl -Lf --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
+    -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
     https://dl.flathub.org/repo/flathub.flatpakrepo
 
 # Pre-seed the languages Flathub apps carry, regardless of which one the user

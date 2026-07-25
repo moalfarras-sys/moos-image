@@ -93,7 +93,8 @@ RUN dnf -y install --setopt=install_weak_deps=False \
         gtk3-devel mpv-libs-devel libsecret-devel \
         xz zip unzip git curl file which findutils \
     && dnf clean all
-RUN curl -fL --retry 3 -o /tmp/flutter.tar.xz \
+RUN curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
+        -o /tmp/flutter.tar.xz \
         "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
     && tar -xJf /tmp/flutter.tar.xz -C /opt \
     && rm -f /tmp/flutter.tar.xz
