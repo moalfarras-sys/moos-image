@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+# moos-cloud-dev — add a developer to a MoOS Cloud server, correctly, in one command.
+#
+# Adding a teammate to a shared server is five steps that are each easy to get
+# wrong, and the ones people skip are the two that only hurt later:
+#
+#   1. the account and their SSH key            (everyone remembers this)
+#   2. rootless podman: subuid/subgid ranges    (forgotten → "podman: cannot set
+#                                                up namespace", and the fix looks
+#                                                like a podman bug)
+#   3. lingering                                (forgotten → every service they
+#                                                start dies the moment they close
+#                                                the SSH session, silently)
+#   4. NO docker group, ever                    (membership in it is root, and it
+#                                                is the usual way a "developer
+#                                                account" quietly becomes an
+#                                                administrator account)
+#   5. a home that is theirs                    (0700, not 0755 — a shared box
+#                                                where everyone can read everyone
+#                                                is not multi-user, it is one user
+#                                                with several names)
+#
+# What each developer then gets: their own account, their own containers (rootless
+# podman — no shared daemon, so one person's container cannot see or stop
+# another's), their own systemd user services that survive logout, and their own
+# VS Code Remote session. What they CANNOT do is break the OS: MoOS is an image
+# system, /usr is read-only, and there is no `dnf install` that reaches it. They
+# install their tools in containers or in their home, which is exactly where a
+# shared machine wants them.
+#
+#   moos-cloud-dev add    <name> --key "ssh-ed25519 AAAA..."   [--admin]
+#   moos-cloud-dev add    <name> --key-file ~/keys/sara.pub    [--admin]
+#   moos-cloud-dev list
+#   moos-cloud-dev remove <name> [--keep-home]
+#
+# --admin puts them in wheel (sudo). Without it they are a developer, not an
+# administrator, and that is the right default for everyone but you.
+set -euo pipefail
+
+DEV_GROUP=moosdev
+
+die() { printf '\033[31m✗\033[0m %s\n' "$*" >&2; exit 1; }
+ok()  { printf '\033[32m✓\033[0m %s\n' "$*"; }
+note(){ printf '  %s\n' "$*"; }
+
+need_root() {
+    [ "$(id -u)" = 0 ] || die "run this with sudo — it creates accounts."
+}
+
+usage() {
+    sed -n '3,30p' "$0" | sed 's/^# \{0,1\}//'
+    exit "${1:-0}"
+}
+
+# A name that is safe as a POSIX user: lowercase, starts with a letter, no
+# surprises. Rejecting early beats a half-created account.
+valid_name() {
+    [[ "$1" =~ ^[a-z][a-z0-9_-]{1,30}$ ]]
+}
+
+# subuid/subgid: rootless podman maps container UIDs into a range owned by the
+# user. Without a range, every `podman run` fails with a namespace error that
+# names nothing about the real cause. usermod assigns the next free block; doing
+# it explicitly (and idempotently) is what makes adding the tenth developer as
+# boring as the first.
+ensure_subids() {
+    local user="$1"
+    if ! grep -q "^${user}:" /etc/subuid 2>/dev/null; then
+        usermod --add-subuids 100000-65535 "$user" 2>/dev/null \
+            || die "could not allocate a subuid range for ${user} — rootless podman would fail"
+    fi
+    if ! grep -q "^${user}:" /etc/subgid 2>/dev/null; then
+        usermod --add-subgids 100000-65535 "$user" 2>/dev/null \
+            || die "could not allocate a subgid range for ${user} — rootless podman would fail"
+    fi
+}
+
+cmd_add() {
+    local user="" key="" admin=0
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --key)      key="${2:-}"; shift 2 ;;
+            --key-file) key="$(cat "${2:-}")" || die "cannot read key file"; shift 2 ;;
+            --admin)    admin=1; shift ;;
+            -h|--help)  usage 0 ;;
+            -*)         die "unknown option: $1" ;;
+            *)          user="$1"; shift ;;
+        esac
+    done
+
+    [ -n "$user" ] || die "which developer? usage: moos-cloud-dev add <name> --key '...'"
+    valid_name "$user" || die "'${user}' is not a usable account name (lowercase letter first, then a-z 0-9 _ -)"
+    [ -n "$key" ] || die "a developer with no SSH key cannot log in — pass --key or --key-file"
+    case "$key" in
+        ssh-*|ecdsa-*|sk-*) ;;
+        *) die "that does not look like an SSH public key (it must start with ssh-… or ecdsa-…)" ;;
+    esac
+
+    getent group "$DEV_GROUP" >/dev/null 2>&1 || groupadd "$DEV_GROUP"
+
+    if id "$user" >/dev/null 2>&1; then
+        note "account ${user} already exists — updating it"
+    else
+        useradd --create-home --shell /bin/bash --groups "$DEV_GROUP" "$user"
+        ok "created ${user}"
+    fi
+
+    # 0700: on a shared box, a home nobody else can read is the difference between
+    # several developers and one developer with several names.
+    chmod 0700 "/home/${user}" 2>/dev/null || chmod 0700 "$(getent passwd "$user" | cut -d: -f6)"
+
+    install -d -m0700 -o "$user" -g "$user" "$(getent passwd "$user" | cut -d: -f6)/.ssh"
+    local authkeys
+    authkeys="$(getent passwd "$user" | cut -d: -f6)/.ssh/authorized_keys"
+    touch "$authkeys"
+    grep -qxF "$key" "$authkeys" || printf '%s\n' "$key" >> "$authkeys"
+    chmod 0600 "$authkeys"; chown "${user}:${user}" "$authkeys"
+    ok "SSH key installed (password login is off server-wide)"
+
+    ensure_subids "$user"
+    ok "rootless podman ranges allocated"
+
+    loginctl enable-linger "$user"
+    ok "lingering on — their services keep running after they log out"
+
+    if [ "$admin" = 1 ]; then
+        usermod -aG wheel "$user"
+        ok "added to wheel — ${user} can sudo"
+    else
+        note "not an administrator (pass --admin if they need sudo)"
+    fi
+
+    # The one membership that must never be handed out casually. Being in `docker`
+    # is being root: the daemon runs as root and will happily bind-mount / into a
+    # container for anyone who can talk to its socket.
+    if getent group docker >/dev/null 2>&1 && id -nG "$user" | tr ' ' '\n' | grep -qx docker; then
+        gpasswd -d "$user" docker >/dev/null
+        note "removed ${user} from the docker group — that group is root; use rootless podman"
+    fi
+
+    echo
+    ok "${user} is ready. They connect with:"
+    note "ssh ${user}@<this-server>"
+    note "…and in VS Code: Remote-SSH → ${user}@<this-server>"
+}
+
+cmd_list() {
+    getent group "$DEV_GROUP" >/dev/null 2>&1 || { echo "no developers yet"; return 0; }
+    printf '%-16s %-8s %-8s %s\n' USER ADMIN LINGER KEYS
+    local members user home n admin linger
+    members="$(getent group "$DEV_GROUP" | cut -d: -f4 | tr ',' ' ')"
+    for user in $members; do
+        [ -n "$user" ] || continue
+        home="$(getent passwd "$user" | cut -d: -f6)"
+        n=0
+        [ -r "${home}/.ssh/authorized_keys" ] && n="$(grep -c '^ssh-\|^ecdsa-\|^sk-' "${home}/.ssh/authorized_keys" 2>/dev/null || echo 0)"
+        id -nG "$user" 2>/dev/null | tr ' ' '\n' | grep -qx wheel && admin=yes || admin=no
+        linger="$(loginctl show-user "$user" -p Linger --value 2>/dev/null || echo unknown)"
+        printf '%-16s %-8s %-8s %s\n' "$user" "$admin" "$linger" "$n"
+    done
+}
+
+cmd_remove() {
+    local user="${1:-}" keep=0
+    [ -n "$user" ] || die "which developer?"
+    [ "${2:-}" = "--keep-home" ] && keep=1
+    id "$user" >/dev/null 2>&1 || die "no such account: ${user}"
+
+    # Their containers and services are theirs; stop them with the account rather
+    # than leaving orphans that nobody can attribute later.
+    #
+    # Order and patience both matter here. Lingering means systemd keeps a user
+    # manager running for them with NO session open, so `loginctl terminate-user`
+    # alone returns immediately while `user@UID.service` is still shutting down —
+    # and userdel then fails with "user is currently used by process NNN", leaving
+    # the account half-removed. Stop the manager explicitly and WAIT for it, with a
+    # bound so a wedged service cannot hang the command forever.
+    local uid
+    uid="$(id -u "$user")"
+    loginctl disable-linger "$user" 2>/dev/null || true
+    loginctl terminate-user "$user" 2>/dev/null || true
+    systemctl stop "user@${uid}.service" 2>/dev/null || true
+    local waited=0
+    while pgrep -u "$user" >/dev/null 2>&1; do
+        [ "$waited" -ge 20 ] && break
+        sleep 0.5
+        waited=$((waited + 1))
+    done
+    if pgrep -u "$user" >/dev/null 2>&1; then
+        note "processes are still running as ${user}; stopping them"
+        pkill -KILL -u "$user" 2>/dev/null || true
+        sleep 1
+    fi
+
+    if [ "$keep" = 1 ]; then
+        userdel "$user"
+        ok "removed ${user}; their home was kept"
+    else
+        userdel --remove "$user"
+        ok "removed ${user} and their home"
+    fi
+}
+
+need_root
+case "${1:-}" in
+    add)    shift; cmd_add "$@" ;;
+    list)   shift; cmd_list "$@" ;;
+    remove) shift; cmd_remove "$@" ;;
+    -h|--help|"") usage 0 ;;
+    *)      die "unknown command: $1 (try: add, list, remove)" ;;
+esac

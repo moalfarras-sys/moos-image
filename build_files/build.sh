@@ -2882,6 +2882,14 @@ TUNE
     _cloud_fail=0
     systemctl is-enabled sshd.service >/dev/null 2>&1 || {
         echo "GATE FAIL: sshd is not enabled — the server would boot unreachable"; _cloud_fail=1; }
+    # A shared dev server is the normal case, not the exotic one. The helper that
+    # adds a teammate correctly — subuid ranges for rootless podman, lingering so
+    # their services survive logout, 0700 home, and never the docker group — has to
+    # BE there, or the fifth developer gets added by hand and one of those four is
+    # forgotten.
+    [ -x /usr/bin/moos-cloud-dev ] || {
+        echo "GATE FAIL: moos-cloud-dev is missing — adding a developer would be five"
+        echo "           manual steps, two of which fail silently later"; _cloud_fail=1; }
     grep -q '^PasswordAuthentication no' /etc/ssh/sshd_config.d/10-moos-cloud.conf || {
         echo "GATE FAIL: password authentication is not disabled"; _cloud_fail=1; }
     grep -q 'console=ttyS0' /usr/lib/bootc/kargs.d/40-moos-cloud-console.toml || {
