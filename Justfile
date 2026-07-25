@@ -139,13 +139,19 @@ sync-moplayer:
         system_files/usr/share/applications/org.moos.moplayer.desktop
     install -D -m0644 moplayer/packaging/moos/org.moos.moplayer.metainfo.xml \
         system_files/usr/share/metainfo/org.moos.moplayer.metainfo.xml
-    for png in moplayer/packaging/moos/icons/hicolor/*/apps/*.png; do
-        size="$(basename "$(dirname "$(dirname "$png")")")"
-        install -D -m0644 "$png" "system_files/usr/share/icons/hicolor/$size/apps/$(basename "$png")"
-    done
-    for svg in moplayer/packaging/moos/icons/hicolor/scalable/apps/*.svg; do
-        [ -e "$svg" ] || continue
-        install -D -m0644 "$svg" "system_files/usr/share/icons/hicolor/scalable/apps/$(basename "$svg")"
-    done
+    # The ICONS are deliberately NOT copied any more.
+    #
+    # They used to be, on the same reasoning as the launcher: the app's art is
+    # the app's. That stopped being true when MoOS grew one owned icon family —
+    # `artwork/generate_moos_app_icons.py` renders moos-moplayer along with the
+    # other eight first-party plates, so the shipped icon is MoOS's, not
+    # MoPlayer's. Copying packaging/ over it silently reverted part of the
+    # unified visual system to older art, and nothing said so: a re-vendor for a
+    # one-line code fix would quietly change the dock icon. Caught exactly that
+    # way on 2026-07-25, when syncing a keyring fix rewrote twelve PNGs.
+    #
+    # If MoPlayer's own icon changes and MoOS should follow, change it in the
+    # generator and re-run it — that is the single source now.
 
     echo "==> vendored $(find moplayer -type f | wc -l) files ($(du -sh moplayer | cut -f1)) and installed its packaging"
+    echo "    (icons NOT touched — MoOS generates moos-moplayer itself; see artwork/generate_moos_app_icons.py)"

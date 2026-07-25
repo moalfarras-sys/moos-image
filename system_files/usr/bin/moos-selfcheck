@@ -325,6 +325,26 @@ else
     ok "Mo PC Remote is off — nothing is capturing this screen"
 fi
 
+# ── The keyring ──────────────────────────────────────────────────────────────
+# A missing secret store does not announce itself. It breaks applications one at
+# a time, at their first credential call, and what the user sees is an app that
+# does not work — MoPlayer opened a BLACK WINDOW and died before its first frame
+# because reading its device id threw "Failed to unlock the keyring" (2026-07-25).
+# MoOS routes the Secret portal to kwallet and ships /etc/xdg/kwalletrc enabling
+# it, so this is normally green; it goes red when a ~/.config override turned the
+# wallet off, which is precisely the case nobody can otherwise see.
+head_ "حلقة المفاتيح | Keyring"
+if command -v gdbus >/dev/null 2>&1 && \
+   gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus \
+        --method org.freedesktop.DBus.ListNames 2>/dev/null | grep -q "org.freedesktop.secrets"; then
+    ok "the keyring answers on the session bus (apps can store credentials)"
+elif [ "$(kreadconfig6 --file kwalletrc --group Wallet --key Enabled 2>/dev/null)" = "false" ]; then
+    bad "your ~/.config/kwalletrc disables the wallet, so NOTHING provides org.freedesktop.secrets"
+    bad "  apps that keep a password will fail — re-enable with: kwriteconfig6 --file kwalletrc --group Wallet --key Enabled true"
+else
+    bad "no keyring is answering on org.freedesktop.secrets — apps that store a credential will fail"
+fi
+
 # ── The MoOS Store ────────────────────────────────────────────────────────────
 # `bootc upgrade` replaces /usr atomically, so reading the booted /usr IS reading
 # the running system: these prove the storefront, local index, and private
