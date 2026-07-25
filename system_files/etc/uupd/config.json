@@ -1,19 +1,4 @@
 {
-    "_comment_moos": [
-        "MoOS's uupd configuration. Identical to the shipped default except for ONE",
-        "line: the Brew module is off, because MoOS does not install Homebrew.",
-        "",
-        "Left enabled, uupd runs /home/linuxbrew/.linuxbrew/bin/brew update on a path",
-        "that does not exist on any MoOS machine. The module fails, and uupd ends the",
-        "whole run with 'Updates finished with errors!' — so EVERY automatic update,",
-        "on every MoOS install, reports failure while the image, Flatpaks and",
-        "distroboxes all updated perfectly. An update path that always says it failed",
-        "is an update path nobody can read: the one time something really does break,",
-        "it looks exactly like every other night.",
-        "",
-        "If MoOS ever ships Homebrew, flip this back — the module is fine, the",
-        "assumption that Homebrew exists is what was wrong."
-    ],
     "checks": {
         "hardware": {
             "enable": true,
