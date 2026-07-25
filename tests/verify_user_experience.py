@@ -1235,6 +1235,21 @@ for _mod in ("distrobox", "flatpak", "system"):
     require(_uupd_cfg["modules"][_mod]["disable"] is False,
             f"uupd's {_mod} module must stay enabled — disabling it silently stops that "
             "half of the update")
+# uupd unmarshals this file STRICTLY: one key it does not know and it refuses to start at
+# all — "'config.Config' has invalid keys" — which is worse than the failing module this
+# file exists to silence. Learned the hard way: a JSON block explaining WHY brew is off,
+# added for the next reader, made the updater refuse to run on a shipped image.
+#
+# JSON has no comments. The reasoning lives here and in the commit, and the config stays
+# exactly the shape the tool accepts.
+require(set(_uupd_cfg) <= {"checks", "modules"},
+        f"unknown top-level key in uupd's config ({sorted(set(_uupd_cfg) - {'checks', 'modules'})}) "
+        "— uupd rejects the whole file and stops updating, it does not ignore extras")
+require(set(_uupd_cfg["modules"]) <= {"brew", "distrobox", "flatpak", "system"},
+        "unknown module key in uupd's config — uupd refuses to start on any key it does "
+        "not know")
+require(set(_uupd_cfg["checks"]) <= {"hardware"},
+        "unknown checks key in uupd's config — same strict unmarshal, same refusal")
 
 uupd_idle = code(read("system_files/usr/lib/systemd/system/uupd.service.d/moos-idle.conf"))
 require("CPUSchedulingPolicy=idle" in uupd_idle and "IOSchedulingClass=idle" in uupd_idle,
