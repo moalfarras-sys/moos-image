@@ -2997,12 +2997,26 @@ BENTO
     # desktop 8765+N, sound 8775+N. Idle cost measured on the real server: 0.2% of
     # a core, because ffmpeg waits in accept() before it opens the capture.
     #
-    # ffmpeg is REQUESTED here, not assumed. It is already in the image, but only
-    # as a transitive dependency of ffmpegthumbs (Dolphin's video thumbnailer) —
-    # nothing had asked for it directly. The day that thumbnailer changes its
-    # dependencies, or is dropped, the audio stream would vanish with it. A feature
-    # that ships must own its runtime.
-    dnf5 -y install ffmpeg
+    # DO NOT `dnf5 install ffmpeg` HERE. It cost the cloud edition three builds.
+    #
+    # The reasoning was sound — a shipped feature should own its runtime rather
+    # than lean on ffmpeg arriving as a transitive dependency of ffmpegthumbs —
+    # and the consequence was not. Asking for `ffmpeg` by name on a fresh CI build
+    # resolves to the full RPMFusion package and drags its whole codec tree in,
+    # and the cloud image grew past what the runner can hold: every moos-cloud job
+    # from that commit onward died mid `Copying blob` with no error line at all,
+    # while `moos` and `moos-nvidia` kept publishing.
+    #
+    # The result was the exact failure the matrix gate in this file was written to
+    # prevent, arriving by a route that gate cannot see: moos and moos-nvidia went
+    # to .378 and .377 while moos-cloud sat at .375 — the edition running on the
+    # owner's own server silently stopped receiving every fix for three commits.
+    # A green matrix row does not mean a published image.
+    #
+    # What is already in the image is enough (verified: ffmpeg 8.1.2 with libopus),
+    # and the gate below fails the build loudly if that ever stops being true. That
+    # is the honest trade: depend on what is there, and assert it rather than
+    # assume it.
 
     # Enabled --global so every account that logs in gets their own, including
     # developers added later by moos-cloud-dev.
