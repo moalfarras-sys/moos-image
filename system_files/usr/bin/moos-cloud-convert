@@ -94,25 +94,43 @@ head_ "Is this the operating system this path expects?"
 # unknown.
 host_id="$(. /etc/os-release 2>/dev/null; echo "${ID:-unknown}")"
 host_pretty="$(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}")"
-case "$host_id" in
+host_like="$(. /etc/os-release 2>/dev/null; echo "${ID_LIKE:-}")"
+METHOD=""
+case "${host_id}" in
     fedora|centos|rhel|almalinux|rocky)
+        METHOD=reinstall-bootc
         green "host is ${host_pretty} — system-reinstall-bootc is available here"
         ;;
+    debian|ubuntu)
+        METHOD=container-bootc
+        green "host is ${host_pretty} — converting with the image's own installer"
+        ;;
     *)
-        red "host is ${host_pretty}, and this path needs a Fedora-family system."
-        red "  system-reinstall-bootc is packaged for Fedora/CentOS; there is no dnf here."
-        red ""
-        red "  On a NEW server the clean fix is to reinstall it with Fedora from the"
-        red "  provider's panel — and paste your SSH public key during that install, which"
-        red "  settles the key requirement above at the same time."
-        red "    netcup:  SCP → your server → Media/Images → install Fedora + add SSH key"
-        red ""
-        red "  (An advanced alternative exists — letting the image install itself with"
-        red "   'bootc install to-existing-root' from a podman container — but this project"
-        red "   has not tested it, and a brand-new server has nothing worth that risk.)"
-        fail=1
+        case " ${host_like} " in
+            *debian*|*ubuntu*) METHOD=container-bootc
+                green "host is ${host_pretty} (Debian-like) — converting with the image's own installer" ;;
+            *fedora*|*rhel*)   METHOD=reinstall-bootc
+                green "host is ${host_pretty} (Fedora-like) — system-reinstall-bootc is available here" ;;
+            *)
+                red "host is ${host_pretty} — this tool knows the Fedora and Debian families only."
+                red "  Reinstall the server with Fedora or Debian from the provider's panel, then"
+                red "  run this again."
+                fail=1 ;;
+        esac
         ;;
 esac
+
+# Which firmware the machine boots by is not a detail on this path: `bootc install`
+# writes a UEFI boot entry where there is UEFI, and a BIOS bootloader where there
+# is not. Both are supported, but only the UEFI one has been exercised by this
+# project, so a BIOS host is told plainly that it is on the less-travelled road
+# rather than discovering it from a machine that does not come back.
+if [ -d /sys/firmware/efi ]; then
+    green "firmware: UEFI"
+else
+    warn "firmware: legacy BIOS — bootc installs a BIOS bootloader here, not a UEFI entry."
+    warn "  This project verified the UEFI path. Keep the provider's rescue console open."
+fi
 
 head_ "Is this machine the right shape?"
 arch="$(uname -m)"
@@ -179,8 +197,49 @@ read -r answer
 [ "$answer" = "convert" ] || { echo "cancelled — nothing was changed."; exit 0; }
 
 head_ "Converting"
-dnf -y install system-reinstall-bootc
-system-reinstall-bootc "$IMAGE"
+LOG=/root/moos-convert.log
+echo "  (full output is also written to ${LOG})"
+
+if [ "$METHOD" = reinstall-bootc ]; then
+    dnf -y install system-reinstall-bootc
+    system-reinstall-bootc "$IMAGE" 2>&1 | tee "$LOG"
+else
+    # The Debian/Ubuntu path: the IMAGE installs itself. bootc ships inside it, so
+    # the host needs nothing but podman — no dnf, no Fedora, no reinstall.
+    #
+    # --root-ssh-authorized-keys is the flag this whole script exists to get right.
+    # Without it the conversion succeeds, MoOS boots, /var/roothome is never
+    # created, and root has no authorized_keys at all — on a machine that takes no
+    # password over SSH. Verified in a VM: it boots perfectly and you can never log
+    # in again. With it, bootc writes the keys through /etc/tmpfiles.d, which also
+    # gets the SELinux labelling right (planting the file by hand does not — sshd
+    # refuses to read it).
+    keyfile=/root/.moos-convert-keys
+    : > "$keyfile"
+    for f in "${target_home}/.ssh/authorized_keys" /root/.ssh/authorized_keys; do
+        [ -r "$f" ] && grep -h '^ssh-\|^ecdsa-\|^sk-' "$f" >> "$keyfile" || true
+    done
+    sort -u "$keyfile" -o "$keyfile"
+    chmod 0644 "$keyfile"
+    green "$(grep -c . "$keyfile") key(s) will be installed for root"
+
+    podman run --rm --privileged --pid=host \
+        -v /:/target -v /var/lib/containers:/var/lib/containers -v /dev:/dev \
+        -v "${keyfile}:/keys:ro" \
+        --security-opt label=type:unconfined_t \
+        "$IMAGE" \
+        bootc install to-existing-root \
+            --acknowledge-destructive \
+            --root-ssh-authorized-keys /keys \
+            /target 2>&1 | tee "$LOG"
+
+    # `tee` makes $? the exit status of tee, not of podman. Ask the pipeline.
+    if [ "${PIPESTATUS[0]}" != 0 ]; then
+        red "the conversion FAILED — nothing was rebooted, the system is still ${host_pretty}."
+        red "  the full error is in ${LOG}"
+        exit 1
+    fi
+fi
 
 cat <<EOF
 
