@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# moos-cloud-desktop — turn the cloud server's desktop on, and open it in a browser.
+#
+#   sudo moos-cloud-desktop on  <user>
+#   sudo moos-cloud-desktop off
+#        moos-cloud-desktop status
+#
+# WHY THIS IS A COMMAND AND NOT A DEFAULT
+#
+# A server has no screen, so nobody logs in at the greeter, so no Plasma session
+# exists, so there is nothing for Mo PC Remote to stream. The desktop only appears
+# if one account logs in automatically on the virtual display.
+#
+# Autologin on a server is a real trade-off and it is the owner's to make, not the
+# image's: anyone who reaches the machine's CONSOLE — the provider's VNC panel,
+# for instance — lands in a live session with no password asked. That is why this
+# is opt-in, and why the shipped default is a greeter that asks.
+#
+# What makes it defensible when you do turn it on: MoOS Cloud takes no password
+# over SSH, its serial console is the only other way in, and **Mo PC Remote itself
+# refuses every connection that does not arrive over Tailscale** — verified, it
+# answers `Forbidden: this device is only reachable over Tailscale.` to anything
+# else. The desktop is never on the public internet, whatever this command does.
+set -euo pipefail
+
+CONF=/etc/plasmalogin.conf.d/20-moos-cloud-autologin.conf
+
+red()   { printf '\033[31m✗\033[0m %s\n' "$*" >&2; }
+ok()    { printf '\033[32m✓\033[0m %s\n' "$*"; }
+note()  { printf '  %s\n' "$*"; }
+die()   { red "$*"; exit 1; }
+
+need_root() { [ "$(id -u)" = 0 ] || die "run this with sudo — it changes how the machine logs in."; }
+
+tailscale_url() {
+    local ip
+    ip="$(tailscale ip -4 2>/dev/null | head -1 || true)"
+    if [ -n "$ip" ]; then
+        printf 'http://%s:8765' "$ip"
+    else
+        printf ''
+    fi
+}
+
+cmd_on() {
+    local user="${1:-}"
+    [ -n "$user" ] || die "which account should own the desktop? e.g. moos-cloud-desktop on moos"
+    id "$user" >/dev/null 2>&1 || die "no such account: ${user}"
+
+    install -D -m0644 /dev/stdin "$CONF" <<CONF
+# Written by moos-cloud-desktop. A cloud server has no screen, so without an
+# automatic login there is no session for Mo PC Remote to stream. Remove this file
+# (or run \`moos-cloud-desktop off\`) to go back to a greeter that asks.
+[Autologin]
+User=${user}
+Session=plasma.desktop
+Relogin=true
+CONF
+    ok "autologin configured for ${user}"
+
+    # Their user services must survive having no SSH session attached — without
+    # lingering, Mo PC Remote stops the moment you disconnect, which looks exactly
+    # like the desktop crashing.
+    loginctl enable-linger "$user"
+    ok "lingering on — the desktop survives your logout"
+
+    systemctl restart plasmalogin.service
+    ok "login manager restarted"
+
+    # Give the session a moment to actually exist before enabling the streamer in
+    # it; enabling into a session that has not started yet is how this ends up
+    # "enabled" and not running.
+    local waited=0
+    while [ "$waited" -lt 30 ]; do
+        if loginctl list-sessions --no-legend 2>/dev/null | awk '{print $3}' | grep -qx "$user"; then
+            break
+        fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+
+    # `systemctl --user` talks to the user's own systemd over a socket in
+    # XDG_RUNTIME_DIR. runuser does not set it, so without this the call fails
+    # with "Failed to connect to bus" — and the command reports it could not
+    # start the streamer on a machine where the session is running perfectly.
+    local uid
+    uid="$(id -u "$user")"
+    if runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
+            systemctl --user enable --now mo-remote-personal.service >/dev/null 2>&1; then
+        ok "Mo PC Remote started"
+    else
+        note "could not start Mo PC Remote yet — it will come up with the session"
+    fi
+
+    echo
+    local url
+    url="$(tailscale_url)"
+    if [ -n "$url" ]; then
+        ok "open the desktop in any browser on your tailnet:"
+        note "$url"
+    else
+        ok "the desktop is on. Join this server to Tailscale to reach it:"
+        note "tailscale up --ssh     then open http://<its-tailscale-ip>:8765"
+        note "(Mo PC Remote refuses connections from anywhere else — by design.)"
+    fi
+}
+
+cmd_off() {
+    rm -f "$CONF"
+    systemctl restart plasmalogin.service 2>/dev/null || true
+    ok "autologin removed — the greeter asks again on the next boot"
+    note "Mo PC Remote is left as it is; it simply has no session to stream."
+}
+
+cmd_status() {
+    if [ -f "$CONF" ]; then
+        ok "autologin: on ($(grep -m1 '^User=' "$CONF" | cut -d= -f2))"
+    else
+        note "autologin: off (the greeter asks)"
+    fi
+    printf '  graphical session: %s\n' \
+        "$(loginctl list-sessions --no-legend 2>/dev/null | awk '$4=="seat0"{print $3; found=1} END{if(!found) print "none"}')"
+    printf '  Mo PC Remote: %s\n' \
+        "$(ss -tnl 2>/dev/null | grep -q ':8765' && echo 'listening on 8765' || echo 'not listening')"
+    local url
+    url="$(tailscale_url)"
+    [ -n "$url" ] && printf '  browser: %s\n' "$url" \
+                  || printf '  browser: join Tailscale first — Mo PC Remote answers nothing else\n'
+}
+
+case "${1:-status}" in
+    on)     need_root; shift; cmd_on "$@" ;;
+    off)    need_root; cmd_off ;;
+    status) cmd_status ;;
+    -h|--help) sed -n '3,8p' "$0" | sed 's/^# \{0,1\}//' ;;
+    *)      die "unknown command: $1 (try: on <user>, off, status)" ;;
+esac
