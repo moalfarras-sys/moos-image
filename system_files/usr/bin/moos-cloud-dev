@@ -125,7 +125,33 @@ cmd_add() {
 
     if [ "$admin" = 1 ]; then
         usermod -aG wheel "$user"
-        ok "added to wheel — ${user} can sudo"
+        # wheel ALONE is a wall, not a permission, on a server like this one.
+        #
+        # MoOS Cloud is keys-only: no account created here has a password, because
+        # a password on a public IPv4 is a liability. `sudo` then prompts for a
+        # password that does not exist and fails, and `systemctl reboot` over SSH
+        # is refused by polkit for the same reason ("interactive authentication
+        # required"). Found exactly that way in the boot test — an administrator
+        # who could log in and then do nothing administrative.
+        #
+        # So an --admin account gets NOPASSWD, which is what every cloud image
+        # does for its default user, and for the same reason: the SSH KEY is the
+        # authentication. Adding a password back would only mean a second secret
+        # protecting what the first one already opened.
+        install -D -m0440 /dev/stdin "/etc/sudoers.d/50-moos-${user}" <<SUDOERS
+# ${user} is an administrator of this MoOS Cloud server (moos-cloud-dev --admin).
+# NOPASSWD because the account has no password by design — see the comment in
+# /usr/bin/moos-cloud-dev. Remove this file and the wheel membership together.
+${user} ALL=(ALL) NOPASSWD: ALL
+SUDOERS
+        # A malformed drop-in breaks sudo for EVERYONE, including root's own
+        # recovery. Validate it and take it back out if it does not parse.
+        if visudo -cqf "/etc/sudoers.d/50-moos-${user}" 2>/dev/null; then
+            ok "added to wheel with passwordless sudo — ${user} can administer the server"
+        else
+            rm -f "/etc/sudoers.d/50-moos-${user}"
+            die "the generated sudoers file did not validate; nothing was changed"
+        fi
     else
         note "not an administrator (pass --admin if they need sudo)"
     fi
@@ -191,6 +217,10 @@ cmd_remove() {
         pkill -KILL -u "$user" 2>/dev/null || true
         sleep 1
     fi
+
+    # The sudoers drop-in outlives the account otherwise, and a stale NOPASSWD
+    # rule naming a username is a gift to whoever creates that name next.
+    rm -f "/etc/sudoers.d/50-moos-${user}"
 
     if [ "$keep" = 1 ]; then
         userdel "$user"
