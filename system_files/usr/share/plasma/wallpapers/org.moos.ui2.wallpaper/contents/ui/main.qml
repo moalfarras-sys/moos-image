@@ -214,7 +214,18 @@ WallpaperItem {
         height: bento.implicitHeight * fit
         // Below this the bento would scale so small it reads as clutter — a
         // phone-sized or heavily-squeezed desktop gets a clean wallpaper instead.
-        visible: root.width >= 820 && root.height >= 520 && fit >= 0.62
+        //
+        // ShowDashboard is MERGED into this existing condition, not added as a
+        // second `visible:`. Declaring the property twice is not an override in
+        // QML, it is the error "Property value set multiple times" — and the whole
+        // wallpaper then fails to load, leaving a blank desktop. That failure also
+        // rasterises nothing, so it reads on a CPU graph exactly like a successful
+        // optimisation: measured 0% with the setting BOTH on and off before the
+        // journal was checked. `undefined` means the key is not registered, and
+        // must mean "show".
+        visible: (root.configuration.ShowDashboard === undefined
+                  || root.configuration.ShowDashboard)
+                 && root.width >= 820 && root.height >= 520 && fit >= 0.62
 
         DashboardBento {
             id: bento

@@ -2931,6 +2931,42 @@ TUNE
 LP_NUM_THREADS=2
 LLVMPIPE
 
+    # The bento dashboard is the single most expensive thing on this desktop, and
+    # a server is the one machine that cannot afford it.
+    #
+    # Measured on the maintainer's VPS — clean boot, 70s settling, 60s window,
+    # nobody watching the stream — plasmashell's rasteriser threads ran at:
+    #
+    #     bento visible   158%        bento hidden   0%
+    #
+    # confirmed A/B/A in both directions on a live override, so it is not a
+    # startup transient (an earlier 25s window taken right after a restart gave a
+    # number that did not reproduce — see MOOS_ROADMAP §6).
+    #
+    # It is NOT the animations. Forcing the wallpaper's motionEnabled to false
+    # still left 124%, and AnimationDurationFactor=0 vs 1 measured 157% vs 139% —
+    # within noise of each other. The bento is expensive PER FRAME, and something
+    # else in plasmashell keeps asking for frames; hiding it makes each frame
+    # cheap. Finding what asks for the frames is still open.
+    #
+    # On a GPU this is close to free, so the desktop editions keep the dashboard
+    # and only the cloud edition starts without it. The wallpaper, the branding
+    # and the MoOS scene are all unchanged — this turns off one overlay, and the
+    # owner can turn it back on in the wallpaper settings.
+    _scene_cfg=/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/config/main.xml
+    python3 - "$_scene_cfg" <<'BENTO'
+import pathlib, re, sys
+p = pathlib.Path(sys.argv[1])
+t = p.read_text(encoding="utf-8")
+new, n = re.subn(r'(<entry name="ShowDashboard" type="Bool">\s*<default>)true(</default>)',
+                 r'\1false\2', t)
+if n != 1:
+    raise SystemExit("GATE FAIL: could not switch ShowDashboard off for the cloud "
+                     "edition — the entry moved or was renamed (matches: %d)" % n)
+p.write_text(new, encoding="utf-8")
+print("cloud tuning: bento dashboard off by default (158%% -> 0%% of a CPU core)")
+BENTO
+
     # A VPS has no Bluetooth radio, and obexd cannot be told that.
     #
     # On the maintainer's server obexd was D-Bus-activated, failed
@@ -3051,6 +3087,13 @@ TRUSTED
         echo "           thread per core inside EVERY session, so two desktops on an"
         echo "           8-vCPU box means 16 threads fighting for 8 cores — measured at"
         echo "           165% CPU for one idle plasmashell."; _cloud_fail=1; }
+    grep -A2 '"ShowDashboard"' /usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/config/main.xml \
+        | grep -q '<default>false</default>' || {
+        echo "GATE FAIL: the bento dashboard is still on by default in the cloud edition."
+        echo "           Measured on a GPU-less server: visible 158% of a CPU core,"
+        echo "           hidden 0% (A/B/A). That is 1.5 cores of an 8-core box spent"
+        echo "           rasterising a dashboard on a desktop nobody is looking at."
+        _cloud_fail=1; }
     grep -q '^Autolock=false' /etc/xdg/kscreenlockerrc || {
         echo "GATE FAIL: the lock screen can still auto-arm. On a virtual desktop it"
         echo "           renders through llvmpipe (measured: 129% CPU) in front of a"
