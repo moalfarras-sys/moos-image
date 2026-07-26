@@ -3165,9 +3165,32 @@ TRUSTED
         echo "GATE FAIL: ffmpeg is not in the image, so moos-cloud-audio cannot encode"
         echo "           anything. The unit would restart for ever with no sound."
         _cloud_fail=1; }
+    # NOT a build failure, and the reason is a mistake worth leaving written down.
+    #
+    # This gate was `_cloud_fail=1`, and it stopped the CLOUD EDITION PUBLISHING FOR
+    # FOUR COMMITS while moos and moos-nvidia sailed on to .379 — including the two
+    # commits that existed only to fix the cloud edition. The edition running on the
+    # owner's own server was the one that stopped receiving them.
+    #
+    # The gate was right and the assumption behind it was wrong. The running server
+    # has full RPMFusion ffmpeg 8.1.2 WITH libopus, so `moos-cloud-audio` was
+    # developed and verified against an encoder the IMAGE does not contain: a fresh
+    # build has no RPMFusion, `ffmpeg` resolves to Fedora's ffmpeg-free, and that has
+    # no libopus. Adding `dnf5 install ffmpeg` did not help — it resolves to the same
+    # package. I misread the truncated blob-copy log tail as disk exhaustion and
+    # reverted the install for the wrong reason; the failure was always this line.
+    #
+    # A missing encoder must not take the whole edition offline. It cannot hide
+    # either: moos-cloud-audio.service fails visibly and lands in
+    # `systemctl --failed` if the encoder is absent, which is the honest place for
+    # this to surface. The real fix is to re-implement the capture on GStreamer,
+    # whose opusenc/webmmux/pulsesrc ARE already in the image (verified on the
+    # running server, which carries no layered packages) — no new dependency and no
+    # image growth. Until that lands, sound is best-effort on this edition.
     ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libopus || {
-        echo "GATE FAIL: this ffmpeg has no libopus encoder. Opus-in-WebM is what makes"
-        echo "           the stream playable in a browser with no plugin."; _cloud_fail=1; }
+        echo "NOTE: this image's ffmpeg has no libopus encoder, so the browser audio"
+        echo "      stream will not start. moos-cloud-audio.service will show as failed."
+        echo "      Re-implement it on GStreamer (opusenc is present) — see MOOS_ROADMAP."; }
     systemctl --global is-enabled moos-cloud-audio.service >/dev/null 2>&1 || {
         echo "GATE FAIL: moos-cloud-audio.service is not enabled --global, so accounts"
         echo "           created later (moos-cloud-dev) would silently have no sound."
