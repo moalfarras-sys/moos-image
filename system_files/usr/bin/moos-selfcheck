@@ -287,17 +287,33 @@ else
     bad "Mo AI still runs under the bare QML runtime — its taskbar icon will be the Qt logo"
 fi
 
-if curl -sf --max-time 6 http://127.0.0.1:8080/v1/models >/dev/null 2>&1; then
-    ok "the brain gateway answers on 8080"
-    models="$(curl -sf --max-time 6 http://127.0.0.1:8080/v1/models 2>/dev/null | grep -o '"id":' | wc -l)"
+# These ports are per-USER now, not per-machine. On a shared server every account
+# runs its own front door (60-moai-ports derives the numbers from the uid), so a
+# check hardcoding 8080 would report on whichever account happened to boot first —
+# and tell the second developer their brain was fine when it was someone else's.
+# uid 1000 still resolves to 8080/8079, so nothing changes on a normal desktop.
+gw_port="${MOAI_GATEWAY_PORT:-8080}"
+ctl_port="${MOAI_CONTROL_PORT:-8079}"
+if curl -sf --max-time 6 "http://127.0.0.1:${gw_port}/v1/models" >/dev/null 2>&1; then
+    ok "the brain gateway answers on ${gw_port}"
+    models="$(curl -sf --max-time 6 "http://127.0.0.1:${gw_port}/v1/models" 2>/dev/null | grep -o '"id":' | wc -l)"
     [ "${models:-0}" -gt 1 ] && ok "it offers ${models} brains to choose from" \
                              || note "it offers ${models} brain(s) — configure a cloud key in Mo AI's settings"
 else
-    bad "nothing is answering on 8080 — Mo AI has no brain to talk to"
+    bad "nothing is answering on ${gw_port} — Mo AI has no brain to talk to"
 fi
-curl -sf --max-time 6 -H 'X-Moai-Control: 1' http://127.0.0.1:8079/status >/dev/null 2>&1 \
-    && ok "the control API answers on 8079" \
+curl -sf --max-time 6 -H 'X-Moai-Control: 1' "http://127.0.0.1:${ctl_port}/status" >/dev/null 2>&1 \
+    && ok "the control API answers on ${ctl_port}" \
     || note "the control API is not up yet (it starts with the session)"
+
+# The local brain is SHARED on purpose and must stay that way. Both accounts'
+# gateways probe the same 127.0.0.1:8081, so whoever asks first starts the engine
+# and everybody else's gateway finds it already answering and forwards to it —
+# one model resident in RAM for the whole machine, which is the difference between
+# a 7B model fitting on this server and not.
+if [ -n "${MOAI_LOCAL_PORT:-}" ] && [ "${MOAI_LOCAL_PORT}" != "8081" ]; then
+    bad "MOAI_LOCAL_PORT is ${MOAI_LOCAL_PORT}, not the shared 8081 — this account would load its OWN copy of the model"
+fi
 
 # ── Is somebody watching this screen right now? ───────────────────────────────
 #
