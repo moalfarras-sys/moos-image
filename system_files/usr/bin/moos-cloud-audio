@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# moos-cloud-audio — the server's sound, in a browser tab.
+#
+# WHY THIS EXISTS
+#
+# Mo PC Remote streams the desktop and nothing else. There is no audio path in
+# it: not in the Linux agent (agent-linux/ contains no capture, no encoder, no
+# audio endpoint) and not in the shipped controller bundle (no AudioContext, no
+# MediaSource, no audio URL). "No sound in the browser" on MoOS Cloud is not a
+# setting somebody turned off — the feature was never there.
+#
+# A VPS also has no sound card at all. `/proc/asound/cards` says "no soundcards",
+# so WirePlumber falls back to `auto_null`, a sink that accepts audio and throws
+# it away. Every application on this machine has been playing into a bin.
+#
+# This turns that bin into a stream. ffmpeg captures the default sink's monitor —
+# which is exactly what the desktop is playing — encodes Opus into WebM, and
+# serves it over HTTP. Browsers play Opus-in-WebM natively, so the listener needs
+# no player, no plugin and no app: they open a URL.
+#
+#   moalfarras (uid 1000) -> http://<tailscale-ip>:8775
+#   momo       (uid 1001) -> http://<tailscale-ip>:8776
+#
+# WHAT IT COSTS WHEN NOBODY IS LISTENING
+#
+# Measured on the real server: 0.2% of one core and 66 MB RSS. ffmpeg blocks in
+# accept() before it opens the capture, so an idle stream encodes nothing. That
+# matters on a box where the desktop dashboard had to be turned off to get 1.5
+# cores back — this must not quietly spend them again.
+#
+# WHY `-listen 1` AND Restart=always
+#
+# ffmpeg's HTTP server serves ONE client and exits when it disconnects. That is
+# the right shape here (one person per desktop) but it means the unit must come
+# back on its own, or sound works exactly once per boot.
+set -euo pipefail
+
+# The same derivation Mo PC Remote uses for its own port, so the two stay in step:
+# person N's desktop is on 8765+N and their sound is on 8775+N.
+uid="$(id -u)"
+port="${MOOS_AUDIO_PORT:-$(( 8775 + uid - 1000 ))}"
+
+# @DEFAULT_MONITOR@ follows whatever sink is current rather than hardcoding
+# `auto_null`. The name of the fallback sink is WirePlumber's business, and on a
+# machine that later gains a real device the monitor should follow it.
+exec ffmpeg -hide_banner -loglevel error \
+    -f pulse -i @DEFAULT_MONITOR@ \
+    -c:a libopus -b:a 96k -application audio \
+    -f webm -listen 1 "http://0.0.0.0:${port}"
