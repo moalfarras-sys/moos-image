@@ -16,5 +16,24 @@
     <entry name="AmbientMotion" type="Bool">
       <default>true</default>
     </entry>
+    <!-- The bento dashboard below the icons.
+         MEASURED COST, and the reason this switch exists. On a machine with no
+         GPU every pixel is rasterised on the CPU, and the bento is expensive to
+         rasterise: on the maintainer's VPS, with a 60s window after 70s of
+         settling, plasmashell's rasteriser threads ran at
+
+             bento visible   158%     bento hidden   0%     (A/B/A, both ways)
+
+         and that is with motion fully off — forcing motionEnabled to false still
+         left 124%, so the animations are only ~34 of those points. The bento is
+         costly PER FRAME and something else in plasmashell keeps asking for
+         frames; hiding it makes each frame cheap.
+
+         On a GPU this is close to free, which is why the desktop editions keep it
+         and only the cloud edition turns it off (build.sh, is_cloud). Anyone can
+         turn it back on. -->
+    <entry name="ShowDashboard" type="Bool">
+      <default>true</default>
+    </entry>
   </group>
 </kcfg>
