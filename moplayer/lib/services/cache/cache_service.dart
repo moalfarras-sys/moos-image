@@ -1,39 +1,190 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:hive_ce_flutter/hive_flutter.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_logger.dart';
+
+/// The small subset of a Hive string box the repositories need.
+///
+/// Having this seam is what lets startup fall back to process memory when the
+/// data directory is read-only or a box is corrupt. Playback does not depend on
+/// a writable disk.
+abstract interface class CacheStringStore {
+  Iterable<String> get values;
+  int get length;
+  String? get(String key);
+  bool containsKey(String key);
+  Future<void> put(String key, String value);
+  Future<void> delete(String key);
+  Future<void> clear();
+}
+
+class _HiveStringStore implements CacheStringStore {
+  _HiveStringStore(this.box);
+
+  final Box<String> box;
+
+  @override
+  Iterable<String> get values => box.values;
+
+  @override
+  int get length => box.length;
+
+  @override
+  String? get(String key) => box.get(key);
+
+  @override
+  bool containsKey(String key) => box.containsKey(key);
+
+  @override
+  Future<void> put(String key, String value) => box.put(key, value);
+
+  @override
+  Future<void> delete(String key) => box.delete(key);
+
+  @override
+  Future<void> clear() async {
+    await box.clear();
+  }
+}
+
+class _MemoryStringStore implements CacheStringStore {
+  final Map<String, String> _values = {};
+
+  @override
+  Iterable<String> get values => _values.values;
+
+  @override
+  int get length => _values.length;
+
+  @override
+  String? get(String key) => _values[key];
+
+  @override
+  bool containsKey(String key) => _values.containsKey(key);
+
+  @override
+  Future<void> put(String key, String value) async {
+    _values[key] = value;
+  }
+
+  @override
+  Future<void> delete(String key) async {
+    _values.remove(key);
+  }
+
+  @override
+  Future<void> clear() async {
+    _values.clear();
+  }
+}
+
+abstract interface class _ValueStore {
+  Object? get(String key);
+  Future<void> put(String key, Object? value);
+  Future<void> clear();
+}
+
+class _HiveValueStore implements _ValueStore {
+  _HiveValueStore(this.box);
+
+  final Box<dynamic> box;
+
+  @override
+  Object? get(String key) => box.get(key);
+
+  @override
+  Future<void> put(String key, Object? value) => box.put(key, value);
+
+  @override
+  Future<void> clear() async {
+    await box.clear();
+  }
+}
+
+class _MemoryValueStore implements _ValueStore {
+  final Map<String, Object?> _values = {};
+
+  @override
+  Object? get(String key) => _values[key];
+
+  @override
+  Future<void> put(String key, Object? value) async {
+    _values[key] = value;
+  }
+
+  @override
+  Future<void> clear() async {
+    _values.clear();
+  }
+}
 
 /// On-device cache built on Hive. Catalog responses are stored as JSON strings
 /// with a timestamp so the UI can render instantly from cache and refresh in
 /// the background. The favourites / history / continue-watching boxes hold one
 /// JSON entry per item keyed by a stable composite key.
 class CacheService {
-  Box<String>? _cache;
-  Box<String>? _favorites;
-  Box<String>? _history;
-  Box<String>? _continue;
-  Box? _settings;
+  CacheStringStore? _cache;
+  CacheStringStore? _favorites;
+  CacheStringStore? _history;
+  CacheStringStore? _continue;
+  _ValueStore? _settings;
 
   bool get isReady => _cache != null;
+  bool _isPersistent = true;
+  bool get isPersistent => _isPersistent;
 
   Future<void> init({String? path}) async {
-    if (path == null) {
-      await Hive.initFlutter('moplayer');
-    } else {
-      Hive.init(path);
+    _isPersistent = true;
+    try {
+      if (path == null) {
+        await Hive.initFlutter('moplayer');
+      } else {
+        await Directory(path).create(recursive: true);
+        Hive.init(path);
+      }
+      _cache = _HiveStringStore(
+        await Hive.openBox<String>(StorageKeys.boxCache),
+      );
+      _favorites = _HiveStringStore(
+        await Hive.openBox<String>(StorageKeys.boxFavorites),
+      );
+      _history = _HiveStringStore(
+        await Hive.openBox<String>(StorageKeys.boxHistory),
+      );
+      _continue = _HiveStringStore(
+        await Hive.openBox<String>(StorageKeys.boxContinue),
+      );
+      _settings = _HiveValueStore(
+        await Hive.openBox<dynamic>(StorageKeys.boxSettings),
+      );
+    } on Object catch (error) {
+      // A corrupt box, a read-only home, or a full disk costs persistence for
+      // this session; it must never cost the player itself. Close any boxes that
+      // opened before the failure and keep a complete in-memory store so every
+      // repository remains usable.
+      log.w(
+        'cache unavailable, continuing in memory: ${safeLogMessage(error)}',
+      );
+      try {
+        await Hive.close();
+      } on Object {
+        // The fallback below owns no Hive resource.
+      }
+      _isPersistent = false;
+      _cache = _MemoryStringStore();
+      _favorites = _MemoryStringStore();
+      _history = _MemoryStringStore();
+      _continue = _MemoryStringStore();
+      _settings = _MemoryValueStore();
     }
-    _cache = await Hive.openBox<String>(StorageKeys.boxCache);
-    _favorites = await Hive.openBox<String>(StorageKeys.boxFavorites);
-    _history = await Hive.openBox<String>(StorageKeys.boxHistory);
-    _continue = await Hive.openBox<String>(StorageKeys.boxContinue);
-    _settings = await Hive.openBox(StorageKeys.boxSettings);
   }
 
-  Box<String> get favorites => _favorites!;
-  Box<String> get history => _history!;
-  Box<String> get continueWatching => _continue!;
-  Box get settings => _settings!;
+  CacheStringStore get favorites => _favorites!;
+  CacheStringStore get history => _history!;
+  CacheStringStore get continueWatching => _continue!;
 
   // --- Catalog cache (TTL-aware) ------------------------------------------
 
@@ -149,7 +300,7 @@ class CacheService {
 
   // --- Library boxes -------------------------------------------------------
 
-  List<Map<String, dynamic>> readBox(Box<String> box) {
+  List<Map<String, dynamic>> readBox(CacheStringStore box) {
     return box.values
         .map((v) {
           try {
@@ -163,12 +314,13 @@ class CacheService {
   }
 
   Future<void> putBoxItem(
-    Box<String> box,
+    CacheStringStore box,
     String key,
     Map<String, dynamic> value,
   ) => box.put(key, jsonEncode(value));
 
-  Future<void> deleteBoxItem(Box<String> box, String key) => box.delete(key);
+  Future<void> deleteBoxItem(CacheStringStore box, String key) =>
+      box.delete(key);
 
   // --- Settings ------------------------------------------------------------
 

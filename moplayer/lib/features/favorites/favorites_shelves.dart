@@ -40,6 +40,9 @@ class ChannelShelf extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final actions = ref.read(libraryActionsProvider);
     final now = ref.watch(playbackProvider);
+    final channels = items
+        .map((item) => LiveChannel.fromPayload(item.payload))
+        .toList(growable: false);
 
     const width = 260.0;
 
@@ -73,7 +76,7 @@ class ChannelShelf extends ConsumerWidget {
           onToggleFavorite: () => actions.removeFavorite(item.kind, item.refId),
           onTap: () => ref
               .read(playbackProvider.notifier)
-              .playLive(LiveChannel.fromPayload(item.payload)),
+              .playLive(channels[i], channels: channels),
         );
       },
     );

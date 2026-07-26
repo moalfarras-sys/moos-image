@@ -96,9 +96,9 @@ class S {
   String get cancel => _('إلغاء', 'Cancel', 'Abbrechen');
   String get save => _('حفظ', 'Save', 'Speichern');
   String get sourceNotSaved => _(
-    'تعذّر حفظ السيرفر بشكل مشفّر. أعد تسجيل الدخول إلى النظام ثم حاول مرة أخرى.',
-    'The server could not be saved securely. Sign in to the system again, then retry.',
-    'Der Server konnte nicht sicher gespeichert werden. Melde dich erneut am System an und versuche es noch einmal.',
+    'تعذّر حفظ السيرفر في مساحة التطبيق الخاصة. تحقق من مساحة القرص وصلاحيات المجلد ثم حاول مرة أخرى.',
+    'The server could not be written to private app storage. Check disk space and folder permissions, then retry.',
+    'Der Server konnte nicht im privaten App-Speicher gesichert werden. Prüfe Speicherplatz und Ordnerrechte und versuche es erneut.',
   );
   String get remove => _('إزالة', 'Remove', 'Entfernen');
   String get delete => _('حذف', 'Delete', 'Löschen');
@@ -458,6 +458,19 @@ class S {
   );
   String get clearCache =>
       _('مسح الذاكرة المؤقتة', 'Clear cache', 'Zwischenspeicher leeren');
+  String get privateStorage => _(
+    'حفظ الحسابات محلياً',
+    'Private account storage',
+    'Privater Kontospeicher',
+  );
+  String get privateStorageHint => _(
+    'محفوظ داخل مجلد التطبيق بصلاحيات خاصة، دون KDE Wallet.',
+    'Stored in MoPlayer’s private app folder, without KDE Wallet.',
+    'Im privaten MoPlayer-App-Ordner gespeichert, ohne KDE Wallet.',
+  );
+  String get storageReady => _('جاهز', 'Ready', 'Bereit');
+  String get storageSessionOnly =>
+      _('لهذه الجلسة فقط', 'Session only', 'Nur für diese Sitzung');
   String get clearCacheHint => _(
     'يحذف القوائم المخزّنة فقط، لا يحذف مفضلتك.',
     'Drops cached catalogues only — your favorites stay.',
@@ -668,10 +681,10 @@ class ShortcutHelp {
       'Tonspur wechseln',
     ),
     ShortcutHelp(
-      'N / P',
-      'الحلقة التالية أو السابقة',
-      'Next or previous episode',
-      'Nächste oder vorherige Folge',
+      'N / P · PgUp / PgDn',
+      'القناة أو الحلقة التالية والسابقة',
+      'Next or previous channel or episode',
+      'Nächster oder vorheriger Sender bzw. Folge',
     ),
     ShortcutHelp(
       '[ / ]',

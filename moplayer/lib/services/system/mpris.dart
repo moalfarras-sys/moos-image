@@ -20,6 +20,8 @@ class MprisHandlers {
     this.onSeek,
     this.onSetPosition,
     this.onVolume,
+    this.onRate,
+    this.onOpenUri,
     this.onRaise,
     this.onQuit,
   });
@@ -35,6 +37,8 @@ class MprisHandlers {
   final Future<void> Function(int offsetUs)? onSeek;
   final Future<void> Function(int positionUs)? onSetPosition;
   final Future<void> Function(double volume)? onVolume;
+  final Future<void> Function(double rate)? onRate;
+  final Future<void> Function(String uri)? onOpenUri;
   final Future<void> Function()? onRaise;
   final Future<void> Function()? onQuit;
 }
@@ -96,17 +100,52 @@ class MprisService {
 
   DBusClient? _client;
   _MprisObject? _object;
+  Future<void>? _starting;
+  int? _startingGeneration;
+  bool _wanted = false;
+  int _lifecycleGeneration = 0;
   bool get isActive => _object != null;
 
   MprisStatus _status = MprisStatus.stopped;
   MprisMetadata? _metadata;
   double _volume = 1.0;
+  double _rate = 1.0;
   bool _canGoNext = false;
   bool _canGoPrevious = false;
   bool _canSeek = false;
 
   Future<void> start() async {
+    _wanted = true;
     if (_client != null) return;
+    final pending = _starting;
+    if (pending != null) {
+      final pendingGeneration = _startingGeneration;
+      await pending;
+      // A quick off/on toggle can cancel the old connection while this call is
+      // waiting for it. In that one case, establish the newly requested one.
+      if (_wanted &&
+          _client == null &&
+          pendingGeneration != _lifecycleGeneration) {
+        await start();
+      }
+      return;
+    }
+
+    final generation = _lifecycleGeneration;
+    final connection = _connect(generation);
+    _starting = connection;
+    _startingGeneration = generation;
+    try {
+      await connection;
+    } finally {
+      if (identical(_starting, connection)) {
+        _starting = null;
+        _startingGeneration = null;
+      }
+    }
+  }
+
+  Future<void> _connect(int generation) async {
     try {
       final client = DBusClient.session();
       final object = _MprisObject(this);
@@ -125,6 +164,10 @@ class MprisService {
       }
 
       await client.registerObject(object);
+      if (!_wanted || generation != _lifecycleGeneration) {
+        await client.close();
+        return;
+      }
       _client = client;
       _object = object;
       log.i(
@@ -168,6 +211,12 @@ class MprisService {
     await _emit({'Volume': DBusDouble(_volume)});
   }
 
+  Future<void> setRate(double rate) async {
+    if ((_rate - rate).abs() < 0.001) return;
+    _rate = rate.clamp(0.25, 2.0);
+    await _emit({'Rate': DBusDouble(_rate)});
+  }
+
   /// Tell the desktop the position jumped, so its progress bar snaps instead of
   /// drifting until the next poll.
   Future<void> seeked(int positionUs) async {
@@ -183,6 +232,8 @@ class MprisService {
   }
 
   Future<void> dispose() async {
+    _wanted = false;
+    _lifecycleGeneration++;
     final client = _client;
     _client = null;
     _object = null;
@@ -213,9 +264,7 @@ class MprisService {
     return DBusDict.stringVariant({
       // Must be a valid object path — Plasma discards the whole metadata dict if
       // it is not, and the applet then shows an empty player.
-      'mpris:trackid': DBusVariant(
-        DBusObjectPath('/org/moos/moplayer/track/${_sanitise(m.trackId)}'),
-      ),
+      'mpris:trackid': DBusVariant(_trackPath(m)),
       if (m.lengthUs > 0) 'mpris:length': DBusVariant(DBusInt64(m.lengthUs)),
       if (m.artUrl != null && m.artUrl!.isNotEmpty)
         'mpris:artUrl': DBusVariant(DBusString(m.artUrl!)),
@@ -225,6 +274,14 @@ class MprisService {
       if (m.album != null && m.album!.isNotEmpty)
         'xesam:album': DBusVariant(DBusString(m.album!)),
     });
+  }
+
+  DBusObjectPath _trackPath(MprisMetadata metadata) =>
+      DBusObjectPath('/org/moos/moplayer/track/${_sanitise(metadata.trackId)}');
+
+  DBusObjectPath? get currentTrackPath {
+    final metadata = _metadata;
+    return metadata == null ? null : _trackPath(metadata);
   }
 
   /// An object path may only contain `[A-Za-z0-9_]` between slashes. Stream ids
@@ -296,6 +353,16 @@ class _MprisObject extends DBusObject {
               ),
             ],
           ),
+          DBusIntrospectMethod(
+            'OpenUri',
+            args: [
+              DBusIntrospectArgument(
+                DBusSignature('s'),
+                DBusArgumentDirection.in_,
+                name: 'Uri',
+              ),
+            ],
+          ),
         ],
         signals: [
           DBusIntrospectSignal(
@@ -311,7 +378,7 @@ class _MprisObject extends DBusObject {
         ],
         properties: [
           _prop('PlaybackStatus', 's'),
-          _prop('Rate', 'd'),
+          _prop('Rate', 'd', access: DBusPropertyAccess.readwrite),
           _prop('Metadata', 'a{sv}'),
           _prop('Volume', 'd', access: DBusPropertyAccess.readwrite),
           _prop('Position', 'x'),
@@ -384,9 +451,22 @@ class _MprisObject extends DBusObject {
         if (onSetPosition == null) {
           return DBusMethodErrorResponse.failed('not seekable');
         }
-        // args: (o TrackId, x Position). The track id is ignored on purpose —
-        // we have no track list, so there is exactly one track it could mean.
+        // A stale Plasma applet can send the id of the item that just ended.
+        // MPRIS says that must be ignored, otherwise "seek the old film" seeks
+        // the first seconds of the new episode instead.
+        if (call.values.first.asObjectPath() != _service.currentTrackPath) {
+          return DBusMethodSuccessResponse();
+        }
         await onSetPosition(call.values[1].asInt64());
+        return DBusMethodSuccessResponse();
+      case 'OpenUri':
+        final onOpenUri = h.onOpenUri;
+        if (onOpenUri == null) {
+          return DBusMethodErrorResponse.failed(
+            'opening URIs is not supported',
+          );
+        }
+        await onOpenUri(call.values.first.asString());
         return DBusMethodSuccessResponse();
       default:
         return DBusMethodErrorResponse.unknownMethod();
@@ -446,6 +526,18 @@ class _MprisObject extends DBusObject {
       await onVolume(value.asDouble().clamp(0.0, 1.0));
       return DBusMethodSuccessResponse();
     }
+    if (interface == _player && name == 'Rate') {
+      final onRate = _service._handlers.onRate;
+      if (onRate == null) return DBusMethodErrorResponse.propertyReadOnly();
+      final rate = value.asDouble();
+      if (!rate.isFinite || rate < 0.25 || rate > 2.0) {
+        return DBusMethodErrorResponse.invalidArgs(
+          'Rate must be between 0.25 and 2.0',
+        );
+      }
+      await onRate(rate);
+      return DBusMethodSuccessResponse();
+    }
     return DBusMethodErrorResponse.propertyReadOnly();
   }
 
@@ -478,7 +570,7 @@ class _MprisObject extends DBusObject {
     if (interface == _player) {
       return switch (name) {
         'PlaybackStatus' => DBusString(s._status.wire),
-        'Rate' => DBusDouble(1.0),
+        'Rate' => DBusDouble(s._rate),
         'Metadata' => s._metadataValue(),
         'Volume' => DBusDouble(s._volume),
         'Position' => DBusInt64(s.positionUs()),

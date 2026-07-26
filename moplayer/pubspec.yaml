@@ -1,7 +1,7 @@
 name: moplayer_moos
 description: "MoPlayer for MoOS — the cinematic IPTV player, native to the MoOS desktop."
 publish_to: "none"
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   sdk: ^3.12.0
@@ -36,7 +36,6 @@ dependencies:
   # Local cache / storage
   hive_ce: ^2.7.0
   hive_ce_flutter: ^2.1.0
-  flutter_secure_storage: ^9.2.2
   shared_preferences: ^2.3.3
 
   # XMLTV. The panel's own `get_short_epg` returns an empty list on the

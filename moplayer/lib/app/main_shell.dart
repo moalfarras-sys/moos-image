@@ -131,6 +131,14 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
   @override
   void onWindowUnmaximize() => _syncMaximized(false);
 
+  @override
+  void onWindowEnterFullScreen() =>
+      ref.read(fullscreenProvider.notifier).sync(true);
+
+  @override
+  void onWindowLeaveFullScreen() =>
+      ref.read(fullscreenProvider.notifier).sync(false);
+
   void _syncMaximized(bool value) {
     if (!mounted) return;
     ref.read(windowMaximizedProvider.notifier).state = value;

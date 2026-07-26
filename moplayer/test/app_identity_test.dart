@@ -34,6 +34,23 @@ void main() {
       expect(AppConfig.appId, appId);
     });
 
+    test('the network identity tracks the package release', () {
+      final manifest = File('pubspec.yaml').readAsStringSync();
+      final version = RegExp(
+        r'^version:\s*([^+\s]+)',
+        multiLine: true,
+      ).firstMatch(manifest)!.group(1)!;
+      final release = version.split('.').take(2).join('.');
+
+      expect(
+        AppConfig.userAgent,
+        'MoPlayer/$release (MoOS)',
+        reason:
+            'IPTV panels see the User-Agent, so it must not report an old app '
+            'release after pubspec.yaml is bumped',
+      );
+    });
+
     test('the GTK runner is built with the same id', () {
       final cmake = File('linux/CMakeLists.txt').readAsStringSync();
       expect(

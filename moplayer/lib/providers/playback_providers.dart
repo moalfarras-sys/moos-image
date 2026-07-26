@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/utils/app_logger.dart';
+import '../models/category.dart';
 import '../models/library_items.dart';
 import '../models/live_channel.dart';
 import '../models/media_kind.dart';
@@ -26,6 +27,8 @@ class NowPlaying {
     this.seasonEpisodes,
     this.episodeIndex,
     this.series,
+    this.liveChannels = const [],
+    this.liveChannelIndex,
   });
 
   final PlayableMedia media;
@@ -42,17 +45,39 @@ class NowPlaying {
   final List<Episode>? seasonEpisodes;
   final int? episodeIndex;
   final SeriesItem? series;
+  final List<LiveChannel> liveChannels;
+  final int? liveChannelIndex;
 
   MediaKind get kind => media.kind;
   bool get isLive => media.isLive;
 
   bool get hasNext {
+    if (isLive) return liveChannels.length > 1;
     final eps = seasonEpisodes;
     final i = episodeIndex;
     return eps != null && i != null && i + 1 < eps.length;
   }
 
-  bool get hasPrevious => (episodeIndex ?? 0) > 0 && seasonEpisodes != null;
+  bool get hasPrevious {
+    if (isLive) return liveChannels.length > 1;
+    return (episodeIndex ?? 0) > 0 && seasonEpisodes != null;
+  }
+}
+
+/// A safe desktop title for a URL handed to MPRIS or the command line.
+///
+/// `Uri.pathSegments.last` throws for a host-only URL. OpenUri accepts those
+/// (redirecting stream endpoints are common), so the title falls back through
+/// the last non-empty path segment, host, and finally the original input.
+String directMediaTitle(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return url;
+  final segments = uri.pathSegments
+      .where((segment) => segment.trim().isNotEmpty)
+      .toList();
+  if (segments.isNotEmpty) return segments.last;
+  if (uri.host.isNotEmpty) return uri.host;
+  return url;
 }
 
 /// Is the player taking the whole window, or sitting in the mini bar?
@@ -69,9 +94,20 @@ class PlayerViewController extends Notifier<PlayerView> {
   @override
   PlayerView build() => PlayerView.hidden;
 
-  void expand() => state = PlayerView.expanded;
-  void minimise() => state = PlayerView.mini;
-  void hide() => state = PlayerView.hidden;
+  void expand() {
+    state = PlayerView.expanded;
+    unawaited(ref.read(playerServiceProvider).setCompactVideoOutput(false));
+  }
+
+  void minimise() {
+    state = PlayerView.mini;
+    unawaited(ref.read(playerServiceProvider).setCompactVideoOutput(true));
+  }
+
+  void hide() {
+    state = PlayerView.hidden;
+    unawaited(ref.read(playerServiceProvider).setCompactVideoOutput(true));
+  }
 }
 
 /// Fullscreen is window state, not app state — but the UI has to know, so it is
@@ -86,11 +122,17 @@ class FullscreenController extends Notifier<bool> {
 
   Future<void> set(bool value) async {
     if (state == value) return;
-    state = value;
-    await ref.read(desktopServiceProvider).setFullscreen(value);
+    final applied = await ref.read(desktopServiceProvider).setFullscreen(value);
+    if (applied) state = value;
   }
 
   Future<void> toggle() => set(!state);
+
+  /// A compositor shortcut can change the window without going through [set].
+  void sync(bool value) {
+    state = value;
+    ref.read(desktopServiceProvider).syncFullscreen(value);
+  }
 }
 
 /// The desktop's media control surface, wired to this app's player.
@@ -110,10 +152,15 @@ final mprisProvider = Provider<MprisService>((ref) {
       onStop: () => ref.read(playbackProvider.notifier).stop(),
       onNext: () => ref.read(playbackProvider.notifier).next(),
       onPrevious: () => ref.read(playbackProvider.notifier).previous(),
-      onSeek: (us) => player.seekBy(Duration(microseconds: us)),
-      onSetPosition: (us) => player.seek(Duration(microseconds: us)),
+      onSeek: (us) => ref
+          .read(playbackProvider.notifier)
+          .seekBy(Duration(microseconds: us)),
+      onSetPosition: (us) =>
+          ref.read(playbackProvider.notifier).seek(Duration(microseconds: us)),
       // MPRIS volume is 0–1; media_kit's is 0–100.
       onVolume: (v) => player.setVolume(v * 100),
+      onRate: player.setRate,
+      onOpenUri: (uri) => ref.read(playbackProvider.notifier).playDirect(uri),
       onRaise: () async {
         await ref.read(desktopServiceProvider).raise();
         // Raising an idle app must not put the shell into an "expanded player"
@@ -123,7 +170,15 @@ final mprisProvider = Provider<MprisService>((ref) {
           ref.read(playerViewProvider.notifier).expand();
         }
       },
-      onQuit: () async => ref.read(playbackProvider.notifier).stop(),
+      onQuit: () async {
+        await ref.read(playbackProvider.notifier).stop();
+        // Let the D-Bus method return before destroying the process. Closing
+        // synchronously made a successful Quit look like NoReply to Plasma and
+        // playerctl because the connection vanished with its reply in flight.
+        Timer(const Duration(milliseconds: 100), () {
+          unawaited(ref.read(desktopServiceProvider).close());
+        });
+      },
     ),
   );
 
@@ -195,9 +250,12 @@ class PlaybackController extends Notifier<NowPlaying?> {
   final List<StreamSubscription<Object?>> _subs = [];
   Timer? _progressTimer;
   Timer? _stallTimer;
+  Timer? _stablePlaybackTimer;
   int _retries = 0;
   bool _recovering = false;
   int _recoveryGeneration = 0;
+  int? _openingGeneration;
+  String _mediaPlaylistId = '';
 
   @override
   NowPlaying? build() {
@@ -212,6 +270,22 @@ class PlaybackController extends Notifier<NowPlaying?> {
       unawaited(mpris.start());
     }
 
+    // Settings change while this long-lived controller stays mounted. Apply
+    // desktop integrations immediately instead of waiting for the next
+    // play/pause event (or, worse, requiring an application restart).
+    ref.listen(settingsProvider, (previous, next) {
+      if (previous?.mediaKeys != next.mediaKeys) {
+        if (next.mediaKeys) {
+          unawaited(mpris.start());
+        } else {
+          unawaited(mpris.dispose());
+        }
+      }
+      if (previous?.keepAwake != next.keepAwake) {
+        unawaited(desktop.setKeepAwake(player.isPlaying && next.keepAwake));
+      }
+    });
+
     _subs.addAll([
       player.playingStream.listen((playing) {
         if (state == null) return;
@@ -222,17 +296,30 @@ class PlaybackController extends Notifier<NowPlaying?> {
         // inhibitor left on through a pause is how a laptop cooks in a bag.
         desktop.setKeepAwake(playing && ref.read(settingsProvider).keepAwake);
         if (playing) {
-          _retries = 0;
-          _recovering = false;
-          ref.read(playbackIssueProvider.notifier).clear();
+          // A single decoded frame is not proof that a flaky stream recovered:
+          // resetting the retry budget immediately made a stream that failed
+          // every second retry forever. Clear the visible overlay as soon as
+          // playback returns, but replenish the budget only after ten stable
+          // seconds.
+          if (!_recovering) {
+            ref.read(playbackIssueProvider.notifier).clear();
+          }
+          _scheduleStablePlayback();
+        } else {
+          _stablePlaybackTimer?.cancel();
         }
       }),
       player.volumeStream.listen((v) => mpris.setVolume(v / 100)),
+      player.rateStream.listen(mpris.setRate),
       player.completedStream.listen((done) {
-        if (done && state != null) unawaited(_onCompleted());
+        if (done && state != null && _openingGeneration == null) {
+          unawaited(_onCompleted());
+        }
       }),
       player.errorStream.listen((message) {
-        if (message.isNotEmpty && state != null) unawaited(_recover(message));
+        if (message.isNotEmpty && state != null && _openingGeneration == null) {
+          unawaited(_recover(message));
+        }
       }),
       player.bufferingStream.listen(_watchForStall),
     ]);
@@ -243,6 +330,7 @@ class PlaybackController extends Notifier<NowPlaying?> {
       }
       _progressTimer?.cancel();
       _stallTimer?.cancel();
+      _stablePlaybackTimer?.cancel();
     });
 
     return null;
@@ -253,29 +341,76 @@ class PlaybackController extends Notifier<NowPlaying?> {
   // ── Opening things ─────────────────────────────────────────────────────────
 
   Future<void> _start(NowPlaying next) async {
-    _recoveryGeneration++;
+    final previousProgress = _progressSnapshot(state);
+    final nextPlaylistId = _playlistId;
+    final generation = ++_recoveryGeneration;
+    _openingGeneration = generation;
     _recovering = false;
     _retries = 0;
+    _progressTimer?.cancel();
+    _stallTimer?.cancel();
+    _stablePlaybackTimer?.cancel();
+    _progressTimer = null;
+    _stallTimer = null;
+    _stablePlaybackTimer = null;
     ref.read(playbackIssueProvider.notifier).clear();
+
+    // Capture before changing [state] or opening another stream. The previous
+    // implementation left its five-second timer alive until the new open
+    // completed, so it could save the old player's position under the new
+    // film's id. Persisting the already-captured item can safely finish in the
+    // background without delaying a channel switch.
+    if (previousProgress != null) {
+      unawaited(
+        ref.read(libraryActionsProvider).saveProgress(previousProgress),
+      );
+    }
+
     state = next;
+    _mediaPlaylistId = nextPlaylistId;
     ref.read(playerViewProvider.notifier).expand();
 
     try {
       await _player.open(next.media);
     } catch (error) {
+      if (generation != _recoveryGeneration || !identical(state, next)) return;
       // Opening a broken stream must become a recoverable player state, never
       // an unhandled asynchronous exception that takes the UI down with it.
-      log.w('playback: initial open failed: $error');
+      log.w('playback: initial open failed: ${safeLogMessage(error)}');
       ref.read(playbackIssueProvider.notifier).failed();
       return;
+    } finally {
+      if (_openingGeneration == generation) {
+        _openingGeneration = null;
+      }
     }
-    await _announce(next);
 
-    _progressTimer?.cancel();
+    if (generation != _recoveryGeneration || !identical(state, next)) return;
+    await _announce(next);
+    if (generation != _recoveryGeneration || !identical(state, next)) return;
+
+    if (_player.isBuffering) _watchForStall(true);
+
     if (next.trackProgress) {
       _progressTimer = Timer.periodic(
         _progressInterval,
         (_) => _saveProgress(),
+      );
+    }
+
+    // media_kit may complete `open` before mpv knows the duration. Announce once
+    // immediately so the desktop gets the title, then once more when a real
+    // length arrives so Plasma's seek bar is not permanently unbounded.
+    if (!next.isLive && _player.duration <= Duration.zero) {
+      unawaited(
+        _player.durationStream
+            .firstWhere((duration) => duration > Duration.zero)
+            .then((_) async {
+              if (generation == _recoveryGeneration && identical(state, next)) {
+                await _announce(next);
+              }
+            })
+            .catchError((Object _) {}),
       );
     }
 
@@ -286,7 +421,7 @@ class PlaybackController extends Notifier<NowPlaying?> {
         .read(libraryActionsProvider)
         .recordHistory(
           HistoryItem(
-            playlistId: _playlistId,
+            playlistId: nextPlaylistId,
             kind: next.kind,
             refId: next.refId,
             title: next.media.title,
@@ -327,7 +462,7 @@ class PlaybackController extends Notifier<NowPlaying?> {
       NowPlaying(
         media: PlayableMedia(
           url: url,
-          title: title ?? Uri.tryParse(url)?.pathSegments.last ?? url,
+          title: title ?? directMediaTitle(url),
           kind: MediaKind.live,
         ),
         refId: url,
@@ -336,10 +471,30 @@ class PlaybackController extends Notifier<NowPlaying?> {
     );
   }
 
-  Future<void> playLive(LiveChannel channel) async {
+  Future<void> playLive(
+    LiveChannel channel, {
+    List<LiveChannel>? channels,
+  }) async {
     final repo = ref.read(contentRepositoryProvider);
     if (repo == null) return;
     final settings = ref.read(settingsProvider);
+    final categoryChannels =
+        ref
+            .read(liveStreamsProvider(channel.categoryId ?? Category.allId))
+            .valueOrNull ??
+        const <LiveChannel>[];
+    final allChannels =
+        ref.read(liveStreamsProvider(Category.allId)).valueOrNull ??
+        const <LiveChannel>[];
+    final candidates = channels ?? categoryChannels;
+    final queue = candidates.any((item) => item.streamId == channel.streamId)
+        ? List<LiveChannel>.unmodifiable(candidates)
+        : allChannels.any((item) => item.streamId == channel.streamId)
+        ? List<LiveChannel>.unmodifiable(allChannels)
+        : <LiveChannel>[channel];
+    final channelIndex = queue.indexWhere(
+      (item) => item.streamId == channel.streamId,
+    );
 
     if (settings.rememberLastChannel) {
       await ref
@@ -360,6 +515,8 @@ class PlaybackController extends Notifier<NowPlaying?> {
         imageUrl: channel.logo,
         payload: channel.toPayload(),
         trackProgress: false,
+        liveChannels: queue,
+        liveChannelIndex: channelIndex < 0 ? 0 : channelIndex,
       ),
     );
   }
@@ -469,6 +626,12 @@ class PlaybackController extends Notifier<NowPlaying?> {
   Future<void> next() async {
     final current = state;
     if (current == null || !current.hasNext) return;
+    if (current.isLive) {
+      final channels = current.liveChannels;
+      final index = ((current.liveChannelIndex ?? 0) + 1) % channels.length;
+      await playLive(channels[index], channels: channels);
+      return;
+    }
     await playEpisode(
       series: current.series!,
       seasonEpisodes: current.seasonEpisodes!,
@@ -480,6 +643,14 @@ class PlaybackController extends Notifier<NowPlaying?> {
   Future<void> previous() async {
     final current = state;
     if (current == null || !current.hasPrevious) return;
+    if (current.isLive) {
+      final channels = current.liveChannels;
+      final index =
+          ((current.liveChannelIndex ?? 0) - 1 + channels.length) %
+          channels.length;
+      await playLive(channels[index], channels: channels);
+      return;
+    }
     await playEpisode(
       series: current.series!,
       seasonEpisodes: current.seasonEpisodes!,
@@ -489,17 +660,27 @@ class PlaybackController extends Notifier<NowPlaying?> {
   }
 
   Future<void> stop() async {
+    final progress = _progressSnapshot(state);
     _recoveryGeneration++;
-    _recovering = false;
+    _openingGeneration = null;
+    // Suppress an error/completed event emitted by mpv while it is stopping.
+    _recovering = true;
     _retries = 0;
     ref.read(playbackIssueProvider.notifier).clear();
-    await _saveProgress();
     _progressTimer?.cancel();
     _stallTimer?.cancel();
+    _stablePlaybackTimer?.cancel();
     _progressTimer = null;
+    _stallTimer = null;
+    _stablePlaybackTimer = null;
 
+    if (progress != null) {
+      unawaited(ref.read(libraryActionsProvider).saveProgress(progress));
+    }
     await _player.stop();
     state = null;
+    _mediaPlaylistId = '';
+    _recovering = false;
 
     ref.read(playerViewProvider.notifier).hide();
     await ref.read(fullscreenProvider.notifier).set(false);
@@ -550,7 +731,8 @@ class PlaybackController extends Notifier<NowPlaying?> {
 
     if (_retries >= _maxRetries) {
       log.e(
-        'playback: giving up on ${current.media.title} after $_retries retries: $message',
+        'playback: giving up after $_retries retries: '
+        '${safeLogMessage(message)}',
       );
       ref.read(playbackIssueProvider.notifier).failed();
       return;
@@ -564,7 +746,8 @@ class PlaybackController extends Notifier<NowPlaying?> {
         .read(playbackIssueProvider.notifier)
         .reconnecting(_retries, _maxRetries);
     log.w(
-      'playback: $message — retry $_retries/$_maxRetries in ${wait.inSeconds}s',
+      'playback: ${safeLogMessage(message)} — retry '
+      '$_retries/$_maxRetries in ${wait.inSeconds}s',
     );
     await Future<void>.delayed(wait);
 
@@ -576,7 +759,11 @@ class PlaybackController extends Notifier<NowPlaying?> {
     try {
       await _player.open(current.media.copyWith(startAt: resumeAt));
     } catch (error) {
-      log.w('playback: retry $_retries failed: $error');
+      if (state != current || generation != _recoveryGeneration) {
+        _recovering = false;
+        return;
+      }
+      log.w('playback: retry $_retries failed: ${safeLogMessage(error)}');
       _recovering = false;
       if (_retries >= _maxRetries) {
         ref.read(playbackIssueProvider.notifier).failed();
@@ -585,7 +772,16 @@ class PlaybackController extends Notifier<NowPlaying?> {
       }
       return;
     }
+
+    if (state != current || generation != _recoveryGeneration) {
+      _recovering = false;
+      return;
+    }
     _recovering = false;
+    if (_player.isPlaying) {
+      ref.read(playbackIssueProvider.notifier).clear();
+      _scheduleStablePlayback();
+    }
   }
 
   /// A user-initiated retry does not inherit the automatic backoff and does not
@@ -595,14 +791,22 @@ class PlaybackController extends Notifier<NowPlaying?> {
     if (current == null) return;
 
     _recoveryGeneration++;
+    final generation = _recoveryGeneration;
     _recovering = true;
     _retries = 0;
     ref.read(playbackIssueProvider.notifier).reconnecting(1, _maxRetries);
     final resumeAt = current.isLive ? Duration.zero : _player.position;
     try {
       await _player.open(current.media.copyWith(startAt: resumeAt));
+      if (generation == _recoveryGeneration && identical(state, current)) {
+        ref.read(playbackIssueProvider.notifier).clear();
+        _scheduleStablePlayback();
+      }
     } catch (error) {
-      log.w('playback: manual reconnect failed: $error');
+      if (generation != _recoveryGeneration || !identical(state, current)) {
+        return;
+      }
+      log.w('playback: manual reconnect failed: ${safeLogMessage(error)}');
       ref.read(playbackIssueProvider.notifier).failed();
     } finally {
       _recovering = false;
@@ -611,7 +815,11 @@ class PlaybackController extends Notifier<NowPlaying?> {
 
   void _watchForStall(bool buffering) {
     _stallTimer?.cancel();
-    if (!buffering || state == null) return;
+    _stallTimer = null;
+    // Opening has its own error path. Starting an eighteen-second stall timer
+    // for the old stream while a replacement is being negotiated is how a late
+    // timer used to reopen the wrong item.
+    if (!buffering || state == null || _openingGeneration != null) return;
     _stallTimer = Timer(_stallTimeout, () {
       final current = state;
       if (current == null || !_player.isBuffering) return;
@@ -619,31 +827,47 @@ class PlaybackController extends Notifier<NowPlaying?> {
     });
   }
 
-  Future<void> _saveProgress() async {
+  void _scheduleStablePlayback() {
+    _stablePlaybackTimer?.cancel();
+    final generation = _recoveryGeneration;
     final current = state;
-    if (current == null || !current.trackProgress) return;
+    _stablePlaybackTimer = Timer(const Duration(seconds: 10), () {
+      if (generation != _recoveryGeneration ||
+          !identical(state, current) ||
+          !_player.isPlaying ||
+          _recovering) {
+        return;
+      }
+      _retries = 0;
+    });
+  }
+
+  Future<void> _saveProgress() async {
+    final item = _progressSnapshot(state);
+    if (item == null) return;
+    await ref.read(libraryActionsProvider).saveProgress(item);
+  }
+
+  ContinueWatchingItem? _progressSnapshot(NowPlaying? current) {
+    if (current == null || !current.trackProgress) return null;
 
     final position = _player.position;
     final duration = _player.duration;
     // Below five seconds there is nothing worth resuming, and a duration of zero
     // means the demuxer has not reported one yet.
     if (duration <= Duration.zero || position <= const Duration(seconds: 5)) {
-      return;
+      return null;
     }
 
-    await ref
-        .read(libraryActionsProvider)
-        .saveProgress(
-          ContinueWatchingItem(
-            playlistId: _playlistId,
-            kind: current.kind,
-            refId: current.refId,
-            title: current.media.title,
-            imageUrl: current.imageUrl,
-            payload: current.payload,
-            positionSecs: position.inSeconds,
-            durationSecs: duration.inSeconds,
-          ),
-        );
+    return ContinueWatchingItem(
+      playlistId: _mediaPlaylistId,
+      kind: current.kind,
+      refId: current.refId,
+      title: current.media.title,
+      imageUrl: current.imageUrl,
+      payload: current.payload,
+      positionSecs: position.inSeconds,
+      durationSecs: duration.inSeconds,
+    );
   }
 }

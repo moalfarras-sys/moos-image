@@ -1,8 +1,8 @@
-/// App-wide constant keys for caches, preferences and secure storage.
+/// App-wide constant keys for caches, preferences and private app storage.
 class StorageKeys {
   const StorageKeys._();
 
-  // Secure storage (encrypted)
+  // Private application storage (directory 0700, file 0600 on Linux)
   static const String activePlaylist = 'active_playlist';
   static const String playlists = 'saved_playlists';
   static const String deviceId = 'device_id';

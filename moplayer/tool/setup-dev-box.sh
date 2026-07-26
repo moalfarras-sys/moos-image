@@ -30,7 +30,7 @@ distrobox enter --name "$BOX" -- bash -lc '
 set -e
 sudo dnf install -y --setopt=install_weak_deps=False \
     clang cmake ninja-build pkg-config gtk3-devel \
-    mpv-libs-devel libsecret-devel \
+    mpv-libs-devel \
     xz zip unzip git curl file which findutils
 '
 

@@ -185,6 +185,31 @@ final newestSeriesProvider = FutureProvider<List<SeriesItem>>((ref) async {
   return series.take(_homeRailLength).toList();
 });
 
+/// The home hero and "Top rated" rail.
+///
+/// Kept in a provider rather than sorted in `HomeScreen.build`: continue
+/// positions are persisted every few seconds while a film plays, which rebuilds
+/// the relevant home widgets. Sorting a 20,000-film catalogue on every progress
+/// tick steals a frame from the video for a list that did not change. Riverpod
+/// now recomputes this only when the catalogue itself changes.
+final topRatedMoviesProvider = Provider<List<VodMovie>>((ref) {
+  final movies =
+      ref.watch(moviesProvider(Category.allId)).valueOrNull ??
+      const <VodMovie>[];
+  return topRatedMovies(movies);
+});
+
+/// The rated subset, highest first and bounded to one home rail.
+///
+/// Public for a small regression test: this calculation is cheap once, but
+/// expensive enough on a real panel that accidentally moving it back into a
+/// widget build is visible during playback.
+List<VodMovie> topRatedMovies(List<VodMovie> movies) {
+  final rated = movies.where((movie) => (movie.rating ?? 0) > 0).toList()
+    ..sort((a, b) => b.rating!.compareTo(a.rating!));
+  return rated.take(24).toList(growable: false);
+}
+
 // --- Series --------------------------------------------------------------
 
 final selectedSeriesCategoryProvider = StateProvider<String>(

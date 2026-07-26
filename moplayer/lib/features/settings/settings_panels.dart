@@ -508,8 +508,8 @@ class _StoragePanel extends ConsumerWidget {
 
     await ref.read(settingsRepositoryProvider).wipeAll();
 
-    // The copy promises the sources go too, so they go: a wipe that quietly left
-    // the user's panel credentials in the keyring would be a lie.
+    // The copy promises the sources go too, so they go. Their credentials live
+    // in MoPlayer's private application store, alongside the active source.
     final playlists = await ref.read(authRepositoryProvider).playlists();
     for (final playlist in playlists) {
       await ref.read(activePlaylistProvider.notifier).removeSource(playlist.id);
@@ -517,7 +517,9 @@ class _StoragePanel extends ConsumerWidget {
     await ref.read(activePlaylistProvider.notifier).logout();
 
     ref.read(catalogRefreshProvider.notifier).state++;
-    ref.read(libraryRefreshProvider.notifier).state++;
+    ref.read(favoritesRefreshProvider.notifier).state++;
+    ref.read(historyRefreshProvider.notifier).state++;
+    ref.read(continueRefreshProvider.notifier).state++;
 
     if (context.mounted) context.go(Routes.login);
   }
@@ -525,9 +527,22 @@ class _StoragePanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
+    final privateStorage = ref.watch(secureStorageProvider);
 
     return _Group(
       children: [
+        _Row(
+          leading: const _Plate(icon: Icons.shield_outlined, accent: true),
+          title: s.privateStorage,
+          description: s.privateStorageHint,
+          control: MoOSBadge(
+            label: privateStorage.degraded
+                ? s.storageSessionOnly
+                : s.storageReady,
+            on: !privateStorage.degraded,
+          ),
+        ),
+        const _Hairline(),
         _Row(
           title: s.clearCache,
           description: s.clearCacheHint,

@@ -9,6 +9,7 @@ import '../../core/utils/formatters.dart';
 import '../../providers/playback_providers.dart';
 import '../../providers/system_providers.dart';
 import '../../widgets/buttons.dart';
+import '../../widgets/focus_surface.dart';
 import '../../widgets/media_card.dart';
 
 /// The bar along the bottom of the shell while a stream is playing and the user
@@ -39,25 +40,25 @@ class MiniPlayer extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: () => ref.read(playerViewProvider.notifier).expand(),
-              child: Padding(
-                padding: const EdgeInsets.all(Nova.space3),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(Nova.radiusControl),
-                  child: SizedBox(
-                    width: 104,
-                    height: 58,
-                    child: ColoredBox(
-                      color: Colors.black,
-                      child: Video(
-                        controller: player.controller,
-                        controls: NoVideoControls,
-                        fit: BoxFit.cover,
-                        fill: Colors.black,
-                      ),
+          FocusSurface(
+            onTap: () => ref.read(playerViewProvider.notifier).expand(),
+            semanticLabel: s.miniPlayer,
+            scale: 1,
+            bloom: false,
+            child: Padding(
+              padding: const EdgeInsets.all(Nova.space3),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(Nova.radiusControl),
+                child: SizedBox(
+                  width: 104,
+                  height: 58,
+                  child: ColoredBox(
+                    color: Colors.black,
+                    child: Video(
+                      controller: player.controller,
+                      controls: NoVideoControls,
+                      fit: BoxFit.cover,
+                      fill: Colors.black,
                     ),
                   ),
                 ),
@@ -93,6 +94,13 @@ class MiniPlayer extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                     style: AppText.caption,
                   ),
+                if (now.isLive && now.liveChannels.length > 1)
+                  Text(
+                    '${(now.liveChannelIndex ?? 0) + 1} / '
+                    '${now.liveChannels.length}',
+                    style: AppText.caption.copyWith(color: AppColors.textMuted),
+                    textDirection: TextDirection.ltr,
+                  ),
                 if (!now.isLive) ...[
                   const SizedBox(height: Nova.space2),
                   _MiniProgress(),
@@ -106,7 +114,7 @@ class MiniPlayer extends ConsumerWidget {
           if (now.hasPrevious || now.hasNext)
             IconPill(
               icon: Icons.skip_previous_rounded,
-              tooltip: s.previousEpisode,
+              tooltip: now.isLive ? s.previousChannel : s.previousEpisode,
               onPressed: now.hasPrevious ? playback.previous : null,
             ),
 
@@ -127,7 +135,7 @@ class MiniPlayer extends ConsumerWidget {
           if (now.hasPrevious || now.hasNext)
             IconPill(
               icon: Icons.skip_next_rounded,
-              tooltip: s.nextEpisode,
+              tooltip: now.isLive ? s.nextChannel : s.nextEpisode,
               onPressed: now.hasNext ? playback.next : null,
             ),
 

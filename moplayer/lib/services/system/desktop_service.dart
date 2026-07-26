@@ -294,17 +294,27 @@ class DesktopService {
     }
   }
 
-  Future<void> setFullscreen(bool value) async {
-    if (_fullscreen == value) return;
-    _fullscreen = value;
+  Future<bool> setFullscreen(bool value) async {
+    if (_fullscreen == value) return true;
     try {
       await windowManager.setFullScreen(value);
+      _fullscreen = value;
+      return true;
     } on Exception catch (e) {
       log.w('fullscreen toggle failed: $e');
+      return false;
     }
   }
 
-  Future<void> toggleFullscreen() => setFullscreen(!_fullscreen);
+  Future<bool> toggleFullscreen() => setFullscreen(!_fullscreen);
+
+  /// Mirror a fullscreen change initiated by KWin rather than by the app.
+  ///
+  /// Without this, leaving fullscreen with a compositor shortcut changed the
+  /// window but not MoPlayer's state. Its caption and dock stayed hidden, and
+  /// the next fullscreen button press was ignored because this service still
+  /// believed the window was fullscreen.
+  void syncFullscreen(bool value) => _fullscreen = value;
 
   /// Window title. Plasma's task manager and Alt-Tab read this, so a MoOS user
   /// glancing at the taskbar sees the channel, not just "MoPlayer".

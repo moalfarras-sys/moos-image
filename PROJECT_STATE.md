@@ -4,9 +4,40 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-25 (session K — MoPlayer 1.1 rebuilt, locally installed,
-vendored and image-tested; signed system publication is the remaining release
-step).
+Last updated: 2026-07-26 (session L — MoPlayer 1.2 repaired, visually audited,
+locally installed, vendored, and built into both MoOS editions; signed system
+publication and staging are the remaining release steps).
+
+> **Session L — MoPlayer 1.2 desktop playback overhaul (2026-07-26).** The
+> canonical `~/MoPlayerMoOS` release is `e856461`, pushed on `main`, and the
+> vendored source in this image is an exact sync of that commit. The KDE Wallet
+> prompt is gone: MoPlayer no longer loads `flutter_secure_storage`/libsecret
+> and stores IPTV credentials in its private XDG data file instead (directory
+> `0700`, file `0600`, atomic replacement, and a non-fatal memory fallback).
+> Existing wallet secrets cannot be migrated without reopening the wallet, so
+> users enter the source once after this update. The NVIDIA-safe software
+> presentation texture remains the default because the GL texture path has
+> killed this app on the maintainer's RTX 2080 SUPER; hardware decoding remains
+> enabled. Full-player presentation is bounded to 1280x720 and mini-player to
+> 640x360, with a `videoParams` guard that reasserts the bound after media_kit
+> silently resets it to the source size. Eight consecutive Wayland captures of
+> the public 1080p Mux HLS stream were clean after the earlier 1920x1080 tearing
+> was reproduced.
+>
+> Home, settings, player and catalogue browsing were modernised for mouse and
+> keyboard use; direct URL launch on a clean profile works; live channel
+> previous/next wraps through the queue from buttons, PageUp/PageDown, N/P and
+> MPRIS; buffering/cache/reconnect settings are tuned for IPTV; catalogue caches
+> are memoised and invalidated; and storage state is explained in all shipped
+> languages. `flutter analyze` is clean, **114 tests** pass, release build and
+> `~/.local` installation pass, desktop/AppStream validation pass, and the
+> installed binary was exercised against the public HLS stream with MPRIS
+> reporting `Playing`, system `libmpv.so.2`, NVDEC active, the safe texture
+> resize visible in logs, and no KWallet/Secret Service call. Both local images
+> then built successfully from the same source: generic `moos:latest`
+> (`0328de17…`) and NVIDIA `moos-nvidia:latest` (`8929faea…`), including the
+> app/identity/initramfs/bootc gates and NVIDIA 610.43.03 modules matched to
+> kernel 7.1.4-204.
 
 > **Session K — MoPlayer 1.1 (2026-07-25).** The canonical
 > `~/MoPlayerMoOS` repository, not only its image snapshot, now owns the rebuilt
@@ -296,7 +327,7 @@ happens; `moos-image/moplayer/` is a **snapshot** of it, and the snapshot is wha
 the image compiles. A change that lives only in one of them ships as half a change.
 
 ```
-1. work + commit in ~/MoPlayerMoOS   (`just check` there: analyze + 102 tests)
+1. work + commit in ~/MoPlayerMoOS   (`just check` there: analyze + 114 tests)
 2. push it                            → github.com/moalfarras-sys/MoPlayerMoOS
 3. cd ~/moos-image && just sync-moplayer
       ↳ refuses a dirty MoPlayer tree — vendoring copies `git ls-files`, so an
@@ -444,7 +475,7 @@ Measured against the maintainer's real subscription, not assumed:
 | `build_files/verify_image_experience.py` | *inside* the image, after every package and rebrand |
 | `__pycache__` / bytecode-cache gate | inside the image, at the end of `build.sh` |
 | MoPlayer bundle completeness | inside the `moplayer-build` stage |
-| MoPlayer: `flutter analyze` + 102 tests | `just check` in `~/MoPlayerMoOS` |
+| MoPlayer: `flutter analyze` + 114 tests | `just check` in `~/MoPlayerMoOS` |
 
 They were honour-system until today: **not in CI, not in `just build`**. If you add
 a gate, wire it into both, and break it once to prove it fires.

@@ -60,8 +60,8 @@ class AuthRepository {
     } on Failure catch (f) {
       return Err(f);
     } catch (e) {
-      log.e('testXtream failed', error: e);
-      return Err(Failure.server('$e'));
+      log.e('testXtream failed: ${safeLogMessage(e)}');
+      return Err(Failure.server(safeLogMessage(e)));
     } finally {
       api.close();
     }

@@ -17,6 +17,7 @@ import '../../providers/library_providers.dart';
 import '../../providers/playback_providers.dart';
 import '../../providers/system_providers.dart';
 import '../../widgets/buttons.dart';
+import '../../widgets/focus_surface.dart';
 import '../../widgets/media_card.dart';
 import '../../widgets/network_poster.dart';
 import '../../widgets/state_views.dart';
@@ -170,6 +171,7 @@ class _CategoryRow extends StatefulWidget {
 
 class _CategoryRowState extends State<_CategoryRow> {
   bool _hovered = false;
+  bool _focused = false;
 
   @override
   Widget build(BuildContext context) {
@@ -179,8 +181,14 @@ class _CategoryRowState extends State<_CategoryRow> {
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
+      child: FocusSurface(
         onTap: widget.onTap,
+        onFocusChange: (focused) => setState(() => _focused = focused),
+        radius: Nova.radiusControl,
+        scale: 1,
+        bloom: false,
+        selected: selected,
+        semanticLabel: widget.label,
         child: AnimatedContainer(
           duration: Nova.fast,
           margin: const EdgeInsets.only(bottom: 2),
@@ -188,7 +196,9 @@ class _CategoryRowState extends State<_CategoryRow> {
           decoration: BoxDecoration(
             color: selected
                 ? AppColors.surface3
-                : (_hovered ? AppColors.surface2 : Colors.transparent),
+                : (_hovered || _focused
+                      ? AppColors.surface2
+                      : Colors.transparent),
             borderRadius: BorderRadius.circular(Nova.radiusControl),
           ),
           child: Row(
@@ -323,6 +333,7 @@ class _ChannelPaneState extends ConsumerState<_ChannelPane> {
                   final channel = filtered[i];
                   return _ChannelRow(
                     channel: channel,
+                    channels: filtered,
                     playlistId: playlistId,
                     selected: channel.streamId == playingId,
                     isFavorite: favorites.any(
@@ -351,6 +362,7 @@ List<LiveChannel> _filter(List<LiveChannel> all, String query) {
 class _ChannelRow extends ConsumerWidget {
   const _ChannelRow({
     required this.channel,
+    required this.channels,
     required this.playlistId,
     required this.selected,
     required this.isFavorite,
@@ -358,6 +370,7 @@ class _ChannelRow extends ConsumerWidget {
   });
 
   final LiveChannel channel;
+  final List<LiveChannel> channels;
   final String playlistId;
   final bool selected;
   final bool isFavorite;
@@ -388,7 +401,9 @@ class _ChannelRow extends ConsumerWidget {
       nowTitle: now?.title,
       nowProgress: now?.progress,
       isFavorite: isFavorite,
-      onTap: () => ref.read(playbackProvider.notifier).playLive(channel),
+      onTap: () => ref
+          .read(playbackProvider.notifier)
+          .playLive(channel, channels: channels),
       onToggleFavorite: () => ref
           .read(libraryActionsProvider)
           .toggleFavorite(

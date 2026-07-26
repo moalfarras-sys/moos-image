@@ -12,7 +12,7 @@ enough reason to touch that pipeline without a human reading the diff first.
 |---|---|
 | `mpv-libs` | **Already in the image.** It *is* the playback engine — media_kit binds `libmpv.so.2`. Nothing to add. |
 | `gtk3` | Already present (Plasma pulls it in for GTK apps). |
-| `libsecret` / KWallet | Already present. This is where the IPTV credentials go. |
+| Private app data | Credentials stay in `$XDG_DATA_HOME/moplayer/private` with 0700/0600 permissions. MoPlayer does not open KWallet. |
 | `ibm-plex-sans-fonts`, `ibm-plex-sans-arabic-fonts` | Already present. The app's type is the system's type. |
 
 So the image does not gain a single new runtime dependency. What it gains is a
@@ -41,7 +41,7 @@ an icon set.
 
 ```dockerfile
 # ── MoPlayer ────────────────────────────────────────────────────────────────
-ARG MOPLAYER_VERSION=1.1.0
+ARG MOPLAYER_VERSION=1.2.0
 RUN curl -fsSL -o /tmp/moplayer.tar.gz \
       "https://github.com/moalfarras-sys/MoPlayerMoOS/releases/download/v${MOPLAYER_VERSION}/moplayer-linux-x64.tar.gz" \
  && mkdir -p /usr/lib/moplayer \

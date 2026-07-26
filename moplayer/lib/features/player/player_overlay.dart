@@ -39,6 +39,7 @@ class _PlayerOverlayState extends ConsumerState<PlayerOverlay> {
 
   final FocusNode _focus = FocusNode();
   Timer? _idleTimer;
+  StreamSubscription<bool>? _playingSub;
   bool _controlsVisible = true;
   bool _optionsVisible = false;
   PlayerFitMode _fitMode = PlayerFitMode.fit;
@@ -46,12 +47,29 @@ class _PlayerOverlayState extends ConsumerState<PlayerOverlay> {
   @override
   void initState() {
     super.initState();
+    _playingSub = ref.read(playerServiceProvider).playingStream.listen((
+      playing,
+    ) {
+      if (!mounted) return;
+      if (playing) {
+        _restartIdleTimer();
+        return;
+      }
+
+      // Pause can arrive from a media key or Plasma while the pointer is still.
+      // A paused frame must never remain with a hidden way out.
+      _idleTimer?.cancel();
+      if (!_controlsVisible) {
+        setState(() => _controlsVisible = true);
+      }
+    });
     _restartIdleTimer();
   }
 
   @override
   void dispose() {
     _idleTimer?.cancel();
+    _playingSub?.cancel();
     _focus.dispose();
     super.dispose();
   }
@@ -149,6 +167,8 @@ class _PlayerOverlayState extends ConsumerState<PlayerOverlay> {
         const SingleActivator(LogicalKeyboardKey.keyA): _cycleAudio,
         const SingleActivator(LogicalKeyboardKey.keyN): _playback.next,
         const SingleActivator(LogicalKeyboardKey.keyP): _playback.previous,
+        const SingleActivator(LogicalKeyboardKey.pageDown): _playback.next,
+        const SingleActivator(LogicalKeyboardKey.pageUp): _playback.previous,
         const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
             _playback.seekBy(const Duration(seconds: 10)),
         const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
@@ -409,6 +429,15 @@ class _Controls extends ConsumerWidget {
                               color: Colors.white60,
                             ),
                           ),
+                        if (now.isLive && now.liveChannels.length > 1)
+                          Text(
+                            '${(now.liveChannelIndex ?? 0) + 1} / '
+                            '${now.liveChannels.length}',
+                            style: AppText.caption.copyWith(
+                              color: Colors.white60,
+                            ),
+                            textDirection: TextDirection.ltr,
+                          ),
                       ],
                     ),
                   ),
@@ -565,7 +594,9 @@ class _CentreTransport extends StatelessWidget {
           if (now.hasPrevious)
             IconPill(
               icon: Icons.skip_previous_rounded,
-              tooltip: strings.previousEpisode,
+              tooltip: now.isLive
+                  ? strings.previousChannel
+                  : strings.previousEpisode,
               size: 50,
               onPressed: playback.previous,
             ),
@@ -588,7 +619,7 @@ class _CentreTransport extends StatelessWidget {
           if (now.hasNext)
             IconPill(
               icon: Icons.skip_next_rounded,
-              tooltip: strings.nextEpisode,
+              tooltip: now.isLive ? strings.nextChannel : strings.nextEpisode,
               size: 50,
               onPressed: playback.next,
             ),

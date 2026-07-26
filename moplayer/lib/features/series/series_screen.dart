@@ -63,7 +63,7 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     final compact = ref.watch(settingsProvider).compactGrids;
     final loaded = series.valueOrNull;
 
-    ref.watch(libraryRefreshProvider);
+    ref.watch(favoritesRefreshProvider);
     final library = ref.read(libraryActionsProvider);
     final playlistId = ref.watch(activePlaylistProvider)?.id;
     final item = _previewed;
@@ -178,7 +178,7 @@ class _SeriesGrid extends ConsumerWidget {
 
     // The favourite lives in a repository rather than in provider state; the
     // heart repaints only because the refresh counter is watched here.
-    ref.watch(libraryRefreshProvider);
+    ref.watch(favoritesRefreshProvider);
     final library = ref.read(libraryActionsProvider);
     final playlistId = ref.watch(activePlaylistProvider)?.id;
 

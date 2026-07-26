@@ -137,7 +137,7 @@ class XtreamApi {
       }
     } catch (e) {
       // EPG is best-effort; never block playback because it failed.
-      log.d('EPG unavailable for $streamId: $e');
+      log.d('EPG unavailable for $streamId: ${safeLogMessage(e)}');
     }
     return const [];
   }
@@ -157,7 +157,7 @@ class XtreamApi {
       final body = res.data;
       return body is String ? body : '';
     } catch (e) {
-      log.d('XMLTV guide unavailable: $e');
+      log.d('XMLTV guide unavailable: ${safeLogMessage(e)}');
       return '';
     }
   }

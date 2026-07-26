@@ -120,7 +120,7 @@ class HomeScreen extends ConsumerWidget {
           );
         }
 
-        final top = _topRated(movies);
+        final top = ref.watch(topRatedMoviesProvider);
         final playback = ref.read(playbackProvider.notifier);
         final actions = ref.read(libraryActionsProvider);
 
@@ -145,7 +145,7 @@ class HomeScreen extends ConsumerWidget {
           padding: EdgeInsets.zero,
           children: [
             if (resumeHero != null)
-              _Hero(
+              HomeHero(
                 eyebrow: s.continueWatching,
                 title: resumeHero.title,
                 meta: s.minutesLeft(_minutesLeft(resumeHero)),
@@ -166,7 +166,7 @@ class HomeScreen extends ConsumerWidget {
                 motion: motion,
               )
             else if (movieHero != null)
-              _Hero(
+              HomeHero(
                 eyebrow: s.featured,
                 title: movieHero.name,
                 meta: _movieMeta(movieHero),
@@ -180,13 +180,13 @@ class HomeScreen extends ConsumerWidget {
                 motion: motion,
               )
             else if (liveHero != null)
-              _Hero(
+              HomeHero(
                 eyebrow: s.onAir,
                 title: liveHero.name,
                 meta: s.liveChannelsAvailable(live.length),
                 logoUrl: liveHero.logo,
                 playLabel: s.play,
-                onPlay: () => playback.playLive(liveHero),
+                onPlay: () => playback.playLive(liveHero, channels: live),
                 infoLabel: s.channels,
                 onInfo: () => context.go(Routes.live),
                 motion: motion,
@@ -213,7 +213,7 @@ class HomeScreen extends ConsumerWidget {
                           (c) => c.streamId == match.streamId,
                           orElse: () => live.first,
                         );
-                        playback.playLive(channel);
+                        playback.playLive(channel, channels: live);
                       },
                     ),
 
@@ -246,7 +246,8 @@ class HomeScreen extends ConsumerWidget {
                       height: 156,
                       seeAllLabel: s.more,
                       onSeeAll: () => context.go(Routes.live),
-                      itemBuilder: (context, i) => _LiveCard(channel: live[i]),
+                      itemBuilder: (context, i) =>
+                          _LiveCard(channel: live[i], channels: live),
                     ),
 
                   // Newest first, and *only* newest. The old page carried a
@@ -345,6 +346,17 @@ class _WidgetRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final narrow = MediaQuery.sizeOf(context).width < 900;
 
+    final matchStrip = matches.isEmpty
+        ? null
+        : MatchStrip(matches: matches, strings: strings, onPlay: onPlayMatch);
+    final weatherTile = weather == null
+        ? null
+        : WeatherTile(
+            weather: weather!,
+            strings: strings,
+            width: narrow ? double.infinity : 260,
+          );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -352,27 +364,26 @@ class _WidgetRow extends StatelessWidget {
           SectionHeader(title: title),
           const SizedBox(height: Nova.space4),
         ],
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (matches.isNotEmpty)
-              Expanded(
-                child: MatchStrip(
-                  matches: matches,
-                  strings: strings,
-                  onPlay: onPlayMatch,
-                ),
-              ),
-            if (matches.isNotEmpty && weather != null)
-              const SizedBox(width: Nova.space4),
-            if (weather != null)
-              WeatherTile(
-                weather: weather!,
-                strings: strings,
-                width: narrow ? 200 : 260,
-              ),
-          ],
-        ),
+        if (narrow)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ?matchStrip,
+              if (matchStrip != null && weatherTile != null)
+                const SizedBox(height: Nova.space4),
+              ?weatherTile,
+            ],
+          )
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (matchStrip != null) Expanded(child: matchStrip),
+              if (matchStrip != null && weatherTile != null)
+                const SizedBox(width: Nova.space4),
+              ?weatherTile,
+            ],
+          ),
       ],
     );
   }
@@ -409,20 +420,15 @@ String _movieMeta(VodMovie movie) {
   ].join('  ·  ');
 }
 
-List<VodMovie> _topRated(List<VodMovie> all) {
-  final rated = all.where((m) => (m.rating ?? 0) > 0).toList()
-    ..sort((a, b) => b.rating!.compareTo(a.rating!));
-  return rated.take(24).toList();
-}
-
 /// The full-bleed opener.
 ///
 /// Two scrims, not one: [AppColors.heroScrim] runs along the reading axis and is
 /// what keeps the copy legible over artwork nobody chose; [AppColors.posterScrim]
 /// runs down the image and is what stops the first rail from colliding with the
 /// picture's bottom edge.
-class _Hero extends StatelessWidget {
-  const _Hero({
+class HomeHero extends StatelessWidget {
+  const HomeHero({
+    super.key,
     required this.eyebrow,
     required this.title,
     required this.meta,
@@ -481,99 +487,103 @@ class _Hero extends StatelessWidget {
           ),
           PositionedDirectional(
             start: Nova.space6,
+            end: Nova.space6,
             bottom: Nova.space6,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 620),
-              child: TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: 0, end: 1),
-                duration: motion ? Nova.slow : Duration.zero,
-                curve: Curves.easeOutCubic,
-                builder: (context, t, child) => Opacity(
-                  opacity: t,
-                  // The rise is vertical. A horizontal one would have a
-                  // direction, and a direction is wrong half the time in a
-                  // layout that is also mirrored.
-                  child: Transform.translate(
-                    offset: Offset(0, (1 - t) * 18),
-                    child: child,
+            child: Align(
+              alignment: AlignmentDirectional.bottomStart,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 620),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0, end: 1),
+                  duration: motion ? Nova.slow : Duration.zero,
+                  curve: Curves.easeOutCubic,
+                  builder: (context, t, child) => Opacity(
+                    opacity: t,
+                    // The rise is vertical. A horizontal one would have a
+                    // direction, and a direction is wrong half the time in a
+                    // layout that is also mirrored.
+                    child: Transform.translate(
+                      offset: Offset(0, (1 - t) * 18),
+                      child: child,
+                    ),
                   ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (hasLogo) ...[
-                      SizedBox(
-                        width: 148,
-                        height: 84,
-                        child: NetworkPoster(
-                          url: logoUrl,
-                          title: title,
-                          logoMode: true,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (hasLogo) ...[
+                        SizedBox(
                           width: 148,
-                          radius: Nova.radiusControl,
-                          background: AppColors.surface2,
+                          height: 84,
+                          child: NetworkPoster(
+                            url: logoUrl,
+                            title: title,
+                            logoMode: true,
+                            width: 148,
+                            radius: Nova.radiusControl,
+                            background: AppColors.surface2,
+                          ),
+                        ),
+                        const SizedBox(height: Nova.space4),
+                      ],
+                      Text(
+                        eyebrow.toUpperCase(),
+                        style: AppText.label.copyWith(
+                          color: AppColors.primary,
+                          letterSpacing: 1.4,
                         ),
                       ),
-                      const SizedBox(height: Nova.space4),
-                    ],
-                    Text(
-                      eyebrow.toUpperCase(),
-                      style: AppText.label.copyWith(
-                        color: AppColors.primary,
-                        letterSpacing: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: Nova.space2),
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.display,
-                    ),
-                    if (meta.isNotEmpty) ...[
                       const SizedBox(height: Nova.space2),
-                      Text(meta, style: AppText.subtitle),
-                    ],
-                    if (description != null &&
-                        description!.trim().isNotEmpty) ...[
-                      const SizedBox(height: Nova.space3),
                       Text(
-                        description!.trim(),
+                        title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: AppText.body.copyWith(
-                          color: AppColors.textSecondary,
-                          height: 1.5,
-                        ),
+                        style: AppText.display,
                       ),
-                    ],
-                    if (progress != null) ...[
-                      const SizedBox(height: Nova.space3),
-                      SizedBox(
-                        width: 260,
-                        child: ProgressBar(value: progress!),
-                      ),
-                    ],
-                    const SizedBox(height: Nova.space5),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      spacing: Nova.space3,
-                      children: [
-                        EmberButton(
-                          label: playLabel,
-                          icon: Icons.play_arrow_rounded,
-                          onPressed: onPlay,
-                        ),
-                        if (onInfo != null)
-                          GhostButton(
-                            label: infoLabel,
-                            icon: Icons.info_outline_rounded,
-                            onPressed: onInfo,
-                          ),
+                      if (meta.isNotEmpty) ...[
+                        const SizedBox(height: Nova.space2),
+                        Text(meta, style: AppText.subtitle),
                       ],
-                    ),
-                  ],
+                      if (description != null &&
+                          description!.trim().isNotEmpty) ...[
+                        const SizedBox(height: Nova.space3),
+                        Text(
+                          description!.trim(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.body.copyWith(
+                            color: AppColors.textSecondary,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                      if (progress != null) ...[
+                        const SizedBox(height: Nova.space3),
+                        SizedBox(
+                          width: 260,
+                          child: ProgressBar(value: progress!),
+                        ),
+                      ],
+                      const SizedBox(height: Nova.space5),
+                      Wrap(
+                        spacing: Nova.space3,
+                        runSpacing: Nova.space3,
+                        children: [
+                          EmberButton(
+                            label: playLabel,
+                            icon: Icons.play_arrow_rounded,
+                            onPressed: onPlay,
+                          ),
+                          if (onInfo != null)
+                            GhostButton(
+                              label: infoLabel,
+                              icon: Icons.info_outline_rounded,
+                              onPressed: onInfo,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -594,9 +604,10 @@ class _Hero extends StatelessWidget {
 /// `get_short_epg` round-trips on the landing page; the guide belongs on the
 /// Live screen, where the user actually asked for it.
 class _LiveCard extends ConsumerWidget {
-  const _LiveCard({required this.channel});
+  const _LiveCard({required this.channel, required this.channels});
 
   final LiveChannel channel;
+  final List<LiveChannel> channels;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -604,7 +615,9 @@ class _LiveCard extends ConsumerWidget {
 
     return NovaCard(
       padding: const EdgeInsets.all(Nova.space3),
-      onTap: () => ref.read(playbackProvider.notifier).playLive(channel),
+      onTap: () => ref
+          .read(playbackProvider.notifier)
+          .playLive(channel, channels: channels),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

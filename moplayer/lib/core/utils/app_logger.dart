@@ -35,3 +35,26 @@ final Logger log = Logger(
     dateTimeFormat: DateTimeFormat.none,
   ),
 );
+
+/// Removes stream/source URLs and common credential fields from diagnostics.
+///
+/// mpv and Dio include the failed URI in many exceptions. Xtream puts the
+/// username and password in that URI, while signed M3U links put bearer tokens
+/// there. Release warnings go to the session journal even when the optional log
+/// file is off, so every call site that logs a network/player exception passes
+/// through this function.
+String safeLogMessage(Object value) {
+  var text = value.toString();
+  text = text.replaceAll(
+    RegExp(r'(?:https?|rtsp)://[^\s"<>]+', caseSensitive: false),
+    '<redacted-url>',
+  );
+  text = text.replaceAllMapped(
+    RegExp(
+      r'((?:username|user|password|pass|token|key)=)[^&\s,;]+',
+      caseSensitive: false,
+    ),
+    (match) => '${match.group(1)}<redacted>',
+  );
+  return text;
+}

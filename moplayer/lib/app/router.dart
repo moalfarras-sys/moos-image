@@ -26,10 +26,14 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: ref.read(launchArgsProvider).initialRoute,
     redirect: (context, state) {
       final loggedIn = ref.read(isLoggedInProvider);
+      final playingDirectUrl = ref.read(launchArgsProvider).playUrl != null;
       final onLogin = state.matchedLocation == Routes.login;
 
       // "Logged in" means: there is a source to play. There is no account.
-      if (!loggedIn && !onLogin) return Routes.login;
+      // A direct URL needs no source at all: MoPlayer is also the desktop's
+      // video player, and `moplayer film.mkv` must work on a clean install.
+      // MainShell owns the player overlay, so let the launch reach that shell.
+      if (!loggedIn && !playingDirectUrl && !onLogin) return Routes.login;
       // `?add=1` is how Settings adds a second source without being bounced home.
       if (loggedIn && onLogin && state.uri.queryParameters['add'] != '1') {
         return Routes.home;

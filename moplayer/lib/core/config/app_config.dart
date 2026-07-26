@@ -51,7 +51,7 @@ class AppConfig {
 
   /// Sent on every stream request. Some IPTV panels reject an unknown agent, and
   /// several block anything that looks like a browser.
-  static const String userAgent = 'MoPlayer/1.1 (MoOS)';
+  static const String userAgent = 'MoPlayer/1.2 (MoOS)';
 
   /// The MPRIS bus name suffix: the player owns
   /// `org.mpris.MediaPlayer2.moplayer`. Kept separate from [appId] because the

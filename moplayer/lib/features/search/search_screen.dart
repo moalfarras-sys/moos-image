@@ -170,8 +170,8 @@ class _Results extends ConsumerWidget {
                 imageUrl: channel.logo,
                 aspectRatio: 16 / 9,
                 badge: LiveBadge(label: s.onAir),
-                onTap: () => playback.playLive(channel),
-                onPlay: () => playback.playLive(channel),
+                onTap: () => playback.playLive(channel, channels: live),
+                onPlay: () => playback.playLive(channel, channels: live),
               );
             },
           ),

@@ -26,9 +26,9 @@ String _appDataDir() {
   final base = (xdg != null && xdg.isNotEmpty)
       ? xdg
       : '${Platform.environment['HOME'] ?? '.'}/.local/share';
-  final dir = Directory('$base/moplayer');
-  dir.createSync(recursive: true);
-  return dir.path;
+  // CacheService creates it and owns the in-memory fallback. Doing filesystem
+  // work here would throw before that fallback can keep bootstrap survivable.
+  return Directory('$base/moplayer').path;
 }
 
 /// What the app needs before it can draw a single frame.
@@ -41,13 +41,17 @@ class Boot {
 /// source to log in with — all before the first frame, so the app never shows a
 /// spinner for state it already has on disk.
 ///
-/// Nothing in here is allowed to be fatal. A MoOS install with no keyring, no
+/// Nothing in here is allowed to be fatal. A MoOS install with no writable
+/// private storage, no
 /// network and no cloud must still start into a usable player.
 Future<Boot> bootstrap(LaunchArgs launch) async {
-  final secure = SecureStorageService();
+  final dataDirectory = _appDataDir();
+  final secure = SecureStorageService(
+    filePath: '$dataDirectory/private/credentials.json',
+  );
 
   final cache = CacheService();
-  await cache.init(path: _appDataDir());
+  await cache.init(path: dataDirectory);
 
   final device = DeviceService(secure);
   await device.init();

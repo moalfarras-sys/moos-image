@@ -90,7 +90,7 @@ FROM registry.fedoraproject.org/fedora:44 AS moplayer-build
 ARG FLUTTER_VERSION=3.44.8
 RUN dnf -y install --setopt=install_weak_deps=False \
         clang cmake ninja-build pkgconf-pkg-config \
-        gtk3-devel mpv-libs-devel libsecret-devel \
+        gtk3-devel mpv-libs-devel \
         xz zip unzip git curl file which findutils \
     && dnf clean all
 RUN curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \

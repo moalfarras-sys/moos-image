@@ -87,7 +87,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     final s = ref.watch(stringsProvider);
 
     // Favourites are repository state; the counter is what repaints the heart.
-    ref.watch(libraryRefreshProvider);
+    ref.watch(favoritesRefreshProvider);
     final library = ref.read(libraryActionsProvider);
     final playlistId = ref.watch(activePlaylistProvider)?.id;
 

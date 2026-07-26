@@ -86,7 +86,8 @@ class _Body extends ConsumerWidget {
 
     // Favourites and resume positions are repository state; watching the counter
     // is what repaints the heart and the button's label after a toggle or a save.
-    ref.watch(libraryRefreshProvider);
+    ref.watch(favoritesRefreshProvider);
+    ref.watch(continueRefreshProvider);
     final library = ref.read(libraryActionsProvider);
     final playlistId = ref.watch(activePlaylistProvider)?.id;
     final playback = ref.read(playbackProvider.notifier);

@@ -94,7 +94,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
     final compact = ref.watch(settingsProvider).compactGrids;
     final loaded = movies.valueOrNull;
 
-    ref.watch(libraryRefreshProvider);
+    ref.watch(favoritesRefreshProvider);
     final library = ref.read(libraryActionsProvider);
     final playlistId = ref.watch(activePlaylistProvider)?.id;
     final movie = _previewed;
@@ -223,7 +223,7 @@ class _MovieGrid extends ConsumerWidget {
     // Favourites live in a repository, not in provider state. Without watching
     // the refresh counter the heart would stay hollow until something else
     // happened to rebuild the grid.
-    ref.watch(libraryRefreshProvider);
+    ref.watch(favoritesRefreshProvider);
     final library = ref.read(libraryActionsProvider);
     final playlistId = ref.watch(activePlaylistProvider)?.id;
 

@@ -29,25 +29,32 @@ final continueWatchingRepositoryProvider = Provider<ContinueWatchingRepository>(
   },
 );
 
-/// Bumped after any library mutation so the read providers below recompute.
-final libraryRefreshProvider = StateProvider<int>((ref) => 0);
+/// Separate invalidation counters.
+///
+/// Playback persists a continue position every few seconds. A single shared
+/// counter used to make that tiny write also decode favourites and history,
+/// then rebuild every consumer of them under the full-screen video. Keep each
+/// shelf reactive without turning a progress tick into a library-wide refresh.
+final favoritesRefreshProvider = StateProvider<int>((ref) => 0);
+final historyRefreshProvider = StateProvider<int>((ref) => 0);
+final continueRefreshProvider = StateProvider<int>((ref) => 0);
 
 final favoritesProvider = Provider<List<FavoriteItem>>((ref) {
-  ref.watch(libraryRefreshProvider);
+  ref.watch(favoritesRefreshProvider);
   final cfg = ref.watch(activePlaylistProvider);
   if (cfg == null) return const [];
   return ref.watch(favoritesRepositoryProvider).all(cfg.id);
 });
 
 final continueWatchingProvider = Provider<List<ContinueWatchingItem>>((ref) {
-  ref.watch(libraryRefreshProvider);
+  ref.watch(continueRefreshProvider);
   final cfg = ref.watch(activePlaylistProvider);
   if (cfg == null) return const [];
   return ref.watch(continueWatchingRepositoryProvider).all(cfg.id);
 });
 
 final historyProvider = Provider<List<HistoryItem>>((ref) {
-  ref.watch(libraryRefreshProvider);
+  ref.watch(historyRefreshProvider);
   final cfg = ref.watch(activePlaylistProvider);
   if (cfg == null) return const [];
   return ref.watch(historyRepositoryProvider).all(cfg.id);
@@ -70,7 +77,7 @@ class LibraryActions {
 
   Future<bool> toggleFavorite(FavoriteItem item) async {
     final now = await _ref.read(favoritesRepositoryProvider).toggle(item);
-    _bump();
+    _bumpFavorites();
     return now;
   }
 
@@ -78,22 +85,22 @@ class LibraryActions {
     final cfg = _ref.read(activePlaylistProvider);
     if (cfg == null) return;
     await _ref.read(favoritesRepositoryProvider).remove(cfg.id, kind, refId);
-    _bump();
+    _bumpFavorites();
   }
 
   Future<void> recordHistory(HistoryItem item) async {
     await _ref.read(historyRepositoryProvider).record(item);
-    _bump();
+    _bumpHistory();
   }
 
   Future<void> clearHistory() async {
     await _ref.read(historyRepositoryProvider).clear();
-    _bump();
+    _bumpHistory();
   }
 
   Future<void> saveProgress(ContinueWatchingItem item) async {
     await _ref.read(continueWatchingRepositoryProvider).save(item);
-    _bump();
+    _bumpContinue();
   }
 
   Future<void> removeContinue(MediaKind kind, String refId) async {
@@ -102,7 +109,7 @@ class LibraryActions {
     await _ref
         .read(continueWatchingRepositoryProvider)
         .remove(cfg.id, kind, refId);
-    _bump();
+    _bumpContinue();
   }
 
   Duration resumePosition(MediaKind kind, String refId) {
@@ -121,8 +128,12 @@ class LibraryActions {
     await _ref.read(favoritesRepositoryProvider).syncFromCloud(cfg.id);
     await _ref.read(historyRepositoryProvider).syncFromCloud(cfg.id);
     await _ref.read(continueWatchingRepositoryProvider).syncFromCloud(cfg.id);
-    _bump();
+    _bumpFavorites();
+    _bumpHistory();
+    _bumpContinue();
   }
 
-  void _bump() => _ref.read(libraryRefreshProvider.notifier).state++;
+  void _bumpFavorites() => _ref.read(favoritesRefreshProvider.notifier).state++;
+  void _bumpHistory() => _ref.read(historyRefreshProvider.notifier).state++;
+  void _bumpContinue() => _ref.read(continueRefreshProvider.notifier).state++;
 }

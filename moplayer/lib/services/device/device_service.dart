@@ -8,7 +8,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/config/app_config.dart';
 import '../storage/secure_storage_service.dart';
 
-/// Provides a stable per-install device id (persisted in the Keychain) plus
+/// Provides a stable per-install device id (persisted in private app storage)
+/// plus
 /// human-readable device + app metadata for the Settings screen and for the
 /// activation flow.
 class DeviceService {
@@ -37,17 +38,13 @@ class DeviceService {
 
   /// The device id must be STABLE, and it must never be able to stop the app.
   ///
-  /// It used to live in the keyring and nowhere else. On a machine whose wallet
-  /// is disabled — a normal state, not a broken one — the very first read threw
-  /// `PlatformException(Libsecret error, Failed to unlock the keyring)`, the
-  /// exception escaped bootstrap, and MoPlayer died into a black window before
-  /// its first frame. Bootstrap's own contract says a MoOS install with no
-  /// keyring must still start; this method is where that was untrue.
+  /// It used to live in KWallet and nowhere else. Merely reading it could open
+  /// a wallet password dialog before the first frame. MoPlayer now owns a
+  /// private 0600 store and never contacts Secret Service.
   ///
   /// The id is an identifier, not a credential, so the fallback is an ordinary
-  /// file beside the cache. Without it, a machine with no wallet would invent a
-  /// new identity on every launch, and every activation would be against a
-  /// device that had never been seen before.
+  /// file beside the cache. Without it, a machine with unwritable private
+  /// storage would invent a new identity on every launch.
   Future<String> _ensureDeviceId() async {
     final stored = await _secureStorage.readDeviceId();
     if (stored != null && _idShape.hasMatch(stored)) {
@@ -56,14 +53,14 @@ class DeviceService {
 
     final onDisk = _readIdFile();
     if (onDisk != null && _idShape.hasMatch(onDisk)) {
-      // Promote it back into the keyring if one has appeared since.
+      // Promote the legacy fallback into the private application store.
       await _secureStorage.writeDeviceId(onDisk);
       return onDisk;
     }
 
     final id = _generateId();
-    final storedInKeyring = await _secureStorage.writeDeviceId(id);
-    if (!storedInKeyring) {
+    final storedPrivately = await _secureStorage.writeDeviceId(id);
+    if (!storedPrivately) {
       _writeIdFile(id);
     }
     return id;

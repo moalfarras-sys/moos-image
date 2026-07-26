@@ -49,8 +49,10 @@ class LiveChannel {
     'logo': logo,
     'categoryId': categoryId,
     'epgChannelId': epgChannelId,
+    'number': number,
     'directUrl': directUrl,
     'containerExtension': containerExtension,
+    'tvArchive': tvArchive,
   };
 
   factory LiveChannel.fromPayload(Map<String, dynamic> json) {
@@ -60,8 +62,10 @@ class LiveChannel {
       logo: JsonX.asStringOrNull(json['logo']),
       categoryId: JsonX.asStringOrNull(json['categoryId']),
       epgChannelId: JsonX.asStringOrNull(json['epgChannelId']),
+      number: JsonX.asIntOrNull(json['number']),
       directUrl: JsonX.asStringOrNull(json['directUrl']),
       containerExtension: JsonX.asStringOrNull(json['containerExtension']),
+      tvArchive: JsonX.asBool(json['tvArchive']),
     );
   }
 }

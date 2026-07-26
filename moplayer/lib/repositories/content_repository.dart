@@ -477,7 +477,7 @@ class ContentRepository {
         );
         return _m3uMemo!;
       }
-      log.e('M3U load failed', error: e);
+      log.e('M3U load failed: ${safeLogMessage(e)}');
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout) {
         throw Failure.timeout();

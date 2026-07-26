@@ -125,4 +125,26 @@ void main() {
       expect(decoded['data'], isA<List<dynamic>>());
     },
   );
+
+  test(
+    'an unwritable data directory falls back to a usable memory store',
+    () async {
+      // Close the setUp box first: Hive otherwise returns the already-open boxes
+      // without touching the deliberately invalid path.
+      await Hive.close();
+      final fallback = CacheService();
+      await fallback.init(path: '/proc/1/moplayer-impossible');
+
+      expect(fallback.isReady, isTrue);
+      expect(fallback.isPersistent, isFalse);
+
+      await fallback.setSetting('language', 'ar');
+      expect(fallback.settingOr('language', 'en'), 'ar');
+
+      await fallback.putList('channels', [
+        {'name': 'still playable'},
+      ]);
+      expect(fallback.getList('channels')!.single['name'], 'still playable');
+    },
+  );
 }

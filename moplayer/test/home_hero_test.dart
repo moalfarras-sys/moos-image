@@ -9,10 +9,12 @@
 
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moplayer_moos/core/l10n/strings.dart';
 import 'package:moplayer_moos/features/home/home_screen.dart';
 import 'package:moplayer_moos/models/live_channel.dart';
+import 'package:moplayer_moos/widgets/buttons.dart';
 
 LiveChannel _ch(String name, {String? logo}) => LiveChannel(
   streamId: name,
@@ -98,4 +100,51 @@ void main() {
       reason: 'a channel logo stretched across a hero backdrop is beheaded',
     );
   });
+
+  for (final direction in TextDirection.values) {
+    testWidgets('the hero stays inside a narrow ${direction.name} home window', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(520, 560);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Directionality(
+            textDirection: direction,
+            child: Scaffold(
+              body: HomeHero(
+                eyebrow: 'A very long featured label',
+                title:
+                    'A very long title that needs two lines without leaving the window',
+                meta: '2026 · ★ 9.8 · UHD',
+                description:
+                    'A long description which must remain readable in a compact desktop window.',
+                progress: 0.4,
+                playLabel: 'Continue watching',
+                infoLabel: 'More information',
+                onPlay: () {},
+                onInfo: () {},
+                motion: false,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      final hero = tester.getRect(find.byType(HomeHero));
+      for (final finder in [
+        find.byType(EmberButton),
+        find.byType(GhostButton),
+      ]) {
+        final rect = tester.getRect(finder);
+        expect(rect.left, greaterThanOrEqualTo(hero.left));
+        expect(rect.right, lessThanOrEqualTo(hero.right));
+        expect(rect.top, greaterThanOrEqualTo(hero.top));
+        expect(rect.bottom, lessThanOrEqualTo(hero.bottom));
+      }
+    });
+  }
 }

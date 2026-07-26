@@ -12,8 +12,8 @@ enum PlaylistType {
 }
 
 /// A saved playlist source. For Xtream it holds server + credentials; for M3U
-/// it holds the playlist URL. Passwords are only ever persisted in encrypted
-/// secure storage (never in plaintext logs or the code).
+/// it holds the playlist URL. Passwords are persisted only in MoPlayer's
+/// user-private 0600 store (never in logs or the code).
 class PlaylistConfig {
   const PlaylistConfig({
     required this.id,
