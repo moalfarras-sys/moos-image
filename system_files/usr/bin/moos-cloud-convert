@@ -80,6 +80,40 @@ else
     fail=1
 fi
 
+head_ "Is this the operating system this path expects?"
+# netcup, Hetzner and most providers default to Debian or Ubuntu, and an image is
+# chosen once — at install time — by someone who may not have been told which one
+# to pick. Finding out from `dnf: command not found`, three commands into
+# converting a production server, is the worst possible moment.
+#
+# This path uses system-reinstall-bootc, which is packaged for Fedora/CentOS. It
+# is NOT the only way to convert (the image can install itself from a container
+# via `bootc install to-existing-root` on any host with podman), but it is the way
+# this project has actually tested, and on a brand-new server reinstalling with
+# the right image costs ten minutes in the provider's panel and removes every
+# unknown.
+host_id="$(. /etc/os-release 2>/dev/null; echo "${ID:-unknown}")"
+host_pretty="$(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}")"
+case "$host_id" in
+    fedora|centos|rhel|almalinux|rocky)
+        green "host is ${host_pretty} — system-reinstall-bootc is available here"
+        ;;
+    *)
+        red "host is ${host_pretty}, and this path needs a Fedora-family system."
+        red "  system-reinstall-bootc is packaged for Fedora/CentOS; there is no dnf here."
+        red ""
+        red "  On a NEW server the clean fix is to reinstall it with Fedora from the"
+        red "  provider's panel — and paste your SSH public key during that install, which"
+        red "  settles the key requirement above at the same time."
+        red "    netcup:  SCP → your server → Media/Images → install Fedora + add SSH key"
+        red ""
+        red "  (An advanced alternative exists — letting the image install itself with"
+        red "   'bootc install to-existing-root' from a podman container — but this project"
+        red "   has not tested it, and a brand-new server has nothing worth that risk.)"
+        fail=1
+        ;;
+esac
+
 head_ "Is this machine the right shape?"
 arch="$(uname -m)"
 if [ "$arch" = "x86_64" ]; then
