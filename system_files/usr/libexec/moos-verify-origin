@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# moos-verify-origin — put a MoOS install back on the signed update train.
+#
+# WHY THIS EXISTS
+#
+# MoOS signs every image with cosign and the installed system is supposed to
+# enforce that signature for life. Whether it actually does comes down to one
+# string in the deployment's origin file:
+#
+#   container-image-reference=ostree-image-signed:registry:ghcr.io/…   ← verified
+#   container-image-reference=ostree-unverified-registry:ghcr.io/…     ← NOT
+#
+# `bootc switch` was already caught writing the unverified form (see
+# FIXES_2026-07-16b.md — `moai-do install-nvidia` silently turned a machine that
+# enforced signatures into one that verified nothing, for the rest of the
+# install's life, because the origin persists). That path now passes
+# --enforce-container-sigpolicy and a gate holds it there.
+#
+# The cloud conversion path reintroduced the same defect from a direction no
+# gate was watching. `system-reinstall-bootc` — the tool MOOS_CLOUD_PLAN §2(أ)
+# recommends, and the one that converted the maintainer's own server — runs
+# `bootc install to-existing-root` with a hardcoded argument list. Version
+# 1.16.4 has no --enforce-container-sigpolicy and no passthrough for one
+# (verified by inspecting the binary). So every machine converted that way boots
+# MoOS, takes updates from the MoOS registry, and checks the signature on none
+# of them.
+#
+# That cannot be fixed in the converter alone, because the converter has already
+# run on the machines that have the problem. So the image repairs itself: this
+# runs at boot, and the one thing it does is rebind an unverified origin to the
+# signed transport.
+#
+# WHY IT READS A FILE AND NOT `bootc status`
+#
+# Because `bootc status` does not expose this. On an unverified install it
+# reports transport "registry" and an image ref that looks entirely correct —
+# byte-identical output to a verified one. The origin file is the only place the
+# truth is written down, which is precisely why nobody noticed for as long as
+# nobody did.
+set -euo pipefail
+
+REGISTRY_PREFIX="ghcr.io/moalfarras-sys/"
+UNVERIFIED_PREFIX="ostree-unverified-registry:"
+
+log() { printf 'moos-verify-origin: %s\n' "$*"; }
+
+# Not a bootc system (a container build, a test chroot) — nothing to do, and
+# certainly nothing to fail over.
+command -v bootc >/dev/null 2>&1 || { log "no bootc — not a deployed system, skipping"; exit 0; }
+[ -d /ostree/deploy ]            || { log "no /ostree/deploy — not a deployed system, skipping"; exit 0; }
+
+status="$(bootc status --json 2>/dev/null || true)"
+[ -n "$status" ] || { log "bootc status returned nothing — skipping"; exit 0; }
+
+stateroot="$(jq -r '.status.booted.ostree.stateroot // empty' <<<"$status")"
+checksum="$(jq -r  '.status.booted.ostree.checksum  // empty' <<<"$status")"
+serial="$(jq -r    '.status.booted.ostree.deploySerial // 0'  <<<"$status")"
+image="$(jq -r     '.status.booted.image.image.image // empty' <<<"$status")"
+
+# No booted deployment described (staged-only, or an ostree layout this does not
+# understand). Silence beats a guess that rewrites the wrong origin.
+if [ -z "$stateroot" ] || [ -z "$checksum" ] || [ -z "$image" ]; then
+    log "could not read the booted deployment — skipping"
+    exit 0
+fi
+
+origin="/ostree/deploy/${stateroot}/deploy/${checksum}.${serial}.origin"
+[ -r "$origin" ] || { log "origin file not readable: ${origin} — skipping"; exit 0; }
+
+ref="$(sed -n 's/^container-image-reference=//p' "$origin" | head -1)"
+[ -n "$ref" ] || { log "no container-image-reference in ${origin} — skipping"; exit 0; }
+
+case "$ref" in
+    "${UNVERIFIED_PREFIX}${REGISTRY_PREFIX}"*) ;;
+    "${UNVERIFIED_PREFIX}"*)
+        # Unverified, but pointed somewhere that is not the MoOS registry. The
+        # owner built or retagged this deliberately; rebinding it to a policy
+        # keyed on the MoOS public key would brick their next update. Say so and
+        # stop — loudly enough to be found, quietly enough not to fail the boot.
+        log "WARNING: origin is unverified and not a MoOS image: ${ref}"
+        log "         leaving it alone — a custom image is the owner's to police."
+        exit 0 ;;
+    *)
+        log "origin already enforces the signature policy — nothing to do"
+        exit 0 ;;
+esac
+
+log "origin is UNVERIFIED: ${ref}"
+log "rebinding to the signed transport for ${image}"
+
+# `bootc switch` REPLACES the origin, which is the whole point here: it is the
+# only supported way to change the reference of an existing install. With
+# --enforce-container-sigpolicy it writes the signed form, and every later
+# `bootc upgrade` inherits it.
+#
+# This stages a deployment; it takes effect on the next boot. That is acceptable
+# — the alternative is editing the origin file by hand, which leaves ostree's
+# own metadata disagreeing with it.
+#
+# The retries are for a boot where the network has not settled: network-online
+# is a hint, not a guarantee, and a DNS failure here is transient, not a
+# signature problem. Three tries over ~90s, then report honestly.
+attempt=1
+while [ "$attempt" -le 3 ]; do
+    if bootc switch --enforce-container-sigpolicy "$image"; then
+        log "origin rebound — this machine now verifies its updates"
+        log "the change applies on the next reboot"
+        exit 0
+    fi
+    log "attempt ${attempt}/3 failed"
+    attempt=$((attempt + 1))
+    [ "$attempt" -le 3 ] && sleep 30
+done
+
+# Three failures with the network up is not a blip. A machine taking unverified
+# updates from a public registry should be visible in `systemctl --failed`, not
+# discovered months later by someone reading an origin file.
+log "ERROR: could not rebind the origin after 3 attempts."
+log "       this machine is still taking UNVERIFIED updates from ${image}."
+log "       fix by hand: sudo bootc switch --enforce-container-sigpolicy ${image}"
+exit 1

@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# moos-has-seat — does the calling user own a session attached to a real seat?
+#
+# Exit 0 = yes (a seat exists, so logind's `uaccess` ACLs can reach this user).
+# Exit 1 = no  (a lingering, headless or virtual session — no seat, ever).
+#
+# WHY THIS EXISTS
+#
+# `70-mo-remote-uinput.rules` tags /dev/uinput with `uaccess`, and logind grants
+# that ACL to the user of the ACTIVE session ON A SEAT. A private cloud desktop
+# (`moos-cloud-desktop own <user>`) has no seat at all — the machine has one seat
+# and the first login already owns it — so that ACL never arrives, not late but
+# never.
+#
+# `ydotoold-moremote.service` waits 15 seconds for /dev/uinput to become writable
+# and then fails. With Restart=on-failure and the default 10-second start-limit
+# window, an 18-second failure cycle can never fill the 5-attempt burst, so the
+# unit restarted every ~19 seconds for the life of the machine — 126 times and
+# climbing when this was found — while NEVER reaching the `failed` state.
+# `systemctl --failed` was empty the entire time and moos-selfcheck reported Mo
+# PC Remote healthy.
+#
+# Used as an ExecCondition, a non-zero exit here makes systemd SKIP the unit
+# cleanly instead of entering that loop. Skipping costs nothing: uinput is only
+# Mo PC Remote's FALLBACK input path (InputInjector.cs), the XDG RemoteDesktop
+# portal is the primary one, and the portal is also the only one of the two that
+# can address a virtual compositor — a uinput device is created on the SEAT, so
+# even if the ACL did arrive, the keystrokes would land in the wrong session.
+set -euo pipefail
+
+user="$(id -un)"
+
+# Columns: SESSION UID USER SEAT LEADER CLASS TTY IDLE SINCE — an absent seat
+# prints as "-".
+if loginctl list-sessions --no-legend 2>/dev/null \
+    | awk -v u="$user" '$3 == u && $4 != "-" { found = 1 } END { exit !found }'; then
+    exit 0
+fi
+
+echo "moos-has-seat: ${user} owns no seated session — /dev/uinput is unreachable here." >&2
+echo "moos-has-seat: this is normal for a private cloud desktop; Mo PC Remote uses the" >&2
+echo "moos-has-seat: XDG RemoteDesktop portal for input, which addresses the right session." >&2
+exit 1

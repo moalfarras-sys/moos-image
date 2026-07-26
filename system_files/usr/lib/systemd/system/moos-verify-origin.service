@@ -1,0 +1,37 @@
+[Unit]
+Description=Put this MoOS install back on the signed update train
+Documentation=file:///usr/libexec/moos-verify-origin
+
+# WHY AT BOOT AND NOT IN THE INSTALLER
+#
+# Because the machines with this problem have already been installed. The cloud
+# conversion path runs `system-reinstall-bootc`, which cannot be told to enforce
+# the signature policy (1.16.4 has no such flag), so every server converted that
+# way is running unverified right now. A fix that only lands in the converter
+# repairs future installs and abandons the existing ones.
+#
+# The check is a file read. On an install that is already correct — every ISO
+# install, and every conversion after the converter's own fix — it costs one
+# `bootc status` and exits.
+ConditionPathExists=/usr/bin/bootc
+ConditionPathIsDirectory=/ostree/deploy
+
+# The rebind pulls from the registry, so it needs a resolver and a route.
+Wants=network-online.target
+After=network-online.target
+
+# Do not race the updater. If uupd or rpm-ostreed-automatic is mid-stage, let it
+# finish — `bootc switch` and a running stage both write the deployment set.
+After=uupd.service rpm-ostreed-automatic.service bootc-fetch-apply-updates.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/moos-verify-origin
+RemainAfterExit=no
+
+# The script's own retry loop is ~90s at worst; give it room without letting a
+# hung registry hold the boot transaction open indefinitely.
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

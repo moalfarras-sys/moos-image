@@ -201,6 +201,22 @@ LOG=/root/moos-convert.log
 echo "  (full output is also written to ${LOG})"
 
 if [ "$METHOD" = reinstall-bootc ]; then
+    # NOTE ON SIGNATURES — read before "simplifying" this.
+    #
+    # system-reinstall-bootc builds its own `bootc install to-existing-root`
+    # command line with a hardcoded argument list. 1.16.4 has no
+    # --enforce-container-sigpolicy and no way to pass one through (verified by
+    # inspecting the shipped binary: the only flags in it are --help, --cleanup
+    # and podman plumbing). So a conversion down THIS path lands on
+    # `ostree-unverified-registry:` and takes unverified updates for the life of
+    # the install — the exact failure FIXES_2026-07-16b.md documents for
+    # `bootc switch`, arriving from a direction no gate was watching.
+    #
+    # It is not fixed here because it CANNOT be fixed here. The image repairs
+    # itself instead: `moos-verify-origin.service` runs on every boot, and when
+    # it finds an unverified MoOS origin it rebinds it with
+    # --enforce-container-sigpolicy. That covers this path, and it also covers
+    # every server already converted before this comment existed.
     dnf -y install system-reinstall-bootc
     system-reinstall-bootc "$IMAGE" 2>&1 | tee "$LOG"
 else
@@ -230,6 +246,7 @@ else
         "$IMAGE" \
         bootc install to-existing-root \
             --acknowledge-destructive \
+            --enforce-container-sigpolicy \
             --root-ssh-authorized-keys /keys \
             /target 2>&1 | tee "$LOG"
 

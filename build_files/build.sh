@@ -2111,6 +2111,28 @@ systemctl enable moos-live-polish.service
 chmod 0755 /usr/libexec/moos-firstboot
 systemctl enable moos-firstboot.service
 
+# Put an install that lost its signature enforcement back on the signed train.
+#
+# `system-reinstall-bootc` — the conversion path MOOS_CLOUD_PLAN §2(أ) recommends —
+# cannot be told to enforce the container signature policy (1.16.4 has no such flag
+# and no passthrough), so every server converted with it runs `ostree-unverified-
+# registry:` and checks the signature on none of its updates, for the life of the
+# install. That cannot be repaired in the converter, because the converter already
+# ran on the machines that have it. The image repairs itself instead.
+#
+# On an install that is already correct this is one `bootc status` and an exit, so it
+# ships in every edition rather than only in the cloud one — an unverified origin is
+# not a cloud-specific failure, it is just where this one came from.
+chmod 0755 /usr/libexec/moos-verify-origin
+systemctl enable moos-verify-origin.service
+[ -x /usr/libexec/moos-verify-origin ] || {
+    echo "GATE FAIL: /usr/libexec/moos-verify-origin is missing or not executable —"
+    echo "           a converted server would keep taking unverified updates forever."
+    exit 1; }
+systemctl is-enabled moos-verify-origin.service >/dev/null 2>&1 || {
+    echo "GATE FAIL: moos-verify-origin.service is not enabled — it would never run."
+    exit 1; }
+
 # -----------------------------------------------------------------------------
 # (z) Full identity switch — MUST BE LAST, after ALL dnf/copr operations
 # -----------------------------------------------------------------------------
@@ -2869,7 +2891,60 @@ patch("/etc/xdg/kwinrc", {
 patch("/etc/xdg/kdeglobals", {
     "KDE": {"AnimationDurationFactor": "0"},
 })
+# The lock screen is the single most expensive thing on a server desktop, and the
+# only one nobody can benefit from. Measured on the maintainer's VPS:
+# kscreenlocker_greet at 129% CPU on the second developer's virtual session —
+# an animated lock screen, rendered through llvmpipe, in front of a framebuffer
+# no human can walk up to.
+#
+# It is also a lockout risk that a desktop does not have: the only way to answer
+# it is through the very remote session it is covering.
+#
+# This is a defensible trade only because of where it applies. MoOS Cloud takes
+# no password over SSH, Mo PC Remote refuses every connection that does not
+# arrive over Tailscale, and the console is the provider's own rescue channel.
+# `moos-cloud-desktop` already documents the same trade for autologin.
+patch("/etc/xdg/kscreenlockerrc", {
+    "Daemon": {"Autolock": "false", "LockOnResume": "false"},
+})
 TUNE
+
+    # No GPU also means the CPU pays for every pixel, once per thread.
+    #
+    # Mesa's llvmpipe rasterizer opens one worker thread PER CORE by default. On
+    # this 8-vCPU server that is 8 threads inside EVERY Plasma session, and the
+    # cloud edition's whole point is that two developers each get one — 16
+    # rasterizer threads competing for 8 cores. Measured before this cap:
+    # plasmashell at 165% CPU with its eight llvmpipe-N threads each holding
+    # ~18% of a core, and a load average of 10 on an idle machine.
+    #
+    # Two is the right number here, not a compromise: a desktop that is mostly
+    # static gets no benefit from more, and the cheapest box MOOS_CLOUD_PLAN §3
+    # recommends (Hetzner CX22) has only 2 vCPU — where the default of "one per
+    # core" and "all of the machine" are the same thing.
+    install -D -m0644 /dev/stdin /usr/lib/environment.d/60-moos-cloud-llvmpipe.conf <<'LLVMPIPE'
+# MoOS Cloud: bound the software rasterizer.
+#
+# systemd's user manager applies environment.d to every user service, which is
+# what starts the compositor and the shell — so this reaches the processes that
+# actually rasterize, without touching anything that does not.
+LP_NUM_THREADS=2
+LLVMPIPE
+
+    # A VPS has no Bluetooth radio, and obexd cannot be told that.
+    #
+    # On the maintainer's server obexd was D-Bus-activated, failed
+    # `obex_server_init`, and was retried immediately — 52 process spawns per
+    # SECOND, 9,460 journal lines per minute, 139,698 errors in one boot and a
+    # 350 MB journal. `systemctl --failed` stayed empty throughout, because a
+    # D-Bus activation that fails is not a unit that failed.
+    #
+    # There is no radio to find, so there is nothing to lose by not looking:
+    # mask it and the activation request fails once, visibly, instead of
+    # spinning. bluetooth.service is masked for the same reason.
+    systemctl --global mask obex.service
+    systemctl mask bluetooth.service
+    echo "=== cloud edition: llvmpipe capped, lock screen off, bluetooth masked ==="
 
     # --- 4. A server is not being installed ---------------------------------
     # The live installer, the Welcome wizard's install path and the "Install
@@ -2884,6 +2959,69 @@ TUNE
         fi
     done
     echo "=== cloud edition: installer surfaces hidden ==="
+
+    # --- 5. A server does not use a workstation's firewall -------------------
+    # Fedora's default zone is FedoraWorkstation, and it opens ports
+    # 1025-65535/tcp AND /udp — every high port, to everyone. That is a arguable
+    # default for a laptop behind NAT running peer-to-peer apps. On a machine
+    # whose public IPv4 is the first thing it gets, it means every service that
+    # binds a high port is on the internet the moment it starts.
+    #
+    # Read from the maintainer's server before this change: Mo PC Remote's HTTP
+    # ports 8765 and 8766 and both users' kdeconnectd (1716/1717) were listening
+    # on `*` — reachable, at the packet level, from anywhere.
+    #
+    # Nothing was breached, and this is not the only defence: Mo PC Remote
+    # answers "Forbidden: this device is only reachable over Tailscale" to
+    # anything that does not arrive over the tailnet. But that application check
+    # was the ONLY thing standing between the public internet and a desktop
+    # stream, and MOOS_ROADMAP §3 still lists "restrict listening to the private
+    # network by default" as open work. A firewall that says no first turns a
+    # single application bug into a non-event.
+    #
+    # FedoraServer is the stock zone for exactly this: ssh (and cockpit), nothing
+    # else.
+    #
+    # BUT THE ORDER MATTERS, AND GETTING IT WRONG LOCKS THE DESKTOP OUT.
+    #
+    # On the maintainer's server `firewall-cmd --get-zone-of-interface=tailscale0`
+    # answers "no zone" — tailscaled does NOT place its own interface, contrary to
+    # what its NetworkManager integration suggests. An interface in no zone falls
+    # into the DEFAULT zone. So the reason Mo PC Remote works over the tailnet
+    # today is, precisely, that the default zone is the one that opens
+    # 1025-65535.
+    #
+    # Change the default to FedoraServer and nothing else, and tailscale0 inherits
+    # "ssh only" — ports 8765/8766 stop answering and the remote desktop is gone,
+    # over the very transport that was supposed to be the safe one.
+    #
+    # So pin the tailnet to `trusted` FIRST, and only then narrow the default.
+    # After this: ens3 (public) answers ssh; tailscale0 answers everything; which
+    # is the arrangement MOOS_ROADMAP §3 asks for.
+    install -D -m0644 /dev/stdin /etc/firewalld/zones/trusted.xml <<'TRUSTED'
+<?xml version="1.0" encoding="utf-8"?>
+<zone target="ACCEPT">
+  <short>Trusted</short>
+  <description>The tailnet. Mo PC Remote, and anything else a developer binds,
+  answer here and only here — never on the public address.</description>
+  <interface name="tailscale0"/>
+</zone>
+TRUSTED
+    # firewalld reads ONE file — /etc/firewalld/firewalld.conf. There is no
+    # firewalld.conf.d: `firewall.config.FIREWALLD_CONF` is that single path, and
+    # a drop-in directory next to it is read by nobody. The first version of this
+    # section wrote `firewalld.conf.d/10-moos-cloud.conf` and gated on the file it
+    # had just written — green build, zero effect, exactly the "check on a file
+    # nobody reads" this repo has shipped before. Edit the real file.
+    [ -f /etc/firewalld/firewalld.conf ] || {
+        echo "GATE FAIL: /etc/firewalld/firewalld.conf does not exist, so the cloud"
+        echo "           edition cannot set a server default zone."; exit 1; }
+    if grep -q '^DefaultZone=' /etc/firewalld/firewalld.conf; then
+        sed -i 's/^DefaultZone=.*/DefaultZone=FedoraServer/' /etc/firewalld/firewalld.conf
+    else
+        printf 'DefaultZone=FedoraServer\n' >> /etc/firewalld/firewalld.conf
+    fi
+    echo "=== cloud edition: tailscale0 trusted, public default is FedoraServer ==="
 
     # --- The gate on all four ----------------------------------------------
     # Every claim above, re-read from the finished filesystem. A cloud image that
@@ -2908,6 +3046,37 @@ TUNE
         echo "GATE FAIL: the splash kargs survived — 'quiet' would hide the serial boot log"; _cloud_fail=1; }
     grep -q '^blurEnabled=false' /etc/xdg/kwinrc || {
         echo "GATE FAIL: blur is still on — llvmpipe cannot afford it"; _cloud_fail=1; }
+    grep -q '^LP_NUM_THREADS=' /usr/lib/environment.d/60-moos-cloud-llvmpipe.conf 2>/dev/null || {
+        echo "GATE FAIL: the llvmpipe thread cap is gone. Mesa opens one rasterizer"
+        echo "           thread per core inside EVERY session, so two desktops on an"
+        echo "           8-vCPU box means 16 threads fighting for 8 cores — measured at"
+        echo "           165% CPU for one idle plasmashell."; _cloud_fail=1; }
+    grep -q '^Autolock=false' /etc/xdg/kscreenlockerrc || {
+        echo "GATE FAIL: the lock screen can still auto-arm. On a virtual desktop it"
+        echo "           renders through llvmpipe (measured: 129% CPU) in front of a"
+        echo "           framebuffer nobody can walk up to, and it can lock the remote"
+        echo "           user out of the only session that could answer it."; _cloud_fail=1; }
+    # Gate the file firewalld ACTUALLY reads (/etc/firewalld/firewalld.conf), not a
+    # drop-in beside it. firewalld has no conf.d — a gate on one would be green
+    # while the zone stayed FedoraWorkstation.
+    grep -q '^DefaultZone=FedoraServer' /etc/firewalld/firewalld.conf 2>/dev/null || {
+        echo "GATE FAIL: the default firewall zone is not FedoraServer. FedoraWorkstation"
+        echo "           opens 1025-65535 tcp+udp, which on a public IP publishes every"
+        echo "           high port a service happens to bind — Mo PC Remote included."
+        _cloud_fail=1; }
+    [ -d /etc/firewalld/firewalld.conf.d ] && {
+        echo "GATE FAIL: something wrote /etc/firewalld/firewalld.conf.d — firewalld does"
+        echo "           not read it (FIREWALLD_CONF is a single file), so whatever is in"
+        echo "           there is a setting that silently does nothing."; _cloud_fail=1; }
+    # These two are one change, and shipping half of it is worse than shipping
+    # neither: tailscale0 sits in NO zone, so it inherits the default. Narrowing
+    # the default without pinning the tailnet first takes the remote desktop
+    # offline over the exact transport that is supposed to be the safe one.
+    grep -q 'interface name="tailscale0"' /etc/firewalld/zones/trusted.xml 2>/dev/null || {
+        echo "GATE FAIL: tailscale0 is not pinned to the trusted zone, but the default"
+        echo "           zone was narrowed to FedoraServer. An interface in no zone takes"
+        echo "           the default, so Mo PC Remote (8765+) would stop answering over"
+        echo "           the tailnet — the desktop would be unreachable."; _cloud_fail=1; }
     rpm -q waydroid >/dev/null 2>&1 && {
         echo "GATE FAIL: waydroid is installed in the cloud edition"; _cloud_fail=1; }
     rpm -q gamescope >/dev/null 2>&1 && {
