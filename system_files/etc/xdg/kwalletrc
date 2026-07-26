@@ -1,26 +1,11 @@
-# MoOS ships a working secret store, because MoOS promises one.
+# MoOS does not start KWallet or advertise it as a Secret portal. It previously
+# did both to support MoPlayer and Mo AI, which made a password prompt appear at
+# login even though the owner had never enabled a wallet. Those first-party apps
+# now use private app-owned XDG storage with non-fatal startup.
 #
-# /etc/xdg-desktop-portal/kde-portals.conf routes org.freedesktop.impl.portal.Secret
-# to kwallet. That promise is only kept if kwalletd is actually allowed to run:
-# with [Wallet] Enabled=false, nothing owns org.freedesktop.secrets, the name is
-# not even activatable on the session bus, and every application that stores a
-# credential through libsecret fails at its first call.
-#
-# What that looked like in practice, on 2026-07-25: MoPlayer read its device id
-# from the keyring during bootstrap, libsecret threw "Failed to unlock the
-# keyring", the exception escaped main(), and the app died after its window
-# existed but before its first frame — a BLACK WINDOW, with the real error
-# visible only in the journal. Chromium, VS Code and anything else holding a
-# token were failing the same way, more quietly.
-#
-# MoPlayer was fixed to survive a missing keyring (an app must never die for
-# this), but the deeper defect was the OS shipping a Secret portal backed by a
-# service it never guaranteed. This file is that guarantee.
-#
-# It is a DEFAULT, not a lock: /etc/xdg is the lowest layer of KDE's config
-# stack, so ~/.config/kwalletrc still wins for anyone who deliberately turns the
-# wallet off. moos-selfcheck reports when that is the case, so a disabled wallet
-# stays a visible choice instead of an invisible breakage.
+# KDE libraries remain installed because core Plasma components link them; this
+# default plus the systemd masks in build.sh disables the wallet service without
+# removing those desktop dependencies.
 [Wallet]
-Enabled=true
+Enabled=false
 First Use=false

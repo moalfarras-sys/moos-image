@@ -806,9 +806,12 @@ for launcher in /usr/bin/moai /usr/bin/moos-welcome /usr/bin/moos-store; do
         || { echo "GATE FAIL: ${launcher} does not use moos-qml-shell — its window will show the generic Qt icon"; exit 1; }
 done
 
-# Secret Service CLI used by Mo AI. On Plasma this talks to KWallet through
-# the freedesktop Secret Service API; cloud credentials never enter JSON files.
-dnf5 -y install libsecret
+# KWallet's libraries remain because Plasma components link them, but MoOS does
+# not ship its manager UI or PAM auto-unlocker. Mo AI uses an app-private XDG
+# credential file instead, so removing these leaf packages does not remove user
+# functionality and avoids a wallet prompt the owner never enabled.
+dnf5 -y remove --no-autoremove \
+    kwalletmanager5 pam-kwallet signon-kwallet-extension
 
 # Gaming/compat host stack, baked in so it is ready before the first game.
 # gamescope is Valve's microcompositor — it hands a game its own fixed-refresh
@@ -1905,11 +1908,13 @@ systemctl --global enable moai-control.service
 # session. Starting it once from setup-brain is not persistence; enable the
 # shipped unit globally so it survives logout and reboot.
 systemctl --global enable moai-agent-api.service
-# KWallet provides the storage, while ksecretd owns the standard Secret Service
-# name libsecret clients actually call. A portal preference alone starts
-# neither: without this unit MoPlayer can validate a server and then silently
-# lose it at the credential write.
-systemctl --global enable moos-secret-service.service
+# KWallet is intentionally disabled. Remove the old global enablement from
+# upgraded deployments and mask both MoOS's former compatibility unit and
+# Plasma's PAM helper. The KDE libraries stay installed for desktop ABI users.
+systemctl --global disable moos-secret-service.service \
+    plasma-kwallet-pam.service 2>/dev/null || true
+systemctl --global mask moos-secret-service.service \
+    plasma-kwallet-pam.service
 
 # Plasma's automatic day/night switch applies only the Global Theme subset. It
 # does not carry Konsole, GTK or the wallpaper reliably, so watch the effective
@@ -1917,7 +1922,6 @@ systemctl --global enable moos-secret-service.service
 # The service never writes kdeglobals, which keeps the path activation acyclic.
 systemd-analyze verify \
     /usr/lib/systemd/user/moos-input-migrate.service \
-    /usr/lib/systemd/user/moos-secret-service.service \
     /usr/lib/systemd/user/moos-theme-sync.path \
     /usr/lib/systemd/user/moos-theme-sync.service \
     /usr/lib/systemd/user/moai.service \

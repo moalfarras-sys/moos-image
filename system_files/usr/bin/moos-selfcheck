@@ -325,24 +325,21 @@ else
     ok "Mo PC Remote is off — nothing is capturing this screen"
 fi
 
-# ── The keyring ──────────────────────────────────────────────────────────────
-# A missing secret store does not announce itself. It breaks applications one at
-# a time, at their first credential call, and what the user sees is an app that
-# does not work — MoPlayer opened a BLACK WINDOW and died before its first frame
-# because reading its device id threw "Failed to unlock the keyring" (2026-07-25).
-# MoOS routes the Secret portal to kwallet and ships /etc/xdg/kwalletrc enabling
-# it, so this is normally green; it goes red when a ~/.config override turned the
-# wallet off, which is precisely the case nobody can otherwise see.
-head_ "حلقة المفاتيح | Keyring"
-if command -v gdbus >/dev/null 2>&1 && \
-   gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus \
-        --method org.freedesktop.DBus.ListNames 2>/dev/null | grep -q "org.freedesktop.secrets"; then
-    ok "the keyring answers on the session bus (apps can store credentials)"
-elif [ "$(kreadconfig6 --file kwalletrc --group Wallet --key Enabled 2>/dev/null)" = "false" ]; then
-    bad "your ~/.config/kwalletrc disables the wallet, so NOTHING provides org.freedesktop.secrets"
-    bad "  apps that keep a password will fail — re-enable with: kwriteconfig6 --file kwalletrc --group Wallet --key Enabled true"
+# ── The wallet policy ────────────────────────────────────────────────────────
+# MoOS intentionally keeps KWallet off. MoPlayer and Mo AI use private XDG data
+# stores, so a desktop keyring prompt is neither required nor allowed at login.
+head_ "المحفظة | Wallet"
+wallet_names="$(gdbus call --session --dest org.freedesktop.DBus \
+    --object-path /org/freedesktop/DBus \
+    --method org.freedesktop.DBus.ListNames 2>/dev/null || true)"
+if [ "$(kreadconfig6 --file kwalletrc --group Wallet --key Enabled \
+        2>/dev/null)" != "false" ]; then
+    bad "KWallet is enabled in your profile; MoOS keeps it disabled by default"
+elif printf '%s' "$wallet_names" | grep -Eq \
+        "org\\.freedesktop\\.secrets|org\\.kde\\.kwalletd[56]?|org\\.kde\\.ksecretd"; then
+    bad "a KWallet/Secret Service process is still active in this session"
 else
-    bad "no keyring is answering on org.freedesktop.secrets — apps that store a credential will fail"
+    ok "KWallet is disabled and no wallet service is active"
 fi
 
 # ── The MoOS Store ────────────────────────────────────────────────────────────

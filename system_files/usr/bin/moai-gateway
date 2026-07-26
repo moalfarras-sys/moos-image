@@ -49,8 +49,8 @@
 #                Translated in both directions here so the app stays unchanged.
 #
 # This process is the only thing that ever sees the API key: it reads the provider
-# (base URL + model + wire) from ~/.config/moai/config.json and the KEY from Secret
-# Service. Stdlib only (no pip deps).
+# (base URL + model + wire) from ~/.config/moai/config.json and the KEY from Mo
+# AI's private XDG data store. Stdlib only (no pip deps).
 import json, os, re, socket, subprocess, sys, threading, time
 import urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -58,6 +58,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 CONFIG = os.path.expanduser("~/.config/moai/config.json")
 MOOS_DIR = os.path.expanduser("~/.config/moos")
 ENV_FILE = os.path.join(MOOS_DIR, "moai.env")
+CREDENTIAL_STORE = os.environ.get(
+    "MOAI_CREDENTIAL_STORE", "/usr/libexec/moai-credential-store")
 
 PORT = int(os.environ.get("MOAI_GATEWAY_PORT", "8080"))
 RAMALAMA_UNIT = "moai.service"
@@ -139,8 +141,7 @@ def load_cfg():
 def load_secret():
     try:
         result = subprocess.run(
-            ["secret-tool", "lookup", "service", "org.moos.MoAI",
-             "account", "cloud"], capture_output=True, text=True,
+            [CREDENTIAL_STORE, "get"], capture_output=True, text=True,
             timeout=10, check=False)
         return result.stdout.rstrip("\n") if result.returncode == 0 else ""
     except Exception:

@@ -593,8 +593,13 @@ control = text("/usr/bin/moai-control")
 gateway = text("/usr/bin/moai-gateway")
 require('"cloud_key":' not in control, "Mo AI persists cloud credentials in JSON")
 require('c.get("cloud_key")' not in gateway, "Mo AI reads plaintext credentials")
-require("secret-tool" in control and "secret-tool" in gateway,
-        "Mo AI does not use Secret Service")
+credential_store = text("/usr/libexec/moai-credential-store")
+require("moai-credential-store" in control and "moai-credential-store" in gateway,
+        "Mo AI does not use its private credential store")
+require("secret-tool" not in control and "secret-tool" not in gateway,
+        "Mo AI runtime still activates Secret Service")
+require("O_NOFOLLOW" in credential_store and "os.replace" in credential_store,
+        "Mo AI credential store lacks symlink-safe atomic writes")
 require('had_legacy_key = "cloud_key" in data' in control,
         "Mo AI does not fully migrate legacy credential fields")
 

@@ -158,7 +158,6 @@ printf '%s\\t%s\\n' "$konsole_profile" "$konsole_profile_name"
             {
                 "default": "kde",
                 "org.freedesktop.impl.portal.Settings": "kde;gtk;",
-                "org.freedesktop.impl.portal.Secret": "kwallet",
                 "org.freedesktop.impl.portal.Notification": "plasmanotify",
                 "org.freedesktop.impl.portal.FileChooser": "kde",
             },
@@ -332,9 +331,9 @@ migrate_legacy_keyboard
         self.assertEqual(run_profile(customised), customised)
 
     @unittest.skipUnless(_HAS_KWRITECONFIG6, _KWRITE_REASON)
-    def test_wallet_migration_repairs_only_the_shipped_disabled_shadow(self) -> None:
+    def test_wallet_migration_disables_existing_profiles_once(self) -> None:
         migration = MIGRATE.read_text(encoding="utf-8")
-        migrator = function(migration, "migrate_legacy_disabled_wallet")
+        migrator = function(migration, "disable_wallet_v2")
 
         def run_profile(
             contents: str | None,
@@ -352,7 +351,7 @@ migrate_legacy_keyboard
                 profile = config / "kwalletrc"
                 if contents is not None:
                     profile.write_text(contents, encoding="utf-8")
-                marker = state / "secret-service-wallet-v1.done"
+                marker = state / "wallet-disabled-v2.done"
                 if already_migrated:
                     marker.touch()
                 harness = f"""
@@ -360,8 +359,11 @@ set -euo pipefail
 state_dir={shlex.quote(str(state))}
 log_dir={shlex.quote(str(logs))}
 systemctl() {{ return 0; }}
+pkill() {{ return 0; }}
+gdbus() {{ return 1; }}
+secret-tool() {{ return 1; }}
 {migrator}
-migrate_legacy_disabled_wallet
+disable_wallet_v2
 """
                 env = dict(os.environ)
                 env["HOME"] = str(root / "home")
@@ -382,27 +384,25 @@ migrate_legacy_disabled_wallet
                 return migrated, marker.exists()
 
         fresh, fresh_marked = run_profile(None)
-        self.assertIsNone(
-            fresh,
-            "fresh users inherit the enabled /etc/xdg default without a local pin",
-        )
+        self.assertIn("Enabled=false", fresh)
+        self.assertIn("First Use=false", fresh)
         self.assertTrue(fresh_marked)
 
         legacy = "[Wallet]\nEnabled=false\nFirst Use=false\n"
         migrated, marked = run_profile(legacy)
-        self.assertIn("Enabled=true", migrated)
+        self.assertIn("Enabled=false", migrated)
         self.assertIn("First Use=false", migrated)
         self.assertTrue(marked)
 
         custom_disabled = legacy + "Close When Idle=true\n"
-        self.assertEqual(run_profile(custom_disabled)[0], custom_disabled)
+        self.assertIn("Close When Idle=true", run_profile(custom_disabled)[0])
         enabled = "[Wallet]\nEnabled=true\nFirst Use=false\n"
-        self.assertEqual(run_profile(enabled)[0], enabled)
+        self.assertIn("Enabled=false", run_profile(enabled)[0])
 
-        # A choice made after the one-time repair remains the user's choice.
+        # A choice made after the one-time migration remains the user's choice.
         self.assertEqual(
-            run_profile(legacy, already_migrated=True)[0],
-            legacy,
+            run_profile(enabled, already_migrated=True)[0],
+            enabled,
         )
 
     def test_any_foreign_look_resolves_to_the_one_moos_look(self) -> None:

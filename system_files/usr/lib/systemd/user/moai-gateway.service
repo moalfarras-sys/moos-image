@@ -9,9 +9,9 @@
 # demand) or the configured cloud provider, so a conversation can choose its
 # own brain and model without a global switch.
 #
-# It is also the only process that ever sees the API key (Secret Service). The
-# pure-QML app cannot read the keyring and never learns which provider is behind
-# the door.
+# It is also the only process that ever sees the API key (Mo AI's private XDG
+# data store). The pure-QML app cannot read the credential and never learns
+# which provider is behind the door.
 [Unit]
 Description=Mo AI gateway (localhost front door: routes local ⇄ cloud per request)
 Documentation=https://github.com/moalfarras-sys/moos-image

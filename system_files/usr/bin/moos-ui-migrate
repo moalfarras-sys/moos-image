@@ -158,64 +158,65 @@ migrate_legacy_keyboard() {
 }
 migrate_legacy_keyboard
 
-# Older MoOS profiles were created with this exact three-line KWallet shadow:
-#
-#   [Wallet]
-#   Enabled=false
-#   First Use=false
-#
-# It outranks the fixed /etc/xdg default forever. The result is worse than a
-# cosmetic stale preference: MoPlayer accepts and validates an IPTV source, the
-# credential write is rejected by the missing Secret Service, and the next
-# launch asks for the server again.
-#
-# Migrate only that byte-for-byte known legacy shape. Any extra key is a real
-# user profile and is preserved. The independent marker means a user can disable
-# the wallet after this repair and MoOS will not turn it back on later.
-migrate_legacy_disabled_wallet() {
+# MoOS briefly enabled KWallet globally to support MoPlayer and Mo AI. That made
+# a password prompt part of login even for an owner who never opted into a
+# wallet. Both apps now own private XDG stores, so existing profiles must be
+# moved back to Enabled=false once. Preserve a currently unlocked Mo AI key
+# before stopping the service; never activate or prompt for a closed wallet.
+disable_wallet_v2() {
     local wallet_conf="${XDG_CONFIG_HOME:-$HOME/.config}/kwalletrc"
-    local wallet_marker="$state_dir/secret-service-wallet-v1.done"
-    local wallet_log="$log_dir/secret-service-wallet-v1.log"
-    local nonempty tmp new_value
+    local wallet_marker="$state_dir/wallet-disabled-v2.done"
+    local wallet_log="$log_dir/wallet-disabled-v2.log"
+    local credential_store=/usr/libexec/moai-credential-store
+    local legacy_key new_value
 
     [ -e "$wallet_marker" ] && return 0
-    if [ ! -f "$wallet_conf" ]; then
-        touch "$wallet_marker"
-        return 0
+
+    if [ -x "$credential_store" ] \
+       && ! "$credential_store" has >/dev/null 2>&1 \
+       && command -v secret-tool >/dev/null 2>&1 \
+       && command -v gdbus >/dev/null 2>&1 \
+       && gdbus call --session --dest org.freedesktop.DBus \
+            --object-path /org/freedesktop/DBus \
+            --method org.freedesktop.DBus.ListNames 2>/dev/null \
+            | grep -q "org.freedesktop.secrets"; then
+        legacy_key="$(secret-tool lookup service org.moos.MoAI account cloud \
+            2>/dev/null || true)"
+        if [ -n "$legacy_key" ]; then
+            if printf '%s' "$legacy_key" | "$credential_store" set; then
+                echo "$(date -u '+%FT%TZ') preserved the unlocked Mo AI credential" \
+                    >>"$wallet_log" 2>/dev/null || true
+            else
+                echo "$(date -u '+%FT%TZ') could not preserve the unlocked Mo AI credential" \
+                    >>"$wallet_log" 2>/dev/null || true
+            fi
+        fi
+        legacy_key=
     fi
+
     command -v kreadconfig6 >/dev/null 2>&1 || return 0
     command -v kwriteconfig6 >/dev/null 2>&1 || return 0
-
-    nonempty="$(grep -Evc '^[[:space:]]*(#|$)' "$wallet_conf" 2>/dev/null || true)"
-    if [ "$nonempty" != "3" ] \
-       || ! grep -Fxq '[Wallet]' "$wallet_conf" \
-       || ! grep -Fxq 'Enabled=false' "$wallet_conf" \
-       || ! grep -Fxq 'First Use=false' "$wallet_conf"; then
-        touch "$wallet_marker"
-        return 0
-    fi
-
-    tmp="$(mktemp "${wallet_conf}.moos-wallet.XXXXXX")" || return 0
-    if cp --preserve=mode -- "$wallet_conf" "$tmp" \
-       && kwriteconfig6 --file "$tmp" --group Wallet --key Enabled true \
-       && new_value="$(kreadconfig6 --file "$tmp" --group Wallet \
+    mkdir -p "$(dirname "$wallet_conf")" 2>/dev/null || return 0
+    if kwriteconfig6 --file "$wallet_conf" --group Wallet --key Enabled false \
+       && kwriteconfig6 --file "$wallet_conf" --group Wallet --key "First Use" false \
+       && new_value="$(kreadconfig6 --file "$wallet_conf" --group Wallet \
             --key Enabled --default __missing__ 2>/dev/null)" \
-       && [ "$new_value" = "true" ] \
-       && mv -f -- "$tmp" "$wallet_conf"; then
+       && [ "$new_value" = "false" ]; then
+        systemctl --user disable --now moos-secret-service.service \
+            >/dev/null 2>&1 || true
+        systemctl --user mask --now moos-secret-service.service \
+            plasma-kwallet-pam.service >/dev/null 2>&1 || true
+        pkill -TERM -u "$(id -u)" -x ksecretd >/dev/null 2>&1 || true
+        pkill -TERM -u "$(id -u)" -x kwalletd6 >/dev/null 2>&1 || true
         touch "$wallet_marker"
-        echo "$(date -u '+%FT%TZ') enabled the exact legacy-disabled wallet" \
+        echo "$(date -u '+%FT%TZ') disabled KWallet and its session services" \
             >>"$wallet_log" 2>/dev/null || true
-        # The globally enabled unit may already have exited against Enabled=false
-        # earlier in this same login. Bring it up now; on every later login it
-        # starts normally after plasma-kwallet-pam.
-        systemctl --user start moos-secret-service.service >/dev/null 2>&1 || true
     else
-        rm -f -- "$tmp"
-        echo "$(date -u '+%FT%TZ') could not migrate the legacy wallet; will retry" \
+        echo "$(date -u '+%FT%TZ') could not disable KWallet; will retry" \
             >>"$wallet_log" 2>/dev/null || true
     fi
 }
-migrate_legacy_disabled_wallet
+disable_wallet_v2
 
 [ -e "$marker" ] && exit 0
 log="$log_dir/ui-theme-${MOOS_THEME_REV}-moai-${MOAI_UI_REV}.log"

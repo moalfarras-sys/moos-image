@@ -3,9 +3,9 @@
 # provider. The terminal twin of Mo AI's Settings sheet.
 #
 # Writes non-secret provider settings to ~/.config/moai/config.json (chmod 600).
-# The API key is stored only in Secret Service (KWallet on Plasma), entered by the
-# USER in a kdialog password field, and read only by moai-gateway — never by the
-# pure-QML app.
+# The API key is stored only in Mo AI's private XDG data file (0700 directory,
+# 0600 file), entered by the USER in a kdialog password field, and read only by
+# moai-gateway — never by the pure-QML app or config.json.
 #
 # `mode` is only the DEFAULT now. moai-gateway is a single always-on front door on
 # 8080 and routes each REQUEST: Mo AI's chat picker chooses local or cloud per
@@ -17,6 +17,7 @@ set -uo pipefail
 
 cfg_dir="${XDG_CONFIG_HOME:-$HOME/.config}/moai"
 cfg="${cfg_dir}/config.json"
+credential_store="${MOAI_CREDENTIAL_STORE:-/usr/libexec/moai-credential-store}"
 mkdir -p "$cfg_dir" 2>/dev/null || true
 
 command -v kdialog >/dev/null 2>&1 || { echo "kdialog required"; exit 1; }
@@ -40,7 +41,7 @@ try:
         cur = json.load(f)
 except Exception:
     cur = {}
-cur.pop("cloud_key", None)          # the key lives in Secret Service, nowhere else
+cur.pop("cloud_key", None)          # the key lives in private XDG data, nowhere else
 cur["mode"] = os.environ.get("MOAI_MODE") or "local"
 for field, var in (("cloud_base", "MOAI_BASE"), ("cloud_model", "MOAI_MODEL")):
     value = os.environ.get(var) or ""
@@ -72,10 +73,9 @@ if [ "$mode" = "cloud" ]; then
         write_cfg local
         exit 0
     fi
-    if ! command -v secret-tool >/dev/null 2>&1 || ! \
-        printf '%s' "$key" | secret-tool store --label='Mo AI cloud API key' \
-            service org.moos.MoAI account cloud; then
-        kdialog --error $'تعذر فتح مخزن الأسرار؛ لم يُحفظ المفتاح.\nSecret Service unavailable; the key was not stored.' || true
+    if [ ! -x "$credential_store" ] || ! \
+        printf '%s' "$key" | "$credential_store" set; then
+        kdialog --error $'تعذر حفظ المفتاح في مخزن Mo AI الخاص.\nThe key could not be saved in Mo AI private storage.' || true
         exit 1
     fi
     key=""

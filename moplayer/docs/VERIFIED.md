@@ -99,6 +99,26 @@ desktop-file-validate ~/.local/share/applications/org.moos.moplayer.desktop
 - لا `coredump`، ولا خطأ EGL/libepoxy جديد، ولا وحدة systemd فاشلة.
 - `flutter analyze` بلا ملاحظات، ونجحت اختبارات Flutter الـ114.
 
+## 7. العربية والبث الحي — Arabic and live playback
+
+شُغّلت الحزمة المثبّتة على جلسة Wayland الحقيقية بملف XDG نظيف و
+`LANG=ar_AE.UTF-8`. ظهرت شاشة الإعداد الأولى كاملة من اليمين إلى اليسار: تبويبات
+Xtream وM3U والتفعيل، الحقول، الأيقونات وزر الاتصال بقيت بمحاذاة صحيحة ومن دون
+قصّ أو تراكب. ثم مُرّر بث Mux العام 1080p إلى النسخة نفسها عبر تفعيل النافذة
+الوحيدة:
+
+```bash
+moplayer 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'
+gdbus call --session --dest org.mpris.MediaPlayer2.moplayer \
+  --object-path /org/mpris/MediaPlayer2 \
+  --method org.freedesktop.DBus.Properties.Get \
+  org.mpris.MediaPlayer2.Player PlaybackStatus
+# (<'Playing'>,)
+```
+
+استمر الفيديو من دون تمزق ظاهر، وسجّل media_kit مسار العرض البرمجي الآمن على
+NVIDIA. لم تظهر نافذة KWallet، وبقيت هوية النافذة وMPRIS صحيحتين.
+
 ---
 
 ## ما لم يُختبَر بعد — Not tested yet
@@ -115,8 +135,6 @@ desktop-file-validate ~/.local/share/applications/org.moos.moplayer.desktop
   قديم من KWallet من دون فتح المحفظة؛ لذلك يلزم إدخاله مرة واحدة بعد التحديث.
 - **الترجمات والمسارات الصوتية المتعدّدة** ظاهرة في القائمة لكن لم تُبدَّل يدوياً في
   بثّ يحتوي عدّة مسارات.
-- **الواجهة العربية (RTL)** مكتوبة بالكامل واللغة تتبع الجلسة، لكن اللقطات أعلاه
-  أُخذت على جلسة إنجليزية.
 - **تشغيل النسخة داخل صورة MoOS الجديدة.** التثبيت المحلي في `~/.local` والتحقق
   منه مكتملان. أمّا لقطة `bootc` فلا تُعد النسخة المشغّلة على الجهاز إلا بعد
   مزامنتها في `moos-image`، ونجاح بناء الصورة وتوقيعها ونشرها، ثم staging وإعادة

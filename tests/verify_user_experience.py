@@ -1363,8 +1363,8 @@ require("max_tokens" in gateway,
 # Presets describe providers. A preset must never carry a credential.
 require('"key"' not in control_py.split("PROVIDERS = [")[1].split("]")[0],
         "a provider preset must never contain an API key")
-require("secret-tool" in gateway,
-        "the gateway must read the key from Secret Service, not from config.json")
+require("moai-credential-store" in gateway,
+        "the gateway must read the key from Mo AI's private XDG store, not config.json")
 
 # …and the other half of the same contract: every do/* route that moos-open hands
 # to moai-do must be an action moai-do actually implements. (Not every do/* route
@@ -1584,8 +1584,15 @@ require('"cloud_key":' not in control,
         "Mo AI must not persist cloud_key in JSON")
 require('c.get("cloud_key")' not in gateway,
         "Mo AI gateway must not read plaintext cloud_key from JSON")
-require("secret-tool" in control and "secret-tool" in gateway,
-        "Mo AI cloud credentials must use Secret Service")
+credential_store = read("system_files/usr/libexec/moai-credential-store")
+require("moai-credential-store" in control and "moai-credential-store" in gateway,
+        "Mo AI cloud credentials must use its private XDG store")
+require("secret-tool" not in control and "secret-tool" not in gateway,
+        "Mo AI's runtime must not activate KWallet through Secret Service")
+require("0o700" in credential_store and "0o600" in credential_store
+        and "os.replace" in credential_store and "O_NOFOLLOW" in credential_store,
+        "Mo AI's private credential store must enforce directory/file permissions, "
+        "atomic replacement and no-follow reads")
 require('had_legacy_key = "cloud_key" in data' in control and
         "elif had_legacy_key:" in control,
         "Mo AI must remove even an empty legacy cloud_key field")
@@ -2374,8 +2381,13 @@ require(ui_migrate.index("migrate_legacy_keyboard") <
         ui_migrate.index('[ -e "$marker" ] && exit 0'),
         "the keyboard shadow repair needs its own marker and must run before "
         "the theme revision gate")
-require("secret-tool" not in ui_migrate,
-        "UI migration must never inspect or mutate Mo AI credentials")
+# The wallet-removal migration may copy one already-unlocked Mo AI key before it
+# stops KWallet. It must not activate the service, write a wallet item, or touch
+# any other credential.
+require(ui_migrate.count("secret-tool lookup service org.moos.MoAI account cloud") == 1,
+        "wallet removal must preserve only Mo AI's already-unlocked legacy key")
+require("secret-tool store" not in ui_migrate and "secret-tool clear" not in ui_migrate,
+        "UI migration must never write or delete Secret Service items")
 for agent_surface in (
     read("system_files/usr/share/moos/apps/moai/main.qml"),
     read("system_files/usr/share/moos/apps/moai-agent/console.html"),
@@ -4360,64 +4372,47 @@ require("build-cloud:" in read("Justfile"),
         "the Justfile must carry a build-cloud recipe, or the edition can only be "
         "built by hand-typing the build args")
 
-# ── A Secret portal is a promise; the wallet has to be allowed to keep it ────
-# kde-portals.conf routes org.freedesktop.impl.portal.Secret to kwallet. If the
-# wallet is not enabled, nothing owns org.freedesktop.secrets — the name is not
-# even activatable — and every application that stores a credential fails at its
-# first call. MoPlayer did it loudest: it read its device id from the keyring
-# during bootstrap, libsecret threw, the exception escaped main(), and the app
-# died after its window existed but before its first frame. A BLACK WINDOW, with
-# the reason visible only in the journal (2026-07-25).
-#
-# So if the image names kwallet as its Secret backend, the image must also ship
-# the default that lets kwalletd run.
+# ── KWallet is opt-out at the OS layer, not merely unused by one app ─────────
+# First-party apps own private XDG stores, so the image must neither advertise a
+# Secret portal nor start/unlock a wallet at login.
 _portals = read("system_files/etc/xdg-desktop-portal/kde-portals.conf")
-if "impl.portal.Secret=kwallet" in _portals.replace(" ", ""):
-    _walletrc = code(read("system_files/etc/xdg/kwalletrc"))
-    require(re.search(r"^\s*Enabled\s*=\s*true\s*$", _walletrc, re.MULTILINE) is not None,
-            "kde-portals.conf routes the Secret portal to kwallet, so /etc/xdg/kwalletrc "
-            "must enable the wallet — otherwise nothing owns org.freedesktop.secrets and "
-            "every app that keeps a credential breaks, first frame first")
+require("impl.portal.Secret" not in _portals,
+        "MoOS must not advertise KWallet as its Secret portal")
+_walletrc = code(read("system_files/etc/xdg/kwalletrc"))
+require(re.search(r"^\s*Enabled\s*=\s*false\s*$", _walletrc, re.MULTILINE) is not None,
+        "/etc/xdg/kwalletrc must keep KWallet disabled for fresh profiles")
+require(not (ROOT / "system_files/usr/lib/systemd/user/moos-secret-service.service").exists(),
+        "the old ksecretd compatibility unit must not ship")
+_build = code(read("build_files/build.sh"))
+require("systemctl --global mask moos-secret-service.service" in _build
+        and "plasma-kwallet-pam.service" in _build,
+        "the image must mask both the former compatibility service and PAM wallet helper")
+require("remove --no-autoremove" in _build and "kwalletmanager5" in _build
+        and "pam-kwallet" in _build,
+        "the wallet manager UI and PAM auto-unlocker must be removed without "
+        "autoremoving Plasma dependencies")
 
-# Enabling KWallet is only half the relationship. libsecret clients call the
-# standard org.freedesktop.secrets name, and ksecretd is the process that owns
-# it. It must start in every desktop session; a D-Bus service file under
-# org.kde.secretservicecompat cannot be activated by a client asking for the
-# standard name.
-_secret_unit = code(read(
-    "system_files/usr/lib/systemd/user/moos-secret-service.service"))
-require("ExecStart=/usr/bin/ksecretd" in _secret_unit
-        and "WantedBy=plasma-workspace.target" in _secret_unit
-        and "After=plasma-kwallet-pam.service" in _secret_unit,
-        "the MoOS Secret Service unit must start ksecretd after the PAM wallet "
-        "unlock in every Plasma session")
-require("systemctl --global enable moos-secret-service.service"
-        in code(read("build_files/build.sh")),
-        "build.sh must globally enable moos-secret-service.service — shipping "
-        "the unit without its wants symlink leaves org.freedesktop.secrets absent")
-
-# Existing users carry the old Enabled=false profile in ~/.config, which outranks
-# the corrected image default. The migration is exact-shape and once-only: it
-# repairs what MoOS wrote, while a later deliberate user choice stays durable.
+# Existing users carry Enabled=true from the brief wallet-enabled release.
 _ui_migrate = code(read("system_files/usr/bin/moos-ui-migrate"))
 for _wallet_migration_promise in (
-    "migrate_legacy_disabled_wallet",
-    "secret-service-wallet-v1.done",
-    "grep -Fxq 'Enabled=false'",
-    "systemctl --user start moos-secret-service.service",
+    "disable_wallet_v2",
+    "wallet-disabled-v2.done",
+    "--key Enabled false",
+    "systemctl --user mask --now moos-secret-service.service",
+    "org.freedesktop.secrets",
+    "moai-credential-store",
 ):
     require(_wallet_migration_promise in _ui_migrate,
             f"the existing-user wallet repair is incomplete: missing "
             f"{_wallet_migration_promise!r}")
 
-# A disabled wallet must stay VISIBLE. selfcheck is where the user finds out.
-# code() first: a gate that a comment can satisfy is not a gate, and this file's
-# own prose names the bus service it is checking for.
+# A running wallet must stay visible in diagnostics.
 _selfcheck = code(read("system_files/usr/bin/moos-selfcheck"))
-require("org.freedesktop.secrets" in _selfcheck and "ListNames" in _selfcheck,
-        "moos-selfcheck must actually ASK the session bus whether anything owns "
-        "org.freedesktop.secrets — a missing keyring breaks applications silently, "
-        "one black window at a time")
+require("freedesktop" in _selfcheck and "secrets" in _selfcheck
+        and "kwalletd" in _selfcheck and "ksecretd" in _selfcheck
+        and "ListNames" in _selfcheck,
+        "moos-selfcheck must ask the session bus whether a disabled wallet is "
+        "still active")
 
 # ── The vendored MoPlayer must be buildable by the Flutter the image pins ────
 # moplayer/ is a copy of a live project, and a live project is being opened in an

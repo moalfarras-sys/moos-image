@@ -8,8 +8,8 @@
 # action that CHANGES the system goes through moos-open -> moai-do instead, so
 # it keeps its confirmation + Polkit prompt.
 #
-# The API KEY is only ever RECEIVED (POST) and stored in Secret Service; GET
-# never returns it (only has_key). Stdlib only.
+# The API KEY is only ever RECEIVED (POST) and stored in Mo AI's private XDG data
+# file; GET never returns it (only has_key). Stdlib only.
 #
 #   GET  /config   brain config (mode, base, model, has_key)
 #   GET  /status   {"online": bool}  — can the DEFAULT brain answer right now
@@ -30,6 +30,8 @@ SCHEME = re.compile(r"^[a-z0-9+.-]+://")
 
 CFG_DIR = os.path.expanduser("~/.config/moai")
 CFG = os.path.join(CFG_DIR, "config.json")
+CREDENTIAL_STORE = os.environ.get(
+    "MOAI_CREDENTIAL_STORE", "/usr/libexec/moai-credential-store")
 MOOS_DIR = os.path.expanduser("~/.config/moos")
 ENV_FILE = os.path.join(MOOS_DIR, "moai.env")
 PORT = int(os.environ.get("MOAI_CONTROL_PORT", "8079"))
@@ -81,8 +83,8 @@ USER_AGENT = "MoOS-MoAI/1.0 (+https://github.com/moalfarras-sys/moos-image)"
 # answer questions about a desktop, not to be the largest model available, and
 # the user pays for every token.
 #
-# No API keys here, ever. A key lives in Secret Service and nowhere else — not in
-# this file, not in config.json, and not in the repository.
+# No API keys here, ever. A key lives in Mo AI's private XDG data store and
+# nowhere else — not in this file, not in config.json, and not in the repository.
 PROVIDERS = [
     {"id": "moagent", "name": "Mo Agent (خاص | private)",
      "base": "https://api.synterolink.com/v1", "wire": "openai",
@@ -116,12 +118,12 @@ def load():
             with open(CFG, encoding="utf-8") as f:
                 data = json.load(f)
                 # One-time migration from the pre-v3 plaintext format. Store the
-                # credential in Secret Service, then immediately rewrite config
+                # credential in private XDG data, then immediately rewrite config
                 # without it. Never log the value.
                 had_legacy_key = "cloud_key" in data
                 legacy = data.pop("cloud_key", "")
                 if legacy and not store_secret(legacy):
-                    # Keep the legacy file intact if Secret Service is temporarily
+                    # Keep the legacy file intact if private storage is temporarily
                     # unavailable; deleting a real credential would lose user data.
                     data["cloud_key"] = legacy
                 elif had_legacy_key:
@@ -158,24 +160,22 @@ def save(d):
                 pass
 
 
-def secret_tool(*args, value=None):
+def credential_store(action, value=None):
     try:
         return subprocess.run(
-            ["secret-tool", *args], input=value, capture_output=True,
+            [CREDENTIAL_STORE, action], input=value, capture_output=True,
             text=True, timeout=10, check=False)
     except Exception:
         return None
 
 
 def get_secret():
-    result = secret_tool("lookup", "service", "org.moos.MoAI", "account", "cloud")
+    result = credential_store("get")
     return result.stdout.rstrip("\n") if result and result.returncode == 0 else ""
 
 
 def store_secret(value):
-    result = secret_tool(
-        "store", "--label=Mo AI cloud API key",
-        "service", "org.moos.MoAI", "account", "cloud", value=value)
+    result = credential_store("set", value=value)
     return bool(result and result.returncode == 0)
 
 
@@ -215,7 +215,7 @@ CLOUD_TTL = 6.0
 
 
 def cloud_ready():
-    """A cloud brain is configured: a base URL and a key in the keyring.
+    """A cloud brain is configured: a base URL and a key in private storage.
 
     Deliberately NOT a live call to the provider. The old probe made a real
     network round trip to /v1/models with a 1-second timeout, every 4 seconds,
@@ -1421,8 +1421,8 @@ class H(BaseHTTPRequestHandler):
         route = urllib.parse.urlparse(self.path).path
 
         # /test — try the provider for real, without saving anything. The key may
-        # come from the form (the user is still typing it) or from the keyring (it
-        # is already saved and the field was left blank).
+        # come from the form (the user is still typing it) or from private
+        # storage (it is already saved and the field was left blank).
         if route == "/test":
             return self._send(200, test_cloud(
                 data.get("cloud_base", ""),
@@ -1446,7 +1446,7 @@ class H(BaseHTTPRequestHandler):
         mode = "cloud" if data.get("mode") == "cloud" else "local"
         key = data.get("cloud_key") or ""
         if key and not store_secret(key):
-            return self._send(503, {"error": "Secret Service is unavailable"})
+            return self._send(503, {"error": "Mo AI private storage is unavailable"})
         # One read-modify-write transaction: ThreadingHTTPServer may receive two
         # settings saves together, and neither may overwrite fields from a
         # newer request using a stale snapshot.
