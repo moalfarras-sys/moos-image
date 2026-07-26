@@ -103,12 +103,13 @@ class _Body extends ConsumerWidget {
     final runtime = Fmt.runtimeMinutes((detail.durationSecs ?? 0) ~/ 60);
 
     return SingleChildScrollView(
-      padding: const EdgeInsetsDirectional.fromSTEB(
+      padding: EdgeInsetsDirectional.fromSTEB(
         Nova.space6,
         // Clears the back button, which floats over this scroll view.
         Nova.space6 + Nova.space6,
         Nova.space6,
-        Nova.space6,
+        // ...and the dock, which floats over its foot.
+        MediaQuery.paddingOf(context).bottom + Nova.space6,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

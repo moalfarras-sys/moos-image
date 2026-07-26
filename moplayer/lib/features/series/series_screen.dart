@@ -199,7 +199,12 @@ class _SeriesGrid extends ConsumerWidget {
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.only(bottom: Nova.space6),
+      // The dock floats over the foot of the window and the shell hands
+      // this screen its height. A fixed inset hides the grid's last row
+      // under the glass on exactly the screens that fill it.
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.paddingOf(context).bottom + Nova.space6,
+      ),
       gridDelegate: _gridDelegate(compact),
       itemCount: visible.length,
       itemBuilder: (context, index) {
@@ -295,7 +300,12 @@ class _PosterSkeletonGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
-      padding: const EdgeInsets.only(bottom: Nova.space6),
+      // The dock floats over the foot of the window and the shell hands
+      // this screen its height. A fixed inset hides the grid's last row
+      // under the glass on exactly the screens that fill it.
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.paddingOf(context).bottom + Nova.space6,
+      ),
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: _gridDelegate(compact),
       itemCount: _skeletonCount,

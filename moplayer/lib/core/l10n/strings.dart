@@ -345,6 +345,7 @@ class S {
   String get subtitlesOff => _('بدون ترجمة', 'Off', 'Aus');
   String get speed => _('السرعة', 'Speed', 'Geschwindigkeit');
   String get quality => _('الجودة', 'Quality', 'Qualität');
+  String get qualityAuto => _('تلقائي', 'Auto', 'Automatisch');
   String get volume => _('الصوت', 'Volume', 'Lautstärke');
   String get mute => _('كتم', 'Mute', 'Stumm');
   String get unmute => _('إلغاء الكتم', 'Unmute', 'Ton an');
@@ -385,6 +386,107 @@ class S {
   String get aspectFit => _('احتواء', 'Fit', 'Einpassen');
   String get aspectFill => _('ملء', 'Fill', 'Ausfüllen');
   String get aspectOriginal => _('الأصلية', 'Original', 'Original');
+  // --- Picture and sync -----------------------------------------------------
+  String get deinterlace =>
+      _('إزالة التشابك', 'Deinterlacing', 'Deinterlacing');
+  String get deinterlaceHint => _(
+    'قنوات البث المباشر غالباً مشابكة (1080i)؛ بدون المعالجة تظهر خطوط أفقية عند الحركة.',
+    'Live channels are often interlaced (1080i); without this, motion shows horizontal combing.',
+    'Live-Sender sind oft im Zeilensprungverfahren (1080i); ohne dies zeigt Bewegung Kammartefakte.',
+  );
+  String get deinterlaceAuto => _('تلقائي', 'Auto', 'Automatisch');
+  String get deinterlaceOn => _('دائماً', 'Always', 'Immer');
+  String get deinterlaceOff => _('معطّل', 'Off', 'Aus');
+
+  String get subtitleDelay =>
+      _('تأخير الترجمة', 'Subtitle delay', 'Untertitel-Verzögerung');
+  String get audioDelay =>
+      _('مزامنة الصوت', 'Audio sync', 'Audio-Synchronisierung');
+  String get subtitleSize =>
+      _('حجم الترجمة', 'Subtitle size', 'Untertitelgröße');
+  String get subtitleBackground =>
+      _('خلفية الترجمة', 'Subtitle background', 'Untertitel-Hintergrund');
+  String get loadSubtitleFile =>
+      _('تحميل ملف ترجمة…', 'Load subtitle file…', 'Untertiteldatei laden…');
+  String get resetToDefault => _('إعادة الضبط', 'Reset', 'Zurücksetzen');
+
+  // --- Picture and sound adjustment ----------------------------------------
+  String get pictureAdjust => _('ضبط الصورة', 'Picture', 'Bild');
+  String get brightness => _('السطوع', 'Brightness', 'Helligkeit');
+  String get contrast => _('التباين', 'Contrast', 'Kontrast');
+  String get saturation => _('التشبّع', 'Saturation', 'Sättigung');
+  String get gamma => _('جاما', 'Gamma', 'Gamma');
+  String get loudnessNormalisation =>
+      _('توحيد مستوى الصوت', 'Even out loudness', 'Lautstärke angleichen');
+  String get loudnessHint => _(
+    'القنوات تختلف كثيراً في مستوى الصوت؛ هذا يقلّل القفزات عند التنقّل بينها.',
+    'Channels differ widely in loudness; this reduces the jumps when zapping.',
+    'Sender unterscheiden sich stark in der Lautstärke; das mildert die Sprünge.',
+  );
+  String get aspectAuto => _('تلقائي', 'Auto', 'Automatisch');
+
+  // --- Recording, timeshift, stills ----------------------------------------
+  String get record => _('تسجيل', 'Record', 'Aufnehmen');
+  String get stopRecording =>
+      _('إيقاف التسجيل', 'Stop recording', 'Aufnahme beenden');
+  String get recording => _('يسجّل…', 'Recording…', 'Nimmt auf…');
+  String recordingSaved(String path) =>
+      _('حُفظ التسجيل في $path', 'Recording saved to $path', 'Aufnahme gespeichert unter $path');
+  String get recordingFailed => _(
+    'تعذّر بدء التسجيل.',
+    'Could not start recording.',
+    'Aufnahme konnte nicht gestartet werden.',
+  );
+  String get timeshift => _('الإرجاع المباشر', 'Timeshift', 'Timeshift');
+  String get timeshiftHint => _(
+    'يمكن إرجاع البث المباشر ضمن ما هو محفوظ في الذاكرة.',
+    'Live TV can be rewound within what is held in memory.',
+    'Live-TV kann innerhalb des Zwischenspeichers zurückgespult werden.',
+  );
+  String timeshiftAvailable(String duration) =>
+      _('متاح $duration للخلف', '$duration available', '$duration verfügbar');
+  String get screenshot => _('لقطة من الفيديو', 'Screenshot', 'Bildschirmfoto');
+  String screenshotSaved(String path) =>
+      _('حُفظت اللقطة في $path', 'Screenshot saved to $path', 'Bildschirmfoto gespeichert unter $path');
+  String get screenshotFailed =>
+      _('تعذّر حفظ اللقطة.', 'Could not save the screenshot.', 'Bildschirmfoto fehlgeschlagen.');
+  String get sleepTimer => _('مؤقّت النوم', 'Sleep timer', 'Sleep-Timer');
+  String get sleepTimerOff => _('معطّل', 'Off', 'Aus');
+  String sleepTimerIn(int minutes) => _(
+    'يتوقّف بعد $minutes دقيقة',
+    'Stops in $minutes min',
+    'Stoppt in $minutes Min',
+  );
+  String get subtitleFileLoaded =>
+      _('حُمّل ملف الترجمة', 'Subtitle file loaded', 'Untertiteldatei geladen');
+  String get subtitleFileFailed => _(
+    'تعذّر تحميل ملف الترجمة.',
+    'Could not load the subtitle file.',
+    'Untertiteldatei konnte nicht geladen werden.',
+  );
+  String get subtitleFileFilter =>
+      _('ملفات الترجمة', 'Subtitle files', 'Untertiteldateien');
+
+  // --- Diagnostics ----------------------------------------------------------
+  String get playbackStats =>
+      _('حالة التشغيل', 'Playback statistics', 'Wiedergabestatistik');
+  String get statsDecoder => _('فك الترميز', 'Decoder', 'Dekoder');
+  String get statsHardware => _('عتادي', 'Hardware', 'Hardware');
+  String get statsSoftware => _('برمجي', 'Software', 'Software');
+  String get statsResolution => _('الدقة', 'Resolution', 'Auflösung');
+  String get statsFrameRate => _('معدّل الإطارات', 'Frame rate', 'Bildrate');
+  String get statsDropped =>
+      _('إطارات مفقودة', 'Dropped frames', 'Verworfene Bilder');
+  String get statsBitrate => _('معدّل البت', 'Bitrate', 'Bitrate');
+  String get statsBuffer => _('المخزن المؤقت', 'Buffer', 'Puffer');
+  String get statsAudio => _('الصوت', 'Audio', 'Audio');
+  String get statsVideoPath =>
+      _('مسار العرض', 'Render path', 'Renderpfad');
+  String get statsGpuPath => _('بطاقة الرسوم (GL)', 'GPU (GL)', 'GPU (GL)');
+  String get statsCpuPath => _('المعالج (نسخ)', 'CPU (copy)', 'CPU (Kopie)');
+  String get statsUnavailable =>
+      _('غير متاح بعد', 'Not available yet', 'Noch nicht verfügbar');
+
   String get backToLive =>
       _('العودة للبث المباشر', 'Back to live', 'Zurück zu Live');
   String get channelList => _('قائمة القنوات', 'Channel list', 'Senderliste');
@@ -668,6 +770,12 @@ class ShortcutHelp {
       'Vollbild verlassen oder zurück',
     ),
     ShortcutHelp('M', 'كتم الصوت', 'Mute', 'Stummschalten'),
+    ShortcutHelp(
+      'O',
+      'إعدادات المشغّل',
+      'Player options',
+      'Player-Optionen',
+    ),
     ShortcutHelp(
       'S',
       'تبديل الترجمة',

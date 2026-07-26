@@ -614,7 +614,12 @@ class _Guide extends ConsumerWidget {
             .toList();
 
         return ListView(
-          padding: EdgeInsets.zero,
+          // The dock floats over the foot of the window and the shell hands
+          // this screen its height; without it the guide's last entry sits
+          // under the glass.
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.paddingOf(context).bottom,
+          ),
           children: [
             if (current != null) ...[
               Text(s.nowPlaying, style: AppText.label),
