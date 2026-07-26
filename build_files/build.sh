@@ -2852,7 +2852,24 @@ SSHD
 # ttyS0 is listed LAST on purpose — the kernel sends /dev/console output to the
 # last console= given, which is where the serial log has to land on a headless
 # host.
-kargs = ["console=tty0", "console=ttyS0,115200n8"]
+#
+# video=Virtual-1:1920x1080@60 is what stops the desktop being 1280x800.
+#
+# The emulated GPU (bochs-drm, connector Virtual-1) advertises 1280x800 as its
+# preferred mode, so that is what the session gets on every boot — measured on the
+# real server: kscreen Geometry 1280x800 while mode 2 in the SAME list was
+# 1920x1080@60. The remote desktop was streaming a third fewer pixels than the
+# machine could produce, and the second developer's virtual session was already
+# 1920x1080, so the two people were not even looking at the same resolution.
+#
+# Setting it here rather than with kscreen-doctor is deliberate: that tool wrote no
+# config for this output (there is no EDID to key one to), so a runtime change is
+# lost on reboot. A karg is applied before anything reads a mode.
+#
+# It is affordable only because the bento dashboard is off on this edition — with
+# it on, 2.25x the pixels would have multiplied a 158% repaint. Measured after the
+# change: plasmashell render 5% at 1920x1080 versus 4% at 1280x800.
+kargs = ["console=tty0", "console=ttyS0,115200n8", "video=Virtual-1:1920x1080@60"]
 KARGS
     systemctl enable serial-getty@ttyS0.service
     echo "=== cloud edition: serial console on ttyS0, splash kargs withdrawn ==="
@@ -3103,6 +3120,11 @@ TRUSTED
         echo "GATE FAIL: password authentication is not disabled"; _cloud_fail=1; }
     grep -q 'console=ttyS0' /usr/lib/bootc/kargs.d/40-moos-cloud-console.toml || {
         echo "GATE FAIL: no serial console karg — a failing boot would be invisible"; _cloud_fail=1; }
+    grep -q 'video=Virtual-1:1920x1080' /usr/lib/bootc/kargs.d/40-moos-cloud-console.toml || {
+        echo "GATE FAIL: the display-mode karg is gone. bochs-drm prefers 1280x800, so"
+        echo "           every session would silently drop to it — a third fewer pixels"
+        echo "           than this machine can stream, and a different resolution from"
+        echo "           the virtual sessions moos-cloud-desktop creates."; _cloud_fail=1; }
     [ -f /usr/lib/bootc/kargs.d/10-moos-boot-splash.toml ] && {
         echo "GATE FAIL: the splash kargs survived — 'quiet' would hide the serial boot log"; _cloud_fail=1; }
     grep -q '^blurEnabled=false' /etc/xdg/kwinrc || {
