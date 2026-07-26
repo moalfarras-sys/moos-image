@@ -2907,6 +2907,25 @@ patch("/etc/xdg/kwinrc", {
 })
 patch("/etc/xdg/kdeglobals", {
     "KDE": {"AnimationDurationFactor": "0"},
+    # Scale 1, or Mo PC Remote's touch input lands in the wrong place.
+    #
+    # Raising the mode to 1920x1080 made KDE decide the output was dense enough to
+    # deserve 1.25x scaling, so the LOGICAL size became 1536x864 while the
+    # framebuffer stayed 1920x1080. The agent maps normalised pointer coordinates
+    # through _portal.LogicalWidth/LogicalHeight (ScreenCapture.cs), so every tap
+    # landed at ~80% of where the finger actually was — reported from the phone as
+    # "touch is wrong", and correct behaviour for the code as written.
+    #
+    # A streamed desktop has no physical DPI to compensate for: the pixels are
+    # resampled into a browser on someone else's screen. Scaling here buys nothing
+    # and costs both the coordinate mismatch and a third of the resolution the karg
+    # was added to gain.
+    #
+    # It has to be a SHIPPED default, not a runtime fix: kscreen wrote no config for
+    # this output (no EDID to key one to, ~/.local/share/kscreen stays empty), so the
+    # 1.25 is recomputed from KDE's DPI heuristic at every session start and a
+    # `kscreen-doctor scale 1` is forgotten on the next boot.
+    "KScreen": {"ScaleFactor": "1", "ScreenScaleFactors": "Virtual-1=1;"},
 })
 # The lock screen is the single most expensive thing on a server desktop, and the
 # only one nobody can benefit from. Measured on the maintainer's VPS:
@@ -3134,6 +3153,14 @@ TRUSTED
         echo "GATE FAIL: password authentication is not disabled"; _cloud_fail=1; }
     grep -q 'console=ttyS0' /usr/lib/bootc/kargs.d/40-moos-cloud-console.toml || {
         echo "GATE FAIL: no serial console karg — a failing boot would be invisible"; _cloud_fail=1; }
+    # The mode karg and scale=1 are ONE change. Shipping the karg without the scale
+    # gives 1.25x auto-scaling, a 1536x864 logical size against a 1920x1080
+    # framebuffer, and Mo PC Remote's touch landing at 80% of where it was aimed.
+    grep -q '^ScaleFactor=1' /etc/xdg/kdeglobals || {
+        echo "GATE FAIL: display scaling is not pinned to 1. At 1920x1080 KDE applies"
+        echo "           1.25x, so the LOGICAL size (which the remote agent maps input"
+        echo "           through) stops matching the framebuffer and every tap misses."
+        _cloud_fail=1; }
     grep -q 'video=Virtual-1:1920x1080' /usr/lib/bootc/kargs.d/40-moos-cloud-console.toml || {
         echo "GATE FAIL: the display-mode karg is gone. bochs-drm prefers 1280x800, so"
         echo "           every session would silently drop to it — a third fewer pixels"
