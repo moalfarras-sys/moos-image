@@ -790,6 +790,9 @@ Kirigami.ApplicationWindow {
 
         let acc = ""
         let sawData = false
+        // How much the model spent thinking on its second channel. Only used to
+        // explain an empty answer — see the reasoning_content note below.
+        let reasonedChars = 0
         let processed = 0
 
         const xhr = new XMLHttpRequest()
@@ -824,6 +827,23 @@ Kirigami.ApplicationWindow {
                             ? (ch.delta ? ch.delta.content
                                : (ch.message ? ch.message.content : ""))
                             : ""
+                        // A REASONING model answers on a second channel.
+                        //
+                        // qwen3 and its family return their deliberation in
+                        // `reasoning_content` and the actual answer in `content`.
+                        // This app only ever read `content`, so on a CPU-only box
+                        // the result was a spinner that sat still for a minute and
+                        // then a blank bubble — measured here: qwen3:8b spent 70
+                        // tokens (57 of them reasoning) to answer "OK", and at
+                        // ~4 tok/s a 220-token budget ran out mid-thought and
+                        // produced NOTHING visible.
+                        //
+                        // Counting it is what turns that silence into a diagnosis
+                        // below. It is deliberately not appended to the answer:
+                        // deliberation is not the reply, and splicing it in would
+                        // put the model's scratch work in the user's chat.
+                        if (ch && ch.delta && ch.delta.reasoning_content)
+                            reasonedChars += ch.delta.reasoning_content.length
                         if (delta) {
                             acc += delta
                             sawData = true
@@ -859,9 +879,19 @@ Kirigami.ApplicationWindow {
                 root.pendingRuns = root.extractRuns(reply)
                 root.flashMood("success")
             } else {
+                // "I couldn't generate a reply" is true but useless when the real
+                // story is that the model DID answer — on a channel this app does
+                // not show — and ran out of budget before reaching the answer.
+                // Say which it was, because the two have different fixes.
                 const help = !root.serverUp
                     ? (root.brainStarting ? root.startingHelp : root.offlineHelp)
-                    : "لم أستطع توليد رد، حاول مجدداً. | I couldn't generate a reply — please try again."
+                    : (reasonedChars > 0
+                       ? "هذا نموذج تفكير: استهلك ميزانيته في التفكير قبل أن يكتب الجواب. "
+                         + "اختر نموذجاً مباشراً (qwen2.5:7b-instruct) — أسرع على هذا الخادم بلا كرت شاشة.\n"
+                         + "This is a reasoning model: it spent its budget thinking and never "
+                         + "reached the answer. Pick a direct model (qwen2.5:7b-instruct) — on this "
+                         + "GPU-less server it is measurably faster."
+                       : "لم أستطع توليد رد، حاول مجدداً. | I couldn't generate a reply — please try again.")
                 chatModel.set(idx, { role: "assistant", text: help })
                 root.flashMood(root.serverUp ? "warning" : "error")
             }
