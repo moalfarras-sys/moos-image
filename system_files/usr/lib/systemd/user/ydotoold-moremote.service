@@ -3,8 +3,36 @@ Description=Mo Remote virtual pointer helper
 After=graphical-session.target
 PartOf=graphical-session.target
 
+# Make a genuine failure actually fail.
+#
+# The ExecStartPre below waits up to 15 seconds, so a failing cycle takes ~18s.
+# systemd's DEFAULT start-limit window is 10 seconds — shorter than one cycle —
+# so the 5-attempt burst could never fill, the rate limiter never tripped, and
+# this unit restarted every ~19 seconds for the life of the machine (found at
+# restart counter 126 on the maintainer's server) WITHOUT ever entering the
+# `failed` state. `systemctl --failed` was empty and moos-selfcheck was green
+# the whole time.
+#
+# A window that comfortably contains five cycles is what makes the rate limiter
+# mean something: five real failures now stop the unit and show it as failed.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
 [Service]
 Type=simple
+# Where there is no seat, there is no uinput — skip instead of looping for ever.
+#
+# logind grants the `uaccess` ACL on /dev/uinput per SEAT. A private cloud desktop
+# (`moos-cloud-desktop own <user>`) has no seat, so the ACL never arrives — and a
+# uinput device is created on the seat anyway, so even if it did, the keystrokes
+# would be delivered to the wrong session. Mo PC Remote's primary input path there
+# is the XDG RemoteDesktop portal (InputInjector.cs treats ydotoold as the
+# fallback), which addresses the correct compositor.
+#
+# ExecCondition is the right primitive: a non-zero exit SKIPS the unit cleanly
+# rather than failing it, so a headless desktop stops generating a restart every
+# 19 seconds and `systemctl --failed` keeps meaning what it says.
+ExecCondition=/usr/libexec/moos-has-seat
 # Wait for /dev/uinput to actually be WRITABLE before launching ydotoold.
 #
 # 70-mo-remote-uinput.rules tags uinput with `uaccess`, which means logind grants

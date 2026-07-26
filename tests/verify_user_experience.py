@@ -3736,21 +3736,81 @@ require(ui2_gate.returncode == 0,
 #
 # Comments are stripped first: the fix documents the flag directly above the call, so
 # a gate reading raw text would pass on the prose after the flag itself was deleted.
-_SWITCH = re.compile(r"bootc\s+switch\b([^\n;|&]*)")
-for _tool in sorted((ROOT / "system_files/usr/bin").iterdir()):
-    if not _tool.is_file():
+#
+# `bootc install` is gated the same way and for the same reason. The cloud converter
+# installs MoOS over a running Debian with `bootc install to-existing-root`, and that
+# call lands an origin exactly as permanently as a switch does.
+#
+# libexec is scanned as well as bin. The first version of this gate read only
+# system_files/usr/bin, so a `bootc switch` anywhere else was unguarded — which is
+# where the self-healing rebind below actually lives.
+# What is actually required is the OUTCOME — the install ends up on a signed origin —
+# and there are two legitimate ways to reach it. `moos-install-to-disk` uses the second
+# one: it runs `bootc install to-disk` plainly and then rewrites the deployment origin
+# to `ostree-image-signed:docker://…`, matching what the Anaconda %post does. Gating on
+# the flag alone called that file broken when it is correct. Assert the outcome, and
+# accept either proof.
+_SWITCH = re.compile(r"bootc\s+(?:switch|install)\b([^\n;|&]*)")
+_sigpolicy_dirs = ["system_files/usr/bin", "system_files/usr/libexec"]
+for _dirname in _sigpolicy_dirs:
+    _dir = ROOT / _dirname
+    if not _dir.is_dir():
         continue
-    try:
-        _text = _tool.read_text(encoding="utf-8")
-    except (UnicodeDecodeError, OSError):
-        continue
-    for _args in _SWITCH.findall(code(_text)):
-        require("--enforce-container-sigpolicy" in _args,
-                f"system_files/usr/bin/{_tool.name} runs `bootc switch` without "
-                "--enforce-container-sigpolicy. switch REPLACES the origin, so this stages "
-                "ostree-unverified-registry: and the machine — and every later upgrade — "
-                "stops verifying signatures for the life of the install. "
-                f"Offending arguments: `bootc switch{_args.rstrip()}`")
+    for _tool in sorted(_dir.iterdir()):
+        if not _tool.is_file():
+            continue
+        try:
+            _text = _tool.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        # Join shell line-continuations first: the converter spreads its flags over
+        # five lines, and a regex that stops at the newline would read the argument
+        # list as `to-existing-root` alone and pass a call that enforces nothing.
+        _stripped = code(_text)
+        _joined = re.sub(r"\\\n\s*", " ", _stripped)
+        # The rewrite has to name the signed transport in real code, not in a comment,
+        # for it to count as the second proof.
+        _rearms_origin = "ostree-image-signed:" in _stripped
+        for _args in _SWITCH.findall(_joined):
+            require("--enforce-container-sigpolicy" in _args or _rearms_origin,
+                    f"{_dirname}/{_tool.name} runs `bootc switch`/`bootc install` without "
+                    "--enforce-container-sigpolicy, and never rewrites the origin to "
+                    "ostree-image-signed:. Both commands REPLACE the origin, so this leaves "
+                    "ostree-unverified-registry: and the machine — and every later upgrade — "
+                    "stops verifying signatures for the life of the install. "
+                    f"Offending arguments: `bootc …{_args.rstrip()}`")
+
+
+# ── An install that ALREADY lost its signature must repair itself ─────────────
+#
+# The gate above can only protect installs that have not happened yet, and the cloud
+# conversion path defeats it outright: MOOS_CLOUD_PLAN §2(أ) recommends
+# `system-reinstall-bootc`, which builds its own `bootc install to-existing-root`
+# command line and — as of 1.16.4 — has no --enforce-container-sigpolicy and no
+# passthrough for one. Every server converted that way, including the maintainer's,
+# boots MoOS and verifies nothing, for the life of the install, because the origin
+# persists.
+#
+# `bootc status` cannot be used to notice this: on an unverified install it prints
+# transport "registry" and a correct-looking image ref, byte-identical to a verified
+# one. The origin file is the only place the truth is recorded.
+#
+# So the image repairs itself at boot, and these three pieces have to stay wired
+# together — the script, the unit that runs it, and the enforcing switch inside it.
+_origin_fix = read("system_files/usr/libexec/moos-verify-origin")
+require("--enforce-container-sigpolicy" in code(_origin_fix),
+        "moos-verify-origin no longer passes --enforce-container-sigpolicy — it is the "
+        "only thing that puts a converted server back on the signed update train.")
+require("ostree-unverified-registry:" in _origin_fix,
+        "moos-verify-origin no longer looks for the `ostree-unverified-registry:` prefix, "
+        "which is the only on-disk evidence that an install stopped verifying signatures.")
+
+_origin_unit = read("system_files/usr/lib/systemd/system/moos-verify-origin.service")
+require("ExecStart=/usr/libexec/moos-verify-origin" in _origin_unit,
+        "moos-verify-origin.service does not run /usr/libexec/moos-verify-origin.")
+require("WantedBy=multi-user.target" in _origin_unit,
+        "moos-verify-origin.service is not wanted by any target, so it never runs and a "
+        "converted server keeps taking unverified updates.")
 
 
 # ── Every action Mo AI PROMISES gets a Run button ─────────────────────────────
@@ -4461,6 +4521,37 @@ if _flutter_pin:
 _byml = read(".github/workflows/build.yml")
 require("cosign verify --key cosign.pub" in _byml,
         "build.yml must verify the signature against the OS-enforced public key")
+
+
+# ── A private desktop must share the user's session bus ───────────────────────
+#
+# `moos-cloud-desktop own <user>` gives a second developer their own virtual Plasma.
+# Wrapping that compositor in `dbus-run-session` is the intuitive way to give a
+# headless session a bus, and it silently removes the user's input.
+#
+# dbus-run-session makes a NEW bus (/tmp/dbus-XXXXXXXX); the systemd --user manager
+# stays on /run/user/$uid/bus. startplasma-wayland asks org.freedesktop.systemd1 — on
+# the SESSION bus — to start the systemd-managed session; on a private bus that name
+# does not exist, so it falls back to legacy startup and plasma-workspace.target never
+# runs. graphical-session.target is BindsTo that target, so it stays inactive, so
+# xdg-desktop-portal is refused ("Dependency failed for Portal service", every 30s) —
+# and the portal is Mo PC Remote's PRIMARY input path, with ydotoold/uinput only a
+# fallback that a seatless session cannot use either.
+#
+# Measured on the real server: the second developer's desktop streamed video and
+# accepted no keyboard or mouse at all, with `systemctl --failed` empty throughout.
+_own = read("system_files/usr/bin/moos-cloud-desktop")
+_own_code = code(_own)
+require("dbus-run-session" not in _own_code,
+        "moos-cloud-desktop runs the private compositor under `dbus-run-session`. That "
+        "puts Plasma on a different session bus from the systemd --user manager, so "
+        "plasma-workspace.target never starts, graphical-session.target stays inactive, "
+        "xdg-desktop-portal is refused for ever — and the second user's desktop accepts "
+        "no keyboard or mouse input, with nothing showing as failed.")
+require("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/" in _own_code,
+        "moos-cloud-desktop must point the private desktop at the user's REAL session "
+        "bus (/run/user/$uid/bus) — it is what makes startplasma-wayland take the "
+        "systemd path, and therefore what makes the portal (and input) work.")
 
 if errors:
     print("MoOS user-experience gate failed:", file=sys.stderr)

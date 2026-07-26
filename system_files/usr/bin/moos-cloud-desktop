@@ -107,15 +107,50 @@ DROPIN
     chown -R "${user}:${user}" "/var/home/${user}/.config/systemd"
 
     # The session itself, as a user service so it comes back after a reboot.
+    #
+    # DO NOT WRAP THIS IN `dbus-run-session`. It looks like the obvious way to give
+    # a headless session a bus, and it quietly destroys the session instead.
+    #
+    # `dbus-run-session` creates a NEW session bus (/tmp/dbus-XXXXXXXX). The systemd
+    # --user manager is on the real one (/run/user/$uid/bus) and never moves. So the
+    # desktop and everything systemd starts for that user end up on two different
+    # buses that cannot see each other, and the failure is entirely silent:
+    #
+    #   * startplasma-wayland asks org.freedesktop.systemd1 — on the SESSION bus —
+    #     to start the systemd-managed Plasma session. On a private bus that name
+    #     does not exist, so it prints "Could not start systemd managed Plasma
+    #     session", falls back to legacy startup, and never starts
+    #     plasma-workspace.target. graphical-session.target therefore stays
+    #     inactive, because plasma-workspace.target is what BindsTo it.
+    #   * xdg-desktop-portal is ordered After=graphical-session.target, so it is
+    #     refused with "Dependency failed for Portal service" — every 30 seconds,
+    #     for ever.
+    #   * and the portal is Mo PC Remote's PRIMARY input path (InputInjector.cs:
+    #     ydotoold/uinput is only the fallback, and that fallback cannot work in a
+    #     seatless session either — see ydotoold-moremote.service).
+    #
+    # Net effect, measured on this server before the fix: the second developer got
+    # a desktop that streamed video perfectly and accepted no keyboard or mouse
+    # input at all, with nothing in `systemctl --failed` to suggest why.
+    #
+    # The user is lingering, so systemd has already given them dbus.socket and a
+    # real session bus. Use it.
     local unit="/var/home/${user}/.config/systemd/user/moos-own-screen.service"
     install -D -m0644 /dev/stdin "$unit" <<UNIT
 [Unit]
 Description=MoOS private desktop for ${user} (virtual output)
 Before=mo-remote-personal.service
+Wants=dbus.socket
+After=dbus.socket
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/dbus-run-session -- /usr/bin/kwin_wayland --virtual --width 1920 --height 1080 --socket ${socket} --no-lockscreen --xwayland --exit-with-session=/usr/bin/startplasma-wayland
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus
+ExecStart=/usr/bin/kwin_wayland --virtual --width 1920 --height 1080 --socket ${socket} --no-lockscreen --xwayland --exit-with-session=/usr/bin/startplasma-wayland
+# Services the manager starts later — the portal above all — need to know which
+# compositor is theirs. kwin exports WAYLAND_DISPLAY to its own children only.
+ExecStartPost=/usr/bin/systemctl --user set-environment WAYLAND_DISPLAY=${socket}
+ExecStopPost=/usr/bin/systemctl --user unset-environment WAYLAND_DISPLAY
 Restart=on-failure
 RestartSec=5
 
