@@ -4425,9 +4425,38 @@ for _cloud_promise, _why in (
             f"build.sh's cloud section must set `{_cloud_promise}` — {_why}")
 
 _workflow = read(".github/workflows/build.yml")
-require("image_name: moos-cloud" in _workflow,
-        "the CI matrix must build moos-cloud — an edition CI does not publish is an "
-        "edition nobody can install")
+
+# EVERY edition, from ONE push, or "we all share one tree" is a slogan.
+#
+# The whole argument for keeping three editions in one repository (MOOS_CLOUD_PLAN
+# §1) is that a fix lands once and reaches every machine. That is only true while
+# every edition is a row in the same matrix, built from the same checkout of the
+# same commit. Drop a row and that edition simply stops moving: no error, no failed
+# job, just an image tag that quietly stays at whatever it was, while `main` and the
+# other editions march on. The owner would keep shipping fixes and keep wondering
+# why one machine never changed.
+#
+# moos-nvidia is the dangerous one to lose, because it is the maintainer's own
+# daily driver — the machine AGENTS.md opens by warning about.
+for _edition, _who in (
+    ("moos",        "the generic desktop edition"),
+    ("moos-nvidia", "the maintainer's own daily-driver machine"),
+    ("moos-cloud",  "every server converted with moos-cloud-convert"),
+):
+    require(f"image_name: {_edition}" in _workflow,
+            f"the CI matrix no longer builds {_edition}. That edition stops receiving "
+            f"every fix merged from now on, silently — nothing fails, the tag just "
+            f"stops moving. This one is {_who}.")
+
+# One checkout per run, and the signing step keyed on the matrix name, is what makes
+# the three images the SAME source rather than three things that happen to be built
+# nearby. A hardcoded IMAGE_NAME in the signing step would sign one edition's digest
+# under another's name.
+require("cosign sign -y --key env://COSIGN_PRIVATE_KEY" in _workflow
+        and '"${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"' in _workflow,
+        "each matrix job must sign ITS OWN image name and digest. A literal image "
+        "name here signs one edition's bytes under another edition's tag, and the "
+        "installed systems enforce that signature.")
 require("build-cloud:" in read("Justfile"),
         "the Justfile must carry a build-cloud recipe, or the edition can only be "
         "built by hand-typing the build args")
