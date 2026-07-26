@@ -728,6 +728,117 @@ class TestMoOSUI2(unittest.TestCase):
                 f"UI migration does not clear the {stale_cache} SVG cache",
             )
 
+    def test_dock_corner_bands_are_annuli_with_no_stray_run(self) -> None:
+        """A rounded corner band is an annulus — outer arc, radial step, inner arc.
+
+        The shipped dock grew a stray turquoise line falling out of its top-left
+        corner, on every one of the sixteen themes at once. The cause was a
+        corner accent written `M0 18A18 18 0 0 1 18 0V18H17V2A16 16 0 0 0 1 18Z`:
+        `V18` ran the pen the full height of the corner tile before doubling
+        back, enclosing a 1x16 rectangle of accent that is not part of any
+        radius, and its inner arc could not solve about the corner's own centre.
+
+        Two things are asserted, because either alone would have passed while the
+        dock was visibly wrong:
+          * no corner path takes more than ONE straight step between its arcs;
+          * every inner arc is exactly `radius - band` from the corner centre, so
+            the band cannot silently drift off-centre the way that one did.
+        """
+        corner_centre = {"topleft": (18, 18), "topright": (42, 18),
+                         "bottomleft": (18, 42), "bottomright": (42, 42)}
+        # Every SHIPPED theme, not just the base pair: the family members are
+        # recoloured copies of this geometry, so the stray line reached all
+        # sixteen at once and a two-theme check would have missed fourteen.
+        panels = sorted((SHARE / "plasma/desktoptheme")
+                        .glob("*/widgets/panel-background.svg"))
+        self.assertGreaterEqual(len(panels), 16, "the theme family shrank")
+        checked = 0
+        for panel in panels:
+            svg = ET.fromstring(panel.read_text(encoding="utf-8"))
+            for group in svg.iter():
+                name = group.attrib.get("id", "")
+                if name not in corner_centre:
+                    continue
+                cx, cy = corner_centre[name]
+                for path in group.iter("{http://www.w3.org/2000/svg}path"):
+                    d = path.attrib["d"]
+                    with self.subTest(theme=panel.parents[1].name, corner=name, d=d):
+                        steps = re.findall(r"[VH]\s*(-?[\d.]+)", d)
+                        self.assertLessEqual(
+                            len(steps), 1,
+                            "a corner band stepped more than once between its "
+                            "arcs — that encloses a straight sliver, which is "
+                            "exactly the stray line users saw in the dock",
+                        )
+                        for rx, _ry, ex, ey in re.findall(
+                            r"A\s*([\d.]+)\s+([\d.]+)\s+\d+\s+\d+\s+\d+\s+"
+                            r"(-?[\d.]+)\s+(-?[\d.]+)", d
+                        ):
+                            radius = math.hypot(float(ex) - cx, float(ey) - cy)
+                            self.assertAlmostEqual(
+                                radius, float(rx), places=6,
+                                msg="an arc endpoint is not its own radius from "
+                                    "the corner centre, so SVG re-solves the arc "
+                                    "about some other point and the band skews",
+                            )
+                        checked += 1
+        self.assertGreaterEqual(checked, 4 * len(panels),
+                                "every corner of every theme must be inspected")
+
+    def test_dock_tiles_say_which_apps_are_open(self) -> None:
+        """`normal` and `minimized` must carry a visible running indicator.
+
+        Probed on the running session: Plasma hides the task frame entirely for a
+        pinned app that is not running, draws `normal` for one that is running
+        and on screen, `minimized` for one that is running but put away, and
+        `focus` for the active window. `normal` shipped as fill="none", so an
+        open, visible, unfocused app was indistinguishable from a closed one —
+        the dock could not answer "what is running?" at all.
+
+        `hover` must NOT carry the indicator: Plasma draws that prefix on pinned
+        launchers too, so an accent bar there would claim a closed app is open
+        for as long as the pointer rests on it.
+        """
+        tasks_files = sorted((SHARE / "plasma/desktoptheme")
+                             .glob("*/widgets/tasks.svg"))
+        self.assertGreaterEqual(len(tasks_files), 16, "the theme family shrank")
+        for tasks in tasks_files:
+            theme = tasks.parents[1].name
+            text = tasks.read_text(encoding="utf-8")
+            svg = ET.fromstring(text)
+            # Each theme recolours the accent, so read this file's own highlight
+            # rather than hunting for the base turquoise in fifteen other hues.
+            accent = re.search(
+                r'\.ColorScheme-Highlight\s*\{\s*color:\s*(#[0-9A-Fa-f]{6})', text
+            ).group(1)
+            bottoms = {
+                element.attrib["id"]: element
+                for element in svg.iter()
+                if element.attrib.get("id", "").endswith("-bottom")
+            }
+            for state, wants_bar in (("normal", True), ("minimized", True),
+                                     ("focus", True), ("hover", False)):
+                with self.subTest(theme=theme, state=state):
+                    group = bottoms.get(f"{state}-bottom")
+                    self.assertIsNotNone(group, f"{state}-bottom is missing")
+                    accented = [
+                        child for child in group
+                        if child.attrib.get("fill", "").startswith("url(")
+                        or child.attrib.get("fill") == accent
+                    ]
+                    if wants_bar:
+                        self.assertTrue(
+                            accented,
+                            f"{state} has no accent indicator: the dock cannot "
+                            f"say that this app is open",
+                        )
+                    else:
+                        self.assertFalse(
+                            accented,
+                            "hover must not claim an app is running — Plasma "
+                            "draws it on pinned launchers as well",
+                        )
+
     def test_every_theme_keeps_one_safe_kwin_frost_profile(self) -> None:
         """Applying a family member must not silently weaken or overdrive blur."""
         shipped_kwin = load_kconfig(ROOT / "system_files/etc/xdg/kwinrc")

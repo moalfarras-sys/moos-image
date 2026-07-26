@@ -259,8 +259,18 @@ class MoOSVisualSystemTests(unittest.TestCase):
         self.assertIn(
             'displayLocale: rtl ? Qt.locale("ar") : Qt.locale()', qml
         )
+        # The pattern must go through Locale.toString. This test used to assert
+        # `Qt.formatDate(now, locale, "ddd d MMM")`, which LOOKS like it applies
+        # the pattern and does not: the three-argument overload takes a
+        # Locale.FormatType, so the string was discarded and the dock rendered
+        # the full long date instead of the compact one this test is named for.
+        # A green assertion sat on top of the broken call for a whole revision.
         self.assertIn(
-            'Qt.formatDate(root.now, root.displayLocale, "ddd d MMM")', qml
+            'root.displayLocale.toString(root.now, "ddd d MMM")', qml
+        )
+        self.assertNotIn(
+            'Qt.formatDate(root.now, root.displayLocale, "ddd d MMM")', qml,
+            "Qt.formatDate ignores a format string in its locale overload",
         )
 
     def test_first_party_icons_are_owned_and_take_theme_precedence(self) -> None:

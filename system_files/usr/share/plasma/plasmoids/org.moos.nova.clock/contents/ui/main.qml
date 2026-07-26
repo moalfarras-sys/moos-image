@@ -71,12 +71,38 @@ PlasmoidItem {
 
         Accessible.name: root.toolTipMainText + ", " + root.toolTipSubText
 
+        // The clock is a CHIP, not loose text. The dock now carries the launcher
+        // as a chip at one end; giving the clock the same quiet glass at the
+        // other end is what makes the dock read as one designed object instead
+        // of a bar with things dropped on it. Faint at rest on purpose — this
+        // sits over live wallpaper all day and must never shout.
         Rectangle {
+            id: chip
             anchors.fill: parent
-            radius: Kirigami.Units.cornerRadius
-            color: Kirigami.Theme.textColor
-            opacity: compact.containsMouse ? 0.10 : (root.expanded ? 0.07 : 0.0)
-            Behavior on opacity { NumberAnimation { duration: 120 } }
+            anchors.topMargin: Kirigami.Units.smallSpacing
+            anchors.bottomMargin: Kirigami.Units.smallSpacing
+            radius: height / 2
+
+            // The glass is an ALPHA on the colour, never `opacity`. Item opacity
+            // multiplies onto children, so a 0.05 chip took the lit hairline
+            // below down to 0.05 x 0.25 and it never appeared on screen at all.
+            readonly property real glass: compact.containsMouse ? 0.13
+                                        : (root.expanded ? 0.10 : 0.05)
+            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                           Kirigami.Theme.textColor.b, glass)
+            Behavior on color { ColorAnimation { duration: 140 } }
+
+            // One hairline along the top edge, lit like the dock's own rim, so
+            // the chip is made of the same material as the panel under it.
+            Rectangle {
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                anchors.leftMargin: parent.radius * 0.6
+                anchors.rightMargin: parent.radius * 0.6
+                height: 1
+                color: Kirigami.Theme.highlightColor
+                opacity: compact.containsMouse ? 0.60 : 0.30
+                Behavior on opacity { NumberAnimation { duration: 140 } }
+            }
         }
 
         // A turquoise hairline sweeps in under the time on hover — the same
@@ -104,6 +130,7 @@ PlasmoidItem {
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             Text {
+                id: timeLabel
                 text: Qt.formatTime(root.now, "HH:mm")
                 color: Kirigami.Theme.textColor
                 font.family: "IBM Plex Sans"
@@ -114,18 +141,56 @@ PlasmoidItem {
                 // undefined. Tabular figures keep the clock from twitching as the
                 // digits change width.
                 font.features: ({ "tnum": 1 })
+
+                // The minute turns over with a short rise, so the one moment
+                // this applet has anything to say is the one moment it moves.
+                // It rides a Translate rather than y/anchors: the layout must not
+                // see the applet change height mid-animation, or the whole dock
+                // relayouts sixty times an hour.
+                transform: Translate { id: minuteShift }
+                onTextChanged: minuteTurn.restart()
+                SequentialAnimation {
+                    id: minuteTurn
+                    ParallelAnimation {
+                        NumberAnimation {
+                            target: minuteShift; property: "y"
+                            from: -Math.round(Kirigami.Units.gridUnit * 0.35); to: 0
+                            duration: 340; easing.type: Easing.OutCubic
+                        }
+                        NumberAnimation {
+                            target: timeLabel; property: "opacity"
+                            from: 0.25; to: 1.0
+                            duration: 300; easing.type: Easing.OutCubic
+                        }
+                    }
+                }
             }
 
+            // The divider carries the accent instead of grey text: it is the one
+            // pixel of MoOS turquoise at this end of the dock, answering the lit
+            // rim above it and the launcher chip opposite.
             Rectangle {
-                Layout.preferredWidth: 1
-                Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * 0.8)
+                Layout.preferredWidth: 2
+                Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * 0.72)
                 Layout.alignment: Qt.AlignVCenter
-                color: Kirigami.Theme.textColor
-                opacity: 0.18
+                radius: width / 2
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Kirigami.Theme.highlightColor }
+                    GradientStop { position: 1.0; color: Kirigami.Theme.textColor }
+                }
+                opacity: compact.containsMouse ? 0.75 : 0.45
+                Behavior on opacity { NumberAnimation { duration: 140 } }
             }
 
             Text {
-                text: Qt.formatDate(root.now, root.displayLocale, "ddd d MMM")
+                // `Qt.formatDate(date, locale, "ddd d MMM")` does NOT accept a
+                // format STRING in its three-argument form — that overload wants
+                // a Locale.FormatType, so the pattern was discarded and the dock
+                // silently rendered the full long date ("الاثنين، ٢٧ يوليو ٢٠٢٦"),
+                // stretching the clock across the end of the panel. Locale.toString
+                // is the call that honours a pattern, and it still uses the
+                // locale's own day and month names. Same call the lock clock makes.
+                text: root.displayLocale.toString(root.now, "ddd d MMM")
                 color: Kirigami.Theme.textColor
                 opacity: 0.66
                 font.family: root.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"

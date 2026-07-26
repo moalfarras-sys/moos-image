@@ -220,6 +220,10 @@ OPACITY = {
     "dark": {
         "@GLASS_P0@": "0.78", "@GLASS_P1@": "0.83", "@GLASS_P2@": "0.90", "@GLASS_P3@": "0.93",
         "@RIM_LUM@": "0.62", "@RIM_ACCENT@": "0.42", "@RIM_OUTLINE@": "0.28",
+        # The accent light that falls INTO the glass under the lit top edge.
+        # It is what stops the rim reading as a printed neon outline; keep it
+        # well under the rim itself or the dock glows instead of gleaming.
+        "@RIM_BLEED@": "0.20",
         "@DLG_P0@": "0.78", "@DLG_P1@": "0.82", "@DLG_P2@": "0.88", "@DLG_P3@": "0.92",
         "@DLG_RIM_LUM@": "0.60", "@DLG_RIM_OUTLINE@": "0.24", "@DLG_RIM_ACCENT@": "0.34",
     },
@@ -229,6 +233,9 @@ OPACITY = {
         # KWin's frost stops showing (enforced by test_glass_surfaces_*).
         "@GLASS_P0@": "0.82", "@GLASS_P1@": "0.87", "@GLASS_P2@": "0.91", "@GLASS_P3@": "0.93",
         "@RIM_LUM@": "0.46", "@RIM_ACCENT@": "0.14", "@RIM_OUTLINE@": "0.30",
+        # Light glass already carries its own luminance, so the bleed is halved:
+        # at the dark value it turns the porcelain dock's top edge minty.
+        "@RIM_BLEED@": "0.10",
         "@DLG_P0@": "0.82", "@DLG_P1@": "0.85", "@DLG_P2@": "0.90", "@DLG_P3@": "0.92",
         "@DLG_RIM_LUM@": "0.44", "@DLG_RIM_OUTLINE@": "0.26", "@DLG_RIM_ACCENT@": "0.22",
     },
