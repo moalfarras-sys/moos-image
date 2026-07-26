@@ -7,7 +7,27 @@ PartOf=plasma-workspace.target
 
 [Service]
 Type=simple
-ExecStart=/bin/sh -c 'export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-$(basename "$(find "%t" -maxdepth 1 -type s -name "wayland-*" -print -quit)")}"; exec /usr/bin/systemd-inhibit --what=sleep:idle --who=MoRemotePersonal --why=Remote-access-availability --mode=block /usr/lib/mo-remote/MoRemotePersonal'
+# The sleep inhibitor is a NICE-TO-HAVE and must never be a precondition.
+#
+# systemd-inhibit --mode=block asks logind for a lock, and logind asks polkit,
+# and polkit's rule for it is allow_active — i.e. a LOCAL, ACTIVE session. A
+# session that is lingering, headless, or on a virtual output is none of those,
+# so the call is refused:
+#
+#   Failed to inhibit: Access denied as the requested operation requires
+#   interactive authentication.
+#
+# systemd-inhibit then exits non-zero, and because it was the exec'd process the
+# whole unit fails, restarts, fails again — sitting in "activating" for ever on a
+# machine where the desktop and the streamer are both perfectly healthy. Found
+# exactly that way on a MoOS Cloud server: the second developer's remote never
+# started, and nothing in its log said why except this one line.
+#
+# A server does not suspend, so on that machine the inhibitor is worth nothing at
+# all — and on a laptop, where it IS worth something, the session is local and
+# active and the lock is granted. So: try it, and if it is refused, run without
+# it. The remote access is the point; the sleep lock is an optimisation for it.
+ExecStart=/bin/sh -c 'export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-$(basename "$(find "%t" -maxdepth 1 -type s -name "wayland-*" -print -quit)")}"; if /usr/bin/systemd-inhibit --what=sleep:idle --who=MoRemotePersonal --why=Remote-access-availability --mode=block /bin/true 2>/dev/null; then exec /usr/bin/systemd-inhibit --what=sleep:idle --who=MoRemotePersonal --why=Remote-access-availability --mode=block /usr/lib/mo-remote/MoRemotePersonal; else echo "mo-remote: no sleep inhibitor (session is not local+active) — starting without it" >&2; exec /usr/lib/mo-remote/MoRemotePersonal; fi'
 Restart=on-failure
 RestartSec=3
 Environment=DOTNET_EnableDiagnostics=0
