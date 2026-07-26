@@ -5,8 +5,8 @@ what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
 Last updated: 2026-07-26 (session L — MoPlayer 1.2 repaired, visually audited,
-locally installed, vendored, and built into both MoOS editions; signed system
-publication and staging are the remaining release steps).
+locally installed, vendored, built into both MoOS editions, published, signed
+and staged; reboot and the post-update checks are the remaining release steps).
 
 > **Session L — MoPlayer 1.2 desktop playback overhaul (2026-07-26).** The
 > canonical `~/MoPlayerMoOS` release is `e856461`, pushed on `main`, and the
@@ -37,7 +37,12 @@ publication and staging are the remaining release steps).
 > then built successfully from the same source: generic `moos:latest`
 > (`0328de17…`) and NVIDIA `moos-nvidia:latest` (`8929faea…`), including the
 > app/identity/initramfs/bootc gates and NVIDIA 610.43.03 modules matched to
-> kernel 7.1.4-204.
+> kernel 7.1.4-204. Image commit `7308e57` was then published by CI run
+> `30182998521`: generic, NVIDIA and cloud all built, pushed, cosign-signed, and
+> verified against the OS-enforced public key. The machine has staged the exact
+> signed NVIDIA digest `sha256:9608f65a…` as version `44.20260726.358`; the
+> booted deployment remains `44.20260725.357` until the user reboots, after which
+> `tests/post-update-check.sh` is still required before calling the boot proven.
 
 > **Session K — MoPlayer 1.1 (2026-07-25).** The canonical
 > `~/MoPlayerMoOS` repository, not only its image snapshot, now owns the rebuilt
