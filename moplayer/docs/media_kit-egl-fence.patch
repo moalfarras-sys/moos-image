@@ -1,0 +1,91 @@
+--- /tmp/claude-1000/-var-home-moos-MoPlayerMoOS/ea48de9c-a924-4eba-99fa-a370cb7f6dff/scratchpad/texture_gl.cc.orig	2026-07-26 19:40:28.562795948 +0200
++++ /tmp/claude-1000/-var-home-moos-MoPlayerMoOS/ea48de9c-a924-4eba-99fa-a370cb7f6dff/scratchpad/mkv_patched/linux/texture_gl.cc	2026-07-26 19:41:55.491594281 +0200
+@@ -16,6 +16,18 @@
+ typedef EGLBoolean (*PFNEGLDESTROYIMAGEKHRPROC)(EGLDisplay dpy, EGLImageKHR image);
+ typedef void (*PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)(GLenum target, GLeglImageOES image);
+ 
++// EGL_KHR_fence_sync / EGL_KHR_wait_sync. See the sync block in
++// texture_gl_populate_texture for why these are needed.
++typedef EGLSyncKHR (*MkCreateSyncKHR)(EGLDisplay, EGLenum, const EGLint*);
++typedef EGLBoolean (*MkDestroySyncKHR)(EGLDisplay, EGLSyncKHR);
++typedef EGLint (*MkClientWaitSyncKHR)(EGLDisplay, EGLSyncKHR, EGLint, EGLTimeKHR);
++typedef EGLint (*MkWaitSyncKHR)(EGLDisplay, EGLSyncKHR, EGLint);
++
++static MkCreateSyncKHR mk_egl_create_sync = NULL;
++static MkDestroySyncKHR mk_egl_destroy_sync = NULL;
++static MkClientWaitSyncKHR mk_egl_client_wait_sync = NULL;
++static MkWaitSyncKHR mk_egl_wait_sync = NULL;
++
+ // Define the extension functions
+ #ifndef eglCreateImageKHR
+ static PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR = NULL;
+@@ -33,6 +45,10 @@
+     eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
+     eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
+     glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
++    mk_egl_create_sync = (MkCreateSyncKHR)eglGetProcAddress("eglCreateSyncKHR");
++    mk_egl_destroy_sync = (MkDestroySyncKHR)eglGetProcAddress("eglDestroySyncKHR");
++    mk_egl_client_wait_sync = (MkClientWaitSyncKHR)eglGetProcAddress("eglClientWaitSyncKHR");
++    mk_egl_wait_sync = (MkWaitSyncKHR)eglGetProcAddress("eglWaitSyncKHR");
+     initialized = TRUE;
+   }
+ }
+@@ -249,12 +265,55 @@
+     
+     // Unbind FBO
+     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+-    
+-    // Flush to ensure rendering is complete
++
++    // Hand the frame over to Flutter's context *with a fence*.
++    //
++    // This used to be a bare glFlush(). glFlush only guarantees that the
++    // commands have been submitted — it says nothing about them having
++    // completed. Flutter samples this texture from a different EGL context on
++    // its own raster thread, so with only a flush it can read the image while
++    // mpv's writes for the same frame are still executing on the GPU. The
++    // result is a frame that is part new and part old: horizontal tearing that
++    // gets worse the higher the resolution and frame rate, because a larger
++    // frame leaves a wider window for the read to land in.
++    //
++    // The EGL specification is explicit that sharing an image across contexts
++    // needs a sync object. A fence created here, waited on in Flutter's
++    // context, makes Flutter's sampling queue behind mpv's rendering.
++    EGLSyncKHR fence = EGL_NO_SYNC_KHR;
++    if (mk_egl_create_sync != NULL) {
++      fence = mk_egl_create_sync(egl_display, EGL_SYNC_FENCE_KHR, NULL);
++    }
++    // The fence must be flushed to the GPU or a wait on it can deadlock.
+     glFlush();
+-    
++
+     // Restore Flutter's context
+     eglMakeCurrent(flutter_display, flutter_draw, flutter_read, flutter_context);
++
++    if (fence != EGL_NO_SYNC_KHR) {
++      // Prefer the server-side wait: it inserts a dependency into Flutter's GPU
++      // queue and returns immediately, so the raster thread never blocks.
++      if (mk_egl_wait_sync != NULL) {
++        mk_egl_wait_sync(egl_display, fence, 0);
++      } else if (mk_egl_client_wait_sync != NULL) {
++        // No EGL_KHR_wait_sync: fall back to blocking the CPU. Slower, but a
++        // late frame is a far smaller problem than a torn one.
++        mk_egl_client_wait_sync(egl_display, fence,
++                                EGL_SYNC_FLUSH_COMMANDS_BIT_KHR,
++                                EGL_FOREVER_KHR);
++      }
++      if (mk_egl_destroy_sync != NULL) {
++        mk_egl_destroy_sync(egl_display, fence);
++      }
++    } else if (mk_egl_create_sync == NULL) {
++      // Neither extension is present. glFinish is the last resort that is still
++      // correct: it stalls until mpv's work is genuinely done.
++      EGLDisplay d = eglGetCurrentDisplay();
++      EGLContext c = eglGetCurrentContext();
++      eglMakeCurrent(egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_context);
++      glFinish();
++      eglMakeCurrent(d, flutter_draw, flutter_read, c);
++    }
+   }
+   
+   *target = GL_TEXTURE_2D;

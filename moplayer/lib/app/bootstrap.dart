@@ -1,35 +1,15 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/config/app_config.dart';
 import '../core/utils/app_logger.dart';
+import '../core/utils/app_paths.dart';
 import '../providers/core_providers.dart';
 import '../services/cache/cache_service.dart';
 import '../services/device/device_service.dart';
 import '../services/storage/secure_storage_service.dart';
 import '../services/supabase/supabase_service.dart';
 import 'launch_args.dart';
-
-/// Where the cache and the library live on disk.
-///
-/// `Hive.initFlutter()` would put them under `getApplicationDocumentsDirectory()`
-/// — which on Linux is **the user's Documents folder**, localised: the first run
-/// of this app created `~/Dokumente/moplayer/`. That is not a bug in Hive; it is
-/// path_provider faithfully answering a question that only makes sense on iOS. On
-/// a freedesktop system, application state belongs in `$XDG_DATA_HOME`, and a
-/// video player has no business writing a lock file into a folder the user
-/// backs up and syncs.
-String _appDataDir() {
-  final xdg = Platform.environment['XDG_DATA_HOME'];
-  final base = (xdg != null && xdg.isNotEmpty)
-      ? xdg
-      : '${Platform.environment['HOME'] ?? '.'}/.local/share';
-  // CacheService creates it and owns the in-memory fallback. Doing filesystem
-  // work here would throw before that fallback can keep bootstrap survivable.
-  return Directory('$base/moplayer').path;
-}
 
 /// What the app needs before it can draw a single frame.
 class Boot {
@@ -45,7 +25,7 @@ class Boot {
 /// private storage, no
 /// network and no cloud must still start into a usable player.
 Future<Boot> bootstrap(LaunchArgs launch) async {
-  final dataDirectory = _appDataDir();
+  final dataDirectory = appDataDir();
   final secure = SecureStorageService(
     filePath: '$dataDirectory/private/credentials.json',
   );

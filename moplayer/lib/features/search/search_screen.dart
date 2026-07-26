@@ -152,7 +152,9 @@ class _Results extends ConsumerWidget {
     }
 
     return ListView(
-      padding: const EdgeInsets.only(bottom: Nova.space6),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.paddingOf(context).bottom + Nova.space6,
+      ),
       children: [
         if (live.isNotEmpty)
           _ResultSection(
@@ -241,7 +243,9 @@ class _ResultSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: Nova.space6),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.paddingOf(context).bottom + Nova.space6,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -267,7 +271,9 @@ class _ResultSection extends StatelessWidget {
               final extent = itemWidth / aspectRatio + 48;
 
               return GridView.builder(
-                padding: EdgeInsets.zero,
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.paddingOf(context).bottom,
+                ),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(

@@ -245,11 +245,14 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsetsDirectional.fromSTEB(
+            padding: EdgeInsetsDirectional.fromSTEB(
               Nova.space6,
               0,
               Nova.space6,
-              Nova.space6,
+              // The dock floats over the foot of the window and the shell hands
+              // this screen its height. A season with more episodes than fit
+              // otherwise ends with its last one half under the glass.
+              MediaQuery.paddingOf(context).bottom + Nova.space6,
             ),
             sliver: SliverList.builder(
               itemCount: season.episodes.length,

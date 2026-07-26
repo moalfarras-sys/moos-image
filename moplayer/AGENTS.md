@@ -25,22 +25,124 @@ This is the same failure MoOS's own `moos-qml-shell` exists to prevent for the
 QML apps: the runtime derived the app_id from its own binary name, Plasma could
 not match it to a `.desktop`, and drew the green Qt diamond.
 
-### 2. The video texture path crashes on NVIDIA
+### 2. The video texture path — GL is correct, the CPU copy tears
 
 media_kit can hand mpv's frames to Flutter through a shared GL texture (zero
-copy) or through a CPU copy. On this machine the GL path **kills the process** —
-silently, no exception, no coredump — right after it logs `Using H/W rendering`
-and resizes the texture to 1920x1080. On the runs where media_kit happened to
-fall back to the CPU path, it played for as long as you left it.
+copy) or through a CPU copy. Both have bitten this app, in opposite directions.
 
-`PlayerService._useGpuTexturePath()` therefore turns the GL path **off when an
-NVIDIA driver is present**, and `MOPLAYER_VIDEO_HW=1` forces it back on for
-whoever eventually tests a fixed driver. Hardware *decoding* (`hwdec`) is a
-different setting and stays on; the GPU still does the work, only the last copy
-is on the CPU.
+**The CPU copy is not a safe fallback, it is a broken picture.** media_kit's
+`texture_sw_copy_pixels` hands Flutter's raster thread a raw pointer to the one
+pixel buffer mpv's render callback is concurrently writing into, and takes that
+buffer's mutex on the writer side only. One buffer, no fence: a frame Flutter
+uploads while mpv is midway through the next one is half old and half new. That
+is the horizontal break users report as "الصورة تتكسر". Clamping the surface to
+720p shrinks the window the race can land in — it looks fixed for a while — but
+it cannot close it, and it pays by upscaling every stream from 720p.
 
-Do not "optimise" this back to the default because a benchmark looks better. It
-was a coin flip, and the other side of the coin is the app vanishing mid-film.
+**The GL path used to kill the process** — silently, no exception, no coredump —
+right after it logged `Using H/W rendering` and resized the texture to
+1920x1080. The reason was never the interop itself: media_kit_video **1.x
+rendered on Flutter's own EGL context**, and two threads driving one context is
+undefined behaviour NVIDIA answers by taking the process with it.
+
+media_kit_video **2.0 renders on an isolated context of its own** — the log line
+is now `H/W rendering with isolated EGL context.` — and that is the fix. This
+repo moved to 2.0.1 during the 1.2 overhaul; the NVIDIA guard simply had not
+been re-tested against it and kept the app on the torn path for a release.
+Verified 2026-07-26 on the RTX 2080 SUPER (open module 610.43.03, Plasma
+Wayland): three minutes of unbroken 1080p, full-resolution texture, position
+advancing in real time.
+
+So the GL path is now the default **everywhere, NVIDIA included**. What keeps
+that honest is `VideoPathProbe`: a marker written before the texture is created
+and removed once playback has proven itself, either by ten seconds of continuous
+play or by a clean shutdown. Two launches in a row that reach neither, and the
+app falls back to the CPU path by itself and says so. The failure mode this
+guards is unobservable from inside the process, so the check happens on the
+*next* launch — that is the whole design, and `test/video_path_probe_test.dart`
+is what keeps it working.
+
+The lesson worth keeping is not "GL is dangerous". It is that the last version
+of this file stated a hardware verdict — *NVIDIA crashes* — for what was really
+a **library bug**, and the workaround then outlived the bug by a whole release.
+When a dependency that owns the failing code moves a major version, re-run the
+experiment before trusting the guard written against the old one.
+
+Hardware *decoding* (`hwdec`) is a different setting and is on either way.
+`MOPLAYER_VIDEO_HW=0` forces the CPU path back; `=1` forces GL on even after the
+probe has tripped.
+
+### 2b. "The picture is breaking up" usually means interlacing, not tearing
+
+A large share of live IPTV channels are 1080i or 576i, because the satellite and
+cable feeds they are restreamed from are. Each frame is two fields captured 20 ms
+apart, and shown without deinterlacing anything that moves grows a comb of
+horizontal lines. A viewer reports that in exactly the words they would use for a
+torn frame — *الصورة تتكسر*, the picture is breaking.
+
+mpv's default is `deinterlace=no`, which is right for a file player and wrong for
+live TV. `_tuneForIptv()` sets `auto`, and the player exposes an override,
+because the automatic answer trusts the stream's own flags and re-encoded
+channels lie in both directions.
+
+Do not add a manual `vf` deinterlacer next to it: mpv inserts its own for this
+property, and a hand-set chain deinterlaces twice rather than better.
+
+**Before blaming the renderer for a picture fault, get the numbers.** The
+statistics panel (`O`, or the tune button) and the one-line `playback:` summary
+in the journal report the decoder, real resolution, both dropped-frame counters
+and the buffer. Software decoding, a channel that is genuinely 720p, a starved
+cache and a mismatched frame rate all look identical to a viewer and produce
+completely different numbers there.
+
+### 2c. Known upstream: media_kit hands Flutter the texture without a fence
+
+`texture_gl_populate_texture` in media_kit_video 2.0.1 renders mpv's frame on
+mpv's EGL context, calls `glFlush()`, switches to Flutter's context and returns
+the texture. `glFlush` only *submits* commands — it does not wait for them. The
+EGL specification requires a sync object to share an image across contexts, so
+Flutter's raster thread can legally sample the texture while mpv's writes for
+that frame are still executing.
+
+This is a real defect and the fix is a fence (`eglCreateSyncKHR` on mpv's
+context, `eglWaitSyncKHR` on Flutter's). It is **not applied**, because applying
+it means vendoring the plugin — and this app's licence to live in the MoOS image
+is that it adds nothing to the image's dependency surface. That is a maintainer's
+call, not a passing one. A working patch is described in the commit that added
+this section.
+
+If a torn picture survives deinterlacing, this is the next thing to try.
+
+### 2d. Recording, timeshift and stills are libmpv, not a second pipeline
+
+`stream-record` writes the packets mpv is already demuxing straight to disk, so
+recording a 4K channel is a remux that costs almost no CPU and cannot change the
+picture. Timeshift is `demuxer-max-back-bytes`: mpv keeps packets it has already
+played and can seek inside them, which is why pausing and rewinding live TV
+needs no recording at all. `screenshot-to-file … video` saves the decoded frame
+at source resolution with no overlay.
+
+Do not reimplement any of these on top of the app. Each one would mean a second
+connection to the panel and a second decode of the same stream, and an IPTV
+subscription usually caps concurrent connections — the user would lose the
+channel they are watching in order to record it.
+
+Recordings are Matroska on purpose: it is the container that survives being cut
+off mid-write, which is the normal way a recording of live TV ends. An
+interrupted `.mp4` has no index and plays nowhere.
+
+### 3. The file dialog belongs to the desktop
+
+`services/system/file_chooser.dart` calls the XDG desktop portal over the
+session bus rather than pulling in a Flutter file-picker. Under Wayland a client
+cannot draw a filesystem browser on its own terms, and going through the portal
+means the user gets *Plasma's* dialog — their bookmarks, their recent folders —
+instead of a second file browser that looks like nothing else in the session. It
+also costs no new dependency, because `package:dbus` is already here for MPRIS.
+
+A missing portal returns null and the feature quietly does not happen. That is
+the same rule as `bootstrap()`: nothing in this app may be fatal because an
+optional session service is absent.
 
 ### 3. Application state does not go in Documents
 

@@ -225,6 +225,57 @@ class DesktopService {
         rect.height <= area.height + 1;
   }
 
+  /// Picture-in-picture: a small window that floats above everything else.
+  ///
+  /// On a desktop this is a *window* mode, not the phone-style overlay the name
+  /// suggests: it shrinks MoPlayer, pins it on top and parks it out of the way,
+  /// so a match keeps playing in the corner while the user works. Leaving it
+  /// restores the exact rectangle the window had before, which is the whole
+  /// point — a picture-in-picture that forgets where the window was is a window
+  /// the user has to re-place every time.
+  ///
+  /// The app id and MPRIS identity are untouched, so Plasma keeps showing one
+  /// MoPlayer in the task bar and the media controls keep working.
+  Future<bool> setPictureInPicture(bool enabled) async {
+    if (!Platform.isLinux) return false;
+    try {
+      if (enabled) {
+        if (_beforePip == null) {
+          _beforePip = await windowManager.getBounds();
+          if (await windowManager.isMaximized()) {
+            await windowManager.unmaximize();
+          }
+        }
+        // 16:9, large enough to actually watch, small enough to leave the
+        // desktop usable. Bottom-right of the *work area*, so it does not land
+        // under the dock — the same reasoning as the startup geometry above.
+        const size = Size(480, 270);
+        final area = await _workArea();
+        final left = (area?.width ?? 1920) - size.width - 24;
+        final top = (area?.height ?? 1080) - size.height - 24;
+        await windowManager.setBounds(
+          Rect.fromLTWH(left, top, size.width, size.height),
+        );
+        await windowManager.setAlwaysOnTop(true);
+        _pictureInPicture = true;
+      } else {
+        await windowManager.setAlwaysOnTop(false);
+        final restore = _beforePip;
+        if (restore != null) await windowManager.setBounds(restore);
+        _beforePip = null;
+        _pictureInPicture = false;
+      }
+      return true;
+    } on Exception catch (e) {
+      log.w('picture-in-picture: $e');
+      return false;
+    }
+  }
+
+  Rect? _beforePip;
+  bool _pictureInPicture = false;
+  bool get isPictureInPicture => _pictureInPicture;
+
   /// The current geometry, for persisting on exit.
   Future<WindowGeometry?> geometry() async {
     if (!Platform.isLinux) return null;

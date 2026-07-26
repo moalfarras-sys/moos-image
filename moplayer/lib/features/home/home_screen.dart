@@ -142,7 +142,15 @@ class HomeScreen extends ConsumerWidget {
             : ref.watch(movieDetailProvider(movieHero)).valueOrNull;
 
         return ListView(
-          padding: EdgeInsets.zero,
+          // The dock floats over the foot of the window and the shell hands
+          // this screen its height (see `main_shell.dart`). Passing
+          // `EdgeInsets.zero` here ignored that contract, so the last rail —
+          // "continue watching", the one row most likely to be wanted — was
+          // drawn underneath the glass and could not be scrolled clear of it.
+          // Only the *bottom* is padded: the hero is deliberately full bleed.
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.paddingOf(context).bottom + Nova.space5,
+          ),
           children: [
             if (resumeHero != null)
               HomeHero(
@@ -357,32 +365,56 @@ class _WidgetRow extends StatelessWidget {
             width: narrow ? double.infinity : 260,
           );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (matches.isNotEmpty) ...[
-          SectionHeader(title: title),
-          const SizedBox(height: Nova.space4),
+    if (narrow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (matchStrip != null) ...[
+            SectionHeader(title: title),
+            const SizedBox(height: Nova.space4),
+            matchStrip,
+          ],
+          if (matchStrip != null && weatherTile != null)
+            const SizedBox(height: Nova.space4),
+          ?weatherTile,
         ],
-        if (narrow)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ?matchStrip,
-              if (matchStrip != null && weatherTile != null)
+      );
+    }
+
+    return Row(
+      // Bottom-aligned, so the weather tile lines up with the fixture cards
+      // rather than with the heading that sits above them.
+      //
+      // Deliberately not `stretch`: this row is built inside a ListView, where
+      // the cross axis is unbounded, and stretching a child into that made the
+      // strip paint outside its box and straight through the rail below it.
+      // `end` needs no bounded height — every child here already has one
+      // (MatchStrip is a fixed 128, the tile is intrinsic).
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // The weather leads. It used to trail, which put the strip's scrolling
+        // cut edge directly against the tile: the half-visible fixture read as
+        // a broken card rather than as "there is more, scroll". Leading it puts
+        // that cut at the window's own edge, where an overflowing rail is
+        // supposed to end.
+        if (weatherTile != null) ...[
+          weatherTile,
+          const SizedBox(width: Nova.space4),
+        ],
+        if (matchStrip != null)
+          Expanded(
+            // The heading belongs to the fixtures alone. Spanning the whole row
+            // put "today's matches" over the weather too, which said the
+            // temperature was one of the day's fixtures.
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SectionHeader(title: title),
                 const SizedBox(height: Nova.space4),
-              ?weatherTile,
-            ],
-          )
-        else
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (matchStrip != null) Expanded(child: matchStrip),
-              if (matchStrip != null && weatherTile != null)
-                const SizedBox(width: Nova.space4),
-              ?weatherTile,
-            ],
+                matchStrip,
+              ],
+            ),
           ),
       ],
     );

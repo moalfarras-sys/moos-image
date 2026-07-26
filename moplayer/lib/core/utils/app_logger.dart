@@ -26,6 +26,14 @@ Level _level() {
 
 final Logger log = Logger(
   level: _level(),
+  // Not the default. `DevelopmentFilter` is gated on an `assert`, so it drops
+  // **every** record in a release build no matter what [_level] returned — which
+  // silently made the escape hatch above a comment rather than a feature, and a
+  // release build is the only build a user ever runs. `ProductionFilter` honours
+  // the level it is given, which is what makes `MOPLAYER_LOG` real; the default
+  // that level resolves to in release is still `warning`, so an ordinary run is
+  // no noisier than before.
+  filter: ProductionFilter(),
   printer: PrettyPrinter(
     methodCount: 0,
     errorMethodCount: 6,
