@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# 60-moai-ports — give each human their own Mo AI front door, on one machine.
+#
+# THE PROBLEM THIS SOLVES
+#
+# Mo AI is three small always-on USER services, each on a fixed loopback port:
+#
+#     moai-gateway    8080   the front door: routes to the brain, holds the key
+#     moai-control    8079   machine state + this user's brain config
+#     moai-agent-api  8077   this user's sessions, agent settings, Telegram token
+#
+# One human per machine, that is correct and simple. MoOS Cloud broke that
+# assumption the day `moos-cloud-dev` started adding a second developer to a
+# shared server, and nothing was updated to match. Measured on the maintainer's
+# own VPS with two accounts logged in:
+#
+#   * moalfarras's moai-agent-api  — FAILED, "[Errno 98] Address already in use"
+#   * momo's moai-control/gateway  — reported ACTIVE while spinning for ever on
+#                                    "port 8080 busy, retrying in 2s". Green and
+#                                    completely non-functional, which is the
+#                                    failure mode this repo keeps re-learning.
+#
+# And the part that is not just a bug:
+#
+#   $ runuser -u momo -- curl http://127.0.0.1:8080/v1/models
+#   {"object": "list", "data": [...]}          ← answered
+#
+# 8080 was moalfarras's gateway. The second developer's Mo AI was talking to the
+# FIRST developer's front door — and the gateway is, by its own design comment,
+# the one component that "alone ever sees" the cloud API key. There is no local
+# authentication to prevent it: X-Moai-Agent and X-Moai-Control are guards
+# against drive-by web pages, not against another account on the same machine.
+#
+# WHY A GENERATOR AND NOT A PATCH TO THE SERVICES
+#
+# All three already read their port from the environment (MOAI_GATEWAY_PORT,
+# MOAI_CONTROL_PORT, MOAI_AGENT_PORT). The knob existed; nothing ever turned it.
+# A user-environment-generator runs once per user manager and injects into that
+# user's whole session, so every service, the `moai` launcher and the app all
+# agree without a line of Python changing.
+#
+# THE OFFSET, AND WHY UID 1000 IS DELIBERATELY UNCHANGED
+#
+#     port = base + (uid - 1000) * 100
+#
+# The first account on any MoOS install is uid 1000, and 1000 - 1000 = 0. So the
+# maintainer's daily-driver desktop — one user, uid 1000 — keeps 8077/8079/8080
+# exactly as before. This change is invisible on every single-user machine, which
+# is the only responsible way to touch something the whole of Mo AI talks through.
+# The second developer (uid 1001) gets 8177/8179/8180.
+#
+# A stride of 100 rather than 1: the bases are 3 apart and the local brain sits on
+# 8081, so +1 would have walked user 1001's control port straight onto user 1000's
+# gateway, and their gateway onto the brain.
+#
+# WHAT IS DELIBERATELY *NOT* OFFSET: the local brain (MOAI_LOCAL_PORT / 8081).
+# That one is SHARED on purpose — it is the only expensive piece, a whole model
+# resident in RAM, and the owner's requirement is one brain for both people, not
+# one each. Both users' gateways route local traffic to that single engine.
+
+# A generator must print KEY=value lines and nothing else. Any noise here lands
+# in the user manager's environment, so stay quiet on every failure path.
+uid="$(id -u 2>/dev/null)" || exit 0
+case "$uid" in ''|*[!0-9]*) exit 0 ;; esac
+
+# System and dynamic users have no Mo AI session; leave their environment alone.
+[ "$uid" -ge 1000 ] || exit 0
+
+offset=$(( (uid - 1000) * 100 ))
+
+# Guard the top of the range. Beyond a handful of developers the arithmetic would
+# leave the registered-port space and start colliding with real services, and a
+# silent collision is precisely what this file exists to end.
+if [ "$offset" -gt 900 ]; then
+    exit 0
+fi
+
+printf 'MOAI_GATEWAY_PORT=%d\n' $(( 8080 + offset ))
+printf 'MOAI_CONTROL_PORT=%d\n' $(( 8079 + offset ))
+printf 'MOAI_AGENT_PORT=%d\n'   $(( 8077 + offset ))

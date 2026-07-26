@@ -79,8 +79,34 @@ Kirigami.ApplicationWindow {
     // listened on 8080, so only one could run, the choice was a global setting,
     // and changing it meant bouncing systemd units. That is why `route` below
     // exists at all.
-    readonly property string api: "http://127.0.0.1:8080/v1/chat/completions"
-    readonly property string controlApi: "http://127.0.0.1:8079"
+    //
+    // The port is no longer a constant, because the machine is no longer assumed
+    // to have one human on it. On a shared MoOS Cloud server every account gets
+    // its own front door (see 60-moai-ports), and `moai` forwards the ports this
+    // session actually resolved to.
+    //
+    // Before this, both developers' apps opened 127.0.0.1:8080 — so the SECOND
+    // one reached the FIRST one's gateway, and with it the cloud key that the
+    // gateway is meant to be the only thing that ever sees.
+    //
+    // The fallbacks below are the historical single-user values, so a desktop
+    // that passes no arguments at all behaves exactly as it always has.
+    function argPort(flag, fallback) {
+        const argv = Qt.application.arguments
+        const i = argv.indexOf(flag)
+        if (i !== -1 && i + 1 < argv.length) {
+            const n = parseInt(argv[i + 1], 10)
+            if (!isNaN(n) && n > 0 && n < 65536)
+                return n
+        }
+        return fallback
+    }
+    readonly property int gatewayPort: root.argPort("--gateway-port", 8080)
+    readonly property int controlPort: root.argPort("--control-port", 8079)
+    readonly property int agentPort:   root.argPort("--agent-port",   8077)
+
+    readonly property string api: "http://127.0.0.1:" + root.gatewayPort + "/v1/chat/completions"
+    readonly property string controlApi: "http://127.0.0.1:" + root.controlPort
 
     property var activeXhr: null
     property bool busy: false
@@ -4610,9 +4636,12 @@ Kirigami.ApplicationWindow {
     }
 
     // ── Agent plumbing ──────────────────────────────────────────────────────
-    // moai-agent-api (127.0.0.1:8077) is the ONLY bridge: pure QML has no Process
-    // API and cannot read ~/.openclaw itself. Same pattern as controlApi above.
-    readonly property string agentApi: "http://127.0.0.1:8077"
+    // moai-agent-api is the ONLY bridge: pure QML has no Process API and cannot
+    // read ~/.openclaw itself. Same pattern as controlApi above — and the same
+    // per-user port, because this one holds the most personal things Mo AI has
+    // (each human's sessions and their Telegram bot token) and must never be
+    // answered by another account's service.
+    readonly property string agentApi: "http://127.0.0.1:" + root.agentPort
     property var  agentSessions: []
     property var  agentThread: []
     property string agentCurrent: ""

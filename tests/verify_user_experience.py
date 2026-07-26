@@ -4540,6 +4540,67 @@ require("cosign verify --key cosign.pub" in _byml,
 #
 # Measured on the real server: the second developer's desktop streamed video and
 # accepted no keyboard or mouse at all, with `systemctl --failed` empty throughout.
+# ── Two humans, one machine: separate front doors, ONE brain ──────────────────
+#
+# Mo AI's three services are per-USER and were on fixed ports, which is correct for
+# one human per machine and silently wrong the moment `moos-cloud-dev` adds a
+# second developer to a shared server. Measured live with two accounts:
+# moalfarras's moai-agent-api FAILED on "[Errno 98] Address already in use", while
+# momo's control and gateway reported ACTIVE and spun for ever on "port 8080 busy,
+# retrying in 2s" — green and non-functional.
+#
+# Worse than a crash: `runuser -u momo -- curl http://127.0.0.1:8080/v1/models`
+# ANSWERED. The second developer's Mo AI was reaching the first's gateway, the one
+# component designed to be the only thing that ever sees the cloud API key. There
+# is no local auth to stop it — X-Moai-Agent/X-Moai-Control guard against web
+# pages, not against another account.
+_ports_gen = read("system_files/usr/lib/systemd/user-environment-generators/60-moai-ports")
+_ports_code = code(_ports_gen)
+for _var in ("MOAI_GATEWAY_PORT", "MOAI_CONTROL_PORT", "MOAI_AGENT_PORT"):
+    require(_var in _ports_code,
+            f"60-moai-ports no longer emits {_var}, so that service falls back to its "
+            "fixed port and two accounts on one machine collide again.")
+require("(uid - 1000)" in _ports_code,
+        "60-moai-ports must derive the offset from the uid — that is what keeps uid 1000 "
+        "(every single-user desktop, including the maintainer's) on exactly the ports it "
+        "has always used while giving a second account its own.")
+
+# THE SHARED-BRAIN INVARIANT. Read this before 'fixing' the generator for symmetry.
+#
+# MOAI_LOCAL_PORT is deliberately NOT offset. The gateway decides whether to start
+# the engine with local_online() — an HTTP probe of 127.0.0.1:<LOCAL_PORT>, not a
+# systemd query. Because every account probes the SAME 8081, the first chat that
+# needs the brain starts it and every other account's gateway finds it already
+# answering and forwards to it. One model resident in RAM for the whole server.
+#
+# Offset this one "for consistency" and each account silently loads its own copy —
+# on a 15 GB box with a 7B model that is the difference between working and
+# swapping to death, and nothing would report it as an error.
+require("MOAI_LOCAL_PORT" not in _ports_code,
+        "60-moai-ports sets MOAI_LOCAL_PORT. It must NOT: the local brain is shared on "
+        "8081 by design, and giving each account its own port makes each one load a "
+        "SEPARATE copy of the model into RAM, with no error anywhere to say so.")
+
+# The app has to be told which door is its own, or the whole scheme is theatre: the
+# services would move and the UI would keep opening 8080.
+_moai_launcher = code(read("system_files/usr/bin/moai"))
+for _flag in ("--gateway-port", "--control-port", "--agent-port"):
+    require(_flag in _moai_launcher,
+            f"the moai launcher does not pass {_flag} to the app. The services would "
+            "listen on this account's ports while the UI still opened the first "
+            "account's — which is exactly the cross-user leak this replaced.")
+_moai_qml_ports = read("system_files/usr/share/moos/apps/moai/main.qml")
+require('root.argPort("--gateway-port"' in _moai_qml_ports
+        and 'root.argPort("--control-port"' in _moai_qml_ports
+        and 'root.argPort("--agent-port"' in _moai_qml_ports,
+        "main.qml must resolve all three endpoints through argPort(). A hardcoded "
+        "127.0.0.1:8080 in the app sends the second developer to the first one's "
+        "gateway however carefully the services were separated.")
+require('"http://127.0.0.1:8080/v1/chat/completions"' not in _moai_qml_ports,
+        "main.qml still hardcodes the gateway URL — the per-user port scheme cannot work "
+        "while the app ignores it.")
+
+
 _own = read("system_files/usr/bin/moos-cloud-desktop")
 _own_code = code(_own)
 require("dbus-run-session" not in _own_code,

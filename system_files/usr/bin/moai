@@ -46,11 +46,24 @@ fi
 LOG="${CACHE}/moai.log"
 mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
 
-# The app always talks to 127.0.0.1:8080, which is moai-gateway — the always-on
-# front door, and the ONLY thing on that port. It routes each request to the
-# selected allowlisted local engine (starting it on demand) or to the configured
-# cloud provider, whose API key it alone ever sees. The app names the brain it
-# wants in the request itself, so the launcher passes nothing engine-specific.
+# The app talks to moai-gateway — the always-on front door, and the ONLY thing on
+# its port. It routes each request to the selected allowlisted local engine
+# (starting it on demand) or to the configured cloud provider, whose API key it
+# alone ever sees. The app names the brain it wants in the request itself, so the
+# launcher passes nothing engine-specific.
+#
+# It does, however, have to pass the PORTS, because they are no longer the same
+# for everyone. On a shared server each account runs its own front door on its own
+# port (60-moai-ports derives them from the uid; uid 1000 keeps 8080/8079/8077, so
+# a single-user desktop is unaffected). Without this the second developer's app
+# opened 127.0.0.1:8080 and reached the FIRST developer's gateway — and its cloud
+# key with it.
+#
+# Read them from the environment the generator populated, and fall back to the
+# historical constants so this still works if the generator is ever absent.
+GATEWAY_PORT="${MOAI_GATEWAY_PORT:-8080}"
+CONTROL_PORT="${MOAI_CONTROL_PORT:-8079}"
+AGENT_PORT="${MOAI_AGENT_PORT:-8077}"
 #
 # Run under moos-qml-shell, NOT the bare qml-qt6 runtime. The runtime derives the
 # Wayland app_id from its own executable name — org.qt-project.qml-qt6 — and
@@ -64,9 +77,14 @@ if [ -x /usr/bin/moos-qml-shell ]; then
     # Forward argv after `--` so `moai --panel device` reaches the app. That is how
     # moos-hardware and moos-compat land inside Mo AI instead of being separate
     # windows onto the same data.
+    # The port flags go BEFORE "$@" so a caller's own arguments still win the
+    # indexOf() lookups in the app, and so `moai --panel device` is unaffected.
     exec /usr/bin/moos-qml-shell \
         --app-id org.moos.moai --icon moos-moai --qml "$MAIN_QML" \
-        -- "$@" 2> >(tee -a "$LOG" >&2)
+        -- --gateway-port "$GATEWAY_PORT" \
+           --control-port "$CONTROL_PORT" \
+           --agent-port   "$AGENT_PORT" \
+           "$@" 2> >(tee -a "$LOG" >&2)
 fi
 
 # Fallback: the app still opens, it just wears the wrong icon. Better a Mo AI with
@@ -74,7 +92,13 @@ fi
 for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
     if command -v "$runner" >/dev/null 2>&1; then
         echo "=== moai launch $(date -u '+%Y-%m-%dT%H:%M:%SZ') via $runner (no moos-qml-shell: icon will be wrong) ===" >>"$LOG" 2>/dev/null || true
-        exec "$runner" "$MAIN_QML" -- "$@" 2> >(tee -a "$LOG" >&2)
+        # The ports matter on this path too. Without them a fallback launch on a
+        # shared server would open the wrong account's gateway — the wrong icon is
+        # cosmetic, reaching someone else's cloud key is not.
+        exec "$runner" "$MAIN_QML" -- --gateway-port "$GATEWAY_PORT" \
+                                      --control-port "$CONTROL_PORT" \
+                                      --agent-port   "$AGENT_PORT" \
+                                      "$@" 2> >(tee -a "$LOG" >&2)
     fi
 done
 
