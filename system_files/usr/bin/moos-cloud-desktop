@@ -188,8 +188,18 @@ UNIT
     echo
     local url
     url="$(tailscale_url)"
-    [ -n "$url" ] && note "${user} opens: ${url%:*}:${port}" \
-                  || note "${user} opens http://<tailscale-ip>:${port} once this server joins Tailscale"
+    # Sound is a SECOND tab, and saying so here is the difference between a
+    # feature and a secret. Mo PC Remote streams video only — it has no audio path
+    # at all — so moos-cloud-audio serves this account's sink monitor as
+    # Opus-in-WebM on its own port, which every browser plays natively.
+    local aport=$(( 8775 + uid - 1000 ))
+    if [ -n "$url" ]; then
+        note "${user} opens: ${url%:*}:${port}"
+        note "  and for sound: ${url%:*}:${aport}"
+    else
+        note "${user} opens http://<tailscale-ip>:${port} once this server joins Tailscale"
+        note "  and for sound: http://<tailscale-ip>:${aport}"
+    fi
 }
 
 cmd_on() {

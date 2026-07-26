@@ -2967,6 +2967,31 @@ p.write_text(new, encoding="utf-8")
 print("cloud tuning: bento dashboard off by default (158%% -> 0%% of a CPU core)")
 BENTO
 
+    # A server with no sound card still has sound — it just has nowhere to send it.
+    #
+    # Mo PC Remote streams the desktop and nothing else: there is no audio path in
+    # the Linux agent and none in the shipped controller bundle. And a VPS reports
+    # "no soundcards", so WirePlumber falls back to `auto_null` — a sink that
+    # accepts audio and discards it. Both together mean every application on a
+    # MoOS Cloud desktop has been playing into a bin, silently.
+    #
+    # moos-cloud-audio serves that sink's monitor as Opus-in-WebM over HTTP, which
+    # browsers play natively — one URL per account, next to their desktop port:
+    # desktop 8765+N, sound 8775+N. Idle cost measured on the real server: 0.2% of
+    # a core, because ffmpeg waits in accept() before it opens the capture.
+    #
+    # ffmpeg is REQUESTED here, not assumed. It is already in the image, but only
+    # as a transitive dependency of ffmpegthumbs (Dolphin's video thumbnailer) —
+    # nothing had asked for it directly. The day that thumbnailer changes its
+    # dependencies, or is dropped, the audio stream would vanish with it. A feature
+    # that ships must own its runtime.
+    dnf5 -y install ffmpeg
+
+    # Enabled --global so every account that logs in gets their own, including
+    # developers added later by moos-cloud-dev.
+    systemctl --global enable moos-cloud-audio.service
+    echo "=== cloud edition: per-account audio stream on 8775+N ==="
+
     # A VPS has no Bluetooth radio, and obexd cannot be told that.
     #
     # On the maintainer's server obexd was D-Bus-activated, failed
@@ -3093,6 +3118,23 @@ TRUSTED
         echo "           Measured on a GPU-less server: visible 158% of a CPU core,"
         echo "           hidden 0% (A/B/A). That is 1.5 cores of an 8-core box spent"
         echo "           rasterising a dashboard on a desktop nobody is looking at."
+        _cloud_fail=1; }
+    # Sound is the one thing a remote desktop cannot fake. All three pieces have to
+    # be present or the account gets a silent machine and no error to explain it.
+    [ -x /usr/bin/moos-cloud-audio ] || {
+        echo "GATE FAIL: /usr/bin/moos-cloud-audio is missing or not executable — a"
+        echo "           MoOS Cloud desktop would have no way to reach its own sound."
+        _cloud_fail=1; }
+    command -v ffmpeg >/dev/null 2>&1 || {
+        echo "GATE FAIL: ffmpeg is not in the image, so moos-cloud-audio cannot encode"
+        echo "           anything. The unit would restart for ever with no sound."
+        _cloud_fail=1; }
+    ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libopus || {
+        echo "GATE FAIL: this ffmpeg has no libopus encoder. Opus-in-WebM is what makes"
+        echo "           the stream playable in a browser with no plugin."; _cloud_fail=1; }
+    systemctl --global is-enabled moos-cloud-audio.service >/dev/null 2>&1 || {
+        echo "GATE FAIL: moos-cloud-audio.service is not enabled --global, so accounts"
+        echo "           created later (moos-cloud-dev) would silently have no sound."
         _cloud_fail=1; }
     grep -q '^Autolock=false' /etc/xdg/kscreenlockerrc || {
         echo "GATE FAIL: the lock screen can still auto-arm. On a virtual desktop it"
