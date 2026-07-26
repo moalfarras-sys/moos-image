@@ -4540,6 +4540,62 @@ require("cosign verify --key cosign.pub" in _byml,
 #
 # Measured on the real server: the second developer's desktop streamed video and
 # accepted no keyboard or mouse at all, with `systemctl --failed` empty throughout.
+# ── "Animations off" has to reach the endless ones ────────────────────────────
+#
+# Anything that loops Animation.Infinite inside plasmashell runs for the entire
+# uptime of the session. Gated on `visible` alone it keeps running when the user —
+# or the whole cloud edition — has asked for no motion, and it is never reported,
+# because a busy rasterizer is not an error.
+#
+# org.moos.heroclock shipped three of them (breathing glow, breathing emblem,
+# spinning comet ring) all gated `running: hero.visible`. The RotationAnimator is
+# the worst of the three: Animator types run on the RENDER thread, so it asks the
+# compositor for frames while the main thread sits idle — profiling the main loop
+# shows nothing and the cost appears as a saturated llvmpipe. Same shape as the Mo
+# Store rail dot that burned a core to blink (aee2724).
+#
+# It matters most on MoOS Cloud, which sets AnimationDurationFactor=0 precisely so
+# ambient motion stops: there every pixel is rasterised on the CPU and nobody is
+# looking at the emblem.
+#
+# The gate: a `running:` on an infinite loop must consult something motion-related,
+# not merely whether the item is on screen. Kirigami.Units.longDuration is what the
+# factor actually moves, so a gate built on it is the honest one.
+_MOTION_ROOTS = ("system_files/usr/share/plasma/plasmoids",
+                 "system_files/usr/share/plasma/wallpapers")
+_INFINITE = re.compile(r"loops:\s*Animation\.Infinite")
+for _root_name in _MOTION_ROOTS:
+    _root_dir = ROOT / _root_name
+    if not _root_dir.is_dir():
+        continue
+    for _qml in sorted(_root_dir.rglob("*.qml")):
+        _text = _qml.read_text(encoding="utf-8", errors="replace")
+        if not _INFINITE.search(_text):
+            continue
+        _rel = _qml.relative_to(ROOT)
+        # The file must be connected to a motion gate — either by DEFINING one on
+        # Kirigami.Units.longDuration, or by taking `motionEnabled` from its parent.
+        # The wallpaper's cards (SystemCard, WeatherScene, GlassCard) do the latter:
+        # DashboardBento owns the gate and passes it down, which is correct and which
+        # a stricter check here wrongly called broken.
+        require("Kirigami.Units.longDuration > 0" in _text or "motionEnabled" in _text,
+                f"{_rel} loops Animation.Infinite but is wired to no motion gate at all "
+                "— it neither defines one on Kirigami.Units.longDuration nor accepts a "
+                "motionEnabled from its parent. With animations off it keeps running for "
+                "the whole session — on the cloud edition that is a rasterizer burning "
+                "CPU on a desktop nobody is looking at, reported by nothing.")
+        for _m in _INFINITE.finditer(_text):
+            _block = _text[max(0, _m.start() - 400):_m.start() + 400]
+            _running = re.search(r"running:\s*([^\n]+)", _block)
+            if not _running:
+                continue
+            _expr = _running.group(1)
+            require("motionEnabled" in _expr or "longDuration" in _expr,
+                    f"{_rel} has an Animation.Infinite whose `running:` is "
+                    f"`{_expr.strip()}` — that does not consult the motion gate, so "
+                    "'animations off' never stops it.")
+
+
 # ── Two humans, one machine: separate front doors, ONE brain ──────────────────
 #
 # Mo AI's three services are per-USER and were on fixed ports, which is correct for

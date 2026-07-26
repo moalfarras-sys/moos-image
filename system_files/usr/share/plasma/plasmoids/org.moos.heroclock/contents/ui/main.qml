@@ -112,6 +112,25 @@ PlasmoidItem {
         // surface that stays up for hours.
         readonly property int breathMs: Math.round(4200 - root.accentEnergy * 1800)   // 4200→2400
         readonly property int ringMs:   Math.round(26000 - root.accentEnergy * 11000) // 26s→15s
+
+        // "Animations off" has to reach these three, and `visible` alone does not.
+        //
+        // The breathing glow, the breathing emblem and the spinning ring all loop
+        // Animation.Infinite. Gated only on visibility they run for the entire
+        // uptime of the session — and the RotationAnimator is worse than the other
+        // two, because Animator types run on the RENDER thread: it keeps asking the
+        // compositor for frames while plasmashell's main thread sits idle, so the
+        // cost appears as a saturated rasterizer that profiling the main loop never
+        // explains.
+        //
+        // This is the same shape as the Mo Store rail dot that burned a core to
+        // blink (aee2724). It matters most on MoOS Cloud, which sets
+        // AnimationDurationFactor=0 precisely so ambient motion stops — a server
+        // renders every pixel on the CPU, and nobody is looking at the emblem.
+        //
+        // Kirigami.Units.longDuration is what the factor actually moves, and it is
+        // the same gate org.moos.ui2.wallpaper's DashboardBento already uses.
+        readonly property bool motionEnabled: hero.visible && Kirigami.Units.longDuration > 0
         readonly property real glowPeak: 0.48 + root.accentEnergy * 0.34              // 0.48→0.82
         readonly property real breathTo: 1.03 + root.accentEnergy * 0.03             // 1.03→1.06
 
@@ -160,7 +179,7 @@ PlasmoidItem {
                 opacity: 0.4
                 SequentialAnimation on opacity {
                     loops: Animation.Infinite
-                    running: hero.visible
+                    running: hero.motionEnabled
                     NumberAnimation { to: hero.glowPeak; duration: hero.breathMs; easing.type: Easing.InOutSine }
                     NumberAnimation { to: 0.4; duration: hero.breathMs; easing.type: Easing.InOutSine }
                 }
@@ -175,7 +194,7 @@ PlasmoidItem {
                 sourceSize: Qt.size(width * 2, height * 2)
                 SequentialAnimation on scale {
                     loops: Animation.Infinite
-                    running: hero.visible
+                    running: hero.motionEnabled
                     NumberAnimation { to: hero.breathTo; duration: hero.breathMs; easing.type: Easing.InOutSine }
                     NumberAnimation { to: 1.0; duration: hero.breathMs; easing.type: Easing.InOutSine }
                 }
@@ -193,7 +212,7 @@ PlasmoidItem {
                     from: 360; to: 0
                     duration: hero.ringMs
                     loops: Animation.Infinite
-                    running: hero.visible
+                    running: hero.motionEnabled
                 }
                 // The comet HEAD, riding the ring's leading edge — the same
                 // orbiting spark the panel brand, lock and login carry, so the
@@ -209,7 +228,7 @@ PlasmoidItem {
                     opacity: 0.85
                     SequentialAnimation on scale {
                         loops: Animation.Infinite
-                        running: hero.visible
+                        running: hero.motionEnabled
                         NumberAnimation { to: 1.25; duration: Math.round(hero.breathMs * 0.4); easing.type: Easing.InOutSine }
                         NumberAnimation { to: 1.0; duration: Math.round(hero.breathMs * 0.4); easing.type: Easing.InOutSine }
                     }
@@ -289,7 +308,7 @@ PlasmoidItem {
                     y: Math.round((parent.height - height) / 2)
                     opacity: 0
                     SequentialAnimation {
-                        running: hero.visible
+                        running: hero.motionEnabled
                         loops: Animation.Infinite
                         PauseAnimation { duration: 5200 }
                         ParallelAnimation {
