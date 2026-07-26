@@ -42,6 +42,121 @@ tailscale_url() {
     fi
 }
 
+# ── A screen of their own ────────────────────────────────────────────────────
+#
+#   sudo moos-cloud-desktop own <user> [port]
+#
+# The machine has ONE seat. Two people logging in at the greeter take turns on
+# it: both sessions exist, but only one draws, and the other sees a frozen frame.
+# On a server rented so that two developers can work at once, that is the wrong
+# answer to the right question.
+#
+# So give the second person a compositor that never touches the seat at all:
+# `kwin_wayland --virtual` renders a full Plasma session into a framebuffer in
+# memory, on its own Wayland socket. Their Mo PC Remote captures THAT, on its own
+# port. Two desktops, one machine, neither aware of the other — verified running
+# side by side on a netcup VPS: moalfarras on wayland-0:8765 and momo on
+# wayland-momo:8766, each with their own kwin_wayland and plasmashell.
+#
+# What it costs, honestly: a second Plasma is ~400-600 MB of RAM and its own
+# encode load when the stream is live. On a 15 GB / 8-core box that is nothing;
+# on a 4 GB box it is most of what is left.
+own_screen() {
+    local user="${1:-}" port="${2:-}"
+    [ -n "$user" ] || die "which account? e.g. moos-cloud-desktop own momo 8766"
+    id "$user" >/dev/null 2>&1 || die "no such account: ${user}"
+    local uid socket
+    uid="$(id -u "$user")"
+    socket="wayland-${user}"
+    [ -n "$port" ] || port=$(( 8765 + uid - 1000 ))
+    case "$port" in ''|*[!0-9]*) die "port must be a number" ;; esac
+
+    # Their services must outlive the SSH session that starts them.
+    loginctl enable-linger "$user"
+
+    # Mo PC Remote reads its port from TWO files, and settings.json is applied
+    # AFTER config.dat — so writing only the one you find first changes nothing
+    # and says nothing. Write both, in the order the app reads them.
+    local dir="/var/home/${user}/.local/share/MoRemotePersonal"
+    install -d -o "$user" -g "$user" -m0700 "$dir"
+    python3 - "$dir" "$port" <<'PYPORT'
+import json, pathlib, sys
+d, port = pathlib.Path(sys.argv[1]), int(sys.argv[2])
+for name, key in (("config.dat", "Port"), ("settings.json", "port")):
+    f = d / name
+    if not f.exists():
+        continue
+    try:
+        data = json.loads(f.read_text())
+    except Exception:
+        continue
+    data[key] = port
+    f.write_text(json.dumps(data, indent=2))
+PYPORT
+    chown -R "${user}:${user}" "$dir"
+
+    # Point their streamer at their own compositor, not whatever owns the seat.
+    local dropin="/var/home/${user}/.config/systemd/user/mo-remote-personal.service.d"
+    install -d -o "$user" -g "$user" -m0755 "$dropin"
+    install -D -m0644 /dev/stdin "${dropin}/10-own-screen.conf" <<DROPIN
+# Written by moos-cloud-desktop. This account renders on its own virtual
+# compositor (${socket}), so the streamer must not go looking for the seat's.
+[Service]
+Environment=WAYLAND_DISPLAY=${socket}
+DROPIN
+    chown -R "${user}:${user}" "/var/home/${user}/.config/systemd"
+
+    # The session itself, as a user service so it comes back after a reboot.
+    local unit="/var/home/${user}/.config/systemd/user/moos-own-screen.service"
+    install -D -m0644 /dev/stdin "$unit" <<UNIT
+[Unit]
+Description=MoOS private desktop for ${user} (virtual output)
+Before=mo-remote-personal.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/dbus-run-session -- /usr/bin/kwin_wayland --virtual --width 1920 --height 1080 --socket ${socket} --no-lockscreen --xwayland --exit-with-session=/usr/bin/startplasma-wayland
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+UNIT
+    chown "${user}:${user}" "$unit"
+
+    runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" systemctl --user daemon-reload
+    runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" systemctl --user enable --now moos-own-screen.service >/dev/null 2>&1
+
+    # The streamer must start INTO a session that exists, not before it.
+    local waited=0
+    while [ "$waited" -lt 40 ]; do
+        [ -S "/run/user/${uid}/${socket}" ] && break
+        sleep 1
+        waited=$((waited + 1))
+    done
+    if [ ! -S "/run/user/${uid}/${socket}" ]; then
+        red "the private compositor did not come up within 40s"
+        note "check: journalctl --user -u moos-own-screen -n 40   (as ${user})"
+        return 1
+    fi
+    ok "private 1920x1080 desktop up for ${user} on ${socket}"
+
+    runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
+        systemctl --user restart mo-remote-personal.service >/dev/null 2>&1 || true
+    sleep 6
+    if ss -tnl 2>/dev/null | grep -q ":${port} "; then
+        ok "Mo PC Remote listening on ${port} for ${user}"
+    else
+        note "Mo PC Remote is not listening on ${port} yet — it starts with the session"
+    fi
+
+    echo
+    local url
+    url="$(tailscale_url)"
+    [ -n "$url" ] && note "${user} opens: ${url%:*}:${port}" \
+                  || note "${user} opens http://<tailscale-ip>:${port} once this server joins Tailscale"
+}
+
 cmd_on() {
     local user="${1:-}"
     [ -n "$user" ] || die "which account should own the desktop? e.g. moos-cloud-desktop on moos"
@@ -130,8 +245,9 @@ cmd_status() {
 
 case "${1:-status}" in
     on)     need_root; shift; cmd_on "$@" ;;
+    own)    need_root; shift; own_screen "$@" ;;
     off)    need_root; cmd_off ;;
     status) cmd_status ;;
     -h|--help) sed -n '3,8p' "$0" | sed 's/^# \{0,1\}//' ;;
-    *)      die "unknown command: $1 (try: on <user>, off, status)" ;;
+    *)      die "unknown command: $1 (try: on <user>, own <user> [port], off, status)" ;;
 esac
