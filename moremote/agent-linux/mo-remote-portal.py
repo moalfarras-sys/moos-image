@@ -409,7 +409,22 @@ def build(w, h):
     )
 
     codec, elem = "jpeg", None
-    if state["want"] == "h264":
+    # `and w` is load-bearing, and its absence cost every session H.264 about half the time.
+    #
+    # build() is called once when the stream is created, BEFORE the source has told us its size —
+    # every such build logged "Video stream: 0x0 (source 0x0)". With w == 0 the caps filter above is
+    # omitted entirely, so the encoder is asked to reach PLAYING on a source that has not negotiated
+    # a format yet, and openh264enc cannot: it needs a width and a height to create an encoder at all.
+    #
+    # It therefore failed, was BLACKLISTED as a broken element, and since it is the only H.264 encoder
+    # present on a GPU-less server, pick_h264() then returned nothing and the whole session latched to
+    # JPEG for the lifetime of the helper. Nine occurrences in this log, every one of them preceded by
+    # a 0x0 build, and every one of them a session that spent its life at ~79 Mbit/s of JPEG for want
+    # of a number that arrived a millisecond later.
+    #
+    # So do not audition an encoder before there is anything to encode. JPEG covers the gap — it has
+    # no such requirement — and the size change that follows rebuilds with real caps and gets H.264.
+    if state["want"] == "h264" and w:
         elem, props = pick_h264()
         if elem:
             codec = "h264"
@@ -456,9 +471,13 @@ def build(w, h):
         pipeline = None
         if codec == "h264":
             emit(type="warn", warn=f"{elem} would not start; falling back")
-            _h264_blacklist.add(elem)
-            if not pick_h264():
-                state["want"] = "jpeg"
+            # Defence in depth for the same mistake: only condemn an element that failed with real
+            # dimensions. The selection above should already never hand us an encoder at w == 0, and
+            # if that ever regresses, a permanent JPEG latch is far too expensive a way to find out.
+            if w:
+                _h264_blacklist.add(elem)
+                if not pick_h264():
+                    state["want"] = "jpeg"
             return build(w, h)
         die(EXIT_LOST, "the JPEG pipeline would not start")
 

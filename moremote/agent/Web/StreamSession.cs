@@ -80,11 +80,22 @@ public sealed class StreamSession
         using var h264 = _svc.Capture.SubscribeH264(au =>
         {
             _encoded.Enqueue(au);
-            if (_encoded.Count > 90)
+            // 12, not 90. The cap is a LATENCY budget, not a memory one, and 90 frames at 30fps is
+            // three entire seconds of the past waiting its turn to be drawn. Long before the cap was
+            // reached the session was unusable: the picture lags the input by seconds, so every click
+            // appears to do nothing, and the eventual recovery is a hard flush plus a keyframe — a
+            // visible jump that reads as a reconnect. A viewer that cannot keep up wants the PRESENT,
+            // late and once, not the last three seconds in order.
+            //
+            // 12 frames is ~0.4s at 30fps: past what a jittery link should hiccup over, well short of
+            // what a person reads as lag. Dropping the whole queue rather than the oldest frame is
+            // still correct and not negotiable — a P-frame is a diff against its predecessor, so a
+            // hole corrupts everything after it until the keyframe this asks for.
+            if (_encoded.Count > 12)
             {
                 while (_encoded.TryDequeue(out _)) { }
                 _svc.Capture.RequestKeyframe();
-                Log.Warn("Phone fell behind; dropped the H.264 backlog and asked for a keyframe.");
+                Log.Warn("Viewer fell behind; dropped the H.264 backlog and asked for a keyframe.");
             }
         });
 

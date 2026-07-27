@@ -142,6 +142,10 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const composingRef = useRef(false);
   const compositionStartRef = useRef("");
   const cursorNorm = useRef({ x: 0.5, y: 0.5 });
+  // The remote desktop's pixel size, from `hello`. A ref because the input-geometry callback runs
+  // outside React's render and needs it before the first frame exists — see that callback for why
+  // being frameless there used to mean being ignored.
+  const screenSizeRef = useRef({ w: 0, h: 0 });
   const hideTimer = useRef<number | null>(null);
 
   const [status, setStatus] = useState<Conn>("connecting");
@@ -311,6 +315,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     const conn = new RemoteConnection(token, {
       onHello: (h) => {
         setStatus(h.paused ? "paused" : "live");
+        if (h.screen?.w && h.screen?.h) screenSizeRef.current = { w: h.screen.w, h: h.screen.h };
         setMonitors(h.monitors ?? []);
         setSelMonitor(h.monitor ?? 0);
         setInputOk(!!h.input?.ready);
@@ -338,11 +343,33 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       onScreen: (avail) => setScreenOk(avail),
       onInputState: (ready,error) => { setInputOk(ready); if(error)showToast(`Input: ${error}`); },
     }, () => {
-      const c=canvasRef.current, l=computeLayout(), f=frameRef.current;
-      if(!c||!l||!f)return {};
-      const r=c.getBoundingClientRect(), s=drawableSize(f);
-      return { content:{left:l.ox,top:l.oy,width:l.dispW,height:l.dispH},
-        canvas:{left:r.left,top:r.top,width:r.width,height:r.height}, source:s };
+      // Geometry for every input event. Returning {} here is not harmless: the agent's
+      // ValidateEnvelope REQUIRES content and source on every absolute event and silently rejects
+      // the ones without them — the live log has "Rejected input 'click': invalid remote content
+      // geometry" to prove it. So a tap before the first frame lands was thrown away, and while the
+      // video was broken there WAS no first frame, which is how "the screen does not respond to
+      // touch" and "there is no picture" turned out to be the same outage twice.
+      //
+      // There is no reason to be frameless-blind: the agent tells us the desktop size in `hello`, so
+      // the source dimensions are known before any pixel arrives, and the canvas rect is always
+      // measurable. Fall back to those and the click lands where the user aimed it.
+      const c = canvasRef.current;
+      if (!c) return {};
+      const r = c.getBoundingClientRect();
+      const f = frameRef.current;
+      const l = computeLayout();
+      if (f && l) {
+        return { content:{left:l.ox,top:l.oy,width:l.dispW,height:l.dispH},
+          canvas:{left:r.left,top:r.top,width:r.width,height:r.height}, source:drawableSize(f) };
+      }
+      const src = screenSizeRef.current;
+      if (!src.w || !src.h || r.width <= 0 || r.height <= 0) return {};
+      // No frame yet: the whole canvas IS the content, letterboxed to the desktop's aspect ratio the
+      // same way computeLayout would do it once a frame exists.
+      const base = Math.min(r.width / src.w, r.height / src.h);
+      const dispW = src.w * base, dispH = src.h * base;
+      return { content:{left:(r.width-dispW)/2, top:(r.height-dispH)/2, width:dispW, height:dispH},
+        canvas:{left:r.left,top:r.top,width:r.width,height:r.height}, source:src };
     });
     connRef.current = conn;
     conn.connect();
