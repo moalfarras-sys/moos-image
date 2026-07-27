@@ -250,6 +250,24 @@ if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
     # present early, for the KMS handoff that keeps the desktop from coming up black.
     sed -i 's@ i915 amdgpu nvidia @ nvidia @' /usr/lib/dracut/dracut.conf.d/99-nvidia.conf
 
+    # nvidia_peermem is force-loaded by ublue's installer too, and on a consumer GPU it
+    # CANNOT load — it is the GPUDirect/RDMA shim for NVLink+InfiniBand datacenter cards.
+    # Every MoOS NVIDIA boot carries the failure in its log:
+    #     dracut-pre-udev[540]: modprobe: ERROR: could not insert 'nvidia_peermem': Invalid argument
+    # (upstream: ublue-os/bazzite#4569). It is not fatal — dracut-pre-udev continues — but it
+    # is a real module-load attempt inside the initrd, in the phase that costs ~2s, for a
+    # module that will never load on any desktop card. Drop it from the force list.
+    #
+    # Deliberately a separate sed rather than folding into the one above: that pattern is
+    # anchored on ublue's exact ' i915 amdgpu nvidia ' string, and quietly stops matching if
+    # upstream reorders the list. Two independent seds fail independently, and the grep gate
+    # above still proves force_drivers survived.
+    sed -i 's@ nvidia_peermem @ @' /usr/lib/dracut/dracut.conf.d/99-nvidia.conf
+    grep -q 'nvidia_peermem' /usr/lib/dracut/dracut.conf.d/99-nvidia.conf \
+        && { echo "FATAL: nvidia_peermem is still force-loaded; the sed above no longer matches."; exit 1; }
+    grep -q 'force_drivers.*nvidia_drm' /usr/lib/dracut/dracut.conf.d/99-nvidia.conf \
+        || { echo "FATAL: the peermem sed ate more than it should have — nvidia_drm is gone."; exit 1; }
+
     # dracut resolves force_drivers entries BY NAME through modules.dep. Without a fresh
     # depmod the map has no entry for the just-installed out-of-tree modules, dracut silently
     # finds nothing to force, and the initramfs comes out with no nvidia in it at all.
