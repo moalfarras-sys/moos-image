@@ -54,6 +54,30 @@ LookAndFeelPackage=org.moos.ui2
 DefaultDarkLookAndFeel=org.moos.ui2
 DefaultLightLookAndFeel=org.moos.ui2.light
 
+# Nova motion timing. THIS is the group KWin reads it from — kwin.kcfg declares
+# AnimationDurationFactor inside <group name="KDE">, and
+# landingpage_kdeglobalssettings.kcfg binds the same key to kdeglobals. The old
+# home for this value, [Compositing] in etc/xdg/kwinrc, is not a group any
+# reader consults; see the note there.
+#
+# 0.5 = half the stock duration. Measured on-device against the alternatives:
+# every easing curve is still legible, whereas 0.35 visibly clips `slide` and
+# cuts the tail off `magiclamp`, and 0.25 reads as "animations are broken".
+#
+# Honest about what this buys: it is PERCEPTUAL. This repo's own measurement
+# (build.sh:2983) found factor 0 vs 1 gave 157% vs 139% plasmashell CPU — inside
+# the noise. It makes the desktop feel immediate; it does not make it cheaper.
+#
+# No companion pin in moos-apply-theme, and that is a checked decision, not an
+# oversight. The usual trap (AGENTS.md: "a theme this image ships is not a theme
+# the user gets") is a key sitting in ~/.config/kdedefaults, which outranks
+# /etc/xdg. Checked on a live desktop 2026-07-27: kdedefaults/kdeglobals's [KDE]
+# group holds only widgetStyle, and a user who never touched the setting has NO
+# AnimationDurationFactor of their own — Plasma does not seed one. So this value
+# is what an untouched desktop resolves to, and anyone who DID set their own in
+# System Settings keeps it. Pinning here would take that choice away.
+AnimationDurationFactor=0.5
+
 # Nova event sounds — the original MoOS sound theme shipped at
 # /usr/share/sounds/moos (freedesktop sound-theme-spec layout).
 # Plasma 6 reads the active theme from [Sounds] Theme (default "ocean");

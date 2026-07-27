@@ -9,7 +9,7 @@
 # active backend passes the effect's supported() check, so on weak GPUs or
 # software rendering the GPU-touching effects are simply skipped — no boot or
 # compositing risk. Users who want minimal motion can drop
-# [Compositing] AnimationDurationFactor toward 0, uncheck "Desktop Effects", or
+# [KDE] AnimationDurationFactor (in kdeglobals) toward 0, uncheck "Desktop Effects", or
 # toggle individual effects in System Settings; their cascade always wins.
 #
 # ---------------------------------------------------------------------------
@@ -139,15 +139,22 @@ NoiseStrength=3
 # accident, and it never fights a bottom-edge or right-edge gesture.
 BorderActivate=7
 
+# Nova timing does NOT live here. `AnimationDurationFactor=0.75` sat in
+# [Compositing] in this file from the beginning and never did anything: KWin
+# declares that key under group **KDE**, not Compositing. Verified against the
+# installed schemas on 2026-07-27 —
+#   /usr/share/config.kcfg/kwin.kcfg:314          <entry AnimationDurationFactor> inside <group name="KDE">
+#   /usr/share/config.kcfg/kwin.kcfg [Compositing] declares exactly:
+#       AllowTearing, Backend, Enabled, LastFailureTimestamp
+#   /usr/share/config.kcfg/landingpage_kdeglobalssettings.kcfg  same key, <kcfgfile name="kdeglobals"/>
+# So every MoOS desktop has been running at the stock 1.0 while this file
+# claimed 0.75. The real default now ships in etc/xdg/kdeglobals's [KDE] group,
+# which is also where System Settings and every other KDE app read it — and
+# where this repo's own code already looked (moos-fast-remote:85,
+# build.sh:2909). A shipped default is not a default the user gets unless it is
+# in the group the reader actually reads.
+
 [Compositing]
-# Nova timing: a hair snappier than stock (1.0) without feeling rushed. macOS
-# window motion is quick (~200-250ms); this shortens KWin's base durations
-# uniformly. 0.75 is the shipped value (well-tested/safe). 0.70 is a slightly
-# snappier alternative worth trying on-device — both are low-risk (they only
-# scale duration, never geometry). Read from [Compositing] AnimationDurationFactor
-# by Options::animationTimeFactor(). Users override in System Settings > General
-# Behavior (their value wins).
-AnimationDurationFactor=0.75
 
 # --- Window decoration: macOS-style traffic-light buttons on the LEFT ------
 # VERIFIED against kwin master (2026-07-10):
