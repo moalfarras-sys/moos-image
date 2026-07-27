@@ -13,4 +13,9 @@ NoDisplay=true
 # The Windows set is exactly what Bottles' own desktop entry claims, plus the modern PE type
 # that shared-mime-info gives a .exe (`xdg-mime query filetype x.exe` on this image), which
 # Bottles does NOT list — a real .exe would otherwise fall through to no handler at all.
-MimeType=application/x-msdownload;application/x-ms-dos-executable;application/vnd.microsoft.portable-executable;application/x-msi;application/x-ms-shortcut;application/x-wine-extension-msp;application/vnd.android.package-archive;
+# The office set closes the same gap for documents: before this, `xdg-mime query default`
+# returned NOTHING for .docx/.xlsx/.pptx/.doc/.xls/.odt/.rtf, so double-clicking a Word file
+# did nothing at all. MoOS does not ship a ~700 MB office suite, so the runner offers the
+# one-time LibreOffice install instead of failing silently. text/csv is deliberately absent —
+# kate is already in the image and opens it instantly.
+MimeType=application/x-msdownload;application/x-ms-dos-executable;application/vnd.microsoft.portable-executable;application/x-msi;application/x-ms-shortcut;application/x-wine-extension-msp;application/vnd.android.package-archive;application/msword;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.oasis.opendocument.text;application/rtf;application/vnd.ms-excel;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.oasis.opendocument.spreadsheet;application/vnd.ms-powerpoint;application/vnd.openxmlformats-officedocument.presentationml.presentation;application/vnd.oasis.opendocument.presentation;

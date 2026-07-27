@@ -715,6 +715,50 @@ require("org.moos.runforeign.desktop" in code(read("system_files/usr/bin/moos-ap
         "moos-apply-theme must pin the MoOS runner in the user's mimeapps.list — the user's "
         "file outranks /etc/xdg, so shipping the default is only half the fix")
 
+# ── Office documents must have somewhere to go ────────────────────────────────
+#
+# MEASURED on the shipped image before this existed: `xdg-mime query default` returned
+# NOTHING for all seven of .docx/.xlsx/.pptx/.doc/.xls/.odt/.rtf. A Word file a colleague
+# sent did nothing at all when double-clicked — the same failure the .exe had, and the
+# same three pieces have to line up or it silently comes back.
+_apply_theme_code = code(read("system_files/usr/bin/moos-apply-theme"))
+_OFFICE_MIMES = (
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.oasis.opendocument.text",
+    "application/rtf",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.oasis.opendocument.spreadsheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.oasis.opendocument.presentation",
+)
+for _m in _OFFICE_MIMES:
+    require(_m in runner_desktop,
+            f"org.moos.runforeign.desktop must claim {_m} — without it the double-click has "
+            f"nowhere to go and does nothing, which is exactly the bug this closed")
+    require(f"{_m}=org.moos.runforeign.desktop" in system_mimeapps,
+            f"/etc/xdg/mimeapps.list must default {_m} to the MoOS runner")
+    require(_m in _apply_theme_code,
+            f"moos-apply-theme must pin {_m} in the user's mimeapps.list — that file outranks "
+            f"/etc/xdg, so existing users would keep the broken 'no default'")
+require("org.libreoffice.LibreOffice" in runner,
+        "moos-run-foreign must offer the one-time LibreOffice install for office documents. "
+        "MoOS ships no office suite on purpose (~700 MB); the runner is the bridge to the "
+        "store, and without it these types fail silently again.")
+require("apps/install/" in runner,
+        "moos-run-foreign must route the office install through moos://apps/install/, the "
+        "existing confirmed+Polkit path — never a bare flatpak install")
+# .csv must NOT cost a 700 MB download: it is text, and kate is already in the image.
+require("text/csv=org.kde.kate.desktop" in system_mimeapps,
+        "text/csv must default to kate. Routing it through the office runner would ask the "
+        "user to install 700 MB to read a comma-separated file — worse than the status quo.")
+require("csv" not in [seg.strip() for seg in re.findall(r"^\s*([a-z|]+)\)", runner, re.M)
+                      for seg in seg.split("|")],
+        "moos-run-foreign now handles .csv itself — it should not: kate opens it instantly "
+        "and the runner would offer a 700 MB install instead")
+
 # ── Mo AI answers the NEED, not the keyword ──────────────────────────────────
 # Flathub ranks by popularity, and for "camera" that puts a COSMIC-desktop app on top: it
 # installs, then panics on Plasma. The user's camera "did not work" while the webcam, the

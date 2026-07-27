@@ -15,6 +15,13 @@
 #
 #   .exe .msi .lnk .msp  ->  Bottles installed?  run it there : offer moos://do/setup-windows
 #   .apk                 ->  Waydroid ready?     install+open : offer moos://do/setup-waydroid
+#   .docx .xlsx .pptx …  ->  LibreOffice there?  open it      : offer moos://apps/install/…
+#
+# The office half closes the same gap for documents. MEASURED on the shipped image before
+# this: `xdg-mime query default` returned NOTHING for all eight of .docx, .xlsx, .pptx,
+# .doc, .xls, .odt, .rtf and .csv — so a Word file a colleague sent you did nothing at all
+# when you double-clicked it. MoOS deliberately does not ship a ~700 MB office suite, and
+# LibreOffice was already in Mo AI's store; what was missing was the bridge between them.
 #
 # NOT A SECURITY BOUNDARY, and it does not need to be: it is reached only through a MimeType
 # association, so the file is one the user picked in their own file manager, and every path
@@ -24,6 +31,7 @@
 set -uo pipefail
 
 BOTTLES_ID="com.usebottles.bottles"
+OFFICE_ID="org.libreoffice.LibreOffice"
 
 notify() { command -v kdialog >/dev/null 2>&1 && kdialog --title "MoOS" --passivepopup "$1" 6 >/dev/null 2>&1 || true; }
 
@@ -121,6 +129,45 @@ case "$ext" in
             exit 0
         fi
         term moos-run-foreign --apk-install "$file"
+        ;;
+
+    # ── Office documents ─────────────────────────────────────────────────────────
+    #
+    # MoOS shipped no office suite and no default for ANY office type. Measured on the
+    # image: `xdg-mime query default` returned nothing for .docx, .xlsx, .pptx, .doc,
+    # .xls, .odt and .rtf — all eight. So double-clicking a Word file a colleague sent
+    # did nothing at all. That is the same gap the .exe had, with the same shape and the
+    # same fix.
+    #
+    # LibreOffice is NOT in the image on purpose (it is ~700 MB and most people never
+    # open a .docx), and it is already in Mo AI's store catalogue. What was missing was
+    # the bridge: an association that explains and offers the one-time install, instead
+    # of a double-click that silently does nothing.
+    #
+    # Deliberately NOT here: .csv. It is a text/plain subclass, kate is already in the
+    # image and opens it instantly — making someone install 700 MB to read a comma-
+    # separated file would be a worse answer than the one they have. It is pinned to
+    # kate in mimeapps.list instead.
+    doc|docx|odt|rtf|xls|xlsx|ods|ppt|pptx|odp)
+        if flatpak info "$OFFICE_ID" >/dev/null 2>&1; then
+            # Through the desktop entry, not `flatpak run <id> <path>`: the same
+            # file-forwarding reason as Bottles above — a raw path is one the sandbox
+            # cannot see. LibreOffice's start centre routes the document to Writer,
+            # Calc or Impress by its type, so one entry covers all nine extensions.
+            notify "يفتح المستند في LibreOffice | opening in LibreOffice"
+            setsid gtk-launch "$OFFICE_ID" "$file" >/dev/null 2>&1 &
+            exit 0
+        fi
+        # A native (rpm-layered) LibreOffice is a perfectly good answer too, and someone
+        # who layered one should not be asked to install a second copy from Flathub.
+        if command -v libreoffice >/dev/null 2>&1; then
+            notify "يفتح المستند في LibreOffice | opening in LibreOffice"
+            setsid libreoffice "$file" >/dev/null 2>&1 &
+            exit 0
+        fi
+        if ask "هذا مستند Office. لفتحه يحتاج MoOS حزمة مكتبية (LibreOffice) — تثبيت لمرة واحدة.\n\nنثبّتها الآن؟\n\nThis is an Office document. Opening it needs an office suite (LibreOffice) — a one-time install.\n\nInstall it now?"; then
+            moos-open "moos://apps/install/${OFFICE_ID}"
+        fi
         ;;
 
     *)

@@ -39,6 +39,27 @@ application/x-ms-shortcut=org.moos.runforeign.desktop
 application/x-wine-extension-msp=org.moos.runforeign.desktop
 application/vnd.android.package-archive=org.moos.runforeign.desktop
 
+# Office documents. MEASURED on the shipped image before this: `xdg-mime query default`
+# returned NOTHING for all seven of these — double-clicking a .docx a colleague sent did
+# nothing at all, which is the same failure the .exe had. MoOS does not ship a ~700 MB
+# office suite (most people never open one), and LibreOffice was already in Mo AI's store;
+# the runner is the missing bridge, and it offers the one-time install rather than failing
+# in silence.
+application/msword=org.moos.runforeign.desktop
+application/vnd.openxmlformats-officedocument.wordprocessingml.document=org.moos.runforeign.desktop
+application/vnd.oasis.opendocument.text=org.moos.runforeign.desktop
+application/rtf=org.moos.runforeign.desktop
+application/vnd.ms-excel=org.moos.runforeign.desktop
+application/vnd.openxmlformats-officedocument.spreadsheetml.sheet=org.moos.runforeign.desktop
+application/vnd.oasis.opendocument.spreadsheet=org.moos.runforeign.desktop
+application/vnd.ms-powerpoint=org.moos.runforeign.desktop
+application/vnd.openxmlformats-officedocument.presentationml.presentation=org.moos.runforeign.desktop
+application/vnd.oasis.opendocument.presentation=org.moos.runforeign.desktop
+
+# A CSV is text, and kate is already here. Sending it through the runner would ask the user
+# to install 700 MB to read a comma-separated file — a worse answer than the one they have.
+text/csv=org.kde.kate.desktop
+
 image/png=org.kde.gwenview.desktop
 image/jpeg=org.kde.gwenview.desktop
 image/gif=org.kde.gwenview.desktop

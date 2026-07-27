@@ -1490,6 +1490,40 @@ pin_default_apps() {
             esac
         done
         echo "pinned the MoOS app runner for .exe/.msi/.apk in the user's mimeapps.list" >>"$log" 2>/dev/null || true
+
+        # --- Office documents open (or offer to install) an office suite ------
+        # Same half-fix problem, and a worse starting point: these types had NO
+        # default at all on the shipped image — measured, all seven of .docx,
+        # .xlsx, .pptx, .doc, .xls, .odt and .rtf returned nothing from
+        # `xdg-mime query default`. So a Word file did nothing when double-clicked.
+        #
+        # Only claim a type that is unset or already pointing at the runner. Anyone
+        # who has actually installed LibreOffice, OnlyOffice or WPS has made a real
+        # choice and keeps it — the runner would only get in their way.
+        for mime in application/msword \
+                    application/vnd.openxmlformats-officedocument.wordprocessingml.document \
+                    application/vnd.oasis.opendocument.text application/rtf \
+                    application/vnd.ms-excel \
+                    application/vnd.openxmlformats-officedocument.spreadsheetml.sheet \
+                    application/vnd.oasis.opendocument.spreadsheet \
+                    application/vnd.ms-powerpoint \
+                    application/vnd.openxmlformats-officedocument.presentationml.presentation \
+                    application/vnd.oasis.opendocument.presentation; do
+            current="$(kreadconfig6 --file "$mimeapps" --group "Default Applications" --key "$mime" 2>/dev/null)"
+            case "$current" in
+                ""|*runforeign*)
+                    kwriteconfig6 --file "$mimeapps" --group "Default Applications" \
+                        --key "$mime" org.moos.runforeign.desktop
+                    ;;
+            esac
+        done
+        # A CSV is text and kate is already installed: opening it must not cost a
+        # 700 MB download. Claim it only if nothing else has.
+        current="$(kreadconfig6 --file "$mimeapps" --group "Default Applications" --key text/csv 2>/dev/null)"
+        [ -z "$current" ] && [ -f /usr/share/applications/org.kde.kate.desktop ] && \
+            kwriteconfig6 --file "$mimeapps" --group "Default Applications" \
+                --key text/csv org.kde.kate.desktop
+        echo "pinned office document handling in the user's mimeapps.list" >>"$log" 2>/dev/null || true
     fi
 
     command -v update-desktop-database >/dev/null 2>&1 && \
