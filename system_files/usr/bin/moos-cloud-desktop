@@ -388,11 +388,11 @@ doctor_user() {
     if [ -s "${home}/.config/MoRemote/portal-restore-token" ]; then
         ok "RemoteDesktop already granted (restore token stored — no dialog needed)"
     else
-        red "no RemoteDesktop restore token: input will not work for ${user}"
-        note "the portal asks for one interactive approval and this session has"
-        note "nobody in front of it. It is the second user's screen, so the"
-        note "approval has to be clicked from THEIR Mo PC Remote — which is the"
-        note "thing that needs it. See MOOS_ROADMAP.md item 8; not solved."
+        red "no RemoteDesktop grant: ${user}'s screen will stream and accept no input"
+        note "the portal wants one interactive approval, and a virtual session has"
+        note "nobody in front of it to give one — the only way to click that prompt"
+        note "is the very remote that is waiting on it."
+        note "fix: sudo moos-cloud-desktop grant-input ${user}"
     fi
     printf '  portal: %s\n' \
         "$(runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
