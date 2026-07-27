@@ -447,7 +447,12 @@ if "plasmalogin" in dm_target:
     login_conf = config(login_defaults_text)
     require("WallpaperPluginId" in login_conf,
             "the login screen has no MoOS wallpaper configured — it would show Plasma's default")
-    require("/wallpapers/Fedora" not in login_defaults_text,
+    # login_conf, NOT login_defaults_text: this file DOCUMENTS the dangling Fedora path
+    # it replaced, because naming what was wrong is the point of the comment. Read raw,
+    # the paragraph explaining the fix trips the gate enforcing it — which is exactly
+    # what happened, twice, on the first CI runs after this gate landed. That is the
+    # reason config() exists at the top of this file; use it.
+    require("/wallpapers/Fedora" not in login_conf,
             "the login defaults still reference /usr/share/wallpapers/Fedora, which this "
             "build deletes — the first screen after boot would resolve to nothing")
     _weak_dir = Path("/usr/lib/plasmalogin/plasmalogin.conf.d")
