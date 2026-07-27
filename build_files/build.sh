@@ -2225,7 +2225,14 @@ grep -q '^WallpaperPluginId=org\.moos\.' /usr/lib/plasmalogin/defaults.conf 2>/d
     echo "           transaction restored Fedora's login defaults over system_files"
     exit 1
 }
-grep -q 'wallpapers/Fedora' /usr/lib/plasmalogin/defaults.conf && {
+# Strip comments before looking. MoOS's own defaults.conf DOCUMENTS the dangling
+# Fedora path it replaced — naming it is the whole point of the comment — so a raw
+# grep is satisfied by the prose explaining the fix and fails the build on a
+# correct file. (It did, on the first CI run after this gate landed.) Same lesson
+# the repo's config()/code() helpers already encode: a gate must read the CONFIG,
+# never the paragraph above it.
+sed -e '/^[[:space:]]*#/d' /usr/lib/plasmalogin/defaults.conf \
+    | grep -q 'wallpapers/Fedora' && {
     echo "GATE FAIL: the login defaults still reference /usr/share/wallpapers/Fedora,"
     echo "           which this build deletes — the login layer would be dangling"
     exit 1

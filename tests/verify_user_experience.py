@@ -4470,6 +4470,28 @@ require("/usr/lib/plasmalogin/defaults.conf" in _build
         "build.sh must re-assert after its package transactions that MoOS still owns the "
         "login distro-defaults slot; system_files is copied BEFORE build.sh runs, so a dnf5 "
         "transaction pulling kde-settings-plasmalogin would restore Fedora's file")
+
+# Run build.sh's login-defaults gate HERE, against the file that is about to ship,
+# instead of discovering it 18 minutes into an image build. The first CI run after
+# that gate landed failed on a CORRECT file: the gate grepped the raw bytes for
+# "wallpapers/Fedora", and MoOS's own defaults.conf DOCUMENTS the dangling Fedora
+# path it replaced — so the paragraph explaining the fix tripped the gate that
+# enforces it. Both halves are simulated the way build.sh now does it: comments
+# stripped first, exactly like the config()/code() helpers this file already has.
+_login_defaults = ROOT / "system_files/usr/lib/plasmalogin/defaults.conf"
+require(_login_defaults.is_file(),
+        "MoOS must own /usr/lib/plasmalogin/defaults.conf — upstream documents it as THE "
+        "distro-defaults slot, and it outranks the plasmalogin.conf.d drop-in MoOS used to "
+        "ship in (measured from the greeter binary: an earlier addConfigSources call wins)")
+if _login_defaults.is_file():
+    _login_defaults_cfg = code(_login_defaults.read_text(encoding="utf-8"))
+    require(any(line.startswith("WallpaperPluginId=org.moos.")
+                for line in _login_defaults_cfg.splitlines()),
+            "the login defaults must name a MoOS greeter wallpaper plugin")
+    require("wallpapers/Fedora" not in _login_defaults_cfg,
+            "the login defaults still POINT at /usr/share/wallpapers/Fedora, a directory "
+            "build.sh deletes — a dangling login wallpaper. (Naming it in a comment is "
+            "fine and expected; this reads the config, not the prose.)")
 require("/usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf" in _build
         and "/usr/share/moos/plasmalogin/kdeglobals" in _build,
         "build.sh must provision the plasmalogin greeter account's palette deterministically; "
