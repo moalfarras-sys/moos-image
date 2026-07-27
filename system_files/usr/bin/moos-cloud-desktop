@@ -172,6 +172,34 @@ UNIT
     runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" systemctl --user daemon-reload
     runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" systemctl --user enable --now moos-own-screen.service >/dev/null 2>&1
 
+    # ── An HTTPS name for THIS desktop too ───────────────────────────────────
+    #
+    # Without this the second developer gets a materially worse product than the
+    # first, and nothing says why. Mo PC Remote decodes H.264 through WebCodecs,
+    # and `canDecodeH264()` requires `window.isSecureContext` — so over plain http
+    # the phone silently falls back to JPEG, which has no temporal compression at
+    # all: ~79 Mbit/s at 1080p against H.264's ~4.3. The clipboard and an
+    # installable PWA are gated on the same bit.
+    #
+    # mo-pc-remote gives the SEAT owner this with `tailscale serve --https=443`.
+    # The second desktop needs its own listener, and the port matters:
+    #
+    #   NOT --https=${port}. The agent itself is already bound to that port on all
+    #   interfaces, so serve never gets it and the tailnet address answers the app
+    #   directly in cleartext. Measured: curl said `wrong version number`, which is
+    #   TLS for "this is plain HTTP" — a secure-looking URL that is not one.
+    #
+    # 8443 + N keeps it clear of both the desktop ports (8765+N) and the sound
+    # ports (8775+N). Tailscale issues a REAL certificate for the MagicDNS name,
+    # so there is no warning to accept and nothing to install on the phone.
+    local hport=$(( 8443 + uid - 1001 ))
+    if tailscale serve --bg --https="${hport}" "http://127.0.0.1:${port}" >/dev/null 2>&1; then
+        ok "HTTPS for ${user} on :${hport} — WebCodecs H.264, clipboard and PWA enabled"
+    else
+        note "could not publish HTTPS for ${user} (is this machine on Tailscale yet?)"
+        note "  retry later: tailscale serve --bg --https=${hport} http://127.0.0.1:${port}"
+    fi
+
     # The streamer must start INTO a session that exists, not before it.
     local waited=0
     while [ "$waited" -lt 40 ]; do
@@ -374,6 +402,23 @@ doctor_user() {
     printf '  sound: %s\n' \
         "$(ss -tnl 2>/dev/null | grep -q ":$(( 8775 + uid - 1000 ))" \
              && echo "serving on $(( 8775 + uid - 1000 ))" || echo 'not listening')"
+
+    # --- 4. a SECURE address, which is not a nicety -------------------------
+    #
+    # Over plain http the browser withholds WebCodecs, so the stream drops to
+    # JPEG — ~79 Mbit/s at 1080p instead of ~4.3. A desktop that "works" on the
+    # LAN and is unusable on mobile data usually differs only by this line.
+    local dport=$(( 8765 + uid - 1000 )) served
+    served="$(tailscale serve status 2>/dev/null || true)"
+    if printf '%s' "$served" | grep -q "127.0.0.1:${dport}"; then
+        ok "HTTPS published (H.264 + clipboard available)"
+        printf '%s\n' "$served" | grep -B1 "127.0.0.1:${dport}" | grep '^https' | sed 's/^/    /'
+    else
+        red "no HTTPS for ${user} — the phone will fall back to JPEG"
+        local hport=$(( 8443 + uid - 1001 ))
+        [ "$uid" = 1000 ] && hport=443
+        note "fix: tailscale serve --bg --https=${hport} http://127.0.0.1:${dport}"
+    fi
 }
 
 # ── grant-input: the approval a seatless desktop cannot click for itself ─────

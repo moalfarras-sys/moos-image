@@ -4751,6 +4751,19 @@ require("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/" in _own_code,
 # remote-desktop ... moos-pc-remote` looked like it silently failed: it wrote an
 # entry, under a key the portal never reads, with no data.
 _grant = read("system_files/usr/lib/moos/moos_portal_grant.py")
+# A second desktop with no HTTPS name is a QUIETLY worse product, not a broken
+# one: canDecodeH264() requires window.isSecureContext, so over plain http the
+# phone falls back to JPEG — ~79 Mbit/s at 1080p against H.264's ~4.3 — and the
+# clipboard and PWA install disappear with it. Nothing reports any of that.
+require("tailscale serve --bg --https=" in _own_code,
+        "moos-cloud-desktop no longer publishes an HTTPS name for the private desktop. "
+        "Without a secure context Mo PC Remote loses WebCodecs and drops to JPEG, which "
+        "is survivable on a LAN and unusable on mobile data.")
+require("8443 + uid - 1001" in _own_code,
+        "the private desktop's HTTPS port is no longer derived clear of the agent's own "
+        "port. Serving --https on the port the agent already binds does NOT terminate TLS: "
+        "the tailnet address answers the app in cleartext and curl reports 'wrong version "
+        "number' — a secure-looking URL that is not one. Measured, not theorised.")
 require("grant-input) need_root" in _own_code,
         "moos-cloud-desktop lost its grant-input command. Without it the second desktop's "
         "input cannot be turned on at all: the portal wants one interactive approval and a "
