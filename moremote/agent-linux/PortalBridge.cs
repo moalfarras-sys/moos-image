@@ -32,6 +32,8 @@ public sealed class PortalBridge : IDisposable
     private int _generation;
     private volatile bool _streaming;      // a viewer is connected and wants frames
     private int _streamingGeneration = -1; // which helper `_streaming` was pushed to
+    private string _codec = "jpeg";        // what a fresh helper starts on
+    private int _codecGeneration = -1;     // which helper `_codec` was pushed to
     private long _streamingTicks;          // when we last asked for frames — the clock Stalled reads
 
     /// <summary>
@@ -76,6 +78,29 @@ public sealed class PortalBridge : IDisposable
             if (!on) _frame = null;   // never hand a new viewer the last frame of the previous one
         }
         Send(new { type = "video", streaming = on });
+    }
+
+    /// <summary>
+    /// Which codec the helper should encode with ("h264" or "jpeg"). Same shape as SetStreaming
+    /// and for the same reason: a FRESH HELPER STARTS ON JPEG whatever the last one was doing.
+    ///
+    /// This is the bug that shape exists to prevent, and the codec did not have it. ScreenCapture
+    /// only told the helper about a codec CHANGE, so after a helper crash — input injection hitting
+    /// a dead D-Bus destination is enough — the new helper came up on jpeg while the agent still
+    /// believed it had asked for h264. Nothing changed, so nothing was re-sent, and the session
+    /// stayed on JPEG until the viewer disconnected: 346 KB whole-picture frames, the socket backed
+    /// up, and the round trip measured on the cloud server went from 32 ms to 2.7 SECONDS. No error
+    /// anywhere; the picture simply turned to treacle and stayed there.
+    /// </summary>
+    public void SetCodec(string codec)
+    {
+        lock (_gate)
+        {
+            if (codec == _codec && _codecGeneration == Generation) return;
+            _codec = codec;
+            _codecGeneration = Generation;
+        }
+        Send(new { type = "video", codec });
     }
 
     public PortalBridge()
@@ -269,6 +294,14 @@ public sealed class PortalBridge : IDisposable
                 {
                     _streamingGeneration = Generation;
                     Send(new { type = "video", streaming = true });
+                }
+                // And the codec, for exactly the same reason: this helper starts on jpeg, so a
+                // viewer that already declared H.264 must be re-declared to it or the rest of
+                // that session is whole pictures at ten times the bytes.
+                if (_codec != "jpeg")
+                {
+                    _codecGeneration = Generation;
+                    Send(new { type = "video", codec = _codec });
                 }
                 break;
             case "video":

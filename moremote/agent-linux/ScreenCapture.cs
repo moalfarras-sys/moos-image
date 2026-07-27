@@ -146,13 +146,11 @@ public sealed class ScreenCapture : IDisposable
         _portal.SetStreaming(!_sessionH264.IsEmpty);
 
         bool all = !_sessionH264.IsEmpty && _sessionH264.Values.All(v => v);
-        var want = all ? "h264" : "jpeg";
-        if (want == _wantCodec) return;
-        _wantCodec = want;
-        _portal.Send(new { type = "video", codec = want });
+        // SetCodec owns the idempotence AND the re-push after a helper restart. Deciding here
+        // whether anything changed is what left a restarted helper on JPEG for ever: from this
+        // side nothing had changed, because from this side nothing had.
+        _portal.SetCodec(all ? "h264" : "jpeg");
     }
-
-    private string _wantCodec = "jpeg";
 
     private sealed class Unsubscriber(Action dispose) : IDisposable
     {
