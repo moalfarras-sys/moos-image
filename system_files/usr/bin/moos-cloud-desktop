@@ -34,15 +34,32 @@ die()   { red "$*"; exit 1; }
 
 need_root() { [ "$(id -u)" = 0 ] || die "run this with sudo — it changes how the machine logs in."; }
 
-tailscale_url() {
-    local ip
-    ip="$(tailscale ip -4 2>/dev/null | head -1 || true)"
-    if [ -n "$ip" ]; then
-        printf 'http://%s:8765' "$ip"
-    else
-        printf ''
-    fi
+# The address to hand a human, for the account with this uid.
+#
+# THIS FUNCTION USED TO RETURN http://<ip>:8765 AND THAT ONE STRING CAUSED EVERY SYMPTOM BELOW
+#
+# `on` printed it as "open the desktop in any browser", the owner did, and over plain http the
+# browser withholds `isSecureContext` — so canDecodeH264() is false, the client votes "no H.264",
+# and Reconcile() (which needs EVERY viewer to agree) puts the whole room on JPEG. There is no
+# /audio on that listener either, so the speaker button cannot work. And with the https tab still
+# open beside it, two viewers on different auto-quality presets renegotiated the shared pipeline
+# twice a second, so no keyframe survived long enough to draw.
+#
+# One http URL, and the user correctly reported: no sound, a black screen, stuttering, and touch
+# that appeared dead. So the plain-http address is no longer something this returns by default.
+account_url() {
+    local uid="${1:-1000}" name port
+    name="$(tailscale status --json 2>/dev/null \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))' 2>/dev/null || true)"
+    [ -n "$name" ] || { printf ''; return; }
+    # Matches what `on` and `own` publish: 443 for the seat owner, 8443+N for everyone else.
+    if [ "$uid" = 1000 ]; then port=443; else port=$(( 8443 + uid - 1001 )); fi
+    if [ "$port" = 443 ]; then printf 'https://%s' "$name"; else printf 'https://%s:%s' "$name" "$port"; fi
 }
+
+# There is deliberately no helper that returns the plain-http address any more. Every call site that
+# had one printed it to a human, and there is no third use for it — a diagnostic that wants to name
+# the insecure listener can say ":8765" in the sentence where it warns about it.
 
 # ── A screen of their own ────────────────────────────────────────────────────
 #
@@ -433,18 +450,14 @@ UNIT
     fi
 
     echo
-    local url dnsname
-    url="$(tailscale_url)"
-    # The HTTPS name is the one worth printing, and printing the plain-http one next to it is how
-    # people end up on the worse path: over http the browser withholds WebCodecs and the stream
-    # silently drops to JPEG (~79 Mbit/s at 1080p against H.264's ~4.3), and the sound cannot be in
-    # the same tab at all. So lead with the secure URL and mention the port only as a fallback.
-    dnsname="$(tailscale status --json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))' 2>/dev/null || true)"
-    if [ -n "$dnsname" ]; then
-        note "${user} opens: https://${dnsname}:${hport}"
-        note "  sound is in that same page now — the speaker button in the toolbar"
-    elif [ -n "$url" ]; then
-        note "${user} opens: ${url%:*}:${port}   (plain http — JPEG only, no in-page sound)"
+    # One helper, one answer — see account_url. This used to derive the name inline while cmd_on
+    # printed the plain-http address from a different function, which is exactly how the two paths
+    # drifted and how one of them started handing out the URL that degrades the whole room.
+    local url
+    url="$(account_url "$uid")"
+    if [ -n "$url" ]; then
+        note "${user} opens: ${url}"
+        note "  sound is in that same page — the speaker button in the toolbar"
     else
         note "${user} opens https://<magicdns-name>:${hport} once this server joins Tailscale"
     fi
@@ -526,14 +539,19 @@ CONF
 
     echo
     local url
-    url="$(tailscale_url)"
+    url="$(account_url "$uid")"
     if [ -n "$url" ]; then
         ok "open the desktop in any browser on your tailnet:"
         note "$url"
+        note "sound is in that same page — the speaker button in the toolbar"
+        note ""
+        note "Use THIS address, not the http://<ip>:8765 one. Over plain http the browser"
+        note "withholds WebCodecs, so the stream drops to JPEG for EVERY viewer in the room,"
+        note "there is no /audio, and no clipboard. One insecure tab degrades everyone."
     else
         ok "the desktop is on. Join this server to Tailscale to reach it:"
-        note "tailscale up --ssh     then open http://<its-tailscale-ip>:8765"
-        note "(Mo PC Remote refuses connections from anywhere else — by design.)"
+        note "tailscale up --ssh     then re-run: moos-cloud-desktop on ${user}"
+        note "(Mo PC Remote refuses connections from outside the tailnet — by design.)"
     fi
 }
 
@@ -554,8 +572,11 @@ cmd_status() {
         "$(loginctl list-sessions --no-legend 2>/dev/null | awk '$4=="seat0"{print $3; found=1} END{if(!found) print "none"}')"
     printf '  Mo PC Remote: %s\n' \
         "$(ss -tnl 2>/dev/null | grep -q ':8765' && echo 'listening on 8765' || echo 'not listening')"
+    # The seat owner is uid 1000 by construction (cmd_on configures autologin for them), so status
+    # reports THEIR secure address. Printing tailscale_url() here was the third copy of the same
+    # mistake — a status command that tells you to open the address that breaks the session.
     local url
-    url="$(tailscale_url)"
+    url="$(account_url 1000)"
     [ -n "$url" ] && printf '  browser: %s\n' "$url" \
                   || printf '  browser: join Tailscale first — Mo PC Remote answers nothing else\n'
 }

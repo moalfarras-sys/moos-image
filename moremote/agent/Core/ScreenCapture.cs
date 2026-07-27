@@ -81,6 +81,11 @@ public sealed class ScreenCapture : IDisposable
     // is nothing here to start or stop.
     public void SessionArrived(Guid id) { }
     public void SessionGone(Guid id) { }
+    // Nothing to arbitrate here. DXGI encodes per frame, inside Capture(), from the quality and
+    // scale of the session that asked — so two viewers on different presets each get exactly what
+    // they requested and neither can disturb the other. The Linux path has one shared GStreamer
+    // pipeline for the whole room, which is why it needs a single agreed answer.
+    public void SessionQuality(Guid id, int quality, double scale) { }
 
     public void SelectMonitor(int index)
     {

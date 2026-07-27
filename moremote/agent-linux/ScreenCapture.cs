@@ -51,7 +51,11 @@ public sealed class ScreenCapture : IDisposable
     {
         if (_portal.IsReady && !_portal.Stalled)
         {
-            PushSettings(quality, scale);
+            // The ARBITRATED values, not this session's own — see SessionQuality. The parameters are
+            // still honoured by the spectacle fallback below, which encodes per frame and so has no
+            // shared pipeline to fight over.
+            PushSettings(_wantQuality > 0 ? _wantQuality : quality,
+                         _wantScale > 0 ? _wantScale : scale);
             var jpeg = _portal.Latest(ref _version);
             if (jpeg != null) return new(jpeg, true, true);
             var current = _portal.Current();
@@ -67,8 +71,10 @@ public sealed class ScreenCapture : IDisposable
     /// helper a full pipeline rebuild. A restarted helper comes back on its own defaults, so a
     /// generation change forces a re-push even if the values look unchanged.
     ///
-    /// Note the encoder is process-wide: with two phones connected on different quality presets,
-    /// the last one to poll wins. That is rate-limited here so they can't thrash the pipeline.
+    /// The values arriving here are now the room's ARBITRATED ones (SessionQuality), so two viewers
+    /// on different presets agree before this is reached. The 500ms floor below is what it always
+    /// claimed to be — a backstop against a single client flapping its own preset — rather than the
+    /// only thing standing between two clients and two pipeline rebuilds per second.
     /// </summary>
     private void PushSettings(int quality, double scale)
     {
@@ -133,9 +139,67 @@ public sealed class ScreenCapture : IDisposable
         Reconcile();
     }
 
+    // ---------------------------------------------------------------- quality arbitration
+
+    private readonly ConcurrentDictionary<Guid, (int Quality, double Scale)> _sessionWants = new();
+    private int _wantQuality = -1;
+    private double _wantScale = -1;
+
+    /// <summary>
+    /// What one viewer is asking the ENCODER for. Like the codec, this is a property of the room:
+    /// there is one pipeline, so there is one answer.
+    ///
+    /// THE BUG THIS REPLACES, because it destroyed the session rather than degrading it
+    ///
+    /// Capture() used to push whatever the session that happened to poll was asking for, and the
+    /// comment above PushSettings said so plainly — "with two phones connected on different quality
+    /// presets, the last one to poll wins. That is rate-limited here so they can't thrash the
+    /// pipeline." Rate-limiting is not the same as arbitrating. With two viewers on different
+    /// presets, both requests are permanently different from the last-pushed value, so BOTH always
+    /// pass the idempotence check and the only thing left standing between them and the pipeline is
+    /// the 500ms floor. The result, measured on the live server:
+    ///
+    ///   22:55:04  Control session END (active: 1)   -> h264 1920x1080, then 77s of silence
+    ///   22:56:21  Control session START (active: 2) -> jpeg, 1920x1080, 1344x756, 1920x1080 ...
+    ///
+    /// two renegotiations per second, for as long as two viewers were connected. Every one of them
+    /// rebuilds the GStreamer pipeline and starts a new stream, so the client never held a keyframe
+    /// long enough to draw: a black or frozen picture, input that appeared to do nothing (it was
+    /// arriving and being injected the whole time), and a session that felt like it kept dropping.
+    ///
+    /// WHY MINIMUM
+    ///
+    /// The most constrained viewer sets the pace, matching what Reconcile() already does for the
+    /// codec (All(v => v)). It is also the only choice that cannot oscillate: min over a set only
+    /// moves when a member's own request moves or the set changes, so a steady room is a steady
+    /// pipeline. Sending 1080p to a phone that asked for half of it helps nobody — it pays full
+    /// bandwidth for pixels that phone immediately scales away.
+    /// </summary>
+    public void SessionQuality(Guid id, int quality, double scale)
+    {
+        _sessionWants[id] = (quality, scale);
+        RecomputeWants();
+    }
+
+    private void RecomputeWants()
+    {
+        if (_sessionWants.IsEmpty) return;   // keep the last agreed values; nobody is watching
+        int q = int.MaxValue;
+        double s = double.MaxValue;
+        foreach (var (quality, scale) in _sessionWants.Values)
+        {
+            if (quality < q) q = quality;
+            if (scale < s) s = scale;
+        }
+        _wantQuality = q;
+        _wantScale = s;
+    }
+
     public void SessionGone(Guid id)
     {
         _sessionH264.TryRemove(id, out _);
+        _sessionWants.TryRemove(id, out _);
+        RecomputeWants();
         Reconcile();
     }
 

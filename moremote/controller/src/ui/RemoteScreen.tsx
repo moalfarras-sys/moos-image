@@ -471,16 +471,45 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
   // Auto quality: adapt to the network using round-trip latency (RTT). We deliberately do NOT
   // use fps — with identical-frame skipping, a still screen sends few frames, which is not lag.
+  //
+  // WHY THIS IS NOT A ONE-LINE THRESHOLD ANY MORE
+  //
+  // It was, and the loop it made was self-sustaining. Climbing to a richer preset raises the encode
+  // cost and the bitrate, which raises the RTT, which trips the drop threshold, which lowers the RTT,
+  // which trips the climb threshold — for ever. A preset change costs the server a full pipeline
+  // rebuild, so the oscillation was not a cosmetic wobble: it was a stream that never held a keyframe.
+  //
+  // Three things make a control loop like this stable, and it had none of them:
+  //   * a DEAD BAND wide enough that one step cannot carry the measurement across it (120..250 was
+  //     narrower than the latency change a step itself causes);
+  //   * CONSECUTIVE agreeing samples, so a single jittery ping cannot move anything — and on a
+  //     Tailscale DERP relay the jitter is routinely 33..93ms all by itself;
+  //   * a COOLDOWN after acting, so the loop observes the consequence of its last move before making
+  //     another. Climbing needs a longer one than dropping: being slow to give someone more quality
+  //     costs them nothing, being slow to relieve a struggling link costs them the session.
+  const autoStateRef = useRef({ up: 0, down: 0, last: 0 });
   useEffect(() => {
     if (!auto) return;
+    autoStateRef.current = { up: 0, down: 0, last: Date.now() };
+    const SAMPLE_MS = 2000;
+    const AGREE_UP = 4;        // ~8s of consistently good latency before asking for more
+    const AGREE_DOWN = 2;      // ~4s of bad latency is enough to back off
+    const COOLDOWN_UP = 20000;
+    const COOLDOWN_DOWN = 6000;
     const id = window.setInterval(() => {
       const lat = latRef.current;
-      setPresetIdx((idx) => {
-        if (lat > 250 && idx > 0) return idx - 1;             // laggy → lighter preset
-        if (lat > 0 && lat < 120 && idx < QUALITY_PRESETS.length - 1) return idx + 1; // healthy → richer
-        return idx;
-      });
-    }, 2500);
+      if (!lat) return;                        // no measurement yet — never act on a zero
+      const st = autoStateRef.current;
+      const since = Date.now() - st.last;
+      if (lat > 400) { st.down++; st.up = 0; }
+      else if (lat < 90) { st.up++; st.down = 0; }
+      else { st.up = 0; st.down = 0; }         // inside the dead band: forget, do not drift
+      if (st.down >= AGREE_DOWN && since > COOLDOWN_DOWN) {
+        setPresetIdx((idx) => { if (idx <= 0) return idx; st.last = Date.now(); st.down = 0; return idx - 1; });
+      } else if (st.up >= AGREE_UP && since > COOLDOWN_UP) {
+        setPresetIdx((idx) => { if (idx >= QUALITY_PRESETS.length - 1) return idx; st.last = Date.now(); st.up = 0; return idx + 1; });
+      }
+    }, SAMPLE_MS);
     return () => window.clearInterval(id);
   }, [auto]);
 

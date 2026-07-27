@@ -271,6 +271,10 @@ public sealed class StreamSession
                 case "settings":
                     if (TryGetInt(root, "quality", out var q)) _quality = Math.Clamp(q, 10, 95);
                     if (TryGetInt(root, "fps", out var f)) { _fps = Math.Clamp(f, 1, 30); _svc.Capture.SetFps(_fps); }
+                    // Declared HERE, once per settings message, and never from the send loop. One
+                    // pipeline serves the whole room, so what this session wants is an opinion to be
+                    // arbitrated (ScreenCapture.SessionQuality), not an instruction to be obeyed by
+                    // whichever session polled last.
                     // The client tells us what it can decode; we never guess. WebCodecs needs a
                     // secure context, so a phone on the old http LAN address will say false here
                     // and correctly stay on JPEG.
@@ -282,6 +286,7 @@ public sealed class StreamSession
                     }
                     if (root.TryGetProperty("scale", out var sc) && sc.ValueKind == JsonValueKind.Number)
                         _scale = Math.Clamp(sc.GetDouble(), 0.3, 1.0);
+                    _svc.Capture.SessionQuality(_id, _quality, _scale);
                     return;
                 case "selectMonitor":
                     if (TryGetInt(root, "index", out var mon)) _svc.Capture.SelectMonitor(mon);
