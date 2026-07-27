@@ -226,6 +226,20 @@ public sealed class InputInjector : IDisposable
         ["End"] = new(0x4F, true), ["ArrowDown"] = new(0x50, true), ["PageDown"] = new(0x51, true),
         ["Insert"] = new(0x52, true), ["Delete"] = new(0x53, true),
         ["MetaLeft"] = new(0x5B, true), ["MetaRight"] = new(0x5C, true), ["ContextMenu"] = new(0x5D, true),
+        // Volume and media, also 0xE0-prefixed. These exist on the Linux side, and a table that has
+        // them there and not here is the same kind of asymmetry as a feature that works for one
+        // account and not the other — it just shows up as "the volume keys do nothing on Windows".
+        ["AudioVolumeMute"] = new(0x20, true), ["AudioVolumeDown"] = new(0x2E, true),
+        ["AudioVolumeUp"] = new(0x30, true),
+        ["MediaPlayPause"] = new(0x22, true), ["MediaStop"] = new(0x24, true),
+        ["MediaTrackNext"] = new(0x19, true), ["MediaTrackPrevious"] = new(0x10, true),
+        ["BrowserBack"] = new(0x6A, true), ["BrowserForward"] = new(0x69, true),
+        ["BrowserRefresh"] = new(0x67, true),
+        // The keys ISO/JIS boards have and ANSI does not. Non-extended.
+        ["IntlRo"] = new(0x73, false), ["IntlYen"] = new(0x7D, false), ["NumpadEqual"] = new(0x59, false),
+        // Still deliberately absent: Pause. Its make code is the three-byte E1 1D 45 sequence, not a
+        // scancode, so there is nothing correct to put in this table for it — and a key wired to the
+        // wrong scancode is worse than one that does nothing, because the dead one gets reported.
     };
 
     /// <summary>Press a chord (e.g. Control+Shift+Escape): down in order, up in reverse.</summary>
