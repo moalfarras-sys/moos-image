@@ -16,7 +16,20 @@ export interface GestureCallbacks {
 
 interface Ptr { id: number; x: number; y: number; sx: number; sy: number; st: number; }
 
-const MOVE_THRESHOLD = 5;
+// Touch slop: how far a finger may travel and still be a tap rather than a swipe.
+//
+// This was 5, and 5 is not a slop, it is a rounding error. A thumb on a 120 Hz phone moves 5 CSS px
+// before it has finished landing, so a tap crossed the line, the gesture committed to "scroll", and
+// onUp had no case for "scroll" — no click was sent AT ALL. Not a mis-aimed click: none. That is the
+// whole of "the screen does not respond to touch", and it is independent of every video problem.
+//
+// 12 is in the range every touch platform settled on for the same decision (iOS ~10pt, Android's
+// scaled touch slop ~8dp ≈ 12-16 px at typical densities). TAP_RESCUE_MS/PX below are the second
+// half: commit late, so a gesture that DID cross the line but was plainly a tap still clicks.
+const MOVE_THRESHOLD = 12;
+/** A gesture shorter than this and smaller than TAP_RESCUE_PX was a tap, whatever it looked like. */
+const TAP_RESCUE_MS = 300;
+const TAP_RESCUE_PX = 24;
 const LONGPRESS_MS = 500; // matches Android's own long-press feel, so a slow tap stays a tap
 const PX_PER_NOTCH = 24;
 const TRACKPAD_GAIN = 1.7;
@@ -214,6 +227,25 @@ export class GestureController {
         // A plain tap: click right away. Two taps in a row become a real double-click on the PC.
         const quick = now() - p.st < 500;
         if (quick) this.cb.click("left", this.cx, this.cy);
+        break;
+      }
+      case "scroll":
+      case "move": {
+        // THE LATE COMMIT, and the reason a tap can no longer vanish.
+        //
+        // Deciding what a gesture is on its first movement means deciding before the evidence is in.
+        // A finger that travelled 14px in 90ms and stopped is a tap that wobbled; a finger that
+        // travelled 14px in 600ms was aiming somewhere. Only the end of the gesture knows which, so
+        // ask here: short and small is a tap, and it clicks where it started rather than nowhere.
+        //
+        // Safe against double-firing because the scroll deltas that went out for a movement this
+        // small are a pixel or two — below anything a person can see, let alone intend.
+        const travelled = dist(p.x, p.y, p.sx, p.sy);
+        if (now() - p.st < TAP_RESCUE_MS && travelled < TAP_RESCUE_PX) {
+          const s = this.toNorm(p.sx, p.sy);   // where the finger LANDED, not where it drifted to
+          this.moveTo(s.x, s.y, false);
+          this.cb.click("left", s.x, s.y);
+        }
         break;
       }
     }

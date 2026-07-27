@@ -10,7 +10,23 @@ assert.throws(()=>n(0,0,{left:0,top:0,width:0,height:1}),RangeError);
 const lib = join(import.meta.dirname, "..", "src", "lib");
 const gestures = readFileSync(join(lib, "gestures.ts"), "utf8");
 const ws = readFileSync(join(lib, "ws.ts"), "utf8");
-assert.match(gestures, /MOVE_THRESHOLD = 5/);
+// Touch slop, asserted as a RANGE rather than pinned to a literal.
+//
+// This used to read `assert.match(gestures, /MOVE_THRESHOLD = 5/)` with no stated reason, and 5 CSS px
+// is not a slop — a thumb travels that far before it has finished landing. Crossing it committed the
+// gesture to "scroll", and onUp had no case for "scroll", so no click was sent at all. The test was
+// holding the bug in place.
+//
+// What matters is not the number but that it sits in the band every touch platform converged on for
+// the same tap-versus-swipe decision (iOS ~10pt, Android's scaled touch slop ~8dp), and that the
+// gesture can still be RESCUED as a tap at the end if it crossed the line but was plainly a tap.
+const slop = gestures.match(/MOVE_THRESHOLD = (\d+)/);
+assert.ok(slop, "gestures.ts must define a touch slop");
+assert.ok(Number(slop[1]) >= 8 && Number(slop[1]) <= 20,
+  `touch slop must be a real slop, not a rounding error: got ${slop[1]}px`);
+assert.match(gestures, /case "scroll":/,
+  "onUp must be able to rescue a short, small gesture as a tap — otherwise a wobbled tap sends nothing");
+assert.match(gestures, /TAP_RESCUE_MS/);
 assert.match(gestures, /Continue below and deliver this first meaningful delta/);
 // Text coalescing is adaptive: keysym-typable text flushes within one 60 Hz frame, while text the
 // agent must type by borrowing the clipboard batches into words (one borrow per letter is both
