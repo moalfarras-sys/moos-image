@@ -367,12 +367,18 @@ doctor_user() {
     # A rebuild loop is visible without any theory at all: the database's mtime
     # simply keeps moving. One sample cannot tell a loop from a normal rebuild,
     # so take two 8s apart — a healthy session touches it once and stops.
+    # Exclude the .lock file. KSycoca writes `<db>.lock` beside the database while
+    # a rebuild is in flight, so a naive glob counts it as a second database — and
+    # during a live loop the lock is present most of the time, which made this
+    # report "2 file(s)" and sent me looking for a split-brain that did not exist.
     local db first second
-    db="$(ls -t "${home}/.cache/"ksycoca6_* 2>/dev/null | head -1 || true)"
+    db="$(find "${home}/.cache" -maxdepth 1 -name 'ksycoca6_*' ! -name '*.lock' \
+          -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)"
     if [ -z "$db" ]; then
         note "no ksycoca database yet (this account has not started a session)"
     else
-        printf '  ksycoca: %s file(s)\n' "$(ls "${home}/.cache/"ksycoca6_* 2>/dev/null | wc -l)"
+        printf '  ksycoca: %s database(s)\n' \
+            "$(find "${home}/.cache" -maxdepth 1 -name 'ksycoca6_*' ! -name '*.lock' 2>/dev/null | wc -l)"
         first="$(stat -c %Y "$db" 2>/dev/null || echo 0)"
         sleep 8
         second="$(stat -c %Y "$db" 2>/dev/null || echo 0)"
@@ -483,12 +489,27 @@ cmd_doctor() {
         doctor_user "$user"
         return
     fi
-    # Every human account with a home. Comparing two accounts side by side is how
-    # the ksycoca asymmetry was found in the first place, so default to all.
-    local u
-    for u in $(getent passwd | awk -F: '$3>=1000 && $3<65000 {print $1}'); do
+    # Every HUMAN account. Comparing two side by side is how the ksycoca asymmetry
+    # was found in the first place, so default to all of them.
+    #
+    # uid >= 1000 alone is not "human", and saying so cost this command its
+    # credibility the first time it ran for real: `rpm-ostree` is uid 62011, has
+    # no desktop and never will, and the report duly told the reader that it was
+    # missing its XDG directories, had no RemoteDesktop grant, and should be fixed
+    # with `grant-input rpm-ostree`. Three red crosses and a nonsense instruction,
+    # about a system account. A diagnostic that cries wolf is worse than none.
+    #
+    # So require what a human account actually has: a login shell, and a home
+    # under /var/home that exists.
+    local u shell home
+    while IFS=: read -r u _ uid _ _ home shell; do
+        [ "$uid" -ge 1000 ] 2>/dev/null || continue
+        [ "$uid" -lt 60000 ] || continue
+        case "$shell" in */nologin|*/false|"") continue ;; esac
+        case "$home" in /var/home/*|/home/*) ;; *) continue ;; esac
+        [ -d "$home" ] || continue
         doctor_user "$u"
-    done
+    done < <(getent passwd)
 }
 
 case "${1:-status}" in
