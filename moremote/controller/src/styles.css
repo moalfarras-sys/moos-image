@@ -385,6 +385,20 @@ button {
   z-index: 41;
   box-shadow: var(--shadow);
   animation: slide-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  /* A sheet is `position: fixed; bottom: 0` with automatic height, so content taller than the
+     viewport grows off the TOP of the screen — and with no overflow set there is nothing to scroll,
+     so those rows become permanently unreachable. That was already latent (the Files listing can be
+     any length) and adding a section to Controls is what surfaced it in a screenshot.
+
+     dvh, not vh: on mobile Safari `vh` is the tallest the viewport ever gets, so a sheet sized in vh
+     sits partly behind the browser's own toolbar until the page is scrolled — which a fixed element
+     never is. overscroll-behavior keeps a flick at the end of the list from scrolling the page
+     underneath it. */
+  max-height: 82dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .sheet .grip {
   width: 42px;
@@ -434,6 +448,15 @@ button {
 
 .seg {
   display: flex;
+  /* A flex item's floor is its min-content width, so a row of segments does not shrink politely —
+     it overflows the sheet and the last one is simply cut off at the screen edge. Adding a fourth
+     pointer mode ("Mouse + Keys") is what pushed this past 430px, and the same was already one
+     label away from happening in the quality row.
+
+     Wrapping is the fix rather than shrinking the text: four legible segments on two rows beat four
+     clipped ones on one. The min-width is what chooses the breakpoint — four fit a desktop sheet on
+     one row and fall to 2x2 on a phone, with no media query to keep in step with the font. */
+  flex-wrap: wrap;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -442,7 +465,12 @@ button {
   margin: 6px 0 16px;
 }
 .seg button {
-  flex: 1;
+  flex: 1 1 auto;
+  /* Chosen against the real sheet width, not by eye: at 430px the usable row is ~384px, so a floor
+     above 384/3 is what stops three segments sharing a row and leaving the fourth alone underneath.
+     132px gives a tidy 2x2 on every phone width and still lets all four sit on one row from about a
+     tablet upward. */
+  min-width: 132px;
   display: flex;
   flex-direction: column;
   align-items: center;

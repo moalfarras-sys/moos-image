@@ -183,9 +183,16 @@ function say(text, tone) { msg.textContent = text; state.dataset.tone = tone || 
 
 function connect() {
   clearTimeout(retry);
+  // RELATIVE, not "/stream.webm". This page is also served under a mount prefix
+  // (`tailscale serve --set-path=/audio`) so that the sound shares the desktop's
+  // HTTPS origin instead of living on its own plain-http port. An absolute path
+  // would leave the prefix behind and ask the DESKTOP agent for the stream, which
+  // answers index.html — a 200 that is not audio, so nothing plays and nothing
+  // errors. The server redirects the prefix to its directory form so that this
+  // resolves the same either way.
   // Cache-busting is not superstition here: without it Safari re-uses the dead
   // response from the previous connection and plays nothing, silently.
-  a.src = "/stream.webm?t=" + Date.now();
+  a.src = "stream.webm?t=" + Date.now();
   a.play().then(() => say("متصل", "live")).catch(() => say("اضغط الزر للتشغيل", "bad"));
 }
 
@@ -226,20 +233,69 @@ class Handler(BaseHTTPRequestHandler):
         sys.stderr.write("moos-cloud-audio: " + (fmt % args) + "\n")
 
     # ── routes ───────────────────────────────────────────────────────────────
+    #
+    # Matching on the LAST path segment rather than the whole path, because this service is reached
+    # two ways and only one of them has the path it expects:
+    #
+    #   direct              http://<tailscale-ip>:8776/stream
+    #   behind serve        https://<host>:8443/audio/stream   (`--set-path=/audio`)
+    #
+    # and whether `tailscale serve` strips its own mount prefix before proxying is a detail of the
+    # version installed, not something this service should depend on. The leaf is the same either
+    # way, so match on that and both work — including any deeper prefix somebody mounts later.
+    ROUTES = {
+        "": "page", "index.html": "page",
+        "stream": "stream", "stream.webm": "stream",
+        "healthz": "health",
+    }
+
+    # The mount path `moos-cloud-desktop own` publishes (`tailscale serve --set-path=/audio`), listed
+    # EXPLICITLY rather than inferred from "anything unknown".
+    #
+    # The first version of this redirected every unrecognised path to its directory form, and the
+    # repo's own gate caught what that means: `GET /../etc/passwd` came back 302 instead of 404.
+    # Nothing was served and no encoder started, so it was harmless — but answering a traversal probe
+    # with a redirect is both wrong and alarming, and "harmless today" is not the standard. One known
+    # prefix is all this needs.
+    MOUNT_PREFIXES = ("/audio",)
+
+    def _leaf(self):
+        return self.path.split("?", 1)[0].rsplit("/", 1)[-1]
+
+    def _redirect_to_directory(self):
+        """Send `/audio` to `/audio/`.
+
+        The page asks for `stream.webm` relatively so that it works under any mount. A relative URL
+        resolves against the DIRECTORY of the current document, so at `/audio` (no trailing slash)
+        it would resolve to `/stream.webm` — off the mount and into the desktop agent. One redirect
+        makes the browser's idea of "here" match the mount, and every relative URL below is then
+        correct by construction rather than by luck.
+
+        302 and not 301/308: the mount path is deployment configuration and can change, and a
+        permanent redirect for it would be cached in browsers long after it stopped being true.
+        """
+        target = self.path.split("?", 1)[0] + "/"
+        self.send_response(302)
+        self.send_header("Location", target)
+        self.send_header("Content-Length", "0")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+
     def do_GET(self):
-        route = self.path.split("?", 1)[0]
-        if route in ("/", "/index.html"):
+        what = self.ROUTES.get(self._leaf())
+        if what == "page":
             self._page()
-        elif route in ("/stream.webm", "/stream"):
+        elif what == "stream":
             self._stream()
-        elif route == "/healthz":
+        elif what == "health":
             self._text("ok\n")
+        elif self.path.split("?", 1)[0] in self.MOUNT_PREFIXES:
+            self._redirect_to_directory()
         else:
             self.send_error(404, "not found")
 
     def do_HEAD(self):
-        route = self.path.split("?", 1)[0]
-        if route in ("/stream.webm", "/stream"):
+        if self.ROUTES.get(self._leaf()) == "stream":
             # Answer the probe without spawning an encoder for it.
             self.send_response(200)
             self.send_header("Content-Type", "audio/webm")

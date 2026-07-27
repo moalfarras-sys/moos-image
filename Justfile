@@ -37,6 +37,10 @@ check:
     python3 tests/test_moos_cloud_audio.py
     python3 tests/test_fwupd_refresh_policy.py
     python3 tests/test_exec_bits.py
+    # CI never runs `npm run build`; the image ships the COMMITTED controller bundle, and
+    # moremote/.gitignore hides the very directory it lives in. This catches an index.html
+    # pointing at an asset that never made it into git — which serves a blank page with a 200.
+    python3 tests/test_shipped_bundle_is_tracked.py
     python3 tests/test_moos_store_index.py
     python3 tests/test_moos_storectl.py
     python3 tests/test_moos_ui2.py

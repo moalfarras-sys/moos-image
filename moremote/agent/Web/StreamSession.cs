@@ -336,6 +336,21 @@ public sealed class StreamSession
                     break;
                 case "key":
                     {
+                        // `code` is a PHYSICAL key position (a browser KeyboardEvent.code) and takes
+                        // precedence over `key`, which is a character the viewer's own layout
+                        // produced. A desktop browser sends both; preferring the position is what
+                        // makes held keys, Ctrl-chords and the numeric keypad work at all, and it
+                        // leaves the remote's keymap in charge of what the position MEANS.
+                        //
+                        // The phone sends only `key`, so its path below is untouched.
+                        var code = GetStr(root, "code", "");
+                        if (code.Length is > 0 and <= 32)
+                        {
+                            if (root.TryGetProperty("down", out var cd) && cd.ValueKind != JsonValueKind.Null)
+                                input.KeyCode(code, cd.GetBoolean());
+                            else input.KeyTapCode(code);
+                            break;
+                        }
                         var key = GetStr(root, "key", "");
                         if (key.Length == 0) break;
                         if (root.TryGetProperty("down", out var d) && d.ValueKind != JsonValueKind.Null)
@@ -382,7 +397,12 @@ public sealed class StreamSession
         if(!root.TryGetProperty("ts",out var tsEl)||!tsEl.TryGetInt64(out var ts)){reason="missing timestamp";return false;}
         if(!_sequenceGuard.Accept(seq,ts,DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),out reason))return false;
         if(!root.TryGetProperty("display",out var display)||!display.TryGetInt32(out var displayId)||displayId!=_svc.Capture.SelectedIndex){reason="unknown display";return false;}
-        if(!root.TryGetProperty("mode",out var modeEl)||modeEl.ValueKind!=JsonValueKind.String||modeEl.GetString() is not ("trackpad" or "direct" or "touch")){reason="invalid input mode";return false;}
+        // "desktop" is the real-mouse-and-keyboard viewer (a computer, not a phone). It has to be
+        // listed HERE or nothing else in this file matters: every input message carries its mode and
+        // an unlisted one is rejected by this line before any handler sees it. That is a silent
+        // failure — the stream looks perfect and not one click lands — so a new client mode is a
+        // two-file change by construction, and this is the second file.
+        if(!root.TryGetProperty("mode",out var modeEl)||modeEl.ValueKind!=JsonValueKind.String||modeEl.GetString() is not ("trackpad" or "direct" or "touch" or "desktop")){reason="invalid input mode";return false;}
         if(!root.TryGetProperty("viewport",out var viewport)||!Positive(viewport,"w")||!Positive(viewport,"h")){reason="invalid viewport";return false;}
         bool absolute=type is "move" or "down" or "up" or "click" or "dblclick";
         if(absolute&&(!root.TryGetProperty("content",out var content)||!Positive(content,"width")||!Positive(content,"height")||!root.TryGetProperty("source",out var source)||!Positive(source,"w")||!Positive(source,"h"))){reason="invalid remote content geometry";return false;}

@@ -120,6 +120,16 @@ jobs:
           python3 tests/test_moai_control.py
           python3 tests/test_moai_http_security.py
           python3 tests/test_exec_bits.py
+          # This one guards THIS job specifically: nothing here runs `npm run build`, so the web UI
+          # in the image is whatever is committed under moremote/agent/wwwroot — and .gitignore hides
+          # that directory, so a rebuilt bundle silently fails to land. Serving index.html for a
+          # missing script is a 200, not a 404, so the symptom is a blank page and a green build.
+          python3 tests/test_shipped_bundle_is_tracked.py
+          # These three were in the Justfile only, so they could not fail a build. The cloud edition
+          # is one of the three images this matrix publishes; its two gates belong here.
+          python3 tests/test_moos_cloud_audio.py
+          python3 tests/test_cloud_private_desktop.py
+          python3 tests/test_mo_remote_codec_resend.py
           python3 tests/test_moos_store_index.py
           python3 tests/test_moos_storectl.py
           python3 tests/test_moos_ui2.py

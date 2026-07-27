@@ -98,8 +98,16 @@ export class GestureController {
 
   private prevent = (e: Event) => e.preventDefault();
 
+  /**
+   * In "desktop" mode a real mouse is driving, and lib/desktop.ts handles it from the mouse events.
+   * A mouse ALSO raises pointer events, so without this guard every click would be delivered twice —
+   * once interpreted as a tap here and once as a real button there.
+   */
+  private get inert() { return this.mode === "desktop"; }
+
   // ---------------- down ----------------
   private onDown = (e: PointerEvent) => {
+    if (this.inert) return;
     e.preventDefault();
     try { this.el.setPointerCapture(e.pointerId); } catch { /* */ }
     this.pointers.set(e.pointerId, {
@@ -131,6 +139,7 @@ export class GestureController {
 
   // ---------------- move ----------------
   private onMove = (e: PointerEvent) => {
+    if (this.inert) return;
     const p = this.pointers.get(e.pointerId);
     if (!p) return;
     e.preventDefault();
@@ -181,6 +190,7 @@ export class GestureController {
 
   // ---------------- up ----------------
   private onUp = (e: PointerEvent) => {
+    if (this.inert) return;
     const p = this.pointers.get(e.pointerId);
     this.pointers.delete(e.pointerId);
     try { this.el.releasePointerCapture?.(e.pointerId); } catch { /* */ }

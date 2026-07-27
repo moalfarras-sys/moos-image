@@ -13,6 +13,18 @@ export const IconKeyboard = (p: P) => (
     <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" />
   </S>
 );
+export const IconSpeaker = (p: P) => (
+  <S {...p}>
+    <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+    <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+  </S>
+);
+export const IconSpeakerOff = (p: P) => (
+  <S {...p}>
+    <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+    <path d="M16 9.5l5 5M21 9.5l-5 5" />
+  </S>
+);
 export const IconEsc = (p: P) => (
   <S {...p}>
     <path d="M9 6 4 12l5 6M20 12H4" />
