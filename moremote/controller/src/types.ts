@@ -1,5 +1,5 @@
 // Bump this on each frontend change so you can confirm the phone loaded the latest build.
-export const BUILD = "v9 · fast Arabic + instant touch";
+export const BUILD = "v10 · real mouse + keyboard + sound";
 
 export interface ServerStatus {
   name: string;
@@ -34,13 +34,21 @@ export type MouseButton = "left" | "right" | "middle";
  * touch    = phone-native: tap clicks, swipe scrolls, hold = right-click, hold+move = drag
  * direct   = one-finger drag really drags (move windows, select text); two fingers scroll
  * trackpad = laptop trackpad: the finger moves the cursor relatively
+ * desktop  = the viewer has a real mouse and a real keyboard; nothing is interpreted. Handled by
+ *            lib/desktop.ts, and GestureController goes inert so a mouse is not read twice.
+ *            The agent validates this string too (StreamSession.ValidateEnvelope) — a mode it does
+ *            not know is dropped before any handler runs, silently.
  */
-export type GestureMode = "touch" | "trackpad" | "direct";
+export type GestureMode = "touch" | "trackpad" | "direct" | "desktop";
 
 export const MODE_LABEL: Record<GestureMode, string> = {
   touch: "Touch",
   trackpad: "Trackpad",
   direct: "Drag",
+  // Short on purpose. This label goes in a toolbar button and in the status line, and at 390px
+  // "Mouse + Keys" wrapped to two lines and crushed the icon above it. The Controls sheet spells the
+  // mode out in full, where there is room for it.
+  desktop: "Desktop",
 };
 
 /** fit = scale whole screen into the view; actual = 1:1 device pixels (pan around) */

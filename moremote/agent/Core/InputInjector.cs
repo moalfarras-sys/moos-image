@@ -118,7 +118,16 @@ public sealed class InputInjector : IDisposable
         }
     }
     public void Scroll(double dx,double dy,double sensitivity)=>Scroll(dx*sensitivity,dy*sensitivity);
-    public void ReleaseAll(){foreach(var k in new[]{"Control","Alt","Shift","Meta"})KeyUp(k);MouseButtonCurrent("left",false);MouseButtonCurrent("right",false);MouseButtonCurrent("middle",false);}
+    // Physical keys are tracked so a browser that vanishes mid-chord cannot leave one held down on
+    // the remote machine. The named-key path never needed this because it only ever reached the four
+    // modifiers below, which were released unconditionally; a table of 100 keys does need it.
+    private readonly HashSet<Scan> _heldScans = new();
+
+    public void ReleaseAll(){
+        Scan[] held;
+        lock(_gate){held=_heldScans.ToArray();_heldScans.Clear();}
+        foreach(var s in held)Send(MakeScan(s.Code,s.Extended,up:true));
+        foreach(var k in new[]{"Control","Alt","Shift","Meta"})KeyUp(k);MouseButtonCurrent("left",false);MouseButtonCurrent("right",false);MouseButtonCurrent("middle",false);}
 
     // ---------------- Keyboard ----------------
 
@@ -130,6 +139,94 @@ public sealed class InputInjector : IDisposable
 
     public void KeyDown(string key) { if (KeyMap.TryGetValue(key, out var vk)) Send(MakeKey(vk, false)); }
     public void KeyUp(string key) { if (KeyMap.TryGetValue(key, out var vk)) Send(MakeKey(vk, true)); }
+
+    /// <summary>
+    /// Press or release a key by PHYSICAL position (a browser `KeyboardEvent.code`), as a SCANCODE
+    /// rather than a virtual key.
+    ///
+    /// A virtual key is a meaning ("VK_Z"); a scancode is a place. The browser measured a place,
+    /// so passing it on as a place is a lossless hand-off and the remote applies its own keyboard
+    /// layout on top — which is what makes a German keymap on the server behave like a German
+    /// keymap regardless of what the viewer is typing on. Sending VK codes instead would re-impose
+    /// the VIEWER's layout, the same class of bug the Linux agent's Keys table carries a comment
+    /// about.
+    ///
+    /// Deliberately incomplete: Pause (its make code is the three-byte E1 1D 45 sequence, not a
+    /// scancode) and the international/media keys are absent. A key that does nothing gets
+    /// reported; a key wired to the wrong scancode gets lived with.
+    /// </summary>
+    public void KeyCode(string code, bool down)
+    {
+        if (!PhysicalScan.TryGetValue(code, out var s)) return;
+        // A held key fires keydown over and over at the BROWSER's repeat rate. Forwarding every one
+        // would race the remote's own repeat timer and double characters, so only the edges go out
+        // and the desktop repeats at its own configured rate — as it does for a real keyboard.
+        lock (_gate)
+        {
+            if (down) { if (!_heldScans.Add(s)) return; }
+            else if (!_heldScans.Remove(s)) return;
+        }
+        Send(MakeScan(s.Code, s.Extended, up: !down));
+    }
+
+    public void KeyTapCode(string code)
+    {
+        if (!PhysicalScan.TryGetValue(code, out var s)) return;
+        Send(MakeScan(s.Code, s.Extended, up: false), MakeScan(s.Code, s.Extended, up: true));
+    }
+
+    private readonly record struct Scan(ushort Code, bool Extended);
+
+    /// <summary>PS/2 set-1 make codes. `Extended` keys are the ones the wire prefixes with 0xE0.</summary>
+    private static readonly Dictionary<string, Scan> PhysicalScan = new(StringComparer.Ordinal)
+    {
+        ["Escape"] = new(0x01, false),
+        ["Digit1"] = new(0x02, false), ["Digit2"] = new(0x03, false), ["Digit3"] = new(0x04, false),
+        ["Digit4"] = new(0x05, false), ["Digit5"] = new(0x06, false), ["Digit6"] = new(0x07, false),
+        ["Digit7"] = new(0x08, false), ["Digit8"] = new(0x09, false), ["Digit9"] = new(0x0A, false),
+        ["Digit0"] = new(0x0B, false), ["Minus"] = new(0x0C, false), ["Equal"] = new(0x0D, false),
+        ["Backspace"] = new(0x0E, false), ["Tab"] = new(0x0F, false),
+        ["KeyQ"] = new(0x10, false), ["KeyW"] = new(0x11, false), ["KeyE"] = new(0x12, false),
+        ["KeyR"] = new(0x13, false), ["KeyT"] = new(0x14, false), ["KeyY"] = new(0x15, false),
+        ["KeyU"] = new(0x16, false), ["KeyI"] = new(0x17, false), ["KeyO"] = new(0x18, false),
+        ["KeyP"] = new(0x19, false), ["BracketLeft"] = new(0x1A, false), ["BracketRight"] = new(0x1B, false),
+        ["Enter"] = new(0x1C, false), ["ControlLeft"] = new(0x1D, false),
+        ["KeyA"] = new(0x1E, false), ["KeyS"] = new(0x1F, false), ["KeyD"] = new(0x20, false),
+        ["KeyF"] = new(0x21, false), ["KeyG"] = new(0x22, false), ["KeyH"] = new(0x23, false),
+        ["KeyJ"] = new(0x24, false), ["KeyK"] = new(0x25, false), ["KeyL"] = new(0x26, false),
+        ["Semicolon"] = new(0x27, false), ["Quote"] = new(0x28, false), ["Backquote"] = new(0x29, false),
+        ["ShiftLeft"] = new(0x2A, false), ["Backslash"] = new(0x2B, false),
+        ["KeyZ"] = new(0x2C, false), ["KeyX"] = new(0x2D, false), ["KeyC"] = new(0x2E, false),
+        ["KeyV"] = new(0x2F, false), ["KeyB"] = new(0x30, false), ["KeyN"] = new(0x31, false),
+        ["KeyM"] = new(0x32, false), ["Comma"] = new(0x33, false), ["Period"] = new(0x34, false),
+        ["Slash"] = new(0x35, false), ["ShiftRight"] = new(0x36, false),
+        ["NumpadMultiply"] = new(0x37, false), ["AltLeft"] = new(0x38, false),
+        ["Space"] = new(0x39, false), ["CapsLock"] = new(0x3A, false),
+        ["F1"] = new(0x3B, false), ["F2"] = new(0x3C, false), ["F3"] = new(0x3D, false),
+        ["F4"] = new(0x3E, false), ["F5"] = new(0x3F, false), ["F6"] = new(0x40, false),
+        ["F7"] = new(0x41, false), ["F8"] = new(0x42, false), ["F9"] = new(0x43, false),
+        ["F10"] = new(0x44, false), ["NumLock"] = new(0x45, false), ["ScrollLock"] = new(0x46, false),
+        ["Numpad7"] = new(0x47, false), ["Numpad8"] = new(0x48, false), ["Numpad9"] = new(0x49, false),
+        ["NumpadSubtract"] = new(0x4A, false), ["Numpad4"] = new(0x4B, false),
+        ["Numpad5"] = new(0x4C, false), ["Numpad6"] = new(0x4D, false),
+        ["NumpadAdd"] = new(0x4E, false), ["Numpad1"] = new(0x4F, false),
+        ["Numpad2"] = new(0x50, false), ["Numpad3"] = new(0x51, false),
+        ["Numpad0"] = new(0x52, false), ["NumpadDecimal"] = new(0x53, false),
+        ["IntlBackslash"] = new(0x56, false), ["F11"] = new(0x57, false), ["F12"] = new(0x58, false),
+        ["F13"] = new(0x64, false), ["F14"] = new(0x65, false), ["F15"] = new(0x66, false),
+        ["F16"] = new(0x67, false), ["F17"] = new(0x68, false), ["F18"] = new(0x69, false),
+        ["F19"] = new(0x6A, false), ["F20"] = new(0x6B, false), ["F21"] = new(0x6C, false),
+        ["F22"] = new(0x6D, false), ["F23"] = new(0x6E, false), ["F24"] = new(0x6F, false),
+        // 0xE0-prefixed: same make code as a non-extended key, told apart only by the flag.
+        ["NumpadEnter"] = new(0x1C, true), ["ControlRight"] = new(0x1D, true),
+        ["NumpadDivide"] = new(0x35, true), ["AltRight"] = new(0x38, true),
+        ["PrintScreen"] = new(0x37, true),
+        ["Home"] = new(0x47, true), ["ArrowUp"] = new(0x48, true), ["PageUp"] = new(0x49, true),
+        ["ArrowLeft"] = new(0x4B, true), ["ArrowRight"] = new(0x4D, true),
+        ["End"] = new(0x4F, true), ["ArrowDown"] = new(0x50, true), ["PageDown"] = new(0x51, true),
+        ["Insert"] = new(0x52, true), ["Delete"] = new(0x53, true),
+        ["MetaLeft"] = new(0x5B, true), ["MetaRight"] = new(0x5C, true), ["ContextMenu"] = new(0x5D, true),
+    };
 
     /// <summary>Press a chord (e.g. Control+Shift+Escape): down in order, up in reverse.</summary>
     public void Combo(IReadOnlyList<string> keys)
@@ -196,6 +293,25 @@ public sealed class InputInjector : IDisposable
     {
         type = INPUT_KEYBOARD,
         U = new InputUnion { ki = new KEYBDINPUT { wVk = vk, dwFlags = up ? KEYEVENTF_KEYUP : 0 } }
+    };
+
+    // wVk MUST be 0 here. With KEYEVENTF_SCANCODE set, Windows takes wScan as the truth and a
+    // stray wVk is what silently re-imposes the local layout — the exact thing this path exists
+    // to avoid.
+    private static INPUT MakeScan(ushort scan, bool extended, bool up) => new()
+    {
+        type = INPUT_KEYBOARD,
+        U = new InputUnion
+        {
+            ki = new KEYBDINPUT
+            {
+                wVk = 0,
+                wScan = scan,
+                dwFlags = KEYEVENTF_SCANCODE
+                          | (extended ? KEYEVENTF_EXTENDEDKEY : 0u)
+                          | (up ? KEYEVENTF_KEYUP : 0u),
+            }
+        }
     };
 
     private static INPUT MakeUnicode(char ch, bool up) => new()
@@ -281,8 +397,10 @@ public sealed class InputInjector : IDisposable
     private const uint MOUSEEVENTF_WHEEL = 0x0800, MOUSEEVENTF_HWHEEL = 0x1000;
     private const int WHEEL_DELTA = 120;
 
+    private const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
     private const uint KEYEVENTF_KEYUP = 0x0002;
     private const uint KEYEVENTF_UNICODE = 0x0004;
+    private const uint KEYEVENTF_SCANCODE = 0x0008;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct MOUSEINPUT { public int dx; public int dy; public uint mouseData; public uint dwFlags; public uint time; public IntPtr dwExtraInfo; }

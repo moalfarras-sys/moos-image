@@ -74,7 +74,35 @@ def tailscale_url():
 def enable_anywhere():
     """Point serve at the agent. Needs no root once the user is Tailscale's operator."""
     r = run("tailscale", "serve", "--bg", "--https=443", f"http://127.0.0.1:{PORT}")
-    return (r.returncode == 0, (r.stderr or r.stdout or "").strip())
+    ok = r.returncode == 0
+    if ok:
+        mount_audio(443)
+    return (ok, (r.stderr or r.stdout or "").strip())
+
+
+# The desktop stream carries no audio and never has. The machine's sound is a separate service —
+# moos-cloud-audio, the default sink's monitor as Opus-in-WebM on PORT+10 — and until this mount
+# existed it was only reachable on its own PLAIN-HTTP port. That is not a cosmetic difference:
+#
+#   * this page is https, and a browser forbids https content from fetching http, so the speaker
+#     button in the controller could not have worked at all; and
+#   * "there is no sound" and "the sound is at a second URL nobody mentioned" are indistinguishable
+#     from the user's chair — and it was always the second one.
+#
+# Mounting it as a PATH on the SAME listener gives one origin, one certificate, one URL.
+#
+# This function exists because the seat owner and the private-desktop accounts reach HTTPS by two
+# different routes — this panel for the owner on :443, `moos-cloud-desktop own` for everyone else on
+# :8443+N — and a mount added to only one of them is exactly the asymmetry where one person has
+# sound and the other is told the feature does not exist.
+def mount_audio(https_port):
+    """Publish this account's sound at /audio on the same HTTPS listener. Best-effort."""
+    try:
+        r = run("tailscale", "serve", "--bg", f"--https={https_port}",
+                "--set-path=/audio", f"http://127.0.0.1:{PORT + 10}")
+        return r.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 def qr_png(url, path):

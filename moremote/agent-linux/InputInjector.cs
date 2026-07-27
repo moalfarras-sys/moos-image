@@ -47,6 +47,88 @@ public sealed class InputInjector : IDisposable
         ["F7"] = 65, ["F8"] = 66, ["F9"] = 67, ["F10"] = 68, ["F11"] = 87, ["F12"] = 88,
     };
 
+    /// <summary>
+    /// A browser's `KeyboardEvent.code` to the evdev keycode in the same physical place.
+    ///
+    /// WHY THIS TABLE EXISTS AND WHY IT IS NOT A LAYOUT BUG WAITING TO HAPPEN
+    ///
+    /// The `Keys` table above carries five letters (a/c/v/x/z) and a comment explaining that they
+    /// are QWERTY-shaped and therefore wrong on the owner's German keymap. That comment is right
+    /// about `Keys` and does NOT apply here, because the two tables are keyed on different things:
+    ///
+    ///   Keys       is keyed on a CHARACTER the phone decided to send ("z"), so mapping it to a
+    ///              position is a guess about the remote layout — and the guess was wrong.
+    ///   this table is keyed on a POSITION the browser already measured ("KeyZ" means the key
+    ///              one right of Shift, whatever is printed on it), and evdev keycodes are also
+    ///              positions. Position to position needs no layout knowledge at all: the remote
+    ///              compositor applies its own keymap on top, exactly as it does for a real
+    ///              keyboard plugged into the machine.
+    ///
+    /// This is what a real remote-desktop protocol sends, and it is the only path that can support
+    /// the three things the character path structurally cannot:
+    ///
+    ///   * HELD keys. `text` types a character once. Holding W to walk, or holding Backspace to
+    ///     delete a line, needs a down that stays down — and key repeat then comes from the
+    ///     REMOTE compositor's own repeat timer, which is the correct place for it.
+    ///   * arbitrary shortcuts. Combo() resolves letters by keysym, which only reaches shift
+    ///     level 1 of the active group; Ctrl+Shift+P and Alt+F4 need real positions.
+    ///   * keys with no character at all: CapsLock, PrintScreen, the numeric keypad as distinct
+    ///     from the digit row, ContextMenu, the media keys.
+    ///
+    /// Codes are from linux/input-event-codes.h. Entries the browser can report but Linux has no
+    /// key for are deliberately absent rather than mapped to something close — a wrong key is
+    /// worse than a dead one, because a dead one gets reported and a wrong one gets lived with.
+    /// </summary>
+    private static readonly Dictionary<string, ushort> PhysicalCodes = new(StringComparer.Ordinal)
+    {
+        // letter row block
+        ["KeyA"] = 30, ["KeyB"] = 48, ["KeyC"] = 46, ["KeyD"] = 32, ["KeyE"] = 18, ["KeyF"] = 33,
+        ["KeyG"] = 34, ["KeyH"] = 35, ["KeyI"] = 23, ["KeyJ"] = 36, ["KeyK"] = 37, ["KeyL"] = 38,
+        ["KeyM"] = 50, ["KeyN"] = 49, ["KeyO"] = 24, ["KeyP"] = 25, ["KeyQ"] = 16, ["KeyR"] = 19,
+        ["KeyS"] = 31, ["KeyT"] = 20, ["KeyU"] = 22, ["KeyV"] = 47, ["KeyW"] = 17, ["KeyX"] = 45,
+        ["KeyY"] = 21, ["KeyZ"] = 44,
+        // digit row
+        ["Digit1"] = 2, ["Digit2"] = 3, ["Digit3"] = 4, ["Digit4"] = 5, ["Digit5"] = 6,
+        ["Digit6"] = 7, ["Digit7"] = 8, ["Digit8"] = 9, ["Digit9"] = 10, ["Digit0"] = 11,
+        ["Minus"] = 12, ["Equal"] = 13, ["Backquote"] = 41,
+        // punctuation
+        ["BracketLeft"] = 26, ["BracketRight"] = 27, ["Backslash"] = 43, ["Semicolon"] = 39,
+        ["Quote"] = 40, ["Comma"] = 51, ["Period"] = 52, ["Slash"] = 53,
+        // the 102nd key: present on ISO keyboards, absent on ANSI
+        ["IntlBackslash"] = 86, ["IntlRo"] = 89, ["IntlYen"] = 124,
+        // editing and whitespace
+        ["Enter"] = 28, ["Escape"] = 1, ["Backspace"] = 14, ["Tab"] = 15, ["Space"] = 57,
+        ["CapsLock"] = 58, ["Delete"] = 111, ["Insert"] = 110,
+        // modifiers — LEFT and RIGHT are distinct keys and some apps care which one
+        ["ShiftLeft"] = 42, ["ShiftRight"] = 54, ["ControlLeft"] = 29, ["ControlRight"] = 97,
+        ["AltLeft"] = 56, ["AltRight"] = 100, ["MetaLeft"] = 125, ["MetaRight"] = 126,
+        ["ContextMenu"] = 127,
+        // navigation
+        ["ArrowUp"] = 103, ["ArrowDown"] = 108, ["ArrowLeft"] = 105, ["ArrowRight"] = 106,
+        ["Home"] = 102, ["End"] = 107, ["PageUp"] = 104, ["PageDown"] = 109,
+        // function row
+        ["F1"] = 59, ["F2"] = 60, ["F3"] = 61, ["F4"] = 62, ["F5"] = 63, ["F6"] = 64,
+        ["F7"] = 65, ["F8"] = 66, ["F9"] = 67, ["F10"] = 68, ["F11"] = 87, ["F12"] = 88,
+        ["F13"] = 183, ["F14"] = 184, ["F15"] = 185, ["F16"] = 186, ["F17"] = 187, ["F18"] = 188,
+        ["F19"] = 189, ["F20"] = 190, ["F21"] = 191, ["F22"] = 192, ["F23"] = 193, ["F24"] = 194,
+        // system keys
+        ["PrintScreen"] = 99, ["ScrollLock"] = 70, ["Pause"] = 119,
+        // the keypad, which is NOT the digit row: Numpad1 and Digit1 are different keys and
+        // spreadsheets, games and NumLock-sensitive apps all tell them apart.
+        ["NumLock"] = 69, ["NumpadDivide"] = 98, ["NumpadMultiply"] = 55, ["NumpadSubtract"] = 74,
+        ["NumpadAdd"] = 78, ["NumpadEnter"] = 96, ["NumpadDecimal"] = 83, ["NumpadEqual"] = 117,
+        ["Numpad0"] = 82, ["Numpad1"] = 79, ["Numpad2"] = 80, ["Numpad3"] = 81, ["Numpad4"] = 75,
+        ["Numpad5"] = 76, ["Numpad6"] = 77, ["Numpad7"] = 71, ["Numpad8"] = 72, ["Numpad9"] = 73,
+        // media and volume: a laptop keyboard has these and a remote desktop should honour them
+        ["AudioVolumeMute"] = 113, ["AudioVolumeDown"] = 114, ["AudioVolumeUp"] = 115,
+        ["MediaPlayPause"] = 164, ["MediaStop"] = 166,
+        ["MediaTrackNext"] = 163, ["MediaTrackPrevious"] = 165,
+        ["BrowserBack"] = 158, ["BrowserForward"] = 159, ["BrowserRefresh"] = 173,
+    };
+
+    /// <summary>True when this physical key is one we can actually press.</summary>
+    public static bool HasPhysical(string code) => PhysicalCodes.ContainsKey(code);
+
     public InputInjector(PortalBridge portal, ScreenCapture capture)
     {
         _portal = portal;
@@ -154,6 +236,31 @@ public sealed class InputInjector : IDisposable
     }
     public void KeyDown(string k) { if (Keys.TryGetValue(k, out var c)) Set(c, true); }
     public void KeyUp(string k) { if (Keys.TryGetValue(k, out var c)) Set(c, false); }
+
+    /// <summary>
+    /// Press or release a key by PHYSICAL position (a browser `KeyboardEvent.code`).
+    ///
+    /// Set() deduplicates against _pressed, which is exactly right for a browser: a held key fires
+    /// keydown over and over at the local repeat rate, and forwarding each one would either double
+    /// every character or fight the remote's own repeat timer. The first down goes through, the
+    /// repeats are dropped, and the desktop repeats at ITS configured rate — the same thing that
+    /// happens with a keyboard plugged into the machine.
+    ///
+    /// It also means ReleaseAll() already covers these keys, so a browser tab closed mid-chord
+    /// cannot leave Ctrl stuck down on the server.
+    /// </summary>
+    public void KeyCode(string code, bool down)
+    {
+        if (PhysicalCodes.TryGetValue(code, out var c)) Set(c, down);
+    }
+
+    public void KeyTapCode(string code)
+    {
+        if (!PhysicalCodes.TryGetValue(code, out var c)) return;
+        Set(c, true);
+        Thread.Sleep(12);
+        Set(c, false);
+    }
 
     /// <summary>
     /// Modifiers are physical keys, so they go by keycode. The key they modify is a CHARACTER, so

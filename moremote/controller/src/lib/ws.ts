@@ -206,6 +206,13 @@ export class RemoteConnection {
     this.flushText();
     this.input({ type: "key", key, down: false });
   }
+  /** A PHYSICAL key position (a browser KeyboardEvent.code). The agent prefers `code` over `key`
+   *  when both are present, so this deliberately sends only the position — see StreamSession's
+   *  "key" case and InputInjector.PhysicalCodes. */
+  keyCode(code: string, down: boolean) {
+    this.flushText();
+    this.input({ type: "key", code, down });
+  }
   combo(keys: string[]) {
     this.flushText();
     this.input({ type: "combo", keys });

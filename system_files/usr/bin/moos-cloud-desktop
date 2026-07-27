@@ -381,6 +381,29 @@ UNIT
         note "  retry later: tailscale serve --bg --https=${hport} http://127.0.0.1:${port}"
     fi
 
+    # ── and the SOUND on that same origin ────────────────────────────────────
+    #
+    # moos-cloud-audio has always worked — verified end to end: valid EBML, an OpusHead, bytes
+    # flowing. What made it read as broken is that it was somewhere ELSE: a second tab, on a plain
+    # http port, while the desktop sat on https. That costs more than tidiness:
+    #
+    #   * an https page cannot even fetch it — a browser blocks the mixed content, so the sound
+    #     could never be moved into the desktop tab while it lived on http;
+    #   * "the sound does not work" and "the sound is a different URL you were never told" look
+    #     identical from the user's side, and the second one is what was actually happening.
+    #
+    # Mounting it as a PATH on the desktop's own HTTPS listener fixes both at once: same origin, same
+    # real Tailscale certificate, one URL to remember, and the controller can offer a speaker button
+    # instead of asking anyone to keep a second tab open. The old port keeps answering, so an
+    # already-open tab does not break.
+    local aport=$(( 8775 + uid - 1000 ))
+    if tailscale serve --bg --https="${hport}" --set-path=/audio "http://127.0.0.1:${aport}" >/dev/null 2>&1; then
+        ok "sound on the same origin at /audio — one tab, no mixed content"
+    else
+        note "could not mount /audio (older tailscale without --set-path?)"
+        note "  the separate port still works: http://<tailscale-ip>:${aport}"
+    fi
+
     # The streamer must start INTO a session that exists, not before it. The
     # desktop is up when plasmashell is; the socket alone only proves a compositor.
     local waited=0
@@ -410,19 +433,20 @@ UNIT
     fi
 
     echo
-    local url
+    local url dnsname
     url="$(tailscale_url)"
-    # Sound is a SECOND tab, and saying so here is the difference between a
-    # feature and a secret. Mo PC Remote streams video only — it has no audio path
-    # at all — so moos-cloud-audio serves this account's sink monitor as
-    # Opus-in-WebM on its own port, which every browser plays natively.
-    local aport=$(( 8775 + uid - 1000 ))
-    if [ -n "$url" ]; then
-        note "${user} opens: ${url%:*}:${port}"
-        note "  and for sound: ${url%:*}:${aport}"
+    # The HTTPS name is the one worth printing, and printing the plain-http one next to it is how
+    # people end up on the worse path: over http the browser withholds WebCodecs and the stream
+    # silently drops to JPEG (~79 Mbit/s at 1080p against H.264's ~4.3), and the sound cannot be in
+    # the same tab at all. So lead with the secure URL and mention the port only as a fallback.
+    dnsname="$(tailscale status --json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))' 2>/dev/null || true)"
+    if [ -n "$dnsname" ]; then
+        note "${user} opens: https://${dnsname}:${hport}"
+        note "  sound is in that same page now — the speaker button in the toolbar"
+    elif [ -n "$url" ]; then
+        note "${user} opens: ${url%:*}:${port}   (plain http — JPEG only, no in-page sound)"
     else
-        note "${user} opens http://<tailscale-ip>:${port} once this server joins Tailscale"
-        note "  and for sound: http://<tailscale-ip>:${aport}"
+        note "${user} opens https://<magicdns-name>:${hport} once this server joins Tailscale"
     fi
 }
 
@@ -474,6 +498,30 @@ CONF
         ok "Mo PC Remote started"
     else
         note "could not start Mo PC Remote yet — it will come up with the session"
+    fi
+
+    # ── the seat owner's HTTPS, and their sound on it ────────────────────────
+    #
+    # `own` (the private-desktop path) has always published its own HTTPS. THIS path never did: the
+    # seat owner's :443 came from the mo-pc-remote GTK panel, which is a desktop app and therefore
+    # exactly what a headless cloud server does not have anybody sitting in front of. So on a cloud
+    # box the owner's listener existed only if somebody had run the command by hand once, and
+    # nothing said so — the desktop worked over plain http, silently on JPEG, with no sound
+    # possible, while the SECOND user got https and H.264. The asymmetry ran the wrong way round.
+    #
+    # Both halves are published here, idempotently, so `on` and `own` leave an account in the same
+    # shape whichever one made it.
+    local dport=8765 aport=8775
+    if tailscale serve --bg --https=443 "http://127.0.0.1:${dport}" >/dev/null 2>&1; then
+        ok "HTTPS on :443 — WebCodecs H.264, clipboard and PWA enabled"
+        if tailscale serve --bg --https=443 --set-path=/audio "http://127.0.0.1:${aport}" >/dev/null 2>&1; then
+            ok "sound on the same origin at /audio — one tab, no mixed content"
+        else
+            note "could not mount /audio (older tailscale without --set-path?)"
+        fi
+    else
+        note "could not publish HTTPS (is this machine on Tailscale yet?)"
+        note "  retry later: tailscale serve --bg --https=443 http://127.0.0.1:${dport}"
     fi
 
     echo
@@ -591,9 +639,29 @@ doctor_user() {
              systemctl --user is-active xdg-desktop-portal.service 2>/dev/null || echo unknown)"
 
     # --- 3. sound -------------------------------------------------------------
-    printf '  sound: %s\n' \
-        "$(ss -tnl 2>/dev/null | grep -q ":$(( 8775 + uid - 1000 ))" \
-             && echo "serving on $(( 8775 + uid - 1000 ))" || echo 'not listening')"
+    #
+    # Two separate things can be wrong and they need separate lines, because the fix differs:
+    # the SERVICE not listening is a systemd problem, and the service listening while the /audio
+    # MOUNT is missing is a `tailscale serve` problem — and the second one is what "the sound does
+    # not work" actually was. The stream itself was always fine (valid EBML, an OpusHead, bytes
+    # flowing); it was simply on a plain-http port that the https page was forbidden to fetch.
+    local sport=$(( 8775 + uid - 1000 )) served_a
+    if ss -tnl 2>/dev/null | grep -q ":${sport} "; then
+        ok "sound service listening on ${sport}"
+    else
+        red "sound service is not listening on ${sport}"
+        note "fix: sudo runuser -u ${user} -- env XDG_RUNTIME_DIR=/run/user/${uid} \\"
+        note "       systemctl --user enable --now moos-cloud-audio.service"
+    fi
+    served_a="$(tailscale serve status 2>/dev/null || true)"
+    if printf '%s' "$served_a" | grep -q "127.0.0.1:${sport}"; then
+        ok "sound mounted at /audio on this account's HTTPS origin (speaker button works)"
+    else
+        red "no /audio mount — the speaker button in the desktop page cannot reach the sound"
+        local ahport=$(( 8443 + uid - 1001 ))
+        [ "$uid" = 1000 ] && ahport=443
+        note "fix: tailscale serve --bg --https=${ahport} --set-path=/audio http://127.0.0.1:${sport}"
+    fi
 
     # --- 4. a SECURE address, which is not a nicety -------------------------
     #

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RemoteConnection } from "../lib/ws";
 import { GestureController } from "../lib/gestures";
+import { DesktopInput } from "../lib/desktop";
 import {normalizeContentPoint} from "../lib/coordinates";
 import { decodeJpeg, drawableSize, closeDrawable, H264Stream, type Drawable } from "../lib/decode";
 import {
@@ -11,7 +12,8 @@ import { QUALITY_PRESETS, MODE_LABEL, type GestureMode, type ViewMode, type Moni
 import {
   IconAltTab, IconActual, IconChevronDown, IconClipboard, IconCopy, IconEnter, IconEsc, IconFit,
   IconFolder, IconFullscreen, IconKeyboard, IconLock, IconMore, IconMouse, IconPaste, IconPower,
-  IconRefresh, IconSend, IconShield, IconTrackpad, IconUpload, IconWindows, IconZoomIn, IconZoomOut,
+  IconRefresh, IconSend, IconShield, IconSpeaker, IconSpeakerOff, IconTrackpad, IconUpload,
+  IconWindows, IconZoomIn, IconZoomOut,
 } from "./icons";
 
 type Conn = "connecting" | "live" | "paused" | "stopped" | "reconnecting" | "idle";
@@ -81,6 +83,40 @@ function usePref<T>(key: string, initial: T): [T, (v: T | ((prev: T) => T)) => v
   return [value, set];
 }
 
+/**
+ * Which control mode a first-time viewer should land in.
+ *
+ * The touch modes exist to reconstruct a mouse out of a finger. A viewer who HAS a mouse should
+ * never meet them: on a computer, "touch" mode turns a click-and-drag into a scroll instead of a
+ * text selection, which reads as the REMOTE being broken rather than as a mode being wrong.
+ *
+ * The test is "is there evidence of a TOUCHSCREEN", and it is phrased that way round on purpose.
+ * The obvious version — `(pointer: fine) && !(any-pointer: coarse)` — was written first and the
+ * visual check killed it: a headless Firefox answers FALSE to every pointer query, having no input
+ * device to describe, so `fine` was false and a 1280x860 desktop window silently came up in touch
+ * mode. Any browser that declines to answer lands in the same hole, and the symptom is not an error
+ * — it is a computer that drags when it should select, which gets blamed on the server.
+ *
+ * So require positive evidence for the SPECIAL case (a touchscreen) and let the ordinary case (a
+ * mouse) be the default. maxTouchPoints leads because it is a count rather than a capability
+ * negotiation, and a device reporting zero touch points is not a phone.
+ *
+ * A touchscreen laptop therefore starts in touch mode. That is the pre-existing behaviour and it is
+ * the safer way to be wrong: the toolbar switches modes in one tap, and this is only the value used
+ * when nothing was ever stored.
+ */
+function defaultMode(): GestureMode {
+  try {
+    const touch =
+      (navigator.maxTouchPoints ?? 0) > 0 ||
+      "ontouchstart" in window ||
+      (window.matchMedia?.("(any-pointer: coarse)").matches ?? false);
+    return touch ? "touch" : "desktop";
+  } catch {
+    return "desktop";
+  }
+}
+
 export function RemoteScreen({ token, onExit }: { token: string; onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
@@ -88,6 +124,10 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const kbbarRef = useRef<HTMLDivElement>(null);
   const connRef = useRef<RemoteConnection | null>(null);
   const gestureRef = useRef<GestureController | null>(null);
+  const desktopRef = useRef<DesktopInput | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRetryRef = useRef<number | null>(null);
+  const audioFailsRef = useRef(0);
 
   const frameRef = useRef<Drawable | null>(null);
   const decodingRef = useRef(false);
@@ -105,7 +145,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const hideTimer = useRef<number | null>(null);
 
   const [status, setStatus] = useState<Conn>("connecting");
-  const [mode, setMode] = usePref<GestureMode>("mode", "touch");
+  const [mode, setMode] = usePref<GestureMode>("mode", defaultMode());
   const [viewMode, setViewMode] = useState<ViewMode>("fit");
   const [presetIdx, setPresetIdx] = useState(1);
   // Auto quality ON by default. The complaint that keeps coming back is "the remote is slow",
@@ -124,6 +164,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const [toast, setToast] = useState<string | null>(null);
   const [toolbar, setToolbar] = useState(true);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [sound, setSound] = useState<"off" | "connecting" | "on" | "unavailable">("off");
   const [codec, setCodec] = useState<"jpeg" | "h264">("jpeg");
   const [screenOk, setScreenOk] = useState(true);
   const [inputOk, setInputOk] = useState(false);
@@ -131,10 +172,14 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const [mouseSensitivity,setMouseSensitivity]=usePref("mouseSensitivity",1);
   const [scrollSensitivity,setScrollSensitivity]=usePref("scrollSensitivity",1);
   const [naturalScroll,setNaturalScroll]=usePref("naturalScroll",true);
+  // Off by default: pointer lock hides the local cursor and swallows the mouse until Esc, which is
+  // right for a 3D view and wrong for everything else. Opt in per taste, remembered per browser.
+  const [pointerLock,setPointerLock]=usePref("pointerLock",false);
   const [haptics,setHaptics]=usePref("haptics",true);
   const mouseSensitivityRef=useRef(mouseSensitivity);mouseSensitivityRef.current=mouseSensitivity;
   const scrollSensitivityRef=useRef(scrollSensitivity);scrollSensitivityRef.current=scrollSensitivity;
   const naturalScrollRef=useRef(naturalScroll);naturalScrollRef.current=naturalScroll;
+  const pointerLockRef=useRef(pointerLock);pointerLockRef.current=pointerLock;
   const hapticsRef=useRef(haptics);hapticsRef.current=haptics;
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
   const [selMonitor, setSelMonitor] = useState(0);
@@ -327,6 +372,22 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     gest.setMode(modeRef.current);
     gestureRef.current = gest;
 
+    // The real-mouse/real-keyboard path. Constructed always, attached only in "desktop" mode (the
+    // effect below), because its window-level keydown listener would otherwise steal every
+    // keystroke from the phone's hidden-textarea path.
+    const desk = new DesktopInput(canvas, toNorm, {
+      move: (x, y) => conn.move(x, y),
+      moveRelative: (dx, dy) => conn.moveRelative(dx * mouseSensitivityRef.current, dy * mouseSensitivityRef.current),
+      down: (b, x, y) => conn.down(b, x, y),
+      up: (b, x, y) => conn.up(b, x, y),
+      scroll: (dx, dy) => conn.scroll(dx, dy),
+      keyCode: (code, down) => conn.keyCode(code, down),
+      text: (v) => conn.text(v),
+      cursorAt: (x, y) => { cursorNorm.current = { x, y }; },
+    }, () => scrollSensitivityRef.current, () => pointerLockRef.current);
+    desktopRef.current = desk;
+    if (modeRef.current === "desktop") desk.attach();
+
     const fpsTimer = window.setInterval(() => { setFps(fpsCount.current); fpsCount.current = 0; }, 1000);
     bumpToolbar();
 
@@ -340,6 +401,8 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       window.removeEventListener("resize", resize);
       window.removeEventListener("orientationchange", resize);
       gest.destroy();
+      desk.destroy();
+      desktopRef.current = null;
       conn.disconnect();
       const f = frameRef.current;
       if (f && "close" in f) (f as ImageBitmap).close();
@@ -348,7 +411,15 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  useEffect(() => { gestureRef.current?.setMode(mode); connRef.current?.setInputMode(mode); }, [mode]);
+  useEffect(() => {
+    gestureRef.current?.setMode(mode);
+    connRef.current?.setInputMode(mode);
+    // Exactly one of the two input layers is live at a time. Detaching also releases whatever the
+    // remote currently thinks is held, so switching modes mid-drag cannot leave a button down.
+    const desk = desktopRef.current;
+    if (!desk) return;
+    if (mode === "desktop") desk.attach(); else desk.detach();
+  }, [mode]);
 
   // Load the file listing whenever the Files sheet opens (avoids a race with the sheet mount).
   useEffect(() => {
@@ -586,17 +657,102 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   // ---------- toolbar actions ----------
   const c = () => connRef.current;
   const cycleMode = () => {
-    const order: GestureMode[] = ["touch", "trackpad", "direct"];
+    const order: GestureMode[] = ["touch", "trackpad", "direct", "desktop"];
     const next = order[(order.indexOf(mode) + 1) % order.length];
     setMode(next); showToast(`Mouse: ${MODE_LABEL[next]}`);
   };
   const taskMgr = () => { c()?.combo(["Control", "Shift", "Escape"]); showToast("Task Manager (safe Ctrl+Alt+Del)"); };
+
+  // ---------- sound ----------
+  //
+  // The desktop stream carries no audio and never has (the agent has no capture, no encoder and no
+  // audio endpoint). The server's sound is a SEPARATE service — moos-cloud-audio, the default sink's
+  // monitor as Opus-in-WebM — which `moos-cloud-desktop own` now mounts at /audio on this very
+  // origin. So it is a same-origin relative URL from here, which is the whole reason this button can
+  // exist: while that service lived on its own plain-http port, an https page was forbidden from
+  // touching it and sound could only ever be a second tab.
+  //
+  // RELATIVE, not "/audio/...": if this page is itself served under a prefix one day, an absolute
+  // path would leave that prefix behind.
+  const AUDIO_URL = "audio/stream.webm";
+
+  const stopSound = useCallback(() => {
+    if (audioRetryRef.current) { window.clearTimeout(audioRetryRef.current); audioRetryRef.current = null; }
+    const a = audioRef.current;
+    if (a) { a.pause(); a.removeAttribute("src"); a.load(); }
+    setSound("off");
+  }, []);
+
+  const startSound = useCallback(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    setSound("connecting");
+    // Cache-busting is load-bearing, not superstition: the service spawns one encoder per listener
+    // and kills it on disconnect, so the previous response is a DEAD stream. Safari will happily
+    // re-use it from cache and play nothing at all, reporting no error.
+    a.src = `${AUDIO_URL}?t=${Date.now()}`;
+    a.play().then(() => setSound("on")).catch(() => {
+      // Autoplay policy needs a gesture; this IS one (a click), so a rejection here means the
+      // endpoint is not there — which is what happens when the page was opened on the plain-http
+      // port, where no /audio mount exists and the agent answers index.html to everything.
+      setSound("unavailable");
+      showToast("Sound needs the https:// address");
+    });
+  }, []);
+
+  const toggleSound = () => { if (sound === "off" || sound === "unavailable") startSound(); else stopSound(); };
+
+  // A live WebM stream never "ends" cleanly and has no duration, so the ordinary media events do not
+  // mean what they usually mean. `error`/`stalled`/`ended` here mean the encoder went away — which
+  // it does by design whenever a listener drops — and the only fix is a fresh URL.
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    const onPlaying = () => { audioFailsRef.current = 0; setSound("on"); };
+    const onBroken = () => {
+      if (!a.src) return;
+      // Bounded, and the bound is the point. Retrying for ever is right for the case this was
+      // written for — the encoder is respawned per listener, so a reconnect genuinely does fix it —
+      // and wrong for the case that actually happens first: no /audio mount at all, because the
+      // server has not been updated yet. Verified against the live server: that returns a clean 404
+      // for the stream, so the element errors immediately and an unbounded loop would sit there
+      // re-requesting a 404 twice a second for as long as the tab is open, showing "connecting…"
+      // and never saying what is wrong.
+      if (++audioFailsRef.current > 3) {
+        audioFailsRef.current = 0;
+        a.pause(); a.removeAttribute("src"); a.load();
+        setSound("unavailable");
+        showToast("No sound endpoint — run: moos-cloud-desktop doctor");
+        return;
+      }
+      audioRetryRef.current = window.setTimeout(() => {
+        if (a.src) { a.src = `${AUDIO_URL}?t=${Date.now()}`; a.play().catch(() => setSound("unavailable")); }
+      }, 1200);
+    };
+    a.addEventListener("playing", onPlaying);
+    for (const ev of ["error", "ended", "stalled"] as const) a.addEventListener(ev, onBroken);
+    return () => {
+      a.removeEventListener("playing", onPlaying);
+      for (const ev of ["error", "ended", "stalled"] as const) a.removeEventListener(ev, onBroken);
+      if (audioRetryRef.current) window.clearTimeout(audioRetryRef.current);
+    };
+  }, []);
+
   const fullscreen = () => {
     const el = document.documentElement as any;
-    if (document.fullscreenElement) { document.exitFullscreen?.(); return; }
+    if (document.fullscreenElement) {
+      desktopRef.current?.releaseKeyboardLock();
+      document.exitFullscreen?.();
+      return;
+    }
     if (el.requestFullscreen) {
       el.requestFullscreen()
         .then(() => {
+          // Esc, Tab, Ctrl+W and F11 are the browser's until Keyboard Lock is granted, and it is
+          // only ever granted in fullscreen — which is why this call lives here and not at startup.
+          // Chromium-only and best-effort: without it those four keys stay local, and everything
+          // else on the keyboard still reaches the desktop.
+          desktopRef.current?.requestKeyboardLock();
           // A desktop is a landscape thing. Fitted into a portrait phone it becomes a stamp with
           // black bars swallowing most of the display — turning the phone is worth more than any
           // amount of pinch-zooming. The lock only exists in an installed/fullscreen context and
@@ -649,6 +805,9 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   return (
     <div className="remote" onPointerDown={bumpToolbar}>
       <canvas ref={canvasRef} className="screen-canvas" />
+      {/* The server's sound, on this same origin. Never `autoPlay` — the browser would refuse it
+          without a gesture and the refusal is indistinguishable from the stream being broken. */}
+      <audio ref={audioRef} hidden />
       {/* The video stream carries no cursor (drawing one would re-encode a full frame on every
           pointer move), so this *is* the cursor. It sits exactly where the next click will land. */}
       <div ref={cursorRef} className="remote-cursor">
@@ -776,6 +935,10 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
           <button className="tbtn" onClick={() => setSheet("view")}>
             {viewMode === "fit" ? <IconFit /> : <IconActual />}<span>View</span>
           </button>
+          <button className={"tbtn" + (sound === "on" ? " on" : "")} onClick={toggleSound}>
+            {sound === "on" ? <IconSpeaker /> : <IconSpeakerOff />}
+            <span>{sound === "connecting" ? "…" : "Sound"}</span>
+          </button>
           <button className="tbtn" onClick={fullscreen}><IconFullscreen /><span>Full</span></button>
           <button className="tbtn accent" onClick={() => setSheet("more")}><IconMore /><span>More</span></button>
         </div>
@@ -828,7 +991,22 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
             <button className={mode === "touch" ? "on" : ""} onClick={() => setMode("touch")}><IconMouse /> Touch</button>
             <button className={mode === "trackpad" ? "on" : ""} onClick={() => setMode("trackpad")}><IconTrackpad /> Trackpad</button>
             <button className={mode === "direct" ? "on" : ""} onClick={() => setMode("direct")}><IconMouse /> Direct</button>
+            <button className={mode === "desktop" ? "on" : ""} onClick={() => setMode("desktop")}><IconMouse /> Mouse + Keys</button>
           </div>
+          {mode === "desktop" && (
+            <>
+              <div className="seg">
+                <button className={pointerLock?"on":""} onClick={()=>setPointerLock(v=>!v)}>Capture pointer</button>
+              </div>
+              {/* One line, not the three this started as. Everything in this sheet below the pointer
+                  mode was already reachable only by scrolling on a phone, and a section that explains
+                  what the buttons above it obviously do is the wrong thing to spend that space on. */}
+              <p className="hint">
+                All three buttons, the wheel and every key. Fullscreen also captures Esc, Tab and
+                Ctrl+W. Capture pointer sends raw movement for 3D and games — Esc releases it.
+              </p>
+            </>
+          )}
           <div className="row-label">Mouse sensitivity · {mouseSensitivity.toFixed(1)}</div>
           <input type="range" min="0.4" max="2.5" step="0.1" value={mouseSensitivity} onChange={e=>setMouseSensitivity(Number(e.target.value))}/>
           <div className="row-label">Scroll sensitivity · {scrollSensitivity.toFixed(1)}</div>
