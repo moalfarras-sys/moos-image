@@ -4496,6 +4496,10 @@ require("/usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf" in _build
         and "/usr/share/moos/plasmalogin/kdeglobals" in _build,
         "build.sh must provision the plasmalogin greeter account's palette deterministically; "
         "unprovisioned, /var/lib/plasmalogin decides the login chrome's colours")
+require("r! /var/lib/plasmalogin/.config/kdeglobals" in _build,
+        "the greeter palette tmpfiles rule needs a boot-only `r!` before its `C+`: measured on "
+        "systemd 259.8, `C+` does NOT replace an existing file, so the rule would be a no-op on "
+        "every machine that already carries the wrong palette — which is the bug it fixes")
 require("carries an active greeter key that" in _build
         and "WallpaperPluginId|Theme|Background|Image|ShowClock" in _build,
         "build.sh must reject an ACTIVE greeter key in /etc/plasmalogin.conf — that "

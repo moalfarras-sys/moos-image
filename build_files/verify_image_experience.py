@@ -592,10 +592,17 @@ if "plasmalogin" in dm_target:
     require(greeter_palette.is_file() and "ColorScheme=MoOSUI2Dark" in greeter_palette.read_text(encoding="utf-8"),
             "the greeter account has no canonical MoOS palette in /usr — whatever its first "
             "run happened to write would decide the login chrome's colours")
-    require(greeter_tmpfiles.is_file()
-            and "C+ /var/lib/plasmalogin/.config/kdeglobals" in greeter_tmpfiles.read_text(encoding="utf-8"),
+    _greeter_rules = greeter_tmpfiles.read_text(encoding="utf-8") if greeter_tmpfiles.is_file() else ""
+    require("C+ /var/lib/plasmalogin/.config/kdeglobals" in _greeter_rules,
             "nothing materialises the greeter account's palette into /var/lib/plasmalogin, so "
             "it stays unreproducible local state")
+    # The removal half is not decoration: `C+` does NOT replace an existing file
+    # (measured on systemd 259.8), so without a boot-only `r!` the rule is a no-op on
+    # exactly the machines that already have the wrong palette — which is every machine
+    # that has ever shown a greeter.
+    require("r! /var/lib/plasmalogin/.config/kdeglobals" in _greeter_rules,
+            "the greeter palette rule has no `r!` removal, so `C+` will silently leave a "
+            "pre-existing wrong palette in place on every already-installed machine")
 
 else:
     # There is deliberately no SDDM branch any more. SDDM is not installed on this

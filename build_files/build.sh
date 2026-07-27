@@ -2277,6 +2277,19 @@ cat > /usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf <<'EOF'
 # The plasmalogin greeter account's Plasma configuration is IMAGE state, not user
 # state: no human ever logs into it, and whatever its first run happened to write
 # is not reproducible. Materialise the MoOS answer on every boot.
+#
+# `r!` BEFORE each `C+`, and that pairing is the whole point. `C+` alone does NOT
+# replace a file that already exists — measured on systemd 259.8, the same version
+# the image runs: copying onto an existing file leaves the OLD content in place.
+# So `C+` on its own would have fixed nothing on precisely the machines that have
+# the bug, which is every machine that has already booted a greeter — including the
+# flagship, whose /var/lib/plasmalogin carries the MoOSUI2 *Light* palette under the
+# dark Graphite greeter wallpaper. `r!` is boot-only, and
+# systemd-tmpfiles-setup.service runs `--create --remove --boot`, so the removal
+# fires once per boot and the copy then lands on a clean path (verified: OLD content
+# with `C+` alone, NEW content with `r!` + `C+`).
+r! /var/lib/plasmalogin/.config/kdeglobals
+r! /var/lib/plasmalogin/.config/plasmarc
 d  /var/lib/plasmalogin/.config             0700 plasmalogin plasmalogin -
 C+ /var/lib/plasmalogin/.config/kdeglobals  0600 plasmalogin plasmalogin - /usr/share/moos/plasmalogin/kdeglobals
 C+ /var/lib/plasmalogin/.config/plasmarc    0600 plasmalogin plasmalogin - /usr/share/moos/plasmalogin/plasmarc
