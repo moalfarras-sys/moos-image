@@ -3013,29 +3013,32 @@ BENTO
     #
     # moos-cloud-audio serves that sink's monitor as Opus-in-WebM over HTTP, which
     # browsers play natively — one URL per account, next to their desktop port:
-    # desktop 8765+N, sound 8775+N. Idle cost measured on the real server: 0.2% of
-    # a core, because ffmpeg waits in accept() before it opens the capture.
+    # desktop 8765+N, sound 8775+N. Idle cost is nothing: the encoder is not
+    # spawned until somebody actually opens the stream, and it is killed when they
+    # close it.
     #
-    # DO NOT `dnf5 install ffmpeg` HERE. It cost the cloud edition three builds.
+    # DO NOT `dnf5 install ffmpeg` HERE, and do not re-implement this on ffmpeg.
+    # Between them those two cost the cloud edition four builds.
     #
-    # The reasoning was sound — a shipped feature should own its runtime rather
-    # than lean on ffmpeg arriving as a transitive dependency of ffmpegthumbs —
-    # and the consequence was not. Asking for `ffmpeg` by name on a fresh CI build
-    # resolves to the full RPMFusion package and drags its whole codec tree in,
-    # and the cloud image grew past what the runner can hold: every moos-cloud job
-    # from that commit onward died mid `Copying blob` with no error line at all,
-    # while `moos` and `moos-nvidia` kept publishing.
+    # Asking for `ffmpeg` by name on a fresh CI build resolves to the full
+    # RPMFusion package and drags its whole codec tree in; the cloud image grew
+    # past what the runner can hold and every moos-cloud job died mid
+    # `Copying blob` with no error line at all, while moos and moos-nvidia kept
+    # publishing. And the ffmpeg that IS reachable — Fedora's ffmpeg-free, pulled
+    # in by ffmpegthumbs — has no libopus, so the encoder this feature was
+    # measured against on the running server does not exist in the image.
     #
-    # The result was the exact failure the matrix gate in this file was written to
-    # prevent, arriving by a route that gate cannot see: moos and moos-nvidia went
-    # to .378 and .377 while moos-cloud sat at .375 — the edition running on the
-    # owner's own server silently stopped receiving every fix for three commits.
-    # A green matrix row does not mean a published image.
+    # The result both times was the exact failure the matrix gate in this file was
+    # written to prevent, arriving by a route that gate cannot see: moos and
+    # moos-nvidia went to .379 while moos-cloud sat at .375 — the edition running
+    # on the owner's own server silently stopped receiving every fix, including
+    # the ones written to fix it. A green matrix row does not mean a published
+    # image.
     #
-    # What is already in the image is enough (verified: ffmpeg 8.1.2 with libopus),
-    # and the gate below fails the build loudly if that ever stops being true. That
-    # is the honest trade: depend on what is there, and assert it rather than
-    # assume it.
+    # The capture is GStreamer now. Its plugins are already in the image for Mo PC
+    # Remote's own pipeline, so this costs no package and no megabyte, and the
+    # gate further down asserts the elements exist in THIS image rather than in
+    # whatever shell the feature was developed in.
 
     # Enabled --global so every account that logs in gets their own, including
     # developers added later by moos-cloud-dev.
@@ -3188,36 +3191,65 @@ TRUSTED
         echo "GATE FAIL: /usr/bin/moos-cloud-audio is missing or not executable — a"
         echo "           MoOS Cloud desktop would have no way to reach its own sound."
         _cloud_fail=1; }
-    command -v ffmpeg >/dev/null 2>&1 || {
-        echo "GATE FAIL: ffmpeg is not in the image, so moos-cloud-audio cannot encode"
-        echo "           anything. The unit would restart for ever with no sound."
+    # This gate is written the way it is because of what the ffmpeg version of it
+    # did, and that is worth leaving on the record.
+    #
+    # moos-cloud-audio used to run `ffmpeg -c:a libopus`. It was developed and
+    # measured on the running server, which carries RPMFusion's ffmpeg 8.1.2 WITH
+    # libopus — an encoder THE IMAGE DOES NOT CONTAIN. A fresh build has no
+    # RPMFusion, `ffmpeg` resolves to Fedora's ffmpeg-free, and that has no libopus
+    # at all. (`dnf5 install ffmpeg` does not help: same package.) So the encoder
+    # that was verified was never the encoder that shipped.
+    #
+    # The gate that caught it was `_cloud_fail=1`, and it then STOPPED THE CLOUD
+    # EDITION PUBLISHING FOR FOUR COMMITS while moos and moos-nvidia sailed on to
+    # .379 — including the two commits that existed only to fix the cloud edition.
+    # The edition running on the owner's own server was the one that stopped
+    # receiving them.
+    #
+    # Both halves are fixed now. The capture is GStreamer (see moos-cloud-audio),
+    # whose plugins are already in the image for Mo PC Remote's own pipeline, so
+    # there is no new package and no growth. And the gate below asserts the exact
+    # elements the shipped pipeline names, against THIS image — not against a
+    # developer's shell — which is the only version of this check that means
+    # anything. ffmpeg is deliberately not consulted any more: nothing here uses it.
+    python3 - <<'CLOUD_AUDIO' || _cloud_fail=1
+import sys
+import gi
+gi.require_version("Gst", "1.0")
+from gi.repository import Gst
+Gst.init(None)
+# Exactly the elements in moos-cloud-audio's pipeline(). If this list and that
+# pipeline ever drift apart, the stream fails on a user's machine with a
+# GStreamer error nobody sees; here it fails in the build.
+need = ("pulsesrc", "audioconvert", "audioresample", "opusenc", "webmmux", "fdsink")
+missing = [e for e in need if not Gst.ElementFactory.find(e)]
+if missing:
+    print("GATE FAIL: moos-cloud-audio's pipeline is missing GStreamer elements: "
+          + ", ".join(missing))
+    print("           pulsesrc/webmmux come from gstreamer1-plugins-good, opusenc and")
+    print("           audioconvert/audioresample from -base. Both are installed for Mo")
+    print("           PC Remote's capture pipeline; if that changed, this breaks too.")
+    sys.exit(1)
+print("cloud audio: opus/webm pipeline elements present (%s)" % ", ".join(need))
+CLOUD_AUDIO
+    command -v gst-launch-1.0 >/dev/null 2>&1 || {
+        echo "GATE FAIL: gst-launch-1.0 is not in the image. moos-cloud-audio drives the"
+        echo "           encoder through it, so the stream would 503 on every request."
         _cloud_fail=1; }
-    # NOT a build failure, and the reason is a mistake worth leaving written down.
-    #
-    # This gate was `_cloud_fail=1`, and it stopped the CLOUD EDITION PUBLISHING FOR
-    # FOUR COMMITS while moos and moos-nvidia sailed on to .379 — including the two
-    # commits that existed only to fix the cloud edition. The edition running on the
-    # owner's own server was the one that stopped receiving them.
-    #
-    # The gate was right and the assumption behind it was wrong. The running server
-    # has full RPMFusion ffmpeg 8.1.2 WITH libopus, so `moos-cloud-audio` was
-    # developed and verified against an encoder the IMAGE does not contain: a fresh
-    # build has no RPMFusion, `ffmpeg` resolves to Fedora's ffmpeg-free, and that has
-    # no libopus. Adding `dnf5 install ffmpeg` did not help — it resolves to the same
-    # package. I misread the truncated blob-copy log tail as disk exhaustion and
-    # reverted the install for the wrong reason; the failure was always this line.
-    #
-    # A missing encoder must not take the whole edition offline. It cannot hide
-    # either: moos-cloud-audio.service fails visibly and lands in
-    # `systemctl --failed` if the encoder is absent, which is the honest place for
-    # this to surface. The real fix is to re-implement the capture on GStreamer,
-    # whose opusenc/webmmux/pulsesrc ARE already in the image (verified on the
-    # running server, which carries no layered packages) — no new dependency and no
-    # image growth. Until that lands, sound is best-effort on this edition.
-    ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libopus || {
-        echo "NOTE: this image's ffmpeg has no libopus encoder, so the browser audio"
-        echo "      stream will not start. moos-cloud-audio.service will show as failed."
-        echo "      Re-implement it on GStreamer (opusenc is present) — see MOOS_ROADMAP."; }
+    # The pipeline writes WebM to a private inherited fd, NOT to stdout, because
+    # gst-launch prints progress lines on stdout and those bytes inside a WebM
+    # header produce a stream that will not play and reports nothing. A refactor
+    # that "simplifies" this back to fd=1 is a silent regression, so pin it.
+    grep -q 'fd={out_fd}' /usr/bin/moos-cloud-audio || {
+        echo "GATE FAIL: moos-cloud-audio's fdsink no longer writes to the private pipe"
+        echo "           fd. On stdout it would be corrupted by gst-launch's own output."
+        _cloud_fail=1; }
+    grep -q 'audio/x-raw,rate=48000,channels=2' /usr/bin/moos-cloud-audio || {
+        echo "GATE FAIL: moos-cloud-audio no longer forces stereo. A null sink's monitor"
+        echo "           advertises ONE channel, so everything the desktop plays would be"
+        echo "           folded to mono before it reached the encoder."
+        _cloud_fail=1; }
     systemctl --global is-enabled moos-cloud-audio.service >/dev/null 2>&1 || {
         echo "GATE FAIL: moos-cloud-audio.service is not enabled --global, so accounts"
         echo "           created later (moos-cloud-dev) would silently have no sound."

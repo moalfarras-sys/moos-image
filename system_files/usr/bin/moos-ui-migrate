@@ -74,6 +74,51 @@ migrate_startup_numlock() {
 }
 migrate_startup_numlock
 
+# --- The XDG data directories KDE expects to be able to stat ---------------------------------
+#
+# These are mkdir -p on empty directories, which sounds like housekeeping and is
+# not. A directory that appears in XDG_DATA_DIRS but does not EXIST is the
+# classic cause of a KSycoca rebuild loop: KBuildSycoca records every resource
+# directory it was asked about, `needsRebuild()` then stats each recorded path,
+# a path that is not there never matches its recorded timestamp, and the answer
+# is "rebuild" for ever. The rebuild is a full one, and it is synchronous on
+# whichever thread asked.
+#
+# Measured on the owner's server: plasmashell rebuilding ksycoca every ~15
+# seconds for the whole uptime, ~79% of one core on the main thread, triggered
+# (`eu-stack`, not guesswork) by plasma-nm looking up a "qrca" service that MoOS
+# does not ship:
+#
+#     QrcaHandler::update() -> KService::serviceByDesktopName("qrca")
+#       -> KSycoca::ensureCacheValid() -> KSycocaPrivate::checkDatabase()
+#         -> KBuildSycoca::recreate()
+#
+# The lookup is not the bug — that lookup happens on both accounts and only one
+# of them spins. The bug is that the rebuild never makes the cache valid, and an
+# unstattable directory explains exactly that, including the asymmetry: flatpak's
+# systemd user-environment generator puts ~/.local/share/flatpak/exports/share
+# into XDG_DATA_DIRS for EVERY account, and the directory only exists once that
+# account has actually installed something with flatpak. The seat owner has;
+# a freshly created second developer has not.
+#
+# Stated honestly: this is a mechanism that fits every observation, not a fix
+# confirmed on the server — that needs a boot on the machine that shows the loop.
+# It is applied anyway because these directories should exist regardless (they
+# are where a user's own .desktop files and icons go), and creating an empty
+# directory cannot break anything. Four other hypotheses were tried and refuted;
+# they are recorded in MOOS_ROADMAP.md and should not be retried without new
+# evidence.
+#
+# This runs BEFORE the --input-only gate below, because the loop is driven by the
+# session that is about to start, not by anything later in this script.
+for xdg_dir in \
+    "${XDG_DATA_HOME:-$HOME/.local/share}/applications" \
+    "${XDG_DATA_HOME:-$HOME/.local/share}/icons" \
+    "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/share/applications"
+do
+    [ -d "$xdg_dir" ] || mkdir -p "$xdg_dir" 2>/dev/null || true
+done
+
 # The early systemd user unit asks for only the input repair so it can finish
 # before either user-session KWin or the Plasma Login Manager's KWin starts.
 [ "${1:-}" = "--input-only" ] && exit 0

@@ -4,6 +4,8 @@
 #   sudo moos-cloud-desktop on  <user>
 #   sudo moos-cloud-desktop off
 #        moos-cloud-desktop status
+#        moos-cloud-desktop doctor [user]
+#   sudo moos-cloud-desktop grant-input <user> [donor]
 #
 # WHY THIS IS A COMMAND AND NOT A DEFAULT
 #
@@ -146,6 +148,14 @@ After=dbus.socket
 [Service]
 Type=simple
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus
+# Everything MoOS does before KWin starts hangs off plasma-kwin_wayland.service
+# (and the login manager's copy) via drop-ins. This session starts kwin_wayland
+# by hand, so it hangs off NEITHER — and every one of those repairs was silently
+# skipped for this account alone: the Num Lock default, the legacy keyboard
+# migration, and the XDG data directories whose absence keeps ksycoca rebuilding.
+# It is a one-shot, idempotent, and cheap; the whole point is that this session
+# gets the same start as any other.
+ExecStartPre=-/usr/bin/moos-ui-migrate --input-only
 ExecStart=/usr/bin/kwin_wayland --virtual --width 1920 --height 1080 --socket ${socket} --no-lockscreen --xwayland --exit-with-session=/usr/bin/startplasma-wayland
 # Services the manager starts later — the portal above all — need to know which
 # compositor is theirs. kwin exports WAYLAND_DISPLAY to its own children only.
@@ -288,11 +298,161 @@ cmd_status() {
                   || printf '  browser: join Tailscale first — Mo PC Remote answers nothing else\n'
 }
 
+# ── doctor: the two things that go wrong on a private desktop ────────────────
+#
+# Both open problems on this edition are invisible from the outside and both are
+# specific to an account that has a desktop but no seat. `status` says whether
+# things are RUNNING; this says whether they are WORKING, and prints the evidence
+# rather than a verdict, because the last four theories about the first one were
+# all wrong and were only killed by looking.
+#
+#   1. ksycoca rebuilding for ever. Costs ~79% of a core, for ever, and shows up
+#      as "the second desktop is sluggish" and nothing else. The suspected cause
+#      is a directory in XDG_DATA_DIRS that does not exist — see moos-ui-migrate.
+#      This prints which ones are missing, per account, which is the whole test.
+#
+#   2. RemoteDesktop input. The portal wants one interactive approval, and this
+#      session has nobody in front of it to give it. Once given it is remembered
+#      (mo-remote-portal.py asks for persist_mode=2 and stores the restore token),
+#      so the question is only ever "has this account been granted once".
+doctor_user() {
+    local user="$1" uid home
+    uid="$(id -u "$user")" || return 1
+    home="$(getent passwd "$user" | cut -d: -f6)"
+    printf '\n\033[1m%s\033[0m (uid %s)\n' "$user" "$uid"
+
+    # --- 1. the directories whose absence keeps ksycoca rebuilding ------------
+    local share="${home}/.local/share" missing=0 d
+    for d in "${share}/applications" "${share}/icons" \
+             "${share}/flatpak/exports/share"; do
+        if [ ! -d "$d" ]; then
+            red "missing XDG data dir: ${d#"$home"/}"
+            missing=$((missing + 1))
+        fi
+    done
+    if [ "$missing" = 0 ]; then
+        ok "XDG data dirs present (nothing here forces a ksycoca rebuild)"
+    else
+        note "repair: sudo runuser -u ${user} -- /usr/bin/moos-ui-migrate --input-only"
+    fi
+
+    # A rebuild loop is visible without any theory at all: the database's mtime
+    # simply keeps moving. One sample cannot tell a loop from a normal rebuild,
+    # so take two 8s apart — a healthy session touches it once and stops.
+    local db first second
+    db="$(ls -t "${home}/.cache/"ksycoca6_* 2>/dev/null | head -1 || true)"
+    if [ -z "$db" ]; then
+        note "no ksycoca database yet (this account has not started a session)"
+    else
+        printf '  ksycoca: %s file(s)\n' "$(ls "${home}/.cache/"ksycoca6_* 2>/dev/null | wc -l)"
+        first="$(stat -c %Y "$db" 2>/dev/null || echo 0)"
+        sleep 8
+        second="$(stat -c %Y "$db" 2>/dev/null || echo 0)"
+        if [ "$first" != "$second" ]; then
+            red "ksycoca was rebuilt during an 8s idle window — the loop is live"
+            note "that is a full rebuild every time anything looks up a service"
+        else
+            ok "ksycoca stable over 8s"
+        fi
+    fi
+
+    # --- 2. the one-time RemoteDesktop approval -------------------------------
+    if [ -s "${home}/.config/MoRemote/portal-restore-token" ]; then
+        ok "RemoteDesktop already granted (restore token stored — no dialog needed)"
+    else
+        red "no RemoteDesktop restore token: input will not work for ${user}"
+        note "the portal asks for one interactive approval and this session has"
+        note "nobody in front of it. It is the second user's screen, so the"
+        note "approval has to be clicked from THEIR Mo PC Remote — which is the"
+        note "thing that needs it. See MOOS_ROADMAP.md item 8; not solved."
+    fi
+    printf '  portal: %s\n' \
+        "$(runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
+             systemctl --user is-active xdg-desktop-portal.service 2>/dev/null || echo unknown)"
+
+    # --- 3. sound -------------------------------------------------------------
+    printf '  sound: %s\n' \
+        "$(ss -tnl 2>/dev/null | grep -q ":$(( 8775 + uid - 1000 ))" \
+             && echo "serving on $(( 8775 + uid - 1000 ))" || echo 'not listening')"
+}
+
+# ── grant-input: the approval a seatless desktop cannot click for itself ─────
+#
+#   sudo moos-cloud-desktop grant-input <user> [donor]
+#
+# Mo PC Remote's input goes through the RemoteDesktop portal, which asks for one
+# interactive approval and then remembers it for ever. A `--virtual` session has
+# nobody in front of it, and the only way to click that prompt is Mo PC Remote —
+# which is what is waiting on it. This copies the approval from an account that
+# HAS a seat (and could therefore click its own) onto the one that cannot.
+#
+# It grants an account's own remote to its own desktop. Nothing crosses users:
+# the copied blob carries device flags, not identity, and each token lands in its
+# own permission store and its own home. See moos_portal_grant.py for the shape
+# of a real grant and why an entry keyed anything but the restore token is dead.
+grant_input() {
+    local user="${1:-}" donor="${2:-}"
+    [ -n "$user" ] || die "which account? e.g. moos-cloud-desktop grant-input momo"
+    id "$user" >/dev/null 2>&1 || die "no such account: ${user}"
+    local uid; uid="$(id -u "$user")"
+
+    # Default donor: the seat owner, since a seat is exactly what let them
+    # approve it in the first place.
+    if [ -z "$donor" ]; then
+        donor="$(loginctl list-sessions --no-legend 2>/dev/null \
+                 | awk '$4=="seat0"{print $3; exit}')"
+    fi
+    [ -n "$donor" ] || die "no donor account found — pass one: grant-input ${user} <donor>"
+    [ "$donor" != "$user" ] || die "the donor must be a different account than ${user}"
+    id "$donor" >/dev/null 2>&1 || die "no such donor account: ${donor}"
+    local duid; duid="$(id -u "$donor")"
+
+    local blob="/run/moos-portal-grant.$$"
+    # 0600 root-only and removed on every exit: it is a live session grant, and
+    # /run is tmpfs so it never reaches the disk.
+    trap 'rm -f "$blob"' EXIT INT TERM
+    ( umask 077; : > "$blob" )
+
+    runuser -u "$donor" -- env "XDG_RUNTIME_DIR=/run/user/${duid}" \
+        python3 /usr/lib/moos/moos_portal_grant.py dump "$blob" \
+        || die "could not read a working grant from ${donor}"
+    chown "${user}:${user}" "$blob"
+
+    local token; token="moos-${user}-$(head -c 12 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
+    runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
+        python3 /usr/lib/moos/moos_portal_grant.py apply "$blob" "$token" \
+        || die "could not write the grant into ${user}'s permission store"
+
+    # The agent reads the token once, at session start, so it has to come back.
+    runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
+        systemctl --user restart mo-remote-personal.service >/dev/null 2>&1 || true
+    ok "${user}'s Mo PC Remote may now drive ${user}'s own desktop"
+    note "verify: moos-cloud-desktop doctor ${user}"
+}
+
+cmd_doctor() {
+    need_root
+    local user="${1:-}"
+    if [ -n "$user" ]; then
+        id "$user" >/dev/null 2>&1 || die "no such account: ${user}"
+        doctor_user "$user"
+        return
+    fi
+    # Every human account with a home. Comparing two accounts side by side is how
+    # the ksycoca asymmetry was found in the first place, so default to all.
+    local u
+    for u in $(getent passwd | awk -F: '$3>=1000 && $3<65000 {print $1}'); do
+        doctor_user "$u"
+    done
+}
+
 case "${1:-status}" in
     on)     need_root; shift; cmd_on "$@" ;;
     own)    need_root; shift; own_screen "$@" ;;
     off)    need_root; cmd_off ;;
     status) cmd_status ;;
-    -h|--help) sed -n '3,8p' "$0" | sed 's/^# \{0,1\}//' ;;
-    *)      die "unknown command: $1 (try: on <user>, own <user> [port], off, status)" ;;
+    doctor) shift; cmd_doctor "$@" ;;
+    grant-input) need_root; shift; grant_input "$@" ;;
+    -h|--help) sed -n '3,9p' "$0" | sed 's/^# \{0,1\}//' ;;
+    *)      die "unknown command: $1 (try: on <user>, own <user> [port], grant-input <user>, doctor [user], off, status)" ;;
 esac

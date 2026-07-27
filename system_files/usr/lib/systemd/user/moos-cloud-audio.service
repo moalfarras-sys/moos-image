@@ -9,28 +9,31 @@ Documentation=file:///usr/bin/moos-cloud-audio
 Wants=pipewire-pulse.service
 After=pipewire-pulse.service pipewire.service
 
-# A genuinely broken setup should fail loudly rather than spin. The unit restarts
-# once per listener by design (see below), so the window has to be long enough to
-# tell "somebody closed the tab five times" apart from "this can never start" —
-# and short enough that a real fault is still visible in `systemctl --failed`.
-StartLimitIntervalSec=120
-StartLimitBurst=10
+# This is a long-lived server now, not a one-shot that exits per listener, so a
+# restart loop means something is genuinely broken rather than "somebody closed
+# the tab". Five in a minute is generous for a real fault and still lands the unit
+# in `systemctl --failed` instead of letting it spin.
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
 ExecStart=/usr/bin/moos-cloud-audio
 
-# ffmpeg's built-in HTTP server (-listen 1) serves exactly one client and exits
-# when that client disconnects. That suits one-person-per-desktop, but it means
-# the unit MUST come back by itself or sound works once per boot and never again.
-# `always`, not `on-failure`: a listener leaving is a clean exit as often as not.
+# The HTTP server stays up for the life of the session; the GStreamer pipeline
+# behind it is what comes and goes — one per listener, spawned on request and
+# killed when they leave. So the port answers immediately after login and a
+# reconnecting listener never waits for a unit restart, which is exactly what the
+# old ffmpeg `-listen 1` shape forced: ffmpeg's HTTP server serves one client and
+# then exits, so sound worked once per restart and the unit churned to keep up.
 Restart=always
 RestartSec=2
 
-# Idle cost measured on the real server: 0.2% of a core, 66 MB RSS — ffmpeg waits
-# in accept() before opening the capture, so nothing is encoded until somebody is
-# actually listening. The cap is a backstop, not a working limit.
-MemoryMax=512M
+# Idle cost is nothing at all: no encoder is started until somebody actually
+# requests /stream.webm, and it is killed when they disconnect. The cap covers the
+# Python server plus up to MAX_LISTENERS (4) concurrent Opus encoders and is a
+# backstop, not a working limit.
+MemoryMax=768M
 
 [Install]
 WantedBy=default.target

@@ -1,0 +1,48 @@
+# MoOS Mo AI brain — the GPU machine's brain. Qwen3-8B.
+#
+# WHY A SECOND MODELFILE AND NOT ONE CONSTANT
+#
+# MoOS runs on two machines that want opposite answers, so moos-ensure-brain
+# picks between this file and moai-brain.Modelfile by what the machine has:
+#
+#   this file            a real GPU with >= 7.5 GB. Qwen3-8B is, MEASURED through
+#                        the real gateway on a real Arabic repair question, the
+#                        best Arabic of everything tried AND the best at the
+#                        commands and explanations that go with it — which is
+#                        exactly what a development/repair brain is for.
+#   moai-brain.Modelfile no GPU (MoOS Cloud). Qwen2.5-7B-Instruct is measurably
+#                        faster there, and Mo AI's own error text says so.
+#
+# WHY NOT A "CODER" MODEL, WHICH IS THE OBVIOUS THING TO REACH FOR
+#
+# qwen2.5-coder:7b was tried and REJECTED, and the reason is recorded in
+# moai-control so nobody re-adds it on a hunch: it writes excellent one-liners
+# and its Arabic is broken — it emitted "الملفات الممكدة" (not a phrase) and
+# invented an `lsof -m` flag that does not exist. MoOS's contract is that the
+# bilingual UI is not sitting on a monolingual brain. Qwen3 is trained on 119
+# languages and does not make that trade.
+#
+# And qwen3-coder is not an option at all on this card: its smallest tag is the
+# 30B-A3B build at ~19 GB of weights, which needs 16 GB+ of VRAM. There is no
+# sub-10 GB Qwen3-Coder. On 8 GB it would spill to system RAM, and a spilled
+# model on this image does not merely go slow — moos-gpu-headroom exists because
+# kwin_wayland died on `NVRM: invalid mmap context` when VRAM ran out.
+#
+# num_ctx 24576 is NOT a round number, and it is the same contract as the CPU
+# Modelfile: the desktop chat sends a short prompt, but the SAME model serves the
+# Telegram agent (OpenClaw), whose system+tools prompt ALONE is ~11.5k tokens. At
+# 8192 it overflowed before a single user word; at 16384 the first reply worked
+# and multi-turn conversations then overran the budget. 24576 leaves ~11k for the
+# actual conversation on top of the base prompt. moos-ensure-brain reconciles
+# openclaw.json to this value — the two must not drift.
+FROM qwen3:8b
+
+# No baked SYSTEM: main.qml sends the real Mo AI system prompt plus live machine
+# context, so the model must not carry one of its own. A baked prompt is what
+# made an earlier brain answer in Arabic even when asked in English.
+SYSTEM ""
+
+PARAMETER num_ctx 24576
+PARAMETER temperature 0.7
+PARAMETER top_p 0.8
+PARAMETER top_k 20

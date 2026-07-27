@@ -4686,6 +4686,49 @@ require('"http://127.0.0.1:8080/v1/chat/completions"' not in _moai_qml_ports,
         "while the app ignores it.")
 
 
+# ── Mo AI's brain: the right model for the machine, and neither Modelfile lost ──
+#
+# moos-ensure-brain picks between two brains by measured VRAM, and each names its
+# own base. Nothing else in the tree would notice if a Modelfile went missing:
+# the script is failure-tolerant by design, so a missing file means it quietly
+# leaves whatever brain is there — which on a fresh machine is none.
+_brain = read("system_files/usr/bin/moos-ensure-brain")
+_mf_cpu = read("system_files/usr/share/moos/containers/moai-brain.Modelfile")
+_mf_gpu = read("system_files/usr/share/moos/containers/moai-brain-gpu.Modelfile")
+
+require("FROM qwen2.5:7b-instruct" in _mf_cpu,
+        "the CPU Modelfile no longer builds from qwen2.5:7b-instruct — the measured "
+        "fast, non-thinking brain for a GPU-less machine (MoOS Cloud).")
+require("FROM qwen3:8b" in _mf_gpu,
+        "the GPU Modelfile no longer builds from qwen3:8b — the measured best Arabic, "
+        "code and repair brain, and the only one of the two that wants a real card.")
+for _name, _mf in (("moai-brain.Modelfile", _mf_cpu), ("moai-brain-gpu.Modelfile", _mf_gpu)):
+    require("PARAMETER num_ctx 24576" in _mf,
+            f"{_name} no longer sets num_ctx 24576. The SAME model serves OpenClaw, whose "
+            f"system+tools prompt alone is ~11.5k tokens: at a smaller window every Telegram "
+            f"turn dies with 'Context overflow (precheck)'. moos-ensure-brain reconciles "
+            f"openclaw.json to this exact number, so the two cannot drift apart.")
+    require('SYSTEM ""' in _mf,
+            f"{_name} bakes a SYSTEM prompt. main.qml sends the real Mo AI prompt plus live "
+            f"machine context; a baked one is what made an earlier brain answer in Arabic "
+            f"even when it was asked in English.")
+# Only the FROM line, not the prose: both Modelfiles deliberately NAME
+# qwen2.5-coder in a comment to record why it must not be used.
+require(not any(ln.strip().lower().startswith("from") and "coder" in ln.lower()
+                for mf in (_mf_cpu, _mf_gpu) for ln in mf.splitlines()),
+        "a Modelfile now builds FROM a coder model. qwen2.5-coder:7b was MEASURED and "
+        "rejected: excellent one-liners, broken Arabic — it emitted a non-phrase and "
+        "invented an `lsof -m` flag. And qwen3-coder's smallest tag is ~19 GB of weights, "
+        "which does not fit the 8 GB card this image targets.")
+require('grep -qi "$want"' in _brain,
+        "moos-ensure-brain's 'already correct?' check is hardcoded to one model family "
+        "again. On a GPU machine that declares the correct qwen3:8b brain wrong and "
+        "rebuilds it down to the CPU model on every single login.")
+require("nvidia-smi" in _brain and "7500" in _brain,
+        "moos-ensure-brain no longer picks the brain by measured VRAM. A card under ~7.5 GB "
+        "cannot hold qwen3:8b resident, and a spilled model on this image took the whole "
+        "desktop down with it (moos-gpu-headroom exists because of NVRM: invalid mmap context).")
+
 _own = read("system_files/usr/bin/moos-cloud-desktop")
 _own_code = code(_own)
 require("dbus-run-session" not in _own_code,
@@ -4698,6 +4741,53 @@ require("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/" in _own_code,
         "moos-cloud-desktop must point the private desktop at the user's REAL session "
         "bus (/run/user/$uid/bus) — it is what makes startplasma-wayland take the "
         "systemd path, and therefore what makes the portal (and input) work.")
+# ── The RemoteDesktop grant a seatless desktop cannot click for itself ────────
+#
+# Read off a working account, not guessed: a grant is an entry in the permission
+# store keyed by the RESTORE TOKEN (a random string), carrying KDE's session data
+# blob — plus that same token in ~/.config/MoRemote/portal-restore-token. Seeding
+# either half alone does nothing, and an entry keyed anything but the token is
+# never looked up. That is exactly why an earlier `flatpak permission-set
+# remote-desktop ... moos-pc-remote` looked like it silently failed: it wrote an
+# entry, under a key the portal never reads, with no data.
+_grant = read("system_files/usr/lib/moos/moos_portal_grant.py")
+require("grant-input) need_root" in _own_code,
+        "moos-cloud-desktop lost its grant-input command. Without it the second desktop's "
+        "input cannot be turned on at all: the portal wants one interactive approval and a "
+        "--virtual session has nobody to give it.")
+require("portal-restore-token" in _grant,
+        "moos_portal_grant.py no longer writes the restore token to the file the agent "
+        "reads. The permission-store entry alone is a grant nobody ever asks for.")
+require('get_type_string() == "()"' in _grant,
+        "moos_portal_grant.py no longer rejects an entry with empty session data. An entry "
+        "without KDE's blob is the exact broken shape this replaces — the portal ignores it "
+        "and prompts anyway, on a screen nobody can click.")
+require("Gio.bus_get_sync" in _grant and "new_for_address_sync" not in _grant,
+        "moos_portal_grant.py connects to a bus ADDRESS instead of its own session bus. A "
+        "user's bus is 0700 and dbus-broker authenticates the peer uid, so one process "
+        "cannot reach both accounts — that is why this is a dump/apply pair.")
+require("ExecStartPre=-/usr/bin/moos-ui-migrate --input-only" in _own_code,
+        "the private desktop starts kwin_wayland by hand, so it inherits NONE of the "
+        "drop-ins on plasma-kwin_wayland.service — and every pre-KWin repair MoOS does "
+        "(Num Lock default, legacy keyboard migration, the XDG data directories whose "
+        "absence keeps ksycoca rebuilding at ~79% of a core) was skipped for the second "
+        "developer alone. It must run the same one-shot every other session runs.")
+
+# A directory that is in XDG_DATA_DIRS and does not exist never matches its
+# recorded timestamp, so KSycoca answers "rebuild" for ever — a full, synchronous
+# rebuild every time anything looks up a service. flatpak's user-environment
+# generator puts the exports dir in XDG_DATA_DIRS for every account; it exists
+# only once that account has installed something. See MOOS_ROADMAP.md item 6.
+for _xdg_dir in ("/applications", "/icons", "/flatpak/exports/share/applications"):
+    require(f'{{XDG_DATA_HOME:-$HOME/.local/share}}{_xdg_dir}"' in _ui_migrate
+            or f'XDG_DATA_HOME:-$HOME/.local/share}}{_xdg_dir}' in _ui_migrate,
+            f"moos-ui-migrate no longer ensures ~/.local/share{_xdg_dir} exists. An "
+            f"unstattable directory in XDG_DATA_DIRS is what keeps KSycoca rebuilding.")
+require(_ui_migrate.index("XDG_DATA_HOME:-$HOME/.local/share}/applications")
+        < _ui_migrate.index('[ "${1:-}" = "--input-only" ] && exit 0'),
+        "the XDG data directories are created AFTER the --input-only early exit, so the "
+        "one invocation that runs before KWin — the only one that can stop the session "
+        "from starting a doomed sycoca — never creates them.")
 
 if errors:
     print("MoOS user-experience gate failed:", file=sys.stderr)

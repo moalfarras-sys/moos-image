@@ -1,49 +1,398 @@
-#!/usr/bin/env bash
-# moos-cloud-audio — the server's sound, in a browser tab.
-#
-# WHY THIS EXISTS
-#
-# Mo PC Remote streams the desktop and nothing else. There is no audio path in
-# it: not in the Linux agent (agent-linux/ contains no capture, no encoder, no
-# audio endpoint) and not in the shipped controller bundle (no AudioContext, no
-# MediaSource, no audio URL). "No sound in the browser" on MoOS Cloud is not a
-# setting somebody turned off — the feature was never there.
-#
-# A VPS also has no sound card at all. `/proc/asound/cards` says "no soundcards",
-# so WirePlumber falls back to `auto_null`, a sink that accepts audio and throws
-# it away. Every application on this machine has been playing into a bin.
-#
-# This turns that bin into a stream. ffmpeg captures the default sink's monitor —
-# which is exactly what the desktop is playing — encodes Opus into WebM, and
-# serves it over HTTP. Browsers play Opus-in-WebM natively, so the listener needs
-# no player, no plugin and no app: they open a URL.
-#
-#   moalfarras (uid 1000) -> http://<tailscale-ip>:8775
-#   momo       (uid 1001) -> http://<tailscale-ip>:8776
-#
-# WHAT IT COSTS WHEN NOBODY IS LISTENING
-#
-# Measured on the real server: 0.2% of one core and 66 MB RSS. ffmpeg blocks in
-# accept() before it opens the capture, so an idle stream encodes nothing. That
-# matters on a box where the desktop dashboard had to be turned off to get 1.5
-# cores back — this must not quietly spend them again.
-#
-# WHY `-listen 1` AND Restart=always
-#
-# ffmpeg's HTTP server serves ONE client and exits when it disconnects. That is
-# the right shape here (one person per desktop) but it means the unit must come
-# back on its own, or sound works exactly once per boot.
-set -euo pipefail
+#!/usr/bin/python3
+"""moos-cloud-audio — the server's sound, in a browser tab.
 
-# The same derivation Mo PC Remote uses for its own port, so the two stay in step:
-# person N's desktop is on 8765+N and their sound is on 8775+N.
-uid="$(id -u)"
-port="${MOOS_AUDIO_PORT:-$(( 8775 + uid - 1000 ))}"
+WHY THIS EXISTS
+
+Mo PC Remote streams the desktop and nothing else. There is no audio path in it:
+not in the Linux agent (agent-linux/ contains no capture, no encoder, no audio
+endpoint) and not in the shipped controller bundle (no AudioContext, no
+MediaSource, no audio URL). "No sound in the browser" on MoOS Cloud is not a
+setting somebody turned off — the feature was never there.
+
+A VPS also has no sound card at all. `/proc/asound/cards` says "no soundcards",
+so WirePlumber falls back to `auto_null`, a sink that accepts audio and throws it
+away. Every application on this machine has been playing into a bin.
+
+This turns that bin into a stream: the default sink's monitor — exactly what the
+desktop is playing — encoded to Opus-in-WebM, served over HTTP. Browsers play
+Opus-in-WebM natively, so the listener needs no player, no plugin and no app.
+
+    moalfarras (uid 1000) -> http://<tailscale-ip>:8775
+    momo       (uid 1001) -> http://<tailscale-ip>:8776
+
+WHY GSTREAMER AND NOT FFMPEG
+
+This shipped on `ffmpeg -c:a libopus` and that was wrong in a way that cost four
+commits. The *server* that the pipeline was measured on has RPMFusion's ffmpeg
+8.1.2 WITH libopus. The *image* has no RPMFusion: its `ffmpeg` is Fedora's
+`ffmpeg-free`, which has no libopus at all. The encoder that was measured was
+never the encoder that shipped — and the build gate written to catch it failed
+the whole image instead, so `moos-cloud` stopped publishing entirely while the
+desktop editions moved on without it.
+
+GStreamer is already in the image for Mo PC Remote's capture pipeline
+(gstreamer1-plugins-base carries opusenc, -good carries pulsesrc and webmmux), so
+this adds no package, no RPMFusion, and no size. build.sh asserts every element
+below exists *in the image* rather than trusting that it does.
+
+WHY A PYTHON SERVER IN FRONT OF IT
+
+GStreamer has no plain HTTP sink. `tcpserversink` writes the raw muxed bytes with
+no status line and no headers, which no browser will touch. So the HTTP part is
+here and the media part is gst-launch, and the two are joined by a pipe.
+
+WHAT IT COSTS WHEN NOBODY IS LISTENING
+
+Nothing. The pipeline is not spawned until a listener actually requests the
+stream, and it is killed when they leave. That matters on a box where the desktop
+dashboard had to be turned off to get 1.5 cores back — this must not quietly
+spend them again.
+"""
+import html
+import os
+import signal
+import socket
+import subprocess
+import sys
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+# The same derivation Mo PC Remote uses for its own port, so the two stay in
+# step: person N's desktop is on 8765+N and their sound is on 8775+N.
+PORT = int(os.environ.get("MOOS_AUDIO_PORT") or (8775 + os.getuid() - 1000))
+
+# 0.0.0.0 is deliberate and is NOT a public listener: the cloud edition's default
+# firewalld zone is FedoraServer (ssh only) and only `tailscale0` is in the
+# trusted zone, so this port answers on the tailnet and nowhere else. Binding
+# only to the Tailscale address would break the moment Tailscale restarts and the
+# interface is re-created after this service.
+HOST = os.environ.get("MOOS_AUDIO_HOST", "0.0.0.0")
+
+# One person per desktop is the shape, but a phone that loses signal leaves a
+# socket that TCP will not reap for two hours. A hard limit of one listener would
+# hand that dead socket the only slot; a small pool means reconnecting always
+# works, and four Opus encoders is still under a tenth of a core.
+MAX_LISTENERS = 4
+
+BITRATE = int(os.environ.get("MOOS_AUDIO_BITRATE") or 96000)
 
 # @DEFAULT_MONITOR@ follows whatever sink is current rather than hardcoding
 # `auto_null`. The name of the fallback sink is WirePlumber's business, and on a
 # machine that later gains a real device the monitor should follow it.
-exec ffmpeg -hide_banner -loglevel error \
-    -f pulse -i @DEFAULT_MONITOR@ \
-    -c:a libopus -b:a 96k -application audio \
-    -f webm -listen 1 "http://0.0.0.0:${port}"
+DEVICE = os.environ.get("MOOS_AUDIO_DEVICE", "@DEFAULT_MONITOR@")
+
+_listeners = threading.BoundedSemaphore(MAX_LISTENERS)
+
+
+def pipeline(out_fd):
+    """gst-launch's argv, writing muxed WebM to `out_fd`.
+
+    The caps filter after audioconvert is load-bearing, not decoration. A null
+    sink's monitor advertises ONE channel; opusenc will happily encode mono, and
+    then everything the desktop actually plays in stereo arrives folded down.
+    audioconvert upmixes only because it is told to.
+
+    fdsink writes to an explicit inherited fd and NOT to stdout, which is the
+    other trap here: gst-launch prints "Setting pipeline to PAUSED ..." on
+    stdout, and those bytes landing in the middle of a WebM header produce a
+    stream that fails to play for a reason nothing reports. -q silences them
+    today; a private fd means it does not matter if that ever changes.
+    """
+    return [
+        "gst-launch-1.0", "-q",
+        "pulsesrc", f"device={DEVICE}",
+        "!", "audioconvert",
+        "!", "audioresample",
+        "!", "audio/x-raw,rate=48000,channels=2",
+        "!", "opusenc", f"bitrate={BITRATE}",
+        "!", "webmmux", "streamable=true",
+        "!", "fdsink", f"fd={out_fd}", "sync=false",
+    ]
+
+
+PAGE = """<!doctype html>
+<html lang="ar" dir="rtl"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>صوت MoOS</title>
+<style>
+  :root {
+    --canvas:#14191C; --card:#232D32; --raised:#2C383E; --primary:#4ED7C8;
+    --text:#E8F1EF; --muted:#9CAFAC; --outline:#415158; --on-accent:#102522;
+    --negative:#FF7D88; --positive:#69D9A5;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100dvh; display:grid; place-items:center; padding:24px;
+    background:radial-gradient(120% 90% at 50% 0%, #1B2429 0%, var(--canvas) 70%);
+    color:var(--text); font-family:"Noto Kufi Arabic",system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  .card {
+    width:min(420px,100%); background:var(--card); border:1px solid var(--outline);
+    border-radius:22px; padding:30px 26px; text-align:center;
+    box-shadow:0 18px 48px rgba(4,10,12,.45);
+  }
+  h1 { margin:0 0 6px; font-size:1.35rem; font-weight:650; letter-spacing:.2px; }
+  .sub { margin:0 0 22px; color:var(--muted); font-size:.9rem; }
+  button {
+    width:100%; border:0; border-radius:16px; padding:16px 20px; cursor:pointer;
+    background:var(--primary); color:var(--on-accent);
+    font-family:inherit; font-size:1.05rem; font-weight:650;
+    transition:transform .12s ease, filter .12s ease;
+  }
+  button:hover { filter:brightness(1.06); }
+  button:active { transform:scale(.985); }
+  button[data-on="1"] { background:var(--raised); color:var(--text); }
+  .state {
+    margin-top:18px; min-height:1.4em; font-size:.88rem; color:var(--muted);
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--outline); }
+  .state[data-tone="live"] .dot { background:var(--positive); box-shadow:0 0 0 4px rgba(105,217,165,.16); }
+  .state[data-tone="bad"]  .dot { background:var(--negative); }
+  .state[data-tone="live"] { color:var(--text); }
+  .hint { margin-top:20px; font-size:.78rem; color:var(--muted); line-height:1.7; }
+  code { background:var(--raised); border-radius:6px; padding:1px 6px; direction:ltr; display:inline-block; }
+</style></head><body>
+<main class="card">
+  <h1>صوت هذا السطح</h1>
+  <p class="sub">ما يُشغَّل على الخادم، مباشرةً في هذا التبويب.</p>
+  <button id="go" data-on="0">▶︎ تشغيل الصوت</button>
+  <div class="state" id="state" data-tone="idle"><span class="dot"></span><span id="msg">جاهز</span></div>
+  <!-- <bdi> is load-bearing, not decoration. A bare LTR port number inside an RTL
+       sentence drags the punctuation that follows it to the wrong end of the line:
+       rendered, the full stop detached from the sentence and sat alone at the far
+       left. bdi isolates each number so the Arabic reads as one run. -->
+  <p class="hint">المنفذ <bdi><code>__PORT__</code></bdi> — سطح المكتب على
+     <bdi><code>__DESKTOP_PORT__</code></bdi>.<br>
+     المتصفّح يمنع تشغيل الصوت تلقائياً، فالزر ضروري مرّة واحدة.</p>
+</main>
+<audio id="a" hidden></audio>
+<script>
+// A live WebM stream has no duration and never "ends" cleanly, so the usual media
+// events do not mean what they normally mean. `playing` is the only trustworthy
+// signal that audio is actually flowing; `error`/`stalled` mean the service
+// restarted underneath us (it restarts once per listener by design), and the fix
+// for that is always the same: take a fresh URL and try again.
+const a = document.getElementById("a"), go = document.getElementById("go");
+const state = document.getElementById("state"), msg = document.getElementById("msg");
+let on = false, retry = null;
+
+function say(text, tone) { msg.textContent = text; state.dataset.tone = tone || "idle"; }
+
+function connect() {
+  clearTimeout(retry);
+  // Cache-busting is not superstition here: without it Safari re-uses the dead
+  // response from the previous connection and plays nothing, silently.
+  a.src = "/stream.webm?t=" + Date.now();
+  a.play().then(() => say("متصل", "live")).catch(() => say("اضغط الزر للتشغيل", "bad"));
+}
+
+function stop() {
+  clearTimeout(retry);
+  a.pause(); a.removeAttribute("src"); a.load();
+}
+
+go.addEventListener("click", () => {
+  on = !on;
+  go.dataset.on = on ? "1" : "0";
+  go.textContent = on ? "■ إيقاف" : "▶︎ تشغيل الصوت";
+  if (on) { say("يتصل…"); connect(); } else { stop(); say("متوقّف"); }
+});
+
+a.addEventListener("playing", () => say("متصل", "live"));
+a.addEventListener("waiting", () => on && say("يتصل…"));
+for (const ev of ["error", "ended", "stalled"]) {
+  a.addEventListener(ev, () => {
+    if (!on) return;
+    say("انقطع — يعيد المحاولة…", "bad");
+    clearTimeout(retry);
+    retry = setTimeout(connect, 1200);
+  });
+}
+</script></body></html>
+"""
+
+
+class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+    server_version = "MoOSCloudAudio/2"
+    sys_version = ""
+
+    def log_message(self, fmt, *args):
+        # systemd already stamps time and unit onto everything on stderr; the
+        # default handler's own timestamp just makes every line twice as wide.
+        sys.stderr.write("moos-cloud-audio: " + (fmt % args) + "\n")
+
+    # ── routes ───────────────────────────────────────────────────────────────
+    def do_GET(self):
+        route = self.path.split("?", 1)[0]
+        if route in ("/", "/index.html"):
+            self._page()
+        elif route in ("/stream.webm", "/stream"):
+            self._stream()
+        elif route == "/healthz":
+            self._text("ok\n")
+        else:
+            self.send_error(404, "not found")
+
+    def do_HEAD(self):
+        route = self.path.split("?", 1)[0]
+        if route in ("/stream.webm", "/stream"):
+            # Answer the probe without spawning an encoder for it.
+            self.send_response(200)
+            self.send_header("Content-Type", "audio/webm")
+            self.send_header("Accept-Ranges", "none")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
+        else:
+            self.send_error(404, "not found")
+
+    # ── responses ────────────────────────────────────────────────────────────
+    def _text(self, body):
+        raw = body.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def _page(self):
+        page = (PAGE.replace("__PORT__", html.escape(str(PORT)))
+                    .replace("__DESKTOP_PORT__", html.escape(str(PORT - 10))))
+        raw = page.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def _stream(self):
+        if not _listeners.acquire(blocking=False):
+            self.send_error(503, "too many listeners")
+            return
+        try:
+            self._stream_locked()
+        finally:
+            _listeners.release()
+
+    def _stream_locked(self):
+        # A dead peer has to be discovered, not waited on. A phone that walks out
+        # of Wi-Fi range never sends a FIN, and the encoder behind it keeps
+        # running for nobody until the kernel notices.
+        #
+        # TCP_USER_TIMEOUT is the one that does the work here, and keepalive alone
+        # would NOT have: keepalive probes only fire on an IDLE connection, and a
+        # stream that is writing 12 KB every second is never idle. What that
+        # connection actually does is retransmit unacknowledged data on the
+        # default schedule — roughly fifteen minutes of an encoder running for a
+        # phone that is long gone. TCP_USER_TIMEOUT caps exactly that.
+        #
+        # Keepalive is still set, because the reverse case is real too: a listener
+        # who paused for a while has nothing in flight to retransmit.
+        sock = self.connection
+        try:
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            for opt, value in (("TCP_USER_TIMEOUT", 20_000),   # milliseconds
+                               ("TCP_KEEPIDLE", 30), ("TCP_KEEPINTVL", 10),
+                               ("TCP_KEEPCNT", 3)):
+                if hasattr(socket, opt):
+                    sock.setsockopt(socket.IPPROTO_TCP, getattr(socket, opt), value)
+        except OSError:
+            pass
+
+        read_fd, write_fd = os.pipe()
+        os.set_inheritable(write_fd, True)
+        proc = None
+        try:
+            proc = subprocess.Popen(
+                pipeline(write_fd),
+                pass_fds=(write_fd,),
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,   # gst-launch chatter, never the media
+                stderr=None,                 # real errors go to the journal
+                start_new_session=True,      # so terminate() cannot reach us
+            )
+        except OSError as exc:
+            os.close(read_fd)
+            os.close(write_fd)
+            self.log_message("cannot start gst-launch-1.0: %s", exc)
+            self.send_error(503, "encoder unavailable")
+            return
+
+        # The parent must drop its copy of the write end, or the read side never
+        # sees EOF when the encoder dies and this loop blocks forever.
+        os.close(write_fd)
+
+        self.send_response(200)
+        self.send_header("Content-Type", "audio/webm")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Accept-Ranges", "none")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.close_connection = True
+
+        try:
+            while True:
+                chunk = os.read(read_fd, 65536)
+                if not chunk:
+                    break        # encoder exited
+                self.wfile.write(chunk)
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, TimeoutError, OSError):
+            pass                 # the listener left; that is the normal ending
+        finally:
+            os.close(read_fd)
+            _reap(proc)
+
+
+def _reap(proc):
+    if proc is None or proc.poll() is not None:
+        return
+    try:
+        # start_new_session put gst-launch in its own process group, so this
+        # reaches the whole pipeline and nothing else.
+        os.killpg(proc.pid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError, OSError):
+        proc.terminate()
+    try:
+        proc.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError, OSError):
+            proc.kill()
+        proc.wait(timeout=3)
+
+
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+    # A listener whose stream is running holds its thread for as long as they
+    # listen; shutdown must not wait on that.
+    block_on_close = False
+
+
+def main():
+    server = Server((HOST, PORT), Handler)
+
+    def bye(*_):
+        threading.Thread(target=server.shutdown, daemon=True).start()
+
+    signal.signal(signal.SIGTERM, bye)
+    signal.signal(signal.SIGINT, bye)
+    sys.stderr.write(f"moos-cloud-audio: listening on {HOST}:{PORT} (device {DEVICE})\n")
+    sys.stderr.flush()
+    try:
+        server.serve_forever(poll_interval=0.5)
+    finally:
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()

@@ -9,9 +9,55 @@
 # existing brain is left untouched, so Mo AI never ends up with NO brain.
 set -u
 OLLAMA="http://127.0.0.1:11434"
-MF="/usr/share/moos/containers/moai-brain.Modelfile"
-BASE="qwen2.5:7b-instruct"
 CT="$(podman ps --format '{{.Names}}' 2>/dev/null | grep -ixE 'ollama|moai-brain' | head -1)"
+
+# ── Which brain this MACHINE should run ──────────────────────────────────────
+#
+# There is no single best model, because MoOS runs on two very different
+# machines and the right answer is opposite on each. Both of these were MEASURED
+# through the real gateway, in Arabic, on a real repair question — the same bar
+# moai-control's picker holds (see RECOMMENDED_LOCAL there):
+#
+#   qwen3:8b            the best Arabic of everything tried, and the best at code
+#                       and repair with it: correct commands AND correct
+#                       explanations. It wants a real GPU.
+#   qwen2.5:7b-instruct fast, instruct-only, no hidden thinking. On a GPU-less
+#                       box it is measurably faster, and Mo AI's own error text
+#                       already tells the user so.
+#
+# So pick by what the machine actually has, rather than shipping one constant
+# that is wrong on half the installs. A card with less than ~7.5 GB is NOT
+# enough: the brain has to stay GPU-resident, and this image has a long history
+# of a spilled model taking the desktop down with it (moos-gpu-headroom exists
+# because kwin_wayland died on `NVRM: invalid mmap context` when VRAM ran out).
+#
+# NOT qwen2.5-coder:7b, however tempting "coder" sounds for a development brain:
+# it writes excellent one-liners and its ARABIC IS BROKEN — measured emitting
+# "الملفات الممكدة" (not a phrase) and inventing an `lsof -m` flag that does not
+# exist. A brain that cannot hold a sentence in Arabic fails MoOS's bilingual
+# contract no matter how well it codes. That rejection is recorded in
+# moai-control and this must not quietly undo it.
+pick_brain() {
+    local vram_mib=0
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        vram_mib="$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null \
+                    | head -1 | tr -dc '0-9')"
+    fi
+    if [ "${vram_mib:-0}" -ge 7500 ] 2>/dev/null; then
+        printf 'qwen3:8b'
+    else
+        printf 'qwen2.5:7b-instruct'
+    fi
+}
+
+BASE="${MOOS_BRAIN_MODEL:-$(pick_brain)}"
+# One Modelfile per brain: they need the same num_ctx contract but not the same
+# base, and a Modelfile that names the wrong base would silently rebuild the
+# machine's brain into the other one on every login.
+MF="/usr/share/moos/containers/moai-brain.Modelfile"
+case "$BASE" in
+    qwen3:8b) MF="/usr/share/moos/containers/moai-brain-gpu.Modelfile" ;;
+esac
 
 log(){ echo "moos-ensure-brain: $*"; }
 
@@ -72,15 +118,21 @@ reconcile_openclaw_ctx
 for _ in $(seq 1 30); do curl -sf "$OLLAMA/api/tags" >/dev/null 2>&1 && break; sleep 2; done
 curl -sf "$OLLAMA/api/tags" >/dev/null 2>&1 || { log "ollama API not up — skip"; exit 0; }
 
-# Already fast AND wide enough? default = qwen2.5 with num_ctx >= 24576 → no-op.
-# (Still reconcile openclaw.json, which drifts independently of the model.) An
-# older 8192/16384 brain falls through and is rebuilt from the 24576 Modelfile.
+# Already the RIGHT brain, and wide enough? Then this is a no-op.
+#
+# The check is against the model this machine should be running, not against a
+# hardcoded family. It used to grep for "qwen2.5" unconditionally, which on a
+# GPU machine would have declared the correct qwen3:8b brain "wrong" and
+# rebuilt it down to the CPU model on every single login.
+# (openclaw.json is still reconciled above — it drifts independently of the model.)
+want="$(printf '%s' "$BASE" | cut -d: -f1)"
 show="$(curl -sf "$OLLAMA/api/show" -d '{"model":"default"}' 2>/dev/null)"
 ctx="$(printf '%s' "$show" | grep -oE 'num_ctx[^0-9]*[0-9]+' | grep -oE '[0-9]+' | tail -1)"
-if printf '%s' "$show" | grep -qi "qwen2.5" && [ "${ctx:-0}" -ge 24576 ]; then
-    log "brain already fast (qwen2.5, num_ctx ${ctx}) — nothing to do"
+if printf '%s' "$show" | grep -qi "$want" && [ "${ctx:-0}" -ge 24576 ]; then
+    log "brain already correct for this machine (${BASE}, num_ctx ${ctx}) — nothing to do"
     exit 0
 fi
+log "this machine should run ${BASE} (Modelfile: $(basename "$MF"))"
 
 # Ensure the base model is present (pull only if missing; tolerate no network).
 if ! curl -sf "$OLLAMA/api/tags" 2>/dev/null | grep -q "$BASE"; then
