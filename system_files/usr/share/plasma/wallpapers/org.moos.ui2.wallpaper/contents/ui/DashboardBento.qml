@@ -26,19 +26,66 @@ Item {
     // Display name of the active MoOS look, for the clock card's badge.
     property string themeLabel: ""
 
-    // Plasma sets animation durations to zero when global animation speed is off.
-    // Every decorative movement in the package is gated by this single value.
-    readonly property bool motionEnabled: root.visible
-                                          && Kirigami.Units.longDuration > 0
+    // The plugin's MotionMode config key, resolved by main.qml and threaded down:
+    // 0 still / 1 gentle / 2 alive. The name carries the key on purpose — a
+    // consumer that says which setting it obeys cannot quietly stop obeying it,
+    // which is exactly what happened here.
+    //
+    // A plain property with a default, NOT a `required` one: build.sh loads this
+    // file directly in a bare Loader for the QML smoke gate, and a required
+    // property that nobody sets is a load error there — the gate would fail on a
+    // perfectly good file. 1 is the shipped default, so the smoke still exercises
+    // the ordinary path.
+    property int resolvedMotionMode: 1
+
+    // The single on/off seam every decorative movement in the package hangs off.
+    // TWO things can switch it off and both must be able to:
+    //
+    //   * the user's own policy — `moos-theme motion still`, or the Motion
+    //     control on this wallpaper's Desktop Settings page. This file used to
+    //     INVENT its own gate here and never read the plugin's configuration at
+    //     all, so "still" stopped the wallpaper's ambient washes and left every
+    //     card in the bento animating, forever, with nothing able to stop it.
+    //
+    //   * Plasma's global "disable animations". Plasma expresses that by
+    //     collapsing its durations — but Kirigami FLOORS longDuration at 1 and
+    //     never returns 0, so the `> 0` this used to test could not be false and
+    //     the gate was dead in both files. KDE's own BusyIndicator.qml, all three
+    //     of them, test `> 1`.
+    //
+    // The policy is named FIRST, before `visible`, deliberately. It is the term
+    // that was missing, it is what a reader should see first — and
+    // tests/verify_user_experience.py reads only the first line of this
+    // expression when it checks that the gate consults the plugin's own key, so
+    // burying the key on a continuation line reads to that gate exactly like the
+    // bug it is there to catch.
+    readonly property bool motionEnabled:
+        root.resolvedMotionMode > 0 && root.visible
+        && Kirigami.Units.longDuration > 1
+
+    // Which of the two LIVE levels this is. Deliberately NOT conjoined with
+    // motionEnabled: every consumer writes `motionEnabled && accentMotion`, which
+    // keeps "may anything move at all" and "which moving level is this" two
+    // separate, individually readable questions, and makes it impossible for an
+    // accent to start while motion is off.
+    readonly property bool accentMotion: root.resolvedMotionMode >= 2
+
     readonly property bool weatherReady: forecastData !== null
                                                  && !isNaN(latitude)
                                                  && !isNaN(longitude)
     readonly property var arabicLocale: Qt.locale("ar")
 
+    // Setting `now` is the WHOLE job. The timer's interval is a binding on `now`,
+    // so re-aligning to the next minute boundary happens by itself.
+    //
+    // This function also assigned minuteTimer.interval, which looked like a
+    // harmless restatement of that binding and was not: an imperative write to a
+    // bound property DESTROYS the binding. From the very first tick the interval
+    // stopped tracking `now` and kept whatever offset that one moment produced,
+    // so the clock drifted off the minute boundary and stayed off for the rest of
+    // the session — the digits changed a little later every hour.
     function refreshClock() {
         root.now = new Date()
-        minuteTimer.interval = 60000
-                - (root.now.getSeconds() * 1000 + root.now.getMilliseconds())
     }
 
     Timer {
@@ -230,6 +277,7 @@ Item {
             Layout.fillHeight: true
             now: root.now
             motionEnabled: root.motionEnabled
+            accentMotion: root.accentMotion
             entranceDelay: 0
             themeLabel: root.themeLabel
         }
@@ -256,6 +304,7 @@ Item {
                         ? root.conditionNameArabic(root.forecastData.code)
                         : ""
                 motionEnabled: root.motionEnabled
+                accentMotion: root.accentMotion
                 entranceDelay: 70
             }
 
@@ -263,6 +312,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 motionEnabled: root.motionEnabled
+                accentMotion: root.accentMotion
                 entranceDelay: 140
             }
         }

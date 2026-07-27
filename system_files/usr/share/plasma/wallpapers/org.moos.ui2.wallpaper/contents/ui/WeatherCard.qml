@@ -16,11 +16,15 @@ Item {
     required property string kind
     required property string condition
     required property bool motionEnabled
+    // MotionMode 2 ("alive"). Only the card shell's sheen sweep uses it; the
+    // condition motion in WeatherScene belongs to the calm default level.
+    required property bool accentMotion
     property int entranceDelay: 0
 
     GlassCard {
         anchors.fill: parent
         motionEnabled: weatherCard.motionEnabled
+        accentMotion: weatherCard.accentMotion
         entranceDelay: weatherCard.entranceDelay
 
         RowLayout {
@@ -176,9 +180,15 @@ Item {
                 kind: weatherCard.kind
                 motionEnabled: weatherCard.motionEnabled
 
+                // A one-shot value transition — the kind Plasma's animation-speed
+                // slider is meant to own. It could not, because 420 was a literal
+                // and only Kirigami.Units.* tracks that slider.
                 Behavior on opacity {
                     enabled: weatherCard.motionEnabled
-                    NumberAnimation { duration: 420; easing.type: Easing.OutCubic }
+                    NumberAnimation {
+                        duration: Kirigami.Units.veryLongDuration
+                        easing.type: Easing.OutCubic
+                    }
                 }
             }
         }

@@ -525,14 +525,29 @@ def lnf_defaults(variant: str) -> str:
     # the cursor that reads against ITS canvas (both are rebranded Bibata).
     cursor = "MoOSDark" if light else "MoOS"
     deco = "MoOSUI2Light" if light else "MoOSUI2"
-    # NO [Wallpaper] section, deliberately. LookAndFeelManager applies a theme's
-    # [Wallpaper] Image= by forcing every desktop containment back onto
-    # org.kde.image — which would silently replace org.moos.ui2.wallpaper (the
-    # scene that carries the dashboard bento BELOW the icons) on every theme
-    # apply and every sunrise/sunset switch. moos-theme / moos-apply-theme own
-    # the desktop wallpaper instead, per half. (`wallpaper` stays a parameter
-    # so the generator's call sites don't churn: {wallpaper} is the half's package.)
+    # [Wallpaper] Image is the binding that makes a MoOS Global Theme carry its own
+    # wallpaper, and its ABSENCE was the single biggest hole in the visual system:
+    # picking a MoOS theme in KDE's own System Settings gave MoOS colours on
+    # whatever wallpaper happened to be there, and the complete look existed only
+    # inside moos-theme's shell script, which System Settings knows nothing about.
+    #
+    # It was left out on a belief that turns out to be false for Plasma 6.7.3 — that
+    # LookAndFeelManager applies this key by forcing every containment back onto
+    # org.kde.image and would erase the MoOS scene (the dashboard bento). Verified
+    # against the shipped libklookandfeel.so.6.7.3: KLookAndFeelManager::save()
+    # never reads this group at all, and it only rebuilds the desktop layout for
+    # packages that ship contents/layouts/, which no MoOS look does. The key is read
+    # by libkworkspace's DefaultWallpaper::defaultWallpaperPackage() — the resolver
+    # org.kde.image and the Wallpaper KCM consult — and by packageContents(), which
+    # decides whether System Settings lists a wallpaper among the theme's contents.
+    #
+    # It must be a BARE package name: the resolver calls
+    # QStandardPaths::locate(GenericDataLocation, "wallpapers/<Image>"), so an
+    # absolute path silently resolves to nothing and the theme loses its wallpaper
+    # again — with no error anywhere.
     return f"""# MoOS UI matched Global Theme defaults. Generated file.
+[Wallpaper]
+Image={wallpaper}
 [kdeglobals][General]
 ColorScheme={scheme}
 
@@ -745,8 +760,8 @@ def generate_wallpaper(variant: str) -> None:
     light = variant == "light"
     package = "MoOSUI2Tide" if light else "MoOSUI2Graphite"
     source = ART / "wallpapers" / (
-        "moos-ui-tidal-frost-master-v2.png" if light else
-        "moos-ui-graphite-frost-master-v3.png"
+        "moos-ui-tidal-flow-master-v3.png" if light else
+        "moos-ui-graphite-flow-master-v4.png"
     )
     target = SHARE / f"wallpapers/{package}"
     if target.exists():
@@ -785,8 +800,8 @@ def preflight() -> None:
         if not source.exists():
             raise SystemExit(f"missing canonical UI2 source: {source}")
     for master in (
-        ART / "wallpapers/moos-ui-graphite-frost-master-v3.png",
-        ART / "wallpapers/moos-ui-tidal-frost-master-v2.png",
+        ART / "wallpapers/moos-ui-graphite-flow-master-v4.png",
+        ART / "wallpapers/moos-ui-tidal-flow-master-v3.png",
         ART / "plasma/dialog-background.svg.in",
         ART / "plasma/panel-background.svg.in",
     ):
@@ -809,8 +824,8 @@ def generate_previews(variant: str) -> None:
     light = variant == "light"
     package = "org.moos.ui2.light" if light else "org.moos.ui2"
     source = ART / "wallpapers" / (
-        "moos-ui-tidal-frost-master-v2.png" if light else
-        "moos-ui-graphite-frost-master-v3.png"
+        "moos-ui-tidal-flow-master-v3.png" if light else
+        "moos-ui-graphite-flow-master-v4.png"
     )
     target = SHARE / f"plasma/look-and-feel/{package}/contents/previews"
     scale_crop(source, target / "preview.png", 600, 337)

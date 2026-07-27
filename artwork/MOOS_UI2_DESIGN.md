@@ -290,8 +290,11 @@ be instantiated in both variants.
 ## Rollout checklist
 
 1. Build all UI2 packages from new masters; do not hand-edit generated output.
-2. Make `dark`, `light`, `toggle` and `auto` select UI2 after live proof; retain
-   `ui1-dark` and `ui1-light` as explicit full rollback commands.
+2. Make `dark`, `light`, `toggle` and `auto` select UI2 after live proof.
+   (`ui1-dark` / `ui1-light` were planned here as explicit rollback commands and
+   were never implemented; UI1 has since been removed from the image entirely.
+   The rollback path is `moos-theme undo`, then Breeze, then `rpm-ostree
+   rollback` — see PROJECT_STATE.md.)
 3. Stage system packages temporarily in `~/.local/share` only for live review,
    run `plasmawindowed org.moos.ui2.dashboard`, inspect the journal, then apply
    each real Global Theme and capture the actual containment with

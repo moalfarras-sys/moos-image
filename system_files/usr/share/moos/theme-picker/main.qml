@@ -38,17 +38,38 @@ Kirigami.ApplicationWindow {
         Kirigami.Theme.backgroundColor.hslLightness > 0.55
     readonly property string currentQuery:
         "kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage"
+    readonly property string currentMotionQuery: "moos-theme motion"
+    // The supplement seam. Reading LookAndFeelPackage back proves only the one
+    // value plasma-apply-lookandfeel is guaranteed to get right — it says
+    // nothing about the four things moos-theme exists to carry (the desktop
+    // scene, Konsole, GTK and the lock screen), so "verified" was verifying the
+    // part that never breaks while a switch that left Firefox dark on a light
+    // desktop still reported success. GTK's light/dark bit is the supplement
+    // this window can predict on its own: every MoOS light sibling is its dark
+    // id + ".light", which is exactly the rule moos-theme's load_profile uses to
+    // pick prefer-light/prefer-dark. Literal command — nothing is concatenated
+    // into it, like every other command this window runs.
+    readonly property string supplementQuery:
+        "gsettings get org.gnome.desktop.interface color-scheme"
     property string currentLnf: ""
+    property string currentMotion: ""
     property bool busy: false
     property string pendingThemeCommand: ""
     property string pendingExpectedLnf: ""
+    property string pendingMotionCommand: ""
+    property string pendingExpectedMotion: ""
+    property string pendingExpectedColorScheme: ""
     property string pendingVerb: ""
     property bool awaitingReadback: false
+    property bool awaitingMotionReadback: false
+    property bool awaitingSupplementReadback: false
     property bool operationTimedOut: false
     property string operationMessage: ""
     property bool operationFailed: false
     readonly property bool operationPending:
         pendingThemeCommand.length > 0 || awaitingReadback
+        || pendingMotionCommand.length > 0 || awaitingMotionReadback
+        || awaitingSupplementReadback
 
     // Queries and mutations deliberately use separate executable sources.
     // Plasma's executable engine publishes stdout/stderr + exit status only
@@ -102,8 +123,13 @@ Kirigami.ApplicationWindow {
     function clearOperationState() {
         pendingThemeCommand = "";
         pendingExpectedLnf = "";
+        pendingMotionCommand = "";
+        pendingExpectedMotion = "";
+        pendingExpectedColorScheme = "";
         pendingVerb = "";
         awaitingReadback = false;
+        awaitingMotionReadback = false;
+        awaitingSupplementReadback = false;
         operationTimedOut = false;
         busy = false;
     }
@@ -134,6 +160,46 @@ Kirigami.ApplicationWindow {
                 themesModel.append({ lnf: id, name: name, isLight: id.endsWith(".light") });
             }
             root.refreshCurrent();
+        } else if (cmd === currentMotionQuery) {
+            const activeMotion = out.trim();
+            const validMotion = /^(?:still|gentle|alive)$/.test(activeMotion);
+            if (!awaitingMotionReadback) {
+                if (normalExit(data) && validMotion) {
+                    currentMotion = activeMotion;
+                } else {
+                    operationFailed = true;
+                    operationMessage =
+                        "تعذّرت قراءة حركة الخلفية | Could not read wallpaper motion";
+                }
+                return;
+            }
+
+            operationTimeout.stop();
+            if (!normalExit(data) || !validMotion) {
+                const detail = resultDetail(data);
+                failOperation("اكتمل الضبط لكن تعذّر التحقق من حركة الخلفية"
+                              + " | Motion changed, but verification failed"
+                              + (detail ? ": " + detail : ""));
+                return;
+            }
+
+            currentMotion = activeMotion;
+            if (activeMotion !== pendingExpectedMotion) {
+                const expected = pendingExpectedMotion;
+                failOperation("لم تطابق الحركة الفعلية الاختيار"
+                              + " | Active motion differs"
+                              + ": " + activeMotion + " ≠ " + expected);
+                return;
+            }
+
+            const wasLate = operationTimedOut;
+            clearOperationState();
+            operationFailed = false;
+            operationMessage = wasLate
+                ? "اكتمل ضبط الحركة بعد انتظار أطول وتم التحقق منه"
+                  + " | Motion completed late and was verified"
+                : "تم ضبط حركة الخلفية والتحقق منها"
+                  + " | Wallpaper motion applied and verified";
         } else if (cmd === currentQuery) {
             const activeLnf = out.trim();
             if (!awaitingReadback) {
@@ -159,6 +225,40 @@ Kirigami.ApplicationWindow {
                 return;
             }
 
+            // The Global Theme landed. That is the half of the switch KDE does;
+            // now prove a supplement followed, because that is the half MoOS
+            // does and the only half that can quietly not happen. Expected value
+            // comes from the theme Plasma actually reports, so it is right for
+            // undo (which has no expected id) as well as for an apply.
+            pendingExpectedColorScheme =
+                activeLnf.endsWith(".light") ? "prefer-light" : "prefer-dark";
+            awaitingReadback = false;
+            awaitingSupplementReadback = true;
+            busy = true;
+            operationTimeout.restart();
+            refreshSupplement();
+        } else if (cmd === supplementQuery) {
+            if (!awaitingSupplementReadback)
+                return;
+
+            operationTimeout.stop();
+            // gsettings prints its strings quoted: 'prefer-dark'.
+            const activeScheme = out.trim().replace(/^'|'$/g, "");
+            if (!normalExit(data) || !activeScheme) {
+                const detail = resultDetail(data);
+                failOperation("طُبّق الثيم لكن تعذّر التحقق من مكمّلاته"
+                              + " | Theme applied, but its supplements could not be verified"
+                              + (detail ? ": " + detail : ""));
+                return;
+            }
+            if (activeScheme !== pendingExpectedColorScheme) {
+                const expectedScheme = pendingExpectedColorScheme;
+                failOperation("طُبّق الثيم ولم تتبعه مكمّلاته"
+                              + " | Theme applied, but its supplements did not follow"
+                              + ": " + activeScheme + " ≠ " + expectedScheme);
+                return;
+            }
+
             const wasLate = operationTimedOut;
             const wasUndo = pendingVerb === "undo";
             clearOperationState();
@@ -173,6 +273,25 @@ Kirigami.ApplicationWindow {
     }
 
     function handleThemeResult(cmd, data) {
+        if (cmd === pendingMotionCommand) {
+            operationTimeout.stop();
+            pendingMotionCommand = "";
+            if (!normalExit(data)) {
+                const detail = resultDetail(data);
+                failOperation("تعذّر ضبط حركة الخلفية | Motion change failed"
+                              + (detail ? ": " + detail : ""));
+                return;
+            }
+
+            // A successful mutation is only provisional. Query the live scenes
+            // after moos-theme exits and highlight a choice only on exact match.
+            awaitingMotionReadback = true;
+            busy = true;
+            operationTimeout.restart();
+            refreshMotion();
+            return;
+        }
+
         if (cmd !== pendingThemeCommand)
             return;
 
@@ -199,6 +318,12 @@ Kirigami.ApplicationWindow {
     function refreshCurrent() {
         queryExec.run(currentQuery);
     }
+    function refreshMotion() {
+        queryExec.run(currentMotionQuery);
+    }
+    function refreshSupplement() {
+        queryExec.run(supplementQuery);
+    }
     function beginThemeOperation(cmd, expectedLnf, verb) {
         if (operationPending)
             return;
@@ -223,6 +348,58 @@ Kirigami.ApplicationWindow {
     function undo() {
         beginThemeOperation("moos-theme undo", "", "undo");
     }
+    // Put the three motion highlights back under the live value. A checkable
+    // QQC2.Button writes its OWN `checked` on the press, before onClicked runs,
+    // so without this the footer showed the user's REQUEST as though it were the
+    // desktop's STATE. Measured on Qt 6.7 with these exact bindings (offscreen
+    // qml-qt6, in both the default and the org.kde.desktop style): click "Still"
+    // while the live value is "gentle" and the Still button lights while Gentle
+    // stays lit too — two of three pressed, one of them advertising a mode the
+    // desktop never took. There is no exclusivity group to prevent that, and
+    // none is wanted: root.currentMotion is a single string, so the model
+    // already permits exactly one, and a group would be a second source of truth
+    // to keep in step. The value only ever moves on a VERIFIED readback, and a
+    // motion write that fails or is reverted never moves it — which is precisely
+    // when the old behaviour lied and kept lying, because nothing else would
+    // have re-evaluated those bindings. Re-asserting them here restores the
+    // truth inside the same event, before the frame is drawn.
+    function restoreMotionHighlights() {
+        motionStill.checked = Qt.binding(() => root.currentMotion === "still");
+        motionGentle.checked = Qt.binding(() => root.currentMotion === "gentle");
+        motionAlive.checked = Qt.binding(() => root.currentMotion === "alive");
+    }
+    function setMotion(mode) {
+        restoreMotionHighlights();
+        if (operationPending)
+            return;
+
+        // Keep all executable-engine commands literal. No model value or other
+        // mutable string is ever concatenated into a shell command.
+        let cmd = "";
+        switch (mode) {
+        case "still":
+            cmd = "moos-theme motion still";
+            break;
+        case "gentle":
+            cmd = "moos-theme motion gentle";
+            break;
+        case "alive":
+            cmd = "moos-theme motion alive";
+            break;
+        default:
+            failOperation("خيار حركة غير صالح | Invalid motion choice");
+            return;
+        }
+
+        pendingMotionCommand = cmd;
+        pendingExpectedMotion = mode;
+        operationTimedOut = false;
+        operationMessage = "";
+        operationFailed = false;
+        busy = true;
+        operationTimeout.restart();
+        themeExec.run(cmd);
+    }
 
     // Do not terminate moos-theme on timeout: killing the atomic apply script
     // halfway through could leave a mixed desktop. The UI stops spinning,
@@ -233,23 +410,33 @@ Kirigami.ApplicationWindow {
         interval: 30000
         repeat: false
         onTriggered: {
-            if (root.pendingThemeCommand) {
+            if (root.pendingThemeCommand || root.pendingMotionCommand) {
                 root.operationTimedOut = true;
                 root.busy = false;
                 root.operationFailed = true;
                 root.operationMessage =
-                    "استغرق التبديل أكثر من 30 ثانية؛ ما زال يعمل بأمان"
-                    + " | Theme switch is still finishing safely";
-            } else if (root.awaitingReadback) {
-                queryExec.disconnectSource(root.currentQuery);
+                    "استغرقت العملية أكثر من 30 ثانية؛ ما زالت تعمل بأمان"
+                    + " | The change is still finishing safely";
+            } else if (root.awaitingReadback || root.awaitingMotionReadback
+                       || root.awaitingSupplementReadback) {
+                // Release exactly the query that is in flight. Connecting a
+                // source is what starts the process, so leaving a hung one
+                // connected means the next readback never starts.
+                queryExec.disconnectSource(
+                    root.awaitingMotionReadback ? root.currentMotionQuery
+                    : (root.awaitingSupplementReadback ? root.supplementQuery
+                                                       : root.currentQuery));
                 root.failOperation(
-                    "انتهت مهلة التحقق من الثيم | Theme verification timed out");
+                    "انتهت مهلة التحقق | Verification timed out");
             }
         }
     }
 
     ListModel { id: themesModel }
-    Component.onCompleted: refreshThemes()
+    Component.onCompleted: {
+        refreshThemes()
+        refreshMotion()
+    }
 
     // ── header ──────────────────────────────────────────────────────────────
     header: QQC2.ToolBar {
@@ -290,6 +477,85 @@ Kirigami.ApplicationWindow {
             }
         }
     }
+
+    // ── live wallpaper motion policy ───────────────────────────────────────
+    footer: QQC2.ToolBar {
+        leftPadding: Kirigami.Units.largeSpacing
+        rightPadding: Kirigami.Units.largeSpacing
+        topPadding: Kirigami.Units.smallSpacing
+        bottomPadding: Kirigami.Units.smallSpacing
+        background: Rectangle {
+            color: Qt.rgba(Kirigami.Theme.alternateBackgroundColor.r,
+                           Kirigami.Theme.alternateBackgroundColor.g,
+                           Kirigami.Theme.alternateBackgroundColor.b,
+                           root.lightSurface ? 0.96 : 0.88)
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 1
+                color: Qt.rgba(root.accent.r, root.accent.g,
+                               root.accent.b, 0.34)
+            }
+        }
+        contentItem: RowLayout {
+            spacing: Kirigami.Units.largeSpacing
+
+            Kirigami.Icon {
+                source: "preferences-desktop-effects"
+                implicitWidth: Kirigami.Units.iconSizes.medium
+                implicitHeight: implicitWidth
+                color: root.accent
+            }
+            ColumnLayout {
+                spacing: 0
+                Layout.fillWidth: true
+                QQC2.Label {
+                    text: "حركة الخلفية  ·  Wallpaper motion"
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+                QQC2.Label {
+                    text: "اختر مستوى الهدوء والحيوية  ·  Choose the energy level"
+                    opacity: 0.66
+                    font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    elide: Text.ElideRight
+                }
+            }
+
+            // The three are checkable because that is the only strong
+            // "this one is on" the desktop style draws (org.kde.desktop's
+            // Button hands `checkable && checked` to the QStyle; `highlighted`
+            // there is only a focus ring). What they must NOT do is light
+            // themselves — see restoreMotionHighlights(), which every click
+            // goes through.
+            QQC2.Button {
+                id: motionStill
+                text: "ساكن | Still"
+                checkable: true
+                checked: root.currentMotion === "still"
+                enabled: !root.operationPending
+                onClicked: root.setMotion("still")
+            }
+            QQC2.Button {
+                id: motionGentle
+                text: "هادئ | Gentle"
+                checkable: true
+                checked: root.currentMotion === "gentle"
+                enabled: !root.operationPending
+                onClicked: root.setMotion("gentle")
+            }
+            QQC2.Button {
+                id: motionAlive
+                text: "حيّ | Alive"
+                checkable: true
+                checked: root.currentMotion === "alive"
+                enabled: !root.operationPending
+                onClicked: root.setMotion("alive")
+            }
+        }
+    }
+
     function currentActiveName() {
         for (let i = 0; i < themesModel.count; ++i) {
             if (themesModel.get(i).lnf === root.currentLnf) return "المُطبّق | Active:  " + themesModel.get(i).name;

@@ -41,6 +41,19 @@ Item {
     // If we're using software rendering, draw outlines instead of shadows
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
 
+    // The motion gate. This is the ONE surface in MoOS that a machine can sit on
+    // for hours with nobody in front of it, so everything that loops forever is
+    // gated on this — see the brand stage below.
+    //
+    // It is `> 1`, not `> 0`. Kirigami FLOORS longDuration at 1 when animations
+    // are switched off (by the user, or by the cloud edition's
+    // AnimationDurationFactor=0); it is never 0, so `> 0` is always true and
+    // gates precisely nothing. KDE's own three BusyIndicator.qml files and
+    // RejectPasswordPathAnimation.qml all test against 1 for this reason. The
+    // failure mode is silent: with `> 0` the animation simply keeps running and
+    // nothing is reported, because a busy rasteriser is not an error.
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
+
     // The aurora curtains keep their designed hue but pull toward the live accent,
     // so the lock background is theme-driven — it lights up in each palette's own
     // colour (turquoise on Tidal, amber on Study, indigo on Nova …) instead of a
@@ -151,6 +164,25 @@ Item {
         property bool uiVisible: false
         property bool seenPositionChange: false
         property bool blockUI: containsMouse && (mainStack.depth > 1 || mainBlock.mainPasswordBox.text.length > 0 || inputPanel.keyboardActive)
+
+        // ── Where the user's face actually is ────────────────────────────────
+        // The avatar bloom used to be pinned to the auth card's centre minus a
+        // hand-tuned 4.6 grid units. That was about a grid unit low, and it
+        // would have drifted further the moment a second account made the user
+        // list reserve room for a wrapped name.
+        //
+        // The real geometry is not guesswork, it is three facts from the base
+        // components: SessionManagementScreen anchors the UserList's BOTTOM to
+        // its own vertical centre (with three extra grid units of margin when it
+        // has to constrain a multi-line name), UserList's height is one delegate
+        // — Kirigami.Units.gridUnit * 9 — and UserDelegate anchors the face to
+        // the delegate's TOP at gridUnit * 7 across. So the face centre is the
+        // list's own y plus 3.5 grid units, and binding to `userList.y` makes
+        // the bloom follow every one of those cases by itself.
+        readonly property Item lockUserList: mainBlock ? mainBlock.userList : null
+        readonly property real avatarCenterY: lockUserList
+            ? mainStack.y + lockUserList.y + Kirigami.Units.gridUnit * 3.5
+            : mainStack.y + mainStack.height / 2 - Kirigami.Units.gridUnit * 5.5
 
         x: parent.x
         y: parent.y
@@ -316,6 +348,34 @@ Item {
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 3.6
                 Layout.preferredHeight: Layout.preferredWidth
 
+                // ── Why every loop below carries TWO gates ───────────────────
+                // Five endless animations lived here — two glow breaths, the
+                // emblem breath, the orbiting spark and the counter-rotating
+                // comet ring — each gated only on `brandStage.visible`, which is
+                // true for as long as the machine is locked. An infinite QML
+                // animation holds the render loop at full frame rate and
+                // repaints the WHOLE window regardless of how small the moving
+                // item is. Measured on this machine with these six loops and
+                // nobody touching anything — /proc/<greeter>/stat over 20 s of a
+                // LOCKED, IDLE screen: 11.8% of a CPU core before, 0.7% after,
+                // for a logo nobody was looking at. The two Animators are the
+                // worst of them: Animator types run on the RENDER thread, so
+                // they ask the compositor for frames while the main loop sits
+                // idle and profiling the main thread shows nothing at all.
+                //
+                //   running: … && motionEnabled — the hard gate. `> 1`, never
+                //     `> 0`; see the note on lockScreenUi.motionEnabled.
+                //   paused:  !uiVisible          — the idle gate. The mark
+                //     breathes for the person standing at the machine and
+                //     freezes ten seconds after they walk away.
+                //
+                // The idle gate is `paused`, deliberately NOT `running`. These
+                // two RotationAnimators run `from: 0; to: 360`, so stopping and
+                // restarting them SNAPS the spark and the comet back to twelve
+                // o'clock — a teleport at exactly the moment the owner touches
+                // the mouse and looks at the screen. Pausing suspends the
+                // animation job (no frames requested, same saving) and resumes
+                // it where it stood.
                 Image {
                     anchors.centerIn: brandEmblem
                     width: brandStage.width * 2.3
@@ -324,7 +384,8 @@ Item {
                     opacity: 0.45
                     SequentialAnimation on opacity {
                         loops: Animation.Infinite
-                        running: brandStage.visible
+                        running: brandStage.visible && lockScreenUi.motionEnabled
+                        paused: !lockScreenRoot.uiVisible
                         NumberAnimation { to: 0.75; duration: 3600; easing.type: Easing.InOutSine }
                         NumberAnimation { to: 0.45; duration: 3600; easing.type: Easing.InOutSine }
                     }
@@ -337,7 +398,8 @@ Item {
                     opacity: 0.5
                     SequentialAnimation on opacity {
                         loops: Animation.Infinite
-                        running: brandStage.visible
+                        running: brandStage.visible && lockScreenUi.motionEnabled
+                        paused: !lockScreenRoot.uiVisible
                         NumberAnimation { to: 0.3; duration: 3600; easing.type: Easing.InOutSine }
                         NumberAnimation { to: 0.5; duration: 3600; easing.type: Easing.InOutSine }
                     }
@@ -356,7 +418,8 @@ Item {
                     smooth: true
                     SequentialAnimation on scale {
                         loops: Animation.Infinite
-                        running: brandStage.visible
+                        running: brandStage.visible && lockScreenUi.motionEnabled
+                        paused: !lockScreenRoot.uiVisible
                         NumberAnimation { to: 1.03; duration: 3000; easing.type: Easing.InOutSine }
                         NumberAnimation { to: 1.0; duration: 3000; easing.type: Easing.InOutSine }
                     }
@@ -367,7 +430,8 @@ Item {
                         from: 0; to: 360
                         duration: 24000
                         loops: Animation.Infinite
-                        running: brandStage.visible
+                        running: brandStage.visible && lockScreenUi.motionEnabled
+                        paused: !lockScreenRoot.uiVisible
                     }
                     Image {
                         source: "images/spark.png"
@@ -392,7 +456,8 @@ Item {
                         from: 360; to: 0
                         duration: 28000
                         loops: Animation.Infinite
-                        running: brandStage.visible
+                        running: brandStage.visible && lockScreenUi.motionEnabled
+                        paused: !lockScreenRoot.uiVisible
                     }
                 }
             }
@@ -407,7 +472,17 @@ Item {
                 font.pointSize: Kirigami.Theme.defaultFont.pointSize + 2
                 font.weight: Font.DemiBold
                 font.letterSpacing: 2
-                renderType: Text.NativeRendering
+                // Not NativeRendering. Same trap as the hero clock (see the long
+                // note in MoOSClock.qml): native rasterisation snaps glyphs to
+                // the integer DEVICE pixel grid with subpixel antialiasing, and
+                // on this machine's 2.25 fractional scale the wordmark landed
+                // off-grid — captured at 8x, every stem of "MoOS" carried a cyan
+                // edge on the left and an orange one on the right. On the brand
+                // mark. Distance-field text has no grid to miss and is the right
+                // renderer at this size; the clock needs CurveRendering only
+                // because it is ~110pt and a distance field has to be magnified
+                // that far.
+                renderType: Text.QtRendering
             }
         }
 
@@ -435,13 +510,24 @@ Item {
         // Ambient light pool — a soft, tall elliptical bloom of the theme accent
         // behind the whole cluster. RadialGradient fades to nothing on every
         // side, so there is no panel, no edge — just light. Decorative only.
+        //
+        // It used to be exactly the auth card's box, and the card's box stops at
+        // the password field: the Sleep and Switch User buttons sat OUTSIDE the
+        // theme's light entirely, reading as a second, unrelated screen bolted
+        // under the first. The pool is taller now and hangs a little lower, so
+        // avatar, field and session actions are one cluster standing in one pool
+        // of light. Still elliptical, still fading to nothing on every side —
+        // MoOS Lumen has no rectangles.
         RadialGradient {
-            anchors.fill: authCard
+            anchors.horizontalCenter: authCard.horizontalCenter
+            y: authCard.y - Kirigami.Units.gridUnit
+            width: authCard.width
+            height: authCard.height + Kirigami.Units.gridUnit * 10
             visible: authCard.opacity > 0 && !lockScreenUi.softwareRendering
             opacity: authCard.opacity
             scale: authCard.scale
-            horizontalRadius: authCard.width * 0.46
-            verticalRadius: authCard.height * 0.5
+            horizontalRadius: width * 0.46
+            verticalRadius: height * 0.5
             gradient: Gradient {
                 GradientStop { position: 0.0; color: Qt.rgba(lockScreenUi.accentA.r, lockScreenUi.accentA.g, lockScreenUi.accentA.b, 0.17) }
                 GradientStop { position: 0.45; color: Qt.rgba(lockScreenUi.accentA.r, lockScreenUi.accentA.g, lockScreenUi.accentA.b, 0.06) }
@@ -451,13 +537,23 @@ Item {
 
         // Jewel bloom behind the user avatar — a soft two-tone circle so the
         // photo reads as set into the theme's light. RadialGradient keeps it a
-        // clean circular glow (never a square). The SessionManagementScreen
-        // centres the avatar just above the cluster centre; tuned to sit behind
-        // it. Decorative only — never touches the auth path.
+        // clean circular glow (never a square). Centred on the avatar's REAL
+        // position now (see lockScreenRoot.avatarCenterY): the old hand-tuned
+        // offset put the glow about a grid unit low, so the light pooled under
+        // the face and left its crown flat — visible the moment the two were
+        // captured and compared. Decorative only — never touches the auth path.
+        //
+        // This bloom, and nothing else, is the avatar's MoOS treatment. A
+        // hairline glass bezel a grid unit outside the face was tried here and
+        // removed after looking at it: UserDelegate already draws the avatar's
+        // one luminous edge in the brand colour, and a second hoop beside it
+        // read as an accident. So did a broad ink contact-shadow — the face is
+        // opaque, so only the shadow's rim showed, and all it did there was
+        // mute the brand light. One edge, one bloom.
         RadialGradient {
             id: avatarHalo
             anchors.horizontalCenter: authCard.horizontalCenter
-            y: authCard.y + authCard.height / 2 - height / 2 - Kirigami.Units.gridUnit * 4.6
+            y: lockScreenRoot.avatarCenterY - height / 2
             width: Kirigami.Units.gridUnit * 13
             height: width
             visible: authCard.opacity > 0 && !lockScreenUi.softwareRendering
@@ -551,7 +647,13 @@ Item {
                 userListModel: users
 
 
-                notificationMessage: {
+                // Same text, same assembly, same Caps-Lock hint as always — only
+                // the surface that shows it changed. MoOS draws it as a glass
+                // notice pill inside MainBlock instead of the base
+                // SessionManagementScreen's plain italic label; see the note
+                // beside `notice` there for why the base label cannot simply be
+                // restyled in place.
+                notice: {
                     const parts = [];
                     if (capsLockState.locked) {
                         parts.push(i18ndc("plasma_shell_org.kde.plasma.desktop", "@info:status", "Caps Lock is on"));

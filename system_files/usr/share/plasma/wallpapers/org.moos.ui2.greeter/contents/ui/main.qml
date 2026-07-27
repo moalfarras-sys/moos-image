@@ -5,6 +5,15 @@
 // and a legibility veil paint synchronously so the password boundary is never
 // delayed, and the brand is a quiet top-left signature. Content leads.
 //
+// The greeter compiles its own layout into a Qt resource
+// (qrc:/qt/qml/org/kde/plasma/login/Main.qml), so this scene and
+// org/kde/breeze/components are the two surfaces MoOS reaches: the clock, power
+// buttons, battery and user avatar come from that module and are MoOS's own files,
+// while the Main/Login layout, the session and keyboard-layout buttons and
+// PlasmaExtras.PasswordField are stock. VERIFIED 2026-07-27 with `strings -el` on
+// the binary — a plain `strings` finds no "breeze" in it at all, because Qt stores
+// QStringLiteral as UTF-16, and reading that as "the module is unused" is wrong.
+//
 // Gate contract (build_files/verify_image_experience.py): NO "Repeater",
 // "Animation", "ShaderEffect" or "Canvas" tokens, and the brand MUST stay anchored
 // to the top-left corner so it can never overlap the centred password surface.
@@ -21,8 +30,6 @@ WallpaperItem {
 
     readonly property string fallbackImage:
         "/usr/share/wallpapers/MoOSUI2Graphite/contents/images_dark/3840x2160.jpg"
-
-    readonly property color accent: Kirigami.Theme.highlightColor
 
     function resolveImage(value) {
         var path = String(value || "")
@@ -45,15 +52,50 @@ WallpaperItem {
         return path + "/contents/images/3840x2160.jpg"
     }
 
+    readonly property string sceneImage: root.resolveImage(root.configuration.Image)
+
+    // ── The scene's palette, and why it is NOT Kirigami.Theme's ──────────────
+    //
+    // MEASURED 2026-07-27 on the installed machine. The greeter runs as the
+    // `plasmalogin` system account, and that account's
+    // /var/lib/plasmalogin/.config/kdeglobals carried the MoOSUI2 **Light**
+    // palette — BackgroundNormal=216,235,231, ForegroundNormal=23,48,46 — while
+    // this scene paints the **dark** Graphite wallpaper the login config pins.
+    // Kirigami.Theme.textColor therefore drew the wordmark in near-black on a
+    // near-black photograph: the brand was simply invisible. The three veil
+    // layers below were tinting a dark image toward white at the same time.
+    // Worse, that account's state lives in /var/lib/plasmalogin, which nothing in
+    // the image provisions — it is unreproducible local state, so a fresh install
+    // would have produced some third answer.
+    //
+    // A wallpaper is not a themed control. It is the one item on screen that
+    // knows exactly what it is painting, and therefore the one item that must
+    // never ask an ambient colour scheme it does not control. The design
+    // contract's rule — colours come from Kirigami.Theme roles so all 16 themes
+    // retint — is a rule about SESSION surfaces: no Global Theme reaches the
+    // greeter at all (LookAndFeelManager runs inside the user's session, long
+    // after this has drawn), so following a role here buys nothing and costs the
+    // brand.
+    //
+    // So the veil and the signature use the MoOS UI2 tokens of the wallpaper this
+    // scene actually resolved (artwork/MOOS_UI2_DESIGN.md), keyed off the same
+    // test resolveImage() already uses to choose the frame. Graphite Dark by
+    // default; Tidal Light only when a Tide package is configured, so the light
+    // branch of resolveImage() cannot strand dark ink on a light horizon either.
+    readonly property bool lightScene: root.sceneImage.indexOf("MoOSUI2Tide") >= 0
+    readonly property color canvas: root.lightScene ? "#D8EBE7" : "#14191C"
+    readonly property color ink: root.lightScene ? "#17302E" : "#E8F1EF"
+    readonly property color accent: root.lightScene ? "#006D67" : "#4ED7C8"
+
     // ── Base plate + wallpaper (both paint immediately) ─────────────────────
     Rectangle {
         anchors.fill: parent
-        color: Kirigami.Theme.backgroundColor
+        color: root.canvas
     }
 
     Image {
         anchors.fill: parent
-        source: "file://" + root.resolveImage(root.configuration.Image)
+        source: "file://" + root.sceneImage
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
@@ -67,26 +109,24 @@ WallpaperItem {
     // readable and frame the centred surface. Cheap, static gradients.
     Rectangle {
         anchors.fill: parent
-        color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                       Kirigami.Theme.backgroundColor.g,
-                       Kirigami.Theme.backgroundColor.b, 0.12)
+        color: Qt.rgba(root.canvas.r, root.canvas.g, root.canvas.b, 0.12)
     }
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                                                         Kirigami.Theme.backgroundColor.g,
-                                                         Kirigami.Theme.backgroundColor.b, 0.34) }
+            GradientStop { position: 0.0; color: Qt.rgba(root.canvas.r,
+                                                         root.canvas.g,
+                                                         root.canvas.b, 0.34) }
             GradientStop { position: 0.45; color: "transparent" }
-            GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                                                         Kirigami.Theme.backgroundColor.g,
-                                                         Kirigami.Theme.backgroundColor.b, 0.46) }
+            GradientStop { position: 1.0; color: Qt.rgba(root.canvas.r,
+                                                         root.canvas.g,
+                                                         root.canvas.b, 0.46) }
         }
     }
 
-    // ── A single static breath of the theme accent along the lower edge ─────
+    // ── A single static breath of the MoOS accent along the lower edge ──────
     // The calm, motionless echo of the power screen's aurora, so the login and
-    // the logout share one identity. Static gradient only — no animation, per
+    // the logout share one identity. Static gradient only — nothing moves, per
     // the greeter contract; it never touches the centred password surface.
     Rectangle {
         anchors.fill: parent
@@ -124,12 +164,20 @@ WallpaperItem {
 
             Text {
                 text: "MoOS"
-                color: Kirigami.Theme.textColor
+                color: root.ink
                 font.family: "Inter"
                 font.pixelSize: Math.max(22, Math.round(root.height * 0.03))
                 font.weight: Font.DemiBold
                 font.letterSpacing: 1
-                renderType: Text.NativeRendering
+                // QtRendering, not NativeRendering. The flagship panel runs at
+                // 225% — a FRACTIONAL devicePixelRatio — and Qt's native
+                // rasteriser hints glyphs onto whole device pixels, which do not
+                // line up with fractional logical ones. The wordmark's stems land
+                // off-grid and the letterSpacing above rounds unevenly, so "MoOS"
+                // reads slightly smeared beside the crisp emblem next to it. The
+                // distance-field path scales cleanly at any ratio and is what
+                // every other MoOS brand surface already uses.
+                renderType: Text.QtRendering
             }
             Rectangle {
                 width: Math.max(26, Math.round(root.height * 0.04))

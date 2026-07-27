@@ -45,6 +45,23 @@ Rectangle {
 
     property int stage
 
+    // ── Motion gate ──────────────────────────────────────────────────────────
+    // This splash shipped EIGHT `loops: Animation.Infinite`, every one of them
+    // `running: true` with no condition — including two RotationAnimators, which
+    // run on the RENDER thread and so ask the compositor for frames even while the
+    // main thread is idle. It runs during session start, the most CPU-contended
+    // moment of the whole boot, and it is measurably part of why the splash is only
+    // visible for ~2.6 s of its ~4.6 s life: it competes with the plasmashell and
+    // KWin startup it is supposed to be covering for.
+    //
+    // A splash has no plugin configuration to consult, so the one honest signal is
+    // Plasma's animation-speed setting. `> 1` and NOT `> 0`: Kirigami floors
+    // longDuration at 1 when the factor is 0, so `> 0` is true even with animations
+    // fully disabled — the off-by-one that made every MoOS motion gate a no-op.
+    // With motion off the splash still shows the brand, the ring and the progress
+    // track; it simply holds still.
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
+
     onStageChanged: {
         if (stage == 2) {
             introAnimation.running = true;
@@ -80,13 +97,13 @@ Rectangle {
             height: 360
 
             SequentialAnimation on scale {
-                running: true
+                running: root.motionEnabled
                 loops: Animation.Infinite
                 NumberAnimation { from: 0.95; to: 1.06; duration: 1700; easing.type: Easing.InOutSine }
                 NumberAnimation { from: 1.06; to: 0.95; duration: 1700; easing.type: Easing.InOutSine }
             }
             SequentialAnimation on opacity {
-                running: true
+                running: root.motionEnabled
                 loops: Animation.Infinite
                 NumberAnimation { from: 0.75; to: 1.0; duration: 1700; easing.type: Easing.InOutSine }
                 NumberAnimation { from: 1.0; to: 0.75; duration: 1700; easing.type: Easing.InOutSine }
@@ -142,7 +159,7 @@ Rectangle {
                 from: 0; to: 360
                 duration: 8000
                 loops: Animation.Infinite
-                running: true
+                running: root.motionEnabled
             }
 
             // Ring reveal: scale from 0 to 1 with bounce
@@ -177,7 +194,7 @@ Rectangle {
                 from: 360; to: 0
                 duration: 14000
                 loops: Animation.Infinite
-                running: true
+                running: root.motionEnabled
             }
         }
 
@@ -201,7 +218,13 @@ Rectangle {
             // Logo breathing after arrival
             SequentialAnimation on scale {
                 id: logoBreathe
-                running: false
+                // Armed by the arrival sequence, but still subject to the motion
+                // policy: keep BOTH conditions in one declarative binding rather
+                // than assigning `running` from a ScriptAction. An imperative
+                // write destroys the binding, and a reader (or a gate) then has
+                // no way to see that this loop is gated at all.
+                property bool armed: false
+                running: logoBreathe.armed && root.motionEnabled
                 loops: Animation.Infinite
                 NumberAnimation { from: 1.0; to: 1.025; duration: 2400; easing.type: Easing.InOutSine }
                 NumberAnimation { from: 1.025; to: 1.0; duration: 2400; easing.type: Easing.InOutSine }
@@ -351,7 +374,7 @@ Rectangle {
                     duration: 800
                     loops: Animation.Infinite
                     easing.type: Easing.InOutQuad
-                    running: true
+                    running: root.motionEnabled
                 }
             }
 
@@ -369,6 +392,7 @@ Rectangle {
                     GradientStop { position: 1.0; color: Qt.rgba(root.violet.r, root.violet.g, root.violet.b, 0) }
                 }
                 SequentialAnimation on x {
+                    running: root.motionEnabled
                     PauseAnimation { duration: 300 }
                     NumberAnimation {
                         from: -sweep2.width
@@ -394,6 +418,7 @@ Rectangle {
                     GradientStop { position: 1.0; color: Qt.rgba(root.electric.r, root.electric.g, root.electric.b, 0) }
                 }
                 SequentialAnimation on x {
+                    running: root.motionEnabled
                     PauseAnimation { duration: 550 }
                     NumberAnimation {
                         from: -sweep3.width
@@ -465,7 +490,7 @@ Rectangle {
         // After the logo lands, start the breathing
         SequentialAnimation {
             PauseAnimation { duration: 900 }
-            ScriptAction { script: logoBreathe.running = true }
+            ScriptAction { script: logoBreathe.armed = true }
         }
     }
 

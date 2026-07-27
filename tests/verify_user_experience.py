@@ -932,10 +932,11 @@ require("plymouth-plugin-script" in build_sh,
         "build.sh must install plymouth-plugin-script — the moos boot theme is a Script theme")
 require("plymouth-set-default-theme moos" in build_sh,
         "build.sh must select the moos boot theme")
-require("for _f in moos.script logo.png ring.png head.png glow.png" in build_sh,
-        "build.sh must PROVE the script + its four sprites landed — a missing ScriptFile or "
+require("for _f in moos.script logo.png ring.png ring2.png head.png glow.png particle.png pulse.png" in build_sh,
+        "build.sh must PROVE the script + ALL SEVEN sprites landed — a missing ScriptFile or "
         "sprite silently drops the boot to the text splash, with every other gate green")
-for _asset in ("moos.script", "logo.png", "ring.png", "head.png", "glow.png"):
+for _asset in ("moos.script", "logo.png", "ring.png", "ring2.png", "head.png", "glow.png",
+               "particle.png", "pulse.png"):
     require((theme_dir / _asset).is_file(),
             f"the moos Script theme must ship {_asset} — the splash aborts to text without it")
 _moos_cfg = (theme_dir / "moos.plymouth").read_text(encoding="utf-8")
@@ -944,7 +945,8 @@ require("ModuleName=script" in _moos_cfg,
 require("ScriptFile=/usr/share/plymouth/themes/moos/moos.script" in _moos_cfg,
         "moos.plymouth must point ScriptFile at moos.script")
 _moos_script = (theme_dir / "moos.script").read_text(encoding="utf-8")
-for _spr in ('Image("logo.png")', 'Image("ring.png")', 'Image("head.png")', 'Image("glow.png")'):
+for _spr in ('Image("logo.png")', 'Image("ring.png")', 'Image("ring2.png")', 'Image("head.png")',
+             'Image("glow.png")', 'Image("particle.png")', 'Image("pulse.png")'):
     require(_spr in _moos_script,
             f"moos.script must load {_spr} — a typo'd or missing load aborts the whole theme")
 require("Plymouth.SetRefreshFunction" in _moos_script,
@@ -2378,14 +2380,25 @@ require("apply_desktop_scene" in theme_switch
 require("plasma-apply-wallpaperimage" not in theme_switch,
         "moos-theme must not call plasma-apply-wallpaperimage — it forces org.kde.image "
         "back onto the containments and the dashboard bento disappears")
-# The LNF defaults must not carry a [Wallpaper] section for the same reason:
-# LookAndFeelManager applies it by forcing org.kde.image onto every containment.
-for half in ("org.moos.ui2", "org.moos.ui2.light"):
+# The two base halves must each NAME their own wallpaper. This gate used to assert the
+# opposite, on the belief that a [Wallpaper] here makes LookAndFeelManager force
+# org.kde.image onto every containment. That is not what Plasma 6.7.3 does:
+# KLookAndFeelManager::save() never reads this group (verified in plasma-workspace's
+# source and in the shipped libklookandfeel.so.6.7.3, where the "Wallpaper"/"Image"
+# literals are referenced only from packageContents() and remove()), and it only rebuilds
+# the desktop layout for packages shipping contents/layouts/, which no MoOS look does.
+# What the key DOES drive is libkworkspace's DefaultWallpaper::defaultWallpaperPackage()
+# — the fallback org.kde.image and the Wallpaper KCM use — so without it, picking a MoOS
+# theme in System Settings left the user's previous wallpaper in place.
+for half, wallpaper in (("org.moos.ui2", "MoOSUI2Graphite"),
+                        ("org.moos.ui2.light", "MoOSUI2Tide")):
     lnf_defaults = code(
         read(f"system_files/usr/share/plasma/look-and-feel/{half}/contents/defaults"))
-    require("[Wallpaper]" not in lnf_defaults,
-            f"{half}/contents/defaults carries a [Wallpaper] section — every theme apply "
-            f"would force org.kde.image back and erase the scene (the dashboard)")
+    require(f"[Wallpaper]\nImage={wallpaper}" in lnf_defaults,
+            f"{half}/contents/defaults does not name {wallpaper} as its wallpaper — "
+            f"applying this Global Theme would leave the previous wallpaper in place")
+    require((ROOT / f"system_files/usr/share/wallpapers/{wallpaper}").is_dir(),
+            f"{half} names wallpaper package {wallpaper}, which is not shipped")
 
 # moos-apply-theme repairs the look the user is ON, not the one MoOS prefers. Dragging a
 # user who chose Light back to Dark on every login is not protection, it is the bug.
@@ -2867,10 +2880,15 @@ require("Math.min(root.width" in logout_qml,
 #    "21 July"). The fix is Qt.locale(...).toString(date, fmt).
 _moosclock = code(read("system_files/usr/share/plasma/shells/org.kde.plasma.desktop/"
                        "contents/lockscreen/MoOSClock.qml"), style="slash")
-require("Qt.formatDate" not in _moosclock and _moosclock.count(".toString(") >= 2,
-        "MoOSClock must render both dates with Qt.locale(...).toString(date, fmt), "
+require("Qt.formatDate" not in _moosclock and ".toString(" in _moosclock,
+        "MoOSClock must render its date with Qt.locale(...).toString(date, fmt), "
         "never Qt.formatDate(date, locale, string) — the 3-arg form discards the "
-        "format string and the English lock date reverts to month-first.")
+        "format string and the lock date reverts to month-first. (The count was "
+        "`>= 2` while the clock printed the date TWICE, hardcoded ar over hardcoded "
+        "en, so an English session got an Arabic date it could not read and an "
+        "Arabic one got the same day said twice. It prints ONE date in the session "
+        "locale now, so there is one call; the ban on the 3-arg form is what this "
+        "gate is actually for and it is unchanged.)")
 # 2) The logout action button's background turns highlightColor when emphasized
 #    or pressed; a highlightColor glyph vanishes into it (the primary Cancel
 #    button did exactly this). The non-destructive icon colour must switch to a
@@ -2883,7 +2901,8 @@ require("control.emphasized || control.down" in _action_btn
         "an accent fill makes the Cancel icon invisible")
 # 3) The doorway splash/logout must track the ACTIVE theme, not ship Nova's cosmic
 #    literals on all 16 family members. The splash's third sweep is the linkColor
-#    (secondary) role; the logout aurora ribbons route their accent through auroraTint().
+#    (secondary) role; the logout aurora ribbons bind Kirigami.Theme.highlightColor
+#    (root.accent / root.accentB) straight to their gradient stops.
 #    (The engine was slimmed from six curtains to two ribbons for GPU headroom; the
 #    invariant is unchanged — every accent stop still tracks the theme, not Nova.)
 _splash = code(read("system_files/usr/share/plasma/look-and-feel/org.moos.ui2/"
@@ -2892,9 +2911,37 @@ require("Kirigami.Theme.linkColor" in _splash,
         "the splash's third progress sweep is a hardcoded violet again — it must be "
         "Kirigami.Theme.linkColor so every family member tracks its own secondary")
 _logout_code = code(logout_qml, style="slash")
-require(_logout_code.count("root.auroraTint(") >= 2,
-        "the logout aurora ribbons bypass auroraTint() — they would ship Nova's "
-        "cyan-violet-rose on every theme instead of tracking the accent")
+require(_logout_code.count("GradientStop { position: 0.5; color: root.accent }") == 1
+        and _logout_code.count("GradientStop { position: 0.5; color: root.accentB }") == 1
+        and re.search(r"#[0-9A-Fa-f]{3,8}\b", _logout_code) is None,
+        "the logout aurora ribbons must bind the live accent roles STRAIGHT to "
+        "their gradient stops (root.accent / root.accentB, both derived from "
+        "Kirigami.Theme.highlightColor), and Logout.qml must carry no colour "
+        "literal at all. The gate this replaces counted calls to auroraTint(), a "
+        "helper that computed Qt.tint(accent, accent@0.40) — mathematically its "
+        "own input — so it proved nothing about the theme reaching the ribbons "
+        "while it dragged accentB 40% back onto accentA")
+
+# The aurora backdrop fades in with an OpacityAnimator. An Animator is a
+# QObject, not an Item, so `parent` inside one resolves to NULL: `target: parent`
+# bound the fade to nothing, it never ran, and the whole backdrop sat at opacity
+# 0 for two weeks while its infinite animations still drove the render loop.
+# Pin the id, and ban the shape that caused it.
+require("target: aurora" in _logout_code and "target: parent" not in _logout_code,
+        "the logout aurora fade must target an id, never `parent` — from inside "
+        "an Animator `parent` is null and the animation silently never runs")
+
+# Dismissing the power screen must stay deliberate. The scene-wide MouseArea
+# used to call cancelRequested(), and the sheet's "blocker" was declared
+# acceptedButtons: Qt.NoButton — which makes a MouseArea decline every button
+# and let the press fall straight through, so a click on the clock, the heading
+# or the gaps between the orbs cancelled a pending shutdown. Exactly two paths
+# may emit it: the Escape Action and the Cancel orb (plus the declaration).
+require(_logout_code.count("cancelRequested()") == 3
+        and "acceptedButtons: Qt.NoButton" not in _logout_code,
+        "the logout screen must dismiss only on the Cancel orb and Escape — a "
+        "third cancelRequested() call site, or a Qt.NoButton 'blocker', means a "
+        "stray click on the sheet can cancel a shutdown again")
 require("try {" in layout,
         "the floating setter must be guarded -- a throw in the layout template "
         "leaves the session with NO panel")
@@ -2922,16 +2969,38 @@ require("Image=/usr/share/wallpapers/MoOSUI2Graphite" in lock_config,
 # the login screen must use the same one. That cannot be satisfied by a stale constant, and
 # the next theme family inherits the guarantee for free.
 #
-# code() is not optional here: the drop-in's own comments explain this bug and therefore
+# code() is not optional here: the file's own comments explain this bug and therefore
 # contain the very wallpaper name being asserted. Gate the config, not the prose.
-login_drop_ins = sorted(
-    (ROOT / "system_files/usr/lib/plasmalogin/plasmalogin.conf.d").glob("*.conf")
-)
-require(login_drop_ins != [],
-        "the login screen ships no MoOS drop-in — the greeter would show Plasma's default")
-login_config = code(
-    "\n".join(p.read_text(encoding="utf-8") for p in login_drop_ins)
-)
+#
+# /usr/lib/plasmalogin/defaults.conf, NOT the vendor drop-in directory. Disassembled from
+# /usr/libexec/plasma-login-greeter 2026-07-27: the four sources are merged as
+#   KSharedConfig::openConfig("/etc/plasmalogin.conf")
+#   addConfigSources(*.conf in /etc/plasmalogin.conf.d)
+#   addConfigSources("/usr/lib/plasmalogin/defaults.conf")
+#   addConfigSources(*.conf in /usr/lib/plasmalogin/plasmalogin.conf.d)
+# and KConfig gives an EARLIER addConfigSources call priority over a later one (kconfig.h:
+# "The settings in sources will also be overridden by the sources provided by any previous
+# calls to addConfigSources()"), with the constructor file overriding all of them. So the
+# vendor drop-in directory MoOS used to ship in is the WEAKEST of the four layers — below
+# even stock Fedora's defaults.conf. defaults.conf is the slot upstream's own README (line
+# 58) names for distro defaults and the strongest layer the image may own; /etc is the
+# administrator's.
+login_defaults = ROOT / "system_files/usr/lib/plasmalogin/defaults.conf"
+require(login_defaults.is_file(),
+        "the image does not own /usr/lib/plasmalogin/defaults.conf — the login screen would "
+        "fall back to Fedora's, whose Image=file:///usr/share/wallpapers/Fedora/ points at a "
+        "directory this build deletes")
+login_config = code(login_defaults.read_text(encoding="utf-8"))
+# One value, one file. Repeating a greeter key in the weaker vendor drop-in directory is how
+# the login wallpaper drifted a whole release behind the lock screen's.
+_weak_login_dir = ROOT / "system_files/usr/lib/plasmalogin/plasmalogin.conf.d"
+_weak_login = code("\n".join(
+    p.read_text(encoding="utf-8") for p in sorted(_weak_login_dir.glob("*.conf"))
+)) if _weak_login_dir.is_dir() else ""
+require("WallpaperPluginId" not in _weak_login and "ShowClock" not in _weak_login,
+        "a greeter key is duplicated into /usr/lib/plasmalogin/plasmalogin.conf.d, the "
+        "lowest of the four config layers — two files carrying one value is exactly how the "
+        "login screen and the lock screen drifted apart before")
 # The plugin id is a RELATIONSHIP too, not a constant. This line used to pin
 # "org.kde.image", and went stale the day the login scene became MoOS's own
 # plugin. Whatever the drop-in names must still resolve in this tree.
@@ -3146,6 +3215,23 @@ require(
 )
 require("grep -qx 'Theme=moos' /etc/plymouth/plymouthd.conf" in build,
         "image build must fail if the active Plymouth selector is not MoOS")
+
+# ── the boot must not go black between the splash and the desktop ────────────
+# Repo-side twin of the image gate in verify_image_experience.py. Measured on the owner's
+# machine 2026-07-27: `plymouth quit` at 16:52:24.269, KWin's DRM backend at 16:52:28.728.
+# The drop-in is the whole fix; there is nothing else in the tree that keeps the splash up.
+_retain = ROOT / "system_files/usr/lib/systemd/system/plymouth-quit.service.d/10-moos-retain-splash.conf"
+require(_retain.is_file(),
+        "system_files must ship the plymouth-quit retain-splash drop-in — without it the boot "
+        "shows 4.5s of black between the MoOS splash and the first desktop frame")
+if _retain.is_file():
+    _retain_src = code(_retain.read_text(encoding="utf-8"))
+    require("quit --retain-splash" in _retain_src,
+            "the plymouth-quit drop-in must run `plymouth quit --retain-splash`")
+    require(any(line.strip() == "ExecStart=" for line in _retain_src.splitlines()),
+            "the plymouth-quit drop-in must reset ExecStart= before adding its own — ExecStart "
+            "is a list, and the stock quit would otherwise run first and blank the screen")
+
 require("final initramfs contains the Fedora BGRT/spinner branding path" in build,
         "image build must reject Fedora BGRT/spinner paths in initramfs")
 require('omit_dracutmodules+=" nfs "' in build and build.count('--omit "nfs"') >= 2,
@@ -3189,14 +3275,22 @@ if default_lnf is not None:
 # require the splash to agree with it. The splash then cannot drift from the desktop again, and
 # a future palette change updates this gate for free.
 # The Script theme sets its background from the script (Window.SetBackground*Color),
-# not from a .plymouth key. The owner's brief calls for a deep near-black NAVY field
-# (not the graphite desktop canvas), so gate the exact navy values so a future edit
-# cannot wash the boot out to grey or drift it off the intended navy.
+# not from a .plymouth key. It must be the UI2 canvas #14191C — the colour the desktop
+# opens on — and FLAT: a gradient cannot line up with a wallpaper it knows nothing about,
+# and the seam is exactly the hue break this gate exists to stop. The previous version of
+# this gate pinned Nova's navy #070B16/#04060A, which is what kept the splash out of the
+# UI2 rollout: measured 2026-07-27, the splash painted navy, the desktop graphite and the
+# Arena splash #0B0714, so every boot broke hue at the handoff. Derive the floats from the
+# canvas token instead of retyping them, exactly as the comment above this block asks.
 moos_script_src = read("system_files/usr/share/plymouth/themes/moos/moos.script")
-require("Window.SetBackgroundTopColor(0.027, 0.043, 0.086)" in moos_script_src,
-        "the boot splash's deep-navy top background drifted from #070B16")
-require("Window.SetBackgroundBottomColor(0.016, 0.024, 0.039)" in moos_script_src,
-        "the boot splash's navy bottom background drifted from #04060A")
+_canvas = "14191C"
+_ground = ", ".join(f"{int(_canvas[i:i + 2], 16) / 255:.3f}" for i in (0, 2, 4))
+require(f"Window.SetBackgroundTopColor({_ground})" in moos_script_src,
+        f"the boot splash's top background is not the UI2 canvas #{_canvas} "
+        f"(expected Window.SetBackgroundTopColor({_ground}))")
+require(f"Window.SetBackgroundBottomColor({_ground})" in moos_script_src,
+        f"the boot splash's bottom background is not the UI2 canvas #{_canvas} — the ground "
+        f"must be FLAT, or the splash-to-desktop seam shows")
 
 # The splash is LOGO-HERO: the crisp mark is centred and the cyan-violet energy
 # head ORBITS a ring as the loading indicator. Gate that the script actually
@@ -4274,7 +4368,7 @@ require("AUTOLOGIN=" not in _i2d,
         "the privileged installer backend must not seed an automatic-sign-in value")
 _login_dropins = "\n".join(
     p.read_text(encoding="utf-8")
-    for p in (ROOT / "system_files/usr/lib/plasmalogin/plasmalogin.conf.d").glob("*.conf")
+    for p in sorted((ROOT / "system_files/usr/lib/plasmalogin").rglob("*.conf"))
 )
 require(re.search(r"^\s*\[Autologin\]\s*$", _login_dropins, re.MULTILINE) is None,
         "the shipped plasma-login-manager configuration must not enable automatic sign-in")
@@ -4352,10 +4446,39 @@ require('"$drm_dir"/card*' in _drm_wait and 'i=$((i + 1))' in _drm_wait,
         "the login DRM preflight must wait for any card number with a bounded loop")
 require("MOOS_DRM_WAIT_STEPS" in _drm_wait and "exit 1" in _drm_wait,
         "the login DRM preflight needs a testable hard timeout, not an infinite boot wait")
+require("MOOS_PLASMALOGIN_CONF" in _drm_wait
+        and "WallpaperPluginId=org.kde.hunyango" in _drm_wait
+        and ".moos-legacy-hunyango" in _drm_wait
+        and ".moos-keep" in _drm_wait,
+        "the login preflight must neutralise the exact stock Hunyango key, keep a backup, "
+        "and honour an administrator opt-out; /etc/plasmalogin.conf is the KConfig main "
+        "file and outranks every layer the image ships, defaults.conf included")
+# The repair is COSMETIC and runs from ExecStartPre of a unit with Restart=always and
+# StartLimitBurst=2. A non-zero exit there does not report a problem — it burns the restart
+# budget twice and leaves the machine with no login screen at all. The only exit 1 in this
+# script may be the DRM timeout.
+require(_drm_wait.count("exit 1") == 1 and "no DRM card appeared" in _drm_wait,
+        "moos-wait-drm has an exit 1 outside the DRM timeout — a failed cosmetic login "
+        "wallpaper repair would permanently kill the display manager")
 require("ExecStartPre=/usr/libexec/moos-wait-drm" in _login_drm_dropin,
         "plasmalogin.service must run the DRM preflight before starting KWin")
 require("chmod 0755 /usr/libexec/moos-wait-drm" in _build,
         "build.sh must make the login DRM preflight executable")
+
+require("/usr/lib/plasmalogin/defaults.conf" in _build
+        and "GATE FAIL: /usr/lib/plasmalogin/defaults.conf is not MoOS's" in _build,
+        "build.sh must re-assert after its package transactions that MoOS still owns the "
+        "login distro-defaults slot; system_files is copied BEFORE build.sh runs, so a dnf5 "
+        "transaction pulling kde-settings-plasmalogin would restore Fedora's file")
+require("/usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf" in _build
+        and "/usr/share/moos/plasmalogin/kdeglobals" in _build,
+        "build.sh must provision the plasmalogin greeter account's palette deterministically; "
+        "unprovisioned, /var/lib/plasmalogin decides the login chrome's colours")
+require("carries an active greeter key that" in _build
+        and "WallpaperPluginId|Theme|Background|Image|ShowClock" in _build,
+        "build.sh must reject an ACTIVE greeter key in /etc/plasmalogin.conf — that "
+        "file outranks every MoOS login layer. It must NOT assert the file is absent: "
+        "the base ships it as a fully-commented template, so 'absent' fails every build")
 
 # bootc/OSTree owns these root paths as symlinks into persistent /var. Generic
 # home.conf/provision.conf directory rules otherwise emit three errors on every
@@ -4426,9 +4549,14 @@ for _glyph_qml in (
 _infinite = re.compile(r"loops\s*:\s*Animation\.Infinite")
 for _qml_root in ("system_files/usr/share/moos/apps",
                   "system_files/usr/share/plasma/plasmoids",
-                  "system_files/usr/share/plasma/wallpapers"):
+                  "system_files/usr/share/plasma/wallpapers",
+                  "system_files/usr/share/plasma/shells",
+                  "system_files/usr/share/plasma/look-and-feel"):
     for _qml in sorted(Path(_qml_root).rglob("*.qml")):
-        _text = _qml.read_text(encoding="utf-8")
+        # Strip // comments first: every one of these gates forbids or requires a
+        # token that the comment EXPLAINING the fix has to be able to name. A
+        # WHY comment quoting `running: true` is not an ungated animation.
+        _text = code(_qml.read_text(encoding="utf-8"), style="slash")
         for _loop in _infinite.finditer(_text):
             _window = _text[max(0, _loop.start() - 320):_loop.end() + 320]
             require(
@@ -4634,15 +4762,36 @@ require("cosign verify --key cosign.pub" in _byml,
 # The gate: a `running:` on an infinite loop must consult something motion-related,
 # not merely whether the item is on screen. Kirigami.Units.longDuration is what the
 # factor actually moves, so a gate built on it is the honest one.
+#
+# AND IT HAS TO BE `> 1`, NOT `> 0` — this gate spent its whole life asserting the
+# off-by-one that made every MoOS motion gate a no-op. Kirigami FLOORS longDuration
+# at 1 when AnimationDurationFactor is 0; it never reaches 0. So `> 0` is true even
+# with animations fully disabled, and "animations off" stopped nothing anywhere in
+# MoOS — the wallpaper, the bento, the hero clock, all of it kept running. KDE's own
+# code says so in the only way that matters: all three shipped BusyIndicator.qml
+# (org/kde/breeze, org/kde/desktop, org/kde/plasma/components) gate their infinite
+# spinner on `longDuration > 1`, and RejectPasswordPathAnimation.qml writes
+# `longDuration <= 1 ? 1 : 600`. `> 0` remains correct for a ONE-SHOT transition,
+# where a 1 ms duration is harmless; it is only wrong as a gate for an endless one.
+# This gate now requires `> 1` and REJECTS `> 0` in a motion-gate definition, so the
+# bug cannot be reintroduced by copying an old line.
+#
+# The roots also have to cover every surface that ships an endless animation, not
+# just the two that were noticed first. The lock screen — the surface that stays up
+# for HOURS — ran six unguarded infinite animations at a measured 4% of a core, and
+# the power screen ran three, because neither shells/ nor look-and-feel/ was ever
+# scanned here.
 _MOTION_ROOTS = ("system_files/usr/share/plasma/plasmoids",
-                 "system_files/usr/share/plasma/wallpapers")
+                 "system_files/usr/share/plasma/wallpapers",
+                 "system_files/usr/share/plasma/shells",
+                 "system_files/usr/share/plasma/look-and-feel")
 _INFINITE = re.compile(r"loops:\s*Animation\.Infinite")
 for _root_name in _MOTION_ROOTS:
     _root_dir = ROOT / _root_name
     if not _root_dir.is_dir():
         continue
     for _qml in sorted(_root_dir.rglob("*.qml")):
-        _text = _qml.read_text(encoding="utf-8", errors="replace")
+        _text = code(_qml.read_text(encoding="utf-8", errors="replace"), style="slash")
         if not _INFINITE.search(_text):
             continue
         _rel = _qml.relative_to(ROOT)
@@ -4651,12 +4800,22 @@ for _root_name in _MOTION_ROOTS:
         # The wallpaper's cards (SystemCard, WeatherScene, GlassCard) do the latter:
         # DashboardBento owns the gate and passes it down, which is correct and which
         # a stricter check here wrongly called broken.
-        require("Kirigami.Units.longDuration > 0" in _text or "motionEnabled" in _text,
+        require("Kirigami.Units.longDuration > 1" in _text or "motionEnabled" in _text,
                 f"{_rel} loops Animation.Infinite but is wired to no motion gate at all "
                 "— it neither defines one on Kirigami.Units.longDuration nor accepts a "
                 "motionEnabled from its parent. With animations off it keeps running for "
                 "the whole session — on the cloud edition that is a rasterizer burning "
                 "CPU on a desktop nobody is looking at, reported by nothing.")
+        # The off-by-one, refused by name. A file may still write `> 0` for a
+        # one-shot Behavior/transition, so only a MOTION GATE is rejected: a
+        # `motionEnabled` definition, or the `running:` of an endless loop.
+        for _bad in re.finditer(r"(motionEnabled[^\n]*|running:[^\n]*)"
+                                r"Kirigami\.Units\.longDuration\s*>\s*0", _text):
+            require(False,
+                    f"{_rel} gates motion on `Kirigami.Units.longDuration > 0`: "
+                    "Kirigami floors longDuration at 1, never 0, so that expression is "
+                    "true even with animations fully disabled and the gate never fires. "
+                    "Use `> 1`, as KDE's own three BusyIndicator.qml do.")
         for _m in _INFINITE.finditer(_text):
             _block = _text[max(0, _m.start() - 400):_m.start() + 400]
             _running = re.search(r"running:\s*([^\n]+)", _block)
@@ -4667,6 +4826,78 @@ for _root_name in _MOTION_ROOTS:
                     f"{_rel} has an Animation.Infinite whose `running:` is "
                     f"`{_expr.strip()}` — that does not consult the motion gate, so "
                     "'animations off' never stops it.")
+
+# ── A motion gate must be CONNECTED, not merely present ───────────────────────
+#
+# The previous gate proved the word `motionEnabled` appears. DashboardBento showed
+# that is not enough: it declared
+#
+#     readonly property bool motionEnabled: root.visible && Kirigami.Units.longDuration > 0
+#
+# — its own gate, invented locally, consulting neither the plugin's AmbientMotion/
+# MotionMode key nor a value handed down by a parent. So it satisfied every check
+# here while eight infinite card animations stayed unreachable: `moos-theme motion
+# still` could not stop a single one of them, and neither could Plasma's own
+# "disable animations". `readonly` made it worse — even the parent could not
+# override it.
+#
+# The rule: a file that DEFINES motionEnabled must root that definition in
+# something the user can actually change. WHICH root is legitimate depends on what
+# the surface has:
+#
+#   * A KPackage that ships contents/config/main.xml (the wallpaper, the brand
+#     plasmoid) has its OWN motion key, so its gate must consult it. This is the
+#     DashboardBento case — the key existed, the bento just never looked at it.
+#   * A surface with no plugin configuration at all (the splash, the logout screen,
+#     the lock screen, the clock plasmoids) has exactly one honest signal: Plasma's
+#     animation-speed setting, i.e. `Kirigami.Units.longDuration > 1`.
+#
+# `visible` alone is never a motion gate under either rule — it is the shape of the
+# bug.
+# Capture the WHOLE expression, not just its first physical line. `[^\n]+`
+# stops at the first newline, so a gate that is correct but wrapped across
+# lines is judged by where its author put the line break: DashboardBento's
+# `motionEnabled: root.visible\n && root.resolvedMotionMode > 0 ...` read to
+# this gate as the bare `root.visible` bug it is meant to catch. A QML binding
+# continues while the line ends in an operator or the next line starts with one.
+_MOTION_DEF = re.compile(
+    r"property\s+bool\s+motionEnabled\s*:\s*((?:[^\n]*(?:&&|\|\||\?|:)\s*\n\s*)*[^\n]+)")
+for _root_name in _MOTION_ROOTS:
+    _root_dir = ROOT / _root_name
+    if not _root_dir.is_dir():
+        continue
+    for _qml in sorted(_root_dir.rglob("*.qml")):
+        _text = code(_qml.read_text(encoding="utf-8", errors="replace"), style="slash")
+        # Walk up to the KPackage root to see whether this surface owns a config
+        # schema; contents/ui/foo.qml -> contents/config/main.xml.
+        _pkg_config = next(
+            (parent / "contents/config/main.xml" for parent in _qml.parents
+             if (parent / "contents/config/main.xml").is_file()), None)
+        for _def in _MOTION_DEF.finditer(_text):
+            _expr = _def.group(1).strip()
+            if _pkg_config is not None:
+                # The message below has always offered a second legitimate shape —
+                # a pure CONSUMER that takes the policy from its parent — but the
+                # code never implemented it. DashboardBento is exactly that case
+                # and cannot use `required property`: build.sh loads it in a bare
+                # Loader for the QML smoke gate, where a required property nobody
+                # sets is a load error. Accept a definition rooted in a property
+                # the parent feeds, as long as that property names the key.
+                require("configuration." in _expr or "MotionMode" in _expr
+                        or "AmbientMotion" in _expr
+                        or re.search(r"property\s+int\s+\w*MotionMode\b", _text),
+                        f"{_qml.relative_to(ROOT)} defines `motionEnabled: {_expr}` "
+                        "while its package ships a config schema at "
+                        f"{_pkg_config.relative_to(ROOT)} — the gate must consult that "
+                        "key (MotionMode/AmbientMotion). A file that only CONSUMES "
+                        "motion must take it as a `required property` from its parent "
+                        "instead of inventing its own.")
+            else:
+                require("longDuration > 1" in _expr,
+                        f"{_qml.relative_to(ROOT)} defines `motionEnabled: {_expr}` — "
+                        "this surface has no config schema, so its only honest motion "
+                        "signal is Plasma's animation speed: "
+                        "`Kirigami.Units.longDuration > 1`.")
 
 
 # ── Two humans, one machine: separate front doors, ONE brain ──────────────────

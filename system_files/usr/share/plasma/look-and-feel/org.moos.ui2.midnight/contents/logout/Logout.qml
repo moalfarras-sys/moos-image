@@ -63,7 +63,8 @@ Item {
     //   pill    = radius height/2 (password field)
     //   scrim   = backgroundColor  0.52 / 0.30 / 0.60  (top / mid / foot)
     //   blur    = 54 wallpaper (lock's breeze WallpaperFader = 50)
-    //   fonts   = Inter (Latin/digits) · IBM Plex Sans Arabic (Arabic)
+    //   fonts   = Inter (Latin-only strings + digits) · IBM Plex Sans Arabic
+    //             (any string that CONTAINS Arabic — see the bilingual note below)
     //   clock   = Font.Thin · letterSpacing -2 · accent colon · hairline accent
     //   motion  = Units.shortDuration (hover/press) · longDuration (fades) · OutCubic
     // ══════════════════════════════════════════════════════════════════════
@@ -71,6 +72,14 @@ Item {
     // accentB — the two-tone partner (accentA hue-rotated +0.09 in HSL), same
     // derivation as the orb. The aurora ribbons ride accentA/accentB so their
     // hue is 100% theme-derived — no hardcoded base colour anywhere.
+    //
+    // The ribbons bind these roles STRAIGHT to their gradient stops. There used
+    // to be an auroraTint(base) helper in between, documented as "keeps its
+    // designed hue but pulls 40% toward the live accent" — but by then both call
+    // sites already passed a theme colour, and Qt.tint(accent, accent@0.40) is
+    // accent, exactly. So the helper proved nothing about theming (the test that
+    // counted calls to it proved nothing either) while quietly dragging accentB
+    // 40% back onto accentA and flattening the two-tone signature it exists for.
     readonly property color accentB: {
         const c = Kirigami.Theme.highlightColor;
         if (c.hslSaturation < 0.08 || c.hslHue < 0) { return Qt.lighter(c, 1.28); }
@@ -82,13 +91,6 @@ Item {
     Timer {
         interval: 15000; repeat: true; running: root.visible
         onTriggered: root.nowTime = Qt.formatTime(new Date(), "HH:mm")
-    }
-
-    // The aurora keeps its designed hue but pulls 40% toward the live accent, so
-    // every one of the 16 themes lights this doorway with its own colour.
-    function auroraTint(base) {
-        const a = Kirigami.Theme.highlightColor;
-        return Qt.tint(base, Qt.rgba(a.r, a.g, a.b, 0.40));
     }
 
     function stopCountdown() { countdownTimer.stop(); }
@@ -171,6 +173,18 @@ Item {
         }
     }
 
+    // EVERY label that shows a bilingual() string must be drawn in
+    // "IBM Plex Sans Arabic", never "Inter". Inter has no Arabic coverage at all
+    // (its fontconfig lang set carries no 'ar'), so font.family: "Inter" handed
+    // the Arabic half to fontconfig's default \u2014 Noto Sans Arabic \u2014 and this
+    // screen rendered its heading in Noto directly above orb captions in Plex:
+    // two Arabic typefaces on one screen. The obvious per-script fix,
+    // font.families: ["Inter", "IBM Plex Sans Arabic"], does NOT exist on this
+    // stack: Qt 6.11.1 here answers `Cannot assign to non-existent property
+    // "families"` and the whole component then fails to load (verified with
+    // qml-qt6). So a MIXED string takes the one face that carries both scripts \u2014
+    // Plex Arabic ships a full Latin set \u2014 and Inter keeps the Latin-only
+    // strings and the clock.
     function bilingual(arabic, english) {
         const ar = "\u2067" + arabic + "\u2069";
         const en = "\u2066" + english + "\u2069";
@@ -240,43 +254,75 @@ Item {
         }
     }
 
+    // ── The aurora: two wide accent veils drifting over the blurred wallpaper ──
+    // The id is load-bearing. An Animator is a QObject, not an Item, so inside
+    // it `parent` resolves to NOTHING — the old `target: parent` bound the fade
+    // to null, the animator never ran, and this entire layer (the screen's main
+    // piece of design) sat at opacity 0 forever, while its two infinite
+    // animations still drove the render loop repainting 5760x1339 rectangles
+    // nobody could see. From inside an Animator/Animation, always target an id.
     Item {
+        id: aurora
         anchors.fill: parent
         opacity: 0
         Component.onCompleted: auroraFade.start()
-        OpacityAnimator { id: auroraFade; target: parent; from: 0; to: 1
+        OpacityAnimator { id: auroraFade; target: aurora; from: 0; to: 1
             duration: Kirigami.Units.veryLongDuration; easing.type: Easing.OutCubic }
+        // Both drifts loop FOREVER, so the motion gate is `longDuration > 1`,
+        // never `> 0`: Kirigami floors longDuration at 1 when the user turns
+        // animations off, so `> 0` is true even then and the gate never fires.
+        // (KDE's own three BusyIndicator.qml files use `> 1` for the same
+        // reason.) Ungated, either of these repaints the whole 4K window at full
+        // frame rate for as long as the doorway is open — about 11% of a core.
+        //
+        // GEOMETRY RULE: a ribbon's gradient fades only along its VERTICAL axis,
+        // so its left and right edges are hard cuts. Both must stay off-screen at
+        // every point of the drift, including the sideways shift the rotation
+        // adds (height/2 · sin(angle)) — the second ribbon used to start at
+        // x = +0.12·width and drew a crisp diagonal seam straight down the left
+        // third of the wallpaper. Overhang generously; the width past the screen
+        // edge costs nothing because the band is uniform along it.
         Rectangle {
-            width: root.width * 1.5; height: root.height * 0.62
-            x: -root.width * 0.25; y: root.height * 0.04
+            width: root.width * 1.8; height: root.height * 0.62
+            x: -root.width * 0.42; y: root.height * 0.04
             rotation: -9; transformOrigin: Item.Center; opacity: 0.10
             gradient: Gradient { orientation: Gradient.Vertical
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.5; color: root.auroraTint(root.accent) }
+                GradientStop { position: 0.5; color: root.accent }
                 GradientStop { position: 1.0; color: "transparent" } }
             SequentialAnimation on x {
-                loops: Animation.Infinite; running: root.visible
-                NumberAnimation { to: -root.width * 0.08; duration: 42000; easing.type: Easing.InOutSine }
+                loops: Animation.Infinite
+                running: root.visible && Kirigami.Units.longDuration > 1
                 NumberAnimation { to: -root.width * 0.25; duration: 42000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: -root.width * 0.42; duration: 42000; easing.type: Easing.InOutSine }
             }
         }
         Rectangle {
-            width: root.width * 1.2; height: root.height * 0.5
-            x: root.width * 0.12; y: root.height * 0.36
+            width: root.width * 1.6; height: root.height * 0.5
+            x: -root.width * 0.30; y: root.height * 0.36
             rotation: 12; transformOrigin: Item.Center; opacity: 0.05
             gradient: Gradient { orientation: Gradient.Vertical
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.5; color: root.auroraTint(root.accentB) }
+                GradientStop { position: 0.5; color: root.accentB }
                 GradientStop { position: 1.0; color: "transparent" } }
             SequentialAnimation on x {
-                loops: Animation.Infinite; running: root.visible
-                NumberAnimation { to: root.width * 0.04; duration: 54000; easing.type: Easing.InOutSine }
-                NumberAnimation { to: root.width * 0.12; duration: 54000; easing.type: Easing.InOutSine }
+                loops: Animation.Infinite
+                running: root.visible && Kirigami.Units.longDuration > 1
+                NumberAnimation { to: -root.width * 0.38; duration: 54000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: -root.width * 0.30; duration: 54000; easing.type: Easing.InOutSine }
             }
         }
     }
 
-    MouseArea { anchors.fill: parent; onClicked: root.cancelRequested() }
+    // The scene ABSORBS clicks; it does not cancel on one. This MouseArea used
+    // to call cancelRequested(), and the sheet carried a "blocker" MouseArea to
+    // shield its own background from it — declared `acceptedButtons:
+    // Qt.NoButton`, which makes a MouseArea decline every button and let the
+    // press fall straight through to this one. So a click on the giant clock, on
+    // the heading, or in the gaps between the orbs silently cancelled a pending
+    // shutdown. Dismissing the doorway is now exactly two gestures, both
+    // deliberate: the Cancel orb and Escape.
+    MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
 
     // ── The command sheet: a live-clock header over a column of action rows ──
     Item {
@@ -296,8 +342,6 @@ Item {
                 duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
         }
 
-        MouseArea { anchors.fill: parent; acceptedButtons: Qt.NoButton }
-
         ColumnLayout {
             id: column
             width: parent.width
@@ -308,18 +352,35 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 4.4
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 4.4
-                Image {
+                // The emblem's halo, drawn from the live accent. It used to be a
+                // shipped raster, images/glow-cyan.png — a fixed #22D3EE cyan
+                // that the family generator can never retint, because it
+                // recolours .svg and copies every other file byte-for-byte. So
+                // all 16 themes wore the same cyan ring: on Arena's magenta the
+                // halo measured hue ~270 against an accent of hue ~330. Built
+                // from Kirigami.Theme.highlightColor it tracks every palette,
+                // and the PNG no longer ships. Same RadialGradient idiom as the
+                // orb bloom in MoOSUI2ActionButton, explicit radii for a clean
+                // circle.
+                RadialGradient {
                     anchors.centerIn: parent
-                    width: parent.width * 1.9; height: width
-                    source: "images/glow-cyan.png"; opacity: 0.5
-                    asynchronous: true
+                    width: parent.width * 2.1; height: width
+                    horizontalRadius: width * 0.5
+                    verticalRadius: height * 0.5
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.34) }
+                        GradientStop { position: 0.34; color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.16) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
                 }
                 Image {
                     anchors.fill: parent
                     source: "../splash/images/moos-logo.png"
                     fillMode: Image.PreserveAspectFit; smooth: true; asynchronous: true
+                    // Infinite → gated on longDuration > 1, see the aurora note.
                     SequentialAnimation on scale {
-                        loops: Animation.Infinite; running: root.visible
+                        loops: Animation.Infinite
+                        running: root.visible && Kirigami.Units.longDuration > 1
                         NumberAnimation { to: 1.03; duration: 3200; easing.type: Easing.InOutSine }
                         NumberAnimation { to: 1.0; duration: 3200; easing.type: Easing.InOutSine }
                     }
@@ -368,23 +429,46 @@ Item {
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 36
                 horizontalAlignment: Text.AlignHCenter
                 text: root.headingText()
-                color: Kirigami.Theme.disabledTextColor
+                // The question is the point of this screen, so it is drawn in the
+                // foreground role, softened by opacity rather than swapped for a
+                // weaker colour. It used to be disabledTextColor — semantically
+                // "this control is switched off", and on the live 4K render it
+                // measured 4.41:1 against the blurred wallpaper, a hair under
+                // WCAG AA. This lands near 7.5:1 and still reads as a subtitle,
+                // because the clock above it is 34pt.
+                color: Kirigami.Theme.textColor
+                opacity: 0.85
                 elide: Text.ElideRight
-                font.family: "Inter"
+                font.family: "IBM Plex Sans Arabic"
                 font.pointSize: Kirigami.Theme.defaultFont.pointSize + 1
             }
+            // The signed-in name. It was drawn in the accent and measured 3.58:1
+            // against the blurred wallpaper on the live 4K render — under WCAG
+            // AA's 4.5:1, and this is small text. The accent still marks the
+            // clock's colon and the hairline right above, so the identity line
+            // gives it up for the scheme's full-strength foreground role; every
+            // one of the 16 palettes then carries this name at its own maximum
+            // contrast, with no hex anywhere.
             QQC2.Label {
                 Layout.alignment: Qt.AlignHCenter
                 text: currentUser.fullName
                 visible: text.length > 0
-                color: root.accent
+                color: Kirigami.Theme.textColor
                 font.family: "Inter"; font.weight: Font.DemiBold
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
 
             // ── Countdown (only when an action is pending) ──
+            // fillWidth must be pinned OFF. QtQuick.Layouts propagates size
+            // policy upwards: the progress track inside this row sets
+            // fillWidth: true, which silently makes the row itself expanding and
+            // overrides the 22-unit preferredWidth below — the countdown hairline
+            // then ran the full width of the sheet with its seconds counter
+            // stranded at the far end. Declaring it false keeps the bar the
+            // compact object it was drawn as.
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
+                Layout.fillWidth: false
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 22
                 visible: countdownTimer.running
                 spacing: Kirigami.Units.smallSpacing
@@ -415,7 +499,8 @@ Item {
                     ? root.bilingual("يوجد مستخدم آخر مسجّل الدخول وقد يفقد عمله", "Another user is signed in and may lose work")
                     : root.bilingual("يوجد %1 مستخدمين آخرين مسجّلي الدخول".arg(otherSessionsModel.count), "%1 other users are signed in".arg(otherSessionsModel.count))
                 color: Kirigami.Theme.neutralTextColor
-                wrapMode: Text.WordWrap; font.family: "Inter"; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                wrapMode: Text.WordWrap; font.family: "IBM Plex Sans Arabic"
+                font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
             QQC2.Label {
                 Layout.alignment: Qt.AlignHCenter
@@ -424,7 +509,8 @@ Item {
                 visible: softwareUpdatePending
                 text: root.bilingual("تحديثات النظام جاهزة للتثبيت", "System updates are ready to install")
                 color: Kirigami.Theme.positiveTextColor
-                wrapMode: Text.WordWrap; font.family: "Inter"; font.weight: Font.DemiBold; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                wrapMode: Text.WordWrap; font.family: "IBM Plex Sans Arabic"
+                font.weight: Font.DemiBold; font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
 
             // ── The power dock: a centred row of action ORBS ──
@@ -515,13 +601,18 @@ Item {
             }
 
             // ── Cancel — subtle, centred below the dock ──
+            // The comment said "subtle" from the first rewrite; the button was
+            // drawn at full action weight, the same disc and the same DemiBold
+            // caption as Shut Down, so the way OUT competed with the actions.
+            // `subtle` is what makes it read one step down the hierarchy.
             MoOSUI2ActionButton {
                 id: cancelButton
                 iconName: "cancel-operation-symbolic"
                 text: root.shortLabel("إلغاء", "Cancel")
                 description: root.bilingual("العودة إلى سطح المكتب", "Back to desktop")
+                subtle: true
                 Layout.alignment: Qt.AlignHCenter
-                Layout.topMargin: Kirigami.Units.smallSpacing
+                Layout.topMargin: Kirigami.Units.largeSpacing
                 onClicked: { root.disarm(); root.cancelRequested(); }
                 onNavigate: (step) => root.moveFocus(cancelButton, step)
             }

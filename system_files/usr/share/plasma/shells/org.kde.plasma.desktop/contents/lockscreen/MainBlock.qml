@@ -10,9 +10,10 @@
     the password field, the unlock button, and the fingerprint/smartcard hints.
 
     It was the last stock-Breeze surface on an otherwise fully-MoOS lock screen —
-    the deferred "auth card" item. This fork dresses the password field and the
-    unlock button in MoOS UI2 (glass field with a brand-accent focus ring; a
-    round accent unlock button) and NOTHING else.
+    the deferred "auth card" item. This fork dresses the password field, the
+    unlock button and the notice line in MoOS UI2 (glass field with a
+    brand-accent focus ring; a round accent unlock button; a glass notice pill in
+    place of the base's plain italic label) and NOTHING else.
 
     AUTH SAFETY CONTRACT — read before editing:
       Every line that touches authentication is kept BYTE-IDENTICAL to the base
@@ -20,10 +21,12 @@
       `userList`/avatar, the `mainPasswordBox`/`showPassword` aliases, the
       `passwordResult` signal, `startLogin()`, `onUserSelected`, the passwordBox
       id/text/PasswordSync binding/onAccepted/Keys/Connections, the loginButton
-      id/onClicked/Keys, and both FailableLabels. The ONLY additions are visual:
-      a `background:` on the field, `topPadding`/`bottomPadding`, and the button's
-      `background:`/`contentItem:`. This file must never be the reason someone
-      cannot unlock their own machine — restyle, never rewire.
+      id/onClicked/Keys, and both FailableLabels' kind/visible/text/Connections.
+      The ONLY additions are visual: a `background:` on the field,
+      `topPadding`/`bottomPadding`, the button's `background:`/`contentItem:`,
+      typography on the two hint labels, and the notice pill — which only ever
+      DISPLAYS a string LockScreenUi hands it. This file must never be the reason
+      someone cannot unlock their own machine — restyle, never rewire.
 */
 
 import QtQuick
@@ -60,6 +63,29 @@ SessionManagementScreen {
         return Qt.hsla(nh, Math.min(1, c.hslSaturation), Math.min(0.72, c.hslLightness * 1.08), 1);
     }
 
+    // ── The notice line (visual only — see AUTH SAFETY CONTRACT) ────────────
+    // "Unlocking failed" and "Caps Lock is on" are the most important things
+    // this screen ever says, and they were the last stock-Breeze voice on it: a
+    // plain italic Label in the ordinary text colour, wedged above the prompts.
+    //
+    // The base SessionManagementScreen hands a derived component exactly ONE
+    // handle on that label — `notificationMessage`, an alias to its `text`.
+    // There is no `visible` alias and no way to reach the item itself. So the
+    // base label is held EMPTY (it still reserves its blank line, which is what
+    // keeps the cluster from jumping when a message arrives) and LockScreenUi
+    // feeds the text to `notice` here instead, where it can be drawn as MoOS
+    // glass. Nothing on this path touches the authenticator: the pill only ever
+    // displays a string that has already been assembled elsewhere.
+    property string notice: ""
+    notificationMessage: ""
+
+    // A refusal wears the negative role; a hint (Caps Lock, a PAM prompt) must
+    // not — a red pill for "Caps Lock is on" would cry wolf at the one place
+    // where red has to mean something. `root.notification` is set only by
+    // LockScreenUi's authenticator handlers, so it is the honest test for "this
+    // was a refusal"; MainBlock already talks to `root` for clearPassword.
+    readonly property bool noticeIsAlert: root.notification !== ""
+
     //the y position that should be ensured visible when the on screen keyboard is visible
     property int visibleBoundary: mapFromItem(loginButton, 0, 0).y
     onHeightChanged: visibleBoundary = mapFromItem(loginButton, 0, 0).y + loginButton.height + Kirigami.Units.smallSpacing
@@ -88,6 +114,93 @@ SessionManagementScreen {
         // See https://bugreports.qt.io/browse/QTBUG-55460
         loginButton.forceActiveFocus();
         passwordResult(password);
+    }
+
+    // The glass notice pill. It sits directly above the field the message is
+    // about, rises the last half grid unit as it fades in (the Translate below
+    // is driven by the pill's own opacity, so the entrance needs no animation of
+    // its own — nothing here loops), and carries the message on a translucent
+    // surface with one luminous edge, like every other MoOS control.
+    Rectangle {
+        id: noticePill
+
+        Layout.alignment: Qt.AlignHCenter
+        Layout.bottomMargin: Kirigami.Units.smallSpacing
+
+        // The pill takes its size from the label and the label caps its OWN
+        // width, rather than the label filling the pill: a wrapping Text whose
+        // width comes from its parent, while the parent's implicit width comes
+        // from the Text, is the classic QML binding loop. Here the label's width
+        // depends only on its content and a constant, so nothing is circular.
+        implicitWidth: noticeLabel.width + Kirigami.Units.gridUnit * 2
+        implicitHeight: noticeLabel.implicitHeight + Kirigami.Units.largeSpacing
+
+        // A pill for the one-line case, a rounded card when PAM says something
+        // long enough to wrap. The message is never elided: on this screen the
+        // text IS the reason the machine refused, and half of it is worse than
+        // an extra line.
+        radius: Math.min(height / 2, Kirigami.Units.gridUnit * 1.2)
+        visible: opacity > 0
+        opacity: sessionManager.notice !== "" ? 1 : 0
+        transform: Translate { y: (1 - noticePill.opacity) * Kirigami.Units.gridUnit * 0.5 }
+
+        color: sessionManager.noticeIsAlert
+            ? Qt.rgba(Kirigami.Theme.negativeTextColor.r,
+                      Kirigami.Theme.negativeTextColor.g,
+                      Kirigami.Theme.negativeTextColor.b, 0.16)
+            : Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                      Kirigami.Theme.backgroundColor.g,
+                      Kirigami.Theme.backgroundColor.b, 0.55)
+        border.width: 1
+        border.color: sessionManager.noticeIsAlert
+            ? Qt.rgba(Kirigami.Theme.negativeTextColor.r,
+                      Kirigami.Theme.negativeTextColor.g,
+                      Kirigami.Theme.negativeTextColor.b, 0.65)
+            : Qt.rgba(Kirigami.Theme.textColor.r,
+                      Kirigami.Theme.textColor.g,
+                      Kirigami.Theme.textColor.b, 0.20)
+
+        Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+        Behavior on color { ColorAnimation { duration: Kirigami.Units.longDuration } }
+
+        PlasmaComponents3.Label {
+            id: noticeLabel
+            anchors.centerIn: parent
+            width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 16)
+            text: sessionManager.notice
+            textFormat: Text.PlainText
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            wrapMode: Text.WordWrap
+            font.family: "Inter"
+            font.pointSize: Kirigami.Theme.defaultFont.pointSize
+            font.weight: Font.Medium
+            color: sessionManager.noticeIsAlert ? Kirigami.Theme.negativeTextColor
+                                                : Kirigami.Theme.textColor
+        }
+
+        // The base's playHighlightAnimation() bounces the label MoOS holds
+        // empty. When the authenticator repeats a message it has already shown,
+        // bounce the pill that is actually carrying it — otherwise a repeated
+        // "Unlocking failed" would look like nothing happened at all. Durations
+        // come from Kirigami, so this collapses to an instant with animations
+        // off; it is one-shot either way and never loops.
+        SequentialAnimation {
+            id: noticeBounce
+            running: false
+            NumberAnimation {
+                target: noticePill; property: "scale"
+                from: 1.0; to: 1.06
+                duration: Kirigami.Units.longDuration
+                easing.type: Easing.OutQuad
+            }
+            NumberAnimation {
+                target: noticePill; property: "scale"
+                from: 1.06; to: 1.0
+                duration: Kirigami.Units.longDuration
+                easing.type: Easing.InQuad
+            }
+        }
     }
 
     RowLayout {
@@ -177,7 +290,7 @@ SessionManagementScreen {
                     passwordBox.text = Qt.binding(() => PasswordSync.password);
                 }
                 function onNotificationRepeated() {
-                    sessionManager.playHighlightAnimation();
+                    noticeBounce.restart();
                 }
             }
         }
@@ -241,6 +354,16 @@ SessionManagementScreen {
         textFormat: Text.PlainText
         horizontalAlignment: Text.AlignHCenter
         Layout.fillWidth: true
+
+        // ── MoOS UI2 visual only (see AUTH SAFETY CONTRACT) ──────────────
+        // "(or scan your fingerprint on the reader)" is a hint, not a
+        // statement: it belongs in the muted voice the rest of MoOS uses for
+        // secondary text, and in the same family as everything else on this
+        // cluster. `kind`, `visible`, `text` and the Connections below are
+        // untouched — this is typography, nothing more.
+        font.family: "Inter"
+        font.pointSize: Kirigami.Theme.defaultFont.pointSize - 1
+        color: Kirigami.Theme.disabledTextColor
 
         RejectPasswordAnimation {
             id: _rejectAnimation

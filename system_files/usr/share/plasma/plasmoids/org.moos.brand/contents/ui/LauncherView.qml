@@ -333,7 +333,7 @@ Item {
                     visible: view.launcher.searchQuery.length === 0
                     text: "META"
                     color: Kirigami.Theme.disabledTextColor
-                    font.family: "IBM Plex Mono"
+                    font.family: "JetBrains Mono"
                     font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.52)
                 }
             }
@@ -850,7 +850,7 @@ Item {
                             Text {
                                 text: searchResults.count.toString()
                                 color: Kirigami.Theme.highlightColor
-                                font.family: "IBM Plex Mono"
+                                font.family: "JetBrains Mono"
                                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.58)
                                 font.weight: Font.DemiBold
                             }
@@ -1445,7 +1445,7 @@ Item {
                 visible: result.ListView.isCurrentItem
                 text: "↵"
                 color: Kirigami.Theme.highlightColor
-                font.family: "IBM Plex Mono"
+                font.family: "JetBrains Mono"
                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.70)
             }
         }

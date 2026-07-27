@@ -13,6 +13,13 @@ Item {
     property int pixelSize: Math.round(Kirigami.Units.gridUnit * 3)
     property string displayedGlyph: glyph
 
+    // The roll is the one animation in this package a user actually watches, and
+    // it ignored Plasma's animation-speed slider entirely, because only
+    // Kirigami.Units.*Duration tracks that slider and every duration here was a
+    // literal. Someone who set "fast" still waited the full 420 ms per digit.
+    readonly property int rollDuration: Kirigami.Units.veryLongDuration
+    readonly property int rollFadeDuration: Math.round(digit.rollDuration * 0.36)
+
     implicitWidth: metrics.advanceWidth
     implicitHeight: metrics.height
     Layout.preferredWidth: implicitWidth
@@ -92,37 +99,41 @@ Item {
                 target: outgoing
                 property: "y"
                 to: -digit.height * 0.7
-                duration: 420
+                duration: digit.rollDuration
                 easing.type: Easing.InCubic
             }
             NumberAnimation {
                 target: outgoing
                 property: "opacity"
                 to: 0
-                duration: 150
+                duration: digit.rollFadeDuration
                 easing.type: Easing.InQuad
             }
             NumberAnimation {
                 target: incoming
                 property: "y"
                 to: 0
-                duration: 420
+                duration: digit.rollDuration
                 easing.type: Easing.OutCubic
             }
             NumberAnimation {
                 target: incoming
                 property: "scale"
                 to: 1
-                duration: 420
+                duration: digit.rollDuration
                 easing.type: Easing.OutCubic
             }
             SequentialAnimation {
-                PauseAnimation { duration: 150 }
+                PauseAnimation { duration: digit.rollFadeDuration }
                 NumberAnimation {
                     target: incoming
                     property: "opacity"
                     to: 1
-                    duration: 270
+                    // The incoming glyph must finish fading in exactly when the
+                    // roll lands, or the digit arrives already faded and the last
+                    // frames read as a stutter. Keep it the remainder of the roll,
+                    // not a third literal that drifts when the slider moves.
+                    duration: digit.rollDuration - digit.rollFadeDuration
                     easing.type: Easing.OutCubic
                 }
             }

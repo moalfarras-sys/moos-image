@@ -1,6 +1,6 @@
 // MoOS premium boot splash — Plymouth Script module (v2).
 //
-// A deep-navy field. The CRISP MoOS mark reveals with a confident zoom, then
+// A flat graphite field. The CRISP MoOS mark reveals with a confident zoom, then
 // breathes while a dual-ring orbital system spins around it: two rings at
 // different speeds and tilt angles create parallax depth (the 3D illusion),
 // small energy particles trace elliptical orbits at staggered phases, and a
@@ -14,12 +14,27 @@
 // its text splash and the machine still boots — that is the safe fallback.
 //
 // Assets: logo.png, ring.png, ring2.png, head.png, glow.png, particle.png,
-//         pulse.png — produced by artwork/generate_boot_splash.py and
-//         artwork/generate_new_assets.py.
+//         pulse.png — all seven produced by artwork/generate_boot_splash.py.
+//         (This line used to also name artwork/generate_new_assets.py, a file
+//         that has never existed in this repo. A theme that names a generator
+//         nobody can run is how the sprites drift out of the design system.)
 
-// ── deep near-black navy ground ──────────────────────────────────────────────
-Window.SetBackgroundTopColor(0.027, 0.043, 0.086);      // #070B16
-Window.SetBackgroundBottomColor(0.016, 0.024, 0.039);   // #04060A
+// ── graphite ground — the SAME canvas the desktop opens on ───────────────────
+//
+// This used to be Nova's deep navy (#070B16 -> #04060A). Plymouth is system-wide
+// and cannot follow a per-user Global Theme, so it has to be pinned by hand — and
+// it was the one surface left behind by the UI2 rollout. Measured on the machine:
+// the splash painted navy, the UI2 desktop painted graphite #14191C and the Arena
+// splash painted #0B0714, so EVERY boot showed a visible hue break at the handoff.
+//
+// The ground is now exactly the UI2 canvas token #14191C, flat: top and bottom are
+// the same colour on purpose. A gradient here cannot line up with a wallpaper it
+// knows nothing about, and any mismatch at the seam is precisely the break this is
+// fixing. Flat graphite means splash -> first desktop frame is one continuous
+// colour. #14191C is also neither pure black nor pure white, as the design contract
+// requires of every runtime surface.
+Window.SetBackgroundTopColor(0.078, 0.098, 0.110);      // #14191C — UI2 canvas
+Window.SetBackgroundBottomColor(0.078, 0.098, 0.110);   // #14191C — flat, no seam
 
 sw = Window.GetWidth(0);
 sh = Window.GetHeight(0);
@@ -252,10 +267,18 @@ fun refresh() {
 Plymouth.SetRefreshFunction(refresh);
 
 // ── boot messages (fsck etc.), shown quietly below the mark ──────────────────
+//
+// The three Image.Text tints below were Nova's blue-greys, chosen to sit on the
+// old navy ground. Left as they were they would read cold and slightly blue on
+// graphite — the same hue break the ground fix above removes, just smaller. They
+// are now the exact UI2 tokens: muted #9CAFAC for status text, text #E8F1EF for
+// the passphrase prompt, primary #4ED7C8 for the bullets. Plymouth takes floats,
+// so each channel is the byte/255 rounded to three places, which round-trips back
+// to the same byte.
 message_sprite = Sprite();
 message_sprite.SetZ(20);
 fun message_callback(text) {
-    img = Image.Text(text, 0.62, 0.70, 0.82);
+    img = Image.Text(text, 0.612, 0.686, 0.675);   // muted #9CAFAC
     message_sprite.SetImage(img);
     message_sprite.SetX(cx - img.GetWidth() / 2);
     message_sprite.SetY(sh * 0.86);
@@ -271,7 +294,7 @@ bullets_sprite = Sprite();
 bullets_sprite.SetZ(20);
 fun display_password(prompt, bullets) {
     hide_message();
-    pimg = Image.Text(prompt, 0.78, 0.85, 0.93);
+    pimg = Image.Text(prompt, 0.910, 0.945, 0.937);   // text #E8F1EF
     prompt_sprite.SetImage(pimg);
     prompt_sprite.SetX(cx - pimg.GetWidth() / 2);
     prompt_sprite.SetY(sh * 0.72);
@@ -280,7 +303,7 @@ fun display_password(prompt, bullets) {
     i = 0;
     while (i < bullets) { dots = dots + "•"; i++; }
     if (dots == "") { dots = " "; }
-    bimg = Image.Text(dots, 0.31, 0.85, 0.93);
+    bimg = Image.Text(dots, 0.306, 0.843, 0.784);   // primary #4ED7C8
     bullets_sprite.SetImage(bimg);
     bullets_sprite.SetX(cx - bimg.GetWidth() / 2);
     bullets_sprite.SetY(sh * 0.77);

@@ -6,6 +6,7 @@
 #   moos-theme light      MoOS Tidal Light
 #   moos-theme toggle     the other UI2 variant
 #   moos-theme auto       follow sunrise/sunset, between the two UI2 themes
+#   moos-theme motion     show/set the wallpaper motion policy
 #
 # WHY A SCRIPT AND NOT JUST SYSTEM SETTINGS
 #
@@ -64,6 +65,8 @@ moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switc
   moos-theme toggle     بدّل   | flip the current family light <-> dark
   moos-theme undo       تراجع  | revert to the previously applied theme
   moos-theme auto       تلقائي | follow sunrise/sunset (Graphite/Tidal)
+  moos-theme motion [still|gentle|alive]
+                         حركة الخلفية | show/set wallpaper motion
 
 Every family has a matched light + dark sibling; `toggle` flips the current one.
 EOF
@@ -83,7 +86,7 @@ apply_desktop_scene() {
     command -v gdbus >/dev/null 2>&1 || return 1
     command -v timeout >/dev/null 2>&1 || return 1
 
-    local image="$1" result
+    local image="$1" result status
     result="$(timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
         -m org.kde.PlasmaShell.evaluateScript '
             var IMAGE = "'"$image"'";
@@ -109,7 +112,16 @@ apply_desktop_scene() {
                 } catch (e) { incomplete = true; }
             }
             print(incomplete ? "scene-incomplete" : "scene-ready");
-        ' 2>/dev/null)" || return 1
+        ' 2>/dev/null)" || {
+        # Separate "plasmashell said no" from "plasmashell said nothing yet".
+        # `timeout` reports 124 when the child was still running, and a busy
+        # plasmashell (a Global Theme apply is rebuilding the containments right
+        # now) routinely needs longer than 8s to answer. Verdict UNKNOWN, not
+        # failure — see the caller.
+        status=$?
+        [ "$status" -eq 124 ] && return 2
+        return 1
+    }
     case "$result" in *scene-ready*) return 0 ;; *) return 1 ;; esac
 }
 
@@ -317,7 +329,7 @@ run_with_timeout() {
 # Deliberately do not write kdeglobals here: that is the file watched by the path
 # unit, and touching it would turn a one-shot reconciliation into a feedback loop.
 apply_supplements() {
-    local ini xs v svc n supplement_failed=0
+    local ini xs v svc n scene_status supplement_failed=0
 
     # The desktop scene: the MoOS wallpaper plugin (image + dashboard bento,
     # below the icons) on every desktop containment. KDE's wallpaper-image CLI
@@ -325,7 +337,23 @@ apply_supplements() {
     # org.kde.image and the bento would vanish. Idempotent, so it is safe on
     # every switch AND on the sunrise/sunset sync path.
     if [ -f "$wallpaper" ]; then
-        apply_desktop_scene "$wallpaper_package" || supplement_failed=1
+        apply_desktop_scene "$wallpaper_package"
+        scene_status=$?
+        # A 2 means plasmashell did not ANSWER inside 8 seconds — not that the
+        # scene failed to apply. Treating the two the same was actively harmful:
+        # apply() reports a supplement failure to apply_manual, which then
+        # REVERTS the look the user just chose, so one slow D-Bus call during a
+        # containment rebuild threw away a switch that was otherwise complete
+        # (and the revert is the part the user sees). Report the delay and leave
+        # the verdict to the reconciler: the cascade this apply writes fires the
+        # path watch, and reconcile() re-runs this pass plus its settle watchdog
+        # once the desktop has stopped moving.
+        if [ "$scene_status" -eq 2 ]; then
+            echo "moos-theme: Plasma did not confirm the desktop scene within 8s;" \
+                 "the theme is applied and the scene will be reconciled" >&2
+        elif [ "$scene_status" -ne 0 ]; then
+            supplement_failed=1
+        fi
     else
         supplement_failed=1
     fi
@@ -487,6 +515,22 @@ auto_wallpapers_complete() {
     [ "$desktops" = "$matching" ]
 }
 
+# Compare two font descriptions the way a font engine reads them, not the way a
+# string comparison does. Plasma's own gtkconfig rewrites the GSettings font keys
+# from the KDE font description a moment after this script sets them, and it
+# renders them with a DOUBLE space before the size: we write "IBM Plex Sans 10",
+# the live desktop then holds "IBM Plex Sans  10" — measured on this machine on
+# 2026-07-27, on BOTH font-name and monospace-font-name. A literal comparison
+# therefore never matched, which meant automatic_supplements_complete() could not
+# return true on this image at all: `moos-theme auto` exited 1 with everything
+# actually correct, and every reconcile paid for a full supplement pass (measured
+# at 13 seconds) instead of the cheap check it was written to be. The family and
+# the size are the contract; gtkconfig's spacing is not.
+same_font() {
+    [ "$(printf '%s' "$1" | tr -s '[:blank:]' ' ')" \
+        = "$(printf '%s' "$2" | tr -s '[:blank:]' ' ')" ]
+}
+
 automatic_supplements_complete() {
     local expected_color lock_plugin lock_image konsole_actual gtk_actual ini xs
     local icon_actual cursor_actual font_actual monospace_actual
@@ -520,8 +564,8 @@ automatic_supplements_complete() {
         2>/dev/null | sed -e "s/^'//" -e "s/'$//")"
     [ "$icon_actual" = "$icons" ] || return 1
     [ "$cursor_actual" = "$cursor" ] || return 1
-    [ "$font_actual" = "IBM Plex Sans 10" ] || return 1
-    [ "$monospace_actual" = "JetBrains Mono 10" ] || return 1
+    same_font "$font_actual" "IBM Plex Sans 10" || return 1
+    same_font "$monospace_actual" "JetBrains Mono 10" || return 1
 
     for ini in "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/settings.ini" \
                "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"; do
@@ -543,7 +587,7 @@ automatic_supplements_complete() {
 }
 
 apply() {
-    local lnf="$1" scheme style konsole_profile konsole_profile_name prefer_dark icons adw_css cursor deco wallpaper wallpaper_package label
+    local lnf="$1" scheme style konsole_profile konsole_profile_name prefer_dark icons adw_css cursor deco wallpaper wallpaper_package label write_failed
     load_profile "$lnf" || return
 
     plasma-apply-lookandfeel -a "$lnf" >/dev/null 2>&1 \
@@ -570,17 +614,34 @@ apply() {
     if [ -x /usr/libexec/plasma-changeicons ]; then
         run_with_timeout /usr/libexec/plasma-changeicons "$icons" >/dev/null 2>&1 || true
     fi
+    # This cascade IS the switch — LookAndFeelManager only writes what a package's
+    # own defaults happen to name, so every key is pinned here too. The writes
+    # used to be fire-and-forget, and kwriteconfig6 does fail for real reasons (a
+    # full or read-only home, a config file KConfig cannot parse). When it did,
+    # the desktop was left half-switched and moos-theme still printed its success
+    # label: the user was told the theme applied while looking at the old one,
+    # and nothing anywhere recorded why. Report it and fail — apply_manual then
+    # rolls back to a look that was whole a moment ago, which is a state the user
+    # can understand, unlike half of two themes.
     if command -v kwriteconfig6 >/dev/null 2>&1; then
-        kwriteconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage "$lnf"
-        kwriteconfig6 --file kdeglobals --group General --key ColorScheme "$scheme"
-        kwriteconfig6 --file plasmarc --group Theme --key name "$style"
-        kwriteconfig6 --file kdeglobals --group Icons --key Theme "$icons"
-        kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae.v2
-        kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "$deco"
-        kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft XIA
-        kwriteconfig6 --file ksplashrc --group KSplash --key Theme "$lnf"
-        kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML
-        kwriteconfig6 --file kcminputrc --group Mouse --key cursorTheme "$cursor"
+        write_failed=0
+        kwriteconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage "$lnf" || write_failed=1
+        kwriteconfig6 --file kdeglobals --group General --key ColorScheme "$scheme" || write_failed=1
+        kwriteconfig6 --file plasmarc --group Theme --key name "$style" || write_failed=1
+        kwriteconfig6 --file kdeglobals --group Icons --key Theme "$icons" || write_failed=1
+        kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae.v2 || write_failed=1
+        kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "$deco" || write_failed=1
+        kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft XIA || write_failed=1
+        kwriteconfig6 --file ksplashrc --group KSplash --key Theme "$lnf" || write_failed=1
+        kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML || write_failed=1
+        kwriteconfig6 --file kcminputrc --group Mouse --key cursorTheme "$cursor" || write_failed=1
+        if [ "$write_failed" -ne 0 ]; then
+            echo "moos-theme: could not write the full theme cascade for $lnf" >&2
+            return 1
+        fi
+    else
+        echo "moos-theme: kwriteconfig6 is missing; the theme cascade cannot be written" >&2
+        return 1
     fi
 
     if ! apply_supplements; then
@@ -748,6 +809,162 @@ pin_switch_targets() {
     kwriteconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel "$DARK_LNF"
 }
 
+# Read the effective motion policy from every live MoOS wallpaper containment.
+# A single friendly word is the public interface used by the Theme Picker. Mixed
+# per-screen values are not guessed at: they are a torn transaction and fail
+# loudly, so the picker can never highlight a value that is not actually true.
+query_motion_mode() {
+    command -v gdbus >/dev/null 2>&1 \
+        || { echo "moos-theme: gdbus is required to read wallpaper motion" >&2; return 1; }
+    command -v timeout >/dev/null 2>&1 \
+        || { echo "moos-theme: timeout is required to read wallpaper motion" >&2; return 1; }
+
+    local result token
+    result="$(timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var ds = desktops();
+            var seen = 0;
+            var commonMode = -1;
+            var invalid = false;
+            var mixed = false;
+            for (var i = 0; i < ds.length; i++) {
+                if (ds[i].wallpaperPlugin != "org.moos.ui2.wallpaper") {
+                    continue;
+                }
+                seen++;
+                try {
+                    ds[i].currentConfigGroup =
+                        ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
+                    var raw = String(ds[i].readConfig("MotionMode", "1"));
+                    if (raw != "0" && raw != "1" && raw != "2") {
+                        invalid = true;
+                        continue;
+                    }
+                    var value = Number(raw);
+                    if (commonMode < 0) {
+                        commonMode = value;
+                    } else if (commonMode != value) {
+                        mixed = true;
+                    }
+                } catch (e) {
+                    invalid = true;
+                }
+            }
+            if (seen == 0) {
+                print("moos-motion-error:no-scenes");
+            } else if (invalid) {
+                print("moos-motion-error:invalid");
+            } else if (mixed) {
+                print("moos-motion-error:mixed");
+            } else {
+                print("moos-motion-value:" + commonMode);
+            }
+        ' 2>&1)" \
+        || { echo "moos-theme: could not read wallpaper motion from Plasma" >&2; return 1; }
+
+    token="$(printf '%s\n' "$result" \
+        | grep -oE 'moos-motion-(value:[0-2]|error:[a-z-]+)' | head -n1)"
+    case "$token" in
+        moos-motion-value:0) printf '%s\n' still ;;
+        moos-motion-value:1) printf '%s\n' gentle ;;
+        moos-motion-value:2) printf '%s\n' alive ;;
+        moos-motion-error:no-scenes)
+            echo "moos-theme: no live MoOS wallpaper desktop scenes were found" >&2
+            return 1
+            ;;
+        moos-motion-error:invalid)
+            echo "moos-theme: a desktop scene has an invalid MotionMode value" >&2
+            return 1
+            ;;
+        moos-motion-error:mixed)
+            echo "moos-theme: desktop scenes have inconsistent motion modes" >&2
+            return 1
+            ;;
+        *)
+            echo "moos-theme: Plasma returned no valid wallpaper motion state" >&2
+            return 1
+            ;;
+    esac
+}
+
+# Set both the three-level policy and its legacy Boolean compatibility key in a
+# single evaluateScript transaction. Values interpolated into JavaScript come
+# only from the fixed case table below; arbitrary shell input never reaches it.
+set_motion_mode() {
+    local requested="$1" value ambient result token actual
+    case "$requested" in
+        still)  value=0; ambient=false ;;
+        gentle) value=1; ambient=true ;;
+        alive)  value=2; ambient=true ;;
+        *)
+            echo "moos-theme: invalid motion mode '$requested' (expected still, gentle, or alive)" >&2
+            return 2
+            ;;
+    esac
+
+    command -v gdbus >/dev/null 2>&1 \
+        || { echo "moos-theme: gdbus is required to set wallpaper motion" >&2; return 1; }
+    command -v timeout >/dev/null 2>&1 \
+        || { echo "moos-theme: timeout is required to set wallpaper motion" >&2; return 1; }
+
+    result="$(timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var TARGET = '"$value"';
+            var AMBIENT = '"$ambient"';
+            var ds = desktops();
+            var changed = 0;
+            var failed = 0;
+            for (var i = 0; i < ds.length; i++) {
+                if (ds[i].wallpaperPlugin != "org.moos.ui2.wallpaper") {
+                    continue;
+                }
+                try {
+                    ds[i].currentConfigGroup =
+                        ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
+                    ds[i].writeConfig("MotionMode", TARGET);
+                    ds[i].writeConfig("AmbientMotion", AMBIENT);
+                    ds[i].reloadConfig();
+                    changed++;
+                } catch (e) {
+                    failed++;
+                }
+            }
+            if (changed == 0) {
+                print("moos-motion-error:no-scenes");
+            } else if (failed != 0) {
+                print("moos-motion-error:write-failed");
+            } else {
+                print("moos-motion-set:" + changed);
+            }
+        ' 2>&1)" \
+        || { echo "moos-theme: could not set wallpaper motion through Plasma" >&2; return 1; }
+
+    token="$(printf '%s\n' "$result" \
+        | grep -oE 'moos-motion-(set:[1-9][0-9]*|error:[a-z-]+)' | head -n1)"
+    case "$token" in
+        moos-motion-set:*) ;;
+        moos-motion-error:no-scenes)
+            echo "moos-theme: no live MoOS wallpaper desktop scenes were found" >&2
+            return 1
+            ;;
+        moos-motion-error:write-failed)
+            echo "moos-theme: wallpaper motion was not written to every desktop scene" >&2
+            return 1
+            ;;
+        *)
+            echo "moos-theme: Plasma did not confirm the wallpaper motion change" >&2
+            return 1
+            ;;
+    esac
+
+    actual="$(query_motion_mode)" || return 1
+    if [ "$actual" != "$requested" ]; then
+        echo "moos-theme: wallpaper motion verification failed ($actual != $requested)" >&2
+        return 1
+    fi
+    printf '%s\n' "$actual"
+}
+
 acquire_theme_lock() {
     command -v flock >/dev/null 2>&1 || return 0
     local lock_dir="${XDG_RUNTIME_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}}"
@@ -756,13 +973,42 @@ acquire_theme_lock() {
     flock -w 30 9
 }
 
+# LOCKING DISCIPLINE — two rules, and the second one is the subtle one.
+#
+#   * Everything that MUTATES the desktop takes the exclusive lock above: a
+#     look-and-feel apply, its supplements, and a motion WRITE. They all drive
+#     the same containments through the same plasmashell, and two of them at
+#     once tear (that is what the lock was introduced for).
+#   * A read-only QUERY takes NOTHING. `moos-theme motion` with no value only
+#     reads, and the Theme Picker fires exactly that query the moment its window
+#     opens. Behind the exclusive lock, merely opening the picker either stalled
+#     for the whole of a running theme transition — long enough for the picker's
+#     own 30-second verification watchdog to call it a timeout — or made the next
+#     theme apply queue behind the picker's read. Nothing is bought by locking
+#     it: the read is a single evaluateScript call, and plasmashell runs those
+#     one at a time on its main thread, so a query can never observe half of
+#     set_motion_mode's one-transaction write.
+#
+# That second rule is also why query_motion_mode() must never acquire the lock
+# itself: set_motion_mode() calls it for the verification read while already
+# holding the lock, and acquire_theme_lock's `exec 9>` CLOSES the descriptor
+# that holds it before reopening — so a nested acquire would silently drop the
+# lock for an instant instead of being a harmless no-op.
 command_name="${1:-status}"
+needs_theme_lock=0
 case "$command_name" in
     dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|toggle|auto|sync-auto|reconcile|undo|apply-lnf)
-        acquire_theme_lock \
-            || { echo "moos-theme: another theme transition is still running" >&2; exit 1; }
+        needs_theme_lock=1
+        ;;
+    motion)
+        # `moos-theme motion` reads; `moos-theme motion <mode>` writes.
+        [ "$#" -gt 1 ] && needs_theme_lock=1
         ;;
 esac
+if [ "$needs_theme_lock" -eq 1 ]; then
+    acquire_theme_lock \
+        || { echo "moos-theme: another theme or motion transaction is still running" >&2; exit 1; }
+fi
 
 # Manual picks in the extended family disarm sunrise/sunset (the user chose a
 # specific look) but do NOT change the auto sun/moon targets, which stay
@@ -840,6 +1086,16 @@ case "$command_name" in
     gaming-light)   apply_manual "$GAMING_LIGHT_LNF" ;;
     dev-light)      apply_manual "$DEV_LIGHT_LNF" ;;
     study-light)    apply_manual "$STUDY_LIGHT_LNF" ;;
+    motion)
+        if [ "$#" -eq 1 ]; then
+            query_motion_mode
+        elif [ "$#" -eq 2 ]; then
+            set_motion_mode "$2"
+        else
+            echo "moos-theme: motion accepts at most one value (still, gentle, or alive)" >&2
+            exit 2
+        fi
+        ;;
     list)
         cat <<'EOF'
 Every family has a light + dark sibling. `moos-theme toggle` flips the current one.

@@ -231,8 +231,8 @@ class MoOSVisualSystemTests(unittest.TestCase):
     def test_generated_wallpaper_pair_is_project_bound(self) -> None:
         masters = ROOT / "artwork/moos-ui2/wallpapers"
         expected = {
-            "moos-ui-graphite-frost-master-v3.png",
-            "moos-ui-tidal-frost-master-v2.png",
+            "moos-ui-graphite-flow-master-v4.png",
+            "moos-ui-tidal-flow-master-v3.png",
         }
         self.assertTrue(expected <= {path.name for path in masters.glob("*.png")})
         generator = (ROOT / "artwork/generate_moos_ui2.py").read_text(
@@ -246,10 +246,54 @@ class MoOSVisualSystemTests(unittest.TestCase):
         qml = (package / "contents/ui/main.qml").read_text(encoding="utf-8")
         config = (package / "contents/config/main.xml").read_text(encoding="utf-8")
         self.assertIn('<entry name="AmbientMotion" type="Bool">', config)
+        # MotionMode is the key `moos-theme motion` actually writes. It was
+        # written for months while no such entry existed and no QML line read it,
+        # so 'gentle' and 'alive' were the same desktop. Its default must stay the
+        # -1 SENTINEL: KConfigXT cannot tell an absent key from one holding the
+        # default, so a default of 1 would silently promote every installed
+        # desktop that has AmbientMotion=false and no MotionMode from 'still' back
+        # to 'gentle' on upgrade.
+        self.assertIn('<entry name="MotionMode" type="Int">', config)
+        self.assertRegex(config,
+                         r'<entry name="MotionMode" type="Int">\s*<default>-1</default>')
+        self.assertIn("configuration.MotionMode", qml,
+                      "the scene must READ MotionMode, not merely declare it")
+        self.assertIn("configuration.AmbientMotion", qml,
+                      "MotionMode's -1 sentinel must fall back to the legacy Boolean, "
+                      "or an upgraded desktop loses the motion setting it already had")
         self.assertIn("interval: 90000", qml)
         self.assertIn("duration: 1800", qml)
         self.assertNotRegex(qml, r"interval:\s*(?:[1-9]\d{0,3}|[1-5]\d{4})\b")
         self.assertIn("sourceSize: Qt.size(root.width * Screen.devicePixelRatio", qml)
+        # Every stock Plasma wallpaper plugin ships a config page; this one did
+        # not, so 'Configure Desktop and Wallpaper' offered the owner of the MoOS
+        # scene no way to change the image, the motion or the dashboard, and the
+        # settings dialog read as broken rather than as configured elsewhere.
+        self.assertTrue((package / "contents/ui/config.qml").is_file(),
+                        "the MoOS scene must ship contents/ui/config.qml — that path "
+                        "is the KPackage Plasma/Wallpaper config contract")
+        # Every infinite animation in the package must REST. An unguarded infinite
+        # QML animation pins the render loop at the full frame rate and repaints
+        # the whole window for as long as it runs — about 11% of a CPU core
+        # regardless of the item's size — so a loop with no PauseAnimation is a
+        # permanent tax even at the calm default level.
+        # Read the loop's ACTUAL block by matching its braces, not a fixed number of
+        # characters. A 1400-character window silently passed for as long as every
+        # loop happened to be short, then failed on a correct animation whose rest
+        # simply sat further down than the window reached — a magic number gating a
+        # relationship. The block is what the rule is about, so measure the block.
+        for _qml in sorted((package / "contents/ui").glob("*.qml")):
+            _t = _qml.read_text(encoding="utf-8")
+            for _loop in re.finditer(r"loops:\s*Animation\.Infinite", _t):
+                _open = _t.rfind("{", 0, _loop.start())
+                _depth, _i = 1, _open + 1
+                while _i < len(_t) and _depth:
+                    _depth += (_t[_i] == "{") - (_t[_i] == "}")
+                    _i += 1
+                _body = _t[_open:_i]
+                self.assertIn("PauseAnimation", _body,
+                              f"{_qml.name} has an infinite animation with no rest — "
+                              "every loop in this package must have a duty cycle")
 
     def test_panel_clock_localizes_compact_date_in_rtl(self) -> None:
         qml = (
@@ -331,6 +375,59 @@ class MoOSVisualSystemTests(unittest.TestCase):
             "cat > /usr/share/icons/default/index.theme <<'EOF'", build
         )
         self.assertIn("Inherits=MoOS", build)
+
+    def test_every_font_family_named_in_qml_is_one_the_image_ships(self) -> None:
+        """A `font.family:` naming a family the image does not install does not
+        fail, warn, or log — Qt silently substitutes, and the surface just quietly
+        stops looking like MoOS.
+
+        Found live: the MoOS launcher asked for "IBM Plex Mono" in three places on
+        an image that installs `ibm-plex-sans-fonts` and `ibm-plex-sans-arabic-fonts`
+        but never a Plex mono. `fc-match "IBM Plex Mono"` on the running machine
+        answered **Noto Sans Arabic** — an Arabic PROPORTIONAL face standing in for
+        a monospace one, inside the launcher's result counters. MoOS's own design
+        contract names JetBrains Mono as the code face, and that one is installed.
+
+        So the rule is a relationship, not a list of blessed strings: every family
+        a shipped QML asks for by name must be traceable to something this build
+        actually puts on disk — a dnf package in build.sh, or a font file carried in
+        system_files/."""
+        # family -> the evidence that the image provides it
+        PROVIDERS = {
+            "IBM Plex Sans": ("dnf", "ibm-plex-sans-fonts"),
+            "IBM Plex Sans Arabic": ("dnf", "ibm-plex-sans-arabic-fonts"),
+            "JetBrains Mono": ("dnf", "jetbrains-mono-fonts"),
+            "Inter": ("file", "system_files/usr/share/fonts/inter/Inter.ttf"),
+        }
+        build = (ROOT / "build_files/build.sh").read_text(encoding="utf-8")
+
+        used: dict[str, list[str]] = {}
+        for qml in sorted((ROOT / "system_files").rglob("*.qml")):
+            for family in re.findall(r'font\.family:\s*"([^"]+)"',
+                                     qml.read_text(encoding="utf-8", errors="replace")):
+                used.setdefault(family, []).append(
+                    qml.relative_to(ROOT).as_posix())
+
+        self.assertTrue(used, "no font.family literals found — did the tree move?")
+        for family, files in sorted(used.items()):
+            with self.subTest(family=family):
+                self.assertIn(
+                    family, PROVIDERS,
+                    f"{family!r} is requested by {files[0]} (and {len(files) - 1} "
+                    "other places) but nothing in this test can prove the image "
+                    "ships it. Install it in build.sh or carry it in system_files/, "
+                    "then name the evidence here — otherwise Qt substitutes another "
+                    "face and the surface silently stops looking like MoOS.")
+                kind, evidence = PROVIDERS[family]
+                if kind == "dnf":
+                    self.assertIn(
+                        evidence, build,
+                        f"{family!r} is used in QML but build.sh no longer installs "
+                        f"{evidence}")
+                else:
+                    self.assertTrue(
+                        (ROOT / evidence).is_file(),
+                        f"{family!r} is used in QML but {evidence} is not in the tree")
 
 
 if __name__ == "__main__":

@@ -365,47 +365,58 @@ Type=Service
 """)
 
 
-def build_lnf(key: str, meta: dict) -> None:
-    m = hexmap(key)
-    dst = SHARE / "plasma/look-and-feel" / meta["lnf"]
-    if dst.exists():
-        shutil.rmtree(dst)
-    dst.mkdir(parents=True, exist_ok=True)
-    # One session-screen implementation across every palette. QML is copied
-    # byte-for-byte so splash/logout behaviour, layout and motion cannot fork.
-    # Only artwork SVGs are recoloured; QML consumes Kirigami palette roles.
-    for sub in ("logout", "splash"):
-        s = SRC_LNF / "contents" / sub
-        if not s.exists():
-            continue
-        for src in sorted(s.rglob("*")):
-            rel = src.relative_to(SRC_LNF)
-            out = dst / rel
-            if src.is_dir():
-                out.mkdir(parents=True, exist_ok=True)
-            elif src.suffix == ".svg":
-                write(out, recolor(src.read_text(encoding="utf-8"), m))
-            else:
-                out.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src, out)
-    # metadata.json
-    write(dst / "metadata.json", json.dumps({
-        "KPlugin": {
-            "Id": meta["lnf"], "Name": meta["name"], "Description": meta["desc"],
-            "Authors": [{"Name": "Moalfarras"}], "Version": "2.0.0",
-            "License": "GPL-3.0-or-later",
-            "Website": "https://github.com/moalfarras-sys/moos-image",
-            "Name[ar]": meta["name"],
-        },
-        "KPackageStructure": "Plasma/LookAndFeel", "X-Plasma-APIVersion": "2",
-    }, ensure_ascii=False, indent=4))
-    # contents/defaults — the cascade the switcher also writes live. Light
-    # siblings carry the light icon theme and the dark-on-light pointer, exactly
-    # as the base MoOS Light theme does.
+def lnf_defaults_text(meta: dict) -> str:
+    """The KConfig body of a look-and-feel package's contents/defaults.
+
+    Kept as its own function because it is the ONE place a Global Theme states
+    what it is made of, and because the [Wallpaper] binding below must come from
+    the same THEMES row as the wallpaper package that is generated — the two can
+    then never name different things.
+
+    THE WALLPAPER BINDING, AND THE BELIEF THAT KEPT IT OUT
+      Every MoOS theme shipped a matching /usr/share/wallpapers package, and not
+      one look-and-feel package said so. Picking a MoOS theme in System Settings
+      -> Colours & Themes -> Global Theme therefore gave MoOS colours on whoever
+      else's wallpaper was already there; the complete look existed only inside
+      moos-theme's bash. The key was deliberately withheld on the belief that a
+      [Wallpaper] group here makes LookAndFeelManager force org.kde.image back
+      onto every containment and erase org.moos.ui2.wallpaper (the scene that
+      draws the dashboard). That is not what Plasma 6.7.3 does:
+
+        * KLookAndFeelManager::save() never reads [Wallpaper] at all. Checked
+          both ways — in plasma-workspace's source and in the shipped
+          /usr/lib64/libklookandfeel.so.6.7.3, where the UTF-16 literals
+          "Wallpaper" and "Image" are referenced from exactly two functions,
+          packageContents() and remove(), and never from save().
+        * save() only asks plasmashell to rebuild the desktop layout when the
+          package provides contents/layouts/ (the DesktopLayout content flag).
+          No MoOS look ships layouts, so that path is dead for us regardless.
+        * remove() — the "delete this Global Theme" action, not Apply — deletes
+          the named wallpaper only under ~/.local/share/wallpapers. Ours live in
+          /usr/share/wallpapers and are out of its reach.
+
+      What the key actually drives is libkworkspace's
+      DefaultWallpaper::defaultWallpaperPackage(): it reads kdeglobals [KDE]
+      LookAndFeelPackage, opens that package's contents/defaults and takes
+      [Wallpaper] Image. org.kde.image (MediaProxy::useSingleImageDefaults) and
+      the Wallpaper KCM both call it, and KLookAndFeelManager::packageContents()
+      reads the same key to decide whether System Settings lists a wallpaper
+      among the theme's contents. The value must be the BARE package directory
+      name: it is resolved with QStandardPaths::locate(GenericDataLocation,
+      "wallpapers/<Image>"), so an absolute path silently resolves to nothing.
+
+      There is NO look-and-feel key for the lock-screen wallpaper in this Plasma
+      — save() never opens kscreenlockerrc — so none is written here. The lock
+      screen reaches the theme's wallpaper only through the same
+      DefaultWallpaper fallback, and only while nothing pins an explicit Image
+      in kscreenlockerrc.
+    """
+    # Light siblings carry the light icon theme and the dark-on-light pointer,
+    # exactly as the base MoOS Light theme does.
     light = meta.get("light", False)
     icons = "MoOSUI2Light" if light else "MoOSUI2"
     cursor = "MoOSDark" if light else "MoOS"
-    write(dst / "contents/defaults", f"""# {meta['name']} matched Global Theme defaults. Generated file.
+    return f"""# {meta['name']} matched Global Theme defaults. Generated file.
 [kdeglobals][General]
 ColorScheme={meta['style']}
 
@@ -414,6 +425,20 @@ widgetStyle=Breeze
 
 [plasmarc][Theme]
 name={meta['style']}
+
+# This theme's own wallpaper — the binding that makes System Settings -> Global
+# Theme deliver the whole MoOS look instead of MoOS colours on the previous
+# wallpaper. Plasma 6.7.3 resolves it through libkworkspace's
+# DefaultWallpaper::defaultWallpaperPackage(): kdeglobals [KDE]
+# LookAndFeelPackage -> that package's contents/defaults -> [Wallpaper] Image,
+# read as a BARE /usr/share/wallpapers package name (an absolute path resolves
+# to nothing). It is what org.kde.image falls back to on any surface with no
+# Image of its own, what the Wallpaper KCM offers as "Default", and what makes
+# System Settings list a wallpaper among this theme's contents. Applying the
+# theme does NOT rewrite any containment's wallpaper plugin: LookAndFeelManager
+# ::save() never reads this group, so the MoOS scene plugin stays put.
+[Wallpaper]
+Image={meta['wall']}
 
 [ksplashrc][KSplash]
 Theme={meta['lnf']}
@@ -439,8 +464,78 @@ NoiseStrength={gen.KWIN_NOISE_STRENGTH}
 
 [kcminputrc][Mouse]
 cursorTheme={cursor}
-""")
-    write(dst / "README.md", f"# {meta['name']}\n\nGenerated by artwork/generate_moos_themes.py — a MoOS UI-family look.\n")
+"""
+
+
+def logout_readme_text(meta: dict) -> str:
+    """The per-package contents/logout/README.md.
+
+    The same document generate_moos_ui2.logout_readme() writes for the base
+    Graphite/Tidal pair, carrying THIS member's own name and package id.
+
+    It has to be templated rather than copied. contents/logout is otherwise
+    copied byte-for-byte on purpose — the QML is the shared engine and must not
+    fork — but a README is prose ABOUT the package, and the blind copy handed 14
+    of the 16 packages a file that announced "Graphite Dark" and printed a
+    --lookandfeel line for org.moos.ui2. Anyone opening the Arena package to
+    preview its power screen was told to preview the Graphite one instead.
+    """
+    variant = meta["name"].split("·")[-1].strip()
+    return f"""# MoOS UI logout — {variant}
+
+واجهة الخروج الرسمية للحزمة `{meta['lnf']}`. تحافظ على إشارات وقدرات مضيف
+KDE Plasma 6 الفعلية (logout, lock, suspend, hibernate, restart, shutdown)
+وتستخدم مكوّن `MoOSUI2ActionButton.qml` المحلي المطابق للوحة {variant}.
+
+```bash
+/usr/libexec/ksmserver-logout-greeter --windowed --lookandfeel {meta['lnf']}
+```
+
+`Logout.qml` و`MoOSUI2ActionButton.qml`: GPL-2.0-or-later. عقد المضيف مشتق
+من KDE Breeze؛ التنفيذ البصري لـ MoOS، © 2026 Moalfarras.
+"""
+
+
+def build_lnf(key: str, meta: dict) -> None:
+    m = hexmap(key)
+    dst = SHARE / "plasma/look-and-feel" / meta["lnf"]
+    if dst.exists():
+        shutil.rmtree(dst)
+    dst.mkdir(parents=True, exist_ok=True)
+    # One session-screen implementation across every palette. QML is copied
+    # byte-for-byte so splash/logout behaviour, layout and motion cannot fork.
+    # Only artwork SVGs are recoloured; QML consumes Kirigami palette roles.
+    for sub in ("logout", "splash"):
+        s = SRC_LNF / "contents" / sub
+        if not s.exists():
+            continue
+        for src in sorted(s.rglob("*")):
+            rel = src.relative_to(SRC_LNF)
+            out = dst / rel
+            if src.is_dir():
+                out.mkdir(parents=True, exist_ok=True)
+            elif src.suffix == ".svg":
+                write(out, recolor(src.read_text(encoding="utf-8"), m))
+            elif src.name == "README.md":
+                # Prose about the package, not engine — templated per member.
+                write(out, logout_readme_text(meta))
+            else:
+                out.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, out)
+    # metadata.json
+    write(dst / "metadata.json", json.dumps({
+        "KPlugin": {
+            "Id": meta["lnf"], "Name": meta["name"], "Description": meta["desc"],
+            "Authors": [{"Name": "Moalfarras"}], "Version": "2.0.0",
+            "License": "GPL-3.0-or-later",
+            "Website": "https://github.com/moalfarras-sys/moos-image",
+            "Name[ar]": meta["name"],
+        },
+        "KPackageStructure": "Plasma/LookAndFeel", "X-Plasma-APIVersion": "2",
+    }, ensure_ascii=False, indent=4))
+    # contents/defaults — the cascade the switcher also writes live.
+    write(dst / "contents/defaults", lnf_defaults_text(meta))
+    write(dst / "README.md",f"# {meta['name']}\n\nGenerated by artwork/generate_moos_themes.py — a MoOS UI-family look.\n")
 
 
 # ---------------------------------------------------------------- wallpaper art

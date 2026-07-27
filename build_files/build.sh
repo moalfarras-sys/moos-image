@@ -289,7 +289,8 @@ fi
 # The ISO config itself ships in system_files:
 #   /usr/lib/bootc-image-builder/iso.yaml
 # plymouth-plugin-script: the moos boot theme is a native SCRIPT theme —
-# moos.script drives the reveal by moving four small sprites (logo/ring/head/glow).
+# moos.script drives the reveal by moving seven small sprites
+# (logo/ring/ring2/head/glow/particle/pulse).
 # plymouth-plugin-two-step is kept because Kinoite's own bgrt/spinner fallbacks use
 # it; both explicit installs are harmless guarantees.
 dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot \
@@ -309,10 +310,10 @@ plymouth-set-default-theme moos
 # loads, is missing falls straight back to Plymouth's TEXT splash — a green build
 # with a grey boot, exactly what the two-step theme once shipped (loading lock
 # image -> "can't show splash: No such file or directory" -> text splash). Nothing
-# used to check what the plugin LOADS. So GATE that the script and its four sprites
+# used to check what the plugin LOADS. So GATE that the script and its seven sprites
 # actually landed in the image.
 _MOOS=/usr/share/plymouth/themes/moos
-for _f in moos.script logo.png ring.png head.png glow.png; do
+for _f in moos.script logo.png ring.png ring2.png head.png glow.png particle.png pulse.png; do
     test -f "${_MOOS}/${_f}" || {
         echo "GATE FAIL: moos theme is missing ${_f} — the Script splash would abort to text"
         exit 1
@@ -2169,6 +2170,110 @@ rpm -q microcode_ctl >/dev/null 2>&1 || rpm -q amd-ucode-firmware >/dev/null 2>&
 chmod 0755 /usr/libexec/moos-hardware-adapt
 chmod 0755 /usr/libexec/moos-wait-drm
 systemctl enable moos-hardware-adapt.service
+
+# Plasma Login Manager reads the monolithic /etc/plasmalogin.conf AFTER its vendor
+# layers, so any ACTIVE key there outranks everything MoOS ships and can mask the
+# MoOS greeter. That is not hypothetical: the running desktop was found showing
+# KDE's Hunyango login wallpaper because kcm-plasmalogin had written exactly that
+# key into /etc.
+#
+# But the file the IMAGE contains is not that file, and an earlier version of this
+# gate got that backwards and would have failed every single build. What
+# plasma-login-manager actually ships at /etc/plasmalogin.conf is a 1041-byte
+# TEMPLATE whose every key is commented out — it decides nothing and masks nothing.
+# Deleting it would only make the next `rpm-ostree upgrade` restore it, and on an
+# already-installed machine a build-time delete cannot reach /etc at all, because
+# ostree carries the local /etc forward. (That half is repaired at boot, by
+# moos-wait-drm, which is the only place that CAN reach it.)
+#
+# So the gate asserts a RELATIONSHIP, not a constant: whatever the base ships, no
+# ACTIVE key in /etc/plasmalogin.conf may name a greeter surface. Comments, blank
+# lines and bare group headers are all fine. A future base that starts shipping a
+# real value stops the build with the offending line quoted, instead of the build
+# silently publishing an image whose login screen is KDE's.
+if [ -f /etc/plasmalogin.conf ]; then
+    _login_active="$(
+        sed -e 's/[[:space:]]//g' -e '/^#/d' -e '/^;/d' -e '/^$/d' -e '/^\[.*\]$/d' \
+            /etc/plasmalogin.conf
+    )"
+    if [ -n "$_login_active" ]; then
+        _login_masking="$(printf '%s\n' "$_login_active" \
+            | grep -E '^(WallpaperPluginId|Theme|Background|Image|ShowClock)=' || true)"
+        if [ -n "$_login_masking" ]; then
+            echo "GATE FAIL: /etc/plasmalogin.conf carries an active greeter key that"
+            echo "           outranks every MoOS login layer:"
+            printf '           %s\n' "$_login_masking"
+            exit 1
+        fi
+    fi
+    unset _login_active _login_masking
+fi
+
+# MoOS owns the DISTRO-DEFAULTS slot, and it must still own it after every package
+# operation above. `COPY system_files/ /` runs BEFORE this script, so any dnf5 transaction
+# that pulls kde-settings-plasmalogin would put Fedora's defaults.conf back — carrying
+# Image=file:///usr/share/wallpapers/Fedora/, a directory this build deletes — and the login
+# screen would silently lose its strongest MoOS layer while every other check stayed green.
+#
+# Precedence, measured from the greeter binary 2026-07-27 (KConfig gives an EARLIER
+# addConfigSources call priority over a later one): /etc/plasmalogin.conf >
+# /etc/plasmalogin.conf.d/* > /usr/lib/plasmalogin/defaults.conf >
+# /usr/lib/plasmalogin/plasmalogin.conf.d/*. defaults.conf is the strongest layer the image
+# is allowed to own; /etc belongs to the administrator.
+grep -q '^WallpaperPluginId=org\.moos\.' /usr/lib/plasmalogin/defaults.conf 2>/dev/null || {
+    echo "GATE FAIL: /usr/lib/plasmalogin/defaults.conf is not MoOS's — a package"
+    echo "           transaction restored Fedora's login defaults over system_files"
+    exit 1
+}
+grep -q 'wallpapers/Fedora' /usr/lib/plasmalogin/defaults.conf && {
+    echo "GATE FAIL: the login defaults still reference /usr/share/wallpapers/Fedora,"
+    echo "           which this build deletes — the login layer would be dangling"
+    exit 1
+}
+echo "MoOS: the login screen owns the documented distro-defaults slot"
+
+# -----------------------------------------------------------------------------
+# The greeter account's own colours — provisioned, not inherited
+# -----------------------------------------------------------------------------
+# plasma-login-manager runs its greeter as the `plasmalogin` system user, home
+# /var/lib/plasmalogin. Everything that account's Plasma writes — kdeglobals,
+# plasmarc — lands there, and NOTHING in this repo ever put it there. FOUND
+# 2026-07-27 on the flagship: that account's ~/.config/kdeglobals carried the
+# MoOSUI2 *Light* palette (BackgroundNormal=216,235,231) while the login config
+# pins the *dark* Graphite wallpaper. The MoOS login scene no longer asks that
+# palette for anything (it owns its tokens now), but the greeter's chrome does:
+# PlasmaExtras.PasswordField and the breeze components are compiled against
+# Kirigami.Theme and cannot be told anything else.
+#
+# /var is not writable at build time (bootc requires a clean /var) and an
+# installed machine carries its own /var across upgrades, so a build-time `cp`
+# would be wrong twice. tmpfiles.d reaches both: the canonical files live in
+# /usr where they are reproducible, and a `C+` rule materialises them every
+# boot. Force-copy and not copy-if-absent on purpose — copy-if-absent would
+# leave exactly the machines that already have the wrong palette wrong forever,
+# which is the bug being fixed. systemd-tmpfiles orders items by path, so the
+# vendor's `d /var/lib/plasmalogin` is applied before these regardless of file
+# name, and no path is declared twice.
+[ -f /usr/share/color-schemes/MoOSUI2Dark.colors ] || {
+    echo "FATAL: MoOSUI2Dark.colors is missing — the greeter account has no palette to be given"
+    exit 1
+}
+install -d -m 0755 /usr/share/moos/plasmalogin
+{
+    cat /usr/share/color-schemes/MoOSUI2Dark.colors
+    printf '\n[General]\nColorScheme=MoOSUI2Dark\n'
+    printf '\n[Icons]\nTheme=MoOSUI2\n'
+    printf '\n[KDE]\nwidgetStyle=Breeze\nLookAndFeelPackage=org.moos.ui2\n'
+} > /usr/share/moos/plasmalogin/kdeglobals
+printf '[Theme]\nname=MoOSUI2\n' > /usr/share/moos/plasmalogin/plasmarc
+cat > /usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf <<'EOF'
+# The plasmalogin greeter account's Plasma configuration is IMAGE state, not user
+# state: no human ever logs into it, and whatever its first run happened to write
+# is not reproducible. Materialise the MoOS answer on every boot.
+d  /var/lib/plasmalogin/.config             0700 plasmalogin plasmalogin -
+C+ /var/lib/plasmalogin/.config/kdeglobals  0600 plasmalogin plasmalogin - /usr/share/moos/plasmalogin/kdeglobals
+C+ /var/lib/plasmalogin/.config/plasmarc    0600 plasmalogin plasmalogin - /usr/share/moos/plasmalogin/plasmarc
+EOF
 
 # Live-session polish: on rd.live.image boots ONLY, the demo/installer session
 # must never lock (liveuser has no password — a mid-install lock reads as a

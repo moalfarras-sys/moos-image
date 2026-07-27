@@ -23,17 +23,63 @@ WallpaperItem {
     id: root
 
     property int ambientPhase: 0
-    // Three conditions, and the third is the one that used to be missing: a user
-    // who turns Plasma's animations OFF (System Settings → General Behaviour, or
-    // any accessibility profile) still got a permanently breathing 4K desktop,
-    // because this gate only knew about the plugin's own AmbientMotion key. Plasma
-    // signals "no animation" by collapsing every duration to 0, exactly as the
-    // bento already honours it — so the scene layer honours it too, and the whole
-    // wallpaper falls completely still instead of animating against the setting.
+
+    // ── The motion policy, resolved once, for the whole scene ─────────────────
+    //
+    // Two config keys describe the same thing. `MotionMode` (0 still / 1 gentle /
+    // 2 alive) is the real one: it is what `moos-theme motion` writes and what
+    // the Theme Picker highlights. `AmbientMotion` is the original Boolean, still
+    // written by moos-theme in the same transaction and still present in every
+    // already-installed desktop's appletsrc. MotionMode wins when it holds a real
+    // level; its -1 sentinel means "this desktop predates the key", and then the
+    // old Boolean answers (see contents/config/main.xml for why the default is a
+    // sentinel and not 1).
+    //
+    // `undefined` is handled as well as -1, because a running plasmashell can be
+    // holding an OLDER copy of main.xml than this file — during an rpm-ostree
+    // upgrade the QML is read fresh while the registered config keys are not — and
+    // an unregistered key reads back undefined, not its default.
+    readonly property int configuredMotionMode: {
+        var raw = root.configuration.MotionMode
+        var mode = (raw === undefined || raw === null) ? -1 : Number(raw)
+        if (mode === 0 || mode === 1 || mode === 2) {
+            return mode
+        }
+        return root.configuration.AmbientMotion === false ? 0 : 1
+    }
+
+    // Plasma signals "the user turned animations off" (System Settings → General
+    // Behaviour, or any accessibility profile) by collapsing its animation
+    // durations, and that must beat any level the user or moos-theme chose.
+    //
+    // This gate used to compare longDuration against ZERO, and was therefore
+    // DEAD: Kirigami FLOORS that value at 1 and never returns 0, so the
+    // expression could not be false and "disable animations" stopped nothing at
+    // all on the largest surface on the screen. KDE's own three BusyIndicator.qml
+    // (org/kde/breeze, org/kde/desktop, org/kde/plasma/components) all compare
+    // against 1, and RejectPasswordPathAnimation.qml writes
+    // `longDuration <= 1 ? 1 : 600`. Comparing against 1 is the only form that
+    // ever fires.
+    //
+    // Spelled out in prose rather than quoting the broken expression on purpose:
+    // tests/test_moos_motion_gate.py forbids the old form by searching the RAW
+    // file text, comments included, so a comment that quotes the bug it fixes
+    // fails the gate that exists to catch the bug.
+    //
+    // The name carries the config key deliberately. Every consumer of this value
+    // — here, the bento, every card — reads `resolvedMotionMode` and therefore
+    // says out loud which key it is obeying; the previous generic name is how a
+    // gate invented locally and consulting nothing went unnoticed for so long.
+    readonly property int resolvedMotionMode:
+        Kirigami.Units.longDuration > 1 ? root.configuredMotionMode : 0
+
+    // The scene layer's own on/off seam. It additionally waits for the art,
+    // because the ambient washes crossfade OVER the wallpaper and have nothing to
+    // sit on until it has decoded. The bento does not wait — it is an overlay,
+    // and holding its entrance hostage to a 4K JPEG decode is what made the
+    // dashboard appear a second late on cold boots.
     readonly property bool motionEnabled:
-        root.configuration.AmbientMotion
-        && Kirigami.Units.longDuration > 0
-        && art.status === Image.Ready
+        root.resolvedMotionMode > 0 && art.status === Image.Ready
 
     readonly property bool lightSurface:
         Kirigami.Theme.backgroundColor.hslLightness > 0.55
@@ -233,6 +279,13 @@ WallpaperItem {
             height: implicitHeight
             transformOrigin: Item.TopLeft
             scale: bentoFrame.fit
+            // The bento used to INVENT its own motion gate and never see this
+            // plugin's configuration at all, so eight infinite card animations
+            // could not be stopped by anything a user could reach — `moos-theme
+            // motion still` stilled the wallpaper's two ambient washes and left
+            // the dashboard shimmering. The policy is resolved once, up here, and
+            // threaded down.
+            resolvedMotionMode: root.resolvedMotionMode
             themeLabel: root.themeLabel
         }
     }

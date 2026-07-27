@@ -144,6 +144,21 @@ printf '%s\\t%s\\n' "$konsole_profile" "$konsole_profile_name"
                     complete,
                     rf"gsettings get org\.gnome\.desktop\.interface {re.escape(key)}",
                 )
+        # Plasma's gtkconfig rewrites these GSettings font keys from the KDE font
+        # description and renders them DOUBLE-SPACED — measured live on this
+        # image: 'IBM Plex Sans  10', 'JetBrains Mono  10'. An exact string
+        # compare therefore never matched, so automatic_supplements_complete()
+        # could not return true at all: `moos-theme auto` exited 1 with the
+        # desktop already correct and every reconcile paid the full ~13s pass.
+        self.assertIn('same_font "$font_actual" "IBM Plex Sans 10"', complete)
+        self.assertIn(
+            'same_font "$monospace_actual" "JetBrains Mono 10"', complete
+        )
+        self.assertNotRegex(
+            complete, r'\[ "\$font_actual" = "IBM Plex Sans 10" \]',
+            "font comparison must normalise whitespace, or gtkconfig's double "
+            "space makes the completeness check permanently false",
+        )
 
     def test_portal_preferences_keep_kde_session_services(self) -> None:
         """The /etc override must extend the stock KDE map, not erase services."""
@@ -586,6 +601,224 @@ target_lnf "$1" "$2"
         self.assertIn("sync_auto", auto_case)
         self.assertIn("moos-theme.lock", switch)
         self.assertIn("moos-theme.lock", APPLY.read_text(encoding="utf-8"))
+        # A theme write that fails must be reported, and a plasmashell that is
+        # merely SLOW must not be read as "the theme did not apply": a supplement
+        # failure propagates to apply_manual, which REVERTS the look the user just
+        # chose. `timeout` reports 124 when the child was still running, so that
+        # one status is a verdict of UNKNOWN and is left to the reconciler.
+        apply_body = re.search(r"(?ms)^apply\(\) \{.*?^\}$", switch).group(0)
+        self.assertIn(
+            "write_failed=1", apply_body,
+            "a failing kwriteconfig6 must be reported, not swallowed — the "
+            "desktop is left half-switched while moos-theme prints success",
+        )
+        scene = function(switch, "apply_desktop_scene")
+        self.assertIn(
+            '[ "$status" -eq 124 ] && return 2', scene,
+            "an 8s plasmashell timeout is not a failed apply",
+        )
+        self.assertIn('[ "$scene_status" -eq 2 ]', supplements)
+
+    def test_wallpaper_motion_policy_is_atomic_and_picker_verifies_live_state(self) -> None:
+        switch = SWITCH.read_text(encoding="utf-8")
+        picker = (
+            ROOT / "system_files/usr/share/moos/theme-picker/main.qml"
+        ).read_text(encoding="utf-8")
+
+        query = function(switch, "query_motion_mode")
+        mutation = function(switch, "set_motion_mode")
+        for token in (
+            "desktops()",
+            'wallpaperPlugin != "org.moos.ui2.wallpaper"',
+            '["Wallpaper", "org.moos.ui2.wallpaper", "General"]',
+            'readConfig("MotionMode", "1")',
+            "moos-motion-error:mixed",
+        ):
+            self.assertIn(token, query)
+        for mode, value in (("still", "0"), ("gentle", "1"), ("alive", "2")):
+            self.assertRegex(
+                mutation,
+                rf"(?m)^\s*{mode}\)\s+value={value};\s+ambient=(?:false|true)\s+;;$",
+            )
+        self.assertRegex(
+            mutation,
+            r"(?m)^\s*still\)\s+value=0;\s+ambient=false\s+;;$",
+        )
+        self.assertRegex(
+            mutation,
+            r"(?m)^\s*(?:gentle|alive)\)\s+value=[12];\s+ambient=true\s+;;$",
+        )
+        self.assertIn('writeConfig("MotionMode", TARGET)', mutation)
+        self.assertIn('writeConfig("AmbientMotion", AMBIENT)', mutation)
+        self.assertIn("reloadConfig()", mutation)
+        self.assertIn('actual="$(query_motion_mode)"', mutation)
+        self.assertIn('[ "$actual" != "$requested" ]', mutation)
+        self.assertRegex(
+            switch,
+            r"(?m)^\s*dark\|.*\|apply-lnf\)\s*$",
+            "every command that MUTATES the desktop must enter the transaction lock",
+        )
+        self.assertIn(
+            '[ "$#" -gt 1 ] && needs_theme_lock=1',
+            switch,
+            "a motion WRITE must take the same transaction lock as a theme change "
+            "and a read-only motion QUERY must take nothing: the Theme Picker "
+            "fires that query the moment it opens, so behind the exclusive write "
+            "lock merely opening the picker waited out a whole theme transition "
+            "(or made the next one wait on it)",
+        )
+
+        self.assertIn(
+            'readonly property string currentMotionQuery: "moos-theme motion"',
+            picker,
+        )
+        for mode in ("still", "gentle", "alive"):
+            self.assertIn(f'cmd = "moos-theme motion {mode}"', picker)
+            self.assertIn(f'onClicked: root.setMotion("{mode}")', picker)
+            self.assertIn(f'root.currentMotion === "{mode}"', picker)
+        self.assertNotRegex(
+            picker,
+            r'"moos-theme motion "\s*\+',
+            "mutable QML values must never be concatenated into a shell command",
+        )
+        self.assertNotIn("id: motionExec", picker)
+        self.assertIn("themeExec.run(cmd)", picker)
+        self.assertIn("حركة الخلفية  ·  Wallpaper motion", picker)
+
+        motion_completion = picker[
+            picker.index("if (cmd === pendingMotionCommand)"):
+            picker.index("if (cmd !== pendingThemeCommand)")
+        ]
+        self.assertLess(
+            motion_completion.index("normalExit(data)"),
+            motion_completion.index("awaitingMotionReadback = true"),
+        )
+        self.assertLess(
+            motion_completion.index("awaitingMotionReadback = true"),
+            motion_completion.index("refreshMotion()"),
+            "motion readback must start only after the mutation process exits",
+        )
+        motion_readback = picker[
+            picker.index("} else if (cmd === currentMotionQuery)"):
+            picker.index("} else if (cmd === currentQuery)")
+        ]
+        self.assertIn("activeMotion !== pendingExpectedMotion", motion_readback)
+        self.assertIn("clearOperationState()", motion_readback)
+
+    @unittest.skipIf(os.name == "nt", "motion CLI harness requires POSIX executable shims")
+    def test_wallpaper_motion_cli_maps_and_validates_exact_values(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory(prefix="moos-motion-test-") as temporary:
+            temp = Path(temporary)
+            state = temp / "motion-state"
+            state.write_text("1\n", encoding="utf-8")
+
+            tools = {
+                "timeout": """#!/usr/bin/env bash
+shift
+exec "$@"
+""",
+                "flock": """#!/usr/bin/env bash
+printf '%s\n' locked >>"$MOOS_MOTION_TEST_LOCK_LOG"
+exit 0
+""",
+                "gdbus": """#!/usr/bin/env bash
+if [[ "${MOOS_MOTION_TEST_FAIL:-}" == "mixed" ]]; then
+    printf "%s\n" "(true, 'moos-motion-error:mixed\\n')"
+    exit 0
+fi
+if [[ "$*" == *'writeConfig("MotionMode", TARGET)'* ]]; then
+    if [[ "$*" == *'var TARGET = 0;'* ]]; then mode=0
+    elif [[ "$*" == *'var TARGET = 1;'* ]]; then mode=1
+    elif [[ "$*" == *'var TARGET = 2;'* ]]; then mode=2
+    else exit 9
+    fi
+    printf '%s\n' "$mode" >"$MOOS_MOTION_TEST_STATE"
+    printf "%s\n" "(true, 'moos-motion-set:2\\n')"
+else
+    mode="$(sed -n '1p' "$MOOS_MOTION_TEST_STATE")"
+    printf "%s\n" "(true, 'moos-motion-value:${mode}\\n')"
+fi
+""",
+            }
+            for name, source in tools.items():
+                path = temp / name
+                path.write_text(source, encoding="utf-8")
+                path.chmod(0o755)
+
+            runtime = temp / "runtime"
+            runtime.mkdir()
+            lock_log = temp / "lock-log"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "PATH": f"{temp}{os.pathsep}{env.get('PATH', '')}",
+                    "XDG_RUNTIME_DIR": str(runtime),
+                    "MOOS_MOTION_TEST_STATE": str(state),
+                    "MOOS_MOTION_TEST_LOCK_LOG": str(lock_log),
+                }
+            )
+
+            for requested, stored in (
+                ("still", "0"),
+                ("gentle", "1"),
+                ("alive", "2"),
+            ):
+                with self.subTest(requested=requested):
+                    changed = subprocess.run(
+                        [BASH, str(SWITCH), "motion", requested],
+                        env=env,
+                        check=True,
+                        text=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+                    self.assertEqual(changed.stdout, f"{requested}\n")
+                    self.assertEqual(state.read_text(encoding="utf-8"), f"{stored}\n")
+
+                    queried = subprocess.run(
+                        [BASH, str(SWITCH), "motion"],
+                        env=env,
+                        check=True,
+                        text=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+                    self.assertEqual(queried.stdout, f"{requested}\n")
+
+            invalid = subprocess.run(
+                [BASH, str(SWITCH), "motion", "cinematic"],
+                env=env,
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertEqual(invalid.returncode, 2)
+            self.assertIn("expected still, gentle, or alive", invalid.stderr)
+
+            mixed_env = env | {"MOOS_MOTION_TEST_FAIL": "mixed"}
+            mixed = subprocess.run(
+                [BASH, str(SWITCH), "motion"],
+                env=mixed_env,
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertNotEqual(mixed.returncode, 0)
+            self.assertEqual(mixed.stdout, "")
+            self.assertIn("inconsistent motion modes", mixed.stderr)
+            self.assertEqual(
+                len(lock_log.read_text(encoding="utf-8").splitlines()),
+                4,
+                "the four motion WRITES above (still, gentle, alive and the "
+                "rejected 'cinematic') must each hold the transaction lock, and "
+                "the four READS must take nothing at all — a read-only query "
+                "behind the exclusive write lock is what made opening the Theme "
+                "Picker block on, and block, a real theme transition",
+            )
 
     def test_every_family_has_a_matched_light_and_dark_sibling(self) -> None:
         """The owner's rule: every theme is a light+dark pair. Assert each family

@@ -18,20 +18,47 @@ Item {
     required property real value        // 0..100
     required property bool present
     required property bool motionEnabled
+    // MotionMode 2 ("alive"). The ring's accent is the halo below.
+    required property bool accentMotion
     property color accentColor: Kirigami.Theme.highlightColor
 
     readonly property real clampedValue: Math.max(0, Math.min(100, value))
     property real displayedValue: present ? clampedValue : 0
 
+    // The count-up is a one-shot value transition, so it follows Plasma's
+    // animation-speed slider like every other one-shot in the package. Only
+    // Kirigami.Units.* tracks that slider; 700 was a literal and ignored it.
     Behavior on displayedValue {
         enabled: ring.motionEnabled
-        NumberAnimation { duration: 700; easing.type: Easing.OutCubic }
+        NumberAnimation {
+            duration: Math.round(Kirigami.Units.veryLongDuration * 1.75)
+            easing.type: Easing.OutCubic
+        }
     }
 
     // Reserve ~1 grid unit under the ring for the label; break the width→label→width
     // cycle by NOT reading the label's height back into the diameter.
     readonly property real diameter: Math.max(24, Math.min(width, height - Math.round(Kirigami.Units.gridUnit * 0.95)))
     readonly property real stroke: Math.max(3, ring.diameter * 0.11)
+
+    // ── Why the arcs do not reach the item's edge ─────────────────────────────
+    //
+    // A Shape does NOT clip to its item. The halo below is drawn 1.8x as wide as
+    // the arc it sits behind, so it needs 0.4 stroke-widths of room on each side
+    // of that arc — and the first version gave it none: it stroked 2.5x the width
+    // on an arc whose own radius already reached the item edge, putting 0.75
+    // stroke-widths of halo OUTSIDE the item. Rendered with the real Qt runtime
+    // (not the offscreen smoke, which never lays these out at a real size) the
+    // three rings sit side by side in one row, and their three halos overlapped
+    // into a single blob spanning the card.
+    //
+    // Pull the shared arc radius in by half the halo's width and the outermost
+    // pixel the ring can paint is exactly the item's edge, halo included. This
+    // geometry is CONSTANT across every motion level on purpose: only the halo's
+    // colour appears and disappears, so switching still/gentle/alive never
+    // resizes or relayouts the gauge.
+    readonly property real glowStroke: ring.stroke * 1.8
+    readonly property real arcRadius: ring.diameter / 2 - ring.glowStroke / 2
 
     ColumnLayout {
         anchors.centerIn: parent
@@ -55,9 +82,34 @@ Item {
                     capStyle: ShapePath.RoundCap
                     PathAngleArc {
                         centerX: ring.diameter / 2; centerY: ring.diameter / 2
-                        radiusX: ring.diameter / 2 - ring.stroke / 2
-                        radiusY: ring.diameter / 2 - ring.stroke / 2
+                        radiusX: ring.arcRadius
+                        radiusY: ring.arcRadius
                         startAngle: -90; sweepAngle: 360
+                    }
+                }
+
+                // The `alive` accent: a wider, softer halo behind the progress
+                // arc. It is deliberately STATIC — three gauges each running
+                // their own breathing loop would be three permanent repaint
+                // sources for a decoration nobody stares at, and `alive` already
+                // buys its life from the card sheen and the beacon ripple, both
+                // of which rest between passes. A halo that simply appears costs
+                // nothing per frame and is still plainly visible.
+                ShapePath {   // progress glow — halo behind the arc
+                    strokeWidth: ring.glowStroke
+                    strokeColor: ring.present
+                                 && ring.motionEnabled && ring.accentMotion
+                               ? Qt.rgba(ring.accentColor.r, ring.accentColor.g,
+                                         ring.accentColor.b, 0.18)
+                               : "transparent"
+                    fillColor: "transparent"
+                    capStyle: ShapePath.RoundCap
+                    PathAngleArc {
+                        centerX: ring.diameter / 2; centerY: ring.diameter / 2
+                        radiusX: ring.arcRadius
+                        radiusY: ring.arcRadius
+                        startAngle: -90
+                        sweepAngle: 360 * ring.displayedValue / 100
                     }
                 }
 
@@ -70,11 +122,30 @@ Item {
                     capStyle: ShapePath.RoundCap
                     PathAngleArc {
                         centerX: ring.diameter / 2; centerY: ring.diameter / 2
-                        radiusX: ring.diameter / 2 - ring.stroke / 2
-                        radiusY: ring.diameter / 2 - ring.stroke / 2
+                        radiusX: ring.arcRadius
+                        radiusY: ring.arcRadius
                         startAngle: -90
                         sweepAngle: 360 * ring.displayedValue / 100
                     }
+                }
+            }
+
+            // Tick marks at 25%, 50%, 75%, 100% on the track
+            Repeater {
+                model: [0.25, 0.50, 0.75, 1.00]
+                Rectangle {
+                    required property real modelData
+                    readonly property real angle: -90 + 360 * modelData
+                    readonly property real rad: angle * Math.PI / 180
+                    readonly property real trackR: ring.arcRadius
+                    x: ring.diameter / 2 + trackR * Math.cos(rad) - width / 2
+                    y: ring.diameter / 2 + trackR * Math.sin(rad) - height / 2
+                    width: Math.max(2, ring.stroke * 0.35)
+                    height: width
+                    radius: width / 2
+                    color: Qt.rgba(Kirigami.Theme.textColor.r,
+                                   Kirigami.Theme.textColor.g,
+                                   Kirigami.Theme.textColor.b, 0.18)
                 }
             }
 

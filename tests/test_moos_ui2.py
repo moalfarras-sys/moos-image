@@ -260,14 +260,27 @@ class TestMoOSUI2(unittest.TestCase):
                 ):
                     self.assertIn(selector, defaults,
                                   f"{look_and_feel} does not select {selector}")
-                # NO [Wallpaper] section, deliberately: LookAndFeelManager applies
-                # it by forcing org.kde.image onto every desktop containment, which
-                # would replace org.moos.ui2.wallpaper (the scene that draws the
-                # dashboard below the icons) on every theme apply. moos-theme /
-                # moos-apply-theme own the desktop wallpaper per half instead.
-                self.assertNotIn("[Wallpaper]", defaults,
-                                 f"{look_and_feel} must not carry a [Wallpaper] section — "
-                                 "it would erase the MoOS scene on every apply")
+                # Every Global Theme must name its OWN wallpaper. libkworkspace's
+                # DefaultWallpaper::defaultWallpaperPackage() reads kdeglobals [KDE]
+                # LookAndFeelPackage, opens that package's contents/defaults and takes
+                # [Wallpaper] Image; org.kde.image and the Wallpaper KCM both call it,
+                # and packageContents() reads the same key to decide whether System
+                # Settings lists a wallpaper among this theme's contents. Without it,
+                # picking a MoOS theme gave MoOS colours on the previous wallpaper.
+                #
+                # This gate USED to assert the opposite, on the belief that a
+                # [Wallpaper] here makes LookAndFeelManager force org.kde.image onto
+                # every containment. It does not: KLookAndFeelManager::save() never
+                # reads this group at all (checked in plasma-workspace 6.7.3 and in
+                # the shipped libklookandfeel.so.6.7.3, where the literal is referenced
+                # only from packageContents() and remove()), and it rebuilds the desktop
+                # layout only for packages that ship contents/layouts/, which no MoOS
+                # look does. The scene plugin is safe.
+                self.assertIn(f"[Wallpaper]\nImage={names['wallpaper']}", defaults,
+                              f"{look_and_feel} does not name its own wallpaper package — "
+                              "picking it in System Settings leaves the old wallpaper")
+                self.assertTrue((SHARE / "wallpapers" / names["wallpaper"]).is_dir(),
+                                f"{look_and_feel} names a wallpaper package that does not exist")
 
                 plasmarc = (desktop / "plasmarc").read_text(encoding="utf-8")
                 self.assertIn(f"FallbackTheme={names['fallback']}", plasmarc)
@@ -364,8 +377,8 @@ class TestMoOSUI2(unittest.TestCase):
             # preflight() runs before any rename. Raster validity is irrelevant
             # here because the injected fifth backup failure happens first.
             for master in (
-                art / "wallpapers/moos-ui-graphite-frost-master-v3.png",
-                art / "wallpapers/moos-ui-tidal-frost-master-v2.png",
+                art / "wallpapers/moos-ui-graphite-flow-master-v4.png",
+                art / "wallpapers/moos-ui-tidal-flow-master-v3.png",
             ):
                 master.parent.mkdir(parents=True, exist_ok=True)
                 master.write_bytes(b"fixture-png")
@@ -1055,9 +1068,44 @@ class TestMoOSUI2(unittest.TestCase):
             "themeExec.disconnectSource", watchdog,
             "the watchdog must not kill moos-theme halfway through an atomic apply",
         )
-        self.assertIn(
-            "queryExec.disconnectSource(root.currentQuery)", watchdog,
+        # A hung read-only verification query must be released. Assert the
+        # RELATIONSHIP, not one literal argument: the picker now waits on more than
+        # one query source (the theme readback and the wallpaper-motion readback),
+        # so it selects the source it is actually waiting on. Pinning the old
+        # single-argument literal here is what turned this gate red the moment a
+        # second readback was added — a constant assertion outliving its constant.
+        self.assertRegex(
+            watchdog, r"queryExec\.disconnectSource\(",
             "a hung read-only verification query should be safely released",
+        )
+        for _source in ("root.currentQuery", "root.currentMotionQuery",
+                        "root.supplementQuery"):
+            self.assertIn(
+                _source, watchdog,
+                f"the watchdog must be able to release {_source}; every query source "
+                "the picker can be waiting on has to be reachable from the timeout",
+            )
+        # "Verified" has to mean a SUPPLEMENT was verified. Reading back only
+        # LookAndFeelPackage checks the one value plasma-apply-lookandfeel never
+        # gets wrong, and none of the four things moos-theme exists to carry —
+        # so a switch that left Firefox dark on a light desktop still reported
+        # success. GTK's light/dark bit is the one the picker can predict alone
+        # (every MoOS light sibling is its dark id + ".light").
+        self.assertIn(
+            '"gsettings get org.gnome.desktop.interface color-scheme"', picker,
+            "the picker must read back a supplement moos-theme itself owns",
+        )
+        supplement_readback = picker[
+            picker.index("} else if (cmd === supplementQuery)"):
+            picker.index("function handleThemeResult")
+        ]
+        self.assertIn(
+            "activeScheme !== pendingExpectedColorScheme", supplement_readback
+        )
+        self.assertIn(
+            "Theme applied and verified", supplement_readback,
+            "the success message must be reachable only through the supplement "
+            "readback, never straight from the LookAndFeelPackage readback",
         )
 
     def test_dark_and_light_own_complete_distinct_svg_suites(self) -> None:
@@ -1316,8 +1364,16 @@ class TestMoOSUI2(unittest.TestCase):
         )
 
         self.assertRegex(main, r"readonly\s+property\s+bool\s+motionEnabled\s*:")
-        self.assertIn("Kirigami.Units.longDuration > 0", main,
+        # `> 1`, not `> 0`. Kirigami FLOORS longDuration at 1 when the animation
+        # factor is 0 — measured 200 / 100 / 1 at factors 1 / 0.5 / 0 — so `> 0`
+        # is true even with animations fully disabled and this guard never fired.
+        # This assertion USED to require the broken form, which is how the bug
+        # survived every gate. tests/test_moos_motion_gate.py proves it in a real
+        # QML engine rather than by string.
+        self.assertIn("Kirigami.Units.longDuration > 1", main,
                       "motion guard must honour Plasma's disabled-animation duration")
+        self.assertNotIn("Kirigami.Units.longDuration > 0", main,
+                         "`> 0` never fires: Kirigami floors longDuration at 1")
         self.assertRegex(main, r"gridUnit\s*\*\s*31\b")
         self.assertRegex(main, r"gridUnit\s*\*\s*12\b")
 
@@ -1371,13 +1427,18 @@ class TestMoOSUI2(unittest.TestCase):
                       "the scene must read the Image config key moos-theme writes per half")
         # The scene layer owns motion too (the ambient wash), and it must obey the
         # SAME setting the bento obeys. Plasma expresses "animations off" by
-        # collapsing durations to 0; a wallpaper that only consults its own
+        # collapsing durations to their floor of 1 (NOT 0 — that is the whole
+        # trap); a wallpaper that only consults its own
         # AmbientMotion key keeps breathing on a desktop whose owner asked every
         # animation to stop — an accessibility promise broken by the largest
         # surface on screen.
-        self.assertIn("Kirigami.Units.longDuration > 0", wrapper,
+        self.assertIn("Kirigami.Units.longDuration > 1", wrapper,
                       "the wallpaper scene's motion guard must honour Plasma's "
                       "disabled-animation duration, not only its own AmbientMotion key")
+        self.assertNotIn("Kirigami.Units.longDuration > 0", wrapper,
+                         "`> 0` never fires: Kirigami floors longDuration at 1, so the "
+                         "scene kept breathing on a desktop whose owner asked every "
+                         "animation to stop")
         bento = qml_by_path[DASHBOARD / "contents/ui/DashboardBento.qml"]
         self.assertNotIn("import org.kde.plasma.plasmoid", bento,
                          "DashboardBento must stay plain QtQuick/Kirigami — the build's "

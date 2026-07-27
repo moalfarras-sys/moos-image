@@ -42,6 +42,10 @@ check:
     python3 tests/test_moos_ui2.py
     python3 tests/test_moos_theme_safety.py
     python3 tests/test_moos_visual_system.py
+    # Runs the motion gate in a REAL QML engine instead of grepping for it. Skips
+    # cleanly where there is no Qt (the CI runner); the string half of the same
+    # contract is in verify_user_experience.py and runs everywhere.
+    python3 tests/test_moos_motion_gate.py
     python3 tests/test_cloud_private_desktop.py
     python3 tests/test_mo_remote_codec_resend.py
     python3 artwork/verify_visuals.py

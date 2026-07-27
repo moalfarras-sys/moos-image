@@ -9,9 +9,21 @@ Item {
 
     required property date now
     required property bool motionEnabled
+    // MotionMode 2 ("alive"). Passed straight through to the card shell, which
+    // owns the only accent this card has: the sheen sweep.
+    required property bool accentMotion
     property int entranceDelay: 0
     // Active MoOS look, e.g. "MIDNIGHT GLASS"; empty falls back to the half.
     property string themeLabel: ""
+
+    // The once-a-minute colon pulse is a one-shot transition, which is exactly
+    // what Plasma's animation-speed slider is meant to own — and it could not,
+    // because both halves were hardcoded milliseconds. Only Kirigami.Units.*
+    // tracks that slider, so derive them from it.
+    readonly property int pulseOutDuration:
+        Math.round(Kirigami.Units.veryLongDuration * 0.42)
+    readonly property int pulseInDuration:
+        Math.round(Kirigami.Units.veryLongDuration * 0.62)
 
     readonly property string timeText: Qt.formatTime(now, "HH:mm")
     readonly property var arabicLocale: Qt.locale("ar")
@@ -27,6 +39,7 @@ Item {
     GlassCard {
         anchors.fill: parent
         motionEnabled: clockCard.motionEnabled
+        accentMotion: clockCard.accentMotion
         entranceDelay: clockCard.entranceDelay
 
         ColumnLayout {
@@ -94,6 +107,27 @@ Item {
                     font.family: "IBM Plex Sans"
                     font.pixelSize: Math.round(Kirigami.Units.gridUnit * 3.15)
                     font.weight: Font.Light
+
+                    // NOTHING may take ownership of this opacity. A
+                    // `SequentialAnimation on opacity` was added here as a
+                    // "breathing pulse" and was wrong three ways at once:
+                    //
+                    //   * `... on opacity` is a property VALUE SOURCE, so it OWNS
+                    //     the property. The minutePulse below writes the same
+                    //     property by target — the value source simply overwrote
+                    //     it every frame, so the designed once-a-minute pulse
+                    //     stopped being visible at all.
+                    //   * a value source does not rewind when it stops. Turning
+                    //     motion off left the colon frozen at whatever the fade
+                    //     had reached, i.e. permanently dimmer than the 0.74 it
+                    //     is designed to sit at, with nothing left to restore it.
+                    //   * it turned a 420 ms event that happens once a minute
+                    //     into a permanent 1.8 s loop, and a looping animation
+                    //     repaints the WHOLE window — on a 4K desktop, forever,
+                    //     for a two-pixel colon.
+                    //
+                    // The minute pulse below is the designed motion. Leave the
+                    // resting opacity a plain value.
                 }
 
                 RollingDigit {
@@ -117,14 +151,14 @@ Item {
                     property: "opacity"
                     from: 0.74
                     to: 0.28
-                    duration: 170
+                    duration: clockCard.pulseOutDuration
                     easing.type: Easing.InQuad
                 }
                 NumberAnimation {
                     target: colon
                     property: "opacity"
                     to: 0.74
-                    duration: 250
+                    duration: clockCard.pulseInDuration
                     easing.type: Easing.OutCubic
                 }
             }

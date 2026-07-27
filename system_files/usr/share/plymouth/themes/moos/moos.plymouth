@@ -1,11 +1,13 @@
 # MoOS premium boot splash — native Plymouth SCRIPT theme (2026-07-17).
 #
 # Replaces the previous two-step theme (watermark + throbber + lock.png) with a
-# script-driven reveal: the crisp MoOS mark rises on a deep-navy field while a
-# cyan->violet energy head orbits a ring as the loading indicator, then keeps
-# orbiting until the desktop takes over. All motion lives in moos.script, which
-# moves four small sprites (logo/ring/head/glow); there are no pre-baked frames,
-# so the theme is ~0.8 MB and boot stays fast.
+# script-driven reveal: the crisp MoOS mark rises on the UI2 graphite canvas
+# (#14191C — the same colour the desktop opens on, so the handoff has no hue
+# break) while a cyan->violet energy head orbits a ring as the loading indicator,
+# then keeps orbiting until the desktop takes over. All motion lives in
+# moos.script, which moves seven small sprites (logo/ring/ring2/head/glow/
+# particle/pulse); there are no pre-baked frames, so the theme is ~0.3 MB and
+# boot stays fast.
 #
 # The theme keeps the ID `moos` on purpose — it is named in build.sh, in
 # /etc/plymouth/plymouthd.conf, in the initramfs, and in the gates; the boot
@@ -15,7 +17,7 @@
 # always boots (the safe fallback).
 [Plymouth Theme]
 Name=MoOS
-Description=MoOS premium boot splash: the crisp MoOS emblem revealed on a deep-navy field, a cyan-violet energy head orbiting a ring as the loading indicator.
+Description=MoOS premium boot splash: the crisp MoOS emblem revealed on the UI2 graphite canvas, a cyan-violet energy head orbiting a ring as the loading indicator.
 ModuleName=script
 
 [script]

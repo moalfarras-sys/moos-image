@@ -6,7 +6,7 @@
                 "Name": "Moalfarras"
             }
         ],
-        "Description": "The MoOS login scene with the animated MoOS brand mark, drawn behind the login greeter.",
+        "Description": "The MoOS login scene: the Graphite horizon and one quiet corner signature, drawn behind the login greeter. Deliberately motionless — the password prompt must paint immediately, even on software rendering.",
         "EnabledByDefault": true,
         "Id": "org.moos.ui2.greeter",
         "License": "GPL-3.0-or-later",

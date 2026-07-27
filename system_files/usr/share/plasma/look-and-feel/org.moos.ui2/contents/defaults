@@ -1,4 +1,6 @@
 # MoOS UI matched Global Theme defaults. Generated file.
+[Wallpaper]
+Image=MoOSUI2Graphite
 [kdeglobals][General]
 ColorScheme=MoOSUI2Dark
 

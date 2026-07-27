@@ -59,6 +59,13 @@ Item {
             asynchronous: true
         }
 
+        // The art's slow bob. It drifted down and straight back up with no gap at
+        // all — a 100% duty cycle, running on the DEFAULT desktop, and an infinite
+        // QML animation repaints the whole window for as long as it runs (about
+        // 11% of a CPU core whatever the item's size). Every looping animation in
+        // this package now rests; here the rest reads as a hover at each end of
+        // the drift, which is what a floating object actually does, and it halves
+        // the cost of the calm default level.
         SequentialAnimation {
             running: scene.motionEnabled && scene.visible
             loops: Animation.Infinite
@@ -70,6 +77,7 @@ Item {
                 duration: 3100
                 easing.type: Easing.InOutSine
             }
+            PauseAnimation { duration: 2600 }
             NumberAnimation {
                 target: floatShift
                 property: "y"
@@ -77,6 +85,7 @@ Item {
                 duration: 3100
                 easing.type: Easing.InOutSine
             }
+            PauseAnimation { duration: 2600 }
         }
     }
 
@@ -209,6 +218,11 @@ Item {
             color: Kirigami.Theme.disabledTextColor
             opacity: 0.38
 
+            // Fog is the only condition whose ribbons never stopped drifting —
+            // the two sweeps ran back to back, so the loop was at a 100% duty
+            // cycle and the whole wallpaper repainted for as long as the forecast
+            // said fog. Fog settles; a pause at each end of the drift is truer to
+            // it than a permanent slide, and it is what keeps this level calm.
             SequentialAnimation on x {
                 running: scene.motionEnabled && scene.kind === "fog"
                 loops: Animation.Infinite
@@ -218,11 +232,13 @@ Item {
                     duration: 2600
                     easing.type: Easing.InOutSine
                 }
+                PauseAnimation { duration: 2400 }
                 NumberAnimation {
                     to: scene.width * 0.18
                     duration: 2600
                     easing.type: Easing.InOutSine
                 }
+                PauseAnimation { duration: 2400 }
             }
         }
     }

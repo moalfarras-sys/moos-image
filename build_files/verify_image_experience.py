@@ -63,6 +63,30 @@ require("quiet" in kargs_text,
 require("Theme=moos" in text("/usr/share/plymouth/plymouthd.defaults"),
         "Plymouth's default theme is not moos")
 
+# The splash must still be on screen when KWin draws its first frame. Stock `plymouth quit`
+# tears the splash down before anything replaces it — plymouthd's own trace says why:
+# "Not retaining splash, so deallocating VT". Measured on the owner's machine (boot of
+# 2026-07-27 16:52): quit at 16:52:24.269, KWin picked its DRM backend at 16:52:28.728 —
+# 4.5 seconds of black between the MoOS splash and the desktop, the cheapest-looking moment
+# in the product. `--retain-splash` leaves the last frame standing until KWin's modeset
+# paints over it; plymouthd still exits at the same instant, so it releases DRM for KWin
+# exactly as before and plymouth-quit-wait.service still returns. Gate the drop-in in the
+# IMAGE (not just the repo): a drop-in that silently fails to be copied is invisible until
+# somebody watches a boot.
+_retain = Path("/usr/lib/systemd/system/plymouth-quit.service.d/10-moos-retain-splash.conf")
+require(_retain.is_file(),
+        "the plymouth-quit retain-splash drop-in is missing — the boot would show 4.5s of "
+        "black between the MoOS splash and the desktop")
+if _retain.is_file():
+    _retain_text = config(_retain.read_text(encoding="utf-8"))
+    require("quit --retain-splash" in _retain_text,
+            "the plymouth-quit drop-in no longer passes --retain-splash — without the flag "
+            "plymouthd deallocates the VT and the screen goes black until KWin's first frame")
+    require(re.search(r"^ExecStart=\s*$", _retain_text, re.MULTILINE) is not None,
+            "the plymouth-quit drop-in must reset ExecStart= first — ExecStart is a LIST, so "
+            "without the reset the stock `plymouth quit` runs FIRST and blanks the screen "
+            "before the retaining call ever executes")
+
 # The LIVE ISO boot config (this file ships in the image; Titanoboa consumes it).
 # It must carry rd.live.overlay.overlayfs=1 — without it the live writable layer
 # is a small fixed dm-snapshot COW that fills to 100% within minutes and makes
@@ -118,10 +142,34 @@ if drm_wait.is_file():
     drm_wait_text = drm_wait.read_text(encoding="utf-8")
     require('"$drm_dir"/card*' in drm_wait_text and "MOOS_DRM_WAIT_STEPS" in drm_wait_text,
             "the login DRM preflight is not card-number-agnostic and bounded")
+    require("MOOS_PLASMALOGIN_CONF" in drm_wait_text
+            and "WallpaperPluginId=org.kde.hunyango" in drm_wait_text
+            and ".moos-legacy-hunyango" in drm_wait_text,
+            "the login preflight cannot repair the exact stock config that "
+            "outranks MoOS's greeter drop-in")
 require(drm_dropin.is_file()
         and "ExecStartPre=/usr/libexec/moos-wait-drm"
         in drm_dropin.read_text(encoding="utf-8"),
         "Plasma Login Manager is not wired to wait for a usable DRM card")
+# /etc/plasmalogin.conf outranks every layer MoOS ships, so no ACTIVE key in it may
+# name a greeter surface. Its mere EXISTENCE is not the defect and asserting that
+# would fail every build: plasma-login-manager ships the path as a fully-commented
+# template that decides nothing. What masked the MoOS greeter on the running desktop
+# was a KCM write turning one of these keys on.
+_login_conf = Path("/etc/plasmalogin.conf")
+if _login_conf.is_file():
+    _login_active = [
+        line.strip() for line in _login_conf.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith(("#", ";", "["))
+    ]
+    _login_masking = [
+        line for line in _login_active
+        if line.split("=", 1)[0].strip() in
+        {"WallpaperPluginId", "Theme", "Background", "Image", "ShowClock"}
+    ]
+    require(not _login_masking,
+            "/etc/plasmalogin.conf carries an active greeter key "
+            f"({_login_masking}) that outranks the MoOS login layers")
 
 # The static I/O-scheduler udev rule (the build-time half of hardware adaptation)
 # must ship and pick a scheduler per device type.
@@ -385,13 +433,30 @@ dm_target = os.path.realpath(dm) if dm.exists() else ""
 require(dm_target != "", "no display manager is enabled — the system would boot to a console")
 
 if "plasmalogin" in dm_target:
-    drop_ins = list(Path("/usr/lib/plasmalogin/plasmalogin.conf.d").glob("*.conf")) \
-        if Path("/usr/lib/plasmalogin/plasmalogin.conf.d").exists() else []
-    require(drop_ins != [],
-            "the login screen has no MoOS drop-in at all — it would show Plasma's default")
-    login_conf = config("\n".join(p.read_text(encoding="utf-8") for p in drop_ins))
+    # /usr/lib/plasmalogin/defaults.conf is the documented distro-defaults slot (upstream
+    # README line 58) and the strongest layer the image may own. The vendor drop-in
+    # directory is the WEAKEST of the four merged sources: KConfig gives an earlier
+    # addConfigSources() call priority over a later one, and the greeter adds
+    # /etc/plasmalogin.conf.d, then defaults.conf, then that directory, all beneath a main
+    # file of /etc/plasmalogin.conf.
+    login_defaults = Path("/usr/lib/plasmalogin/defaults.conf")
+    require(login_defaults.is_file(),
+            "/usr/lib/plasmalogin/defaults.conf is missing — the login screen has no MoOS "
+            "layer at all and would show Plasma's default")
+    login_defaults_text = login_defaults.read_text(encoding="utf-8") if login_defaults.is_file() else ""
+    login_conf = config(login_defaults_text)
     require("WallpaperPluginId" in login_conf,
             "the login screen has no MoOS wallpaper configured — it would show Plasma's default")
+    require("/wallpapers/Fedora" not in login_defaults_text,
+            "the login defaults still reference /usr/share/wallpapers/Fedora, which this "
+            "build deletes — the first screen after boot would resolve to nothing")
+    _weak_dir = Path("/usr/lib/plasmalogin/plasmalogin.conf.d")
+    _weak_conf = config("\n".join(
+        p.read_text(encoding="utf-8") for p in sorted(_weak_dir.glob("*.conf"))
+    )) if _weak_dir.is_dir() else ""
+    require("WallpaperPluginId" not in _weak_conf,
+            "a greeter key is duplicated into /usr/lib/plasmalogin/plasmalogin.conf.d, the "
+            "lowest of the four config layers — one value, one file")
     effective_login_conf = login_conf
     etc_login_dir = Path("/etc/plasmalogin.conf.d")
     if etc_login_dir.exists():
@@ -513,6 +578,20 @@ if "plasmalogin" in dm_target:
     require(re.search(r"^ShowClock=false", login_conf, re.MULTILINE),
             "Plasma Login Manager must present the password surface directly; "
             "its idle clock page is a second login layout and can overlap branding")
+    # The greeter account is a system account nobody logs into, so its Plasma config is
+    # image state. Left unprovisioned it carried a LIGHT palette under a DARK wallpaper on
+    # the flagship machine, and the stock chrome (PlasmaExtras.PasswordField, the breeze
+    # components) has no other source of colour.
+    greeter_palette = Path("/usr/share/moos/plasmalogin/kdeglobals")
+    greeter_tmpfiles = Path("/usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf")
+    require(greeter_palette.is_file() and "ColorScheme=MoOSUI2Dark" in greeter_palette.read_text(encoding="utf-8"),
+            "the greeter account has no canonical MoOS palette in /usr — whatever its first "
+            "run happened to write would decide the login chrome's colours")
+    require(greeter_tmpfiles.is_file()
+            and "C+ /var/lib/plasmalogin/.config/kdeglobals" in greeter_tmpfiles.read_text(encoding="utf-8"),
+            "nothing materialises the greeter account's palette into /var/lib/plasmalogin, so "
+            "it stays unreproducible local state")
+
 else:
     # There is deliberately no SDDM branch any more. SDDM is not installed on this
     # base (plasmalogin replaced it), the dead theme tree it kept alive is gone,
@@ -549,6 +628,36 @@ require(Path("/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/ma
         "the MoOS scene wallpaper plugin is missing")
 require(Path("/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/DashboardBento.qml").is_file(),
         "the MoOS dashboard bento is missing from the scene wallpaper")
+
+# Every MoOS Global Theme must carry its own wallpaper, in the image, as KDE reads it.
+# The binding is [Wallpaper] Image in the look-and-feel package's contents/defaults:
+# libkworkspace's DefaultWallpaper::defaultWallpaperPackage() reads kdeglobals [KDE]
+# LookAndFeelPackage, opens that package's defaults and resolves the value with
+# QStandardPaths::locate(GenericDataLocation, "wallpapers/<Image>") — so it must be a BARE
+# package name; an absolute path silently resolves to nothing and the theme loses its
+# wallpaper again. KLookAndFeelManager::packageContents() reads the same key to decide
+# whether System Settings lists a wallpaper among the theme's contents.
+# build.sh already fails on a bare name that resolves nowhere; this gate is the other half —
+# that the key is PRESENT on all 16 and that the light halves get a light wallpaper.
+lnf_packages = sorted(Path("/usr/share/plasma/look-and-feel").glob("org.moos.ui2*"))
+require(len(lnf_packages) == 16,
+        f"expected 16 MoOS Global Themes, found {len(lnf_packages)}")
+for package in lnf_packages:
+    declared = re.search(r"^\[Wallpaper\]\nImage=(\S+)$",
+                         config(text(str(package / "contents/defaults"))), re.MULTILINE)
+    require(declared is not None,
+            f"{package.name} declares no [Wallpaper] Image — picking it in System Settings "
+            "gives MoOS colours on whatever wallpaper was already there")
+    if declared:
+        wallpaper = declared.group(1)
+        require("/" not in wallpaper,
+                f"{package.name} names its wallpaper by path ({wallpaper}); Plasma resolves "
+                "wallpapers/<Image> only, so a path finds nothing")
+        images = "images" if package.name.endswith(".light") else "images_dark"
+        require(Path(f"/usr/share/wallpapers/{wallpaper}/metadata.json").is_file()
+                and Path(f"/usr/share/wallpapers/{wallpaper}/contents/{images}/3840x2160.jpg").is_file(),
+                f"{package.name} names wallpaper package {wallpaper}, which is not installed "
+                f"as a complete Wallpaper/Images package (missing metadata.json or {images}/)")
 # The shell defaults are what make NEW desktop containments (first boot, the
 # live ISO) come up on the scene plugin without waiting for a login script.
 shell_defaults = Path("/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults")

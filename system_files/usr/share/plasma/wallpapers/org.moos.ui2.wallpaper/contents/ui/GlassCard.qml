@@ -9,8 +9,21 @@ Item {
     id: card
 
     required property bool motionEnabled
+    // MotionMode 2 ("alive"). Read together with motionEnabled, never alone.
+    required property bool accentMotion
     property int entranceDelay: 0
     default property alias contentData: contentLayer.data
+
+    // Plasma's animation-speed slider (System Settings → General Behaviour)
+    // scales Kirigami.Units.*Duration and NOTHING else. Every millisecond in this
+    // package was a literal, so the slider moved nothing in either direction: a
+    // user who asked for snappier feedback still waited the same 420 ms for a
+    // card to arrive, and one who asked for slower got no slower. One-shot
+    // transitions are exactly what that slider is for, so they follow it. The
+    // looping ambient cadences below stay literal on purpose — those are a
+    // duty-cycle budget for a 4K surface, not a response time, and letting the
+    // slider stretch them would stretch the CPU cost with them.
+    readonly property int entranceDuration: Kirigami.Units.veryLongDuration
 
     readonly property bool lightSurface:
         Kirigami.Theme.backgroundColor.hslLightness > 0.55
@@ -29,6 +42,14 @@ Item {
         Kirigami.Theme.highlightColor.g,
         Kirigami.Theme.highlightColor.b,
         lightSurface ? 0.31 : 0.36)
+    // The shade under the top edge. Derived from the active background, not from
+    // pure black: no MoOS runtime surface uses pure black or pure white, and a
+    // palette-derived shade also keeps the card looking like the same object in
+    // all sixteen themes instead of gaining a neutral grey seam in the warm ones.
+    readonly property color shadeColor: {
+        const shade = Qt.darker(Kirigami.Theme.backgroundColor, 2.2)
+        return Qt.rgba(shade.r, shade.g, shade.b, lightSurface ? 0.05 : 0.09)
+    }
 
     opacity: motionEnabled ? 0 : 1
     transform: Translate {
@@ -64,7 +85,7 @@ Item {
                 property: "opacity"
                 from: 0
                 to: 1
-                duration: 420
+                duration: card.entranceDuration
                 easing.type: Easing.OutCubic
             }
             NumberAnimation {
@@ -72,7 +93,7 @@ Item {
                 property: "y"
                 from: Kirigami.Units.largeSpacing
                 to: 0
-                duration: 420
+                duration: card.entranceDuration
                 easing.type: Easing.OutCubic
             }
         }
@@ -108,6 +129,50 @@ Item {
             GradientStop { position: 1.0; color: card.lowerSurface }
         }
 
+        // Micro-shadow: a soft inset shade under the top edge, for depth.
+        //
+        // The first version of this was a 3 px-tall strip carrying
+        // `radius: parent.radius` and trusting the shell's `clip: true` to cut
+        // its corners. Neither half of that works. A Rectangle clamps its radius
+        // to half its SHORTEST side, so a 3 px strip can only ever be 1.5 px
+        // round no matter what you ask for; and QQuickItem clipping is a
+        // RECTANGULAR scissor, which cannot cut a rounded corner. The strip's
+        // square corners therefore drew straight across the card's rounded ones —
+        // two hard little notches at the top of every card, exactly where the eye
+        // goes first.
+        //
+        // Give the shade the card's OWN geometry and radius instead, and let the
+        // rounded rectangle clip its own gradient: the dark band lives in the
+        // first few pixels of the height and everything below it is transparent.
+        Rectangle {
+            id: topShade
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: parent.radius - 1
+            // Three pixels expressed as a fraction of the card's height, clamped
+            // at both ends: during the first layout pass the height is 0, and an
+            // unclamped 3/0 would hand Gradient an out-of-order stop.
+            readonly property real shadeStop:
+                Math.max(0.01, Math.min(0.5, 3 / Math.max(1, shell.height)))
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: card.shadeColor }
+                GradientStop { position: topShade.shadeStop; color: "transparent" }
+            }
+        }
+
+        // Inner glow: faint highlight-coloured rim inside the card
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: parent.radius - 1
+            color: "transparent"
+            border.width: 1
+            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r,
+                                   Kirigami.Theme.highlightColor.g,
+                                   Kirigami.Theme.highlightColor.b,
+                                   card.lightSurface ? 0.05 : 0.08)
+        }
+
         Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
@@ -131,8 +196,21 @@ Item {
             color: card.edgeColor
         }
 
+        // The travelling glass highlight. This is `alive` only (MotionMode 2) —
+        // it is the thing that makes the level worth having, and it is also the
+        // single most expensive decoration in the package, because a moving item
+        // repaints the whole card every frame it moves.
+        //
+        // `visible` is gated as well as `running`, and that is not belt and
+        // braces. `SequentialAnimation on x` is a property VALUE SOURCE: it owns
+        // x and, when `running` goes false, simply stops writing it. It does not
+        // rewind. Dropping from alive to gentle mid-sweep therefore used to be
+        // able to leave a bright diagonal bar frozen across the middle of every
+        // card, with nothing left running to move it off again. An invisible item
+        // cannot leave a mark — and it costs nothing to paint.
         Rectangle {
             id: sheen
+            visible: card.motionEnabled && card.accentMotion
             width: Math.max(Kirigami.Units.gridUnit * 3, shell.width * 0.2)
             height: shell.height * 1.7
             y: -shell.height * 0.35
@@ -151,16 +229,25 @@ Item {
             }
 
             SequentialAnimation on x {
-                running: card.motionEnabled && card.visible
+                running: card.motionEnabled && card.accentMotion && card.visible
                 loops: Animation.Infinite
                 PropertyAction { value: -sheen.width * 1.5 }
-                PauseAnimation { duration: 2200 }
+                // Offset by entranceDelay so cards don't all shimmer in lockstep
+                PauseAnimation { duration: 2600 + card.entranceDelay * 3 }
                 NumberAnimation {
                     to: shell.width + sheen.width
-                    duration: 14000
+                    duration: 5200
                     easing.type: Easing.InOutSine
                 }
-                PauseAnimation { duration: 5200 }
+                // EVERY looping animation in this package rests, `alive` included.
+                // An infinite QML animation pins the render loop at the full frame
+                // rate and repaints the whole window for as long as it runs —
+                // about 11% of a CPU core whatever the item's size — so a sweep
+                // that ran 14 s out of every 21 s was a 65% duty cycle on three
+                // cards at once. 5.2 s of sweep in a 30 s cycle is ~17%, arrives
+                // often enough to be noticed, and is still a slow glass highlight
+                // rather than a strobe.
+                PauseAnimation { duration: 22000 }
             }
         }
 

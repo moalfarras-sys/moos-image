@@ -130,7 +130,11 @@ PlasmoidItem {
         //
         // Kirigami.Units.longDuration is what the factor actually moves, and it is
         // the same gate org.moos.ui2.wallpaper's DashboardBento already uses.
-        readonly property bool motionEnabled: hero.visible && Kirigami.Units.longDuration > 0
+        // `> 1`, not `> 0`: Kirigami FLOORS longDuration at 1 when the animation
+        // factor is 0, so `> 0` is true even with animations fully disabled — the
+        // gate never fired and the breathing glow, breathing emblem and spinning
+        // comet ring ran regardless. KDE's own BusyIndicator.qml uses `> 1`.
+        readonly property bool motionEnabled: hero.visible && Kirigami.Units.longDuration > 1
         readonly property real glowPeak: 0.48 + root.accentEnergy * 0.34              // 0.48→0.82
         readonly property real breathTo: 1.03 + root.accentEnergy * 0.03             // 1.03→1.06
 

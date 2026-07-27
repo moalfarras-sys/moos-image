@@ -29,8 +29,11 @@ REPO = Path(__file__).resolve().parent.parent
 SHARE = REPO / "system_files/usr/share"
 OUTS = (
     SHARE / "plasma/wallpapers/org.moos.ui2.greeter/contents/images",
-    SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/images",
-    SHARE / "plasma/look-and-feel/org.moos.ui2.light/contents/logout/images",
+    # NOT the logout greeter any more: Logout.qml draws the emblem's halo with a
+    # RadialGradient from Kirigami.Theme.highlightColor so it tracks all 16
+    # palettes. The baked sprite could not — the family generator recolours .svg
+    # only, so the cyan PNG shipped unchanged onto Arena's magenta accent.
+    # Writing it here again would put a dead file back into every package.
     SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen/images",
     SHARE / "plasma/plasmoids/org.moos.brand/contents/images",
     SHARE / "plasma/plasmoids/org.moos.heroclock/contents/images",

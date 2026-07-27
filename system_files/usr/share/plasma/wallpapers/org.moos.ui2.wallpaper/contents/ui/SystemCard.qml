@@ -14,6 +14,9 @@ Item {
     id: systemCard
 
     required property bool motionEnabled
+    // MotionMode 2 ("alive"). This card owns two of the three accents that make
+    // the level worth having: the beacon's ripple and the rings' halo.
+    required property bool accentMotion
     property int entranceDelay: 0
 
     readonly property real cpuValue: safeValue(cpuSensor.value)
@@ -69,6 +72,7 @@ Item {
     GlassCard {
         anchors.fill: parent
         motionEnabled: systemCard.motionEnabled
+        accentMotion: systemCard.accentMotion
         entranceDelay: systemCard.entranceDelay
 
         RowLayout {
@@ -95,11 +99,69 @@ Item {
                         radius: width / 2
                         color: systemCard.healthColor
 
-                        SequentialAnimation on opacity {
-                            running: systemCard.motionEnabled && beacon.visible
-                            loops: Animation.Infinite
-                            NumberAnimation { to: 0.38; duration: 1500; easing.type: Easing.InOutSine }
-                            NumberAnimation { to: 1;    duration: 1500; easing.type: Easing.InOutSine }
+                        // The `alive` accent: a slow ripple out of the status dot.
+                        //
+                        // It is a CHILD with its own visibility gate rather than an
+                        // opacity animation on the dot itself, for two reasons. The
+                        // dot's colour is INFORMATION — it is the health verdict —
+                        // and decoration must never dim information; a user glancing
+                        // at a half-faded red dot cannot tell fading from failing.
+                        // And a `SequentialAnimation on opacity` is a property value
+                        // source: it owns the property and, when `running` goes
+                        // false, stops writing without rewinding, so dropping from
+                        // alive to gentle mid-fade used to leave the beacon
+                        // permanently half-dim with nothing left to restore it. A
+                        // frozen ripple that is not drawn costs and shows nothing.
+                        Rectangle {
+                            id: beaconRipple
+                            anchors.centerIn: parent
+                            width: parent.width
+                            height: parent.height
+                            radius: width / 2
+                            color: "transparent"
+                            border.width: 1
+                            border.color: systemCard.healthColor
+                            visible: systemCard.motionEnabled && systemCard.accentMotion
+                            opacity: 0
+
+                            SequentialAnimation {
+                                running: systemCard.motionEnabled && systemCard.accentMotion
+                                loops: Animation.Infinite
+                                ParallelAnimation {
+                                    NumberAnimation {
+                                        target: beaconRipple
+                                        property: "scale"
+                                        from: 1
+                                        to: 2.6
+                                        duration: 1400
+                                        easing.type: Easing.OutCubic
+                                    }
+                                    SequentialAnimation {
+                                        NumberAnimation {
+                                            target: beaconRipple
+                                            property: "opacity"
+                                            from: 0
+                                            to: 0.55
+                                            duration: 260
+                                        }
+                                        NumberAnimation {
+                                            target: beaconRipple
+                                            property: "opacity"
+                                            to: 0
+                                            duration: 1140
+                                            easing.type: Easing.InQuad
+                                        }
+                                    }
+                                }
+                                // EVERY looping animation in this package rests,
+                                // `alive` included: an infinite QML animation pins
+                                // the render loop at the full frame rate and repaints
+                                // the whole window for as long as it runs, about 11%
+                                // of a CPU core whatever the item's size. 1.4 s of
+                                // ripple in a 6 s cycle is a ~23% duty cycle and
+                                // reads as a heartbeat rather than a strobe.
+                                PauseAnimation { duration: 4600 }
+                            }
                         }
                     }
                     Text {
@@ -134,6 +196,7 @@ Item {
                 value: systemCard.cpuValue
                 present: systemCard.cpuPresent
                 motionEnabled: systemCard.motionEnabled
+                accentMotion: systemCard.accentMotion
                 accentColor: Kirigami.Theme.highlightColor
             }
 
@@ -145,6 +208,7 @@ Item {
                 value: systemCard.memoryValue
                 present: systemCard.memoryPresent
                 motionEnabled: systemCard.motionEnabled
+                accentMotion: systemCard.accentMotion
                 accentColor: Kirigami.Theme.linkColor
             }
 
@@ -156,6 +220,7 @@ Item {
                 value: systemCard.diskValue
                 present: systemCard.diskPresent
                 motionEnabled: systemCard.motionEnabled
+                accentMotion: systemCard.accentMotion
                 accentColor: Kirigami.Theme.positiveTextColor
             }
         }

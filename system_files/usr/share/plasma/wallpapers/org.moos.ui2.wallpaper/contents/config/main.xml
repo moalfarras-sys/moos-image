@@ -11,8 +11,51 @@
     <entry name="Image" type="String">
       <default></default>
     </entry>
-    <!-- A low-duty-cycle ambient crossfade: 1.8 seconds of work every
-         90 seconds, never a continuous full-screen animation. -->
+    <!-- The three-level motion policy: 0 still, 1 gentle, 2 alive.
+             0 still  — nothing loops. One-shot entrance and value transitions
+                        are off too, so an accessibility profile gets a
+                        completely static desktop.
+             1 gentle — the calm default: the ambient crossfade below, the
+                        once-per-minute colon pulse, the rolling digits, the
+                        weather art's slow bob. Nothing runs at a 100% duty
+                        cycle.
+             2 alive  — gentle PLUS the card sheen sweep, the system beacon's
+                        ripple and the metric rings' halo. Still bounded: every
+                        looping animation rests, because an infinite QML
+                        animation pins the render loop at the full frame rate
+                        and repaints the WHOLE window for as long as it runs —
+                        about 11% of a CPU core whatever the item's size.
+
+         THE DEFAULT IS -1 AND THAT IS DELIBERATE. -1 is a sentinel meaning
+         "nobody has chosen a level on this desktop yet". KConfigXT cannot tell
+         an absent key from a key that happens to hold the default value, so a
+         default of 1 would have silently promoted every ALREADY-INSTALLED
+         desktop — which has AmbientMotion=false written by an older moos-theme
+         and no MotionMode at all — from "motion off" back to "gentle" the first
+         time this key shipped. On -1 the scene falls back to AmbientMotion, so
+         an upgrade never overrides a choice the user already made. moos-theme
+         and the wallpaper config page both write a real 0/1/2, and from then on
+         MotionMode is the answer.
+
+         There is deliberately no range constraint here either. A min/max pair
+         looks like the obvious safety net and is the opposite: KConfigXT CLAMPS
+         an out-of-range value, so a corrupt "7" would silently arrive as 2 — the
+         most expensive level, chosen by nobody. Left unconstrained, the raw
+         value reaches main.qml, which accepts only 0, 1 or 2 and treats anything
+         else as "unset" and falls back to AmbientMotion. Rejecting junk beats
+         rounding it. -->
+    <entry name="MotionMode" type="Int">
+      <default>-1</default>
+    </entry>
+    <!-- The original Boolean, kept as MotionMode's backward-compatible mirror:
+         0 <-> false, 1 and 2 <-> true. moos-theme still writes it in the same
+         transaction as MotionMode, and every installed desktop still has it, so
+         it is read whenever MotionMode is the -1 sentinel above. When both are
+         set, MotionMode wins.
+
+         What it gates at level 1: a low-duty-cycle ambient crossfade — 1.8
+         seconds of work every 90 seconds, never a continuous full-screen
+         animation. -->
     <entry name="AmbientMotion" type="Bool">
       <default>true</default>
     </entry>

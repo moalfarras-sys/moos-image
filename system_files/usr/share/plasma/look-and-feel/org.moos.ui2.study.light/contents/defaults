@@ -8,6 +8,20 @@ widgetStyle=Breeze
 [plasmarc][Theme]
 name=MoOSUI2ScholarLight
 
+# This theme's own wallpaper — the binding that makes System Settings -> Global
+# Theme deliver the whole MoOS look instead of MoOS colours on the previous
+# wallpaper. Plasma 6.7.3 resolves it through libkworkspace's
+# DefaultWallpaper::defaultWallpaperPackage(): kdeglobals [KDE]
+# LookAndFeelPackage -> that package's contents/defaults -> [Wallpaper] Image,
+# read as a BARE /usr/share/wallpapers package name (an absolute path resolves
+# to nothing). It is what org.kde.image falls back to on any surface with no
+# Image of its own, what the Wallpaper KCM offers as "Default", and what makes
+# System Settings list a wallpaper among this theme's contents. Applying the
+# theme does NOT rewrite any containment's wallpaper plugin: LookAndFeelManager
+# ::save() never reads this group, so the MoOS scene plugin stays put.
+[Wallpaper]
+Image=MoOSUI2ScholarLight
+
 [ksplashrc][KSplash]
 Theme=org.moos.ui2.study.light
 Engine=KSplashQML
