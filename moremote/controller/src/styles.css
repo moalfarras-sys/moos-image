@@ -397,6 +397,12 @@ button {
      underneath it. */
   max-height: 82dvh;
   overflow-y: auto;
+  /* Explicit, and load-bearing. Setting only overflow-y leaves overflow-x computing to `auto`
+     (a `visible` value becomes `auto` when the other axis is not visible), which quietly turned this
+     sheet into a HORIZONTAL scroll container too. With .grid overflowing — see below — the sheet
+     could then be scrolled sideways, and a real screenshot showed it clipped mid-word down its left
+     edge with no way to tell why. A bottom sheet has nothing legitimate to scroll horizontally. */
+  overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
@@ -413,7 +419,13 @@ button {
 }
 .grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* NOT repeat(4, 1fr). A 1fr track floors at min-content, so four fixed columns cannot shrink below
+     their widest label — and "Ctrl+Alt+Del" is far wider than the ~79px a quarter of a 390px sheet
+     leaves after gaps. The grid therefore overflowed its own sheet on every phone, which is what made
+     the Controls panel look cut off at the edge.
+     auto-fit + minmax lets the track count fall out of the available width instead: two columns on a
+     phone, four or more on a desktop, and never wider than its container. */
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 12px;
 }
 .cell {
