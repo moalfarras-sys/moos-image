@@ -41,6 +41,7 @@ check:
     python3 tests/test_moos_ui2.py
     python3 tests/test_moos_theme_safety.py
     python3 tests/test_moos_visual_system.py
+    python3 tests/test_cloud_private_desktop.py
     python3 artwork/verify_visuals.py
     # Same gate build.sh runs against the finished image, pointed at the tree that
     # is about to become it. Keeping it here means a drifted catalogue recipe or a

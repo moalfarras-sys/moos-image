@@ -2,6 +2,12 @@
 Description=MoOS Cloud audio stream (this account's sound, over HTTP)
 Documentation=file:///usr/bin/moos-cloud-audio
 
+# Only for accounts that have a desktop. Every SSH login to root gets a systemd
+# --user manager too, and without this that manager dutifully starts an audio
+# stream for a session that has no sound and no listener — a third instance
+# holding a port open on 0.0.0.0 for nobody. Same guard mo-remote-personal uses.
+ConditionUser=!@system
+
 # The capture target is the audio server's default sink monitor, so there has to
 # be an audio server first. On a VPS with no sound card that is still true —
 # WirePlumber invents a null sink, and its monitor is what carries what the
