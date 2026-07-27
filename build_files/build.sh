@@ -1292,9 +1292,35 @@ for lib in mpv-libs gtk3 libepoxy; do
     rpm -q "${lib}" >/dev/null \
         || { echo "GATE FAIL: MoPlayer runtime dependency ${lib} is missing"; exit 1; }
 done
+# Refresh the linker cache before reading it, or this gate reports the past.
+#
+# `ldconfig -p` does not look at the filesystem — it prints /etc/ld.so.cache, and
+# that file is only rewritten when something runs ldconfig. rpm's file triggers
+# normally do, but a `dnf5 install` whose packages are ALREADY INSTALLED makes no
+# transaction at all and therefore fires no trigger, so the cache can predate the
+# libraries sitting on disk right now.
+#
+# That is not hypothetical: it failed the moos-nvidia build on 2026-07-27 while
+# moos and moos-cloud passed the same commit. The log is unambiguous —
+# `Package "libglvnd-gles-1:1.7.0-9.fc44.x86_64" is already installed`, no
+# transaction, and then libGLESv2.so.2 "missing" from a cache written earlier in
+# the build. The file was there the whole time.
+#
+# One ldconfig costs milliseconds and makes the gate test what the dynamic linker
+# will actually see on the user's machine, which is the only thing it was ever
+# meant to assert.
+ldconfig
 for so in libEGL.so.1 libGLESv2.so.2; do
-    ldconfig -p | grep -q "${so}" \
-        || { echo "GATE FAIL: MoPlayer needs ${so} and no package in this image provides it"; exit 1; }
+    if ! ldconfig -p | grep -q "${so}"; then
+        echo "GATE FAIL: MoPlayer needs ${so} and no package in this image provides it"
+        # Say which of the two failures this is: a library that is genuinely absent
+        # needs a package added, one that is on disk but unlinkable needs a path or
+        # a conflicting provider chased down. They are not the same bug.
+        if find /usr/lib64 /usr/lib -maxdepth 1 -name "${so}" 2>/dev/null | grep -q .; then
+            echo "           (it IS on disk — the linker cache does not know about it)"
+        fi
+        exit 1
+    fi
 done
 
 # MoPlayer itself: the bundle comes from the moplayer-build stage (see the
