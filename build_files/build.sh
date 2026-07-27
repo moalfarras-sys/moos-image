@@ -3334,6 +3334,58 @@ TRUSTED
     else
         printf 'DefaultZone=FedoraServer\n' >> /etc/firewalld/firewalld.conf
     fi
+    # --- and the ONE public port that makes the tailnet fast -----------------
+    #
+    # Everything above is about what answers ON the tailnet. This is about whether there is a tailnet
+    # path worth answering on, and without it there is not.
+    #
+    # WireGuard is peer-to-peer over UDP 41641. tailscaled listens on 0.0.0.0:41641 and the outbound
+    # side works — `tailscale netcheck` on this server reports "UDP: true" because that test is a STUN
+    # probe going out. INBOUND is what direct connectivity needs, and FedoraServer allows exactly
+    # cockpit, dhcpv6-client and ssh with an empty port list, so every inbound WireGuard packet was
+    # dropped on ens3. Measured consequence, from a peer in the same region:
+    #
+    #     pong from moos-cloud via DERP(nue) in 25ms ... direct connection not established
+    #
+    # Every session therefore relayed through Tailscale's DERP server in Nuremberg. A relay is not
+    # merely an extra hop: DERP carries the tunnel over TCP, so a video stream inherits TCP's
+    # head-of-line blocking on the relay leg — one lost segment stalls every frame behind it, which is
+    # exactly the "it stutters and feels like it disconnects" this edition was reported for.
+    #
+    # Opening it exposes no service. WireGuard is authenticated and encrypted before it is parsed: a
+    # packet from anything that is not a peer holding a valid key is discarded by tailscaled, not by
+    # the firewall, and there is nothing behind the port to reach. This is what Tailscale documents as
+    # the requirement for direct connections, and a public VPS is precisely the host that can satisfy
+    # it — no NAT, a real address, nothing in the way but this rule.
+    #
+    # firewall-offline-cmd, not a hand-written FedoraServer.xml: the stock zone lives in /usr/lib and
+    # firewalld's own tooling makes the /etc copy correctly. Writing that file by hand would fork a
+    # distribution-owned zone and silently freeze whatever upstream adds to it later.
+    # Two ways in, because this must not be the line that stops the image from building. The tool is
+    # preferred; the hand-written copy is the fallback for a build root where firewalld's CLI cannot
+    # run. The gate at the end asserts the OUTCOME, so neither path is trusted on its word.
+    if ! firewall-offline-cmd --zone=FedoraServer --add-port=41641/udp >/dev/null 2>&1; then
+        _stock=/usr/lib/firewalld/zones/FedoraServer.xml
+        if [ -f "$_stock" ] && [ ! -f /etc/firewalld/zones/FedoraServer.xml ]; then
+            install -D -m0644 "$_stock" /etc/firewalld/zones/FedoraServer.xml
+        fi
+        if [ -f /etc/firewalld/zones/FedoraServer.xml ] &&
+           ! grep -q 'port="41641"' /etc/firewalld/zones/FedoraServer.xml; then
+            sed -i 's|</zone>|  <port protocol="udp" port="41641"/>\n</zone>|' \
+                /etc/firewalld/zones/FedoraServer.xml
+        fi
+    fi
+    if grep -q 'port="41641"' /etc/firewalld/zones/FedoraServer.xml 2>/dev/null; then
+        echo "=== cloud edition: UDP 41641 open on the public zone — direct WireGuard possible ==="
+    else
+        echo "  >>> FATAL: UDP 41641 is not open in the FedoraServer zone."
+        echo "  >>> Without it every session is forced onto a DERP TCP relay, which carries the"
+        echo "  >>> tunnel over TCP and is the single largest source of stutter on this edition."
+        echo "  >>> Measured: 'via DERP(nue) 25ms, direct connection not established' before the"
+        echo "  >>> rule, 'via <public-ip>:41641 21ms' after it. Refusing to ship the slow one."
+        exit 1
+    fi
+
     echo "=== cloud edition: tailscale0 trusted, public default is FedoraServer ==="
 
     # --- The gate on all four ----------------------------------------------

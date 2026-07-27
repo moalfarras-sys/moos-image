@@ -193,6 +193,21 @@ public sealed class ScreenCapture : IDisposable
         }
         _wantQuality = q;
         _wantScale = s;
+
+        // Push from HERE, not only from Capture(), and this is not belt-and-braces — without it the
+        // arbitration above is dead code for every H.264 session.
+        //
+        // The send loop has two branches. The JPEG branch polls Capture() every frame, which is where
+        // PushSettings was called from. The H.264 branch drains the encoded queue and returns without
+        // ever touching Capture() — correctly, because H.264 frames arrive by subscription rather than
+        // by polling. The consequence was that on H.264 nothing ever reached the encoder: the quality
+        // slider did nothing, the auto-quality ladder did nothing, and the resolution stayed at
+        // whatever the pipeline was first built with. Two independent audits found this the same way.
+        //
+        // Settings are a property of the room and change rarely, so pushing them when they CHANGE is
+        // both cheaper and more correct than pushing them 30 times a second and hoping the codec
+        // branch that does it is the one running.
+        PushSettings(_wantQuality, _wantScale);
     }
 
     public void SessionGone(Guid id)

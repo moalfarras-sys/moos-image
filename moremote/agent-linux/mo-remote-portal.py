@@ -519,6 +519,42 @@ def set_prop(el, name, value):
     return False
 
 
+# openh264enc counts `bitrate` in BITS per second. x264enc, nvh264enc, vah264enc and vah264lpenc all
+# count it in KILOBITS. There is no property to interrogate for the difference, so it has to be known.
+BITS_PER_SECOND_ENCODERS = {"openh264enc"}
+
+
+def apply_h264_bitrate():
+    """Set the live encoder's bitrate in the units THAT encoder uses.
+
+    THE BUG THIS REPLACES, WHICH MADE THE PICTURE UNWATCHABLE
+    ---------------------------------------------------------
+    This used to be:
+
+        if not set_prop(enc, "bitrate", h264_bitrate()):
+            set_prop(enc, "bitrate", h264_bitrate() * 1000)   # openh264enc counts bits
+
+    which reads as "try kilobits, and if this encoder has no such property, try bits". But set_prop
+    reports whether the property EXISTS, not whether the value made sense — and openh264enc has a
+    `bitrate` property. So the first call always succeeded, writing 6200 into a field measured in
+    bits per second: 6.2 kbit/s where 6.2 Mbit/s was meant, a thousandfold under-run. The fallback
+    line, and its comment about openh264enc, could never run on openh264enc.
+    Worse, it is not the pipeline's initial state that is wrong — the build string interpolates {bps}
+    correctly — it is the FIRST settings message from the client that destroys it. Every viewer that
+    connected, pushed its quality preset, and got H.264 dropped to a few kilobits within a second of
+    joining. On a GPU-less server openh264enc is the only H.264 encoder there is, so this was every
+    H.264 session, and 1080p at 6 kbit/s is not a degraded picture, it is a smear that never resolves.
+    """
+    if enc is None:
+        return
+    kbps = h264_bitrate()
+    try:
+        name = enc.get_factory().get_name()
+    except Exception:
+        name = ""
+    set_prop(enc, "bitrate", kbps * 1000 if name in BITS_PER_SECOND_ENCODERS else kbps)
+
+
 def set_video(m):
     # quality and fps are plain element properties — safe to change on a running pipeline.
     # scale and codec change the pipeline itself, which is not, so they go through rebuild().
@@ -531,8 +567,7 @@ def set_video(m):
     if "quality" in m:
         state["quality"] = max(10, min(95, int(m["quality"])))
         if state["codec"] == "h264":
-            if not set_prop(enc, "bitrate", h264_bitrate()):
-                set_prop(enc, "bitrate", h264_bitrate() * 1000)   # openh264enc counts bits
+            apply_h264_bitrate()
         else:
             set_prop(enc, "quality", state["quality"])
     if "fps" in m:
