@@ -1448,7 +1448,20 @@ chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
 # openh264 is therefore not a nicety, it is the floor under H.264 itself: software, always
 # available, ~a fifth of a core at 1080p30 — which is less than the JPEG path already burns doing
 # eighteen times worse. (Cisco's build; the repo ships enabled in Fedora.)
-dnf5 -y install gstreamer1-plugin-openh264 gstreamer1-plugins-bad-free
+# AND THE PLUGIN IS NOT THE CODEC. Fedora satisfies libopenh264's ABI with `noopenh264`
+# — a 40 KB package whose own summary is "Fake implementation of the OpenH264 library".
+# It exists so Firefox can link against something; it encodes nothing. With it installed
+# the plugin registers, gst-inspect finds openh264enc, every "is it there" check passes —
+# and the first frame fails with "Could not initialize supporting library. Failed to
+# create OpenH264 encoder", after which Mo PC Remote falls back to JPEG for ever.
+#
+# Measured on the cloud server before this line existed: a client that asked for H.264
+# was answered in JPEG, on every screen, for every session. Nobody saw an error; they
+# just paid 3x the bytes for a worse picture, and on a moving desktop far more than 3x.
+#
+# So swap the fake for Cisco's real one. --allowerasing because noopenh264 is what the
+# base image ships and the two cannot coexist.
+dnf5 -y install --allowerasing openh264 gstreamer1-plugin-openh264 gstreamer1-plugins-bad-free
 
 python3 - <<'EOF'
 import gi, sys
@@ -1463,10 +1476,27 @@ if missing:
 # At least one H.264 encoder that runs on ANY machine, with no GPU and no luck. The hardware ones
 # are checked at runtime, not here, because "installed" and "will open a session" are different
 # claims and only the second one matters.
-if not any(Gst.ElementFactory.find(e) for e in ("openh264enc", "x264enc")):
+enc = next((e for e in ("openh264enc", "x264enc") if Gst.ElementFactory.find(e)), None)
+if not enc:
     sys.exit("FATAL: no software H.264 encoder. NVENC is not guaranteed to open (VRAM), and "
              "without a fallback the stream drops to JPEG — 79 Mbit/s, unusable on mobile data.")
-print("OK: Mo Remote GStreamer capture pipeline elements all present (incl. software H.264).")
+
+# Finding the factory is not the claim that matters. `noopenh264` — Fedora's stub — makes
+# openh264enc register and then fail to create an encoder on the first frame, which is
+# exactly how every remote session on the cloud server ended up silently on JPEG while
+# every check here said H.264 was present. So encode two frames and insist they arrive.
+pipeline = Gst.parse_launch(
+    f"videotestsrc num-buffers=2 ! video/x-raw,width=320,height=240 ! "
+    f"videoconvert ! {enc} ! fakesink")
+pipeline.set_state(Gst.State.PLAYING)
+msg = pipeline.get_bus().timed_pop_filtered(
+    20 * Gst.SECOND, Gst.MessageType.ERROR | Gst.MessageType.EOS)
+pipeline.set_state(Gst.State.NULL)
+if msg is None or msg.type == Gst.MessageType.ERROR:
+    why = msg.parse_error()[0].message if msg is not None else "timed out"
+    sys.exit(f"FATAL: {enc} is installed but cannot encode ({why}). This is what a stub "
+             "codec looks like: every presence check passes and every stream is JPEG.")
+print(f"OK: Mo Remote GStreamer capture pipeline elements all present ({enc} encodes).")
 EOF
 
 # Compile-and-launch smoke test for every shipped pure-QML application, run through
