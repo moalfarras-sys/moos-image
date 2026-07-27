@@ -1497,9 +1497,22 @@ require("FAST_FLUSH_MS = 12" in remote_ws,
         "phone text the agent can type by keysym must still flush within one 60 Hz frame")
 require("CLIPBOARD_FLUSH_MS" in remote_ws and "FAST_TEXT" in remote_ws,
         "text needing a clipboard borrow must batch into words, not one borrow per letter")
-require("MOVE_THRESHOLD = 5" in gestures
-        and "Continue below and deliver this first meaningful delta" in gestures,
+require("Continue below and deliver this first meaningful delta" in gestures,
         "touch must deliver its first meaningful movement instead of feeling sticky")
+# The touch slop is a RANGE, not a literal. This assertion used to also require
+# "MOVE_THRESHOLD = 5", bundled in with the sticky-movement check it has nothing to do with — and
+# 5 CSS px is not a slop, it is a rounding error. A thumb travels that far before it has finished
+# landing, which committed the gesture to "scroll", and onUp had no case for "scroll", so an ordinary
+# tap sent no click AT ALL. Two tests pinned that value and both were holding the bug in place.
+#
+# What must hold is that the number sits in the band every touch platform picked for the same
+# tap-versus-swipe decision (iOS ~10pt, Android scaled touch slop ~8dp), and that a gesture which
+# crossed the line can still be rescued as a tap when it ends.
+_slop = re.search(r"MOVE_THRESHOLD = (\d+)", gestures)
+require(bool(_slop) and 8 <= int(_slop.group(1)) <= 20,
+        "the touch slop must be a real slop (8..20 CSS px), not a rounding error that eats taps")
+require('case "scroll":' in gestures and "TAP_RESCUE_MS" in gestures,
+        "a short, small gesture must still be rescued as a tap — otherwise a wobbled tap sends nothing")
 
 # build.sh installs into the image by name; a stale filename here fails the image build.
 build = read("build_files/build.sh")
