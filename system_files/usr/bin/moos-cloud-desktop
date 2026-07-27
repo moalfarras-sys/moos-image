@@ -54,27 +54,178 @@ tailscale_url() {
 # answer to the right question.
 #
 # So give the second person a compositor that never touches the seat at all:
-# `kwin_wayland --virtual` renders a full Plasma session into a framebuffer in
-# memory, on its own Wayland socket. Their Mo PC Remote captures THAT, on its own
-# port. Two desktops, one machine, neither aware of the other — verified running
-# side by side on a netcup VPS: moalfarras on wayland-0:8765 and momo on
-# wayland-momo:8766, each with their own kwin_wayland and plasmashell.
+# Plasma's OWN compositor, told to render to a virtual framebuffer instead of to
+# the seat. Their Mo PC Remote captures that, on its own port. Two desktops, one
+# machine, neither aware of the other — verified running side by side on a netcup
+# VPS, each with their own plasmashell and their own stream.
 #
 # What it costs, honestly: a second Plasma is ~400-600 MB of RAM and its own
 # encode load when the stream is live. On a 15 GB / 8-core box that is nothing;
 # on a 4 GB box it is most of what is left.
+#
+# WHAT THIS USED TO DO, AND WHY IT PRODUCED A BLACK SCREEN
+#
+# It used to start a compositor of its own:
+#
+#     kwin_wayland --virtual … --exit-with-session=/usr/bin/startplasma-wayland
+#
+# But startplasma-wayland does not run a desktop inside a compositor you hand it.
+# It starts the systemd-managed Plasma session, and that session's first unit is
+# plasma-kwin_wayland.service — A COMPOSITOR OF ITS OWN, which saw WAYLAND_DISPLAY
+# already set and came up NESTED inside ours.
+#
+# So the machine ran two compositors: an outer virtual one with nothing on it, and
+# an inner one carrying the actual desktop. The portal captured the outer one and
+# streamed a perfectly healthy, perfectly BLACK 1920x1080 framebuffer — frames
+# flowing at full rate, input reported ready, picture empty. Nothing failed, so
+# nothing said anything. Found by decoding a frame off the wire and looking at it.
+#
+# The fix is to own no compositor at all: one drop-in tells Plasma's compositor to
+# be the virtual one. kwin_wayland_wrapper forwards arguments it does not
+# recognise straight to kwin_wayland (verified: it answers "kwin: Unknown option"),
+# and keeping the wrapper is what publishes WAYLAND_DISPLAY into the systemd user
+# environment — which is how plasmashell, the portal and Mo PC Remote find the
+# session at all.
+
+# A dummy DRM device, and why it is load-bearing.
+#
+# KWin refuses to screencast any session that is not compositing with OpenGL —
+# screencastmanager.cpp: `backend->compositingType() == OpenGLCompositing`. And
+# KWin's virtual backend only OFFERS OpenGL when findRenderDevice() finds a DRM
+# device. A cloud VPS typically has exactly one: a KMS-only bochs-drm with no
+# render node. So it finds nothing, composites with QPainter, and every stream
+# request comes back "Unsupported compositing type" — which is what kept the
+# second developer's screen dark for a week.
+#
+# vgem is the device KWin's own source special-cases for exactly this, opening its
+# PRIMARY node because gbm can only allocate dumb buffers there. It has no display
+# output and holds no screen contents, so sharing it costs nothing: /dev/dri/card0
+# keeps its seat ACL and the two desktops stay as separate as they were.
+ensure_render_device() {
+    local group="${1:-}"
+    if ! modinfo vgem >/dev/null 2>&1; then
+        note "this kernel has no vgem — the private desktop will composite with QPainter"
+        note "and Mo PC Remote will not be able to stream it"
+        return 0
+    fi
+    modprobe vgem 2>/dev/null || true
+
+    install -D -m0644 /dev/stdin /etc/modules-load.d/moos-cloud-vgem.conf <<'MODLOAD'
+# A headless MoOS desktop needs a DRM device to composite with OpenGL, and KWin
+# will not screencast a QPainter session. bochs-drm on a VPS offers no render
+# node, so load vgem — the device KWin's virtual backend special-cases for this.
+vgem
+MODLOAD
+
+    # The group only exists once moos-cloud-dev has made a developer account. On a
+    # machine where it does not, fall back to a mode the headless user can open:
+    # vgem carries no screen contents, so this exposes nothing card0 was guarding.
+    if [ -n "$group" ] && getent group "$group" >/dev/null 2>&1; then
+        install -D -m0644 /dev/stdin /etc/udev/rules.d/61-moos-cloud-vgem.rules <<RULE
+# vgem exists here so a seatless Plasma can get an OpenGL context. Scoped to the
+# faux-bus vgem device on purpose — /dev/dri/card0 keeps its seat ACL.
+SUBSYSTEM=="drm", KERNEL=="card*", DEVPATH=="/devices/faux/vgem/drm/card*", GROUP="${group}", MODE="0660"
+RULE
+    else
+        install -D -m0644 /dev/stdin /etc/udev/rules.d/61-moos-cloud-vgem.rules <<'RULE'
+# vgem exists here so a seatless Plasma can get an OpenGL context. It is a dummy
+# GEM buffer device: no display output, no screen contents. Scoped to it alone —
+# /dev/dri/card0 keeps its seat ACL.
+SUBSYSTEM=="drm", KERNEL=="card*", DEVPATH=="/devices/faux/vgem/drm/card*", MODE="0666"
+RULE
+    fi
+    udevadm control --reload-rules 2>/dev/null || true
+    udevadm trigger --subsystem-match=drm --action=change 2>/dev/null || true
+    ok "render device ready (vgem) — the private desktop can composite with OpenGL"
+}
+
+# The portal grant, and the vicious cycle it breaks.
+#
+# The RemoteDesktop portal wants one interactive click before it will hand over
+# capture and input. A headless session has nobody to click, and the only way to
+# click would be through Mo PC Remote — which needs the grant it is asking for.
+# Never granted, for ever.
+#
+# The way out: Mo PC Remote already asks the portal for persistence
+# (mo-remote-portal.py sets persist_mode=2) and saves the token the portal returns.
+# That token IS the id of the record in the permission store, and the record it
+# guards turns out to carry nothing session-specific at all — just which devices
+# were granted and whether screen sharing was allowed. So it can be written ahead
+# of time, and the first Start restores instead of asking.
+#
+# The token must be minted the way xdp_generate_token() mints them, or the portal
+# frontend throws it out before the KDE side ever sees it: 16 random bytes,
+# standard base64, '+' and '/' aliased to '_', padding cut — because
+# xdp_is_valid_token() requires every character to be a D-Bus name character.
+# Python's urlsafe_b64encode uses '-', which is not one, and fails with the
+# unhelpful "Restore token is not valid".
+seed_portal_grant() {
+    local user="$1" uid="$2"
+    runuser -u "$user" -- env \
+        "XDG_RUNTIME_DIR=/run/user/${uid}" \
+        "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus" \
+        python3 - "/var/home/${user}/.config/MoRemote/portal-restore-token" <<'PYGRANT'
+import base64, os, secrets, struct, sys
+
+from gi.repository import Gio, GLib
+
+token_path = sys.argv[1]
+if os.path.exists(token_path) and open(token_path).read().strip():
+    print("portal grant: already set up")
+    sys.exit(0)
+
+def qstring(s):
+    b = s.encode("utf-16-be")
+    return struct.pack(">I", len(b)) + b
+
+def qbool(v):
+    return struct.pack(">I", 1) + b"\x00" + (b"\x01" if v else b"\x00")
+
+def quint(v):
+    return struct.pack(">I", 3) + b"\x00" + struct.pack(">I", v)
+
+# A QVariantMap as QDataStream writes it, in QMap key order. 3 = pointer|keyboard.
+blob = struct.pack(">I", 3)
+blob += qstring("clipboardEnabled") + qbool(False)
+blob += qstring("devices") + quint(3)
+blob += qstring("screenShareEnabled") + qbool(True)
+
+data = GLib.Variant("(suv)", ("KDE", 1, GLib.Variant("ay", blob)))
+token = base64.b64encode(secrets.token_bytes(16)).decode().rstrip("=")
+token = token.replace("+", "_").replace("/", "_")
+
+bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+bus.call_sync(
+    "org.freedesktop.impl.portal.PermissionStore",
+    "/org/freedesktop/impl/portal/PermissionStore",
+    "org.freedesktop.impl.portal.PermissionStore",
+    "Set",
+    GLib.Variant("(sbsa{sas}v)", ("remote-desktop", True, token, {"": ["yes"]}, data)),
+    None, Gio.DBusCallFlags.NONE, 10000, None)
+
+os.makedirs(os.path.dirname(token_path), exist_ok=True)
+with open(token_path, "w") as f:
+    f.write(token)
+os.chmod(token_path, 0o600)
+print("portal grant: seeded")
+PYGRANT
+}
+
 own_screen() {
     local user="${1:-}" port="${2:-}"
     [ -n "$user" ] || die "which account? e.g. moos-cloud-desktop own momo 8766"
     id "$user" >/dev/null 2>&1 || die "no such account: ${user}"
-    local uid socket
+    local uid
     uid="$(id -u "$user")"
-    socket="wayland-${user}"
     [ -n "$port" ] || port=$(( 8765 + uid - 1000 ))
     case "$port" in ''|*[!0-9]*) die "port must be a number" ;; esac
 
     # Their services must outlive the SSH session that starts them.
     loginctl enable-linger "$user"
+
+    # Without this the compositor comes up on QPainter and refuses to stream.
+    # moosdev is the group moos-cloud-dev puts every developer account in.
+    ensure_render_device moosdev
 
     # Mo PC Remote reads its port from TWO files, and settings.json is applied
     # AFTER config.dat — so writing only the one you find first changes nothing
@@ -97,15 +248,36 @@ for name, key in (("config.dat", "Port"), ("settings.json", "port")):
 PYPORT
     chown -R "${user}:${user}" "$dir"
 
-    # Point their streamer at their own compositor, not whatever owns the seat.
-    local dropin="/var/home/${user}/.config/systemd/user/mo-remote-personal.service.d"
-    install -d -o "$user" -g "$user" -m0755 "$dropin"
-    install -D -m0644 /dev/stdin "${dropin}/10-own-screen.conf" <<DROPIN
-# Written by moos-cloud-desktop. This account renders on its own virtual
-# compositor (${socket}), so the streamer must not go looking for the seat's.
+    # An older version of this command pinned the streamer to a compositor of its
+    # own (WAYLAND_DISPLAY=wayland-<user>). That compositor no longer exists, and a
+    # pin pointing at a dead socket is worse than no pin: the streamer would sit
+    # there capturing nothing. The wrapper publishes the real one.
+    rm -f "/var/home/${user}/.config/systemd/user/mo-remote-personal.service.d/10-own-screen.conf"
+    rmdir "/var/home/${user}/.config/systemd/user/mo-remote-personal.service.d" 2>/dev/null || true
+
+    # Plasma's own compositor renders to a virtual framebuffer for this account.
+    local kwindrop="/var/home/${user}/.config/systemd/user/plasma-kwin_wayland.service.d"
+    install -d -o "$user" -g "$user" -m0755 "$kwindrop"
+    install -D -m0644 /dev/stdin "${kwindrop}/20-moos-virtual-output.conf" <<'KWINDROP'
+# Written by moos-cloud-desktop. This account has no seat — the one screen belongs
+# to somebody else — so its compositor renders to a virtual framebuffer instead of
+# fighting over seat0.
+#
+# The arguments pass through kwin_wayland_wrapper untouched; it forwards what it
+# does not recognise to kwin_wayland. Keeping the WRAPPER rather than calling
+# kwin_wayland directly is the point: the wrapper creates the Wayland socket and
+# publishes WAYLAND_DISPLAY into the systemd user environment, which is how
+# plasmashell, the portal and Mo PC Remote all find this session.
+#
+# LIBGL_ALWAYS_SOFTWARE: a cloud VPS has no GPU and no Vulkan device. Left alone
+# Mesa reaches for zink, fails with "ZINK: failed to choose pdev", EGL never comes
+# up, and KWin quietly falls back to QPainter — which KWin then refuses to
+# screencast. The failure is silent in every log that matters.
 [Service]
-Environment=WAYLAND_DISPLAY=${socket}
-DROPIN
+Environment=LIBGL_ALWAYS_SOFTWARE=1
+ExecStart=
+ExecStart=/usr/bin/kwin_wayland_wrapper --virtual --width 1920 --height 1080 --xwayland
+KWINDROP
     chown -R "${user}:${user}" "/var/home/${user}/.config/systemd"
 
     # The session itself, as a user service so it comes back after a reboot.
@@ -148,19 +320,28 @@ After=dbus.socket
 [Service]
 Type=simple
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus
-# Everything MoOS does before KWin starts hangs off plasma-kwin_wayland.service
-# (and the login manager's copy) via drop-ins. This session starts kwin_wayland
-# by hand, so it hangs off NEITHER — and every one of those repairs was silently
-# skipped for this account alone: the Num Lock default, the legacy keyboard
-# migration, and the XDG data directories whose absence keeps ksycoca rebuilding.
-# It is a one-shot, idempotent, and cheap; the whole point is that this session
-# gets the same start as any other.
+# The input repairs used to be listed here by hand because this session started
+# kwin_wayland itself and so hung off none of the drop-ins that carry them. It
+# starts Plasma's own compositor now, so plasma-kwin_wayland.service's drop-ins
+# — moos-input-migrate among them — apply to this account like any other. Kept
+# anyway, and non-fatal: it is one-shot, idempotent and cheap, and it costs less
+# than finding out the hard way that an ordering changed.
 ExecStartPre=-/usr/bin/moos-ui-migrate --input-only
-ExecStart=/usr/bin/kwin_wayland --virtual --width 1920 --height 1080 --socket ${socket} --no-lockscreen --xwayland --exit-with-session=/usr/bin/startplasma-wayland
-# Services the manager starts later — the portal above all — need to know which
-# compositor is theirs. kwin exports WAYLAND_DISPLAY to its own children only.
-ExecStartPost=/usr/bin/systemctl --user set-environment WAYLAND_DISPLAY=${socket}
-ExecStopPost=/usr/bin/systemctl --user unset-environment WAYLAND_DISPLAY
+# Plain startplasma-wayland, and nothing wrapped around it. Its compositor is the
+# virtual one because of the drop-in written above, so this session has exactly
+# one — and it is the one carrying the desktop.
+ExecStart=/usr/bin/startplasma-wayland
+# Clear the display variables when the session goes down.
+#
+# The systemd --user manager outlives the session and keeps whatever was pushed
+# into its environment. Restart the desktop and Xwayland comes back on a NEW
+# display number, but the old DISPLAY is still sitting there — so the autostart
+# apps of the next session race against it and some lose. Measured: on a restart
+# that moved Xwayland from :2 to :0, xwaylandvideobridge read the stale :2,
+# could not connect, failed to load Qt's xcb plugin and aborted; drkonqi then
+# crashed a dozen times trying to report it, and the crash storm filled the
+# coredump cap. One stale variable, a gigabyte of dumps.
+ExecStopPost=/usr/bin/systemctl --user unset-environment DISPLAY WAYLAND_DISPLAY XAUTHORITY
 Restart=on-failure
 RestartSec=5
 
@@ -200,23 +381,28 @@ UNIT
         note "  retry later: tailscale serve --bg --https=${hport} http://127.0.0.1:${port}"
     fi
 
-    # The streamer must start INTO a session that exists, not before it.
+    # The streamer must start INTO a session that exists, not before it. The
+    # desktop is up when plasmashell is; the socket alone only proves a compositor.
     local waited=0
-    while [ "$waited" -lt 40 ]; do
-        [ -S "/run/user/${uid}/${socket}" ] && break
+    while [ "$waited" -lt 60 ]; do
+        pgrep -u "$user" -x plasmashell >/dev/null 2>&1 && break
         sleep 1
         waited=$((waited + 1))
     done
-    if [ ! -S "/run/user/${uid}/${socket}" ]; then
-        red "the private compositor did not come up within 40s"
+    if ! pgrep -u "$user" -x plasmashell >/dev/null 2>&1; then
+        red "the private desktop did not come up within 60s"
         note "check: journalctl --user -u moos-own-screen -n 40   (as ${user})"
         return 1
     fi
-    ok "private 1920x1080 desktop up for ${user} on ${socket}"
+    ok "private 1920x1080 desktop up for ${user}"
+
+    # Hand the portal its grant before the streamer asks for one, or it will sit
+    # waiting on a dialog nobody can answer.
+    seed_portal_grant "$user" "$uid" || note "could not seed the portal grant"
 
     runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
         systemctl --user restart mo-remote-personal.service >/dev/null 2>&1 || true
-    sleep 6
+    sleep 8
     if ss -tnl 2>/dev/null | grep -q ":${port} "; then
         ok "Mo PC Remote listening on ${port} for ${user}"
     else

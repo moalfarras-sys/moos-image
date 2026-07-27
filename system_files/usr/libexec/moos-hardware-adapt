@@ -27,7 +27,11 @@
 # MOOS_HW_STATE / MOOS_HW_SYSFS / MOOS_HW_DRYRUN so the gate can exercise it.
 set -uo pipefail
 
-HW_REV=1
+# Bumped 1 -> 2 on 2026-07-27. Two reasons, both of which need the adaptation to
+# actually run again on machines that have already been stamped: booted_image() was
+# returning "" (see below), and section 3's balanced default had therefore never
+# re-asserted itself on a desktop that had drifted onto tuned's `powersave`.
+HW_REV=2
 
 STATE="${MOOS_HW_STATE:-/etc/moos/hardware-adapt.state}"
 SYS="${MOOS_HW_SYSFS:-/sys}"
@@ -45,10 +49,28 @@ do_run() { if [ "$DRYRUN" = "1" ]; then log "DRYRUN: $*"; else "$@" >>"$LOG" 2>&
 
 # ── idempotency ──────────────────────────────────────────────────────────────
 booted_image() {
-    # The image this deployment runs, so a rebase re-adapts. Best-effort.
-    bootc status --json 2>/dev/null | python3 -c 'import json,sys
+    # The image this deployment runs, so a rebase re-adapts.
+    #
+    # This used to read `bootc status --json` at .status.booted.image.image.image.
+    # On a real MoOS deployment that path does not exist: `status.booted.image` comes
+    # back as an EMPTY object, so the expression raised and the `except` printed "".
+    # The stamp therefore degenerated to `rev=1 image=` on every machine — which
+    # matches itself forever, so a rebase NEVER re-triggered adaptation. Checked on
+    # the maintainer's desktop 2026-07-27: /etc/moos/hardware-adapt.state contained
+    # literally `rev=1 image=`, and the unit had logged "already adapted" at every
+    # boot since install. The image half of the key has never once done its job.
+    #
+    # rpm-ostree's `container-image-reference` IS populated, and it is the same field
+    # `moai-do`'s do_update already reads to identify the booted edition. Use that.
+    # It carries the digest, so each new signed image is a new stamp — exactly the
+    # "a rebase re-adapts" behaviour the key was written for.
+    rpm-ostree status --json 2>/dev/null | python3 -c 'import json,sys
 try:
-    d=json.load(sys.stdin); print((d.get("status",{}).get("booted",{}).get("image",{}).get("image",{}) or {}).get("image","") or "")
+    for d in json.load(sys.stdin).get("deployments", []):
+        if d.get("booted"):
+            print(d.get("container-image-reference","") or ""); break
+    else:
+        print("")
 except Exception: print("")' 2>/dev/null || echo ""
 }
 want_stamp="rev=${HW_REV} image=$(booted_image)"
@@ -150,6 +172,29 @@ fi
 #       'balanced' as the sane default; laptops/handhelds keep 'balanced' and let
 #       KDE PowerDevil switch to power-saver on battery. NEVER force performance
 #       silently, NEVER disable tuned/ppd. ────────────────────────────────────
+#
+#       Why this is worth re-asserting, measured on the maintainer's desktop
+#       (i5-14400F, no battery) on 2026-07-27: the machine was sitting on tuned's
+#       `powersave` profile, and had been for 13 consecutive boots. That profile
+#       sets `boost=0` — Turbo OFF — so:
+#
+#           /sys/devices/system/cpu/intel_pstate/no_turbo   = 1
+#           /sys/.../cpu0/cpufreq/scaling_max_freq          = 2500000   (2.5 GHz)
+#           energy_performance_preference                   = power
+#
+#       On a part whose turbo is 4.7 GHz that is a hard 47% cut to the single-core
+#       ceiling. Measured single-thread benchmark before/after switching to
+#       balanced: 0.594s -> 0.314s, i.e. 1.9x. Under an all-core load the cores
+#       went from pinned at the 2.5 GHz cap to ~3.95 GHz sustained. It also sets
+#       `vm.laptop_mode=5` and SATA `alpm=med_power_with_dipm` — writeback delay
+#       and link-power latency on a DESKTOP's boot SSD.
+#
+#       None of that is a MoOS setting; a person can select Power Save in Plasma's
+#       power widget and tuned-ppd maps it straight onto this profile. That is
+#       their right, and this is still not "force performance": `balanced` leaves
+#       turbo available and lets the DE manage it. What changed is that the default
+#       now genuinely re-asserts after an update instead of being stamped out on
+#       first boot forever.
 if command -v tuned-adm >/dev/null 2>&1; then
     do_run tuned-adm profile balanced
     log "tuned default profile: balanced (the DE switches on battery)"
