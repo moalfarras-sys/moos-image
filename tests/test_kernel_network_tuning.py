@@ -52,10 +52,22 @@ REQUIRED = {
     "net.ipv4.tcp_mtu_probing": (
         "1", "Tailscale is WireGuard and its MTU is smaller than the interface claims; where ICMP "
         "is dropped the result is a PMTU black hole that looks exactly like a dead link"),
+    "net.core.default_qdisc": (
+        "fq", "BBR paces its send rate and needs a scheduler that honours that pacing; with the "
+        "default fq_codel the pacing is fought instead of applied, so BBR's whole point is lost. "
+        "And the write is not merely ineffective — sch_fq is a module, so on the primary "
+        "systemd-sysctl pass it is rejected outright with 'Couldn't write fq', which is the same "
+        "silent-on-boot failure as the congestion-control one below"),
 }
 
-# Which congestion-control algorithms need a module loaded before the sysctl can select them.
-NEEDS_MODULE = {"bbr": "tcp_bbr"}
+# Which sysctl VALUES need a kernel module loaded before the sysctl can select them. Both entries
+# are the same failure: the algorithm/scheduler is a module, systemd-sysctl runs before it is
+# autoloaded, and the write is rejected with one unread log line. modules-load.d, ordered
+# After=systemd-modules-load.service, is what registers them in time. Keyed by (sysctl key, value).
+NEEDS_MODULE = {
+    ("net.ipv4.tcp_congestion_control", "bbr"): "tcp_bbr",
+    ("net.core.default_qdisc", "fq"): "sch_fq",
+}
 
 
 def parse(path: Path) -> dict[str, str]:
@@ -84,23 +96,22 @@ def main() -> int:
             errors.append(f"{key} is '{settings[key]}', expected '{expected}'.\n"
                           f"        Why it matters: {why}")
 
-    # The pairing. This is the one that was actually broken.
-    cc = settings.get("net.ipv4.tcp_congestion_control", "")
-    module = NEEDS_MODULE.get(cc)
-    if module:
-        loaded = {
-            line.strip()
-            for f in MODLOAD_DIR.glob("*.conf")
-            for line in f.read_text(encoding="utf-8").splitlines()
-            if line.strip() and not line.strip().startswith("#")
-        }
-        if module not in loaded:
+    # The pairing. This is the class of bug that was actually broken — twice, for the same reason:
+    # a module-backed sysctl value written before its module is loaded.
+    loaded = {
+        line.strip()
+        for f in MODLOAD_DIR.glob("*.conf")
+        for line in f.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    }
+    for (key, value), module in NEEDS_MODULE.items():
+        if settings.get(key) == value and module not in loaded:
             errors.append(
-                f"sysctl asks for congestion control '{cc}', which needs the '{module}' module, but\n"
+                f"sysctl sets {key} = '{value}', which needs the '{module}' module, but\n"
                 f"        no file in {MODLOAD_DIR.relative_to(ROOT)} loads it.\n"
                 f"        systemd-sysctl.service runs After=systemd-modules-load.service, so listing\n"
-                f"        it there is what makes the algorithm exist before anything selects it.\n"
-                f"        Without it the write fails and the machine silently stays on cubic.")
+                f"        it there is what makes the value selectable before anything selects it.\n"
+                f"        Without it the write is rejected and the setting silently never applies.")
 
     # Every key must be one this kernel has. Only meaningful where there is a kernel to ask.
     if PROC_SYS.is_dir():
@@ -110,12 +121,13 @@ def main() -> int:
                           f"        systemd-sysctl skips unknown keys with a warning nobody reads, so the\n"
                           f"        setting would never apply and nothing would say so.")
         # A congestion control that is merely *spelled* right is not one the kernel can use.
+        cc = settings.get("net.ipv4.tcp_congestion_control", "")
         avail = (PROC_SYS / "net/ipv4/tcp_available_congestion_control")
         if cc and avail.is_file() and cc not in avail.read_text().split():
             print(f"NOTE: '{cc}' is not registered on the running kernel yet "
                   f"(available: {avail.read_text().strip()}).\n"
                   f"      That is expected on a machine that has not booted this image — "
-                  f"modules-load.d/{module}.conf is what fixes it at boot.")
+                  f"modules-load.d is what fixes it at boot.")
     else:
         print("NOTE: no /proc/sys here (container build host) — key existence not verified.")
 
@@ -125,8 +137,10 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
-    print(f"OK: {len(settings)} sysctl key(s) valid; congestion control '{cc}' paired with "
-          f"modules-load.d/{module or '(none needed)'}")
+    paired = [f"{key}={value}→{module}" for (key, value), module in NEEDS_MODULE.items()
+              if settings.get(key) == value]
+    print(f"OK: {len(settings)} sysctl key(s) valid; module-backed values paired with "
+          f"modules-load.d ({', '.join(paired) or 'none needed'})")
     return 0
 
 
