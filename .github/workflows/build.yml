@@ -298,3 +298,35 @@ jobs:
           done
           echo "::error::signature never became verifiable for ${IMAGE_NAME}@${DIGEST}"
           exit 1
+
+      # Supply-chain transparency. The signature above answers WHO built the
+      # image; an SBOM answers WHAT is inside it. Generate one from the pushed
+      # digest and attest it with the SAME cosign key used for signing (no new
+      # OIDC permissions), so a consumer can run
+      #   cosign verify-attestation --key cosign.pub --type spdxjson \
+      #     ghcr.io/<owner>/<image>@<digest>
+      # alongside the signature check.
+      #
+      # These run LAST on purpose: the image is already pushed, signed and
+      # verified, so a failure here fails the run loudly without unpublishing a
+      # good image — and because bootc only ever upgrades to a fully built and
+      # signed image, a red SBOM step simply means no new build ships that day,
+      # never a broken one.
+      - name: Generate SBOM (SPDX) from the pushed image
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.meta.outputs.registry }}/${{ matrix.image_name }}@${{ steps.push.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+
+      - name: Attest the SBOM with the signing key
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          IMAGE_REGISTRY: ${{ steps.meta.outputs.registry }}
+          IMAGE_NAME: ${{ matrix.image_name }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          cosign attest -y --key env://COSIGN_PRIVATE_KEY \
+            --type spdxjson --predicate sbom.spdx.json \
+            "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
