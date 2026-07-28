@@ -132,6 +132,10 @@ jobs:
           # A cloud account with no PIN answers /api/setup to whoever reaches it first, and one with
           # a forgotten PIN has no way back in at all. Both are silent on a healthy-looking server.
           python3 tests/test_cloud_set_pin.py
+          # moos-cloud-dev wrote an inverted subuid range (100000-65535) that usermod rejects,
+          # aborting a tenant half-created; a fixed range would instead make two tenants share host
+          # UIDs. This asserts the allocation is valid and uid-derived (unique).
+          python3 tests/test_cloud_subid_range.py
           python3 tests/test_mo_remote_codec_resend.py
           # Mo PC Remote's feel over cellular is decided by three lines of kernel tuning, and both
           # ways they can fail are silent: a congestion control selected but never registered
