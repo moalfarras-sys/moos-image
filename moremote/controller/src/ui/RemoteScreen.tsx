@@ -146,6 +146,10 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   // outside React's render and needs it before the first frame exists — see that callback for why
   // being frameless there used to mean being ignored.
   const screenSizeRef = useRef({ w: 0, h: 0 });
+  // Bumped by anything that changes what belongs on screen. The draw loop compares against it and
+  // skips the blit when nothing has — see the draw loop for why that matters on a phone.
+  const drawEpochRef = useRef(0);
+  const invalidate = useCallback(() => { drawEpochRef.current++; }, []);
   const hideTimer = useRef<number | null>(null);
 
   const [status, setStatus] = useState<Conn>("connecting");
@@ -254,13 +258,29 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       canvas.width = Math.round(canvas.clientWidth * dpr);
       canvas.height = Math.round(canvas.clientHeight * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawEpochRef.current++;   // the surface itself changed size
     };
     resize();
     window.addEventListener("resize", resize);
     window.addEventListener("orientationchange", resize);
 
+    // Repaint when there is something new to paint, not 60 times a second regardless.
+    //
+    // This loop cleared the canvas and re-drew a 1080p bitmap on every animation frame whether or not
+    // a frame had arrived, whether or not the view had moved, and whether or not the desktop was even
+    // changing. On a still screen — which is most of the time, and the case the whole
+    // identical-frame-skipping design exists to make cheap — that is 60 full-surface blits a second
+    // for an image identical to the one already on screen. On a phone it is the single largest battery
+    // cost in the client, and it competes with the H.264 decode for the same main thread.
+    //
+    // Anything that changes what should be on screen bumps drawEpoch: a new frame, a zoom, a pan, a
+    // resize, a cursor move. The rAF loop stays running — it is the cheapest way to stay in step with
+    // the compositor — but it returns immediately when nothing has changed.
+    const drawState = { epoch: -1 };
     const draw = () => {
       if (disposed) return;
+      if (drawEpochRef.current === drawState.epoch) { raf = requestAnimationFrame(draw); return; }
+      drawState.epoch = drawEpochRef.current;
       const f = frameRef.current;
       ctx.fillStyle = "#05070d";
       ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
@@ -287,6 +307,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       const old = frameRef.current;
       frameRef.current = d;
       fpsCount.current++;
+      drawEpochRef.current++;   // a new picture is the whole point of repainting
       closeDrawable(old);
     };
 
@@ -391,9 +412,10 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
           view.current.panY += (fy - r.top) - (l.oy + before.y * l.dispH);
         }
         clampPan();
+        drawEpochRef.current++;
       },
-      panBy: (dx, dy) => { view.current.panX += dx; view.current.panY += dy; clampPan(); },
-      cursorAt: (x, y) => { cursorNorm.current = { x, y }; },
+      panBy: (dx, dy) => { view.current.panX += dx; view.current.panY += dy; clampPan(); drawEpochRef.current++; },
+      cursorAt: (x, y) => { cursorNorm.current = { x, y }; drawEpochRef.current++; },
       haptic: () => {if(hapticsRef.current)navigator.vibrate?.(8);},
     }, () => mouseSensitivityRef.current);
     gest.setMode(modeRef.current);
@@ -410,7 +432,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       scroll: (dx, dy) => conn.scroll(dx, dy),
       keyCode: (code, down) => conn.keyCode(code, down),
       text: (v) => conn.text(v),
-      cursorAt: (x, y) => { cursorNorm.current = { x, y }; },
+      cursorAt: (x, y) => { cursorNorm.current = { x, y }; drawEpochRef.current++; },
     }, () => scrollSensitivityRef.current, () => pointerLockRef.current);
     desktopRef.current = desk;
     if (modeRef.current === "desktop") desk.attach();
@@ -544,10 +566,11 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const chooseView = (m: ViewMode) => {
     setViewMode(m);
     view.current = { zoom: m === "actual" ? 1 : 1, panX: 0, panY: 0 };
+    invalidate();
     showToast(m === "fit" ? "Fit to screen" : "Original size (100%)");
   };
-  const zoomBy = (f: number) => { view.current.zoom = Math.min(5, Math.max(minZoom(), view.current.zoom * f)); clampPan(); };
-  const resetZoom = () => { view.current = { zoom: 1, panX: 0, panY: 0 }; };
+  const zoomBy = (f: number) => { view.current.zoom = Math.min(5, Math.max(minZoom(), view.current.zoom * f)); clampPan(); invalidate(); };
+  const resetZoom = () => { view.current = { zoom: 1, panX: 0, panY: 0 }; invalidate(); };
 
   // ---------- keyboard ----------
   // A real visible input. Tapping it raises the iOS keyboard; we diff its value so typing

@@ -440,6 +440,19 @@ UNIT
     # waiting on a dialog nobody can answer.
     seed_portal_grant "$user" "$uid" || note "could not seed the portal grant"
 
+    # ENABLE, then restart. `restart` alone was a private desktop with a shelf life.
+    #
+    # build.sh ships mo-remote-personal.service `--global disable`d, so no account has it wanted by
+    # default.target. `systemctl --user restart` happily starts an inactive unit — so this worked
+    # perfectly in the moment and did not survive the next reboot, leaving https://<name>:8443/ a
+    # gateway error onto a dead agent while /audio, which IS globally enabled, kept answering: a
+    # desktop with a working speaker button and no desktop behind it. Exactly the shape of failure
+    # that gets reported as "it worked yesterday".
+    #
+    # Enable is separate from restart on purpose: `enable --now` will not restart a unit that is
+    # already running, and this function is also the path that changes the port it must pick up.
+    runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
+        systemctl --user enable mo-remote-personal.service >/dev/null 2>&1 || true
     runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
         systemctl --user restart mo-remote-personal.service >/dev/null 2>&1 || true
     sleep 8

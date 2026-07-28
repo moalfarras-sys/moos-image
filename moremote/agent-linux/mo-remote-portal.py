@@ -284,17 +284,46 @@ def pick_h264():
     return None, None
 
 
-def h264_bitrate():
-    """Reuse the existing 10..95 quality slider. The phone already has one; a second control that
-    means almost the same thing is a worse UI than a single one that means both.
+def h264_bitrate_bps(w=0, h=0):
+    """Bits per second for a picture of this size, from the 10..95 quality slider.
 
-    The multiplier is 100, not the 60 it started at, because a remote DESKTOP is mostly small text
-    and thin window chrome — the content H.264 finds hardest and the content the user is actually
-    reading. At the old mapping the 62 default meant 3.7 Mbit/s at 1080p, where terminal text goes
-    soft and never quite settles. 6.2 Mbit/s holds it crisp, costs nothing on NVENC, and is still
-    well under a twentieth of what the JPEG path it replaced was spending (measured here: 1.18 MB
-    frames, ~280 Mbit/s) to look worse."""
-    return max(1200, min(12000, int(state["quality"] * 100)))
+    WHY THIS IS NOT `quality * 100` ANY MORE, AND WHY THAT MAPPING MADE THE STUTTER SELF-SUSTAINING
+    -----------------------------------------------------------------------------------------------
+    The old mapping read the slider and nothing else — not width, not height, not framerate. But the
+    slider moves the RESOLUTION too (types.ts couples quality and scale in one preset), and it moves it
+    in the same direction, so the bitrate request ended up INVERTED against the picture it was paying
+    for:
+
+        preset      request        picture      bits/pixel/frame
+        Low         4.5 Mbit/s     960x540      0.289
+        Balanced    6.2 Mbit/s     1344x756     0.203
+        High        8.0 Mbit/s     1920x1080    0.129
+
+    Low asks for 2.25x the bits per pixel that High does, and only 44% fewer bits in total for a
+    quarter of the pixels. So when RTT crosses the ladder's threshold and the client steps DOWN to
+    relieve a struggling link, the encoder is told to spend almost as much on a much smaller image —
+    the one mechanism that exists to reduce load makes the load worse, which sustains the very
+    congestion that triggered it. That is a continuous stutter with no event behind it, which is what
+    "تقطيع" describes far better than any freeze.
+
+    Bits per pixel per frame is the quantity that actually determines whether text looks crisp, so make
+    that the thing the slider controls and let the bitrate fall out of it. 0.03..0.10 bpp is the useful
+    range for desktop content: at 1080p30 that is 1.9..6.2 Mbit/s, so the default 62 still lands on
+    today's known-good figure, while Low at 960x540 now asks under 1 Mbit/s instead of 4.5.
+
+    Returns BITS per second. openh264enc wants bits; the kilobit encoders get it divided at the call
+    site. w/h are passed in explicitly because target_size() returns (0,0) until the stream geometry
+    arrives and state["out"] is transiently (0,0) as a rebuild sentinel — reading either from in here
+    would silently produce the floor.
+    """
+    if not w or not h:
+        w, h = state.get("out") or (0, 0)
+    if not w or not h:
+        w, h = 1920, 1080          # a sane assumption beats a zero-sized budget
+    fps = state.get("fps") or 30
+    q = max(10, min(95, int(state["quality"])))
+    bpp = 0.03 + (q - 10) / 85.0 * 0.07     # 10 -> 0.03, 95 -> 0.10
+    return int(max(800_000, min(12_000_000, bpp * w * h * fps)))
 
 
 def target_size():
@@ -444,9 +473,13 @@ def build(w, h):
         # client actually needs one. Keep a periodic IDR as insurance against undetected corruption,
         # but at 10 seconds rather than 2 — a fifth of the spikes for the same recovery guarantee.
         gop = max(15, state["fps"] * 10)
+        _bps = h264_bitrate_bps(w, h)
         tail = (
-            f"! {elem} " + props.format(kbps=h264_bitrate(), bps=h264_bitrate() * 1000,
-                                        maxbps=int(h264_bitrate() * 1500), gop=gop)
+            # ONE value, computed for the size this pipeline is actually building, then expressed in
+            # whichever unit the chosen encoder wants. Calling the budget three times invited the three
+            # to disagree; and it must be told w/h explicitly, since state["out"] is not set yet here.
+            f"! {elem} " + props.format(kbps=max(1, _bps // 1000), bps=_bps,
+                                        maxbps=int(_bps * 1.5), gop=gop)
             + " name=enc "
             # config-interval=-1 repeats SPS/PPS before every keyframe: a decoder that joins late
             # needs them, and on a live stream "late" is the only way anyone ever joins.
@@ -561,12 +594,17 @@ def apply_h264_bitrate():
     """
     if enc is None:
         return
-    kbps = h264_bitrate()
+    bps = h264_bitrate_bps()
     try:
         name = enc.get_factory().get_name()
     except Exception:
         name = ""
-    set_prop(enc, "bitrate", kbps * 1000 if name in BITS_PER_SECOND_ENCODERS else kbps)
+    in_bits = name in BITS_PER_SECOND_ENCODERS
+    set_prop(enc, "bitrate", bps if in_bits else max(1, bps // 1000))
+    # The ceiling has to move with the target or it stops being a ceiling and becomes a cap that
+    # throttles the very preset the user just asked for.
+    ceiling = int(bps * 1.5)
+    set_prop(enc, "max-bitrate", ceiling if in_bits else max(1, ceiling // 1000))
 
 
 def set_video(m):
