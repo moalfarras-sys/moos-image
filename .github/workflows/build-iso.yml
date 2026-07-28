@@ -45,6 +45,9 @@ jobs:
   build-iso:
     name: Build live ISO (Titanoboa)
     runs-on: ubuntu-latest
+    # Titanoboa's build plus the ~15 GB unsquashfs/mksquashfs offline embed is a
+    # long job; cap it so a hang fails instead of burning the 6h default.
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,6 +78,18 @@ jobs:
           large-packages: true
           docker-images: true
           swap-storage: true
+
+      # A live ISO (and the image embedded in it for offline install) must carry
+      # the same signature the device enforces. Verify against cosign.pub
+      # (== /etc/pki/containers/moos.pub) BEFORE pulling, so a moved or
+      # overwritten :latest tag fails here instead of shipping in an ISO.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Verify the image signature before building an ISO from it
+        env:
+          IMAGE_REF: ${{ steps.ref.outputs.image_ref }}
+        run: cosign verify --key cosign.pub "${IMAGE_REF}"
 
       # Titanoboa's main.sh mounts the image with `sudo podman run
       # --mount type=image,source=$IMAGE` — image mounts do NOT auto-pull,
