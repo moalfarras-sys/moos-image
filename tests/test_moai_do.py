@@ -125,6 +125,22 @@ for qml in sorted((ROOT / "system_files/usr/share/moos/apps").glob("*/main.qml")
               f"{qml.parent.name}/main.qml tells the user to run `moai-do {named}`, but that "
               f"is not one of moai-do's actions")
 
+    # The scan above only sees `moai-do <word>` with a real SPACE. But the whitelist that
+    # actually decides which run-button appears is a different form — an authoritative regex
+    # ALTERNATION whose members are what extractRuns matches:
+    #     const re = /moai-do\s+(update|fix-audio|...|setup-brain)\b/g
+    # After "moai-do" comes a backslash, not a space, so the space-form scan never matches this
+    # line and a member that appears ONLY inside the alternation (fix-audio was exactly that) is
+    # validated by nobody. Parse the alternation and assert every member is a real action, so a
+    # renamed or typo'd action left stale in the whitelist fails the build instead of shipping a
+    # run-button that pops 'unknown command'.
+    for alt in re.findall(r"moai-do\\s\+\(([a-z0-9|_-]+)\)", source):
+        for member in alt.split("|"):
+            check(member in actions,
+                  f"{qml.parent.name}/main.qml's run-button whitelist offers `moai-do {member}`, "
+                  f"but that is not one of moai-do's actions — the button would pop 'unknown "
+                  f"command'")
+
 # ── 2. Refusal — run it ──────────────────────────────────────────────────────
 def run(*args):
     """moai-do with no stdin: a prompt would read EOF and cancel, never hang."""
