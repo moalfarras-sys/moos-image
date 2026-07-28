@@ -64,13 +64,32 @@ valid_name() {
 # it explicitly (and idempotently) is what makes adding the tenth developer as
 # boring as the first.
 ensure_subids() {
-    local user="$1"
+    local user="$1" uid start end
+    uid="$(id -u "$user" 2>/dev/null)" \
+        || die "cannot read the uid of ${user} — the account was not created"
+
+    # Each account gets its OWN 65536-wide block, keyed off the uid so two
+    # developers never share one. That last part matters: overlapping subuid
+    # ranges map two users' containers onto the same host uids, which quietly
+    # defeats the isolation the ranges exist to provide. uid 1000 -> 100000,
+    # 1001 -> 165536, and so on. System accounts (uid < 1000) never take this
+    # path — only useradd'd dev accounts reach here.
+    #
+    # The previous code wrote `100000-65535`, an inverted range (start > end)
+    # that usermod rejects outright ("invalid subordinate uid range"). It
+    # survived only because Fedora's useradd usually pre-allocates a valid
+    # range, so the `grep` guard skipped it; on the account-update path, or a
+    # host with SUB_UID_COUNT unset, it fired and aborted `add` with a message
+    # blaming rootless podman, leaving the account half-provisioned.
+    start=$(( 100000 + (uid - 1000) * 65536 ))
+    end=$(( start + 65535 ))
+
     if ! grep -q "^${user}:" /etc/subuid 2>/dev/null; then
-        usermod --add-subuids 100000-65535 "$user" 2>/dev/null \
+        usermod --add-subuids "${start}-${end}" "$user" 2>/dev/null \
             || die "could not allocate a subuid range for ${user} — rootless podman would fail"
     fi
     if ! grep -q "^${user}:" /etc/subgid 2>/dev/null; then
-        usermod --add-subgids 100000-65535 "$user" 2>/dev/null \
+        usermod --add-subgids "${start}-${end}" "$user" 2>/dev/null \
             || die "could not allocate a subgid range for ${user} — rootless podman would fail"
     fi
 }
