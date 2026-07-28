@@ -48,6 +48,8 @@ check:
     python3 tests/test_cloud_set_pin.py
     # A connect burst must coalesce into ONE pipeline build, and idle teardown must stay immediate.
     python3 tests/test_remote_rebuild_debounce.py
+    # Input must not block the socket that carries the pings the quality ladder measures.
+    python3 tests/test_input_off_socket_thread.py
     python3 tests/test_moos_store_index.py
     python3 tests/test_moos_storectl.py
     python3 tests/test_moos_ui2.py

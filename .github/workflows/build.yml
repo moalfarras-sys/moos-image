@@ -141,6 +141,10 @@ jobs:
           # One connecting phone used to rebuild the encode pipeline four times in two seconds:
           # the picture appears, blanks, appears, blanks, appears. Reads as a bad link; is not one.
           python3 tests/test_remote_rebuild_debounce.py
+          # Injecting input used to run on the socket-reading thread, so every ping queued behind
+          # every click — and the auto-quality ladder reads those pongs, so USING the remote made
+          # it lower its own picture quality. Measured on loopback: 0.7ms idle, 133ms after 5 clicks.
+          python3 tests/test_input_off_socket_thread.py
           python3 tests/test_moos_store_index.py
           python3 tests/test_moos_storectl.py
           python3 tests/test_moos_ui2.py

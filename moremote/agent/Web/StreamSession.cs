@@ -59,6 +59,27 @@ public sealed class StreamSession
     /// so one wake-up empties the whole queue however many frames arrived.
     /// </summary>
     private readonly SemaphoreSlim _frameReady = new(0, 1);
+
+    /// <summary>
+    /// Input waiting to be injected, in the order it arrived.
+    ///
+    /// SingleReader because ordering is not negotiable — a mouse-up that overtook its mouse-down
+    /// leaves a button physically held on the desktop, and a Shift-up that overtook the character it
+    /// was shifting types the wrong thing. One consumer, one FIFO, no reordering possible.
+    ///
+    /// 1024 is a "something is badly wrong" bound rather than a policy: a human generates input at
+    /// tens per second and a mouse at a few hundred, so a second of the worst case does not reach a
+    /// tenth of it. The enqueue site falls back to running inline when it is full, so the depth can
+    /// never cost an event — only, in an impossible case, the benefit.
+    /// </summary>
+    private readonly System.Threading.Channels.Channel<(JsonElement Root, string Type)> _inputQueue =
+        System.Threading.Channels.Channel.CreateBounded<(JsonElement, string)>(
+            new System.Threading.Channels.BoundedChannelOptions(1024)
+            {
+                SingleReader = true,
+                SingleWriter = true,
+                FullMode = System.Threading.Channels.BoundedChannelFullMode.Wait,
+            });
     private string _sentCodec = "";
     private bool _inputConfirmed;
     private int _moveLogCounter;
@@ -150,10 +171,15 @@ public sealed class StreamSession
 
         var send = SendLoop(ct);
         var recv = ReceiveLoop(ct);
+        // The third loop, and the reason the first two stay responsive: injecting input blocks
+        // (a click is press-pause-release, Arabic borrows the clipboard through a subprocess), and
+        // doing that on the socket reader made every ping queue behind it. See the enqueue site.
+        var inject = InputLoop(ct);
         var finished = await Task.WhenAny(send, recv);
 
         linked.Cancel();
-        try { await Task.WhenAll(send, recv); } catch { /* expected on teardown */ }
+        _inputQueue.Writer.TryComplete();
+        try { await Task.WhenAll(send, recv, inject); } catch { /* expected on teardown */ }
 
         if (handle.Token.IsCancellationRequested && !requestAborted.IsCancellationRequested)
             await SendJson(new { type = "stopped" }, CancellationToken.None);
@@ -400,6 +426,70 @@ public sealed class StreamSession
                 return;
             }
 
+            // HAND THE INPUT OFF; DO NOT PERFORM IT HERE.
+            //
+            // WHAT THIS COSTS WHEN IT IS DONE INLINE, MEASURED ON LOOPBACK
+            //
+            // Injecting input is not instantaneous and never can be: a click has to be a press, a
+            // pause, and a release, or applications do not see a click at all (InputInjector sleeps
+            // 25ms between them); a double-click is 25+40+25; and typing anything the keysym path
+            // cannot reach borrows the clipboard, which means spawning wl-copy and waiting for it.
+            //
+            // All of that used to run ON THIS THREAD, which is the one reading the socket. So while
+            // an input was being injected, nothing else could be read — including the pings. Measured
+            // against the live agent over loopback, where the network contributes 0.7ms, by firing an
+            // input and then fifteen pings back to back and timing the pongs:
+            //
+            //     baseline            0.7 ms
+            //     1 click            25.7 ms
+            //     5 clicks          133.4 ms
+            //     double-click       90.7 ms
+            //     one Arabic word    43.2 ms
+            //
+            // exactly the sleep constants, plus the subprocess. The latency itself is bad enough, but
+            // the second consequence is worse and entirely self-inflicted: RemoteScreen's automatic
+            // quality ladder steps DOWN when RTT crosses 400ms, and it reads that RTT from these very
+            // pongs. On a cellular link with a 200ms base, a handful of clicks and a word of Arabic
+            // push it over the line — so the picture gets worse BECAUSE the user is using it, and
+            // improves again when they stop. That is precisely the "it goes blurry when I actually do
+            // something" complaint, and no amount of encoder tuning could have fixed it.
+            //
+            // So the socket reader now only parses and validates, and the work goes to a queue drained
+            // by one consumer. Ordering is the whole reason it is ONE consumer and a FIFO: a mouse-up
+            // that overtook its mouse-down would leave a button held on the desktop.
+            //
+            // Clone() is what makes the handoff safe — `root` belongs to a JsonDocument that is
+            // disposed the moment this method returns, and a JsonElement read after that is undefined.
+            // Clone detaches it onto its own buffer, which is documented as safe to store beyond the
+            // document's lifetime.
+            if (!_inputQueue.Writer.TryWrite((root.Clone(), type)))
+            {
+                // The queue is 1024 deep and human input does not fill it, so this is the "something
+                // is very wrong" path. Run it inline rather than drop it: a dropped mouse-up is a
+                // button stuck down on the desktop, which is far worse than a hitch.
+                await ExecuteInput(root, type, ct);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Drains the input queue in order, off the socket-reading thread. Started with the session and
+    /// cancelled with it; see the note at the enqueue site for why this exists.
+    /// </summary>
+    private async Task InputLoop(CancellationToken ct)
+    {
+        try
+        {
+            await foreach (var (root, type) in _inputQueue.Reader.ReadAllAsync(ct))
+                await ExecuteInput(root, type, ct);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Log.Warn("Input loop ended: " + ex.Message); }
+    }
+
+    private async Task ExecuteInput(JsonElement root, string type, CancellationToken ct)
+    {
+        {
             if (!_loggedFirstInput)
             {
                 _loggedFirstInput = true;
