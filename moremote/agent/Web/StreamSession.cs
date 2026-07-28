@@ -21,6 +21,8 @@ public sealed class StreamSession
     private int _quality;
     private int _fps;
     private double _scale = 1.0;
+    /// <summary>Encode width this viewer asked for in PIXELS; 0 = no opinion, use _scale.</summary>
+    private int _width;
     private DateTimeOffset _lastInput = DateTimeOffset.UtcNow;
     private bool _screenOk = true;
     private long _lastFrameSent;
@@ -215,7 +217,7 @@ public sealed class StreamSession
                     lastPaused = paused;
                 }
 
-                int fps = Math.Clamp(_fps, 1, 30);
+                int fps = Math.Clamp(_fps, 1, 60);
                 var frameStart = Environment.TickCount64;
 
                 // The codec can change under a live session — the helper falls back to JPEG on its
@@ -349,7 +351,13 @@ public sealed class StreamSession
                 case "video":
                 case "settings":
                     if (TryGetInt(root, "quality", out var q)) _quality = Math.Clamp(q, 10, 95);
-                    if (TryGetInt(root, "fps", out var f)) { _fps = Math.Clamp(f, 1, 30); _svc.Capture.SetFps(_fps); }
+                    // 60, not 30. The old ceiling was not a hardware limit — measured on this
+                    // machine's encoder, 1920x1080@60 and 2560x1440@60 both hold 60.3fps on the
+                    // worst-case content there is. And a higher cap costs nothing on a still
+                    // desktop: capture is damage-driven, so a screen nobody is changing produces
+                    // no frames at either setting. It is only spent when there is motion, which is
+                    // exactly when smoothness is the thing being asked for.
+                    if (TryGetInt(root, "fps", out var f)) { _fps = Math.Clamp(f, 1, 60); _svc.Capture.SetFps(_fps); }
                     // Declared HERE, once per settings message, and never from the send loop. One
                     // pipeline serves the whole room, so what this session wants is an opinion to be
                     // arbitrated (ScreenCapture.SessionQuality), not an instruction to be obeyed by
@@ -365,7 +373,15 @@ public sealed class StreamSession
                     }
                     if (root.TryGetProperty("scale", out var sc) && sc.ValueKind == JsonValueKind.Number)
                         _scale = Math.Clamp(sc.GetDouble(), 0.3, 1.0);
-                    _svc.Capture.SessionQuality(_id, _quality, _scale);
+                    // An absolute pixel width, which is what a quality preset should actually be.
+                    // `scale` is a FRACTION of whatever the source happens to be, so the same
+                    // preset produced 1344 pixels on a 1080p desktop and 1792 on a 4K one — and the
+                    // client cannot even tell which it got, because `hello` reports the LOGICAL
+                    // desktop size, not the source pixels the encoder sees. 0 means "no opinion,
+                    // use the fraction", which is what an older client sends by saying nothing.
+                    if (root.TryGetProperty("width", out var wv) && wv.ValueKind == JsonValueKind.Number)
+                        _width = Math.Clamp((int)Math.Round(wv.GetDouble()), 0, 2560);
+                    _svc.Capture.SessionQuality(_id, _quality, _scale, _width);
                     return;
                 case "selectMonitor":
                     if (TryGetInt(root, "index", out var mon)) _svc.Capture.SelectMonitor(mon);

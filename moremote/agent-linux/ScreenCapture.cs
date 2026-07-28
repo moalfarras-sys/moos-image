@@ -20,6 +20,7 @@ public sealed class ScreenCapture : IDisposable
     private readonly PortalBridge _portal;
     private long _version;               // last frame version handed out
     private int _quality = -1, _fps = -1;
+    private int _width = -1;   // last width pushed to the helper; -1 = never
     private double _scale = -1;
     private int _settingsGeneration = -1;   // which helper the values above were pushed to
     private long _lastSettingsPush;
@@ -55,7 +56,8 @@ public sealed class ScreenCapture : IDisposable
             // still honoured by the spectacle fallback below, which encodes per frame and so has no
             // shared pipeline to fight over.
             PushSettings(_wantQuality > 0 ? _wantQuality : quality,
-                         _wantScale > 0 ? _wantScale : scale);
+                         _wantScale > 0 ? _wantScale : scale,
+                         _wantWidth);
             var jpeg = _portal.Latest(ref _version);
             if (jpeg != null) return new(jpeg, true, true);
             var current = _portal.Current();
@@ -76,15 +78,19 @@ public sealed class ScreenCapture : IDisposable
     /// claimed to be — a backstop against a single client flapping its own preset — rather than the
     /// only thing standing between two clients and two pipeline rebuilds per second.
     /// </summary>
-    private void PushSettings(int quality, double scale)
+    private void PushSettings(int quality, double scale, int width)
     {
         bool sameHelper = _settingsGeneration == _portal.Generation;
-        if (sameHelper && quality == _quality && Math.Abs(scale - _scale) < 0.001) return;
+        if (sameHelper && quality == _quality && Math.Abs(scale - _scale) < 0.001 && width == _width) return;
         if (sameHelper && Environment.TickCount64 - _lastSettingsPush < 500) return;
 
-        if (!_portal.Send(new { type = "video", quality, scale, fps = _fps > 0 ? _fps : 30 })) return;
+        // `width` rides alongside `scale` rather than replacing it: the helper prefers the pixel
+        // width when it is non-zero and falls back to the fraction when it is 0, so one message
+        // serves both a current client and one that has never heard of the field.
+        if (!_portal.Send(new { type = "video", quality, scale, width, fps = _fps > 0 ? _fps : 30 })) return;
         _quality = quality;
         _scale = scale;
+        _width = width;
         _settingsGeneration = _portal.Generation;
         _lastSettingsPush = Environment.TickCount64;
     }
@@ -141,9 +147,10 @@ public sealed class ScreenCapture : IDisposable
 
     // ---------------------------------------------------------------- quality arbitration
 
-    private readonly ConcurrentDictionary<Guid, (int Quality, double Scale)> _sessionWants = new();
+    private readonly ConcurrentDictionary<Guid, (int Quality, double Scale, int Width)> _sessionWants = new();
     private int _wantQuality = -1;
     private double _wantScale = -1;
+    private int _wantWidth;
 
     /// <summary>
     /// What one viewer is asking the ENCODER for. Like the codec, this is a property of the room:
@@ -175,9 +182,9 @@ public sealed class ScreenCapture : IDisposable
     /// pipeline. Sending 1080p to a phone that asked for half of it helps nobody — it pays full
     /// bandwidth for pixels that phone immediately scales away.
     /// </summary>
-    public void SessionQuality(Guid id, int quality, double scale)
+    public void SessionQuality(Guid id, int quality, double scale, int width = 0)
     {
-        _sessionWants[id] = (quality, scale);
+        _sessionWants[id] = (quality, scale, width);
         RecomputeWants();
     }
 
@@ -186,13 +193,21 @@ public sealed class ScreenCapture : IDisposable
         if (_sessionWants.IsEmpty) return;   // keep the last agreed values; nobody is watching
         int q = int.MaxValue;
         double s = double.MaxValue;
-        foreach (var (quality, scale) in _sessionWants.Values)
+        // Width is arbitrated by MINIMUM like everything else, but only across the viewers that
+        // actually expressed one: 0 means "no opinion" (an older client that only knows `scale`),
+        // and letting a no-opinion vote win the minimum would pin the whole room to 0 — which the
+        // helper reads as "fall back to the fraction" and would silently undo the pixel request of
+        // every modern client in the room the moment one old one joined.
+        int w = int.MaxValue;
+        foreach (var (quality, scale, width) in _sessionWants.Values)
         {
             if (quality < q) q = quality;
             if (scale < s) s = scale;
+            if (width > 0 && width < w) w = width;
         }
         _wantQuality = q;
         _wantScale = s;
+        _wantWidth = w == int.MaxValue ? 0 : w;
 
         // Push from HERE, not only from Capture(), and this is not belt-and-braces — without it the
         // arbitration above is dead code for every H.264 session.
@@ -207,7 +222,7 @@ public sealed class ScreenCapture : IDisposable
         // Settings are a property of the room and change rarely, so pushing them when they CHANGE is
         // both cheaper and more correct than pushing them 30 times a second and hoping the codec
         // branch that does it is the one running.
-        PushSettings(_wantQuality, _wantScale);
+        PushSettings(_wantQuality, _wantScale, _wantWidth);
     }
 
     public void SessionGone(Guid id)

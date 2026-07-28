@@ -145,6 +145,9 @@ jobs:
           # every click — and the auto-quality ladder reads those pongs, so USING the remote made
           # it lower its own picture quality. Measured on loopback: 0.7ms idle, 133ms after 5 clicks.
           python3 tests/test_input_off_socket_thread.py
+          # The picture ceiling (1920@30 was a constant, not a hardware limit) and the rule that
+          # makes raising it safe: a cached client that only speaks `scale` must keep the old one.
+          python3 tests/test_remote_resolution_ceiling.py
           python3 tests/test_moos_store_index.py
           python3 tests/test_moos_storectl.py
           python3 tests/test_moos_ui2.py

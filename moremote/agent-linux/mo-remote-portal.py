@@ -224,14 +224,40 @@ def send_frame(data):
 # ---------------------------------------------------------------- gstreamer
 Gst.init(None)
 
-MAX_WIDTH = 1920
+# The hard ceiling on encode width, and why it is no longer 1920.
+#
+# 1920 was not a hardware limit, it was a guess, and on a 4K desktop it is a 2x downscale of
+# everything the user is looking at. A 3840-wide screen at 2.25x scaling carries text drawn for
+# 1707 logical pixels; halving it to 1920 physical is roughly one device pixel per logical pixel,
+# which is exactly where thin strokes start to blur. "The picture is not sharp" was that, and no
+# bitrate could fix it — the detail was thrown away before the encoder ever saw it.
+#
+# Measured on this machine (RTX 2080 SUPER, nvh264enc, pattern=snow which is the worst case
+# content there is — real desktops compress far better):
+#
+#     1920x1080@30   30.3 fps
+#     1920x1080@60   60.3 fps
+#     2560x1440@30   30.3 fps
+#     2560x1440@60   60.3 fps      <- comfortable
+#     3840x2160@30   30.3 fps
+#     3840x2160@60   31.9 fps      <- the encoder runs out here
+#
+# So 2560 is where the hardware stops being the limit at a frame rate worth having. It is a
+# CEILING and not a target: target_size() still takes the smaller of this, the source, and what
+# the client asked for, so a 1080p desktop is untouched and a phone on cellular still gets the
+# small picture its quality preset asks for.
+MAX_WIDTH = 2560
+
+# What a client that only speaks `scale` gets. See the note in target_size(): raising the ceiling
+# would otherwise change the meaning of every fraction an already-cached PWA sends.
+LEGACY_MAX_WIDTH = 1920
 # `streaming` gates the encode pipeline on somebody actually watching. It starts False and the
 # agent flips it on the first viewer, because a PLAYING pipeline is not free while nobody looks:
 # pipewiresrc keeps the ScreenCast stream active, so the COMPOSITOR copies every damaged frame out
 # for us, forever. Measured on this machine with zero clients connected: kwin_wayland 55% of a core
 # and this helper 32%, permanently — the desktop felt broken and the GPU was one Konsole away from
 # the VRAM ceiling that SIGSEGVs kwin. Idle must cost nothing.
-state = {"sw": 0, "sh": 0, "scale": 1.0, "quality": 70, "fps": 30, "out": (0, 0),
+state = {"sw": 0, "sh": 0, "scale": 1.0, "width": 0, "quality": 70, "fps": 30, "out": (0, 0),
          "codec": "jpeg", "want": "jpeg", "streaming": False}
 pipeline = None
 enc = rate = None
@@ -395,14 +421,42 @@ def h264_bitrate_bps(w=0, h=0):
 
 
 def target_size():
-    """Encode resolution. `scale` is a fraction of the *target* width, not of the source: a 4K
-    source is already clamped to MAX_WIDTH, so scaling the raw 3840 and then clamping would make
-    every scale above ~0.5 collapse onto the same 1920 and the slider would do nothing."""
+    """Encode resolution.
+
+    A CLIENT MAY NOW ASK IN PIXELS, AND THAT IS THE POINT.
+
+    `scale` is a fraction of the target width, and a fraction is not a resolution: the same 0.7
+    preset is 1344 pixels on a 1920 desktop and 1792 on a 4K one, so "Balanced" meant something
+    different on every machine and nothing the user could reason about. Worse, the client has no
+    way to find out which it got — `hello` carries the LOGICAL desktop size (1707x960 here), not
+    the source pixels the encoder actually sees (3840x2160).
+
+    So a client can now say what it wants in pixels (`width`), and the answer is the smallest of
+    what it asked for, what the source has, and what the hardware ceiling allows. That makes a
+    preset mean the same thing everywhere, which is what lets the UI honestly offer "1440p".
+
+    `scale` stays for older clients and for nothing else — it is exactly the previous behaviour.
+    """
     sw, sh = state["sw"], state["sh"]
     if not sw or not sh:
         return (0, 0)
-    target = min(sw, MAX_WIDTH)
-    w = max(480, min(int(target * state["scale"]), target)) // 2 * 2
+    want = state.get("width") or 0
+    if want:
+        w = max(480, min(int(want), min(sw, MAX_WIDTH)))
+    else:
+        # NO PIXEL REQUEST MEANS AN OLD CLIENT, AND AN OLD CLIENT KEEPS THE OLD CEILING.
+        #
+        # `scale` is a fraction of the target, so raising the target silently changes what every
+        # existing fraction means: a cached PWA asking for its "High" (scale 1.0) would jump from
+        # 1920 to 2560 — 1.8x the pixels and the bandwidth — without anyone choosing it, on a phone
+        # that may well be on cellular. Service workers make that a real client and not a
+        # hypothetical one; this agent already has a "legacy cached controller" path for exactly
+        # that population.
+        #
+        # So the higher ceiling is something a client OPTS INTO by naming pixels. A client that
+        # only knows fractions gets byte-for-byte what it got before.
+        w = max(480, min(int(min(sw, LEGACY_MAX_WIDTH) * state["scale"]), min(sw, LEGACY_MAX_WIDTH)))
+    w = w // 2 * 2
     h = max(2, round(sh * w / sw)) // 2 * 2
     return (w, h)
 
@@ -820,6 +874,12 @@ def set_video(m):
             state["want"] = want
             state["out"] = (0, 0)   # the pipeline is different, not merely differently sized
             rebuild()
+    # An explicit pixel width wins over the fraction, and clearing it (0) goes back to the
+    # fraction — so a client can move between the two without the helper being restarted.
+    if "width" in m:
+        want = int(m["width"] or 0)
+        state["width"] = max(480, min(want, MAX_WIDTH)) if want else 0
+        rebuild()
     if "scale" in m:
         state["scale"] = max(0.2, min(1.0, float(m["scale"])))
         rebuild()

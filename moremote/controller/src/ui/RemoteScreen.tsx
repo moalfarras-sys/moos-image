@@ -8,7 +8,7 @@ import {
   getClipboard, setClipboard, setClipboardImage, listFiles, fileDownloadUrl, uploadFile, powerAction,
   type ClipResult, type FileListing, type FileEntry, type PowerAction,
 } from "../lib/api";
-import { QUALITY_PRESETS, MODE_LABEL, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
+import { QUALITY_PRESETS, AUTO_MAX_PRESET, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
   IconAltTab, IconActual, IconChevronDown, IconClipboard, IconCopy, IconEnter, IconEsc, IconFit,
   IconFolder, IconFullscreen, IconKeyboard, IconLock, IconMore, IconMouse, IconPaste, IconPower,
@@ -547,8 +547,10 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   // would make every reconnect re-send the preset that was selected on first render.
   const pushSettings = () => {
     const p = QUALITY_PRESETS[presetIdxRef.current] ?? QUALITY_PRESETS[1];
-    const scale = viewModeRef.current === "actual" ? 1.0 : p.scale;
-    connRef.current?.settings(p.quality, p.fps, scale);
+    // "100%" means the viewer wants real device pixels rather than a fitted picture, so ask for the
+    // most the encoder will give; otherwise the preset's own width is the request.
+    const width = viewModeRef.current === "actual" ? 2560 : p.width;
+    connRef.current?.settings(p.quality, p.fps, width, Math.min(1, width / 2560));
   };
   useEffect(() => { pushSettings(); /* eslint-disable-next-line */ }, [presetIdx, viewMode]);
 
@@ -590,13 +592,13 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       if (st.down >= AGREE_DOWN && since > COOLDOWN_DOWN) {
         setPresetIdx((idx) => { if (idx <= 0) return idx; st.last = Date.now(); st.down = 0; return idx - 1; });
       } else if (st.up >= AGREE_UP && since > COOLDOWN_UP) {
-        setPresetIdx((idx) => { if (idx >= QUALITY_PRESETS.length - 1) return idx; st.last = Date.now(); st.up = 0; return idx + 1; });
+        setPresetIdx((idx) => { if (idx >= AUTO_MAX_PRESET) return idx; st.last = Date.now(); st.up = 0; return idx + 1; });
       }
     }, SAMPLE_MS);
     return () => window.clearInterval(id);
   }, [auto]);
 
-  const selectPreset = (i: number) => { setPresetIdx(i); showToast(`Quality: ${QUALITY_PRESETS[i].label}`); };
+  const selectPreset = (i: number) => { setPresetIdx(i); showToast(`Quality: ${QUALITY_PRESETS[i].label} · ${QUALITY_PRESETS[i].detail}`); };
   const chooseView = (m: ViewMode) => {
     setViewMode(m);
     view.current = { zoom: m === "actual" ? 1 : 1, panX: 0, panY: 0 };
@@ -770,8 +772,12 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   // ---------- toolbar actions ----------
   const c = () => connRef.current;
   const cycleMode = () => {
-    const order: GestureMode[] = ["touch", "trackpad", "direct", "desktop"];
-    const next = order[(order.indexOf(mode) + 1) % order.length];
+    // Walks the three real models. "direct" is a variant of touch (the one-finger-drag
+    // switch in the Controls sheet), so cycling into it here would step through a state
+    // the toolbar has no way to explain.
+    const order: GestureMode[] = ["touch", "trackpad", "desktop"];
+    const cur = mode === "direct" ? "touch" : mode;
+    const next = order[(order.indexOf(cur) + 1) % order.length];
     setMode(next); showToast(`Mouse: ${MODE_LABEL[next]}`);
   };
   const taskMgr = () => { c()?.combo(["Control", "Shift", "Escape"]); showToast("Task Manager (safe Ctrl+Alt+Del)"); };
@@ -1100,7 +1106,8 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
           <div className="seg">
             <button className={auto ? "on" : ""} onClick={() => { setAuto(true); showToast("Auto quality — adapts to your network"); }}>Auto</button>
             {QUALITY_PRESETS.map((p, i) => (
-              <button key={p.label} className={!auto && presetIdx === i ? "on" : ""} onClick={() => { setAuto(false); selectPreset(i); }}>{p.label}</button>
+              <button key={p.label} className={!auto && presetIdx === i ? "on" : ""} onClick={() => { setAuto(false); selectPreset(i); }}
+                title={p.detail}>{p.label}<small>{p.detail}</small></button>
             ))}
           </div>
         </div>
@@ -1109,13 +1116,27 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       {sheet === "more" && (
         <div className="sheet">
           <div className="grip" /><h3>Controls</h3>
+          {/* Three buttons, not four. "Touch" and "Direct" were never two models — they differ in
+              one branch of the gesture recogniser, what a one-finger swipe does — so that one
+              difference is the switch below rather than a mode of its own. */}
           <div className="row-label">Pointer mode</div>
           <div className="seg">
-            <button className={mode === "touch" ? "on" : ""} onClick={() => setMode("touch")}><IconMouse /> Touch</button>
-            <button className={mode === "trackpad" ? "on" : ""} onClick={() => setMode("trackpad")}><IconTrackpad /> Trackpad</button>
-            <button className={mode === "direct" ? "on" : ""} onClick={() => setMode("direct")}><IconMouse /> Direct</button>
-            <button className={mode === "desktop" ? "on" : ""} onClick={() => setMode("desktop")}><IconMouse /> Mouse + Keys</button>
+            <button className={mode === "touch" || mode === "direct" ? "on" : ""}
+                    onClick={() => setMode("touch")}><IconMouse /> Touch</button>
+            <button className={mode === "trackpad" ? "on" : ""}
+                    onClick={() => setMode("trackpad")}><IconTrackpad /> Trackpad</button>
+            <button className={mode === "desktop" ? "on" : ""}
+                    onClick={() => setMode("desktop")}><IconMouse /> Mouse + keys</button>
           </div>
+          {(mode === "touch" || mode === "direct") && (
+            <div className="seg">
+              <button className={mode === "direct" ? "on" : ""}
+                      onClick={() => setMode(mode === "direct" ? "touch" : "direct")}>
+                One-finger drag
+              </button>
+            </div>
+          )}
+          <p className="hint">{MODE_HINT[mode]}</p>
           {mode === "desktop" && (
             <>
               <div className="seg">

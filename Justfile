@@ -50,6 +50,8 @@ check:
     python3 tests/test_remote_rebuild_debounce.py
     # Input must not block the socket that carries the pings the quality ladder measures.
     python3 tests/test_input_off_socket_thread.py
+    # Raising the resolution ceiling must not change what an old cached client's `scale` means.
+    python3 tests/test_remote_resolution_ceiling.py
     python3 tests/test_moos_store_index.py
     python3 tests/test_moos_storectl.py
     python3 tests/test_moos_ui2.py

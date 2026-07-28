@@ -278,8 +278,13 @@ export class RemoteConnection {
     this.textTimer=window.setTimeout(()=>this.flushText(),fast?FAST_FLUSH_MS:CLIPBOARD_FLUSH_MS);
   }
   private flushText(){if(this.textTimer)window.clearTimeout(this.textTimer);this.textTimer=null;if(!this.pendingText)return;const value=this.pendingText;this.pendingText="";this.input({type:"text",value});}
-  settings(quality: number, fps: number, scale: number) {
-    this.send({ type: "settings", quality, fps, scale });
+  /**
+   * `width` is the real request — an absolute encode width in pixels. `scale` rides along because
+   * an agent older than this build only understands the fraction, and being served a sensible
+   * picture by an old server beats being served none.
+   */
+  settings(quality: number, fps: number, width: number, scale: number) {
+    this.send({ type: "settings", quality, fps, width, scale });
   }
   selectMonitor(index: number) {
     this.send({ type: "selectMonitor", index });

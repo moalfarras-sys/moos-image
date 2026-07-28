@@ -987,3 +987,15 @@ button {
   border-color: transparent;
   color: var(--on-accent);
 }
+
+/* A quality button now names a real resolution, so it needs two lines: the choice and what the
+   choice actually gives you. Without the second line "Ultra" is marketing; with it, it is 1440p·60
+   and the user can weigh it against their own link. */
+.seg button small {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 500;
+  opacity: 0.62;
+  margin-top: 1px;
+  letter-spacing: 0.1px;
+}
