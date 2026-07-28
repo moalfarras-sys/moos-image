@@ -4844,7 +4844,14 @@ require("cosign verify --key cosign.pub" in _byml,
 _MOTION_ROOTS = ("system_files/usr/share/plasma/plasmoids",
                  "system_files/usr/share/plasma/wallpapers",
                  "system_files/usr/share/plasma/shells",
-                 "system_files/usr/share/plasma/look-and-feel")
+                 "system_files/usr/share/plasma/look-and-feel",
+                 # The MoOS apps were the blind spot: Mo AI alone shipped TWELVE
+                 # unguarded Animation.Infinite loops (the idle-orb breathing, the
+                 # thinking halo, ambient particles), and Welcome — which autostarts
+                 # on every first login — ran two on the first screen a new user
+                 # sees. None were scanned here, so all of it passed green while
+                 # "disable animations" stopped none of it.
+                 "system_files/usr/share/moos/apps")
 _INFINITE = re.compile(r"loops:\s*Animation\.Infinite")
 for _root_name in _MOTION_ROOTS:
     _root_dir = ROOT / _root_name
