@@ -80,6 +80,11 @@ const LINES_PER_NOTCH = 3;  // deltaMode 1 counts text lines
 const PAGES_TO_NOTCHES = 3; // deltaMode 2 is rare (Firefox on some platforms)
 const MAX_NOTCHES = 20;     // the agent clamps here too; matching avoids a silent difference
 
+/** <input> types that are controls rather than text fields, so a keystroke there is not local typing. */
+const NON_TEXT_INPUTS = new Set([
+  "range", "checkbox", "radio", "button", "submit", "reset", "file", "color", "image", "hidden",
+]);
+
 export class DesktopInput {
   private attached = false;
   private held = new Set<Button>();
@@ -283,7 +288,15 @@ export class DesktopInput {
     const t = e.target as HTMLElement | null;
     if (!t) return false;
     const tag = t.tagName;
-    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t.isContentEditable;
+    if (tag === "TEXTAREA" || tag === "SELECT" || t.isContentEditable) return true;
+    if (tag !== "INPUT") return false;
+    // Not every <input> is a place to type. This returned true for ALL of them, and the Controls sheet
+    // is full of `<input type="range">` — so touching the mouse-sensitivity slider handed it focus, and
+    // from that moment every keystroke was treated as belonging to a local text field and never reached
+    // the remote desktop. Since the canvas is not focusable there was no way to take focus back either:
+    // the keyboard was simply dead until the page was reloaded, after adjusting a slider.
+    const type = ((t as HTMLInputElement).type || "text").toLowerCase();
+    return !NON_TEXT_INPUTS.has(type);
   }
 
   private onKeyDown = (e: KeyboardEvent) => {

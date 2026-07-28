@@ -306,6 +306,21 @@ public sealed class StreamSession
                     return;
             }
 
+            // The idle timer is stamped HERE, before the two early returns below, and that placement is
+            // the fix rather than an accident.
+            //
+            // It used to be stamped after both of them. So a session the owner had paused, and a session
+            // whose envelopes were being rejected, both looked completely idle to the timeout at :143 —
+            // and were force-disconnected for inactivity while the viewer was clicking as hard as they
+            // could. One feature killing another, and the resulting "idle timeout" is the least
+            // informative possible explanation of what happened.
+            //
+            // Only input-typed messages reach this line, which is the point: `ping` is deliberately NOT
+            // counted. ws.ts pings every 2s even in a throttled background tab, so counting those would
+            // make IdleTimeoutMinutes dead code and let a phone forgotten in a pocket stream the owner's
+            // desktop indefinitely.
+            _lastInput = DateTimeOffset.UtcNow;
+
             if (_svc.State.IsPaused) return; // owner paused the session — ignore all input
 
             if (!ValidateEnvelope(root,type,out var reject))
@@ -329,7 +344,6 @@ public sealed class StreamSession
                 return;
             }
 
-            _lastInput = DateTimeOffset.UtcNow; // real input resets the idle timer
             if (!_loggedFirstInput)
             {
                 _loggedFirstInput = true;
