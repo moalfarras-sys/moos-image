@@ -551,6 +551,73 @@ class InstallTests(StoreTestCase):
         self.assertEqual(result["items"][0]["state"], "opened")
         self.assertIn("external-download", result["items"][0]["message"])
 
+    def test_npm_remove_uses_the_symmetric_global_user_uninstall(self):
+        # A curated npm tool must be removable. `remove` used to hit the
+        # Flatpak-ID validator ("Invalid Flatpak app ID: codex") and fail, so the
+        # tool showed as installed for ever. It now reverses _install_npm exactly.
+        runner = FakeRunner()
+        recipe = {
+            "id": "codex",
+            "source": "moos",
+            "install": {"kind": "npm", "pkg": "@openai/codex", "bin": "codex"},
+        }
+        controller, _ = self.controller([recipe], runner=runner)
+        code, result = controller.remove("codex")
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            runner.commands,
+            [
+                [
+                    "/usr/bin/npm",
+                    "uninstall",
+                    "--global",
+                    "--prefix",
+                    str(self.base / "home/.local"),
+                    "--no-audit",
+                    "--no-fund",
+                    "--",
+                    "@openai/codex",
+                ]
+            ],
+        )
+        self.assertEqual(result["items"][0]["state"], "done")
+
+    def test_appimage_remove_deletes_the_installed_file(self):
+        recipe = {
+            "id": "cursor",
+            "source": "moos",
+            "install": {
+                "kind": "appimage",
+                "url": "https://example.test/Cursor.AppImage",
+                "sha256": "0" * 64,
+                "bin": "cursor",
+                "external": True,
+            },
+        }
+        installed = self.base / "home/.local/bin/cursor.AppImage"
+        installed.parent.mkdir(parents=True)
+        installed.write_bytes(b"#!/bin/true\n")
+        controller, _ = self.controller([recipe])
+        code, result = controller.remove("cursor")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["items"][0]["state"], "done")
+        self.assertFalse(installed.exists(),
+                         "the AppImage must be gone from ~/.local/bin after remove")
+
+    def test_web_remove_is_a_harmless_skip(self):
+        # A web entry only opened a vendor page; there is nothing of ours on disk,
+        # so remove must not error — it reports nothing-to-remove.
+        recipe = {
+            "id": "cursor-web",
+            "source": "moos",
+            "install": {"kind": "web", "url": "https://www.cursor.com/downloads",
+                        "external": True},
+        }
+        controller, _ = self.controller([recipe])
+        code, result = controller.remove("cursor-web")
+        self.assertEqual(result["items"][0]["state"], "skipped")
+        self.assertEqual(code, 0)
+
     def test_unpinned_appimage_is_rejected(self):
         recipe = {
             "id": "cursor",

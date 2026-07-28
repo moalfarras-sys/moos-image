@@ -241,8 +241,24 @@ ApplicationWindow {
         return app.installed_scope === scope
     }
 
+    // Curated npm tools and pinned AppImages install into ~/.local and are
+    // removed by `moos-storectl remove <id>` (npm uninstall / delete the
+    // AppImage). They have no Flatpak lifecycle, so canRemove used to return
+    // false for them and the Remove button never appeared — a tool you could
+    // install but never uninstall. A `web` entry only opened a vendor page, so
+    // nothing of ours is on disk and it is deliberately excluded.
+    function hasCuratedLifecycle(app) {
+        return app && app.source === "moos" && app.install
+            && (app.install.kind === "npm" || app.install.kind === "appimage")
+    }
+
     function canRemove(app) {
-        if (!win.isInstalled(app) || !win.hasFlatpakLifecycle(app))
+        if (!win.isInstalled(app))
+            return false
+        // Curated tools are always user-scoped, so their Remove is always valid.
+        if (win.hasCuratedLifecycle(app))
+            return true
+        if (!win.hasFlatpakLifecycle(app))
             return false
         // A live transaction result outranks stale/legacy catalogue metadata.
         // In particular ["system"] is conclusive: do not fall through to the
