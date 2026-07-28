@@ -52,6 +52,8 @@ check:
     python3 tests/test_input_off_socket_thread.py
     # Raising the resolution ceiling must not change what an old cached client's `scale` means.
     python3 tests/test_remote_resolution_ceiling.py
+    # Desktop sound must be enabled everywhere AND bind loopback (the service has no auth).
+    python3 tests/test_desktop_sound_reachable.py
     python3 tests/test_moos_store_index.py
     python3 tests/test_moos_storectl.py
     python3 tests/test_moos_ui2.py

@@ -1425,6 +1425,28 @@ dnf5 -y install tailscale ydotool wl-clipboard spectacle python3-gobject qrencod
     gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good pipewire-gstreamer
 systemctl enable tailscaled.service
 systemctl --global disable mo-remote-personal.service || true
+
+# The desktop's own sound, in the phone's tab — for EVERY edition, not just cloud.
+#
+# This enable used to live inside the cloud-only branch, and the consequence was an asymmetry
+# running exactly the wrong way: the Sound button in Mo PC Remote worked on a headless VPS and did
+# nothing on the desktop the owner is actually sitting at. Measured on a MoOS desktop before this
+# moved: moos-cloud-audio.service disabled, nothing listening on 8775, no /audio mount in
+# `tailscale serve`, and GET /audio/stream.webm answering 404 — with no error anywhere to say so,
+# because a feature that was never started does not fail.
+#
+# It costs nothing to leave enabled. The unit starts a tiny Python HTTP server and NOTHING else;
+# the GStreamer encoder is not spawned until somebody actually opens the stream and is killed when
+# they close it. On a desktop that idles at zero.
+#
+# Safe to enable now, and NOT before: the service has no authentication of any kind, and it used to
+# bind 0.0.0.0. On the cloud edition that was defensible (FedoraServer zone, only tailscale0
+# trusted). A desktop runs the FedoraWorkstation zone, which opens 1025-65535/tcp to the local
+# network — so a wildcard bind here would have published unauthenticated live audio to every device
+# on the WiFi. It binds 127.0.0.1 now and `tailscale serve` is the only way in; see the long note
+# at the top of /usr/bin/moos-cloud-audio.
+systemctl --global enable moos-cloud-audio.service
+echo "=== per-account audio stream enabled (loopback; reached via tailscale serve /audio) ==="
 chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
     /usr/lib/mo-remote/mo-remote-portal.py \
     /usr/bin/mo-pc-remote
@@ -3239,10 +3261,9 @@ BENTO
     # gate further down asserts the elements exist in THIS image rather than in
     # whatever shell the feature was developed in.
 
-    # Enabled --global so every account that logs in gets their own, including
-    # developers added later by moos-cloud-dev.
-    systemctl --global enable moos-cloud-audio.service
-    echo "=== cloud edition: per-account audio stream on 8775+N ==="
+    # (The --global enable now happens for EVERY edition, further down — see the
+    # note there. It lived here, inside the cloud-only branch, and that is why the
+    # Sound button in Mo PC Remote did nothing on a desktop.)
 
     # A VPS has no Bluetooth radio, and obexd cannot be told that.
     #

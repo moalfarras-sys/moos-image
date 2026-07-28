@@ -148,6 +148,9 @@ jobs:
           # The picture ceiling (1920@30 was a constant, not a hardware limit) and the rule that
           # makes raising it safe: a cached client that only speaks `scale` must keep the old one.
           python3 tests/test_remote_resolution_ceiling.py
+          # The desktop's sound was enabled only on the cloud edition (so the Sound button 404'd
+          # on a desktop) and the service has no auth, so it must bind loopback — both together.
+          python3 tests/test_desktop_sound_reachable.py
           python3 tests/test_moos_store_index.py
           python3 tests/test_moos_storectl.py
           python3 tests/test_moos_ui2.py

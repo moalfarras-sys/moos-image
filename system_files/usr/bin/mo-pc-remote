@@ -68,6 +68,26 @@ def tailscale_url():
         return None
     if f"127.0.0.1:{PORT}" not in served and f"localhost:{PORT}" not in served:
         return None
+    # Self-heal the /audio mount, because it is only ever created once and that is not enough.
+    #
+    # mount_audio() runs from enable_anywhere() — the FIRST time somebody presses "Enable access
+    # from anywhere". Every machine whose serve was set up before that code existed, or by
+    # `tailscale serve` by hand, or on an image where the sound service was not yet enabled, has a
+    # working desktop mount and no sound mount. Measured on the maintainer's desktop:
+    #
+    #     https://moos-3.tailab78a5.ts.net (tailnet only)
+    #     |-- / proxy http://127.0.0.1:8765          <- desktop, fine
+    #                                                <- and nothing else
+    #     GET /audio/stream.webm -> 404
+    #
+    # The Sound button in the phone's toolbar cannot work in that state, and it fails the way a
+    # missing feature fails rather than the way a broken one does: no error, just silence.
+    #
+    # `tailscale serve` is idempotent, so re-asserting a mount that already exists costs one cheap
+    # call and changes nothing. Doing it here means the panel repairs the machine simply by being
+    # opened, instead of requiring the owner to know which command to re-run.
+    if "/audio" not in served:
+        mount_audio(443)
     return f"https://{name}/"
 
 

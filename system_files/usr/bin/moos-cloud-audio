@@ -61,12 +61,39 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 # step: person N's desktop is on 8765+N and their sound is on 8775+N.
 PORT = int(os.environ.get("MOOS_AUDIO_PORT") or (8775 + os.getuid() - 1000))
 
-# 0.0.0.0 is deliberate and is NOT a public listener: the cloud edition's default
-# firewalld zone is FedoraServer (ssh only) and only `tailscale0` is in the
-# trusted zone, so this port answers on the tailnet and nowhere else. Binding
-# only to the Tailscale address would break the moment Tailscale restarts and the
-# interface is re-created after this service.
-HOST = os.environ.get("MOOS_AUDIO_HOST", "0.0.0.0")
+# LOOPBACK, and this is a security boundary rather than a preference.
+#
+# THIS SERVICE HAS NO AUTHENTICATION. None: no PIN, no token, no session. Whoever can open the
+# socket hears the machine's microphone-adjacent reality — every call, every video, everything the
+# desktop is playing. That was defensible while it bound 0.0.0.0 ONLY on the cloud edition, whose
+# firewalld default zone is FedoraServer (ssh alone) with just tailscale0 trusted, so the port
+# genuinely answered on the tailnet and nowhere else.
+#
+# That argument is edition-specific, and it does not survive contact with a desktop. Measured on a
+# MoOS desktop:
+#
+#     $ firewall-cmd --get-default-zone
+#     FedoraWorkstation
+#     $ firewall-cmd --list-ports
+#     1025-65535/tcp 1025-65535/udp
+#
+# FedoraWorkstation opens everything above 1024 to the local network by design. So the instant this
+# service is enabled on a desktop — which is exactly what makes the Sound button work from a phone —
+# a 0.0.0.0 bind publishes unauthenticated live audio to every device on the WiFi. A café, a hotel,
+# a shared flat.
+#
+# Binding loopback removes the question rather than answering it. The supported path in is
+# `tailscale serve --set-path=/audio http://127.0.0.1:8775`, which connects to 127.0.0.1 anyway —
+# so the reachable surface is unchanged for every user who arrives the intended way, and closed for
+# everyone else. It also no longer depends on the firewall being configured correctly, which is the
+# kind of dependency that is true until somebody changes a zone.
+#
+# The cost is the undocumented direct http://<tailscale-ip>:8775 fallback, which was plain HTTP —
+# the very thing this repo spent several commits routing users AWAY from, because a browser
+# withholds WebCodecs, the clipboard and a PWA install outside a secure context.
+#
+# MOOS_AUDIO_HOST still overrides it for anyone who has a reason.
+HOST = os.environ.get("MOOS_AUDIO_HOST", "127.0.0.1")
 
 # One person per desktop is the shape, but a phone that loses signal leaves a
 # socket that TCP will not reap for two hours. A hard limit of one listener would
