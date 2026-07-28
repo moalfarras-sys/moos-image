@@ -30,6 +30,8 @@ const MOVE_THRESHOLD = 12;
 /** A gesture shorter than this and smaller than TAP_RESCUE_PX was a tap, whatever it looked like. */
 const TAP_RESCUE_MS = 300;
 const TAP_RESCUE_PX = 24;
+/** How much two fingers must spread or travel before we decide which gesture they are. */
+const TWO_DECIDE_PX = 10;
 const LONGPRESS_MS = 500; // matches Android's own long-press feel, so a slow tap stays a tap
 const PX_PER_NOTCH = 24;
 const TRACKPAD_GAIN = 1.7;
@@ -62,8 +64,13 @@ export class GestureController {
   private lastX = 0;
   private lastY = 0;
 
-  // two-finger
+  // two-finger. twoMode latches the winning recogniser; twoSpread/twoTravel are the evidence it is
+  // decided on — see moveTwo.
   private two = false;
+  private twoMode: "undecided" | "pinch" | "scroll" = "undecided";
+  private twoStart = 0;
+  private twoSpread = 0;
+  private twoTravel = 0;
   private lastCx = 0;
   private lastCy = 0;
   private lastDist = 0;
@@ -232,7 +239,22 @@ export class GestureController {
     try { this.el.releasePointerCapture?.(e.pointerId); } catch { /* */ }
 
     if (this.two) {
-      if (this.pointers.size < 2) { this.two = false; this.phase = "idle"; this.cancelLong(); }
+      if (this.pointers.size < 2) {
+        // TWO-FINGER TAP = RIGHT CLICK, which was missing entirely.
+        //
+        // Right-click was only reachable by resting a finger for 500ms. That is slow, it is
+        // undiscoverable, and it fails the moment the finger drifts past the slop — so on a desktop,
+        // where the context menu is half the interface, the second mouse button was effectively absent.
+        // A two-finger tap is what iOS, Android, and every remote-desktop client use for it.
+        //
+        // Guarded on the gesture never having become a pinch or a scroll, and on being brief: two
+        // fingers that zoomed, panned or scrolled are not a tap, however they end.
+        if (this.twoMode === "undecided" && now() - this.twoStart < TAP_RESCUE_MS) {
+          this.cb.click("right", this.cx, this.cy);
+          this.cb.haptic?.();
+        }
+        this.two = false; this.phase = "idle"; this.cancelLong();
+      }
       return;
     }
     if (!p) return;
@@ -282,11 +304,30 @@ export class GestureController {
     if (this.phase === "drag") this.cb.dragEnd(this.cx, this.cy);
     this.phase = "idle";
     this.two = true;
+    // A fresh two-finger gesture has decided nothing yet. Resetting here and not on release is what
+    // makes two pinches in a row each get their own decision.
+    this.twoMode = "undecided";
+    this.twoSpread = 0;
+    this.twoTravel = 0;
+    this.twoStart = now();
     const [a, b] = [...this.pointers.values()];
     this.lastCx = (a.x + b.x) / 2; this.lastCy = (a.y + b.y) / 2;
     this.lastDist = dist(a.x, a.y, b.x, b.y);
   }
 
+  /**
+   * One two-finger gesture does ONE thing.
+   *
+   * This used to do both on every move: zoom whenever the finger distance changed by more than 0.2%,
+   * and then scroll or pan by the centroid delta unconditionally. Two fingers never travel perfectly
+   * parallel, so 0.2% is satisfied by ordinary human noise — every scroll silently drifted the zoom,
+   * and every pinch also scrolled the remote screen underneath it. Nothing was ever purely one thing.
+   *
+   * Every touch platform resolves this the same way: recognisers compete, one wins, and the losers are
+   * cancelled for the rest of the gesture. So accumulate both signals until one is clearly bigger, then
+   * LATCH it and ignore the other until the fingers lift. Below the decision threshold nothing is
+   * emitted at all, which also removes the jitter that came from acting on the first noisy delta.
+   */
   private moveTwo() {
     const pts = [...this.pointers.values()];
     if (pts.length < 2) return;
@@ -294,17 +335,29 @@ export class GestureController {
     const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
     const d = dist(a.x, a.y, b.x, b.y);
 
-    if (this.lastDist > 0) {
-      const factor = d / this.lastDist;
-      if (Math.abs(factor - 1) > 0.002) this.cb.zoomAt(factor, cx, cy);
+    if (this.twoMode === "undecided") {
+      // Compare like with like: both are distances in CSS px since the gesture began.
+      this.twoSpread += Math.abs(d - this.lastDist);
+      this.twoTravel += dist(cx, cy, this.lastCx, this.lastCy);
+      this.lastCx = cx; this.lastCy = cy; this.lastDist = d;
+      if (Math.max(this.twoSpread, this.twoTravel) < TWO_DECIDE_PX) return;
+      this.twoMode = this.twoSpread > this.twoTravel ? "pinch" : "scroll";
     }
-    const dcx = cx - this.lastCx, dcy = cy - this.lastCy;
-    if (this.getZoom() > 1.01) {
-      this.cb.panBy(dcx, dcy);       // zoomed in: two fingers pan the view
+
+    if (this.twoMode === "pinch") {
+      if (this.lastDist > 0 && d > 0) {
+        const factor = d / this.lastDist;
+        if (Math.abs(factor - 1) > 0.002) this.cb.zoomAt(factor, cx, cy);
+      }
     } else {
-      this.qScrollX += dcx;          // otherwise they scroll the remote screen (traditional direction)
-      this.qScrollY += dcy;
-      this.scheduleFlush();
+      const dcx = cx - this.lastCx, dcy = cy - this.lastCy;
+      if (this.getZoom() > 1.01) {
+        this.cb.panBy(dcx, dcy);       // zoomed in: two fingers pan the view
+      } else {
+        this.qScrollX += dcx;          // otherwise they scroll the remote screen (traditional direction)
+        this.qScrollY += dcy;
+        this.scheduleFlush();
+      }
     }
     this.lastCx = cx; this.lastCy = cy; this.lastDist = d;
   }

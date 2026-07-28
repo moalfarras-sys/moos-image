@@ -261,7 +261,14 @@ H264_ENCODERS = [
     ("vah264enc",   "bitrate={kbps} key-int-max={gop} rate-control=cbr"),
     ("vah264lpenc", "bitrate={kbps} key-int-max={gop} rate-control=cbr"),
     ("x264enc",     "bitrate={kbps} key-int-max={gop} tune=zerolatency speed-preset=veryfast"),
-    ("openh264enc", "bitrate={bps} gop-size={gop} complexity=low rate-control=bitrate"),
+    # usage-type=screen tells openh264 the content is a desktop, not camera footage. It changes how the
+    # rate controller spends its budget: a desktop is large flat areas and thin high-contrast text, and
+    # the screen profile stops it smoothing that text away to hold a frame rate nothing is asking for.
+    # max-bitrate is the ceiling the rate controller is otherwise free to ignore — openh264 overshoots
+    # hard on a scene change (a window opening, a page scrolling), and an overshoot on a link with a
+    # 12-frame queue is a stall. Ceiling at 1.5x the target so bursts have room without becoming spikes.
+    ("openh264enc", "bitrate={bps} max-bitrate={maxbps} gop-size={gop} complexity=low "
+                    "rate-control=bitrate usage-type=screen"),
 ]
 _h264_blacklist = set()   # elements that were present and then failed to start
 
@@ -430,9 +437,16 @@ def build(w, h):
             codec = "h264"
 
     if codec == "h264":
-        gop = max(15, state["fps"] * 2)   # an IDR every ~2s, so a phone that joins mid-stream syncs
+        # An IDR is many times the size of a P-frame, so a periodic one is a periodic bandwidth spike —
+        # and on a 12-frame queue a spike is a stall. It was every 2 seconds, which is 30 spikes a
+        # minute paid to solve a problem that is already solved explicitly: RequestKeyframe() is
+        # called when a viewer joins and after a backlog drop, which are the only two moments a
+        # client actually needs one. Keep a periodic IDR as insurance against undetected corruption,
+        # but at 10 seconds rather than 2 — a fifth of the spikes for the same recovery guarantee.
+        gop = max(15, state["fps"] * 10)
         tail = (
-            f"! {elem} " + props.format(kbps=h264_bitrate(), bps=h264_bitrate() * 1000, gop=gop)
+            f"! {elem} " + props.format(kbps=h264_bitrate(), bps=h264_bitrate() * 1000,
+                                        maxbps=int(h264_bitrate() * 1500), gop=gop)
             + " name=enc "
             # config-interval=-1 repeats SPS/PPS before every keyframe: a decoder that joins late
             # needs them, and on a live stream "late" is the only way anyone ever joins.
