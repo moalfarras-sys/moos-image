@@ -30,9 +30,18 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import org.kde.kirigami as Kirigami
 
 ApplicationWindow {
     id: win
+
+    // Motion gate: the two Animation.Infinite loops below (the hero halo and
+    // the indeterminate progress ring) AND their `running:` with this, so
+    // "disable animations" actually stops them. Kirigami floors longDuration
+    // at 1 when motion is off, so `> 1` is the honest off-switch. Welcome
+    // autostarts on every first login, so an ungated loop here spins on the
+    // very first thing a new user sees.
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     visible: true
     // Open at the design size, but never larger than the screen can hold — a
     // 1280×720 or 1366×768 laptop (with the panel eating height) must not get a
@@ -912,7 +921,7 @@ ApplicationWindow {
                                 border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b,
                                                       0.34 - ring.index * 0.12)
                                 SequentialAnimation on scale {
-                                    running: hero.visible
+                                    running: hero.visible && win.motionEnabled
                                     loops: Animation.Infinite
                                     NumberAnimation { to: 1.06; duration: 2600 + ring.index * 500; easing.type: Easing.InOutSine }
                                     NumberAnimation { to: 1.0;  duration: 2600 + ring.index * 500; easing.type: Easing.InOutSine }
@@ -1581,7 +1590,7 @@ ApplicationWindow {
                             color: win.accent
                             x: 0
                             SequentialAnimation on x {
-                                running: overallInstallIndeterminate.visible
+                                running: overallInstallIndeterminate.visible && win.motionEnabled
                                 loops: Animation.Infinite
                                 NumberAnimation {
                                     from: 0

@@ -34,6 +34,16 @@ import org.kde.kirigami as Kirigami
 Kirigami.ApplicationWindow {
     id: root
 
+    // ── Motion gate ──────────────────────────────────────────────────────
+    // Every endless animation below (the idle-orb breathing, the thinking
+    // halo, the typing dots, the ambient particles, the remote-active rings)
+    // ANDs its `running:` with this. Kirigami.Units.longDuration is what the
+    // "animation speed" slider actually moves and KDE FLOORS it at 1 when
+    // animations are disabled — so `> 1` is false exactly when the user, or
+    // `moos-theme motion still`, has turned motion off, and every loop stops
+    // instead of rasterising forever on an idle assistant window.
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
+
     // ── Semantic design tokens — supplied by the active KDE scheme ───────
     // These bindings are deliberately owned by ApplicationWindow.palette. A
     // Global Theme changes KDE's palette at runtime; keeping Nova hex values
@@ -216,7 +226,7 @@ Kirigami.ApplicationWindow {
                 duration: 140000
                 loops: Animation.Infinite
                 easing.type: Easing.InOutSine
-                running: root.visible
+                running: root.visible && root.motionEnabled
             }
         }
         Rectangle {
@@ -238,7 +248,7 @@ Kirigami.ApplicationWindow {
                 duration: 170000
                 loops: Animation.Infinite
                 easing.type: Easing.InOutSine
-                running: root.visible
+                running: root.visible && root.motionEnabled
             }
         }
 
@@ -253,7 +263,7 @@ Kirigami.ApplicationWindow {
             opacity: 0.14
             SequentialAnimation on opacity {
                 loops: Animation.Infinite
-                running: root.visible
+                running: root.visible && root.motionEnabled
                 NumberAnimation { to: 0.26; duration: 5200; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 0.14; duration: 5200; easing.type: Easing.InOutSine }
             }
@@ -269,7 +279,7 @@ Kirigami.ApplicationWindow {
             opacity: 0.18
             SequentialAnimation on opacity {
                 loops: Animation.Infinite
-                running: root.visible
+                running: root.visible && root.motionEnabled
                 NumberAnimation { to: 0.08; duration: 5200; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 0.18; duration: 5200; easing.type: Easing.InOutSine }
             }
@@ -289,7 +299,7 @@ Kirigami.ApplicationWindow {
             opacity: 0.05
             SequentialAnimation on scale {
                 loops: Animation.Infinite
-                running: root.visible
+                running: root.visible && root.motionEnabled
                 NumberAnimation { to: 1.02; duration: 6000; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 1.0; duration: 6000; easing.type: Easing.InOutSine }
             }
@@ -305,7 +315,7 @@ Kirigami.ApplicationWindow {
                 from: 0; to: 360
                 duration: 60000
                 loops: Animation.Infinite
-                running: root.visible
+                running: root.visible && root.motionEnabled
             }
         }
     }
@@ -1212,7 +1222,7 @@ Kirigami.ApplicationWindow {
 
         // Idle: a slow breath.
         SequentialAnimation {
-            running: root.visible && orb.mood === "idle" && !orbPulse.running
+            running: root.visible && orb.mood === "idle" && !orbPulse.running && root.motionEnabled
             loops: Animation.Infinite
             onStopped: { orb.coreScale = 1.0; orb.haloScale = 1.0 }
             ParallelAnimation {
@@ -1227,14 +1237,14 @@ Kirigami.ApplicationWindow {
 
         // Thinking: the ring turns and the halo throbs.
         NumberAnimation {
-            running: root.visible && orb.mood === "thinking"
+            running: root.visible && orb.mood === "thinking" && root.motionEnabled
             target: orb; property: "ringAngle"
             from: 0; to: 360; duration: 2600
             loops: Animation.Infinite
             onStopped: orb.ringAngle = 0
         }
         SequentialAnimation {
-            running: root.visible && orb.mood === "thinking"
+            running: root.visible && orb.mood === "thinking" && root.motionEnabled
             loops: Animation.Infinite
             onStopped: orb.haloScale = 1.0
             NumberAnimation { target: orb; property: "haloScale"; to: 1.16; duration: 620; easing.type: Easing.InOutSine }
@@ -1817,7 +1827,7 @@ Kirigami.ApplicationWindow {
                                         onLinkActivated: function (link) { Qt.openUrlExternally(link) }
 
                                         SequentialAnimation on opacity {
-                                            running: msg.role === "typing"
+                                            running: msg.role === "typing" && root.motionEnabled
                                             loops: Animation.Infinite
                                             // A value-source animation does not restore on stop; when
                                             // typing → assistant flips, force full opacity so the
@@ -2933,13 +2943,13 @@ Kirigami.ApplicationWindow {
                                             border.color: root.okColor
                                             visible: !!root.remoteState.active
                                             SequentialAnimation on opacity {
-                                                running: !!root.remoteState.active
+                                                running: !!root.remoteState.active && root.motionEnabled
                                                 loops: Animation.Infinite
                                                 NumberAnimation { from: 0.7; to: 0.0; duration: 1200 }
                                                 NumberAnimation { from: 0.0; to: 0.0; duration: 200 }
                                             }
                                             SequentialAnimation on scale {
-                                                running: !!root.remoteState.active
+                                                running: !!root.remoteState.active && root.motionEnabled
                                                 loops: Animation.Infinite
                                                 NumberAnimation { from: 1.0; to: 1.45; duration: 1200 }
                                                 NumberAnimation { from: 1.0; to: 1.0; duration: 200 }

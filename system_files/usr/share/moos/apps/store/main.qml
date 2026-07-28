@@ -16,9 +16,16 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import org.kde.kirigami as Kirigami
 
 ApplicationWindow {
     id: win
+
+    // Motion gate: the "loading catalogue" shimmer and the indeterminate job
+    // spinner below AND their `running:` with this so "disable animations"
+    // stops them. Kirigami floors longDuration at 1 when motion is off, so
+    // `> 1` is the honest off-switch.
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     visible: true
     width: Math.min(1320, Screen.desktopAvailableWidth * 0.94)
     height: Math.min(820, Screen.desktopAvailableHeight * 0.94)
@@ -1401,7 +1408,7 @@ ApplicationWindow {
                                 opacity: railWorkingPulse.running ? railWorkingDot.pulse : 1
                                 SequentialAnimation {
                                     id: railWorkingPulse
-                                    running: !win.indexReady
+                                    running: !win.indexReady && win.motionEnabled
                                     loops: Animation.Infinite
                                     NumberAnimation {
                                         target: railWorkingDot; property: "pulse"
@@ -2756,7 +2763,7 @@ ApplicationWindow {
                         radius: 3
                         color: win.accent
                         SequentialAnimation on x {
-                            running: jobProgressIndeterminate.visible
+                            running: jobProgressIndeterminate.visible && win.motionEnabled
                             loops: Animation.Infinite
                             NumberAnimation {
                                 from: -jobProgressIndeterminate.width

@@ -32,9 +32,17 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import org.kde.kirigami as Kirigami
 
 ApplicationWindow {
     id: win
+
+    // Motion gate: the hero halo and the indeterminate install spinner below
+    // AND their `running:` with this so "disable animations" stops them.
+    // Kirigami floors longDuration at 1 when motion is off, so `> 1` is the
+    // honest off-switch. The installer can sit on its progress page for
+    // minutes, so an ungated spinner there is minutes of wasted rasterising.
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     visible: true
     width: Math.min(1080, Screen.desktopAvailableWidth * 0.92)
     height: Math.min(760, Screen.desktopAvailableHeight * 0.92)
@@ -569,7 +577,7 @@ ApplicationWindow {
                                 border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b,
                                                       0.34 - ring.index * 0.12)
                                 SequentialAnimation on scale {
-                                    running: hero.visible
+                                    running: hero.visible && win.motionEnabled
                                     loops: Animation.Infinite
                                     NumberAnimation { to: 1.06; duration: 2600 + ring.index * 500; easing.type: Easing.InOutSine }
                                     NumberAnimation { to: 1.0;  duration: 2600 + ring.index * 500; easing.type: Easing.InOutSine }
@@ -1759,7 +1767,7 @@ ApplicationWindow {
                                 color: "transparent"; border.width: 1
                                 border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.30 - pring.index * 0.1)
                                 SequentialAnimation on scale {
-                                    running: progressPage.visible && win.instState === "running"
+                                    running: progressPage.visible && win.instState === "running" && win.motionEnabled
                                     loops: Animation.Infinite
                                     NumberAnimation { to: 1.07; duration: 2200 + pring.index * 400; easing.type: Easing.InOutSine }
                                     NumberAnimation { to: 1.0;  duration: 2200 + pring.index * 400; easing.type: Easing.InOutSine }
