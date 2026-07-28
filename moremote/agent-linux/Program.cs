@@ -16,6 +16,13 @@ var svc=new AgentServices{Config=config,Sessions=new SessionManager(config),Stat
 var builder=WebApplication.CreateBuilder(new WebApplicationOptions{ContentRootPath=AppContext.BaseDirectory,Args=args});
 builder.Logging.ClearProviders(); builder.Services.AddSingleton(svc);
 builder.WebHost.ConfigureKestrel(o=>o.ListenAnyIP(config.Port,lo=>{if(tls!=null)lo.UseHttps(tls.Certificate);}));
-var app=builder.Build(); WebApi.UseNetworkGuard(app,svc); app.UseWebSockets(); app.UseDefaultFiles(); app.UseStaticFiles(); WebApi.Map(app,svc); app.MapFallbackToFile("index.html");
+var app=builder.Build(); WebApi.UseNetworkGuard(app,svc); // Both values, because the interval alone is another gate that never fires. KeepAliveTimeout defaults
+// to InfiniteTimeSpan, so ASP.NET sent a keep-alive ping every two minutes and then waited forever for
+// a reply that a wedged peer was never going to send — the connection stayed "open" indefinitely, which
+// is the server-side half of the stall the client watchdog was added to catch.
+app.UseWebSockets(new WebSocketOptions {
+    KeepAliveInterval = TimeSpan.FromSeconds(15),
+    KeepAliveTimeout  = TimeSpan.FromSeconds(20),
+}); app.UseDefaultFiles(); app.UseStaticFiles(); WebApi.Map(app,svc); app.MapFallbackToFile("index.html");
 Log.Info($"Linux server listening: {svc.AccessUrl}");
 await app.RunAsync();

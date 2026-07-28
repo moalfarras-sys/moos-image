@@ -70,7 +70,12 @@ const US_LAYOUT: Record<string, [string, string]> = {
   NumpadDivide: ["/", "/"],
 };
 
-const PX_PER_NOTCH = 100;   // what a Chromium wheel step reports in deltaMode 0
+// One wheel step in deltaMode 0 (pixels). Chromium reports 100 for a notch; the agent expands a notch
+// back to 15 libinput pixels, so this pair is the whole scroll calibration and the two must be read
+// together. 100/15 made a real wheel notch travel a seventh of the distance it should — which is why
+// scrolling a page felt like dragging it. Matching the agent's own notch size removes the mismatch
+// without touching the phone's gesture path, which is calibrated separately in gestures.ts.
+const PX_PER_NOTCH = 15;
 const LINES_PER_NOTCH = 3;  // deltaMode 1 counts text lines
 const PAGES_TO_NOTCHES = 3; // deltaMode 2 is rare (Firefox on some platforms)
 const MAX_NOTCHES = 20;     // the agent clamps here too; matching avoids a silent difference
@@ -342,7 +347,17 @@ export class DesktopInput {
     }
     if (this.qScrollX || this.qScrollY) {
       const dx = clamp(this.qScrollX), dy = clamp(this.qScrollY);
-      this.qScrollX = 0; this.qScrollY = 0;
+      // KEEP the sub-notch remainder instead of discarding it.
+      //
+      // This used to zero both accumulators unconditionally, which quietly made slow scrolling do
+      // nothing at all: a trackpad emits a few pixels per frame, that is a small fraction of a notch,
+      // clamp/round it away and the remainder was thrown out before it could ever add up to one. The
+      // wheel worked and the trackpad appeared dead.
+      //
+      // On top of that the round trip was lossy by a factor of ~7: divided by PX_PER_NOTCH (100) here
+      // and multiplied back by the agent's PixelsPerNotch (15) there. Sending the fraction and letting
+      // it accumulate is what makes a slow scroll a slow scroll rather than a discarded one.
+      this.qScrollX -= dx; this.qScrollY -= dy;
       if (dx || dy) this.cb.scroll(dx, dy);
     }
   }

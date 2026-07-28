@@ -475,10 +475,32 @@ public sealed class StreamSession
         catch { return null; }
     }
 
+    /// <summary>
+    /// Send one frame, bounded.
+    ///
+    /// This awaited SendAsync under _sendLock with no timeout at all, while SendJson right below bounds
+    /// the identical operation at 3s. On a congested socket a ~300KB frame can sit in that await for as
+    /// long as the kernel is willing to retransmit, and because it holds _sendLock the PONG queues
+    /// behind it — so the client's stall watchdog and the RTT ladder both go blind at precisely the
+    /// moment they are needed, and the measured RTT reports the send backlog rather than the network.
+    /// A frame that cannot leave in 3 seconds is not worth sending: it is already older than the queue
+    /// depth allows, and dropping it lets the pong through so the client can adapt.
+    /// </summary>
     private async Task SendBinary(byte[] data, CancellationToken ct)
     {
         await _sendLock.WaitAsync(ct);
-        try { await _socket.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Binary, true, ct); }
+        try
+        {
+            using var bound = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            bound.CancelAfter(TimeSpan.FromSeconds(3));
+            await _socket.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Binary, true, bound.Token);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // The frame timed out, not the session. Say so once per occurrence and carry on — the next
+            // frame is newer anyway, and the keyframe request on the backlog drop repairs the reference.
+            Log.Warn("Frame send exceeded 3s and was abandoned; the viewer's link is saturated.");
+        }
         finally { _sendLock.Release(); }
     }
 

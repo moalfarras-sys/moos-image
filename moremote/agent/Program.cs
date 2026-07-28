@@ -116,7 +116,12 @@ internal static class Program
             await next();
         });
 
-        app.UseWebSockets();
+        // See the Linux Program.cs for the reasoning: KeepAliveTimeout defaults to InfiniteTimeSpan, so
+        // the interval on its own sends a ping and then waits for ever. Both, or neither works.
+        app.UseWebSockets(new WebSocketOptions {
+            KeepAliveInterval = TimeSpan.FromSeconds(15),
+            KeepAliveTimeout  = TimeSpan.FromSeconds(20),
+        });
         app.UseDefaultFiles();
         app.UseStaticFiles();
         WebApi.Map(app, services);
