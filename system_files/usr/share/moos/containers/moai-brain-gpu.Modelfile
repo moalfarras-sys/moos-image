@@ -1,17 +1,30 @@
-# MoOS Mo AI brain — the GPU machine's brain. Qwen3-8B.
+# MoOS Mo AI brain — the DEFAULT brain. Qwen3-8B.
+#
+# (The "-gpu" in this filename is now historical. It is kept because the build
+# and the tests reference the path; what selects it is the model name, not the
+# name of this file.)
 #
 # WHY A SECOND MODELFILE AND NOT ONE CONSTANT
 #
-# MoOS runs on two machines that want opposite answers, so moos-ensure-brain
-# picks between this file and moai-brain.Modelfile by what the machine has:
+# moos-ensure-brain picks between this file and moai-brain.Modelfile by what the
+# machine has. This one is now the answer for ANY machine with >= 7.5 GB of RAM,
+# GPU or not — see the measurement block in moos-ensure-brain:
 #
-#   this file            a real GPU with >= 7.5 GB. Qwen3-8B is, MEASURED through
-#                        the real gateway on a real Arabic repair question, the
-#                        best Arabic of everything tried AND the best at the
-#                        commands and explanations that go with it — which is
-#                        exactly what a development/repair brain is for.
-#   moai-brain.Modelfile no GPU (MoOS Cloud). Qwen2.5-7B-Instruct is measurably
-#                        faster there, and Mo AI's own error text says so.
+#   this file            Qwen3-8B. MEASURED through the real gateway on a real
+#                        Arabic repair question, the best Arabic of everything
+#                        tried AND the best at the commands and explanations that
+#                        go with it — which is exactly what a development/repair
+#                        brain is for. On a CPU-only box it costs 15% throughput
+#                        against Qwen2.5, which is worth paying:
+#   moai-brain.Modelfile Qwen2.5-7B-Instruct, now only for machines too small to
+#                        hold Qwen3. It is faster, and its Arabic BREAKS — it was
+#                        measured emitting Chinese ("使用前请三思") in the middle
+#                        of an Arabic answer. Fine as a fallback, wrong as a
+#                        default for a bilingual OS.
+#
+# THIS MODEL MUST NOT THINK ON A CPU BOX. 45s vs 4s on one sentence of Arabic.
+# Ollama 0.32 rejects `PARAMETER think`, so the guarantee is in the callers:
+# moai-gateway sends reasoning_effort:"none", OpenClaw sends think:false.
 #
 # WHY NOT A "CODER" MODEL, WHICH IS THE OBVIOUS THING TO REACH FOR
 #

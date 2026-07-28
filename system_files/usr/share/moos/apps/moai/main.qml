@@ -105,6 +105,28 @@ Kirigami.ApplicationWindow {
     readonly property int controlPort: root.argPort("--control-port", 8079)
     readonly property int agentPort:   root.argPort("--agent-port",   8077)
 
+    // ── What is allowed to move, and when ────────────────────────────────────
+    //
+    // Set by /usr/bin/moai when this machine has no GPU, alongside the
+    // QT_QUICK_BACKEND=software that does the heavy lifting. Read that script's
+    // comment first: the 1.7 cores this app was burning came from Qt's OpenGL
+    // scene graph spinning on a broken EGL path, NOT from the animations below —
+    // forcing every animation off still measured 141% CPU. Gating them is worth a
+    // real but much smaller 15.7% → 3.8% once repaints are no longer free.
+    //
+    // `visible` alone is the wrong gate regardless: Qt's visible is not
+    // occlusion-aware, so it stays true when the window is completely hidden
+    // behind a full-screen editor, and the app animates for nobody.
+    readonly property bool softwareRender: Qt.application.arguments.indexOf("--software-render") !== -1
+    readonly property bool uiAnimated: root.visible && root.active
+
+    // Motion that runs while NOTHING is happening — the ambient wash and the orb's
+    // idle breathing — is what a software rasteriser should not be asked to draw.
+    // Motion that MEANS something (thinking, attentive) is kept on every machine:
+    // it is short, it only runs while the user is waiting on real work, and going
+    // silent exactly when the brain is busy is the one moment feedback matters.
+    readonly property bool idleMotion: root.uiAnimated && !root.softwareRender
+
     readonly property string api: "http://127.0.0.1:" + root.gatewayPort + "/v1/chat/completions"
     readonly property string controlApi: "http://127.0.0.1:" + root.controlPort
 
@@ -188,6 +210,15 @@ Kirigami.ApplicationWindow {
         anchors.fill: parent
         z: -1
 
+        // Pure decoration: six infinite animations over full-window gradients and
+        // scaled PNGs, at opacity 0.04–0.18. The slow durations below (140s, 170s,
+        // a 60s rotation) describe the MOTION, not the cost — the scene repaints
+        // every frame either way, so a one-minute rotation is 3600 full repaints.
+        // Under the software scene graph those repaints are no longer free, and an
+        // effect measured in hundredths of an alpha value is the first thing that
+        // should stop and the last that will be missed.
+        readonly property bool animate: root.idleMotion
+
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
@@ -216,7 +247,7 @@ Kirigami.ApplicationWindow {
                 duration: 140000
                 loops: Animation.Infinite
                 easing.type: Easing.InOutSine
-                running: root.visible
+                running: ambient.animate
             }
         }
         Rectangle {
@@ -238,7 +269,7 @@ Kirigami.ApplicationWindow {
                 duration: 170000
                 loops: Animation.Infinite
                 easing.type: Easing.InOutSine
-                running: root.visible
+                running: ambient.animate
             }
         }
 
@@ -253,7 +284,7 @@ Kirigami.ApplicationWindow {
             opacity: 0.14
             SequentialAnimation on opacity {
                 loops: Animation.Infinite
-                running: root.visible
+                running: ambient.animate
                 NumberAnimation { to: 0.26; duration: 5200; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 0.14; duration: 5200; easing.type: Easing.InOutSine }
             }
@@ -269,7 +300,7 @@ Kirigami.ApplicationWindow {
             opacity: 0.18
             SequentialAnimation on opacity {
                 loops: Animation.Infinite
-                running: root.visible
+                running: ambient.animate
                 NumberAnimation { to: 0.08; duration: 5200; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 0.18; duration: 5200; easing.type: Easing.InOutSine }
             }
@@ -289,7 +320,7 @@ Kirigami.ApplicationWindow {
             opacity: 0.05
             SequentialAnimation on scale {
                 loops: Animation.Infinite
-                running: root.visible
+                running: ambient.animate
                 NumberAnimation { to: 1.02; duration: 6000; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 1.0; duration: 6000; easing.type: Easing.InOutSine }
             }
@@ -305,7 +336,7 @@ Kirigami.ApplicationWindow {
                 from: 0; to: 360
                 duration: 60000
                 loops: Animation.Infinite
-                running: root.visible
+                running: ambient.animate
             }
         }
     }
@@ -1212,7 +1243,7 @@ Kirigami.ApplicationWindow {
 
         // Idle: a slow breath.
         SequentialAnimation {
-            running: root.visible && orb.mood === "idle" && !orbPulse.running
+            running: root.idleMotion && orb.mood === "idle" && !orbPulse.running
             loops: Animation.Infinite
             onStopped: { orb.coreScale = 1.0; orb.haloScale = 1.0 }
             ParallelAnimation {
@@ -1227,14 +1258,14 @@ Kirigami.ApplicationWindow {
 
         // Thinking: the ring turns and the halo throbs.
         NumberAnimation {
-            running: root.visible && orb.mood === "thinking"
+            running: root.uiAnimated && orb.mood === "thinking"
             target: orb; property: "ringAngle"
             from: 0; to: 360; duration: 2600
             loops: Animation.Infinite
             onStopped: orb.ringAngle = 0
         }
         SequentialAnimation {
-            running: root.visible && orb.mood === "thinking"
+            running: root.uiAnimated && orb.mood === "thinking"
             loops: Animation.Infinite
             onStopped: orb.haloScale = 1.0
             NumberAnimation { target: orb; property: "haloScale"; to: 1.16; duration: 620; easing.type: Easing.InOutSine }
@@ -1243,7 +1274,7 @@ Kirigami.ApplicationWindow {
 
         // Attentive: leans in and holds.
         NumberAnimation {
-            running: root.visible && orb.mood === "attentive"
+            running: root.uiAnimated && orb.mood === "attentive"
             target: orb; property: "coreScale"
             to: 1.07; duration: 220; easing.type: Easing.OutBack
             onStopped: if (orb.mood !== "attentive") orb.coreScale = 1.0
