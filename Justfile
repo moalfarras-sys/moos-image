@@ -46,6 +46,8 @@ check:
     python3 tests/test_kernel_network_tuning.py
     # Claim and recovery for a headless cloud account's PIN — both failures look like a healthy server.
     python3 tests/test_cloud_set_pin.py
+    # A connect burst must coalesce into ONE pipeline build, and idle teardown must stay immediate.
+    python3 tests/test_remote_rebuild_debounce.py
     python3 tests/test_moos_store_index.py
     python3 tests/test_moos_storectl.py
     python3 tests/test_moos_ui2.py

@@ -469,8 +469,57 @@ def teardown():
     return False
 
 
+_rebuild_timer = 0
+# How long to let a burst of settings settle before standing a pipeline up. Long enough to cover
+# the round trips a connecting client needs, short enough that nobody waits for a picture.
+REBUILD_DEBOUNCE_MS = 220
+
+
 def rebuild():
-    """(Re)build the encode pipeline at the current resolution.
+    """Ask for a (re)build, coalescing a burst of changes into ONE.
+
+    WHY THIS IS DEBOUNCED, AND WHAT IT LOOKED LIKE WHEN IT WAS NOT
+
+    Every setting that changes the pipeline used to rebuild it immediately, and a client that has
+    just connected changes three of them in quick succession — because it cannot say them all at
+    once. Measured on the maintainer's machine, one phone opening the remote:
+
+        11:19:16  Video stream: 1920x1080     <- built as JPEG, before the phone had said anything
+        11:19:16  Video codec: h264           <- rebuild: the phone declared WebCodecs H.264
+        11:19:16  Video stream: 1920x1080
+        11:19:18  Video stream: 960x540       <- rebuild: its quality preset finally arrived
+
+    Four builds in two seconds for one viewer. Each is ~200ms with no picture and a fresh IDR after
+    it, so opening the remote meant watching the screen appear, blank, appear, blank and appear
+    again. That is the flash at connect time, and it is not a network problem — the machine did it
+    to itself.
+
+    The order is not fixable by reordering the client, either: the codec declaration goes out with
+    the auth message, but the quality preset can only be sent after `hello` comes back, which is a
+    round trip later. On a LAN that is 2ms and on a relayed cellular link it is closer to 400ms. So
+    there is no fixed point at which "the client has finished talking" — which is exactly the shape
+    debouncing solves. Every change restarts a short timer; the build happens when the changes stop.
+
+    The idle case deliberately does NOT wait: `streaming` going false tears the pipeline down at
+    once, because the whole point of that path is to stop the compositor copying frames the instant
+    the last viewer leaves, and a quarter second of extra load is a quarter second nobody asked for.
+    """
+    global _rebuild_timer
+
+    if not state["streaming"]:
+        if _rebuild_timer:
+            GLib.source_remove(_rebuild_timer)
+            _rebuild_timer = 0
+        return teardown()
+
+    if _rebuild_timer:
+        GLib.source_remove(_rebuild_timer)
+    _rebuild_timer = GLib.timeout_add(REBUILD_DEBOUNCE_MS, _rebuild_now)
+    return False
+
+
+def _rebuild_now():
+    """The actual (re)build, once the settings have stopped moving.
 
     The scale is baked into the pipeline instead of being swapped on a live capsfilter: changing
     caps mid-stream makes pipewiresrc renegotiate and the stream collapses to <1 fps. Tearing the
@@ -480,7 +529,9 @@ def rebuild():
     No viewer, no pipeline: every caller funnels through here, so this one guard is what keeps a
     quality tweak or a stray settings push from resurrecting the encoder on an idle machine.
     """
-    global pipeline, enc, rate
+    global pipeline, enc, rate, _rebuild_timer
+
+    _rebuild_timer = 0
 
     if not state["streaming"]:
         return teardown()
