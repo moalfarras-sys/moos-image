@@ -10,6 +10,44 @@ on **MoOS UI — Liquid Glass Design System**; the mandatory agent skill created
 > **Read [`skills/moos-engineering/SKILL.md`](skills/moos-engineering/SKILL.md) first —
 > it is mandatory for every agent working here.**
 
+> **Session N — the practical full-system audit (2026-07-29), branch
+> `fix/full-system-audit-and-completion`.** A live-first audit (bootc/rpm-ostree
+> status, failed units, journal, coredumps, boot chain, sysctl-vs-live, ports)
+> found the boot/update/rollback/kernel/signature foundation HEALTHY: all MoOS
+> sysctls apply live (BBR, fq, swappiness 150, backlog, inotify), zram active,
+> two deployments (rollback intact), signature policy enforced. No Critical/High.
+> A read-only defect sweep across all subsystems then produced ten reproduced
+> defects, each fixed with a regression proven to bite:
+> - **boot** — `net.core.default_qdisc=fq` was rejected on the primary
+>   systemd-sysctl pass because sch_fq (a module) was never preloaded; only
+>   tcp_bbr was. Added sch_fq to modules-load.d and generalised
+>   test_kernel_network_tuning to pair any module-backed sysctl value (95b0161).
+> - **ui/motion** — the MoOS apps were the motion-gate blind spot: Mo AI ran 12
+>   unguarded Animation.Infinite loops, Welcome/Installer/Store two each. Gated
+>   all 18 on `Kirigami.Units.longDuration > 1` and added
+>   `system_files/usr/share/moos/apps` to _MOTION_ROOTS (302a410).
+> - **cloud** — moos-cloud-dev wrote an inverted subuid range (100000-65535);
+>   fixed to a unique per-uid block + new gate test_cloud_subid_range (0c77163).
+> - **remote** — the orphaned MoRemote.Tests crashed on a stale assertion
+>   (removed wall-clock check); fixed and wired into the Containerfile build
+>   stage so it runs every build (ba5bc81).
+> - **moai** — test_moai_do now validates the UI's real extractRuns alternation
+>   whitelist, not just literals (9569c6e).
+> - **ci** — build-disk/iso now cosign-verify the image before building an
+>   installer; all jobs got timeout-minutes; build-disk got concurrency
+>   (8a13cff). Image build now attests an SPDX SBOM with the signing key —
+>   first executes on the next main build (592e55f).
+> - **moplayer** — the bundled demo playlist could never load (undeclared in
+>   pubspec, wrong asset path); shipped it correctly + regression (b25b158).
+> - **store** — curated npm/AppImage tools could be installed but never removed;
+>   added the symmetric removal path in storectl + the UI Remove button (cb4f981).
+> All 26 repo gates pass locally verbatim; controller TS, MoRemote.Tests (.NET,
+> 21), and MoPlayer flutter (164) all green. Live-verified where possible:
+> Welcome rendered from edited source; `moos-storectl remove claude-code`
+> returns success (was "Invalid Flatpak app ID"), the test install restored
+> afterward. NOT yet verified (needs a boot / a main build): the sch_fq
+> ordering on a clean single-pass boot, and the SBOM attestation step.
+
 > **Session M — the audit-and-truth session (2026-07-28).** The live machine, the
 > repo and GHCR were audited against each other before anything was edited.
 > Verified live: the machine boots `moos-nvidia` **44.20260728.419** from the
