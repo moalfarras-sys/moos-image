@@ -2,7 +2,12 @@
 # A playlist of public test streams, so MoPlayer can be launched, driven and
 # demonstrated without anyone's real IPTV credentials.
 #
-#   moplayer assets/demo/demo.m3u
+#   moplayer asset://demo.m3u
+#
+# (asset://demo.m3u is the shipped form — it loads THIS file out of the app's
+# own bundle, so it works from the installed /usr/lib/moplayer, not only from a
+# source checkout. A bare `moplayer assets/demo.m3u` still works when run from
+# this source tree.)
 #
 # These are HLS and MPEG-TS from public test rigs — the same two containers a
 # real Xtream panel serves — so this exercises the real playback path, not a mock

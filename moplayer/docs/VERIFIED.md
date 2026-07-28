@@ -193,8 +193,9 @@ desktop-file-validate ~/.local/share/applications/org.moos.moplayer.desktop
 
 ## 5. يُستورد مصدر M3U ويُفهرَس
 
-`moplayer assets/demo/demo.m3u` → القنوات والتصنيفات (`group-title`) والشعارات
-(`tvg-logo`) ظهرت جميعها: [`screenshots/live.png`](screenshots/live.png).
+`moplayer asset://demo.m3u` (النموذج المشحون — يقرأ الحزمة نفسها؛ أو
+`moplayer assets/demo.m3u` من شجرة المصدر) → القنوات والتصنيفات (`group-title`)
+والشعارات (`tvg-logo`) ظهرت جميعها: [`screenshots/live.png`](screenshots/live.png).
 
 ## 6. الإغلاق وتغيير الشاشة — Close and display change
 

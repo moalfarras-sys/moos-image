@@ -87,3 +87,10 @@ flutter:
   uses-material-design: true
   assets:
     - assets/branding/
+    # The bundled demo playlist. asset://demo.m3u resolves to this (see
+    # SourceLink / _readM3uBody: asset://<name> -> assets/<name>), which is how
+    # MoPlayer can be launched and demonstrated with public test streams and no
+    # IPTV credentials, straight from the installed bundle. Without this line the
+    # file is git-tracked but never packed, so asset://demo.m3u throws "Unable to
+    # load asset" in the shipped app.
+    - assets/demo.m3u
