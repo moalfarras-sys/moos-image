@@ -35,6 +35,8 @@ export class RemoteConnection {
   private closedByUs = false;
   private backoff = 500;
   private pingTimer: number | null = null;
+  /** When a pong last arrived. The stall watchdog in startPing() is the only reader. */
+  private lastPongAt = 0;
   private seq = 0;
   private mode = "trackpad";
   private display = 0;
@@ -97,6 +99,7 @@ export class RemoteConnection {
             this.h.onCodec?.(m.codec === "h264" ? "h264" : "jpeg");
             break;
           case "pong":
+            this.lastPongAt = performance.now();
             if (typeof m.t === "number") this.h.onPong?.(Math.max(0, performance.now() - m.t));
             break;
           case "inputState":
@@ -141,9 +144,34 @@ export class RemoteConnection {
     }
   }
 
+  /**
+   * Ping every 2s AND check that the pongs come back.
+   *
+   * The ping half was already here; the check was not, and that is the difference between a heartbeat
+   * and a decoration. A TCP connection that has stopped carrying data does not close — it sits there,
+   * readyState OPEN, for as long as the OS keeps retransmitting. So a wedged session reported "Live"
+   * with a frozen picture indefinitely, and there was nothing to reconnect because nothing had noticed.
+   * This is the other half of "it feels like it disconnects": it does not disconnect, which is worse,
+   * because a disconnect is something the client already knows how to recover from.
+   *
+   * STALL_MS is 8s: four missed pings on a link whose measured RTT is 21-34ms. Long enough that a phone
+   * changing networks or a laptop waking is not called dead, short enough that a person has not yet
+   * decided the product is broken. Closing the socket is all this has to do — onclose already owns the
+   * backoff and the reconnect.
+   */
+  private static readonly STALL_MS = 8000;
+
   private startPing() {
     this.stopPing();
-    this.pingTimer = window.setInterval(() => this.send({ type: "ping", t: performance.now() }), 2000);
+    this.lastPongAt = performance.now();
+    this.pingTimer = window.setInterval(() => {
+      this.send({ type: "ping", t: performance.now() });
+      if (performance.now() - this.lastPongAt > RemoteConnection.STALL_MS && this.ws?.readyState === WebSocket.OPEN) {
+        // Not closedByUs: this must reconnect, and it must be reported as a reconnect rather than a
+        // deliberate exit, or the UI would show "signed out" for a network blip.
+        try { this.ws.close(); } catch { /* the close handler does the rest */ }
+      }
+    }, 2000);
   }
   private stopPing() {
     if (this.pingTimer) window.clearInterval(this.pingTimer);

@@ -84,7 +84,7 @@ export class GestureController {
     el.addEventListener("pointerdown", this.onDown, { passive: false });
     el.addEventListener("pointermove", this.onMove, { passive: false });
     el.addEventListener("pointerup", this.onUp, { passive: false });
-    el.addEventListener("pointercancel", this.onUp, { passive: false });
+    el.addEventListener("pointercancel", this.onCancel, { passive: false });
     el.addEventListener("contextmenu", this.prevent, { passive: false });
   }
 
@@ -102,7 +102,7 @@ export class GestureController {
     this.el.removeEventListener("pointerdown", this.onDown);
     this.el.removeEventListener("pointermove", this.onMove);
     this.el.removeEventListener("pointerup", this.onUp);
-    this.el.removeEventListener("pointercancel", this.onUp);
+    this.el.removeEventListener("pointercancel", this.onCancel);
     this.el.removeEventListener("contextmenu", this.prevent);
     for (const id of this.pointers.keys()) { try { this.el.releasePointerCapture?.(id); } catch { /* */ } }
     this.endAll();   // tearing down mid-drag must still release the button
@@ -199,6 +199,29 @@ export class GestureController {
       this.qScrollY += dy;
       this.scheduleFlush();
     }
+  };
+
+  /**
+   * The system took this touch away — an iOS edge swipe, a notification pull-down, palm rejection.
+   *
+   * This used to be wired straight to onUp, which is the one thing it must not be: onUp's whole job is
+   * to decide what the gesture MEANT and emit it, so a stolen touch was delivered to the remote
+   * desktop as a click — or, after a 500ms rest, a RIGHT click — that the user never made. Opening
+   * Notification Centre over the canvas would fire a context menu on the server.
+   *
+   * A cancelled gesture meant nothing. Release anything actually held so no button is left down, and
+   * emit nothing else.
+   */
+  private onCancel = (e: PointerEvent) => {
+    if (this.inert) return;
+    e.preventDefault();
+    this.pointers.delete(e.pointerId);
+    try { this.el.releasePointerCapture?.(e.pointerId); } catch { /* */ }
+    this.cancelLong();
+    this.flush();
+    if (this.phase === "drag") this.cb.dragEnd(this.cx, this.cy);
+    if (this.pointers.size < 2) this.two = false;
+    this.phase = "idle";
   };
 
   // ---------------- up ----------------

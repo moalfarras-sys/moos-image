@@ -281,13 +281,26 @@ public sealed class InputInjector : IDisposable
                 rest.Add(Stroke.Code(code));
         }
 
+        // Only release what THIS combo pressed.
+        //
+        // Set() is a no-op for a key already in _pressed, so a modifier the user is physically holding
+        // is correctly not re-pressed on the way in — but the unconditional release on the way out sent
+        // a real key-up for it. So tapping Ctrl+C on the on-screen bar while holding Ctrl on a real
+        // keyboard RELEASED the user's Ctrl, and the desktop input layer still had that key in its own
+        // held set, so it would never send another down: Ctrl stuck up until they let go and pressed
+        // again. The two keyboard paths share one _pressed, which is what makes them interfere.
+        var pressedHere = new List<ushort>();
+        lock (_gate)
+        {
+            foreach (var m in mods) if (!_pressed.Contains(m)) pressedHere.Add(m);
+        }
         foreach (var m in mods) Set(m, true);            // tracked, so ReleaseAll can undo them
         var events = new List<object>();
         foreach (var s in rest) events.Add(s.Event(down: true));
         for (int i = rest.Count - 1; i >= 0; i--) events.Add(rest[i].Event(down: false));
         if (events.Count > 0 && !_portal.Send(new { type = "keysyms", events }))
             FallbackCombo(keys);
-        for (int i = mods.Count - 1; i >= 0; i--) Set(mods[i], false);
+        for (int i = pressedHere.Count - 1; i >= 0; i--) Set(pressedHere[i], false);
     }
 
     /// <summary>One press in an ordered batch: a keysym (a character) or a raw evdev code (a key).</summary>

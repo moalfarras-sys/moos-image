@@ -859,7 +859,17 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const compactBar = healthy && !statsOpen;
 
   return (
-    <div className="remote" onPointerDown={bumpToolbar}>
+    // No onPointerDown={bumpToolbar} here, and its absence is the feature.
+    //
+    // It used to be on this div, which covers the whole remote screen, so EVERY touch anywhere on the
+    // desktop re-armed the 4.5s timer and brought the seven-button bar back over the bottom of the
+    // picture. The one thing guaranteed to keep it on screen was using the remote desktop — and the
+    // bottom of a desktop is where the dock and the taskbar live, so the controls sat on top of
+    // exactly what the user was reaching for. That is the "something is always covering it" complaint.
+    //
+    // The bar now hides on its timer and is summoned deliberately, by the .show-tab handle below —
+    // 50x30px instead of the full bar, and rendered only while the bar is hidden.
+    <div className={"remote" + (mode === "desktop" ? " mouse-mode" : "")}>
       <canvas ref={canvasRef} className="screen-canvas" />
       {/* The server's sound, on this same origin. Never `autoPlay` — the browser would refuse it
           without a gesture and the refusal is indistinguishable from the stream being broken. */}

@@ -36,6 +36,8 @@ public sealed class StreamSession
     private string _sentCodec = "";
     private bool _inputConfirmed;
     private int _moveLogCounter;
+    private long _lastRejectReport;
+    private string _lastRejectReason = "";
 
     public StreamSession(AgentServices svc, WebSocket socket, string remote)
     {
@@ -308,8 +310,22 @@ public sealed class StreamSession
 
             if (!ValidateEnvelope(root,type,out var reject))
             {
-                Log.Warn($"Rejected input '{type}' from {_remote}: {reject}.");
-                await SendJson(new { type="inputState", ready=_svc.Input.IsReady, error=reject },ct);
+                // Report a rejection at most once every few seconds, and log it the same way.
+                //
+                // Every rejected message used to answer with a fresh inputState. The client turns that
+                // into a toast and a React render, and a real mouse emits input far faster than a
+                // finger — so one bad envelope field (a clock skew, a missing geometry) did not produce
+                // one complaint, it produced a stream of them: the screen papered over with toasts, the
+                // UI re-rendering continuously, and the log filling at the same rate. The cause is
+                // never per-message anyway; it is a condition that lasts. Say so once.
+                long nowTicks = Environment.TickCount64;
+                if (nowTicks - _lastRejectReport > 3000 || reject != _lastRejectReason)
+                {
+                    _lastRejectReport = nowTicks;
+                    _lastRejectReason = reject;
+                    Log.Warn($"Rejected input '{type}' from {_remote}: {reject}.");
+                    await SendJson(new { type="inputState", ready=_svc.Input.IsReady, error=reject },ct);
+                }
                 return;
             }
 

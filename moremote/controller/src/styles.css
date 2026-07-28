@@ -232,6 +232,15 @@ button {
   background: var(--screen);
   overflow: hidden;
 }
+/* In "Mouse + Keys" mode the remote cursor is drawn on the canvas at the position we last SENT, so the
+   browser's own pointer sitting on top of it means two cursors chasing each other a frame apart — and
+   the one the user instinctively trusts is the local one, which is the one that is not where the click
+   will land. Hide it and let the drawn cursor be the only cursor, which is what every remote-desktop
+   client does. Touch modes keep the default: there is no pointer to hide, and a stylus should show. */
+.remote.mouse-mode .screen-canvas {
+  cursor: none;
+}
+
 .screen-canvas {
   position: absolute;
   top: 0;
