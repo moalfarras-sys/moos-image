@@ -1418,7 +1418,110 @@ class Controller:
                 job.fail(error)
             return exit_code(job.document["state"]), job.snapshot()
 
+    def _remove_curated(
+        self, app_id: str, recipe: dict[str, Any]
+    ) -> tuple[int, dict[str, Any]]:
+        """Reverse a curated (non-Flatpak) install. Install is kind-aware, so
+        removal has to be too: an npm tool installed with `npm install --global
+        --prefix ~/.local` is removed with the symmetric uninstall, a pinned
+        AppImage is the single file we wrote under ~/.local/bin, and a `web`
+        entry only ever opened a vendor page — there is nothing of ours to
+        remove. Without this, `moos-storectl remove claude-code` hit the
+        Flatpak-ID validator and failed, so the tool showed as installed for
+        ever with no way back."""
+        install = recipe.get("install") or {}
+        kind = install.get("kind")
+        try:
+            lock, job = self._begin("remove", [app_id])
+        except BusyError:
+            return 75, self._busy_document("remove", [app_id])
+        with lock:
+            try:
+                if kind == "npm":
+                    self._remove_npm(job, app_id, install)
+                elif kind == "appimage":
+                    self._remove_appimage(job, app_id, install)
+                elif kind == "web":
+                    job.update_item(
+                        app_id,
+                        state="skipped",
+                        progress=100,
+                        message="Nothing to remove — this app is downloaded from "
+                        "its official website, outside Mo Store",
+                    )
+                else:
+                    raise StoreError(
+                        f"Unsupported curated install kind for {app_id}: {kind}"
+                    )
+                job.finish_from_items("App removed")
+            except CancelledError:
+                job.cancelled()
+            except Exception as error:
+                job.fail(error, [app_id])
+            return exit_code(job.document["state"]), job.snapshot()
+
+    def _remove_npm(self, job: Job, app_id: str, install: dict[str, Any]) -> None:
+        package = install.get("pkg")
+        if not isinstance(package, str) or not _NPM_PACKAGE_RE.fullmatch(package):
+            raise StoreError(f"Catalog has an invalid npm package for {app_id}")
+        prefix = Path.home() / ".local"
+        message = "Removing developer tool"
+        job.update_item(app_id, state="running", progress=None, message=message)
+        job.update(
+            state="running", progress=None, current_id=app_id, message=message
+        )
+        # Symmetric with _install_npm: same global user prefix, same no-shell
+        # argv, `--` before the name so a package that starts with a dash can
+        # never be read as a flag.
+        result = self.runner.run_cancellable(
+            [
+                NPM,
+                "uninstall",
+                "--global",
+                "--prefix",
+                str(prefix),
+                "--no-audit",
+                "--no-fund",
+                "--",
+                package,
+            ],
+            lambda: self._cancelled(job),
+        )
+        if result.cancelled:
+            raise CancelledError("Cancelled")
+        if result.returncode:
+            raise StoreError(result.reason or f"npm exited with {result.returncode}")
+        job.update_item(app_id, state="done", progress=100, message="Removed")
+
+    def _remove_appimage(
+        self, job: Job, app_id: str, install: dict[str, Any]
+    ) -> None:
+        binary = install.get("bin")
+        if not isinstance(binary, str) or not _BIN_RE.fullmatch(binary):
+            raise StoreError(f"Catalog has an invalid AppImage executable for {app_id}")
+        # Exactly the file _install_pinned_appimage wrote — and the same path
+        # moos-store-index's nonflatpak_installed() reports installed from, so
+        # the app flips to not-installed on the next index refresh.
+        target = Path.home() / ".local" / "bin" / f"{binary}.AppImage"
+        try:
+            target.unlink()
+        except FileNotFoundError:
+            job.update_item(
+                app_id, state="skipped", progress=100, message="App is not installed"
+            )
+            return
+        job.update_item(app_id, state="done", progress=100, message="Removed")
+
     def remove(self, app_id: str) -> tuple[int, dict[str, Any]]:
+        # A curated (source="moos") app is not a Flatpak, so it must be handled
+        # before the Flatpak-ID validator that would otherwise reject it.
+        recipe = self._catalog().get(app_id)
+        if (
+            recipe is not None
+            and recipe.get("source") == "moos"
+            and validate_curated_id(app_id)
+        ):
+            return self._remove_curated(app_id, recipe)
         if not validate_flatpak_id(app_id):
             raise StoreError(f"Invalid Flatpak app ID: {app_id}")
         try:
