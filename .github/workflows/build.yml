@@ -46,6 +46,10 @@ jobs:
   build-push-sign:
     name: Build, push and sign (${{ matrix.image_name }})
     runs-on: ubuntu-latest
+    # A buildah layer build + push + sign is well under an hour; cap it so a
+    # wedged dnf5/registry step fails instead of holding a runner for 6h — and
+    # this job runs three times over the matrix, so the default would be 18h.
+    timeout-minutes: 60
     strategy:
       # Build both variants to completion independently: an nvidia base-image
       # failure must not kill the main image build (and vice versa).

@@ -23,10 +23,21 @@ on:
 permissions:
   contents: read
 
+# A manual run must not pile onto the scheduled monthly one — two privileged
+# bootc-image-builder jobs sharing /var/lib/containers/storage is asking for a
+# corrupt build.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-disk:
     name: Build qcow2 (bootc-image-builder)
     runs-on: ubuntu-latest
+    # bootc-image-builder + the deployed-initramfs proof + a 10-minute TCG QEMU
+    # boot is ~an hour; cap it so a wedged QEMU (no KVM on GH runners) fails
+    # instead of burning the 6h default.
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,6 +55,19 @@ jobs:
           [ -n "$REF" ] || REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/moos:latest"
           echo "image_ref=$REF" >> "$GITHUB_OUTPUT"
           echo "Building disk from: $REF"
+
+      # The installed OS refuses an unsigned image; a downloadable qcow2 must not
+      # be a way around that. Verify the cosign signature against the SAME public
+      # key the device enforces (cosign.pub == /etc/pki/containers/moos.pub)
+      # BEFORE the expensive pull, so a moved or overwritten :latest tag fails the
+      # build here instead of being baked into a shipped disk.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Verify the image signature before building a disk from it
+        env:
+          IMAGE_REF: ${{ steps.ref.outputs.image_ref }}
+        run: cosign verify --key cosign.pub "${IMAGE_REF}"
 
       - name: Pull the MoOS image (public — no auth)
         run: sudo podman pull "${{ steps.ref.outputs.image_ref }}"
