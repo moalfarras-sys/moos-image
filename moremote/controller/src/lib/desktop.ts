@@ -76,7 +76,13 @@ const US_LAYOUT: Record<string, [string, string]> = {
 // scrolling a page felt like dragging it. Matching the agent's own notch size removes the mismatch
 // without touching the phone's gesture path, which is calibrated separately in gestures.ts.
 const PX_PER_NOTCH = 15;
-const LINES_PER_NOTCH = 3;  // deltaMode 1 counts text lines
+// deltaMode 1 counts text lines, and Firefox reports 3 of them for one physical detent — while
+// Chromium reports deltaY 100 in pixel mode for the same detent. Dividing by a literal 3 therefore
+// produced 1.0 wire notches on Firefox against 6.67 on Chromium, and the agent multiplies both by
+// the same PixelsPerNotch — so one turn of the same wheel scrolled nearly seven times further on
+// Chrome. Expressing the line divisor in terms of the pixel one makes a detent a detent in both.
+// (PX_PER_NOTCH itself is deliberately untouched: the phone shares that calibration.)
+const LINES_PER_NOTCH = 3 / (100 / PX_PER_NOTCH);   // = 0.45
 const PAGES_TO_NOTCHES = 3; // deltaMode 2 is rare (Firefox on some platforms)
 const MAX_NOTCHES = 20;     // the agent clamps here too; matching avoids a silent difference
 

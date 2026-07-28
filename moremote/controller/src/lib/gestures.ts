@@ -2,6 +2,8 @@ import type { GestureMode } from "../types";
 
 export interface GestureCallbacks {
   click: (button: "left" | "right", nx: number, ny: number) => void;
+  /** A real double-click, injected by the agent with a controlled 40ms gap. */
+  dblclick: (nx: number, ny: number) => void;
   moveCursor: (nx: number, ny: number) => void; // absolute move
   dragStart: (nx: number, ny: number) => void;
   dragMove: (nx: number, ny: number) => void;
@@ -33,6 +35,11 @@ const TAP_RESCUE_PX = 24;
 /** How much two fingers must spread or travel before we decide which gesture they are. */
 const TWO_DECIDE_PX = 10;
 const LONGPRESS_MS = 500; // matches Android's own long-press feel, so a slow tap stays a tap
+/** Two taps closer than this in time AND space are one double-click. */
+const DOUBLE_TAP_MS = 300;
+// The position gate is not optional: without it, two quick taps on adjacent list rows collapse
+// into a double-click on the first one.
+const DOUBLE_TAP_PX = 20;
 const PX_PER_NOTCH = 24;
 const TRACKPAD_GAIN = 1.7;
 
@@ -56,6 +63,18 @@ export class GestureController {
 
   private phase: "idle" | "down" | "held" | "scroll" | "drag" | "move" = "idle";
   private longTimer: number | null = null;
+  /**
+   * This gesture started in the black, so it must never become a click.
+   *
+   * normalizeContentPoint CLAMPS a point onto the picture instead of rejecting it, so a tap in the
+   * letterbox does not miss — it lands on the nearest EDGE of the remote desktop. On KDE that edge
+   * is the panel, the dock and the hot corners. In portrait the letterbox is 74% of the screen, so
+   * three taps out of four fired a real click somewhere the user was not even pointing.
+   *
+   * Origin-based on purpose: a drag that STARTS on the picture and wanders into the black must keep
+   * clamping, because that is how you drag a window to the screen edge.
+   */
+  private outside = false;
 
   // last position we sent, normalized — the single source of truth for the cursor
   private cx = 0.5;
@@ -63,6 +82,14 @@ export class GestureController {
 
   private lastX = 0;
   private lastY = 0;
+
+  // The previous tap, for double-tap recognition. Position is kept in BOTH spaces: screen pixels
+  // to judge whether the two taps were aimed at the same thing, normalized to place the click.
+  private lastTapAt = 0;
+  private lastTapCX = 0;
+  private lastTapCY = 0;
+  private lastTapNx = 0.5;
+  private lastTapNy = 0.5;
 
   // two-finger. twoMode latches the winning recogniser; twoSpread/twoTravel are the evidence it is
   // decided on — see moveTwo.
@@ -85,8 +112,13 @@ export class GestureController {
     private el: HTMLElement,
     private toNorm: (clientX: number, clientY: number) => { x: number; y: number },
     private getZoom: () => number,
+    /** Which axes the picture overflows; see moveTwo. Defaults to the old zoom-based test. */
     private cb: GestureCallbacks,
     private getSensitivity: () => number = () => 1,
+    /** Is this screen point actually on the picture, rather than in the letterbox? */
+    private inContent: (clientX: number, clientY: number) => boolean = () => true,
+    private canPan: () => { x: boolean; y: boolean } =
+      () => ({ x: this.getZoom() > 1.01, y: this.getZoom() > 1.01 }),
   ) {
     el.addEventListener("pointerdown", this.onDown, { passive: false });
     el.addEventListener("pointermove", this.onMove, { passive: false });
@@ -141,20 +173,25 @@ export class GestureController {
     this.phase = "down";
     this.lastX = e.clientX;
     this.lastY = e.clientY;
+    // Trackpad mode is relative — a finger anywhere is legitimate, including the black.
+    this.outside = this.mode !== "trackpad" && !this.inContent(e.clientX, e.clientY);
 
     // In the absolute modes the cursor goes under the finger straight away, so the desktop
     // hovers/highlights exactly what you are touching before you even lift.
-    if (this.mode !== "trackpad") {
+    if (this.mode !== "trackpad" && !this.outside) {
       const t = this.toNorm(e.clientX, e.clientY);
       this.moveTo(t.x, t.y, false);
     }
 
-    // Hold = right-click on release, or drag if you move while still holding.
-    this.longTimer = window.setTimeout(() => {
-      if (this.phase !== "down") return;
-      this.phase = "held";
-      this.cb.haptic?.();
-    }, LONGPRESS_MS);
+    // Hold = right-click on release, or drag if you move while still holding. Not armed for a
+    // gesture that began in the letterbox: a long press on nothing must not right-click the edge.
+    if (!this.outside) {
+      this.longTimer = window.setTimeout(() => {
+        if (this.phase !== "down") return;
+        this.phase = "held";
+        this.cb.haptic?.();
+      }, LONGPRESS_MS);
+    }
   };
 
   // ---------------- move ----------------
@@ -184,6 +221,7 @@ export class GestureController {
         const s = this.toNorm(p.sx, p.sy);
         this.moveTo(s.x, s.y, false);
         this.cb.dragStart(s.x, s.y);
+        this.lastTapAt = 0;   // a tap that became a drag cannot start a double-click
       } else if (this.mode === "trackpad") {
         this.phase = "move";
       } else {
@@ -228,6 +266,7 @@ export class GestureController {
     this.flush();
     if (this.phase === "drag") this.cb.dragEnd(this.cx, this.cy);
     if (this.pointers.size < 2) this.two = false;
+    this.outside = false;
     this.phase = "idle";
   };
 
@@ -249,7 +288,7 @@ export class GestureController {
         //
         // Guarded on the gesture never having become a pinch or a scroll, and on being brief: two
         // fingers that zoomed, panned or scrolled are not a tap, however they end.
-        if (this.twoMode === "undecided" && now() - this.twoStart < TAP_RESCUE_MS) {
+        if (this.twoMode === "undecided" && now() - this.twoStart < TAP_RESCUE_MS && !this.outside) {
           this.cb.click("right", this.cx, this.cy);
           this.cb.haptic?.();
         }
@@ -261,17 +300,47 @@ export class GestureController {
     this.cancelLong();
     this.flush(); // never let a queued move land after the button event
 
+    // Before the switch, not inside it: this is what also suppresses the late TAP_RESCUE click
+    // below, which would otherwise resurrect exactly the click we are trying not to send.
+    // Scrolling that began in the black is left alone — only the click on release is dropped.
+    if (this.outside) { this.outside = false; this.phase = "idle"; return; }
+
     switch (this.phase) {
       case "drag":
         this.cb.dragEnd(this.cx, this.cy);
         break;
       case "held":
         this.cb.click("right", this.cx, this.cy);
+        this.lastTapAt = 0;
         break;
       case "down": {
-        // A plain tap: click right away. Two taps in a row become a real double-click on the PC.
+        // A plain tap. But two taps in a row are a DOUBLE-CLICK, and sending two independent
+        // clicks does not reliably produce one.
+        //
+        // Every tap is an absolute warp to wherever the finger was, and one CSS pixel of screen is
+        // 2.5-4.4 logical desktop pixels once the picture is fitted to a phone. So three pixels of
+        // ordinary thumb wobble put the second click 7-13 logical pixels from the first — past the
+        // ~5px radius Qt and GTK both require before they will call it a double-click. Double-tap
+        // to open a folder therefore worked only by luck, which reads as "the app is buggy".
+        //
+        // The agent has always had a `dblclick` verb that presses twice with a controlled 40ms gap
+        // at ONE point (InputInjector.DoubleClick), and nothing in this client had ever called it.
+        // Recognise the double-tap here and use it.
         const quick = now() - p.st < 500;
-        if (quick) this.cb.click("left", this.cx, this.cy);
+        if (quick) {
+          const near = dist(p.sx, p.sy, this.lastTapCX, this.lastTapCY) < DOUBLE_TAP_PX;
+          if (now() - this.lastTapAt < DOUBLE_TAP_MS && near) {
+            // The FIRST tap's point: it is the one the user aimed, before any wobble.
+            this.cb.dblclick(this.lastTapNx, this.lastTapNy);
+            this.cb.haptic?.();
+            this.lastTapAt = 0;           // a triple tap is not two double-clicks
+          } else {
+            this.cb.click("left", this.cx, this.cy);
+            this.lastTapAt = now();
+            this.lastTapCX = p.sx; this.lastTapCY = p.sy;
+            this.lastTapNx = this.cx; this.lastTapNy = this.cy;
+          }
+        }
         break;
       }
       case "scroll":
@@ -351,13 +420,21 @@ export class GestureController {
       }
     } else {
       const dcx = cx - this.lastCx, dcy = cy - this.lastCy;
-      if (this.getZoom() > 1.01) {
-        this.cb.panBy(dcx, dcy);       // zoomed in: two fingers pan the view
-      } else {
-        this.qScrollX += dcx;          // otherwise they scroll the remote screen (traditional direction)
-        this.qScrollY += dcy;
-        this.scheduleFlush();
-      }
+      // Pan the axis the picture OVERFLOWS on; scroll the axis that fits.
+      //
+      // This used to ask `getZoom() > 1.01`, which is not the same question. In "100%" view the
+      // base is 1/dpr, so a phone can be showing half the desktop with the zoom multiplier sitting
+      // at exactly 1.00 — the gate stayed false, two fingers scrolled the remote document instead
+      // of moving the view, and the other half of the screen was simply unreachable.
+      //
+      // Splitting per axis is what keeps remote scrolling alive on a picture that overflows in
+      // only one direction, which is the normal case for a wide desktop on a tall phone.
+      const pan = this.canPan();
+      let scrolled = false;
+      if (pan.x || pan.y) this.cb.panBy(pan.x ? dcx : 0, pan.y ? dcy : 0);
+      if (!pan.x) { this.qScrollX += dcx; scrolled = true; }
+      if (!pan.y) { this.qScrollY += dcy; scrolled = true; }
+      if (scrolled) this.scheduleFlush();
     }
     this.lastCx = cx; this.lastCy = cy; this.lastDist = d;
   }
@@ -410,6 +487,8 @@ export class GestureController {
 
   private endAll() {
     if (this.phase === "drag") this.cb.dragEnd(this.cx, this.cy);
+    this.outside = false;
+    this.lastTapAt = 0;
     this.phase = "idle";
     this.two = false;
     this.pointers.clear();

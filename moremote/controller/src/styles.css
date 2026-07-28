@@ -330,10 +330,20 @@ button {
   box-shadow: var(--shadow);
   z-index: 30;
   max-width: calc(100vw - 20px);
+  /*
+   * WRAP, because the bar could otherwise clip its own last button off the screen.
+   * Seven buttons at min-width 47px, six 6px gaps and 8px padding each side is 381px that cannot
+   * shrink, inside .remote{overflow:hidden}. At 375px (iPhone SE/mini) part of "More" is cut off;
+   * at 360px — the commonest Android width — half of it is; at 320px it is gone. "More" is the
+   * only route to Files, Ctrl+Alt+Del, Disconnect and every Power action, so losing it is not
+   * cosmetic. Wrapping costs height, which in portrait is free: it sits in 312px of black.
+   */
+  flex-wrap: wrap;
+  justify-content: center;
   transition: opacity 0.3s, transform 0.3s;
 }
 .tbtn {
-  min-width: 47px;
+  min-width: 44px;
   height: 51px;
   padding: 0 7px;
   border-radius: 14px;
@@ -669,6 +679,9 @@ button {
   left: 50%;
   bottom: calc(var(--safe-bottom) + 90px);
   transform: translateX(-50%);
+  /* It is an announcement, not a control: for 1.9 seconds it was swallowing taps aimed at the
+     picture behind it. */
+  pointer-events: none;
   background: var(--glass-dense);
   border: 1px solid var(--border-strong);
   color: var(--text);
@@ -755,6 +768,41 @@ button {
   pointer-events: none;
 }
 
+/*
+ * A short landscape screen is where the horizontal bar does the most damage: it is 83px of a
+ * 390px viewport — 21% of the screen — drawn at exactly the same size it uses in portrait, where
+ * it costs 10% and sits in black. Here it covers the dock and the bottom of the picture.
+ *
+ * So on a short landscape viewport the bar becomes a vertical rail in the side letterbox, which
+ * the aspect ratio guarantees is 75px wide and empty. 44px buttons are load-bearing: at the
+ * default 51px a seven-button rail is 409px and does not fit a 390px screen.
+ */
+@media (orientation: landscape) and (max-height: 520px) {
+  .toolbar {
+    left: auto;
+    right: calc(var(--safe-right) + 6px);
+    bottom: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    flex-direction: column;
+    max-width: none;
+    gap: 4px;
+    padding: 6px;
+  }
+  .toolbar .tbtn {
+    height: 44px;
+    min-width: 44px;
+    padding: 0 4px;
+  }
+  .toolbar .tbtn span {
+    font-size: 8.5px;
+  }
+  /* Without this the hide animation inherits translateX(-50%) and yanks the rail off-centre. */
+  .fade-toolbar {
+    transform: translateY(-50%) translateX(14px);
+  }
+}
+
 /* ---- hollow brand logo + signature ---- */
 .brand-logo {
   width: 118px;
@@ -806,13 +854,31 @@ button {
 .remote-cursor svg { display: block; }
 
 /* ---- reveal-toolbar handle ---- */
+/*
+ * SIDE, NOT BOTTOM-CENTRE — and the reason is geometry, not taste.
+ *
+ * This sat at bottom-centre, which is where every desktop in the world puts its dock or taskbar.
+ * Measured on this host: the MoOS dock is location=4 (bottom), alignment=1 (centred), 54px thick —
+ * so the one control that brings the toolbar back was parked exactly on top of the one strip of
+ * the remote desktop the user most wants to tap. That is the reported "the bar is being covered".
+ *
+ * And in landscape there is no black down there to hide in. With a 16:9 source in an 844x390
+ * viewport the fit is HEIGHT-constrained: dispH = 390, oy = 0, and the letterbox is a 75px column
+ * on each SIDE. So the picture's own spare space is at the left and right, which is exactly where
+ * this now lives. Portrait is the opposite (312px of black below the picture), which is why the
+ * bug was invisible on the orientation it was designed in.
+ *
+ * 44px square because that is the minimum touch target; the old 50x30 was under it.
+ */
 .show-tab {
   position: absolute;
-  left: 50%;
-  bottom: calc(var(--safe-bottom) + 10px);
-  transform: translateX(-50%);
-  width: 50px;
-  height: 30px;
+  left: auto;
+  right: calc(var(--safe-right) + 8px);
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
   border-radius: 14px;
   background: var(--glass-bar);
   backdrop-filter: blur(10px);
@@ -826,7 +892,8 @@ button {
 .show-tab svg {
   width: 20px;
   height: 20px;
-  transform: rotate(180deg);
+  /* Points inward (leftward) now that the handle lives on the right edge. */
+  transform: rotate(90deg);
 }
 
 /* ---- view + clipboard sheets ---- */

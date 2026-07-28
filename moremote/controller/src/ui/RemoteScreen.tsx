@@ -211,7 +211,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const bumpToolbar = () => {
     setToolbar(true);
     if (hideTimer.current) window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(() => setToolbar(false), 4500);
+    hideTimer.current = window.setTimeout(() => setToolbar(false), 6000);
   };
 
   // ---------- layout / mapping ----------
@@ -234,6 +234,36 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     if (!c || !l) return { x: 0.5, y: 0.5 };
     const r = c.getBoundingClientRect();
     return normalizeContentPoint(clientX,clientY,{left:r.left+l.ox,top:r.top+l.oy,width:l.dispW,height:l.dispH});
+  };
+
+  /**
+   * Is this screen point on the PICTURE, or in the black around it?
+   *
+   * normalizeContentPoint clamps rather than rejects, so a tap in the letterbox does not miss —
+   * it lands on the nearest edge of the remote desktop, which is exactly where KDE keeps the
+   * panel, the dock and the hot corners. In portrait the letterbox is 74% of the screen.
+   *
+   * Returns true when there is no frame yet, so the very first taps of a session are never eaten.
+   */
+  const inContent = (clientX: number, clientY: number) => {
+    const c = canvasRef.current, l = computeLayout();
+    if (!c || !l) return true;
+    const r = c.getBoundingClientRect();
+    const x = clientX - r.left - l.ox, y = clientY - r.top - l.oy;
+    const T = 8;   // forgiveness, so aiming at the very first or last row still works
+    return x >= -T && y >= -T && x <= l.dispW + T && y <= l.dispH + T;
+  };
+
+  /**
+   * Which axes the picture actually overflows on. Two-finger drag pans an overflowing axis and
+   * scrolls the remote desktop on one that fits — the honest test, where `zoom > 1.01` was not:
+   * in "100%" view the base is 1/dpr, so a phone can be showing half the desktop at zoom exactly
+   * 1.00 with panning locked out and no way to reach the other half.
+   */
+  const canPan = () => {
+    const l = computeLayout(), c = canvasRef.current;
+    if (!l || !c) return { x: false, y: false };
+    return { x: l.dispW > c.clientWidth + 1, y: l.dispH > c.clientHeight + 1 };
   };
 
   const minZoom = () => (viewModeRef.current === "actual" ? 0.4 : 1);
@@ -267,6 +297,10 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       canvas.width = Math.round(canvas.clientWidth * dpr);
       canvas.height = Math.round(canvas.clientHeight * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // A pan that was legal before the rotation is not legal after it. Landscape at zoom 5 can
+      // sit at panX 1311; portrait's legal maximum is 780, so without this the picture is blitted
+      // entirely off the surface and the screen goes black with nothing to explain it.
+      clampPan();
       drawEpochRef.current++;   // the surface itself changed size
     };
     resize();
@@ -295,7 +329,14 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
       const l = computeLayout();
       if (f && l) {
-        ctx.imageSmoothingEnabled = view.current.zoom <= 1.05;
+        // Smoothing has to follow what the canvas ACTUALLY resamples at, not a zoom multiplier.
+        // `zoom` multiplies `base`, and base is 0.20 on a portrait phone and 0.75 on a laptop — so
+        // at zoom 1.5 a phone is still DOWNSCALING by 24% with smoothing switched off. Nearest
+        // neighbour on downscaled text drops whole stems and shimmers every frame, which is why
+        // pinching in to read something made it worse rather than better.
+        const smoothDpr = Math.min(window.devicePixelRatio || 1, 2.5);
+        const sampling = (l.dispW * smoothDpr) / drawableSize(f).w;
+        ctx.imageSmoothingEnabled = sampling < 1.5;
         ctx.imageSmoothingQuality = "high";
         ctx.drawImage(f, l.ox, l.oy, l.dispW, l.dispH);
         const dot = cursorRef.current;
@@ -406,6 +447,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
     const gest = new GestureController(canvas, toNorm, () => view.current.zoom, {
       click: (b, x, y) => conn.click(b, x, y),
+      dblclick: (x, y) => conn.dblclick(x, y),
       moveCursor: (x, y) => conn.move(x, y),
       dragStart: (x, y) => conn.down("left", x, y),
       dragMove: (x, y) => conn.move(x, y),
@@ -426,7 +468,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       panBy: (dx, dy) => { view.current.panX += dx; view.current.panY += dy; clampPan(); drawEpochRef.current++; },
       cursorAt: (x, y) => { cursorNorm.current = { x, y }; drawEpochRef.current++; },
       haptic: () => {if(hapticsRef.current)navigator.vibrate?.(8);},
-    }, () => mouseSensitivityRef.current);
+    }, () => mouseSensitivityRef.current, inContent, canPan);
     gest.setMode(modeRef.current);
     gestureRef.current = gest;
 
@@ -448,6 +490,12 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
     const fpsTimer = window.setInterval(() => { setFps(fpsCount.current); fpsCount.current = 0; }, 1000);
     bumpToolbar();
+    // A 16:9 desktop fitted into a 9:19.5 phone uses 26% of the screen; turned sideways it uses
+    // 82%. The app already asks the OS to rotate on fullscreen, but that call is ignored on iOS
+    // and never fires in a plain tab — so in a portrait tab nothing tells the user the answer.
+    if (window.innerHeight > window.innerWidth) {
+      window.setTimeout(() => showToast("Turn your phone sideways for a full-size desktop"), 900);
+    }
 
     return () => {
       disposed = true;
@@ -478,6 +526,15 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     if (!desk) return;
     if (mode === "desktop") desk.attach(); else desk.detach();
   }, [mode]);
+
+  // The bar stays painted while a sheet is open, so its hide timer must not keep running behind
+  // it — otherwise reading the quality presets or dragging a sensitivity slider always outlives
+  // the 4.5s, and the toolbar vanishes the instant the sheet is dismissed, for no visible reason.
+  useEffect(() => {
+    if (sheet) { if (hideTimer.current) window.clearTimeout(hideTimer.current); }
+    else bumpToolbar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheet]);
 
   // Load the file listing whenever the Files sheet opens (avoids a race with the sheet mount).
   useEffect(() => {
@@ -534,6 +591,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
         canvas.height = h;
         canvas.getContext("2d")?.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
+      clampPan();   // the visible area just changed; see the note in resize()
       drawEpochRef.current++;
     };
     vv.addEventListener("resize", update);

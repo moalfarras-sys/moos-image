@@ -1,5 +1,5 @@
 // Bump this on each frontend change so you can confirm the phone loaded the latest build.
-export const BUILD = "v12 · 1440p60 + real presets";
+export const BUILD = "v13 · touch + chrome overhaul";
 
 export interface ServerStatus {
   name: string;
@@ -59,7 +59,7 @@ export const DRAG_MODE: GestureMode = "direct";
 
 /** One line each, because a mode nobody can predict is a mode nobody will pick deliberately. */
 export const MODE_HINT: Record<GestureMode, string> = {
-  touch: "Tap to click · swipe to scroll · hold for right-click",
+  touch: "Tap · swipe scrolls · hold = right-click · hold then move = drag",
   direct: "Tap to click · one finger drags · two fingers scroll",
   trackpad: "Slide to move the pointer, like a laptop trackpad",
   desktop: "A real mouse and keyboard — nothing is interpreted",
