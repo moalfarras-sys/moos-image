@@ -103,14 +103,38 @@ function codecFromSps(b: Uint8Array): string | null {
   return null;
 }
 
+/**
+ * How many access units may be in flight inside the decoder before we stop feeding it.
+ *
+ * WHY A LIMIT EXISTS AT ALL, AND WHAT ITS ABSENCE LOOKED LIKE
+ *
+ * VideoDecoder.decode() does not block and does not refuse: it queues. So when the phone cannot
+ * decode as fast as the server encodes — a cheap device, a hot device that has thermally throttled,
+ * a background tab that the browser has deprioritised, or simply 1080p60 on a phone built for 30 —
+ * the queue does not overflow and nothing reports an error. It just grows, and every frame in it is
+ * a frame the user will see LATE. The picture drifts steadily further behind the input until a click
+ * appears to do nothing for two seconds and then everything happens at once.
+ *
+ * That failure is invisible from the server: its own backlog is empty, it sent everything promptly,
+ * every measurement it has says the session is healthy. Only the client can see it, so only the
+ * client can fix it.
+ *
+ * 8 is ~0.27s at 30fps: past any decode hiccup worth riding out, short of what a person reads as lag.
+ */
+const MAX_DECODE_QUEUE = 8;
+
 export class H264Stream {
   private dec: VideoDecoder | null = null;
   private codec = "";
   private started = false;
+  /** True while we are skipping deltas and waiting for an IDR to resynchronise from. */
+  private resyncing = false;
 
   constructor(
     private readonly onFrame: (f: VideoFrame) => void,
     private readonly onFail: (why: string) => void,
+    /** Ask the server for an IDR now. Rate-limited by the caller AND by the agent. */
+    private readonly onNeedKeyframe: () => void = () => {},
   ) {}
 
   push(buf: ArrayBuffer) {
@@ -123,6 +147,22 @@ export class H264Stream {
       if (!codec) return;                     // a keyframe with no SPS is not a place to start
       if (!this.open(codec)) return;
       this.started = true;
+    }
+
+    // Falling behind: throw away the past rather than display it late.
+    //
+    // Dropping a P-frame corrupts every frame after it until the next IDR, so this cannot simply
+    // skip one and carry on. It drops EVERYTHING until a keyframe arrives — a clean restart of the
+    // stream rather than a hole in the middle of it — and asks for that keyframe rather than waiting
+    // up to a full GOP for the scheduled one. Exactly the same trade the agent makes when ITS queue
+    // overruns (see StreamSession's backlog drop); this is the client-side half of it.
+    if (!this.resyncing && (this.dec?.decodeQueueSize ?? 0) > MAX_DECODE_QUEUE) {
+      this.resyncing = true;
+      this.onNeedKeyframe();
+    }
+    if (this.resyncing) {
+      if (!key) return;                       // still catching up; this frame is already history
+      this.resyncing = false;
     }
 
     try {
@@ -166,5 +206,6 @@ export class H264Stream {
     this.dec = null;
     this.codec = "";
     this.started = false;
+    this.resyncing = false;
   }
 }

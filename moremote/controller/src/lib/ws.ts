@@ -184,6 +184,23 @@ export class RemoteConnection {
     this.send({ type: "video", h264: can });
   }
 
+  /**
+   * Ask for an IDR because THIS client has nothing to decode against any more.
+   *
+   * Rate-limited here as well as in the agent, and deliberately so: the two limits guard different
+   * things. The agent's stops any one client costing the whole room bandwidth; this one stops a
+   * struggling phone from spending its own uplink on requests. A keyframe is the most expensive
+   * frame there is, so the moment it is most tempting to ask repeatedly is the moment asking
+   * repeatedly makes things worst.
+   */
+  private lastKeyframeAsk = 0;
+  requestKeyframe() {
+    const t = performance.now();
+    if (t - this.lastKeyframeAsk < 1000) return;
+    this.lastKeyframeAsk = t;
+    this.send({ type: "keyframe" });
+  }
+
   private send(obj: unknown) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(obj));
   }

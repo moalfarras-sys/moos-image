@@ -33,11 +33,38 @@ public sealed class StreamSession
     // session is gone — a phone that closed must not keep the whole room on JPEG forever.
     private readonly Guid _id = Guid.NewGuid();
     private readonly System.Collections.Concurrent.ConcurrentQueue<byte[]> _encoded = new();
+
+    /// <summary>
+    /// Raised by the encoder the instant an access unit exists, waited on by the send loop.
+    ///
+    /// WHY A SIGNAL AND NOT A SLEEP, AND WHAT THE SLEEP WAS COSTING
+    ///
+    /// The send loop polls: it did its work and then slept `1000/fps` — 33ms at 30fps — before
+    /// looking again. For JPEG that is correct, because JPEG frames are PULLED (Capture() asks the
+    /// helper for the newest picture), so waking early only wastes CPU.
+    ///
+    /// H.264 is PUSHED. The helper encodes a frame and hands it to us through this subscription,
+    /// asynchronously, at whatever moment the compositor happened to damage the screen. The send
+    /// loop then sat on it for whatever was left of its 33ms tick: 0ms if the frame happened to
+    /// land just before the loop woke, 33ms if it landed just after, 16ms on average — on EVERY
+    /// FRAME, for the entire session, on top of encode, network and decode.
+    ///
+    /// 16ms of median added latency is not a rounding error on a remote desktop; it is half of the
+    /// whole frame budget, spent waiting for a timer that had nothing to wait for. The frame is
+    /// already encoded and already in memory. Waiting on this instead of on the clock sends it the
+    /// moment it exists, and the timeout keeps the loop's other duties (idle timeout, pause status,
+    /// codec change) ticking exactly as often as they did before.
+    ///
+    /// Bounded at 1 because it is an edge, not a counter: the drain below is a `while TryDequeue`,
+    /// so one wake-up empties the whole queue however many frames arrived.
+    /// </summary>
+    private readonly SemaphoreSlim _frameReady = new(0, 1);
     private string _sentCodec = "";
     private bool _inputConfirmed;
     private int _moveLogCounter;
     private long _lastRejectReport;
     private string _lastRejectReason = "";
+    private long _lastKeyframeRequest;
 
     public StreamSession(AgentServices svc, WebSocket socket, string remote)
     {
@@ -99,6 +126,11 @@ public sealed class StreamSession
                 _svc.Capture.RequestKeyframe();
                 Log.Warn("Viewer fell behind; dropped the H.264 backlog and asked for a keyframe.");
             }
+            // Wake the send loop now rather than at its next tick. Release throws once the semaphore
+            // is already at its bound, which simply means "the loop has not consumed the last signal
+            // yet" — there is nothing to do about that and nothing wrong with it.
+            try { _frameReady.Release(); } catch (SemaphoreFullException) { }
+            catch (ObjectDisposedException) { }
         });
 
         var (sw, sh) = _svc.Capture.ScreenSize;
@@ -220,7 +252,15 @@ public sealed class StreamSession
                 int budget = 1000 / fps;
                 int elapsed = (int)(Environment.TickCount64 - frameStart);
                 int delay = Math.Max(paused ? 200 : 5, budget - elapsed);
-                await Task.Delay(delay, ct);
+                if (!paused && _svc.Capture.Codec == "h264")
+                {
+                    // Sleep until the encoder produces something OR the tick expires, whichever comes
+                    // first. The timeout is what keeps the idle check, the pause check and the codec
+                    // check running on exactly the cadence they always did on a still desktop; the
+                    // signal is what stops a frame that already exists waiting for the clock.
+                    await _frameReady.WaitAsync(delay, ct);
+                }
+                else await Task.Delay(delay, ct);
             }
         }
         catch (OperationCanceledException) { }
@@ -303,6 +343,22 @@ public sealed class StreamSession
                     return;
                 case "selectMonitor":
                     if (TryGetInt(root, "index", out var mon)) _svc.Capture.SelectMonitor(mon);
+                    return;
+                // The viewer's DECODER fell behind and threw away everything it was holding, so it
+                // now has no reference frame and every P-frame we send it is noise. Only the client
+                // knows that has happened — the agent's own backlog can be empty while the phone's
+                // decode queue is seconds deep — so it has to be able to ask.
+                //
+                // Rate-limited here rather than trusted, because an IDR is many times the size of a
+                // P-frame: a client that asked once per frame would answer its own congestion with
+                // the single most expensive thing we can send it. One per second is enough to
+                // recover a stream and far too few to sustain one.
+                case "keyframe":
+                    if (Environment.TickCount64 - _lastKeyframeRequest > 1000)
+                    {
+                        _lastKeyframeRequest = Environment.TickCount64;
+                        _svc.Capture.RequestKeyframe();
+                    }
                     return;
             }
 

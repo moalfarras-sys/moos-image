@@ -5,8 +5,50 @@ using Microsoft.Extensions.Logging;
 using MoRemote;
 
 Log.Init();
+
+// ---- set-pin: the account recovery path a headless server has to have --------------------------
+//
+// THE HOLE THIS FILLS, AND WHY IT IS NOT A CONVENIENCE
+//
+// The PIN can be created exactly once, through the browser, by whoever reaches the URL first
+// (/api/setup answers 409 "already_configured" for ever after). Changing it needs /api/pin, which
+// needs a valid session token, which needs the PIN you are trying to change. So on a MoOS Cloud
+// account there was NO way back: forget the PIN and that desktop is gone — the service is healthy,
+// the stream is running, the machine is fine, and the owner cannot get in. Measured on the live
+// server before this existed: moalfarras had FailedAttempts=2 against a PIN nobody could reset.
+//
+// It is also a claim problem, not only a recovery one. A cloud account's agent comes up in
+// first-run state and answers /api/setup to ANYONE who can reach it — and on a tailnet with phones,
+// laptops and a second developer on it, "first to open the URL owns the desktop" is not an
+// authentication model. Being able to set the PIN from a root shell on the box means the desktop is
+// claimed before it is ever published.
+//
+// STDIN, NEVER ARGV. /proc/<pid>/cmdline is world-readable, so a PIN passed as an argument is
+// visible in `ps` to every account on a shared server — which is exactly the kind of machine this
+// command exists for. It is also why there is no `--pin=` form to be tempted by.
+if (args.Length > 0 && args[0] == "--set-pin")
+{
+    var cfgForPin = AppConfig.Load();
+    var pin = (Console.In.ReadToEnd() ?? "").Trim();
+    if (pin.Length is < 6 or > 64)
+    {
+        Console.Error.WriteLine("set-pin: the PIN must be 6..64 characters (this is the same rule the browser enforces).");
+        return 2;
+    }
+    cfgForPin.PinHash = PinHasher.Hash(pin);
+    // Clear the lockout with it. Somebody resetting a PIN has almost always just failed to guess the
+    // old one several times, so leaving the counter armed would lock them out of the PIN they have
+    // this second chosen — the least explicable possible outcome of a successful reset.
+    cfgForPin.FailedAttempts = 0;
+    cfgForPin.LockoutUntilUnix = 0;
+    cfgForPin.Save();
+    Console.WriteLine("PIN set. Restart mo-remote-personal.service for it to take effect:");
+    Console.WriteLine("  systemctl --user restart mo-remote-personal.service");
+    return 0;
+}
+
 using var mutex = new Mutex(true, "MoRemotePersonal_Linux", out var first);
-if (!first) return;
+if (!first) return 0;
 var config=AppConfig.Load(); UserSettings.Apply(config);
 var tls=TlsManager.TryLoad();
 // One portal session backs both the video stream and input injection.
@@ -26,3 +68,6 @@ app.UseWebSockets(new WebSocketOptions {
 }); app.UseDefaultFiles(); app.UseStaticFiles(); WebApi.Map(app,svc); app.MapFallbackToFile("index.html");
 Log.Info($"Linux server listening: {svc.AccessUrl}");
 await app.RunAsync();
+// The entry point returns int now (--set-pin above needs a distinct exit code for "that PIN is too
+// short" so a script can tell it from success), so every path has to produce one.
+return 0;

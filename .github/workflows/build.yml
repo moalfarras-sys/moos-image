@@ -129,7 +129,15 @@ jobs:
           # is one of the three images this matrix publishes; its two gates belong here.
           python3 tests/test_moos_cloud_audio.py
           python3 tests/test_cloud_private_desktop.py
+          # A cloud account with no PIN answers /api/setup to whoever reaches it first, and one with
+          # a forgotten PIN has no way back in at all. Both are silent on a healthy-looking server.
+          python3 tests/test_cloud_set_pin.py
           python3 tests/test_mo_remote_codec_resend.py
+          # Mo PC Remote's feel over cellular is decided by three lines of kernel tuning, and both
+          # ways they can fail are silent: a congestion control selected but never registered
+          # (machine stays on cubic, nobody is told), and a mistyped key (skipped with a warning
+          # nobody reads). Cheap to check, invisible when it breaks.
+          python3 tests/test_kernel_network_tuning.py
           python3 tests/test_moos_store_index.py
           python3 tests/test_moos_storectl.py
           python3 tests/test_moos_ui2.py

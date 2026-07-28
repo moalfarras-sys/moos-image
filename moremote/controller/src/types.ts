@@ -1,5 +1,5 @@
 // Bump this on each frontend change so you can confirm the phone loaded the latest build.
-export const BUILD = "v10 · real mouse + keyboard + sound";
+export const BUILD = "v11 · low-latency video path";
 
 export interface ServerStatus {
   name: string;

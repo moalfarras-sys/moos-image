@@ -769,6 +769,71 @@ grant_input() {
     note "verify: moos-cloud-desktop doctor ${user}"
 }
 
+# ── set-pin: the way back into an account nobody can log into ────────────────
+#
+#   sudo moos-cloud-desktop set-pin <user>            (prompts, hidden)
+#   printf '%s' "$PIN" | sudo moos-cloud-desktop set-pin <user> --stdin
+#
+# Mo PC Remote's PIN could be created exactly once, in a browser, by whoever
+# reached the URL first — and changed only by someone who already knows it. On a
+# desktop with a person in front of it that is fine. On a cloud account it means:
+#
+#   * forget the PIN and that desktop is gone. The service is healthy, the stream
+#     is running, and there is no path back in. Seen on this server: moalfarras
+#     sitting at FailedAttempts=2 against a PIN with no reset.
+#   * and before anyone sets one, the agent is in first-run state, so /api/setup
+#     answers ANYONE who can reach it. On a tailnet carrying phones, laptops and a
+#     second developer, "first to open the URL owns the desktop" is not
+#     authentication. A new account should be claimed from a root shell on the box,
+#     before its address is ever handed out.
+#
+# The PIN goes in over STDIN, never as an argument: /proc/<pid>/cmdline is
+# world-readable, so an argument is visible in `ps` to every account on the server —
+# and a shared server is the whole point of this command.
+set_pin() {
+    local user="${1:-}" from_stdin=0 pin=""
+    [ -n "$user" ] || die "which account? e.g. moos-cloud-desktop set-pin momo"
+    [ "${2:-}" = "--stdin" ] && from_stdin=1
+    id "$user" >/dev/null 2>&1 || die "no such account: ${user}"
+    local uid; uid="$(id -u "$user")"
+
+    if [ "$from_stdin" = 1 ]; then
+        IFS= read -r pin || true
+    else
+        # -s so it is not echoed, and asked twice so a typo cannot lock the account
+        # out in the very act of unlocking it.
+        printf 'New Mo PC Remote PIN for %s (6+ chars, not shown): ' "$user" >&2
+        IFS= read -rs pin; printf '\n' >&2
+        printf 'Again: ' >&2
+        local again; IFS= read -rs again; printf '\n' >&2
+        [ "$pin" = "$again" ] || die "the two PINs do not match — nothing was changed."
+    fi
+    [ "${#pin}" -ge 6 ] || die "the PIN must be at least 6 characters — nothing was changed."
+
+    # Stop the agent first. It holds the config in memory and rewrites the whole
+    # file on its next Save(), so setting the PIN under a running agent is a change
+    # that silently un-applies itself the next time anyone fails a login.
+    runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
+        systemctl --user stop mo-remote-personal.service >/dev/null 2>&1 || true
+
+    if ! printf '%s' "$pin" | runuser -u "$user" -- env \
+            "HOME=$(getent passwd "$user" | cut -d: -f6)" \
+            "XDG_RUNTIME_DIR=/run/user/${uid}" \
+            /usr/lib/mo-remote/MoRemotePersonal --set-pin >/dev/null; then
+        runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
+            systemctl --user start mo-remote-personal.service >/dev/null 2>&1 || true
+        die "could not set the PIN for ${user}"
+    fi
+    unset pin
+
+    runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
+        systemctl --user start mo-remote-personal.service >/dev/null 2>&1 || true
+    ok "PIN set for ${user}, and any lockout cleared"
+    local url; url="$(account_url "$uid")"
+    [ -n "$url" ] && note "${user} signs in at: ${url}"
+    return 0
+}
+
 cmd_doctor() {
     need_root
     local user="${1:-}"
@@ -807,6 +872,7 @@ case "${1:-status}" in
     status) cmd_status ;;
     doctor) shift; cmd_doctor "$@" ;;
     grant-input) need_root; shift; grant_input "$@" ;;
+    set-pin) need_root; shift; set_pin "$@" ;;
     -h|--help) sed -n '3,9p' "$0" | sed 's/^# \{0,1\}//' ;;
-    *)      die "unknown command: $1 (try: on <user>, own <user> [port], grant-input <user>, doctor [user], off, status)" ;;
+    *)      die "unknown command: $1 (try: on <user>, own <user> [port], set-pin <user>, grant-input <user>, doctor [user], off, status)" ;;
 esac

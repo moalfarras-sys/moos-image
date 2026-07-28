@@ -284,6 +284,74 @@ def pick_h264():
     return None, None
 
 
+def tune_for_latency(el, bps, fps):
+    """Ask an H.264 encoder for the interactive trade, not the broadcast one.
+
+    WHY THESE ARE SET HERE AND NOT IN THE LAUNCH STRING
+
+    Everything below is optional and encoder-specific, and a property that does not exist is not a
+    warning in Gst.parse_launch — it is a PARSE FAILURE. The pipeline would fail to build, build()
+    would read that as "this encoder will not start", blacklist it, and fall down the list to JPEG.
+    On an NVIDIA machine that means the one property name that GStreamer renamed between releases
+    silently costs the user hardware encoding and eighteen times the bandwidth, for ever, with a
+    log line that says only "nvh264enc would not start". That failure has already happened twice in
+    this file's history for exactly this reason (see the `and w` note in build()).
+
+    So every one of these goes through set_prop, which asks the element whether it HAS the property
+    before setting it. An encoder that has never heard of `tune` simply keeps its defaults and still
+    runs. Nothing here can cost us an encoder.
+
+    WHAT EACH ONE BUYS
+
+      preset / tune   NVENC's modern knobs. `tune=ultra-low-latency` is documented as taking effect
+                      with the p1..p7 presets, so the two are set together; p4 ("medium") is the
+                      balance point NVIDIA recommends for live encode — p1 is faster than a 1080p30
+                      desktop needs and spends quality to get there. Without these NVENC runs its
+                      default tuning, which is built for quality-per-bit on recorded video and
+                      happily reorders and looks ahead.
+
+      vbv-buffer-size THE ONE THAT MATTERS MOST, and it is about stalls rather than about bitrate.
+                      A rate controller with a large VBV is allowed to spend far more than the
+                      average on one frame and pay it back later. That is correct for a file and
+                      wrong for a wire: a single frame five times the budget is a burst that has to
+                      cross a link sized for the average, and on the 12-frame queue in
+                      StreamSession that burst is a visible stall. Sized at ONE FRAME of bits
+                      (kbit/s ÷ fps) the encoder is forced to keep every frame inside its budget, so
+                      the stream becomes flat instead of spiky. This is the same choice every
+                      low-latency game-streaming encoder makes.
+
+      rc-lookahead=0  Lookahead is frames of delay by definition — it decides the current frame's
+                      type by reading ones that have not been sent yet.
+
+      bframes=0       A B-frame is coded from a FUTURE frame, so it cannot be sent until that
+                      future frame exists. Already set in the launch string for NVENC; repeated
+                      here for the encoders whose string does not carry it.
+
+      qos=false       Downstream QoS events would make the encoder start dropping on its own
+                      schedule. Dropping is already decided in exactly two deliberate places (the
+                      leaky queue upstream, videorate) and a third opinion is how frames go missing
+                      for reasons nobody can trace.
+    """
+    kbps = max(1, int(bps) // 1000)
+    fps = max(1, int(fps))
+    # Enum properties take their nickname as a string in PyGObject. Guarded anyway: an element that
+    # has the property but not the value would raise, and losing the encoder over a tuning hint is
+    # precisely the trade this whole function exists to refuse.
+    for name, value in (("preset", "p4"), ("tune", "ultra-low-latency"),
+                        ("vbv-buffer-size", max(1, kbps // fps)),
+                        ("rc-lookahead", 0), ("bframes", 0), ("qos", False)):
+        try:
+            set_prop(el, name, value)
+        except Exception:
+            pass
+    # x264enc measures its VBV in MILLISECONDS rather than in kbits (default 600, i.e. six tenths of
+    # a second of slack), so it needs its own line: one frame at 30fps is 33ms.
+    try:
+        set_prop(el, "vbv-buf-capacity", max(1, 1000 // fps))
+    except Exception:
+        pass
+
+
 def h264_bitrate_bps(w=0, h=0):
     """Bits per second for a picture of this size, from the 10..95 quality slider.
 
@@ -439,6 +507,25 @@ def build(w, h):
     caps = f"! video/x-raw,width={w},height={h} " if w else ""
     head = (
         f"pipewiresrc fd={open_pipewire_fd()} path={node_id} do-timestamp=true keepalive-time=1000 "
+        # THE QUEUE IS NOT DECORATION — IT IS WHAT KEEPS A SLOW ENCODER OFF THE COMPOSITOR'S THREAD.
+        #
+        # Without it this whole chain — scale, colour convert, encode, and the socket write in
+        # on_sample — runs on pipewiresrc's own streaming thread. That thread is the one draining the
+        # ScreenCast stream, so anything that makes the encode slow (a 4K source, NVENC busy, a
+        # momentarily blocked socket) applies BACKPRESSURE to the compositor: kwin cannot hand off the
+        # next damaged frame until we have finished with the last one. The desktop itself stutters,
+        # in front of the person sitting at it, because somebody far away has a bad link.
+        #
+        # One queue moves everything downstream onto its own thread, so the compositor hands a frame
+        # over and is immediately free. leaky=downstream drops the OLDEST buffer when we cannot keep
+        # up, which is exactly the right thing to throw away and exactly the right PLACE to throw it:
+        # upstream of the encoder, where a dropped frame costs one frame. (Downstream of the encoder a
+        # dropped P-frame corrupts every frame after it until the next IDR — which is why the appsink
+        # below still has drop=false on the H.264 path.)
+        #
+        # max-size-buffers=2, and time/bytes disabled so they cannot impose a longer bound: two frames
+        # is enough to absorb one slow encode without ever becoming a place where latency hides.
+        f"! queue name=capq leaky=downstream max-size-buffers=2 max-size-bytes=0 max-size-time=0 "
         f"! videorate drop-only=true max-rate={state['fps']} name=rate "
         f"! videoscale method=bilinear {caps}"
         f"! videoconvert "
@@ -502,6 +589,8 @@ def build(w, h):
     pipeline = Gst.parse_launch(head + tail)
     enc = pipeline.get_by_name("enc")
     rate = pipeline.get_by_name("rate")
+    if codec == "h264":
+        tune_for_latency(enc, _bps, state["fps"])
     pipeline.get_by_name("sink").connect("new-sample", on_sample)
     bus_ = pipeline.get_bus()
     bus_.add_signal_watch()
@@ -537,11 +626,28 @@ def build(w, h):
     return False  # one-shot idle
 
 
+_last_keyframe = 0
+
+
 def force_keyframe():
     """A phone that has just connected holds no reference frames, so every P-frame it receives is
-    noise until an IDR arrives. Rather than make it wait up to a GOP, ask for one now."""
+    noise until an IDR arrives. Rather than make it wait up to a GOP, ask for one now.
+
+    Rate-limited, because the one moment this gets asked for repeatedly is the one moment it must
+    not be granted repeatedly. Every caller — a viewer joining, the agent dropping a backlog, a
+    phone whose decoder gave up — is reacting to a link that is already struggling, and an IDR is
+    several times the size of a P-frame. Granting them all turns a recoverable stall into a
+    self-feeding one: each keyframe deepens the congestion that triggers the next request. 500ms is
+    below anything a person perceives as a delay in recovering, and far above the rate at which
+    requests can pile up.
+    """
+    global _last_keyframe
     if pipeline is None or state["codec"] != "h264":
         return
+    now_ms = GLib.get_monotonic_time() // 1000
+    if now_ms - _last_keyframe < 500:
+        return
+    _last_keyframe = now_ms
     try:
         pipeline.send_event(
             GstVideo.video_event_new_upstream_force_key_unit(Gst.CLOCK_TIME_NONE, True, 0))
@@ -607,6 +713,20 @@ def apply_h264_bitrate():
     set_prop(enc, "max-bitrate", ceiling if in_bits else max(1, ceiling // 1000))
 
 
+def apply_h264_gop():
+    """Keep the periodic IDR at ten SECONDS after the frame rate moves.
+
+    The GOP is baked into the launch string as `fps * 10`, which is only ten seconds at the frame
+    rate the pipeline was built with. Drop from 30fps to 10 and that same number becomes thirty
+    seconds between insurance keyframes; climb to 60 and it becomes five, which is 12 extra
+    bandwidth spikes a minute paid for nothing. The two encoder families spell the same idea
+    differently and set_prop skips whichever name this element does not have.
+    """
+    gop = max(15, state["fps"] * 10)
+    set_prop(enc, "gop-size", gop)
+    set_prop(enc, "key-int-max", gop)
+
+
 def set_video(m):
     # quality and fps are plain element properties — safe to change on a running pipeline.
     # scale and codec change the pipeline itself, which is not, so they go through rebuild().
@@ -616,16 +736,33 @@ def set_video(m):
             state["streaming"] = want
             rebuild()                       # builds when a viewer arrives, tears down when the last leaves
             emit(type="video", streaming=want)
-    if "quality" in m:
-        state["quality"] = max(10, min(95, int(m["quality"])))
-        if state["codec"] == "h264":
-            apply_h264_bitrate()
-        else:
-            set_prop(enc, "quality", state["quality"])
+    # FPS FIRST, AND THE ORDER IS THE FIX.
+    #
+    # The H.264 budget is bits-per-pixel x width x height x FPS (see h264_bitrate_bps), so the frame
+    # rate is an INPUT to the bitrate, not an independent knob. This block used to run after the
+    # quality block, so a client that sent {quality, fps} together — which is exactly what
+    # pushSettings does, in one message — had its bitrate computed against the PREVIOUS frame rate
+    # and then never recomputed. Halving the rate left the encoder spending a full-rate budget on
+    # half the frames; doubling it left every frame with half the bits it was promised, which looks
+    # like the quality slider having no effect and reads as a soft, smeary picture that no setting
+    # fixes.
+    #
+    # Setting it first means the quality block below computes against the rate that is now true, and
+    # an fps-only message re-applies the budget itself.
     if "fps" in m:
         state["fps"] = max(1, min(60, int(m["fps"])))
         if rate is not None:
             rate.set_property("max-rate", state["fps"])
+        if state["codec"] == "h264" and "quality" not in m:
+            apply_h264_bitrate()
+            apply_h264_gop()
+    if "quality" in m:
+        state["quality"] = max(10, min(95, int(m["quality"])))
+        if state["codec"] == "h264":
+            apply_h264_bitrate()
+            apply_h264_gop()
+        else:
+            set_prop(enc, "quality", state["quality"])
     if "codec" in m:
         want = "h264" if str(m["codec"]).lower() == "h264" else "jpeg"
         if want != state["want"]:

@@ -41,6 +41,11 @@ check:
     # moremote/.gitignore hides the very directory it lives in. This catches an index.html
     # pointing at an asset that never made it into git — which serves a blank page with a 200.
     python3 tests/test_shipped_bundle_is_tracked.py
+    # The kernel half of "the remote feels slow": BBR must be both asked for and loadable, and
+    # every key must exist on the kernel that will read it. Both failures are silent otherwise.
+    python3 tests/test_kernel_network_tuning.py
+    # Claim and recovery for a headless cloud account's PIN — both failures look like a healthy server.
+    python3 tests/test_cloud_set_pin.py
     python3 tests/test_moos_store_index.py
     python3 tests/test_moos_storectl.py
     python3 tests/test_moos_ui2.py

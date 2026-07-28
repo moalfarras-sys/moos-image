@@ -250,7 +250,16 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   // ---------- setup ----------
   useEffect(() => {
     const canvas = canvasRef.current!;
-    const ctx = canvas.getContext("2d", { alpha: false })!;
+    // desynchronized: let the canvas bypass the page's normal compositing lock-step.
+    //
+    // The default contract is that a canvas paint lands atomically with the rest of the DOM, which
+    // costs this canvas a compositor round trip it does not need: nothing else on the page is
+    // synchronised with the video, and a toolbar arriving one frame apart from a desktop frame is
+    // not something anyone can see. The flag is designed for exactly this class of surface (it is
+    // what low-latency ink and video canvases use) and is ignored where it is not supported, so the
+    // worst case is the behaviour we already had. alpha:false stays: an opaque canvas skips
+    // per-pixel blending on every blit.
+    const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true })!;
     let raf = 0, disposed = false;
 
     const resize = () => {
@@ -330,7 +339,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       codecRef.current = "jpeg";
       connRef.current?.setH264(false);
       showToast("Video fell back to JPEG");
-    });
+    }, () => connRef.current?.requestKeyframe());
     h264Ref.current = h264;
 
     const conn = new RemoteConnection(token, {
@@ -496,11 +505,36 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       if (bar) bar.style.transform = kbOpen ? `translateY(${-kb}px)` : "";
       const barH = bar?.offsetHeight ?? 92;
       canvas.style.height = kbOpen ? Math.max(140, vv.height - barH) + "px" : "";
-      // resize the backing store to the new visible area + let the draw loop refit
+
+      // ASSIGNING canvas.width WIPES THE CANVAS — WHICH IS WHY THIS USED TO GO BLACK.
+      //
+      // Two bugs sat in the four lines this replaces, and together they made the picture disappear.
+      //
+      // First, the backing store was re-assigned on EVERY call, and this handler is wired to
+      // visualViewport's `scroll` as well as its `resize` — so on iOS it fires while the address bar
+      // slides, while the page rubber-bands, and on every keystroke that moves the keyboard. Writing
+      // canvas.width is a full reallocate-and-clear even when the value is identical, so the picture
+      // was being erased dozens of times a second for no reason at all.
+      //
+      // Second, and this is what made the erase permanent: the draw loop only repaints when
+      // drawEpoch has moved, and nothing here moved it. So after the wipe the loop looked at an
+      // unchanged epoch and returned immediately, leaving the cleared surface on screen until the
+      // next FRAME arrived from the server. On a still desktop — which is most of the time, because
+      // the capture is damage-driven and a screen nobody is changing produces no frames at all —
+      // "the next frame" can be a long time coming. Open the keyboard on a quiet desktop and the
+      // screen went black and stayed black.
+      //
+      // So: resize only when the pixel size genuinely changed, and invalidate unconditionally, since
+      // even a pure CSS height change means the letterboxing has to be recomputed.
       const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-      canvas.width = Math.round(canvas.clientWidth * dpr);
-      canvas.height = Math.round(canvas.clientHeight * dpr);
-      canvas.getContext("2d")?.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const w = Math.round(canvas.clientWidth * dpr);
+      const h = Math.round(canvas.clientHeight * dpr);
+      if (w > 0 && h > 0 && (canvas.width !== w || canvas.height !== h)) {
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d")?.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      drawEpochRef.current++;
     };
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
