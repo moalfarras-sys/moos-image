@@ -19,7 +19,7 @@ Throws(()=>CoordinateMapper.NormalizedToDesktop(double.NaN,.5,normal),"NaN");
 Throws(()=>CoordinateMapper.NormalizedToDesktop(double.PositiveInfinity,.5,normal),"infinity");
 Throws(()=>CoordinateMapper.NormalizedToDesktop(.5,.5,new(0,0,0,10)),"empty geometry");
 Eq((0,785),CoordinateMapper.NormalizedToDesktop(-5,9,normal),"out-of-range clamp");
-var guard=new InputSequenceGuard();Eq(true,guard.Accept(1,1000,1000,out _),"sequence first");Eq(false,guard.Accept(1,1001,1001,out _),"sequence duplicate");Eq(false,guard.Accept(0,1002,1002,out _),"sequence reordered");Eq(false,new InputSequenceGuard().Accept(1,0,40000,out _),"stale event");
+var guard=new InputSequenceGuard();Eq(true,guard.Accept(1,1000,1000,out _),"sequence first");Eq(false,guard.Accept(1,1001,1001,out _),"sequence duplicate");Eq(false,guard.Accept(0,1002,1002,out _),"sequence reordered");Eq(true,new InputSequenceGuard().Accept(1,0,40000,out _),"a large now-vs-timestamp gap is deliberately ACCEPTED: freshness is sequence-only, not wall-clock (see InputSequenceGuard)");
 
 var unicode="مرحباً Grüße English";Eq(unicode,System.Text.Encoding.UTF8.GetString(System.Text.Encoding.UTF8.GetBytes(unicode)),"clipboard unicode");
 // ASCII is the only thing the keysym path is allowed to carry: KWin resolves a keysym against the

@@ -69,6 +69,15 @@ FROM ${AKMODS_IMAGE} AS akmods
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS moremote-build
 WORKDIR /src
 COPY moremote/ ./
+# Run the agent's own unit tests here, where the SDK already lives — the CI
+# "Repo gates" job strips dotnet to free disk, so this stage is the only place
+# they can run on every build. They cover the coordinate mapper, the input
+# sequence guard (replay/reorder defence) and the ASCII-only keysym / Arabic-
+# via-clipboard split — the input path, i.e. the security-relevant half. The
+# suite was orphaned: nothing ran it, so a stale assertion crashed it (exit 134)
+# and silently stopped covering the Unicode tests. Gating it here means the next
+# regression fails the image build instead of shipping.
+RUN dotnet run --project tests/MoRemote.Tests -c Release --nologo
 RUN dotnet publish agent-linux/MoRemoteLinux.csproj -c Release -r linux-x64 \
     --self-contained true -o /out
 
