@@ -1,150 +1,125 @@
-# moos-image — مستودع بناء صورة MoOS
+# moos-image — مستودع بناء نظام MoOS
 
-هذا هو مستودع المصدر والبناء لنظام **MoOS**: صورة bootc/OCI مبنية تقنياً فوق `ghcr.io/ublue-os/kinoite-main:44` مع Plasma 6 Wayland. GitHub Actions يبني الصورة ويوقعها بـcosign ويدفعها إلى GHCR. كل تغيير دائم في النظام يبدأ هنا، يمر عبر CI، ثم يُنشر إلى الأجهزة بواسطة bootc/rpm-ostree.
+هذا هو مستودع المصدر والحقيقة لنظام **MoOS**: نظام تشغيل حقيقي مبني على
+**Fedora Atomic (bootc/OSTree)** و**KDE Plasma 6 (Wayland)** فوق القاعدة المثبتة
+`ghcr.io/ublue-os/kinoite-main:44`. GitHub Actions يبني الصور ويوقعها بـcosign
+ويدفعها إلى GHCR، والأجهزة المثبتة تسحب التحديثات الموقعة منها مباشرة —
+**بما فيها جهاز المشرف اليومي**.
 
-**نظام التصميم (Nova · Liquid Glass 2026):** الشاشات كلها بخط **Inter** (Latin) بلغة زجاجية موحّدة — دخول/قفل/طاقة — فوق ثيمات `org.moos.ui2.*` (Midnight داكن، Daylight فاتح). اللون الأساسي هو أزرق MoOS `#2E7BFF`، ولمسة الفيروزي `#24E0CE` هي التفصيل الحيّ الوحيد لكل شاشة. تسجيل الدخول يُرسم بواسطة **plasma-login-manager** (بديل SDDM في Kinoite 44)، وشاشة القفل من حزمة الصدفة مباشرة.
+آخر تحديث: 2026-07-28
 
-آخر تحديث: 2026-07-22
-
-> ## ⚠️ اقرأ [`AGENTS.md`](AGENTS.md) قبل أي تعديل
+> ## ⚠️ قراءة إلزامية قبل أي تعديل
 >
-> **هذا النظام مثبّت على جهاز حقيقي يستخدمه المشرف يومياً**، ويسحب التحديثات من `main`
-> مباشرة عبر CI. لا توجد بيئة تجريبية بين الدمج وبين جهاز يفشل في الإقلاع — وقد حدث ذلك
-> فعلاً مرة. لهذا السبب توجد حراسات في `build_files/build.sh` **تُفشل البناء بصوت عالٍ**
-> بدل أن تحذّر. لا تُزل حارساً لأنه أزعجك؛ إن أطلق الحارس إنذاراً فهو يقول الحقيقة.
+> 1. [`skills/moos-engineering/SKILL.md`](skills/moos-engineering/SKILL.md) —
+>    **المهارة الإلزامية لكل إيجنت**: ما هو MoOS، قواعد العمل، والممنوعات.
+> 2. [`AGENTS.md`](AGENTS.md) — القواعد وعقد الهوية وبوابات البناء.
+> 3. [`PROJECT_STATE.md`](PROJECT_STATE.md) — الخريطة الحية: ما هو موجود فعلاً،
+>    وما هي الفخاخ التي كلفت المشروع أياماً.
 >
-> [`AGENTS.md`](AGENTS.md) يشرح ما هو حقيقي في هذا النظام، وما تفرضه بوابات البناء،
-> والأخطاء التي يسهل الوقوع فيها هنا — **وما هو غير منجَز بعد** (ولا يجوز ادعاء عكسه).
+> هذا النظام مثبّت على جهاز حقيقي يسحب من `main` عبر CI. لا توجد بيئة تجريبية
+> بين الدمج وبين جهاز قد يفشل في الإقلاع — وقد حدث ذلك فعلاً مرة. الحراسات في
+> `build_files/build.sh` **تُفشل البناء بصوت عالٍ** عمداً؛ لا تُزل حارساً لأنه
+> أزعجك، ولا تدّعِ نجاح شيء لم تختبره.
 
-> حالة التنفيذ الحالية وبوابات الوصول إلى إصدار كامل موثقة في
-> [`MOOS_ROADMAP.md`](MOOS_ROADMAP.md). هذه الصورة تجاوزت نطاق هيكل M0 القديم:
-> هوية Nova وتطبيقات MoOS وMo AI ومسارا ISO/NVIDIA موجودة فعلياً الآن.
+## نظام التصميم: MoOS UI — Liquid Glass Design System
 
-> استبدل `moalfarras-sys` في كل الأوامر أدناه باسم مستخدمك على GitHub.
+**MoOS UI** هو نظام التصميم الرسمي لكل ما يراه المستخدم: سطح المكتب، اللوحة
+(الدوك)، قائمة التطبيقات، الإشعارات، النوافذ (Plasma Style + Aurorae)، شاشات
+تسجيل الدخول والقفل والإطفاء/إعادة التشغيل والتحديث، المثبّت، وتطبيقات MoOS —
+**Mo AI** و**Mo Store** و**MoPlayer** و**Mo PC Remote**.
 
-## هيكل المستودع (Repository layout)
+- التنفيذ على محرك **UI2** (`org.moos.ui2.*`): عائلة ثيمات كاملة (Graphite داكن /
+  Tidal فاتح + أعضاء لوحية منها Nova وAmethyst وMidnight وAurora)، تتولد من
+  `artwork/generate_moos_ui2.py` و`artwork/generate_moos_themes.py`.
+- «Nova» اليوم اسم **عضو واحد** من العائلة (`MoOS UI · Nova`) وجيلٍ أول متقاعد —
+  وليس اسم نظام التصميم.
+- الزجاج مدروس لا مبالغ فيه (لا `BlurStrength` فوق 15)، الحركة تحترم إعداد
+  "الحركات مطفأة"، والعربية وRTL وشاشات 4K/HiDPI أهداف من الدرجة الأولى.
+- مصادر الألوان الحية: `artwork/moos-ui2/palette.json` +
+  `artwork/moos-themes/palettes.json`؛ والعقد الكامل في
+  [`artwork/MOOS_UI2_DESIGN.md`](artwork/MOOS_UI2_DESIGN.md).
+
+## الصور المنشورة (كلها من شجرة واحدة وContainerfile واحد)
+
+| الصورة | ماذا تكون | القاعدة |
+|---|---|---|
+| `ghcr.io/moalfarras-sys/moos` | سطح المكتب العام | `kinoite-main:44` المثبتة |
+| `ghcr.io/moalfarras-sys/moos-nvidia` | نفس القاعدة + سواقة NVIDIA المفتوحة مطبّقة كطبقة | نفسها |
+| `ghcr.io/moalfarras-sys/moos-cloud` | نسخة الخوادم (VPS): بلا حزم ألعاب/أندرويد، SSH هو الباب، سطح مكتب عبر المتصفح | نفسها |
+
+كل صورة تبنى يومياً (06:00 UTC) وعند كل push إلى `main`، بوسمي `latest` و`YYYYMMDD`،
+وتوقَّع بـcosign. **النظام المثبت يفرض التحقق من التوقيع** (سياسة sigstoreSigned +
+`/etc/pki/containers/moos.pub`؛ المفتاح العام المتعقب هنا هو `cosign.pub`).
+
+## هيكل المستودع
 
 ```
 moos-image/
-├── Containerfile              # FROM ghcr.io/ublue-os/kinoite-main:44 + طبقات MoOS
-├── Justfile                   # أوامر البناء المحلية (WSL2/podman) — الصورة فقط
-├── build_files/build.sh       # branding + uupd + cleanup (يعمل داخل البناء)
-├── system_files/              # ملفات تُنسخ كما هي إلى / داخل الصورة
-│   ├── etc/moos/              # إعدادات MoOS (هيكل)
-│   └── usr/share/
-│       ├── plasma/look-and-feel/org.moos.ui2.*/  # ثيمات UI2 (Midnight/Daylight/… splash+logout)
-│       ├── plasma/shells/.../lockscreen/         # شاشة القفل الزجاجية (تُرسم من الصدفة)
-│       ├── plasma/wallpapers/org.moos.ui2.greeter/ # مشهد تسجيل الدخول
-│       └── wallpapers/MoOSUI2Graphite|Daylight/  # خلفيات kpackage (داكن/فاتح)
+├── Containerfile               # النسخ الثلاث؛ IMAGE_NAME يحدد هل تُطبَّق سواقة NVIDIA
+├── build_files/build.sh        # الهوية + الحزم + بوابات الإقلاع/الهوية (يُفشل البناء عند الخطر)
+├── build_files/verify_*.py     # بوابات الصورة: الهوية، التجربة، لا-هوية-أجنبية، المتجر
+├── system_files/               # تُنسخ حرفياً إلى / داخل الصورة (ثيمات، تطبيقات، وحدات systemd)
+├── artwork/                    # مولدات MoOS UI ومصادر الفن + بواباته البصرية
+├── moremote/                   # Mo PC Remote (وكيل .NET + واجهة ويب) — يُبنى داخل الصورة
+├── moplayer/                   # MoPlayer (Flutter، منسوخ من MoPlayerMoOS) — يُبنى داخل الصورة
+├── tests/                      # نفس البوابات التي يشغلها CI + post-update-check.sh للجهاز الحي
+├── skills/moos-engineering/    # المهارة الإلزامية لكل إيجنت
+├── iso/                        # قائمة Flatpaks المحملة مسبقاً في الـ ISO
 ├── .github/workflows/
-│   ├── build.yml              # بناء + دفع + توقيع cosign (أسبوعي + عند كل push)
-│   └── build-iso.yml          # Titanoboa live ISO (يدوي + شهري) — CI فقط
-├── iso/flatpaks.list          # تطبيقات Flatpak المحملة مسبقاً في الـ ISO
-├── .gitattributes / .gitignore
-└── README.md                  # هذا الملف
+│   ├── build.yml               # بناء + دفع + توقيع الصور الثلاث (push + يومي + يدوي)
+│   ├── build-iso.yml           # Titanoboa live ISO (يدوي + شهري)
+│   └── build-disk.yml          # صورة قرص qcow2 (يدوي)
+├── Justfile                    # build / build-nvidia / build-cloud / lint / sync-moplayer
+├── AGENTS.md · PROJECT_STATE.md · MOOS_ROADMAP.md   # القواعد · الخريطة · الحالة
+└── cosign.pub                  # المفتاح العام للتحقق من كل الصور
 ```
 
-## 1) من مجلد محلي إلى مستودع GitHub
+## البناء والاختبار
+
+- **الرسمي (CI):** أي push إلى `main` يشغّل `build.yml` فيبني الصور الثلاث
+  ويوقعها ويدفعها. بوابات المستودع (خطوة "Repo gates") تعمل أولاً وتُسقط البناء
+  في أول 20 ثانية إن انكسر عقد مختبَر.
+- **محلياً:**
 
 ```bash
-# داخل WSL2 أو Git Bash، من مجلد moos-image/
-git init -b main
-git add .
-git commit -m "MoOS M0 Nova Seed: initial image scaffold"
+# البوابات السريعة (ثوانٍ، بلا حاوية) — نفس قائمة build.yml حرفياً:
+bash -n build_files/build.sh
+python3 tests/verify_user_experience.py   # … بقية القائمة في build.yml
 
-# أنشئ مستودعاً عاماً وادفع (يتطلب gh CLI مسجل الدخول)
-gh repo create moos-image --public --source=. --push
+# بناء صورة كامل (يشغّل كل بوابات الصورة: الهوية، initramfs، NVIDIA، تشغيل تطبيقات QML):
+just build            # أو build-nvidia / build-cloud
+just lint             # فحص bootc container lint
 ```
 
-## 2) إعداد مفتاح التوقيع (SIGNING_SECRET) — إلزامي قبل أول بناء
-
-كل صور MoOS موقعة بـcosign، والمفتاح العام المتعقب هو `cosign.pub`:
+## التحديث على جهاز مثبت
 
 ```bash
-# 1. توليد زوج المفاتيح (اترك passphrase فارغة لسهولة الاستخدام في CI)
-cosign generate-key-pair
-
-# 2. المفتاح الخاص -> سر في GitHub Actions (لا يُرفع أبداً — موجود في .gitignore)
-gh secret set SIGNING_SECRET < cosign.key
-
-# 3. المفتاح العام يُرفع إلى المستودع ليتحقق منه المستخدمون
-git add cosign.pub && git commit -m "Add cosign public key" && git push
+moai-do update        # يجهز أحدث digest موقّع وثابت؛ يُطبق عند إعادة التشغيل
+# التراجع في أي وقت: sudo bootc rollback ثم إعادة التشغيل، أو اختيار الإصدار السابق من GRUB
+# بعد أول إقلاع من تحديث: bash tests/post-update-check.sh
 ```
 
-## 3) أول بناء
-
-- **في CI (الطريقة الرسمية):** أي push إلى `main` يشغّل `build.yml` تلقائياً، أو شغّله يدوياً من تبويب Actions -> "Build MoOS image" -> Run workflow. الناتج: `ghcr.io/moalfarras-sys/moos:latest` + وسم بالتاريخ `YYYYMMDD`.
-- بعد أول نجاح: اجعل الحزمة عامة (GitHub -> Packages -> moos -> Package settings -> Change visibility -> Public) وإلا سيفشل `bootc switch` بدون تسجيل دخول.
-- **محلياً (حلقة التطوير السريعة، داخل WSL2 فقط):**
+التثبيت الأول على جهاز Kinoite قائم:
 
 ```bash
-# الصورة الرئيسية
-just build          # = podman build --build-arg BASE_IMAGE=ghcr.io/ublue-os/kinoite-main:44 -t moos:latest .
-
-# متغير NVIDIA
-just build-nvidia
-
-# فحص bootc (يعمل تلقائياً أيضاً كآخر خطوة في الـ Containerfile)
-just lint
-```
-
-> **تحذير:** بناء ISO غير مدعوم في WSL2. مساره الرسمي هو `build-iso.yml`، لكنه خارج مهمة إصلاح وتحديث النظام المثبّت الحالية.
-
-## 4) تجربة الصورة في VM (rebase عبر bootc switch)
-
-في Hyper-V أنشئ Gen2 VM (Secure Boot: معطّل أو قالب "Microsoft UEFI Certificate Authority") وثبّت فيه Fedora Kinoite 44 عادي، ثم من داخل الـ VM:
-
-```bash
-# التحقق من التوقيع (اختياري لكنه موصى به)
 cosign verify --key https://raw.githubusercontent.com/moalfarras-sys/moos-image/main/cosign.pub \
   ghcr.io/moalfarras-sys/moos:latest
-
-# ثبّت الحالة الحالية كنقطة رجوع قبل أي تغيير جذري
 sudo ostree admin pin 0
-
-# التحويل إلى صورة MoOS
-sudo bootc switch ghcr.io/moalfarras-sys/moos:latest
-sudo systemctl reboot
+sudo bootc switch ghcr.io/moalfarras-sys/moos:latest && sudo systemctl reboot
 ```
 
-بعد الإقلاع تحقق من deployment الفعلي:
+## ISO وqcow2
 
-```bash
-cat /etc/os-release        # NAME="MoOS" · VERSION="44.YYYYMMDD.N" · PRETTY_NAME="MoOS"
-systemctl status uupd.timer
-bootc status
-```
+من تبويب Actions: **Build MoOS Live ISO** (Titanoboa) أو **Build MoOS disk image
+(qcow2)**. الناتج workflow artifact تنتهي صلاحيته خلال أيام (حد GitHub Releases
+هو 2GB) — الاستضافة الدائمة لم تُفعّل بعد. اكتب الـ ISO بـ Fedora Media Writer
+أو Rufus — **Ventoy ممنوع** (يكسر live ISOs الخاصة بـ bootc). مسار المثبت جُرّب
+كاملاً في QEMU (تثبيت offline حتى إقلاع القرص المستهدف)؛ **لم يُجرَّب بعد على
+عتاد حقيقي**.
 
-التراجع في أي وقت:
+## أين الحقيقة؟
 
-```bash
-sudo bootc rollback && sudo systemctl reboot
-# أو اختر الإصدار السابق من قائمة GRUB عند الإقلاع
-```
-
-## 5) بناء الـ ISO
-
-من تبويب Actions -> "Build MoOS Live ISO" -> Run workflow (أو انتظر الجدولة الشهرية). الناتج يُرفع كـ workflow artifact مؤقتاً؛ الاستضافة الدائمة على Cloudflare R2 تأتي لاحقاً (حد GitHub Releases هو 2GB للملف). اكتب الـ ISO على USB بـ Fedora Media Writer أو Rufus — **Ventoy ممنوع** (يكسر live ISOs الخاصة بـ bootc).
-
-## أين هذا من الخطة الكاملة؟
-
-المستودع أصبح صورة MoOS وظيفية تتجاوز M0: يبني الهوية، الثيمات، المثبت،
-تطبيقات النظام، Mo AI، وصورة NVIDIA. استخدم `MOOS_ROADMAP.md` كمصدر الحقيقة
-للحالة والبوابات المتبقية، ولا تعتمد على أرقام المراحل التاريخية وحدها.
-
-## قيود معروفة (Known Issues)
-
-- أسماء مدخلات Titanoboa action في `build-iso.yml` مفترضة من توثيق v0.1.x — يجب التحقق من `action.yml` في https://github.com/ublue-os/titanoboa قبل أول تشغيل، والتثبيت على وسم إصدار فور توفره.
-- تحقق cosign صار **مفروضاً** على سجل MoOS في التثبيت والتحديث (سياسة sigstoreSigned +
-  مفتاح `/etc/pki/containers/moos.pub`). مفتاح خاطئ يُرفض فعلياً — تم التحقق مقابل السجل
-  الحقيقي. ما لم يُختبر بعد: تثبيت ISO كامل من البداية إلى النهاية على عتاد حقيقي.
-- يلزم اختبار SDDM/Plymouth/المثبت على عتاد حقيقي وبمقاييس عرض متعددة.
-- تصنيفات Bazaar المنسقة موجودة، لكن ربطها الكامل بالمتجر ما زال مطلوباً.
-- artifacts الـ ISO تنتهي صلاحيتها خلال 7 أيام — R2 hosting لم يُفعّل بعد.
-
-## الخطوات التالية (Next Actions)
-
-1. تشغيل CI على الدفعة الحالية والتحقق من صورتي MoOS وMoOS NVIDIA.
-2. اختبار صورة NVIDIA على RTX 2080 SUPER ثم التحقق من Wayland/Vulkan والصوت.
-3. اختبار خدمة Mo AI الاختيارية وتنزيل النموذج وحالات الفشل على الجهاز الحقيقي.
-4. تنفيذ مصفوفة الهوية المرئية والعتاد والأمان في `MOOS_ROADMAP.md`.
+- **الحالة والبوابات المتبقية:** [`MOOS_ROADMAP.md`](MOOS_ROADMAP.md)
+- **الخريطة والفخاخ:** [`PROJECT_STATE.md`](PROJECT_STATE.md)
+- **ما هو غير منجَز** (ولا يجوز ادعاء عكسه): قسم "What is NOT done" في
+  [`AGENTS.md`](AGENTS.md)

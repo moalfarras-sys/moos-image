@@ -129,7 +129,7 @@ FROM base
 ARG IMAGE_NAME=moos
 
 LABEL org.opencontainers.image.title="MoOS" \
-      org.opencontainers.image.description="MoOS — atomic desktop with the Nova experience" \
+      org.opencontainers.image.description="MoOS — atomic desktop with the MoOS UI Liquid Glass experience" \
       org.opencontainers.image.vendor="Moalfarras" \
       org.opencontainers.image.source="https://github.com/moalfarras-sys/moos-image"
 

@@ -7,8 +7,8 @@ Baseline image: signed MoOS `44.20260713.112`
 
 This is the hand-off point for every agent touching MoOS UI2. Read it with
 `AGENTS.md`, `PROJECT_STATE.md`, and `artwork/MOOS_UI_DESIGN.md`. UI2 is a new,
-isolated visual family. It must not overwrite or rename Nova or MoOS UI (UI1),
-which remain installed fallbacks.
+isolated visual family. It must not overwrite or rename the retired Nova
+generation (UI1-era) or MoOS UI (UI1), which remain installed fallbacks.
 
 ## Why UI2 exists
 
@@ -16,7 +16,8 @@ The first real-hardware review of MoOS UI revision 15 found that it loaded and
 worked, but did not meet the visual target. The desktop widget was a large,
 muted square, its weather glyph read as flat 2D artwork, the aubergine wallpaper
 made the whole desktop feel like one dark block, and first-party QML apps still
-carried hard-coded Nova colours instead of the running desktop palette.
+carried hard-coded colours from the retired Nova generation instead of the
+running desktop palette.
 
 The proof was captured from the running Plasma containment, not inferred from
 repository files:
@@ -104,8 +105,9 @@ opaque.
 
 KDE, Qt, GTK, Konsole, Plasma popups, window decorations and first-party cards
 must draw from the active colour scheme. Mo AI and Welcome must stop treating
-hard-coded Nova navy/cyan as their canvas and instead derive semantic tokens from
-their QML `palette`; brand art can retain its own identity colours.
+the retired Nova generation's hard-coded navy/cyan as their canvas and instead
+derive semantic tokens from their QML `palette`; brand art can retain its own
+identity colours.
 
 ## Wallpaper contract
 
@@ -331,8 +333,8 @@ regression until proven otherwise.
 > `MoOSUI2`/`MoOSUI2Light` icon themes (1), libadwaita/Flatpak palette via
 > `moos-ui2.css` + the gtk-4.0 read hole (2), the GTK theme-name pin on every
 > switch (3), the `MoOSDark` pointer for Tidal Light (4), the MoOS lock screen
-> in the shell package (5), Nova pickers gone with the one-generation cleanup
-> (6), and the traffic-light decision (7). The desktop dashboard additionally
+> in the shell package (5), the retired Nova pickers gone with the one-generation
+> cleanup (6), and the traffic-light decision (7). The desktop dashboard additionally
 > moved INSIDE the wallpaper (`org.moos.ui2.wallpaper`) so it renders below the
 > icons, and the Welcome/Store split into two apps (`apps/welcome` onboarding,
 > `apps/store` = Mo Store). The gates — not this list — are the source of truth.
@@ -340,26 +342,29 @@ regression until proven otherwise.
 
 Revision 16.1 swept every visual surface of the system and closed four: the QML
 binding loop in the weather art, the login screen (still on NovaHorizonII while
-the lock screen had moved to Graphite), the Plymouth boot splash (still Nova navy
-`#050A14` with a `#2E7BFF` bar), and the kde-settings profile (still naming
-`org.moos.nova`, a family the theme switcher cannot even reach).
+the lock screen had moved to Graphite), the Plymouth boot splash (still the
+retired Nova generation's navy `#050A14` with a `#2E7BFF` bar), and the
+kde-settings profile (still naming `org.moos.nova`, a family the theme switcher
+cannot even reach).
 
 These are the surfaces it found and did **not** close. They are listed because a
 short honest list is worth more than a long claimed one — and because each of them
 is a place where the desktop is UI2 and the thing sitting on it is not.
 
-1. **The icon theme is still Nova's electric blue.** `build.sh` (c5) builds `Nova`
-   and `NovaLight` from Colloid with `-t default`, and Colloid's "default" folder
-   colour is `#5b9bf8` — chosen deliberately to match Nova's electric blue
-   `#2E7BFF`. UI2's primary is turquoise `#4ED7C8`; its only blue is the *secondary*
-   `#78AFFF`. Both UI2 variants still select `Nova`/`NovaLight`, so every folder in
-   Dolphin, the Places sidebar, the file dialogs and Kickoff is blue on a graphite
-   and turquoise desktop. Colloid ships a `teal` variant. Closing this means a
-   second Colloid pass in (c5) producing `MoOSUI2`/`MoOSUI2Light` icon themes by the
-   same copy-index-then-symlink route already proven for Nova, then repointing
-   `moos-theme`, `moos-apply-theme`, `moos-selfcheck`, both `defaults` files and
-   `/etc/xdg/kdeglobals`. **This is the largest remaining visual gap, and it is a
-   brand decision the owner should make, not a bug to fix quietly.**
+1. **The icon theme is still the retired Nova generation's electric blue.**
+   `build.sh` (c5) builds `Nova` and `NovaLight` from Colloid with `-t default`,
+   and Colloid's "default" folder colour is `#5b9bf8` — chosen deliberately to
+   match the retired Nova generation's electric blue `#2E7BFF`. UI2's primary is
+   turquoise `#4ED7C8`; its only blue is the *secondary* `#78AFFF`. Both UI2
+   variants still select `Nova`/`NovaLight`, so every folder in Dolphin, the
+   Places sidebar, the file dialogs and Kickoff is blue on a graphite and
+   turquoise desktop. Colloid ships a `teal` variant. Closing this means a second
+   Colloid pass in (c5) producing `MoOSUI2`/`MoOSUI2Light` icon themes by the
+   same copy-index-then-symlink route already proven for the `Nova` icon themes,
+   then repointing `moos-theme`, `moos-apply-theme`, `moos-selfcheck`, both
+   `defaults` files and `/etc/xdg/kdeglobals`. **This is the largest remaining
+   visual gap, and it is a brand decision the owner should make, not a bug to
+   fix quietly.**
 
 2. **GTK4 / libadwaita gets nothing but light/dark.** MoOS ships no
    `/usr/share/themes` content and no `gtk-4.0/gtk.css`. libadwaita apps ignore

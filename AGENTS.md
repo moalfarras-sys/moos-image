@@ -54,6 +54,11 @@ This repo builds a **real operating system that is installed on a real machine**
 sandbox, and there is no staging environment between a merge and someone's desktop failing to
 boot. Read this before changing anything.
 
+> **Mandatory for every agent:** load
+> [`skills/moos-engineering/SKILL.md`](skills/moos-engineering/SKILL.md) before your first
+> change. It is the binding summary of what MoOS is (a real OS, not a rebrand and not a
+> theme), the MoOS UI — Liquid Glass design language, and the rules no session may break.
+
 > **New here?** Read **[PROJECT_STATE.md](PROJECT_STATE.md)** as well, and read it *first* if
 > you are about to touch MoPlayer, the vendoring, the gates or anything visual. It is the map:
 > what exists, what is load-bearing, and the five traps that have already shipped — each one a
@@ -81,7 +86,7 @@ Do not remove a guard because it is inconvenient. If a guard fires, it is tellin
 | Update path | `moai-do update` → resolves and stages a signed immutable digest; applies on reboot and keeps the previous deployment for rollback |
 | Signing | every image is cosign-signed; the installed system **enforces** the signature |
 | ISO | built in CI by `build-iso.yml` (Titanoboa), published as a workflow artifact |
-| Identity | MoOS/Nova only on every user-visible surface — see `verify_image_experience.py` |
+| Identity | MoOS only, in the **MoOS UI — Liquid Glass** design language, on every user-visible surface — see `verify_image_experience.py` |
 
 ## The rules that are enforced by the build
 
@@ -134,7 +139,7 @@ without first fixing the kde-settings profile that named them would leave Plasma
 falling back to Breeze. This was written as a warning and then came true anyway — see below,
 because the config that still named Fedora was not one this repo ships.
 
-**A theme this image ships is not a theme the user gets.** Four separate Nova surfaces were
+**A theme this image ships is not a theme the user gets.** Four separate surfaces of the retired Nova generation were
 shipped, gated green, and never once reached the desktop. Every one of them lost to a config
 that outranks `/etc/xdg`, and no gate on a file in `system_files/` can see any of it:
 
@@ -242,12 +247,14 @@ as the user. Do not "fix" that by reaching for pkexec.
 ## Layout
 
 ```
-Containerfile          both editions; IMAGE_NAME selects whether NVIDIA is layered on
+Containerfile          all three editions; IMAGE_NAME selects whether NVIDIA is layered on
 build_files/build.sh   everything package-dependent, plus the boot/identity gates
 system_files/          copied verbatim onto / — identity, themes, apps, units
 moremote/              Mo PC Remote, vendored source; built by a stage in the Containerfile
+moplayer/              MoPlayer (Flutter), vendored source; built by a stage in the Containerfile
 tests/                 run these before pushing; they are the same gates CI runs
-.github/workflows/     build.yml (image), build-iso.yml (ISO), build-disk.yml (qcow2)
+skills/                the mandatory moos-engineering agent skill
+.github/workflows/     build.yml (moos + moos-nvidia + moos-cloud), build-iso.yml (ISO), build-disk.yml (qcow2)
 ```
 
 ## Before you push

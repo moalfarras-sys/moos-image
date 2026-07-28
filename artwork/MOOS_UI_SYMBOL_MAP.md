@@ -1,22 +1,22 @@
-# Nova symbolic UI map
+# MoOS UI symbolic icon map
 
 These original SVGs replace platform-dependent emoji in MoOS system apps. They
 ship under `/usr/share/icons/hicolor/scalable/actions/` and resolve by icon name
-through the Nova icon-theme fallback chain.
+through the MoOS UI icon-theme fallback chain.
 
 ## NEEDS-CLAUDE-WIRING
 
 Do not keep the emoji beside the icon. Replace each emoji prefix with a
 `Kirigami.Icon` (or the equivalent verified Qt icon item) using this map:
 
-| Claude-owned surface | Current glyph | Nova icon name |
+| Claude-owned surface | Current glyph | MoOS UI icon name |
 |---|---:|---|
 | Welcome — Full identity | `✦` | `moos-identity` |
 | Welcome / Compatibility — Mo AI | `🧠` | `moos-ai` |
 | Welcome / Compatibility — Gaming | `🎮` | `moos-gaming` |
 | Welcome / Compatibility — Android apps | `🤖` | `moos-android-apps` |
 | Welcome — Safe updates | `🛡️` | `moos-safe-update` |
-| Welcome — Nova UI | `🎨` | `moos-ui` |
+| Welcome — MoOS UI | `🎨` | `moos-ui` |
 | Hardware — CPU | `🧠` | `moos-cpu` |
 | Hardware — Memory | `🧮` | `moos-memory` |
 | Hardware — GPU | `🎨` | `moos-gpu` |

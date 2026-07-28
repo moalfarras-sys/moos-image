@@ -6,9 +6,9 @@ Started: 2026-07-13
 
 This file is the hand-off point for any agent touching MoOS visuals. Read it with
 `PROJECT_STATE.md` before editing the theme, dock, first-party app icons, or desktop
-widgets. The existing Nova packages remain installed as the known-good fallback;
-MoOS UI is added as a new matched dark/light pair and must be proven before it can
-become the default.
+widgets. The existing packages of the retired Nova generation remain installed
+as the known-good fallback; MoOS UI is added as a new matched dark/light pair
+and must be proven before it can become the default.
 
 Rebuild every generated theme, icon and wallpaper output with:
 
@@ -18,7 +18,8 @@ Rebuild every generated theme, icon and wallpaper output with:
 
 ## Direction
 
-MoOS UI is warm, calm glass rather than Nova's cyan/navy glass:
+MoOS UI is warm, calm glass rather than the retired Nova generation's cyan/navy
+glass:
 
 | Token | Dark | Light | Purpose |
 |---|---|---|---|
@@ -67,7 +68,7 @@ shell.
 2. Add `org.moos.ui` / `org.moos.ui.light`, `MoOSUI` / `MoOSUILight`, matching
    Aurorae decorations and KDE/Konsole colour schemes.
 3. Teach `moos-theme` and `moos-apply-theme` to recognize both MoOS UI variants
-   without deleting Nova fallback support.
+   without deleting fallback support for the retired Nova generation.
 4. Apply the widget update and bump the visual revision so OSTree-era QML/SVG
    caches are dropped for existing users.
 5. Extend `verify_user_experience.py`; deliberately break each new selector once
@@ -88,16 +89,17 @@ The proof covers the actual wallpaper renderer, dark/light palette, Aurorae
 decoration selector, Plasma Style, dock, first-party app icons, animated weather,
 clock glass lens and verified CPU/RAM/GPU sensors. No QML or MoOS UI load errors
 appeared in the live plasmashell journal. The temporary `~/.local/share` packages
-were removed after capture and the installed session was restored to system Nova;
-there are no user-local MoOS UI shadows left to hide the image after an update.
+were removed after capture and the installed session was restored to the
+system-installed retired Nova theme; there are no user-local MoOS UI shadows
+left to hide the image after an update.
 
 ## Revision 2 — direct visual review
 
 The first live pass proved the packages loaded, but it also exposed two design
-regressions that a gate could not judge: the desktop widget still read as Nova's
-narrow vertical clock with a pane behind it, and Plasma's adaptive transparency
-turned the Light dock into a bright opaque slab. Revision 2 therefore makes these
-visual contracts explicit:
+regressions that a gate could not judge: the desktop widget still read as the
+retired Nova generation's narrow vertical clock with a pane behind it, and
+Plasma's adaptive transparency turned the Light dock into a bright opaque slab.
+Revision 2 therefore makes these visual contracts explicit:
 
 - the desk widget is a 27-grid-unit horizontal live dashboard, with an animated
   status beacon, independent rolling clock, enlarged animated weather orb and a

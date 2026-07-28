@@ -16,7 +16,7 @@ That was a defensible call and it is no longer the one this app makes.
 | | Nova Cinema (was) | Glass Orange Cinema (is) |
 |---|---|---|
 | Surfaces | Cool navy-black (`#07090F`, blue channel leading) | **Warm** near-black (`#070809 → #0D0F12 → #14171B`, plus `#1A1714`) |
-| Focus ring | Nova cyan `#4FC3FF` | **Ember-gold `#FFB347`** |
+| Focus ring | MoOS UI cyan `#4FC3FF` | **Ember-gold `#FFB347`** |
 | Glass | Chrome only, and rare | Chrome only, and the primary material of the dock, caption and player |
 | Navigation | A left rail | A **floating glass dock**, bottom-centre |
 | Window | KWin's decoration | **Frameless**, with the app's own caption bar |
@@ -28,14 +28,14 @@ The reasons, in order of how much they cost to learn:
    colour that ever means "this is MoPlayer", and the surface under it decides
    whether it looks like a brand or an alert.
 2. **The focus ring is a deliberate divergence, and it is the only one.** Every
-   other app in the MoOS image glows Nova cyan when focused, and MoPlayer does
+   other app in the MoOS image glows MoOS UI cyan when focused, and MoPlayer does
    not. This app is frequently a full-screen cinema surface where the focus ring
    is the *only* chrome on top of a moving picture, and a cyan ring over a warm
    film grade reads as a defect in the video rather than as a control. That is
    worth breaking the system convention for. Nothing else is.
 3. **Cool colour survives in exactly two places**, and both are the *system*
    speaking rather than the app: `novaGradient` on the MoOS badge in Settings,
-   and `info` on a network state. Ember leads; Nova signs.
+   and `info` on a network state. Ember leads; MoOS UI signs.
 
 If you are here to "restore consistency" by putting the cyan ring back, read
 point 2 again, then look at the app in fullscreen. The tension is real and it was
@@ -79,7 +79,7 @@ else.
 Two hard rules, and the first one is load-bearing:
 
 - **The fill is what makes text readable; the blur is decoration on top of it.**
-  Nova's rule — *no text on a variable background without an opaque-enough surface
+  The MoOS UI rule — *no text on a variable background without an opaque-enough surface
   beneath it* — is stricter here than anywhere else in MoOS, because the "variable
   background" is a moving video frame. Turn the blur off and the panel must still
   be legible.

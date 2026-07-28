@@ -20,8 +20,11 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# Local agent settings (Claude Code) — machine-local, never shipped
-.claude/
+# Local agent settings (Claude Code) — machine-local, never shipped.
+# EXCEPTION: .claude/skills/ is committed — it is a symlink into skills/, so the
+# mandatory moos-engineering skill is auto-discovered by Claude Code sessions.
+.claude/*
+!.claude/skills/
 
 # Local editor workspace settings — machine-local, never shipped
 .vscode/

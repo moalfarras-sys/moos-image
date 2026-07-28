@@ -578,7 +578,7 @@ image model this env lacks.
    fixes land in canonical sources; the 16 look-and-feel packages were
    re-propagated (QML is copied byte-for-byte by the generator, verified: one md5
    per file across all 16). Doorway now tracks each theme instead of shipping
-   Nova's cosmic literals on all 16:
+   the retired Nova generation's cosmic literals on all 16:
    - **Lock date (BUG):** English date rendered US month-first ("July 21");
      `MoOSClock.qml` used the 3-arg `Qt.formatDate(date,locale,string)` trap that
      discards the format string. Both dates now use `Qt.locale(..).toString(..)`.

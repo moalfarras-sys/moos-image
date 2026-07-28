@@ -8,8 +8,11 @@
 > (it is exactly where the splash/logout hardcoded literals came from, since
 > fixed to track `Kirigami.Theme` roles). The live token sources are:
 > `artwork/moos-ui2/palette.json` + `artwork/moos-themes/palettes.json` (colours,
-> per family) and `artwork/MOOS_UI2_DESIGN.md` (the design system). This file is
-> kept only as provenance of the earlier Nova generation.
+> per family) and `artwork/MOOS_UI2_DESIGN.md` (the design system). The official
+> name of the current design system is **MoOS UI — Liquid Glass Design System**;
+> "Nova" survives only as the name of one palette member of that family
+> (`MoOS UI · Nova`). This file is kept only as provenance of the earlier,
+> retired Nova generation.
 
 Nova uses a compact, calm scale shared by the shell and first-party apps. Values
 are logical pixels and therefore follow Qt/Plasma scaling at 100–200%.

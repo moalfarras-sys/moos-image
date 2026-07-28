@@ -1,8 +1,8 @@
-# Mo AI — Nova Companion visual contract
+# Mo AI — MoOS UI Companion visual contract
 
-`Nova Companion` is the original Mo AI mascot. It uses only the official Nova
-palette and deliberately avoids Android, Copilot, Apple, KDE, Fedora, emoji,
-font glyphs, and stock robot marks.
+`MoOS UI Companion` is the original Mo AI mascot. It uses only the official
+MoOS UI palette and deliberately avoids Android, Copilot, Apple, KDE, Fedora,
+emoji, font glyphs, and stock robot marks.
 
 ## Installed assets
 
@@ -68,8 +68,8 @@ Implementation constraints:
 5. Add `LayoutMirroring.enabled` from the application layout direction and
    `LayoutMirroring.childrenInherit: true`; use IBM Plex Sans Arabic for Arabic
    text and keep English in IBM Plex Sans.
-6. Replace direct ad-hoc colors with the canonical Nova tokens already defined
-   by `branding/PALETTE.md`.
+6. Replace direct ad-hoc colors with the canonical MoOS UI tokens already
+   defined by `branding/PALETTE.md`.
 7. Keep copy-command actions labelled honestly until the daemon/MCP/polkit path
    exists. A hidden `TextEdit.copy()` has no success callback, so it must not
    trigger the success state. Reserve `warning` for a real daemon signal such

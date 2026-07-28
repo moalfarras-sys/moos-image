@@ -1,5 +1,5 @@
 # ============================================================================
-#  MoOS — "Nova Motion System"  (KWin system defaults)
+#  MoOS — MoOS UI motion system  (KWin system defaults)
 # ============================================================================
 # This is a KConfig cascade default. A user's ~/.config/kwinrc ALWAYS wins over
 # this file, so nothing here clobbers a user's own choices.

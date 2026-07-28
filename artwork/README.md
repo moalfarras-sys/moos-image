@@ -1,4 +1,4 @@
-# MoOS Nova artwork sources
+# MoOS UI artwork sources
 
 The new MoOS UI visual pair and first-party app-icon work is documented in
 [`MOOS_UI_DESIGN.md`](MOOS_UI_DESIGN.md) and regenerated with
@@ -29,8 +29,9 @@ Or run one family with `--icons`, `--installer`, `--wallpapers`, `--grub`,
 or `--plasma-style`. SDDM and the retired `org.moos.nova` preview generator
 were removed: MoOS uses plasma-login-manager and the UI2 look-and-feel family.
 
-The first Nova Plasma Style geometry batch generates complete `button.svg` and
-`viewitem.svg` FrameSvg contracts. Their IDs and margins are pinned to official
+The first MoOS UI Plasma Style geometry batch — authored originally for the
+retired Nova generation — generates complete `button.svg` and `viewitem.svg`
+FrameSvg contracts. Their IDs and margins are pinned to official
 libplasma 6.7.2. Top-level panel/dialog/tooltip masks remain on the verified
 fallback path until this low-risk state batch passes live Plasma testing; this
 prevents an untested mask from clipping a whole popup or panel.
