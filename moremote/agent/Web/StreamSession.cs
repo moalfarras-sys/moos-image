@@ -83,6 +83,17 @@ public sealed class StreamSession
                 FullMode = System.Threading.Channels.BoundedChannelFullMode.Wait,
             });
     private string _sentCodec = "";
+    /// <summary>
+    /// Has this client told us what it can decode yet? ScreenCapture treats an undeclared viewer as
+    /// "no opinion" so a fresh connection does not slam the room to JPEG and back (see
+    /// SessionArrived) — which means somebody has to close the loop for a client that never speaks.
+    /// This is that somebody: the send loop, which already ticks, declares JPEG-only on its behalf
+    /// once the grace has passed. Without it an old cached PWA would hold the room on a codec it
+    /// cannot read, and the failure mode of that is a black picture with no error anywhere.
+    /// </summary>
+    private bool _codecDeclared;
+    private readonly long _startedTicks = Environment.TickCount64;
+    private const int CodecDeclareGraceMs = 3000;
     private bool _inputConfirmed;
     private int _moveLogCounter;
     private long _lastRejectReport;
@@ -219,6 +230,14 @@ public sealed class StreamSession
 
                 int fps = Math.Clamp(_fps, 1, 60);
                 var frameStart = Environment.TickCount64;
+
+                // A client that has not declared its decoder by now is not going to. Vote on its
+                // behalf so the room can stop waiting — see the field's note.
+                if (!_codecDeclared && frameStart - _startedTicks > CodecDeclareGraceMs)
+                {
+                    _codecDeclared = true;
+                    _svc.Capture.SessionCodec(_id, false);
+                }
 
                 // The codec can change under a live session — the helper falls back to JPEG on its
                 // own when NVENC will not open, and back up again when it will. The client cannot
@@ -368,8 +387,21 @@ public sealed class StreamSession
                     if (root.TryGetProperty("h264", out var hv) &&
                         (hv.ValueKind == JsonValueKind.True || hv.ValueKind == JsonValueKind.False))
                     {
+                        _codecDeclared = true;
                         _svc.Capture.SessionCodec(_id, hv.GetBoolean());
                         if (hv.GetBoolean()) _svc.Capture.RequestKeyframe();
+                    }
+                    // "Is anyone actually looking at this?" — the client says so when the page is
+                    // hidden (tab in the background, phone screen off, app switched away) and again
+                    // when it comes back. The encoder stops only when EVERY viewer has looked away;
+                    // see ScreenCapture.SessionWatching for the 7.3 MB of frames this stops sending
+                    // to a tab that was not reading them.
+                    if (root.TryGetProperty("watching", out var wa) &&
+                        (wa.ValueKind == JsonValueKind.True || wa.ValueKind == JsonValueKind.False))
+                    {
+                        _svc.Capture.SessionWatching(_id, wa.GetBoolean());
+                        // Coming back needs a reference frame, not the middle of a GOP.
+                        if (wa.GetBoolean()) _svc.Capture.RequestKeyframe();
                     }
                     if (root.TryGetProperty("scale", out var sc) && sc.ValueKind == JsonValueKind.Number)
                         _scale = Math.Clamp(sc.GetDouble(), 0.3, 1.0);
@@ -381,7 +413,25 @@ public sealed class StreamSession
                     // use the fraction", which is what an older client sends by saying nothing.
                     if (root.TryGetProperty("width", out var wv) && wv.ValueKind == JsonValueKind.Number)
                         _width = Math.Clamp((int)Math.Round(wv.GetDouble()), 0, 2560);
-                    _svc.Capture.SessionQuality(_id, _quality, _scale, _width);
+                    // VOTE ON THE PICTURE SIZE ONLY WHEN THIS MESSAGE WAS ABOUT THE PICTURE SIZE.
+                    //
+                    // This ran unconditionally, and `video` is not only a settings message — the
+                    // client also uses it to say what it can decode, and now to say whether anyone
+                    // is looking. Those carry no quality, no scale and no width, so they voted the
+                    // defaults: _width 0, which the helper reads as "no pixel opinion, use the
+                    // fraction" and answers with the 1920 legacy ceiling.
+                    //
+                    // The cost was one whole extra pipeline build on EVERY connection. Measured in
+                    // the live log, one phone opening the remote:
+                    //
+                    //     Video stream: 1920x1080   <- the handshake's accidental vote
+                    //     Video stream: 1366x768    <- what the client had actually asked for
+                    //
+                    // ~200ms of no picture and a keyframe, to serve a request nobody made. A message
+                    // that expresses no opinion must not be recorded as one.
+                    if (root.TryGetProperty("quality", out _) || root.TryGetProperty("scale", out _) ||
+                        root.TryGetProperty("width", out _))
+                        _svc.Capture.SessionQuality(_id, _quality, _scale, _width);
                     return;
                 case "selectMonitor":
                     if (TryGetInt(root, "index", out var mon)) _svc.Capture.SelectMonitor(mon);

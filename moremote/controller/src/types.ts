@@ -1,5 +1,5 @@
 // Bump this on each frontend change so you can confirm the phone loaded the latest build.
-export const BUILD = "v13 · touch + chrome overhaul";
+export const BUILD = "v14 · fill-screen portrait + display-matched resolution";
 
 export interface ServerStatus {
   name: string;

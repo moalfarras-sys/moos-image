@@ -559,7 +559,18 @@ button {
 }
 .kbinput {
   flex: 1;
-  height: 40px;
+  /*
+   * min-width:0, and without it the Done button falls off the screen.
+   *
+   * A flex item defaults to `min-width: auto`, which means "never shrink below your content". This
+   * input's content is its placeholder, and the placeholder is a bilingual sentence — so the input
+   * refused to shrink, the row overflowed the bar, and the last control in it was clipped. Verified
+   * on a 390px phone: the button read "Don".
+   *
+   * That control is Done. Losing it means losing the way out of the keyboard.
+   */
+  min-width: 0;
+  height: 44px;
   border-radius: 11px;
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
@@ -575,8 +586,9 @@ button {
   color: var(--muted-2);
 }
 .kbdone {
-  height: 40px;
-  padding: 0 15px;
+  height: 44px;
+  padding: 0 16px;
+  flex: 0 0 auto;
   border-radius: 11px;
   background: var(--accent-grad);
   color: var(--on-accent);
@@ -585,8 +597,8 @@ button {
 }
 .kbicon {
   flex: 0 0 auto;
-  width: 42px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 11px;
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
@@ -605,8 +617,8 @@ button {
 }
 .kkey {
   flex: 0 0 auto;
-  min-width: 38px;
-  height: 32px;
+  min-width: 42px;
+  height: 36px;
   padding: 0 9px;
   border-radius: 9px;
   background: var(--surface-2);
@@ -869,14 +881,27 @@ button {
  * bug was invisible on the orientation it was designed in.
  *
  * 44px square because that is the minimum touch target; the old 50x30 was under it.
+ *
+ * THEN THE PICTURE LEARNED TO TURN, AND MID-RIGHT STOPPED BEING BLACK.
+ *
+ * The reasoning above is sound and its conclusion had one orientation too few. With Fill screen on,
+ * a phone held upright shows a TURNED desktop, and that fit is width-constrained: measured at
+ * 390x844, the picture is 390x694 and the letterbox is a ~75px band at the TOP AND BOTTOM. Mid-right
+ * is inside the picture again — the exact fault the note above describes, one layout later.
+ *
+ * The corner is the only place that is spare in all three layouts at once:
+ *   landscape        letterbox is a column at each side   -> bottom-right is in the right column
+ *   turned portrait  letterbox is a band top and bottom   -> bottom-right is in the bottom band
+ *   upright portrait letterbox is most of the screen      -> bottom-right is black
+ * and it is not bottom-CENTRE, so the dock this note was written about is still untouched.
  */
 .show-tab {
   position: absolute;
   left: auto;
   right: calc(var(--safe-right) + 8px);
-  bottom: auto;
-  top: 50%;
-  transform: translateY(-50%);
+  top: auto;
+  bottom: calc(var(--safe-bottom) + 10px);
+  transform: none;
   width: 44px;
   height: 44px;
   border-radius: 14px;
@@ -892,8 +917,9 @@ button {
 .show-tab svg {
   width: 20px;
   height: 20px;
-  /* Points inward (leftward) now that the handle lives on the right edge. */
-  transform: rotate(90deg);
+  /* A chevron pointing UP: the toolbar it summons rises from the bottom of the screen, so the
+     arrow says where the thing comes from rather than where the handle sits. */
+  transform: rotate(180deg);
 }
 
 /* ---- view + clipboard sheets ---- */

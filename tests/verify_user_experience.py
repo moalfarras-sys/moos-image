@@ -1577,8 +1577,29 @@ require("_streaming" in bridge_code and "Stalled =>" in bridge_code
         "the spectacle fallback, which costs ~700ms a frame")
 
 capture_code = code(capture, "slash")
-require("_portal.SetStreaming(!_sessionH264.IsEmpty)" in capture_code,
+# THE PROPERTY, NOT THE EXPRESSION THAT USED TO CARRY IT.
+#
+# This asserted the literal `_portal.SetStreaming(!_sessionH264.IsEmpty)`, and that pinned the gate
+# to one implementation of the rule instead of to the rule. "Somebody is watching" got STRICTER —
+# a connected viewer whose page is hidden (phone in a pocket, tab in the background) is connected
+# and is not watching, and the old expression counted it. Measured on this machine, a backgrounded
+# tab had 7.3 MB of frames sitting unread in its receive buffer: the encoder was running, the
+# compositor was copying, and nobody was looking at any of it.
+#
+# So the gate now checks what it always meant: that streaming is driven by a predicate over the
+# viewers, that an empty room is never streamed to, and that silence from a client is read as
+# "watching" — because an older controller never sends the flag, and a viewer that is starved of
+# frames for not answering a question it was never asked is the worse failure of the two.
+require(re.search(r"_portal\.SetStreaming\((?!false)\w", capture_code),
         "the encoder must run exactly while somebody is watching — no more, and no less")
+require("public void SessionWatching(Guid id, bool watching)" in capture_code,
+        "a viewer must be able to say it has stopped looking, or a phone in a pocket keeps paying "
+        "for frames nobody sees")
+require("if (_sessionH264.IsEmpty) return false;" in capture_code,
+        "an empty room must never be judged to be watching")
+require("if (!_sessionWatching.TryGetValue(id, out var w) || w) return true;" in capture_code,
+        "a client that never sends the flag counts as WATCHING — an older controller must not be "
+        "starved of frames for not answering a question it has never heard")
 require("public void SessionArrived(Guid id)" in capture_code,
         "a viewer must be registered when it ARRIVES, not on its first codec vote: a JPEG-only "
         "client never sends one, and it would stream to a viewer nobody counted")

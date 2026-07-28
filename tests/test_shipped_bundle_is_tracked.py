@@ -96,6 +96,33 @@ def main() -> int:
         errors.append(f"{path} is tracked but index.html does not reference it — a stale bundle from"
                       f" an earlier build. Remove it: git rm --cached {path}")
 
+    # THE SERVICE WORKER'S OWN RUNTIME, which this gate did not look at and which is hidden by the
+    # same .gitignore line that hides everything else here (`agent/wwwroot/workbox-*.js`).
+    #
+    # sw.js does not import a fixed filename — vite-plugin-pwa emits `workbox-<hash>.js` and the hash
+    # changes whenever the workbox config does. So the one time this file is MOST likely to be missing
+    # from a commit is the one time somebody changed how updates work, which is exactly when nobody
+    # can afford it to be missing.
+    #
+    # And it fails silently in the worst possible way. The agent answers an unknown path with
+    # index.html and a 200, so `importScripts` receives HTML, the worker throws during install, and
+    # registration is caught and ignored (main.tsx does that on purpose — a phone on plain http
+    # cannot register one at all). The app keeps working online and simply stops being installable,
+    # stops caching, and stops ever updating itself. Nothing anywhere says so.
+    sw = ROOT / "moremote/agent/wwwroot/sw.js"
+    if sw.exists():
+        sw_text = sw.read_text(encoding="utf-8", errors="replace")
+        # The import is written without its extension (the loader appends ".js").
+        for name in sorted(set(re.findall(r"workbox-[0-9a-f]+", sw_text))):
+            path = f"moremote/agent/wwwroot/{name}.js"
+            if not (ROOT / path).exists():
+                errors.append(f"sw.js imports {name}.js, which is NOT in the tree — rebuild the "
+                              f"controller (npm run build in moremote/controller)")
+            elif path not in tracked([path]):
+                errors.append(f"sw.js imports {name}.js, which exists but is NOT tracked by git."
+                              f" moremote/.gitignore hides workbox-*.js, so it needs an explicit"
+                              f" add:\n        git add -f {path}")
+
     if errors:
         print("GATE FAIL: the shipped controller bundle and git disagree.\n")
         for e in errors:

@@ -185,6 +185,32 @@ export class RemoteConnection {
   }
 
   /**
+   * "Nobody is looking at this any more" — and, later, "they are again".
+   *
+   * A hidden tab does not close its socket. The browser throttles its timers and its rAF loop to
+   * almost nothing, the WebSocket keeps delivering at full rate, and the frames pile up in a receive
+   * buffer the page is not draining. Caught on the live machine, on a tab that had merely been
+   * switched away from:
+   *
+   *     Recv-Q 7301038   127.0.0.1:44548 -> 127.0.0.1:8765
+   *
+   * Seven megabytes of desktop nobody watched. On a phone that is battery and mobile data spent on a
+   * screen in a pocket; coming back to it means several seconds of the past replaying before the
+   * present arrives, which is exactly the "it freezes and then jumps" report.
+   *
+   * The agent stops the encoder only when EVERY viewer has looked away, so this is a vote and not a
+   * command — see ScreenCapture.SessionWatching.
+   */
+  setWatching(watching: boolean) {
+    this.send({ type: "video", watching });
+  }
+
+  /** Is the socket usable right now? The caller uses this to avoid queuing work for a dead link. */
+  get open() {
+    return this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  /**
    * Ask for an IDR because THIS client has nothing to decode against any more.
    *
    * Rate-limited here as well as in the agent, and deliberately so: the two limits guard different

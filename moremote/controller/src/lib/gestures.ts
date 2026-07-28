@@ -1,4 +1,5 @@
 import type { GestureMode } from "../types";
+import { rotateDelta } from "./coordinates";
 
 export interface GestureCallbacks {
   click: (button: "left" | "right", nx: number, ny: number) => void;
@@ -14,6 +15,16 @@ export interface GestureCallbacks {
   panBy: (dxPx: number, dyPx: number) => void;
   cursorAt: (nx: number, ny: number) => void; // where to draw the on-screen cursor
   haptic?: () => void;
+  /**
+   * Two-finger double-tap: snap between fitting the whole desktop and a readable magnification.
+   *
+   * A remote desktop on a phone has exactly two states anyone actually wants — "show me everything"
+   * and "let me read this" — and pinching to get between them is a two-handed operation on a device
+   * usually held in one. Every map and photo viewer solves this with double-tap; here single
+   * double-tap is already spoken for (it opens folders and it is the one gesture that MUST reach the
+   * desktop), so the zoom shortcut takes two fingers, which nothing else on the canvas uses.
+   */
+  zoomToggleAt?: (clientX: number, clientY: number) => void;
 }
 
 interface Ptr { id: number; x: number; y: number; sx: number; sy: number; st: number; }
@@ -42,6 +53,29 @@ const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_PX = 20;
 const PX_PER_NOTCH = 24;
 const TRACKPAD_GAIN = 1.7;
+/** Two two-finger taps closer together than this are the zoom shortcut, not two right-clicks. */
+const TWO_TAP_MS = 340;
+
+// ---- panning momentum -------------------------------------------------------------------------
+//
+// Panning stopped dead the instant the fingers left the glass, and on a picture that is several
+// screens wide — which is the normal case the moment anyone zooms in to read something — that turns
+// crossing the desktop into a rowing motion: drag, lift, reposition, drag again. Every scrollable
+// surface on both phone platforms has had inertia since 2007 precisely because a finger cannot stay
+// on the screen for the length of the content.
+//
+// The model is the standard one: keep a velocity estimate from the last few moves, and when the
+// gesture ends let it decay geometrically at 60Hz until it is below half a pixel a frame.
+//
+// DECAY is per frame. 0.94 gives a glide of roughly half a second — long enough to be worth having,
+// short enough that it never feels like the picture is sliding away from you. MIN_FLING_V exists so
+// that a slow, deliberate reposition (which ends with almost no velocity) stops exactly where it was
+// released; inertia that fires on every pan would make precise placement impossible.
+const PAN_DECAY = 0.94;
+const MIN_FLING_V = 0.35;      // px per frame
+const MAX_FLING_V = 60;        // px per frame — a flick cannot become a teleport
+/** How much of the newest sample to fold into the velocity estimate; the rest is history. */
+const V_SMOOTH = 0.55;
 
 /**
  * Three control modes. All of them position the cursor *absolutely*: the phone owns the cursor
@@ -108,6 +142,14 @@ export class GestureController {
   private qScrollX = 0;
   private qScrollY = 0;
 
+  // Momentum: a smoothed velocity while two fingers are panning, and the glide that follows.
+  private vx = 0;
+  private vy = 0;
+  private lastMoveAt = 0;
+  private glide = 0;
+  /** When the last two-finger tap ended, for the double-tap-to-zoom shortcut. */
+  private lastTwoTapAt = 0;
+
   constructor(
     private el: HTMLElement,
     private toNorm: (clientX: number, clientY: number) => { x: number; y: number },
@@ -119,6 +161,13 @@ export class GestureController {
     private inContent: (clientX: number, clientY: number) => boolean = () => true,
     private canPan: () => { x: boolean; y: boolean } =
       () => ({ x: this.getZoom() > 1.01, y: this.getZoom() > 1.01 }),
+    /**
+     * Is the picture currently drawn a quarter turn round? Every finger movement that means
+     * something IN THE DESKTOP (a scroll, a trackpad nudge) has to be turned with it, or the axes
+     * come out swapped — see lib/coordinates.rotateDelta. Screen-space work (panning the drawn box,
+     * hit-testing, pinch) is unaffected and deliberately does not consult this.
+     */
+    private isRotated: () => boolean = () => false,
   ) {
     el.addEventListener("pointerdown", this.onDown, { passive: false });
     el.addEventListener("pointermove", this.onMove, { passive: false });
@@ -161,6 +210,7 @@ export class GestureController {
   private onDown = (e: PointerEvent) => {
     if (this.inert) return;
     e.preventDefault();
+    this.stopGlide();   // a finger on the glass always outranks the glide it is interrupting
     try { this.el.setPointerCapture(e.pointerId); } catch { /* */ }
     this.pointers.set(e.pointerId, {
       id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, st: now(),
@@ -240,8 +290,11 @@ export class GestureController {
       const t = this.nudge(dx, dy);
       this.queueMove(t.x, t.y, false);
     } else if (this.phase === "scroll") {
-      this.qScrollX += dx;   // MoOS traditional scroll: swipe up scrolls up the page (owner preference)
-      this.qScrollY += dy;
+      // MoOS traditional scroll: swipe up scrolls up the page (owner preference). Turned with the
+      // picture, because on a rotated view the phone's "up" is the desktop's "right".
+      const d = rotateDelta(dx, dy, this.isRotated());
+      this.qScrollX += d.dx;
+      this.qScrollY += d.dy;
       this.scheduleFlush();
     }
   };
@@ -264,6 +317,8 @@ export class GestureController {
     try { this.el.releasePointerCapture?.(e.pointerId); } catch { /* */ }
     this.cancelLong();
     this.flush();
+    this.stopGlide();
+    this.vx = this.vy = 0;
     if (this.phase === "drag") this.cb.dragEnd(this.cx, this.cy);
     if (this.pointers.size < 2) this.two = false;
     this.outside = false;
@@ -289,10 +344,25 @@ export class GestureController {
         // Guarded on the gesture never having become a pinch or a scroll, and on being brief: two
         // fingers that zoomed, panned or scrolled are not a tap, however they end.
         if (this.twoMode === "undecided" && now() - this.twoStart < TAP_RESCUE_MS && !this.outside) {
-          this.cb.click("right", this.cx, this.cy);
-          this.cb.haptic?.();
+          // ...unless this is the SECOND two-finger tap in quick succession, in which case it is the
+          // zoom shortcut and the first tap's right-click has already been sent. Sending a second
+          // context menu on top of it would be actively wrong (the menu would eat the zoom), so the
+          // pair is resolved here rather than by delaying every right-click to wait for a partner.
+          const t = now();
+          if (t - this.lastTwoTapAt < TWO_TAP_MS && this.cb.zoomToggleAt) {
+            this.lastTwoTapAt = 0;
+            // Dismiss the context menu the first tap opened, then zoom where the fingers were.
+            this.cb.click("left", this.cx, this.cy);
+            this.cb.zoomToggleAt(this.lastCx, this.lastCy);
+            this.cb.haptic?.();
+          } else {
+            this.lastTwoTapAt = t;
+            this.cb.click("right", this.cx, this.cy);
+            this.cb.haptic?.();
+          }
         }
         this.two = false; this.phase = "idle"; this.cancelLong();
+        this.startGlide();
       }
       return;
     }
@@ -369,6 +439,8 @@ export class GestureController {
   // ---------------- two fingers ----------------
   private beginTwo() {
     this.cancelLong();
+    this.vx = this.vy = 0;
+    this.lastMoveAt = 0;
     // A gesture that turned out to be two-fingered must not leave a button held down.
     if (this.phase === "drag") this.cb.dragEnd(this.cx, this.cy);
     this.phase = "idle";
@@ -431,23 +503,82 @@ export class GestureController {
       // only one direction, which is the normal case for a wide desktop on a tall phone.
       const pan = this.canPan();
       let scrolled = false;
-      if (pan.x || pan.y) this.cb.panBy(pan.x ? dcx : 0, pan.y ? dcy : 0);
-      if (!pan.x) { this.qScrollX += dcx; scrolled = true; }
-      if (!pan.y) { this.qScrollY += dcy; scrolled = true; }
+      if (pan.x || pan.y) {
+        const px = pan.x ? dcx : 0, py = pan.y ? dcy : 0;
+        this.cb.panBy(px, py);
+        // Track the velocity of the PAN only. A two-finger scroll must not fling: the remote
+        // desktop's own scroll view already has whatever inertia it has, and adding a second one on
+        // top would send phantom wheel notches after the fingers were gone.
+        this.sample(px, py);
+      }
+      // Scrolling means "move the content on the DESKTOP", so it turns with the picture; panning
+      // above means "move the drawn box on this screen" and deliberately does not.
+      const sd = rotateDelta(dcx, dcy, this.isRotated());
+      if (!pan.x) { this.qScrollX += sd.dx; scrolled = true; }
+      if (!pan.y) { this.qScrollY += sd.dy; scrolled = true; }
       if (scrolled) this.scheduleFlush();
     }
     this.lastCx = cx; this.lastCy = cy; this.lastDist = d;
   }
 
+  // ---------------- momentum ----------------
+
+  /** Fold one movement into the velocity estimate, normalised to a 60Hz frame. */
+  private sample(dx: number, dy: number) {
+    const t = now();
+    const dt = this.lastMoveAt ? Math.max(1, t - this.lastMoveAt) : 16;
+    this.lastMoveAt = t;
+    // A pointermove can arrive at 120Hz or, after a hitch, 200ms late. Per-frame velocity is the
+    // unit the glide below decays in, so convert here rather than assuming a cadence.
+    const fx = (dx / dt) * 16.67, fy = (dy / dt) * 16.67;
+    this.vx = this.vx * (1 - V_SMOOTH) + fx * V_SMOOTH;
+    this.vy = this.vy * (1 - V_SMOOTH) + fy * V_SMOOTH;
+  }
+
+  /** Let go: glide on if the release was fast enough to have meant it. */
+  private startGlide() {
+    this.stopGlide();
+    // A release that follows a pause is a placement, not a throw — the fingers were already still.
+    if (now() - this.lastMoveAt > 90) { this.vx = this.vy = 0; return; }
+    const clampV = (v: number) => Math.max(-MAX_FLING_V, Math.min(MAX_FLING_V, v));
+    let vx = clampV(this.vx), vy = clampV(this.vy);
+    this.vx = this.vy = 0;
+    if (Math.hypot(vx, vy) < MIN_FLING_V) return;
+    const step = () => {
+      this.cb.panBy(vx, vy);
+      vx *= PAN_DECAY; vy *= PAN_DECAY;
+      if (Math.hypot(vx, vy) < MIN_FLING_V) { this.glide = 0; return; }
+      this.glide = requestAnimationFrame(step);
+    };
+    this.glide = requestAnimationFrame(step);
+  }
+
+  /** Any new touch cancels the glide — the finger is the authority, always. */
+  private stopGlide() {
+    if (this.glide) { cancelAnimationFrame(this.glide); this.glide = 0; }
+  }
+
   // ---------------- cursor ----------------
 
-  /** Trackpad mode: convert a finger delta into a new absolute position. */
+  /**
+   * Trackpad mode: convert a finger delta into a new absolute position.
+   *
+   * Turned with the picture, and the DIVISORS turn with it too — which is the part that is easy to
+   * miss. On a rotated view the desktop's x axis runs down the tall side of the phone, so a
+   * horizontal finger movement has to be divided by the surface's WIDTH while it advances the
+   * desktop's y, and vice versa. Getting only the numerator right leaves the pointer moving in the
+   * correct direction at visibly the wrong speed on each axis.
+   */
   private nudge(dx: number, dy: number) {
     const r = this.el.getBoundingClientRect();
     const g = TRACKPAD_GAIN * this.getSensitivity();
+    const rot = this.isRotated();
+    const d = rotateDelta(dx, dy, rot);
+    const denomX = Math.max(1, rot ? r.height : r.width);
+    const denomY = Math.max(1, rot ? r.width : r.height);
     return {
-      x: clamp01(this.cx + (dx * g) / Math.max(1, r.width)),
-      y: clamp01(this.cy + (dy * g) / Math.max(1, r.height)),
+      x: clamp01(this.cx + (d.dx * g) / denomX),
+      y: clamp01(this.cy + (d.dy * g) / denomY),
     };
   }
 
@@ -489,10 +620,13 @@ export class GestureController {
     if (this.phase === "drag") this.cb.dragEnd(this.cx, this.cy);
     this.outside = false;
     this.lastTapAt = 0;
+    this.lastTwoTapAt = 0;
     this.phase = "idle";
     this.two = false;
     this.pointers.clear();
     this.cancelLong();
+    this.stopGlide();
+    this.vx = this.vy = 0;
   }
 
   private cancelLong() { if (this.longTimer) { window.clearTimeout(this.longTimer); this.longTimer = null; } }

@@ -85,7 +85,11 @@ public sealed class ScreenCapture : IDisposable
     // scale of the session that asked — so two viewers on different presets each get exactly what
     // they requested and neither can disturb the other. The Linux path has one shared GStreamer
     // pipeline for the whole room, which is why it needs a single agreed answer.
-    public void SessionQuality(Guid id, int quality, double scale) { }
+    public void SessionQuality(Guid id, int quality, double scale, int width = 0) { }
+    // Nothing to gate either: DXGI is pulled per frame from the send loop, so a viewer that stopped
+    // watching simply stops pulling. The Linux path holds a live GStreamer pipeline and a compositor
+    // copying into it, which is why it needs to be told.
+    public void SessionWatching(Guid id, bool watching) { }
 
     public void SelectMonitor(int index)
     {

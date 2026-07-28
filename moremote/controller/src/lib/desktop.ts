@@ -38,6 +38,13 @@ export interface DesktopCallbacks {
   /** a CHARACTER, for when the viewer's layout disagrees with the wire */
   text: (value: string) => void;
   cursorAt: (nx: number, ny: number) => void;
+  /**
+   * The viewer pressed Ctrl/Cmd+V. The chord is deliberately NOT forwarded here — the owner waits
+   * briefly for the browser's `paste` event, sends the local clipboard to the remote, and only then
+   * presses Ctrl+V there. If no paste arrives (a browser that will not hand it over, nothing on the
+   * clipboard) the owner forwards the chord anyway, so the key is never simply dead.
+   */
+  pasteIntent?: () => void;
 }
 
 const BUTTONS = ["left", "middle", "right"] as const;
@@ -308,6 +315,23 @@ export class DesktopInput {
   private onKeyDown = (e: KeyboardEvent) => {
     if (e.isComposing) return;             // an IME is mid-word; its commit arrives as input text
     if (this.localEditable(e)) return;
+
+    // PASTE IS THE ONE CHORD THAT MEANS SOMETHING DIFFERENT ON EACH SIDE OF THE WIRE.
+    //
+    // Every other shortcut is a position to forward. Ctrl+V is not: the user pressed it because
+    // something is on THIS computer's clipboard, and forwarding the chord pastes whatever is on the
+    // REMOTE's clipboard instead — usually nothing, occasionally something they copied an hour ago.
+    // Copying a URL from your own browser and pasting it into the remote is the single most common
+    // thing anyone does with a remote desktop, and it silently did the wrong thing.
+    //
+    // Preventing the default here would suppress the browser's `paste` event, which is the only way
+    // a page is allowed to read the clipboard without a permission prompt. So this key alone is left
+    // alone, and the owner listens for the paste (see the desktop paste bridge in RemoteScreen).
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "v" || e.key === "V")) {
+      this.cb.pasteIntent?.();
+      return;                              // no preventDefault: let `paste` fire
+    }
+
     const decision = this.decideKey(e);
     if (decision === "ignore") return;
 

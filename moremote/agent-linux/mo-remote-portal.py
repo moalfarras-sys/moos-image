@@ -10,7 +10,7 @@ input injection and a live PipeWire video stream.
 The screen is encoded by GStreamer straight off the PipeWire node, so a frame costs a few
 milliseconds instead of the ~700ms a spectacle+PNG round trip used to.
 """
-import json, os, socket, struct, sys, threading, uuid
+import json, os, socket, struct, subprocess, sys, threading, uuid
 
 import gi
 gi.require_version("Gio", "2.0")
@@ -296,18 +296,81 @@ H264_ENCODERS = [
     ("openh264enc", "bitrate={bps} max-bitrate={maxbps} gop-size={gop} complexity=low "
                     "rate-control=bitrate usage-type=screen"),
 ]
-_h264_blacklist = set()   # elements that were present and then failed to start
+# Elements that were present and then failed to start -> when they failed.
+#
+# A SET WAS THE WRONG SHAPE, AND MO AI IS THE REASON.
+#
+# This was a plain set: an encoder that refused to open once was condemned for the life of the
+# helper. That is right for a broken element and wrong for the failure that actually happens on this
+# machine, which is not permanent and is not even about the encoder.
+#
+# MoOS ships a local LLM. `moai.service` loads ~6 GB onto the card and holds it, and NVENC needs free
+# VRAM to open a session — measured here on an RTX 2080 SUPER: nvh264enc fails with "Failed to open
+# encoder" at 7748/8192 MiB used and works again at 7625. So the sequence "chat with Mo AI, then open
+# the remote on your phone" audition-fails NVENC, blacklists it for ever, and drops the session to
+# software or to JPEG — 79 Mbit/s against H.264's 4.3 at 1080p. The user experiences that as "the
+# picture on my phone is bad", and nothing anywhere says the assistant took the encoder.
+#
+# MoOS already has the tool for this: `moos-gpu-headroom` unloads the idle brain so a GPU app can
+# start, and moai-gateway reloads it on the next message. MoPlayer, moos-open, moai-do and moos-storectl
+# all call it. The remote never did — it is the one first-party GPU consumer that was left to lose.
+#
+# So: remember WHEN an element failed rather than merely THAT it did, expire the entry, and on the way
+# out ask for the memory back. A condition that lasts a minute must not cost the session an hour.
+_h264_blacklist = {}
+# Long enough that a genuinely broken element is not re-auditioned every rebuild (each failed
+# audition costs a pipeline build), short enough that the session recovers within one reconnect.
+BLACKLIST_TTL_MS = 90_000
+
+
+def _blacklisted(name):
+    at = _h264_blacklist.get(name)
+    return at is not None and (GLib.get_monotonic_time() // 1000) - at < BLACKLIST_TTL_MS
 
 
 def pick_h264():
-    """The best H.264 encoder that is installed and has not already failed on us."""
+    """The best H.264 encoder that is installed and is not currently in the sin bin."""
     reg = Gst.Registry.get()
     for name, props in H264_ENCODERS:
-        if name in _h264_blacklist:
+        if _blacklisted(name):
             continue
         if reg.lookup_feature(name) is not None:
             return name, props
     return None, None
+
+
+_headroom_running = False
+
+
+def free_gpu_and_retry():
+    """Ask MoOS to give the encoder its VRAM back, then try the pipeline again.
+
+    Runs on a worker thread because moos-gpu-headroom shells out to nvidia-smi and systemctl, and
+    this must never block the GLib loop that is also carrying input injection. Best-effort in every
+    direction: no NVIDIA, no such tool, or a refusal all end the same way — the pipeline we already
+    built keeps running, on whatever encoder it managed to get.
+    """
+    global _headroom_running
+    if _headroom_running:
+        return
+    _headroom_running = True
+
+    def work():
+        global _headroom_running
+        try:
+            subprocess.run(["moos-gpu-headroom"], timeout=25,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        finally:
+            _headroom_running = False
+        # Forget the failure explicitly rather than waiting out the TTL: we have just changed the
+        # condition that caused it, so the next build should get the real answer, not the old one.
+        _h264_blacklist.clear()
+        state["out"] = (0, 0)          # force a real rebuild rather than a no-op
+        GLib.idle_add(rebuild)
+
+    threading.Thread(target=work, daemon=True).start()
 
 
 def tune_for_latency(el, bps, fps):
@@ -716,7 +779,11 @@ def build(w, h):
             # dimensions. The selection above should already never hand us an encoder at w == 0, and
             # if that ever regresses, a permanent JPEG latch is far too expensive a way to find out.
             if w:
-                _h264_blacklist.add(elem)
+                _h264_blacklist[elem] = GLib.get_monotonic_time() // 1000
+                # The commonest reason a hardware encoder refuses to open on this machine is that
+                # the local brain is holding the card. Ask for it back and come round again; see the
+                # note on _h264_blacklist. Costs nothing where there is no GPU and no brain.
+                free_gpu_and_retry()
                 if not pick_h264():
                     state["want"] = "jpeg"
             return build(w, h)

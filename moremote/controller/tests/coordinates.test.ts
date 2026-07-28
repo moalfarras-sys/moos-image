@@ -39,4 +39,121 @@ assert.ok(Number(clipMs[1]) > Number(fastMs[1]) && Number(clipMs[1]) <= 80,
   `clipboard flush should batch but stay imperceptible, got ${clipMs[1]}ms`);
 // The client's fast-path test must match the agent's, or text routes down the wrong path.
 assert.match(ws, /FAST_TEXT = \/\^\[a-zA-Z0-9 \]\*\$\//);
-console.log("PASS: client letterbox/orientation/invalid-coordinate tests");
+
+// ---------------------------------------------------------------------------------------------
+// The TURNED view: a desktop drawn a quarter turn round so a phone held upright is not 74% black.
+//
+// Every one of these is a bug that has a symptom rather than a stack trace. A hit-test that is
+// transposed does not throw — it clicks somewhere else on the desktop, which reads as "the touch is
+// inaccurate". So the properties are asserted directly: the corners land where they should, the
+// projection is a true inverse of the normalisation, and a finger delta comes out on the axis the
+// user meant.
+import {normalizeRotatedPoint as r, projectPoint as p, rotateDelta as d} from "../src/lib/coordinates.ts";
+
+// A 390x694 box at the top-left. Drawn anticlockwise, so the source's +x runs UP the screen and its
+// +y runs RIGHT across it — tilt the phone clockwise and the desktop is upright.
+const box = {left: 0, top: 0, width: 390, height: 694};
+const near = (a: number, b: number, why: string) =>
+  assert.ok(Math.abs(a - b) < 1e-9, `${why}: expected ${b}, got ${a}`);
+
+// Centre stays the centre, whichever way round the picture is.
+const mid = r(195, 347, box);
+near(mid.x, 0.5, "rotated centre x");
+near(mid.y, 0.5, "rotated centre y");
+
+// The four corners, spelled out, because "it looked right" is how a transposition survives review.
+const tl = r(0, 0, box);           // screen top-left      -> source top-RIGHT
+near(tl.x, 1, "screen top-left is source x=1"); near(tl.y, 0, "screen top-left is source y=0");
+const br = r(390, 694, box);       // screen bottom-right  -> source bottom-LEFT
+near(br.x, 0, "screen bottom-right is source x=0"); near(br.y, 1, "screen bottom-right is source y=1");
+
+// Clamping, not rejection: a tap in the letterbox lands on the nearest edge of the desktop rather
+// than missing, exactly as the unrotated path already does.
+const out = r(-50, 2000, box);
+near(out.x, 0, "off-picture clamps x"); near(out.y, 0, "off-picture clamps y");
+assert.throws(() => r(0, 0, {left: 0, top: 0, width: 0, height: 1}), RangeError);
+
+// projectPoint must be the exact inverse in BOTH orientations, or the drawn cursor and the click
+// drift apart — the cursor is the only feedback there is, so a mismatch is invisible until it is
+// infuriating.
+for (const rot of [false, true]) {
+  for (const [nx, ny] of [[0, 0], [1, 0], [0, 1], [1, 1], [0.31, 0.77]]) {
+    const s = p(nx, ny, box, rot);
+    const back = rot ? r(s.x, s.y, box) : n(s.x, s.y, box);
+    near(back.x, nx, `round trip x (rot=${rot})`);
+    near(back.y, ny, `round trip y (rot=${rot})`);
+  }
+}
+
+// A swipe toward the top of a turned phone is a swipe toward the RIGHT of the desktop. Get this
+// backwards and two-finger scrolling moves the wrong axis, which is the single most confusing thing
+// a remote desktop can do.
+// Compared numerically, not structurally: negating a zero yields -0, which deepStrictEqual treats
+// as a different value and arithmetic does not. The axes are the claim; the sign of nothing is not.
+const delta = (dx: number, dy: number, rot: boolean, ex: number, ey: number, why: string) => {
+  const got = d(dx, dy, rot);
+  near(got.dx, ex, why + " dx"); near(got.dy, ey, why + " dy");
+};
+delta(3, -7, false, 3, -7, "unrotated deltas pass through untouched");
+delta(0, -7, true, 7, 0, "screen-up is desktop-right when turned");
+delta(5, 0, true, 0, 5, "screen-right is desktop-down when turned");
+
+// The turn must be able to pay for itself. shouldRotate demands a real margin before flipping the
+// axes, and it must never fire on a viewport that is already landscape.
+const remote = readFileSync(join(import.meta.dirname, "..", "src", "ui", "RemoteScreen.tsx"), "utf8");
+assert.match(remote, /if \(cssH <= cssW\) return false;/,
+  "a landscape viewport has nothing to gain from turning the picture");
+assert.match(remote, /if \(iw <= ih\) return false;/,
+  "turning a portrait desktop inside a portrait phone makes it smaller, not bigger");
+assert.match(remote, /turned > upright \* 1\.15/,
+  "only turn when it is meaningfully better — churn on an axis flip is disorienting");
+
+// ---------------------------------------------------------------------------------------------
+// TYPING ON A PHONE. Three behaviours, each of which was a reported fault, and each of which fails
+// silently rather than loudly — so each is pinned here rather than left to a visual check.
+
+// 1. The canvas is never shrunk to fit above the keyboard. Squeezing a 16:9 desktop into the band
+//    left over collapsed it to a 390x219 stamp, which is the "choked" report. The picture keeps its
+//    size and MOVES instead, which is what the extra upward travel in clampPan is for.
+// Tested against the CODE, not the prose. This file explains at length what the old line was and
+// why it is gone, and quoting it is not the same as doing it — a comment-blind grep would fail on
+// the explanation and force the next person to delete the reasoning to make the test pass.
+const code = remote.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+assert.ok(!/canvas\.style\.height\s*=/.test(code),
+  "the canvas must not be resized to dodge the keyboard — lift the picture instead");
+assert.match(remote, /kbInsetRef\.current\s*=/,
+  "something has to record how much of the screen the keyboard covers");
+assert.match(remote, /Math\.max\(-\(maxY \+ lift\), view\.current\.panY\)/,
+  "clampPan must grant exactly that much extra upward travel, or a fitted picture cannot move");
+
+// 2. The rotation is frozen while the keyboard is open. The band above a soft keyboard is often
+//    wider than it is tall, which the automatic rule reads as "landscape" — so tapping a text box
+//    used to spin the whole desktop a quarter turn.
+assert.match(remote, /if \(kbRotLatch\.current !== null\) return kbRotLatch\.current;/,
+  "shouldRotate must honour the latch before it measures anything");
+assert.match(remote, /kbRotLatch\.current = shouldRotate\(s\.w, s\.h\)/,
+  "the latch has to be taken while the viewport still has the shape the user can see");
+
+// 3. Pressing a key in the shortcut row must not close the phone's keyboard. `onMouseDown` cannot
+//    prevent this on a touch screen — the compatibility mouse events fire after focus has already
+//    moved — so the guard has to be on pointerdown.
+assert.match(remote, /const keepFocus = \{ onPointerDown:/,
+  "focus must be defended on pointerdown; onMouseDown is too late on touch");
+assert.ok(!/onMouseDown=\{\(e\) => e\.preventDefault\(\)\}/.test(remote),
+  "the old onMouseDown guards should be gone, not sitting alongside the working one");
+
+// The orientation lock is a promise the user made to themselves, so it is answered before any
+// measurement — a lock that is overridden by a heuristic is not a lock.
+assert.match(remote, /if \(mode === "off"\) return false;\s*\n\s*if \(mode === "on"\) return true;/,
+  "an explicit lock must short-circuit shouldRotate entirely");
+
+// A phone that keeps running yesterday's app after an update is indistinguishable from an update
+// that never shipped. Both halves are needed: the worker must not wait, and the page must reload
+// when a new one takes over.
+const vite = readFileSync(join(import.meta.dirname, "..", "vite.config.ts"), "utf8");
+const main = readFileSync(join(import.meta.dirname, "..", "src", "main.tsx"), "utf8");
+assert.match(vite, /skipWaiting: true/, "a waiting service worker serves the old app for ever");
+assert.match(vite, /clientsClaim: true/);
+assert.match(main, /controllerchange/, "the page must reload when a new worker takes over");
+
+console.log("PASS: client letterbox/orientation/turned-view/keyboard/update tests");

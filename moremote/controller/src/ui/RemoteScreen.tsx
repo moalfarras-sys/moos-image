@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { RemoteConnection } from "../lib/ws";
 import { GestureController } from "../lib/gestures";
 import { DesktopInput } from "../lib/desktop";
-import {normalizeContentPoint} from "../lib/coordinates";
-import { decodeJpeg, drawableSize, closeDrawable, H264Stream, type Drawable } from "../lib/decode";
+import {normalizeContentPoint, normalizeRotatedPoint, projectPoint} from "../lib/coordinates";
+import { decodeJpeg, drawableSize, closeDrawable, canDecodeH264, H264Stream, type Drawable } from "../lib/decode";
 import {
   getClipboard, setClipboard, setClipboardImage, listFiles, fileDownloadUrl, uploadFile, powerAction,
   type ClipResult, type FileListing, type FileEntry, type PowerAction,
@@ -18,7 +18,13 @@ import {
 
 type Conn = "connecting" | "live" | "paused" | "stopped" | "reconnecting" | "idle";
 type Sheet = null | "view" | "more" | "clip" | "files";
-interface Layout { dispW: number; dispH: number; ox: number; oy: number; }
+/**
+ * The on-screen rectangle the picture occupies, and whether it is drawn turned a quarter turn
+ * inside it. `dispW`/`dispH` are always the SCREEN box — so letterboxing, panning, zoom clamping
+ * and hit-testing keep working on a plain axis-aligned rectangle, and only the draw call and the
+ * two coordinate helpers ever need to know about the rotation.
+ */
+interface Layout { dispW: number; dispH: number; ox: number; oy: number; rot: boolean; }
 
 // Copy text to the phone's clipboard. navigator.clipboard only exists in a *secure context*
 // (HTTPS / localhost) — over Tailscale we're served on plain http://100.x, so it's undefined
@@ -136,6 +142,9 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   // render and must never route a frame to the decoder we have just left.
   const codecRef = useRef<"jpeg" | "h264">("jpeg");
   const h264Ref = useRef<H264Stream | null>(null);
+  /** How many times we have re-offered H.264 after a decode failure, and the pending re-offer. */
+  const h264RetriesRef = useRef(0);
+  const h264RetryTimer = useRef<number | null>(null);
   const view = useRef({ zoom: 1, panX: 0, panY: 0 });
   const fpsCount = useRef(0);
   const lastVal = useRef("");
@@ -171,6 +180,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const [latency, setLatency] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [toolbar, setToolbar] = useState(true);
+  /** Is the viewport taller than it is wide? Drives whether the Fill-screen control is offered. */
   const [statsOpen, setStatsOpen] = useState(false);
   const [sound, setSound] = useState<"off" | "connecting" | "on" | "unavailable">("off");
   const [codec, setCodec] = useState<"jpeg" | "h264">("jpeg");
@@ -184,11 +194,68 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   // right for a 3D view and wrong for everything else. Opt in per taste, remembered per browser.
   const [pointerLock,setPointerLock]=usePref("pointerLock",false);
   const [haptics,setHaptics]=usePref("haptics",true);
+  /**
+   * Which way up the desktop is drawn — AND WHETHER THAT IS THE APP'S DECISION OR THE USER'S.
+   *
+   * This started as a boolean ("fill the screen: yes/no") and a boolean is the wrong shape, because
+   * it conflates two different questions the user has: *should it turn?* and *may it change its mind
+   * while I am using it?* An automatic rule that re-decides on every viewport change is exactly what
+   * makes a remote desktop feel unstable — the address bar slides, the soft keyboard opens, and the
+   * whole picture flips a quarter turn under your thumb. Nothing you did caused it and nothing tells
+   * you why.
+   *
+   *   auto  — turn it when the phone is upright and turning genuinely wins (the default)
+   *   on    — LOCKED turned. It stays sideways whatever the viewport does.
+   *   off   — LOCKED upright. Never turned, even if that wastes most of the screen.
+   *
+   * The two locks are the point: "I decide when it turns, or I lock it" is the request, and a lock
+   * that only holds in one direction is not a lock.
+   */
+  type Orient = "auto" | "on" | "off";
+  const [orient,setOrient]=usePref<Orient>("orient","auto");
   const mouseSensitivityRef=useRef(mouseSensitivity);mouseSensitivityRef.current=mouseSensitivity;
   const scrollSensitivityRef=useRef(scrollSensitivity);scrollSensitivityRef.current=scrollSensitivity;
   const naturalScrollRef=useRef(naturalScroll);naturalScrollRef.current=naturalScroll;
   const pointerLockRef=useRef(pointerLock);pointerLockRef.current=pointerLock;
   const hapticsRef=useRef(haptics);hapticsRef.current=haptics;
+  /**
+   * Magnify around the caret while the keyboard is up.
+   *
+   * OFF by default, and that is a deliberate reversal of where this started. The complaint being
+   * answered is "the screen goes up and gets choked when I type" — it is a complaint about the
+   * picture MOVING, and an automatic 2.2x zoom is more movement, not less. Tested against a real
+   * session it also lands wherever the pointer happens to be, which is frequently a blank part of
+   * an editor: the viewer loses the whole desktop and gains a magnified view of nothing.
+   *
+   * What typing needs unconditionally is the LIFT — the caret out from under the keyboard — and
+   * that always happens. Magnification is a genuine help when you are editing text and a genuine
+   * nuisance when you are not, so it is a switch the user owns rather than a decision made for them.
+   */
+  const [typingZoom,setTypingZoom]=usePref("typingZoom",false);
+  const typingZoomRef=useRef(typingZoom);typingZoomRef.current=typingZoom;
+  const orientRef=useRef(orient);orientRef.current=orient;
+  /**
+   * How much of the bottom of the canvas is hidden behind the soft keyboard and its bar, in CSS px.
+   *
+   * The canvas is NOT shrunk to fit above them any more (see the keyboard effect for why that was
+   * the wrong shape), so this is the one number that tells the rest of the layout where the usable
+   * screen actually ends: clampPan grants exactly this much extra upward travel, so a picture that
+   * fits perfectly can still be lifted clear of the keyboard.
+   */
+  const kbInsetRef=useRef(0);
+  /**
+   * The rotation decision, frozen for as long as the keyboard is open.
+   *
+   * Opening the keyboard changes the shape of the visible area — on a 375x667 phone a 260px keyboard
+   * leaves a band that is WIDER THAN IT IS TALL — and the automatic rule reads that as "landscape,
+   * so stop turning the picture". So tapping into a text box flipped the entire desktop a quarter
+   * turn, and closing the keyboard flipped it back. You cannot type into something that moves when
+   * you reach for it. The answer is not a cleverer rule: it is to stop asking the question while the
+   * user is mid-task. null = not latched.
+   */
+  const kbRotLatch=useRef<boolean|null>(null);
+  /** The view to put back when the keyboard closes, saved when it opened. */
+  const kbSavedView=useRef<{zoom:number;panX:number;panY:number}|null>(null);
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
   const [selMonitor, setSelMonitor] = useState(0);
   const [pcClip, setPcClip] = useState<ClipResult>({ kind: "empty" });
@@ -198,6 +265,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const [fileBusy, setFileBusy] = useState(false);
   const fileUpRef = useRef<HTMLInputElement>(null);
 
+  const kbOpenRef = useRef(kbOpen); kbOpenRef.current = kbOpen;
   const modeRef = useRef(mode); modeRef.current = mode;
   const viewModeRef = useRef(viewMode); viewModeRef.current = viewMode;
   const presetIdxRef = useRef(presetIdx); presetIdxRef.current = presetIdx;
@@ -215,25 +283,69 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   };
 
   // ---------- layout / mapping ----------
+
+  /**
+   * Should the picture be turned a quarter turn to fit this viewport?
+   *
+   * MEASURED, NOT ESTIMATED. On this controller at 390x844 with the desktop fitted upright, the
+   * picture occupied rows 312..528 of 844 — 25.6% of the display lit and 74.4% black. The app's
+   * only answer was a toast reading "Turn your phone sideways for a full-size desktop", which is
+   * advice rather than a fix: it is ignored in a plain browser tab (no orientation lock is granted
+   * outside fullscreen), ignored on iOS entirely, and it asks the user to hold the phone in the one
+   * way it is least comfortable to hold.
+   *
+   * Turning the PICTURE gives the same desktop 100% of the same display. It costs one canvas
+   * transform, and it disables itself the moment the viewport really is landscape — so a user who
+   * does rotate the phone, or who is on a computer, never meets it at all.
+   *
+   * Gated on the SOURCE being landscape too: rotating a portrait remote screen inside a portrait
+   * phone would make it smaller, not bigger.
+   */
+  const shouldRotate = (iw: number, ih: number) => {
+    // A locked orientation is a promise, so it is answered before anything else is even measured.
+    const mode = orientRef.current;
+    if (mode === "off") return false;
+    if (mode === "on") return true;
+    // Automatic. While the keyboard is open the answer is whatever it was when the keyboard opened —
+    // see kbRotLatch for why re-deciding mid-sentence is the worst possible moment.
+    if (kbRotLatch.current !== null) return kbRotLatch.current;
+    const c = canvasRef.current;
+    if (!c) return false;
+    const cssW = c.clientWidth, cssH = c.clientHeight;
+    if (cssW <= 0 || cssH <= 0 || iw <= 0 || ih <= 0) return false;
+    if (cssH <= cssW) return false;          // the viewport is already landscape — nothing to gain
+    if (iw <= ih) return false;              // a portrait desktop in a portrait phone already fits
+    // Only when it genuinely wins. min(w/iw,h/ih) upright against min(w/ih,h/iw) turned: below a
+    // meaningful margin this is churn, and churn on an axis-flipping transform is disorienting.
+    const upright = Math.min(cssW / iw, cssH / ih);
+    const turned = Math.min(cssW / ih, cssH / iw);
+    return turned > upright * 1.15;
+  };
+
   const computeLayout = (): Layout | null => {
     const c = canvasRef.current, f = frameRef.current;
     if (!c || !f) return null;
     const cssW = c.clientWidth, cssH = c.clientHeight;
     const { w: iw, h: ih } = drawableSize(f);
+    const rot = shouldRotate(iw, ih);
+    // The source's dimensions AS THEY APPEAR ON SCREEN. Everything downstream — fitting, panning,
+    // clamping, hit-testing — then works in screen space and never has to branch on the rotation.
+    const sw = rot ? ih : iw, sh = rot ? iw : ih;
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-    const base = viewModeRef.current === "actual" ? 1 / dpr : Math.min(cssW / iw, cssH / ih);
+    const base = viewModeRef.current === "actual" ? 1 / dpr : Math.min(cssW / sw, cssH / sh);
     const z = view.current.zoom;
-    const dispW = iw * base * z, dispH = ih * base * z;
+    const dispW = sw * base * z, dispH = sh * base * z;
     const ox = (cssW - dispW) / 2 + view.current.panX;
     const oy = (cssH - dispH) / 2 + view.current.panY;
-    return { dispW, dispH, ox, oy };
+    return { dispW, dispH, ox, oy, rot };
   };
 
   const toNorm = (clientX: number, clientY: number) => {
     const c = canvasRef.current, l = computeLayout();
     if (!c || !l) return { x: 0.5, y: 0.5 };
     const r = c.getBoundingClientRect();
-    return normalizeContentPoint(clientX,clientY,{left:r.left+l.ox,top:r.top+l.oy,width:l.dispW,height:l.dispH});
+    const box = {left:r.left+l.ox,top:r.top+l.oy,width:l.dispW,height:l.dispH};
+    return l.rot ? normalizeRotatedPoint(clientX,clientY,box) : normalizeContentPoint(clientX,clientY,box);
   };
 
   /**
@@ -274,7 +386,19 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     const maxX = Math.max(0, (l.dispW - c.clientWidth) / 2);
     const maxY = Math.max(0, (l.dispH - c.clientHeight) / 2);
     view.current.panX = Math.min(maxX, Math.max(-maxX, view.current.panX));
-    view.current.panY = Math.min(maxY, Math.max(-maxY, view.current.panY));
+    // UPWARD TRAVEL IS ALLOWED PAST THE NORMAL LIMIT WHILE THE KEYBOARD IS UP.
+    //
+    // A picture that fits exactly has no overflow, so the symmetric clamp pins panY to 0 — and a
+    // picture pinned at 0 has its bottom third behind the keyboard, which is where the text field
+    // you are typing into invariably is. The old code solved that by SHRINKING the canvas to the
+    // band above the keyboard, which is what made the picture "choke": on a 390-wide phone the
+    // desktop collapsed into a 234x416 stamp with black on all four sides.
+    //
+    // Lifting is the honest fix. The canvas keeps its full size, the picture slides up by up to the
+    // height of what is covering it, and the part you are working on comes out from underneath.
+    // Downward travel is unchanged — there is nothing hidden at the top to reach.
+    const lift = kbInsetRef.current;
+    view.current.panY = Math.min(maxY, Math.max(-(maxY + lift), view.current.panY));
   };
 
   // ---------- setup ----------
@@ -335,14 +459,36 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
         // neighbour on downscaled text drops whole stems and shimmers every frame, which is why
         // pinching in to read something made it worse rather than better.
         const smoothDpr = Math.min(window.devicePixelRatio || 1, 2.5);
-        const sampling = (l.dispW * smoothDpr) / drawableSize(f).w;
+        // The screen extent of the SOURCE'S WIDTH — which is the box's height once the picture is
+        // turned. Comparing the wrong one against the source width would report a 2x downscale as a
+        // 2x upscale on a rotated phone and switch smoothing exactly backwards.
+        const alongSourceW = l.rot ? l.dispH : l.dispW;
+        const sampling = (alongSourceW * smoothDpr) / drawableSize(f).w;
         ctx.imageSmoothingEnabled = sampling < 1.5;
         ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(f, l.ox, l.oy, l.dispW, l.dispH);
+        if (l.rot) {
+          // A quarter turn ANTICLOCKWISE about the centre of the box, so that tilting the phone
+          // clockwise — the instinctive direction, and the one that yields landscape-primary on
+          // essentially every handset — brings the desktop upright. Drawn with the source's own
+          // dimensions in the rotated frame, where the box's width and height are swapped.
+          ctx.save();
+          ctx.translate(l.ox + l.dispW / 2, l.oy + l.dispH / 2);
+          ctx.rotate(-Math.PI / 2);
+          ctx.drawImage(f, -l.dispH / 2, -l.dispW / 2, l.dispH, l.dispW);
+          ctx.restore();
+        } else {
+          ctx.drawImage(f, l.ox, l.oy, l.dispW, l.dispH);
+        }
         const dot = cursorRef.current;
         if (dot) {
-          dot.style.transform =
-            `translate(${l.ox + cursorNorm.current.x * l.dispW}px, ${l.oy + cursorNorm.current.y * l.dispH}px)`;
+          // The cursor is a DOM element over the canvas, so it is placed in screen space through
+          // the same projection the hit-test inverts — never by multiplying out the box directly,
+          // which is right in one orientation and silently wrong in the other.
+          const p = projectPoint(cursorNorm.current.x, cursorNorm.current.y,
+            { left: l.ox, top: l.oy, width: l.dispW, height: l.dispH }, l.rot);
+          // Turn the arrow with the picture as well: an upright pointer over a turned desktop
+          // points at nothing the desktop recognises as "up and left".
+          dot.style.transform = `translate(${p.x}px, ${p.y}px)` + (l.rot ? " rotate(-90deg)" : "");
         }
       }
       raf = requestAnimationFrame(draw);
@@ -380,6 +526,30 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       codecRef.current = "jpeg";
       connRef.current?.setH264(false);
       showToast("Video fell back to JPEG");
+
+      // AND THEN TRY AGAIN, because "fell back" used to mean "for ever".
+      //
+      // This was a one-way door: one decode error and the flag stayed false for the whole session,
+      // so the room ran at whole-picture JPEG — measured at 79 Mbit/s against H.264's 4.3 at 1080p —
+      // until someone thought to reload the page. The trigger does not have to be a broken device:
+      // a VideoDecoder can error transiently on a reload that lands mid-GOP, on a phone that
+      // thermally throttled for a moment, on a tab that was backgrounded at the wrong instant. A
+      // permanent penalty for a temporary condition is exactly the shape of "it was fine and then it
+      // got worse and never recovered".
+      //
+      // Backed off and bounded: the first retry is generous enough that a device in real trouble has
+      // stopped being in trouble, each subsequent one waits longer, and after three we accept that
+      // this browser genuinely cannot decode H.264 and stop asking. A retry costs one keyframe.
+      if (h264RetriesRef.current < 3) {
+        const wait = 15000 * Math.pow(2, h264RetriesRef.current);
+        h264RetriesRef.current++;
+        if (h264RetryTimer.current) window.clearTimeout(h264RetryTimer.current);
+        h264RetryTimer.current = window.setTimeout(() => {
+          if (disposed || !canDecodeH264()) return;
+          h264Ref.current?.reset();
+          connRef.current?.setH264(true);
+        }, wait);
+      }
     }, () => connRef.current?.requestKeyframe());
     h264Ref.current = h264;
 
@@ -436,9 +606,12 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       const src = screenSizeRef.current;
       if (!src.w || !src.h || r.width <= 0 || r.height <= 0) return {};
       // No frame yet: the whole canvas IS the content, letterboxed to the desktop's aspect ratio the
-      // same way computeLayout would do it once a frame exists.
-      const base = Math.min(r.width / src.w, r.height / src.h);
-      const dispW = src.w * base, dispH = src.h * base;
+      // same way computeLayout would do it once a frame exists — including the quarter turn, so the
+      // very first taps of a session land where they were aimed rather than transposed.
+      const rot = shouldRotate(src.w, src.h);
+      const sw = rot ? src.h : src.w, sh = rot ? src.w : src.h;
+      const base = Math.min(r.width / sw, r.height / sh);
+      const dispW = sw * base, dispH = sh * base;
       return { content:{left:(r.width-dispW)/2, top:(r.height-dispH)/2, width:dispW, height:dispH},
         canvas:{left:r.left,top:r.top,width:r.width,height:r.height}, source:src };
     });
@@ -446,7 +619,13 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     conn.connect();
 
     const gest = new GestureController(canvas, toNorm, () => view.current.zoom, {
-      click: (b, x, y) => conn.click(b, x, y),
+      click: (b, x, y) => {
+        conn.click(b, x, y);
+        // Tapping a DIFFERENT field while the keyboard is up should bring that field into view, not
+        // leave the viewer looking at the last one. Deferred a frame so the click lands first and
+        // the cursor position this reads is the one the user just chose.
+        if (kbOpenRef.current) requestAnimationFrame(() => focusCursor());
+      },
       dblclick: (x, y) => conn.dblclick(x, y),
       moveCursor: (x, y) => conn.move(x, y),
       dragStart: (x, y) => conn.down("left", x, y),
@@ -458,9 +637,13 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
         view.current.zoom = Math.min(5, Math.max(minZoom(), view.current.zoom * factor));
         const l = computeLayout(), c = canvasRef.current;
         if (l && c) {
+          // Keep the pixel that was under the fingers under the fingers. Projected rather than
+          // multiplied out, so the anchor holds in a rotated view too.
           const r = c.getBoundingClientRect();
-          view.current.panX += (fx - r.left) - (l.ox + before.x * l.dispW);
-          view.current.panY += (fy - r.top) - (l.oy + before.y * l.dispH);
+          const p = projectPoint(before.x, before.y,
+            { left: l.ox, top: l.oy, width: l.dispW, height: l.dispH }, l.rot);
+          view.current.panX += (fx - r.left) - p.x;
+          view.current.panY += (fy - r.top) - p.y;
         }
         clampPan();
         drawEpochRef.current++;
@@ -468,7 +651,9 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       panBy: (dx, dy) => { view.current.panX += dx; view.current.panY += dy; clampPan(); drawEpochRef.current++; },
       cursorAt: (x, y) => { cursorNorm.current = { x, y }; drawEpochRef.current++; },
       haptic: () => {if(hapticsRef.current)navigator.vibrate?.(8);},
-    }, () => mouseSensitivityRef.current, inContent, canPan);
+      zoomToggleAt: (fx, fy) => zoomToggleAt(fx, fy),
+    }, () => mouseSensitivityRef.current, inContent, canPan,
+       () => computeLayout()?.rot ?? false);
     gest.setMode(modeRef.current);
     gestureRef.current = gest;
 
@@ -484,21 +669,29 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       keyCode: (code, down) => conn.keyCode(code, down),
       text: (v) => conn.text(v),
       cursorAt: (x, y) => { cursorNorm.current = { x, y }; drawEpochRef.current++; },
+      pasteIntent: () => { pasteIntentAt.current = performance.now(); armPasteFallback(); },
     }, () => scrollSensitivityRef.current, () => pointerLockRef.current);
     desktopRef.current = desk;
     if (modeRef.current === "desktop") desk.attach();
 
     const fpsTimer = window.setInterval(() => { setFps(fpsCount.current); fpsCount.current = 0; }, 1000);
     bumpToolbar();
-    // A 16:9 desktop fitted into a 9:19.5 phone uses 26% of the screen; turned sideways it uses
-    // 82%. The app already asks the OS to rotate on fullscreen, but that call is ignored on iOS
-    // and never fires in a plain tab — so in a portrait tab nothing tells the user the answer.
-    if (window.innerHeight > window.innerWidth) {
-      window.setTimeout(() => showToast("Turn your phone sideways for a full-size desktop"), 900);
+    // The old advice here was "Turn your phone sideways for a full-size desktop", shown on every
+    // portrait launch. It is gone because the app now does that itself (see shouldRotate): the
+    // picture is turned to fill the display and the user does not have to be told anything.
+    //
+    // What replaces it is said once, ever, and is about the thing that is genuinely not guessable:
+    // the gesture. Two fingers do three different jobs here and none of them is discoverable by
+    // looking, so the one hint that earns its space is the one naming them.
+    if (!localStorage.getItem("moremote.seenGestureHint")) {
+      try { localStorage.setItem("moremote.seenGestureHint", "1"); } catch { /* private mode */ }
+      window.setTimeout(() => showToast("Two fingers: scroll · pinch to zoom · double-tap to magnify"), 1400);
     }
 
     return () => {
       disposed = true;
+      if (h264RetryTimer.current) window.clearTimeout(h264RetryTimer.current);
+      h264RetryTimer.current = null;
       h264Ref.current?.reset();
       h264Ref.current = null;
       cancelAnimationFrame(raf);
@@ -516,6 +709,146 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  /**
+   * Stop the stream while nobody is looking, and pick it back up cleanly.
+   *
+   * A hidden tab does not close its socket: the browser throttles rAF and timers to almost nothing
+   * while the WebSocket keeps delivering at full rate, so frames pile up in a receive buffer the
+   * page is not draining. Caught on the live machine on a tab that had merely been switched away
+   * from — `ss -tn` reported Recv-Q 7301038, seven megabytes of desktop nobody watched. Returning to
+   * that tab means several seconds of the past playing out before the present arrives, which is
+   * precisely the "it freezes and then everything happens at once" report. On a phone the same thing
+   * is battery and mobile data spent on a screen that is in a pocket, and it is why the remote makes
+   * a phone hot.
+   *
+   * Three things happen on hide, and each is doing different work:
+   *   - the agent is told nobody is watching, which (once every viewer agrees) tears the encode
+   *     pipeline down and stops the compositor copying frames at all;
+   *   - the H.264 decoder is reset, because whatever it holds will be stale by the time anyone
+   *     looks again and a half-decoded GOP is not worth carrying;
+   *   - nothing else. In particular the socket stays open, so the session, the token and the input
+   *     path all survive a glance at another app.
+   *
+   * On show, the reverse plus a keyframe request: the pipeline has to start from an IDR, and asking
+   * is far cheaper than waiting up to a full GOP staring at a frozen picture.
+   */
+  useEffect(() => {
+    const onVis = () => {
+      const conn = connRef.current;
+      if (!conn) return;
+      if (document.hidden) {
+        conn.setWatching(false);
+        h264Ref.current?.reset();
+        pendingRef.current = null;
+      } else {
+        conn.setWatching(true);
+        conn.requestKeyframe();
+        // The canvas still holds the last frame from before, and the first new one may be a moment
+        // away; repaint so the letterboxing is right for whatever size we came back at.
+        drawEpochRef.current++;
+      }
+    };
+    // iOS fires pagehide rather than visibilitychange when Safari is backgrounded from the app
+    // switcher. Same intent, different name; both are wired, and both are removed.
+    const onHide = () => connRef.current?.setWatching(false);
+    const onShow = () => { connRef.current?.setWatching(true); connRef.current?.requestKeyframe(); };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("pageshow", onShow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("pageshow", onShow);
+    };
+  }, []);
+
+  /**
+   * COPY ON YOUR COMPUTER, PASTE INTO THE REMOTE — with the keys you already use.
+   *
+   * Ctrl+V is not forwarded as a chord (see DesktopInput.onKeyDown). Instead the browser's own
+   * `paste` event delivers what is on the LOCAL clipboard, that text is pushed to the remote's
+   * clipboard, and only then is Ctrl+V pressed over there. The result is what the user expected the
+   * first time: the thing they copied here appears in the window they are looking at.
+   *
+   * The fallback is what makes it safe to intercept a key at all. A browser may decline to fire
+   * `paste` — nothing on the clipboard, an image rather than text, a policy that requires a user
+   * gesture the page did not get. If nothing has arrived within PASTE_WAIT_MS the chord is forwarded
+   * exactly as it always was, so the worst case is the previous behaviour rather than a dead key.
+   */
+  const PASTE_WAIT_MS = 140;
+  const pasteIntentAt = useRef(0);
+  const pasteTimer = useRef<number | null>(null);
+
+  const armPasteFallback = useCallback(() => {
+    if (pasteTimer.current) window.clearTimeout(pasteTimer.current);
+    pasteTimer.current = window.setTimeout(() => {
+      pasteTimer.current = null;
+      if (!pasteIntentAt.current) return;
+      pasteIntentAt.current = 0;
+      connRef.current?.combo(["Control", "V"]);   // the old behaviour, unchanged
+    }, PASTE_WAIT_MS);
+  }, []);
+
+  useEffect(() => {
+    if (mode !== "desktop") return;
+    const onPaste = async (e: ClipboardEvent) => {
+      // Only when the viewer actually asked for a paste on the REMOTE. A paste into the app's own
+      // "Send text" box, or into the PIN field, is that field's business and must not be hijacked.
+      if (!pasteIntentAt.current || performance.now() - pasteIntentAt.current > 1500) return;
+      const text = e.clipboardData?.getData("text") ?? "";
+      if (!text) return;                          // let the fallback forward the chord
+      e.preventDefault();
+      pasteIntentAt.current = 0;
+      if (pasteTimer.current) { window.clearTimeout(pasteTimer.current); pasteTimer.current = null; }
+      try {
+        await setClipboard(token, text);
+        connRef.current?.combo(["Control", "V"]);
+      } catch {
+        // The clipboard endpoint refused. Pressing Ctrl+V anyway is strictly better than nothing:
+        // whatever is on the remote's own clipboard is at least something the user can see and undo.
+        connRef.current?.combo(["Control", "V"]);
+        showToast("Couldn't send the clipboard to the PC");
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, token]);
+
+  /**
+   * On a computer, reach for the toolbar the way you reach for a dock: put the pointer at the
+   * bottom edge.
+   *
+   * The bar hides itself after a few seconds — correctly, because on a phone it sits over the part
+   * of the desktop you are trying to touch. But the way BACK is a 44px handle at the side of the
+   * screen, and a handle is a touch affordance: on a phone it is a thumb's width away from wherever
+   * the thumb already is, and on a computer it is a deliberate trip across the window with a mouse,
+   * to hit a target smaller than most buttons, every single time you want Files or the keyboard.
+   *
+   * A mouse has something a finger does not: it can hover. So in desktop mode the bottom strip of
+   * the window summons the bar, which is the gesture every dock and every full-screen video player
+   * already trained everyone to make. The handle stays for anyone who wants it.
+   *
+   * Deliberately not wired in the touch modes: there is no hover there, and a pointermove from a
+   * finger already means something else entirely.
+   */
+  useEffect(() => {
+    if (mode !== "desktop") return;
+    const EDGE = 76;
+    let armed = true;
+    const onMove = (e: PointerEvent) => {
+      const near = e.clientY > window.innerHeight - EDGE;
+      // Re-arm only after the pointer has LEFT the strip, so sitting still down there does not
+      // restart the hide timer on every jitter — and so the bar can still time out while the
+      // pointer rests over the dock the user is actually aiming at.
+      if (near && armed) { armed = false; bumpToolbar(); }
+      else if (!near) armed = true;
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
 
   useEffect(() => {
     gestureRef.current?.setMode(mode);
@@ -549,8 +882,33 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheet, token]);
 
-  // When the iOS keyboard opens, shrink the screen view so it sits right above the
-  // keyboard bar (no big black gap), and pin the bar just above the on-screen keyboard.
+  /**
+   * TYPING ON A PHONE, AND WHY THIS IS NOT A LAYOUT PROBLEM.
+   *
+   * WHAT IT USED TO DO. When the keyboard came up, the canvas was shrunk to the band left above it
+   * (`canvas.style.height = vv.height - barH`) so that nothing was hidden. That sounds right and it
+   * is the source of both complaints:
+   *
+   *   - THE PICTURE CHOKES. A 390x844 phone with a 336px keyboard leaves a 390x416 band, and a 16:9
+   *     desktop fitted into that is a 390x219 stamp — or, turned, a 234x416 sliver. The desktop's
+   *     text was already 4x too small to read at full height; in a third of the height it is not
+   *     text, it is texture. You cannot type into something you cannot read.
+   *   - IT FLIPS. That band is often WIDER THAN IT IS TALL (on a 375x667 phone: 375x315), and the
+   *     automatic rotation rule reads "wider than tall" as "landscape, stop turning the picture". So
+   *     tapping a text box rotated the whole desktop a quarter turn, and dismissing the keyboard
+   *     rotated it back.
+   *
+   * WHAT IT DOES NOW. The canvas keeps its full size and the PICTURE moves instead:
+   *
+   *   1. the rotation is latched, so nothing flips while you are mid-sentence;
+   *   2. `kbInsetRef` records how much of the bottom is covered, which is what buys clampPan the
+   *      extra upward travel to lift a fitted picture clear of the keyboard;
+   *   3. the view zooms to a readable magnification and centres on the cursor — the one place on
+   *      the desktop that matters while typing is where the caret is;
+   *   4. all of it is put back exactly as it was when the keyboard closes.
+   *
+   * The whole screen stays the whole screen; the part you are working on comes to meet you.
+   */
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
@@ -561,7 +919,9 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       if (bar) bar.style.transform = kbOpen ? `translateY(${-kb}px)` : "";
       const barH = bar?.offsetHeight ?? 92;
-      canvas.style.height = kbOpen ? Math.max(140, vv.height - barH) + "px" : "";
+      // The canvas is deliberately NOT resized here any more; see the note above. What the rest of
+      // the layout needs is not a smaller surface but an honest number for how much of it is buried.
+      kbInsetRef.current = kbOpen ? Math.min(kb + barH, canvas.clientHeight * 0.75) : 0;
 
       // ASSIGNING canvas.width WIPES THE CANVAS — WHICH IS WHY THIS USED TO GO BLACK.
       //
@@ -591,6 +951,9 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
         canvas.height = h;
         canvas.getContext("2d")?.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
+      // Keep the caret above the keyboard as the keyboard's own height changes — it does, on both
+      // platforms, when a suggestion strip appears or an emoji panel opens.
+      if (kbOpen) focusCursor();
       clampPan();   // the visible area just changed; see the note in resize()
       drawEpochRef.current++;
     };
@@ -598,19 +961,183 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     vv.addEventListener("scroll", update);
     update();
     return () => { vv.removeEventListener("resize", update); vv.removeEventListener("scroll", update); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kbOpen]);
+
+  /**
+   * Bring the remote cursor into the band the keyboard has not covered, at a size you can read.
+   *
+   * ZOOM. At "fit" on a phone the desktop is reduced about four times, which is fine for finding a
+   * window and useless for reading the line you are typing. ZOOM_SNAP (2.2x) is the same
+   * magnification the two-finger double-tap uses, so "readable" means one thing in this app rather
+   * than two. It only ever zooms IN — a viewer who had already pinched closer keeps their zoom.
+   *
+   * PLACEMENT. 0.42 of the free band, not 0.5: text sits ABOVE the caret, so leaving a little more
+   * room below it puts the line you are writing and the two lines you just wrote all on screen.
+   */
+  const KB_FOCUS_Y = 0.42;
+  const focusCursor = () => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const band = Math.max(80, c.clientHeight - kbInsetRef.current);
+    if (typingZoomRef.current) {
+      view.current.zoom = Math.min(5, Math.max(view.current.zoom, minZoom() * ZOOM_SNAP));
+    }
+    const l = computeLayout();
+    if (!l) return;
+    const p = projectPoint(cursorNorm.current.x, cursorNorm.current.y,
+      { left: l.ox, top: l.oy, width: l.dispW, height: l.dispH }, l.rot);
+    view.current.panX += c.clientWidth / 2 - p.x;
+    view.current.panY += band * KB_FOCUS_Y - p.y;
+    clampPan();
+    drawEpochRef.current++;
+  };
+
+  /**
+   * Enter and leave the typing mode. Called from the two buttons, NOT from an effect on `kbOpen`.
+   *
+   * WHY NOT AN EFFECT, WHICH IS WHERE THIS WAS AND WHY THE RESTORE SILENTLY DID NOTHING
+   *
+   * Both this and the visualViewport handler above key off `kbOpen`, and React runs effects in the
+   * order they are declared. The viewport one is declared first, so on open it ran first, called
+   * focusCursor(), and zoomed — and only THEN did this one run and save "the view to put back",
+   * which by that point was the zoomed view. Closing the keyboard restored the magnification it was
+   * supposed to undo, and the viewer was left at 2.2x on a random part of the desktop with no way
+   * back but a manual reset.
+   *
+   * The user's press is the only moment that unambiguously precedes every consequence of it. Saving
+   * and restoring there removes the ordering question rather than answering it.
+   */
+  const enterTyping = () => {
+    if (!kbSavedView.current) kbSavedView.current = { ...view.current };
+    // Latch the rotation while the viewport still has the shape the user can see; see kbRotLatch.
+    const f = frameRef.current;
+    if (f) { const s = drawableSize(f); kbRotLatch.current = shouldRotate(s.w, s.h); }
+  };
+
+  const leaveTyping = () => {
+    kbRotLatch.current = null;
+    kbInsetRef.current = 0;
+    const saved = kbSavedView.current;
+    kbSavedView.current = null;
+    if (saved) view.current = saved;
+    clampPan();
+    drawEpochRef.current++;
+  };
 
   // ---------- settings (quality + view) ----------
   // Read the preset through a ref: onHello is wired once, so closing over presetIdx directly
   // would make every reconnect re-send the preset that was selected on first render.
+  /**
+   * How many encoded pixels this viewer can actually SHOW.
+   *
+   * WHY THE PRESET ALONE WAS THE WRONG ANSWER IN BOTH DIRECTIONS
+   *
+   * The request was the preset's width and nothing else — the same 1366 or 1920 whether the picture
+   * was being drawn into a 390px-wide phone or a 2560px-wide browser window. That is wrong twice
+   * over, and each way is one of the two complaints this change exists to answer:
+   *
+   *   ON A PHONE it asks for pixels that are thrown away before they are ever seen. Measured here:
+   *   a 390x844 phone showing the desktop fitted upright draws it 390 CSS px wide; at DPR 3 that is
+   *   1170 real pixels, and "Balanced" was asking the encoder for 1366 while "Sharp" asked for
+   *   1920 — 64% more bits than the display can resolve. Those bits are not free: they are encode
+   *   time, bitrate on a cellular link, and decode work on a phone that is already the slowest thing
+   *   in the chain. Paying them buys literally nothing visible.
+   *
+   *   ON A COMPUTER it asks for FEWER pixels than the window shows, and there is no way to get them
+   *   back. A 2560-wide browser window on the default preset was being sent 1366 and upscaling it by
+   *   1.9x — which is exactly the "the picture is not sharp when I open it on the computer" report,
+   *   and no bitrate could have fixed it, because the detail was discarded before the encoder.
+   *
+   * So ask for what is on screen. The preset stays in charge of BANDWIDTH — it owns quality (bits
+   * per pixel) and fps, and its width remains the ceiling — but it can no longer demand more pixels
+   * than exist, and see autoMaxPreset() for how a genuinely large display is allowed past 1920.
+   *
+   * Zoom is included deliberately: pinching in to read something asks the encoder for the detail
+   * that makes it readable, which is the one moment resolution is worth spending on.
+   */
+  const displayWidthPx = () => {
+    const c = canvasRef.current;
+    if (!c) return 0;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    const l = computeLayout();
+    // Before the first frame there is no layout; fit the known desktop size into the canvas the same
+    // way, so the very first settings push is already the right size instead of a guess to be undone.
+    let alongSourceWidth: number;
+    if (l) alongSourceWidth = l.rot ? l.dispH : l.dispW;
+    else {
+      // ...and the estimate has to account for the quarter turn too, or the first request and the
+      // one that replaces it a second later disagree — and every disagreement is a pipeline rebuild
+      // the user watches as a blank screen. Measured before this branch knew about rotation, one
+      // connection produced "Video stream: 974x548" immediately followed by "1366x768": two builds,
+      // for one viewer, whose size never actually changed. `hello` carries the desktop's dimensions,
+      // so there is nothing here that has to be guessed.
+      const src = screenSizeRef.current;
+      const cw = c.clientWidth, ch = c.clientHeight;
+      if (!src.w || !src.h || cw <= 0 || ch <= 0) return 0;
+      const rot = shouldRotate(src.w, src.h);
+      const sw = rot ? src.h : src.w, sh = rot ? src.w : src.h;
+      const base = Math.min(cw / sw, ch / sh);
+      alongSourceWidth = rot ? sh * base : sw * base;
+    }
+    return Math.ceil(alongSourceWidth * dpr);
+  };
+
+  /**
+   * How far the automatic ladder may climb, given what this viewer can actually show.
+   *
+   * AUTO_MAX_PRESET stops at 1920 because RTT is not bandwidth and Ultra's 2560 is a real cost to
+   * impose on a link that merely pings well. That reasoning holds for a phone and inverts for a big
+   * monitor: there, 1920 is not caution, it is a picture that is permanently soft on a machine whose
+   * owner is sitting in front of a screen that can show more. The bitrate is derived from the actual
+   * size now (bits-per-pixel x w x h x fps in the helper), so asking for the pixels the display has
+   * is an honest request rather than an open-ended one.
+   */
+  const autoMaxPreset = () => (displayWidthPx() > 1920 ? QUALITY_PRESETS.length - 1 : AUTO_MAX_PRESET);
+
+  /** The last width we asked for, and when — the dead band and the floor that protect the helper. */
+  const lastPushedWidth = useRef(0);
+  const lastWidthPushAt = useRef(0);
+
   const pushSettings = () => {
     const p = QUALITY_PRESETS[presetIdxRef.current] ?? QUALITY_PRESETS[1];
-    // "100%" means the viewer wants real device pixels rather than a fitted picture, so ask for the
-    // most the encoder will give; otherwise the preset's own width is the request.
-    const width = viewModeRef.current === "actual" ? 2560 : p.width;
+    // "100%" means the viewer wants real device pixels rather than a fitted picture, so the preset's
+    // width stops being a ceiling; everywhere else it still is.
+    const ceiling = viewModeRef.current === "actual" ? 2560 : Math.min(p.width, 2560);
+    const shown = displayWidthPx();
+    // A zero means we could not measure yet (no canvas, no size): fall back to the preset rather
+    // than to a floor, or the first seconds of every session would be a deliberately small picture.
+    const width = shown > 0 ? Math.max(480, Math.min(ceiling, shown)) : ceiling;
+    lastPushedWidth.current = width;
     connRef.current?.settings(p.quality, p.fps, width, Math.min(1, width / 2560));
   };
-  useEffect(() => { pushSettings(); /* eslint-disable-next-line */ }, [presetIdx, viewMode]);
+  // `orient` belongs here: turning the picture swaps which of the source's axes runs across the
+  // screen, so the number of encoded pixels this viewer can show changes with it.
+  useEffect(() => { pushSettings(); /* eslint-disable-next-line */ }, [presetIdx, viewMode, orient]);
+
+  /**
+   * Re-ask when the size the picture is drawn at has genuinely moved.
+   *
+   * Every settings push that changes the width costs the helper a full GStreamer teardown and
+   * rebuild (~200ms with no picture, then a fresh IDR), so this must never chase a pinch frame by
+   * frame. Two guards: a 12% dead band, which is well inside "you would not notice the difference"
+   * and well outside ordinary rounding; and a 1.5s floor, which is longer than any burst of resize
+   * events a rotation or an address bar can produce.
+   */
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!connRef.current?.open) return;
+      const want = displayWidthPx();
+      if (want <= 0) return;
+      const prev = lastPushedWidth.current;
+      if (prev > 0 && Math.abs(want - prev) / prev < 0.12) return;
+      if (Date.now() - lastWidthPushAt.current < 1500) return;
+      lastWidthPushAt.current = Date.now();
+      pushSettings();
+    }, 700);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto quality: adapt to the network using round-trip latency (RTT). We deliberately do NOT
   // use fps — with identical-frame skipping, a still screen sends few frames, which is not lag.
@@ -650,13 +1177,33 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
       if (st.down >= AGREE_DOWN && since > COOLDOWN_DOWN) {
         setPresetIdx((idx) => { if (idx <= 0) return idx; st.last = Date.now(); st.down = 0; return idx - 1; });
       } else if (st.up >= AGREE_UP && since > COOLDOWN_UP) {
-        setPresetIdx((idx) => { if (idx >= AUTO_MAX_PRESET) return idx; st.last = Date.now(); st.up = 0; return idx + 1; });
+        const cap = autoMaxPreset();
+        setPresetIdx((idx) => { if (idx >= cap) return idx; st.last = Date.now(); st.up = 0; return idx + 1; });
       }
     }, SAMPLE_MS);
     return () => window.clearInterval(id);
   }, [auto]);
 
   const selectPreset = (i: number) => { setPresetIdx(i); showToast(`Quality: ${QUALITY_PRESETS[i].label} · ${QUALITY_PRESETS[i].detail}`); };
+  /**
+   * Turning the picture changes which way is "wide", so a pan and a zoom from the old orientation
+   * mean nothing in the new one — reset them rather than clamp them into something arbitrary. The
+   * settings push is what re-asks the encoder for the size the NEW layout will actually show.
+   */
+  const ORIENT_LABEL: Record<Orient, string> = {
+    auto: "Rotation: automatic",
+    on: "Locked sideways — fills the screen",
+    off: "Locked upright",
+  };
+  const chooseOrient = (m: Orient) => {
+    setOrient(m);
+    orientRef.current = m;                    // the draw loop and the hit-test read the ref, now
+    kbRotLatch.current = null;                // an explicit choice outranks a frozen one
+    view.current = { zoom: 1, panX: 0, panY: 0 };
+    invalidate();
+    showToast(ORIENT_LABEL[m]);
+  };
+
   const chooseView = (m: ViewMode) => {
     setViewMode(m);
     view.current = { zoom: m === "actual" ? 1 : 1, panX: 0, panY: 0 };
@@ -666,10 +1213,43 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const zoomBy = (f: number) => { view.current.zoom = Math.min(5, Math.max(minZoom(), view.current.zoom * f)); clampPan(); invalidate(); };
   const resetZoom = () => { view.current = { zoom: 1, panX: 0, panY: 0 }; invalidate(); };
 
+  /**
+   * Snap between "the whole desktop" and "close enough to read", centred where the fingers were.
+   *
+   * There are only two magnifications anyone on a phone actually wants, and pinching between them is
+   * a two-handed operation on a device usually held in one. 2.2x is the point at which 1080p-class
+   * text on a 6" screen becomes readable rather than merely legible; going back is a single gesture
+   * rather than the several pinches it takes to unwind one.
+   *
+   * Reads only refs, so the copy captured by the gesture controller on mount stays correct.
+   */
+  const ZOOM_SNAP = 2.2;
+  const zoomToggleAt = (fx: number, fy: number) => {
+    const c = canvasRef.current;
+    const zoomedIn = view.current.zoom > minZoom() * 1.2;
+    if (zoomedIn) {
+      view.current = { zoom: minZoom(), panX: 0, panY: 0 };
+    } else {
+      const before = toNorm(fx, fy);
+      view.current.zoom = Math.min(5, minZoom() * ZOOM_SNAP);
+      const l = computeLayout();
+      if (l && c) {
+        const r = c.getBoundingClientRect();
+        const p = projectPoint(before.x, before.y,
+          { left: l.ox, top: l.oy, width: l.dispW, height: l.dispH }, l.rot);
+        view.current.panX += (fx - r.left) - p.x;
+        view.current.panY += (fy - r.top) - p.y;
+      }
+    }
+    clampPan();
+    invalidate();
+  };
+
   // ---------- keyboard ----------
   // A real visible input. Tapping it raises the iOS keyboard; we diff its value so typing
   // AND Backspace both work (the field must hold text for iOS to fire delete events).
   const openKeyboard = () => {
+    enterTyping();          // before setKbOpen, so nothing has moved the view yet
     setKbOpen(true);
     const el = inputRef.current;
     if (el) { el.value = ""; lastVal.current = ""; el.focus(); }
@@ -681,7 +1261,29 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     setMods(new Set());
     setKbOpen(false);
     el?.blur();
+    leaveTyping();
   };
+  /**
+   * Keep the phone's keyboard OPEN when one of these buttons is pressed.
+   *
+   * THE BUG, WHICH IS MOST OF "I CANNOT TYPE ON THE PHONE". Every control in the keyboard bar is a
+   * <button>, and on Android Chrome pressing a button moves focus away from the text field — which
+   * closes the soft keyboard. So tapping Ctrl, or Esc, or an arrow key, or Backspace dismissed the
+   * keyboard, and the user had to tap the field again for every single one. Sending Ctrl+C to the
+   * remote desktop should not cost you your keyboard.
+   *
+   * It was guarded with `onMouseDown`, and that is the part that looks right and is not: on a touch
+   * screen the compatibility mouse events are synthesised AFTER the touch has already moved focus,
+   * so the handler runs too late to prevent anything. `pointerdown` is the first event in the
+   * sequence and is the only one early enough. Preventing its default suppresses the focus change
+   * (and the synthetic mouse events) while still delivering `click`, which is what these buttons
+   * actually listen for.
+   *
+   * Spread onto every button in the bar rather than onto the bar itself: the shortcut row scrolls
+   * sideways, and preventing the default on the scroll container would be preventing the scroll.
+   */
+  const keepFocus = { onPointerDown: (e: React.PointerEvent) => e.preventDefault() };
+
   const sendKey = (key: string) => {
     const c = connRef.current; if (!c) return;
     if (mods.size > 0) { c.combo([...mods, key]); setMods(new Set()); } else c.keyTap(key);
@@ -1073,39 +1675,41 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
       {/* keyboard bar: a shortcuts row + a visible input (so typing AND Backspace work). */}
       <div className={"kbbar" + (kbOpen ? " open" : "")} ref={kbbarRef}>
-        <div className="keyrow" onMouseDown={(e) => e.preventDefault()}>
+        {/* THE SCROLL CONTAINER MUST NOT PREVENT ITS OWN DEFAULT — the row scrolls sideways, and
+            that scroll IS a default action. Focus is defended on the BUTTONS instead; see keepFocus. */}
+        <div className="keyrow">
           {(["Control", "Alt", "Shift"] as const).map((m) => (
-            <button key={m} className={"kkey" + (mods.has(m) ? " on" : "")} onClick={() => toggleMod(m)}>
+            <button key={m} {...keepFocus} className={"kkey" + (mods.has(m) ? " on" : "")} onClick={() => toggleMod(m)}>
               {m === "Control" ? "Ctrl" : m}
             </button>
           ))}
-          <button className="kkey" onClick={() => c()?.keyTap("Win")}>Win</button>
+          <button {...keepFocus} className="kkey" onClick={() => c()?.keyTap("Win")}>Win</button>
           <span className="kdiv" />
-          <button className="kkey" onClick={() => c()?.combo(["Control", "A"])}>⌃A</button>
-          <button className="kkey" onClick={() => c()?.combo(["Control", "C"])}>⌃C</button>
-          <button className="kkey" onClick={() => c()?.combo(["Control", "X"])}>⌃X</button>
-          <button className="kkey" onClick={() => c()?.combo(["Control", "V"])}>⌃V</button>
-          <button className="kkey" onClick={() => c()?.combo(["Control", "Z"])}>⌃Z</button>
-          <button className="kkey" onClick={() => c()?.combo(["Alt", "Tab"])}>Alt·Tab</button>
+          <button {...keepFocus} className="kkey" onClick={() => c()?.combo(["Control", "A"])}>⌃A</button>
+          <button {...keepFocus} className="kkey" onClick={() => c()?.combo(["Control", "C"])}>⌃C</button>
+          <button {...keepFocus} className="kkey" onClick={() => c()?.combo(["Control", "X"])}>⌃X</button>
+          <button {...keepFocus} className="kkey" onClick={() => c()?.combo(["Control", "V"])}>⌃V</button>
+          <button {...keepFocus} className="kkey" onClick={() => c()?.combo(["Control", "Z"])}>⌃Z</button>
+          <button {...keepFocus} className="kkey" onClick={() => c()?.combo(["Alt", "Tab"])}>Alt·Tab</button>
           <span className="kdiv" />
-          <button className="kkey" onClick={() => sendKey("Escape")}>Esc</button>
-          <button className="kkey" onClick={() => sendKey("Tab")}>Tab</button>
-          <button className="kkey" onClick={() => sendKey("ArrowLeft")}>←</button>
-          <button className="kkey" onClick={() => sendKey("ArrowUp")}>↑</button>
-          <button className="kkey" onClick={() => sendKey("ArrowDown")}>↓</button>
-          <button className="kkey" onClick={() => sendKey("ArrowRight")}>→</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendKey("Escape")}>Esc</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendKey("Tab")}>Tab</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendKey("ArrowLeft")}>←</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendKey("ArrowUp")}>↑</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendKey("ArrowDown")}>↓</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendKey("ArrowRight")}>→</button>
         </div>
         <div className="kbinput-row">
           <input
             ref={inputRef} className="kbinput" type="text" inputMode="text"
             autoCapitalize="off" autoCorrect="off" autoComplete="off" spellCheck={false}
-            placeholder="اكتب هنا — tap & type"
+            placeholder="اكتب هنا ← يصل للكمبيوتر · type here"
             onInput={onInput} onKeyDown={onInputKeyDown}
             onCompositionStart={onCompositionStart} onCompositionEnd={onCompositionEnd}
           />
-          <button className="kbicon" onMouseDown={(e) => e.preventDefault()} onClick={() => sendKey("Backspace")} aria-label="Backspace">⌫</button>
-          <button className="kbicon" onMouseDown={(e) => e.preventDefault()} onClick={() => sendKey("Enter")} aria-label="Enter">↵</button>
-          <button className="kbdone" onMouseDown={(e) => e.preventDefault()} onClick={closeKeyboard}>Done</button>
+          <button {...keepFocus} className="kbicon" onClick={() => sendKey("Backspace")} aria-label="Backspace">⌫</button>
+          <button {...keepFocus} className="kbicon" onClick={() => sendKey("Enter")} aria-label="Enter">↵</button>
+          <button {...keepFocus} className="kbdone" onClick={closeKeyboard}>Done</button>
         </div>
       </div>
 
@@ -1142,6 +1746,23 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
             <button className={viewMode === "fit" ? "on" : ""} onClick={() => chooseView("fit")}><IconFit /> Fit</button>
             <button className={viewMode === "actual" ? "on" : ""} onClick={() => chooseView("actual")}><IconActual /> 100%</button>
           </div>
+          {/* THE LOCK. Offered on every device, including the ones where it currently changes
+              nothing — because the request is not "turn it for me", it is "let me decide, and then
+              stop changing your mind". A control that appears and disappears with the viewport
+              cannot deliver that promise: the moment you want the lock is the moment the picture
+              just moved, and on a phone that is exactly when a portrait-only control is gone. */}
+          <div className="row-label">Rotation</div>
+          <div className="seg">
+            <button className={orient === "auto" ? "on" : ""} onClick={() => chooseOrient("auto")}>Auto</button>
+            <button className={orient === "on" ? "on" : ""} onClick={() => chooseOrient("on")}>🔒 Sideways</button>
+            <button className={orient === "off" ? "on" : ""} onClick={() => chooseOrient("off")}>🔒 Upright</button>
+          </div>
+          <p className="hint">
+            Auto turns the desktop a quarter turn when you hold the phone upright, so it fills the
+            screen instead of using a quarter of it — tilt the phone right to read it. The two locks
+            hold that choice: it will not turn on its own, not when you open the keyboard and not
+            when the address bar slides.
+          </p>
           {monitors.length > 1 && (
             <>
               <div className="row-label">Monitor</div>
@@ -1214,6 +1835,15 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
           <div className="row-label">Scroll sensitivity · {scrollSensitivity.toFixed(1)}</div>
           <input type="range" min="0.4" max="2.5" step="0.1" value={scrollSensitivity} onChange={e=>setScrollSensitivity(Number(e.target.value))}/>
           <div className="seg"><button className={naturalScroll?"on":""} onClick={()=>setNaturalScroll(v=>!v)}>Natural scroll</button><button className={haptics?"on":""} onClick={()=>setHaptics(v=>!v)}>Haptics</button></div>
+          <div className="row-label">Typing</div>
+          <div className="seg">
+            <button className={typingZoom?"on":""} onClick={()=>setTypingZoom(v=>!v)}>Magnify while typing</button>
+          </div>
+          <p className="hint">
+            When the keyboard opens, the desktop moves up out from under it and zooms in on the
+            cursor, so you can read the line you are writing. Turn it off to keep the whole desktop
+            in view and place the cursor yourself.
+          </p>
           <div className="row-label">Actions</div>
           <div className="grid">
             <button className="cell" onClick={openFiles}><IconFolder /> Files</button>

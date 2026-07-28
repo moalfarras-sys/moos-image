@@ -49,6 +49,18 @@ export default defineConfig({
         // Cache only the app shell; the live stream is never cached.
         globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
         navigateFallback: null,
+        // TAKE OVER AS SOON AS THERE IS SOMETHING NEWER, INSTEAD OF WAITING TO BE ASKED.
+        //
+        // A workbox worker installs a new precache and then WAITS for every tab of the old version
+        // to close before activating. On a phone that has this on the home screen, the tab does not
+        // close — so an updated agent kept serving the old controller indefinitely, and the user had
+        // no way to tell and no way to force it. Together with the controllerchange reload in
+        // main.tsx these two flags turn "a newer app exists" into "you are now running it".
+        skipWaiting: true,
+        clientsClaim: true,
+        // The stream and every API call must never be answered from a cache. globPatterns already
+        // excludes them, but a stale index.html served to /api/... would be an unexplainable failure.
+        navigateFallbackDenylist: [/^\/api\//, /^\/ws$/, /^\/audio\//],
       },
     }),
   ],

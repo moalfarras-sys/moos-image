@@ -78,10 +78,30 @@ public sealed class ScreenCapture : IDisposable
     /// claimed to be — a backstop against a single client flapping its own preset — rather than the
     /// only thing standing between two clients and two pipeline rebuilds per second.
     /// </summary>
+    /// <summary>
+    /// How much the agreed encode width must move before it is worth a pipeline rebuild.
+    ///
+    /// Clients ask for the size they can actually SHOW now, which means the request follows real
+    /// things that move: an address bar sliding, a rotation, a soft keyboard, a second viewer
+    /// joining with a slightly different window. The room takes the MINIMUM of those requests, so a
+    /// few percent of movement in any one viewer moves the answer for everybody — and every move
+    /// costs a teardown, a rebuild and a keyframe. Observed on this machine with two viewers
+    /// attached: 694 -> 622 -> 694, three rebuilds for a difference nobody could see.
+    ///
+    /// 8% of linear width is under a tenth of a device pixel per source pixel at any size that
+    /// matters, and it is far below the step between two adjacent quality presets (960/1366/1920/2560
+    /// are 42%, 41% and 33% apart), so a deliberate change still always gets through.
+    /// </summary>
+    private const double WidthHysteresis = 0.08;
+
     private void PushSettings(int quality, double scale, int width)
     {
         bool sameHelper = _settingsGeneration == _portal.Generation;
         if (sameHelper && quality == _quality && Math.Abs(scale - _scale) < 0.001 && width == _width) return;
+        // A width that has barely moved is not a new request. Quality and scale still get through
+        // untouched — they are cheap element properties, not a reason to rebuild anything.
+        if (sameHelper && quality == _quality && Math.Abs(scale - _scale) < 0.001 &&
+            _width > 0 && width > 0 && Math.Abs(width - _width) < _width * WidthHysteresis) return;
         if (sameHelper && Environment.TickCount64 - _lastSettingsPush < 500) return;
 
         // `width` rides alongside `scale` rather than replacing it: the helper prefers the pixel
@@ -119,7 +139,24 @@ public sealed class ScreenCapture : IDisposable
     /// until the next scheduled IDR.</summary>
     public void RequestKeyframe() => _portal.Send(new { type = "keyframe" });
 
-    private readonly ConcurrentDictionary<Guid, bool> _sessionH264 = new();
+    /// <summary>
+    /// Every live viewer and its codec vote. `null` means "has not said yet" and is NOT the same as
+    /// "cannot" — see SessionArrived for what conflating the two cost.
+    /// </summary>
+    private readonly ConcurrentDictionary<Guid, bool?> _sessionH264 = new();
+    /// <summary>When each viewer connected, so an undeclared vote can eventually time out.</summary>
+    private readonly ConcurrentDictionary<Guid, long> _sessionSince = new();
+
+    /// <summary>
+    /// How long a viewer may stay silent about its decoder before it is counted as JPEG-only.
+    ///
+    /// The current controller declares in the same breath as it authenticates (ws.ts sends `auth`
+    /// and `video` back to back in onopen), so on any real link this deadline is never reached. It
+    /// exists for the client that genuinely never speaks: an old cached PWA from before the `video`
+    /// message existed. Without it, one such viewer would hold the room on whatever the codec
+    /// happened to be and then be sent bytes it cannot decode — a black picture with no error.
+    /// </summary>
+    private const int CodecVoteGraceMs = 3000;
 
     /// <summary>
     /// One pipeline feeds every phone, so the codec is a property of the ROOM, not of a session.
@@ -132,10 +169,31 @@ public sealed class ScreenCapture : IDisposable
     /// pipeline and the compositor is copying nothing. Registered here rather than on the first
     /// codec vote because a JPEG-only client never sends one, and it would stream to a viewer we
     /// never counted (and, worse, never stop when that viewer left).
+    ///
+    /// REGISTERED AS "UNDECLARED", NOT AS "NO", AND THAT ONE WORD IS THE FIX
+    ///
+    /// This used to add the session as `false` — "assume no H.264 until the client says otherwise" —
+    /// which sounds conservative and is actually the single most expensive line in the file. `false`
+    /// is a VOTE, so Reconcile() ran immediately and pushed the whole room to JPEG. The client's real
+    /// declaration then arrived about a millisecond later and pushed it straight back to H.264.
+    ///
+    /// A codec change is not a flag: it is a full GStreamer pipeline teardown and rebuild. So EVERY
+    /// connection cost two builds instead of one, and each build is ~200ms with no picture followed
+    /// by a fresh IDR. Measured in the live log on the maintainer's own machine:
+    ///
+    ///     79 "Control session START"  ->  32 "Video codec: jpeg"  +  35 "Video codec: h264"
+    ///     288 "Video stream: WxH"     <- 288 pipeline rebuilds
+    ///
+    /// That is the flash-then-freeze at connect time, and it is entirely self-inflicted: the agent
+    /// was answering a question the client had not been asked yet.
+    ///
+    /// So a fresh viewer has NO opinion. Reconcile() leaves the codec alone while anyone is still
+    /// undeclared, and CodecVoteGraceMs stops a client that never speaks from holding it there.
     /// </summary>
     public void SessionArrived(Guid id)
     {
-        _sessionH264.TryAdd(id, false);   // assume no H.264 until the client says otherwise
+        _sessionSince[id] = Environment.TickCount64;
+        _sessionH264.TryAdd(id, null);   // no opinion yet — deliberately not `false`
         Reconcile();
     }
 
@@ -229,21 +287,87 @@ public sealed class ScreenCapture : IDisposable
     {
         _sessionH264.TryRemove(id, out _);
         _sessionWants.TryRemove(id, out _);
+        _sessionSince.TryRemove(id, out _);
+        _sessionWatching.TryRemove(id, out _);
         RecomputeWants();
         Reconcile();
     }
 
+    /// <summary>
+    /// Which viewers are actually LOOKING. A phone whose owner switched apps, or a browser tab in
+    /// the background, is still connected and still counted by <see cref="_sessionH264"/> — but it
+    /// is not watching, and every frame sent to it is spent on nobody.
+    ///
+    /// WHAT ITS ABSENCE LOOKED LIKE, MEASURED ON THE LIVE MACHINE
+    ///
+    /// A browser tab holding a session was left in the background. `ss -tn` on that socket:
+    ///
+    ///     Recv-Q 7301038   127.0.0.1:44548 -> 127.0.0.1:8765
+    ///
+    /// 7.3 MB the kernel had delivered and the tab had never read, because a background tab's rAF
+    /// loop is throttled to a crawl while the WebSocket keeps filling. Nothing is dropped and
+    /// nothing errors: the frames simply queue. Coming back to the tab then means watching several
+    /// seconds of the past play out before the present arrives, which reads as "it freezes and then
+    /// catches up all at once".
+    ///
+    /// On a phone the same thing costs battery and mobile data for a screen nobody is looking at.
+    ///
+    /// Only the client knows it stopped watching, so only the client can say so — and it is a vote
+    /// like the others, because the pipeline is shared: the encoder stops only when EVERY viewer has
+    /// looked away. A viewer that never sends the flag counts as watching, which is what keeps an
+    /// older client working exactly as it did.
+    /// </summary>
+    private readonly ConcurrentDictionary<Guid, bool> _sessionWatching = new();
+
+    public void SessionWatching(Guid id, bool watching)
+    {
+        _sessionWatching[id] = watching;
+        Reconcile();
+    }
+
+    private bool AnyoneWatching()
+    {
+        if (_sessionH264.IsEmpty) return false;
+        foreach (var id in _sessionH264.Keys)
+            if (!_sessionWatching.TryGetValue(id, out var w) || w) return true;   // silence = watching
+        return false;
+    }
+
     private void Reconcile()
     {
-        // Streaming first: with no viewers left this tears the pipeline down, and the codec below
+        // Streaming first: with nobody watching this tears the pipeline down, and the codec below
         // is then a note for the next one rather than a change to a running encoder.
-        _portal.SetStreaming(!_sessionH264.IsEmpty);
+        _portal.SetStreaming(AnyoneWatching());
 
-        bool all = !_sessionH264.IsEmpty && _sessionH264.Values.All(v => v);
+        // AN UNDECLARED VIEWER IS NOT A "NO" — it is a question still in flight.
+        //
+        // `All(v => v)` over a set where a fresh session had already been written as `false` is what
+        // made every connection rebuild the pipeline twice; see SessionArrived. Count the three
+        // states separately instead, and when the only thing standing between the room and H.264 is
+        // a viewer that has not finished its handshake, CHANGE NOTHING and wait for it.
+        bool anyNo = false, anyPending = false;
+        long now = Environment.TickCount64;
+        foreach (var (id, vote) in _sessionH264)
+        {
+            if (vote == true) continue;
+            if (vote == false) { anyNo = true; break; }
+            // Undeclared. Only a client that has stayed silent past the grace counts against H.264.
+            if (now - _sessionSince.GetValueOrDefault(id, now) > CodecVoteGraceMs) anyNo = true;
+            else anyPending = true;
+        }
+
         // SetCodec owns the idempotence AND the re-push after a helper restart. Deciding here
         // whether anything changed is what left a restarted helper on JPEG for ever: from this
         // side nothing had changed, because from this side nothing had.
-        _portal.SetCodec(all ? "h264" : "jpeg");
+        if (anyNo) _portal.SetCodec("jpeg");
+        else if (!anyPending && !_sessionH264.IsEmpty) _portal.SetCodec("h264");
+        // An EMPTY room deliberately keeps the last agreed codec rather than resetting to JPEG.
+        //
+        // Resetting looks tidy and costs the next viewer a whole extra pipeline build: it would
+        // arrive, find the room on JPEG, get a JPEG pipeline stood up for it, declare H.264 a
+        // millisecond later and have the whole thing torn down and rebuilt. Nobody is watching an
+        // empty room, so there is nothing to be conservative about — and the moment a viewer that
+        // genuinely cannot decode H.264 shows up, its `false` vote above puts the room back.
     }
 
     private sealed class Unsubscriber(Action dispose) : IDisposable
