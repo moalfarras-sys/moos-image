@@ -174,6 +174,13 @@ button {
   margin-bottom: 18px;
   transition: color 0.2s;
 }
+/* Inline with 14px text, so it is sized in em and pulled onto the baseline: a 24px block glyph
+ * beside a 14px line sits high and stretches the row's min-height. */
+.hint svg {
+  width: 1.05em;
+  height: 1.05em;
+  vertical-align: -0.15em;
+}
 .hint.error {
   color: var(--danger);
 }
@@ -716,6 +723,15 @@ button {
   color: var(--muted);
   text-align: center;
   padding: 24px;
+}
+/* The status overlays are the app's largest moment — a session that ended, a PC that locked —
+ * so their glyph is sized on purpose rather than left at the icon fallback. 44px reads as a
+ * heading above the 16-17px bold line beneath it, without becoming the illustration that the
+ * unsized version accidentally was (measured at 290x270 in Firefox before the fix). */
+.center-msg svg {
+  width: 44px;
+  height: 44px;
+  opacity: 0.9;
 }
 .spinner {
   width: 38px;
