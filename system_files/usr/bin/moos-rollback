@@ -29,20 +29,28 @@ from moos_ui2 import MoOSApp  # noqa: E402
 
 
 def deployments():
-    """(booted, rollback_target) as human strings, or (None, None) if we cannot tell.
+    """(booted, rollback_target, already_queued), or (None, None, False) if we cannot tell.
 
     Read from rpm-ostree's JSON, never scraped from its pretty output: the pretty output is for
     people, it is localised, and it is allowed to change shape. Recovery is the last screen in the
     system that may ever guess.
+
+    EVERY return here is a 3-tuple, and that is load-bearing. The call site unpacks three names
+    (`booted, target, queued = deployments()`), so a 2-tuple is not a degraded answer — it is a
+    ValueError that stops Recovery from drawing at all. The `already_queued` element was added
+    later, and these two failure paths kept returning pairs: `rpm-ostree status` exiting non-zero,
+    and it failing to run or emitting unparseable JSON. Both describe a system whose rpm-ostree is
+    unwell, which is the one condition under which somebody opens Recovery — so the screen crashed
+    exactly when it was needed and worked perfectly whenever it was not.
     """
     try:
         r = subprocess.run(["rpm-ostree", "status", "--json"],
                            capture_output=True, text=True, timeout=25)
         if r.returncode != 0:
-            return None, None
+            return None, None, False
         deps = json.loads(r.stdout).get("deployments", [])
     except (OSError, subprocess.SubprocessError, ValueError):
-        return None, None
+        return None, None, False
 
     # WHAT ROLLBACK ACTUALLY DOES, quoting `man rpm-ostree` (bootc behaves the same way):
     #

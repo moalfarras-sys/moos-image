@@ -22,6 +22,7 @@ payload that has a staged update — the condition under which the bug appears.
 
 import importlib.util
 import json
+import subprocess
 import sys
 import types
 from importlib.machinery import SourceFileLoader
@@ -150,6 +151,47 @@ def main() -> int:
         errors.append(f"two deployments with the same base version both render as {b6!r} — the "
                       f"user cannot tell which system is which on the rescue screen; "
                       f"disambiguate with the commit")
+
+    # 7. EVERY RETURN MUST BE A 3-TUPLE, INCLUDING THE FAILURE PATHS.
+    #
+    #    Recovery's call site is `booted, target, queued = deployments()`. When the third
+    #    element was added, two early returns kept returning pairs — `rpm-ostree status`
+    #    exiting non-zero, and it failing to run or emitting unparseable JSON. Python does
+    #    not degrade there; it raises ValueError and the window never draws.
+    #
+    #    Read what those two conditions actually describe: an rpm-ostree that is unwell. That
+    #    is the only reason anybody opens Recovery. The screen worked on every healthy machine
+    #    and crashed on the broken one, which is the inverse of its whole purpose, and no test
+    #    here noticed because all six cases above hand it well-formed JSON and returncode 0.
+    #
+    #    So this case does not check the VALUES. It unpacks exactly the way Recovery does, and
+    #    it does that for each way the command can let us down.
+    def unpack_check(name, *, returncode=0, stdout="", raises=None):
+        fake = mock.Mock()
+        fake.returncode = returncode
+        fake.stdout = stdout
+        deployments = load_deployments()
+        patch = (mock.patch("subprocess.run", side_effect=raises) if raises
+                 else mock.patch("subprocess.run", return_value=fake))
+        with patch:
+            result = deployments()
+        try:
+            booted, target, queued = result
+        except (ValueError, TypeError) as exc:
+            errors.append(f"{name}: deployments() returned {result!r}, which Recovery cannot "
+                          f"unpack ({exc}) — the rescue screen fails to open on precisely the "
+                          f"machine that needs it")
+            return
+        if (booted, target, queued) != (None, None, False):
+            errors.append(f"{name}: expected (None, None, False) when the state is unreadable, "
+                          f"got {(booted, target, queued)!r}")
+
+    unpack_check("rpm-ostree exits non-zero", returncode=1)
+    unpack_check("rpm-ostree is not installed", raises=OSError("No such file or directory"))
+    unpack_check("rpm-ostree times out", raises=subprocess.TimeoutExpired("rpm-ostree", 25))
+    unpack_check("rpm-ostree emits unparseable JSON", stdout="<html>gateway timeout</html>")
+    unpack_check("JSON parses but names no booted deployment",
+                 stdout=json.dumps({"deployments": [{"version": "44.orphan"}]}))
 
     if errors:
         print("GATE FAIL: MoOS Recovery would name the wrong rollback target.\n")
