@@ -143,6 +143,14 @@ require("run_priv bootc rollback" in do_remote,
         "moai-do rollback must run `bootc rollback` (what the Recovery app runs), not "
         "`rpm-ostree rollback` — with a staged update the two do different things and the "
         "rescue can silently no-op")
+# The staged-update warning must read the JSON, where every deployment carries a "staged"
+# boolean. The first version grepped the HUMAN output of `rpm-ostree status` for "Staged",
+# which it does not reliably print — so the warning could never fire and was decoration on a
+# screen that changes which OS boots next.
+require(re.search(r'rpm-ostree status --json[^|]*\|', do_remote),
+        "moai-do rollback must detect a staged deployment from `rpm-ostree status --json`; "
+        "grepping the human-readable status for 'Staged' never matches, so the warning that a "
+        "queued update is about to be discarded would never appear")
 require("bootc" in code(read("system_files/usr/bin/moos-rollback")),
         "the Recovery app must drive bootc rollback, so the GUI and the assistant agree")
 require("tailscale serve" in do_remote,
@@ -844,6 +852,20 @@ require(_moai_code.count("defaultRepairs") >= 2,
 require(re.search(r"modelData\.title\s*\|\|\s*modelData\.label\s*\|\|\s*modelData\.id", _moai_code),
         "the repair delegate must render `title || label || id` — the backend's fixes carry "
         "`title` and defaultRepairs carries `label`, so dropping either renders bare action ids")
+
+# THE TWO REPAIR MENUS MUST AGREE. The panel shows the app's defaultRepairs until a diagnosis
+# returns, then REPLACES it with moai-control's list. So an action present in only one of them
+# vanishes (or appears) the moment the user presses "افحص الآن" — which is what happened to the
+# rescue and diagnostic actions: they were added to the app and not to the backend, so running a
+# diagnosis deleted them from the menu.
+_qml_repairs = re.findall(r'\{\s*id:\s*"([a-z-]+)"\s*,\s*label:', _moai_code)
+_control_repairs = re.findall(r'\{"id":\s*"([a-z-]+)",\s*"label":', code(read("system_files/usr/bin/moai-control")))
+require(_qml_repairs and _control_repairs and set(_qml_repairs) == set(_control_repairs),
+        "Mo AI's defaultRepairs and moai-control's /diagnose fixes list have drifted: "
+        f"only in the app {sorted(set(_qml_repairs) - set(_control_repairs))}, "
+        f"only in the backend {sorted(set(_control_repairs) - set(_qml_repairs))}. "
+        "Running a diagnosis swaps one list for the other, so anything missing from either "
+        "appears or disappears under the user.")
 require("recommended" in moai_qml and "hit.note" in moai_qml,
         "Mo AI must render the pick and the warning (recommended / note) on each search hit — "
         "ranking them in the backend and not showing them changes nothing for the user")

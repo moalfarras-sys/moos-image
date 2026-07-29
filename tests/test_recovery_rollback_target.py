@@ -86,52 +86,70 @@ def main() -> int:
 
     errors = []
 
-    # 1. The bug condition: an update is staged (index 0), booted is index 1, prior is index 2.
-    booted, target = run_with([
-        {"version": "44.NEW", "booted": False, "staged": True},
-        {"version": "44.BOOTED", "booted": True, "staged": False},
-        {"version": "44.PRIOR", "booted": False, "staged": False},
-    ])
-    if booted != "44.BOOTED":
-        errors.append(f"booted misread as {booted!r}, expected '44.BOOTED'")
-    if target == "44.NEW":
-        errors.append("rollback target is the STAGED update '44.NEW' — that is the version "
-                      "rollback moves AWAY from, shown as the thing it returns to. The "
-                      "selection loop must skip staged deployments.")
-    elif target != "44.PRIOR":
-        errors.append(f"rollback target is {target!r}, expected the prior deployment '44.PRIOR'")
+    def check(name, deps, want_booted, want_target, want_queued):
+        got_booted, got_target, got_queued = run_with(deps)
+        if got_booted != want_booted:
+            errors.append(f"{name}: booted read as {got_booted!r}, expected {want_booted!r}")
+        if got_target != want_target:
+            errors.append(f"{name}: target read as {got_target!r}, expected {want_target!r}")
+        if got_queued != want_queued:
+            errors.append(f"{name}: already-queued read as {got_queued!r}, expected {want_queued!r}")
 
-    # 2. The normal condition (no staged update): booted index 0, prior index 1 — still correct.
-    booted2, target2 = run_with([
-        {"version": "44.BOOTED", "booted": True, "staged": False},
-        {"version": "44.PRIOR", "booted": False, "staged": False},
-    ])
-    if target2 != "44.PRIOR":
-        errors.append(f"with no staged update, target is {target2!r}, expected '44.PRIOR'")
+    # 1. An update is staged (index 0), booted index 1, prior index 2. The staged entry is
+    #    NEWER than what is running, so it can never be what rollback returns to.
+    check("staged update queued",
+          [{"version": "44.NEW", "booted": False, "staged": True},
+           {"version": "44.BOOTED", "booted": True, "staged": False},
+           {"version": "44.PRIOR", "booted": False, "staged": False}],
+          "44.BOOTED", "44.PRIOR", False)
 
-    # 3. THE SAME LAYOUT WITH NO `staged` KEY AT ALL. rpm-ostree's JSON is not guaranteed to
-    #    carry that flag — on this machine's own output the deployments expose only `booted`.
-    #    A reader that depends on the flag silently reverts to the original bug the moment the
-    #    key is absent, so the positional rule (the rollback target follows the booted entry)
-    #    must stand on its own.
-    booted3, target3 = run_with([
-        {"version": "44.NEW"},                       # queued for next boot, unflagged
-        {"version": "44.BOOTED", "booted": True},
-        {"version": "44.PRIOR"},
-    ])
-    if booted3 != "44.BOOTED":
-        errors.append(f"booted misread as {booted3!r} when no staged flag is present")
-    if target3 != "44.PRIOR":
-        errors.append(f"with no `staged` key present the target is {target3!r}, expected "
-                      f"'44.PRIOR'. Anything listed BEFORE the booted deployment is newer than "
-                      f"what is running and can never be what rollback returns to — the rule has "
-                      f"to be positional, not flag-dependent.")
+    # 2. The ordinary case.
+    check("ordinary",
+          [{"version": "44.BOOTED", "booted": True, "staged": False},
+           {"version": "44.PRIOR", "booted": False, "staged": False}],
+          "44.BOOTED", "44.PRIOR", False)
 
-    # 4. A machine with nothing to roll back to must say so rather than inventing a target.
-    booted4, target4 = run_with([{"version": "44.ONLY", "booted": True}])
-    if booted4 != "44.ONLY" or target4 is not None:
-        errors.append(f"with a single deployment the target must be None, got {target4!r} — "
-                      f"Recovery would offer a rollback that cannot happen")
+    # 3. THE ANSWER IS NOT THE LAST ENTRY. Three deployments: rollback goes to the one right
+    #    after booted, not to the oldest. A "pick the oldest non-booted" implementation passes
+    #    every test above and fails here — which is exactly how a wrong version shipped green.
+    check("three deployments, target is not last",
+          [{"version": "44.BOOTED", "booted": True, "staged": False},
+           {"version": "44.PRIOR", "booted": False, "staged": False},
+           {"version": "44.OLDEST", "booted": False, "staged": False}],
+          "44.BOOTED", "44.PRIOR", False)
+    check("staged + three, target is not last",
+          [{"version": "44.NEW", "booted": False, "staged": True},
+           {"version": "44.BOOTED", "booted": True, "staged": False},
+           {"version": "44.PRIOR", "booted": False, "staged": False},
+           {"version": "44.PINNED", "booted": False, "staged": False, "pinned": True}],
+          "44.BOOTED", "44.PRIOR", False)
+
+    # 4. A ROLLBACK IS ALREADY QUEUED — booted is no longer the default entry.
+    #    `man rpm-ostree`: "If the current default is booted, then set the default to the
+    #    previous entry. Otherwise, make the currently booted tree the default." So here the
+    #    button CANCELS the queued rollback, and the screen must say what will actually boot.
+    #    Reporting None here told a user mid-rescue "no previous version on this machine" and
+    #    greyed out the only button.
+    check("rollback already queued",
+          [{"version": "44.PRIOR", "booted": False, "staged": False},
+           {"version": "44.BOOTED", "booted": True, "staged": False}],
+          "44.BOOTED", "44.PRIOR", True)
+
+    # 5. Nothing to roll back to: say so rather than inventing a target.
+    check("single deployment", [{"version": "44.ONLY", "booted": True, "staged": False}],
+          "44.ONLY", None, False)
+
+    # 6. TWO DEPLOYMENTS SHARING A BASE VERSION. Layered packages do not change the version
+    #    string, so both cards would render the same bold text and the screen would say
+    #    "you are running X" / "rollback returns you to X". The labels must differ.
+    b6, t6, _ = run_with([
+        {"version": "44.SAME", "checksum": "aaaaaaaaaaaabbbb", "booted": True, "staged": False},
+        {"version": "44.SAME", "checksum": "ccccccccccccdddd", "booted": False, "staged": False},
+    ])
+    if b6 == t6:
+        errors.append(f"two deployments with the same base version both render as {b6!r} — the "
+                      f"user cannot tell which system is which on the rescue screen; "
+                      f"disambiguate with the commit")
 
     if errors:
         print("GATE FAIL: MoOS Recovery would name the wrong rollback target.\n")

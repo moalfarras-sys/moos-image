@@ -885,6 +885,15 @@ class Handler(BaseHTTPRequestHandler):
             if not completed:
                 if streaming:
                     try:
+                        # Close off whatever was in flight FIRST. The passthrough above
+                        # forwards raw upstream bytes, so a drop mid-line leaves a partial
+                        # `data: {"id":"x","cho` sitting in the client's buffer; appending
+                        # straight onto it would glue the two together into one unparseable
+                        # line and the notice would be lost with it. A blank line terminates
+                        # the fragment — the client discards that unparseable event (its
+                        # JSON.parse is already wrapped for exactly this) and reads the next
+                        # one cleanly.
+                        write(b"\n\n")
                         # As a CONTENT delta, not an {"error": …} object. The app parses
                         # choices[0].delta.content and nothing else, so an error-shaped chunk
                         # is silently dropped — the user would see a half-finished answer with

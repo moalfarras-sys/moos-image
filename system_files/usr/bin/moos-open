@@ -128,8 +128,12 @@ case "${cat}/${tgt}" in
                           && term moos-setup --gaming ;;
     app/compat)    gui moai --device ;;
     app/hardware)  gui moai --device ;;
-    app/updater)   term moos-update ;;
-    app/recovery)  term moos-rollback ;;
+    # GTK apps, not terminal programs. Launching them with `term` opened a Konsole
+    # window (--hold, so it stays) AND the app's own window — two windows and two
+    # taskbar entries for one action, with the terminal sitting empty because the app
+    # prints nothing. `gui` is what the other graphical MoOS apps above use.
+    app/updater)   gui moos-update ;;
+    app/recovery)  gui moos-rollback ;;
     app/welcome)   gui moos-welcome ;;
     app/store)     gui moos-store ;;
     brain/start)   term moai-start ;;

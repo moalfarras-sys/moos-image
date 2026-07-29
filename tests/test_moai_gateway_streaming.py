@@ -125,6 +125,27 @@ def main() -> int:
         errors.append("anthropic_chunk does not produce something the app can render — every "
                       "synthetic notice must arrive as choices[0].delta.content")
 
+    # …AND IT MUST SURVIVE A MID-LINE DROP. The OpenAI passthrough forwards raw upstream
+    # bytes, so a connection that dies partway through an SSE line leaves a fragment like
+    # `data: {"id":"x","cho` in the client's buffer. Appending the notice straight onto that
+    # glues both into one unparseable line and the notice is lost with the fragment — the
+    # user gets a truncated answer and still no explanation. A blank line must close the
+    # fragment first.
+    fragment = b'data: {"id":"x","cho'
+    if "test notice" not in client_render(fragment + notice):
+        # Confirm the terminator is what fixes it, then require it in the source.
+        if "test notice" not in client_render(fragment + b"\n\n" + notice):
+            errors.append("even with a blank-line terminator the notice does not render — the "
+                          "synthetic-notice path is broken")
+        proxy_for_terminator = re.search(r"def _proxy\(self.*?(?=\n    def )",
+                                         GATEWAY.read_text(encoding="utf-8"), re.S)
+        if not proxy_for_terminator or not re.search(
+                r'write\(\s*b"\\n\\n"\s*\)', proxy_for_terminator.group(0)):
+            errors.append("_proxy does not terminate the in-flight SSE line before writing its "
+                          "synthetic notice. A drop mid-line leaves a partial `data:` fragment, "
+                          "and the notice concatenated onto it is unparseable — so the user sees "
+                          "a truncated reply with no explanation. Write b'\\n\\n' first.")
+
     # 4. _proxy must close the connection on a mid-stream drop (source-level: a full handler
     #    is impractical to instantiate). The success path sets a completion flag; the except
     #    path must, when not completed, set self.close_connection = True.

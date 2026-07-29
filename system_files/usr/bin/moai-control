@@ -903,12 +903,19 @@ def diagnose_system():
     # The curated, SAFE repair menu — read-only diagnostics first, then the
     # maintenance actions. Each id is a real moai-do action (confirm + Polkit);
     # the UI opens moos://do/<id>, it never composes a command.
+    # Keep this list and the app's own defaultRepairs (apps/moai/main.qml) in step. The UI
+    # shows defaultRepairs until a diagnosis returns, then REPLACES it with this one — so an
+    # action present only in the app disappears the moment the user presses "افحص الآن",
+    # which is exactly what happened to the three rescue/diagnostic actions below.
     fixes = [
         {"id": "diagnose-services", "label": "الخدمات الفاشلة | Failed services", "read": True},
         {"id": "check-drivers",     "label": "الكرت والتعريف | GPU & drivers",    "read": True},
         {"id": "inspect-boot",      "label": "حالة الإقلاع | Boot status",         "read": True},
+        {"id": "net-doctor",        "label": "تشخيص الشبكة | Network doctor",      "read": True},
+        {"id": "gpu-report",        "label": "ذاكرة كرت الشاشة | GPU memory",      "read": True},
         {"id": "fix-audio",         "label": "إصلاح الصوت | Fix audio",            "read": False},
         {"id": "optimize",          "label": "تنظيف وتحرير مساحة | Clean & free space", "read": False},
+        {"id": "rollback",          "label": "الرجوع لنسخة سابقة | Roll back",     "read": False},
         {"id": "update",            "label": "تحديث MoOS | Update MoOS",           "read": False},
     ]
     return {"healthy": fail_n == 0, "ok": ok_n, "fail": fail_n,

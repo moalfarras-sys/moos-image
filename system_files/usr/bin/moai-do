@@ -530,7 +530,17 @@ do_rollback() {
         echo
         # Say so BEFORE asking. A queued update is discarded by the rollback, and a
         # user who confirms without being told that has been surprised, not informed.
-        if rpm-ostree status 2>/dev/null | grep -qiE '^\s*Staged|staged'; then
+        #
+        # Read the JSON, not the human output. Every deployment carries a "staged"
+        # boolean there (verified on this image), whereas the text rendering does not
+        # reliably print the word at all — the first version of this grepped for
+        # "Staged" in `rpm-ostree status` and so could never fire, which made the
+        # warning decorative.
+        if rpm-ostree status --json 2>/dev/null \
+            | python3 -c 'import json,sys
+try: d = json.load(sys.stdin)
+except Exception: raise SystemExit(1)
+raise SystemExit(0 if any(x.get("staged") for x in d.get("deployments", [])) else 1)' 2>/dev/null; then
             echo "${Y}تنبيه: يوجد تحديث مُجهَّز للإقلاع القادم، وسيُلغى بالرجوع${N}"
             echo "${Y}Note: an update is staged for the next boot; rolling back discards it${N}"
             echo "${D}(يمكنك تجهيزه ثانيةً في أي وقت عبر «تحديث» | re-stage it any time with an update)${N}"
