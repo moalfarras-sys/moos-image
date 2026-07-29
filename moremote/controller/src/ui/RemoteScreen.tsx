@@ -124,6 +124,46 @@ function defaultMode(): GestureMode {
   }
 }
 
+/**
+ * A settings row: title (and optional explanation) on the left, its control on the right.
+ *
+ * This is the shape the whole sheet is built from, and it exists as a component so every
+ * row is the same height and the same alignment. The previous sheet reached for a
+ * `.seg` button per boolean — a button whose only "on" signal was a background tint, which
+ * on a phone in daylight is not a signal at all.
+ */
+function Row({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
+  return (
+    <div className="row">
+      <div className="row-main">
+        <div className="row-title">{title}</div>
+        {sub && <div className="row-sub">{sub}</div>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * A real switch, not a tinted button.
+ *
+ * role/aria-checked rather than a styled <input>: the sheet is scrollable and a native
+ * checkbox drags oddly inside one on iOS, and this way the accessible state is explicit
+ * rather than inferred from a class name. The knob moves, so on/off reads at a glance
+ * without reading the label — which is the entire reason to use a switch here.
+ */
+function Switch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      className="switch"
+      onClick={onToggle}
+    />
+  );
+}
+
 export function RemoteScreen({ token, onExit }: { token: string; onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
@@ -1814,76 +1854,71 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
       {sheet === "more" && (
         <div className="sheet">
-          {/* SETTINGS, ORGANISED — not one long scroll.
-              Everything below used to sit in a single flat column: pointer mode, two sliders,
-              typing, seven actions, five power buttons. On a phone that is several screens of
-              scrolling to reach anything, the destructive Power row was one tap away by
-              accident, and the app's own version — the thing you need when you are asking
-              "did my phone load the new build?" — appeared only on the connect screen, which
-              you never see once you are connected.
-              So: named sections that fold, the two you reach for open, the dangerous one shut,
-              and an About section that answers the version question where you actually are. */}
+          {/* Rebuilt as grouped cards. See styles.css "Settings sheet" for why this shape:
+              a small uppercase label, then a card holding related rows. The card edge is
+              what lets you find a row without reading every line — which the previous flat
+              column of sliders and buttons did not give you. */}
           <div className="grip" /><h3><IconSettings /> Settings</h3>
-          {/* Three buttons, not four. "Touch" and "Direct" were never two models — they differ in
-              one branch of the gesture recogniser, what a one-finger swipe does — so that one
-              difference is the switch below rather than a mode of its own. */}
-          <div className="row-label">Pointer mode</div>
-          <div className="seg">
-            <button className={mode === "touch" || mode === "direct" ? "on" : ""}
-                    onClick={() => setMode("touch")}><IconMouse /> Touch</button>
-            <button className={mode === "trackpad" ? "on" : ""}
-                    onClick={() => setMode("trackpad")}><IconTrackpad /> Trackpad</button>
-            <button className={mode === "desktop" ? "on" : ""}
-                    onClick={() => setMode("desktop")}><IconMouse /> Mouse + keys</button>
-          </div>
-          {(mode === "touch" || mode === "direct") && (
-            <div className="seg">
-              <button className={mode === "direct" ? "on" : ""}
-                      onClick={() => setMode(mode === "direct" ? "touch" : "direct")}>
-                One-finger drag
-              </button>
-            </div>
-          )}
-          <p className="hint">{MODE_HINT[mode]}</p>
-          {mode === "desktop" && (
-            <>
-              <div className="seg">
-                <button className={pointerLock?"on":""} onClick={()=>setPointerLock(v=>!v)}>Capture pointer</button>
-              </div>
-              {/* One line, not the three this started as. Everything in this sheet below the pointer
-                  mode was already reachable only by scrolling on a phone, and a section that explains
-                  what the buttons above it obviously do is the wrong thing to spend that space on. */}
-              <p className="hint">
-                All three buttons, the wheel and every key. Fullscreen also captures Esc, Tab and
-                Ctrl+W. Capture pointer sends raw movement for 3D and games — Esc releases it.
-              </p>
-            </>
-          )}
-          {/* Feel — two sliders and two switches. Folded: you set them once. */}
-          <details className="fold">
-            <summary><span>Feel</span><IconChevronDown className="fold-chevron" /></summary>
-            <div className="fold-body">
-              <div className="row-label">Mouse sensitivity · {mouseSensitivity.toFixed(1)}</div>
-              <input type="range" min="0.4" max="2.5" step="0.1" value={mouseSensitivity} onChange={e=>setMouseSensitivity(Number(e.target.value))}/>
-              <div className="row-label">Scroll sensitivity · {scrollSensitivity.toFixed(1)}</div>
-              <input type="range" min="0.4" max="2.5" step="0.1" value={scrollSensitivity} onChange={e=>setScrollSensitivity(Number(e.target.value))}/>
-              <div className="seg"><button className={naturalScroll?"on":""} onClick={()=>setNaturalScroll(v=>!v)}>Natural scroll</button><button className={haptics?"on":""} onClick={()=>setHaptics(v=>!v)}>Haptics</button></div>
-              <div className="row-label">Typing</div>
-              <div className="seg">
-                <button className={typingZoom?"on":""} onClick={()=>setTypingZoom(v=>!v)}>Magnify while typing</button>
-              </div>
-              <p className="hint">
-                When the keyboard opens, the desktop moves up out from under it and zooms in on the
-                cursor, so you can read the line you are writing. Turn it off to keep the whole
-                desktop in view and place the cursor yourself.
-              </p>
-            </div>
-          </details>
 
-          {/* Actions — open, because this is what the sheet is opened FOR. */}
-          <details className="fold" open>
-            <summary><span>Actions</span><IconChevronDown className="fold-chevron" /></summary>
-            <div className="fold-body">
+          <div className="sec-label">Pointer</div>
+          <div className="card">
+            <div className="card-pad">
+              {/* Three buttons, not four. "Touch" and "Direct" were never two models — they
+                  differ in one branch of the gesture recogniser, what a one-finger swipe
+                  does — so that difference is the switch below, not a mode of its own. */}
+              <div className="seg">
+                <button className={mode === "touch" || mode === "direct" ? "on" : ""}
+                        onClick={() => setMode("touch")}><IconMouse /> Touch</button>
+                <button className={mode === "trackpad" ? "on" : ""}
+                        onClick={() => setMode("trackpad")}><IconTrackpad /> Trackpad</button>
+                <button className={mode === "desktop" ? "on" : ""}
+                        onClick={() => setMode("desktop")}><IconMouse /> Mouse + keys</button>
+              </div>
+              <p className="hint" style={{ margin: "10px 0 0" }}>{MODE_HINT[mode]}</p>
+            </div>
+            {(mode === "touch" || mode === "direct") && (
+              <Row title="One-finger drag" sub="Drag with one finger instead of scrolling.">
+                <Switch on={mode === "direct"}
+                        onToggle={() => setMode(mode === "direct" ? "touch" : "direct")} />
+              </Row>
+            )}
+            {mode === "desktop" && (
+              <Row title="Capture pointer"
+                   sub="Raw movement for 3D and games. Esc releases it. Fullscreen also captures Esc, Tab and Ctrl+W.">
+                <Switch on={pointerLock} onToggle={() => setPointerLock(v => !v)} />
+              </Row>
+            )}
+          </div>
+
+          <div className="sec-label">Feel</div>
+          <div className="card">
+            <div className="slider-row">
+              <div className="row"><div className="row-main"><div className="row-title">Mouse speed</div></div>
+                <div className="row-value">{mouseSensitivity.toFixed(1)}</div></div>
+              <input type="range" min="0.4" max="2.5" step="0.1" value={mouseSensitivity}
+                     onChange={e => setMouseSensitivity(Number(e.target.value))} />
+            </div>
+            <div className="slider-row">
+              <div className="row"><div className="row-main"><div className="row-title">Scroll speed</div></div>
+                <div className="row-value">{scrollSensitivity.toFixed(1)}</div></div>
+              <input type="range" min="0.4" max="2.5" step="0.1" value={scrollSensitivity}
+                     onChange={e => setScrollSensitivity(Number(e.target.value))} />
+            </div>
+            <Row title="Natural scroll" sub="Content follows your finger.">
+              <Switch on={naturalScroll} onToggle={() => setNaturalScroll(v => !v)} />
+            </Row>
+            <Row title="Haptics" sub="A short buzz on tap and click.">
+              <Switch on={haptics} onToggle={() => setHaptics(v => !v)} />
+            </Row>
+            <Row title="Magnify while typing"
+                 sub="When the keyboard opens, the desktop lifts clear of it and zooms to the cursor so you can read the line you are writing.">
+              <Switch on={typingZoom} onToggle={() => setTypingZoom(v => !v)} />
+            </Row>
+          </div>
+
+          <div className="sec-label">Actions</div>
+          <div className="card">
+            <div className="card-pad">
               <div className="grid">
                 <button className="cell" onClick={openFiles}><IconFolder /> Files</button>
                 <button className="cell" onClick={() => { taskMgr(); setSheet(null); }}><IconShield /> Ctrl+Alt+Del</button>
@@ -1894,42 +1929,49 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
                 <button className="cell danger" onClick={disconnect}><IconPower /> Disconnect</button>
               </div>
             </div>
-          </details>
+          </div>
 
-          {/* Power — SHUT by default. These change the state of the computer you are looking at,
-              and "Shut down" sitting one tap below "Copy" is how a phone in a pocket ends a
+          {/* Power is SHUT. These change the state of the computer you are looking at, and
+              "Shut down" sitting one tap below "Copy" is how a phone in a pocket ends a
               session. Opening the section is the deliberate act that earns the buttons. */}
-          <details className="fold">
-            <summary><span>Power</span><IconChevronDown className="fold-chevron" /></summary>
-            <div className="fold-body">
-              <div className="grid">
-                <button className="cell" onClick={() => doPower("lock", "Lock")}><IconLock /> Lock</button>
-                <button className="cell" onClick={() => doPower("sleep", "Sleep")}><IconPower /> Sleep</button>
-                <button className="cell" onClick={() => doPower("signout", "Sign out", true)}><IconLock /> Sign out</button>
-                <button className="cell" onClick={() => doPower("restart", "Restart", true)}><IconRefresh /> Restart</button>
-                <button className="cell danger" onClick={() => doPower("shutdown", "Shut down", true)}><IconPower /> Shut down</button>
+          <div className="sec-label">Power</div>
+          <div className="card">
+            <details className="fold">
+              <summary><span>Lock, sleep, restart, shut down</span><IconChevronDown /></summary>
+              <div className="card-pad">
+                <div className="grid">
+                  <button className="cell" onClick={() => doPower("lock", "Lock")}><IconLock /> Lock</button>
+                  <button className="cell" onClick={() => doPower("sleep", "Sleep")}><IconPower /> Sleep</button>
+                  <button className="cell" onClick={() => doPower("signout", "Sign out", true)}><IconLock /> Sign out</button>
+                  <button className="cell" onClick={() => doPower("restart", "Restart", true)}><IconRefresh /> Restart</button>
+                  <button className="cell danger" onClick={() => doPower("shutdown", "Shut down", true)}><IconPower /> Shut down</button>
+                </div>
               </div>
-            </div>
-          </details>
+            </details>
+          </div>
 
-          {/* About — the answer to "which build is my phone running?", where you can actually
-              reach it. It used to live only on the connect screen, which you stop seeing the
-              moment you connect, so the one question this line exists to answer could not be
-              asked without disconnecting. */}
-          <details className="fold">
-            <summary><span>About</span><IconChevronDown className="fold-chevron" /></summary>
-            <div className="fold-body">
-              <div className="kv"><span>App version</span><b>{BUILD}</b></div>
-              <div className="kv"><span>Connection</span><b>{status}</b></div>
-              <div className="kv"><span>Video</span>
-                <b>{status === "live" ? `${codec === "h264" ? "H.264" : "JPEG"} · ${fps} fps · ${latency} ms` : "—"}</b>
+          {/* About answers "which build is my phone running?" WHERE YOU CAN ASK IT. The
+              version used to appear only on the connect screen — the one screen you stop
+              seeing the moment you connect. */}
+          <div className="sec-label">About</div>
+          <div className="card">
+            <details className="fold">
+              <summary><span>Version and connection</span><IconChevronDown /></summary>
+              <div>
+                <div className="kv"><span>App version</span><b>{BUILD}</b></div>
+                <div className="kv"><span>Connection</span><b>{status}</b></div>
+                <div className="kv"><span>Video</span>
+                  <b>{status === "live"
+                       ? `${codec === "h264" ? "H.264" : "JPEG"} · ${fps} fps · ${latency} ms`
+                       : "—"}</b>
+                </div>
+                <p className="hint" style={{ padding: "0 14px 12px", margin: 0 }}>
+                  If the version is not the newest, close the app and open it again — the
+                  offline cache serves the previous build until a new one takes over.
+                </p>
               </div>
-              <p className="hint">
-                If the version above is not the newest, close the app and open it again — the
-                offline cache serves the previous build until a new one takes over.
-              </p>
-            </div>
-          </details>
+            </details>
+          </div>
 
           <div className="credit">Mo Remote Personal · by Moalfarras</div>
         </div>

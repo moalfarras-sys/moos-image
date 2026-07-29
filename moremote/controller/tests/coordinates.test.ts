@@ -200,3 +200,28 @@ assert.match(vite, /clientsClaim: true/);
 assert.match(main, /controllerchange/, "the page must reload when a new worker takes over");
 
 console.log("PASS: client letterbox/orientation/turned-view/keyboard/update tests");
+
+// ---------------------------------------------------------------------------------------------
+// EVERY ICON MUST BE SIZED WHERE IT IS USED.
+//
+// The shared <S> icon component in icons.tsx sets no width/height — it inherits from CSS, and
+// every use site has its own rule (.tbtn svg, .cell svg, .seg button svg, …). An icon placed
+// somewhere with no such rule therefore inherits nothing and expands to the container's full
+// width. That is not a subtle regression: the gear added to the settings sheet header shipped
+// at roughly 600px, filling the whole phone screen above a barely-visible title, and it looked
+// exactly like a broken app.
+//
+// So: for each container that renders a bare <Icon…/>, the stylesheet must size the svg inside
+// it. Checked as a pairing rather than by eye, because "it looked fine on my screen" is how the
+// first one shipped.
+const css = readFileSync(join(import.meta.dirname, "..", "src", "styles.css"), "utf8");
+for (const [selector, why] of [
+  [".sheet h3 svg", "the settings sheet header renders a gear"],
+  [".fold > summary svg", "each disclosure row renders a chevron"],
+] as const) {
+  const rule = new RegExp(
+    selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{[^}]*\\bwidth\\s*:", "s");
+  assert.ok(rule.test(css),
+    `${selector} has no width in styles.css — ${why}, and an unsized icon expands to the full `
+    + "width of its container (the gear shipped at ~600px once already)");
+}
