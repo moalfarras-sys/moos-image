@@ -110,7 +110,10 @@ def deployments():
 class Recovery(MoOSApp):
     APP_ID = "org.moos.recovery"     # == org.moos.recovery.desktop — see MoOSApp's docstring
     TITLE = "MoOS Recovery"
-    SIZE = (760, 580)
+    # Taller than the updater's (760, 660), not shorter: this page carries a two-line
+    # bilingual subtitle, three cards and a log, and at 580 the one button the screen
+    # exists for sat below the fold on the reference 4K/225% machine.
+    SIZE = (760, 700)
 
     def build(self, page):
         booted, target, queued = deployments()
@@ -142,18 +145,26 @@ class Recovery(MoOSApp):
             back))
 
         self.status = Gtk.Label(xalign=0, wrap=True)
+        # This label's base direction is RTL (its first strong character is Arabic), so a
+        # trailing English sentence had its final "." pulled to the line start —
+        # ".reversible". LRI…PDI (U+2066/U+2069) isolates each English clause so its
+        # punctuation stays attached; every write to this label gets the same wrap.
         self.status.set_text(
             ("الرجوع مُجهَّز بالفعل: أعد التشغيل لتطبيقه، أو ألغِه للبقاء على النسخة الحالية.  ·  "
-             "A rollback is already queued. Restart to apply it, or cancel it to stay on the "
-             "version you are running."
+             "⁦A rollback is already queued. Restart to apply it, or cancel it to stay on the "
+             "version you are running.⁩"
              if queued else
              "الرجوع لا يحدث فورًا: يسري عند إعادة التشغيل، ويمكن التراجع عنه.  ·  "
-             "Rollback is not immediate. It applies on restart, and it is reversible."))
+             "⁦Rollback is not immediate. It applies on restart, and it is reversible.⁩"))
 
         self.log = Gtk.TextView(editable=False, monospace=True)
         self.log.add_css_class("ui2-log")
         log_scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
-        log_scroll.set_min_content_height(150)
+        # The log is the page's one flexible row: its MINIMUM decides whether the button
+        # row clears the window's bottom edge, because everything else on the page is
+        # fixed-height text. It has to stay low enough that the sum of minimums fits
+        # inside SIZE even when a bigger system font makes every card taller.
+        log_scroll.set_min_content_height(120)
         log_scroll.set_child(self.log)
 
         page.append(self.card(self.status, log_scroll))
@@ -211,7 +222,7 @@ class Recovery(MoOSApp):
         except (OSError, subprocess.SubprocessError) as e:
             self.say(str(e))
             self.status.add_css_class("error")
-            self.status.set_text("تعذّر تنفيذ الرجوع.  ·  Rollback could not run.")
+            self.status.set_text("تعذّر تنفيذ الرجوع.  ·  ⁦Rollback could not run.⁩")
             self.back_btn.set_sensitive(True)
             return
 
@@ -219,12 +230,12 @@ class Recovery(MoOSApp):
         if r.returncode == 0:
             self.status.add_css_class("success")
             self.status.set_text("✓ جاهز — أعد التشغيل لتعود إلى النسخة السابقة.  ·  "
-                                 "Done. Restart to return to the previous version.")
+                                 "⁦Done. Restart to return to the previous version.⁩")
             self.reboot_btn.set_visible(True)
         else:
             self.status.add_css_class("error")
             self.status.set_text("لم يكتمل الرجوع — نظامك الحالي لم يتغيّر.  ·  "
-                                 "Rollback did not complete. Your system is unchanged.")
+                                 "⁦Rollback did not complete. Your system is unchanged.⁩")
             self.back_btn.set_sensitive(True)
 
 

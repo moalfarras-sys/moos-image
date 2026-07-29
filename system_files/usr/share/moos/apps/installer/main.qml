@@ -1671,7 +1671,11 @@ ApplicationWindow {
                                 TapHandler { onTapped: win.tz = modelData }
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
-                                Accessible.name: win.zoneLabel(parent.modelData)
+                                // modelData directly: this IS the delegate root, so
+                                // `parent` here is the ListView contentItem, which has
+                                // no modelData — that produced a TypeError on every
+                                // created row and an unnamed control for readers.
+                                Accessible.name: win.zoneLabel(modelData)
                                 Keys.onReturnPressed: win.tz = modelData
                                 Keys.onSpacePressed: win.tz = modelData
                                 FocusRing { }

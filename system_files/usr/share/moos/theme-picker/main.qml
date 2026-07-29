@@ -36,6 +36,22 @@ Kirigami.ApplicationWindow {
     readonly property color accent: Kirigami.Theme.highlightColor
     readonly property bool lightSurface:
         Kirigami.Theme.backgroundColor.hslLightness > 0.55
+    readonly property bool rtl: Qt.application.layoutDirection === Qt.RightToLeft
+
+    // The same focus ring as the four MoOS apps, for the same reason: a control the
+    // keyboard can reach must SHOW it has been reached (WCAG 2.4.7). Drawn outside the
+    // shape so it never covers content, following the parent's own radius where one
+    // exists; QQC2 controls have none, so the ring stays a soft rectangle there.
+    component FocusRing: Rectangle {
+        anchors.fill: parent
+        anchors.margins: -3
+        radius: (parent && parent.radius !== undefined ? parent.radius : 0) + 3
+        color: "transparent"
+        border.width: 2
+        border.color: root.accent
+        visible: parent ? parent.activeFocus : false
+        z: 99
+    }
     readonly property string currentQuery:
         "kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage"
     readonly property string currentMotionQuery: "moos-theme motion"
@@ -470,10 +486,16 @@ Kirigami.ApplicationWindow {
                 }
             }
             QQC2.Button {
+                id: undoBtn
                 text: "تراجع | Undo"
                 icon.name: "edit-undo"
                 enabled: !root.operationPending
                 onClicked: root.undo()
+                activeFocusOnTab: true
+                Accessible.name: undoBtn.text
+                FocusRing { }
+                Keys.onReturnPressed: if (undoBtn.enabled) root.undo()
+                Keys.onSpacePressed: if (undoBtn.enabled) root.undo()
             }
         }
     }
@@ -536,6 +558,11 @@ Kirigami.ApplicationWindow {
                 checked: root.currentMotion === "still"
                 enabled: !root.operationPending
                 onClicked: root.setMotion("still")
+                activeFocusOnTab: true
+                Accessible.name: motionStill.text
+                FocusRing { }
+                Keys.onReturnPressed: if (motionStill.enabled) root.setMotion("still")
+                Keys.onSpacePressed: if (motionStill.enabled) root.setMotion("still")
             }
             QQC2.Button {
                 id: motionGentle
@@ -544,6 +571,11 @@ Kirigami.ApplicationWindow {
                 checked: root.currentMotion === "gentle"
                 enabled: !root.operationPending
                 onClicked: root.setMotion("gentle")
+                activeFocusOnTab: true
+                Accessible.name: motionGentle.text
+                FocusRing { }
+                Keys.onReturnPressed: if (motionGentle.enabled) root.setMotion("gentle")
+                Keys.onSpacePressed: if (motionGentle.enabled) root.setMotion("gentle")
             }
             QQC2.Button {
                 id: motionAlive
@@ -552,6 +584,11 @@ Kirigami.ApplicationWindow {
                 checked: root.currentMotion === "alive"
                 enabled: !root.operationPending
                 onClicked: root.setMotion("alive")
+                activeFocusOnTab: true
+                Accessible.name: motionAlive.text
+                FocusRing { }
+                Keys.onReturnPressed: if (motionAlive.enabled) root.setMotion("alive")
+                Keys.onSpacePressed: if (motionAlive.enabled) root.setMotion("alive")
             }
         }
     }
@@ -623,14 +660,36 @@ Kirigami.ApplicationWindow {
             model: themesModel
             clip: true
 
+            // Arrow keys walk the grid; events bubble here from the focused card and are
+            // handled BEFORE GridView's own key handling, which would move currentIndex
+            // without moving the visible focus ring. Horizontal arrows follow the
+            // mirrored layout in RTL.
+            Keys.onPressed: (event) => {
+                const cols = Math.max(1, Math.floor(grid.width / grid.cellWidth))
+                let delta = 0
+                if (event.key === Qt.Key_Left) delta = root.rtl ? 1 : -1
+                else if (event.key === Qt.Key_Right) delta = root.rtl ? -1 : 1
+                else if (event.key === Qt.Key_Up) delta = -cols
+                else if (event.key === Qt.Key_Down) delta = cols
+                else return
+                event.accepted = true
+                const target = grid.currentIndex + delta
+                if (target < 0 || target >= grid.count) return
+                grid.positionViewAtIndex(target, GridView.Contain)
+                const cell = grid.itemAtIndex(target)
+                if (cell) cell.focusCard()
+            }
+
             delegate: Item {
                 id: themeCard
                 width: grid.cellWidth
                 height: grid.cellHeight
+                required property int index
                 required property string lnf
                 required property string name
                 required property bool isLight
                 readonly property bool isActive: lnf === root.currentLnf
+                function focusCard() { cardButton.forceActiveFocus() }
 
                 QQC2.AbstractButton {
                     anchors.fill: parent
@@ -640,6 +699,18 @@ Kirigami.ApplicationWindow {
                     id: cardButton
                     enabled: !root.operationPending
                     onClicked: root.applyTheme(themeCard.lnf)
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.Button
+                    Accessible.name: (themeCard.isActive ? "المُطبّق | Active: " : "") + themeCard.name
+                    Keys.onReturnPressed: if (cardButton.enabled) root.applyTheme(themeCard.lnf)
+                    Keys.onSpacePressed: if (cardButton.enabled) root.applyTheme(themeCard.lnf)
+                    // Keep the keyboard cursor and the view in step: Tab can land on a
+                    // card the grid has scrolled away, and arrows read currentIndex.
+                    onActiveFocusChanged: if (activeFocus) {
+                        grid.currentIndex = themeCard.index
+                        grid.positionViewAtIndex(themeCard.index, GridView.Contain)
+                    }
+                    FocusRing { radius: Kirigami.Units.gridUnit * 0.6 + 3 }
                     scale: down ? 0.98 : (hovered ? 1.02 : 1.0)
                     Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
 
