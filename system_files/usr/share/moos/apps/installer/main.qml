@@ -52,6 +52,21 @@ ApplicationWindow {
     color: win.canvas
 
     // ── semantic palette (KDE colour scheme owns every structural colour) ──────
+    // The UI face is the SYSTEM face, not a string repeated in this file.
+    //
+    // This was `font.family: "IBM Plex Sans"` written out at every text item — 194 times across
+    // Welcome, Mo Store and the Installer. Measured, the system font on MoOS already IS
+    // IBM Plex Sans 13px (kdeglobals General font), and fontconfig maps sans-serif to it as well
+    // (61-moos-brand.conf). So the literal added nothing to how MoOS looks and did exactly one
+    // thing: it OVERRODE the user's own font choice, in the four apps MoOS ships, and nowhere
+    // else. Someone who sets a larger or more legible face in System Settings watched every
+    // application obey except this operating system's own.
+    //
+    // The proof that the literal is unnecessary is already in the tree: the theme picker sets no
+    // font.family at all and renders in the brand face regardless, because the brand face is the
+    // system face.
+    readonly property string uiFont: Qt.application.font.family
+
     // ── semantic palette ───────────────────────────────────────────────────────
     //
     // READ FROM Kirigami.Theme, NOT FROM `palette`. Measured on one session, one scheme
@@ -668,7 +683,7 @@ ApplicationWindow {
                                     anchors.centerIn: parent
                                     text: langPill.modelData.label
                                     color: langPill.on ? win.onAccent : win.txt
-                                    font.family: "IBM Plex Sans"
+                                    font.family: win.uiFont
                                     font.pixelSize: 16
                                     font.weight: langPill.on ? Font.DemiBold : Font.Normal
                                 }
@@ -682,7 +697,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("أهلاً بك في MoOS", "Welcome to MoOS")
                         color: win.txt
-                        font.family: "IBM Plex Sans"; font.pixelSize: 40; font.weight: Font.Bold
+                        font.family: win.uiFont; font.pixelSize: 40; font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 18 }
                     Text {
@@ -693,14 +708,14 @@ ApplicationWindow {
                         text: win.tr("لنثبّت MoOS على جهازك. خطوات قليلة وواضحة — وأنت تقرّر كل شيء.",
                                      "Let's install MoOS on your computer. A few clear steps — you decide everything.")
                         color: win.txt2
-                        font.family: "IBM Plex Sans"; font.pixelSize: 15; lineHeight: 1.35
+                        font.family: win.uiFont; font.pixelSize: 15; lineHeight: 1.35
                     }
                     Item { Layout.preferredHeight: 10 }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("اختر لغتك — يتبعها النظام كله", "Pick your language — the whole system follows")
                         color: win.txt2
-                        font.family: "IBM Plex Sans"; font.pixelSize: 12; opacity: 0.8
+                        font.family: win.uiFont; font.pixelSize: 12; opacity: 0.8
                     }
                     Item { Layout.preferredHeight: 30 }
 
@@ -720,7 +735,7 @@ ApplicationWindow {
                             Text {
                                 text: win.tr("لنبدأ التثبيت", "Let's begin")
                                 color: win.onAccent
-                                font.family: "IBM Plex Sans"; font.pixelSize: 17; font.weight: Font.DemiBold
+                                font.family: win.uiFont; font.pixelSize: 17; font.weight: Font.DemiBold
                             }
                         }
                     }
@@ -739,14 +754,14 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("نظام واحد، متكامل", "One system, complete")
                         color: win.txt
-                        font.family: "IBM Plex Sans"; font.pixelSize: 30; font.weight: Font.Bold
+                        font.family: win.uiFont; font.pixelSize: 30; font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 8 }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("هذا ما ستحصل عليه — بصدق، دون مبالغة.", "Here's what you get — honestly, no hype.")
                         color: win.txt2
-                        font.family: "IBM Plex Sans"; font.pixelSize: 14
+                        font.family: win.uiFont; font.pixelSize: 14
                     }
                     Item { Layout.preferredHeight: 30 }
 
@@ -788,13 +803,13 @@ ApplicationWindow {
                                     Text {
                                         text: win.tr(sellCard.modelData.ar, sellCard.modelData.en)
                                         color: win.txt
-                                        font.family: "IBM Plex Sans"; font.pixelSize: 17; font.weight: Font.DemiBold
+                                        font.family: win.uiFont; font.pixelSize: 17; font.weight: Font.DemiBold
                                     }
                                     Text {
                                         Layout.fillWidth: true
                                         text: win.tr(sellCard.modelData.ar2, sellCard.modelData.en2)
                                         color: win.txt2
-                                        font.family: "IBM Plex Sans"; font.pixelSize: 13; lineHeight: 1.3
+                                        font.family: win.uiFont; font.pixelSize: 13; lineHeight: 1.3
                                         wrapMode: Text.WordWrap
                                     }
                                     Item { Layout.fillHeight: true }
@@ -820,7 +835,7 @@ ApplicationWindow {
                             Text {
                                 text: win.tr("التالي", "Next")
                                 color: win.onAccent
-                                font.family: "IBM Plex Sans"; font.pixelSize: 16; font.weight: Font.DemiBold
+                                font.family: win.uiFont; font.pixelSize: 16; font.weight: Font.DemiBold
                             }
                         }
                     }
@@ -829,7 +844,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("رجوع", "Back")
                         color: win.txt2
-                        font.family: "IBM Plex Sans"; font.pixelSize: 13
+                        font.family: win.uiFont; font.pixelSize: 13
                         TapHandler { onTapped: win.goBack() }
                     }
                 }
@@ -849,7 +864,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("أين نثبّت MoOS؟", "Where should MoOS go?")
                         color: win.txt
-                        font.family: "IBM Plex Sans"; font.pixelSize: 30; font.weight: Font.Bold
+                        font.family: win.uiFont; font.pixelSize: 30; font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 8 }
                     Text {
@@ -860,7 +875,7 @@ ApplicationWindow {
                               : win.tr("اختر القرص. لن يُمحى شيء الآن — ستؤكّد لاحقاً.",
                                        "Pick a disk. Nothing is erased yet — you'll confirm later.")
                         color: win.txt2
-                        font.family: "IBM Plex Sans"; font.pixelSize: 14
+                        font.family: win.uiFont; font.pixelSize: 14
                     }
                     Item { Layout.preferredHeight: 20 }
 
@@ -874,7 +889,7 @@ ApplicationWindow {
                         Text {
                             Layout.alignment: Qt.AlignHCenter
                             text: win.tr("نبحث عن الأقراص…", "Finding your disks…")
-                            color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 14
+                            color: win.txt2; font.family: win.uiFont; font.pixelSize: 14
                         }
                     }
 
@@ -900,7 +915,7 @@ ApplicationWindow {
                                     text: win.tr("لم نعثر على قرص داخلي قابل للكتابة. تأكّد من توصيل القرص ثم أعد الفحص.",
                                                  "No writable internal disk found. Check that a drive is connected, then rescan.")
                                     color: win.txt
-                                    font.family: "IBM Plex Sans"; font.pixelSize: 14; wrapMode: Text.WordWrap
+                                    font.family: win.uiFont; font.pixelSize: 14; wrapMode: Text.WordWrap
                                 }
                             }
                         }
@@ -921,7 +936,7 @@ ApplicationWindow {
                                 Glyph { name: "refresh"; tint: win.txt; width: 17; height: 17 }
                                 Text {
                                     text: win.tr("أعد الفحص", "Rescan")
-                                    color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 14
+                                    color: win.txt; font.family: win.uiFont; font.pixelSize: 14
                                 }
                             }
                         }
@@ -1001,7 +1016,7 @@ ApplicationWindow {
                                                           diskCard.modelData.name)
                                                       + (diskCard.modelData.model ? " · " + diskCard.modelData.model : "")
                                                 color: win.txt
-                                                font.family: "IBM Plex Sans"; font.pixelSize: 16; font.weight: Font.DemiBold
+                                                font.family: win.uiFont; font.pixelSize: 16; font.weight: Font.DemiBold
                                                 elide: Text.ElideRight
                                             }
                                             RowLayout {
@@ -1009,7 +1024,7 @@ ApplicationWindow {
                                                 Text {
                                                     text: diskCard.modelData.sizeH
                                                     color: win.txt2
-                                                    font.family: "IBM Plex Sans"; font.pixelSize: 13
+                                                    font.family: win.uiFont; font.pixelSize: 13
                                                 }
                                                 // data badge
                                                 Rectangle {
@@ -1030,14 +1045,14 @@ ApplicationWindow {
                                                               : parent.hasData ? win.tr("يحتوي بيانات", "Has data")
                                                               : win.tr("فارغ", "Empty")
                                                         color: parent.hasOS ? win.violet : parent.hasData ? win.amber : win.accent
-                                                        font.family: "IBM Plex Sans"; font.pixelSize: 11; font.weight: Font.DemiBold
+                                                        font.family: win.uiFont; font.pixelSize: 11; font.weight: Font.DemiBold
                                                     }
                                                 }
                                                 Text {
                                                     visible: diskCard.disabled
                                                     text: win.tr("صغير جداً للتثبيت", "Too small to install")
                                                     color: win.danger
-                                                    font.family: "IBM Plex Sans"; font.pixelSize: 12
+                                                    font.family: win.uiFont; font.pixelSize: 12
                                                 }
                                             }
                                         }
@@ -1085,7 +1100,7 @@ ApplicationWindow {
                                             text: win.tr("هذا القرص يحتوي على بيانات. متابعة التثبيت ستمحوها كلها.",
                                                          "This disk has data on it. Continuing will erase all of it.")
                                             color: win.txt
-                                            font.family: "IBM Plex Sans"; font.pixelSize: 13; wrapMode: Text.WordWrap
+                                            font.family: win.uiFont; font.pixelSize: 13; wrapMode: Text.WordWrap
                                         }
                                     }
                                 }
@@ -1115,7 +1130,7 @@ ApplicationWindow {
                                         text: win.tr("قرص الإقلاع (USB) — محميّ، لن يُمَسّ",
                                                      "Boot drive (USB) — protected, never touched")
                                         color: win.txt2
-                                        font.family: "IBM Plex Sans"; font.pixelSize: 13
+                                        font.family: win.uiFont; font.pixelSize: 13
                                         elide: Text.ElideRight
                                     }
                                 }
@@ -1137,14 +1152,14 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("كيف نثبّت؟", "How should we install?")
                         color: win.txt
-                        font.family: "IBM Plex Sans"; font.pixelSize: 30; font.weight: Font.Bold
+                        font.family: win.uiFont; font.pixelSize: 30; font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 8 }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("اختر الطريقة. سنشرح كل خيار بوضوح.", "Choose a method. We'll explain each one plainly.")
                         color: win.txt2
-                        font.family: "IBM Plex Sans"; font.pixelSize: 14
+                        font.family: win.uiFont; font.pixelSize: 14
                     }
                     Item { Layout.preferredHeight: 26 }
 
@@ -1196,13 +1211,13 @@ ApplicationWindow {
                                     Text {
                                         text: win.tr(methodCard.modelData.ar, methodCard.modelData.en)
                                         color: win.txt
-                                        font.family: "IBM Plex Sans"; font.pixelSize: 18; font.weight: Font.DemiBold
+                                        font.family: win.uiFont; font.pixelSize: 18; font.weight: Font.DemiBold
                                     }
                                     Text {
                                         Layout.fillWidth: true
                                         text: win.tr(methodCard.modelData.arDesc, methodCard.modelData.enDesc)
                                         color: win.txt2
-                                        font.family: "IBM Plex Sans"; font.pixelSize: 13; lineHeight: 1.3
+                                        font.family: win.uiFont; font.pixelSize: 13; lineHeight: 1.3
                                         wrapMode: Text.WordWrap
                                     }
                                 }
@@ -1246,7 +1261,7 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     text: win.tr(whatRow.modelData.ar, whatRow.modelData.en)
                                     color: win.txt2
-                                    font.family: "IBM Plex Sans"; font.pixelSize: 13
+                                    font.family: win.uiFont; font.pixelSize: 13
                                 }
                             }
                         }
@@ -1276,7 +1291,7 @@ ApplicationWindow {
                             Layout.alignment: Qt.AlignHCenter
                             text: win.tr("احفظ حسابك", "Your account")
                             color: win.txt
-                            font.family: "IBM Plex Sans"; font.pixelSize: 30; font.weight: Font.Bold
+                            font.family: win.uiFont; font.pixelSize: 30; font.weight: Font.Bold
                         }
                         Item { Layout.preferredHeight: 8 }
                         Text {
@@ -1287,7 +1302,7 @@ ApplicationWindow {
                             text: win.tr("أنشئ حسابك الآمن. سيطلب MoOS كلمة السر دائماً عند تسجيل الدخول والقفل وإجراءات الإدارة.",
                                          "Create your secure account. MoOS always asks for your password at sign-in, lock, and admin actions.")
                             color: win.txt2
-                            font.family: "IBM Plex Sans"; font.pixelSize: 14; lineHeight: 1.3
+                            font.family: win.uiFont; font.pixelSize: 14; lineHeight: 1.3
                         }
                         Item { Layout.preferredHeight: 22 }
 
@@ -1295,7 +1310,7 @@ ApplicationWindow {
                         Text {
                             text: win.tr("اسم المستخدم", "Username")
                             color: win.txt2
-                            font.family: "IBM Plex Sans"; font.pixelSize: 13
+                            font.family: win.uiFont; font.pixelSize: 13
                         }
                         Item { Layout.preferredHeight: 6 }
                         Rectangle {
@@ -1313,7 +1328,7 @@ ApplicationWindow {
                                 verticalAlignment: TextInput.AlignVCenter
                                 horizontalAlignment: win.rtl ? TextInput.AlignRight : TextInput.AlignLeft
                                 color: win.txt
-                                font.family: "IBM Plex Sans"; font.pixelSize: 15
+                                font.family: win.uiFont; font.pixelSize: 15
                                 clip: true; selectByMouse: true
                                 text: "moos"
                                 maximumLength: 32
@@ -1326,7 +1341,7 @@ ApplicationWindow {
                                 anchors.right: win.rtl ? parent.right : undefined
                                 anchors.leftMargin: 14; anchors.rightMargin: 14
                                 text: "moos"
-                                color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 15
+                                color: win.txt2; font.family: win.uiFont; font.pixelSize: 15
                             }
                         }
                         Text {
@@ -1334,7 +1349,7 @@ ApplicationWindow {
                             text: win.tr("أحرف إنجليزية صغيرة وأرقام و - _ فقط، تبدأ بحرف.",
                                          "Lowercase letters, digits, - and _; must start with a letter.")
                             color: win.danger
-                            font.family: "IBM Plex Sans"; font.pixelSize: 11
+                            font.family: win.uiFont; font.pixelSize: 11
                             Layout.topMargin: 4
                         }
                         Item { Layout.preferredHeight: 16 }
@@ -1343,7 +1358,7 @@ ApplicationWindow {
                         Text {
                             text: win.tr("الاسم الكامل (اختياري)", "Full name (optional)")
                             color: win.txt2
-                            font.family: "IBM Plex Sans"; font.pixelSize: 13
+                            font.family: win.uiFont; font.pixelSize: 13
                         }
                         Item { Layout.preferredHeight: 6 }
                         Rectangle {
@@ -1360,7 +1375,7 @@ ApplicationWindow {
                                 verticalAlignment: TextInput.AlignVCenter
                                 horizontalAlignment: win.rtl ? TextInput.AlignRight : TextInput.AlignLeft
                                 color: win.txt
-                                font.family: "IBM Plex Sans"; font.pixelSize: 15
+                                font.family: win.uiFont; font.pixelSize: 15
                                 clip: true; selectByMouse: true
                                 maximumLength: 64
                                 onTextChanged: win.acctFull = text
@@ -1386,7 +1401,7 @@ ApplicationWindow {
                                     anchors.fill: parent
                                     anchors.leftMargin: 14; anchors.rightMargin: 14
                                     verticalAlignment: TextInput.AlignVCenter
-                                    color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 15
+                                    color: win.txt; font.family: win.uiFont; font.pixelSize: 15
                                     echoMode: TextInput.Password; clip: true; selectByMouse: true
                                     onTextChanged: win.acctPass = text
                                 }
@@ -1397,7 +1412,7 @@ ApplicationWindow {
                                     anchors.right: win.rtl ? parent.right : undefined
                                     anchors.leftMargin: 14; anchors.rightMargin: 14
                                     text: win.tr("كلمة السر", "Password")
-                                    color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 15
+                                    color: win.txt2; font.family: win.uiFont; font.pixelSize: 15
                                 }
                             }
                             Item { Layout.preferredHeight: 10 }
@@ -1414,7 +1429,7 @@ ApplicationWindow {
                                     anchors.fill: parent
                                     anchors.leftMargin: 14; anchors.rightMargin: 14
                                     verticalAlignment: TextInput.AlignVCenter
-                                    color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 15
+                                    color: win.txt; font.family: win.uiFont; font.pixelSize: 15
                                     echoMode: TextInput.Password; clip: true; selectByMouse: true
                                     onTextChanged: win.acctPass2 = text
                                 }
@@ -1425,21 +1440,21 @@ ApplicationWindow {
                                     anchors.right: win.rtl ? parent.right : undefined
                                     anchors.leftMargin: 14; anchors.rightMargin: 14
                                     text: win.tr("أعد كلمة السر", "Repeat password")
-                                    color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 15
+                                    color: win.txt2; font.family: win.uiFont; font.pixelSize: 15
                                 }
                             }
                             Text {
                                 visible: win.acctPass !== "" && win.acctPass.length < 8
                                 text: win.tr("استخدم 8 محارف على الأقل.", "Use at least 8 characters.")
                                 color: win.danger
-                                font.family: "IBM Plex Sans"; font.pixelSize: 11
+                                font.family: win.uiFont; font.pixelSize: 11
                                 Layout.topMargin: 4
                             }
                             Text {
                                 visible: win.acctPass2 !== "" && win.acctPass !== win.acctPass2
                                 text: win.tr("كلمتا السر غير متطابقتين", "The passwords don't match")
                                 color: win.danger
-                                font.family: "IBM Plex Sans"; font.pixelSize: 11
+                                font.family: win.uiFont; font.pixelSize: 11
                                 Layout.topMargin: 4
                             }
                         }
@@ -1452,7 +1467,7 @@ ApplicationWindow {
                             text: win.tr("تُنشأ حسابك عند أول إقلاع. تقدر تغيّر كل شيء لاحقاً من الإعدادات.",
                                          "Your account is created on first boot. You can change everything later in Settings.")
                             color: win.txt2
-                            font.family: "IBM Plex Sans"; font.pixelSize: 12; opacity: 0.85
+                            font.family: win.uiFont; font.pixelSize: 12; opacity: 0.85
                         }
                         Item { Layout.preferredHeight: 8 }
                     }
@@ -1479,7 +1494,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("منطقتك الزمنية", "Your time zone")
                         color: win.txt
-                        font.family: "IBM Plex Sans"; font.pixelSize: 30; font.weight: Font.Bold
+                        font.family: win.uiFont; font.pixelSize: 30; font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 8 }
                     Text {
@@ -1490,7 +1505,7 @@ ApplicationWindow {
                         text: win.tr("عشان الساعة تضبط من أول لحظة. اخترنا لك بداية — صحّحها لو مكانك غير.",
                                      "So the clock is right from the first minute. We picked a starting point — change it if you are somewhere else.")
                         color: win.txt2
-                        font.family: "IBM Plex Sans"; font.pixelSize: 14; lineHeight: 1.3
+                        font.family: win.uiFont; font.pixelSize: 14; lineHeight: 1.3
                     }
                     Item { Layout.preferredHeight: 18 }
 
@@ -1509,7 +1524,7 @@ ApplicationWindow {
                             verticalAlignment: TextInput.AlignVCenter
                             horizontalAlignment: win.rtl ? TextInput.AlignRight : TextInput.AlignLeft
                             color: win.txt
-                            font.family: "IBM Plex Sans"; font.pixelSize: 15
+                            font.family: win.uiFont; font.pixelSize: 15
                             clip: true; selectByMouse: true
                             onTextChanged: win.zoneFilter = text
                         }
@@ -1520,7 +1535,7 @@ ApplicationWindow {
                             anchors.right: win.rtl ? parent.right : undefined
                             anchors.leftMargin: 14; anchors.rightMargin: 14
                             text: win.tr("ابحث… مثلاً برلين أو Berlin", "Search… e.g. Berlin")
-                            color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 15
+                            color: win.txt2; font.family: win.uiFont; font.pixelSize: 15
                         }
                     }
                     Item { Layout.preferredHeight: 12 }
@@ -1590,7 +1605,7 @@ ApplicationWindow {
                                     elide: Text.ElideRight
                                     text: win.zoneLabel(parent.modelData)
                                     color: parent.picked ? win.txt : win.txt2
-                                    font.family: "IBM Plex Sans"; font.pixelSize: 14
+                                    font.family: win.uiFont; font.pixelSize: 14
                                     font.weight: parent.picked ? Font.DemiBold : Font.Normal
                                 }
                             }
@@ -1608,7 +1623,7 @@ ApplicationWindow {
                                            "Could not read the zone list — we will use " + win.tz)
                                   : win.tr("ما في منطقة بهذا الاسم", "No zone matches that")
                             color: win.txt2
-                            font.family: "IBM Plex Sans"; font.pixelSize: 14
+                            font.family: win.uiFont; font.pixelSize: 14
                         }
                     }
                 }
@@ -1637,7 +1652,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("نقطة اللاعودة", "The point of no return")
                         color: win.txt
-                        font.family: "IBM Plex Sans"; font.pixelSize: 28; font.weight: Font.Bold
+                        font.family: win.uiFont; font.pixelSize: 28; font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 10 }
                     Text {
@@ -1648,7 +1663,7 @@ ApplicationWindow {
                         text: win.tr("تأكّد من التفاصيل. بعد هذه الخطوة يبدأ المسح ولا يمكن التراجع.",
                                      "Check the details. After this, erasing begins and can't be undone.")
                         color: win.txt2
-                        font.family: "IBM Plex Sans"; font.pixelSize: 14; lineHeight: 1.3
+                        font.family: win.uiFont; font.pixelSize: 14; lineHeight: 1.3
                     }
                     Item { Layout.preferredHeight: 22 }
 
@@ -1681,13 +1696,13 @@ ApplicationWindow {
                                         Layout.preferredWidth: 88
                                         text: win.tr(sumRow.modelData.ar, sumRow.modelData.en)
                                         color: win.txt2
-                                        font.family: "IBM Plex Sans"; font.pixelSize: 13
+                                        font.family: win.uiFont; font.pixelSize: 13
                                     }
                                     Text {
                                         Layout.fillWidth: true
                                         text: sumRow.modelData.v
                                         color: sumRow.modelData.danger ? win.danger : win.txt
-                                        font.family: "IBM Plex Sans"; font.pixelSize: 14
+                                        font.family: win.uiFont; font.pixelSize: 14
                                         font.weight: sumRow.modelData.danger ? Font.DemiBold : Font.Normal
                                         horizontalAlignment: win.rtl ? Text.AlignLeft : Text.AlignRight
                                         elide: Text.ElideRight
@@ -1715,7 +1730,7 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 text: win.tr("تغيّر القرص المختار. عد واختر من جديد.",
                                              "The selected disk changed. Go back and choose again.")
-                                color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 13; wrapMode: Text.WordWrap
+                                color: win.txt; font.family: win.uiFont; font.pixelSize: 13; wrapMode: Text.WordWrap
                             }
                         }
                     }
@@ -1750,7 +1765,7 @@ ApplicationWindow {
                                   ? win.tr("استمر بالضغط…", "Keep holding…")
                                   : win.tr("اضغط مطوّلاً للمسح والتثبيت", "Press and hold to erase & install")
                             color: holdBtn.hold > 0.5 ? win.onAccent : win.danger
-                            font.family: "IBM Plex Sans"; font.pixelSize: 15; font.weight: Font.DemiBold
+                            font.family: win.uiFont; font.pixelSize: 15; font.weight: Font.DemiBold
                         }
                         Timer {
                             id: holdTimer
@@ -1780,7 +1795,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("تراجع، لم أتأكد بعد", "Go back, I'm not sure yet")
                         color: win.txt2
-                        font.family: "IBM Plex Sans"; font.pixelSize: 14
+                        font.family: win.uiFont; font.pixelSize: 14
                         TapHandler { onTapped: win.goBack() }
                     }
                 }
@@ -1842,7 +1857,7 @@ ApplicationWindow {
                               ? win.tr("تعثّر التثبيت", "Installation stopped")
                               : win.tr("نثبّت MoOS…", "Installing MoOS…")
                         color: win.txt
-                        font.family: "IBM Plex Sans"; font.pixelSize: 30; font.weight: Font.Bold
+                        font.family: win.uiFont; font.pixelSize: 30; font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 10 }
                     Text {
@@ -1854,7 +1869,7 @@ ApplicationWindow {
                         text: win.tr("قد يستغرق بضع دقائق. لا تفصل الطاقة ولا تنزع USB بعد.",
                                      "This can take a few minutes. Don't cut power or remove the USB yet.")
                         color: win.txt2
-                        font.family: "IBM Plex Sans"; font.pixelSize: 14; lineHeight: 1.3
+                        font.family: win.uiFont; font.pixelSize: 14; lineHeight: 1.3
                     }
                     Item { Layout.preferredHeight: 24 }
 
@@ -1880,7 +1895,7 @@ ApplicationWindow {
                         // ("45٪"). One sign that matches the digits, no bidi surprises.
                         text: win.phaseLabel(win.instPhase) + " — " + win.instPct + "%"
                         color: win.txt
-                        font.family: "IBM Plex Sans"; font.pixelSize: 15; font.weight: Font.DemiBold
+                        font.family: win.uiFont; font.pixelSize: 15; font.weight: Font.DemiBold
                     }
 
                     // reassurance (running)
@@ -1900,7 +1915,7 @@ ApplicationWindow {
                             text: win.tr("نكتب كل شيء بعناية. ستُعلمك هذه الشاشة فور الانتهاء.",
                                          "We're writing everything carefully. This screen will tell you the moment it's done.")
                             color: win.txt2
-                            font.family: "IBM Plex Sans"; font.pixelSize: 13
+                            font.family: win.uiFont; font.pixelSize: 13
                         }
                     }
 
@@ -1924,12 +1939,12 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     text: win.failText(win.failReason)
                                     color: win.txt
-                                    font.family: "IBM Plex Sans"; font.pixelSize: 14; wrapMode: Text.WordWrap
+                                    font.family: win.uiFont; font.pixelSize: 14; wrapMode: Text.WordWrap
                                 }
                                 Text {
                                     text: win.tr("عرض التفاصيل: ", "Details: ") + "FAIL " + win.failReason
                                     color: win.txt2
-                                    font.family: "IBM Plex Sans"; font.pixelSize: 11; opacity: 0.7
+                                    font.family: win.uiFont; font.pixelSize: 11; opacity: 0.7
                                 }
                             }
                         }
@@ -1951,7 +1966,7 @@ ApplicationWindow {
                                     Text {
                                         text: win.tr("أعد المحاولة", "Retry")
                                         color: win.onAccent
-                                        font.family: "IBM Plex Sans"; font.pixelSize: 15; font.weight: Font.DemiBold
+                                        font.family: win.uiFont; font.pixelSize: 15; font.weight: Font.DemiBold
                                     }
                                 }
                             }
@@ -1970,7 +1985,7 @@ ApplicationWindow {
                                     Text {
                                         text: win.tr("اختر قرصاً آخر", "Choose another disk")
                                         color: win.txt
-                                        font.family: "IBM Plex Sans"; font.pixelSize: 15
+                                        font.family: win.uiFont; font.pixelSize: 15
                                     }
                                 }
                             }
@@ -2003,7 +2018,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("تم تثبيت MoOS", "MoOS is installed")
                         color: win.txt
-                        font.family: "IBM Plex Sans"; font.pixelSize: 34; font.weight: Font.Bold
+                        font.family: win.uiFont; font.pixelSize: 34; font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 10 }
                     Text {
@@ -2014,7 +2029,7 @@ ApplicationWindow {
                         text: win.tr("انزع USB ثم أعد التشغيل. عند الإقلاع سيرحّب بك MoOS ويساعدك في اختيار مظهرك ووجهتك وتطبيقاتك.",
                                      "Remove the USB and restart. On first boot, MoOS will welcome you and help you pick your look, direction, and apps.")
                         color: win.txt2
-                        font.family: "IBM Plex Sans"; font.pixelSize: 15; lineHeight: 1.35
+                        font.family: win.uiFont; font.pixelSize: 15; lineHeight: 1.35
                     }
                     Item { Layout.preferredHeight: 28 }
 
@@ -2036,7 +2051,7 @@ ApplicationWindow {
                                 Text {
                                     text: win.tr("أعد التشغيل الآن", "Restart now")
                                     color: win.onAccent
-                                    font.family: "IBM Plex Sans"; font.pixelSize: 15; font.weight: Font.DemiBold
+                                    font.family: win.uiFont; font.pixelSize: 15; font.weight: Font.DemiBold
                                 }
                             }
                         }
@@ -2055,7 +2070,7 @@ ApplicationWindow {
                                 Text {
                                     text: win.tr("إيقاف التشغيل", "Power off")
                                     color: win.txt
-                                    font.family: "IBM Plex Sans"; font.pixelSize: 15; font.weight: Font.DemiBold
+                                    font.family: win.uiFont; font.pixelSize: 15; font.weight: Font.DemiBold
                                 }
                             }
                         }
@@ -2077,7 +2092,7 @@ ApplicationWindow {
                             Text {
                                 text: win.tr("تذكّر: انزع USB أولاً", "Remember: remove the USB first")
                                 color: win.amber
-                                font.family: "IBM Plex Sans"; font.pixelSize: 13; font.weight: Font.DemiBold
+                                font.family: win.uiFont; font.pixelSize: 13; font.weight: Font.DemiBold
                             }
                         }
                     }
@@ -2107,7 +2122,7 @@ ApplicationWindow {
                             Text {
                                 text: win.tr("صُمّم بواسطة Moalfarras", "Designed by Moalfarras")
                                 color: win.txt
-                                font.family: "IBM Plex Sans"; font.pixelSize: 16; font.weight: Font.DemiBold
+                                font.family: win.uiFont; font.pixelSize: 16; font.weight: Font.DemiBold
                             }
                             Rectangle {
                                 Layout.preferredHeight: 30
@@ -2125,14 +2140,14 @@ ApplicationWindow {
                                     Text {
                                         text: "www.moalfarras.space"
                                         color: win.accent
-                                        font.family: "IBM Plex Sans"; font.pixelSize: 14; font.weight: Font.DemiBold
+                                        font.family: win.uiFont; font.pixelSize: 14; font.weight: Font.DemiBold
                                     }
                                 }
                             }
                             Text {
                                 text: win.tr("امسح الرمز لزيارة الموقع", "Scan the code to visit")
                                 color: win.txt2
-                                font.family: "IBM Plex Sans"; font.pixelSize: 12
+                                font.family: win.uiFont; font.pixelSize: 12
                             }
                         }
                     }
@@ -2167,7 +2182,7 @@ ApplicationWindow {
                         anchors.centerIn: parent
                         Text {
                             text: win.tr("السابق", "Back")
-                            color: win.txt; font.family: "IBM Plex Sans"; font.pixelSize: 15
+                            color: win.txt; font.family: win.uiFont; font.pixelSize: 15
                         }
                     }
                 }
@@ -2196,7 +2211,7 @@ ApplicationWindow {
                         Text {
                             text: win.tr("التالي", "Next")
                             color: win.onAccent
-                            font.family: "IBM Plex Sans"; font.pixelSize: 15; font.weight: Font.DemiBold
+                            font.family: win.uiFont; font.pixelSize: 15; font.weight: Font.DemiBold
                         }
                     }
                 }

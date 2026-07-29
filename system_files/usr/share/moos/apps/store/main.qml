@@ -35,6 +35,21 @@ ApplicationWindow {
     color: win.canvas
 
     // Semantic colours are owned by the active MoOS/KDE colour scheme.
+    // The UI face is the SYSTEM face, not a string repeated in this file.
+    //
+    // This was `font.family: "IBM Plex Sans"` written out at every text item — 194 times across
+    // Welcome, Mo Store and the Installer. Measured, the system font on MoOS already IS
+    // IBM Plex Sans 13px (kdeglobals General font), and fontconfig maps sans-serif to it as well
+    // (61-moos-brand.conf). So the literal added nothing to how MoOS looks and did exactly one
+    // thing: it OVERRODE the user's own font choice, in the four apps MoOS ships, and nowhere
+    // else. Someone who sets a larger or more legible face in System Settings watched every
+    // application obey except this operating system's own.
+    //
+    // The proof that the literal is unnecessary is already in the tree: the theme picker sets no
+    // font.family at all and renders in the brand face regardless, because the brand face is the
+    // system face.
+    readonly property string uiFont: Qt.application.font.family
+
     // ── semantic palette ───────────────────────────────────────────────────────
     //
     // READ FROM Kirigami.Theme, NOT FROM `palette`. Measured on one session, one scheme
@@ -1062,7 +1077,7 @@ ApplicationWindow {
                 text: action.label
                 color: action.primary ? win.onAccent
                                       : action.destructive ? win.violet : win.txt
-                font.family: "IBM Plex Sans"
+                font.family: win.uiFont
                 font.pixelSize: 13
                 font.bold: true
             }
@@ -1125,7 +1140,7 @@ ApplicationWindow {
             Text {
                 text: win.sourceLabel(badge.app)
                 color: badge.app && badge.app.verified === true ? win.accent : win.txt2
-                font.family: "IBM Plex Sans"
+                font.family: win.uiFont
                 font.pixelSize: 10
                 font.bold: true
             }
@@ -1172,7 +1187,7 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         text: win.localName(card.app)
                         color: win.txt
-                        font.family: "IBM Plex Sans"
+                        font.family: win.uiFont
                         font.pixelSize: 15
                         font.bold: true
                         elide: Text.ElideRight
@@ -1181,7 +1196,7 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         text: card.app.developer || card.app.id
                         color: win.txt2
-                        font.family: "IBM Plex Sans"
+                        font.family: win.uiFont
                         font.pixelSize: 10
                         elide: Text.ElideRight
                     }
@@ -1199,7 +1214,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 text: win.localSummary(card.app)
                 color: win.txt2
-                font.family: "IBM Plex Sans"
+                font.family: win.uiFont
                 font.pixelSize: 11
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
@@ -1315,7 +1330,7 @@ ApplicationWindow {
                         Text {
                             text: "MO STORE"
                             color: win.txt
-                            font.family: "IBM Plex Sans"
+                            font.family: win.uiFont
                             font.pixelSize: 16
                             font.bold: true
                             font.letterSpacing: 1.5
@@ -1323,7 +1338,7 @@ ApplicationWindow {
                         Text {
                             text: win.rtl ? "مركز تطبيقات MoOS" : "MoOS app centre"
                             color: win.txt2
-                            font.family: "IBM Plex Sans"
+                            font.family: win.uiFont
                             font.pixelSize: 10
                         }
                     }
@@ -1369,7 +1384,7 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 text: win.rtl ? nav.modelData.ar : nav.modelData.en
                                 color: nav.active ? win.txt : win.txt2
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 13
                                 font.bold: nav.active
                             }
@@ -1384,7 +1399,7 @@ ApplicationWindow {
                                     anchors.centerIn: parent
                                     text: win.installedCount()
                                     color: win.accent
-                                    font.family: "IBM Plex Sans"
+                                    font.family: win.uiFont
                                     font.pixelSize: 10
                                     font.bold: true
                                 }
@@ -1403,7 +1418,7 @@ ApplicationWindow {
                                     anchors.centerIn: parent
                                     text: win.updateItems().length
                                     color: win.accent
-                                    font.family: "IBM Plex Sans"
+                                    font.family: win.uiFont
                                     font.pixelSize: 10
                                     font.bold: true
                                 }
@@ -1477,14 +1492,14 @@ ApplicationWindow {
                                         ? (win.rtl ? "الفهرس الكامل جاهز" : "Full catalogue ready")
                                         : (win.rtl ? "الفهرس المحدود · يحتاج اتصالًا" : "Limited catalogue · connection needed")
                                 color: win.txt
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 11
                                 font.bold: true
                             }
                             Text {
                                 text: win.allApps.length + (win.rtl ? " تطبيق" : " apps")
                                 color: win.txt2
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 10
                             }
                         }
@@ -1527,7 +1542,7 @@ ApplicationWindow {
                                 return "Mo Store"
                             }
                             color: win.txt
-                            font.family: "IBM Plex Sans"
+                            font.family: win.uiFont
                             font.pixelSize: 22
                             font.bold: true
                         }
@@ -1537,7 +1552,7 @@ ApplicationWindow {
                                            : "Trusted apps, smart discovery, every source in one place")
                                 : win.visibleApps.length + (win.rtl ? " نتيجة" : " results")
                             color: win.txt2
-                            font.family: "IBM Plex Sans"
+                            font.family: win.uiFont
                             font.pixelSize: 11
                         }
                     }
@@ -1567,7 +1582,7 @@ ApplicationWindow {
                                 color: win.txt
                                 placeholderText: win.rtl ? "ابحث في كل التطبيقات…" : "Search every app…"
                                 placeholderTextColor: win.txt2
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 13
                                 selectByMouse: true
                                 onTextChanged: {
@@ -1581,7 +1596,7 @@ ApplicationWindow {
                                 visible: searchField.text === ""
                                 text: "Ctrl K"
                                 color: win.txt2
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 9
                             }
                         }
@@ -1645,7 +1660,7 @@ ApplicationWindow {
                                     Text {
                                         text: win.rtl ? "MO STORE · جيل جديد" : "MO STORE · REIMAGINED"
                                         color: win.accent
-                                        font.family: "IBM Plex Sans"
+                                        font.family: win.uiFont
                                         font.pixelSize: 10
                                         font.bold: true
                                         font.letterSpacing: 1.5
@@ -1653,7 +1668,7 @@ ApplicationWindow {
                                     Text {
                                         text: win.rtl ? "كل تطبيقاتك. متجر واحد." : "Every app. One beautiful home."
                                         color: win.txt
-                                        font.family: "IBM Plex Sans"
+                                        font.family: win.uiFont
                                         font.pixelSize: Math.min(34, win.width * 0.029)
                                         font.bold: true
                                     }
@@ -1664,7 +1679,7 @@ ApplicationWindow {
                                             ? "ابحث في فهرس Flatpak الكامل، ثبّت بأمان، وافتح التطبيقات والتحديثات ومصادر النظام من تجربة واحدة."
                                             : "Search the complete local Flatpak catalogue, install safely, and manage apps, updates and system engines from one experience."
                                         color: win.txt2
-                                        font.family: "IBM Plex Sans"
+                                        font.family: win.uiFont
                                         font.pixelSize: 13
                                         wrapMode: Text.WordWrap
                                     }
@@ -1719,14 +1734,14 @@ ApplicationWindow {
                                                     Text {
                                                         text: modelData.value
                                                         color: win.txt
-                                                        font.family: "IBM Plex Sans"
+                                                        font.family: win.uiFont
                                                         font.pixelSize: 18
                                                         font.bold: true
                                                     }
                                                     Text {
                                                         text: modelData.label
                                                         color: win.txt2
-                                                        font.family: "IBM Plex Sans"
+                                                        font.family: win.uiFont
                                                         font.pixelSize: 9
                                                     }
                                                 }
@@ -1742,14 +1757,14 @@ ApplicationWindow {
                             Text {
                                 text: win.rtl ? "اختيارات MoOS" : "MoOS picks"
                                 color: win.txt
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 17
                                 font.bold: true
                             }
                             Text {
                                 text: win.rtl ? "· تطبيقات موثوقة للبدء" : "· trusted ways to get started"
                                 color: win.txt2
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 11
                             }
                             Item { Layout.fillWidth: true }
@@ -1782,7 +1797,7 @@ ApplicationWindow {
                             Text {
                                 text: win.rtl ? "فئات لكل استخدام" : "Made for every kind of day"
                                 color: win.txt
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 17
                                 font.bold: true
                             }
@@ -1790,7 +1805,7 @@ ApplicationWindow {
                             Text {
                                 text: win.rtl ? "من العمل إلى اللعب، ومن التصميم إلى الذكاء الاصطناعي" : "Work, play, create, learn and build"
                                 color: win.txt2
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 11
                             }
                         }
@@ -1836,14 +1851,14 @@ ApplicationWindow {
                                             Text {
                                                 text: win.rtl ? homeCategory.modelData.ar : homeCategory.modelData.en
                                                 color: win.txt
-                                                font.family: "IBM Plex Sans"
+                                                font.family: win.uiFont
                                                 font.pixelSize: 13
                                                 font.bold: true
                                             }
                                             Text {
                                                 text: win.categoryCount(homeCategory.modelData.id) + (win.rtl ? " تطبيق" : " apps")
                                                 color: win.txt2
-                                                font.family: "IBM Plex Sans"
+                                                font.family: win.uiFont
                                                 font.pixelSize: 10
                                             }
                                         }
@@ -1859,14 +1874,14 @@ ApplicationWindow {
                             Text {
                                 text: win.rtl ? "حزم ذكية" : "Smart collections"
                                 color: win.txt
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 17
                                 font.bold: true
                             }
                             Text {
                                 text: win.rtl ? "· ثبّت مجموعة كاملة بمراجعة واحدة" : "· one review, a complete setup"
                                 color: win.txt2
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 11
                             }
                             Item { Layout.fillWidth: true }
@@ -1907,14 +1922,14 @@ ApplicationWindow {
                                                 Layout.fillWidth: true
                                                 text: win.rtl ? bundleCard.modelData.ar : bundleCard.modelData.en
                                                 color: win.txt
-                                                font.family: "IBM Plex Sans"
+                                                font.family: win.uiFont
                                                 font.pixelSize: 14
                                                 font.bold: true
                                             }
                                             Text {
                                                 text: (bundleCard.modelData.apps || []).length
                                                 color: win.accent
-                                                font.family: "IBM Plex Sans"
+                                                font.family: win.uiFont
                                                 font.pixelSize: 12
                                                 font.bold: true
                                             }
@@ -1923,7 +1938,7 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                             text: win.rtl ? bundleCard.modelData.desc_ar : bundleCard.modelData.desc_en
                                             color: win.txt2
-                                            font.family: "IBM Plex Sans"
+                                            font.family: win.uiFont
                                             font.pixelSize: 10
                                             wrapMode: Text.WordWrap
                                             maximumLineCount: 2
@@ -1992,7 +2007,7 @@ ApplicationWindow {
                                             Text {
                                                 text: win.rtl ? categoryPill.modelData.ar : categoryPill.modelData.en
                                                 color: categoryPill.active ? win.onAccent : win.txt
-                                                font.family: "IBM Plex Sans"
+                                                font.family: win.uiFont
                                                 font.pixelSize: 11
                                                 font.bold: categoryPill.active
                                             }
@@ -2004,7 +2019,7 @@ ApplicationWindow {
                         Text {
                             text: win.visibleApps.length + (win.rtl ? " تطبيق" : " apps")
                             color: win.txt2
-                            font.family: "IBM Plex Sans"
+                            font.family: win.uiFont
                             font.pixelSize: 11
                         }
                         ActionButton {
@@ -2062,7 +2077,7 @@ ApplicationWindow {
                                 ? (win.rtl ? "لا توجد تطبيقات مثبتة في هذا القسم" : "No installed apps in this view")
                                 : (win.rtl ? "لا توجد نتائج" : "No results")
                             color: win.txt
-                            font.family: "IBM Plex Sans"
+                            font.family: win.uiFont
                             font.pixelSize: 16
                             font.bold: true
                         }
@@ -2070,7 +2085,7 @@ ApplicationWindow {
                             Layout.alignment: Qt.AlignHCenter
                             text: win.rtl ? "جرّب كلمة بحث أو فئة مختلفة." : "Try another search or category."
                             color: win.txt2
-                            font.family: "IBM Plex Sans"
+                            font.family: win.uiFont
                             font.pixelSize: 11
                         }
                         Item { Layout.fillHeight: true }
@@ -2115,14 +2130,14 @@ ApplicationWindow {
                                     Text {
                                         text: win.rtl ? "اختر حسب ما تريد إنجازه" : "Start with what you want to do"
                                         color: win.txt
-                                        font.family: "IBM Plex Sans"
+                                        font.family: win.uiFont
                                         font.pixelSize: 22
                                         font.bold: true
                                     }
                                     Text {
                                         text: win.rtl ? "فئات عملية بدل قوائم تقنية طويلة." : "Human categories instead of package-manager jargon."
                                         color: win.txt2
-                                        font.family: "IBM Plex Sans"
+                                        font.family: win.uiFont
                                         font.pixelSize: 12
                                     }
                                 }
@@ -2169,7 +2184,7 @@ ApplicationWindow {
                                             Text {
                                                 text: win.categoryCount(categoryTile.modelData.id)
                                                 color: win.accent
-                                                font.family: "IBM Plex Sans"
+                                                font.family: win.uiFont
                                                 font.pixelSize: 15
                                                 font.bold: true
                                             }
@@ -2177,14 +2192,14 @@ ApplicationWindow {
                                         Text {
                                             text: win.rtl ? categoryTile.modelData.ar : categoryTile.modelData.en
                                             color: win.txt
-                                            font.family: "IBM Plex Sans"
+                                            font.family: win.uiFont
                                             font.pixelSize: 14
                                             font.bold: true
                                         }
                                         Text {
                                             text: win.rtl ? "استكشف التطبيقات" : "Explore apps"
                                             color: win.txt2
-                                            font.family: "IBM Plex Sans"
+                                            font.family: win.uiFont
                                             font.pixelSize: 10
                                         }
                                     }
@@ -2254,7 +2269,7 @@ ApplicationWindow {
                                                 : (n === 1 ? "1 app has an update." : n + " apps have updates.")
                                         }
                                         color: win.txt
-                                        font.family: "IBM Plex Sans"
+                                        font.family: win.uiFont
                                         font.pixelSize: 24
                                         font.bold: true
                                     }
@@ -2275,7 +2290,7 @@ ApplicationWindow {
                                                 : "Update Flatpak apps here. MoOS image and firmware updates stay on their signed system paths."
                                         }
                                         color: win.txt2
-                                        font.family: "IBM Plex Sans"
+                                        font.family: win.uiFont
                                         font.pixelSize: 12
                                         wrapMode: Text.WordWrap
                                     }
@@ -2322,7 +2337,7 @@ ApplicationWindow {
                             Text {
                                 text: win.rtl ? "بانتظار التحديث" : "Waiting to update"
                                 color: win.txt2
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 12
                                 font.bold: true
                             }
@@ -2360,7 +2375,7 @@ ApplicationWindow {
                                                 Layout.fillWidth: true
                                                 text: pendingRow.modelData.name || pendingRow.modelData.id
                                                 color: win.txt
-                                                font.family: "IBM Plex Sans"
+                                                font.family: win.uiFont
                                                 font.pixelSize: 14
                                                 font.bold: true
                                                 elide: Text.ElideRight
@@ -2371,7 +2386,7 @@ ApplicationWindow {
                                                     + (pendingRow.modelData.version
                                                         ? " · " + pendingRow.modelData.version : "")
                                                 color: win.txt2
-                                                font.family: "IBM Plex Sans"
+                                                font.family: win.uiFont
                                                 font.pixelSize: 11
                                                 elide: Text.ElideRight
                                             }
@@ -2379,7 +2394,7 @@ ApplicationWindow {
                                         Text {
                                             text: pendingRow.modelData.origin || ""
                                             color: win.txt2
-                                            font.family: "IBM Plex Sans"
+                                            font.family: win.uiFont
                                             font.pixelSize: 11
                                         }
                                     }
@@ -2418,7 +2433,7 @@ ApplicationWindow {
                                         Text {
                                             text: win.rtl ? updateCard.modelData.ar : updateCard.modelData.en
                                             color: win.txt
-                                            font.family: "IBM Plex Sans"
+                                            font.family: win.uiFont
                                             font.pixelSize: 14
                                             font.bold: true
                                         }
@@ -2426,7 +2441,7 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                             text: win.rtl ? updateCard.modelData.ar2 : updateCard.modelData.en2
                                             color: win.txt2
-                                            font.family: "IBM Plex Sans"
+                                            font.family: win.uiFont
                                             font.pixelSize: 10
                                             wrapMode: Text.WordWrap
                                         }
@@ -2500,7 +2515,7 @@ ApplicationWindow {
                                     Text {
                                         text: win.rtl ? "مصادر متعددة، تجربة واحدة." : "Many sources. One coherent store."
                                         color: win.txt
-                                        font.family: "IBM Plex Sans"
+                                        font.family: win.uiFont
                                         font.pixelSize: 23
                                         font.bold: true
                                     }
@@ -2510,7 +2525,7 @@ ApplicationWindow {
                                             ? "Mo Store يوحّد البيانات والإدارة، ويُبقي المحركات المتخصصة متاحة عند الحاجة من دون تكرار المتاجر في القائمة."
                                             : "Mo Store unifies discovery and management while keeping specialist engines available without duplicate storefronts."
                                         color: win.txt2
-                                        font.family: "IBM Plex Sans"
+                                        font.family: win.uiFont
                                         font.pixelSize: 11
                                         wrapMode: Text.WordWrap
                                     }
@@ -2604,14 +2619,14 @@ ApplicationWindow {
                                                 Text {
                                                     text: win.rtl ? sourceCard.modelData.ar : sourceCard.modelData.en
                                                     color: win.txt
-                                                    font.family: "IBM Plex Sans"
+                                                    font.family: win.uiFont
                                                     font.pixelSize: 14
                                                     font.bold: true
                                                 }
                                                 Text {
                                                     text: win.rtl ? sourceCard.modelData.stateAr : sourceCard.modelData.stateEn
                                                     color: win.accent
-                                                    font.family: "IBM Plex Sans"
+                                                    font.family: win.uiFont
                                                     font.pixelSize: 10
                                                     font.bold: true
                                                 }
@@ -2621,7 +2636,7 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                             text: win.rtl ? sourceCard.modelData.ar2 : sourceCard.modelData.en2
                                             color: win.txt2
-                                            font.family: "IBM Plex Sans"
+                                            font.family: win.uiFont
                                             font.pixelSize: 10
                                             wrapMode: Text.WordWrap
                                             maximumLineCount: 3
@@ -2691,7 +2706,7 @@ ApplicationWindow {
                     anchors.centerIn: parent
                     text: win.pickCount
                     color: win.onAccent
-                    font.family: "IBM Plex Sans"
+                    font.family: win.uiFont
                     font.pixelSize: 13
                     font.bold: true
                 }
@@ -2702,14 +2717,14 @@ ApplicationWindow {
                 Text {
                     text: win.rtl ? "قائمة التثبيت جاهزة" : "Install list ready"
                     color: win.txt
-                    font.family: "IBM Plex Sans"
+                    font.family: win.uiFont
                     font.pixelSize: 12
                     font.bold: true
                 }
                 Text {
                     text: win.rtl ? "راجع المصدر قبل البدء" : "Review sources before starting"
                     color: win.txt2
-                    font.family: "IBM Plex Sans"
+                    font.family: win.uiFont
                     font.pixelSize: 9
                 }
             }
@@ -2771,7 +2786,7 @@ ApplicationWindow {
                             ? (win.rtl ? "يبدأ العمل…" : "Starting…")
                             : win.job.message || (win.rtl ? "جارٍ تنفيذ العملية" : "Working")
                         color: win.txt
-                        font.family: "IBM Plex Sans"
+                        font.family: win.uiFont
                         font.pixelSize: 12
                         font.bold: true
                         elide: Text.ElideRight
@@ -2780,7 +2795,7 @@ ApplicationWindow {
                         visible: win.job.progress !== null && win.job.progress !== undefined
                         text: Math.round(win.job.progress || 0) + "%"
                         color: win.accent
-                        font.family: "IBM Plex Sans"
+                        font.family: win.uiFont
                         font.pixelSize: 11
                         font.bold: true
                     }
@@ -2881,7 +2896,7 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             text: win.localName(win.selectedApp)
                             color: win.txt
-                            font.family: "IBM Plex Sans"
+                            font.family: win.uiFont
                             font.pixelSize: 24
                             font.bold: true
                             elide: Text.ElideRight
@@ -2890,7 +2905,7 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             text: win.selectedApp ? (win.selectedApp.developer || win.selectedApp.id) : ""
                             color: win.txt2
-                            font.family: "IBM Plex Sans"
+                            font.family: win.uiFont
                             font.pixelSize: 11
                             elide: Text.ElideRight
                         }
@@ -2907,7 +2922,7 @@ ApplicationWindow {
                                     anchors.centerIn: parent
                                     text: win.selectedApp ? win.selectedApp.license : ""
                                     color: win.txt2
-                                    font.family: "IBM Plex Sans"
+                                    font.family: win.uiFont
                                     font.pixelSize: 9
                                 }
                             }
@@ -2947,7 +2962,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     text: win.localSummary(win.selectedApp)
                     color: win.txt
-                    font.family: "IBM Plex Sans"
+                    font.family: win.uiFont
                     font.pixelSize: 15
                     font.bold: true
                     wrapMode: Text.WordWrap
@@ -2956,7 +2971,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     text: win.localDescription(win.selectedApp)
                     color: win.txt2
-                    font.family: "IBM Plex Sans"
+                    font.family: win.uiFont
                     font.pixelSize: 11
                     wrapMode: Text.WordWrap
                     maximumLineCount: 8
@@ -3001,12 +3016,12 @@ ApplicationWindow {
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 0
-                                    Text { text: modelData.label; color: win.txt2; font.family: "IBM Plex Sans"; font.pixelSize: 9 }
+                                    Text { text: modelData.label; color: win.txt2; font.family: win.uiFont; font.pixelSize: 9 }
                                     Text {
                                         Layout.fillWidth: true
                                         text: modelData.value
                                         color: win.txt
-                                        font.family: "IBM Plex Sans"
+                                        font.family: win.uiFont
                                         font.pixelSize: 11
                                         font.bold: true
                                         elide: Text.ElideRight
@@ -3039,7 +3054,7 @@ ApplicationWindow {
                                 ? "مصدر متقدم: راجع اسم الحزمة وطريقة التثبيت قبل المتابعة."
                                 : "Advanced source: review the package and install method before continuing."
                             color: win.txt
-                            font.family: "IBM Plex Sans"
+                            font.family: win.uiFont
                             font.pixelSize: 10
                             wrapMode: Text.WordWrap
                         }
@@ -3052,7 +3067,7 @@ ApplicationWindow {
                         visible: win.systemManagedOnly(win.selectedApp)
                         text: win.rtl ? "مُدار مع النظام" : "System managed"
                         color: win.txt2
-                        font.family: "IBM Plex Sans"
+                        font.family: win.uiFont
                         font.pixelSize: 10
                         font.bold: true
                     }
@@ -3135,7 +3150,7 @@ ApplicationWindow {
                                 ? (win.rtl ? "راجع قبل المتابعة" : "Review before continuing")
                                 : (win.rtl ? "راجع قبل التثبيت" : "Review before installing")
                         color: win.txt
-                        font.family: "IBM Plex Sans"
+                        font.family: win.uiFont
                         font.pixelSize: 18
                         font.bold: true
                     }
@@ -3152,7 +3167,7 @@ ApplicationWindow {
                                     ? "سيُثبت Flatpak بصلاحيات المستخدم فقط. المصادر المتقدمة موضحة أدناه."
                                     : "Flatpaks install for your user only. Advanced sources are clearly marked below.")
                         color: win.txt2
-                        font.family: "IBM Plex Sans"
+                        font.family: win.uiFont
                         font.pixelSize: 10
                     }
                 }
@@ -3187,7 +3202,7 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 text: win.localName(reviewItem.app)
                                 color: win.txt
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 12
                                 font.bold: true
                                 elide: Text.ElideRight
@@ -3200,7 +3215,7 @@ ApplicationWindow {
                                            || (reviewItem.app.install
                                                && reviewItem.app.install.requires_review))
                                        ? win.violet : win.txt2
-                                font.family: "IBM Plex Sans"
+                                font.family: win.uiFont
                                 font.pixelSize: 9
                                 elide: Text.ElideRight
                             }
@@ -3229,7 +3244,7 @@ ApplicationWindow {
                             ? "لا صلاحية مسؤول، والمواقع الخارجية لا تثبّت تلقائياً؛ أدوات npm المعلّمة قد تشغّل سكربتات الحزمة بعد موافقتك."
                             : "No administrator access, and external websites never install automatically. Marked npm tools may run package scripts after your approval."
                         color: win.txt
-                        font.family: "IBM Plex Sans"
+                        font.family: win.uiFont
                         font.pixelSize: 10
                         wrapMode: Text.WordWrap
                     }
@@ -3282,7 +3297,7 @@ ApplicationWindow {
             horizontalAlignment: Text.AlignHCenter
             text: "Mo Store"
             color: win.txt
-            font.family: "IBM Plex Sans"
+            font.family: win.uiFont
             font.pixelSize: 11
             elide: Text.ElideRight
         }

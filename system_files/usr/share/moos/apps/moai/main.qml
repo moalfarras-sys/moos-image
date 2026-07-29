@@ -75,7 +75,9 @@ Kirigami.ApplicationWindow {
     readonly property color okColor:   Kirigami.Theme.positiveTextColor
     readonly property color warnColor: Kirigami.Theme.neutralTextColor
     readonly property color badColor:  Kirigami.Theme.negativeTextColor
-    readonly property string uiFont: "IBM Plex Sans"
+    // The system face, not a literal: MoOS already sets IBM Plex Sans as the system font,
+    // so this renders identically today and stops overriding the user's choice tomorrow.
+    readonly property string uiFont: Qt.application.font.family
 
     // ── Endpoints ───────────────────────────────────────────────────────────
     // 8080 is Mo AI's FRONT DOOR (moai-gateway) and nothing else. It is always

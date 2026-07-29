@@ -3416,6 +3416,38 @@ for cursor_name in ui2_cursors.values():
             f"build.sh never creates {cursor_name} — the defaults would name a "
             "cursor that does not exist and Plasma would fall back")
 
+# MoOS's own apps must not override the user's font.
+#
+# `font.family: "IBM Plex Sans"` was written out at 194 text items across Welcome, Mo Store and
+# the Installer, and Mo AI centralised the same literal in one property. Measured, that string is
+# ALREADY the system font — kdeglobals General font is `IBM Plex Sans,10,...`, Qt hands apps
+# "IBM Plex Sans" at 13px, and 61-moos-brand.conf maps sans-serif to it as well. So the literal
+# changed nothing about how MoOS looks and did exactly one thing: it overrode the font the user
+# chose, in the four applications this operating system ships and nowhere else. Someone who picks
+# a larger or more legible face in System Settings watched every app obey except MoOS's own.
+#
+# The tree already contained the proof it was unnecessary: the theme picker sets no font.family
+# at all and renders in the brand face regardless, because the brand face IS the system face.
+#
+# Removing it was verified to be visually neutral, not assumed: Welcome rendered before and after
+# and diffed per region — headline, subtitle, language pills, primary button, skip link and
+# progress dots all 0 differing pixels. (The hero halo differs because it is an animation caught
+# at a different frame.)
+#
+# A monospace literal is a different case and is allowed: code and logs want a fixed face, and
+# JetBrains Mono is the system `fixed` font by the same argument.
+for qml_app in sorted((ROOT / "system_files/usr/share/moos").glob("**/main.qml")):
+    # style="slash": QML comments are //, and the default here strips # instead. Without
+    # this the comment ABOVE explaining the literal satisfies the search for the literal,
+    # and the gate fails on files that are correct.
+    qml_src = code(read(str(qml_app.relative_to(ROOT))), style="slash")
+    app_label = qml_app.parent.name
+    for bad_family in re.findall(r'font\.family:\s*"([^"]+)"', qml_src):
+        require("mono" in bad_family.lower(),
+                f"{app_label} hardcodes font.family \"{bad_family}\" — that overrides the font the "
+                f"user chose in System Settings. Bind to the root's `uiFont` property, which is "
+                f"Qt.application.font.family, so MoOS follows the system face like every other app")
+
 ui_wallpaper = ROOT / "system_files/usr/share/wallpapers/MoOSUI2Graphite"
 for relative in (
     "metadata.json", "contents/screenshot.png",
