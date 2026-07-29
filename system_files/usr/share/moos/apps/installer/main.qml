@@ -124,7 +124,21 @@ ApplicationWindow {
     // keymap names coincide for what MoOS ships (de, us, both in `localectl list-keymaps`);
     // a layout whose console keymap has a different name would need a mapping here.
     function keymapForLang() { return win.xkbForLang().split(",")[0] }
-    function xkbForLang()    { return win.lang === "ar" ? "de,ara" : "de" }
+    // THE LAYOUT THE IMAGE ITSELF SHIPS — do not invent a different one here.
+    //
+    // /etc/xdg/kxkbrc and /etc/X11/xorg.conf.d/00-keyboard.conf both say `de,us,ara`, and
+    // moos-selfcheck compares the live session against exactly that. This function used to
+    // answer `de,ara` (and `de` for English), and moos-firstboot then OVERWRITES
+    // 00-keyboard.conf with whatever it is given — so every install was born disagreeing
+    // with the image's own two config files and failed MoOS's own keyboard check on first
+    // boot, for a machine nobody had touched.
+    //
+    // One list for every install: `de` because the physical keyboard is German, `us` for the
+    // Fast Remote route the 2026-07-22 image added, `ara` for Arabic. Which one is ACTIVE is
+    // a per-session choice the user makes with the layout switcher; which ones are AVAILABLE
+    // is a property of the image, and the installer's job is to match it, not to fork it.
+    // The console keymap is still derived from the primary entry above, so it stays `de`.
+    function xkbForLang()    { return "de,us,ara" }
     function localeForLang() { return win.lang === "ar" ? "ar_SA.UTF-8" : "en_US.UTF-8" }
     // A GUESS, and only the zone step's starting selection — never the answer on its own.
     // Language is not location: this project's own owner is an Arabic speaker in Germany, so

@@ -976,6 +976,33 @@ require("xkbForLang" in keymap_fn.group(1),
         "keymapForLang() must derive the console keymap from xkbForLang() — naming the keyboard "
         "twice is what let the console keep typing 'us' after the layout became 'de,ara'")
 
+# ONE KEYBOARD LIST, FOUR PLACES THAT MUST AGREE.
+#
+# The image ships the available layouts in /etc/xdg/kxkbrc and
+# /etc/X11/xorg.conf.d/00-keyboard.conf, and moos-selfcheck compares the live session
+# against the former. But moos-firstboot OVERWRITES 00-keyboard.conf with its own
+# XKBLAYOUT, and the installer supplies that value from xkbForLang(). Both still said
+# `de,ara` after the image moved to `de,us,ara`, so a machine nobody had touched failed
+# MoOS's own keyboard check on first boot — the drift was written at birth. Pin all four
+# to the image's list rather than to a literal here, so the next change moves them together.
+_image_layouts = re.search(r"(?m)^LayoutList=([a-z,]+)\s*$",
+                           read("system_files/etc/xdg/kxkbrc"))
+require(_image_layouts, "/etc/xdg/kxkbrc must declare LayoutList — it is the image's "
+                        "definition of which keyboard layouts exist")
+_layouts = _image_layouts.group(1)
+require(f'"XkbLayout" "{_layouts}"' in read("system_files/etc/X11/xorg.conf.d/00-keyboard.conf"),
+        f"00-keyboard.conf must offer the same layouts as kxkbrc ({_layouts}); the X11 layout and "
+        f"the Plasma layout list describe one keyboard")
+_xkb_fn = re.search(r"function\s+xkbForLang\s*\(\s*\)\s*\{([^}]*)\}", installer_qml)
+require(_xkb_fn and _layouts in _xkb_fn.group(1),
+        f"the installer's xkbForLang() must produce the image's layout list ({_layouts}). "
+        f"moos-firstboot overwrites 00-keyboard.conf with it, so anything else replaces the "
+        f"image's own file and the machine fails its keyboard check on first boot")
+require(re.search(rf'XKBLAYOUT="{re.escape(_layouts)}"',
+                  code(read("system_files/usr/libexec/moos-firstboot"))),
+        f"moos-firstboot's XKBLAYOUT default must be the image's layout list ({_layouts}) — it is "
+        f"what an unattended install writes over 00-keyboard.conf")
+
 # ── The boot theme is a SCRIPT theme; gate what the plugin LOADS, not just draws ─
 # The splash was once dead for weeks with every gate green: they asserted the theme
 # was installed, selected, and its PNGs decoded — all true while the screen was a
