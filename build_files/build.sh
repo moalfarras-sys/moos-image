@@ -1484,7 +1484,25 @@ chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
 #
 # So swap the fake for Cisco's real one. --allowerasing because noopenh264 is what the
 # base image ships and the two cannot coexist.
-dnf5 -y install --allowerasing openh264 gstreamer1-plugin-openh264 gstreamer1-plugins-bad-free
+#
+# AND SHIP x264 AS THE PREFERRED SOFTWARE ENCODER (gstreamer1-plugins-ugly).
+#
+# mo-remote-portal.py tries encoders in quality order — nvh264enc, vah264enc, vah264lpenc,
+# x264enc, then openh264enc — and x264enc was simply not installed, so the software rung of
+# that ladder was openh264. That matters precisely when it is reached: this machine's own
+# documented failure is Mo AI's local brain holding ~6 GB of an 8 GB card, NVENC refusing to
+# open a session, and the stream falling back. Measured on the live machine while writing
+# this: nvh264enc present, vah264enc absent, x264enc ABSENT, openh264enc present — so the
+# fallback was the weakest option available rather than the best one.
+#
+# x264 at `tune=zerolatency speed-preset=veryfast` is markedly better than openh264 on
+# desktop content (large flat areas and thin high-contrast text), which is the whole
+# workload here. openh264 stays installed as the last resort — the ladder keeps both.
+#
+# gstreamer1-plugins-ugly comes from negativo17 (fedora-multimedia), a repo this image
+# already carries; the same deliberate-codec-choice policy as the openh264 swap above.
+dnf5 -y install --allowerasing openh264 gstreamer1-plugin-openh264 gstreamer1-plugins-bad-free \
+    gstreamer1-plugins-ugly
 
 python3 - <<'EOF'
 import gi, sys
@@ -1499,8 +1517,18 @@ if missing:
 # At least one H.264 encoder that runs on ANY machine, with no GPU and no luck. The hardware ones
 # are checked at runtime, not here, because "installed" and "will open a session" are different
 # claims and only the second one matters.
-enc = next((e for e in ("openh264enc", "x264enc") if Gst.ElementFactory.find(e)), None)
-if not enc:
+#
+# x264enc FIRST, because that is the order mo-remote-portal.py tries them in: it is the better
+# encoder on desktop content and openh264 is the last resort behind it. Requiring it here is what
+# stops the image silently regressing to the weaker rung — which is the state it shipped in until
+# gstreamer1-plugins-ugly was added above, so this is a gate on a real regression, not a hypothetical.
+software_encoders = [e for e in ("x264enc", "openh264enc") if Gst.ElementFactory.find(e)]
+if "x264enc" not in software_encoders:
+    sys.exit("FATAL: x264enc is missing. mo-remote-portal tries it BEFORE openh264enc, so without "
+             "it every session that cannot get a hardware encoder — the documented case is the "
+             "local brain holding the VRAM — falls back to the weakest encoder in the ladder. "
+             "Install gstreamer1-plugins-ugly.")
+if not software_encoders:
     sys.exit("FATAL: no software H.264 encoder. NVENC is not guaranteed to open (VRAM), and "
              "without a fallback the stream drops to JPEG — 79 Mbit/s, unusable on mobile data.")
 
@@ -1508,18 +1536,23 @@ if not enc:
 # openh264enc register and then fail to create an encoder on the first frame, which is
 # exactly how every remote session on the cloud server ended up silently on JPEG while
 # every check here said H.264 was present. So encode two frames and insist they arrive.
-pipeline = Gst.parse_launch(
-    f"videotestsrc num-buffers=2 ! video/x-raw,width=320,height=240 ! "
-    f"videoconvert ! {enc} ! fakesink")
-pipeline.set_state(Gst.State.PLAYING)
-msg = pipeline.get_bus().timed_pop_filtered(
-    20 * Gst.SECOND, Gst.MessageType.ERROR | Gst.MessageType.EOS)
-pipeline.set_state(Gst.State.NULL)
-if msg is None or msg.type == Gst.MessageType.ERROR:
-    why = msg.parse_error()[0].message if msg is not None else "timed out"
-    sys.exit(f"FATAL: {enc} is installed but cannot encode ({why}). This is what a stub "
-             "codec looks like: every presence check passes and every stream is JPEG.")
-print(f"OK: Mo Remote GStreamer capture pipeline elements all present ({enc} encodes).")
+# Prove EVERY software encoder the ladder can reach, not just the first one found. Testing
+# only one leaves the other free to be a stub, and the whole point of the ladder is that the
+# next rung works when the one above it does not.
+for enc in software_encoders:
+    pipeline = Gst.parse_launch(
+        f"videotestsrc num-buffers=2 ! video/x-raw,width=320,height=240 ! "
+        f"videoconvert ! {enc} ! fakesink")
+    pipeline.set_state(Gst.State.PLAYING)
+    msg = pipeline.get_bus().timed_pop_filtered(
+        20 * Gst.SECOND, Gst.MessageType.ERROR | Gst.MessageType.EOS)
+    pipeline.set_state(Gst.State.NULL)
+    if msg is None or msg.type == Gst.MessageType.ERROR:
+        why = msg.parse_error()[0].message if msg is not None else "timed out"
+        sys.exit(f"FATAL: {enc} is installed but cannot encode ({why}). This is what a stub "
+                 "codec looks like: every presence check passes and every stream is JPEG.")
+print("OK: Mo Remote GStreamer capture pipeline elements all present "
+      f"({', '.join(software_encoders)} all encode).")
 EOF
 
 # Compile-and-launch smoke test for every shipped pure-QML application, run through
