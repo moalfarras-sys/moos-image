@@ -42,6 +42,29 @@ ApplicationWindow {
     // autostarts on every first login, so an ungated loop here spins on the
     // very first thing a new user sees.
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
+
+    // Raise a surface off a canvas of ANY brightness.
+    //
+    // The theme-preview cards paint a "glass" bento and dock over each theme's canvas, and the
+    // only thing that makes them visible is contrast with that canvas. Two earlier attempts each
+    // worked for one half of the family and made the other half invisible:
+    //
+    //   Qt.lighter(canvas, 1.35)      multiplies HSV Value, so on Midnight's #000000 (Value 0)
+    //                                 it is a NO-OP — black on black.
+    //   Qt.tint(canvas, white@0.14)   lifts every dark canvas, but on Tidal Light's #D8EBE7 it
+    //                                 moves the colour ~5/255 — measured 1.03:1, invisible.
+    //
+    // Elevation has to move AWAY from the canvas, in whichever direction has room: lighten a dark
+    // canvas, darken a light one (which is how light-mode elevation works everywhere). Measured
+    // contrast with this helper: Midnight 1.35, Graphite 1.52, Nova 1.47, Amethyst 1.49,
+    // Aurora 1.51, Tidal Light 1.37 — one band, no outliers.
+    function elevate(canvas, amount) {
+        var c = Qt.color(canvas)
+        // Rec. 709 luma; the threshold only has to separate "dark canvas" from "light canvas".
+        var isLight = (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) > 0.5
+        return Qt.tint(canvas, isLight ? Qt.rgba(0, 0, 0, amount)
+                                       : Qt.rgba(1, 1, 1, amount))
+    }
     visible: true
     // Open at the design size, but never larger than the screen can hold — a
     // 1280×720 or 1366×768 laptop (with the panel eating height) must not get a
@@ -1175,13 +1198,9 @@ ApplicationWindow {
                                         Rectangle {
                                             x: 14; y: 14
                                             width: parent.width * 0.46; height: 42; radius: 9
-                                            // Elevate ADDITIVELY (white over canvas), not with
-                                            // Qt.lighter: Qt.lighter multiplies HSV Value, and
-                                            // Midnight's canvas is #000000 (Value 0), so lighten was
-                                            // a no-op and this glass panel painted black-on-black —
-                                            // the Midnight card looked broken. tint lifts every
-                                            // canvas, including true black (~#242424 here).
-                                            color: Qt.tint(lookCard.modelData.canvasC, Qt.rgba(1, 1, 1, 0.14))
+                                            // Elevate by moving AWAY from the canvas, in whichever
+                                            // direction has room — see win.elevate().
+                                            color: win.elevate(lookCard.modelData.canvasC, 0.14)
                                             opacity: 0.9
                                             Rectangle {
                                                 x: 9; y: 9; width: 34; height: 10; radius: 5
@@ -1198,9 +1217,8 @@ ApplicationWindow {
                                             anchors.bottom: parent.bottom
                                             anchors.bottomMargin: 10
                                             width: parent.width * 0.5; height: 16; radius: 8
-                                            // Additive elevation — see the bento note: Qt.lighter is
-                                            // a no-op on Midnight's #000000, so the dock vanished.
-                                            color: Qt.tint(lookCard.modelData.canvasC, Qt.rgba(1, 1, 1, 0.17))
+                                            // Same direction-aware elevation as the bento above.
+                                            color: win.elevate(lookCard.modelData.canvasC, 0.17)
                                             opacity: 0.95
                                             Row {
                                                 anchors.centerIn: parent
