@@ -369,6 +369,11 @@ Kirigami.ApplicationWindow {
         "• Repair & maintain: `moai-do update` (atomic system update), `moai-do " +
         "fix-audio`, `moai-do check-drivers`, `moai-do optimize` (clean + speed up), " +
         "`moai-do diagnose-services`, `moai-do inspect-boot`, `moai-do hw-report`.\n" +
+        "• Rescue & diagnose: `moai-do rollback` (go back to the previous version if an " +
+        "update broke something — atomic and reversible, applies on reboot), `moai-do " +
+        "net-doctor` (network/DNS/Tailscale check — read-only), `moai-do gpu-report` (GPU " +
+        "memory and what is holding it — read-only; useful when the remote is slow or an " +
+        "app fails to open).\n" +
         "• Drivers & firmware: `moai-do install-nvidia` (atomically switch to the MoOS " +
         "NVIDIA edition — applies on reboot, the previous system is kept for " +
         "rollback), `moai-do update-firmware` (device firmware via fwupd).\n" +
@@ -749,7 +754,7 @@ Kirigami.ApplicationWindow {
     // tests/verify_user_experience.py now compares this list against the prompt.
     function extractRuns(text) {
         const out = []
-        const re = /moai-do\s+(update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|update-firmware|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode|install-openclaw|setup-brain)\b/g
+        const re = /moai-do\s+(update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|update-firmware|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode|install-openclaw|setup-brain|rollback|net-doctor|gpu-report)\b/g
         let m
         while ((m = re.exec(text)) !== null)
             if (out.indexOf(m[1]) === -1)
@@ -1051,8 +1056,11 @@ Kirigami.ApplicationWindow {
         { id: "diagnose-services", label: "الخدمات الفاشلة | Failed services", read: true },
         { id: "check-drivers",     label: "الكرت والتعريف | GPU & drivers",    read: true },
         { id: "inspect-boot",      label: "حالة الإقلاع | Boot status",         read: true },
+        { id: "net-doctor",        label: "تشخيص الشبكة | Network doctor",       read: true },
+        { id: "gpu-report",        label: "ذاكرة كرت الشاشة | GPU memory",       read: true },
         { id: "fix-audio",         label: "إصلاح الصوت | Fix audio",            read: false },
         { id: "optimize",          label: "تنظيف وتحرير مساحة | Clean & free space", read: false },
+        { id: "rollback",          label: "الرجوع لنسخة سابقة | Roll back",      read: false },
         { id: "update",            label: "تحديث MoOS | Update MoOS",           read: false }
     ]
     function diagnoseSystem() {

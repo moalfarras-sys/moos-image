@@ -503,6 +503,89 @@ do_inspect_boot() {
     journalctl -b -p err --no-pager -n 80 2>/dev/null || true
 }
 
+# rollback — the most important rescue on a bootc system, which the assistant could
+# describe but not do. Atomic and reversible: it only changes which deployment the
+# NEXT boot uses; a later `update` moves forward again. Confirmed, and privileged via
+# pkexec. It never touches the signature policy or removes a deployment.
+do_rollback() {
+    hdr "الرجوع إلى النسخة السابقة" "Roll back to the previous version"
+    echo "${D}يجعل الإقلاع القادم على النشر السابق. ملفاتك وإعداداتك لا تتغيّر،${N}"
+    echo "${D}ويمكنك التقدّم ثانيةً في أي وقت عبر «تحديث».${N}"
+    echo "${D}Makes the next boot use the previous deployment. Your files and settings are${N}"
+    echo "${D}untouched, and you can move forward again any time with an update.${N}"
+    echo
+    if command -v rpm-ostree >/dev/null 2>&1; then
+        echo "${B}النشرات الحالية | Current deployments:${N}"
+        rpm-ostree status 2>/dev/null | sed -n '1,12p' || true
+        echo
+    fi
+    confirm || return 0
+    run_priv rpm-ostree rollback || return 1
+    echo
+    echo "${G}✓ سيبدأ الإقلاع القادم على النسخة السابقة | next boot will use the previous version${N}"
+    echo "${D}أعد التشغيل لتطبيق الرجوع | reboot to apply.${N}"
+}
+
+# net-doctor — read-only. The first thing to check when the remote or updates "don't
+# work": link, route, internet, DNS (specifically the update registry), and Tailscale.
+do_net_doctor() {
+    hdr "تشخيص الشبكة (قراءة فقط)" "Network doctor (read-only)"
+    echo "${B}الأجهزة والاتصال | Interfaces:${N}"
+    if command -v nmcli >/dev/null 2>&1; then
+        nmcli -t -f DEVICE,TYPE,STATE device 2>/dev/null | grep -vE ':unmanaged$' || true
+    else
+        ip -brief addr 2>/dev/null | grep -v '^lo' || true
+    fi
+    echo
+    echo "${B}الإنترنت | Internet:${N}"
+    ip route get 1.1.1.1 2>/dev/null | head -1 || true
+    if ping -c1 -W2 1.1.1.1 >/dev/null 2>&1; then
+        echo "  ${G}✓ يمكن الوصول للإنترنت | reachable (1.1.1.1)${N}"
+    else
+        echo "  ${R}✗ لا مسار للإنترنت | no route to 1.1.1.1${N}"
+    fi
+    echo
+    echo "${B}DNS:${N}"
+    command -v resolvectl >/dev/null 2>&1 \
+        && resolvectl status 2>/dev/null | grep -E "Current DNS Server|DNS Servers" | head -3 || true
+    if getent hosts ghcr.io >/dev/null 2>&1; then
+        echo "  ${G}✓ يُحلَّل ghcr.io (خادم التحديثات) | resolves ghcr.io (update registry)${N}"
+    else
+        echo "  ${R}✗ تعذّر تحليل ghcr.io — التحديثات لن تعمل | cannot resolve ghcr.io${N}"
+    fi
+    echo
+    echo "${B}Tailscale (Mo PC Remote من الخارج | remote from outside):${N}"
+    if command -v tailscale >/dev/null 2>&1; then
+        tailscale status --peers=false 2>/dev/null | head -4 || echo "  ${D}غير متّصل | not connected${N}"
+    else
+        echo "  ${D}Tailscale غير مثبّت | not installed${N}"
+    fi
+}
+
+# gpu-report — read-only. VRAM and, crucially, WHO is holding it. On this hardware the
+# local brain can hold most of the card, which is the root of the remote's encoder
+# falling back and of apps aborting on eglMakeCurrent — so the assistant should be able
+# to show it.
+do_gpu_report() {
+    hdr "تقرير كرت الشاشة والذاكرة (قراءة فقط)" "GPU & VRAM report (read-only)"
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        echo "${B}NVIDIA:${N}"
+        nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free \
+            --format=csv,noheader 2>/dev/null || nvidia-smi 2>/dev/null | head -15 || true
+        echo
+        echo "${B}من يحتجز الذاكرة | Who is holding VRAM:${N}"
+        nvidia-smi --query-compute-apps=pid,process_name,used_memory \
+            --format=csv,noheader 2>/dev/null | grep -v '^\s*$' || echo "  ${D}(لا شيء | none)${N}"
+    else
+        echo "${D}لا يوجد كرت NVIDIA أو الأداة غير متوفّرة | no NVIDIA GPU or tool present${N}"
+        command -v glxinfo >/dev/null 2>&1 \
+            && glxinfo -B 2>/dev/null | grep -iE "device|memory" | head -5 || true
+    fi
+    echo
+    echo "${D}لتحرير الذاكرة للتطبيقات يُفرَّغ العقل المحلي تلقائياً عند فتح تطبيق رسومي.${N}"
+    echo "${D}The local brain is unloaded automatically when a graphical app starts.${N}"
+}
+
 # -----------------------------------------------------------------------------
 # install-codex / install-claude — the AI coding agents, as the USER.
 # -----------------------------------------------------------------------------
@@ -1002,6 +1085,12 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Show failed services (read-only)
   ${C}inspect-boot${N}      عرض حالة النشر وأخطاء الإقلاع (قراءة فقط)
                     Show deployment and boot errors (read-only)
+  ${C}rollback${N}          الرجوع إلى النسخة السابقة (إنقاذ، قابل للعكس)
+                    Roll back to the previous version (rescue, reversible)
+  ${C}net-doctor${N}        تشخيص الشبكة وDNS وTailscale (قراءة فقط)
+                    Diagnose network, DNS and Tailscale (read-only)
+  ${C}gpu-report${N}        عرض ذاكرة كرت الشاشة ومن يحتجزها (قراءة فقط)
+                    Show GPU memory and who is holding it (read-only)
   ${C}help${N}              عرض هذه المساعدة | show this help
 
 ${D}كل إجراء مُغيِّر يطلب تأكيداً، والصلاحيات عبر pkexec (لا sudo بلا كلمة مرور).${N}
@@ -1036,6 +1125,9 @@ main() {
         optimize)      do_optimize ;;
         diagnose-services) do_diagnose_services ;;
         inspect-boot)  do_inspect_boot ;;
+        rollback)      do_rollback ;;
+        net-doctor)    do_net_doctor ;;
+        gpu-report)    do_gpu_report ;;
         hw-report)
             # The Hardware Centre is a panel inside Mo AI now, not a separate
             # window. Open it directly rather than bouncing through the

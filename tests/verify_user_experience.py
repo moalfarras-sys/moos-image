@@ -98,7 +98,10 @@ for route in ("remote/start", "remote/stop", "remote/restart", "app/remote",
 require('remote/start)' in router_remote and 'remote/stop)' in router_remote \
         and 'remote/restart)' in router_remote,
         "moos-open must route remote/start|stop|restart to the MoPC backend")
-require('remote-anywhere)' in router_remote,
+# The member may sit anywhere in the do/* alternation arm, so accept it followed by
+# either `|` (another member after it) or `)` (it is last). The invariant is that
+# do/remote-anywhere is one of the arms forwarded to moai-do, not its position.
+require('remote-anywhere)' in router_remote or 'remote-anywhere|' in router_remote,
         "moos-open must route do/remote-anywhere to moai-do")
 # The start route is privileged by CONFIRM, not by root: it enables a persistent
 # service, so a drive-by moos://remote/start must not open remote access silently.
