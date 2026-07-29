@@ -15,6 +15,9 @@ public static class WebApi
     private const int MinPinLength = 6;
     private const int MaxPinLength = 64;
 
+    /// <summary>moos-cloud-audio listens this far above the agent's port (8765 -> 8775).</summary>
+    private const int AudioPortOffset = 10;
+
     /// <summary>Hard network gate: Tailscale (+ optional LAN) + loopback only. Register first.</summary>
     public static void UseNetworkGuard(WebApplication app, AgentServices svc)
     {
@@ -163,6 +166,82 @@ public static class WebApi
                 return Results.Json(new { ok = true, saved = Path.GetFileName(target) });
             }
             catch (Exception ex) { return Results.Json(new { error = ex.Message }, statusCode: 400); }
+        });
+
+        // ---- Desktop audio, behind the SAME door as everything else ----
+        //
+        // The machine's sound is produced by a separate service (moos-cloud-audio, the default
+        // sink's monitor as Opus-in-WebM on Port+10) which has no authentication of its own and
+        // says so in its own header. That was survivable while it only listened on loopback.
+        //
+        // It stopped being survivable when `mo-pc-remote` published it with
+        // `tailscale serve --set-path=/audio`, because that put an unauthenticated live
+        // microphone-adjacent stream on the same hostname, the same port and the same
+        // certificate as a desktop that demands a 6-digit PIN. Measured on the maintainer's
+        // machine on 2026-07-29:
+        //
+        //     POST /api/login  (wrong PIN)        -> 401
+        //     GET  /audio/stream.webm (no creds)  -> 200 audio/webm, a live Opus stream
+        //
+        // Anyone on the tailnet could listen to every call, meeting and video, silently, with
+        // no indication on the desktop. The flaw was architectural rather than a missing `if`:
+        // the audio was published as a SIBLING of the authenticated app instead of a part of
+        // it, so it inherited none of its protection. Two doors, one of them with no lock.
+        //
+        // This is the one door. Reaching the audio now means passing UseNetworkGuard (Tailscale
+        // or loopback only) and holding a valid session token, exactly like the clipboard, the
+        // files and the input channel.
+        //
+        // The token arrives in the query string, and that is not laziness — it is the same
+        // reason /api/files/download takes it that way. This URL is consumed by an <audio>
+        // element, and a media element cannot be given an Authorization header. A bearer header
+        // is still accepted for anything that can send one.
+        app.MapGet("/api/audio/stream.webm", async (HttpContext ctx, string? token) =>
+        {
+            if (!svc.Sessions.ValidateAndTouch(token ?? BearerToken(ctx)))
+            {
+                ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await ctx.Response.WriteAsync("unauthorized");
+                return;
+            }
+
+            // No timeout: this is an endless stream, and HttpClient's 100s default would cut the
+            // sound off mid-sentence every 100 seconds.
+            using var upstream = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+            var url = $"http://127.0.0.1:{svc.Config.Port + AudioPortOffset}/stream.webm";
+            try
+            {
+                // ResponseHeadersRead, or HttpClient buffers an infinite stream into memory and
+                // the listener hears nothing while the process grows without bound.
+                using var res = await upstream.GetAsync(
+                    url, HttpCompletionOption.ResponseHeadersRead, ctx.RequestAborted);
+                if (!res.IsSuccessStatusCode)
+                {
+                    ctx.Response.StatusCode = StatusCodes.Status502BadGateway;
+                    await ctx.Response.WriteAsync("audio service unavailable");
+                    return;
+                }
+                ctx.Response.ContentType = res.Content.Headers.ContentType?.ToString() ?? "audio/webm";
+                // The service spawns one encoder per listener and kills it on disconnect, so a
+                // cached response is a DEAD stream that plays silence with no error.
+                ctx.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+                await using var body = await res.Content.ReadAsStreamAsync(ctx.RequestAborted);
+                await body.CopyToAsync(ctx.Response.Body, ctx.RequestAborted);
+            }
+            catch (OperationCanceledException)
+            {
+                // The listener hung up. Normal, and the upstream encoder dies with the socket.
+            }
+            catch (HttpRequestException)
+            {
+                // moos-cloud-audio is not running. A 502 is the honest answer; the phone's Sound
+                // button then fails the way a stopped service fails, not the way a bug does.
+                if (!ctx.Response.HasStarted)
+                {
+                    ctx.Response.StatusCode = StatusCodes.Status502BadGateway;
+                    await ctx.Response.WriteAsync("audio service unavailable");
+                }
+            }
         });
 
         // ---- WebSocket: screen stream + input control ----

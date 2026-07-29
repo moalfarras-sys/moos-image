@@ -26,11 +26,28 @@ TWO FAILURES, POINTING IN OPPOSITE DIRECTIONS
 
    Every port above 1024 is open to the local network by design. A wildcard bind plus the enable in
    (1) publishes unauthenticated live audio to every device on the WiFi — a café, a hotel, a shared
-   flat. So the bind is loopback and `tailscale serve` is the only route in. That is not a
-   preference to be tidied away later; it is the reason (1) is safe.
+   flat. So the bind is loopback. That is not a preference to be tidied away later; it is the
+   reason (1) is safe.
 
-The two must therefore be checked together, and a future edit that "simplifies" the host back to
-0.0.0.0 has to fail here rather than on somebody's network.
+3. AND THE ROUTE THIS FILE ORIGINALLY PRESCRIBED WAS THE THIRD FAILURE. The sentence here used to
+   read "the bind is loopback and `tailscale serve` is the only route in", and mo-pc-remote duly
+   published the service with `tailscale serve --set-path=/audio`. But `tailscale serve`
+   re-publishes a loopback socket to the WHOLE TAILNET, and this service still has no
+   authentication — so "only reachable via loopback" quietly became "reachable, unauthenticated, by
+   every device on the tailnet". Measured on the maintainer's machine on 2026-07-29:
+
+       $ curl -o /dev/null -w '%{http_code}' https://<host>/api/login  -X POST -d '{"pin":"000000"}'
+       401
+       $ curl -o /dev/null -w '%{http_code}' https://<host>/audio/stream.webm
+       200                                    <- a live Opus stream of everything the machine plays
+
+   Loopback was never the security boundary. AUTHENTICATION is, and this service has none, so it
+   must sit behind something that does. The sound now travels the agent's own authenticated route,
+   /api/audio/stream.webm, which is covered by tests/test_remote_audio_is_authenticated.py.
+
+The three must therefore be checked together: a future edit that "simplifies" the host back to
+0.0.0.0 has to fail here rather than on somebody's network, and one that re-publishes this service
+as its own tailnet mount has to fail in the audio-authentication gate.
 """
 
 from pathlib import Path
@@ -66,7 +83,7 @@ def main() -> int:
                       f"        authentication, and a desktop's FedoraWorkstation firewall zone opens\n"
                       f"        1025-65535/tcp to the local network — so this publishes unauthenticated\n"
                       f"        live audio to every device on the WiFi. It must bind loopback and be\n"
-                      f"        reached through `tailscale serve --set-path=/audio`.")
+                      f"        reached only through the agent's authenticated /api/audio/stream.webm route.")
 
     # --- 2. it must be enabled for EVERY edition, not only cloud -----------------------------
     if "systemctl --global enable moos-cloud-audio.service" not in build:
@@ -84,14 +101,23 @@ def main() -> int:
             errors.append("the enable sits inside a cloud-edition-only branch again. That is the original\n"
                           "        defect: sound works on the VPS and is silently absent on the desktop.")
 
-    # --- 3. the /audio mount must self-heal --------------------------------------------------
-    if "mount_audio" not in panel:
-        errors.append("mo-pc-remote has no mount_audio at all.")
-    elif panel.count("mount_audio(") < 2:
-        errors.append("mount_audio is called only once — from the first-run 'Enable access from\n"
-                      "        anywhere' path. Every machine whose serve was set up before that code, or\n"
-                      "        by hand, has a desktop mount and no sound mount, forever. The panel must\n"
-                      "        re-assert it (tailscale serve is idempotent) so opening it repairs the box.")
+    # --- 3. the panel must RETRACT the legacy mount, never create it -------------------------
+    #
+    # This block used to require the opposite: that `mount_audio` existed and was called at least
+    # twice, so the /audio mount would "self-heal" on every panel open. That requirement was the
+    # bug — see (3) in the module docstring — and the check outlived it by accident, because
+    # `mount_audio` is a SUBSTRING of `unmount_audio`. Both `"mount_audio" in panel` and
+    # `panel.count("mount_audio(")` matched the new, correct code and reported green while
+    # asserting the old, wrong contract. A word boundary is the difference between a gate and a
+    # coincidence.
+    if re.search(r"\bmount_audio\s*\(", panel):
+        errors.append("mo-pc-remote still defines or calls mount_audio() — publishing an\n"
+                      "        unauthenticated service to the tailnet. The sound goes through the agent's\n"
+                      "        authenticated /api/audio/stream.webm route now.")
+    if not re.search(r"\bunmount_audio\s*\(", panel):
+        errors.append("mo-pc-remote no longer retracts the legacy /audio mount. A machine that was\n"
+                      "        exposed once stays exposed until something takes it down, and opening the\n"
+                      "        panel is that something.")
 
     if errors:
         print("GATE FAIL: the desktop's sound is unreachable, or reachable by the wrong people.\n")
@@ -99,8 +125,8 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
-    print(f"OK: audio binds {m.group(1)} (no auth, so loopback only), enabled for every edition, "
-          f"and the /audio mount self-heals")
+    print(f"OK: audio binds {m.group(1)} (no auth of its own, so loopback only), enabled for every "
+          f"edition, and the panel retracts the legacy unauthenticated /audio mount")
     return 0
 
 

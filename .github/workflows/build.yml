@@ -229,6 +229,7 @@ jobs:
           # The desktop's sound was enabled only on the cloud edition (so the Sound button 404'd
           # on a desktop) and the service has no auth, so it must bind loopback — both together.
           python3 tests/test_desktop_sound_reachable.py
+          python3 tests/test_remote_audio_is_authenticated.py
           python3 tests/test_moos_store_index.py
           python3 tests/test_moos_storectl.py
           python3 tests/test_moos_ui2.py

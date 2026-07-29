@@ -68,26 +68,26 @@ def tailscale_url():
         return None
     if f"127.0.0.1:{PORT}" not in served and f"localhost:{PORT}" not in served:
         return None
-    # Self-heal the /audio mount, because it is only ever created once and that is not enough.
+    # Self-heal in the OTHER direction: tear the /audio mount DOWN if it is still there.
     #
-    # mount_audio() runs from enable_anywhere() — the FIRST time somebody presses "Enable access
-    # from anywhere". Every machine whose serve was set up before that code existed, or by
-    # `tailscale serve` by hand, or on an image where the sound service was not yet enabled, has a
-    # working desktop mount and no sound mount. Measured on the maintainer's desktop:
+    # This block used to create that mount, and re-create it on every panel open. What it was
+    # publishing is a service with no authentication of any kind — moos-cloud-audio says so in
+    # its own header — on the same hostname, port and certificate as a desktop that demands a
+    # 6-digit PIN. Measured on the maintainer's machine on 2026-07-29:
     #
-    #     https://moos-3.tailab78a5.ts.net (tailnet only)
-    #     |-- / proxy http://127.0.0.1:8765          <- desktop, fine
-    #                                                <- and nothing else
-    #     GET /audio/stream.webm -> 404
+    #     POST /api/login  (wrong PIN)        -> 401
+    #     GET  /audio/stream.webm (no creds)  -> 200 audio/webm, a live Opus stream
     #
-    # The Sound button in the phone's toolbar cannot work in that state, and it fails the way a
-    # missing feature fails rather than the way a broken one does: no error, just silence.
+    # Every device on the tailnet could listen to every call, meeting and video this machine
+    # played, silently, with nothing on the desktop to say it was happening.
     #
-    # `tailscale serve` is idempotent, so re-asserting a mount that already exists costs one cheap
-    # call and changes nothing. Doing it here means the panel repairs the machine simply by being
-    # opened, instead of requiring the owner to know which command to re-run.
-    if "/audio" not in served:
-        mount_audio(443)
+    # The sound now goes through the agent at /api/audio/stream.webm, which is behind the same
+    # network guard and the same session token as the clipboard and the input channel. Nothing
+    # needs a separate mount any more, so the only correct thing to do with an existing one is
+    # remove it — and to keep removing it, because a machine that was exposed once stays exposed
+    # until something takes it down. Opening this panel is that something.
+    if "/audio" in served:
+        unmount_audio(443)
     return f"https://{name}/"
 
 
@@ -96,30 +96,55 @@ def enable_anywhere():
     r = run("tailscale", "serve", "--bg", "--https=443", f"http://127.0.0.1:{PORT}")
     ok = r.returncode == 0
     if ok:
-        mount_audio(443)
+        # One mount, one door. The sound rides the agent's own authenticated route now; see
+        # unmount_audio() below for what used to be here and why it had to go.
+        unmount_audio(443)
     return (ok, (r.stderr or r.stdout or "").strip())
 
 
+# WHAT USED TO BE HERE, AND WHY IT IS NOT COMING BACK.
+#
 # The desktop stream carries no audio and never has. The machine's sound is a separate service —
-# moos-cloud-audio, the default sink's monitor as Opus-in-WebM on PORT+10 — and until this mount
-# existed it was only reachable on its own PLAIN-HTTP port. That is not a cosmetic difference:
+# moos-cloud-audio, the default sink's monitor as Opus-in-WebM on PORT+10 — and it was only
+# reachable on its own PLAIN-HTTP port, which a browser on an https page is forbidden to fetch.
+# The fix at the time was to mount it as a path on the same HTTPS listener:
 #
-#   * this page is https, and a browser forbids https content from fetching http, so the speaker
-#     button in the controller could not have worked at all; and
-#   * "there is no sound" and "the sound is at a second URL nobody mentioned" are indistinguishable
-#     from the user's chair — and it was always the second one.
+#     tailscale serve --bg --https=443 --set-path=/audio http://127.0.0.1:8775
 #
-# Mounting it as a PATH on the SAME listener gives one origin, one certificate, one URL.
+# That solved the mixed-content problem and created a much worse one. `tailscale serve` re-publishes
+# a loopback socket to the WHOLE TAILNET, and moos-cloud-audio has no authentication — no PIN, no
+# token, no session; its own header states this in as many words. So the result was:
 #
-# This function exists because the seat owner and the private-desktop accounts reach HTTPS by two
-# different routes — this panel for the owner on :443, `moos-cloud-desktop own` for everyone else on
-# :8443+N — and a mount added to only one of them is exactly the asymmetry where one person has
-# sound and the other is told the feature does not exist.
-def mount_audio(https_port):
-    """Publish this account's sound at /audio on the same HTTPS listener. Best-effort."""
+#     https://moos-3.tailab78a5.ts.net/            -> PIN required (401 without one)
+#     https://moos-3.tailab78a5.ts.net/audio/...   -> 200, a live Opus stream of the machine
+#
+# Same host, same port, same certificate, and the user's mental model is set by the front door:
+# they typed a PIN, so they believe the URL is behind it. Four devices were enrolled on this
+# tailnet — a phone, a Windows box, a VPS. Any of them, or anything running on them, could listen
+# to every call and every meeting, silently.
+#
+# The right shape was never a second mount. The agent already owns authentication, so the sound now
+# goes through it at /api/audio/stream.webm (moremote/agent/Web/WebApi.cs), inheriting
+# UseNetworkGuard and the session token exactly like the clipboard and the input channel. One
+# origin, one certificate, one URL — and one door.
+#
+# This function is the counterpart: it REMOVES the old mount, and tailscale_url() calls it on every
+# panel open, because a machine that was exposed once stays exposed until something takes it down.
+def unmount_audio(https_port):
+    """Remove the legacy unauthenticated /audio mount from this HTTPS listener. Best-effort.
+
+    The `off` target is the documented way to retract one path without disturbing the others;
+    verified against tailscale 1.98.10 on the maintainer's machine, which went from
+
+        |-- /      proxy http://127.0.0.1:8765
+        |-- /audio proxy http://127.0.0.1:8775
+    to
+        |-- / proxy http://127.0.0.1:8765
+
+    with the desktop mount untouched, and GET /audio/stream.webm going 200 -> 404.
+    """
     try:
-        r = run("tailscale", "serve", "--bg", f"--https={https_port}",
-                "--set-path=/audio", f"http://127.0.0.1:{PORT + 10}")
+        r = run("tailscale", "serve", f"--https={https_port}", "--set-path=/audio", "off")
         return r.returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False

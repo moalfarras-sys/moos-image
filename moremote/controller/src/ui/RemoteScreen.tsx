@@ -1509,16 +1509,24 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
   // ---------- sound ----------
   //
-  // The desktop stream carries no audio and never has (the agent has no capture, no encoder and no
-  // audio endpoint). The server's sound is a SEPARATE service — moos-cloud-audio, the default sink's
-  // monitor as Opus-in-WebM — which `moos-cloud-desktop own` now mounts at /audio on this very
-  // origin. So it is a same-origin relative URL from here, which is the whole reason this button can
-  // exist: while that service lived on its own plain-http port, an https page was forbidden from
-  // touching it and sound could only ever be a second tab.
+  // The desktop stream carries no audio and never has (the agent has no capture and no encoder).
+  // The machine's sound is a SEPARATE service — moos-cloud-audio, the default sink's monitor as
+  // Opus-in-WebM — and this URL is how the phone reaches it.
   //
-  // RELATIVE, not "/audio/...": if this page is itself served under a prefix one day, an absolute
-  // path would leave that prefix behind.
-  const AUDIO_URL = "audio/stream.webm";
+  // It used to be a bare `audio/stream.webm`, published beside this app by
+  // `tailscale serve --set-path=/audio`. That service has no authentication of any kind, so the
+  // result was an unauthenticated live stream of the machine's sound on the same host, port and
+  // certificate as a desktop that demands a 6-digit PIN — measured at 200 while POST /api/login
+  // returned 401. Every device on the tailnet could listen, silently.
+  //
+  // It now goes through the agent, which is the only thing here that owns authentication. The
+  // token rides in the query string for the same reason /api/files/download takes it that way:
+  // this URL is consumed by an <audio> element, and a media element cannot send an Authorization
+  // header.
+  //
+  // RELATIVE, not "/api/...": if this page is ever served under a prefix, an absolute path would
+  // leave that prefix behind.
+  const AUDIO_URL = "api/audio/stream.webm?token=" + encodeURIComponent(token);
 
   const stopSound = useCallback(() => {
     if (audioRetryRef.current) { window.clearTimeout(audioRetryRef.current); audioRetryRef.current = null; }
@@ -1534,15 +1542,20 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     // Cache-busting is load-bearing, not superstition: the service spawns one encoder per listener
     // and kills it on disconnect, so the previous response is a DEAD stream. Safari will happily
     // re-use it from cache and play nothing at all, reporting no error.
-    a.src = `${AUDIO_URL}?t=${Date.now()}`;
+    //
+    // `&` and not `?`: AUDIO_URL already carries the session token in its query string, and a
+    // second `?` would make the token part of a parameter NAME. The request would then arrive
+    // unauthenticated and the sound would fail with a 401 that looks exactly like a missing
+    // endpoint.
+    a.src = `${AUDIO_URL}&t=${Date.now()}`;
     a.play().then(() => setSound("on")).catch(() => {
       // Autoplay policy needs a gesture; this IS one (a click), so a rejection here means the
-      // endpoint is not there — which is what happens when the page was opened on the plain-http
-      // port, where no /audio mount exists and the agent answers index.html to everything.
+      // endpoint did not deliver: either the session token was rejected (401) or moos-cloud-audio
+      // is not running (502).
       setSound("unavailable");
-      showToast("Sound needs the https:// address");
+      showToast("Sound is unavailable right now");
     });
-  }, []);
+  }, [token]);
 
   const toggleSound = () => { if (sound === "off" || sound === "unavailable") startSound(); else stopSound(); };
 
@@ -1570,7 +1583,8 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
         return;
       }
       audioRetryRef.current = window.setTimeout(() => {
-        if (a.src) { a.src = `${AUDIO_URL}?t=${Date.now()}`; a.play().catch(() => setSound("unavailable")); }
+        // `&`, for the same reason as in startSound: the token is already in the query string.
+        if (a.src) { a.src = `${AUDIO_URL}&t=${Date.now()}`; a.play().catch(() => setSound("unavailable")); }
       }, 1200);
     };
     a.addEventListener("playing", onPlaying);

@@ -106,6 +106,35 @@ system is **MoOS UI — Liquid Glass**; the mandatory agent skill is in place).
 >   `npm ci && npm run build` that fails on ANY diff. The CI step passed
 >   byte-identical on GitHub's runner, so the build is reproducible from the
 >   lockfile (8fe3695).
+> - **security (HIGH, live) — the machine's sound was on the tailnet with no PIN.**
+>   `mo-pc-remote` published moos-cloud-audio with
+>   `tailscale serve --set-path=/audio`, and that service has NO authentication —
+>   its own header says so. `tailscale serve` re-publishes a loopback socket to
+>   the WHOLE tailnet, so on one hostname, one port, one certificate:
+>       POST /api/login (wrong PIN)       -> 401
+>       GET  /audio/stream.webm (no auth) -> 200 audio/webm, a live Opus stream
+>   Four devices were enrolled. Any of them could listen to every call and video,
+>   silently, with nothing on the desktop to say so. Tailnet-only
+>   (`AllowFunnel: None`), all peers one account — bounded, not harmless.
+>   The flaw was architectural: the audio was a SIBLING of the authenticated app
+>   instead of part of it. Two doors, one with no lock. The sound now goes through
+>   the agent at `/api/audio/stream.webm`, behind `UseNetworkGuard` and the session
+>   token, with the token in the query string for the same reason
+>   `/api/files/download` takes it that way — an `<audio>` element cannot send an
+>   Authorization header. `mount_audio()` is replaced by `unmount_audio()`, which
+>   the panel calls on every open, so a machine exposed once closes itself.
+>   Verified end to end against a real agent on a spare port: no token -> 401,
+>   bogus token -> 401, valid token -> 200 audio/webm decoding as WebM. The live
+>   mount was retracted on this machine during the work (200 -> 404).
+>   NOTE FOR THE NEXT AGENT: `tests/test_desktop_sound_reachable.py` used to
+>   REQUIRE the vulnerable mount, and kept passing after the fix only because
+>   `mount_audio` is a substring of `unmount_audio`. It now uses word boundaries
+>   and asserts the opposite. New gate: `tests/test_remote_audio_is_authenticated.py`.
+> Also recorded: the blanket `/etc/sudoers.d/moos-nopasswd` and
+> `49-moos-wheel-nopasswd.rules` on the maintainer's machine are LOCAL dev
+> artifacts, NOT shipped by the image — checked against `system_files/`. A
+> five-agent adversarial audit refuted 6 of 8 candidate findings, including the
+> theory that the 217MB initramfs costs meaningful boot time; do not re-chase it.
 > Sweeps that found nothing, recorded so nobody repeats them: return-arity
 > mismatches across 51 Python files and unbounded `subprocess` calls in 6 GTK
 > apps produced 5 candidates, 4 false positives cleared by reading (the 5th was
