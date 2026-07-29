@@ -131,7 +131,11 @@ Item {
             visible: faceIcon.visible
             text: wrapper.name.length > 0 ? wrapper.name.charAt(0).toUpperCase() : "M"
             color: Kirigami.Theme.textColor
-            font.family: "Inter"
+            // Plex Arabic, never Inter: Inter has no Arabic coverage, so its Arabic
+            // text silently falls back to Noto — a second Arabic face on the same
+            // screen as the Plex date. Plex Arabic carries a full Latin set. And
+            // font.families does not exist on Qt 6.11.1 here — see Logout.qml.
+            font.family: "IBM Plex Sans Arabic"
             font.pixelSize: imageSource.width * 0.42
             font.weight: Font.Medium
             renderType: Text.NativeRendering
@@ -209,7 +213,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
 
         // Make it bigger than other fonts to match the scale of the avatar better
-        font.family: "Inter"
+        font.family: "IBM Plex Sans Arabic"
         font.pointSize: wrapper.fontSize + 4
 
         width: wrapper.constrainText ? parent.width : undefined

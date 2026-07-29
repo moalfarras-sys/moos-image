@@ -82,7 +82,11 @@ PlasmaComponents3.AbstractButton {
     readonly property bool destructive: root.icon.name === "system-shutdown"
     readonly property bool lit: root.activeFocus || root.hovered
 
-    font.family: "Inter"
+    // Plex Arabic, never Inter: Inter has no Arabic coverage, so its Arabic
+    // text silently falls back to Noto — a second Arabic face on the same
+    // screen as the Plex date. Plex Arabic carries a full Latin set. And
+    // font.families does not exist on Qt 6.11.1 here — see Logout.qml.
+    font.family: "IBM Plex Sans Arabic"
     font.pointSize: Kirigami.Theme.defaultFont.pointSize + 1
     font.underline: root.activeFocus
 
@@ -217,7 +221,7 @@ PlasmaComponents3.AbstractButton {
             text: root.Kirigami.MnemonicData.richTextLabel
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: Kirigami.Theme.backgroundColor // Unused without outline
-            font.family: "Inter"
+            font.family: "IBM Plex Sans Arabic"
             font.weight: Font.DemiBold
             color: root.destructive ? Kirigami.Theme.negativeTextColor
                                     : Kirigami.Theme.textColor

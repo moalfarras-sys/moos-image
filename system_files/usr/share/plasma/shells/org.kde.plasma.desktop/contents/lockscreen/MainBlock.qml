@@ -172,7 +172,11 @@ SessionManagementScreen {
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             wrapMode: Text.WordWrap
-            font.family: "Inter"
+            // Plex Arabic, never Inter: Inter has no Arabic coverage, so its Arabic
+            // text silently falls back to Noto — a second Arabic face on the same
+            // screen as the Plex date. Plex Arabic carries a full Latin set. And
+            // font.families does not exist on Qt 6.11.1 here — see Logout.qml.
+            font.family: "IBM Plex Sans Arabic"
             font.pointSize: Kirigami.Theme.defaultFont.pointSize
             font.weight: Font.Medium
             color: sessionManager.noticeIsAlert ? Kirigami.Theme.negativeTextColor
@@ -361,7 +365,7 @@ SessionManagementScreen {
         // secondary text, and in the same family as everything else on this
         // cluster. `kind`, `visible`, `text` and the Connections below are
         // untouched — this is typography, nothing more.
-        font.family: "Inter"
+        font.family: "IBM Plex Sans Arabic"
         font.pointSize: Kirigami.Theme.defaultFont.pointSize - 1
         color: Kirigami.Theme.disabledTextColor
 
