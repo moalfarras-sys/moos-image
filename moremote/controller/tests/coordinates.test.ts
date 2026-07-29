@@ -98,15 +98,25 @@ delta(3, -7, false, 3, -7, "unrotated deltas pass through untouched");
 delta(0, -7, true, 7, 0, "screen-up is desktop-right when turned");
 delta(5, 0, true, 0, 5, "screen-right is desktop-down when turned");
 
-// The turn must be able to pay for itself. shouldRotate demands a real margin before flipping the
-// axes, and it must never fire on a viewport that is already landscape.
+// Orientation is the USER'S to control — the owner asked for that twice and reported the picture
+// "going landscape on the phone" on its own. Two things enforce that nothing rotates behind the
+// user's back:
 const remote = readFileSync(join(import.meta.dirname, "..", "src", "ui", "RemoteScreen.tsx"), "utf8");
-assert.match(remote, /if \(cssH <= cssW\) return false;/,
-  "a landscape viewport has nothing to gain from turning the picture");
-assert.match(remote, /if \(iw <= ih\) return false;/,
-  "turning a portrait desktop inside a portrait phone makes it smaller, not bigger");
-assert.match(remote, /turned > upright \* 1\.15/,
-  "only turn when it is meaningfully better — churn on an axis flip is disorienting");
+const remoteCode = remote.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+// 1. Fullscreen must NOT force the phone's physical orientation. The lock("landscape") call — which
+//    spun the phone sideways the moment the user tapped Fullscreen — must be gone from the code
+//    (the comment explaining its removal may still name it, hence the comment-stripped check).
+assert.ok(!/orientation[\s\S]{0,40}\.lock\?\.\("landscape"\)/.test(remoteCode),
+  "fullscreen must not screen.orientation.lock('landscape') — the phone must never be force-rotated");
+
+// 2. Auto (the default) must FOLLOW THE PHONE, not auto-rotate the picture: no fill heuristic. The
+//    old `turned > upright` rotate-to-fill is what made a portrait phone show a sideways desktop.
+assert.ok(!/turned > upright/.test(remoteCode),
+  "Auto must not auto-rotate the picture to fill a portrait phone — that is the reported bug; "
+  + "rotation is opt-in via the Sideways lock");
+assert.match(remote, /🔒 Sideways|↻ Sideways|chooseOrient\("on"\)/,
+  "the deliberate quarter-turn must still be available as an explicit user choice");
 
 // ---------------------------------------------------------------------------------------------
 // TYPING ON A PHONE. Three behaviours, each of which was a reported fault, and each of which fails
@@ -144,7 +154,7 @@ assert.ok(!/onMouseDown=\{\(e\) => e\.preventDefault\(\)\}/.test(remote),
 
 // The orientation lock is a promise the user made to themselves, so it is answered before any
 // measurement — a lock that is overridden by a heuristic is not a lock.
-assert.match(remote, /if \(mode === "off"\) return false;\s*\n\s*if \(mode === "on"\) return true;/,
+assert.match(remote, /if \(mode === "off"\) return false;[^\n]*\n\s*if \(mode === "on"\) return true;/,
   "an explicit lock must short-circuit shouldRotate entirely");
 
 // A phone that keeps running yesterday's app after an update is indistinguishable from an update

@@ -285,41 +285,32 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   // ---------- layout / mapping ----------
 
   /**
-   * Should the picture be turned a quarter turn to fit this viewport?
+   * Should the picture be turned a quarter turn?
    *
-   * MEASURED, NOT ESTIMATED. On this controller at 390x844 with the desktop fitted upright, the
-   * picture occupied rows 312..528 of 844 — 25.6% of the display lit and 74.4% black. The app's
-   * only answer was a toast reading "Turn your phone sideways for a full-size desktop", which is
-   * advice rather than a fix: it is ignored in a plain browser tab (no orientation lock is granted
-   * outside fullscreen), ignored on iOS entirely, and it asks the user to hold the phone in the one
-   * way it is least comfortable to hold.
+   * ORIENTATION IS THE USER'S TO CONTROL. The owner asked for exactly that, twice ("put a lock —
+   * when I want it to rotate I turn it on, otherwise I lock it"), and reported that the picture was
+   * "going landscape on the phone" on its own. So nothing here turns the phone or the picture behind
+   * the user's back. There are three answers and the default is the calm one:
    *
-   * Turning the PICTURE gives the same desktop 100% of the same display. It costs one canvas
-   * transform, and it disables itself the moment the viewport really is landscape — so a user who
-   * does rotate the phone, or who is on a computer, never meets it at all.
-   *
-   * Gated on the SOURCE being landscape too: rotating a portrait remote screen inside a portrait
-   * phone would make it smaller, not bigger.
+   *   • Auto (default) — FOLLOW THE PHONE. The picture stays upright and simply fits however the
+   *     phone is held: portrait letterboxes it, landscape fills it. It used to auto-rotate the
+   *     desktop a quarter turn to fill a portrait phone, which made a phone held upright show a
+   *     sideways desktop — the "الشاشة عم تعمل عرضي" the owner reported. That is gone.
+   *   • 🔒 Sideways — turn the picture a quarter turn ON PURPOSE, for holding the phone upright but
+   *     wanting the desktop big. This is the opt-in that replaces the old automatic behaviour.
+   *   • 🔒 Upright — never turn it.
    */
-  const shouldRotate = (iw: number, ih: number) => {
-    // A locked orientation is a promise, so it is answered before anything else is even measured.
+  const shouldRotate = (_iw: number, _ih: number) => {
+    // A locked orientation is a promise, answered before anything is measured.
     const mode = orientRef.current;
-    if (mode === "off") return false;
-    if (mode === "on") return true;
-    // Automatic. While the keyboard is open the answer is whatever it was when the keyboard opened —
+    if (mode === "off") return false;   // 🔒 Upright
+    if (mode === "on") return true;     // 🔒 Sideways — the deliberate quarter turn
+    // Auto. While the keyboard is open the answer stays whatever it was when the keyboard opened —
     // see kbRotLatch for why re-deciding mid-sentence is the worst possible moment.
     if (kbRotLatch.current !== null) return kbRotLatch.current;
-    const c = canvasRef.current;
-    if (!c) return false;
-    const cssW = c.clientWidth, cssH = c.clientHeight;
-    if (cssW <= 0 || cssH <= 0 || iw <= 0 || ih <= 0) return false;
-    if (cssH <= cssW) return false;          // the viewport is already landscape — nothing to gain
-    if (iw <= ih) return false;              // a portrait desktop in a portrait phone already fits
-    // Only when it genuinely wins. min(w/iw,h/ih) upright against min(w/ih,h/iw) turned: below a
-    // meaningful margin this is churn, and churn on an axis-flipping transform is disorienting.
-    const upright = Math.min(cssW / iw, cssH / ih);
-    const turned = Math.min(cssW / ih, cssH / iw);
-    return turned > upright * 1.15;
+    // Follow the phone: the picture stays upright and fits the viewport as it is. To get the big
+    // rotated view, hold the phone in landscape, or choose 🔒 Sideways.
+    return false;
   };
 
   const computeLayout = (): Layout | null => {
@@ -676,9 +667,10 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
     const fpsTimer = window.setInterval(() => { setFps(fpsCount.current); fpsCount.current = 0; }, 1000);
     bumpToolbar();
-    // The old advice here was "Turn your phone sideways for a full-size desktop", shown on every
-    // portrait launch. It is gone because the app now does that itself (see shouldRotate): the
-    // picture is turned to fill the display and the user does not have to be told anything.
+    // No "Turn your phone sideways for a full-size desktop" nag on every portrait launch: nagging
+    // the user about how to hold their phone is exactly the kind of pushiness the owner asked to be
+    // rid of. The picture follows the phone (see shouldRotate); if they want it bigger they turn the
+    // phone or pick 🔒 Sideways, on their own terms.
     //
     // What replaces it is said once, ever, and is about the thing that is genuinely not guessable:
     // the gesture. Two fingers do three different jobs here and none of them is discoverable by
@@ -1191,8 +1183,8 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
    * settings push is what re-asks the encoder for the size the NEW layout will actually show.
    */
   const ORIENT_LABEL: Record<Orient, string> = {
-    auto: "Rotation: automatic",
-    on: "Locked sideways — fills the screen",
+    auto: "Follows your phone — upright",
+    on: "Turned sideways — fills the screen",
     off: "Locked upright",
   };
   const chooseOrient = (m: Orient) => {
@@ -1532,11 +1524,11 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
           // Chromium-only and best-effort: without it those four keys stay local, and everything
           // else on the keyboard still reaches the desktop.
           desktopRef.current?.requestKeyboardLock();
-          // A desktop is a landscape thing. Fitted into a portrait phone it becomes a stamp with
-          // black bars swallowing most of the display — turning the phone is worth more than any
-          // amount of pinch-zooming. The lock only exists in an installed/fullscreen context and
-          // is absent on iOS entirely, so it is attempted, never depended on.
-          (screen.orientation as any)?.lock?.("landscape").catch(() => {});
+          // Deliberately NOT locking the phone to landscape here. It used to call
+          // screen.orientation.lock("landscape"), so tapping Fullscreen spun the phone sideways on
+          // its own — the "الشاشة عم تعمل عرضي على الجوال" the owner reported, and the opposite of
+          // the "let me control rotation" they asked for. Fullscreen now just goes fullscreen; the
+          // user turns the phone (or picks 🔒 Sideways) if and when they want the wide view.
         })
         .catch(() => showToast("Add to Home Screen for fullscreen"));
     } else {
@@ -1753,8 +1745,8 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
               just moved, and on a phone that is exactly when a portrait-only control is gone. */}
           <div className="row-label">Rotation</div>
           <div className="seg">
-            <button className={orient === "auto" ? "on" : ""} onClick={() => chooseOrient("auto")}>Auto</button>
-            <button className={orient === "on" ? "on" : ""} onClick={() => chooseOrient("on")}>🔒 Sideways</button>
+            <button className={orient === "auto" ? "on" : ""} onClick={() => chooseOrient("auto")}>Fit phone</button>
+            <button className={orient === "on" ? "on" : ""} onClick={() => chooseOrient("on")}>↻ Sideways</button>
             <button className={orient === "off" ? "on" : ""} onClick={() => chooseOrient("off")}>🔒 Upright</button>
           </div>
           <p className="hint">
