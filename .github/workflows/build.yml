@@ -144,6 +144,10 @@ jobs:
           # update — rpm-ostree lists a staged update at index 0, so "first non-booted" pointed the
           # rescue screen at the newer version, the opposite of what rollback does.
           python3 tests/test_recovery_rollback_target.py
+          # The Mo AI per-user port generator must fail CLOSED: no account but uid 1000 may resolve to
+          # the base ports 8080/8079/8077, or the 11th cloud tenant reaches uid 1000's key-holding
+          # gateway. The old guard exited without printing for uid>=1010, which fell back to the base.
+          python3 tests/test_moai_ports_fail_closed.py
           python3 tests/test_mo_remote_codec_resend.py
           # Mo PC Remote's feel over cellular is decided by three lines of kernel tuning, and both
           # ways they can fail are silent: a congestion control selected but never registered
