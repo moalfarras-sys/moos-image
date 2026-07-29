@@ -410,7 +410,11 @@ system is **MoOS UI — Liquid Glass**; the mandatory agent skill is in place).
 ## Active visual work: the MoOS theme FAMILY (UI2 engine)
 
 > **Update 2026-07-30 (ship-readiness milestone) — the adversarially-verified desktop audit
-> and its fixes.** A 16-agent audit swept every desktop surface (windows, session screens,
+> and its fixes.** Full handoff with root causes, measurements, rejected approaches, design
+> decisions and the deferred-work plan: **`docs/SESSION_HANDOFF_2026-07-29.md`** (13 commits,
+> `0124a6d..24a2126`+docs). At handoff the dev machine still BOOTS 44.20260729.452
+> (digest ff45fe58…) — every fix below lands at the next update+reboot; the milestone CI is
+> run 30497407799. A 16-agent audit swept every desktop surface (windows, session screens,
 > icons, shell, apps; the motion inspector died and was re-run separately); 8 findings were
 > confirmed by independent refuters, and the dropped-by-cap findings were recovered from the
 > journal. Everything actionable landed on `main` today, each verified live before push:
