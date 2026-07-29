@@ -1570,7 +1570,12 @@ ApplicationWindow {
                                 opacity: railWorkingPulse.running ? railWorkingDot.pulse : 1
                                 SequentialAnimation {
                                     id: railWorkingPulse
-                                    running: !win.indexReady && win.motionEnabled
+                                    // indexPoll.running bounds the pulse: the poll
+                                    // gives up after 36 ticks, and without this term
+                                    // a catalogue that never lands left the dot
+                                    // pulsing at frame rate forever — measured ~12%
+                                    // of a core, flat, for the life of the window.
+                                    running: !win.indexReady && indexPoll.running && win.motionEnabled
                                     loops: Animation.Infinite
                                     NumberAnimation {
                                         target: railWorkingDot; property: "pulse"
@@ -1589,7 +1594,9 @@ ApplicationWindow {
                             spacing: 0
                             Text {
                                 text: !win.indexReady
-                                    ? (win.rtl ? "يُجهّز الفهرس…" : "Building catalogue…")
+                                    ? (indexPoll.running
+                                        ? (win.rtl ? "يُجهّز الفهرس…" : "Building catalogue…")
+                                        : (win.rtl ? "تعذّر تجهيز الفهرس" : "Catalogue build failed"))
                                     : win.hasFlatpakCatalog()
                                         ? (win.rtl ? "الفهرس الكامل جاهز" : "Full catalogue ready")
                                         : (win.rtl ? "الفهرس المحدود · يحتاج اتصالًا" : "Limited catalogue · connection needed")

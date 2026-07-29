@@ -480,7 +480,10 @@ Item {
                         anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
                         radius: parent.radius; color: root.accent
                         width: parent.width * Math.max(0, Math.min(1, root.remainingTime / 30))
-                        Behavior on width { NumberAnimation { duration: 950; easing.type: Easing.Linear } }
+                        // 0 when animations are off: this Behavior re-fires every second of the
+                        // countdown, so an ungated 950ms here animated continuously through the
+                        // whole 30s even with AnimationDurationFactor=0.
+                        Behavior on width { NumberAnimation { duration: Kirigami.Units.longDuration > 1 ? 950 : 0; easing.type: Easing.Linear } }
                     }
                 }
                 QQC2.Label {

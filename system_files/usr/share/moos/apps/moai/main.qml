@@ -280,7 +280,13 @@ Kirigami.ApplicationWindow {
                 duration: 140000
                 loops: Animation.Infinite
                 easing.type: Easing.InOutSine
+                // The ambient scene idles at ~1/8 of a core (measured 12.95%
+                // over 20s) for as long as the window exists — visible is true
+                // for the app's whole life. paused on !active freezes the six
+                // decorative loops when the window loses focus and resumes them
+                // where they stood, the same idiom the lock screen uses.
                 running: root.visible && root.motionEnabled
+                paused: !root.active
             }
         }
         Rectangle {
@@ -303,6 +309,7 @@ Kirigami.ApplicationWindow {
                 loops: Animation.Infinite
                 easing.type: Easing.InOutSine
                 running: root.visible && root.motionEnabled
+                paused: !root.active
             }
         }
 
@@ -318,6 +325,7 @@ Kirigami.ApplicationWindow {
             SequentialAnimation on opacity {
                 loops: Animation.Infinite
                 running: root.visible && root.motionEnabled
+                paused: !root.active
                 NumberAnimation { to: 0.26; duration: 5200; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 0.14; duration: 5200; easing.type: Easing.InOutSine }
             }
@@ -334,6 +342,7 @@ Kirigami.ApplicationWindow {
             SequentialAnimation on opacity {
                 loops: Animation.Infinite
                 running: root.visible && root.motionEnabled
+                paused: !root.active
                 NumberAnimation { to: 0.08; duration: 5200; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 0.18; duration: 5200; easing.type: Easing.InOutSine }
             }
@@ -354,6 +363,7 @@ Kirigami.ApplicationWindow {
             SequentialAnimation on scale {
                 loops: Animation.Infinite
                 running: root.visible && root.motionEnabled
+                paused: !root.active
                 NumberAnimation { to: 1.02; duration: 6000; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 1.0; duration: 6000; easing.type: Easing.InOutSine }
             }
@@ -370,6 +380,7 @@ Kirigami.ApplicationWindow {
                 duration: 60000
                 loops: Animation.Infinite
                 running: root.visible && root.motionEnabled
+                paused: !root.active
             }
         }
     }
@@ -3014,14 +3025,17 @@ Kirigami.ApplicationWindow {
                                             border.width: 2
                                             border.color: root.okColor
                                             visible: !!root.remoteState.active
+                                            // root.visible joins the gate: every sibling loop has a
+                                            // visibility term, and without it an active remote session
+                                            // kept this ring animating with the panel hidden.
                                             SequentialAnimation on opacity {
-                                                running: !!root.remoteState.active && root.motionEnabled
+                                                running: !!root.remoteState.active && root.visible && root.motionEnabled
                                                 loops: Animation.Infinite
                                                 NumberAnimation { from: 0.7; to: 0.0; duration: 1200 }
                                                 NumberAnimation { from: 0.0; to: 0.0; duration: 200 }
                                             }
                                             SequentialAnimation on scale {
-                                                running: !!root.remoteState.active && root.motionEnabled
+                                                running: !!root.remoteState.active && root.visible && root.motionEnabled
                                                 loops: Animation.Infinite
                                                 NumberAnimation { from: 1.0; to: 1.45; duration: 1200 }
                                                 NumberAnimation { from: 1.0; to: 1.0; duration: 200 }
