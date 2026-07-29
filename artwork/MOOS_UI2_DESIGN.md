@@ -405,3 +405,39 @@ is a place where the desktop is UI2 and the thing sitting on it is not.
    `/usr/share/sddm` or `/etc/sddm.conf.d` ever ships again. The Qt extras that
    arrived as its deps (virtual keyboard, image formats) stay: the lock screen's
    Arabic on-screen keyboard uses them.
+
+## Decisions 2026-07-30 — material, maximized bar, typography, motion cost
+
+Recorded during the ship-readiness milestone; full evidence in
+`docs/SESSION_HANDOFF_2026-07-29.md` (§2 rejected approaches, §3 decisions).
+
+- **Material hierarchy.** PERSISTENT surfaces (window frames/titlebars) are
+  SOLID; Liquid Glass belongs to TRANSIENT shell surfaces (dock, popups,
+  notifications). The Aurorae decoration therefore ships NO `mask-*` blur
+  frame — the frame is 100% opaque and a mask made KWin compute blur behind
+  covered pixels every frame. Gates fail on a mask returning. Going
+  translucent later means: reintroduce the mask AND re-verify caption
+  contrast on all 16 themes.
+- **The maximized titlebar is FLAT, in the title ramp's terminal colour.**
+  Not a gradient: FrameSvg stretches the centre cell and no gradient basis
+  survives it (userSpaceOnUse distorts; objectBoundingBox resolves against
+  the whole window — both measured as a barely-moving ramp). The floating
+  window keeps the ramp; the docked window rests on the ramp's landing
+  colour. Worst caption contrast across the family: 10.28:1.
+- **Typography.** Any label that can carry Arabic binds "IBM Plex Sans
+  Arabic" (Inter has no Arabic; the fallback face split surfaces in two).
+  `font.families` is unusable on Qt 6.11.1 — it fails the whole component.
+  Inter remains ONLY on always-Latin digits (hero clocks) and the "MoOS"
+  wordmark, both documented at the site.
+- **Numerals.** Shell-chrome dates fold digits to Latin via latinNumerals();
+  day/month names stay the locale's. The bilingual calendar popup remains
+  deliberately dual-locale.
+- **Motion cost.** Decorative ambient loops must not bill an unfocused
+  window: gate on `longDuration > 1` + visibility AND `paused: !active`
+  (measured: Mo AI's ambient scene was ~13% of a core for the window's
+  lifetime). State-gated pulses must also be BOUNDED on their failure path
+  (the Store's index pulse ran forever at ~12% when the catalogue build
+  failed).
+- **Icon seating.** App icons sit on the shared graphite plate at ~86% solid
+  box; commissioned raster art is seated on the plate, never shipped raw
+  (`artwork/generate_moai_icon.py`), with the byte-exact master preserved.

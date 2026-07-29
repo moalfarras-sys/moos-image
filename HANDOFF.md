@@ -29,6 +29,44 @@ Evidence priority:
 
 `live system > live journal > observed test > current source > CI/GHCR > old documentation`
 
+## Session 2026-07-29→30 — the adversarial audit and the ship-readiness milestone
+
+**The full engineering record for this session lives in
+`docs/SESSION_HANDOFF_2026-07-29.md`** — per-commit changelog with verification
+evidence, rejected approaches with their measurements, the eight design
+decisions now on record, refuted findings, live-drift notes, and the
+prioritised deferred-work plan. This entry is the checkpoint summary.
+
+- **What happened:** a 16-agent adversarially-verified audit of every desktop
+  surface, then 14 commits (`0124a6d..ea814be`, all pushed) fixing everything
+  actionable: the maximized-titlebar slab (WCAG 3.12:1 → worst 10.28:1 across
+  all 16 themes), window-button/glyph centring, the dead Aurorae blur mask,
+  six Inter→Plex Arabic sites on lock/login, the comet ring's razor-chop head,
+  the lock halo's palette drift, the hidden remote-control indicator
+  (measured: hidden SNIs never surface on Plasma 6), the launcher's inverted
+  RTL (16 double-mirroring lines deleted), numeral unification, the
+  `onAccent` signal-handler trap (black labels ×3 apps), the updater showing
+  the staged build as current, Mo Store's broken compile at HEAD, full
+  keyboard access for Store + theme picker, Recovery's clipped button, the
+  Mo AI icon seated on the family plate (commissioned master byte-exact), and
+  four measured motion-cost bugs (unbounded index pulse ~12%/core, Mo AI
+  ambient ~13%/core now paused on unfocus, ungated logout countdown, missing
+  visibility term). THEME_REV 23→24.
+- **State at handoff:** repo HEAD == origin/main, tree clean, all gates green
+  (every gate change was negative-tested). Dev machine still BOOTS
+  44.20260729.452 — all of the above lands at the next update+reboot. The
+  final CI run for the milestone tree: **30498003364** (its result and the
+  staged digest belong in the next session entry).
+- **Live side-effects on the dev machine (documented, deliberate):**
+  `~/.config/plasma-localerc` restored to Arabic after silent en_US drift;
+  THEME_REV-24 tray behaviour already live from testing; two orphan audit
+  processes killed.
+- **Exact next action:** wait for CI green → `rpm-ostree upgrade` → verify
+  staged digest == published → owner reboots → `bash
+  tests/post-update-check.sh` + the §6 Critical checklist in the session doc
+  (maximized bar colour, lock captions, launcher RTL, store CTA, Mo AI idle
+  CPU, quiet-session plasmashell re-measure).
+
 ## Session 2026-07-24 (live, post-reboot to v333/334) — "the machine is slow" was a port clash; Telegram + remote made real
 
 Booted v333, then shipped v334 (`64e8c45`: agent-api StartLimit + zram sysctl).
