@@ -135,6 +135,31 @@ jobs:
           node --experimental-strip-types tests/coordinates.test.ts
           node --experimental-strip-types tests/ui2-theme.test.ts
           node --experimental-strip-types tests/quality.test.ts
+          node --experimental-strip-types tests/bundle-freshness.test.ts
+
+      # The image ships the BUILT controller, not its TypeScript.
+      #
+      # vite writes to `../agent/wwwroot` and that directory is COMMITTED, so the repo holds
+      # two copies of this UI and only one of them reaches a phone. Editing src/ without
+      # running `npm run build` leaves the source right, every test green, and the shipped
+      # bundle unchanged — a release that silently does nothing. The test above catches that
+      # whenever the BUILD marker moves; this catches it when it does not.
+      #
+      # `npm ci` installs the lockfile exactly, so the output is reproducible: two consecutive
+      # builds on the same tree produce byte-identical files, which is what makes a diff a
+      # real signal here rather than noise.
+      - name: Controller bundle is built from the committed source
+        run: |
+          cd moremote/controller
+          npm ci --no-audit --no-fund
+          npm run build
+          cd "${GITHUB_WORKSPACE}"
+          if ! git diff --quiet -- moremote/agent/wwwroot; then
+            echo "::error::moremote/agent/wwwroot does not match what moremote/controller/src builds. Run 'npm run build' in moremote/controller and commit the result — otherwise the image ships the previous controller."
+            git diff --stat -- moremote/agent/wwwroot
+            exit 1
+          fi
+          echo "committed bundle matches the source it was built from"
 
       - name: Repo gates
         run: |
