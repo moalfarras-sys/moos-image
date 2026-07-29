@@ -81,19 +81,32 @@ offset=$(( (uid - 1000) * 100 ))
 # (two accounts one full cycle apart sharing a slot) is at worst a user's OWN service
 # failing to bind — visible and safe — never another tenant's front door.
 #
-# THE MODULUS IS DERIVED, NOT PICKED. The highest base is 8080, and a port must be
-# <= 65535, so the offset may not exceed 65535 - 8080 = 57455. Starting the band at
-# 20000 leaves 37455, i.e. 374 slots of 100. Round DOWN to 350 for headroom:
+# THE BAND IS DERIVED, NOT PICKED, and it must clear TWO ceilings:
 #
-#     max port = 8080 + 20000 + (350 - 1) * 100 = 62980   (<= 65535, with room)
-#     min port = 8077 + 20000                   = 28077   (never a base port)
+#   1. A port is at most 65535.
+#   2. A LISTENING port must stay out of the kernel's ephemeral range
+#      (net.ipv4.ip_local_port_range, 32768-60999 on this machine). A service that
+#      binds inside it races the kernel's own outgoing connections and fails
+#      intermittently with EADDRINUSE — the worst kind of bug, because it depends on
+#      what the machine happened to be doing a second earlier.
 #
-# A modulus of 400 was tried first and was WRONG: uid 1399 produced
-# 8080 + 20000 + 399*100 = 67980, an impossible port, and that account's Mo AI
-# would fail to bind at all. The gate below now proves the whole uid range, not
-# samples, precisely because sampling is what let that through.
+# So every port stays BELOW 32768. The linear band already does (8077..8980); the fold
+# starts at 10000, clear of it, and the modulus follows from the ceiling:
+#
+#     8080 + 10000 + (N-1)*100 < 32768   ->   N <= 147
+#
+#     max port = 8080 + 10000 + 146*100 = 32680   (below the ephemeral floor)
+#     min port = 8077 + 10000           = 18077   (never a base port)
+#
+# Two earlier attempts were wrong and are recorded so the next one is not:
+#   * `% 400` from a 20000 base produced 8080+20000+39900 = 67980 for uid 1399 — not a
+#     port at all, so that account's Mo AI could not bind.
+#   * `% 350` fixed the ceiling but left 283 of its 350 slots inside the ephemeral
+#     range, trading a hard failure for an intermittent one.
+# 147 slots is far more than a single machine will ever have accounts, and the gate
+# below proves EVERY uid rather than sampling — sampling is what let the first one ship.
 if [ "$offset" -gt 900 ]; then
-    offset=$(( 20000 + ((uid - 1000) % 350) * 100 ))
+    offset=$(( 10000 + ((uid - 1000) % 147) * 100 ))
 fi
 
 printf 'MOAI_GATEWAY_PORT=%d\n' $(( 8080 + offset ))

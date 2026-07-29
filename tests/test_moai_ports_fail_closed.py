@@ -20,6 +20,7 @@ non-1000 account gets three valid, non-base ports.
 """
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -70,7 +71,18 @@ def main() -> int:
     # cross-check a spread of them against the real script.
     def expected_offset(uid: int) -> int:
         offset = (uid - 1000) * 100
-        return offset if offset <= 900 else 20000 + ((uid - 1000) % 350) * 100
+        return offset if offset <= 900 else 10000 + ((uid - 1000) % 147) * 100
+
+    # A LISTENING port must also stay out of the kernel's ephemeral range, or the bind
+    # races the kernel's own outgoing connections and fails intermittently with
+    # EADDRINUSE. Read the running kernel's range where there is one; fall back to the
+    # standard default so a container build host still enforces the rule.
+    ephemeral_lo, ephemeral_hi = 32768, 60999
+    try:
+        lo, hi = Path("/proc/sys/net/ipv4/ip_local_port_range").read_text().split()
+        ephemeral_lo, ephemeral_hi = int(lo), int(hi)
+    except (OSError, ValueError):
+        pass
 
     for uid in range(1001, 6001):          # every account a real machine could have
         offset = expected_offset(uid)
@@ -83,13 +95,19 @@ def main() -> int:
             if value == BASE[name]:
                 errors.append(f"uid {uid} resolves {name}={value}, uid 1000's base port — fail-OPEN")
                 break
+            if ephemeral_lo <= value <= ephemeral_hi:
+                errors.append(f"uid {uid} would listen on {name}={value}, inside the kernel's "
+                              f"ephemeral range ({ephemeral_lo}-{ephemeral_hi}) — the bind races the "
+                              f"kernel's own outgoing connections and fails intermittently with "
+                              f"EADDRINUSE. Listening ports must stay below {ephemeral_lo}.")
+                break
         else:
             continue
         break                              # one arithmetic failure is enough; report and stop
 
     # Now confirm the real script agrees with that arithmetic at a spread of uids,
     # including both ends of the fold (1399 is the one the first version got wrong).
-    for uid in (1001, 1009, 1010, 1100, 1349, 1350, 1399, 1400, 2000, 5000):
+    for uid in (1001, 1009, 1010, 1100, 1146, 1147, 1148, 1399, 2000, 5000):
         ports = run_generator(uid)
         if set(ports) != set(BASE):
             errors.append(f"uid {uid} did not emit all three MOAI_*_PORT vars (got {ports}) — "
@@ -110,6 +128,30 @@ def main() -> int:
     # A system/dynamic user (uid < 1000) has no Mo AI session — emit nothing.
     if run_generator(999):
         errors.append("uid 999 (system user) must emit no Mo AI ports")
+
+    # Giving each account its own port is worthless if something else writes the BASE port
+    # into a config. moai-do's OpenCode provider hardcoded "http://127.0.0.1:8080/v1",
+    # which pointed the SECOND tenant's coding agent at the FIRST tenant's gateway — the
+    # one process holding the cloud API key, i.e. exactly the leak this generator prevents.
+    # Anything that writes a gateway URL must read the injected port.
+    for rel in ("system_files/usr/bin/moai-do",
+                "system_files/usr/bin/moai",
+                "system_files/usr/libexec/moai-openclaw-bootstrap"):
+        path = ROOT / rel
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        code = "\n".join(line for line in text.splitlines()
+                         if not line.lstrip().startswith("#"))
+        for hit in re.finditer(r"127\.0\.0\.1:(\d{4,5})", code):
+            port = int(hit.group(1))
+            if port in BASE.values():
+                line_no = code[:hit.start()].count("\n") + 1
+                errors.append(
+                    f"{rel} (code line ~{line_no}) hardcodes 127.0.0.1:{port}, a BASE Mo AI port. "
+                    f"On a machine with more than one account that address belongs to uid 1000, so "
+                    f"this sends another tenant's traffic to uid 1000's service. Use the injected "
+                    f"MOAI_*_PORT (e.g. ${{MOAI_GATEWAY_PORT:-8080}}).")
 
     if errors:
         print("GATE FAIL: 60-moai-ports does not fail closed.\n")

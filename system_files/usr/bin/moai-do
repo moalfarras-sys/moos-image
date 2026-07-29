@@ -1014,15 +1014,23 @@ do_install_opencode() {
     fi
 
     mkdir -p "$cfg_dir" 2>/dev/null || return 0
-    cat > "$cfg" <<'JSON'
+    # THE PORT IS PER-USER, so it must not be hardcoded. 60-moai-ports gives every
+    # account its own gateway port (uid 1000 keeps 8080; a second developer on a MoOS
+    # Cloud box gets 8180, and so on). Writing a literal 8080 here pointed the SECOND
+    # tenant's OpenCode at the FIRST tenant's gateway — the one process holding the
+    # cloud API key — which is precisely the cross-tenant leak the port generator
+    # exists to prevent. Read the injected variable, falling back to the base only
+    # where nothing injected one (a plain uid-1000 desktop).
+    local gw_port="${MOAI_GATEWAY_PORT:-8080}"
+    cat > "$cfg" <<JSON
 {
-  "$schema": "https://opencode.ai/config.json",
+  "\$schema": "https://opencode.ai/config.json",
   "provider": {
     "moos": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "MoOS local brain",
       "options": {
-        "baseURL": "http://127.0.0.1:8080/v1",
+        "baseURL": "http://127.0.0.1:${gw_port}/v1",
         "apiKey": "moos"
       },
       "models": {
