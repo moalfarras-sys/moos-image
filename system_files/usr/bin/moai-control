@@ -409,7 +409,24 @@ def ensure_front_door():
 
 
 def command_exists(name):
-    return shutil.which(name) is not None
+    """Is this command installed for THIS user?
+
+    shutil.which() alone is not enough here, and the gap was user-visible: a systemd
+    USER service inherits a minimal PATH — measured live on this machine, moai-control
+    runs with PATH=/usr/local/sbin:/usr/local/bin:/usr/bin and no ~/.local/bin. But
+    ~/.local/bin is exactly where `moai-do install-codex|install-claude|install-opencode`
+    put their tools (`npm install --global --prefix ~/.local`). So Mo AI installed an
+    agent and then reported that same agent as NOT installed, for ever — /quick answered
+    {"codex": false, "claude": false, "opencode": false} with all three sitting in
+    ~/.local/bin and on the user's own interactive PATH.
+
+    So: ask PATH, then ask the directory we ourselves install into. (moos-store-index's
+    nonflatpak_installed() already checks that directory directly, which is why the Store
+    got this right while Mo AI did not.)
+    """
+    if shutil.which(name) is not None:
+        return True
+    return os.access(os.path.expanduser(f"~/.local/bin/{name}"), os.X_OK)
 
 
 def user_unit_active(name):

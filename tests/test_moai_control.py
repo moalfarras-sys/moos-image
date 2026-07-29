@@ -493,5 +493,46 @@ class OpenClawBootstrapTests(unittest.TestCase):
             self.assertEqual(docker.read_text(encoding="utf-8"), original)
 
 
+class AgentDetectionTests(unittest.TestCase):
+    """Mo AI must not report its OWN installs as missing.
+
+    `moai-do install-codex|install-claude|install-opencode` install into ~/.local/bin
+    (npm --global --prefix ~/.local). But a systemd USER service inherits a minimal
+    PATH — measured live on the maintainer's machine, moai-control ran with
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/bin and no ~/.local/bin — so a
+    shutil.which() check answered False for all three while they sat installed and on
+    the user's own interactive PATH.
+
+    That was not cosmetic: /quick feeds `agents` into the UI's agent cards AND into the
+    machine context handed to the model ("Coding agents installed: codex=no"), so Mo AI
+    installed a tool and then told both the user and itself that it did not exist.
+    """
+
+    def test_agents_installed_in_local_bin_are_found_without_them_on_PATH(self):
+        with tempfile.TemporaryDirectory() as home:
+            local_bin = Path(home) / ".local/bin"
+            local_bin.mkdir(parents=True)
+            for agent in ("codex", "claude", "opencode"):
+                tool = local_bin / agent
+                tool.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+                tool.chmod(0o755)
+            control = load_control(home)
+            command_exists = control["command_exists"]
+            # Exactly the PATH the live user service has: no ~/.local/bin in it.
+            with mock.patch.dict(os.environ,
+                                 {"HOME": home,
+                                  "PATH": "/usr/local/sbin:/usr/local/bin:/usr/bin"},
+                                 clear=False):
+                for agent in ("codex", "claude", "opencode"):
+                    with self.subTest(agent=agent):
+                        self.assertTrue(
+                            command_exists(agent),
+                            f"{agent} is installed in ~/.local/bin (where moai-do puts it) "
+                            "but Mo AI reports it missing — the user installs an agent "
+                            "through Mo AI and Mo AI keeps saying it is not installed")
+                # A tool that really is absent must still be False, or the check is useless.
+                self.assertFalse(command_exists("moos-definitely-not-installed"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
