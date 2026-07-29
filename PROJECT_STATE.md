@@ -41,12 +41,46 @@ on **MoOS UI — Liquid Glass Design System**; the mandatory agent skill created
 >   pubspec, wrong asset path); shipped it correctly + regression (b25b158).
 > - **store** — curated npm/AppImage tools could be installed but never removed;
 >   added the symmetric removal path in storectl + the UI Remove button (cb4f981).
-> All 26 repo gates pass locally verbatim; controller TS, MoRemote.Tests (.NET,
+> All 30 repo gates pass locally verbatim; controller TS, MoRemote.Tests (.NET,
 > 21), and MoPlayer flutter (164) all green. Live-verified where possible:
 > Welcome rendered from edited source; `moos-storectl remove claude-code`
 > returns success (was "Invalid Flatpak app ID"), the test install restored
 > afterward. NOT yet verified (needs a boot / a main build): the sch_fq
 > ordering on a clean single-pass boot, and the SBOM attestation step.
+>
+> **Session N, round 2 — a deeper adversarial pass** on the same branch found
+> and fixed eight more, each reproduced with a regression proven to bite:
+> - **recovery (High)** — `moos-rollback` named a STAGED update as the rollback
+>   target (rpm-ostree lists staged at index 0), telling the user "roll back to
+>   <the newer version>". Skip staged deployments (7f9eefa).
+> - **cloud/security (High)** — `60-moai-ports` failed OPEN for uid≥1010 (the
+>   11th account), reverting to the base ports and reaching uid 1000's key-holding
+>   gateway. Now folds into a unique non-base high band (f47f8f6).
+> - **moai (High)** — the gateway left a chat reply hanging for ever on a
+>   mid-stream drop (swallowed the error, never closed the socket) and dropped
+>   Anthropic error/truncation events as blank "successful" replies (6266d7b).
+> - **remote (High)** — the H.264→JPEG fallback latch was dead code (`if not
+>   pick_h264()` on an always-truthy tuple) and the mid-stream blacklist keyed
+>   the instance name 'enc' + called dict.add(); froze ~4s per rebuild (c0b9368).
+> - **session (Med)** — `moos-open` session/logout|power hardcoded `qdbus6`
+>   (absent on Plasma 6), so they confirmed then did nothing. Added a qdbus
+>   resolver (5c58075).
+> - **ui (Visual)** — the first-run theme picker previewed Nova/Aurora/Tidal in
+>   the wrong accent and drew Midnight black-on-black (Qt.lighter on #000000).
+>   Corrected accents to the palettes, elevate with Qt.tint (48dcd0b).
+> - **perf** — `moai-openclaw-bootstrap` re-validated an unchanged config every
+>   login (~1.7s / ~428 MB Node); short-circuit when nothing changed (fca4757).
+> - **REJECTED** — a per-session gateway token (deep-pass proposal) was NOT
+>   implemented: `moai-do:942` points codex/claude/opencode at the gateway as a
+>   shared OpenAI endpoint, so requiring a token would break them. The gateway
+>   being a shared local endpoint is by design.
+>
+> And the explicitly-requested Mo AI capability growth (60df793): three new
+> `moai-do` actions — `rollback` (rescue), `net-doctor` and `gpu-report`
+> (read-only diagnostics) — each a fixed case with confirm+pkexec, wired in
+> moai-do + moos-open + the QML whitelist/prompt/menu, live-verified. Deferred
+> by design: power lock/sleep/restart (overlaps moos://session/*), service-
+> restart (validated-arg surface), backup-home (needs a destination story).
 
 > **Session M — the audit-and-truth session (2026-07-28).** The live machine, the
 > repo and GHCR were audited against each other before anything was edited.
