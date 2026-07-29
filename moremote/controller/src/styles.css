@@ -504,11 +504,25 @@ button {
 }
 .seg button {
   flex: 1 1 auto;
-  /* Chosen against the real sheet width, not by eye: at 430px the usable row is ~384px, so a floor
-     above 384/3 is what stops three segments sharing a row and leaving the fourth alone underneath.
-     132px gives a tidy 2x2 on every phone width and still lets all four sit on one row from about a
-     tablet upward. */
-  min-width: 132px;
+  /* Measured against the real nesting, and re-chosen because the segment COUNTS moved and this
+     number did not.
+     132px was tuned for a FOUR-segment row, to land a tidy 2x2 on a phone. Neither row has four
+     segments any more: Pointer became three ("Touch" and "Direct" merged into one mode plus a
+     switch below), and Quality became five (Auto, then the four presets). At 132px the Pointer row
+     wraps to 2+1 with "Mouse + keys" stranded alone underneath, and Quality to 2+2+1.
+     The number matters more than it looks because the row that matters is nested — .card >
+     .card-pad > .seg — and that is ~56px narrower than a seg sitting directly in the sheet. A
+     first pass at this measured the un-nested case, picked 108px, and changed nothing: rendered
+     inside a real card it still wrapped 2+1.
+     Rendered in Firefox at four phone widths, inside the card:
+        320px  three legible labels do not fit at ANY value down to 78px — wraps, as it does today
+        360px  84px is the largest that keeps them on one row (88px already wraps)
+        390px  every value 78-108px fits
+        430px  every value fits
+     84px is therefore the widest floor that is never worse than what shipped and is better from
+     360px up, which is every phone in current use. Quality's five segments fall to a balanced 3+2
+     at the same value instead of leaving one button by itself. */
+  min-width: 84px;
   display: flex;
   flex-direction: column;
   align-items: center;
