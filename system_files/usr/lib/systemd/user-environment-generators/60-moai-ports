@@ -68,11 +68,20 @@ case "$uid" in ''|*[!0-9]*) exit 0 ;; esac
 
 offset=$(( (uid - 1000) * 100 ))
 
-# Guard the top of the range. Beyond a handful of developers the arithmetic would
-# leave the registered-port space and start colliding with real services, and a
-# silent collision is precisely what this file exists to end.
+# Past the tidy registered band the linear offset would walk into other services,
+# but the ORIGINAL guard here did the one thing this file exists to prevent: for
+# uid >= 1010 (offset > 900) it `exit 0`ed WITHOUT printing, so the three services
+# fell back to their built-in defaults 8080/8079/8077 — exactly uid 1000's ports.
+# The eleventh account thus reached the first account's gateway (and its cloud
+# key), the very cross-tenant collision documented above. Exiting-without-printing
+# is fail-OPEN.
+#
+# Fail CLOSED instead: fold the high end into a private, uid-keyed band that stays
+# in valid port space and can NEVER equal uid 1000's base. A collision in this band
+# (two accounts 400 apart sharing a slot) is at worst a user's OWN service failing
+# to bind — visible and safe — never another tenant's front door.
 if [ "$offset" -gt 900 ]; then
-    exit 0
+    offset=$(( 20000 + ((uid - 1000) % 400) * 100 ))
 fi
 
 printf 'MOAI_GATEWAY_PORT=%d\n' $(( 8080 + offset ))
