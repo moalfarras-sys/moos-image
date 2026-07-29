@@ -162,8 +162,52 @@ class MoOSVisualSystemTests(unittest.TestCase):
                     f"{sorted(AURORAE_BUTTONS - actual)}",
                 )
                 decoration_ids = svg_ids(package / "decoration.svg")
+                # The Aurorae mask is deliberately gone (2026-07-29): the frame
+                # is 100% opaque, and hasElementPrefix("mask") made KWin blur
+                # every frame behind pixels that fully cover it — measurable
+                # GPU work with zero visual effect. Persistent surfaces are
+                # solid; glass belongs to the transient shell surfaces above.
+                self.assertFalse(
+                    {i for i in decoration_ids if i.startswith("mask-")},
+                    f"{style} reintroduces a blur mask behind an opaque frame",
+                )
+                # And the maximized bar must be FLAT in the title ramp's
+                # terminal colour. The old url(#title) fill sampled the
+                # restored bar's y=12..52 span from a rect at y=0..24 and
+                # clamped to the start stop — a flat WRONG-colour slab with
+                # 3.12:1 captions, identical across all 7 light palettes. No
+                # replacement gradient basis survives FrameSvg's center-cell
+                # stretch (measured), so the contract is: no gradient, flat
+                # fill, equal to the last stop of the matching title ramp.
+                decoration_text = (package / "decoration.svg").read_text(
+                    encoding="utf-8")
+                def _end_stop(base: str) -> str:
+                    gradient = re.search(
+                        rf'<linearGradient id="{base}" [^>]*>(.*?)'
+                        rf'</linearGradient>', decoration_text, re.S)
+                    self.assertIsNotNone(gradient, f"{style} lacks {base}")
+                    return re.findall(
+                        r'stop-color="(#[0-9A-Fa-f]{6})"', gradient.group(1))[-1]
+                for rect_id, flat in (
+                    ("decoration-maximized-center", _end_stop("title")),
+                    ("decoration-maximized-inactive-center",
+                     _end_stop("i-title")),
+                ):
+                    element = re.search(
+                        rf'<rect id="{rect_id}"[^>]*/>', decoration_text)
+                    self.assertIsNotNone(
+                        element, f"{style} lacks {rect_id}")
+                    self.assertNotIn(
+                        "url(", element.group(0),
+                        f"{style}: {rect_id} references a gradient — the "
+                        f"flat maximized slab returns",
+                    )
+                    self.assertIn(
+                        f'fill="{flat}"', element.group(0),
+                        f"{style}: {rect_id} must be flat {flat}, the title "
+                        f"ramp's terminal colour",
+                    )
                 for prefix in (
-                    "mask",
                     "innerborder",
                     "innerborder-inactive",
                     "decoration-opaque",

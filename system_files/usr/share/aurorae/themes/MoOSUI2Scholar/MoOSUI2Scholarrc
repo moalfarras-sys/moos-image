@@ -32,7 +32,14 @@ TitleEdgeRightMaximized=0
 ButtonWidth=20
 ButtonHeight=20
 ButtonSpacing=6
-ButtonMarginTop=1
+# Centred arithmetic, verified against AuroraeButtonGroup.qml and measured on
+# screen. Restored: the bar is TitleEdgeTop(5)+TitleHeight(32)+TitleEdgeBottom(5)
+# = 42, centre 21; a 20px button needs top = 21-10 = 11 = TitleEdgeTop + 6.
+# Maximized: the edges collapse to 0, bar = 32, centre 16, top = 6. The
+# maximized key does NOT inherit ButtonMarginTop — it defaults to 0 (measured:
+# pills started at device row 0), so it must be set explicitly.
+ButtonMarginTop=6
+ButtonMarginTopMaximized=6
 ExplicitButtonSpacer=8
 
 PaddingLeft=18

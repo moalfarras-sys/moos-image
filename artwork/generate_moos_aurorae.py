@@ -11,6 +11,7 @@ traffic-light look of the previous revision.
 from __future__ import annotations
 
 import pathlib
+import re
 import xml.etree.ElementTree as ET
 from collections.abc import Mapping
 
@@ -129,17 +130,16 @@ def _decoration_additions(p: Mapping[str, str]) -> str:
                 opacity=opacity, rim_opacity=rim,
             ))
 
-    # The blur mask follows the visible decoration inside the established
-    # 18/12/24 px shadow padding. Transparent bounding rectangles deliberately
-    # keep the mask pieces aligned with the painted FrameSvg pieces.
-    for region in (
-        "topleft", "top", "topright", "left", "center", "right",
-        "bottomleft", "bottom", "bottomright",
-    ):
-        pieces.append(_frame_piece(
-            f"mask-{region}", region=region, fill="#000000", accent="#000000",
-            opacity=1.0, rim_opacity=0.0,
-        ))
+    # There is deliberately NO mask-* frame here. The mask is Aurorae's opt-in
+    # for KWin blur behind the decoration — and this decoration is 100% opaque
+    # (measured: every titlebar pixel alpha=255). aurorae.v2 creates the blur
+    # region iff hasElementPrefix("mask"), and KWin then computes blur every
+    # frame behind pixels that fully cover it: pure GPU waste with zero visual
+    # effect. The material decision is recorded here: in MoOS UI, PERSISTENT
+    # surfaces (window frames) are solid for predictable caption contrast on
+    # any content; glass is reserved for TRANSIENT shell surfaces (dock,
+    # popups, notifications). If titlebars ever go translucent, reintroduce
+    # the mask AND re-verify caption contrast on all 16 themes.
 
     # Inner-border FrameSvgs: only their edge is visible; the center stays
     # transparent as recommended by Aurorae for performance.
@@ -185,6 +185,61 @@ def _decoration_additions(p: Mapping[str, str]) -> str:
     return "\n".join(pieces)
 
 
+def _title_end_stop(text: str, base: str, path: pathlib.Path) -> str:
+    """Return the last stop colour of the canonical `title`/`i-title` ramp."""
+    source = re.search(
+        rf'<linearGradient id="{base}" [^>]*>(.*?)</linearGradient>', text, re.S)
+    if source is None:
+        raise SystemExit(f"{path}: canonical frame has no `{base}` gradient")
+    stops = re.findall(r'stop-color="(#[0-9A-Fa-f]{6})"', source.group(1))
+    if not stops:
+        raise SystemExit(f"{path}: `{base}` gradient has no colour stops")
+    return stops[-1]
+
+
+def _repair_maximized_paint(text: str, path: pathlib.Path) -> str:
+    """Paint the maximized titlebar flat in the ramp's terminal colour.
+
+    The canonical frame filled the maximized pieces with url(#title) — a
+    userSpaceOnUse gradient over y=12..52, the RESTORED bar's rows — while the
+    maximized rect sits at y=0..24. Sampling outside the span clamps to the
+    START stop: the whole bar rendered as one flat wrong colour (#527F79 on
+    Light), captions fell to 3.12:1, focus changes flashed the full bar
+    dark<->light, and because every light palette shares that start colour,
+    seven palettes produced one identical teal slab.
+
+    A gradient cannot fix it either way: FrameSvg stretches the center cell,
+    so userSpaceOnUse spans distort with the stretch, and the effective
+    objectBoundingBox is the whole window rect, not the visible strip — both
+    were measured rendering a barely-moving ramp across the bar. So the
+    maximized bar is deliberately FLAT, in the exact colour the restored ramp
+    lands on (#E1F0EC active / #C9E2DD inactive on Light). Grounded, calm,
+    high-contrast, per-palette — the floating window keeps its ramp, the
+    docked window rests on the ramp's terminal. Idempotent: re-running
+    resolves to the same flat fills.
+    """
+    # Drop the -max gradient defs an earlier revision of this repair added.
+    text = re.sub(
+        r'<linearGradient id="i?-?title-max"[^>]*>.*?</linearGradient>',
+        "", text, flags=re.S)
+
+    active_end = _title_end_stop(text, "title", path)
+    inactive_end = _title_end_stop(text, "i-title", path)
+
+    def retarget(match: re.Match) -> str:
+        element = match.group(0)
+        for stale, flat in (
+            ("url(#i-title-max)", inactive_end),
+            ("url(#title-max)", active_end),
+            ("url(#i-title)", inactive_end),
+            ("url(#title)", active_end),
+        ):
+            element = element.replace(f'fill="{stale}"', f'fill="{flat}"')
+        return element
+
+    return re.sub(r'<rect id="decoration-maximized-[^"]*"[^>]*/>', retarget, text)
+
+
 def _augment_decoration(path: pathlib.Path, p: Mapping[str, str]) -> None:
     text = path.read_text(encoding="utf-8")
     marker = "<!-- MoOS Aurorae v3:"
@@ -192,6 +247,7 @@ def _augment_decoration(path: pathlib.Path, p: Mapping[str, str]) -> None:
         text = text[:text.index(marker)] + "</svg>\n"
     if "</svg>" not in text:
         raise SystemExit(f"invalid Aurorae decoration SVG: {path}")
+    text = _repair_maximized_paint(text, path)
     text = text.replace("</svg>", _decoration_additions(p) + "\n</svg>", 1)
     _write(path, text)
 
@@ -205,7 +261,11 @@ def _glyph(name: str, colour: str) -> str:
             f'fill="{colour}" transform="rotate(-45 10 10)"/>'
         ),
         "minimize": (
-            f'<rect x="6.25" y="11.55" width="7.5" height="1.7" rx=".85" '
+            # y centres the dash on (10,10) like every other glyph in the set:
+            # 9.15 + 1.7/2 = 10. It sat at y=11.55 (centre 12.4, 12% low) and
+            # the sag was visible beside the centred close/maximize glyphs —
+            # measured 6 device px below the pill centre on the live session.
+            f'<rect x="6.25" y="9.15" width="7.5" height="1.7" rx=".85" '
             f'fill="{colour}"/>'
         ),
         "maximize": (
@@ -347,7 +407,14 @@ TitleEdgeRightMaximized=0
 ButtonWidth=20
 ButtonHeight=20
 ButtonSpacing=6
-ButtonMarginTop=1
+# Centred arithmetic, verified against AuroraeButtonGroup.qml and measured on
+# screen. Restored: the bar is TitleEdgeTop(5)+TitleHeight(32)+TitleEdgeBottom(5)
+# = 42, centre 21; a 20px button needs top = 21-10 = 11 = TitleEdgeTop + 6.
+# Maximized: the edges collapse to 0, bar = 32, centre 16, top = 6. The
+# maximized key does NOT inherit ButtonMarginTop — it defaults to 0 (measured:
+# pills started at device row 0), so it must be set explicitly.
+ButtonMarginTop=6
+ButtonMarginTopMaximized=6
 ExplicitButtonSpacer=8
 
 PaddingLeft=18
@@ -394,7 +461,6 @@ def validate_aurorae_suite(
     decoration = target / "decoration.svg"
     ids = _svg_ids(decoration)
     for prefix in (
-        "mask",
         "innerborder",
         "innerborder-inactive",
         "decoration-opaque",
@@ -409,6 +475,19 @@ def validate_aurorae_suite(
                 f"{sorted(missing)[0]}"
             )
 
+    # The mask contract is deliberately ABSENT: hasElementPrefix("mask") makes
+    # aurorae.v2 declare a blur region, and KWin then blurs every frame behind
+    # a decoration whose every pixel is opaque (alpha=255, measured). A mask
+    # returning here means either wasted GPU per frame or an undocumented move
+    # to translucent titlebars — both need a reviewed decision, not drift.
+    stray_mask = sorted(i for i in ids if i.startswith("mask-"))
+    if stray_mask:
+        raise SystemExit(
+            f"{decoration} declares a blur mask ({stray_mask[0]}) but the "
+            f"frame is opaque — remove it or make the material decision "
+            f"explicit (see _decoration_additions)"
+        )
+
     required_maximized = {
         "decoration-maximized-center",
         "decoration-maximized-inactive-center",
@@ -421,6 +500,37 @@ def validate_aurorae_suite(
             f"{decoration} is missing its maximized contract: "
             f"{sorted(missing)[0]}"
         )
+
+    # The maximized bar must be FLAT in the title ramp's terminal colour.
+    # It may reference NO gradient: the canonical url(#title) fill sampled the
+    # restored bar's y=12..52 span from a rect at y=0..24 and clamped to the
+    # start stop (the wrong-colour slab, 3.12:1 captions, one identical bar
+    # across every light palette) — and no replacement span survives
+    # FrameSvg's center-cell stretch (both userSpaceOnUse and
+    # objectBoundingBox measured as a barely-moving ramp). See
+    # _repair_maximized_paint.
+    svg_text = decoration.read_text(encoding="utf-8")
+    active_end = _title_end_stop(svg_text, "title", decoration)
+    inactive_end = _title_end_stop(svg_text, "i-title", decoration)
+    for rect_id, flat in (
+        ("decoration-maximized-center", active_end),
+        ("decoration-maximized-inactive-center", inactive_end),
+    ):
+        element = re.search(rf'<rect id="{rect_id}"[^>]*/>', svg_text)
+        if element is None:
+            raise SystemExit(f"{decoration} is missing {rect_id}")
+        if "url(" in element.group(0):
+            raise SystemExit(
+                f"{decoration}: {rect_id} references a gradient — FrameSvg "
+                f"stretches this cell and every gradient basis renders wrong; "
+                f"it must be flat {flat}"
+            )
+        if f'fill="{flat}"' not in element.group(0):
+            raise SystemExit(
+                f"{decoration}: {rect_id} must be flat {flat} (the title "
+                f"ramp's terminal colour) so the docked bar matches where the "
+                f"floating ramp lands"
+            )
 
     required_button_states = {
         f"{state}-center" for state in BUTTON_STATES
@@ -448,6 +558,8 @@ def validate_aurorae_suite(
         "TitleHeight=32",
         "ButtonWidth=20",
         "RightButtons=HIAX",
+        "ButtonMarginTop=6",
+        "ButtonMarginTopMaximized=6",
     ):
         if setting not in rc:
             raise SystemExit(f"{expected_rc} is missing required setting {setting}")
