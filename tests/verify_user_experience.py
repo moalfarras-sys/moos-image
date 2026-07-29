@@ -3344,6 +3344,40 @@ for cursor_variant in ("org.moos.ui2", "org.moos.ui2.light"):
     ui2_cursors[cursor_variant] = cursor_match.group(1)
 require(ui2_cursors["org.moos.ui2"] != ui2_cursors["org.moos.ui2.light"],
         "both UI2 halves name the same cursor — one canvas gets a low-contrast pointer")
+# ...and every OTHER variant must follow the same halves. The loop above reads
+# exactly two look-and-feels; MoOS ships sixteen. A new palette added with the
+# pointers the wrong way round — or with a cursor theme nobody builds — would
+# have sailed through, because no gate ever looked at it. The canvas a variant
+# paints is decided by its `.light` suffix, so the cursor it may name is decided
+# too: there are only two legal answers and this says which is which.
+#
+# This is the name-level half of the check, and it is deliberately not the whole
+# one. It can only prove a variant agrees with `org.moos.ui2`; it cannot prove
+# `org.moos.ui2` itself is right, because the cursor themes do not exist in the
+# repo — build.sh copies them from Bibata. The pixels are measured in
+# `build_files/verify_image_experience.py`, which runs inside the image where
+# they do exist. Together: this one catches a mis-paired variant in seconds on
+# every push, that one catches an inverted pair on arithmetic.
+lnf_dir = ROOT / "system_files/usr/share/plasma/look-and-feel"
+checked_variants = 0
+for variant_defaults in sorted(lnf_dir.glob("org.moos.ui2*/contents/defaults")):
+    variant_name = variant_defaults.parent.parent.name
+    variant_match = re.search(r"^cursorTheme=(\S+)$",
+                              read(str(variant_defaults.relative_to(ROOT))), re.MULTILINE)
+    require(variant_match is not None,
+            f"{variant_name} names no cursor theme — Plasma would substitute its own pointer")
+    if variant_match is None:
+        continue
+    expected_half = "org.moos.ui2.light" if variant_name.endswith(".light") else "org.moos.ui2"
+    require(variant_match.group(1) == ui2_cursors[expected_half],
+            f"{variant_name} names cursor {variant_match.group(1)}, but every "
+            f"{'light' if variant_name.endswith('.light') else 'dark'} canvas must use "
+            f"{ui2_cursors[expected_half]} — this one gets a low-contrast pointer")
+    checked_variants += 1
+require(checked_variants >= 8,
+        f"only {checked_variants} look-and-feel variants were cursor-checked — the palette "
+        "variants are unguarded")
+
 cursor_switcher = code(read("system_files/usr/bin/moos-theme"))
 cursor_build = code(read("build_files/build.sh"))
 for cursor_name in ui2_cursors.values():

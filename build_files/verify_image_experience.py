@@ -46,6 +46,112 @@ def require(ok: bool, message: str) -> None:
         errors.append(message)
 
 
+# The pointer must READ against the canvas it is drawn on, measured from pixels.
+#
+# `tests/verify_user_experience.py` already requires the two UI2 halves to name
+# DIFFERENT cursor themes. That is weaker than it looks: "different" is satisfied
+# just as well by the inverted assignment, which hands the light canvas the light
+# pointer and the dark canvas the dark one. Both halves would then ship a pointer
+# the user can barely see, and every gate in the repo would stay green, because no
+# gate anywhere knows which of the two themes is actually the light-coloured one.
+#
+# Nothing in the NAME can settle that. `MoOSDark` is the pointer FOR dark surfaces
+# in one reading and the DARK-COLOURED pointer in the other, and only one of those
+# is true (it is Bibata Modern Classic, a dark pointer, meant for light canvases).
+# So this gate does not read names: it decodes the shipped XCursor files and
+# measures the mean luminance of their opaque pixels. The dark theme's pointer must
+# come out genuinely lighter than the light theme's. Swap the two `cursorTheme=`
+# lines and this fails on arithmetic, not on a naming convention someone has to
+# remember.
+#
+# It lives here rather than in the repo gate because the cursor themes do not exist
+# in the repo — build.sh copies them from Bibata at ~line 1125, and pixels are only
+# available once it has.
+def _cursor_luminance(theme: str):
+    """Mean luminance of the opaque pixels of a theme's largest left_ptr image."""
+    import struct
+    for name in ("left_ptr", "default", "arrow"):
+        path = Path(f"/usr/share/icons/{theme}/cursors/{name}")
+        if path.is_symlink():
+            path = path.resolve()
+        if not path.is_file():
+            continue
+        blob = path.read_bytes()
+        if blob[:4] != b"Xcur":
+            continue
+        _hdr, _ver, ntoc = struct.unpack("<III", blob[4:16])
+        best = None
+        for i in range(ntoc):
+            kind, subtype, pos = struct.unpack("<III", blob[16 + i * 12:28 + i * 12])
+            if kind != 0xFFFD0002:          # image chunk
+                continue
+            if best is None or subtype > best[0]:
+                best = (subtype, pos)
+        if best is None:
+            continue
+        pos = best[1]
+        width, height = struct.unpack("<II", blob[pos + 16:pos + 24])
+        pixels = blob[pos + 36:pos + 36 + width * height * 4]
+        total = count = 0
+        for i in range(0, len(pixels) - 3, 4):
+            blue, green, red, alpha = pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]
+            if alpha < 128:                 # ignore the transparent surround
+                continue
+            total += 0.2126 * red + 0.7152 * green + 0.0722 * blue
+            count += 1
+        if count:
+            return total / count
+    return None
+
+
+lnf_root = Path("/usr/share/plasma/look-and-feel")
+cursor_luminance: dict = {}
+paired = 0
+for defaults in sorted(lnf_root.glob("org.moos.ui2*/contents/defaults")):
+    variant = defaults.parent.parent.name
+    named = re.search(r"^cursorTheme=(\S+)$", config(defaults.read_text(encoding="utf-8")),
+                      re.MULTILINE)
+    require(named is not None, f"{variant} names no cursor theme — Plasma would pick its own")
+    if named is None:
+        continue
+    theme = named.group(1)
+    require(Path(f"/usr/share/icons/{theme}").is_dir(),
+            f"{variant} names cursor theme {theme}, which the image does not contain")
+    if theme not in cursor_luminance:
+        cursor_luminance[theme] = _cursor_luminance(theme)
+    require(cursor_luminance[theme] is not None,
+            f"cursor theme {theme} ships no decodable left_ptr — the pointer cannot be checked")
+    if cursor_luminance[theme] is None:
+        continue
+    # `.light` is the light CANVAS, which needs the DARK pointer, and the reverse.
+    light_canvas = variant.endswith(".light")
+    other = "org.moos.ui2" if light_canvas else "org.moos.ui2.light"
+    other_defaults = lnf_root / other / "contents/defaults"
+    if not other_defaults.is_file():
+        continue
+    other_named = re.search(r"^cursorTheme=(\S+)$",
+                            config(other_defaults.read_text(encoding="utf-8")), re.MULTILINE)
+    if not other_named:
+        continue
+    other_theme = other_named.group(1)
+    if other_theme not in cursor_luminance:
+        cursor_luminance[other_theme] = _cursor_luminance(other_theme)
+    if cursor_luminance[other_theme] is None:
+        continue
+    mine, theirs = cursor_luminance[theme], cursor_luminance[other_theme]
+    darker_is_mine = mine < theirs
+    require(darker_is_mine == light_canvas,
+            f"{variant} is a {'light' if light_canvas else 'dark'} canvas but names cursor "
+            f"{theme} (luminance {mine:.0f}), which is "
+            f"{'lighter' if mine > theirs else 'darker'} than the pointer the other half uses "
+            f"({other_theme}, {theirs:.0f}) — that pointer is low-contrast on this canvas")
+    paired += 1
+
+require(paired >= 8,
+        f"only {paired} look-and-feel variants had their pointer contrast checked — the "
+        "palette variants are shipping an unverified cursor")
+
+
 # The boot splash must actually appear. Plymouth only draws its graphical theme when the
 # kernel command line carries `rhgb`; without it, it falls back to text and the user watches
 # systemd scroll past instead of seeing MoOS. The image shipped no kargs at all, so the splash
