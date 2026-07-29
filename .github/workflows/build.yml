@@ -149,6 +149,10 @@ jobs:
           # gateway. The old guard exited without printing for uid>=1010, which fell back to the base.
           python3 tests/test_moai_ports_fail_closed.py
           python3 tests/test_mo_remote_codec_resend.py
+          # The H.264->JPEG fallback latch was dead code: `if not pick_h264()` tests a 2-tuple that is
+          # always truthy, and the mid-stream blacklist keyed the instance name 'enc' and called
+          # dict.add(). Without it, a host that cannot start H.264 froze ~4s on every rebuild.
+          python3 tests/test_remote_h264_fallback.py
           # Mo PC Remote's feel over cellular is decided by three lines of kernel tuning, and both
           # ways they can fail are silent: a congestion control selected but never registered
           # (machine stays on cubic, nobody is told), and a mistyped key (skipped with a warning
