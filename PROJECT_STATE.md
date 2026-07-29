@@ -4,8 +4,9 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-28 (session M — full reality audit; identity docs unified
-on **MoOS UI — Liquid Glass Design System**; the mandatory agent skill created).
+Last updated: 2026-07-29 (session N round 3 — shipped to main and BOOTED on
+44.20260729.452; `tests/post-update-check.sh` 48 passed / 0 failed. The design
+system is **MoOS UI — Liquid Glass**; the mandatory agent skill is in place).
 
 > **Read [`skills/moos-engineering/SKILL.md`](skills/moos-engineering/SKILL.md) first —
 > it is mandatory for every agent working here.**
@@ -35,8 +36,9 @@ on **MoOS UI — Liquid Glass Design System**; the mandatory agent skill created
 >   whitelist, not just literals (9569c6e).
 > - **ci** — build-disk/iso now cosign-verify the image before building an
 >   installer; all jobs got timeout-minutes; build-disk got concurrency
->   (8a13cff). Image build now attests an SPDX SBOM with the signing key —
->   first executes on the next main build (592e55f).
+>   (8a13cff). Image build also gained an SPDX SBOM attestation (592e55f) —
+>   **which was removed again on 2026-07-29 after it broke the build twice; see
+>   the round-3 entry below. Do not re-add it to this workflow.**
 > - **moplayer** — the bundled demo playlist could never load (undeclared in
 >   pubspec, wrong asset path); shipped it correctly + regression (b25b158).
 > - **store** — curated npm/AppImage tools could be installed but never removed;
@@ -47,6 +49,68 @@ on **MoOS UI — Liquid Glass Design System**; the mandatory agent skill created
 > returns success (was "Invalid Flatpak app ID"), the test install restored
 > afterward. NOT yet verified (needs a boot / a main build): the sch_fq
 > ordering on a clean single-pass boot, and the SBOM attestation step.
+> **Update:** the SBOM step was never verifiable — it killed the runner on both
+> attempts and was removed (round 3).
+>
+> **Session N, round 3 — shipped to main, booted, and verified on the machine
+> (2026-07-29).** Everything below is running on `44.20260729.452` (rev d567c8b,
+> digest ff45fe58), signature-verified against `/etc/pki/containers/moos.pub`.
+> `tests/post-update-check.sh`: **48 passed, 0 failed** (was 45/3 before this
+> boot), 0 failed system or user units, user `default.target` **1.444s**.
+> - **ci (High)** — the SPDX SBOM step killed the GitHub runner twice; the second
+>   time it took ALL THREE matrix jobs. syft spends ~8 min unpacking a multi-GB
+>   image on a runner already squeezed by `Free disk space`, and the runner does
+>   not come back. `continue-on-error: true` does NOT save it — that forgives a
+>   step which EXITS non-zero, and nothing forgives a runner that is gone, so the
+>   step showed "success" inside a red job. Removed (04b57bd). If it ever returns
+>   it needs its own workflow, off the path that produces the image people boot.
+> - **recovery (High)** — `deployments()` documents a 3-tuple and the call site
+>   unpacks three names, but two failure paths still returned pairs, so Recovery
+>   died with `ValueError: not enough values to unpack (expected 3, got 2)`.
+>   Both paths mean "rpm-ostree is unwell" — the only reason anyone opens
+>   Recovery. It worked on every healthy machine and crashed on the broken one
+>   (db7fd10). Verified on this boot: with rpm-ostree PATH-shadowed by a stub
+>   that exits 1, `/usr/bin/moos-rollback` still draws (timeout 6s -> exit 124,
+>   no traceback); the installed file has 3 three-tuple returns and 0 pairs.
+> - **remote/ui (High)** — the shared `<S>` icon set only a viewBox, so any use
+>   site without a matching CSS rule fell back to the browser default object
+>   size. Measured in Firefox: **290x270px vs 20x19px**, 14.5x too wide, at three
+>   sites (idle-timeout overlay, PC-locked overlay, sign-in lockout hint) — the
+>   same defect as the ~600px settings gear. Fixed on the component so no future
+>   site can repeat it, then sized deliberately: `.center-msg svg` 44px,
+>   `.hint svg` 1.05em (f6118e4, e391f79).
+> - **remote/ui (Medium)** — `.seg button { min-width: 132px }` was tuned for a
+>   FOUR-segment row; Pointer became three and Quality five, so phones wrapped
+>   2+1 and 2+2+1. Re-measured inside the real `.card > .card-pad` nesting (a
+>   first attempt measured the un-nested case, picked 108px and changed nothing):
+>   320px fits three at no value tested, 360px needs <=84px, 390px+ fits all.
+>   84px (d567c8b).
+> - **theme (Medium)** — the UI2 cursor gate required the two halves to name
+>   DIFFERENT themes, which the INVERTED assignment satisfies just as well, and
+>   no file said which theme is the light-coloured one. Now two layers, neither
+>   trusting the name: the repo gate covers all 16 look-and-feels, and
+>   `verify_image_experience.py` decodes the shipped XCursor files and compares
+>   mean opaque-pixel luminance (MoOS 155/255 light, MoOSDark 98/255 dark).
+>   Both passed inside real CI image builds (5403739).
+> - **moai (High)** — every privileged action now leaves a journal record with
+>   four distinct verdicts. Verified on this boot against the INSTALLED binary:
+>   `verdict=ok` (gpu-report), `verdict=declined` (a rollback declined via closed
+>   stdin, deployments unchanged), `verdict=failed status=N`, and `verdict=refused`
+>   for `rm -rf /`, `update; rm -rf /`, `$(reboot)`, `../../bin/sh`, `--exec`
+>   (a5c2536).
+> - **remote/ci (Medium)** — the image ships the vite OUTPUT, and that output is
+>   committed at `moremote/agent/wwwroot`. Editing src/ without `npm run build`
+>   left every test green and the shipped bundle unchanged. Two guards now:
+>   `tests/bundle-freshness.test.ts` (BUILD marker must appear in the bundle, and
+>   sw.js may only precache assets that exist) and a CI step running
+>   `npm ci && npm run build` that fails on ANY diff. The CI step passed
+>   byte-identical on GitHub's runner, so the build is reproducible from the
+>   lockfile (8fe3695).
+> Sweeps that found nothing, recorded so nobody repeats them: return-arity
+> mismatches across 51 Python files and unbounded `subprocess` calls in 6 GTK
+> apps produced 5 candidates, 4 false positives cleared by reading (the 5th was
+> the Recovery bug above). Mo Store: 33/33 Flathub entries resolve against the
+> Flathub API, and every curated `install.kind` (npm, web) has a handler.
 >
 > **Session N, round 2 — a deeper adversarial pass** on the same branch found
 > and fixed eight more, each reproduced with a regression proven to bite:
