@@ -826,7 +826,7 @@ ApplicationWindow {
                                 required property var modelData
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: win.fs(214)
-                                radius: 20
+                                radius: win.fs(20)
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                                 border.width: 1
                                 border.color: win.outline
@@ -836,7 +836,7 @@ ApplicationWindow {
                                     spacing: 12
                                     Rectangle {
                                         Layout.preferredWidth: win.fs(56); Layout.preferredHeight: win.fs(56)
-                                        radius: 16
+                                        radius: win.fs(16)
                                         color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
                                         Glyph {
                                             anchors.centerIn: parent
@@ -958,7 +958,7 @@ ApplicationWindow {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(120)
-                            radius: 20
+                            radius: win.fs(20)
                             color: win.dangerSoft
                             border.width: 1; border.color: win.danger
                             RowLayout {
@@ -1029,7 +1029,7 @@ ApplicationWindow {
                                     readonly property bool disabled: diskCard.modelData.tooSmall === true
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: win.fs(96)
-                                    radius: 20
+                                    radius: win.fs(20)
                                     opacity: diskCard.disabled ? 0.5 : 1
                                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
                                                    diskHover.hovered || diskCard.selected ? 0.95 : 0.6)
@@ -1050,7 +1050,7 @@ ApplicationWindow {
 
                                         Rectangle {
                                             Layout.preferredWidth: win.fs(56); Layout.preferredHeight: win.fs(56)
-                                            radius: 16
+                                            radius: win.fs(16)
                                             color: diskCard.selected
                                                    ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.18)
                                                    : Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.9)
@@ -1145,7 +1145,7 @@ ApplicationWindow {
                                     var d = win.targetDisk()
                                     return d && (d.hasOS === true || d.hasData === true)
                                 }
-                                radius: 16
+                                radius: win.fs(16)
                                 color: win.dangerSoft
                                 border.width: 1; border.color: win.danger
                                 RowLayout {
@@ -1173,7 +1173,7 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: win.fs(64)
                                 visible: win.liveDisk() !== null
-                                radius: 18
+                                radius: win.fs(18)
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.35)
                                 border.width: 1
                                 border.color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.6)
@@ -1183,7 +1183,7 @@ ApplicationWindow {
                                     spacing: 14
                                     Rectangle {
                                         Layout.preferredWidth: win.fs(40); Layout.preferredHeight: win.fs(40)
-                                        radius: 12
+                                        radius: win.fs(12)
                                         color: Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.7)
                                         Glyph { anchors.centerIn: parent; name: "lock"; tint: win.txt2; width: 20; height: 20 }
                                     }
@@ -1239,7 +1239,7 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(118)
                             Layout.bottomMargin: 16
-                            radius: 20
+                            radius: win.fs(20)
                             color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
                                            methodHover.hovered || methodCard.selected ? 0.95 : 0.6)
                             border.width: methodCard.selected ? 2 : 1
@@ -1262,7 +1262,7 @@ ApplicationWindow {
                                 Rectangle {
                                     Layout.preferredWidth: win.fs(56); Layout.preferredHeight: win.fs(56)
                                     Layout.alignment: Qt.AlignTop
-                                    radius: 16
+                                    radius: win.fs(16)
                                     color: methodCard.selected
                                            ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.18)
                                            : Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.9)
@@ -1384,7 +1384,7 @@ ApplicationWindow {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(48)
-                            radius: 12
+                            radius: win.fs(12)
                             color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                             border.width: 1
                             border.color: !win.acctUserValid && win.acctUser !== "" ? win.danger
@@ -1432,7 +1432,7 @@ ApplicationWindow {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(48)
-                            radius: 12
+                            radius: win.fs(12)
                             color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                             border.width: 1
                             border.color: fullInput.activeFocus ? win.accent : win.outline
@@ -1460,7 +1460,7 @@ ApplicationWindow {
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: win.fs(48)
-                                radius: 12
+                                radius: win.fs(12)
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                                 border.width: 1
                                 border.color: passInput.activeFocus ? win.accent : win.outline
@@ -1487,7 +1487,7 @@ ApplicationWindow {
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: win.fs(48)
-                                radius: 12
+                                radius: win.fs(12)
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                                 border.width: 1
                                 border.color: win.acctPass2 !== "" && win.acctPass !== win.acctPass2 ? win.danger
@@ -1581,7 +1581,7 @@ ApplicationWindow {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: win.fs(48)
-                        radius: 12
+                        radius: win.fs(12)
                         color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                         border.width: 1
                         border.color: zoneSearch.activeFocus ? win.accent : win.outline
@@ -1613,7 +1613,7 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         Layout.bottomMargin: 18
-                        radius: 12
+                        radius: win.fs(12)
                         color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.45)
                         border.width: 1; border.color: win.outline
                         clip: true
@@ -1655,7 +1655,7 @@ ApplicationWindow {
                                 required property string modelData
                                 width: zoneList.width - 12
                                 height: 40
-                                radius: 9
+                                radius: win.fs(9)
                                 readonly property bool picked: modelData === win.tz
                                 color: picked ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.18)
                                      : zoneHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.9)
@@ -1745,7 +1745,7 @@ ApplicationWindow {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: summaryCol.implicitHeight + 32
-                        radius: 18
+                        radius: win.fs(18)
                         color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                         border.width: 1; border.color: win.outline
                         ColumnLayout {
@@ -1792,7 +1792,7 @@ ApplicationWindow {
                         Layout.topMargin: 14
                         Layout.preferredHeight: win.fs(52)
                         visible: confirmPage.d === null || win.targetNode === win.liveNode
-                        radius: 14
+                        radius: win.fs(14)
                         color: win.dangerSoft
                         border.width: 1; border.color: win.danger
                         RowLayout {
@@ -1829,7 +1829,7 @@ ApplicationWindow {
                             anchors.top: parent.top
                             anchors.bottom: parent.bottom
                             width: parent.width * holdBtn.hold
-                            radius: 28
+                            radius: win.fs(28)
                             color: win.danger
                             Behavior on width { NumberAnimation { duration: 60 } }
                         }
@@ -1924,7 +1924,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.preferredWidth: win.fs(96); Layout.preferredHeight: win.fs(96)
                         visible: win.instState === "fail"
-                        radius: 48
+                        radius: win.fs(48)
                         color: win.dangerSoft
                         border.width: 2; border.color: win.danger
                         Glyph { anchors.centerIn: parent; name: "warn"; tint: win.danger; stroke: 2.4; width: 44; height: 44 }
@@ -1984,7 +1984,7 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         visible: win.instState !== "fail"
                         Layout.preferredHeight: win.fs(56)
-                        radius: 14
+                        radius: win.fs(14)
                         color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.6)
                         border.width: 1; border.color: win.outline
                         Text {
@@ -2007,7 +2007,7 @@ ApplicationWindow {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: failCol.implicitHeight + 28
-                            radius: 16
+                            radius: win.fs(16)
                             color: win.dangerSoft
                             border.width: 1; border.color: win.danger
                             ColumnLayout {
@@ -2210,7 +2210,7 @@ ApplicationWindow {
                         spacing: 16
                         Rectangle {
                             Layout.preferredWidth: win.fs(96); Layout.preferredHeight: win.fs(96)
-                            radius: 14
+                            radius: win.fs(14)
                             color: "#FFFFFF"
                             Image {
                                 anchors.centerIn: parent

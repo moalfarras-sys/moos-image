@@ -1091,7 +1091,7 @@ ApplicationWindow {
         property var triggered
         implicitWidth: actionRow.implicitWidth + 28
         implicitHeight: win.fs(40)
-        radius: 13
+        radius: win.fs(13)
         opacity: enabled ? 1 : 0.45
         color: primary ? (actionTap.pressed ? Qt.darker(win.accent, 1.12)
                                              : actionHover.hovered ? Qt.lighter(win.accent, 1.07) : win.accent)
@@ -1203,7 +1203,7 @@ ApplicationWindow {
         required property var app
         property bool selected: win.isPicked(app.id)
         property bool installed: win.isInstalled(app)
-        radius: 20
+        radius: win.fs(20)
         color: cardHover.hovered
              ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.98)
              : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.82)
@@ -1362,7 +1362,7 @@ ApplicationWindow {
                     Rectangle {
                         Layout.preferredWidth: win.fs(46)
                         Layout.preferredHeight: win.fs(46)
-                        radius: 15
+                        radius: win.fs(15)
                         color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.12)
                         border.width: 1
                         border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.26)
@@ -1407,7 +1407,7 @@ ApplicationWindow {
                         readonly property bool active: win.page === nav.modelData.id
                         Layout.fillWidth: true
                         Layout.preferredHeight: win.fs(46)
-                        radius: 14
+                        radius: win.fs(14)
                         color: active ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
                                       : navHover.hovered ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.72)
                                                          : "transparent"
@@ -1485,7 +1485,7 @@ ApplicationWindow {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: win.compactRail ? 50 : 72
-                    radius: 16
+                    radius: win.fs(16)
                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                     border.width: 1
                     border.color: win.outline
@@ -1613,7 +1613,7 @@ ApplicationWindow {
                     Rectangle {
                         Layout.preferredWidth: Math.min(430, win.width * 0.38)
                         Layout.preferredHeight: win.fs(46)
-                        radius: 15
+                        radius: win.fs(15)
                         color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.82)
                         border.width: searchField.activeFocus ? 1.5 : 1
                         border.color: searchField.activeFocus ? win.accent : win.outline
@@ -1683,7 +1683,7 @@ ApplicationWindow {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(224)
-                            radius: 28
+                            radius: win.fs(28)
                             gradient: Gradient {
                                 orientation: Gradient.Horizontal
                                 GradientStop { position: 0; color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.22) }
@@ -1768,7 +1768,7 @@ ApplicationWindow {
                                             required property var modelData
                                             Layout.fillWidth: true
                                             Layout.fillHeight: true
-                                            radius: 15
+                                            radius: win.fs(15)
                                             color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
                                             border.width: 1
                                             border.color: win.outline
@@ -1875,7 +1875,7 @@ ApplicationWindow {
                                     required property var modelData
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: win.fs(82)
-                                    radius: 18
+                                    radius: win.fs(18)
                                     color: homeCategoryHover.hovered
                                         ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.94)
                                         : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
@@ -1895,7 +1895,7 @@ ApplicationWindow {
                                         Rectangle {
                                             Layout.preferredWidth: win.fs(44)
                                             Layout.preferredHeight: win.fs(44)
-                                            radius: 14
+                                            radius: win.fs(14)
                                             color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.13)
                                             Glyph { anchors.centerIn: parent; width: 22; height: 22; name: homeCategory.modelData.glyph; tint: win.accent }
                                         }
@@ -1953,7 +1953,7 @@ ApplicationWindow {
                                     required property var modelData
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: win.fs(132)
-                                    radius: 20
+                                    radius: win.fs(20)
                                     color: bundleHover.hovered
                                         ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.96)
                                         : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.76)
@@ -2041,7 +2041,7 @@ ApplicationWindow {
                                         readonly property bool active: win.activeCategory === modelData.id
                                         implicitWidth: pillRow.implicitWidth + 22
                                         Layout.preferredHeight: win.fs(36)
-                                        radius: 12
+                                        radius: win.fs(12)
                                         color: active ? win.accent
                                                       : pillHover.hovered ? win.raised : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                                         border.width: active ? 0 : 1
@@ -2163,7 +2163,7 @@ ApplicationWindow {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(122)
-                            radius: 24
+                            radius: win.fs(24)
                             color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.12)
                             border.width: 1
                             border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.3)
@@ -2174,7 +2174,7 @@ ApplicationWindow {
                                 Rectangle {
                                     Layout.preferredWidth: win.fs(66)
                                     Layout.preferredHeight: win.fs(66)
-                                    radius: 21
+                                    radius: win.fs(21)
                                     color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
                                     Glyph { anchors.centerIn: parent; width: 32; height: 32; name: "boxes"; tint: win.accent }
                                 }
@@ -2209,7 +2209,7 @@ ApplicationWindow {
                                     required property var modelData
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: win.fs(132)
-                                    radius: 21
+                                    radius: win.fs(21)
                                     color: categoryHover.hovered
                                         ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.97)
                                         : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.78)
@@ -2231,7 +2231,7 @@ ApplicationWindow {
                                             Rectangle {
                                                 Layout.preferredWidth: win.fs(46)
                                                 Layout.preferredHeight: win.fs(46)
-                                                radius: 15
+                                                radius: win.fs(15)
                                                 color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.13)
                                                 Glyph { anchors.centerIn: parent; width: 24; height: 24; name: categoryTile.modelData.glyph; tint: win.accent }
                                             }
@@ -2280,7 +2280,7 @@ ApplicationWindow {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(210)
-                            radius: 27
+                            radius: win.fs(27)
                             gradient: Gradient {
                                 orientation: Gradient.Horizontal
                                 GradientStop { position: 0; color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.2) }
@@ -2295,7 +2295,7 @@ ApplicationWindow {
                                 Rectangle {
                                     Layout.preferredWidth: win.fs(92)
                                     Layout.preferredHeight: win.fs(92)
-                                    radius: 30
+                                    radius: win.fs(30)
                                     color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
                                     Glyph { anchors.centerIn: parent; width: 46; height: 46; name: "refresh"; tint: win.accent }
                                 }
@@ -2403,7 +2403,7 @@ ApplicationWindow {
                                     required property var modelData
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: win.fs(62)
-                                    radius: 16
+                                    radius: win.fs(16)
                                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
                                     border.width: 1
                                     border.color: win.outline
@@ -2415,7 +2415,7 @@ ApplicationWindow {
                                         Rectangle {
                                             Layout.preferredWidth: win.fs(36)
                                             Layout.preferredHeight: win.fs(36)
-                                            radius: 11
+                                            radius: win.fs(11)
                                             color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
                                             Glyph {
                                                 anchors.centerIn: parent
@@ -2471,7 +2471,7 @@ ApplicationWindow {
                                     required property var modelData
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: win.fs(156)
-                                    radius: 21
+                                    radius: win.fs(21)
                                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.78)
                                     border.width: 1
                                     border.color: win.outline
@@ -2549,7 +2549,7 @@ ApplicationWindow {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(142)
-                            radius: 25
+                            radius: win.fs(25)
                             color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.11)
                             border.width: 1
                             border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.3)
@@ -2560,7 +2560,7 @@ ApplicationWindow {
                                 Rectangle {
                                     Layout.preferredWidth: win.fs(70)
                                     Layout.preferredHeight: win.fs(70)
-                                    radius: 23
+                                    radius: win.fs(23)
                                     color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
                                     Glyph { anchors.centerIn: parent; width: 34; height: 34; name: "orbit"; tint: win.accent }
                                 }
@@ -2648,7 +2648,7 @@ ApplicationWindow {
                                     required property var modelData
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: win.fs(168)
-                                    radius: 22
+                                    radius: win.fs(22)
                                     color: sourceHover.hovered
                                         ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.96)
                                         : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.77)
@@ -2664,7 +2664,7 @@ ApplicationWindow {
                                             Rectangle {
                                                 Layout.preferredWidth: win.fs(46)
                                                 Layout.preferredHeight: win.fs(46)
-                                                radius: 15
+                                                radius: win.fs(15)
                                                 color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.13)
                                                 Glyph { anchors.centerIn: parent; width: 24; height: 24; name: sourceCard.modelData.glyph; tint: win.accent }
                                             }
@@ -2741,7 +2741,7 @@ ApplicationWindow {
                               && !win.jobIsTerminal() ? 20 : -84
         width: Math.min(610, win.width - 56)
         height: 58
-        radius: 20
+        radius: win.fs(20)
         visible: anchors.bottomMargin > -84
         color: Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.98)
         border.width: 1
@@ -2755,7 +2755,7 @@ ApplicationWindow {
             Rectangle {
                 Layout.preferredWidth: win.fs(34)
                 Layout.preferredHeight: win.fs(34)
-                radius: 12
+                radius: win.fs(12)
                 color: win.accent
                 Text {
                     anchors.centerIn: parent
@@ -2806,7 +2806,7 @@ ApplicationWindow {
         anchors.bottomMargin: win.jobIsActive() || win.jobIsTerminal() ? 20 : -100
         width: Math.min(690, win.width - 56)
         height: 76
-        radius: 22
+        radius: win.fs(22)
         visible: anchors.bottomMargin > -100
         color: Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.98)
         border.width: 1
@@ -2820,7 +2820,7 @@ ApplicationWindow {
             Rectangle {
                 Layout.preferredWidth: win.fs(44)
                 Layout.preferredHeight: win.fs(44)
-                radius: 15
+                radius: win.fs(15)
                 color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
                 Glyph {
                     anchors.centerIn: parent
@@ -2875,7 +2875,7 @@ ApplicationWindow {
                         visible: win.job.progress === null || win.job.progress === undefined
                         width: jobProgressTrack.width * 0.28
                         height: jobProgressTrack.height
-                        radius: 3
+                        radius: win.fs(3)
                         color: win.accent
                         SequentialAnimation on x {
                             running: jobProgressIndeterminate.visible && win.motionEnabled
@@ -2919,7 +2919,7 @@ ApplicationWindow {
         padding: 0
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         background: Rectangle {
-            radius: 26
+            radius: win.fs(26)
             color: win.surface
             border.width: 1
             border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.38)
@@ -2994,7 +2994,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.preferredHeight: win.selectedApp && win.selectedApp.screenshot ? 250 : 0
                     visible: height > 0
-                    radius: 18
+                    radius: win.fs(18)
                     color: win.canvas
                     clip: true
                     Image {
@@ -3059,7 +3059,7 @@ ApplicationWindow {
                             required property var modelData
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(78)
-                            radius: 15
+                            radius: win.fs(15)
                             color: Qt.rgba(win.canvas.r, win.canvas.g, win.canvas.b, 0.5)
                             border.width: 1
                             border.color: win.outline
@@ -3094,7 +3094,7 @@ ApplicationWindow {
                                                           || (win.selectedApp.install
                                                               && win.selectedApp.install.requires_review === true)
                                                           || (win.selectedApp.install && win.selectedApp.install.kind === "npm"))
-                    radius: 16
+                    radius: win.fs(16)
                     color: Qt.rgba(win.violet.r, win.violet.g, win.violet.b, 0.1)
                     border.width: 1
                     border.color: Qt.rgba(win.violet.r, win.violet.g, win.violet.b, 0.34)
@@ -3174,7 +3174,7 @@ ApplicationWindow {
         padding: 0
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         background: Rectangle {
-            radius: 24
+            radius: win.fs(24)
             color: win.surface
             border.width: 1
             border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.4)
@@ -3189,7 +3189,7 @@ ApplicationWindow {
                 Rectangle {
                     Layout.preferredWidth: win.fs(48)
                     Layout.preferredHeight: win.fs(48)
-                    radius: 16
+                    radius: win.fs(16)
                     color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
                     Glyph { anchors.centerIn: parent; width: 25; height: 25; name: "shield"; tint: win.accent }
                 }
@@ -3241,7 +3241,7 @@ ApplicationWindow {
                     readonly property var app: win.appById(modelData)
                     width: ListView.view.width
                     height: 68
-                    radius: 15
+                    radius: win.fs(15)
                     color: Qt.rgba(win.canvas.r, win.canvas.g, win.canvas.b, 0.5)
                     border.width: 1
                     border.color: win.outline
@@ -3286,7 +3286,7 @@ ApplicationWindow {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: win.fs(58)
-                radius: 15
+                radius: win.fs(15)
                 color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.1)
                 RowLayout {
                     anchors.fill: parent
@@ -3340,7 +3340,7 @@ ApplicationWindow {
         modal: false
         closePolicy: Popup.NoAutoClose
         background: Rectangle {
-            radius: 16
+            radius: win.fs(16)
             color: win.raised
             border.width: 1
             border.color: win.accent

@@ -739,7 +739,7 @@ ApplicationWindow {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
-            radius: 24
+            radius: win.fs(24)
             color: win.chrome
             border.width: 1
             border.color: win.outline
@@ -800,7 +800,7 @@ ApplicationWindow {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: 18
+                    radius: win.fs(18)
                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
                     border.width: 1
                     border.color: win.outline
@@ -848,7 +848,7 @@ ApplicationWindow {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: 18
+                    radius: win.fs(18)
                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
                     border.width: 1
                     border.color: win.outline
@@ -1276,7 +1276,7 @@ ApplicationWindow {
                                 readonly property bool selected: win.look === lookCard.modelData.id
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: win.fs(172)
-                                radius: 20
+                                radius: win.fs(20)
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
                                                lookHover.hovered || lookCard.selected ? 0.95 : 0.6)
                                 border.width: lookCard.selected ? 2 : 1
@@ -1302,7 +1302,7 @@ ApplicationWindow {
                                     Rectangle {
                                         Layout.fillWidth: true
                                         Layout.fillHeight: true
-                                        radius: 14
+                                        radius: win.fs(14)
                                         color: lookCard.modelData.canvasC
                                         clip: true
 
@@ -1450,7 +1450,7 @@ ApplicationWindow {
                                 readonly property bool selected: win.directions[dirCard.modelData] === true
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: win.fs(116)
-                                radius: 20
+                                radius: win.fs(20)
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
                                                dirHover.hovered || dirCard.selected ? 0.95 : 0.6)
                                 border.width: dirCard.selected ? 2 : 1
@@ -1473,7 +1473,7 @@ ApplicationWindow {
 
                                     Rectangle {
                                         Layout.preferredWidth: win.fs(56); Layout.preferredHeight: win.fs(56)
-                                        radius: 16
+                                        radius: win.fs(16)
                                         color: dirCard.selected
                                                ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.18)
                                                : Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.9)
@@ -1593,7 +1593,7 @@ ApplicationWindow {
                                     readonly property bool selected: win.picks[appCard.modelData.id] === true
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: win.trustLabel(appCard.modelData) === "" ? 74 : 94
-                                    radius: 16
+                                    radius: win.fs(16)
                                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
                                                    appHover.hovered || appCard.selected ? 0.95 : 0.55)
                                     border.width: 1
@@ -1616,7 +1616,7 @@ ApplicationWindow {
 
                                         Rectangle {
                                             Layout.preferredWidth: win.fs(42); Layout.preferredHeight: win.fs(42)
-                                            radius: 12
+                                            radius: win.fs(12)
                                             color: appCard.selected
                                                    ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
                                                    : Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.9)
@@ -1742,7 +1742,7 @@ ApplicationWindow {
                                          || win.installJob.progress === null)
                             width: Math.max(54, overallInstallTrack.width * 0.22)
                             height: overallInstallTrack.height
-                            radius: 5
+                            radius: win.fs(5)
                             color: win.accent
                             x: 0
                             SequentialAnimation on x {
@@ -1791,7 +1791,7 @@ ApplicationWindow {
                                                               || { pct: 0, state: "queued" }
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: win.fs(64)
-                                    radius: 14
+                                    radius: win.fs(14)
                                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                                     border.width: 1
                                     border.color: instRow.st.state === "fail"
@@ -1805,7 +1805,7 @@ ApplicationWindow {
 
                                         Rectangle {
                                             Layout.preferredWidth: win.fs(38); Layout.preferredHeight: win.fs(38)
-                                            radius: 11
+                                            radius: win.fs(11)
                                             color: Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.9)
                                             Glyph {
                                                 anchors.centerIn: parent
