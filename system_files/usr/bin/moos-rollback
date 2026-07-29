@@ -49,6 +49,14 @@ def deployments():
         label = d.get("version") or (d.get("checksum") or "")[:12] or "?"
         if d.get("booted"):
             booted = label
+        elif d.get("staged"):
+            # A STAGED deployment is a pending update waiting for the next boot —
+            # rpm-ostree lists it at index 0, BEFORE the booted one. `bootc
+            # rollback` goes the other way, to the PRIOR deployment, so a staged
+            # update must never be offered as the rollback target: doing so told
+            # the user "roll back to <the newer version>", the exact opposite of
+            # what the button does, on the one screen that must never mislead.
+            continue
         elif target is None:
             target = label
     return booted, target
