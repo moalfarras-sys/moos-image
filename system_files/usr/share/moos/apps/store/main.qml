@@ -1103,7 +1103,6 @@ ApplicationWindow {
         Accessible.role: Accessible.Button
         Accessible.name: action.label
         FocusRing { }
-        Accessible.name: label
         HoverHandler { id: actionHover; enabled: action.enabled }
         TapHandler {
             id: actionTap
@@ -1418,7 +1417,6 @@ ApplicationWindow {
                         Accessible.role: Accessible.Button
                         Accessible.name: win.rtl ? nav.modelData.ar : nav.modelData.en
                         FocusRing { }
-                        Accessible.name: win.rtl ? nav.modelData.ar : nav.modelData.en
                         HoverHandler { id: navHover }
                         TapHandler { onTapped: win.navigate(nav.modelData.id) }
                         Keys.onReturnPressed: win.navigate(nav.modelData.id)
@@ -1887,7 +1885,6 @@ ApplicationWindow {
                                     Accessible.role: Accessible.Button
                                     Accessible.name: win.rtl ? homeCategory.modelData.ar : homeCategory.modelData.en
                                     FocusRing { }
-                                    Accessible.name: win.rtl ? modelData.ar : modelData.en
                                     HoverHandler { id: homeCategoryHover }
                                     TapHandler { onTapped: win.openCategory(homeCategory.modelData.id) }
                                     Keys.onReturnPressed: win.openCategory(homeCategory.modelData.id)
@@ -2220,9 +2217,8 @@ ApplicationWindow {
                                     border.color: categoryHover.hovered ? win.accent : win.outline
                                     activeFocusOnTab: true
                                     Accessible.role: Accessible.Button
-                                    Accessible.name: win.categoryCount(categoryTile.modelData.id)
+                                    Accessible.name: win.rtl ? categoryTile.modelData.ar : categoryTile.modelData.en
                                     FocusRing { }
-                                    Accessible.name: win.rtl ? modelData.ar : modelData.en
                                     HoverHandler { id: categoryHover }
                                     TapHandler { onTapped: win.openCategory(categoryTile.modelData.id) }
                                     Keys.onReturnPressed: win.openCategory(categoryTile.modelData.id)
