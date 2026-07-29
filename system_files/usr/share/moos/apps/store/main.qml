@@ -1175,7 +1175,7 @@ ApplicationWindow {
         property var app: null
         implicitHeight: 22
         implicitWidth: badgeRow.implicitWidth + 15
-        radius: 11
+        radius: height / 2
         color: Qt.rgba(win.txt2.r, win.txt2.g, win.txt2.b, 0.12)
         RowLayout {
             id: badgeRow
@@ -1257,7 +1257,7 @@ ApplicationWindow {
                     visible: card.installed
                     Layout.preferredWidth: 24
                     Layout.preferredHeight: 24
-                    radius: 12
+                    radius: height / 2
                     color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.15)
                     Glyph { anchors.centerIn: parent; width: 13; height: 13; name: "check"; tint: win.accent }
                 }
@@ -1316,7 +1316,7 @@ ApplicationWindow {
     Rectangle {
         width: 620
         height: 620
-        radius: 310
+        radius: height / 2
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.topMargin: -390
@@ -1327,7 +1327,7 @@ ApplicationWindow {
     Rectangle {
         width: 480
         height: 480
-        radius: 240
+        radius: height / 2
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.bottomMargin: -300
@@ -1445,7 +1445,7 @@ ApplicationWindow {
                                 visible: !win.compactRail && nav.modelData.id === "installed" && win.installedCount() > 0
                                 implicitWidth: installedBadge.implicitWidth + 12
                                 implicitHeight: 22
-                                radius: 11
+                                radius: height / 2
                                 color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
                                 Text {
                                     id: installedBadge
@@ -1464,7 +1464,7 @@ ApplicationWindow {
                                     && win.updatesState === "known" && win.updateItems().length > 0
                                 implicitWidth: updatesBadge.implicitWidth + 12
                                 implicitHeight: 22
-                                radius: 11
+                                radius: height / 2
                                 color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
                                 Text {
                                     id: updatesBadge
@@ -1496,7 +1496,7 @@ ApplicationWindow {
                         Rectangle {
                             Layout.preferredWidth: 28
                             Layout.preferredHeight: 28
-                            radius: 14
+                            radius: height / 2
                             color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
                             // The rail's working light. It belongs to the line beside
                             // it — "Building catalogue…" — so it pulses while the index
@@ -1515,7 +1515,7 @@ ApplicationWindow {
                                 anchors.centerIn: parent
                                 width: 8
                                 height: 8
-                                radius: 4
+                                radius: height / 2
                                 color: win.hasFlatpakCatalog() ? win.accent : win.violet
                                 property real pulse: 1
                                 opacity: railWorkingPulse.running ? railWorkingDot.pulse : 1
@@ -1696,7 +1696,7 @@ ApplicationWindow {
                             Rectangle {
                                 width: 300
                                 height: 300
-                                radius: 150
+                                radius: height / 2
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 anchors.rightMargin: -70
@@ -2859,13 +2859,13 @@ ApplicationWindow {
                     id: jobProgressTrack
                     Layout.fillWidth: true
                     Layout.preferredHeight: 6
-                    radius: 3
+                    radius: height / 2
                     color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.5)
                     clip: true
                     Rectangle {
                         visible: win.job.progress !== null && win.job.progress !== undefined
                         height: parent.height
-                        radius: 3
+                        radius: height / 2
                         width: parent.width * Math.max(0, Math.min(100, win.job.progress || 0)) / 100
                         color: win.accent
                         Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
@@ -2970,7 +2970,7 @@ ApplicationWindow {
                                 visible: win.selectedApp !== null && !!win.selectedApp.license
                                 implicitHeight: 22
                                 implicitWidth: licenseText.implicitWidth + 14
-                                radius: 11
+                                radius: height / 2
                                 color: Qt.rgba(win.txt2.r, win.txt2.g, win.txt2.b, 0.12)
                                 Text {
                                     id: licenseText

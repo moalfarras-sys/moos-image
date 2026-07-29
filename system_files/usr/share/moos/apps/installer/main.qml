@@ -614,7 +614,7 @@ ApplicationWindow {
                             required property int index
                             width: dot.index === win.step ? 26 : 8
                             height: 8
-                            radius: 4
+                            radius: height / 2
                             color: dot.index === win.step ? win.accent
                                  : dot.index < win.step
                                    ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.45)
@@ -701,7 +701,7 @@ ApplicationWindow {
                                 readonly property bool on: win.lang === langPill.modelData.id
                                 Layout.preferredHeight: 40
                                 implicitWidth: langLabel.implicitWidth + 44
-                                radius: 20
+                                radius: height / 2
                                 color: langPill.on ? win.accent
                                      : langHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.9)
                                      : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.5)
@@ -760,7 +760,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.preferredHeight: 52
                         implicitWidth: beginRow.implicitWidth + 64
-                        radius: 26
+                        radius: height / 2
                         color: beginHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
                         Behavior on color { ColorAnimation { duration: 120 } }
                         HoverHandler { id: beginHover }
@@ -865,7 +865,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.preferredHeight: 50
                         implicitWidth: sellNextRow.implicitWidth + 60
-                        radius: 25
+                        radius: height / 2
                         color: sellNextHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
                         Behavior on color { ColorAnimation { duration: 120 } }
                         HoverHandler { id: sellNextHover }
@@ -975,7 +975,7 @@ ApplicationWindow {
                             Layout.alignment: Qt.AlignHCenter
                             Layout.preferredHeight: 44
                             implicitWidth: rescanRow.implicitWidth + 44
-                            radius: 22
+                            radius: height / 2
                             color: rescanHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
                                                        : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.6)
                             border.width: 1; border.color: win.outline
@@ -1089,7 +1089,7 @@ ApplicationWindow {
                                                     readonly property bool hasData: diskCard.modelData.hasData === true
                                                     Layout.preferredHeight: 20
                                                     implicitWidth: badgeText.implicitWidth + 18
-                                                    radius: 10
+                                                    radius: height / 2
                                                     color: hasOS ? Qt.rgba(win.violet.r, win.violet.g, win.violet.b, 0.16)
                                                          : hasData ? Qt.rgba(win.amber.r, win.amber.g, win.amber.b, 0.16)
                                                          : Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
@@ -1117,7 +1117,7 @@ ApplicationWindow {
                                         // radio-style select
                                         Rectangle {
                                             Layout.preferredWidth: 26; Layout.preferredHeight: 26
-                                            radius: 13
+                                            radius: height / 2
                                             color: "transparent"
                                             border.width: 2
                                             border.color: diskCard.selected ? win.accent : win.outline
@@ -1286,7 +1286,7 @@ ApplicationWindow {
                                 Rectangle {
                                     Layout.preferredWidth: 26; Layout.preferredHeight: 26
                                     Layout.alignment: Qt.AlignVCenter
-                                    radius: 13
+                                    radius: height / 2
                                     color: methodCard.selected ? win.accent : "transparent"
                                     border.width: methodCard.selected ? 0 : 1
                                     border.color: win.outline
@@ -1709,7 +1709,7 @@ ApplicationWindow {
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.preferredWidth: 72; Layout.preferredHeight: 72
-                        radius: 36
+                        radius: height / 2
                         color: win.dangerSoft
                         border.width: 2; border.color: win.danger
                         Glyph { anchors.centerIn: parent; name: "warn"; tint: win.danger; stroke: 2.0; width: 34; height: 34 }
@@ -1811,7 +1811,7 @@ ApplicationWindow {
                         property real hold: 0
                         Layout.fillWidth: true
                         Layout.preferredHeight: 56
-                        radius: 28
+                        radius: height / 2
                         opacity: holdBtn.armed ? 1 : 0.5
                         color: Qt.rgba(win.danger.r, win.danger.g, win.danger.b, 0.16)
                         border.width: 1.5; border.color: win.danger
@@ -1949,7 +1949,7 @@ ApplicationWindow {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 10
-                        radius: 5
+                        radius: height / 2
                         color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.5)
                         Rectangle {
                             width: parent.width * (win.instPct / 100)
@@ -2026,7 +2026,7 @@ ApplicationWindow {
                             Rectangle {
                                 Layout.preferredHeight: 46
                                 implicitWidth: retryRow.implicitWidth + 48
-                                radius: 23
+                                radius: height / 2
                                 color: retryHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
                                 HoverHandler { id: retryHover }
                                 TapHandler { onTapped: win.startInstall() }
@@ -2050,7 +2050,7 @@ ApplicationWindow {
                             Rectangle {
                                 Layout.preferredHeight: 46
                                 implicitWidth: otherRow.implicitWidth + 44
-                                radius: 23
+                                radius: height / 2
                                 color: otherHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
                                                           : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.6)
                                 border.width: 1; border.color: win.outline
@@ -2087,7 +2087,7 @@ ApplicationWindow {
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.preferredWidth: 96; Layout.preferredHeight: 96
-                        radius: 48
+                        radius: height / 2
                         color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
                         border.width: 2; border.color: win.accent
                         scale: successPage.visible ? 1 : 0.6
@@ -2121,7 +2121,7 @@ ApplicationWindow {
                         Rectangle {
                             Layout.preferredHeight: 50
                             implicitWidth: rebootRow.implicitWidth + 52
-                            radius: 25
+                            radius: height / 2
                             color: rebootHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
                             HoverHandler { id: rebootHover }
                             TapHandler { onTapped: Qt.openUrlExternally("moos://installer/reboot") }
@@ -2145,7 +2145,7 @@ ApplicationWindow {
                         Rectangle {
                             Layout.preferredHeight: 50
                             implicitWidth: poweroffRow.implicitWidth + 48
-                            radius: 25
+                            radius: height / 2
                             color: poweroffHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
                                                          : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.6)
                             border.width: 1; border.color: win.outline
@@ -2173,7 +2173,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.preferredHeight: 34
                         implicitWidth: usbRow.implicitWidth + 30
-                        radius: 17
+                        radius: height / 2
                         color: Qt.rgba(win.amber.r, win.amber.g, win.amber.b, 0.14)
                         border.width: 1; border.color: Qt.rgba(win.amber.r, win.amber.g, win.amber.b, 0.5)
                         RowLayout {
@@ -2219,7 +2219,7 @@ ApplicationWindow {
                             Rectangle {
                                 Layout.preferredHeight: 30
                                 implicitWidth: siteRow.implicitWidth + 24
-                                radius: 15
+                                radius: height / 2
                                 color: siteHover.hovered ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
                                                          : Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.08)
                                 HoverHandler { id: siteHover }
@@ -2268,7 +2268,7 @@ ApplicationWindow {
                 Rectangle {   // back
                     Layout.preferredHeight: 46
                     implicitWidth: backRow.implicitWidth + 44
-                    radius: 23
+                    radius: height / 2
                     color: backHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
                                              : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.5)
                     border.width: 1; border.color: win.outline
@@ -2298,7 +2298,7 @@ ApplicationWindow {
                                                   || (win.step === win.stepZone && win.tz !== "")
                     Layout.preferredHeight: 46
                     implicitWidth: nextRow.implicitWidth + 52
-                    radius: 23
+                    radius: height / 2
                     opacity: ready ? 1 : 0.45
                     color: nextHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
                     HoverHandler { id: nextHover; enabled: parent.ready }

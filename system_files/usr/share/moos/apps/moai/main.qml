@@ -1398,7 +1398,7 @@ Kirigami.ApplicationWindow {
             anchors.leftMargin: 6
             anchors.rightMargin: 6
             height: 1
-            radius: 1
+            radius: height / 2
             color: Qt.rgba(1, 1, 1, btn.primary || btn.danger ? 0.20 : 0.07)
         }
 
@@ -1438,7 +1438,7 @@ Kirigami.ApplicationWindow {
         property string badText: ""
         implicitHeight: 22
         implicitWidth: pillText.implicitWidth + 20
-        radius: 11
+        radius: height / 2
         color: good
             ? Qt.rgba(root.okColor.r, root.okColor.g, root.okColor.b, 0.14)
             : Qt.rgba(root.textMute.r, root.textMute.g, root.textMute.b, 0.10)
@@ -2258,7 +2258,7 @@ Kirigami.ApplicationWindow {
                                             Layout.preferredWidth: 8
                                             Layout.preferredHeight: 8
                                             Layout.alignment: Qt.AlignVCenter
-                                            radius: 4
+                                            radius: height / 2
                                             color: !root.serverUp ? root.textMute
                                                  : root.routeIsCloud ? root.novaViolet
                                                  : root.okColor
@@ -2385,7 +2385,7 @@ Kirigami.ApplicationWindow {
                                     Rectangle {
                                         Layout.preferredWidth: 44
                                         Layout.preferredHeight: 44
-                                        radius: 22
+                                        radius: height / 2
                                         color: root.healthy
                                              ? Qt.rgba(root.okColor.r, root.okColor.g,
                                                        root.okColor.b, 0.14)
@@ -2522,7 +2522,7 @@ Kirigami.ApplicationWindow {
                                             Rectangle {
                                                 Layout.preferredWidth: 8
                                                 Layout.preferredHeight: 8
-                                                radius: 4
+                                                radius: height / 2
                                                 color: issue.modelData.severity === "important"
                                                        ? root.badColor : root.warnColor
                                             }
@@ -2994,7 +2994,7 @@ Kirigami.ApplicationWindow {
                                     Rectangle {
                                         Layout.preferredWidth: 46
                                         Layout.preferredHeight: 46
-                                        radius: 23
+                                        radius: height / 2
                                         color: root.remoteState.active
                                                ? Qt.rgba(root.okColor.r, root.okColor.g,
                                                          root.okColor.b, 0.14)
@@ -3791,7 +3791,7 @@ Kirigami.ApplicationWindow {
                                         anchors.bottom: parent.bottom
                                         anchors.margins: 1
                                         height: 3
-                                        radius: 2
+                                        radius: height / 2
                                         color: Qt.rgba(root.okColor.r, root.okColor.g,
                                                        root.okColor.b, 0.18)
                                         Rectangle {
@@ -3866,7 +3866,7 @@ Kirigami.ApplicationWindow {
                                             Layout.preferredWidth: 7
                                             Layout.preferredHeight: 7
                                             Layout.alignment: Qt.AlignVCenter
-                                            radius: 4
+                                            radius: height / 2
                                             color: root.novaViolet
                                         }
                                         Text {
