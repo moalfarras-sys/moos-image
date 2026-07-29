@@ -233,6 +233,23 @@ def validate_staged_config(path: Path) -> None:
         raise ValueError("OpenClaw rejected the generated configuration")
 
 
+def harden_config_permissions() -> None:
+    """Re-assert private mode on the config dir and file. Cheap, and NOT part of the save.
+
+    openclaw.json holds the Telegram bot token, so its directory is 0700 and the file 0600.
+    That used to be re-asserted only as a side effect of atomic_save() — which meant that
+    once the save was (correctly) skipped for an unchanged config, the tightening silently
+    stopped happening at every login. A home restored from backup, a `chmod -R` over $HOME,
+    or another tool rewriting the file could leave the token world-readable with nothing to
+    put it back. Two chmod calls cost microseconds; the expensive part is the Node validate,
+    and only that is worth skipping.
+    """
+    CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(CONFIG_DIR, 0o700)
+    if CONFIG.is_file():
+        os.chmod(CONFIG, 0o600)
+
+
 def atomic_save(cfg: dict) -> None:
     CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(CONFIG_DIR, 0o700)
@@ -279,7 +296,11 @@ def main() -> int:
         # healing still fires because a drifted config gives merged != before.
         before = load_existing()
         merged = merge_baseline(copy.deepcopy(before))
-        if not (CONFIG.is_file() and merged == before):
+        if CONFIG.is_file() and merged == before:
+            # Nothing to write — but the private mode is a security property that must be
+            # re-asserted every login regardless, and it used to ride along inside the save.
+            harden_config_permissions()
+        else:
             atomic_save(merged)
     except (OSError, subprocess.SubprocessError, ValueError) as exc:
         print(f"moai-openclaw-bootstrap: {exc}", file=sys.stderr)
