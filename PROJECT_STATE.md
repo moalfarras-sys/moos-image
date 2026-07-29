@@ -409,6 +409,70 @@ system is **MoOS UI — Liquid Glass**; the mandatory agent skill is in place).
 
 ## Active visual work: the MoOS theme FAMILY (UI2 engine)
 
+> **Update 2026-07-30 (ship-readiness milestone) — the adversarially-verified desktop audit
+> and its fixes.** A 16-agent audit swept every desktop surface (windows, session screens,
+> icons, shell, apps; the motion inspector died and was re-run separately); 8 findings were
+> confirmed by independent refuters, and the dropped-by-cap findings were recovered from the
+> journal. Everything actionable landed on `main` today, each verified live before push:
+>
+> - **Windows (`2290dbb`, THEME_REV 24):** the maximized titlebar was the `title` gradient
+>   sampled outside its span — flat #527F79 slab, 3.12:1 captions, identical across all 7
+>   light palettes. No gradient basis survives FrameSvg's centre-cell stretch (measured:
+>   userSpaceOnUse AND objectBoundingBox both render a barely-moving ramp), so the maximized
+>   bar is now FLAT in the ramp's terminal colour — worst caption contrast across 16 themes
+>   is 10.28:1, focus flash 1.06–1.16:1 (was 2.95). Buttons centred (ButtonMarginTop=6 +
+>   ButtonMarginTopMaximized=6 — the maximized key does NOT inherit), minimize glyph
+>   centred (y=9.15), and the Aurorae blur mask is GONE: the frame is opaque, and
+>   hasElementPrefix("mask") made KWin blur behind it every frame. Material decision on
+>   record: persistent surfaces solid, glass for transient shell surfaces only.
+> - **Session (`97f2b89`, `c9a9c25`, `17ecd65`):** lock/login Arabic strings wore Noto via
+>   `font.family: "Inter"` (no Arabic coverage) at six sites — all bind IBM Plex Sans Arabic
+>   now (`font.families` still fails to load on Qt 6.11.1; see Logout.qml). The brand comet
+>   ring's head was a razor chop (fade peaked at the same degree the sweep zeroed) — capped
+>   over 6°, all 21 comet copies regenerated (plymouth's full-circle ring.png is a different
+>   asset, untouched). The lock halo dropped the untintable glow-cyan/violet rasters for
+>   accentA/accentB RadialGradients — the mirrored logout surface made this exact change
+>   earlier and the two had drifted apart on 14 of 16 palettes.
+> - **Shell (`3cf2e4b`):** the portal's remote-control SNI is UNHIDDEN — hidden SNIs do NOT
+>   surface when Active on Plasma 6 (measured during a live remote session), so hiding it
+>   blinded the user to being watched; the gate contract flipped with it. The launcher's 16
+>   explicit `layoutDirection` lines double-mirrored under plasmashell's LayoutMirroring and
+>   rendered BACKWARDS in RTL — deleted, verified live (nav right, grid right-to-left). The
+>   dock pill folds date digits to Latin like the lock clock and hero card (one numeral
+>   system per glance). Footer: MoOS Themes button wears its app's own icon; the Xwayland
+>   bridge hide-list gained its Arabic Id. Existing sessions migrate via THEME_REV 24.
+> - **Apps (`c046c81`, `a151e61`, `181217e`, `0124a6d`):** a palette token named `onAccent`
+>   beside `accent` is SIGNAL-HANDLER syntax to QML — the binding was swallowed and every
+>   primary label rendered #000000 on the accent in three apps; renamed `accentText`, the
+>   name is now banned by gate. The updater reported the STAGED deployment as "Current
+>   system" (deployments[0]); it selects booted==true now. The a11y sweep's duplicate
+>   `Accessible.name` had made Mo Store fail to COMPILE (caught by the engine probe + the
+>   build's smoke gate; CI run 30484023329 died exactly there). Store: RTL chips snap to
+>   reading start, PageUp/Down + ensure-visible keyboard scrolling, details-sheet polish,
+>   sane tab order. Theme picker got the full keyboard treatment. Recovery's rollback button
+>   no longer clips at 4K/225%, bilingual strings carry LRI/PDI isolates. Installer timezone
+>   rows no longer TypeError on Accessible.name.
+> - **Icons (`ea8c591`):** the commissioned Mo AI orb (byte-exact master, still
+>   gate-enforced) now sits on the family squircle via `artwork/generate_moai_icon.py` —
+>   85.9% solid box at 256px, same as moos-store to the pixel.
+> - **Dev-machine note:** `~/.config/plasma-localerc` had drifted to en_US (the next login
+>   would have been an English shell); restored to `LANGUAGE=ar` + ar_SA formats. The "DE"
+>   tray indicator is the de,ara keyboard layout — deliberate, see the 07-16 note below.
+> - **Motion (re-run inspector, fixes in the final batch):** the gating ARCHITECTURE is
+>   fully clean — 309 infinite loops swept, every one behind `longDuration > 1` plus a
+>   visibility/state term. Four cost bugs found and fixed same-day: the Store's index
+>   pulse was unbounded when the catalogue build FAILS (~12% of a core forever; now bounded
+>   by `indexPoll.running` + a failed-state label), Mo AI's ambient scene cost ~13% for the
+>   window's whole life (now `paused: !root.active`), the logout countdown bar ignored
+>   animations-off (950ms Behavior now gated, 16 variants), and Mo AI's remote live-ring
+>   lacked its visibility term. plasmashell's ~9% idle reading is UNATTRIBUTED — the desktop
+>   was not quiet during measurement; re-measure via the post-update checklist.
+> - **Deliberately NOT done:** window titlebars stay opaque (documented material decision,
+>   not an oversight); the hero logo artwork itself is untouched (owner's brand asset — only
+>   its seating/halo/comet integration changed); the wallpaper `images_dark` duplication was
+>   REFUTED as a defect (composefs dedupes to one object on disk, and images_dark is the
+>   live dark-variant path).
+>
 > **Update 2026-07-16 (session C) — read this before touching themes, the keyboard, or Mo Remote.**
 > Full writeup in `FIXES_2026-07-16.md`. Four things landed and are on `main`:
 >
