@@ -54,7 +54,13 @@ def current_system():
     rc, out = sh("rpm-ostree", "status", "--json")
     if rc == 0:
         try:
-            build = json.loads(out)["deployments"][0].get("version", "") or ""
+            # deployments[0] is the DEFAULT deployment — on this OS updates
+            # auto-stage, so whenever an update is pending that slot holds the
+            # staged build the machine is NOT yet running. "Current system"
+            # must mean the booted one.
+            deployments = json.loads(out)["deployments"]
+            booted = next((d for d in deployments if d.get("booted")), deployments[0])
+            build = booted.get("version", "") or ""
         except (ValueError, KeyError, IndexError):
             build = ""
     return pretty, build
