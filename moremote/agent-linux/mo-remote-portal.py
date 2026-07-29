@@ -555,12 +555,25 @@ def on_bus(_b, msg):
         # hardware encoder should cost the user some bandwidth, not their remote desktop. Blacklist
         # it, rebuild on the next one down, and keep the session alive.
         if state["codec"] == "h264":
-            elem = msg.src.get_name() if msg.src else ""
+            # msg.src.get_name() is the element INSTANCE name — every H.264 pipeline builds the
+            # encoder as `name=enc`, so it is always "enc". The blacklist is keyed by FACTORY name
+            # (nvh264enc/vah264enc/x264enc/openh264enc), so read the factory; otherwise the failing
+            # encoder is never sin-binned and the next rebuild re-selects the same one.
+            factory = ""
+            if msg.src is not None:
+                feature = msg.src.get_factory()
+                if feature is not None:
+                    factory = feature.get_name()
             emit(type="warn", warn=f"h264 encoder failed mid-stream ({err.message}); falling back")
-            for name, _ in H264_ENCODERS:
-                if name in elem:
-                    _h264_blacklist.add(name)
-            if not pick_h264():
+            if factory:
+                # _h264_blacklist is a dict {factory: monotonic_ms}; the old `.add()` was a leftover
+                # from when it was a set and would have raised AttributeError had the match fired.
+                _h264_blacklist[factory] = GLib.get_monotonic_time() // 1000
+            # pick_h264() returns (name, props) on success and (None, None) when nothing is left —
+            # BOTH are non-empty tuples, so `not pick_h264()` is ALWAYS False and this latch never
+            # fired. Test the element, so once no encoder remains we settle on JPEG instead of
+            # re-auditioning (and eating a 4s PREROLL freeze) on every rebuild.
+            if pick_h264()[0] is None:
                 state["want"] = "jpeg"
             state["out"] = (0, 0)          # force a real rebuild rather than a no-op
             GLib.idle_add(rebuild)
@@ -784,7 +797,8 @@ def build(w, h):
                 # the local brain is holding the card. Ask for it back and come round again; see the
                 # note on _h264_blacklist. Costs nothing where there is no GPU and no brain.
                 free_gpu_and_retry()
-                if not pick_h264():
+                # (name, props) or (None, None) — both truthy as tuples, so test the element.
+                if pick_h264()[0] is None:
                     state["want"] = "jpeg"
             return build(w, h)
         die(EXIT_LOST, "the JPEG pipeline would not start")
