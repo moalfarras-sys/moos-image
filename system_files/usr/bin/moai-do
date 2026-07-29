@@ -46,10 +46,11 @@ hdr() {
 confirm() {
     local ans=""
     printf '%s' "${V}متابعة؟ | Continue? [y/N] ${N}"
-    read -r ans || return 1
+    # A closed stdin reads EOF, which is a decline, not an approval — record it as one.
+    if ! read -r ans; then AUDIT_DECISION=declined; return 1; fi
     case "${ans:-N}" in
-        [Yy]|[Yy][Ee][Ss]) return 0 ;;
-        *) echo "${D}أُلغي | Cancelled.${N}"; return 1 ;;
+        [Yy]|[Yy][Ee][Ss]) AUDIT_DECISION=approved; return 0 ;;
+        *) AUDIT_DECISION=declined; echo "${D}أُلغي | Cancelled.${N}"; return 1 ;;
     esac
 }
 
@@ -1137,11 +1138,44 @@ EOF
 # -----------------------------------------------------------------------------
 # dispatch
 # -----------------------------------------------------------------------------
+# audit <verdict> [detail…] — record what the assistant did to this system.
+#
+# Mo AI can update the OS, roll it back, layer the NVIDIA driver, restart services and
+# install software. It already asks before each of those and takes privileges through
+# pkexec, which is the right shape — but until this existed NOTHING recorded that any of
+# it happened. `journalctl -t moai-do` returned nothing on a machine where the assistant
+# had been used, so "what did it change?" after something breaks had no answer, and neither
+# did "did I actually approve that?".
+#
+# The journal, not a file of our own: it is already collected, rotated and size-capped
+# (SystemMaxUse=500M), it timestamps and attributes entries itself, and it survives the
+# reboot an update causes — which a log written under /var/log by hand would need to
+# re-implement badly. Read it with:
+#
+#     journalctl -t moai-do            # everything the assistant has done
+#     journalctl -t moai-do -p warning # only the refusals and failures
+#
+# Deliberately records the ACTION NAME and the verdict, never arguments beyond a validated
+# app id: the only free-form value that reaches here is a Flatpak id, and a log is not a
+# place to start echoing anything a model produced.
+audit() {
+    local verdict="$1"; shift
+    command -v logger >/dev/null 2>&1 || return 0
+    local pri="user.notice"
+    case "$verdict" in refused|failed) pri="user.warning" ;; esac
+    logger -t moai-do -p "$pri" -- \
+        "action=${AUDIT_ACTION:-unknown} verdict=${verdict} user=$(id -un 2>/dev/null || echo ?)${*:+ $*}" \
+        2>/dev/null || true
+}
+
 main() {
     local cmd="${1:-help}"
     if [ "$#" -gt 0 ]; then
         shift
     fi
+    # Named once, here, so every branch below is covered by construction and a NEW action
+    # cannot be added that forgets to be auditable.
+    AUDIT_ACTION="$cmd"
     case "$cmd" in
         update)        do_update ;;
         install)       do_install "${1:-}" ;;
@@ -1177,6 +1211,10 @@ main() {
             ;;
         help|-h|--help) usage ;;
         *)
+            # Logged at warning: a rejected command is the interesting line in this journal.
+            # It is either the model inventing an action that does not exist, or something
+            # trying its luck through moos-open — and both are worth being able to find.
+            audit refused
             echo "${R}أمر غير معروف | unknown command:${N} ${cmd}" >&2
             echo >&2
             usage >&2
@@ -1185,4 +1223,21 @@ main() {
     esac
 }
 
-main "$@"
+# The outcome, recorded once, around the whole dispatch — so the journal answers "did it
+# work?" and not merely "was it asked for". `help` and the read-only reports are audited
+# too: they are cheap to record and their absence is what makes a trail ambiguous.
+#
+# The exit status is preserved exactly: `set -e` is on, so main's own failure would end the
+# script before the audit line without this, and a wrapper that swallowed the status would
+# be worse than no wrapper at all.
+if main "$@"; then
+    # A declined prompt exits 0 (`confirm || return 0`), so "the command succeeded" and "the
+    # user agreed to it" are different facts and the trail has to say which. Reporting a
+    # decline as `ok` would make the one question an audit log exists for — "did I actually
+    # approve that?" — unanswerable from the log.
+    if [ "${AUDIT_DECISION:-}" = declined ]; then audit declined; else audit ok; fi
+else
+    _moai_status=$?
+    audit failed "status=${_moai_status}"
+    exit "${_moai_status}"
+fi

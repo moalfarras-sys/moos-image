@@ -141,6 +141,32 @@ for qml in sorted((ROOT / "system_files/usr/share/moos/apps").glob("*/main.qml")
                   f"but that is not one of moai-do's actions — the button would pop 'unknown "
                   f"command'")
 
+# ── 1b. THE AUDIT TRAIL ──────────────────────────────────────────────────────
+#
+# Mo AI can update the OS, roll it back, layer a driver, restart services and install
+# software. It asks first and takes privileges through pkexec — the right shape — but for a
+# long time NOTHING recorded that any of it happened: `journalctl -t moai-do` was empty on a
+# machine where the assistant had been used. "What did it change?" after a breakage, and
+# "did I actually approve that?", both had no answer.
+#
+# The trail must distinguish four outcomes, because collapsing any two of them destroys the
+# reason it exists — in particular a DECLINED prompt exits 0 (`confirm || return 0`), so
+# "the command succeeded" and "the user agreed" are different facts.
+audit_src = code_of(MOAI_DO) if "code_of" in dir() else MOAI_DO.read_text(encoding="utf-8")
+check("audit()" in audit_src and "logger -t moai-do" in audit_src,
+      "moai-do must record its privileged actions to the journal (logger -t moai-do); "
+      "without it there is no answer to 'what did the assistant change?'")
+check("AUDIT_ACTION=\"$cmd\"" in audit_src or 'AUDIT_ACTION="$cmd"' in audit_src,
+      "the action name must be captured once at dispatch, so a NEW action cannot be added "
+      "that forgets to be auditable")
+for verdict in ("refused", "failed", "declined", "ok"):
+    check(f"audit {verdict}" in audit_src,
+          f"the audit trail must be able to record '{verdict}' — collapsing outcomes makes "
+          f"the log unable to answer the question it exists for")
+check("AUDIT_DECISION=declined" in audit_src,
+      "confirm() must record a decline; a declined action still exits 0, so without this the "
+      "trail reports it as a success the user never approved")
+
 # ── 2. Refusal — run it ──────────────────────────────────────────────────────
 def run(*args):
     """moai-do with no stdin: a prompt would read EOF and cancel, never hang."""
