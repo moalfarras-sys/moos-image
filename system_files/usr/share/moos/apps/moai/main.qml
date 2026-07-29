@@ -1197,8 +1197,8 @@ Kirigami.ApplicationWindow {
             : mood === "offline" ? root.textMute
             : root.novaBlue
 
-        implicitWidth: 44
-        implicitHeight: 44
+        implicitWidth: root.fs(44)
+        implicitHeight: root.fs(44)
 
         // Halo
         Shape {
@@ -1374,7 +1374,7 @@ Kirigami.ApplicationWindow {
             : primary ? root.novaBlue
             : root.surface2
 
-        implicitHeight: 34
+        implicitHeight: root.fs(34)
         implicitWidth: row.implicitWidth + 26
         radius: 11
         color: !enabled_ ? base
@@ -1410,8 +1410,8 @@ Kirigami.ApplicationWindow {
                 visible: btn.icon !== ""
                 source: btn.icon
                 color: btn.primary || btn.danger ? root.onAccent : root.textLo
-                Layout.preferredWidth: 15
-                Layout.preferredHeight: 15
+                Layout.preferredWidth: root.fs(15)
+                Layout.preferredHeight: root.fs(15)
             }
             Text {
                 text: btn.label
@@ -1436,7 +1436,7 @@ Kirigami.ApplicationWindow {
         property bool good: false
         property string goodText: ""
         property string badText: ""
-        implicitHeight: 22
+        implicitHeight: root.fs(22)
         implicitWidth: pillText.implicitWidth + 20
         radius: height / 2
         color: good
@@ -1570,7 +1570,7 @@ Kirigami.ApplicationWindow {
 
             // ── The rail ────────────────────────────────────────────────────
             Rectangle {
-                Layout.preferredWidth: 76
+                Layout.preferredWidth: root.fs(76)
                 Layout.fillHeight: true
                 color: root.chrome
 
@@ -1589,8 +1589,8 @@ Kirigami.ApplicationWindow {
                     MoOrb {
                         id: heroOrb
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: 42
-                        Layout.preferredHeight: 42
+                        Layout.preferredWidth: root.fs(42)
+                        Layout.preferredHeight: root.fs(42)
                         Layout.bottomMargin: 4
                         mood: root.mood
                     }
@@ -1617,7 +1617,7 @@ Kirigami.ApplicationWindow {
                             required property var modelData
                             readonly property bool active: root.panel === modelData.id
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 54
+                            Layout.preferredHeight: root.fs(54)
 
                             Rectangle {   // active indicator
                                 anchors.left: parent.left
@@ -1644,8 +1644,8 @@ Kirigami.ApplicationWindow {
                                     spacing: 3
                                     Kirigami.Icon {
                                         Layout.alignment: Qt.AlignHCenter
-                                        Layout.preferredWidth: 20
-                                        Layout.preferredHeight: 20
+                                        Layout.preferredWidth: root.fs(20)
+                                        Layout.preferredHeight: root.fs(20)
                                         source: nav.modelData.icon
                                         color: nav.active ? root.novaCyan : root.textMute
                                     }
@@ -1689,7 +1689,7 @@ Kirigami.ApplicationWindow {
                     // Settings
                     Item {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 46
+                        Layout.preferredHeight: root.fs(46)
                         Rectangle {
                             anchors.centerIn: parent
                             width: 54; height: 40
@@ -1723,7 +1723,7 @@ Kirigami.ApplicationWindow {
                 // Header
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 3
+                    Layout.preferredHeight: root.fs(3)
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
                         GradientStop { position: 0.0; color: root.novaCyan }
@@ -1734,7 +1734,7 @@ Kirigami.ApplicationWindow {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 56
+                    Layout.preferredHeight: root.fs(56)
                     color: root.chrome
 
                     RowLayout {
@@ -2010,7 +2010,7 @@ Kirigami.ApplicationWindow {
                                                 layoutDirection: Qt.application.layoutDirection
 
                                                 Rectangle {
-                                                    Layout.preferredWidth: 42; Layout.preferredHeight: 42
+                                                    Layout.preferredWidth: root.fs(42); Layout.preferredHeight: root.fs(42)
                                                     radius: 12
                                                     color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.13)
                                                     Kirigami.Icon {
@@ -2083,8 +2083,8 @@ Kirigami.ApplicationWindow {
                                 Kirigami.Icon {
                                     source: "moos-warning"
                                     color: root.warnColor
-                                    Layout.preferredWidth: 22
-                                    Layout.preferredHeight: 22
+                                    Layout.preferredWidth: root.fs(22)
+                                    Layout.preferredHeight: root.fs(22)
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true
@@ -2217,7 +2217,7 @@ Kirigami.ApplicationWindow {
                         // Input
                         Rectangle {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 68
+                            Layout.preferredHeight: root.fs(68)
                             color: root.chrome
                             Rectangle {
                                 anchors.left: parent.left; anchors.right: parent.right
@@ -2255,8 +2255,8 @@ Kirigami.ApplicationWindow {
                                         // right now — read from the machine, not
                                         // asserted.
                                         Rectangle {
-                                            Layout.preferredWidth: 8
-                                            Layout.preferredHeight: 8
+                                            Layout.preferredWidth: root.fs(8)
+                                            Layout.preferredHeight: root.fs(8)
                                             Layout.alignment: Qt.AlignVCenter
                                             radius: height / 2
                                             color: !root.serverUp ? root.textMute
@@ -2326,7 +2326,7 @@ Kirigami.ApplicationWindow {
 
                                 Rectangle {
                                     Layout.fillHeight: true
-                                    Layout.preferredWidth: 106
+                                    Layout.preferredWidth: root.fs(106)
                                     radius: 11
                                     readonly property bool on_: root.busy || input.text.trim().length > 0
                                     opacity: on_ ? 1.0 : 0.45
@@ -2383,8 +2383,8 @@ Kirigami.ApplicationWindow {
                                     spacing: 14
 
                                     Rectangle {
-                                        Layout.preferredWidth: 44
-                                        Layout.preferredHeight: 44
+                                        Layout.preferredWidth: root.fs(44)
+                                        Layout.preferredHeight: root.fs(44)
                                         radius: height / 2
                                         color: root.healthy
                                              ? Qt.rgba(root.okColor.r, root.okColor.g,
@@ -2457,15 +2457,15 @@ Kirigami.ApplicationWindow {
                                             Kirigami.Icon {
                                                 source: modelData.icon
                                                 color: root.novaCyan
-                                                Layout.preferredWidth: 16
-                                                Layout.preferredHeight: 16
+                                                Layout.preferredWidth: root.fs(16)
+                                                Layout.preferredHeight: root.fs(16)
                                             }
                                             Text {
                                                 text: modelData.ar
                                                 color: root.textMute
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.fs(11)
-                                                Layout.preferredWidth: 54
+                                                Layout.preferredWidth: root.fs(54)
                                             }
                                             Text {
                                                 Layout.fillWidth: true
@@ -2490,8 +2490,8 @@ Kirigami.ApplicationWindow {
                                     Kirigami.Icon {
                                         source: "moos-gpu"
                                         color: root.novaViolet
-                                        Layout.preferredWidth: 18
-                                        Layout.preferredHeight: 18
+                                        Layout.preferredWidth: root.fs(18)
+                                        Layout.preferredHeight: root.fs(18)
                                     }
                                     Text {
                                         Layout.fillWidth: true
@@ -2520,8 +2520,8 @@ Kirigami.ApplicationWindow {
                                             Layout.fillWidth: true
                                             spacing: 9
                                             Rectangle {
-                                                Layout.preferredWidth: 8
-                                                Layout.preferredHeight: 8
+                                                Layout.preferredWidth: root.fs(8)
+                                                Layout.preferredHeight: root.fs(8)
                                                 radius: height / 2
                                                 color: issue.modelData.severity === "important"
                                                        ? root.badColor : root.warnColor
@@ -2598,7 +2598,7 @@ Kirigami.ApplicationWindow {
 
                         Rectangle {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 62
+                            Layout.preferredHeight: root.fs(62)
                             color: "transparent"
                             RowLayout {
                                 anchors.fill: parent
@@ -2610,7 +2610,7 @@ Kirigami.ApplicationWindow {
                                 QQC2.TextField {
                                     id: searchField
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 40
+                                    Layout.preferredHeight: root.fs(40)
                                     placeholderText: "ابحث في Flathub… (مثلاً blender) | Search Flathub…"
                                     placeholderTextColor: root.textMute
                                     color: root.textHi
@@ -2627,7 +2627,7 @@ Kirigami.ApplicationWindow {
                                     onAccepted: root.searchApps(text)
                                 }
                                 MoButton {
-                                    Layout.preferredHeight: 40
+                                    Layout.preferredHeight: root.fs(40)
                                     label: root.searching ? "…" : "ابحث | Search"
                                     icon: "moos-install"
                                     primary: true
@@ -2686,8 +2686,8 @@ Kirigami.ApplicationWindow {
                                             spacing: 12
 
                                             Rectangle {
-                                                Layout.preferredWidth: 38
-                                                Layout.preferredHeight: 38
+                                                Layout.preferredWidth: root.fs(38)
+                                                Layout.preferredHeight: root.fs(38)
                                                 radius: 10
                                                 color: root.surface2
                                                 Kirigami.Icon {
@@ -2720,7 +2720,7 @@ Kirigami.ApplicationWindow {
                                                     // The MoOS pick, said out loud.
                                                     Rectangle {
                                                         visible: hit.recommended
-                                                        Layout.preferredHeight: 17
+                                                        Layout.preferredHeight: root.fs(17)
                                                         Layout.preferredWidth: pickLabel.width + 12
                                                         radius: 5
                                                         color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
@@ -2796,8 +2796,8 @@ Kirigami.ApplicationWindow {
                                             spacing: 12
 
                                             Rectangle {
-                                                Layout.preferredWidth: 38
-                                                Layout.preferredHeight: 38
+                                                Layout.preferredWidth: root.fs(38)
+                                                Layout.preferredHeight: root.fs(38)
                                                 radius: 10
                                                 color: root.surface2
                                                 Kirigami.Icon {
@@ -2880,8 +2880,8 @@ Kirigami.ApplicationWindow {
                                         spacing: 12
 
                                         Rectangle {
-                                            Layout.preferredWidth: 40
-                                            Layout.preferredHeight: 40
+                                            Layout.preferredWidth: root.fs(40)
+                                            Layout.preferredHeight: root.fs(40)
                                             radius: 11
                                             color: compat.ready
                                                  ? Qt.rgba(root.okColor.r, root.okColor.g,
@@ -2992,8 +2992,8 @@ Kirigami.ApplicationWindow {
                                     spacing: 14
 
                                     Rectangle {
-                                        Layout.preferredWidth: 46
-                                        Layout.preferredHeight: 46
+                                        Layout.preferredWidth: root.fs(46)
+                                        Layout.preferredHeight: root.fs(46)
                                         radius: height / 2
                                         color: root.remoteState.active
                                                ? Qt.rgba(root.okColor.r, root.okColor.g,
@@ -3198,8 +3198,8 @@ Kirigami.ApplicationWindow {
                                         spacing: 12
 
                                         Rectangle {
-                                            Layout.preferredWidth: 40
-                                            Layout.preferredHeight: 40
+                                            Layout.preferredWidth: root.fs(40)
+                                            Layout.preferredHeight: root.fs(40)
                                             radius: 11
                                             color: ag.have
                                                    ? Qt.rgba(root.okColor.r, root.okColor.g,
@@ -3237,7 +3237,7 @@ Kirigami.ApplicationWindow {
                                                 // network does not.
                                                 Rectangle {
                                                     visible: ag.onDevice
-                                                    Layout.preferredHeight: 18
+                                                    Layout.preferredHeight: root.fs(18)
                                                     Layout.preferredWidth: offlineText.width + 14
                                                     radius: 6
                                                     color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
@@ -3366,8 +3366,8 @@ Kirigami.ApplicationWindow {
                                 Kirigami.Icon {
                                     source: root.agentInstalled ? "moos-system" : "moos-install"
                                     color: root.novaBlue
-                                    Layout.preferredWidth: 28
-                                    Layout.preferredHeight: 28
+                                    Layout.preferredWidth: root.fs(28)
+                                    Layout.preferredHeight: root.fs(28)
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true
@@ -3419,7 +3419,7 @@ Kirigami.ApplicationWindow {
 
                             // ── sessions ──
                             Card {
-                                Layout.preferredWidth: 190
+                                Layout.preferredWidth: root.fs(190)
                                 Layout.fillHeight: true
                                 ColumnLayout {
                                     anchors.fill: parent
@@ -3448,7 +3448,7 @@ Kirigami.ApplicationWindow {
                                                 delegate: Rectangle {
                                                     required property var modelData
                                                     Layout.fillWidth: true
-                                                    Layout.preferredHeight: 34
+                                                    Layout.preferredHeight: root.fs(34)
                                                     radius: 7
                                                     color: root.agentCurrent === modelData.id
                                                            ? Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.16)
@@ -3714,7 +3714,7 @@ Kirigami.ApplicationWindow {
                                         && (locRow.modelData.id === "local:" + root.pullModel
                                             || locRow.modelData.id === root.pullModel)
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 40
+                                    Layout.preferredHeight: root.fs(40)
                                     radius: 10
                                     color: locRow.on_
                                          ? Qt.rgba(root.okColor.r, root.okColor.g,
@@ -3733,8 +3733,8 @@ Kirigami.ApplicationWindow {
                                         Kirigami.Icon {
                                             source: "moos-system"
                                             color: root.okColor
-                                            Layout.preferredWidth: 15
-                                            Layout.preferredHeight: 15
+                                            Layout.preferredWidth: root.fs(15)
+                                            Layout.preferredHeight: root.fs(15)
                                         }
                                         ColumnLayout {
                                             Layout.fillWidth: true
@@ -3846,7 +3846,7 @@ Kirigami.ApplicationWindow {
                                     required property var modelData
                                     readonly property bool on_: root.route === cldRow.modelData.id
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 34
+                                    Layout.preferredHeight: root.fs(34)
                                     radius: 10
                                     color: cldRow.on_
                                          ? Qt.rgba(root.novaViolet.r, root.novaViolet.g,
@@ -3863,8 +3863,8 @@ Kirigami.ApplicationWindow {
                                         spacing: 9
 
                                         Rectangle {
-                                            Layout.preferredWidth: 7
-                                            Layout.preferredHeight: 7
+                                            Layout.preferredWidth: root.fs(7)
+                                            Layout.preferredHeight: root.fs(7)
                                             Layout.alignment: Qt.AlignVCenter
                                             radius: height / 2
                                             color: root.novaViolet
@@ -4007,7 +4007,7 @@ Kirigami.ApplicationWindow {
                                 required property var modelData
                                 readonly property bool on_: root.cfgTab === modelData.id
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 32
+                                Layout.preferredHeight: root.fs(32)
                                 radius: 9
                                 color: on_ ? Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.18)
                                            : "transparent"
@@ -4075,7 +4075,7 @@ Kirigami.ApplicationWindow {
                                         required property var modelData
                                         readonly property bool on_: root.cfgMode === modelData.id
                                         Layout.fillWidth: true
-                                        Layout.preferredHeight: 50
+                                        Layout.preferredHeight: root.fs(50)
                                         radius: 11
                                         color: on_ ? Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.13)
                                                    : "transparent"
@@ -4284,7 +4284,7 @@ Kirigami.ApplicationWindow {
                                 Rectangle {
                                     id: hostToggle
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 60
+                                    Layout.preferredHeight: root.fs(60)
                                     radius: 12
                                     readonly property bool hostOn: root.cfgTier !== "read"
                                     color: hostOn ? Qt.rgba(root.okColor.r, root.okColor.g, root.okColor.b, 0.12)
@@ -4349,7 +4349,7 @@ Kirigami.ApplicationWindow {
                                         readonly property bool on_: root.cfgTier === modelData.id
                                         readonly property bool risky: modelData.id === "full"
                                         Layout.fillWidth: true
-                                        Layout.preferredHeight: 54
+                                        Layout.preferredHeight: root.fs(54)
                                         radius: 11
                                         color: on_ ? (risky
                                                 ? Qt.rgba(root.badColor.r, root.badColor.g, root.badColor.b, 0.13)
@@ -4443,7 +4443,7 @@ Kirigami.ApplicationWindow {
                                     delegate: Rectangle {
                                         required property var modelData
                                         Layout.fillWidth: true
-                                        Layout.preferredHeight: 52
+                                        Layout.preferredHeight: root.fs(52)
                                         radius: 11
                                         color: "transparent"
                                         border.width: 1
@@ -4551,7 +4551,7 @@ Kirigami.ApplicationWindow {
                                     delegate: Rectangle {
                                         required property var modelData
                                         Layout.fillWidth: true
-                                        Layout.preferredHeight: 52
+                                        Layout.preferredHeight: root.fs(52)
                                         radius: 11
                                         color: "transparent"
                                         border.width: 1
@@ -4612,7 +4612,7 @@ Kirigami.ApplicationWindow {
                     // ── save ──
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 44
+                        Layout.preferredHeight: root.fs(44)
                         radius: 12
                         opacity: root.cfgSaving ? 0.6 : 1
                         gradient: Gradient {

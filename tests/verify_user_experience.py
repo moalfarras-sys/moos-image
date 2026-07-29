@@ -3437,6 +3437,31 @@ for cursor_name in ui2_cursors.values():
             f"build.sh never creates {cursor_name} — the defaults would name a "
             "cursor that does not exist and Plasma would fall back")
 
+# Containers scale with the type they hold, or the type outgrows them.
+#
+# Making font.pixelSize responsive was only half the job. At 2.2x the shipped font, Welcome's
+# primary button stayed exactly 116px tall while its label grew — and the crop showed the Arabic
+# hamza on "لنبدأ" clipped off by the button's top edge. A control whose text scales and whose box
+# does not is a control that eventually cuts its own label in half.
+#
+# Every Layout.preferredHeight / implicitHeight / preferredWidth / implicitWidth literal now goes
+# through the same fs() helper as the type, so the box and the text move together. Spacers scale
+# too, deliberately: vertical rhythm belongs to the type scale, not to a fixed pixel grid.
+#
+# Neutral at the shipped 10pt (Welcome: 0 differing pixels across button, pills, headline and
+# progress dots) and at 22pt the same button measures 197px instead of 116px with the label
+# comfortably inside.
+for qml_app in sorted((ROOT / "system_files/usr/share/moos").glob("**/main.qml")):
+    qml_src = code(read(str(qml_app.relative_to(ROOT))), style="slash")
+    app_label = qml_app.parent.name
+    raw_boxes = re.findall(
+        r"\b(?:Layout\.preferredHeight|Layout\.preferredWidth|implicitHeight|implicitWidth)\s*:\s*(\d+)\b",
+        qml_src)
+    require(not raw_boxes,
+            f"{app_label} sets a container size to a literal ({', '.join(sorted(set(raw_boxes))[:6])}"
+            f"{'...' if len(set(raw_boxes)) > 6 else ''}) — the text inside it scales with the "
+            f"user's font and the box does not, so the label eventually clips. Wrap it in fs()")
+
 # Anything reachable by Tab must SHOW that it has focus. WCAG 2.4.7.
 #
 # Mo Store was the only MoOS app supporting Tab at all — five component types declared

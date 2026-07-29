@@ -588,7 +588,7 @@ ApplicationWindow {
         // ───────────────────────────── HEADER ─────────────────────────────────
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: 74
+            Layout.preferredHeight: win.fs(74)
 
             RowLayout {
                 anchors.fill: parent
@@ -598,7 +598,7 @@ ApplicationWindow {
                 Image {
                     source: "file:///usr/share/moos/moos-logo.png"
                     sourceSize.width: 34; sourceSize.height: 34
-                    Layout.preferredWidth: 34; Layout.preferredHeight: 34
+                    Layout.preferredWidth: win.fs(34); Layout.preferredHeight: win.fs(34)
                     opacity: win.step === win.stepWelcome ? 0 : 1
                     Behavior on opacity { NumberAnimation { duration: 200 } }
                 }
@@ -629,7 +629,7 @@ ApplicationWindow {
 
                 // Balancer for the logo, so the dots stay centred. No Skip: you
                 // cannot skip installing into a usable OS.
-                Item { Layout.preferredWidth: 34; Layout.preferredHeight: 34 }
+                Item { Layout.preferredWidth: win.fs(34); Layout.preferredHeight: win.fs(34) }
             }
         }
 
@@ -650,8 +650,8 @@ ApplicationWindow {
 
                     Item {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: 168
-                        Layout.preferredHeight: 168
+                        Layout.preferredWidth: win.fs(168)
+                        Layout.preferredHeight: win.fs(168)
 
                         Repeater {
                             model: 2
@@ -687,7 +687,7 @@ ApplicationWindow {
                         }
                     }
 
-                    Item { Layout.preferredHeight: 26 }
+                    Item { Layout.preferredHeight: win.fs(26) }
 
                     RowLayout {
                         Layout.alignment: Qt.AlignHCenter
@@ -699,7 +699,7 @@ ApplicationWindow {
                                 id: langPill
                                 required property var modelData
                                 readonly property bool on: win.lang === langPill.modelData.id
-                                Layout.preferredHeight: 40
+                                Layout.preferredHeight: win.fs(40)
                                 implicitWidth: langLabel.implicitWidth + 44
                                 radius: height / 2
                                 color: langPill.on ? win.accent
@@ -728,7 +728,7 @@ ApplicationWindow {
                         }
                     }
 
-                    Item { Layout.preferredHeight: 24 }
+                    Item { Layout.preferredHeight: win.fs(24) }
 
                     Text {
                         Layout.alignment: Qt.AlignHCenter
@@ -736,7 +736,7 @@ ApplicationWindow {
                         color: win.txt
                         font.family: win.uiFont; font.pixelSize: win.fs(40); font.weight: Font.Bold
                     }
-                    Item { Layout.preferredHeight: 18 }
+                    Item { Layout.preferredHeight: win.fs(18) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.fillWidth: true
@@ -747,18 +747,18 @@ ApplicationWindow {
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.fs(15); lineHeight: 1.35
                     }
-                    Item { Layout.preferredHeight: 10 }
+                    Item { Layout.preferredHeight: win.fs(10) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("اختر لغتك — يتبعها النظام كله", "Pick your language — the whole system follows")
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.fs(12); opacity: 0.8
                     }
-                    Item { Layout.preferredHeight: 30 }
+                    Item { Layout.preferredHeight: win.fs(30) }
 
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredHeight: 52
+                        Layout.preferredHeight: win.fs(52)
                         implicitWidth: beginRow.implicitWidth + 64
                         radius: height / 2
                         color: beginHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
@@ -798,14 +798,14 @@ ApplicationWindow {
                         color: win.txt
                         font.family: win.uiFont; font.pixelSize: win.fs(30); font.weight: Font.Bold
                     }
-                    Item { Layout.preferredHeight: 8 }
+                    Item { Layout.preferredHeight: win.fs(8) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("هذا ما ستحصل عليه — بصدق، دون مبالغة.", "Here's what you get — honestly, no hype.")
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.fs(14)
                     }
-                    Item { Layout.preferredHeight: 30 }
+                    Item { Layout.preferredHeight: win.fs(30) }
 
                     RowLayout {
                         Layout.fillWidth: true
@@ -823,7 +823,7 @@ ApplicationWindow {
                                 id: sellCard
                                 required property var modelData
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 214
+                                Layout.preferredHeight: win.fs(214)
                                 radius: 20
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                                 border.width: 1
@@ -833,7 +833,7 @@ ApplicationWindow {
                                     anchors.margins: 20
                                     spacing: 12
                                     Rectangle {
-                                        Layout.preferredWidth: 56; Layout.preferredHeight: 56
+                                        Layout.preferredWidth: win.fs(56); Layout.preferredHeight: win.fs(56)
                                         radius: 16
                                         color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
                                         Glyph {
@@ -860,10 +860,10 @@ ApplicationWindow {
                         }
                     }
 
-                    Item { Layout.preferredHeight: 30 }
+                    Item { Layout.preferredHeight: win.fs(30) }
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredHeight: 50
+                        Layout.preferredHeight: win.fs(50)
                         implicitWidth: sellNextRow.implicitWidth + 60
                         radius: height / 2
                         color: sellNextHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
@@ -886,7 +886,7 @@ ApplicationWindow {
                             }
                         }
                     }
-                    Item { Layout.preferredHeight: 8 }
+                    Item { Layout.preferredHeight: win.fs(8) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("رجوع", "Back")
@@ -918,7 +918,7 @@ ApplicationWindow {
                         color: win.txt
                         font.family: win.uiFont; font.pixelSize: win.fs(30); font.weight: Font.Bold
                     }
-                    Item { Layout.preferredHeight: 8 }
+                    Item { Layout.preferredHeight: win.fs(8) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.eligibleDisks().length === 1
@@ -929,7 +929,7 @@ ApplicationWindow {
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.fs(14)
                     }
-                    Item { Layout.preferredHeight: 20 }
+                    Item { Layout.preferredHeight: win.fs(20) }
 
                     // probing spinner
                     ColumnLayout {
@@ -953,7 +953,7 @@ ApplicationWindow {
                         spacing: 16
                         Rectangle {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 120
+                            Layout.preferredHeight: win.fs(120)
                             radius: 20
                             color: win.dangerSoft
                             border.width: 1; border.color: win.danger
@@ -973,7 +973,7 @@ ApplicationWindow {
                         }
                         Rectangle {
                             Layout.alignment: Qt.AlignHCenter
-                            Layout.preferredHeight: 44
+                            Layout.preferredHeight: win.fs(44)
                             implicitWidth: rescanRow.implicitWidth + 44
                             radius: height / 2
                             color: rescanHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
@@ -1023,7 +1023,7 @@ ApplicationWindow {
                                     readonly property bool selected: win.targetNode === diskCard.modelData.node
                                     readonly property bool disabled: diskCard.modelData.tooSmall === true
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 96
+                                    Layout.preferredHeight: win.fs(96)
                                     radius: 20
                                     opacity: diskCard.disabled ? 0.5 : 1
                                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
@@ -1044,7 +1044,7 @@ ApplicationWindow {
                                         spacing: 16
 
                                         Rectangle {
-                                            Layout.preferredWidth: 56; Layout.preferredHeight: 56
+                                            Layout.preferredWidth: win.fs(56); Layout.preferredHeight: win.fs(56)
                                             radius: 16
                                             color: diskCard.selected
                                                    ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.18)
@@ -1087,7 +1087,7 @@ ApplicationWindow {
                                                 Rectangle {
                                                     readonly property bool hasOS: diskCard.modelData.hasOS === true
                                                     readonly property bool hasData: diskCard.modelData.hasData === true
-                                                    Layout.preferredHeight: 20
+                                                    Layout.preferredHeight: win.fs(20)
                                                     implicitWidth: badgeText.implicitWidth + 18
                                                     radius: height / 2
                                                     color: hasOS ? Qt.rgba(win.violet.r, win.violet.g, win.violet.b, 0.16)
@@ -1116,7 +1116,7 @@ ApplicationWindow {
 
                                         // radio-style select
                                         Rectangle {
-                                            Layout.preferredWidth: 26; Layout.preferredHeight: 26
+                                            Layout.preferredWidth: win.fs(26); Layout.preferredHeight: win.fs(26)
                                             radius: height / 2
                                             color: "transparent"
                                             border.width: 2
@@ -1166,7 +1166,7 @@ ApplicationWindow {
                             // protected boot-USB row
                             Rectangle {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 64
+                                Layout.preferredHeight: win.fs(64)
                                 visible: win.liveDisk() !== null
                                 radius: 18
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.35)
@@ -1177,7 +1177,7 @@ ApplicationWindow {
                                     anchors.leftMargin: 18; anchors.rightMargin: 18
                                     spacing: 14
                                     Rectangle {
-                                        Layout.preferredWidth: 40; Layout.preferredHeight: 40
+                                        Layout.preferredWidth: win.fs(40); Layout.preferredHeight: win.fs(40)
                                         radius: 12
                                         color: Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.7)
                                         Glyph { anchors.centerIn: parent; name: "lock"; tint: win.txt2; width: 20; height: 20 }
@@ -1211,14 +1211,14 @@ ApplicationWindow {
                         color: win.txt
                         font.family: win.uiFont; font.pixelSize: win.fs(30); font.weight: Font.Bold
                     }
-                    Item { Layout.preferredHeight: 8 }
+                    Item { Layout.preferredHeight: win.fs(8) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("اختر الطريقة. سنشرح كل خيار بوضوح.", "Choose a method. We'll explain each one plainly.")
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.fs(14)
                     }
-                    Item { Layout.preferredHeight: 26 }
+                    Item { Layout.preferredHeight: win.fs(26) }
 
                     Repeater {
                         model: [
@@ -1232,7 +1232,7 @@ ApplicationWindow {
                             required property var modelData
                             readonly property bool selected: win.method === methodCard.modelData.id
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 118
+                            Layout.preferredHeight: win.fs(118)
                             Layout.bottomMargin: 16
                             radius: 20
                             color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
@@ -1254,7 +1254,7 @@ ApplicationWindow {
                                 anchors.margins: 18
                                 spacing: 16
                                 Rectangle {
-                                    Layout.preferredWidth: 56; Layout.preferredHeight: 56
+                                    Layout.preferredWidth: win.fs(56); Layout.preferredHeight: win.fs(56)
                                     Layout.alignment: Qt.AlignTop
                                     radius: 16
                                     color: methodCard.selected
@@ -1284,7 +1284,7 @@ ApplicationWindow {
                                     }
                                 }
                                 Rectangle {
-                                    Layout.preferredWidth: 26; Layout.preferredHeight: 26
+                                    Layout.preferredWidth: win.fs(26); Layout.preferredHeight: win.fs(26)
                                     Layout.alignment: Qt.AlignVCenter
                                     radius: height / 2
                                     color: methodCard.selected ? win.accent : "transparent"
@@ -1348,14 +1348,14 @@ ApplicationWindow {
                         x: Math.max(40, (acctPage.width - width) / 2)
                         spacing: 0
 
-                        Item { Layout.preferredHeight: 6 }
+                        Item { Layout.preferredHeight: win.fs(6) }
                         Text {
                             Layout.alignment: Qt.AlignHCenter
                             text: win.tr("احفظ حسابك", "Your account")
                             color: win.txt
                             font.family: win.uiFont; font.pixelSize: win.fs(30); font.weight: Font.Bold
                         }
-                        Item { Layout.preferredHeight: 8 }
+                        Item { Layout.preferredHeight: win.fs(8) }
                         Text {
                             Layout.alignment: Qt.AlignHCenter
                             Layout.fillWidth: true
@@ -1366,7 +1366,7 @@ ApplicationWindow {
                             color: win.txt2
                             font.family: win.uiFont; font.pixelSize: win.fs(14); lineHeight: 1.3
                         }
-                        Item { Layout.preferredHeight: 22 }
+                        Item { Layout.preferredHeight: win.fs(22) }
 
                         // username
                         Text {
@@ -1374,10 +1374,10 @@ ApplicationWindow {
                             color: win.txt2
                             font.family: win.uiFont; font.pixelSize: win.fs(13)
                         }
-                        Item { Layout.preferredHeight: 6 }
+                        Item { Layout.preferredHeight: win.fs(6) }
                         Rectangle {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 48
+                            Layout.preferredHeight: win.fs(48)
                             radius: 12
                             color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                             border.width: 1
@@ -1414,7 +1414,7 @@ ApplicationWindow {
                             font.family: win.uiFont; font.pixelSize: win.fs(11)
                             Layout.topMargin: 4
                         }
-                        Item { Layout.preferredHeight: 16 }
+                        Item { Layout.preferredHeight: win.fs(16) }
 
                         // full name (optional)
                         Text {
@@ -1422,10 +1422,10 @@ ApplicationWindow {
                             color: win.txt2
                             font.family: win.uiFont; font.pixelSize: win.fs(13)
                         }
-                        Item { Layout.preferredHeight: 6 }
+                        Item { Layout.preferredHeight: win.fs(6) }
                         Rectangle {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 48
+                            Layout.preferredHeight: win.fs(48)
                             radius: 12
                             color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                             border.width: 1
@@ -1443,17 +1443,17 @@ ApplicationWindow {
                                 onTextChanged: win.acctFull = text
                             }
                         }
-                        Item { Layout.preferredHeight: 22 }
+                        Item { Layout.preferredHeight: win.fs(22) }
 
                         // Password fields are mandatory. The installed login manager
                         // always shows its greeter; there is no automatic-sign-in path.
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
-                            Item { Layout.preferredHeight: 16 }
+                            Item { Layout.preferredHeight: win.fs(16) }
                             Rectangle {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 48
+                                Layout.preferredHeight: win.fs(48)
                                 radius: 12
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                                 border.width: 1
@@ -1477,10 +1477,10 @@ ApplicationWindow {
                                     color: win.txt2; font.family: win.uiFont; font.pixelSize: win.fs(15)
                                 }
                             }
-                            Item { Layout.preferredHeight: 10 }
+                            Item { Layout.preferredHeight: win.fs(10) }
                             Rectangle {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 48
+                                Layout.preferredHeight: win.fs(48)
                                 radius: 12
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                                 border.width: 1
@@ -1521,7 +1521,7 @@ ApplicationWindow {
                             }
                         }
 
-                        Item { Layout.preferredHeight: 14 }
+                        Item { Layout.preferredHeight: win.fs(14) }
                         Text {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
@@ -1531,7 +1531,7 @@ ApplicationWindow {
                             color: win.txt2
                             font.family: win.uiFont; font.pixelSize: win.fs(12); opacity: 0.85
                         }
-                        Item { Layout.preferredHeight: 8 }
+                        Item { Layout.preferredHeight: win.fs(8) }
                     }
                 }
             }
@@ -1551,14 +1551,14 @@ ApplicationWindow {
                     height: zonePage.height
                     spacing: 0
 
-                    Item { Layout.preferredHeight: 6 }
+                    Item { Layout.preferredHeight: win.fs(6) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("منطقتك الزمنية", "Your time zone")
                         color: win.txt
                         font.family: win.uiFont; font.pixelSize: win.fs(30); font.weight: Font.Bold
                     }
-                    Item { Layout.preferredHeight: 8 }
+                    Item { Layout.preferredHeight: win.fs(8) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.fillWidth: true
@@ -1569,12 +1569,12 @@ ApplicationWindow {
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.fs(14); lineHeight: 1.3
                     }
-                    Item { Layout.preferredHeight: 18 }
+                    Item { Layout.preferredHeight: win.fs(18) }
 
                     // search
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 48
+                        Layout.preferredHeight: win.fs(48)
                         radius: 12
                         color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                         border.width: 1
@@ -1600,7 +1600,7 @@ ApplicationWindow {
                             color: win.txt2; font.family: win.uiFont; font.pixelSize: win.fs(15)
                         }
                     }
-                    Item { Layout.preferredHeight: 12 }
+                    Item { Layout.preferredHeight: win.fs(12) }
 
                     // the list
                     Rectangle {
@@ -1708,20 +1708,20 @@ ApplicationWindow {
 
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: 72; Layout.preferredHeight: 72
+                        Layout.preferredWidth: win.fs(72); Layout.preferredHeight: win.fs(72)
                         radius: height / 2
                         color: win.dangerSoft
                         border.width: 2; border.color: win.danger
                         Glyph { anchors.centerIn: parent; name: "warn"; tint: win.danger; stroke: 2.0; width: 34; height: 34 }
                     }
-                    Item { Layout.preferredHeight: 20 }
+                    Item { Layout.preferredHeight: win.fs(20) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("نقطة اللاعودة", "The point of no return")
                         color: win.txt
                         font.family: win.uiFont; font.pixelSize: win.fs(28); font.weight: Font.Bold
                     }
-                    Item { Layout.preferredHeight: 10 }
+                    Item { Layout.preferredHeight: win.fs(10) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.fillWidth: true
@@ -1732,7 +1732,7 @@ ApplicationWindow {
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.fs(14); lineHeight: 1.3
                     }
-                    Item { Layout.preferredHeight: 22 }
+                    Item { Layout.preferredHeight: win.fs(22) }
 
                     // summary card
                     Rectangle {
@@ -1760,7 +1760,7 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     spacing: 12
                                     Text {
-                                        Layout.preferredWidth: 88
+                                        Layout.preferredWidth: win.fs(88)
                                         text: win.tr(sumRow.modelData.ar, sumRow.modelData.en)
                                         color: win.txt2
                                         font.family: win.uiFont; font.pixelSize: win.fs(13)
@@ -1783,7 +1783,7 @@ ApplicationWindow {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.topMargin: 14
-                        Layout.preferredHeight: 52
+                        Layout.preferredHeight: win.fs(52)
                         visible: confirmPage.d === null || win.targetNode === win.liveNode
                         radius: 14
                         color: win.dangerSoft
@@ -1802,7 +1802,7 @@ ApplicationWindow {
                         }
                     }
 
-                    Item { Layout.preferredHeight: 22 }
+                    Item { Layout.preferredHeight: win.fs(22) }
 
                     // hold-to-erase control
                     Rectangle {
@@ -1810,7 +1810,7 @@ ApplicationWindow {
                         readonly property bool armed: confirmPage.d !== null && win.targetNode !== win.liveNode
                         property real hold: 0
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 56
+                        Layout.preferredHeight: win.fs(56)
                         radius: height / 2
                         opacity: holdBtn.armed ? 1 : 0.5
                         color: Qt.rgba(win.danger.r, win.danger.g, win.danger.b, 0.16)
@@ -1857,7 +1857,7 @@ ApplicationWindow {
                             onCanceled: { holdTimer.stop(); if (holdBtn.hold < 1) holdBtn.hold = 0 }
                         }
                     }
-                    Item { Layout.preferredHeight: 14 }
+                    Item { Layout.preferredHeight: win.fs(14) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("تراجع، لم أتأكد بعد", "Go back, I'm not sure yet")
@@ -1884,7 +1884,7 @@ ApplicationWindow {
                     // breathing mark keeps the slow copy feeling alive
                     Item {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: 120; Layout.preferredHeight: 120
+                        Layout.preferredWidth: win.fs(120); Layout.preferredHeight: win.fs(120)
                         visible: win.instState !== "fail"
                         Repeater {
                             model: 2
@@ -1914,7 +1914,7 @@ ApplicationWindow {
                     // fail icon
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: 96; Layout.preferredHeight: 96
+                        Layout.preferredWidth: win.fs(96); Layout.preferredHeight: win.fs(96)
                         visible: win.instState === "fail"
                         radius: 48
                         color: win.dangerSoft
@@ -1922,7 +1922,7 @@ ApplicationWindow {
                         Glyph { anchors.centerIn: parent; name: "warn"; tint: win.danger; stroke: 2.4; width: 44; height: 44 }
                     }
 
-                    Item { Layout.preferredHeight: 24 }
+                    Item { Layout.preferredHeight: win.fs(24) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.instState === "fail"
@@ -1931,7 +1931,7 @@ ApplicationWindow {
                         color: win.txt
                         font.family: win.uiFont; font.pixelSize: win.fs(30); font.weight: Font.Bold
                     }
-                    Item { Layout.preferredHeight: 10 }
+                    Item { Layout.preferredHeight: win.fs(10) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.fillWidth: true
@@ -1943,12 +1943,12 @@ ApplicationWindow {
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.fs(14); lineHeight: 1.3
                     }
-                    Item { Layout.preferredHeight: 24 }
+                    Item { Layout.preferredHeight: win.fs(24) }
 
                     // overall bar (running) — turns danger on fail
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 10
+                        Layout.preferredHeight: win.fs(10)
                         radius: height / 2
                         color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.5)
                         Rectangle {
@@ -1958,7 +1958,7 @@ ApplicationWindow {
                             Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                         }
                     }
-                    Item { Layout.preferredHeight: 12 }
+                    Item { Layout.preferredHeight: win.fs(12) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         visible: win.instState !== "fail"
@@ -1971,11 +1971,11 @@ ApplicationWindow {
                     }
 
                     // reassurance (running)
-                    Item { Layout.preferredHeight: 18; visible: win.instState !== "fail" }
+                    Item { Layout.preferredHeight: win.fs(18); visible: win.instState !== "fail" }
                     Rectangle {
                         Layout.fillWidth: true
                         visible: win.instState !== "fail"
-                        Layout.preferredHeight: 56
+                        Layout.preferredHeight: win.fs(56)
                         radius: 14
                         color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.6)
                         border.width: 1; border.color: win.outline
@@ -2024,7 +2024,7 @@ ApplicationWindow {
                             Layout.alignment: Qt.AlignHCenter
                             spacing: 12
                             Rectangle {
-                                Layout.preferredHeight: 46
+                                Layout.preferredHeight: win.fs(46)
                                 implicitWidth: retryRow.implicitWidth + 48
                                 radius: height / 2
                                 color: retryHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
@@ -2048,7 +2048,7 @@ ApplicationWindow {
                                 }
                             }
                             Rectangle {
-                                Layout.preferredHeight: 46
+                                Layout.preferredHeight: win.fs(46)
                                 implicitWidth: otherRow.implicitWidth + 44
                                 radius: height / 2
                                 color: otherHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
@@ -2086,7 +2086,7 @@ ApplicationWindow {
 
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: 96; Layout.preferredHeight: 96
+                        Layout.preferredWidth: win.fs(96); Layout.preferredHeight: win.fs(96)
                         radius: height / 2
                         color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
                         border.width: 2; border.color: win.accent
@@ -2095,14 +2095,14 @@ ApplicationWindow {
                         Glyph { anchors.centerIn: parent; name: "check"; tint: win.accent; stroke: 2.6; width: 44; height: 44 }
                     }
 
-                    Item { Layout.preferredHeight: 24 }
+                    Item { Layout.preferredHeight: win.fs(24) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.tr("تم تثبيت MoOS", "MoOS is installed")
                         color: win.txt
                         font.family: win.uiFont; font.pixelSize: win.fs(34); font.weight: Font.Bold
                     }
-                    Item { Layout.preferredHeight: 10 }
+                    Item { Layout.preferredHeight: win.fs(10) }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.fillWidth: true
@@ -2113,13 +2113,13 @@ ApplicationWindow {
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.fs(15); lineHeight: 1.35
                     }
-                    Item { Layout.preferredHeight: 28 }
+                    Item { Layout.preferredHeight: win.fs(28) }
 
                     RowLayout {
                         Layout.alignment: Qt.AlignHCenter
                         spacing: 14
                         Rectangle {
-                            Layout.preferredHeight: 50
+                            Layout.preferredHeight: win.fs(50)
                             implicitWidth: rebootRow.implicitWidth + 52
                             radius: height / 2
                             color: rebootHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
@@ -2143,7 +2143,7 @@ ApplicationWindow {
                             }
                         }
                         Rectangle {
-                            Layout.preferredHeight: 50
+                            Layout.preferredHeight: win.fs(50)
                             implicitWidth: poweroffRow.implicitWidth + 48
                             radius: height / 2
                             color: poweroffHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
@@ -2168,10 +2168,10 @@ ApplicationWindow {
                         }
                     }
 
-                    Item { Layout.preferredHeight: 18 }
+                    Item { Layout.preferredHeight: win.fs(18) }
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredHeight: 34
+                        Layout.preferredHeight: win.fs(34)
                         implicitWidth: usbRow.implicitWidth + 30
                         radius: height / 2
                         color: Qt.rgba(win.amber.r, win.amber.g, win.amber.b, 0.14)
@@ -2189,7 +2189,7 @@ ApplicationWindow {
                         }
                     }
 
-                    Item { Layout.preferredHeight: 24 }
+                    Item { Layout.preferredHeight: win.fs(24) }
 
                     // MoOS's own signature — designed by Moalfarras, with a QR to
                     // the site. No Fedora, no upstream mark: this is MoOS.
@@ -2197,7 +2197,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         spacing: 16
                         Rectangle {
-                            Layout.preferredWidth: 96; Layout.preferredHeight: 96
+                            Layout.preferredWidth: win.fs(96); Layout.preferredHeight: win.fs(96)
                             radius: 14
                             color: "#FFFFFF"
                             Image {
@@ -2217,7 +2217,7 @@ ApplicationWindow {
                                 font.family: win.uiFont; font.pixelSize: win.fs(16); font.weight: Font.DemiBold
                             }
                             Rectangle {
-                                Layout.preferredHeight: 30
+                                Layout.preferredHeight: win.fs(30)
                                 implicitWidth: siteRow.implicitWidth + 24
                                 radius: height / 2
                                 color: siteHover.hovered ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
@@ -2266,7 +2266,7 @@ ApplicationWindow {
                 spacing: 12
 
                 Rectangle {   // back
-                    Layout.preferredHeight: 46
+                    Layout.preferredHeight: win.fs(46)
                     implicitWidth: backRow.implicitWidth + 44
                     radius: height / 2
                     color: backHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
@@ -2296,7 +2296,7 @@ ApplicationWindow {
                                                   || win.step === win.stepMethod
                                                   || (win.step === win.stepAccount && win.acctValid)
                                                   || (win.step === win.stepZone && win.tz !== "")
-                    Layout.preferredHeight: 46
+                    Layout.preferredHeight: win.fs(46)
                     implicitWidth: nextRow.implicitWidth + 52
                     radius: height / 2
                     opacity: ready ? 1 : 0.45
