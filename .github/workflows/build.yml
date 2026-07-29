@@ -123,6 +123,10 @@ jobs:
           python3 tests/test_moai_do.py
           python3 tests/test_moai_control.py
           python3 tests/test_moai_http_security.py
+          # The gateway must not leave a chat reply hanging: a mid-stream upstream drop has to close
+          # the connection (not swallow the error and keep-alive), and Anthropic error/truncation
+          # events must be surfaced with [DONE] rather than read as a blank finished reply.
+          python3 tests/test_moai_gateway_streaming.py
           python3 tests/test_exec_bits.py
           # This one guards THIS job specifically: nothing here runs `npm run build`, so the web UI
           # in the image is whatever is committed under moremote/agent/wwwroot — and .gitignore hides
