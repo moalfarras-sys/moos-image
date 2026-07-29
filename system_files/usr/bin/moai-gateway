@@ -640,9 +640,21 @@ def anthropic_stream_to_openai(upstream, write):
                 text = (ev.get("delta") or {}).get("text") or ""
                 if text:
                     write(anthropic_chunk(text))
+            elif ev.get("type") == "error":
+                # Anthropic sends {"type":"error","error":{...}} AFTER the 200 begins
+                # (overloaded_error, rate_limit). With no branch here it was ignored and
+                # the loop ended in a clean [DONE], so an error looked identical to a
+                # finished — but blank — reply. Surface it as visible text, then end.
+                msg = (ev.get("error") or {}).get("message") or "the model returned an error"
+                write(anthropic_chunk(f"\n\n⚠️ {msg}"))
+                write(b"data: [DONE]\n\n")
+                return
             elif ev.get("type") == "message_stop":
                 write(b"data: [DONE]\n\n")
                 return
+    # The loop ended on EOF without a message_stop: a truncated stream. Say so rather than
+    # presenting a half-answer as a complete reply.
+    write(anthropic_chunk("\n\n⚠️ the reply ended early"))
     write(b"data: [DONE]\n\n")
 
 
@@ -843,6 +855,7 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(b"%X\r\n%s\r\n" % (len(data), data))
             self.wfile.flush()
 
+        completed = False
         try:
             if wire == "anthropic":
                 if streaming:
@@ -859,8 +872,28 @@ class Handler(BaseHTTPRequestHandler):
                         break
                     write(chunk)
             self.wfile.write(b"0\r\n\r\n")
+            completed = True
         except Exception:
-            pass
+            # An upstream drop mid-generation (provider rate-limit/overload, the local
+            # engine evicting a loaded model, a network blip, or the urlopen timeout)
+            # lands here. The old `pass` left the terminating chunk unwritten and the
+            # HTTP/1.1 connection open, so the handler looped back to readline() and the
+            # client's streaming socket hung for ever on a half-finished body with no
+            # [DONE] — the "spinner that never clears". Once headers are sent the status
+            # can no longer change, so the only signals left are a synthetic error and a
+            # clean socket close.
+            if not completed:
+                if streaming:
+                    try:
+                        write(b'data: {"error":{"message":"upstream stream ended early"}}\n\n')
+                        write(b"data: [DONE]\n\n")
+                    except Exception:
+                        pass
+                try:
+                    self.wfile.write(b"0\r\n\r\n")   # terminate the chunked body
+                except Exception:
+                    pass
+                self.close_connection = True          # give the client an EOF, not a hang
 
     def _send_json(self, code, obj):
         payload = json.dumps(obj, ensure_ascii=False).encode("utf-8")
