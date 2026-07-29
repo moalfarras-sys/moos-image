@@ -351,12 +351,30 @@ jobs:
       #     ghcr.io/<owner>/<image>@<digest>
       # alongside the signature check.
       #
-      # These run LAST on purpose: the image is already pushed, signed and
-      # verified, so a failure here fails the run loudly without unpublishing a
-      # good image — and because bootc only ever upgrades to a fully built and
-      # signed image, a red SBOM step simply means no new build ships that day,
-      # never a broken one.
+      # These run LAST on purpose: the image is already pushed, signed and its
+      # signature verified by the time they start, so nothing here can publish a
+      # bad image or unpublish a good one.
+      #
+      # AND THEY ARE NOT ALLOWED TO FAIL THE RUN. Measured on the first build that
+      # carried them: syft spent 6.5 minutes unpacking the multi-GB moos-cloud
+      # image on a runner that had already run `Free disk space` to make room for
+      # the build itself, and the runner was terminated mid-scan ("The runner has
+      # received a shutdown signal"). The image was fine — built, pushed, signed
+      # and verified — but the job went red, which reads as "this build is broken"
+      # when nothing about the product is.
+      #
+      # An SBOM is supply-chain METADATA, not a correctness gate: every gate that
+      # decides whether an image is fit to ship has already passed above. So bound
+      # these two steps and let them fail without failing the build. When they
+      # succeed the attestation is there to verify:
+      #   cosign verify-attestation --key cosign.pub --type spdxjson <ref>@<digest>
+      # When they do not, the step is visibly skipped/red in the run and the image
+      # still ships — which is the correct trade for optional metadata that costs a
+      # multi-GB unpack on a disk-constrained runner.
       - name: Generate SBOM (SPDX) from the pushed image
+        id: sbom
+        continue-on-error: true
+        timeout-minutes: 12
         uses: anchore/sbom-action@v0
         with:
           image: ${{ steps.meta.outputs.registry }}/${{ matrix.image_name }}@${{ steps.push.outputs.digest }}
@@ -364,13 +382,19 @@ jobs:
           output-file: sbom.spdx.json
           upload-artifact: false
 
+      # Only attest an SBOM that was actually produced; attesting a missing or
+      # half-written predicate would publish a false claim about the image.
       - name: Attest the SBOM with the signing key
+        if: steps.sbom.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 10
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
           IMAGE_REGISTRY: ${{ steps.meta.outputs.registry }}
           IMAGE_NAME: ${{ matrix.image_name }}
           DIGEST: ${{ steps.push.outputs.digest }}
         run: |
+          test -s sbom.spdx.json || { echo "::warning::no SBOM produced; skipping attestation"; exit 1; }
           cosign attest -y --key env://COSIGN_PRIVATE_KEY \
             --type spdxjson --predicate sbom.spdx.json \
             "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
