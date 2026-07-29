@@ -1092,3 +1092,77 @@ button {
   margin-top: 1px;
   letter-spacing: 0.1px;
 }
+
+/* ── Folding sections in the Settings sheet ───────────────────────────────────
+   The sheet was one flat column: pointer mode, two sliders, typing, seven action
+   buttons, five power buttons. On a phone that is several screens of scrolling to
+   reach anything, and "Shut down" sat one tap below "Copy" — a phone in a pocket
+   can end a session that way. Named sections that fold fix both: the ones you reach
+   for stay open, the destructive one has to be opened on purpose.
+
+   <details>/<summary> rather than React state, deliberately: the browser gives us
+   the open/closed behaviour, keyboard operation and screen-reader semantics for
+   free, and there is no state to get out of sync with the DOM. */
+.fold {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin: 10px 0 0;
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+  overflow: hidden;
+}
+.fold > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  /* 46px of touch target: the same floor the toolbar buttons use. A disclosure row
+     that is only as tall as its text is a row you miss on a moving train. */
+  min-height: 46px;
+  padding: 0 14px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;                 /* Firefox */
+  -webkit-tap-highlight-color: transparent;
+}
+.fold > summary::-webkit-details-marker { display: none; }   /* Safari's own triangle */
+.fold > summary:active { background: var(--surface-3, rgba(255, 255, 255, 0.06)); }
+.fold .fold-chevron {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  opacity: 0.65;
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* Guarded on the motion setting for the same reason every other animation here is:
+   an transform that runs when the user asked for no animation is a transform that
+   should not run. */
+@media (prefers-reduced-motion: reduce) {
+  .fold .fold-chevron { transition: none; }
+}
+.fold[open] > summary .fold-chevron { transform: rotate(180deg); }
+.fold[open] > summary { border-bottom: 1px solid var(--border); }
+.fold-body { padding: 4px 14px 14px; }
+/* The first label inside a fold does not need the top margin it uses when it follows
+   a control in the flat part of the sheet. */
+.fold-body > .row-label:first-child { margin-top: 8px; }
+
+/* A label/value row — used by About, where the point is the VALUE on the right. */
+.kv {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.kv:last-of-type { border-bottom: 0; }
+.kv > span { opacity: 0.7; }
+.kv > b {
+  font-weight: 600;
+  text-align: right;
+  /* A build string or a codec line must not push the label off the row. */
+  overflow-wrap: anywhere;
+}

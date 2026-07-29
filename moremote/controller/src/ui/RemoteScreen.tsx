@@ -8,11 +8,12 @@ import {
   getClipboard, setClipboard, setClipboardImage, listFiles, fileDownloadUrl, uploadFile, powerAction,
   type ClipResult, type FileListing, type FileEntry, type PowerAction,
 } from "../lib/api";
-import { QUALITY_PRESETS, AUTO_MAX_PRESET, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
+import { QUALITY_PRESETS, AUTO_MAX_PRESET, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
   IconAltTab, IconActual, IconChevronDown, IconClipboard, IconCopy, IconEnter, IconEsc, IconFit,
   IconFolder, IconFullscreen, IconKeyboard, IconLock, IconMore, IconMouse, IconPaste, IconPower,
-  IconRefresh, IconSend, IconShield, IconSpeaker, IconSpeakerOff, IconTrackpad, IconUpload,
+  IconRefresh, IconSend, IconSettings, IconShield, IconSpeaker, IconSpeakerOff, IconTrackpad,
+  IconUpload,
   IconWindows, IconZoomIn, IconZoomOut,
 } from "./icons";
 
@@ -1750,7 +1751,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
             <span>{sound === "connecting" ? "…" : "Sound"}</span>
           </button>
           <button className="tbtn" onClick={fullscreen}><IconFullscreen /><span>Full</span></button>
-          <button className="tbtn accent" onClick={() => setSheet("more")}><IconMore /><span>More</span></button>
+          <button className="tbtn accent" onClick={() => setSheet("more")}><IconSettings /><span>Settings</span></button>
         </div>
       )}
 
@@ -1813,7 +1814,16 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
       {sheet === "more" && (
         <div className="sheet">
-          <div className="grip" /><h3>Controls</h3>
+          {/* SETTINGS, ORGANISED — not one long scroll.
+              Everything below used to sit in a single flat column: pointer mode, two sliders,
+              typing, seven actions, five power buttons. On a phone that is several screens of
+              scrolling to reach anything, the destructive Power row was one tap away by
+              accident, and the app's own version — the thing you need when you are asking
+              "did my phone load the new build?" — appeared only on the connect screen, which
+              you never see once you are connected.
+              So: named sections that fold, the two you reach for open, the dangerous one shut,
+              and an About section that answers the version question where you actually are. */}
+          <div className="grip" /><h3><IconSettings /> Settings</h3>
           {/* Three buttons, not four. "Touch" and "Direct" were never two models — they differ in
               one branch of the gesture recogniser, what a one-finger swipe does — so that one
               difference is the switch below rather than a mode of its own. */}
@@ -1849,38 +1859,78 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
               </p>
             </>
           )}
-          <div className="row-label">Mouse sensitivity · {mouseSensitivity.toFixed(1)}</div>
-          <input type="range" min="0.4" max="2.5" step="0.1" value={mouseSensitivity} onChange={e=>setMouseSensitivity(Number(e.target.value))}/>
-          <div className="row-label">Scroll sensitivity · {scrollSensitivity.toFixed(1)}</div>
-          <input type="range" min="0.4" max="2.5" step="0.1" value={scrollSensitivity} onChange={e=>setScrollSensitivity(Number(e.target.value))}/>
-          <div className="seg"><button className={naturalScroll?"on":""} onClick={()=>setNaturalScroll(v=>!v)}>Natural scroll</button><button className={haptics?"on":""} onClick={()=>setHaptics(v=>!v)}>Haptics</button></div>
-          <div className="row-label">Typing</div>
-          <div className="seg">
-            <button className={typingZoom?"on":""} onClick={()=>setTypingZoom(v=>!v)}>Magnify while typing</button>
-          </div>
-          <p className="hint">
-            When the keyboard opens, the desktop moves up out from under it and zooms in on the
-            cursor, so you can read the line you are writing. Turn it off to keep the whole desktop
-            in view and place the cursor yourself.
-          </p>
-          <div className="row-label">Actions</div>
-          <div className="grid">
-            <button className="cell" onClick={openFiles}><IconFolder /> Files</button>
-            <button className="cell" onClick={() => { taskMgr(); setSheet(null); }}><IconShield /> Ctrl+Alt+Del</button>
-            <button className="cell" onClick={() => c()?.combo(["Control", "C"])}><IconCopy /> Copy</button>
-            <button className="cell" onClick={() => c()?.combo(["Control", "V"])}><IconPaste /> Paste</button>
-            <button className="cell" onClick={() => { refreshStream(); setSheet(null); }}><IconRefresh /> Refresh</button>
-            <button className="cell" onClick={() => { fullscreen(); setSheet(null); }}><IconFullscreen /> Fullscreen</button>
-            <button className="cell danger" onClick={disconnect}><IconPower /> Disconnect</button>
-          </div>
-          <div className="row-label">Power</div>
-          <div className="grid">
-            <button className="cell" onClick={() => doPower("lock", "Lock")}><IconLock /> Lock</button>
-            <button className="cell" onClick={() => doPower("sleep", "Sleep")}><IconPower /> Sleep</button>
-            <button className="cell" onClick={() => doPower("signout", "Sign out", true)}><IconLock /> Sign out</button>
-            <button className="cell" onClick={() => doPower("restart", "Restart", true)}><IconRefresh /> Restart</button>
-            <button className="cell danger" onClick={() => doPower("shutdown", "Shut down", true)}><IconPower /> Shut down</button>
-          </div>
+          {/* Feel — two sliders and two switches. Folded: you set them once. */}
+          <details className="fold">
+            <summary><span>Feel</span><IconChevronDown className="fold-chevron" /></summary>
+            <div className="fold-body">
+              <div className="row-label">Mouse sensitivity · {mouseSensitivity.toFixed(1)}</div>
+              <input type="range" min="0.4" max="2.5" step="0.1" value={mouseSensitivity} onChange={e=>setMouseSensitivity(Number(e.target.value))}/>
+              <div className="row-label">Scroll sensitivity · {scrollSensitivity.toFixed(1)}</div>
+              <input type="range" min="0.4" max="2.5" step="0.1" value={scrollSensitivity} onChange={e=>setScrollSensitivity(Number(e.target.value))}/>
+              <div className="seg"><button className={naturalScroll?"on":""} onClick={()=>setNaturalScroll(v=>!v)}>Natural scroll</button><button className={haptics?"on":""} onClick={()=>setHaptics(v=>!v)}>Haptics</button></div>
+              <div className="row-label">Typing</div>
+              <div className="seg">
+                <button className={typingZoom?"on":""} onClick={()=>setTypingZoom(v=>!v)}>Magnify while typing</button>
+              </div>
+              <p className="hint">
+                When the keyboard opens, the desktop moves up out from under it and zooms in on the
+                cursor, so you can read the line you are writing. Turn it off to keep the whole
+                desktop in view and place the cursor yourself.
+              </p>
+            </div>
+          </details>
+
+          {/* Actions — open, because this is what the sheet is opened FOR. */}
+          <details className="fold" open>
+            <summary><span>Actions</span><IconChevronDown className="fold-chevron" /></summary>
+            <div className="fold-body">
+              <div className="grid">
+                <button className="cell" onClick={openFiles}><IconFolder /> Files</button>
+                <button className="cell" onClick={() => { taskMgr(); setSheet(null); }}><IconShield /> Ctrl+Alt+Del</button>
+                <button className="cell" onClick={() => c()?.combo(["Control", "C"])}><IconCopy /> Copy</button>
+                <button className="cell" onClick={() => c()?.combo(["Control", "V"])}><IconPaste /> Paste</button>
+                <button className="cell" onClick={() => { refreshStream(); setSheet(null); }}><IconRefresh /> Refresh</button>
+                <button className="cell" onClick={() => { fullscreen(); setSheet(null); }}><IconFullscreen /> Fullscreen</button>
+                <button className="cell danger" onClick={disconnect}><IconPower /> Disconnect</button>
+              </div>
+            </div>
+          </details>
+
+          {/* Power — SHUT by default. These change the state of the computer you are looking at,
+              and "Shut down" sitting one tap below "Copy" is how a phone in a pocket ends a
+              session. Opening the section is the deliberate act that earns the buttons. */}
+          <details className="fold">
+            <summary><span>Power</span><IconChevronDown className="fold-chevron" /></summary>
+            <div className="fold-body">
+              <div className="grid">
+                <button className="cell" onClick={() => doPower("lock", "Lock")}><IconLock /> Lock</button>
+                <button className="cell" onClick={() => doPower("sleep", "Sleep")}><IconPower /> Sleep</button>
+                <button className="cell" onClick={() => doPower("signout", "Sign out", true)}><IconLock /> Sign out</button>
+                <button className="cell" onClick={() => doPower("restart", "Restart", true)}><IconRefresh /> Restart</button>
+                <button className="cell danger" onClick={() => doPower("shutdown", "Shut down", true)}><IconPower /> Shut down</button>
+              </div>
+            </div>
+          </details>
+
+          {/* About — the answer to "which build is my phone running?", where you can actually
+              reach it. It used to live only on the connect screen, which you stop seeing the
+              moment you connect, so the one question this line exists to answer could not be
+              asked without disconnecting. */}
+          <details className="fold">
+            <summary><span>About</span><IconChevronDown className="fold-chevron" /></summary>
+            <div className="fold-body">
+              <div className="kv"><span>App version</span><b>{BUILD}</b></div>
+              <div className="kv"><span>Connection</span><b>{status}</b></div>
+              <div className="kv"><span>Video</span>
+                <b>{status === "live" ? `${codec === "h264" ? "H.264" : "JPEG"} · ${fps} fps · ${latency} ms` : "—"}</b>
+              </div>
+              <p className="hint">
+                If the version above is not the newest, close the app and open it again — the
+                offline cache serves the previous build until a new one takes over.
+              </p>
+            </div>
+          </details>
+
           <div className="credit">Mo Remote Personal · by Moalfarras</div>
         </div>
       )}
