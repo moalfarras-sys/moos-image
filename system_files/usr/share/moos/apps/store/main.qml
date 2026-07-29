@@ -1020,6 +1020,7 @@ ApplicationWindow {
         "download": "<path d='M12 3v12M7 10l5 5 5-5'/><path d='M4 20h16'/>",
         "trash":    "<path d='M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6'/>",
         "external": "<path d='M13 4h7v7M20 4l-9 9'/><path d='M18 14v6H4V6h6'/>",
+        "close":    "<path d='M6.5 6.5l11 11M17.5 6.5l-11 11'/>",
         "star":     "<path d='M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z'/>"
     })
 
@@ -1069,6 +1070,53 @@ ApplicationWindow {
         border.color: win.accent
         visible: parent ? parent.activeFocus : false
         z: 99
+    }
+
+    // A focus ring nobody can see is no focus ring. Every focusable here is a bare
+    // Rectangle inside a clipped Flickable, so Tab could park focus outside the viewport
+    // and PageDown moved nothing. Enforced at the window, not per delegate — one wired by
+    // hand is one somebody forgets:
+    //   1. whatever HOLDS focus is scrolled into view, in both axes, in whichever
+    //      Flickable ancestors clip it (the app grid, the chip row, the detail sheet);
+    //   2. PageDown/PageUp move each content pane via pageScrollKeys(), reached by key
+    //      bubbling from any focused item inside the pane.
+    onActiveFocusItemChanged: win.revealFocus(win.activeFocusItem)
+
+    function revealFocus(item) {
+        if (!item) return
+        var pad = 12
+        for (var flick = item.parent; flick; flick = flick.parent) {
+            // Only Flickables (and their subclasses, e.g. GridView) carry all three.
+            if (flick.contentItem === undefined || flick.contentY === undefined
+                    || flick.flicking === undefined) continue
+            var pos = item.mapToItem(flick.contentItem, 0, 0)
+            if (flick.contentHeight > flick.height) {
+                var yMin = flick.originY || 0
+                var yMax = yMin + flick.contentHeight - flick.height
+                if (pos.y < flick.contentY + pad)
+                    flick.contentY = Math.max(yMin, pos.y - pad)
+                else if (pos.y + item.height > flick.contentY + flick.height - pad)
+                    flick.contentY = Math.min(yMax, pos.y + item.height + pad - flick.height)
+            }
+            if (flick.contentWidth > flick.width) {
+                var xMin = flick.originX || 0
+                var xMax = xMin + flick.contentWidth - flick.width
+                if (pos.x < flick.contentX + pad)
+                    flick.contentX = Math.max(xMin, pos.x - pad)
+                else if (pos.x + item.width > flick.contentX + flick.width - pad)
+                    flick.contentX = Math.min(xMax, pos.x + item.width + pad - flick.width)
+            }
+        }
+    }
+
+    // One viewport minus a 10% overlap, clamped to the ends.
+    function pageScrollKeys(flick, event) {
+        if (event.key !== Qt.Key_PageDown && event.key !== Qt.Key_PageUp) return
+        var yMin = flick.originY || 0
+        var yMax = Math.max(yMin, yMin + flick.contentHeight - flick.height)
+        var step = flick.height * 0.9 * (event.key === Qt.Key_PageDown ? 1 : -1)
+        flick.contentY = Math.max(yMin, Math.min(yMax, flick.contentY + step))
+        event.accepted = true
     }
 
     component Glyph: Image {
@@ -1400,6 +1448,7 @@ ApplicationWindow {
                 Item { Layout.preferredHeight: win.fs(2) }
 
                 Repeater {
+                    id: navRepeater
                     model: win.navItems
                     delegate: Rectangle {
                         id: nav
@@ -1671,6 +1720,7 @@ ApplicationWindow {
                     contentHeight: discoverBody.implicitHeight + 48
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
+                    Keys.onPressed: (event) => win.pageScrollKeys(discoverFlick, event)
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     ColumnLayout {
                         id: discoverBody
@@ -2023,12 +2073,24 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         spacing: 8
                         Flickable {
+                            id: chipFlick
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(40)
                             contentWidth: categoryRow.implicitWidth
                             contentHeight: height
                             clip: true
                             boundsBehavior: Flickable.StopAtBounds
+                            // In RTL the mirrored row puts the reading start — the active
+                            // "الكل" chip — at the RIGHT end of the content, and a fresh
+                            // Flickable shows the LEFT end. Snap to the reading start when
+                            // the row's width settles. A guarded reset, not a binding: a
+                            // binding on contentX would fight the user's own drag.
+                            function snapToReadingStart() {
+                                if (win.rtl && !chipFlick.moving && !chipFlick.dragging)
+                                    chipFlick.contentX = Math.max(0, chipFlick.contentWidth - chipFlick.width)
+                            }
+                            onContentWidthChanged: chipFlick.snapToReadingStart()
+                            Component.onCompleted: chipFlick.snapToReadingStart()
                             RowLayout {
                                 id: categoryRow
                                 height: parent.height
@@ -2046,8 +2108,14 @@ ApplicationWindow {
                                                       : pillHover.hovered ? win.raised : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                                         border.width: active ? 0 : 1
                                         border.color: win.outline
+                                        activeFocusOnTab: true
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: win.rtl ? categoryPill.modelData.ar : categoryPill.modelData.en
+                                        FocusRing { }
                                         HoverHandler { id: pillHover }
                                         TapHandler { onTapped: win.activeCategory = categoryPill.modelData.id }
+                                        Keys.onReturnPressed: win.activeCategory = categoryPill.modelData.id
+                                        Keys.onSpacePressed: win.activeCategory = categoryPill.modelData.id
                                         RowLayout {
                                             id: pillRow
                                             anchors.centerIn: parent
@@ -2077,7 +2145,19 @@ ApplicationWindow {
                             font.pixelSize: win.fs(11)
                         }
                         ActionButton {
+                            id: bulkAdd
                             visible: win.page === "apps" && win.visibleApps.length > 0
+                            // Demoted from the default Tab chain: document order made this
+                            // bulk action the pane's FIRST stop, so a keyboard user's first
+                            // Return queued a whole section. It now sits AFTER the grid —
+                            // the last card links here (KeyNavigation below), and Tab out
+                            // continues at the rail, the wrap point the default chain
+                            // reaches after the grid.
+                            activeFocusOnTab: false
+                            Keys.onTabPressed: {
+                                var first = navRepeater.itemAt(0)
+                                if (first) first.forceActiveFocus(Qt.TabFocusReason)
+                            }
                             label: win.rtl ? "أضف كل القسم" : "Add this section"
                             glyphName: "download"
                             triggered: function() {
@@ -2099,15 +2179,22 @@ ApplicationWindow {
                         cellWidth: width / columnCount
                         cellHeight: 192
                         boundsBehavior: Flickable.StopAtBounds
+                        Keys.onPressed: (event) => win.pageScrollKeys(appGrid, event)
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                         delegate: Item {
+                            id: gridCell
                             required property var modelData
+                            required property int index
                             width: appGrid.cellWidth
                             height: appGrid.cellHeight
                             AppCard {
                                 anchors.fill: parent
                                 anchors.margins: 6
-                                app: modelData
+                                app: gridCell.modelData
+                                // The bulk "add this section" button sits after the grid in
+                                // the Tab order; the last card hands focus across to it.
+                                KeyNavigation.tab: gridCell.index === appGrid.count - 1
+                                                   && bulkAdd.visible ? bulkAdd : null
                             }
                         }
                     }
@@ -2148,11 +2235,13 @@ ApplicationWindow {
 
                 // Category overview.
                 Flickable {
+                    id: categoriesFlick
                     anchors.fill: parent
                     visible: win.page === "categories"
                     contentWidth: width
                     contentHeight: categoryBody.implicitHeight + 44
                     clip: true
+                    Keys.onPressed: (event) => win.pageScrollKeys(categoriesFlick, event)
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     ColumnLayout {
                         id: categoryBody
@@ -2266,11 +2355,13 @@ ApplicationWindow {
 
                 // Updates.
                 Flickable {
+                    id: updatesFlick
                     anchors.fill: parent
                     visible: win.page === "updates"
                     contentWidth: width
                     contentHeight: updateBody.implicitHeight + 50
                     clip: true
+                    Keys.onPressed: (event) => win.pageScrollKeys(updatesFlick, event)
                     ColumnLayout {
                         id: updateBody
                         x: 26
@@ -2534,11 +2625,13 @@ ApplicationWindow {
                 // Sources: engines are capabilities behind Mo Store, never extra
                 // launchers competing in the application menu.
                 Flickable {
+                    id: sourcesFlick
                     anchors.fill: parent
                     visible: win.page === "sources"
                     contentWidth: width
                     contentHeight: sourceBody.implicitHeight + 50
                     clip: true
+                    Keys.onPressed: (event) => win.pageScrollKeys(sourcesFlick, event)
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     ColumnLayout {
                         id: sourceBody
@@ -2930,11 +3023,13 @@ ApplicationWindow {
             NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 130 }
         }
         Flickable {
+            id: detailFlick
             anchors.fill: parent
             anchors.margins: 22
             contentWidth: width
             contentHeight: detailBody.implicitHeight
             clip: true
+            Keys.onPressed: (event) => win.pageScrollKeys(detailFlick, event)
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
             ColumnLayout {
                 id: detailBody
@@ -2985,7 +3080,7 @@ ApplicationWindow {
                     }
                     ActionButton {
                         label: win.rtl ? "إغلاق" : "Close"
-                        glyphName: "external"
+                        glyphName: "close"
                         triggered: function() { details.close() }
                     }
                 }
@@ -3024,6 +3119,10 @@ ApplicationWindow {
                 }
                 Text {
                     Layout.fillWidth: true
+                    // Most catalogue entries have no long description, so localDescription
+                    // falls back to the summary — and the sheet showed the same sentence
+                    // twice. Only a description that ADDS something earns the row.
+                    visible: win.localDescription(win.selectedApp) !== win.localSummary(win.selectedApp)
                     text: win.localDescription(win.selectedApp)
                     color: win.txt2
                     font.family: win.uiFont
@@ -3071,9 +3170,21 @@ ApplicationWindow {
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 0
-                                    Text { text: modelData.label; color: win.txt2; font.family: win.uiFont; font.pixelSize: win.fs(9) }
+                                    // Explicit alignment on BOTH lines: Text defaults to its
+                                    // content's direction, so in RTL an Arabic label and a
+                                    // Latin value ("Flathub", "1.2.3") sat on opposite edges
+                                    // of the same chip.
                                     Text {
                                         Layout.fillWidth: true
+                                        horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                                        text: modelData.label
+                                        color: win.txt2
+                                        font.family: win.uiFont
+                                        font.pixelSize: win.fs(9)
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
                                         text: modelData.value
                                         color: win.txt
                                         font.family: win.uiFont

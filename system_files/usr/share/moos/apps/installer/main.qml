@@ -48,7 +48,9 @@ ApplicationWindow {
     height: Math.min(760, Screen.desktopAvailableHeight * 0.92)
     minimumWidth: Math.min(860, Screen.desktopAvailableWidth * 0.92)
     minimumHeight: Math.min(600, Screen.desktopAvailableHeight * 0.92)
-    title: qsTr("Install MoOS")
+    // The title bar and task switcher follow the chosen language like every other
+    // string here — qsTr resolved to English in an Arabic session (no catalog ships).
+    title: win.tr("تثبيت MoOS", "Install MoOS")
     color: win.canvas
 
     // ── semantic palette (KDE colour scheme owns every structural colour) ──────
@@ -733,7 +735,10 @@ ApplicationWindow {
 
                     Text {
                         Layout.alignment: Qt.AlignHCenter
-                        text: win.tr("أهلاً بك في MoOS", "Welcome to MoOS")
+                        // Not Welcome's greeting: two different apps opening on the same
+                        // headline read as the same app. This one is about to erase a disk,
+                        // so its first line says INSTALL.
+                        text: win.tr("لنثبّت MoOS", "Let's install MoOS")
                         color: win.txt
                         font.family: win.uiFont; font.pixelSize: win.fs(40); font.weight: Font.Bold
                     }
@@ -743,8 +748,8 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
-                        text: win.tr("لنثبّت MoOS على جهازك. خطوات قليلة وواضحة — وأنت تقرّر كل شيء.",
-                                     "Let's install MoOS on your computer. A few clear steps — you decide everything.")
+                        text: win.tr("خطوات قليلة وواضحة — وأنت تقرّر كل شيء.",
+                                     "A few clear steps — you decide everything.")
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.fs(15); lineHeight: 1.35
                     }

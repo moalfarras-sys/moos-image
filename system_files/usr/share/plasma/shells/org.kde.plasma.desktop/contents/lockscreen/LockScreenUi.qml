@@ -376,12 +376,27 @@ Item {
                 // the mouse and looks at the screen. Pausing suspends the
                 // animation job (no frames requested, same saving) and resumes
                 // it where it stood.
-                Image {
+                // The halo pair is drawn from the live two-tone accent, not the
+                // old glow-cyan/glow-violet rasters. Those PNGs were fixed
+                // #22D3EE/#8B5CF6 that the family generator can never retint
+                // (it recolours .svg and copies every other file byte-for-byte),
+                // so all 16 palettes wore the same cyan-violet ring — the exact
+                // defect the logout screen removed and documented, and these two
+                // surfaces are contractually mirrored (see the token note at the
+                // top of Logout.qml). accentA/accentB give each palette its own
+                // two-colour signature; the breathing geometry is unchanged.
+                RadialGradient {
                     anchors.centerIn: brandEmblem
                     width: brandStage.width * 2.3
                     height: width
-                    source: "images/glow-cyan.png"
+                    horizontalRadius: width * 0.5
+                    verticalRadius: height * 0.5
                     opacity: 0.45
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Qt.rgba(lockScreenUi.accentA.r, lockScreenUi.accentA.g, lockScreenUi.accentA.b, 0.30) }
+                        GradientStop { position: 0.36; color: Qt.rgba(lockScreenUi.accentA.r, lockScreenUi.accentA.g, lockScreenUi.accentA.b, 0.14) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
                     SequentialAnimation on opacity {
                         loops: Animation.Infinite
                         running: brandStage.visible && lockScreenUi.motionEnabled
@@ -390,12 +405,18 @@ Item {
                         NumberAnimation { to: 0.45; duration: 3600; easing.type: Easing.InOutSine }
                     }
                 }
-                Image {
+                RadialGradient {
                     anchors.centerIn: brandEmblem
                     width: brandStage.width * 1.75
                     height: width
-                    source: "images/glow-violet.png"
+                    horizontalRadius: width * 0.5
+                    verticalRadius: height * 0.5
                     opacity: 0.5
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Qt.rgba(lockScreenUi.accentB.r, lockScreenUi.accentB.g, lockScreenUi.accentB.b, 0.32) }
+                        GradientStop { position: 0.38; color: Qt.rgba(lockScreenUi.accentB.r, lockScreenUi.accentB.g, lockScreenUi.accentB.b, 0.15) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
                     SequentialAnimation on opacity {
                         loops: Animation.Infinite
                         running: brandStage.visible && lockScreenUi.motionEnabled

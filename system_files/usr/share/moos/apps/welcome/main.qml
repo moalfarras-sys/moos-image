@@ -73,7 +73,9 @@ ApplicationWindow {
     height: Math.min(760, Screen.desktopAvailableHeight * 0.92)
     minimumWidth: Math.min(860, Screen.desktopAvailableWidth * 0.92)
     minimumHeight: Math.min(600, Screen.desktopAvailableHeight * 0.92)
-    title: qsTr("Welcome to MoOS")
+    // The title bar and task switcher follow the chosen language like every other
+    // string here — qsTr resolved to English in an Arabic session (no catalog ships).
+    title: win.rtl ? "أهلاً بك في MoOS" : "Welcome to MoOS"
     color: win.canvas
 
     // Same focus ring as Mo Store, for the same reason: a control the keyboard can reach must
