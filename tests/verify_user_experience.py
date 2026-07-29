@@ -416,26 +416,54 @@ for token, role in {
 # standalone storefront, apps/store) and the Welcome onboarding wizard
 # (apps/welcome). A hard-coded canvas in either one reopens the "two dark-blue
 # applications on a light theme" bug.
+#
+# THE SOURCE CHANGED FROM `win.palette` TO `Kirigami.Theme`, AND THAT IS THE POINT.
+#
+# This gate used to require `win.palette.base` and friends. Its intent was right — follow the
+# user's theme, never a fixed palette — but it named a mechanism that does not actually do
+# that. Measured on one session, one scheme (MoOSUI2Light, selection #006D67), two MoOS apps
+# rendered at the same moment:
+#
+#   theme picker (Kirigami.Theme, 31 refs)   surface #DFEFEA   accent #006D67   <- MoOS teal
+#   welcome      (win.palette.*, 11 refs)    surface #FFFFFF   accent #45A7D7   <- Breeze blue
+#
+# A bare `palette` on a QQuickWindow does not resolve the KDE colour scheme; it falls back to
+# Qt's built-in defaults. Setting QT_QPA_PLATFORMTHEME=kde does not change it either (tested:
+# the button stayed #45A7D7). So the old gate was green while MoOS's own windows wore a blue
+# that appears in no MoOS palette, inside a mint MoOS frame — the exact "two applications on a
+# light theme" failure this block exists to prevent, passing its own check.
+#
+# The requirement is therefore stricter now, not looser: the token must bind to Kirigami.Theme,
+# AND the file must contain no `win.palette.` at all, so nobody half-migrates a surface.
 for surface_label, palette_code in (("Mo Store", store_palette_code),
                                     ("MoOS Welcome", welcome_palette_code)):
     for token, role in {
-        "canvas": "win.palette.base",
-        "surface": "win.palette.alternateBase",
-        "raised": "win.palette.button",
-        "chrome": "win.palette.window",
-        "outline": "win.palette.mid",
-        "txt": "win.palette.windowText",
-        "txt2": "win.palette.placeholderText",
-        "blue": "win.palette.highlight",
-        "cyan": "win.palette.link",
-        "violet": "win.palette.linkVisited",
-        "onAccent": "win.palette.highlightedText",
+        "canvas": "Kirigami.Theme.backgroundColor",
+        "surface": "Kirigami.Theme.alternateBackgroundColor",
+        "chrome": "Kirigami.Theme.backgroundColor",
+        "txt": "Kirigami.Theme.textColor",
+        "txt2": "Kirigami.Theme.disabledTextColor",
+        "blue": "Kirigami.Theme.highlightColor",
+        "cyan": "Kirigami.Theme.linkColor",
+        "violet": "Kirigami.Theme.visitedLinkColor",
+        "onAccent": "Kirigami.Theme.highlightedTextColor",
     }.items():
         require(re.search(
             rf"readonly\s+property\s+color\s+{token}\s*:\s*{re.escape(role)}\b",
             palette_code,
         ) is not None,
-                f"{surface_label}'s {token} token must follow {role}, not Nova's fixed palette")
+                f"{surface_label}'s {token} token must follow {role} — a bare `palette` does not "
+                f"resolve the MoOS colour scheme and silently falls back to Qt's Breeze blue")
+    # outline is deliberately NOT Kirigami.Theme.separatorColor: that renders #FFFFFF in all
+    # five colour sets of this scheme, so binding to it deletes every hairline on a light page.
+    require(re.search(r"readonly\s+property\s+color\s+outline\s*:\s*Qt\.rgba\(", palette_code)
+            is not None,
+            f"{surface_label}'s outline must be a low-alpha tint of the text colour. "
+            f"Kirigami.Theme.separatorColor is #FFFFFF in every colour set of this scheme — an "
+            f"invisible border on a light canvas")
+    require("win.palette." not in palette_code,
+            f"{surface_label} still reads win.palette.* somewhere — a half-migrated surface mixes "
+            f"the MoOS theme with Qt defaults in one window")
 
 legacy_nova_surfaces = {
     "#0b1220", "#111a2e", "#16233a", "#1a2740", "#263a5c", "#263852",

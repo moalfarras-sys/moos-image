@@ -35,18 +35,47 @@ ApplicationWindow {
     color: win.canvas
 
     // Semantic colours are owned by the active MoOS/KDE colour scheme.
-    readonly property color canvas:   win.palette.base
-    readonly property color surface:  win.palette.alternateBase
-    readonly property color raised:   win.palette.button
-    readonly property color chrome:   win.palette.window
-    readonly property color outline:  win.palette.mid
-    readonly property color blue:     win.palette.highlight
-    readonly property color cyan:     win.palette.link
-    readonly property color violet:   win.palette.linkVisited
-    readonly property color txt:      win.palette.windowText
-    readonly property color txt2:     win.palette.placeholderText
-    readonly property color onAccent: win.palette.highlightedText
-    readonly property color accent:   win.cyan.a > 0 ? win.cyan : win.blue
+    // ── semantic palette ───────────────────────────────────────────────────────
+    //
+    // READ FROM Kirigami.Theme, NOT FROM `palette`. Measured on one session, one scheme
+    // (MoOSUI2Light, whose selection is #006D67):
+    //
+    //   an app using Kirigami.Theme  ->  surface #DFEFEA, accent #006D67   (MoOS teal)
+    //   an app using palette.*       ->  surface #FFFFFF, accent #45A7D7   (stock Breeze blue)
+    //
+    // A bare `palette` in a QQuickWindow does not resolve the KDE colour scheme; it falls back
+    // to Qt's built-in defaults, and QT_QPA_PLATFORMTHEME=kde does not change that (tested).
+    // That is why MoOS's own windows wore a blue that appears nowhere in any MoOS palette,
+    // inside a mint MoOS frame. Kirigami.Theme resolves it, so every surface now follows the
+    // theme the user actually picked.
+    //
+    // The window paints on the VIEW set: rendered side by side the family gives four value
+    // steps (Button #B8D8D2, Window #C9E2DD, View #D8EBE7, alternate #E1F0EC), and content
+    // needs the airier end or the page collapses into one flat wash.
+    Kirigami.Theme.inherit: false
+    Kirigami.Theme.colorSet: Kirigami.Theme.View
+
+    readonly property color canvas:   Kirigami.Theme.backgroundColor
+    readonly property color surface:  Kirigami.Theme.alternateBackgroundColor
+    readonly property color raised:   Kirigami.Theme.backgroundColor
+    readonly property color chrome:   Kirigami.Theme.backgroundColor
+
+    // Outline is the FOREGROUND at low alpha, NOT Kirigami.Theme.separatorColor — that
+    // renders #FFFFFF in all five colour sets of this scheme, so binding to it deletes every
+    // hairline on a light page. A tint of the text colour is dark on light and light on dark,
+    // in every palette member, with no per-theme special case.
+    readonly property color outline:  Qt.rgba(Kirigami.Theme.textColor.r,
+                                              Kirigami.Theme.textColor.g,
+                                              Kirigami.Theme.textColor.b, 0.14)
+    readonly property color blue:     Kirigami.Theme.highlightColor
+    readonly property color cyan:     Kirigami.Theme.linkColor
+    readonly property color violet:   Kirigami.Theme.visitedLinkColor
+    readonly property color txt:      Kirigami.Theme.textColor
+    readonly property color txt2:     Kirigami.Theme.disabledTextColor
+    readonly property color onAccent: Kirigami.Theme.highlightedTextColor
+    readonly property color accent:   Kirigami.Theme.highlightColor  // ONE accent for the OS: the theme's highlight,
+                                      // the same teal the selection ring and the window
+                                      // decoration already draw. `link` means links again.
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
     readonly property bool compactRail: win.width < 1080
 

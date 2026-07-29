@@ -76,22 +76,66 @@ ApplicationWindow {
     title: qsTr("Welcome to MoOS")
     color: win.canvas
 
-    // ── semantic palette (KDE colour scheme owns every structural colour) ──────
-    readonly property color canvas:   win.palette.base
-    readonly property color surface:  win.palette.alternateBase
-    readonly property color raised:   win.palette.button
-    readonly property color chrome:   win.palette.window
-    readonly property color outline:  win.palette.mid
-    readonly property color blue:     win.palette.highlight
-    readonly property color cyan:     win.palette.link
-    readonly property color violet:   win.palette.linkVisited
-    readonly property color txt:      win.palette.windowText
-    readonly property color txt2:     win.palette.placeholderText
-    readonly property color onAccent: win.palette.highlightedText
+    // ── semantic palette ───────────────────────────────────────────────────────
+    //
+    // READ FROM Kirigami.Theme, NOT FROM `palette`. That is the whole difference between
+    // this window wearing MoOS and this window wearing stock Qt, and it was measured, not
+    // assumed. On one session, one colour scheme (MoOSUI2Light, selection #006D67):
+    //
+    //   theme picker (Kirigami.Theme, 31 refs)  surface #DFEFEA   accent #006D67  <- MoOS teal
+    //   welcome      (palette.*,      11 refs)  surface #FFFFFF   accent #45A7D7  <- Breeze blue
+    //
+    // Same machine, same theme, same second. A bare `palette` in a QQuickWindow does not
+    // resolve the KDE colour scheme — it falls back to Qt's built-in defaults — and setting
+    // QT_QPA_PLATFORMTHEME=kde does not change that (tested: the button stayed #45A7D7).
+    // Kirigami.Theme does resolve it, which is why the one app that used it was the one app
+    // that looked like MoOS.
+    //
+    // So every MoOS surface reads the theme the user actually chose. Pick a different
+    // palette member in MoOS Themes and this window follows it; it is no longer a white-and-
+    // blue Qt app sitting inside a mint MoOS window frame.
+    // The window paints on the VIEW set, not the Window set, and that is a composition
+    // decision rather than a technicality. Rendered side by side on MoOSUI2Light, the family
+    // gives four real value steps:
+    //
+    //     Button #B8D8D2   Window #C9E2DD   View #D8EBE7   alternate #E1F0EC
+    //
+    // A full-bleed hero needs the airiest of those or the whole screen collapses into one
+    // mint wash with nothing to separate the card from the page — which is exactly what
+    // happened the first time this was moved off `palette` and onto Window's #C9E2DD.
+    Kirigami.Theme.inherit: false
+    Kirigami.Theme.colorSet: Kirigami.Theme.View
 
-    // Accent used throughout. Turquoise (link) is the MoOS Tidal accent;
-    // fall back to highlight if a scheme leaves it unset.
-    readonly property color accent: win.cyan.a > 0 ? win.cyan : win.blue
+    readonly property color canvas:   Kirigami.Theme.backgroundColor
+    readonly property color surface:  Kirigami.Theme.alternateBackgroundColor
+    readonly property color raised:   win.elevate(Kirigami.Theme.backgroundColor, 0.06)
+    readonly property color chrome:   Kirigami.Theme.backgroundColor
+
+    // Outline is the FOREGROUND at low alpha, and not Kirigami.Theme.separatorColor.
+    //
+    // separatorColor renders #FFFFFF in every single colour set of this scheme — measured on
+    // all five (Window, View, Button, Complementary, Header). A white hairline on a mint page
+    // is not a subtle border, it is no border, and binding to it silently deleted every
+    // outline in this window. A tint of the text colour cannot have that failure mode: it is
+    // dark on a light canvas and light on a dark one, in every palette member, for free.
+    readonly property color outline:  Qt.rgba(Kirigami.Theme.textColor.r,
+                                              Kirigami.Theme.textColor.g,
+                                              Kirigami.Theme.textColor.b, 0.14)
+    readonly property color blue:     Kirigami.Theme.highlightColor
+    readonly property color cyan:     Kirigami.Theme.linkColor
+    readonly property color violet:   Kirigami.Theme.visitedLinkColor
+    readonly property color txt:      Kirigami.Theme.textColor
+    readonly property color txt2:     Kirigami.Theme.disabledTextColor
+    readonly property color onAccent: Kirigami.Theme.highlightedTextColor
+
+    // ONE accent for the whole OS, and it is the theme's highlight.
+    //
+    // This used to prefer `link` and fall back to `highlight`. Those are different colours in
+    // every MoOS palette member — in MoOSUI2Light, link is #1D6278 (a slate blue-teal) and
+    // highlight is #006D67 (the teal). Highlight is the one the rest of the system already
+    // wears: the theme picker's selection ring, its check badge, and the window decoration all
+    // draw it. An OS has one accent, so this is it, and `link` goes back to meaning links.
+    readonly property color accent: Kirigami.Theme.highlightColor
 
     // ── language (chosen on the hero, applied system-wide) ─────────────────────
     // MoOS speaks ONE language, the user's — not both stacked in every window.
