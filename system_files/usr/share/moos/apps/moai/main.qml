@@ -87,7 +87,7 @@ Kirigami.ApplicationWindow {
                                     + 0.587 * Kirigami.Theme.backgroundColor.g
                                     + 0.114 * Kirigami.Theme.backgroundColor.b) < 0.5
     readonly property color novaViolet: Kirigami.Theme.visitedLinkColor
-    readonly property color onAccent:   Kirigami.Theme.highlightedTextColor
+    readonly property color accentText:   Kirigami.Theme.highlightedTextColor
 
     // Same focus ring as Mo Store, Welcome and the Installer. One focus treatment across MoOS.
     component FocusRing: Rectangle {
@@ -1409,13 +1409,13 @@ Kirigami.ApplicationWindow {
             Kirigami.Icon {
                 visible: btn.icon !== ""
                 source: btn.icon
-                color: btn.primary || btn.danger ? root.onAccent : root.textLo
+                color: btn.primary || btn.danger ? root.accentText : root.textLo
                 Layout.preferredWidth: root.fs(15)
                 Layout.preferredHeight: root.fs(15)
             }
             Text {
                 text: btn.label
-                color: btn.primary || btn.danger ? root.onAccent : root.textHi
+                color: btn.primary || btn.danger ? root.accentText : root.textHi
                 font.family: root.uiFont
                 font.pixelSize: root.fs(12)
                 font.weight: Font.DemiBold
@@ -2344,7 +2344,7 @@ Kirigami.ApplicationWindow {
                                     Text {
                                         anchors.centerIn: parent
                                         text: root.busy ? "إيقاف | Stop" : "إرسال | Send"
-                                        color: root.onAccent
+                                        color: root.accentText
                                         font.family: root.uiFont
                                         font.pixelSize: root.fs(13)
                                         font.weight: Font.DemiBold
@@ -4623,7 +4623,7 @@ Kirigami.ApplicationWindow {
                         Text {
                             anchors.centerIn: parent
                             text: root.cfgSaving ? "جارٍ الحفظ… | Saving…" : "حفظ | Save"
-                            color: root.onAccent
+                            color: root.accentText
                             font.family: root.uiFont
                             font.pixelSize: root.fs(14)
                             font.weight: Font.DemiBold

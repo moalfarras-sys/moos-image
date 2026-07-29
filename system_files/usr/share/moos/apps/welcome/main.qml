@@ -175,7 +175,7 @@ ApplicationWindow {
     readonly property color violet:   Kirigami.Theme.visitedLinkColor
     readonly property color txt:      Kirigami.Theme.textColor
     readonly property color txt2:     Kirigami.Theme.disabledTextColor
-    readonly property color onAccent: Kirigami.Theme.highlightedTextColor
+    readonly property color accentText: Kirigami.Theme.highlightedTextColor
 
     // ONE accent for the whole OS, and it is the theme's highlight.
     //
@@ -1101,7 +1101,7 @@ ApplicationWindow {
                                     id: langLabel
                                     anchors.centerIn: parent
                                     text: langPill.modelData.label
-                                    color: langPill.on ? win.onAccent : win.txt
+                                    color: langPill.on ? win.accentText : win.txt
                                     font.family: win.uiFont
                                     font.pixelSize: win.fs(16)
                                     font.weight: langPill.on ? Font.DemiBold : Font.Normal
@@ -1157,7 +1157,7 @@ ApplicationWindow {
                             spacing: 10
                             Text {
                                 text: win.rtl ? "لنبدأ" : "Let's begin"
-                                color: win.onAccent
+                                color: win.accentText
                                 font.family: win.uiFont
                                 font.pixelSize: win.fs(17)
                                 font.weight: Font.DemiBold
@@ -1386,7 +1386,7 @@ ApplicationWindow {
                                             Glyph {
                                                 visible: lookCard.selected
                                                 anchors.centerIn: parent
-                                                name: "check"; tint: win.onAccent; stroke: 2.4
+                                                name: "check"; tint: win.accentText; stroke: 2.4
                                                 width: 14; height: 14
                                             }
                                         }
@@ -1521,7 +1521,7 @@ ApplicationWindow {
                                         Glyph {
                                             visible: dirCard.selected
                                             anchors.centerIn: parent
-                                            name: "check"; tint: win.onAccent; stroke: 2.4
+                                            name: "check"; tint: win.accentText; stroke: 2.4
                                             width: 14; height: 14
                                         }
                                     }
@@ -1668,7 +1668,7 @@ ApplicationWindow {
                                             Glyph {
                                                 visible: appCard.selected
                                                 anchors.centerIn: parent
-                                                name: "check"; tint: win.onAccent; stroke: 2.6
+                                                name: "check"; tint: win.accentText; stroke: 2.6
                                                 width: 12; height: 12
                                             }
                                         }
@@ -1895,7 +1895,7 @@ ApplicationWindow {
                             anchors.centerIn: parent
                             Text {
                                 text: win.rtl ? "متابعة" : "Continue"
-                                color: win.onAccent
+                                color: win.accentText
                                 font.family: win.uiFont; font.pixelSize: win.fs(16); font.weight: Font.DemiBold
                             }
                         }
@@ -1975,7 +1975,7 @@ ApplicationWindow {
                                 spacing: 8
                                 Text {
                                     text: win.rtl ? "افتح متجر Mo Store" : "Open Mo Store"
-                                    color: win.onAccent
+                                    color: win.accentText
                                     font.family: win.uiFont; font.pixelSize: win.fs(15); font.weight: Font.DemiBold
                                 }
                             }
@@ -2167,7 +2167,7 @@ ApplicationWindow {
                                      ? (win.rtl ? "ثبّت الآن" : "Install now")
                                      : (win.rtl ? "متابعة بلا تثبيت" : "Continue without installing"))
                                   : (win.rtl ? "التالي" : "Next")
-                            color: win.onAccent
+                            color: win.accentText
                             font.family: win.uiFont; font.pixelSize: win.fs(15); font.weight: Font.DemiBold
                         }
                     }

@@ -136,7 +136,7 @@ ApplicationWindow {
     readonly property color violet:   Kirigami.Theme.visitedLinkColor
     readonly property color txt:      Kirigami.Theme.textColor
     readonly property color txt2:     Kirigami.Theme.disabledTextColor
-    readonly property color onAccent: Kirigami.Theme.highlightedTextColor
+    readonly property color accentText: Kirigami.Theme.highlightedTextColor
     readonly property color accent: Kirigami.Theme.highlightColor  // ONE accent for the OS: the theme's highlight,
                                       // the same teal the selection ring and the window
                                       // decoration already draw. `link` means links again.
@@ -720,7 +720,7 @@ ApplicationWindow {
                                     id: langLabel
                                     anchors.centerIn: parent
                                     text: langPill.modelData.label
-                                    color: langPill.on ? win.onAccent : win.txt
+                                    color: langPill.on ? win.accentText : win.txt
                                     font.family: win.uiFont
                                     font.pixelSize: win.fs(16)
                                     font.weight: langPill.on ? Font.DemiBold : Font.Normal
@@ -778,7 +778,7 @@ ApplicationWindow {
                             spacing: 10
                             Text {
                                 text: win.tr("لنبدأ التثبيت", "Let's begin")
-                                color: win.onAccent
+                                color: win.accentText
                                 font.family: win.uiFont; font.pixelSize: win.fs(17); font.weight: Font.DemiBold
                             }
                         }
@@ -884,7 +884,7 @@ ApplicationWindow {
                             spacing: 8
                             Text {
                                 text: win.tr("التالي", "Next")
-                                color: win.onAccent
+                                color: win.accentText
                                 font.family: win.uiFont; font.pixelSize: win.fs(16); font.weight: Font.DemiBold
                             }
                         }
@@ -1299,7 +1299,7 @@ ApplicationWindow {
                                     Glyph {
                                         visible: methodCard.selected
                                         anchors.centerIn: parent
-                                        name: "check"; tint: win.onAccent; stroke: 2.4; width: 14; height: 14
+                                        name: "check"; tint: win.accentText; stroke: 2.4; width: 14; height: 14
                                     }
                                 }
                             }
@@ -1838,7 +1838,7 @@ ApplicationWindow {
                             text: holdBtn.hold > 0.02
                                   ? win.tr("استمر بالضغط…", "Keep holding…")
                                   : win.tr("اضغط مطوّلاً للمسح والتثبيت", "Press and hold to erase & install")
-                            color: holdBtn.hold > 0.5 ? win.onAccent : win.danger
+                            color: holdBtn.hold > 0.5 ? win.accentText : win.danger
                             font.family: win.uiFont; font.pixelSize: win.fs(15); font.weight: Font.DemiBold
                         }
                         Timer {
@@ -2048,10 +2048,10 @@ ApplicationWindow {
                                     id: retryRow
                                     anchors.centerIn: parent
                                     spacing: 8
-                                    Glyph { name: "refresh"; tint: win.onAccent; width: 16; height: 16 }
+                                    Glyph { name: "refresh"; tint: win.accentText; width: 16; height: 16 }
                                     Text {
                                         text: win.tr("أعد المحاولة", "Retry")
-                                        color: win.onAccent
+                                        color: win.accentText
                                         font.family: win.uiFont; font.pixelSize: win.fs(15); font.weight: Font.DemiBold
                                     }
                                 }
@@ -2145,10 +2145,10 @@ ApplicationWindow {
                                 id: rebootRow
                                 anchors.centerIn: parent
                                 spacing: 8
-                                Glyph { name: "power"; tint: win.onAccent; width: 17; height: 17 }
+                                Glyph { name: "power"; tint: win.accentText; width: 17; height: 17 }
                                 Text {
                                     text: win.tr("أعد التشغيل الآن", "Restart now")
-                                    color: win.onAccent
+                                    color: win.accentText
                                     font.family: win.uiFont; font.pixelSize: win.fs(15); font.weight: Font.DemiBold
                                 }
                             }
@@ -2326,7 +2326,7 @@ ApplicationWindow {
                         spacing: 8
                         Text {
                             text: win.tr("التالي", "Next")
-                            color: win.onAccent
+                            color: win.accentText
                             font.family: win.uiFont; font.pixelSize: win.fs(15); font.weight: Font.DemiBold
                         }
                     }

@@ -107,7 +107,7 @@ ApplicationWindow {
     readonly property color violet:   Kirigami.Theme.visitedLinkColor
     readonly property color txt:      Kirigami.Theme.textColor
     readonly property color txt2:     Kirigami.Theme.disabledTextColor
-    readonly property color onAccent: Kirigami.Theme.highlightedTextColor
+    readonly property color accentText: Kirigami.Theme.highlightedTextColor
     readonly property color accent:   Kirigami.Theme.highlightColor  // ONE accent for the OS: the theme's highlight,
                                       // the same teal the selection ring and the window
                                       // decoration already draw. `link` means links again.
@@ -1119,14 +1119,14 @@ ApplicationWindow {
             Glyph {
                 visible: action.glyphName !== ""
                 name: action.glyphName
-                tint: action.primary ? win.onAccent
+                tint: action.primary ? win.accentText
                                      : action.destructive ? win.violet : win.txt
                 Layout.preferredWidth: win.fs(16)
                 Layout.preferredHeight: win.fs(16)
             }
             Text {
                 text: action.label
-                color: action.primary ? win.onAccent
+                color: action.primary ? win.accentText
                                       : action.destructive ? win.violet : win.txt
                 font.family: win.uiFont
                 font.pixelSize: win.fs(13)
@@ -2054,13 +2054,13 @@ ApplicationWindow {
                                             spacing: 6
                                             Glyph {
                                                 name: categoryPill.modelData.glyph
-                                                tint: categoryPill.active ? win.onAccent : win.txt2
+                                                tint: categoryPill.active ? win.accentText : win.txt2
                                                 Layout.preferredWidth: win.fs(14)
                                                 Layout.preferredHeight: win.fs(14)
                                             }
                                             Text {
                                                 text: win.rtl ? categoryPill.modelData.ar : categoryPill.modelData.en
-                                                color: categoryPill.active ? win.onAccent : win.txt
+                                                color: categoryPill.active ? win.accentText : win.txt
                                                 font.family: win.uiFont
                                                 font.pixelSize: win.fs(11)
                                                 font.bold: categoryPill.active
@@ -2760,7 +2760,7 @@ ApplicationWindow {
                 Text {
                     anchors.centerIn: parent
                     text: win.pickCount
-                    color: win.onAccent
+                    color: win.accentText
                     font.family: win.uiFont
                     font.pixelSize: win.fs(13)
                     font.bold: true

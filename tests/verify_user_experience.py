@@ -416,7 +416,13 @@ for token, role in {
     "novaBlue": "Kirigami.Theme.highlightColor",
     "novaCyan": "Kirigami.Theme.linkColor",
     "novaViolet": "Kirigami.Theme.visitedLinkColor",
-    "onAccent": "Kirigami.Theme.highlightedTextColor",
+    # accentText was born "onAccent" — but a property named on<Capitalized> next to a sibling
+    # property of the matching name is signal-handler syntax to QML: the binding is swallowed
+    # as a handler body and the color property silently stays at its default, #000000. Three
+    # apps rendered pure-black labels on the teal accent while this gate was green, because
+    # the gate checked the binding EXISTED, and it did — as a handler. Measured before/after:
+    # the Welcome CTA label went (0,0,0) -> (225,240,236) on rename alone.
+    "accentText": "Kirigami.Theme.highlightedTextColor",
 }.items():
     require(re.search(
         rf"readonly\s+property\s+color\s+{token}\s*:\s*{re.escape(role)}\b",
@@ -467,7 +473,7 @@ for surface_label, palette_code in (("Mo Store", store_palette_code),
         "blue": "Kirigami.Theme.highlightColor",
         "cyan": "Kirigami.Theme.linkColor",
         "violet": "Kirigami.Theme.visitedLinkColor",
-        "onAccent": "Kirigami.Theme.highlightedTextColor",
+        "accentText": "Kirigami.Theme.highlightedTextColor",  # renamed from onAccent — see above
     }.items():
         require(re.search(
             rf"readonly\s+property\s+color\s+{token}\s*:\s*{re.escape(role)}\b",
@@ -485,6 +491,20 @@ for surface_label, palette_code in (("Mo Store", store_palette_code),
     require("win.palette." not in palette_code,
             f"{surface_label} still reads win.palette.* somewhere — a half-migrated surface mixes "
             f"the MoOS theme with Qt defaults in one window")
+
+# The trap must never come back under its old name. `onAccent` beside a sibling `accent` is
+# signal-handler syntax to QML, not a property binding: with a script expression the binding is
+# swallowed as a handler body (colour silently stays #000000); with a literal it is a compile
+# error. Ban the name outright in every app, declarations and references alike.
+for guard_label, guard_text in (
+        ("Mo AI", moai_qml),
+        ("MoOS Welcome", welcome_qml),
+        ("Mo Store", store_qml),
+        ("MoOS Installer", read("system_files/usr/share/moos/apps/installer/main.qml"))):
+    require("onAccent" not in guard_text,
+            f"{guard_label} says `onAccent` somewhere — that name next to a sibling `accent` is a "
+            f"signal handler, not a binding, and the colour silently stays #000000. The token is "
+            f"`accentText`.")
 
 legacy_nova_surfaces = {
     "#0b1220", "#111a2e", "#16233a", "#1a2740", "#263a5c", "#263852",
