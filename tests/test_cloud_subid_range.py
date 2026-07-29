@@ -22,11 +22,18 @@ Two failures, both silent, both live in the tree before this landed:
   2. A SHARED RANGE. "Just make it 100000-165535" fixes the inversion and introduces
      a worse bug: every account gets the SAME block, so two developers' containers
      map onto the same host UIDs and the isolation the ranges exist to provide is
-     gone. The range must be keyed off something unique per account (the uid).
+     gone.
 
-So: assert the allocation is uid-derived (unique) and that no literal FIRST-LAST pair
-in the script is inverted. Per AGENTS.md the check reads the CODE with comments
-stripped, so this docstring's own `100000-65535` example cannot satisfy or trip it.
+  3. AN INVENTED GRID. Deriving a unique block from the uid — 100000 + (uid-1000)*65536
+     — is valid and unique and still wrong: it ignores the host's policy. Fedora 44
+     sets SUB_UID_MIN=524288, so that formula allocates BELOW the configured floor, on
+     a scale the system does not use. Measured live: useradd had given the account
+     524288:65536 while the formula said 100000.
+
+So: assert the allocation reads the host's own policy (SUB_UID_MIN/SUB_UID_COUNT) and
+the blocks already in /etc/subuid — which is how useradd picks one — and that no literal
+FIRST-LAST pair in the script is inverted. Per AGENTS.md the check reads the CODE with
+comments stripped, so this docstring's own examples cannot satisfy or trip it.
 """
 
 from pathlib import Path
@@ -68,18 +75,33 @@ def main() -> int:
                 f"        usermod rejects it, and the || die aborts `add` after the account\n"
                 f"        already exists — a half-provisioned tenant with a misleading error.")
 
-    # 2. The allocation must be uid-derived, or two tenants share a range and lose
-    #    isolation. The honest signal is arithmetic on the account's uid.
+    # 2. The allocation must sit on the SYSTEM'S grid and never overlap an existing tenant.
+    #
+    #    A uid-derived formula was tried and was wrong for a subtler reason than the inverted
+    #    range: it invented a grid. Fedora 44 sets SUB_UID_MIN=524288, and the formula started
+    #    at 100000 — below the configured floor, on a scale the host does not use (measured
+    #    live: useradd had given the account 524288:65536 while the formula said 100000).
+    #    The correct source of truth is login.defs plus what /etc/subuid already contains,
+    #    which is exactly how useradd itself picks a block.
     if "--add-subuids" in code:
-        if not re.search(r"id -u\b", code):
+        if not re.search(r"SUB_UID_MIN", code):
             errors.append(
-                "the subuid range is not derived from the account's uid (no `id -u`).\n"
-                "        A fixed range hands every developer the same block, so their\n"
-                "        containers map onto the same host UIDs and rootless isolation is lost.")
-        if not re.search(r"\buid\b.*\*\s*65536|65536\s*\*.*\buid\b|\(uid\b", code):
+                "the allocation ignores SUB_UID_MIN from /etc/login.defs — it invents a grid.\n"
+                "        On Fedora 44 that floor is 524288, so a hardcoded 100000 allocates\n"
+                "        below the configured range and does not match what useradd hands out.")
+        if not re.search(r"SUB_UID_COUNT", code):
             errors.append(
-                "the subuid range does not scale by a per-uid stride (expected a 65536-wide\n"
-                "        block keyed off the uid), so consecutive accounts may overlap.")
+                "the allocation ignores SUB_UID_COUNT — the block width must come from the\n"
+                "        host's own policy, not a literal.")
+        if not re.search(r"/etc/subuid", code):
+            errors.append(
+                "the allocation never reads /etc/subuid, so it cannot know which blocks are\n"
+                "        already taken — overlapping two tenants' ranges maps their containers\n"
+                "        onto the same host UIDs and destroys the isolation these ranges exist for.")
+        if re.search(r"\b100000\s*\+", code):
+            errors.append(
+                "a hardcoded 100000 base is back. Read SUB_UID_MIN instead; the literal is\n"
+                "        below Fedora 44's floor and on the wrong grid entirely.")
 
     if errors:
         print("GATE FAIL: moos-cloud-dev would mis-allocate subordinate IDs.\n")
@@ -87,7 +109,8 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
-    print("OK: moos-cloud-dev allocates a valid, uid-derived (unique) subuid/subgid range.")
+    print("OK: moos-cloud-dev allocates on the system grid (SUB_UID_MIN/COUNT), past every "
+          "block already in /etc/subuid.")
     return 0
 
 

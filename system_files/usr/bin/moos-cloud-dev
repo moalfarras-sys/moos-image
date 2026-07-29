@@ -63,33 +63,56 @@ valid_name() {
 # names nothing about the real cause. usermod assigns the next free block; doing
 # it explicitly (and idempotently) is what makes adding the tenth developer as
 # boring as the first.
+# The next free subordinate-id block, on the SYSTEM'S OWN GRID.
+#
+# Two wrong answers came before this one, and both are instructive:
+#
+#   `100000-65535`            an inverted range (start > end). usermod rejects it, and the
+#                             `|| die` aborted `add` after the account already existed.
+#   `100000 + (uid-1000)*N`   valid and unique, but invented a grid. Fedora 44 sets
+#                             SUB_UID_MIN=524288, so this allocated BELOW the configured
+#                             floor, on a scale the system does not use — measured live:
+#                             useradd had given this account 524288:65536 while the formula
+#                             said 100000. Deriving identity from the uid looked principled
+#                             and simply ignored the host's policy.
+#
+# The right answer is the one useradd itself uses: read the policy, scan what is already
+# allocated, take the next free block. That cannot collide with an existing tenant (which is
+# what would defeat the isolation these ranges exist to provide) and it honours whatever the
+# admin configured, on any host.
+next_free_subid_block() {
+    local file="$1" min count highest
+    # Defaults match shadow-utils' own; login.defs wins where it is set.
+    min="$(awk '/^SUB_UID_MIN/{print $2}' /etc/login.defs 2>/dev/null | tail -1)"
+    count="$(awk '/^SUB_UID_COUNT/{print $2}' /etc/login.defs 2>/dev/null | tail -1)"
+    case "$min" in ''|*[!0-9]*) min=524288 ;; esac
+    case "$count" in ''|*[!0-9]*|0) count=65536 ;; esac
+
+    # The end of the highest block already handed out in this file, if any.
+    highest="$(awk -F: 'NF>=3 && $2 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ { e = $2 + $3; if (e > m) m = e } END { print m+0 }' \
+        "$file" 2>/dev/null)"
+    case "$highest" in ''|*[!0-9]*) highest=0 ;; esac
+
+    if [ "$highest" -ge "$min" ]; then
+        printf '%s %s' "$highest" "$count"
+    else
+        printf '%s %s' "$min" "$count"
+    fi
+}
+
 ensure_subids() {
-    local user="$1" uid start end
-    uid="$(id -u "$user" 2>/dev/null)" \
+    local user="$1" start count
+    id -u "$user" >/dev/null 2>&1 \
         || die "cannot read the uid of ${user} — the account was not created"
 
-    # Each account gets its OWN 65536-wide block, keyed off the uid so two
-    # developers never share one. That last part matters: overlapping subuid
-    # ranges map two users' containers onto the same host uids, which quietly
-    # defeats the isolation the ranges exist to provide. uid 1000 -> 100000,
-    # 1001 -> 165536, and so on. System accounts (uid < 1000) never take this
-    # path — only useradd'd dev accounts reach here.
-    #
-    # The previous code wrote `100000-65535`, an inverted range (start > end)
-    # that usermod rejects outright ("invalid subordinate uid range"). It
-    # survived only because Fedora's useradd usually pre-allocates a valid
-    # range, so the `grep` guard skipped it; on the account-update path, or a
-    # host with SUB_UID_COUNT unset, it fired and aborted `add` with a message
-    # blaming rootless podman, leaving the account half-provisioned.
-    start=$(( 100000 + (uid - 1000) * 65536 ))
-    end=$(( start + 65535 ))
-
     if ! grep -q "^${user}:" /etc/subuid 2>/dev/null; then
-        usermod --add-subuids "${start}-${end}" "$user" 2>/dev/null \
+        read -r start count <<<"$(next_free_subid_block /etc/subuid)"
+        usermod --add-subuids "${start}-$(( start + count - 1 ))" "$user" 2>/dev/null \
             || die "could not allocate a subuid range for ${user} — rootless podman would fail"
     fi
     if ! grep -q "^${user}:" /etc/subgid 2>/dev/null; then
-        usermod --add-subgids "${start}-${end}" "$user" 2>/dev/null \
+        read -r start count <<<"$(next_free_subid_block /etc/subgid)"
+        usermod --add-subgids "${start}-$(( start + count - 1 ))" "$user" 2>/dev/null \
             || die "could not allocate a subgid range for ${user} — rootless podman would fail"
     fi
 }
