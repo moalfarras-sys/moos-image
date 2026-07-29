@@ -156,6 +156,10 @@ jobs:
           # the base ports 8080/8079/8077, or the 11th cloud tenant reaches uid 1000's key-holding
           # gateway. The old guard exited without printing for uid>=1010, which fell back to the base.
           python3 tests/test_moai_ports_fail_closed.py
+          # moai-openclaw-bootstrap (moai-agent-api's ExecStartPre) rewrote+revalidated an unchanged
+          # config on EVERY login — a ~1.7s / ~428 MB Node cold start for no net change. This asserts
+          # a no-op config skips the save while a drifted config still self-heals.
+          python3 tests/test_openclaw_bootstrap_noop.py
           python3 tests/test_mo_remote_codec_resend.py
           # The H.264->JPEG fallback latch was dead code: `if not pick_h264()` tests a 2-tuple that is
           # always truthy, and the mid-stream blacklist keyed the instance name 'enc' and called

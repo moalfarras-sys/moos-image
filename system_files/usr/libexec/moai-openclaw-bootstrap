@@ -9,6 +9,7 @@ with private directory/file modes because it may later contain channel tokens.
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import subprocess
@@ -269,7 +270,17 @@ def main() -> int:
         return 0
     try:
         ensure_podman_docker_shim()
-        atomic_save(merge_baseline(load_existing()))
+        # merge_baseline only fills MISSING fields, so on an already-configured machine the
+        # merged config is byte-identical to what is on disk. atomic_save is expensive — it
+        # writes a temp file, runs `openclaw config validate` (a full ~1.7s / ~428 MB Node
+        # cold start), fsyncs twice and renames — and it ran unconditionally on EVERY login,
+        # rewriting ~/.openclaw/openclaw.json for no net change and delaying the Agent API's
+        # readiness (this is moai-agent-api's ExecStartPre). Skip it when nothing changed;
+        # healing still fires because a drifted config gives merged != before.
+        before = load_existing()
+        merged = merge_baseline(copy.deepcopy(before))
+        if not (CONFIG.is_file() and merged == before):
+            atomic_save(merged)
     except (OSError, subprocess.SubprocessError, ValueError) as exc:
         print(f"moai-openclaw-bootstrap: {exc}", file=sys.stderr)
         return 1
