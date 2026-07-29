@@ -4476,7 +4476,14 @@ Kirigami.ApplicationWindow {
                                 }
 
                                 Repeater {
-                                    model: root.diagResult.fixes || []
+                                    // defaultRepairs is the documented fallback ("always shown,
+                                    // and the fallback before a diagnose run has returned") — but
+                                    // nothing ever rendered it, so it was dead code and the safe
+                                    // repair menu simply did not exist until a diagnose returned
+                                    // fixes. Use it whenever the backend has none, which is also
+                                    // what makes the read-only diagnostics reachable.
+                                    model: (root.diagResult.fixes && root.diagResult.fixes.length)
+                                           ? root.diagResult.fixes : root.defaultRepairs
                                     delegate: Rectangle {
                                         required property var modelData
                                         Layout.fillWidth: true
@@ -4492,7 +4499,11 @@ Kirigami.ApplicationWindow {
                                             ColumnLayout {
                                                 spacing: 1
                                                 Text {
-                                                    text: modelData.title || modelData.id
+                                                    // Two shapes reach this delegate: the backend's
+                                                    // fixes carry `title`, defaultRepairs carries
+                                                    // `label`. Accept both, or the fallback list
+                                                    // renders bare ids at the user.
+                                                    text: modelData.title || modelData.label || modelData.id
                                                     color: root.palette.text
                                                     font.family: root.uiFont
                                                     font.pixelSize: 12
@@ -4509,7 +4520,10 @@ Kirigami.ApplicationWindow {
                                             }
                                             Item { Layout.fillWidth: true }
                                             MoButton {
-                                                label: "أصلح | Fix"
+                                                // A read-only entry (diagnose-services, net-doctor,
+                                                // gpu-report…) shows information; calling its button
+                                                // "Fix" promises a repair it does not perform.
+                                                label: modelData.read ? "افحص | Check" : "أصلح | Fix"
                                                 onClicked: Qt.openUrlExternally("moos://do/" + modelData.id)
                                             }
                                         }

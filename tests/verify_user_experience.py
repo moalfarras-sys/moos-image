@@ -131,6 +131,20 @@ require('remote/restart) remote_ctl try-restart' in router_remote,
 require("do_remote_anywhere()" in do_remote and 'remote-anywhere) do_remote_anywhere' in do_remote,
         "moai-do must DEFINE and DISPATCH do_remote_anywhere — the Tailscale "
         "serve path that makes Mo PC Remote reachable from mobile data")
+
+# THE RESCUE MUST USE THE RIGHT COMMAND. `moai-do rollback` and the Recovery app must run
+# the SAME thing, and on a bootc system that is `bootc rollback`, not `rpm-ostree rollback`.
+# They are not interchangeable: rpm-ostree reverts to "the previously booted tree", while
+# bootc reorders the boot entries and explicitly discards a staged (queued) upgrade. With an
+# update already staged by uupd or `moai-do update` — the normal state of this machine
+# overnight — the wrong one can leave the deployment unchanged while the action still prints
+# that the next boot will use the previous version. A rescue that lies is worse than no rescue.
+require("run_priv bootc rollback" in do_remote,
+        "moai-do rollback must run `bootc rollback` (what the Recovery app runs), not "
+        "`rpm-ostree rollback` — with a staged update the two do different things and the "
+        "rescue can silently no-op")
+require("bootc" in code(read("system_files/usr/bin/moos-rollback")),
+        "the Recovery app must drive bootc rollback, so the GUI and the assistant agree")
 require("tailscale serve" in do_remote,
         "do_remote_anywhere must run `tailscale serve` to give the machine a "
         "real HTTPS name on the tailnet (LAN IP over http dies on mobile data)")
@@ -810,6 +824,26 @@ require("صحة النظام" in moai_qml
         and 'Qt.openUrlExternally("moos://do/" + modelData.id)' in moai_qml,
         "Mo AI's Diagnose panel must offer repairs as moos://do/<id> (moai-do confirm + Polkit), "
         "never a free-form command — the whole safety contract")
+
+# A LIST NOBODY RENDERS IS A FEATURE NOBODY HAS. defaultRepairs describes itself as "always
+# shown, and the fallback before a diagnose run has returned", but it was declared and never
+# referenced again — so the safe repair menu did not exist until the backend returned fixes,
+# and anything added to the list (the read-only diagnostics among them) reached no user. The
+# Repeater must fall back to it, and the delegate must render `label` as well as `title`, or
+# the fallback entries appear to the user as bare ids.
+# Asserted against COMMENT-STRIPPED code: this file's own comments name defaultRepairs while
+# explaining the fix, and a raw-text count is satisfied by that prose while the list is dead —
+# the precise trap this repo keeps re-learning.
+_moai_code = code(moai_qml, "slash")
+require(_moai_code.count("defaultRepairs") >= 2,
+        "Mo AI declares defaultRepairs but never renders it — the safe repair menu is dead "
+        "code, and every action added to it is invisible to the user")
+# The exact three-way expression, not merely the word `label`: four unrelated delegates in this
+# file already use modelData.label, so a looser check passes while the REPAIR delegate has
+# regressed to title-or-id and renders the fallback entries as bare action ids.
+require(re.search(r"modelData\.title\s*\|\|\s*modelData\.label\s*\|\|\s*modelData\.id", _moai_code),
+        "the repair delegate must render `title || label || id` — the backend's fixes carry "
+        "`title` and defaultRepairs carries `label`, so dropping either renders bare action ids")
 require("recommended" in moai_qml and "hit.note" in moai_qml,
         "Mo AI must render the pick and the warning (recommended / note) on each search hit — "
         "ranking them in the backend and not showing them changes nothing for the user")
