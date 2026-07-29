@@ -3,11 +3,11 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Mo Remote Personal — mobile PWA controller",
+  "description": "Mo Remote Personal \u2014 mobile PWA controller",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --experimental-strip-types tests/coordinates.test.ts && node --experimental-strip-types tests/ui2-theme.test.ts",
+    "test": "node --experimental-strip-types tests/coordinates.test.ts && node --experimental-strip-types tests/ui2-theme.test.ts && node --experimental-strip-types tests/quality.test.ts",
     "preview": "vite preview",
     "gen-icons": "node scripts/gen-icons.mjs"
   },

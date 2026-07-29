@@ -8,6 +8,7 @@ import {
   getClipboard, setClipboard, setClipboardImage, listFiles, fileDownloadUrl, uploadFile, powerAction,
   type ClipResult, type FileListing, type FileEntry, type PowerAction,
 } from "../lib/api";
+import { pickStartPreset, readDeviceHints, describeHints } from "../lib/quality";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
   IconAltTab, IconActual, IconChevronDown, IconClipboard, IconCopy, IconEnter, IconEsc, IconFit,
@@ -205,7 +206,11 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
   const [status, setStatus] = useState<Conn>("connecting");
   const [mode, setMode] = usePref<GestureMode>("mode", defaultMode());
   const [viewMode, setViewMode] = useState<ViewMode>("fit");
-  const [presetIdx, setPresetIdx] = useState(1);
+  // What this device says about itself, read once. Used for the OPENING rung only — the RTT
+  // ladder below owns every step after that and can undo an optimistic guess within ~4s.
+  const deviceHints = useRef(readDeviceHints(
+    Math.round(Math.max(screen.width, screen.height) * (window.devicePixelRatio || 1)))).current;
+  const [presetIdx, setPresetIdx] = useState(() => pickStartPreset(deviceHints));
   // Auto quality ON by default. The complaint that keeps coming back is "the remote is slow",
   // and the usual cause is a fixed preset that is too heavy for the link the phone is actually
   // on — a DERP relay or mobile data, not the home LAN it was tuned for. Starting in auto lets
@@ -1960,6 +1965,7 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
               <div>
                 <div className="kv"><span>App version</span><b>{BUILD}</b></div>
                 <div className="kv"><span>Connection</span><b>{status}</b></div>
+                <div className="kv"><span>This device</span><b>{describeHints(deviceHints)}</b></div>
                 <div className="kv"><span>Video</span>
                   <b>{status === "live"
                        ? `${codec === "h264" ? "H.264" : "JPEG"} · ${fps} fps · ${latency} ms`
