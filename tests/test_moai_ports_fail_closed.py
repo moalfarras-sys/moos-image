@@ -60,10 +60,36 @@ def main() -> int:
     if p1000 != BASE:
         errors.append(f"uid 1000 must keep the base ports {BASE}, got {p1000}")
 
-    # Every OTHER account must get three valid, non-base, distinct ports. Include uids
-    # in the linear band (1001, 1009) and — the regression — the high band that used to
-    # fail open (1010, 1100, 5000).
-    for uid in (1001, 1009, 1010, 1100, 5000):
+    # Every OTHER account must get three valid, non-base, distinct ports.
+    #
+    # EXHAUSTIVE, NOT SAMPLED. The first version of this gate checked uid 1001, 1009,
+    # 1010, 1100 and 5000 — and every one of them passed while the generator produced
+    # port 67980 (an impossible port) for uid 1399, because none of those samples landed
+    # near the top of the fold. Sampling is what let that through, so replicate the
+    # generator's arithmetic in Python and prove EVERY uid in the plausible range, then
+    # cross-check a spread of them against the real script.
+    def expected_offset(uid: int) -> int:
+        offset = (uid - 1000) * 100
+        return offset if offset <= 900 else 20000 + ((uid - 1000) % 350) * 100
+
+    for uid in range(1001, 6001):          # every account a real machine could have
+        offset = expected_offset(uid)
+        for name, base in BASE.items():
+            value = base + offset
+            if not (1024 < value < 65536):
+                errors.append(f"uid {uid} would get {name}={value}, outside the usable port range "
+                              f"(1024-65535) — that account's Mo AI could not bind at all")
+                break
+            if value == BASE[name]:
+                errors.append(f"uid {uid} resolves {name}={value}, uid 1000's base port — fail-OPEN")
+                break
+        else:
+            continue
+        break                              # one arithmetic failure is enough; report and stop
+
+    # Now confirm the real script agrees with that arithmetic at a spread of uids,
+    # including both ends of the fold (1399 is the one the first version got wrong).
+    for uid in (1001, 1009, 1010, 1100, 1349, 1350, 1399, 1400, 2000, 5000):
         ports = run_generator(uid)
         if set(ports) != set(BASE):
             errors.append(f"uid {uid} did not emit all three MOAI_*_PORT vars (got {ports}) — "
@@ -75,6 +101,9 @@ def main() -> int:
                               f"fail-OPEN: this account would reach uid 1000's service")
             if not (1024 < value < 65536):
                 errors.append(f"uid {uid} {name}={value} is outside the usable port range")
+            if value != BASE[name] + expected_offset(uid):
+                errors.append(f"uid {uid} {name}={value} does not match the documented formula "
+                              f"(expected {BASE[name] + expected_offset(uid)})")
         if len(set(ports.values())) != 3:
             errors.append(f"uid {uid} ports collide with each other: {ports}")
 

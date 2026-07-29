@@ -78,10 +78,22 @@ offset=$(( (uid - 1000) * 100 ))
 #
 # Fail CLOSED instead: fold the high end into a private, uid-keyed band that stays
 # in valid port space and can NEVER equal uid 1000's base. A collision in this band
-# (two accounts 400 apart sharing a slot) is at worst a user's OWN service failing
-# to bind — visible and safe — never another tenant's front door.
+# (two accounts one full cycle apart sharing a slot) is at worst a user's OWN service
+# failing to bind — visible and safe — never another tenant's front door.
+#
+# THE MODULUS IS DERIVED, NOT PICKED. The highest base is 8080, and a port must be
+# <= 65535, so the offset may not exceed 65535 - 8080 = 57455. Starting the band at
+# 20000 leaves 37455, i.e. 374 slots of 100. Round DOWN to 350 for headroom:
+#
+#     max port = 8080 + 20000 + (350 - 1) * 100 = 62980   (<= 65535, with room)
+#     min port = 8077 + 20000                   = 28077   (never a base port)
+#
+# A modulus of 400 was tried first and was WRONG: uid 1399 produced
+# 8080 + 20000 + 399*100 = 67980, an impossible port, and that account's Mo AI
+# would fail to bind at all. The gate below now proves the whole uid range, not
+# samples, precisely because sampling is what let that through.
 if [ "$offset" -gt 900 ]; then
-    offset=$(( 20000 + ((uid - 1000) % 400) * 100 ))
+    offset=$(( 20000 + ((uid - 1000) % 350) * 100 ))
 fi
 
 printf 'MOAI_GATEWAY_PORT=%d\n' $(( 8080 + offset ))
