@@ -24,10 +24,19 @@ export default defineConfig({
       // panel started handing out the Tailscale HTTPS name, the only address anyone ever had was
       // a LAN IP over plain http. So the install prompt could not appear, on any phone, ever.
       //
-      // orientation: a remote desktop is a landscape object. Fitted into a portrait phone it
-      // becomes a stamp between two black bars — most of the display spent on nothing. Asking for
-      // landscape costs nothing where it is ignored (iOS ignores it) and is exactly right
-      // everywhere it is honoured.
+      // orientation: "any" — NEVER force the phone to rotate.
+      //
+      // This used to say "landscape", which is the DECLARATIVE twin of
+      // screen.orientation.lock("landscape"): Android/Chrome applies it to every launch of
+      // the INSTALLED app. Since this same app tells the user to "Add to Home Screen", that
+      // is the common case — so the phone spun sideways on its own every time the remote was
+      // opened. That is the "الشاشة عم تعمل عرضي على الجوال" the owner reported, and removing
+      // the imperative lock in RemoteScreen.tsx alone did not fix it; both had to go.
+      //
+      // The picture now follows the phone (see shouldRotate), and the user turns the phone,
+      // or picks the Sideways lock, when THEY want the wide view. "any" is stated explicitly
+      // rather than omitted so the intent is on the record and cannot be "restored" by
+      // someone reading the old rationale.
       manifest: {
         name: "Mo PC Remote",
         short_name: "Mo Remote",
@@ -36,7 +45,7 @@ export default defineConfig({
         background_color: "#14191c",
         display: "standalone",
         display_override: ["fullscreen", "standalone"],
-        orientation: "landscape",
+        orientation: "any",
         start_url: "/",
         scope: "/",
         icons: [

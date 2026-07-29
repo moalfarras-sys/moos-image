@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {readFileSync} from "node:fs";
+import {readFileSync, existsSync} from "node:fs";
 import {join} from "node:path";
 import {normalizeContentPoint as n} from "../src/lib/coordinates.ts";
 assert.deepEqual(n(200,400,{left:0,top:300,width:400,height:200}),{x:.5,y:.5}); // portrait letterbox
@@ -109,6 +109,24 @@ const remoteCode = remote.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/
 //    (the comment explaining its removal may still name it, hence the comment-stripped check).
 assert.ok(!/orientation[\s\S]{0,40}\.lock\?\.\("landscape"\)/.test(remoteCode),
   "fullscreen must not screen.orientation.lock('landscape') — the phone must never be force-rotated");
+
+// 1b. THE OTHER DOOR. The PWA manifest's `orientation` member is the DECLARATIVE twin of that
+//     lock: Android/Chrome applies it to every launch of the INSTALLED app, and this app tells the
+//     user to "Add to Home Screen", so it is the common case. Removing only the imperative call
+//     left the phone still spinning sideways — the originally reported bug. Both doors stay shut,
+//     in the config AND in the built manifest that actually ships.
+const viteCfg = readFileSync(join(import.meta.dirname, "..", "vite.config.ts"), "utf8");
+const viteCode = viteCfg.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+assert.ok(!/orientation:\s*["'](landscape|portrait)/.test(viteCode),
+  "the PWA manifest must not pin `orientation` to landscape/portrait — that force-rotates the "
+  + "installed app on every launch. Use \"any\".");
+const shippedManifest = join(import.meta.dirname, "..", "..", "agent", "wwwroot", "manifest.webmanifest");
+if (existsSync(shippedManifest)) {
+  const m = JSON.parse(readFileSync(shippedManifest, "utf8"));
+  assert.ok(!m.orientation || m.orientation === "any",
+    `the SHIPPED manifest pins orientation="${m.orientation}" — rebuild the controller; the image `
+    + "serves what is committed, so a stale manifest keeps force-rotating the phone");
+}
 
 // 2. Auto (the default) must FOLLOW THE PHONE, not auto-rotate the picture: no fill heuristic. The
 //    old `turned > upright` rotate-to-fill is what made a portrait phone show a sideways desktop.

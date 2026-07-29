@@ -1670,9 +1670,25 @@ manifest = read("moremote/agent/wwwroot/manifest.webmanifest")
 require("No video" in bundle,
         "the shipped phone UI is stale: controller/src has strings the built bundle does not. "
         "Rebuild moremote/controller and commit moremote/agent/wwwroot")
-require('"orientation":"landscape"' in manifest.replace(" ", ""),
-        "the shipped web app manifest is stale, or no longer asks for landscape — a desktop "
-        "fitted into a portrait phone is a stamp between two black bars")
+# THE MANIFEST MUST NOT FORCE THE PHONE TO ROTATE.
+#
+# This gate used to REQUIRE orientation:"landscape", on the reasoning that a desktop fitted
+# into a portrait phone is a stamp between two black bars. That reasoning is about the
+# PICTURE, and the manifest does not control the picture — it controls the PHONE. Android
+# and Chrome apply the manifest's orientation to every launch of the INSTALLED app, and this
+# app actively tells the user to "Add to Home Screen", so the installed case is the common
+# one. The result was a phone that spun sideways on its own every time the remote opened,
+# which the owner reported twice and explicitly asked to control themselves.
+#
+# So the gate is inverted, not deleted: the requirement is now that the manifest never pins
+# an orientation. The picture problem it was really about is solved where it belongs — in
+# the app, by the Sideways lock the user chooses (see shouldRotate in RemoteScreen.tsx).
+_manifest_orientation = re.search(r'"orientation"\s*:\s*"([a-z-]+)"', manifest)
+require(_manifest_orientation is None or _manifest_orientation.group(1) == "any",
+        "the shipped web app manifest pins orientation="
+        f"{_manifest_orientation.group(1) if _manifest_orientation else '?'} — that force-rotates "
+        "the phone on every launch of the installed app, which is the bug the owner reported. "
+        "Use \"any\" and let the user choose with the Sideways lock.")
 
 control = read("system_files/usr/bin/moai-control")
 gateway = read("system_files/usr/bin/moai-gateway")

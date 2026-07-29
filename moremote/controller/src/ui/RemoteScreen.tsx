@@ -1750,10 +1750,10 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
             <button className={orient === "off" ? "on" : ""} onClick={() => chooseOrient("off")}>🔒 Upright</button>
           </div>
           <p className="hint">
-            Auto turns the desktop a quarter turn when you hold the phone upright, so it fills the
-            screen instead of using a quarter of it — tilt the phone right to read it. The two locks
-            hold that choice: it will not turn on its own, not when you open the keyboard and not
-            when the address bar slides.
+            Fit phone follows your phone: the desktop stays upright and fits however you hold it.
+            Nothing rotates on its own. Sideways turns the desktop a quarter turn so it fills an
+            upright phone — tilt your head, not the phone. Upright never turns it. Whichever you
+            pick is held: not when you open the keyboard, and not when the address bar slides.
           </p>
           {monitors.length > 1 && (
             <>
