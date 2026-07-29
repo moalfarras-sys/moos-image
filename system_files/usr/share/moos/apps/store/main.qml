@@ -35,6 +35,26 @@ ApplicationWindow {
     color: win.canvas
 
     // Semantic colours are owned by the active MoOS/KDE colour scheme.
+    // TYPE SCALES WITH THE USER'S FONT SIZE, and until now it did not.
+    //
+    // 294 text items across the MoOS apps carried a hardcoded `font.pixelSize`, so the size
+    // slider in System Settings > Fonts moved every application on the machine except this
+    // operating system's own. That is an accessibility defect, not a style one: it is the
+    // control someone with low vision reaches for first.
+    //
+    // The reference is POINT size, not pixels. MoOS ships `IBM Plex Sans,10` in
+    // /etc/xdg/kdeglobals, and Qt reports pointSize 10 / pixelSize 13 on this 4K display —
+    // pixels move with DPI and points do not, so dividing by the shipped 10pt gives exactly
+    // 1.0 on every screen at the default and scales only when the USER changes the setting.
+    //
+    // fs() deliberately preserves today's proportions rather than snapping sizes onto a tidy
+    // scale. Collapsing the 18 distinct sizes to a modular scale is a visual redesign that has
+    // to be reviewed screen by screen; making them respond to the user is a correctness fix
+    // that can be proven neutral. This is the second one. The first is still worth doing.
+    readonly property real fontScale: Qt.application.font.pointSize > 0
+                                      ? Qt.application.font.pointSize / 10 : 1
+    function fs(px) { return Math.round(px * win.fontScale) }
+
     // The UI face is the SYSTEM face, not a string repeated in this file.
     //
     // This was `font.family: "IBM Plex Sans"` written out at every text item — 194 times across
@@ -1078,7 +1098,7 @@ ApplicationWindow {
                 color: action.primary ? win.onAccent
                                       : action.destructive ? win.violet : win.txt
                 font.family: win.uiFont
-                font.pixelSize: 13
+                font.pixelSize: win.fs(13)
                 font.bold: true
             }
         }
@@ -1141,7 +1161,7 @@ ApplicationWindow {
                 text: win.sourceLabel(badge.app)
                 color: badge.app && badge.app.verified === true ? win.accent : win.txt2
                 font.family: win.uiFont
-                font.pixelSize: 10
+                font.pixelSize: win.fs(10)
                 font.bold: true
             }
         }
@@ -1188,7 +1208,7 @@ ApplicationWindow {
                         text: win.localName(card.app)
                         color: win.txt
                         font.family: win.uiFont
-                        font.pixelSize: 15
+                        font.pixelSize: win.fs(15)
                         font.bold: true
                         elide: Text.ElideRight
                     }
@@ -1197,7 +1217,7 @@ ApplicationWindow {
                         text: card.app.developer || card.app.id
                         color: win.txt2
                         font.family: win.uiFont
-                        font.pixelSize: 10
+                        font.pixelSize: win.fs(10)
                         elide: Text.ElideRight
                     }
                 }
@@ -1215,7 +1235,7 @@ ApplicationWindow {
                 text: win.localSummary(card.app)
                 color: win.txt2
                 font.family: win.uiFont
-                font.pixelSize: 11
+                font.pixelSize: win.fs(11)
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
                 elide: Text.ElideRight
@@ -1331,7 +1351,7 @@ ApplicationWindow {
                             text: "MO STORE"
                             color: win.txt
                             font.family: win.uiFont
-                            font.pixelSize: 16
+                            font.pixelSize: win.fs(16)
                             font.bold: true
                             font.letterSpacing: 1.5
                         }
@@ -1339,7 +1359,7 @@ ApplicationWindow {
                             text: win.rtl ? "مركز تطبيقات MoOS" : "MoOS app centre"
                             color: win.txt2
                             font.family: win.uiFont
-                            font.pixelSize: 10
+                            font.pixelSize: win.fs(10)
                         }
                     }
                 }
@@ -1385,7 +1405,7 @@ ApplicationWindow {
                                 text: win.rtl ? nav.modelData.ar : nav.modelData.en
                                 color: nav.active ? win.txt : win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: 13
+                                font.pixelSize: win.fs(13)
                                 font.bold: nav.active
                             }
                             Rectangle {
@@ -1400,7 +1420,7 @@ ApplicationWindow {
                                     text: win.installedCount()
                                     color: win.accent
                                     font.family: win.uiFont
-                                    font.pixelSize: 10
+                                    font.pixelSize: win.fs(10)
                                     font.bold: true
                                 }
                             }
@@ -1419,7 +1439,7 @@ ApplicationWindow {
                                     text: win.updateItems().length
                                     color: win.accent
                                     font.family: win.uiFont
-                                    font.pixelSize: 10
+                                    font.pixelSize: win.fs(10)
                                     font.bold: true
                                 }
                             }
@@ -1493,14 +1513,14 @@ ApplicationWindow {
                                         : (win.rtl ? "الفهرس المحدود · يحتاج اتصالًا" : "Limited catalogue · connection needed")
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: 11
+                                font.pixelSize: win.fs(11)
                                 font.bold: true
                             }
                             Text {
                                 text: win.allApps.length + (win.rtl ? " تطبيق" : " apps")
                                 color: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: 10
+                                font.pixelSize: win.fs(10)
                             }
                         }
                     }
@@ -1543,7 +1563,7 @@ ApplicationWindow {
                             }
                             color: win.txt
                             font.family: win.uiFont
-                            font.pixelSize: 22
+                            font.pixelSize: win.fs(22)
                             font.bold: true
                         }
                         Text {
@@ -1553,7 +1573,7 @@ ApplicationWindow {
                                 : win.visibleApps.length + (win.rtl ? " نتيجة" : " results")
                             color: win.txt2
                             font.family: win.uiFont
-                            font.pixelSize: 11
+                            font.pixelSize: win.fs(11)
                         }
                     }
 
@@ -1583,7 +1603,7 @@ ApplicationWindow {
                                 placeholderText: win.rtl ? "ابحث في كل التطبيقات…" : "Search every app…"
                                 placeholderTextColor: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: 13
+                                font.pixelSize: win.fs(13)
                                 selectByMouse: true
                                 onTextChanged: {
                                     win.query = text
@@ -1597,7 +1617,7 @@ ApplicationWindow {
                                 text: "Ctrl K"
                                 color: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: 9
+                                font.pixelSize: win.fs(9)
                             }
                         }
                     }
@@ -1661,7 +1681,7 @@ ApplicationWindow {
                                         text: win.rtl ? "MO STORE · جيل جديد" : "MO STORE · REIMAGINED"
                                         color: win.accent
                                         font.family: win.uiFont
-                                        font.pixelSize: 10
+                                        font.pixelSize: win.fs(10)
                                         font.bold: true
                                         font.letterSpacing: 1.5
                                     }
@@ -1680,7 +1700,7 @@ ApplicationWindow {
                                             : "Search the complete local Flatpak catalogue, install safely, and manage apps, updates and system engines from one experience."
                                         color: win.txt2
                                         font.family: win.uiFont
-                                        font.pixelSize: 13
+                                        font.pixelSize: win.fs(13)
                                         wrapMode: Text.WordWrap
                                     }
                                     RowLayout {
@@ -1735,14 +1755,14 @@ ApplicationWindow {
                                                         text: modelData.value
                                                         color: win.txt
                                                         font.family: win.uiFont
-                                                        font.pixelSize: 18
+                                                        font.pixelSize: win.fs(18)
                                                         font.bold: true
                                                     }
                                                     Text {
                                                         text: modelData.label
                                                         color: win.txt2
                                                         font.family: win.uiFont
-                                                        font.pixelSize: 9
+                                                        font.pixelSize: win.fs(9)
                                                     }
                                                 }
                                             }
@@ -1758,14 +1778,14 @@ ApplicationWindow {
                                 text: win.rtl ? "اختيارات MoOS" : "MoOS picks"
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: 17
+                                font.pixelSize: win.fs(17)
                                 font.bold: true
                             }
                             Text {
                                 text: win.rtl ? "· تطبيقات موثوقة للبدء" : "· trusted ways to get started"
                                 color: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: 11
+                                font.pixelSize: win.fs(11)
                             }
                             Item { Layout.fillWidth: true }
                             ActionButton {
@@ -1798,7 +1818,7 @@ ApplicationWindow {
                                 text: win.rtl ? "فئات لكل استخدام" : "Made for every kind of day"
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: 17
+                                font.pixelSize: win.fs(17)
                                 font.bold: true
                             }
                             Item { Layout.fillWidth: true }
@@ -1806,7 +1826,7 @@ ApplicationWindow {
                                 text: win.rtl ? "من العمل إلى اللعب، ومن التصميم إلى الذكاء الاصطناعي" : "Work, play, create, learn and build"
                                 color: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: 11
+                                font.pixelSize: win.fs(11)
                             }
                         }
 
@@ -1852,14 +1872,14 @@ ApplicationWindow {
                                                 text: win.rtl ? homeCategory.modelData.ar : homeCategory.modelData.en
                                                 color: win.txt
                                                 font.family: win.uiFont
-                                                font.pixelSize: 13
+                                                font.pixelSize: win.fs(13)
                                                 font.bold: true
                                             }
                                             Text {
                                                 text: win.categoryCount(homeCategory.modelData.id) + (win.rtl ? " تطبيق" : " apps")
                                                 color: win.txt2
                                                 font.family: win.uiFont
-                                                font.pixelSize: 10
+                                                font.pixelSize: win.fs(10)
                                             }
                                         }
                                         Glyph { name: "external"; tint: win.txt2; Layout.preferredWidth: 14; Layout.preferredHeight: 14 }
@@ -1875,14 +1895,14 @@ ApplicationWindow {
                                 text: win.rtl ? "حزم ذكية" : "Smart collections"
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: 17
+                                font.pixelSize: win.fs(17)
                                 font.bold: true
                             }
                             Text {
                                 text: win.rtl ? "· ثبّت مجموعة كاملة بمراجعة واحدة" : "· one review, a complete setup"
                                 color: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: 11
+                                font.pixelSize: win.fs(11)
                             }
                             Item { Layout.fillWidth: true }
                         }
@@ -1923,14 +1943,14 @@ ApplicationWindow {
                                                 text: win.rtl ? bundleCard.modelData.ar : bundleCard.modelData.en
                                                 color: win.txt
                                                 font.family: win.uiFont
-                                                font.pixelSize: 14
+                                                font.pixelSize: win.fs(14)
                                                 font.bold: true
                                             }
                                             Text {
                                                 text: (bundleCard.modelData.apps || []).length
                                                 color: win.accent
                                                 font.family: win.uiFont
-                                                font.pixelSize: 12
+                                                font.pixelSize: win.fs(12)
                                                 font.bold: true
                                             }
                                         }
@@ -1939,7 +1959,7 @@ ApplicationWindow {
                                             text: win.rtl ? bundleCard.modelData.desc_ar : bundleCard.modelData.desc_en
                                             color: win.txt2
                                             font.family: win.uiFont
-                                            font.pixelSize: 10
+                                            font.pixelSize: win.fs(10)
                                             wrapMode: Text.WordWrap
                                             maximumLineCount: 2
                                             elide: Text.ElideRight
@@ -2008,7 +2028,7 @@ ApplicationWindow {
                                                 text: win.rtl ? categoryPill.modelData.ar : categoryPill.modelData.en
                                                 color: categoryPill.active ? win.onAccent : win.txt
                                                 font.family: win.uiFont
-                                                font.pixelSize: 11
+                                                font.pixelSize: win.fs(11)
                                                 font.bold: categoryPill.active
                                             }
                                         }
@@ -2020,7 +2040,7 @@ ApplicationWindow {
                             text: win.visibleApps.length + (win.rtl ? " تطبيق" : " apps")
                             color: win.txt2
                             font.family: win.uiFont
-                            font.pixelSize: 11
+                            font.pixelSize: win.fs(11)
                         }
                         ActionButton {
                             visible: win.page === "apps" && win.visibleApps.length > 0
@@ -2078,7 +2098,7 @@ ApplicationWindow {
                                 : (win.rtl ? "لا توجد نتائج" : "No results")
                             color: win.txt
                             font.family: win.uiFont
-                            font.pixelSize: 16
+                            font.pixelSize: win.fs(16)
                             font.bold: true
                         }
                         Text {
@@ -2086,7 +2106,7 @@ ApplicationWindow {
                             text: win.rtl ? "جرّب كلمة بحث أو فئة مختلفة." : "Try another search or category."
                             color: win.txt2
                             font.family: win.uiFont
-                            font.pixelSize: 11
+                            font.pixelSize: win.fs(11)
                         }
                         Item { Layout.fillHeight: true }
                     }
@@ -2131,14 +2151,14 @@ ApplicationWindow {
                                         text: win.rtl ? "اختر حسب ما تريد إنجازه" : "Start with what you want to do"
                                         color: win.txt
                                         font.family: win.uiFont
-                                        font.pixelSize: 22
+                                        font.pixelSize: win.fs(22)
                                         font.bold: true
                                     }
                                     Text {
                                         text: win.rtl ? "فئات عملية بدل قوائم تقنية طويلة." : "Human categories instead of package-manager jargon."
                                         color: win.txt2
                                         font.family: win.uiFont
-                                        font.pixelSize: 12
+                                        font.pixelSize: win.fs(12)
                                     }
                                 }
                             }
@@ -2185,7 +2205,7 @@ ApplicationWindow {
                                                 text: win.categoryCount(categoryTile.modelData.id)
                                                 color: win.accent
                                                 font.family: win.uiFont
-                                                font.pixelSize: 15
+                                                font.pixelSize: win.fs(15)
                                                 font.bold: true
                                             }
                                         }
@@ -2193,14 +2213,14 @@ ApplicationWindow {
                                             text: win.rtl ? categoryTile.modelData.ar : categoryTile.modelData.en
                                             color: win.txt
                                             font.family: win.uiFont
-                                            font.pixelSize: 14
+                                            font.pixelSize: win.fs(14)
                                             font.bold: true
                                         }
                                         Text {
                                             text: win.rtl ? "استكشف التطبيقات" : "Explore apps"
                                             color: win.txt2
                                             font.family: win.uiFont
-                                            font.pixelSize: 10
+                                            font.pixelSize: win.fs(10)
                                         }
                                     }
                                 }
@@ -2270,7 +2290,7 @@ ApplicationWindow {
                                         }
                                         color: win.txt
                                         font.family: win.uiFont
-                                        font.pixelSize: 24
+                                        font.pixelSize: win.fs(24)
                                         font.bold: true
                                     }
                                     Text {
@@ -2291,7 +2311,7 @@ ApplicationWindow {
                                         }
                                         color: win.txt2
                                         font.family: win.uiFont
-                                        font.pixelSize: 12
+                                        font.pixelSize: win.fs(12)
                                         wrapMode: Text.WordWrap
                                     }
                                     RowLayout {
@@ -2338,7 +2358,7 @@ ApplicationWindow {
                                 text: win.rtl ? "بانتظار التحديث" : "Waiting to update"
                                 color: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: 12
+                                font.pixelSize: win.fs(12)
                                 font.bold: true
                             }
                             Repeater {
@@ -2376,7 +2396,7 @@ ApplicationWindow {
                                                 text: pendingRow.modelData.name || pendingRow.modelData.id
                                                 color: win.txt
                                                 font.family: win.uiFont
-                                                font.pixelSize: 14
+                                                font.pixelSize: win.fs(14)
                                                 font.bold: true
                                                 elide: Text.ElideRight
                                             }
@@ -2387,7 +2407,7 @@ ApplicationWindow {
                                                         ? " · " + pendingRow.modelData.version : "")
                                                 color: win.txt2
                                                 font.family: win.uiFont
-                                                font.pixelSize: 11
+                                                font.pixelSize: win.fs(11)
                                                 elide: Text.ElideRight
                                             }
                                         }
@@ -2395,7 +2415,7 @@ ApplicationWindow {
                                             text: pendingRow.modelData.origin || ""
                                             color: win.txt2
                                             font.family: win.uiFont
-                                            font.pixelSize: 11
+                                            font.pixelSize: win.fs(11)
                                         }
                                     }
                                 }
@@ -2434,7 +2454,7 @@ ApplicationWindow {
                                             text: win.rtl ? updateCard.modelData.ar : updateCard.modelData.en
                                             color: win.txt
                                             font.family: win.uiFont
-                                            font.pixelSize: 14
+                                            font.pixelSize: win.fs(14)
                                             font.bold: true
                                         }
                                         Text {
@@ -2442,7 +2462,7 @@ ApplicationWindow {
                                             text: win.rtl ? updateCard.modelData.ar2 : updateCard.modelData.en2
                                             color: win.txt2
                                             font.family: win.uiFont
-                                            font.pixelSize: 10
+                                            font.pixelSize: win.fs(10)
                                             wrapMode: Text.WordWrap
                                         }
                                         Item { Layout.fillHeight: true }
@@ -2516,7 +2536,7 @@ ApplicationWindow {
                                         text: win.rtl ? "مصادر متعددة، تجربة واحدة." : "Many sources. One coherent store."
                                         color: win.txt
                                         font.family: win.uiFont
-                                        font.pixelSize: 23
+                                        font.pixelSize: win.fs(23)
                                         font.bold: true
                                     }
                                     Text {
@@ -2526,7 +2546,7 @@ ApplicationWindow {
                                             : "Mo Store unifies discovery and management while keeping specialist engines available without duplicate storefronts."
                                         color: win.txt2
                                         font.family: win.uiFont
-                                        font.pixelSize: 11
+                                        font.pixelSize: win.fs(11)
                                         wrapMode: Text.WordWrap
                                     }
                                 }
@@ -2620,14 +2640,14 @@ ApplicationWindow {
                                                     text: win.rtl ? sourceCard.modelData.ar : sourceCard.modelData.en
                                                     color: win.txt
                                                     font.family: win.uiFont
-                                                    font.pixelSize: 14
+                                                    font.pixelSize: win.fs(14)
                                                     font.bold: true
                                                 }
                                                 Text {
                                                     text: win.rtl ? sourceCard.modelData.stateAr : sourceCard.modelData.stateEn
                                                     color: win.accent
                                                     font.family: win.uiFont
-                                                    font.pixelSize: 10
+                                                    font.pixelSize: win.fs(10)
                                                     font.bold: true
                                                 }
                                             }
@@ -2637,7 +2657,7 @@ ApplicationWindow {
                                             text: win.rtl ? sourceCard.modelData.ar2 : sourceCard.modelData.en2
                                             color: win.txt2
                                             font.family: win.uiFont
-                                            font.pixelSize: 10
+                                            font.pixelSize: win.fs(10)
                                             wrapMode: Text.WordWrap
                                             maximumLineCount: 3
                                             elide: Text.ElideRight
@@ -2707,7 +2727,7 @@ ApplicationWindow {
                     text: win.pickCount
                     color: win.onAccent
                     font.family: win.uiFont
-                    font.pixelSize: 13
+                    font.pixelSize: win.fs(13)
                     font.bold: true
                 }
             }
@@ -2718,14 +2738,14 @@ ApplicationWindow {
                     text: win.rtl ? "قائمة التثبيت جاهزة" : "Install list ready"
                     color: win.txt
                     font.family: win.uiFont
-                    font.pixelSize: 12
+                    font.pixelSize: win.fs(12)
                     font.bold: true
                 }
                 Text {
                     text: win.rtl ? "راجع المصدر قبل البدء" : "Review sources before starting"
                     color: win.txt2
                     font.family: win.uiFont
-                    font.pixelSize: 9
+                    font.pixelSize: win.fs(9)
                 }
             }
             ActionButton {
@@ -2787,7 +2807,7 @@ ApplicationWindow {
                             : win.job.message || (win.rtl ? "جارٍ تنفيذ العملية" : "Working")
                         color: win.txt
                         font.family: win.uiFont
-                        font.pixelSize: 12
+                        font.pixelSize: win.fs(12)
                         font.bold: true
                         elide: Text.ElideRight
                     }
@@ -2796,7 +2816,7 @@ ApplicationWindow {
                         text: Math.round(win.job.progress || 0) + "%"
                         color: win.accent
                         font.family: win.uiFont
-                        font.pixelSize: 11
+                        font.pixelSize: win.fs(11)
                         font.bold: true
                     }
                 }
@@ -2897,7 +2917,7 @@ ApplicationWindow {
                             text: win.localName(win.selectedApp)
                             color: win.txt
                             font.family: win.uiFont
-                            font.pixelSize: 24
+                            font.pixelSize: win.fs(24)
                             font.bold: true
                             elide: Text.ElideRight
                         }
@@ -2906,7 +2926,7 @@ ApplicationWindow {
                             text: win.selectedApp ? (win.selectedApp.developer || win.selectedApp.id) : ""
                             color: win.txt2
                             font.family: win.uiFont
-                            font.pixelSize: 11
+                            font.pixelSize: win.fs(11)
                             elide: Text.ElideRight
                         }
                         RowLayout {
@@ -2923,7 +2943,7 @@ ApplicationWindow {
                                     text: win.selectedApp ? win.selectedApp.license : ""
                                     color: win.txt2
                                     font.family: win.uiFont
-                                    font.pixelSize: 9
+                                    font.pixelSize: win.fs(9)
                                 }
                             }
                         }
@@ -2963,7 +2983,7 @@ ApplicationWindow {
                     text: win.localSummary(win.selectedApp)
                     color: win.txt
                     font.family: win.uiFont
-                    font.pixelSize: 15
+                    font.pixelSize: win.fs(15)
                     font.bold: true
                     wrapMode: Text.WordWrap
                 }
@@ -2972,7 +2992,7 @@ ApplicationWindow {
                     text: win.localDescription(win.selectedApp)
                     color: win.txt2
                     font.family: win.uiFont
-                    font.pixelSize: 11
+                    font.pixelSize: win.fs(11)
                     wrapMode: Text.WordWrap
                     maximumLineCount: 8
                     elide: Text.ElideRight
@@ -3016,13 +3036,13 @@ ApplicationWindow {
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 0
-                                    Text { text: modelData.label; color: win.txt2; font.family: win.uiFont; font.pixelSize: 9 }
+                                    Text { text: modelData.label; color: win.txt2; font.family: win.uiFont; font.pixelSize: win.fs(9) }
                                     Text {
                                         Layout.fillWidth: true
                                         text: modelData.value
                                         color: win.txt
                                         font.family: win.uiFont
-                                        font.pixelSize: 11
+                                        font.pixelSize: win.fs(11)
                                         font.bold: true
                                         elide: Text.ElideRight
                                     }
@@ -3055,7 +3075,7 @@ ApplicationWindow {
                                 : "Advanced source: review the package and install method before continuing."
                             color: win.txt
                             font.family: win.uiFont
-                            font.pixelSize: 10
+                            font.pixelSize: win.fs(10)
                             wrapMode: Text.WordWrap
                         }
                     }
@@ -3068,7 +3088,7 @@ ApplicationWindow {
                         text: win.rtl ? "مُدار مع النظام" : "System managed"
                         color: win.txt2
                         font.family: win.uiFont
-                        font.pixelSize: 10
+                        font.pixelSize: win.fs(10)
                         font.bold: true
                     }
                     Item { Layout.fillWidth: true }
@@ -3151,7 +3171,7 @@ ApplicationWindow {
                                 : (win.rtl ? "راجع قبل التثبيت" : "Review before installing")
                         color: win.txt
                         font.family: win.uiFont
-                        font.pixelSize: 18
+                        font.pixelSize: win.fs(18)
                         font.bold: true
                     }
                     Text {
@@ -3168,7 +3188,7 @@ ApplicationWindow {
                                     : "Flatpaks install for your user only. Advanced sources are clearly marked below.")
                         color: win.txt2
                         font.family: win.uiFont
-                        font.pixelSize: 10
+                        font.pixelSize: win.fs(10)
                     }
                 }
             }
@@ -3203,7 +3223,7 @@ ApplicationWindow {
                                 text: win.localName(reviewItem.app)
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: 12
+                                font.pixelSize: win.fs(12)
                                 font.bold: true
                                 elide: Text.ElideRight
                             }
@@ -3216,7 +3236,7 @@ ApplicationWindow {
                                                && reviewItem.app.install.requires_review))
                                        ? win.violet : win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: 9
+                                font.pixelSize: win.fs(9)
                                 elide: Text.ElideRight
                             }
                         }
@@ -3245,7 +3265,7 @@ ApplicationWindow {
                             : "No administrator access, and external websites never install automatically. Marked npm tools may run package scripts after your approval."
                         color: win.txt
                         font.family: win.uiFont
-                        font.pixelSize: 10
+                        font.pixelSize: win.fs(10)
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -3298,7 +3318,7 @@ ApplicationWindow {
             text: "Mo Store"
             color: win.txt
             font.family: win.uiFont
-            font.pixelSize: 11
+            font.pixelSize: win.fs(11)
             elide: Text.ElideRight
         }
         Timer { id: toastTimer; interval: 2500; onTriggered: toast.close() }

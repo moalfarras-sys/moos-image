@@ -3416,6 +3416,31 @@ for cursor_name in ui2_cursors.values():
             f"build.sh never creates {cursor_name} — the defaults would name a "
             "cursor that does not exist and Plasma would fall back")
 
+# ...and they must not override the user's font SIZE either.
+#
+# 294 text items carried a hardcoded `font.pixelSize`, so the size control in System Settings >
+# Fonts moved every application on the machine except this operating system's own. That is the
+# first control someone with low vision reaches for, and MoOS was the one thing ignoring it.
+#
+# Every size now goes through the root's fs() helper, which multiplies by
+# Qt.application.font.pointSize / 10. The reference is POINT size because MoOS ships
+# `IBM Plex Sans,10` in /etc/xdg/kdeglobals and points do not move with DPI — measured on this
+# 4K display, Qt reports pointSize 10 / pixelSize 13, so the ratio is exactly 1.0 at the default
+# on any screen and changes only when the USER changes the setting.
+#
+# Proven in both directions rather than assumed. At the shipped 10pt, Welcome renders with 0
+# differing pixels across headline, subtitle, language pills, primary button, skip link and
+# progress dots. Under an isolated XDG_CONFIG_HOME at 15pt and again at 22pt (2.2x), the type
+# scales, the subtitle reflows, and nothing clips or overlaps.
+for qml_app in sorted((ROOT / "system_files/usr/share/moos").glob("**/main.qml")):
+    qml_src = code(read(str(qml_app.relative_to(ROOT))), style="slash")
+    app_label = qml_app.parent.name
+    raw_sizes = re.findall(r"font\.pixelSize\s*:\s*(\d+)\b", qml_src)
+    require(not raw_sizes,
+            f"{app_label} sets font.pixelSize to a literal ({', '.join(sorted(set(raw_sizes))[:6])}"
+            f"{'...' if len(set(raw_sizes)) > 6 else ''}) — that ignores the font size the user chose. "
+            f"Wrap it in the root's fs() helper so the whole UI scales with System Settings > Fonts")
+
 # MoOS's own apps must not override the user's font.
 #
 # `font.family: "IBM Plex Sans"` was written out at 194 text items across Welcome, Mo Store and

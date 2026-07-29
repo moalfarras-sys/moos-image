@@ -77,6 +77,26 @@ Kirigami.ApplicationWindow {
     readonly property color badColor:  Kirigami.Theme.negativeTextColor
     // The system face, not a literal: MoOS already sets IBM Plex Sans as the system font,
     // so this renders identically today and stops overriding the user's choice tomorrow.
+    // TYPE SCALES WITH THE USER'S FONT SIZE, and until now it did not.
+    //
+    // 294 text items across the MoOS apps carried a hardcoded `font.pixelSize`, so the size
+    // slider in System Settings > Fonts moved every application on the machine except this
+    // operating system's own. That is an accessibility defect, not a style one: it is the
+    // control someone with low vision reaches for first.
+    //
+    // The reference is POINT size, not pixels. MoOS ships `IBM Plex Sans,10` in
+    // /etc/xdg/kdeglobals, and Qt reports pointSize 10 / pixelSize 13 on this 4K display —
+    // pixels move with DPI and points do not, so dividing by the shipped 10pt gives exactly
+    // 1.0 on every screen at the default and scales only when the USER changes the setting.
+    //
+    // fs() deliberately preserves today's proportions rather than snapping sizes onto a tidy
+    // scale. Collapsing the 18 distinct sizes to a modular scale is a visual redesign that has
+    // to be reviewed screen by screen; making them respond to the user is a correctness fix
+    // that can be proven neutral. This is the second one. The first is still worth doing.
+    readonly property real fontScale: Qt.application.font.pointSize > 0
+                                      ? Qt.application.font.pointSize / 10 : 1
+    function fs(px) { return Math.round(px * root.fontScale) }
+
     readonly property string uiFont: Qt.application.font.family
 
     // ── Endpoints ───────────────────────────────────────────────────────────
@@ -1355,7 +1375,7 @@ Kirigami.ApplicationWindow {
                 text: btn.label
                 color: btn.primary || btn.danger ? root.onAccent : root.textHi
                 font.family: root.uiFont
-                font.pixelSize: 12
+                font.pixelSize: root.fs(12)
                 font.weight: Font.DemiBold
             }
         }
@@ -1390,7 +1410,7 @@ Kirigami.ApplicationWindow {
             text: parent.good ? parent.goodText : parent.badText
             color: parent.good ? root.okColor : root.textMute
             font.family: root.uiFont
-            font.pixelSize: 11
+            font.pixelSize: root.fs(11)
             font.weight: Font.DemiBold
         }
     }
@@ -1398,14 +1418,14 @@ Kirigami.ApplicationWindow {
     component SectionTitle: Text {
         color: root.textHi
         font.family: root.uiFont
-        font.pixelSize: 17
+        font.pixelSize: root.fs(17)
         font.weight: Font.DemiBold
     }
 
     component SectionNote: Text {
         color: root.textLo
         font.family: root.uiFont
-        font.pixelSize: 12
+        font.pixelSize: root.fs(12)
         wrapMode: Text.Wrap
     }
 
@@ -1544,7 +1564,7 @@ Kirigami.ApplicationWindow {
                         color: root.serverUp ? root.okColor
                              : root.brainStarting ? root.novaBlue : root.textMute
                         font.family: root.uiFont
-                        font.pixelSize: 9
+                        font.pixelSize: root.fs(9)
                         font.weight: Font.DemiBold
                     }
 
@@ -1593,7 +1613,7 @@ Kirigami.ApplicationWindow {
                                             ? nav.modelData.ar : nav.modelData.en
                                         color: nav.active ? root.textHi : root.textMute
                                         font.family: root.uiFont
-                                        font.pixelSize: 9
+                                        font.pixelSize: root.fs(9)
                                         font.weight: nav.active ? Font.DemiBold : Font.Normal
                                     }
                                 }
@@ -1697,7 +1717,7 @@ Kirigami.ApplicationWindow {
                                 }
                                 color: root.textHi
                                 font.family: root.uiFont
-                                font.pixelSize: 16
+                                font.pixelSize: root.fs(16)
                                 font.weight: Font.DemiBold
                             }
                             Text {
@@ -1716,7 +1736,7 @@ Kirigami.ApplicationWindow {
                                 }
                                 color: root.textLo
                                 font.family: root.uiFont
-                                font.pixelSize: 11
+                                font.pixelSize: root.fs(11)
                             }
                         }
 
@@ -1833,7 +1853,7 @@ Kirigami.ApplicationWindow {
                                         color: root.textHi
                                         linkColor: root.novaCyan
                                         font.family: root.uiFont
-                                        font.pixelSize: 14
+                                        font.pixelSize: root.fs(14)
                                         onLinkActivated: function (link) { Qt.openUrlExternally(link) }
 
                                         SequentialAnimation on opacity {
@@ -1903,7 +1923,7 @@ Kirigami.ApplicationWindow {
                                     text: Qt.application.layoutDirection === Qt.RightToLeft ? "أهلاً، أنا Mo AI" : "Hi, I'm Mo AI"
                                     color: root.textHi
                                     font.family: root.uiFont
-                                    font.pixelSize: 32
+                                    font.pixelSize: root.fs(32)
                                     font.weight: Font.DemiBold
                                 }
 
@@ -1914,7 +1934,7 @@ Kirigami.ApplicationWindow {
                                         : "Your MoOS assistant — pick a starting point, or just type."
                                     color: root.textLo
                                     font.family: root.uiFont
-                                    font.pixelSize: 14
+                                    font.pixelSize: root.fs(14)
                                 }
 
                                 // four premium glass suggestion cards (2×2)
@@ -1966,7 +1986,7 @@ Kirigami.ApplicationWindow {
                                                         text: Qt.application.layoutDirection === Qt.RightToLeft ? modelData.ar : modelData.en
                                                         color: root.textHi
                                                         font.family: root.uiFont
-                                                        font.pixelSize: 14
+                                                        font.pixelSize: root.fs(14)
                                                         font.weight: Font.DemiBold
                                                         elide: Text.ElideRight
                                                     }
@@ -1975,7 +1995,7 @@ Kirigami.ApplicationWindow {
                                                         text: modelData.hint
                                                         color: root.textMute
                                                         font.family: root.uiFont
-                                                        font.pixelSize: 11
+                                                        font.pixelSize: root.fs(11)
                                                         elide: Text.ElideRight
                                                     }
                                                 }
@@ -2031,7 +2051,7 @@ Kirigami.ApplicationWindow {
                                         text: "وجدت " + root.problemCount + " مشكلة في جهازك  |  Found " + root.problemCount + " issue(s)"
                                         color: root.textHi
                                         font.family: root.uiFont
-                                        font.pixelSize: 13
+                                        font.pixelSize: root.fs(13)
                                         font.weight: Font.DemiBold
                                     }
                                     Text {
@@ -2039,7 +2059,7 @@ Kirigami.ApplicationWindow {
                                         text: (root.actions[0] || {}).title || ""
                                         color: root.textLo
                                         font.family: root.uiFont
-                                        font.pixelSize: 11
+                                        font.pixelSize: root.fs(11)
                                         elide: Text.ElideRight
                                     }
                                 }
@@ -2110,7 +2130,7 @@ Kirigami.ApplicationWindow {
                                         : "العقل المحلي متوقف — سأشغّله تلقائياً عند أول رسالة، أو شغّله الآن لتراه.\nThe local brain is off — I'll start it on your first message, or start it now and watch it."
                                     color: root.textLo
                                     font.family: root.uiFont
-                                    font.pixelSize: 11
+                                    font.pixelSize: root.fs(11)
                                     wrapMode: Text.Wrap
                                 }
                                 MoButton {
@@ -2210,7 +2230,7 @@ Kirigami.ApplicationWindow {
                                                                         : "محلي | Local"
                                                 color: root.textHi
                                                 font.family: root.uiFont
-                                                font.pixelSize: 11
+                                                font.pixelSize: root.fs(11)
                                                 font.weight: Font.DemiBold
                                             }
                                             Text {
@@ -2219,7 +2239,7 @@ Kirigami.ApplicationWindow {
                                                 text: root.routeModel
                                                 color: root.textLo
                                                 font.family: root.uiFont
-                                                font.pixelSize: 9
+                                                font.pixelSize: root.fs(9)
                                                 elide: Text.ElideRight
                                             }
                                         }
@@ -2228,7 +2248,7 @@ Kirigami.ApplicationWindow {
                                             text: "▾"
                                             color: root.textMute
                                             font.family: root.uiFont
-                                            font.pixelSize: 10
+                                            font.pixelSize: root.fs(10)
                                         }
                                     }
 
@@ -2249,7 +2269,7 @@ Kirigami.ApplicationWindow {
                                     placeholderTextColor: root.textMute
                                     color: root.textHi
                                     font.family: root.uiFont
-                                    font.pixelSize: 14
+                                    font.pixelSize: root.fs(14)
                                     leftPadding: 14
                                     rightPadding: 14
                                     background: Rectangle {
@@ -2284,7 +2304,7 @@ Kirigami.ApplicationWindow {
                                         text: root.busy ? "إيقاف | Stop" : "إرسال | Send"
                                         color: root.onAccent
                                         font.family: root.uiFont
-                                        font.pixelSize: 13
+                                        font.pixelSize: root.fs(13)
                                         font.weight: Font.DemiBold
                                     }
                                     MouseArea {
@@ -2350,7 +2370,7 @@ Kirigami.ApplicationWindow {
                                                 : "وجدت " + root.problemCount + " مشكلة  |  " + root.problemCount + " issue(s) found"
                                             color: root.textHi
                                             font.family: root.uiFont
-                                            font.pixelSize: 16
+                                            font.pixelSize: root.fs(16)
                                             font.weight: Font.DemiBold
                                         }
                                         Text {
@@ -2362,7 +2382,7 @@ Kirigami.ApplicationWindow {
                                                 : "كل مشكلة بالأسفل معها الإصلاح الذي يناسبها.\nEach problem below comes with the repair that fixes it."
                                             color: root.textLo
                                             font.family: root.uiFont
-                                            font.pixelSize: 11
+                                            font.pixelSize: root.fs(11)
                                             wrapMode: Text.Wrap
                                         }
                                     }
@@ -2402,7 +2422,7 @@ Kirigami.ApplicationWindow {
                                                 text: modelData.ar
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: 11
+                                                font.pixelSize: root.fs(11)
                                                 Layout.preferredWidth: 54
                                             }
                                             Text {
@@ -2410,7 +2430,7 @@ Kirigami.ApplicationWindow {
                                                 text: modelData.v
                                                 color: root.textHi
                                                 font.family: root.uiFont
-                                                font.pixelSize: 12
+                                                font.pixelSize: root.fs(12)
                                                 elide: Text.ElideRight
                                             }
                                         }
@@ -2436,7 +2456,7 @@ Kirigami.ApplicationWindow {
                                         text: root.plan.driver_status || ""
                                         color: root.textHi
                                         font.family: root.uiFont
-                                        font.pixelSize: 12
+                                        font.pixelSize: root.fs(12)
                                         wrapMode: Text.Wrap
                                     }
                                 }
@@ -2469,7 +2489,7 @@ Kirigami.ApplicationWindow {
                                                 text: issue.modelData.title || ""
                                                 color: root.textHi
                                                 font.family: root.uiFont
-                                                font.pixelSize: 13
+                                                font.pixelSize: root.fs(13)
                                                 font.weight: Font.DemiBold
                                                 elide: Text.ElideRight
                                             }
@@ -2479,7 +2499,7 @@ Kirigami.ApplicationWindow {
                                             text: issue.modelData.detail || ""
                                             color: root.textLo
                                             font.family: root.uiFont
-                                            font.pixelSize: 11
+                                            font.pixelSize: root.fs(11)
                                             wrapMode: Text.Wrap
                                         }
                                         RowLayout {
@@ -2553,7 +2573,7 @@ Kirigami.ApplicationWindow {
                                     placeholderTextColor: root.textMute
                                     color: root.textHi
                                     font.family: root.uiFont
-                                    font.pixelSize: 13
+                                    font.pixelSize: root.fs(13)
                                     leftPadding: 14
                                     rightPadding: 14
                                     background: Rectangle {
@@ -2596,7 +2616,7 @@ Kirigami.ApplicationWindow {
                                     text: root.searchNote
                                     color: root.textMute
                                     font.family: root.uiFont
-                                    font.pixelSize: 12
+                                    font.pixelSize: root.fs(12)
                                 }
 
                                 // Search results.
@@ -2645,14 +2665,14 @@ Kirigami.ApplicationWindow {
                                                         text: hit.name
                                                         color: root.textHi
                                                         font.family: root.uiFont
-                                                        font.pixelSize: 13
+                                                        font.pixelSize: root.fs(13)
                                                         font.weight: Font.DemiBold
                                                     }
                                                     Text {
                                                         visible: hit.verified
                                                         text: "✓"
                                                         color: root.novaCyan
-                                                        font.pixelSize: 12
+                                                        font.pixelSize: root.fs(12)
                                                         font.weight: Font.Bold
                                                     }
                                                     // The MoOS pick, said out loud.
@@ -2672,7 +2692,7 @@ Kirigami.ApplicationWindow {
                                                             text: "اختيار MoOS  |  MoOS pick"
                                                             color: root.novaCyan
                                                             font.family: root.uiFont
-                                                            font.pixelSize: 9
+                                                            font.pixelSize: root.fs(9)
                                                             font.weight: Font.DemiBold
                                                         }
                                                     }
@@ -2682,7 +2702,7 @@ Kirigami.ApplicationWindow {
                                                     text: hit.summary
                                                     color: root.textLo
                                                     font.family: root.uiFont
-                                                    font.pixelSize: 11
+                                                    font.pixelSize: root.fs(11)
                                                     elide: Text.ElideRight
                                                 }
                                                 // Why this one — or why NOT that one. Cyan when it is
@@ -2694,14 +2714,14 @@ Kirigami.ApplicationWindow {
                                                     text: (hit.recommended ? "✓ " : "⚠ ") + hit.note
                                                     color: hit.recommended ? root.novaCyan : root.warnColor
                                                     font.family: root.uiFont
-                                                    font.pixelSize: 10
+                                                    font.pixelSize: root.fs(10)
                                                     wrapMode: Text.WordWrap
                                                 }
                                                 Text {
                                                     text: hit.id
                                                     color: root.textMute
                                                     font.family: "JetBrains Mono"
-                                                    font.pixelSize: 10
+                                                    font.pixelSize: root.fs(10)
                                                 }
                                             }
 
@@ -2752,7 +2772,7 @@ Kirigami.ApplicationWindow {
                                                     text: rec.modelData.title
                                                     color: root.textHi
                                                     font.family: root.uiFont
-                                                    font.pixelSize: 13
+                                                    font.pixelSize: root.fs(13)
                                                     font.weight: Font.DemiBold
                                                 }
                                                 Text {
@@ -2760,7 +2780,7 @@ Kirigami.ApplicationWindow {
                                                     text: rec.modelData.ar + "  |  " + rec.modelData.en
                                                     color: root.textLo
                                                     font.family: root.uiFont
-                                                    font.pixelSize: 11
+                                                    font.pixelSize: root.fs(11)
                                                 }
                                             }
                                             MoButton {
@@ -2841,7 +2861,7 @@ Kirigami.ApplicationWindow {
                                                     text: compat.modelData.title
                                                     color: root.textHi
                                                     font.family: root.uiFont
-                                                    font.pixelSize: 14
+                                                    font.pixelSize: root.fs(14)
                                                     font.weight: Font.DemiBold
                                                 }
                                                 StatusPill {
@@ -2855,7 +2875,7 @@ Kirigami.ApplicationWindow {
                                                 text: compat.modelData.ar + "  |  " + compat.modelData.en
                                                 color: root.textLo
                                                 font.family: root.uiFont
-                                                font.pixelSize: 11
+                                                font.pixelSize: root.fs(11)
                                             }
                                         }
                                         MoButton {
@@ -2881,14 +2901,14 @@ Kirigami.ApplicationWindow {
                                             text: "المحاكاة الافتراضية | Virtualisation (KVM)"
                                             color: root.textHi
                                             font.family: root.uiFont
-                                            font.pixelSize: 13
+                                            font.pixelSize: root.fs(13)
                                             font.weight: Font.DemiBold
                                         }
                                         Text {
                                             text: "يحتاجه Waydroid والأجهزة الافتراضية.\nNeeded by Waydroid and virtual machines."
                                             color: root.textLo
                                             font.family: root.uiFont
-                                            font.pixelSize: 11
+                                            font.pixelSize: root.fs(11)
                                         }
                                     }
                                     StatusPill {
@@ -2976,7 +2996,7 @@ Kirigami.ApplicationWindow {
                                                   : "متوقف  |  Stopped"
                                             color: root.remoteState.active ? root.okColor : root.textHi
                                             font.family: root.uiFont
-                                            font.pixelSize: 16
+                                            font.pixelSize: root.fs(16)
                                             font.weight: Font.DemiBold
                                         }
                                         Text {
@@ -2986,7 +3006,7 @@ Kirigami.ApplicationWindow {
                                                 : "شغّله ليتحكّم هاتفك بهذا الجهاز.\nStart it to control this PC from your phone."
                                             color: root.textLo
                                             font.family: root.uiFont
-                                            font.pixelSize: 11
+                                            font.pixelSize: root.fs(11)
                                             wrapMode: Text.Wrap
                                         }
                                     }
@@ -3034,7 +3054,7 @@ Kirigami.ApplicationWindow {
                                         text: "المتطلّبات  |  Requirements"
                                         color: root.textHi
                                         font.family: root.uiFont
-                                        font.pixelSize: 13
+                                        font.pixelSize: root.fs(13)
                                         font.weight: Font.DemiBold
                                     }
                                     Repeater {
@@ -3051,7 +3071,7 @@ Kirigami.ApplicationWindow {
                                                 text: modelData.ar + "  |  " + modelData.en
                                                 color: root.textLo
                                                 font.family: root.uiFont
-                                                font.pixelSize: 12
+                                                font.pixelSize: root.fs(12)
                                             }
                                             StatusPill {
                                                 good: !!root.remoteState[modelData.k]
@@ -3162,7 +3182,7 @@ Kirigami.ApplicationWindow {
                                                     text: ag.modelData.title
                                                     color: root.textHi
                                                     font.family: root.uiFont
-                                                    font.pixelSize: 14
+                                                    font.pixelSize: root.fs(14)
                                                     font.weight: Font.DemiBold
                                                 }
                                                 StatusPill {
@@ -3189,7 +3209,7 @@ Kirigami.ApplicationWindow {
                                                         text: "يعمل بلا إنترنت  |  offline"
                                                         color: root.novaCyan
                                                         font.family: root.uiFont
-                                                        font.pixelSize: 9
+                                                        font.pixelSize: root.fs(9)
                                                         font.weight: Font.DemiBold
                                                     }
                                                 }
@@ -3199,7 +3219,7 @@ Kirigami.ApplicationWindow {
                                                 text: ag.modelData.ar + "  |  " + ag.modelData.en
                                                 color: root.textLo
                                                 font.family: root.uiFont
-                                                font.pixelSize: 11
+                                                font.pixelSize: root.fs(11)
                                             }
                                             Text {
                                                 Layout.fillWidth: true
@@ -3207,13 +3227,13 @@ Kirigami.ApplicationWindow {
                                                 color: ag.onDevice ? root.novaCyan : root.textMute
                                                 opacity: ag.onDevice ? 0.95 : 0.8
                                                 font.family: root.uiFont
-                                                font.pixelSize: 10
+                                                font.pixelSize: root.fs(10)
                                             }
                                             Text {
                                                 text: ag.modelData.pkg
                                                 color: root.textMute
                                                 font.family: "JetBrains Mono"
-                                                font.pixelSize: 10
+                                                font.pixelSize: root.fs(10)
                                             }
                                         }
                                         MoButton {
@@ -3317,13 +3337,13 @@ Kirigami.ApplicationWindow {
                                             : "ثبّت وكيل الهاتف | Install phone agent"
                                         color: root.textHi
                                         font.family: root.uiFont
-                                        font.pixelSize: 14
+                                        font.pixelSize: root.fs(14)
                                         font.weight: Font.DemiBold
                                     }
                                     SectionNote {
                                         Layout.fillWidth: true
                                         text: root.agentSetupNote
-                                        font.pixelSize: 11
+                                        font.pixelSize: root.fs(11)
                                     }
                                 }
                                 MoButton {
@@ -3345,7 +3365,7 @@ Kirigami.ApplicationWindow {
                                 + "   —   systemctl --user start moai-agent-api.service"
                             color: root.badColor
                             font.family: root.uiFont
-                            font.pixelSize: 11
+                            font.pixelSize: root.fs(11)
                             wrapMode: Text.Wrap
                         }
 
@@ -3366,7 +3386,7 @@ Kirigami.ApplicationWindow {
                                         text: "المحادثات | Sessions"
                                         color: root.textMute
                                         font.family: root.uiFont
-                                        font.pixelSize: 10
+                                        font.pixelSize: root.fs(10)
                                         font.weight: Font.DemiBold
                                     }
                                     Flickable {
@@ -3400,7 +3420,7 @@ Kirigami.ApplicationWindow {
                                                         elide: Text.ElideRight
                                                         color: root.agentCurrent === modelData.id ? root.novaBlue : root.textMute
                                                         font.family: root.uiFont
-                                                        font.pixelSize: 11
+                                                        font.pixelSize: root.fs(11)
                                                     }
                                                     MouseArea {
                                                         anchors.fill: parent
@@ -3417,7 +3437,7 @@ Kirigami.ApplicationWindow {
                                                 horizontalAlignment: Text.AlignHCenter
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: 10
+                                                font.pixelSize: root.fs(10)
                                             }
                                         }
                                     }
@@ -3468,7 +3488,7 @@ Kirigami.ApplicationWindow {
                                                         wrapMode: Text.Wrap
                                                         color: root.palette.text
                                                         font.family: root.uiFont
-                                                        font.pixelSize: 12
+                                                        font.pixelSize: root.fs(12)
                                                     }
                                                 }
                                             }
@@ -3480,7 +3500,7 @@ Kirigami.ApplicationWindow {
                                                 horizontalAlignment: Text.AlignHCenter
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: 11
+                                                font.pixelSize: root.fs(11)
                                             }
                                         }
                                     }
@@ -3495,7 +3515,7 @@ Kirigami.ApplicationWindow {
                                         placeholderText: "اكتب رسالة…  |  Message"
                                         enabled: root.agentReady && !root.agentBusy
                                         font.family: root.uiFont
-                                        font.pixelSize: 12
+                                        font.pixelSize: root.fs(12)
                                         onAccepted: if (root.agentReady) {
                                             root.agentSend(text)
                                             text = ""
@@ -3552,14 +3572,14 @@ Kirigami.ApplicationWindow {
                     text: "جارٍ التنفيذ…  |  Working…"
                     color: root.novaCyan
                     font.family: root.uiFont
-                    font.pixelSize: 11
+                    font.pixelSize: root.fs(11)
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: toast.msg
                     color: root.textHi
                     font.family: root.uiFont
-                    font.pixelSize: 13
+                    font.pixelSize: root.fs(13)
                 }
             }
         }
@@ -3601,7 +3621,7 @@ Kirigami.ApplicationWindow {
                         SectionTitle {
                             Layout.fillWidth: true
                             text: "العقل والقوة  |  Brain & power"
-                            font.pixelSize: 15
+                            font.pixelSize: root.fs(15)
                         }
                         MoButton {
                             label: root.modelsLoading ? "…" : "تحديث | Refresh"
@@ -3613,7 +3633,7 @@ Kirigami.ApplicationWindow {
                     SectionNote {
                         Layout.fillWidth: true
                         text: "اختيارك يسري على هذه المحادثة فقط.  |  Applies to this conversation."
-                        font.pixelSize: 10
+                        font.pixelSize: root.fs(10)
                     }
 
                     Flickable {
@@ -3637,7 +3657,7 @@ Kirigami.ApplicationWindow {
                                 text: "محلي وخاص  |  Local & private"
                                 color: root.textMute
                                 font.family: root.uiFont
-                                font.pixelSize: 10
+                                font.pixelSize: root.fs(10)
                                 font.weight: Font.DemiBold
                             }
 
@@ -3682,7 +3702,7 @@ Kirigami.ApplicationWindow {
                                                 text: locRow.modelData.label
                                                 color: root.textHi
                                                 font.family: root.uiFont
-                                                font.pixelSize: 12
+                                                font.pixelSize: root.fs(12)
                                                 font.weight: locRow.on_ ? Font.DemiBold : Font.Normal
                                                 elide: Text.ElideRight
                                             }
@@ -3705,7 +3725,7 @@ Kirigami.ApplicationWindow {
                                                         : "محمَّل — يُعاد تشغيل العقل | downloaded — restarts the brain")
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: 9
+                                                font.pixelSize: root.fs(9)
                                                 elide: Text.ElideRight
                                             }
                                         }
@@ -3714,7 +3734,7 @@ Kirigami.ApplicationWindow {
                                             text: "✓"
                                             color: root.okColor
                                             font.family: root.uiFont
-                                            font.pixelSize: 13
+                                            font.pixelSize: root.fs(13)
                                             font.weight: Font.DemiBold
                                         }
                                     }
@@ -3763,7 +3783,7 @@ Kirigami.ApplicationWindow {
                                 text: root.pullError
                                 color: root.badColor
                                 font.family: root.uiFont
-                                font.pixelSize: 9
+                                font.pixelSize: root.fs(9)
                                 wrapMode: Text.WordWrap
                             }
 
@@ -3773,7 +3793,7 @@ Kirigami.ApplicationWindow {
                                 text: "سحابي  |  Cloud"
                                 color: root.textMute
                                 font.family: root.uiFont
-                                font.pixelSize: 10
+                                font.pixelSize: root.fs(10)
                                 font.weight: Font.DemiBold
                             }
 
@@ -3812,7 +3832,7 @@ Kirigami.ApplicationWindow {
                                             text: cldRow.modelData.label
                                             color: root.textHi
                                             font.family: root.uiFont
-                                            font.pixelSize: 12
+                                            font.pixelSize: root.fs(12)
                                             font.weight: cldRow.on_ ? Font.DemiBold : Font.Normal
                                             elide: Text.ElideRight
                                         }
@@ -3821,7 +3841,7 @@ Kirigami.ApplicationWindow {
                                             text: "✓"
                                             color: root.novaViolet
                                             font.family: root.uiFont
-                                            font.pixelSize: 13
+                                            font.pixelSize: root.fs(13)
                                             font.weight: Font.DemiBold
                                         }
                                     }
@@ -3845,7 +3865,7 @@ Kirigami.ApplicationWindow {
                                 text: root.modelsError
                                 color: root.textMute
                                 font.family: root.uiFont
-                                font.pixelSize: 10
+                                font.pixelSize: root.fs(10)
                                 wrapMode: Text.Wrap
                             }
                         }
@@ -3905,14 +3925,14 @@ Kirigami.ApplicationWindow {
                                 text: "الإعدادات  |  Settings"
                                 color: root.palette.text
                                 font.family: root.uiFont
-                                font.pixelSize: 17
+                                font.pixelSize: root.fs(17)
                                 font.weight: Font.DemiBold
                             }
                             Text {
                                 text: "تسري على المحادثة هنا وعلى بوت تليجرام معاً"
                                 color: root.textMute
                                 font.family: root.uiFont
-                                font.pixelSize: 10
+                                font.pixelSize: root.fs(10)
                             }
                         }
                         Item { Layout.fillWidth: true }
@@ -3956,7 +3976,7 @@ Kirigami.ApplicationWindow {
                                     text: modelData.ar
                                     color: on_ ? root.novaBlue : root.textMute
                                     font.family: root.uiFont
-                                    font.pixelSize: 12
+                                    font.pixelSize: root.fs(12)
                                     font.weight: on_ ? Font.DemiBold : Font.Normal
                                 }
                                 MouseArea {
@@ -3974,7 +3994,7 @@ Kirigami.ApplicationWindow {
                         text: root.cfgError
                         color: root.badColor
                         font.family: root.uiFont
-                        font.pixelSize: 11
+                        font.pixelSize: root.fs(11)
                         wrapMode: Text.Wrap
                     }
 
@@ -4029,14 +4049,14 @@ Kirigami.ApplicationWindow {
                                                 text: modelData.ar
                                                 color: on_ ? root.novaBlue : root.palette.text
                                                 font.family: root.uiFont
-                                                font.pixelSize: 12
+                                                font.pixelSize: root.fs(12)
                                                 font.weight: Font.DemiBold
                                             }
                                             Text {
                                                 text: modelData.d
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: 10
+                                                font.pixelSize: root.fs(10)
                                             }
                                         }
                                         MouseArea {
@@ -4065,14 +4085,14 @@ Kirigami.ApplicationWindow {
                                     Layout.fillWidth: true
                                     placeholderText: "https://…/v1"
                                     font.family: root.uiFont
-                                    font.pixelSize: 11
+                                    font.pixelSize: root.fs(11)
                                 }
                                 QQC2.TextField {
                                     id: modelField
                                     Layout.fillWidth: true
                                     placeholderText: "اسم النموذج | model id"
                                     font.family: root.uiFont
-                                    font.pixelSize: 11
+                                    font.pixelSize: root.fs(11)
                                 }
                                 QQC2.TextField {
                                     id: keyField
@@ -4082,7 +4102,7 @@ Kirigami.ApplicationWindow {
                                         ? "المفتاح محفوظ — اتركه فارغاً لإبقائه"
                                         : "sk-…  (يُكتب ولا يُقرأ)"
                                     font.family: root.uiFont
-                                    font.pixelSize: 11
+                                    font.pixelSize: root.fs(11)
                                 }
                                 SectionNote {
                                     Layout.fillWidth: true
@@ -4108,7 +4128,7 @@ Kirigami.ApplicationWindow {
                                         text: "مفعّلة"
                                         color: root.palette.text
                                         font.family: root.uiFont
-                                        font.pixelSize: 12
+                                        font.pixelSize: root.fs(12)
                                     }
                                     Item { Layout.fillWidth: true }
                                     QQC2.Switch { id: tgSwitch }
@@ -4121,14 +4141,14 @@ Kirigami.ApplicationWindow {
                                         ? "التوكن محفوظ — اتركه فارغاً لإبقائه"
                                         : "123456:AA…  من @BotFather"
                                     font.family: root.uiFont
-                                    font.pixelSize: 11
+                                    font.pixelSize: root.fs(11)
                                 }
                                 QQC2.TextField {
                                     id: allowField
                                     Layout.fillWidth: true
                                     placeholderText: "معرّفك الرقمي — مثال: 123456789"
                                     font.family: root.uiFont
-                                    font.pixelSize: 11
+                                    font.pixelSize: root.fs(11)
                                 }
                                 SectionNote {
                                     Layout.fillWidth: true
@@ -4152,7 +4172,7 @@ Kirigami.ApplicationWindow {
                                         text: "الرد بصوت"
                                         color: root.palette.text
                                         font.family: root.uiFont
-                                        font.pixelSize: 12
+                                        font.pixelSize: root.fs(12)
                                     }
                                     Item { Layout.fillWidth: true }
                                     QQC2.Switch { id: ttsSwitch }
@@ -4241,7 +4261,7 @@ Kirigami.ApplicationWindow {
                                                 text: "تحكّم البوت بجهازك"
                                                 color: root.textHi
                                                 font.family: root.uiFont
-                                                font.pixelSize: 13
+                                                font.pixelSize: root.fs(13)
                                                 font.weight: Font.DemiBold
                                             }
                                             Text {
@@ -4251,7 +4271,7 @@ Kirigami.ApplicationWindow {
                                                     : "معزول — يردّ فقط، لا يتحكّم بشيء"
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: 10
+                                                font.pixelSize: root.fs(10)
                                                 wrapMode: Text.Wrap
                                             }
                                         }
@@ -4305,14 +4325,14 @@ Kirigami.ApplicationWindow {
                                                 text: modelData.ar
                                                 color: on_ ? (risky ? root.badColor : root.novaBlue) : root.palette.text
                                                 font.family: root.uiFont
-                                                font.pixelSize: 12
+                                                font.pixelSize: root.fs(12)
                                                 font.weight: Font.DemiBold
                                             }
                                             Text {
                                                 text: modelData.d
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: 10
+                                                font.pixelSize: root.fs(10)
                                                 wrapMode: Text.Wrap
                                             }
                                         }
@@ -4331,7 +4351,7 @@ Kirigami.ApplicationWindow {
                                     text: root.cfgProject
                                     placeholderText: "/var/home/moos/… (فارغ = بلا نطاق)"
                                     font.family: root.uiFont
-                                    font.pixelSize: 11
+                                    font.pixelSize: root.fs(11)
                                 }
                                 SectionNote {
                                     Layout.fillWidth: true
@@ -4345,7 +4365,7 @@ Kirigami.ApplicationWindow {
                                         text: "بحث وقراءة صفحات"
                                         color: root.palette.text
                                         font.family: root.uiFont
-                                        font.pixelSize: 12
+                                        font.pixelSize: root.fs(12)
                                     }
                                     Item { Layout.fillWidth: true }
                                     QQC2.Switch { id: webSwitch }
@@ -4396,7 +4416,7 @@ Kirigami.ApplicationWindow {
                                                     text: modelData.label || modelData.id
                                                     color: root.palette.text
                                                     font.family: root.uiFont
-                                                    font.pixelSize: 12
+                                                    font.pixelSize: root.fs(12)
                                                     font.weight: Font.DemiBold
                                                 }
                                                 Text {
@@ -4405,7 +4425,7 @@ Kirigami.ApplicationWindow {
                                                         : "غير محمّل — اضغط للتنزيل"
                                                     color: root.textMute
                                                     font.family: root.uiFont
-                                                    font.pixelSize: 10
+                                                    font.pixelSize: root.fs(10)
                                                 }
                                             }
                                             Item { Layout.fillWidth: true }
@@ -4429,7 +4449,7 @@ Kirigami.ApplicationWindow {
                                     text: "جارٍ تنزيل " + root.pullModel + " — " + root.pullPercent + "٪"
                                     color: root.novaBlue
                                     font.family: root.uiFont
-                                    font.pixelSize: 11
+                                    font.pixelSize: root.fs(11)
                                 }
                                 Text {
                                     visible: root.pullError !== ""
@@ -4437,7 +4457,7 @@ Kirigami.ApplicationWindow {
                                     text: root.pullError
                                     color: root.badColor
                                     font.family: root.uiFont
-                                    font.pixelSize: 11
+                                    font.pixelSize: root.fs(11)
                                     wrapMode: Text.Wrap
                                 }
                             }
@@ -4473,7 +4493,7 @@ Kirigami.ApplicationWindow {
                                     text: root.diagResult.summary || ""
                                     color: root.palette.text
                                     font.family: root.uiFont
-                                    font.pixelSize: 12
+                                    font.pixelSize: root.fs(12)
                                     wrapMode: Text.Wrap
                                 }
 
@@ -4508,7 +4528,7 @@ Kirigami.ApplicationWindow {
                                                     text: modelData.title || modelData.label || modelData.id
                                                     color: root.palette.text
                                                     font.family: root.uiFont
-                                                    font.pixelSize: 12
+                                                    font.pixelSize: root.fs(12)
                                                     font.weight: Font.DemiBold
                                                 }
                                                 Text {
@@ -4516,7 +4536,7 @@ Kirigami.ApplicationWindow {
                                                     visible: !!modelData.note
                                                     color: root.textMute
                                                     font.family: root.uiFont
-                                                    font.pixelSize: 10
+                                                    font.pixelSize: root.fs(10)
                                                     wrapMode: Text.Wrap
                                                 }
                                             }
@@ -4541,7 +4561,7 @@ Kirigami.ApplicationWindow {
                                     text: "لا مشاكل تحتاج إصلاحاً."
                                     color: root.okColor
                                     font.family: root.uiFont
-                                    font.pixelSize: 11
+                                    font.pixelSize: root.fs(11)
                                 }
                             }
                         }
@@ -4563,7 +4583,7 @@ Kirigami.ApplicationWindow {
                             text: root.cfgSaving ? "جارٍ الحفظ… | Saving…" : "حفظ | Save"
                             color: root.onAccent
                             font.family: root.uiFont
-                            font.pixelSize: 14
+                            font.pixelSize: root.fs(14)
                             font.weight: Font.DemiBold
                         }
                         MouseArea {

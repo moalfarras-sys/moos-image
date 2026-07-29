@@ -76,6 +76,26 @@ ApplicationWindow {
     title: qsTr("Welcome to MoOS")
     color: win.canvas
 
+    // TYPE SCALES WITH THE USER'S FONT SIZE, and until now it did not.
+    //
+    // 294 text items across the MoOS apps carried a hardcoded `font.pixelSize`, so the size
+    // slider in System Settings > Fonts moved every application on the machine except this
+    // operating system's own. That is an accessibility defect, not a style one: it is the
+    // control someone with low vision reaches for first.
+    //
+    // The reference is POINT size, not pixels. MoOS ships `IBM Plex Sans,10` in
+    // /etc/xdg/kdeglobals, and Qt reports pointSize 10 / pixelSize 13 on this 4K display —
+    // pixels move with DPI and points do not, so dividing by the shipped 10pt gives exactly
+    // 1.0 on every screen at the default and scales only when the USER changes the setting.
+    //
+    // fs() deliberately preserves today's proportions rather than snapping sizes onto a tidy
+    // scale. Collapsing the 18 distinct sizes to a modular scale is a visual redesign that has
+    // to be reviewed screen by screen; making them respond to the user is a correctness fix
+    // that can be proven neutral. This is the second one. The first is still worth doing.
+    readonly property real fontScale: Qt.application.font.pointSize > 0
+                                      ? Qt.application.font.pointSize / 10 : 1
+    function fs(px) { return Math.round(px * win.fontScale) }
+
     // The UI face is the SYSTEM face, not a string repeated in this file.
     //
     // This was `font.family: "IBM Plex Sans"` written out at every text item — 194 times across
@@ -636,7 +656,7 @@ ApplicationWindow {
                 text: deviceButton.label
                 color: win.txt
                 font.family: win.uiFont
-                font.pixelSize: 13
+                font.pixelSize: win.fs(13)
                 font.weight: Font.DemiBold
             }
         }
@@ -726,7 +746,7 @@ ApplicationWindow {
                         text: win.rtl ? "وصّل لوحة المفاتيح والماوس" : "Connect your keyboard and mouse"
                         color: win.txt
                         font.family: win.uiFont
-                        font.pixelSize: 24
+                        font.pixelSize: win.fs(24)
                         font.weight: Font.Bold
                     }
                     Text {
@@ -736,7 +756,7 @@ ApplicationWindow {
                               : "Choose how your device connects — no manual drivers needed."
                         color: win.txt2
                         font.family: win.uiFont
-                        font.pixelSize: 13
+                        font.pixelSize: win.fs(13)
                     }
                 }
                 Rectangle {
@@ -751,7 +771,7 @@ ApplicationWindow {
                         text: "×"
                         color: win.txt
                         font.family: win.uiFont
-                        font.pixelSize: 24
+                        font.pixelSize: win.fs(24)
                     }
                 }
             }
@@ -786,7 +806,7 @@ ApplicationWindow {
                                 text: win.rtl ? "USB أو مستقبِل 2.4 GHz" : "USB or 2.4 GHz receiver"
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: 16
+                                font.pixelSize: win.fs(16)
                                 font.weight: Font.DemiBold
                             }
                         }
@@ -799,7 +819,7 @@ ApplicationWindow {
                                   : "Plug the cable or tiny receiver into a USB port. It works automatically; open the list only to verify it appears."
                             color: win.txt2
                             font.family: win.uiFont
-                            font.pixelSize: 13
+                            font.pixelSize: win.fs(13)
                             lineHeight: 1.25
                         }
                         DeviceSettingsButton {
@@ -834,7 +854,7 @@ ApplicationWindow {
                                 text: win.rtl ? "بلوتوث" : "Bluetooth"
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: 16
+                                font.pixelSize: win.fs(16)
                                 font.weight: Font.DemiBold
                             }
                         }
@@ -847,7 +867,7 @@ ApplicationWindow {
                                   : "1) Put the device in pairing mode. 2) Open Bluetooth and choose its name. 3) Confirm the code if shown."
                             color: win.txt2
                             font.family: win.uiFont
-                            font.pixelSize: 13
+                            font.pixelSize: win.fs(13)
                             lineHeight: 1.25
                         }
                         DeviceSettingsButton {
@@ -868,7 +888,7 @@ ApplicationWindow {
                       : "After connecting: tune layout, speed and buttons in the real settings pages."
                 color: win.txt2
                 font.family: win.uiFont
-                font.pixelSize: 12
+                font.pixelSize: win.fs(12)
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -960,7 +980,7 @@ ApplicationWindow {
                         spacing: 6
                         Text {
                             text: win.rtl ? "تخطّي" : "Skip"
-                            color: win.txt2; font.family: win.uiFont; font.pixelSize: 13
+                            color: win.txt2; font.family: win.uiFont; font.pixelSize: win.fs(13)
                         }
                     }
                 }
@@ -1057,7 +1077,7 @@ ApplicationWindow {
                                     text: langPill.modelData.label
                                     color: langPill.on ? win.onAccent : win.txt
                                     font.family: win.uiFont
-                                    font.pixelSize: 16
+                                    font.pixelSize: win.fs(16)
                                     font.weight: langPill.on ? Font.DemiBold : Font.Normal
                                 }
                             }
@@ -1071,7 +1091,7 @@ ApplicationWindow {
                         text: win.rtl ? "أهلاً بك في MoOS" : "Welcome to MoOS"
                         color: win.txt
                         font.family: win.uiFont
-                        font.pixelSize: 40
+                        font.pixelSize: win.fs(40)
                         font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 18 }
@@ -1085,7 +1105,7 @@ ApplicationWindow {
                               : "Two minutes to make this system yours: your look, your direction, your apps — all in taps."
                         color: win.txt2
                         font.family: win.uiFont
-                        font.pixelSize: 15
+                        font.pixelSize: win.fs(15)
                         lineHeight: 1.35
                     }
                     Item { Layout.preferredHeight: 34 }
@@ -1107,7 +1127,7 @@ ApplicationWindow {
                                 text: win.rtl ? "لنبدأ" : "Let's begin"
                                 color: win.onAccent
                                 font.family: win.uiFont
-                                font.pixelSize: 17
+                                font.pixelSize: win.fs(17)
                                 font.weight: Font.DemiBold
                             }
                         }
@@ -1148,7 +1168,7 @@ ApplicationWindow {
                                                  : "Install MoOS on this computer")
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: 15
+                                font.pixelSize: win.fs(15)
                                 font.weight: Font.DemiBold
                             }
                         }
@@ -1162,7 +1182,7 @@ ApplicationWindow {
                                       : "You're on the live version — explore freely, install whenever you like"
                         color: win.txt2
                         font.family: win.uiFont
-                        font.pixelSize: 12
+                        font.pixelSize: win.fs(12)
                     }
                 }
             }
@@ -1180,7 +1200,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl ? "اختر مظهرك" : "Pick your look"
                         color: win.txt
-                        font.family: win.uiFont; font.pixelSize: 30; font.weight: Font.Bold
+                        font.family: win.uiFont; font.pixelSize: win.fs(30); font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 8 }
                     Text {
@@ -1189,7 +1209,7 @@ ApplicationWindow {
                               ? "6 إطلالات سريعة من عائلة تضم 16 ثيمًا — المجموعة الكاملة في تطبيق ثيمات MoOS"
                               : "6 quick looks from a 16-theme family — find the complete collection in MoOS Themes"
                         color: win.txt2
-                        font.family: win.uiFont; font.pixelSize: 14
+                        font.family: win.uiFont; font.pixelSize: win.fs(14)
                     }
                     Item { Layout.preferredHeight: 30 }
 
@@ -1308,12 +1328,12 @@ ApplicationWindow {
                                             Text {
                                                 text: win.rtl ? lookCard.modelData.ar : lookCard.modelData.en
                                                 color: win.txt
-                                                font.family: win.uiFont; font.pixelSize: 16; font.weight: Font.DemiBold
+                                                font.family: win.uiFont; font.pixelSize: win.fs(16); font.weight: Font.DemiBold
                                             }
                                             Text {
                                                 text: win.rtl ? lookCard.modelData.en : lookCard.modelData.ar
                                                 color: win.txt2
-                                                font.family: win.uiFont; font.pixelSize: 12
+                                                font.family: win.uiFont; font.pixelSize: win.fs(12)
                                             }
                                         }
                                         Item { Layout.fillWidth: true }
@@ -1344,7 +1364,7 @@ ApplicationWindow {
                               ? "كل الإطلالات الفاتحة والداكنة والوضع التلقائي متاحة في تطبيق ثيمات MoOS"
                               : "All light and dark looks, plus automatic mode, are available in MoOS Themes"
                         color: win.txt2
-                        font.family: win.uiFont; font.pixelSize: 12
+                        font.family: win.uiFont; font.pixelSize: win.fs(12)
                         opacity: 0.8
                     }
                 }
@@ -1363,7 +1383,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl ? "وجهة هذا الجهاز؟" : "What is this machine for?"
                         color: win.txt
-                        font.family: win.uiFont; font.pixelSize: 30; font.weight: Font.Bold
+                        font.family: win.uiFont; font.pixelSize: win.fs(30); font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 8 }
                     Text {
@@ -1371,7 +1391,7 @@ ApplicationWindow {
                         text: win.rtl ? "اختر اتجاهاً أو أكثر — وسنجهّز عدّته كاملة"
                                       : "Pick one or more directions — we prepare the full kit"
                         color: win.txt2
-                        font.family: win.uiFont; font.pixelSize: 14
+                        font.family: win.uiFont; font.pixelSize: win.fs(14)
                     }
                     Item { Layout.preferredHeight: 28 }
 
@@ -1428,7 +1448,7 @@ ApplicationWindow {
                                         Text {
                                             text: win.rtl ? dirCard.meta.ar : dirCard.meta.en
                                             color: win.txt
-                                            font.family: win.uiFont; font.pixelSize: 18; font.weight: Font.DemiBold
+                                            font.family: win.uiFont; font.pixelSize: win.fs(18); font.weight: Font.DemiBold
                                         }
                                         Text {
                                             Layout.fillWidth: true
@@ -1439,7 +1459,7 @@ ApplicationWindow {
                                                                + " apps")
                                                   : ""
                                             color: win.txt2
-                                            font.family: win.uiFont; font.pixelSize: 13
+                                            font.family: win.uiFont; font.pixelSize: win.fs(13)
                                             wrapMode: Text.WordWrap
                                             maximumLineCount: 2
                                             elide: Text.ElideRight
@@ -1471,7 +1491,7 @@ ApplicationWindow {
                         text: win.rtl ? "ولا واحد؟ لا بأس — نظامك يبقى نظيفاً وتجد كل شيء في متجر Mo Store"
                                       : "None? Fine — the system stays clean, and Mo Store has everything"
                         color: win.txt2
-                        font.family: win.uiFont; font.pixelSize: 12
+                        font.family: win.uiFont; font.pixelSize: win.fs(12)
                         opacity: 0.8
                     }
                 }
@@ -1492,7 +1512,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl ? "تطبيقاتك الاختيارية" : "Your optional apps"
                         color: win.txt
-                        font.family: win.uiFont; font.pixelSize: 30; font.weight: Font.Bold
+                        font.family: win.uiFont; font.pixelSize: win.fs(30); font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 8 }
                     Text {
@@ -1500,7 +1520,7 @@ ApplicationWindow {
                         text: win.rtl ? "الكاميرا والمسجّل والقارئ وأصحابهم — علِّم ما تريد، والباقي في المتجر"
                                       : "Camera, recorder, reader and friends — tick what you want; the rest lives in the store"
                         color: win.txt2
-                        font.family: win.uiFont; font.pixelSize: 14
+                        font.family: win.uiFont; font.pixelSize: win.fs(14)
                     }
                     Item { Layout.preferredHeight: 20 }
 
@@ -1563,7 +1583,7 @@ ApplicationWindow {
                                             Text {
                                                 text: win.rtl ? appCard.modelData.ar : appCard.modelData.en
                                                 color: win.txt
-                                                font.family: win.uiFont; font.pixelSize: 15; font.weight: Font.DemiBold
+                                                font.family: win.uiFont; font.pixelSize: win.fs(15); font.weight: Font.DemiBold
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
                                             }
@@ -1571,7 +1591,7 @@ ApplicationWindow {
                                                 text: win.rtl ? (appCard.modelData.desc_ar || "")
                                                               : (appCard.modelData.desc_en || "")
                                                 color: win.txt2
-                                                font.family: win.uiFont; font.pixelSize: 12
+                                                font.family: win.uiFont; font.pixelSize: win.fs(12)
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
                                             }
@@ -1580,7 +1600,7 @@ ApplicationWindow {
                                                 text: win.trustLabel(appCard.modelData)
                                                 color: win.violet
                                                 font.family: win.uiFont
-                                                font.pixelSize: 10
+                                                font.pixelSize: win.fs(10)
                                                 font.weight: Font.DemiBold
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
@@ -1613,7 +1633,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: (win.rtl ? "تعذّر قراءة الكتالوج: " : "Could not read the catalog: ") + win.loadError
                         color: win.txt2
-                        font.family: win.uiFont; font.pixelSize: 13
+                        font.family: win.uiFont; font.pixelSize: win.fs(13)
                     }
                 }
             }
@@ -1637,7 +1657,7 @@ ApplicationWindow {
                                   : (win.rtl ? "اكتمل التجهيز" : "Setup complete")
                               : (win.rtl ? "نجهّز نظامك…" : "Preparing your system…")
                         color: win.txt
-                        font.family: win.uiFont; font.pixelSize: 30; font.weight: Font.Bold
+                        font.family: win.uiFont; font.pixelSize: win.fs(30); font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 8 }
                     Text {
@@ -1646,7 +1666,7 @@ ApplicationWindow {
                         text: win.rtl ? "تثبيت آمن بصلاحيات المستخدم — يمكنك متابعة التقدم الحقيقي هنا"
                                       : "Safe per-user installation — follow the real transaction progress here"
                         color: win.txt2
-                        font.family: win.uiFont; font.pixelSize: 14
+                        font.family: win.uiFont; font.pixelSize: win.fs(14)
                     }
                     Item { Layout.preferredHeight: 22 }
 
@@ -1754,7 +1774,7 @@ ApplicationWindow {
                                                     text: instRow.app ? (win.rtl ? instRow.app.ar : instRow.app.en)
                                                                       : instRow.modelData
                                                     color: win.txt
-                                                    font.family: win.uiFont; font.pixelSize: 14; font.weight: Font.DemiBold
+                                                    font.family: win.uiFont; font.pixelSize: win.fs(14); font.weight: Font.DemiBold
                                                 }
                                                 Item { Layout.fillWidth: true }
                                                 Text {
@@ -1768,7 +1788,7 @@ ApplicationWindow {
                                                     color: instRow.st.state === "done" || instRow.st.state === "opened"
                                                            ? win.accent
                                                            : instRow.st.state === "fail" ? win.violet : win.txt2
-                                                    font.family: win.uiFont; font.pixelSize: 13
+                                                    font.family: win.uiFont; font.pixelSize: win.fs(13)
                                                 }
                                             }
                                             Rectangle {
@@ -1797,7 +1817,7 @@ ApplicationWindow {
                                 text: win.rtl ? "لم تختر تطبيقات — نظامك جاهز كما هو."
                                               : "No apps picked — your system is ready as it is."
                                 color: win.txt2
-                                font.family: win.uiFont; font.pixelSize: 14
+                                font.family: win.uiFont; font.pixelSize: win.fs(14)
                             }
                         }
                     }
@@ -1819,7 +1839,7 @@ ApplicationWindow {
                             Text {
                                 text: win.rtl ? "متابعة" : "Continue"
                                 color: win.onAccent
-                                font.family: win.uiFont; font.pixelSize: 16; font.weight: Font.DemiBold
+                                font.family: win.uiFont; font.pixelSize: win.fs(16); font.weight: Font.DemiBold
                             }
                         }
                     }
@@ -1857,7 +1877,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl ? "نظامك جاهز" : "Your system is ready"
                         color: win.txt
-                        font.family: win.uiFont; font.pixelSize: 34; font.weight: Font.Bold
+                        font.family: win.uiFont; font.pixelSize: win.fs(34); font.weight: Font.Bold
                     }
                     Item { Layout.preferredHeight: 10 }
                     Text {
@@ -1869,7 +1889,7 @@ ApplicationWindow {
                               ? "متجر Mo Store دائماً في متناولك، وMo AI مساعدك في كل شيء — أهلاً بك في بيتك الجديد."
                               : "Mo Store is always at hand, and Mo AI helps with everything — welcome home."
                         color: win.txt2
-                        font.family: win.uiFont; font.pixelSize: 15
+                        font.family: win.uiFont; font.pixelSize: win.fs(15)
                         lineHeight: 1.35
                     }
                     Item { Layout.preferredHeight: 32 }
@@ -1893,7 +1913,7 @@ ApplicationWindow {
                                 Text {
                                     text: win.rtl ? "افتح متجر Mo Store" : "Open Mo Store"
                                     color: win.onAccent
-                                    font.family: win.uiFont; font.pixelSize: 15; font.weight: Font.DemiBold
+                                    font.family: win.uiFont; font.pixelSize: win.fs(15); font.weight: Font.DemiBold
                                 }
                             }
                         }
@@ -1923,7 +1943,7 @@ ApplicationWindow {
                                 Text {
                                     text: win.rtl ? "افتح Mo AI" : "Open Mo AI"
                                     color: win.txt
-                                    font.family: win.uiFont; font.pixelSize: 15; font.weight: Font.DemiBold
+                                    font.family: win.uiFont; font.pixelSize: win.fs(15); font.weight: Font.DemiBold
                                 }
                             }
                         }
@@ -1959,7 +1979,7 @@ ApplicationWindow {
                                               : "Connect a keyboard, mouse or device"
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: 14
+                                font.pixelSize: win.fs(14)
                                 font.weight: Font.DemiBold
                             }
                         }
@@ -1983,7 +2003,7 @@ ApplicationWindow {
                             Text {
                                 text: win.rtl ? "إنهاء" : "Finish"
                                 color: win.txt2
-                                font.family: win.uiFont; font.pixelSize: 14
+                                font.family: win.uiFont; font.pixelSize: win.fs(14)
                             }
                         }
                     }
@@ -2022,7 +2042,7 @@ ApplicationWindow {
                         Text {
                             text: win.rtl ? "السابق" : "Back"
                             color: win.txt
-                            font.family: win.uiFont; font.pixelSize: 15
+                            font.family: win.uiFont; font.pixelSize: win.fs(15)
                         }
                     }
                 }
@@ -2033,7 +2053,7 @@ ApplicationWindow {
                     visible: win.step === 3
                     text: win.pickCount + (win.rtl ? " مختار" : " selected")
                     color: win.txt2
-                    font.family: win.uiFont; font.pixelSize: 14
+                    font.family: win.uiFont; font.pixelSize: win.fs(14)
                 }
 
                 Rectangle {   // next / install
@@ -2060,7 +2080,7 @@ ApplicationWindow {
                                      : (win.rtl ? "متابعة بلا تثبيت" : "Continue without installing"))
                                   : (win.rtl ? "التالي" : "Next")
                             color: win.onAccent
-                            font.family: win.uiFont; font.pixelSize: 15; font.weight: Font.DemiBold
+                            font.family: win.uiFont; font.pixelSize: win.fs(15); font.weight: Font.DemiBold
                         }
                     }
                 }
