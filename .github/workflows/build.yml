@@ -122,6 +122,10 @@ jobs:
           python3 tests/test_device_plan.py
           python3 tests/test_moai_do.py
           python3 tests/test_moai_control.py
+          # moos-open's session/logout and session/power hardcoded `qdbus6`, absent on Plasma 6
+          # (which ships qdbus-qt6), so they confirmed then silently did nothing. This asserts the
+          # qdbus_run resolver finds qdbus-qt6 and the session routes use it.
+          python3 tests/test_moos_open_qdbus.py
           python3 tests/test_moai_http_security.py
           # The gateway must not leave a chat reply hanging: a mid-stream upstream drop has to close
           # the connection (not swallow the error and keep-alive), and Anthropic error/truncation

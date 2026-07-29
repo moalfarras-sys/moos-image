@@ -76,6 +76,22 @@ confirm() {
 # Launch a GUI app fully detached from this short-lived handler process.
 gui() { setsid "$@" >/dev/null 2>&1 & }
 
+# Plasma 6 ships the D-Bus CLI as qdbus-qt6, not qdbus6. Routes that hardcoded
+# `qdbus6` (session/logout, session/power) confirmed the action, took the user's
+# Yes, and then did nothing — `command -v qdbus6` was false so the && chain
+# short-circuited to `|| true`. Resolve the binary by any of its shipped names and
+# run the call; return non-zero if none exists so a caller can fall back.
+qdbus_run() {
+    local q
+    for q in qdbus6 qdbus-qt6 qdbus; do
+        if command -v "$q" >/dev/null 2>&1; then
+            "$q" "$@"
+            return
+        fi
+    done
+    return 1
+}
+
 # Run an interactive command in a held terminal so its output/prompts/errors
 # stay visible after it exits (moos-setup, moai-start, moai-do).
 term() {
@@ -178,9 +194,9 @@ case "${cat}/${tgt}" in
     # installed system: moos-installer's own live-guard just shows a notice.
     installer/open)     gui moos-installer ;;
     installer/reboot)   confirm "إعادة تشغيل الجهاز الآن؟ | Restart the computer now?" \
-                          && { systemctl reboot 2>/dev/null || loginctl reboot 2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndReboot 2>/dev/null || true; } ;;
+                          && { systemctl reboot 2>/dev/null || loginctl reboot 2>/dev/null || qdbus_run org.kde.Shutdown /Shutdown logoutAndReboot 2>/dev/null || true; } ;;
     installer/poweroff) confirm "إيقاف تشغيل الجهاز الآن؟ | Shut the computer down now?" \
-                          && { systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null || true; } ;;
+                          && { systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || qdbus_run org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null || true; } ;;
 
     # ── Mo PC Remote: start / stop / reconnect, from inside Mo AI ────────────
     # start ENABLES the service (it returns every boot), so it must be confirmed —
@@ -242,9 +258,9 @@ case "${cat}/${tgt}" in
                    [ -n "$query" ] && gui krunner "$query" ;;
     session/lock)  loginctl lock-session ;;
     session/logout) confirm "تسجيل الخروج الآن؟ | Log out now?" \
-                          && command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logout || true ;;
+                          && { qdbus_run org.kde.Shutdown /Shutdown logout 2>/dev/null || true; } ;;
     session/power) confirm "إيقاف تشغيل الجهاز الآن؟ | Shut the computer down now?" \
-                          && command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.Shutdown /Shutdown logoutAndShutdown || true ;;
+                          && { systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || qdbus_run org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null || true; } ;;
     do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/setup-windows|do/install-codex|do/install-claude|do/install-opencode|do/install-openclaw|do/setup-brain|do/remote-anywhere)
                    term moai-do "$tgt" ;;
     *)
