@@ -35,6 +35,24 @@ PlasmoidItem {
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
     readonly property var displayLocale: rtl ? Qt.locale("ar") : Qt.locale()
 
+    // Same helper as the lock clock (MoOSClock.qml): day and month names stay
+    // the locale's own, only the DIGITS fold to Latin — one number system on
+    // every always-visible shell clock. Persian (U+06F0…) folds too.
+    function latinNumerals(text) {
+        let out = "";
+        for (let i = 0; i < text.length; ++i) {
+            const c = text.charCodeAt(i);
+            if (c >= 0x0660 && c <= 0x0669) {
+                out += String.fromCharCode(c - 0x0660 + 0x30);
+            } else if (c >= 0x06F0 && c <= 0x06F9) {
+                out += String.fromCharCode(c - 0x06F0 + 0x30);
+            } else {
+                out += text[i];
+            }
+        }
+        return out;
+    }
+
     toolTipMainText: Qt.formatTime(now, displayLocale, Locale.LongFormat)
     toolTipSubText: Qt.formatDate(now, displayLocale, Locale.LongFormat)
 
@@ -190,7 +208,13 @@ PlasmoidItem {
                 // stretching the clock across the end of the panel. Locale.toString
                 // is the call that honours a pattern, and it still uses the
                 // locale's own day and month names. Same call the lock clock makes.
-                text: root.displayLocale.toString(root.now, "ddd d MMM")
+                //
+                // Digits fold to Latin, same as the lock clock's date and the
+                // wallpaper hero card: the two always-visible shell clocks used
+                // to disagree in the same glance — pill "٢٩ يوليو", hero card
+                // "29 يوليو". Day and month names stay the locale's own; only
+                // the number system is one decision, applied everywhere.
+                text: root.latinNumerals(root.displayLocale.toString(root.now, "ddd d MMM"))
                 color: Kirigami.Theme.textColor
                 opacity: 0.66
                 font.family: root.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"

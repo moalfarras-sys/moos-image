@@ -26,7 +26,12 @@ set -uo pipefail
 #     clock is PUT BACK: rev 22's migration only rewrote an existing
 #     org.kde.plasma.digitalclock into the MoOS clock, so a panel that had no
 #     clock at all — the maintainer's — silently stayed clockless.
-THEME_REV=23
+# 24: Aurorae frames changed (flat maximized bar, centred buttons, no blur mask),
+#     and the tray hide-list changed — the remote-control indicator is UNHIDDEN
+#     (a security signal that must surface when Active) and the video bridge
+#     gained its Arabic Id. The rev bump re-runs the tray collapse so existing
+#     sessions get the corrected list, and restarts the shell over the new art.
+THEME_REV=24
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -1357,14 +1362,18 @@ systemctl --user start plasma-ksystemstats.service >>"$log" 2>&1 || true
 # the collapse arrow, one click away.
 #
 # StatusNotifierItems are matched on their OWN Id, not on a plasmoid id, which is
-# why the portal and the video bridge survived the first attempt: they are not
-# plasmoids. Their Id is also the app's *translated* name on some builds
-# ("Xwayland-Video-Brücke" on this German session), so the variants are all listed.
+# why the video bridge survived the first attempt: it is not a plasmoid. Its Id is
+# also the app's *translated* name on some builds ("Xwayland-Video-Brücke" on a
+# German session, "جسر فيديو ويلاند_اكس" measured live on this Arabic one — the
+# OS's own first-class locale was the missing variant), so every variant is listed.
 #
-# The portal's item is the "your screen is being controlled remotely" indicator.
-# Collapsing it is not the same as removing it — it is one click away, and it still
-# lights up. But it IS a security indicator, so it is called out here rather than
-# quietly folded in with the printer.
+# The portal's item is the "your screen is being controlled remotely" indicator,
+# and it is deliberately NOT in the hide list. An earlier revision hid it on the
+# theory that hidden items still surface when they turn Active — measured false
+# on Plasma 6: a live remote-control session showed nothing anywhere on screen.
+# On an OS that ships Mo PC Remote, that indicator is the one at-a-glance signal
+# that someone is watching; unlisted, Plasma shows it by Status — invisible while
+# Passive, in the tray the moment a session is Active. That is the contract.
 if command -v gdbus >/dev/null 2>&1; then
     gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
         -m org.kde.PlasmaShell.evaluateScript '
@@ -1377,8 +1386,9 @@ if command -v gdbus >/dev/null 2>&1; then
                 "org.kde.plasma.mediacontroller", "org.kde.plasma.networkmanagement",
                 "org.kde.plasma.notifications", "org.kde.plasma.printmanager",
                 "org.kde.plasma.weather",
-                "xdg-desktop-portal-kde", "xwaylandvideobridge",
-                "Xwayland Video Bridge", "Xwayland-Video-Bruecke"
+                "xwaylandvideobridge",
+                "Xwayland Video Bridge", "Xwayland-Video-Bruecke",
+                "جسر فيديو ويلاند_اكس"
             ];
             var SHOW = ["org.kde.plasma.keyboardlayout", "org.kde.plasma.volume"];
             var ps = panels();

@@ -136,7 +136,11 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: Kirigami.Units.gridUnit * 3.15
             spacing: Kirigami.Units.largeSpacing
-            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
+            // No explicit layoutDirection anywhere in this file: plasmashell runs
+            // this popup with LayoutMirroring enabled+inherited on RTL sessions, and
+            // mirroring INVERTS an explicit Qt.RightToLeft back to visual LTR. The
+            // fifteen rows that declared it rendered backwards; the rows that never
+            // mentioned it were correct the whole time. Mirroring is the one system.
 
             Item {
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 2.75
@@ -244,7 +248,6 @@ Item {
                 anchors.leftMargin: Kirigami.Units.largeSpacing * 1.2
                 anchors.rightMargin: Kirigami.Units.largeSpacing * 1.2
                 spacing: Kirigami.Units.mediumSpacing
-                layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
                 Rectangle {
                     Layout.preferredWidth: Kirigami.Units.gridUnit * 2.15
@@ -344,7 +347,6 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: Kirigami.Units.largeSpacing
-            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             ColumnLayout {
                 readonly property real fixedWidth: Kirigami.Units.gridUnit * 8.6
@@ -482,7 +484,6 @@ Item {
                                 cellHeight: Plasmoid.configuration.compactTiles
                                     ? Kirigami.Units.gridUnit * 4.65
                                     : Kirigami.Units.gridUnit * 5.55
-                                layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
                                 keyNavigationWraps: true
 
                                 delegate: AppTile {
@@ -525,7 +526,6 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 orientation: ListView.Horizontal
-                                layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
                                 spacing: Kirigami.Units.smallSpacing
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
@@ -593,7 +593,6 @@ Item {
                             cellHeight: Plasmoid.configuration.compactTiles
                                 ? Kirigami.Units.gridUnit * 4.5
                                 : Kirigami.Units.gridUnit * 5.45
-                            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
                             keyNavigationWraps: true
 
                             delegate: AppTile {
@@ -639,7 +638,6 @@ Item {
                                 anchors.leftMargin: Kirigami.Units.largeSpacing
                                 anchors.rightMargin: Kirigami.Units.largeSpacing
                                 spacing: Kirigami.Units.mediumSpacing
-                                layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
                                 Kirigami.Icon {
                                     Layout.preferredWidth: Kirigami.Units.iconSizes.medium
@@ -670,7 +668,7 @@ Item {
                                 }
                                 PC3.Button {
                                     text: view.local("إدارة المواقع", "Manage locations")
-                                    icon.name: "configure-symbolic"
+                                    icon.name: "systemsettings"
                                     onClicked: view.launcher.openDesktop("kcm_baloofile.desktop")
                                 }
                             }
@@ -733,7 +731,6 @@ Item {
                                     anchors.leftMargin: Kirigami.Units.largeSpacing
                                     anchors.rightMargin: Kirigami.Units.largeSpacing
                                     spacing: Kirigami.Units.largeSpacing
-                                    layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
                                     Kirigami.Icon {
                                         Layout.preferredWidth: Kirigami.Units.iconSizes.large
@@ -931,7 +928,7 @@ Item {
                                 "Try another name or review search locations")
                             helpfulAction: Kirigami.Action {
                                 text: view.local("إعدادات البحث", "Search settings")
-                                icon.name: "configure-symbolic"
+                                icon.name: "systemsettings"
                                 onTriggered: view.launcher.openDesktop("kcm_plasmasearch.desktop")
                             }
                         }
@@ -951,7 +948,6 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: Kirigami.Units.gridUnit * 2.2
             spacing: Kirigami.Units.smallSpacing
-            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {
                 spacing: Kirigami.Units.smallSpacing
@@ -973,14 +969,14 @@ Item {
 
             PC3.ToolButton {
                 text: view.local("ثيمات MoOS", "MoOS Themes")
-                icon.name: "preferences-desktop-theme-global-symbolic"
+                icon.name: "moos-themes"
                 display: PC3.AbstractButton.IconOnly
                 onClicked: view.launcher.openDesktop("org.moos.themepicker.desktop")
                 PC3.ToolTip.text: text
             }
             PC3.ToolButton {
                 text: view.local("إعدادات النظام", "System Settings")
-                icon.name: "configure-symbolic"
+                icon.name: "systemsettings"
                 display: PC3.AbstractButton.IconOnly
                 onClicked: view.launcher.openDesktop("systemsettings.desktop")
                 PC3.ToolTip.text: text
@@ -1090,7 +1086,6 @@ Item {
 
         contentItem: RowLayout {
             spacing: Kirigami.Units.mediumSpacing
-            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             Kirigami.Icon {
                 Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
@@ -1205,7 +1200,6 @@ Item {
             z: 4
             visible: tile.favoriteSurface && view.launcher.editMode
             spacing: 1
-            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             PC3.ToolButton {
                 icon.name: view.rtl ? "arrow-right-symbolic" : "arrow-left-symbolic"
@@ -1267,7 +1261,6 @@ Item {
         }
         contentItem: RowLayout {
             spacing: Kirigami.Units.mediumSpacing
-            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
             Kirigami.Icon {
                 Layout.preferredWidth: Kirigami.Units.iconSizes.medium
                 Layout.preferredHeight: width
@@ -1333,7 +1326,6 @@ Item {
         }
         contentItem: RowLayout {
             spacing: Kirigami.Units.mediumSpacing
-            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
             Kirigami.Icon {
                 Layout.preferredWidth: Kirigami.Units.iconSizes.medium
                 Layout.preferredHeight: width
@@ -1402,7 +1394,6 @@ Item {
 
         contentItem: RowLayout {
             spacing: Kirigami.Units.mediumSpacing
-            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             Rectangle {
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 2.1
@@ -1473,7 +1464,6 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
                 Kirigami.Icon {
                     Layout.preferredWidth: Kirigami.Units.iconSizes.medium
                     Layout.preferredHeight: width

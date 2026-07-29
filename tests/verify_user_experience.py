@@ -2300,7 +2300,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=23" in apply_theme_code, "MoOS visual schema must be revision 23")
+require("THEME_REV=24" in apply_theme_code, "MoOS visual schema must be revision 24")
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
@@ -4179,10 +4179,26 @@ require(("restart plasma-plasmashell.service" in apply_theme_code
         "moos-apply-theme must RESTART plasmashell (guarded once per THEME_REV) after writing "
         "the tray config — in Plasma 6.7 reloadConfig writes the file but the running shell "
         "keeps drawing the full tray, so the collapse is invisible without a restart")
-require("xdg-desktop-portal-kde" in apply_theme_code,
-        "StatusNotifierItems are matched on their OWN Id, not a plasmoid id — the portal's "
-        "remote-control icon and the Xwayland bridge are not plasmoids and survive a "
-        "hiddenItems list that only names plasmoids")
+# THE CONTRACT FLIPPED HERE, DELIBERATELY (THEME_REV 24). This gate used to require
+# the portal's Id IN the hide list. The hide was built on the theory that hidden items
+# surface when they turn Active — measured false on Plasma 6: a live remote-control
+# session showed no indicator anywhere on screen while its SNI sat Active behind the
+# collapse arrow. On an OS that ships Mo PC Remote, the portal item is the one
+# at-a-glance "your screen is being watched" signal. Unlisted, Plasma shows it by
+# Status: invisible while Passive, in the tray while a session is Active.
+require("xdg-desktop-portal-kde" not in apply_theme_code,
+        "the portal's remote-control indicator must NOT be hidden — hidden SNIs do not "
+        "surface when they turn Active (measured on Plasma 6), so hiding it blinds the "
+        "user to an active remote-control session")
+# The bridge, by contrast, stays hidden — and SNIs match on their OWN Id, which is the
+# app's TRANSLATED name on some builds. Every measured variant must be listed, and the
+# OS's own first-class locale was the one missing.
+for bridge_id in ("xwaylandvideobridge", "Xwayland Video Bridge",
+                  "Xwayland-Video-Bruecke", "جسر فيديو ويلاند_اكس"):
+    require(bridge_id in apply_theme_code,
+            f"the Xwayland bridge hide-list is missing the Id variant {bridge_id!r} — "
+            f"SNIs match on their translated Id, so a missing locale variant pops the "
+            f"icon into the curated tray for exactly that locale's users")
 
 # The panel clock must declare its width to the panel layout. implicitWidth alone is
 # NOT enough: Plasma lays the panel out from the Layout attached properties, and

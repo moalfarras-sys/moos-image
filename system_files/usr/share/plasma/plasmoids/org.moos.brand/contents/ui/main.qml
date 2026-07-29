@@ -372,7 +372,9 @@ PlasmoidItem {
             width: Math.round(compact.contentWidth * 0.80)
             height: Math.round(compact.height * 0.68)
             spacing: Math.max(4, Kirigami.Units.smallSpacing)
-            layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+            // No explicit layoutDirection: plasmashell mirrors this tree on RTL
+            // sessions, and mirroring inverts an explicit RightToLeft back to
+            // visual LTR — same defect as the fifteen removed in LauncherView.
 
             Item {
                 Layout.preferredWidth: parent.height
