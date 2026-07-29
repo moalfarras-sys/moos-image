@@ -15,5 +15,14 @@ ExecStart=/usr/bin/moos-ensure-brain
 # Idempotent + failure-tolerant by design; never let it block the session.
 TimeoutStartSec=900
 
-[Install]
-WantedBy=default.target
+# NO [Install] SECTION ON PURPOSE — moos-ensure-brain.timer starts this.
+#
+# It used to carry `WantedBy=default.target`, and because this is a Type=oneshot
+# with RemainAfterExit, systemd holds default.target until it EXITS. That put it on
+# the session's critical path and contradicted the line above: measured on the
+# maintainer's machine it was 7.949s of the session's 9.440s, and its own log for
+# that run reads "brain already correct for this machine — nothing to do". The model
+# query behind it is slow whether or not there is work, so every login paid it.
+#
+# The timer runs it 15s into the session instead: same reconcile, same guarantees,
+# off the path between the user logging in and their desktop appearing.

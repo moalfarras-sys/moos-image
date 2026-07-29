@@ -2039,10 +2039,37 @@ build_script = read("build_files/build.sh")
 for runtime_unit in (
     "moai.service", "moai-gateway.service", "moai-control.service",
     "moai-idle.service", "moai-idle.timer", "moos-ensure-brain.service",
+    "moos-ensure-brain.timer",
     "openclaw-idle.service", "openclaw-idle.timer", "moai-agent-api.service",
 ):
     require(f"/usr/lib/systemd/user/{runtime_unit}" in build_script,
             f"the image build must systemd-verify Mo AI runtime unit {runtime_unit}")
+
+# NOTHING SLOW MAY SIT ON THE PATH BETWEEN LOGIN AND THE DESKTOP.
+#
+# moos-ensure-brain is Type=oneshot with RemainAfterExit, so any target that Wants it
+# WAITS for it to exit. It was WantedBy=default.target, and it queries the model backend,
+# which is slow whether or not there is work to do. Measured on the maintainer's machine:
+#
+#     default.target @9.440s
+#     └─moos-ensure-brain.service @1.490s +7.949s
+#
+# — 7.9 of the session's 9.4 seconds, to log "brain already correct — nothing to do". Its
+# own unit file says "never let it block the session"; the Install section was what made it
+# do exactly that. It is started by moos-ensure-brain.timer now, and must not go back.
+_ensure_brain_unit = read("system_files/usr/lib/systemd/user/moos-ensure-brain.service")
+require("WantedBy=default.target" not in code(_ensure_brain_unit, "hash"),
+        "moos-ensure-brain.service is WantedBy=default.target again. It is a Type=oneshot, so "
+        "the session waits for it to finish — that put ~8 seconds of model queries between the "
+        "user logging in and their desktop appearing. Start it from moos-ensure-brain.timer.")
+require("systemctl --global enable moos-ensure-brain.timer" in build_script,
+        "the image must enable moos-ensure-brain.timer — without it the brain reconcile never "
+        "runs at all, since the service no longer has an [Install] section")
+_ensure_brain_timer = code(
+    read("system_files/usr/lib/systemd/user/moos-ensure-brain.timer"), "hash")
+require("OnStartupSec=" in _ensure_brain_timer,
+        "moos-ensure-brain.timer must fire relative to session start (OnStartupSec), so the "
+        "reconcile still happens every login — just after the desktop, not before it")
 require("systemctl --global enable moai-agent-api.service" in build_script,
         "the Agent settings API must persist across logout/reboot for every user")
 agent_api_unit = code(

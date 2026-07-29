@@ -2027,6 +2027,7 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moai-idle.service \
     /usr/lib/systemd/user/moai-idle.timer \
     /usr/lib/systemd/user/moos-ensure-brain.service \
+    /usr/lib/systemd/user/moos-ensure-brain.timer \
     /usr/lib/systemd/user/openclaw-idle.service \
     /usr/lib/systemd/user/openclaw-idle.timer \
     /usr/lib/systemd/user/moai-agent-api.service
@@ -2056,7 +2057,11 @@ systemctl --global enable moai-gateway.service
 # Keep Mo AI's brain FAST: build/serve the instruct (non-thinking) model from
 # system_files/.../moai-brain.Modelfile. A thinking model made trivial replies
 # cost ~97 s; the instruct model answers in <0.5 s. Idempotent + failure-tolerant.
-systemctl --global enable moos-ensure-brain.service
+# Enable the TIMER, not the service: the service is Type=oneshot, so anything that
+# Wants it makes the session WAIT for it to exit. Pulling it in from default.target
+# cost 7.9s of a 9.4s login to log "nothing to do". The timer runs the same
+# reconcile 15s into the session, off the login path.
+systemctl --global enable moos-ensure-brain.timer
 
 # Free the local brain's VRAM when it goes idle. moai.service loads ~6 GB into an 8 GB
 # GPU and never releases it while up, which starves the compositor — a maximised browser
