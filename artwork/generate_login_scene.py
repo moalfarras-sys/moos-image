@@ -91,6 +91,12 @@ def comet_ring(size: int, head: tuple[int, int, int], tail: tuple[int, int, int]
                 continue
             t = ang / sweep_deg              # 0 at the head, 1 at the tail tip
             fade = (1.0 - t) ** 1.8
+            # The head needs a cap. fade peaks at ang=0 while `ang > sweep_deg`
+            # zeroes the wrapped neighbour one degree behind it, so the arc
+            # terminated in a full-brightness razor chop — at 4K it read as a
+            # rendering glitch orbiting the boot splash on every boot. Ramping
+            # the first 6 degrees rounds the tip into an actual comet head.
+            fade *= min(1.0, ang / 6.0)
             a = int(peak * radial * fade)
             if a <= 0:
                 continue
