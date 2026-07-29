@@ -127,10 +127,11 @@ def main() -> int:
         print("GATE FAIL: the shipped controller bundle and git disagree.\n")
         for e in errors:
             print(f"  - {e}")
-        print("\nWhy this matters: CI never runs `npm run build` — the image ships what is committed"
-              "\nunder moremote/agent/wwwroot. A referenced-but-untracked asset means the agent"
-              "\nanswers the script request with index.html (MapFallbackToFile), which is a 200, not"
-              "\na 404 — so the browser renders a blank page and no log says why.")
+        print("\nWhy this matters: the image ships what is COMMITTED under moremote/agent/wwwroot."
+              "\nCI does now run `npm run build`, but only to compare — it never commits the result,"
+              "\nso an asset that is built but untracked still never reaches the image. The agent"
+              "\nthen answers the script request with index.html (MapFallbackToFile), which is a 200,"
+              "\nnot a 404 — so the browser renders a blank page and no log says why.")
         return 1
 
     print(f"OK: index.html references {len(referenced)} asset(s), all present and tracked "

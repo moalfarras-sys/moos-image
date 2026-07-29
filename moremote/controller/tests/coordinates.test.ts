@@ -214,6 +214,37 @@ console.log("PASS: client letterbox/orientation/turned-view/keyboard/update test
 // So: for each container that renders a bare <Icon…/>, the stylesheet must size the svg inside
 // it. Checked as a pairing rather than by eye, because "it looked fine on my screen" is how the
 // first one shipped.
+// The rule below is necessary and was never sufficient. It names two containers, so it can only
+// ever protect two containers, and the failure it guards against is precisely the one that
+// happens where nobody thought to add a rule. Three sites proved it: IconPower in the
+// idle-timeout overlay, IconLock in the PC-locked overlay, and IconLock in the auth lockout hint
+// all render with className="", which no selector in styles.css can match, so all three fell
+// back to the browser's ~300px default object size — the gear bug, three more times, with the
+// gear's own gate green.
+//
+// So the real invariant is on the icon component, not on the stylesheet: an icon must have a
+// size even when no CSS applies to it. width/height on the <svg> are presentation attributes,
+// which lose to every css declaration, so the container rules keep winning and only the
+// unstyled case changes.
+// Comments are stripped before the match, and that is not tidiness. The first version of this
+// gate read the raw file, and the very comment above — which contains the words "An <svg> with a
+// viewBox and no dimensions" — matched before the real element did. The gate then reported the
+// component unsized while it was correctly sized, which is the same failure as a gate that a
+// comment can SATISFY, just pointing the other way. This repo already strips comments for that
+// reason in verify_user_experience.py (`code`) and verify_image_experience.py (`source`).
+const icons = readFileSync(join(import.meta.dirname, "..", "src", "ui", "icons.tsx"), "utf8")
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .split("\n").filter((line) => !line.trim().startsWith("//")).join("\n");
+const svgTag = icons.match(/<svg\b[^>]*>/);
+assert.ok(svgTag, "src/ui/icons.tsx has no <svg> — the shared icon component is gone");
+for (const dimension of ["width", "height"] as const) {
+  assert.match(svgTag![0], new RegExp(`\\b${dimension}=`),
+    `the shared icon <svg> sets no ${dimension}, so an icon rendered anywhere without a matching `
+    + "CSS rule has no intrinsic size and expands to the browser's ~300px default. Keep the "
+    + "attribute: CSS still overrides it, and it is the only thing standing between a new use "
+    + "site and the 600px gear.");
+}
+
 const css = readFileSync(join(import.meta.dirname, "..", "src", "styles.css"), "utf8");
 for (const [selector, why] of [
   [".sheet h3 svg", "the settings sheet header renders a gear"],

@@ -1,8 +1,22 @@
 // Lightweight stroke icons (no icon-font dependency). 24x24 viewBox.
 import type { ReactNode } from "react";
 type P = { className?: string };
+// width/height are PRESENTATION ATTRIBUTES, and that is the whole point of putting them here.
+//
+// An <svg> with a viewBox and no dimensions has no intrinsic size, so the browser falls back to
+// the default object size — about 300px — and the icon arrives the size of a photograph. The
+// settings gear shipped that way once already, at roughly 600px, filling the phone screen above
+// a barely visible title. The fix then was a CSS rule for that one container, which left every
+// FUTURE use site one forgotten rule away from the same bug: `className=""` at three sites here
+// (the idle-timeout overlay, the PC-locked overlay, and the auth lockout hint) had no rule that
+// could ever match them, and each rendered a ~300px glyph.
+//
+// A presentation attribute loses to ANY css declaration, so every existing `.tbtn svg { width }`,
+// `.cell svg { width }`, `.sheet h3 svg { width }` still wins exactly as before and nothing
+// resizes. What changes is only the case nobody wrote a rule for: it lands at 24px — the size of
+// the viewBox — instead of at the browser's fallback.
 const S = (props: { children: ReactNode } & P) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
     {props.children}
   </svg>
 );
