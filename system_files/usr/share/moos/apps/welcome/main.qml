@@ -1125,15 +1125,15 @@ ApplicationWindow {
                                 { id: "dark",  glyph: "moon", en: "Graphite",    ar: "غرافيت داكن",
                                   canvasC: "#14191C", chromeC: "#1C2226", accentC: "#4ED7C8", txtC: "#E8F1EF" },
                                 { id: "light", glyph: "sun",  en: "Tidal Light", ar: "تايدل فاتح",
-                                  canvasC: "#D8EBE7", chromeC: "#C7E0DA", accentC: "#0E8577", txtC: "#17272B" },
+                                  canvasC: "#D8EBE7", chromeC: "#C7E0DA", accentC: "#006D67", txtC: "#17272B" },
                                 { id: "nova",  glyph: "moon", en: "Nova",        ar: "نوفا",
-                                  canvasC: "#0A1120", chromeC: "#111A2E", accentC: "#38BDF8", txtC: "#EAF2FF" },
+                                  canvasC: "#0A1120", chromeC: "#111A2E", accentC: "#6366F1", txtC: "#EAF2FF" },
                                 { id: "amethyst", glyph: "moon", en: "Amethyst", ar: "أميثيست",
                                   canvasC: "#17121F", chromeC: "#201829", accentC: "#C084FC", txtC: "#F1E9F5" },
                                 { id: "midnight", glyph: "moon", en: "Midnight", ar: "منتصف الليل",
                                   canvasC: "#000000", chromeC: "#0A0A0C", accentC: "#22D3EE", txtC: "#F5F7FA" },
                                 { id: "aurora", glyph: "moon", en: "Aurora",     ar: "أورورا",
-                                  canvasC: "#0E1524", chromeC: "#172236", accentC: "#2DD4BF", txtC: "#ECF2FB" }
+                                  canvasC: "#0E1524", chromeC: "#172236", accentC: "#3B82F6", txtC: "#ECF2FB" }
                             ]
                             // WELCOME_QUICK_THEME_IDS_END
                             delegate: Rectangle {
@@ -1175,7 +1175,13 @@ ApplicationWindow {
                                         Rectangle {
                                             x: 14; y: 14
                                             width: parent.width * 0.46; height: 42; radius: 9
-                                            color: Qt.lighter(lookCard.modelData.canvasC, 1.35)
+                                            // Elevate ADDITIVELY (white over canvas), not with
+                                            // Qt.lighter: Qt.lighter multiplies HSV Value, and
+                                            // Midnight's canvas is #000000 (Value 0), so lighten was
+                                            // a no-op and this glass panel painted black-on-black —
+                                            // the Midnight card looked broken. tint lifts every
+                                            // canvas, including true black (~#242424 here).
+                                            color: Qt.tint(lookCard.modelData.canvasC, Qt.rgba(1, 1, 1, 0.14))
                                             opacity: 0.9
                                             Rectangle {
                                                 x: 9; y: 9; width: 34; height: 10; radius: 5
@@ -1192,7 +1198,9 @@ ApplicationWindow {
                                             anchors.bottom: parent.bottom
                                             anchors.bottomMargin: 10
                                             width: parent.width * 0.5; height: 16; radius: 8
-                                            color: Qt.lighter(lookCard.modelData.canvasC, 1.4)
+                                            // Additive elevation — see the bento note: Qt.lighter is
+                                            // a no-op on Midnight's #000000, so the dock vanished.
+                                            color: Qt.tint(lookCard.modelData.canvasC, Qt.rgba(1, 1, 1, 0.17))
                                             opacity: 0.95
                                             Row {
                                                 anchors.centerIn: parent

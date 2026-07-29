@@ -986,6 +986,36 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn("6 quick looks from a 16-theme family", welcome)
         self.assertIn("6 إطلالات سريعة من عائلة تضم 16 ثيمًا", welcome)
 
+        # Each preview swatch's accent must be the theme's REAL primary, or the first-run
+        # picker shows the wrong colour: Nova was previewed sky-blue (#38BDF8) though it is
+        # royal indigo #6366F1, and Aurora teal though it is azure #3B82F6. Tie the hand-set
+        # literals to the palette files so they cannot silently drift again.
+        family = load_json(ROOT / "artwork/moos-themes/palettes.json")
+        base = load_json(ROOT / "artwork/moos-ui2/palette.json")
+        expected_accent = {
+            "dark": base["dark"]["primary"],       # base MoOS UI (Graphite)
+            "light": base["light"]["primary"],     # base MoOS UI (Tidal Light)
+            "nova": family["nova"]["primary"],
+            "amethyst": family["amethyst"]["primary"],
+            "midnight": family["midnight"]["primary"],
+            "aurora": family["aurora"]["primary"],
+        }
+        swatch_accent = dict(re.findall(
+            r'id:\s*"([a-z-]+)"[^}]*?accentC:\s*"(#[0-9A-Fa-f]{6})"', quick_model, re.S))
+        for theme_id, want in expected_accent.items():
+            with self.subTest(swatch_accent=theme_id):
+                self.assertEqual(
+                    swatch_accent.get(theme_id, "").upper(), want.upper(),
+                    f"Welcome '{theme_id}' swatch accent must equal its palette primary {want}")
+
+        # The mini preview must not elevate its glass surfaces with Qt.lighter(canvasC):
+        # Qt.lighter multiplies HSV Value, so on Midnight's #000000 canvas it is a no-op and
+        # the bento/dock render black-on-black (invisible). Elevation must be additive.
+        self.assertNotIn(
+            "Qt.lighter(lookCard.modelData.canvasC", welcome,
+            "the Welcome mini-preview elevates with Qt.lighter(canvasC), which vanishes on the "
+            "Midnight #000000 canvas — use additive Qt.tint so black lifts too")
+
         router = (ROOT / "system_files/usr/bin/moos-open").read_text(encoding="utf-8")
         direct_routes = dict(
             re.findall(
