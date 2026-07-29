@@ -44,34 +44,66 @@ Kirigami.ApplicationWindow {
     // instead of rasterising forever on an idle assistant window.
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
 
-    // ── Semantic design tokens — supplied by the active KDE scheme ───────
-    // These bindings are deliberately owned by ApplicationWindow.palette. A
-    // Global Theme changes KDE's palette at runtime; keeping Nova hex values
-    // here made every card stay navy even on a light desktop.
-    readonly property color surface0: root.palette.base             // canvas
-    readonly property color surface1: root.palette.alternateBase    // cards
-    readonly property color surface2: root.palette.button           // raised controls
-    readonly property color surface3: root.palette.midlight         // hover / selected
-    readonly property color chrome:   root.palette.window           // rail / headers
-    readonly property color hairline: root.palette.mid
-    readonly property color textHi:   root.palette.windowText
-    readonly property color textLo:   root.palette.placeholderText
-    readonly property color textMute: Qt.rgba(root.palette.placeholderText.r,
-                                               root.palette.placeholderText.g,
-                                               root.palette.placeholderText.b, 0.78)
-    readonly property color novaCyan:   root.palette.link
-    readonly property color novaBlue:   root.palette.highlight
+    // ── Semantic design tokens — supplied by the active MoOS colour scheme ───────
+    //
+    // These read Kirigami.Theme, NOT ApplicationWindow.palette, and the difference is not
+    // academic. Measured on one session, one scheme (MoOSUI2Light, selection #006D67), two
+    // MoOS apps sampled at the same moment:
+    //
+    //   an app on Kirigami.Theme  ->  surface #DFEFEA, accent #006D67   (MoOS teal)
+    //   an app on palette.*       ->  surface #FFFFFF, accent #45A7D7   (stock Breeze blue)
+    //
+    // A bare `palette` on a QQuickWindow does not resolve the KDE colour scheme; it falls back
+    // to Qt's built-in defaults, and QT_QPA_PLATFORMTHEME=kde does not change that. The comment
+    // that used to sit here said the bindings were "deliberately owned by
+    // ApplicationWindow.palette" so a Global Theme change would follow at runtime — the intent
+    // was exactly right and the mechanism never delivered it.
+    //
+    // The identifiers stay (novaBlue, novaCyan, novaViolet are load-bearing names); only what
+    // they resolve to changes.
+    Kirigami.Theme.inherit: false
+    Kirigami.Theme.colorSet: Kirigami.Theme.View
+
+    readonly property color surface0: Kirigami.Theme.backgroundColor            // canvas
+    readonly property color surface1: Kirigami.Theme.alternateBackgroundColor   // cards
+    readonly property color surface2: Kirigami.Theme.backgroundColor            // raised controls
+    readonly property color surface3: Kirigami.Theme.hoverColor                 // hover / selected
+    readonly property color chrome:   Kirigami.Theme.backgroundColor            // rail / headers
+    // A tint of the foreground, never Kirigami.Theme.separatorColor: that renders #FFFFFF in
+    // every colour set of this scheme, so binding to it deletes every hairline on a light page.
+    readonly property color hairline: Qt.rgba(Kirigami.Theme.textColor.r,
+                                              Kirigami.Theme.textColor.g,
+                                              Kirigami.Theme.textColor.b, 0.14)
+    readonly property color textHi:   Kirigami.Theme.textColor
+    readonly property color textLo:   Kirigami.Theme.disabledTextColor
+    readonly property color textMute: Qt.rgba(Kirigami.Theme.disabledTextColor.r,
+                                               Kirigami.Theme.disabledTextColor.g,
+                                               Kirigami.Theme.disabledTextColor.b, 0.78)
+    readonly property color novaCyan:   Kirigami.Theme.linkColor
+    readonly property color novaBlue:   Kirigami.Theme.highlightColor
     // Is the active canvas dark? Drives the chat doodle backdrop's opacity so the
     // low-contrast pattern reads on both a graphite and a porcelain surface.
-    readonly property bool isDark: (0.299 * root.palette.base.r
-                                    + 0.587 * root.palette.base.g
-                                    + 0.114 * root.palette.base.b) < 0.5
-    readonly property color novaViolet: root.palette.linkVisited
-    readonly property color onAccent:   root.palette.highlightedText
+    readonly property bool isDark: (0.299 * Kirigami.Theme.backgroundColor.r
+                                    + 0.587 * Kirigami.Theme.backgroundColor.g
+                                    + 0.114 * Kirigami.Theme.backgroundColor.b) < 0.5
+    readonly property color novaViolet: Kirigami.Theme.visitedLinkColor
+    readonly property color onAccent:   Kirigami.Theme.highlightedTextColor
+
+    // Same focus ring as Mo Store, Welcome and the Installer. One focus treatment across MoOS.
+    component FocusRing: Rectangle {
+        anchors.fill: parent
+        anchors.margins: -3
+        radius: (parent && parent.radius !== undefined ? parent.radius : 0) + 3
+        color: "transparent"
+        border.width: 2
+        border.color: root.novaBlue
+        visible: parent ? parent.activeFocus : false
+        z: 99
+    }
     // Mo AI is theme-adaptive (its palette comes from the active KDE scheme), so
     // the hero's baked aurora must follow suit: light themes (Tidal/Daylight) get
     // the pale variant, dark themes the deep one.
-    readonly property bool isLight: root.palette.window.hslLightness > 0.5
+    readonly property bool isLight: Kirigami.Theme.backgroundColor.hslLightness > 0.5
     readonly property color okColor:   Kirigami.Theme.positiveTextColor
     readonly property color warnColor: Kirigami.Theme.neutralTextColor
     readonly property color badColor:  Kirigami.Theme.negativeTextColor
@@ -1325,6 +1357,16 @@ Kirigami.ApplicationWindow {
         property bool danger: false
         property bool enabled_: true
         signal clicked()
+
+        // Every button in Mo AI is this component, so one edit makes all 33 of them reachable —
+        // and this is the only MoOS app whose buttons carry a `label`, which means it is the only
+        // one that can announce a real name to a screen reader instead of an anonymous "button".
+        activeFocusOnTab: btn.enabled_
+        Accessible.role: Accessible.Button
+        Accessible.name: btn.label
+        Keys.onReturnPressed: if (btn.enabled_) btn.clicked()
+        Keys.onSpacePressed:  if (btn.enabled_) btn.clicked()
+        FocusRing { }
 
         readonly property color base:
               !enabled_ ? root.surface2
@@ -3486,7 +3528,7 @@ Kirigami.ApplicationWindow {
                                                         anchors.margins: 10
                                                         text: modelData.text
                                                         wrapMode: Text.Wrap
-                                                        color: root.palette.text
+                                                        color: root.textHi
                                                         font.family: root.uiFont
                                                         font.pixelSize: root.fs(12)
                                                     }
@@ -3593,8 +3635,8 @@ Kirigami.ApplicationWindow {
             anchors.fill: parent
             z: 250
             visible: root.pickerOpen
-            color: Qt.rgba(root.palette.shadow.r, root.palette.shadow.g,
-                           root.palette.shadow.b, 0.69)
+            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                           Kirigami.Theme.textColor.b, 0.69)
             MouseArea { anchors.fill: parent; onClicked: root.pickerOpen = false }
 
             Rectangle {
@@ -3896,8 +3938,8 @@ Kirigami.ApplicationWindow {
             anchors.fill: parent
             z: 300
             visible: root.settingsOpen
-            color: Qt.rgba(root.palette.shadow.r, root.palette.shadow.g,
-                           root.palette.shadow.b, 0.82)
+            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                           Kirigami.Theme.textColor.b, 0.82)
             MouseArea { anchors.fill: parent; onClicked: root.settingsOpen = false }
 
             Rectangle {
@@ -3923,7 +3965,7 @@ Kirigami.ApplicationWindow {
                             spacing: 0
                             Text {
                                 text: "الإعدادات  |  Settings"
-                                color: root.palette.text
+                                color: root.textHi
                                 font.family: root.uiFont
                                 font.pixelSize: root.fs(17)
                                 font.weight: Font.DemiBold
@@ -4047,7 +4089,7 @@ Kirigami.ApplicationWindow {
                                             spacing: 1
                                             Text {
                                                 text: modelData.ar
-                                                color: on_ ? root.novaBlue : root.palette.text
+                                                color: on_ ? root.novaBlue : root.textHi
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.fs(12)
                                                 font.weight: Font.DemiBold
@@ -4126,7 +4168,7 @@ Kirigami.ApplicationWindow {
                                     Layout.fillWidth: true
                                     Text {
                                         text: "مفعّلة"
-                                        color: root.palette.text
+                                        color: root.textHi
                                         font.family: root.uiFont
                                         font.pixelSize: root.fs(12)
                                     }
@@ -4170,7 +4212,7 @@ Kirigami.ApplicationWindow {
                                     Layout.fillWidth: true
                                     Text {
                                         text: "الرد بصوت"
-                                        color: root.palette.text
+                                        color: root.textHi
                                         font.family: root.uiFont
                                         font.pixelSize: root.fs(12)
                                     }
@@ -4323,7 +4365,7 @@ Kirigami.ApplicationWindow {
                                             spacing: 1
                                             Text {
                                                 text: modelData.ar
-                                                color: on_ ? (risky ? root.badColor : root.novaBlue) : root.palette.text
+                                                color: on_ ? (risky ? root.badColor : root.novaBlue) : root.textHi
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.fs(12)
                                                 font.weight: Font.DemiBold
@@ -4363,7 +4405,7 @@ Kirigami.ApplicationWindow {
                                     Layout.fillWidth: true
                                     Text {
                                         text: "بحث وقراءة صفحات"
-                                        color: root.palette.text
+                                        color: root.textHi
                                         font.family: root.uiFont
                                         font.pixelSize: root.fs(12)
                                     }
@@ -4414,7 +4456,7 @@ Kirigami.ApplicationWindow {
                                                 spacing: 1
                                                 Text {
                                                     text: modelData.label || modelData.id
-                                                    color: root.palette.text
+                                                    color: root.textHi
                                                     font.family: root.uiFont
                                                     font.pixelSize: root.fs(12)
                                                     font.weight: Font.DemiBold
@@ -4491,7 +4533,7 @@ Kirigami.ApplicationWindow {
                                     visible: !root.diagLoading && (root.diagResult.summary !== undefined)
                                     Layout.fillWidth: true
                                     text: root.diagResult.summary || ""
-                                    color: root.palette.text
+                                    color: root.textHi
                                     font.family: root.uiFont
                                     font.pixelSize: root.fs(12)
                                     wrapMode: Text.Wrap
@@ -4526,7 +4568,7 @@ Kirigami.ApplicationWindow {
                                                     // `label`. Accept both, or the fallback list
                                                     // renders bare ids at the user.
                                                     text: modelData.title || modelData.label || modelData.id
-                                                    color: root.palette.text
+                                                    color: root.textHi
                                                     font.family: root.uiFont
                                                     font.pixelSize: root.fs(12)
                                                     font.weight: Font.DemiBold

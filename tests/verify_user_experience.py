@@ -393,24 +393,45 @@ storectl = read("system_files/usr/bin/moos-storectl")
 require("xdg-settings set default-web-browser" not in storectl,
         "Mo Store must not silently make a newly installed browser the default")
 
+# Mo AI's tokens follow Kirigami.Theme, for the same measured reason as Mo Store and Welcome.
+#
+# This gate used to require `root.palette.base` and friends, and the comment in Mo AI explained
+# that the bindings were "deliberately owned by ApplicationWindow.palette" so a Global Theme
+# change would follow at runtime. The intent was exactly right; the mechanism never delivered it.
+# A bare `palette` on a QQuickWindow resolves to Qt's built-in defaults, not the KDE scheme —
+# measured, an app on palette.* rendered accent #45A7D7 (Breeze blue) while an app on
+# Kirigami.Theme rendered #006D67 (the MoOS teal) in the same session.
+#
+# Mo AI was missed in the first pass of that migration precisely because this gate was green:
+# the other three apps use `win.palette` and Mo AI uses `root.palette`, so a grep for the former
+# reported Mo AI clean while 33 references sat in it.
+#
+# The Nova identifiers are load-bearing and stay; only what they resolve to changed.
 for token, role in {
-    "surface0": "root.palette.base",
-    "surface1": "root.palette.alternateBase",
-    "surface2": "root.palette.button",
-    "chrome": "root.palette.window",
-    "hairline": "root.palette.mid",
-    "textHi": "root.palette.windowText",
-    "textLo": "root.palette.placeholderText",
-    "novaBlue": "root.palette.highlight",
-    "novaCyan": "root.palette.link",
-    "novaViolet": "root.palette.linkVisited",
-    "onAccent": "root.palette.highlightedText",
+    "surface0": "Kirigami.Theme.backgroundColor",
+    "surface1": "Kirigami.Theme.alternateBackgroundColor",
+    "chrome": "Kirigami.Theme.backgroundColor",
+    "textHi": "Kirigami.Theme.textColor",
+    "textLo": "Kirigami.Theme.disabledTextColor",
+    "novaBlue": "Kirigami.Theme.highlightColor",
+    "novaCyan": "Kirigami.Theme.linkColor",
+    "novaViolet": "Kirigami.Theme.visitedLinkColor",
+    "onAccent": "Kirigami.Theme.highlightedTextColor",
 }.items():
     require(re.search(
         rf"readonly\s+property\s+color\s+{token}\s*:\s*{re.escape(role)}\b",
         moai_palette_code,
     ) is not None,
-            f"Mo AI's {token} token must follow {role}, not a hard-coded Nova colour")
+            f"Mo AI's {token} token must follow {role} — a bare `palette` does not resolve the "
+            f"MoOS colour scheme and silently falls back to Qt's Breeze blue")
+require(re.search(r"readonly\s+property\s+color\s+hairline\s*:\s*Qt\.rgba\(", moai_palette_code)
+        is not None,
+        "Mo AI's hairline must be a low-alpha tint of the text colour; separatorColor is #FFFFFF "
+        "in every colour set of this scheme and would delete every hairline on a light page")
+require("root.palette." not in moai_palette_code,
+        "Mo AI still reads root.palette.* — a half-migrated window mixes the MoOS theme with Qt "
+        "defaults. This is exactly how it was missed the first time: the other apps use "
+        "`win.palette`, so a grep for that reported Mo AI clean.")
 
 # The same semantic tokens hold on BOTH catalog surfaces: Mo Store (the
 # standalone storefront, apps/store) and the Welcome onboarding wizard
