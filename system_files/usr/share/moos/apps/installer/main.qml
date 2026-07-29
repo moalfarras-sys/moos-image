@@ -52,6 +52,18 @@ ApplicationWindow {
     color: win.canvas
 
     // ── semantic palette (KDE colour scheme owns every structural colour) ──────
+    // The same focus ring as Mo Store and Welcome. One focus treatment across MoOS, not three.
+    component FocusRing: Rectangle {
+        anchors.fill: parent
+        anchors.margins: -3
+        radius: (parent && parent.radius !== undefined ? parent.radius : 0) + 3
+        color: "transparent"
+        border.width: 2
+        border.color: win.accent
+        visible: parent ? parent.activeFocus : false
+        z: 99
+    }
+
     // TYPE SCALES WITH THE USER'S FONT SIZE, and until now it did not.
     //
     // 294 text items across the MoOS apps carried a hardcoded `font.pixelSize`, so the size
@@ -698,6 +710,11 @@ ApplicationWindow {
                                 Behavior on color { ColorAnimation { duration: 120 } }
                                 HoverHandler { id: langHover }
                                 TapHandler { onTapped: win.chooseLang(langPill.modelData.id) }
+                                activeFocusOnTab: true
+                                Accessible.role: Accessible.Button
+                                Keys.onReturnPressed: win.chooseLang(langPill.modelData.id)
+                                Keys.onSpacePressed: win.chooseLang(langPill.modelData.id)
+                                FocusRing { }
                                 Text {
                                     id: langLabel
                                     anchors.centerIn: parent
@@ -748,6 +765,11 @@ ApplicationWindow {
                         Behavior on color { ColorAnimation { duration: 120 } }
                         HoverHandler { id: beginHover }
                         TapHandler { onTapped: win.goNext() }
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.Button
+                        Keys.onReturnPressed: win.goNext()
+                        Keys.onSpacePressed: win.goNext()
+                        FocusRing { }
                         RowLayout {
                             id: beginRow
                             anchors.centerIn: parent
@@ -848,6 +870,11 @@ ApplicationWindow {
                         Behavior on color { ColorAnimation { duration: 120 } }
                         HoverHandler { id: sellNextHover }
                         TapHandler { onTapped: win.goNext() }
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.Button
+                        Keys.onReturnPressed: win.goNext()
+                        Keys.onSpacePressed: win.goNext()
+                        FocusRing { }
                         RowLayout {
                             id: sellNextRow
                             anchors.centerIn: parent
@@ -866,6 +893,11 @@ ApplicationWindow {
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.fs(13)
                         TapHandler { onTapped: win.goBack() }
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.Button
+                        Keys.onReturnPressed: win.goBack()
+                        Keys.onSpacePressed: win.goBack()
+                        FocusRing { }
                     }
                 }
             }
@@ -949,6 +981,11 @@ ApplicationWindow {
                             border.width: 1; border.color: win.outline
                             HoverHandler { id: rescanHover }
                             TapHandler { onTapped: win.rescanDisks() }
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.Button
+                            Keys.onReturnPressed: win.rescanDisks()
+                            Keys.onSpacePressed: win.rescanDisks()
+                            FocusRing { }
                             RowLayout {
                                 id: rescanRow
                                 anchors.centerIn: parent
@@ -1206,6 +1243,11 @@ ApplicationWindow {
                             Behavior on border.color { ColorAnimation { duration: 130 } }
                             HoverHandler { id: methodHover }
                             TapHandler { onTapped: win.method = methodCard.modelData.id }
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.Button
+                            Keys.onReturnPressed: win.method = methodCard.modelData.id
+                            Keys.onSpacePressed: win.method = methodCard.modelData.id
+                            FocusRing { }
 
                             RowLayout {
                                 anchors.fill: parent
@@ -1616,6 +1658,11 @@ ApplicationWindow {
                                 border.color: win.accent
                                 HoverHandler { id: zoneHover }
                                 TapHandler { onTapped: win.tz = modelData }
+                                activeFocusOnTab: true
+                                Accessible.role: Accessible.Button
+                                Keys.onReturnPressed: win.tz = modelData
+                                Keys.onSpacePressed: win.tz = modelData
+                                FocusRing { }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
                                     anchors.left: win.rtl ? undefined : parent.left
@@ -1817,6 +1864,11 @@ ApplicationWindow {
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.fs(14)
                         TapHandler { onTapped: win.goBack() }
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.Button
+                        Keys.onReturnPressed: win.goBack()
+                        Keys.onSpacePressed: win.goBack()
+                        FocusRing { }
                     }
                 }
             }
@@ -1978,6 +2030,11 @@ ApplicationWindow {
                                 color: retryHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
                                 HoverHandler { id: retryHover }
                                 TapHandler { onTapped: win.startInstall() }
+                                activeFocusOnTab: true
+                                Accessible.role: Accessible.Button
+                                Keys.onReturnPressed: win.startInstall()
+                                Keys.onSpacePressed: win.startInstall()
+                                FocusRing { }
                                 RowLayout {
                                     id: retryRow
                                     anchors.centerIn: parent
@@ -1999,6 +2056,11 @@ ApplicationWindow {
                                 border.width: 1; border.color: win.outline
                                 HoverHandler { id: otherHover }
                                 TapHandler { onTapped: { win.instState = "idle"; win.step = win.stepDisk } }
+                                activeFocusOnTab: true
+                                Accessible.role: Accessible.Button
+                                Keys.onReturnPressed: { win.instState = "idle"; win.step = win.stepDisk }
+                                Keys.onSpacePressed: { win.instState = "idle"; win.step = win.stepDisk }
+                                FocusRing { }
                                 RowLayout {
                                     id: otherRow
                                     anchors.centerIn: parent
@@ -2063,6 +2125,11 @@ ApplicationWindow {
                             color: rebootHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
                             HoverHandler { id: rebootHover }
                             TapHandler { onTapped: Qt.openUrlExternally("moos://installer/reboot") }
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.Button
+                            Keys.onReturnPressed: Qt.openUrlExternally("moos://installer/reboot")
+                            Keys.onSpacePressed: Qt.openUrlExternally("moos://installer/reboot")
+                            FocusRing { }
                             RowLayout {
                                 id: rebootRow
                                 anchors.centerIn: parent
@@ -2084,6 +2151,11 @@ ApplicationWindow {
                             border.width: 1; border.color: win.outline
                             HoverHandler { id: poweroffHover }
                             TapHandler { onTapped: Qt.openUrlExternally("moos://installer/poweroff") }
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.Button
+                            Keys.onReturnPressed: Qt.openUrlExternally("moos://installer/poweroff")
+                            Keys.onSpacePressed: Qt.openUrlExternally("moos://installer/poweroff")
+                            FocusRing { }
                             RowLayout {
                                 id: poweroffRow
                                 anchors.centerIn: parent
@@ -2152,6 +2224,11 @@ ApplicationWindow {
                                                          : Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.08)
                                 HoverHandler { id: siteHover }
                                 TapHandler { onTapped: Qt.openUrlExternally("https://www.moalfarras.space") }
+                                activeFocusOnTab: true
+                                Accessible.role: Accessible.Button
+                                Keys.onReturnPressed: Qt.openUrlExternally("https://www.moalfarras.space")
+                                Keys.onSpacePressed: Qt.openUrlExternally("https://www.moalfarras.space")
+                                FocusRing { }
                                 RowLayout {
                                     id: siteRow
                                     anchors.centerIn: parent
@@ -2197,6 +2274,11 @@ ApplicationWindow {
                     border.width: 1; border.color: win.outline
                     HoverHandler { id: backHover }
                     TapHandler { onTapped: win.goBack() }
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.Button
+                    Keys.onReturnPressed: win.goBack()
+                    Keys.onSpacePressed: win.goBack()
+                    FocusRing { }
                     RowLayout {
                         id: backRow
                         anchors.centerIn: parent
