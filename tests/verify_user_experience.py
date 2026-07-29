@@ -182,6 +182,17 @@ for icon in ("moos-moai", "moos-pc-remote"):
             if master_png.is_file():
                 require(_b64.b64encode(master_png.read_bytes()).decode() in svg,
                         "moos-moai.svg must embed the exact mo-ai-1024.png master, byte for byte")
+            # 2026-07-30: the master is SEATED on the family squircle. Raw, the
+            # orb's solid alpha spans 92% of its canvas while every sibling sits
+            # on the shared plate at 86% — Mo AI bulged out of the dock row and
+            # ignored the family's corner language. The wrapper must carry the
+            # sibling plate rect (byte-identical geometry to moos-store et al.)
+            # UNDER the embedded master. Regenerate with artwork/generate_moai_icon.py.
+            require('<rect x="72" y="72" width="880" height="880" rx="232" fill="url(#plate)"'
+                    in svg,
+                    "moos-moai.svg lost the family plate under the commissioned master — "
+                    "the raw orb renders larger than every sibling icon and breaks the "
+                    "dock's size grid (regenerate with artwork/generate_moai_icon.py)")
         else:
             require("<text" not in svg and "<image" not in svg,
                     f"{icon} must remain original vector geometry with no text or embedded bitmap")
