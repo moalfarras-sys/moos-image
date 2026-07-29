@@ -140,6 +140,10 @@ jobs:
           # aborting a tenant half-created; a fixed range would instead make two tenants share host
           # UIDs. This asserts the allocation is valid and uid-derived (unique).
           python3 tests/test_cloud_subid_range.py
+          # Recovery must name the PRIOR deployment as the rollback target, never a staged (pending)
+          # update — rpm-ostree lists a staged update at index 0, so "first non-booted" pointed the
+          # rescue screen at the newer version, the opposite of what rollback does.
+          python3 tests/test_recovery_rollback_target.py
           python3 tests/test_mo_remote_codec_resend.py
           # Mo PC Remote's feel over cellular is decided by three lines of kernel tuning, and both
           # ways they can fail are silent: a congestion control selected but never registered
