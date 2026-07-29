@@ -109,13 +109,38 @@ def main() -> int:
     if target2 != "44.PRIOR":
         errors.append(f"with no staged update, target is {target2!r}, expected '44.PRIOR'")
 
+    # 3. THE SAME LAYOUT WITH NO `staged` KEY AT ALL. rpm-ostree's JSON is not guaranteed to
+    #    carry that flag — on this machine's own output the deployments expose only `booted`.
+    #    A reader that depends on the flag silently reverts to the original bug the moment the
+    #    key is absent, so the positional rule (the rollback target follows the booted entry)
+    #    must stand on its own.
+    booted3, target3 = run_with([
+        {"version": "44.NEW"},                       # queued for next boot, unflagged
+        {"version": "44.BOOTED", "booted": True},
+        {"version": "44.PRIOR"},
+    ])
+    if booted3 != "44.BOOTED":
+        errors.append(f"booted misread as {booted3!r} when no staged flag is present")
+    if target3 != "44.PRIOR":
+        errors.append(f"with no `staged` key present the target is {target3!r}, expected "
+                      f"'44.PRIOR'. Anything listed BEFORE the booted deployment is newer than "
+                      f"what is running and can never be what rollback returns to — the rule has "
+                      f"to be positional, not flag-dependent.")
+
+    # 4. A machine with nothing to roll back to must say so rather than inventing a target.
+    booted4, target4 = run_with([{"version": "44.ONLY", "booted": True}])
+    if booted4 != "44.ONLY" or target4 is not None:
+        errors.append(f"with a single deployment the target must be None, got {target4!r} — "
+                      f"Recovery would offer a rollback that cannot happen")
+
     if errors:
         print("GATE FAIL: MoOS Recovery would name the wrong rollback target.\n")
         for e in errors:
             print(f"  - {e}")
         return 1
 
-    print("OK: Recovery names the prior deployment as the rollback target, skipping staged updates.")
+    print("OK: Recovery names the deployment AFTER the booted one — correct with a staged update, "
+          "with no staged flag at all, and None when there is nothing to roll back to.")
     return 0
 
 

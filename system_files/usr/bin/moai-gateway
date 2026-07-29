@@ -885,7 +885,13 @@ class Handler(BaseHTTPRequestHandler):
             if not completed:
                 if streaming:
                     try:
-                        write(b'data: {"error":{"message":"upstream stream ended early"}}\n\n')
+                        # As a CONTENT delta, not an {"error": …} object. The app parses
+                        # choices[0].delta.content and nothing else, so an error-shaped chunk
+                        # is silently dropped — the user would see a half-finished answer with
+                        # no hint that it was cut off. Sent in the app's own dialect it becomes
+                        # visible text, the same way the Anthropic path surfaces its errors.
+                        write(anthropic_chunk("\n\n⚠️ the reply ended early "
+                                              "(the model's connection dropped)"))
                         write(b"data: [DONE]\n\n")
                     except Exception:
                         pass

@@ -24,6 +24,7 @@ close-on-drop behaviour (a full handler is impractical to instantiate here).
 """
 
 import importlib.util
+import json
 import re
 import sys
 from importlib.machinery import SourceFileLoader
@@ -98,15 +99,47 @@ def main() -> int:
     if "⚠️" in got or "early" in got.lower():
         errors.append("a normal completion wrongly shows an error/ended-early warning")
 
+    # 3b. THE ERROR MUST BE SPEAKABLE BY THE CLIENT. Mo AI parses choices[0].delta.content and
+    #     nothing else, so a chunk shaped {"error": …} is silently dropped and the user sees a
+    #     half-finished answer with no hint it was cut off. Render every synthetic notice
+    #     through the client's own parser and require it to produce visible text.
+    def client_render(raw: bytes) -> str:
+        """Exactly what main.qml does with each SSE line."""
+        rendered = ""
+        for line in raw.decode("utf-8", "replace").splitlines():
+            if not line.startswith("data:"):
+                continue
+            payload = line[5:].strip()
+            if payload in ("", "[DONE]"):
+                continue
+            try:
+                event = json.loads(payload)
+            except ValueError:
+                continue
+            choice = (event.get("choices") or [None])[0]
+            rendered += ((choice or {}).get("delta", {}).get("content") or "")
+        return rendered
+
+    notice = module.anthropic_chunk("\n\n⚠️ test notice")
+    if "test notice" not in client_render(notice):
+        errors.append("anthropic_chunk does not produce something the app can render — every "
+                      "synthetic notice must arrive as choices[0].delta.content")
+
     # 4. _proxy must close the connection on a mid-stream drop (source-level: a full handler
     #    is impractical to instantiate). The success path sets a completion flag; the except
     #    path must, when not completed, set self.close_connection = True.
     code = GATEWAY.read_text(encoding="utf-8")
+
     proxy = re.search(r"def _proxy\(self.*?(?=\n    def )", code, re.S)
     if not proxy:
         errors.append("could not locate _proxy() to verify close-on-drop.")
     else:
         body = proxy.group(0)
+        # The OpenAI-wire failure path must not emit a bare error object the client cannot see.
+        if re.search(r'write\(\s*b?[\'"]data: \{"error"', body):
+            errors.append("_proxy writes a raw {\"error\": …} SSE chunk on the OpenAI wire. The app "
+                          "reads only choices[0].delta.content, so that is invisible — the user "
+                          "gets a truncated answer with no explanation. Use anthropic_chunk(...).")
         if "except Exception:\n            pass" in body and "close_connection" not in body:
             errors.append("_proxy still swallows a mid-stream exception with a bare pass and never "
                           "sets close_connection — the client hangs for ever.")

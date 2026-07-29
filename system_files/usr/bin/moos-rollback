@@ -44,22 +44,37 @@ def deployments():
     except (OSError, subprocess.SubprocessError, ValueError):
         return None, None
 
-    booted, target = None, None
-    for d in deps:
-        label = d.get("version") or (d.get("checksum") or "")[:12] or "?"
-        if d.get("booted"):
-            booted = label
-        elif d.get("staged"):
-            # A STAGED deployment is a pending update waiting for the next boot —
-            # rpm-ostree lists it at index 0, BEFORE the booted one. `bootc
-            # rollback` goes the other way, to the PRIOR deployment, so a staged
-            # update must never be offered as the rollback target: doing so told
-            # the user "roll back to <the newer version>", the exact opposite of
-            # what the button does, on the one screen that must never mislead.
-            continue
-        elif target is None:
-            target = label
-    return booted, target
+    # WHAT ROLLBACK ACTUALLY GOES TO: the deployment listed AFTER the booted one.
+    #
+    # rpm-ostree orders the list [staged?, booted, rollback, ...] — anything newer than
+    # what is running sorts BEFORE it, and `bootc rollback` goes the other way. So the
+    # rollback target is positional: the first entry after booted. Reading it that way is
+    # what makes this correct in every state, and it needs no flag:
+    #
+    #   [booted, prior]            -> prior          (the ordinary case)
+    #   [staged, booted, prior]    -> prior          (an update is queued for next boot)
+    #
+    # The first version of this took "the first deployment that is not booted", which in
+    # that second state named the STAGED UPDATE — telling the user that rolling back would
+    # take them to a version NEWER than the one running, the exact opposite of what the
+    # button does, on the one screen that must never mislead. Skipping entries flagged
+    # `staged` fixed that case but leaned on a JSON key whose presence is not guaranteed;
+    # position is the invariant rpm-ostree actually maintains, so it is the primary rule and
+    # the flag is kept only as belt-and-braces.
+    #
+    # bootc reports this authoritatively (`bootc status --json` -> .status.rollback), but it
+    # refuses to run unprivileged, and this screen must render for the user before any
+    # polkit prompt — so it is deliberately not used here.
+    def label_of(d):
+        return d.get("version") or (d.get("checksum") or "")[:12] or "?"
+
+    booted_at = next((i for i, d in enumerate(deps) if d.get("booted")), None)
+    if booted_at is None:
+        return None, None
+
+    target = next((label_of(d) for d in deps[booted_at + 1:]
+                   if not d.get("booted") and not d.get("staged")), None)
+    return label_of(deps[booted_at]), target
 
 
 class Recovery(MoOSApp):
