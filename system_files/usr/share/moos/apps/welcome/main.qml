@@ -990,6 +990,7 @@ ApplicationWindow {
                     TapHandler { onTapped: win.step = 5 }
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
+                    Accessible.name: win.rtl ? "تخطّي" : "Skip"
                     Keys.onReturnPressed: win.step = 5
                     Keys.onSpacePressed: win.step = 5
                     FocusRing { }
@@ -1092,6 +1093,7 @@ ApplicationWindow {
                                 TapHandler { onTapped: win.chooseLang(langPill.modelData.id) }
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
+                                Accessible.name: langPill.modelData.label
                                 Keys.onReturnPressed: win.chooseLang(langPill.modelData.id)
                                 Keys.onSpacePressed: win.chooseLang(langPill.modelData.id)
                                 FocusRing { }
@@ -1145,6 +1147,7 @@ ApplicationWindow {
                         TapHandler { onTapped: win.goNext() }
                         activeFocusOnTab: true
                         Accessible.role: Accessible.Button
+                        Accessible.name: win.rtl ? "لنبدأ" : "Let's begin"
                         Keys.onReturnPressed: win.goNext()
                         Keys.onSpacePressed: win.goNext()
                         FocusRing { }
@@ -1284,6 +1287,8 @@ ApplicationWindow {
                                 TapHandler { onTapped: win.chooseLook(lookCard.modelData.id) }
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
+                                // The card shows a swatch, not a word, so its name is the model's own label.
+                                Accessible.name: win.rtl ? lookCard.modelData.ar : lookCard.modelData.en
                                 Keys.onReturnPressed: win.chooseLook(lookCard.modelData.id)
                                 Keys.onSpacePressed: win.chooseLook(lookCard.modelData.id)
                                 FocusRing { }
@@ -1456,6 +1461,7 @@ ApplicationWindow {
                                 TapHandler { onTapped: win.toggleDirection(dirCard.modelData) }
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
+                                Accessible.name: win.rtl ? dirCard.meta.ar : dirCard.meta.en
                                 Keys.onReturnPressed: win.toggleDirection(dirCard.modelData)
                                 Keys.onSpacePressed: win.toggleDirection(dirCard.modelData)
                                 FocusRing { }
@@ -1598,6 +1604,7 @@ ApplicationWindow {
                                     TapHandler { onTapped: win.togglePick(appCard.modelData.id) }
                                     activeFocusOnTab: true
                                     Accessible.role: Accessible.Button
+                                    Accessible.name: win.rtl ? appCard.modelData.ar : appCard.modelData.en
                                     Keys.onReturnPressed: win.togglePick(appCard.modelData.id)
                                     Keys.onSpacePressed: win.togglePick(appCard.modelData.id)
                                     FocusRing { }
@@ -1879,6 +1886,7 @@ ApplicationWindow {
                         TapHandler { onTapped: win.goNext() }
                         activeFocusOnTab: true
                         Accessible.role: Accessible.Button
+                        Accessible.name: win.rtl ? "متابعة" : "Continue"
                         Keys.onReturnPressed: win.goNext()
                         Keys.onSpacePressed: win.goNext()
                         FocusRing { }
@@ -1957,6 +1965,7 @@ ApplicationWindow {
                             TapHandler { onTapped: Qt.openUrlExternally("moos://app/store") }
                             activeFocusOnTab: true
                             Accessible.role: Accessible.Button
+                            Accessible.name: win.rtl ? "افتح متجر Mo Store" : "Open Mo Store"
                             Keys.onReturnPressed: Qt.openUrlExternally("moos://app/store")
                             Keys.onSpacePressed: Qt.openUrlExternally("moos://app/store")
                             FocusRing { }
@@ -1986,6 +1995,7 @@ ApplicationWindow {
                             TapHandler { onTapped: Qt.openUrlExternally("moos://app/moai") }
                             activeFocusOnTab: true
                             Accessible.role: Accessible.Button
+                            Accessible.name: win.rtl ? "افتح Mo AI" : "Open Mo AI"
                             Keys.onReturnPressed: Qt.openUrlExternally("moos://app/moai")
                             Keys.onSpacePressed: Qt.openUrlExternally("moos://app/moai")
                             FocusRing { }
@@ -2025,6 +2035,8 @@ ApplicationWindow {
                         TapHandler { onTapped: devicesPopup.open() }
                         activeFocusOnTab: true
                         Accessible.role: Accessible.Button
+                        Accessible.name: win.rtl ? "وصّل لوحة مفاتيح أو ماوس أو جهازاً"
+                                                 : "Connect a keyboard, mouse or device"
                         Keys.onReturnPressed: devicesPopup.open()
                         Keys.onSpacePressed: devicesPopup.open()
                         FocusRing { }
@@ -2063,6 +2075,7 @@ ApplicationWindow {
                         TapHandler { onTapped: Qt.quit() }
                         activeFocusOnTab: true
                         Accessible.role: Accessible.Button
+                        Accessible.name: win.rtl ? "إنهاء" : "Finish"
                         Keys.onReturnPressed: Qt.quit()
                         Keys.onSpacePressed: Qt.quit()
                         FocusRing { }
@@ -2107,6 +2120,7 @@ ApplicationWindow {
                     TapHandler { onTapped: win.goBack() }
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
+                    Accessible.name: win.rtl ? "السابق" : "Back"
                     Keys.onReturnPressed: win.goBack()
                     Keys.onSpacePressed: win.goBack()
                     FocusRing { }

@@ -1101,6 +1101,7 @@ ApplicationWindow {
         border.color: destructive ? win.violet : (actionHover.hovered ? win.accent : win.outline)
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
+        Accessible.name: action.label
         FocusRing { }
         Accessible.name: label
         HoverHandler { id: actionHover; enabled: action.enabled }
@@ -1415,6 +1416,7 @@ ApplicationWindow {
                         border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.34)
                         activeFocusOnTab: true
                         Accessible.role: Accessible.Button
+                        Accessible.name: win.rtl ? nav.modelData.ar : nav.modelData.en
                         FocusRing { }
                         Accessible.name: win.rtl ? nav.modelData.ar : nav.modelData.en
                         HoverHandler { id: navHover }
@@ -1883,6 +1885,7 @@ ApplicationWindow {
                                     border.color: homeCategoryHover.hovered ? win.accent : win.outline
                                     activeFocusOnTab: true
                                     Accessible.role: Accessible.Button
+                                    Accessible.name: win.rtl ? homeCategory.modelData.ar : homeCategory.modelData.en
                                     FocusRing { }
                                     Accessible.name: win.rtl ? modelData.ar : modelData.en
                                     HoverHandler { id: homeCategoryHover }
@@ -2217,6 +2220,7 @@ ApplicationWindow {
                                     border.color: categoryHover.hovered ? win.accent : win.outline
                                     activeFocusOnTab: true
                                     Accessible.role: Accessible.Button
+                                    Accessible.name: win.categoryCount(categoryTile.modelData.id)
                                     FocusRing { }
                                     Accessible.name: win.rtl ? modelData.ar : modelData.en
                                     HoverHandler { id: categoryHover }

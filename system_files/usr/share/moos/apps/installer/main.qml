@@ -712,6 +712,7 @@ ApplicationWindow {
                                 TapHandler { onTapped: win.chooseLang(langPill.modelData.id) }
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
+                                Accessible.name: langPill.modelData.label
                                 Keys.onReturnPressed: win.chooseLang(langPill.modelData.id)
                                 Keys.onSpacePressed: win.chooseLang(langPill.modelData.id)
                                 FocusRing { }
@@ -767,6 +768,7 @@ ApplicationWindow {
                         TapHandler { onTapped: win.goNext() }
                         activeFocusOnTab: true
                         Accessible.role: Accessible.Button
+                        Accessible.name: win.tr("لنبدأ التثبيت", "Let's begin")
                         Keys.onReturnPressed: win.goNext()
                         Keys.onSpacePressed: win.goNext()
                         FocusRing { }
@@ -872,6 +874,7 @@ ApplicationWindow {
                         TapHandler { onTapped: win.goNext() }
                         activeFocusOnTab: true
                         Accessible.role: Accessible.Button
+                        Accessible.name: win.tr("التالي", "Next")
                         Keys.onReturnPressed: win.goNext()
                         Keys.onSpacePressed: win.goNext()
                         FocusRing { }
@@ -895,6 +898,7 @@ ApplicationWindow {
                         TapHandler { onTapped: win.goBack() }
                         activeFocusOnTab: true
                         Accessible.role: Accessible.Button
+                        Accessible.name: win.tr("أين نثبّت MoOS؟", "Where should MoOS go?")
                         Keys.onReturnPressed: win.goBack()
                         Keys.onSpacePressed: win.goBack()
                         FocusRing { }
@@ -983,6 +987,7 @@ ApplicationWindow {
                             TapHandler { onTapped: win.rescanDisks() }
                             activeFocusOnTab: true
                             Accessible.role: Accessible.Button
+                            Accessible.name: win.tr("أعد الفحص", "Rescan")
                             Keys.onReturnPressed: win.rescanDisks()
                             Keys.onSpacePressed: win.rescanDisks()
                             FocusRing { }
@@ -1245,6 +1250,7 @@ ApplicationWindow {
                             TapHandler { onTapped: win.method = methodCard.modelData.id }
                             activeFocusOnTab: true
                             Accessible.role: Accessible.Button
+                            Accessible.name: win.tr(methodCard.modelData.ar, methodCard.modelData.en)
                             Keys.onReturnPressed: win.method = methodCard.modelData.id
                             Keys.onSpacePressed: win.method = methodCard.modelData.id
                             FocusRing { }
@@ -1660,6 +1666,7 @@ ApplicationWindow {
                                 TapHandler { onTapped: win.tz = modelData }
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
+                                Accessible.name: win.zoneLabel(parent.modelData)
                                 Keys.onReturnPressed: win.tz = modelData
                                 Keys.onSpacePressed: win.tz = modelData
                                 FocusRing { }
@@ -1866,6 +1873,7 @@ ApplicationWindow {
                         TapHandler { onTapped: win.goBack() }
                         activeFocusOnTab: true
                         Accessible.role: Accessible.Button
+                        Accessible.name: win.tr("تراجع، لم أتأكد بعد", "Go back, I'm not sure yet")
                         Keys.onReturnPressed: win.goBack()
                         Keys.onSpacePressed: win.goBack()
                         FocusRing { }
@@ -2032,6 +2040,7 @@ ApplicationWindow {
                                 TapHandler { onTapped: win.startInstall() }
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
+                                Accessible.name: win.tr("أعد المحاولة", "Retry")
                                 Keys.onReturnPressed: win.startInstall()
                                 Keys.onSpacePressed: win.startInstall()
                                 FocusRing { }
@@ -2058,6 +2067,7 @@ ApplicationWindow {
                                 TapHandler { onTapped: { win.instState = "idle"; win.step = win.stepDisk } }
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
+                                Accessible.name: win.tr("اختر قرصاً آخر", "Choose another disk")
                                 Keys.onReturnPressed: { win.instState = "idle"; win.step = win.stepDisk }
                                 Keys.onSpacePressed: { win.instState = "idle"; win.step = win.stepDisk }
                                 FocusRing { }
@@ -2127,6 +2137,7 @@ ApplicationWindow {
                             TapHandler { onTapped: Qt.openUrlExternally("moos://installer/reboot") }
                             activeFocusOnTab: true
                             Accessible.role: Accessible.Button
+                            Accessible.name: win.tr("أعد التشغيل الآن", "Restart now")
                             Keys.onReturnPressed: Qt.openUrlExternally("moos://installer/reboot")
                             Keys.onSpacePressed: Qt.openUrlExternally("moos://installer/reboot")
                             FocusRing { }
@@ -2153,6 +2164,7 @@ ApplicationWindow {
                             TapHandler { onTapped: Qt.openUrlExternally("moos://installer/poweroff") }
                             activeFocusOnTab: true
                             Accessible.role: Accessible.Button
+                            Accessible.name: win.tr("إيقاف التشغيل", "Power off")
                             Keys.onReturnPressed: Qt.openUrlExternally("moos://installer/poweroff")
                             Keys.onSpacePressed: Qt.openUrlExternally("moos://installer/poweroff")
                             FocusRing { }
@@ -2226,6 +2238,7 @@ ApplicationWindow {
                                 TapHandler { onTapped: Qt.openUrlExternally("https://www.moalfarras.space") }
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
+                                Accessible.name: "www.moalfarras.space"
                                 Keys.onReturnPressed: Qt.openUrlExternally("https://www.moalfarras.space")
                                 Keys.onSpacePressed: Qt.openUrlExternally("https://www.moalfarras.space")
                                 FocusRing { }
@@ -2276,6 +2289,7 @@ ApplicationWindow {
                     TapHandler { onTapped: win.goBack() }
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
+                    Accessible.name: win.tr("السابق", "Back")
                     Keys.onReturnPressed: win.goBack()
                     Keys.onSpacePressed: win.goBack()
                     FocusRing { }

@@ -3437,6 +3437,29 @@ for cursor_name in ui2_cursors.values():
             f"build.sh never creates {cursor_name} — the defaults would name a "
             "cursor that does not exist and Plasma would fall back")
 
+# A control the keyboard can reach must also have a NAME a screen reader can say.
+#
+# Adding activeFocusOnTab and an Accessible.Button role made the wizards completable, but a role
+# without a name announces "button" — twelve times in a row on Welcome, with nothing to tell them
+# apart. orca and at-spi2-core are both installed on MoOS, so that gap is reachable, not theoretical.
+#
+# The names are not invented: each one binds to the SAME expression as the control's own visible
+# label, which is what WCAG's "label in name" asks for. Three had to be written by hand because
+# they could not be derived safely — a theme card that shows a colour swatch and no word (named
+# from the model's en/ar fields), and two labels split across lines by a ternary. A wrong name is
+# worse than none, so nothing here is a guess.
+for qml_app in sorted((ROOT / "system_files/usr/share/moos").glob("**/main.qml")):
+    qml_src = code(read(str(qml_app.relative_to(ROOT))), style="slash")
+    app_label = qml_app.parent.name
+    tab_stops = len(re.findall(r"activeFocusOnTab\s*:\s*true", qml_src))
+    if not tab_stops:
+        continue
+    names = len(re.findall(r"Accessible\.name\s*:", qml_src))
+    require(names >= tab_stops,
+            f"{app_label} has {tab_stops} tab stop(s) but only {names} Accessible.name — a "
+            f"screen reader would announce an anonymous \"button\". Bind the name to the same "
+            f"expression as the control's visible label")
+
 # Containers scale with the type they hold, or the type outgrows them.
 #
 # Making font.pixelSize responsive was only half the job. At 2.2x the shipped font, Welcome's
