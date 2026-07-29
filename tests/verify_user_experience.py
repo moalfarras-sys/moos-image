@@ -1077,9 +1077,22 @@ do_code = code(read("system_files/usr/bin/moai-do"))
 require("do_install_opencode" in do_code and "opencode-ai" in do_code,
         "moai-do must be able to install OpenCode — the only coding agent on MoOS that needs "
         "no account")
-require("opencode.json" in do_code and "127.0.0.1:8080/v1" in do_code,
-        "moai-do install-opencode must WRITE the provider config pointing at moai-gateway — "
-        "an agent installed with no provider is indistinguishable from a broken one")
+# The provider config must be WRITTEN, and it must point at THIS ACCOUNT'S gateway.
+#
+# This used to demand the literal "127.0.0.1:8080/v1", and that literal was the bug: 8080
+# is uid 1000's gateway, so on a machine with a second account the config pointed the
+# second tenant's coding agent at the FIRST tenant's gateway — the one process holding the
+# cloud API key. The requirement is therefore stated as the property (a loopback gateway
+# URL built from the INJECTED per-user port), which is strictly stronger than the literal:
+# it still fails if the config write is dropped, and now also fails if the port is
+# hardcoded back.
+require("opencode.json" in do_code, "moai-do install-opencode must WRITE the provider config "
+        "— an agent installed with no provider is indistinguishable from a broken one")
+require(re.search(r'baseURL"\s*:\s*"http://127\.0\.0\.1:\$\{?\w*[Gg]w_?[Pp]ort\}?/v1"', do_code)
+        or re.search(r'baseURL"\s*:\s*"http://127\.0\.0\.1:\$\{MOAI_GATEWAY_PORT[^}]*\}/v1"', do_code),
+        "moai-do install-opencode must point the provider at THIS account's gateway, built from "
+        "the injected MOAI_GATEWAY_PORT — a hardcoded 8080 sends a second tenant's agent to "
+        "uid 1000's gateway and its cloud key")
 require("agentState.opencode" in moai_qml,
         "Mo AI's Developer panel must know about OpenCode — an agent the system can install "
         "and the UI cannot show is an agent nobody finds")
