@@ -3416,6 +3416,42 @@ for cursor_name in ui2_cursors.values():
             f"build.sh never creates {cursor_name} — the defaults would name a "
             "cursor that does not exist and Plasma would fall back")
 
+# Anything reachable by Tab must SHOW that it has focus. WCAG 2.4.7.
+#
+# Mo Store was the only MoOS app supporting Tab at all — five component types declared
+# activeFocusOnTab — and exactly ONE of them drew anything when focused (the search field, whose
+# border thickens). The other four moved an invisible cursor: a keyboard user could tab through
+# the entire storefront with no idea where they were.
+#
+# The fix is a shared `FocusRing` inline component, not a QtQuick.Controls style. There is no
+# MoOS style module to put one in (these apps run QT_QUICK_CONTROLS_STYLE=Basic), and a Controls
+# style could not reach them anyway: every focusable here is a bare Rectangle with hand-rolled
+# TapHandler and Keys handlers, which no Controls style ever touches.
+#
+# This gate counts rather than inspects structure, because QML nesting is not reliably parseable
+# with a regex: if a file declares N tab stops it must contain at least N focus indicators, where
+# an indicator is either a FocusRing instance or a visual property bound to activeFocus.
+for qml_app in sorted((ROOT / "system_files/usr/share/moos").glob("**/main.qml")):
+    qml_src = code(read(str(qml_app.relative_to(ROOT))), style="slash")
+    app_label = qml_app.parent.name
+    tab_stops = len(re.findall(r"activeFocusOnTab\s*:\s*true", qml_src))
+    if not tab_stops:
+        continue
+    rings = len(re.findall(r"^\s*FocusRing\s*\{", qml_src, re.M))
+    # Count RINGS ONLY, one per declared tab stop.
+    #
+    # The first version of this also credited any visual bound to activeFocus, and that made it
+    # useless: the search field binds TWO properties (border.width and border.color) to its own
+    # focus, so deleting a whole FocusRing still left the arithmetic satisfied and the gate green
+    # with a control that showed nothing. Two bindings on ONE control are not two indicators.
+    #
+    # Requiring the shared component instead of "some binding somewhere" is also the better rule
+    # on its own terms: one focus treatment across the app rather than five hand-rolled ones.
+    require(rings >= tab_stops,
+            f"{app_label} declares {tab_stops} tab stop(s) but instantiates only {rings} "
+            f"FocusRing. A control the keyboard can reach and cannot show is a WCAG 2.4.7 "
+            f"failure — add `FocusRing {{ }}` inside it")
+
 # ...and they must not override the user's font SIZE either.
 #
 # 294 text items carried a hardcoded `font.pixelSize`, so the size control in System Settings >

@@ -1041,6 +1041,36 @@ ApplicationWindow {
         return "data:image/svg+xml;base64," + Qt.btoa(Array.from(svg))
     }
 
+    // A control that has keyboard focus must SHOW it. WCAG 2.4.7, and plain courtesy.
+    //
+    // Mo Store is the one MoOS app that supports Tab at all — five component types declare
+    // activeFocusOnTab. Measured, exactly ONE of them drew anything when focused: the search
+    // field, whose border thickens at main.qml:1585. The other four moved an invisible cursor,
+    // so a keyboard user could tab through the whole storefront with no idea where they were.
+    //
+    // This is a component rather than five copies of a Rectangle because the next focusable
+    // thing anyone adds should be one line away from being correct.
+    //
+    // It is NOT a QtQuick.Controls style. There is no MoOS style module to put it in — Mo Store,
+    // Welcome and the Installer all run QT_QUICK_CONTROLS_STYLE=Basic — and a Controls style
+    // could not reach these anyway: every focusable here is a bare Rectangle with hand-rolled
+    // TapHandler/Keys handlers, which no Controls style ever touches.
+    //
+    // Drawn OUTSIDE the shape (negative margins) so it never covers content or fights the
+    // control's own border, and it follows the parent's own radius so a pill stays a pill and a
+    // card stays a card. No animation: a focus ring must appear the instant focus lands, and
+    // Liquid Glass surfaces already gate their motion on `motionEnabled`.
+    component FocusRing: Rectangle {
+        anchors.fill: parent
+        anchors.margins: -3
+        radius: (parent && parent.radius !== undefined ? parent.radius : 0) + 3
+        color: "transparent"
+        border.width: 2
+        border.color: win.accent
+        visible: parent ? parent.activeFocus : false
+        z: 99
+    }
+
     component Glyph: Image {
         property string name: "spark"
         property color tint: win.txt
@@ -1071,6 +1101,7 @@ ApplicationWindow {
         border.color: destructive ? win.violet : (actionHover.hovered ? win.accent : win.outline)
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
+        FocusRing { }
         Accessible.name: label
         HoverHandler { id: actionHover; enabled: action.enabled }
         TapHandler {
@@ -1183,6 +1214,7 @@ ApplicationWindow {
         scale: cardHover.hovered ? 1.012 : 1
         activeFocusOnTab: true
         Accessible.role: Accessible.ListItem
+        FocusRing { }
         Accessible.name: win.localName(app) + ", " + win.sourceLabel(app)
         HoverHandler { id: cardHover }
         TapHandler { onTapped: win.openDetails(card.app) }
@@ -1383,6 +1415,7 @@ ApplicationWindow {
                         border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.34)
                         activeFocusOnTab: true
                         Accessible.role: Accessible.Button
+                        FocusRing { }
                         Accessible.name: win.rtl ? nav.modelData.ar : nav.modelData.en
                         HoverHandler { id: navHover }
                         TapHandler { onTapped: win.navigate(nav.modelData.id) }
@@ -1850,6 +1883,7 @@ ApplicationWindow {
                                     border.color: homeCategoryHover.hovered ? win.accent : win.outline
                                     activeFocusOnTab: true
                                     Accessible.role: Accessible.Button
+                                    FocusRing { }
                                     Accessible.name: win.rtl ? modelData.ar : modelData.en
                                     HoverHandler { id: homeCategoryHover }
                                     TapHandler { onTapped: win.openCategory(homeCategory.modelData.id) }
@@ -2183,6 +2217,7 @@ ApplicationWindow {
                                     border.color: categoryHover.hovered ? win.accent : win.outline
                                     activeFocusOnTab: true
                                     Accessible.role: Accessible.Button
+                                    FocusRing { }
                                     Accessible.name: win.rtl ? modelData.ar : modelData.en
                                     HoverHandler { id: categoryHover }
                                     TapHandler { onTapped: win.openCategory(categoryTile.modelData.id) }
