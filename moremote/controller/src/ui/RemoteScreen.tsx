@@ -667,6 +667,25 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
     const fpsTimer = window.setInterval(() => { setFps(fpsCount.current); fpsCount.current = 0; }, 1000);
     bumpToolbar();
+
+    // RELEASE ANY ORIENTATION LOCK THE PHONE IS STILL HOLDING.
+    //
+    // Removing the imperative screen.orientation.lock("landscape") and setting the
+    // manifest to orientation:"any" fixed the SERVER — verified: the served manifest says
+    // "any" and the served bundle contains the string "landscape" zero times. It does not
+    // fix a phone that ALREADY INSTALLED the app: Android reads `orientation` from the
+    // manifest at install time and pins it, and Chrome only re-reads the manifest on its
+    // own schedule. So an app added to the Home Screen while the manifest still said
+    // "landscape" keeps rotating the phone no matter what the server now sends — which is
+    // exactly what the owner reported after the fix shipped.
+    //
+    // unlock() is the one thing that releases that pin from inside the running app. It is
+    // a no-op where nothing is locked, is absent on iOS, and throws on a browser tab that
+    // never had a lock — hence best-effort, never depended on.
+    try {
+      const so = (screen as any)?.orientation;
+      if (so?.unlock) { so.unlock(); }
+    } catch { /* no lock to release, or the browser does not allow it */ }
     // No "Turn your phone sideways for a full-size desktop" nag on every portrait launch: nagging
     // the user about how to hold their phone is exactly the kind of pushiness the owner asked to be
     // rid of. The picture follows the phone (see shouldRotate); if they want it bigger they turn the
@@ -1192,6 +1211,14 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
     orientRef.current = m;                    // the draw loop and the hit-test read the ref, now
     kbRotLatch.current = null;                // an explicit choice outranks a frozen one
     view.current = { zoom: 1, panX: 0, panY: 0 };
+    // NONE of these three settings rotates the PHONE — they only decide how the picture is
+    // drawn inside whatever the phone is doing. So every one of them also releases a
+    // physical orientation lock, which gives the user a one-tap way out of a lock a
+    // previously-installed version pinned at install time (see the unlock on startup).
+    try {
+      const so = (screen as any)?.orientation;
+      if (so?.unlock) { so.unlock(); }
+    } catch { /* nothing locked, or not permitted here */ }
     invalidate();
     showToast(ORIENT_LABEL[m]);
   };

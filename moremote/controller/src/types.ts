@@ -1,5 +1,11 @@
 // Bump this on each frontend change so you can confirm the phone loaded the latest build.
-export const BUILD = "v14 · fill-screen portrait + display-matched resolution";
+//
+// It earns its place: a precaching service worker means the phone can keep running an old
+// bundle after the agent is updated, and this line on the connect screen is the only way to
+// tell at a glance which one you are looking at. v14 also described behaviour that no longer
+// exists ("fill-screen portrait" was the automatic quarter-turn, now removed), so it was
+// actively misleading while debugging exactly that.
+export const BUILD = "v15 · rotation follows your phone";
 
 export interface ServerStatus {
   name: string;

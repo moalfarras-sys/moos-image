@@ -120,6 +120,21 @@ const viteCode = viteCfg.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/g
 assert.ok(!/orientation:\s*["'](landscape|portrait)/.test(viteCode),
   "the PWA manifest must not pin `orientation` to landscape/portrait — that force-rotates the "
   + "installed app on every launch. Use \"any\".");
+
+// 1c. AND THE APP MUST RELEASE A LOCK IT DID NOT SET. Fixing the source does nothing for a
+//     phone that ALREADY installed the app: Android reads `orientation` from the manifest at
+//     install time and pins it, and Chrome re-reads the manifest only on its own schedule. So
+//     a Home-Screen install made while the manifest said "landscape" keeps rotating the phone
+//     however correct the server now is — which is what the owner reported after the first
+//     fix shipped. screen.orientation.unlock() is the only thing that releases that from
+//     inside the running app, so it must be called at startup AND from the orientation
+//     controls (a one-tap way out for a user already in that state).
+assert.ok(/\.unlock\s*\(\s*\)/.test(remoteCode),
+  "the app must call screen.orientation.unlock() — without it, a phone that installed an "
+  + "older build stays pinned to landscape no matter what the manifest now says");
+assert.ok((remoteCode.match(/\.unlock\s*\(\s*\)/g) ?? []).length >= 2,
+  "unlock() must run both at startup and when the user picks an orientation, so someone "
+  + "already stuck has a one-tap release");
 const shippedManifest = join(import.meta.dirname, "..", "..", "agent", "wwwroot", "manifest.webmanifest");
 if (existsSync(shippedManifest)) {
   const m = JSON.parse(readFileSync(shippedManifest, "utf8"));
