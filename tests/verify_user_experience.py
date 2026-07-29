@@ -1380,6 +1380,29 @@ for _mod in ("distrobox", "flatpak", "system"):
     require(_uupd_cfg["modules"][_mod]["disable"] is False,
             f"uupd's {_mod} module must stay enabled — disabling it silently stops that "
             "half of the update")
+
+# EXACTLY ONE UPDATER MAY BE ENABLED.
+#
+# The base image enables rpm-ostreed-automatic.timer, and it was left running beside uupd:
+# measured on the maintainer's machine BOTH were enabled and active, and `rpm-ostree upgrade`
+# reported "note: automatic updates (stage) are enabled". Two updaters on one OSTree sysroot
+# contend for the same transaction lock, so when both fire one of them just fails.
+#
+# Worse, the second one defeats a deliberate policy. uupd is conditional — the config above
+# refuses to update below 20% battery, above 50% CPU or 90% memory, or while the network is
+# busy — and its drop-in keeps it off the login path. rpm-ostreed-automatic honours none of
+# that: 1h after boot and then daily, whatever the user is doing. It also stages deployments
+# outside the path `moai-do update` and Recovery are built around, which is how a staged
+# update appears that nobody asked for.
+_build_sh = read("build_files/build.sh")     # build_script is defined further down this file
+require("systemctl enable uupd.timer" in _build_sh,
+        "uupd must be the enabled updater — it is the one MoOS configures and guards")
+for _rival in ("rpm-ostreed-automatic.timer", "bootc-fetch-apply-updates.timer"):
+    require(re.search(rf"systemctl disable {re.escape(_rival)}", _build_sh),
+            f"{_rival} must be explicitly disabled in the image. uupd already covers the "
+            f"system image (its config has \"system\": {{\"disable\": false}}), so leaving a "
+            f"second updater enabled only adds a lock fight and an unguarded update that "
+            f"ignores MoOS's battery/CPU/memory/network conditions.")
 # uupd unmarshals this file STRICTLY: one key it does not know and it refuses to start at
 # all — "'config.Config' has invalid keys" — which is worse than the failing module this
 # file exists to silence. Learned the hard way: a JSON block explaining WHY brew is off,

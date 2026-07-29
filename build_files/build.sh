@@ -1854,6 +1854,34 @@ getent group plugdev >/dev/null || groupadd -r plugdev
 # image so every deployment gets background updates by default.
 systemctl enable uupd.timer
 
+# ONE UPDATER, NOT TWO.
+#
+# rpm-ostreed-automatic.timer is enabled in the base image and was left running
+# alongside uupd — two independent updaters staging deployments on the same
+# OSTree sysroot. Measured on the maintainer's machine, both were enabled+active,
+# and `rpm-ostree upgrade` reported "note: automatic updates (stage) are enabled".
+#
+# That is not merely redundant, it defeats a deliberate policy. uupd is MoOS's
+# updater and it is CONDITIONAL: /etc/uupd/config.json refuses to update below
+# 20% battery, above 50% CPU, above 90% memory, or while the network is busy
+# (>700 kB/s), and uupd.service.d/moos-idle.conf keeps it off the login path.
+# The whole intent is that "an update nobody asked for right now must never be".
+# rpm-ostreed-automatic honours none of that: it fires 1h after boot and then
+# daily, whatever the user is doing — on battery, mid-game, on metered data.
+#
+# They also contend for the same rpm-ostree transaction lock, so when both fire
+# one of them simply fails, and it stages deployments outside the path
+# `moai-do update` and MoOS Recovery are built around.
+#
+# uupd covers everything it did: its config has "system": {"disable": false} and
+# its log shows it resolving ghcr.io/<owner>/moos-nvidia through the rpm-ostree
+# driver, alongside flatpak and distrobox. So disable the redundant one and leave
+# exactly one updater in charge.
+systemctl disable rpm-ostreed-automatic.timer 2>/dev/null || true
+# bootc-fetch-apply-updates is the third one, off in the base image today. Assert
+# it stays off rather than trusting that, for the same reason.
+systemctl disable bootc-fetch-apply-updates.timer 2>/dev/null || true
+
 # --- Get the app catalogue OUT of the boot path -------------------------------
 # Measured on the maintainer's machine (`systemd-analyze critical-chain`):
 #
