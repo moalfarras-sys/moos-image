@@ -399,27 +399,26 @@ jobs:
       #     ghcr.io/<owner>/<image>@<digest>
       # alongside the signature check.
       #
-      # NO SBOM STEP HERE, AND THAT IS A DECISION.
-      #
-      # An SBOM was added above these lines and removed again, because it broke the build
-      # twice. syft has to unpack the whole multi-GB OS image, on a runner that has already
-      # run `Free disk space` to fit the build itself, and the runner does not survive it:
-      #
-      #     [command] syft scan ghcr.io/.../moos-nvidia@sha256:… -o spdx-json
-      #     ##[error]The runner has received a shutdown signal.
-      #
-      # 8 minutes of scanning, then the runner is terminated — in the last run that killed
-      # ALL THREE matrix jobs. `continue-on-error: true` does not help: it forgives a step
-      # that EXITS non-zero, and nothing forgives a runner that is gone. The step even shows
-      # as "success" in the job summary while the job it belongs to is red, which is its own
-      # small trap for the next reader.
-      #
-      # What actually protects the image is above and is unaffected: it is pushed by digest,
-      # signed with cosign, and that signature is verified against the very public key the
-      # installed OS enforces (cosign.pub == /etc/pki/containers/moos.pub). A machine will
-      # refuse an image that fails that. An SBOM adds transparency about CONTENTS, which is
-      # worth having — but not at the price of a build pipeline that cannot finish, and not
-      # for a personal OS whose contents are one `dnf5 install` list in build_files/build.sh.
-      #
-      # If it comes back it needs its own workflow, on its own schedule, off the path that
-      # produces the image people boot.
+      # These run LAST on purpose: the image is already pushed, signed and
+      # verified, so a failure here fails the run loudly without unpublishing a
+      # good image — and because bootc only ever upgrades to a fully built and
+      # signed image, a red SBOM step simply means no new build ships that day,
+      # never a broken one.
+      - name: Generate SBOM (SPDX) from the pushed image
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.meta.outputs.registry }}/${{ matrix.image_name }}@${{ steps.push.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+
+      - name: Attest the SBOM with the signing key
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          IMAGE_REGISTRY: ${{ steps.meta.outputs.registry }}
+          IMAGE_NAME: ${{ matrix.image_name }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          cosign attest -y --key env://COSIGN_PRIVATE_KEY \
+            --type spdxjson --predicate sbom.spdx.json \
+            "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"

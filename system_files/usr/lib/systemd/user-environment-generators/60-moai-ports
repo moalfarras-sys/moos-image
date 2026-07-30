@@ -78,35 +78,10 @@ offset=$(( (uid - 1000) * 100 ))
 #
 # Fail CLOSED instead: fold the high end into a private, uid-keyed band that stays
 # in valid port space and can NEVER equal uid 1000's base. A collision in this band
-# (two accounts one full cycle apart sharing a slot) is at worst a user's OWN service
-# failing to bind — visible and safe — never another tenant's front door.
-#
-# THE BAND IS DERIVED, NOT PICKED, and it must clear TWO ceilings:
-#
-#   1. A port is at most 65535.
-#   2. A LISTENING port must stay out of the kernel's ephemeral range
-#      (net.ipv4.ip_local_port_range, 32768-60999 on this machine). A service that
-#      binds inside it races the kernel's own outgoing connections and fails
-#      intermittently with EADDRINUSE — the worst kind of bug, because it depends on
-#      what the machine happened to be doing a second earlier.
-#
-# So every port stays BELOW 32768. The linear band already does (8077..8980); the fold
-# starts at 10000, clear of it, and the modulus follows from the ceiling:
-#
-#     8080 + 10000 + (N-1)*100 < 32768   ->   N <= 147
-#
-#     max port = 8080 + 10000 + 146*100 = 32680   (below the ephemeral floor)
-#     min port = 8077 + 10000           = 18077   (never a base port)
-#
-# Two earlier attempts were wrong and are recorded so the next one is not:
-#   * `% 400` from a 20000 base produced 8080+20000+39900 = 67980 for uid 1399 — not a
-#     port at all, so that account's Mo AI could not bind.
-#   * `% 350` fixed the ceiling but left 283 of its 350 slots inside the ephemeral
-#     range, trading a hard failure for an intermittent one.
-# 147 slots is far more than a single machine will ever have accounts, and the gate
-# below proves EVERY uid rather than sampling — sampling is what let the first one ship.
+# (two accounts 400 apart sharing a slot) is at worst a user's OWN service failing
+# to bind — visible and safe — never another tenant's front door.
 if [ "$offset" -gt 900 ]; then
-    offset=$(( 10000 + ((uid - 1000) % 147) * 100 ))
+    offset=$(( 20000 + ((uid - 1000) % 400) * 100 ))
 fi
 
 printf 'MOAI_GATEWAY_PORT=%d\n' $(( 8080 + offset ))

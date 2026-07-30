@@ -713,25 +713,6 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
 
     const fpsTimer = window.setInterval(() => { setFps(fpsCount.current); fpsCount.current = 0; }, 1000);
     bumpToolbar();
-
-    // RELEASE ANY ORIENTATION LOCK THE PHONE IS STILL HOLDING.
-    //
-    // Removing the imperative screen.orientation.lock("landscape") and setting the
-    // manifest to orientation:"any" fixed the SERVER — verified: the served manifest says
-    // "any" and the served bundle contains the string "landscape" zero times. It does not
-    // fix a phone that ALREADY INSTALLED the app: Android reads `orientation` from the
-    // manifest at install time and pins it, and Chrome only re-reads the manifest on its
-    // own schedule. So an app added to the Home Screen while the manifest still said
-    // "landscape" keeps rotating the phone no matter what the server now sends — which is
-    // exactly what the owner reported after the fix shipped.
-    //
-    // unlock() is the one thing that releases that pin from inside the running app. It is
-    // a no-op where nothing is locked, is absent on iOS, and throws on a browser tab that
-    // never had a lock — hence best-effort, never depended on.
-    try {
-      const so = (screen as any)?.orientation;
-      if (so?.unlock) { so.unlock(); }
-    } catch { /* no lock to release, or the browser does not allow it */ }
     // No "Turn your phone sideways for a full-size desktop" nag on every portrait launch: nagging
     // the user about how to hold their phone is exactly the kind of pushiness the owner asked to be
     // rid of. The picture follows the phone (see shouldRotate); if they want it bigger they turn the

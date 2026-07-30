@@ -569,22 +569,12 @@ def on_bus(_b, msg):
                 # _h264_blacklist is a dict {factory: monotonic_ms}; the old `.add()` was a leftover
                 # from when it was a set and would have raised AttributeError had the match fired.
                 _h264_blacklist[factory] = GLib.get_monotonic_time() // 1000
-            # NO `state["want"] = "jpeg"` LATCH HERE, deliberately.
-            #
-            # There used to be `if not pick_h264(): state["want"] = "jpeg"`, which never fired
-            # (both returns are non-empty tuples, so `not <tuple>` is always False). Making it
-            # fire looked like a fix and was a regression: `want` is only ever set back to
-            # "h264" when the AGENT sends a codec message, and the agent sends one only when
-            # ITS arbitration changes — so a single failure would have pinned the session to
-            # JPEG for its whole life, overriding the 90 s blacklist TTL above and defeating
-            # free_gpu_and_retry(). The file's own note says why that is wrong: "a condition
-            # that lasts a minute must not cost the session an hour."
-            #
-            # The latch was also unnecessary. Its stated purpose was to stop re-auditioning a
-            # dead encoder, but the blacklist already does that: pick_h264() skips blacklisted
-            # factories with a registry lookup and returns (None, None) with no audition and no
-            # PREROLL wait, so build() drops to JPEG immediately — and retries automatically
-            # once the TTL expires, which is the whole point.
+            # pick_h264() returns (name, props) on success and (None, None) when nothing is left —
+            # BOTH are non-empty tuples, so `not pick_h264()` is ALWAYS False and this latch never
+            # fired. Test the element, so once no encoder remains we settle on JPEG instead of
+            # re-auditioning (and eating a 4s PREROLL freeze) on every rebuild.
+            if pick_h264()[0] is None:
+                state["want"] = "jpeg"
             state["out"] = (0, 0)          # force a real rebuild rather than a no-op
             GLib.idle_add(rebuild)
             return True
@@ -807,11 +797,9 @@ def build(w, h):
                 # the local brain is holding the card. Ask for it back and come round again; see the
                 # note on _h264_blacklist. Costs nothing where there is no GPU and no brain.
                 free_gpu_and_retry()
-                # No JPEG latch here either — see the mid-stream handler in on_bus. The line
-                # directly above says it: "a permanent JPEG latch is far too expensive a way to
-                # find out". The blacklist entry just written IS the fallback, and it expires,
-                # so the very next rebuild after free_gpu_and_retry() has released the card can
-                # take H.264 again instead of being pinned to JPEG for the session.
+                # (name, props) or (None, None) — both truthy as tuples, so test the element.
+                if pick_h264()[0] is None:
+                    state["want"] = "jpeg"
             return build(w, h)
         die(EXIT_LOST, "the JPEG pipeline would not start")
 

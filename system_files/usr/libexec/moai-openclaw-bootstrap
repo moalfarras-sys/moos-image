@@ -296,11 +296,7 @@ def main() -> int:
         # healing still fires because a drifted config gives merged != before.
         before = load_existing()
         merged = merge_baseline(copy.deepcopy(before))
-        if CONFIG.is_file() and merged == before:
-            # Nothing to write — but the private mode is a security property that must be
-            # re-asserted every login regardless, and it used to ride along inside the save.
-            harden_config_permissions()
-        else:
+        if not (CONFIG.is_file() and merged == before):
             atomic_save(merged)
     except (OSError, subprocess.SubprocessError, ValueError) as exc:
         print(f"moai-openclaw-bootstrap: {exc}", file=sys.stderr)

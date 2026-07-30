@@ -299,13 +299,8 @@ case "${cat}/${tgt}" in
     session/lock)  loginctl lock-session ;;
     session/logout) confirm "تسجيل الخروج الآن؟ | Log out now?" \
                           && { qdbus_run org.kde.Shutdown /Shutdown logout 2>/dev/null || true; } ;;
-    # Graceful FIRST, like session/logout. org.kde.Shutdown runs KDE's session shutdown,
-    # so applications get the save-session / "this is preventing shutdown" cycle; a bare
-    # `systemctl poweroff` skips all of it and can lose unsaved work. systemctl/loginctl
-    # remain as the fallback for a session with no KDE shutdown service (the cloud edition).
     session/power) confirm "إيقاف تشغيل الجهاز الآن؟ | Shut the computer down now?" \
-                          && { qdbus_run org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null \
-                               || systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || true; } ;;
+                          && { systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || qdbus_run org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null || true; } ;;
     do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/setup-windows|do/install-codex|do/install-claude|do/install-opencode|do/install-openclaw|do/setup-brain|do/remote-anywhere|do/rollback|do/net-doctor|do/gpu-report)
                    term moai-do "$tgt" ;;
     *)

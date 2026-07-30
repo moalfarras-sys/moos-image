@@ -508,16 +508,6 @@ do_inspect_boot() {
 # describe but not do. Atomic and reversible: it only changes which deployment the
 # NEXT boot uses; a later `update` moves forward again. Confirmed, and privileged via
 # pkexec. It never touches the signature policy or removes a deployment.
-#
-# THE COMMAND IS `bootc rollback`, NOT `rpm-ostree rollback`. They are not
-# interchangeable on this system and the first version of this action used the wrong
-# one. `rpm-ostree rollback` reverts to "the previously booted tree"; `bootc rollback`
-# reorders the bootloader entries and — in its own words — "if there is a `staged`
-# entry (an unapplied, queued upgrade) then it will be discarded". With an update
-# already staged by uupd or `moai-do update`, that difference is the difference
-# between rescuing the machine and printing a success message while nothing changed.
-# It is also what the Recovery app (`moos-rollback`) has always run, so the assistant
-# and the GUI now do the same thing.
 do_rollback() {
     hdr "الرجوع إلى النسخة السابقة" "Roll back to the previous version"
     echo "${D}يجعل الإقلاع القادم على النشر السابق. ملفاتك وإعداداتك لا تتغيّر،${N}"
@@ -529,27 +519,9 @@ do_rollback() {
         echo "${B}النشرات الحالية | Current deployments:${N}"
         rpm-ostree status 2>/dev/null | sed -n '1,12p' || true
         echo
-        # Say so BEFORE asking. A queued update is discarded by the rollback, and a
-        # user who confirms without being told that has been surprised, not informed.
-        #
-        # Read the JSON, not the human output. Every deployment carries a "staged"
-        # boolean there (verified on this image), whereas the text rendering does not
-        # reliably print the word at all — the first version of this grepped for
-        # "Staged" in `rpm-ostree status` and so could never fire, which made the
-        # warning decorative.
-        if rpm-ostree status --json 2>/dev/null \
-            | python3 -c 'import json,sys
-try: d = json.load(sys.stdin)
-except Exception: raise SystemExit(1)
-raise SystemExit(0 if any(x.get("staged") for x in d.get("deployments", [])) else 1)' 2>/dev/null; then
-            echo "${Y}تنبيه: يوجد تحديث مُجهَّز للإقلاع القادم، وسيُلغى بالرجوع${N}"
-            echo "${Y}Note: an update is staged for the next boot; rolling back discards it${N}"
-            echo "${D}(يمكنك تجهيزه ثانيةً في أي وقت عبر «تحديث» | re-stage it any time with an update)${N}"
-            echo
-        fi
     fi
     confirm || return 0
-    run_priv bootc rollback || return 1
+    run_priv rpm-ostree rollback || return 1
     echo
     echo "${G}✓ سيبدأ الإقلاع القادم على النسخة السابقة | next boot will use the previous version${N}"
     echo "${D}أعد التشغيل لتطبيق الرجوع | reboot to apply.${N}"

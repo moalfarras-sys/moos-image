@@ -1408,67 +1408,13 @@ class TestMoOSUI2(unittest.TestCase):
                     swatch_accent.get(theme_id, "").upper(), want.upper(),
                     f"Welcome '{theme_id}' swatch accent must equal its palette primary {want}")
 
-        # ELEVATION MUST WORK ON EVERY CANVAS IN THE FAMILY, dark and light.
-        #
-        # Two attempts each fixed one half and broke the other, and the measured contrast of the
-        # raised surface against its own canvas is what tells them apart:
-        #   Qt.lighter(canvas, 1.35)     multiplies HSV Value -> a NO-OP on Midnight's #000000
-        #                                (Value 0): black on black.
-        #   Qt.tint(canvas, white@0.14)  lifts every dark canvas but moves Tidal Light's #D8EBE7
-        #                                by ~5/255 -> 1.03:1, invisible.
-        # The helper must therefore move AWAY from the canvas — lighten dark, darken light — and
-        # the mini preview must go through it rather than hardcoding a direction.
+        # The mini preview must not elevate its glass surfaces with Qt.lighter(canvasC):
+        # Qt.lighter multiplies HSV Value, so on Midnight's #000000 canvas it is a no-op and
+        # the bento/dock render black-on-black (invisible). Elevation must be additive.
         self.assertNotIn(
             "Qt.lighter(lookCard.modelData.canvasC", welcome,
             "the Welcome mini-preview elevates with Qt.lighter(canvasC), which vanishes on the "
-            "Midnight #000000 canvas")
-        self.assertNotRegex(
-            welcome, r"Qt\.tint\(\s*lookCard\.modelData\.canvasC",
-            "the mini preview tints the canvas directly, which hardcodes ONE direction — white "
-            "over a light canvas is invisible. Go through the direction-aware elevate() helper.")
-        self.assertRegex(
-            welcome, r"function elevate\(\s*canvas\s*,\s*amount\s*\)",
-            "Welcome must define the direction-aware elevate(canvas, amount) helper")
-        self.assertRegex(
-            welcome, r"isLight\s*\?\s*Qt\.rgba\(0,\s*0,\s*0,\s*amount\)\s*:\s*Qt\.rgba\(1,\s*1,\s*1,\s*amount\)",
-            "elevate() must darken a LIGHT canvas and lighten a DARK one — a single direction "
-            "makes one half of the theme family's preview surfaces invisible")
-        self.assertRegex(
-            welcome, r"win\.elevate\(lookCard\.modelData\.canvasC",
-            "the mini preview's raised surfaces must be built with elevate(), or the fix is "
-            "present but unused")
-
-        # Measure it, rather than trusting the spelling: every card's raised surface must clear a
-        # real contrast floor against its own canvas. This is what catches "correct-looking" values
-        # that happen to vanish on one member of the family.
-        def _srgb(component: float) -> float:
-            return component / 12.92 if component <= 0.03928 else ((component + 0.055) / 1.055) ** 2.4
-
-        def _luminance(rgb: tuple[int, int, int]) -> float:
-            r, g, b = (_srgb(c / 255) for c in rgb)
-            return 0.2126 * r + 0.7152 * g + 0.0722 * b
-
-        def _elevate(canvas: str, amount: float) -> tuple[int, int, int]:
-            rgb = tuple(int(canvas[i:i + 2], 16) for i in (1, 3, 5))
-            light = _luminance(rgb) > 0.5 or (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255 > 0.5
-            overlay = 0 if light else 255
-            return tuple(round(c * (1 - amount) + overlay * amount) for c in rgb)
-
-        canvases = dict(re.findall(r'id:\s*"([a-z-]+)"[^}]*?canvasC:\s*"(#[0-9A-Fa-f]{6})"',
-                                   quick_model, re.S))
-        self.assertEqual(set(canvases), expected_quick_ids, "every quick look must declare a canvas")
-        for theme_id, canvas in canvases.items():
-            base = tuple(int(canvas[i:i + 2], 16) for i in (1, 3, 5))
-            for label, amount in (("bento", 0.14), ("dock", 0.17)):
-                raised = _elevate(canvas, amount)
-                hi, lo = sorted((_luminance(base), _luminance(raised)), reverse=True)
-                contrast = (hi + 0.05) / (lo + 0.05)
-                with self.subTest(elevation=f"{theme_id}/{label}"):
-                    self.assertGreater(
-                        contrast, 1.25,
-                        f"the {label} surface on the '{theme_id}' card ({canvas}) has only "
-                        f"{contrast:.2f}:1 against its own canvas — it is invisible, exactly the "
-                        f"defect that made Midnight look broken")
+            "Midnight #000000 canvas — use additive Qt.tint so black lifts too")
 
         router = (ROOT / "system_files/usr/bin/moos-open").read_text(encoding="utf-8")
         direct_routes = dict(

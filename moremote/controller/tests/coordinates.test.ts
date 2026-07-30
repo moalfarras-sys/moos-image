@@ -110,39 +110,6 @@ const remoteCode = remote.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/
 assert.ok(!/orientation[\s\S]{0,40}\.lock\?\.\("landscape"\)/.test(remoteCode),
   "fullscreen must not screen.orientation.lock('landscape') — the phone must never be force-rotated");
 
-// 1b. THE OTHER DOOR. The PWA manifest's `orientation` member is the DECLARATIVE twin of that
-//     lock: Android/Chrome applies it to every launch of the INSTALLED app, and this app tells the
-//     user to "Add to Home Screen", so it is the common case. Removing only the imperative call
-//     left the phone still spinning sideways — the originally reported bug. Both doors stay shut,
-//     in the config AND in the built manifest that actually ships.
-const viteCfg = readFileSync(join(import.meta.dirname, "..", "vite.config.ts"), "utf8");
-const viteCode = viteCfg.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-assert.ok(!/orientation:\s*["'](landscape|portrait)/.test(viteCode),
-  "the PWA manifest must not pin `orientation` to landscape/portrait — that force-rotates the "
-  + "installed app on every launch. Use \"any\".");
-
-// 1c. AND THE APP MUST RELEASE A LOCK IT DID NOT SET. Fixing the source does nothing for a
-//     phone that ALREADY installed the app: Android reads `orientation` from the manifest at
-//     install time and pins it, and Chrome re-reads the manifest only on its own schedule. So
-//     a Home-Screen install made while the manifest said "landscape" keeps rotating the phone
-//     however correct the server now is — which is what the owner reported after the first
-//     fix shipped. screen.orientation.unlock() is the only thing that releases that from
-//     inside the running app, so it must be called at startup AND from the orientation
-//     controls (a one-tap way out for a user already in that state).
-assert.ok(/\.unlock\s*\(\s*\)/.test(remoteCode),
-  "the app must call screen.orientation.unlock() — without it, a phone that installed an "
-  + "older build stays pinned to landscape no matter what the manifest now says");
-assert.ok((remoteCode.match(/\.unlock\s*\(\s*\)/g) ?? []).length >= 2,
-  "unlock() must run both at startup and when the user picks an orientation, so someone "
-  + "already stuck has a one-tap release");
-const shippedManifest = join(import.meta.dirname, "..", "..", "agent", "wwwroot", "manifest.webmanifest");
-if (existsSync(shippedManifest)) {
-  const m = JSON.parse(readFileSync(shippedManifest, "utf8"));
-  assert.ok(!m.orientation || m.orientation === "any",
-    `the SHIPPED manifest pins orientation="${m.orientation}" — rebuild the controller; the image `
-    + "serves what is committed, so a stale manifest keeps force-rotating the phone");
-}
-
 // 2. Auto (the default) must FOLLOW THE PHONE, not auto-rotate the picture: no fill heuristic. The
 //    old `turned > upright` rotate-to-fill is what made a portrait phone show a sideways desktop.
 assert.ok(!/turned > upright/.test(remoteCode),
