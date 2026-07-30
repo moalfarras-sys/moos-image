@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-import configparser
-import shlex
 import os
 import re
 import shutil
@@ -41,6 +39,21 @@ LOGIN_KWIN_DROPIN = (
     ROOT / "system_files/usr/lib/systemd/user/"
     "plasma-login-kwin_wayland.service.d/10-moos-input-migrate.conf"
 )
+
+
+def bash_executable() -> str:
+    """Use real Git Bash on Windows instead of the WSL app-execution alias."""
+    override = os.environ.get("MOOS_TEST_BASH")
+    if override:
+        return override
+    if os.name == "nt":
+        candidate = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Git/bin/bash.exe"
+        if candidate.is_file():
+            return str(candidate)
+    return shutil.which("bash") or "bash"
+
+
+BASH = bash_executable()
 
 
 def bash_executable() -> str:

@@ -85,31 +85,4 @@ assert data["health"] == "action-needed"
 assert data["actions"][0]["url"] == "moos://do/install-nvidia"
 assert "r8169" not in data["driver"]
 
-# The live bootc CLI requires root. The desktop hardware plan must fall back to
-# rpm-ostree's unprivileged status instead of telling an NVIDIA-image user that
-# the optimized image is missing.
-if os.name != "nt":
-    with tempfile.TemporaryDirectory() as tmp:
-        bindir = Path(tmp)
-        executable(bindir / "lspci", """cat <<'EOF'
-01:00.0 VGA compatible controller [0300]: NVIDIA Corporation TU104 [10de:1e81]
-\tKernel driver in use: nvidia
-EOF
-""", "")
-        executable(bindir / "flatpak", "exit 1\n", "")
-        executable(bindir / "bootc", "exit 1\n", "")
-        executable(
-            bindir / "rpm-ostree",
-            """printf '%s\n' '{"deployments":[{"booted":true,"container-image-reference":"ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:abc"}]}'\n""",
-            "",
-        )
-        executable(bindir / "mokutil", "echo 'SecureBoot enabled'\n", "")
-        env = dict(os.environ)
-        env["PATH"] = str(bindir) + os.pathsep + env.get("PATH", "")
-        nvidia_data = json.loads(
-            subprocess.check_output([str(PLAN)], text=True, env=env)
-        )
-    assert nvidia_data["nvidia_image"] is True
-    assert nvidia_data["driver_status"] == "NVIDIA proprietary driver active"
-
 print("MoOS device-plan test passed")

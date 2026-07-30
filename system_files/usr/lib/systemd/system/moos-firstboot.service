@@ -9,7 +9,7 @@ ConditionPathExists=!/etc/moos-firstboot-done
 # live session is configured separately and must not run this.
 ConditionPathExists=/run/ostree-booted
 After=local-fs.target systemd-machine-id-commit.service
-# Must finish before the login manager so the password-protected user exists.
+# Must finish before the login manager so autologin/user exist at greeter time.
 Before=display-manager.service plasmalogin.service
 
 [Service]

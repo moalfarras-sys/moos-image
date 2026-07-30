@@ -297,10 +297,24 @@ Item {
     Item {
         id: sheet
         anchors.centerIn: parent
-        // 50 grid units comfortably hold five 7-unit action cells while
-        // avoiding the full-window "settings sheet" silhouette at HiDPI.
-        width: Math.min(root.width - Kirigami.Units.gridUnit * 3, Kirigami.Units.gridUnit * 50)
-        height: Math.min(root.height - Kirigami.Units.gridUnit * 3, column.implicitHeight)
+        width: Math.min(root.width - Kirigami.Units.gridUnit * 4, Kirigami.Units.gridUnit * 62)
+        height: Math.min(root.height - Kirigami.Units.gridUnit * 4, contentColumn.implicitHeight + Kirigami.Units.gridUnit * 4)
+        radius: Kirigami.Units.gridUnit
+        // UI2 glass: a near-opaque vertical depth gradient rather than one flat
+        // fill, and a TRANSLUCENT inner border — the old full-strength highlight
+        // read as a hard teal outline, not a premium edge.
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                                                         Kirigami.Theme.backgroundColor.g,
+                                                         Kirigami.Theme.backgroundColor.b, 0.97) }
+            GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                                                         Kirigami.Theme.backgroundColor.g,
+                                                         Kirigami.Theme.backgroundColor.b, 0.93) }
+        }
+        border.width: 1
+        border.color: Qt.rgba(Kirigami.Theme.highlightColor.r,
+                              Kirigami.Theme.highlightColor.g,
+                              Kirigami.Theme.highlightColor.b, 0.35)
 
         opacity: root.motionEnabled ? 0 : 1
         transform: Translate { id: sheetRise; y: Kirigami.Units.gridUnit * 2 }

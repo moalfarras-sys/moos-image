@@ -1110,8 +1110,8 @@ if fb.is_file():
     _fb = text(str(fb))
     require("useradd" in _fb and "chpasswd" in _fb,
             "moos-firstboot does not create the user / set the password")
-    require("autologin" not in _fb.lower() and "plasmalogin.conf.d" not in _fb,
-            "moos-firstboot must always leave the password greeter enabled")
+    require("plasmalogin.conf.d" in _fb and "Autologin" in _fb,
+            "moos-firstboot does not configure the optional autologin choice")
     require("account recipe has no password hash" in _fb,
             "moos-firstboot must reject an account recipe without a password hash")
     require("NOPASSWD" not in _fb and "49-moos-passwordless.rules" not in _fb,
@@ -1133,12 +1133,10 @@ if inst_qml.is_file():
     _iq = text(str(inst_qml))
     require("MoosInstaller.writeRecipe" in _iq,
             "the installer does not hand the account recipe to the helper (no secure bridge call)")
-    require("acctUser" in _iq and "acctPass" in _iq,
-            "the installer has no secure username / password account screen")
+    require("acctUser" in _iq and "acctPass" in _iq and "acctAutologin" in _iq,
+            "the installer has no secure account screen (username / password / autologin)")
     require("acctPass.length >= 8" in _iq,
             "the installer must require a real password before installation")
-    require("acctAutologin" not in _iq and "autologin:" not in _iq.lower(),
-            "the installer must not expose an automatic-sign-in choice")
     require("moalfarras.space" in _iq,
             "the installer's finish screen does not carry the moalfarras.space signature")
 # The QR asset the finish screen shows must ship.

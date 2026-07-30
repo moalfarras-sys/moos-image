@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the canonical MoOS UI Graphite/Tidal visual family.
+"""Generate the canonical MoOS UI2 Graphite/Tidal visual family.
 
 The committed Graphite UI2 packages are the maintained geometry source.
 Generation is transactional, and Plasma Dark and Light each receive a complete
@@ -8,7 +8,6 @@ SVG suite; Light never inherits UI2 Dark's fixed-colour artwork.
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import pathlib
@@ -731,9 +730,6 @@ def generate_aurorae(variant: str, backup_root: pathlib.Path) -> None:
         raise SystemExit(f"{name} contains multiple Aurorae rc files")
     if source_rcs:
         source_rcs[0].rename(target_rc)
-    aurorae_art.render_aurorae_suite(
-        target, variant_roles(variant), plugin_name=name
-    )
     metadata = target / "metadata.desktop"
     text = metadata.read_text(encoding="utf-8")
     text = re.sub(r"^Name=.*$", f"Name={'MoOS UI Light' if light else 'MoOS UI'}", text, flags=re.M)
@@ -801,7 +797,7 @@ def generate_weather_runtime() -> None:
 def preflight() -> None:
     """Fail before touching any shipped output when an input/tool is missing."""
     if shutil.which("ffmpeg") is None:
-        raise SystemExit("ffmpeg is required to export MoOS UI raster assets")
+        raise SystemExit("ffmpeg is required to export MoOS UI2 raster assets")
     for source in CANONICAL_SOURCES:
         if not source.exists():
             raise SystemExit(f"missing canonical UI2 source: {source}")
@@ -973,7 +969,7 @@ def main() -> None:
                     output.parent.mkdir(parents=True, exist_ok=True)
                     backup.rename(output)
             raise
-    print("generated unified MoOS UI Graphite/Tidal packages from the canonical UI2 source")
+    print("generated unified MoOS UI2 Graphite/Tidal packages from the canonical UI2 source")
 
 
 if __name__ == "__main__":

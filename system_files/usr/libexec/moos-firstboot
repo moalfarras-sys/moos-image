@@ -11,7 +11,7 @@
 # INPUT: /etc/moos-setup.conf (written by moos-install-to-disk into the target),
 # a KEY=VALUE file:
 #   USERNAME, FULLNAME, PASSWORD_HASH (required crypt string),
-#   TIMEZONE, KEYMAP, XKBLAYOUT, LOCALE
+#   AUTOLOGIN (1|0), TIMEZONE, KEYMAP, XKBLAYOUT, LOCALE
 # If another installer already created an interactive user, no recipe is needed.
 # Otherwise a missing recipe is a hard failure rather than an insecure default.
 #
@@ -27,13 +27,7 @@ log() { printf 'moos-firstboot: %s\n' "$*"; }
 # defaults: it requires either an installer recipe with a password hash or an
 # already-provisioned interactive user.
 USERNAME="moos"; FULLNAME="MoOS User"; PASSWORD_HASH=""
-# XKBLAYOUT defaults to the list the IMAGE ships (/etc/xdg/kxkbrc and
-# /etc/X11/xorg.conf.d/00-keyboard.conf both say de,us,ara). This block below OVERWRITES
-# 00-keyboard.conf, so a stale default here does not merely differ from the image — it
-# replaces it, and the machine then fails moos-selfcheck's keyboard check on first boot
-# having been touched by nobody. It said de,ara, which is the layout the 2026-07-22 image
-# moved away from.
-TIMEZONE=""; KEYMAP="de"; XKBLAYOUT="de,us,ara"; LOCALE=""
+AUTOLOGIN="0"; TIMEZONE=""; KEYMAP="de"; XKBLAYOUT="de,ara"; LOCALE=""
 
 if [ ! -r "$CONF" ]; then
     # bootc-image-builder/Anaconda may provision an account themselves. In that
@@ -69,6 +63,7 @@ fi
 #    a foreign language and broke typing. Guard
 #    each value here (defence in depth — also protects the Anaconda path) so even a
 #    bad conf yields a sane, English-by-default, US-keyboard system. ─────────────
+case "$AUTOLOGIN" in 0|1) ;; *) log "invalid autologin '${AUTOLOGIN}', using 0"; AUTOLOGIN="0" ;; esac
 # LOCALE must look like ll_CC(.enc) or C/POSIX; an empty or bogus value (e.g. a bare
 # timezone) becomes en_US.UTF-8 so LANG is always valid and never falls back to a
 # stray image language.
@@ -100,6 +95,22 @@ fi
 if ! printf '%s:%s\n' "$USERNAME" "$PASSWORD_HASH" | chpasswd -e; then
     log "chpasswd failed — NOT stamping; next boot will retry"
     exit 1
+fi
+passwd -u "$USERNAME" >/dev/null 2>&1 || true
+
+# ── autologin (plasma-login-manager) ──────────────────────────────────────────
+# Only if the user actually exists — an autologin drop-in pointing at a user that
+# useradd failed to create is an unrecoverable login loop.
+if [ "$AUTOLOGIN" = "1" ] && id "$USERNAME" >/dev/null 2>&1; then
+    install -d -m 0755 /etc/plasmalogin.conf.d
+    cat > /etc/plasmalogin.conf.d/10-moos-autologin.conf <<AUTOEOF
+[Autologin]
+User=${USERNAME}
+Session=plasma.desktop
+
+[General]
+DisplayServer=wayland
+AUTOEOF
 fi
 passwd -u "$USERNAME" >/dev/null 2>&1 || true
 

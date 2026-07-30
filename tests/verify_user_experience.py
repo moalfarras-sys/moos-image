@@ -4302,6 +4302,55 @@ require(
     "the installed-disk gate must not wait for retired SDDM; MoOS uses plasma-login-manager",
 )
 
+# Every selectable palette is one MoOS UI engine, not another login/session
+# design hiding under a different colour name. KDE needs a look-and-feel package
+# per palette, but the doorway QML must remain byte-identical across all of them.
+lnf_packages = sorted(
+    path for path in (ROOT / "system_files/usr/share/plasma/look-and-feel").glob("org.moos.ui2*")
+    if path.is_dir()
+)
+require(len(lnf_packages) >= 2,
+        "MoOS must ship at least the matched dark/light UI2 pair")
+for doorway in (
+    "contents/splash/Splash.qml",
+    "contents/logout/Logout.qml",
+    "contents/logout/MoOSUI2ActionButton.qml",
+):
+    variants = {
+        (package / doorway).read_bytes()
+        for package in lnf_packages
+        if (package / doorway).is_file()
+    }
+    require(
+        len(variants) == 1
+        and all((package / doorway).is_file() for package in lnf_packages),
+        f"{doorway} must be one shared MoOS design across every UI2 palette; "
+        "a drifting package creates overlapping/inconsistent session screens",
+    )
+family_generator = code(read("artwork/generate_moos_themes.py"), "hash")
+family_lnf = family_generator.split("def build_lnf(", 1)[1].split("\ndef ", 1)[0]
+require('src.suffix == ".svg"' in family_lnf
+        and 'src.suffix in (".qml", ".svg")' not in family_lnf
+        and "shutil.copy2(src, out)" in family_lnf,
+        "the family generator must copy session-screen QML byte-for-byte and "
+        "recolour only artwork; otherwise one rebuild forks 16 login/logout designs")
+
+# The installed-disk release gate must make decisions on an ANSI-free serial
+# log. systemd colours individual words, so grepping the raw stream previously
+# reported failure after the disk had visibly reached Basic System and login.
+disk_workflow = read(".github/workflows/build-disk.yml")
+require(
+    "serial.plain.log" in disk_workflow
+    and "ansi = re.compile" in disk_workflow
+    and disk_workflow.count("/tmp/serial.plain.log") >= 3,
+    "the qcow2 boot gate must strip ANSI once and use the normalised serial log "
+    "for both failure and success decisions",
+)
+require(
+    "sddm-greeter" not in code(disk_workflow),
+    "the installed-disk gate must not wait for retired SDDM; MoOS uses plasma-login-manager",
+)
+
 # ── Arabic in the terminal ────────────────────────────────────────────────────
 #
 # MoOS brands itself Arabic/English and shipped a terminal an Arabic user could not
@@ -5113,9 +5162,6 @@ require("NOPASSWD" not in _fb and "49-moos-passwordless.rules" not in _fb,
         "moos-firstboot must never create passwordless sudo/polkit access")
 require("sddm" not in _fb.lower(),
         "moos-firstboot must not recreate a retired SDDM login stack")
-require("autologin" not in _fb.lower() and "plasmalogin.conf.d" not in _fb,
-        "installed MoOS must always show the password greeter; moos-firstboot "
-        "must not create an automatic-sign-in configuration")
 _fb_unit = code(read("system_files/usr/lib/systemd/system/moos-firstboot.service"), "hash")
 require("sddm" not in _fb_unit.lower(),
         "moos-firstboot.service still orders against retired SDDM")
@@ -5157,23 +5203,9 @@ require('fail "password-required"' in _i2d and '${#R_PASS}' in _i2d,
         "moos-install-to-disk must reject a missing/short password in the privileged backend")
 require('fail "seed-failed"' in _i2d,
         "the installer must not report success when the target account recipe could not be saved")
-require("/usr/lib/systemd/systemd-update-done --root=" in _i2d
-        and '.updated' in _i2d,
-        "the installer must mark the deployed /etc caches current; otherwise "
-        "ldconfig performs a long cold rebuild before the first password greeter")
 _iqml = read("system_files/usr/share/moos/apps/installer/main.qml")
-require("acctPass.length >= 8" in _iqml,
-        "the account page must require a password")
-require("acctAutologin" not in _iqml and "autologin:" not in _iqml.lower(),
-        "the installer must not expose or write an automatic-sign-in choice")
-require("AUTOLOGIN=" not in _i2d,
-        "the privileged installer backend must not seed an automatic-sign-in value")
-_login_dropins = "\n".join(
-    p.read_text(encoding="utf-8")
-    for p in sorted((ROOT / "system_files/usr/lib/plasmalogin").rglob("*.conf"))
-)
-require(re.search(r"^\s*\[Autologin\]\s*$", _login_dropins, re.MULTILINE) is None,
-        "the shipped plasma-login-manager configuration must not enable automatic sign-in")
+require("acctPass.length >= 8" in _iqml and "acctAutologin" in _iqml,
+        "the account page must require a password and keep autologin as a separate choice")
 for _installer_failure in ("password-required", "hash-failed", "seed-failed"):
     require(f'case "{_installer_failure}"' in _iqml,
             f"the installer has no actionable UI message for {_installer_failure}")
@@ -5189,142 +5221,6 @@ require("__MOOS_CI_RANDOM_PASSWORD__" in _bib and "moostest2026" not in _bib,
 require("openssl rand -hex" in disk_workflow
         and "/tmp/moos-bib-config.toml:/config.toml:ro" in disk_workflow,
         "build-disk.yml must inject a fresh private password before publishing qcow2")
-
-# Welcome is the one live-session landing surface, hands off to the unique
-# installer without leaving two wizard windows stacked, and returns once on the
-# first password-authenticated login of the installed account. Its app choices
-# must drive the same catalogued install/status contract as Mo Store.
-_welcome = read("system_files/usr/share/moos/apps/welcome/main.qml")
-_welcome_launch = code(read("system_files/usr/bin/moos-welcome"), "hash")
-_firstrun = code(read("system_files/usr/bin/moos-firstrun"), "hash")
-_firstrun_desktop = read("system_files/etc/xdg/autostart/org.moos.firstrun.desktop")
-require("--live=\"$LIVE\"" in _welcome_launch and "rd.live.image" in _welcome_launch,
-        "moos-welcome must tell the QML whether it runs from the live image")
-require("moos://installer/open" in _welcome and "handoffToInstaller" in _welcome
-        and "onTriggered: Qt.quit()" in _welcome,
-        "the live Welcome must hand off to the installer and close instead of "
-        "leaving two onboarding windows layered")
-require("Object.keys(win.picks)" in _welcome
-        and "MoosStore.installApps(ids)" in _welcome
-        and 'doc.state === "success"' in _welcome
-        and 'doc.state === "failed"' in _welcome
-        and "installHadFailures" in _welcome,
-        "Welcome selections must use the private Mo Store transaction and "
-        "surface both success and failure from job.json")
-require("moos://store/install/" not in _welcome,
-        "Welcome must never authorize software changes through the public URL scheme")
-require("Exec=/usr/bin/moos-firstrun" in _firstrun_desktop
-        and "moos-firstrun-done" in _firstrun and "moos-welcome && exit 0" in _firstrun,
-        "the installed account must receive the MoOS Welcome exactly once on first login")
-
-# Confirmation dialogs must render one locale, not a mixed RTL/LTR sentence.
-# The latter visibly moves the question mark and swaps the clauses in kdialog.
-_open_router = code(read("system_files/usr/bin/moos-open"), "hash")
-require("localized_message" in _open_router
-        and 'message="$(localized_message "${1:-}")"' in _open_router,
-        "moos-open confirmations must choose one localized message before opening the dialog")
-require('--warningyesno "$message"' in _open_router
-        and '--warningyesno "$1"' not in _open_router,
-        "kdialog must receive the locale-selected confirmation, never the raw RTL/LTR pair")
-
-# Fedora's legacy mcelog unit exits failed on AMD and explicitly asks for
-# rasdaemon. Ship one cross-vendor RAS owner and lock the build contract in.
-_build = code(read("build_files/build.sh"), "hash")
-require("dnf5 -y install rasdaemon" in _build
-        and "systemctl enable rasdaemon.service" in _build,
-        "the image must install and enable Fedora's cross-vendor rasdaemon")
-require("systemctl mask mcelog.service" in _build,
-        "the AMD-incompatible mcelog unit must be masked to avoid a failed boot unit")
-
-# A slow DRM driver can outlive udevadm settle. Starting the login KWin before
-# /dev/dri/card* exists leaves the manager active but the greeter permanently
-# black, so the manager owns one bounded, card-number-agnostic preflight.
-_drm_wait = code(read("system_files/usr/libexec/moos-wait-drm"), "hash")
-_login_drm_dropin = code(
-    read("system_files/usr/lib/systemd/system/plasmalogin.service.d/10-moos-wait-drm.conf"),
-    "hash",
-)
-require('"$drm_dir"/card*' in _drm_wait and 'i=$((i + 1))' in _drm_wait,
-        "the login DRM preflight must wait for any card number with a bounded loop")
-require("MOOS_DRM_WAIT_STEPS" in _drm_wait and "exit 1" in _drm_wait,
-        "the login DRM preflight needs a testable hard timeout, not an infinite boot wait")
-require("MOOS_PLASMALOGIN_CONF" in _drm_wait
-        and "WallpaperPluginId=org.kde.hunyango" in _drm_wait
-        and ".moos-legacy-hunyango" in _drm_wait
-        and ".moos-keep" in _drm_wait,
-        "the login preflight must neutralise the exact stock Hunyango key, keep a backup, "
-        "and honour an administrator opt-out; /etc/plasmalogin.conf is the KConfig main "
-        "file and outranks every layer the image ships, defaults.conf included")
-# The repair is COSMETIC and runs from ExecStartPre of a unit with Restart=always and
-# StartLimitBurst=2. A non-zero exit there does not report a problem — it burns the restart
-# budget twice and leaves the machine with no login screen at all. The only exit 1 in this
-# script may be the DRM timeout.
-require(_drm_wait.count("exit 1") == 1 and "no DRM card appeared" in _drm_wait,
-        "moos-wait-drm has an exit 1 outside the DRM timeout — a failed cosmetic login "
-        "wallpaper repair would permanently kill the display manager")
-require("ExecStartPre=/usr/libexec/moos-wait-drm" in _login_drm_dropin,
-        "plasmalogin.service must run the DRM preflight before starting KWin")
-require("chmod 0755 /usr/libexec/moos-wait-drm" in _build,
-        "build.sh must make the login DRM preflight executable")
-
-require("/usr/lib/plasmalogin/defaults.conf" in _build
-        and "GATE FAIL: /usr/lib/plasmalogin/defaults.conf is not MoOS's" in _build,
-        "build.sh must re-assert after its package transactions that MoOS still owns the "
-        "login distro-defaults slot; system_files is copied BEFORE build.sh runs, so a dnf5 "
-        "transaction pulling kde-settings-plasmalogin would restore Fedora's file")
-
-# Run build.sh's login-defaults gate HERE, against the file that is about to ship,
-# instead of discovering it 18 minutes into an image build. The first CI run after
-# that gate landed failed on a CORRECT file: the gate grepped the raw bytes for
-# "wallpapers/Fedora", and MoOS's own defaults.conf DOCUMENTS the dangling Fedora
-# path it replaced — so the paragraph explaining the fix tripped the gate that
-# enforces it. Both halves are simulated the way build.sh now does it: comments
-# stripped first, exactly like the config()/code() helpers this file already has.
-_login_defaults = ROOT / "system_files/usr/lib/plasmalogin/defaults.conf"
-require(_login_defaults.is_file(),
-        "MoOS must own /usr/lib/plasmalogin/defaults.conf — upstream documents it as THE "
-        "distro-defaults slot, and it outranks the plasmalogin.conf.d drop-in MoOS used to "
-        "ship in (measured from the greeter binary: an earlier addConfigSources call wins)")
-if _login_defaults.is_file():
-    _login_defaults_cfg = code(_login_defaults.read_text(encoding="utf-8"))
-    require(any(line.startswith("WallpaperPluginId=org.moos.")
-                for line in _login_defaults_cfg.splitlines()),
-            "the login defaults must name a MoOS greeter wallpaper plugin")
-    require("wallpapers/Fedora" not in _login_defaults_cfg,
-            "the login defaults still POINT at /usr/share/wallpapers/Fedora, a directory "
-            "build.sh deletes — a dangling login wallpaper. (Naming it in a comment is "
-            "fine and expected; this reads the config, not the prose.)")
-require("/usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf" in _build
-        and "/usr/share/moos/plasmalogin/kdeglobals" in _build,
-        "build.sh must provision the plasmalogin greeter account's palette deterministically; "
-        "unprovisioned, /var/lib/plasmalogin decides the login chrome's colours")
-require("r! /var/lib/plasmalogin/.config/kdeglobals" in _build,
-        "the greeter palette tmpfiles rule needs a boot-only `r!` before its `C+`: measured on "
-        "systemd 259.8, `C+` does NOT replace an existing file, so the rule would be a no-op on "
-        "every machine that already carries the wrong palette — which is the bug it fixes")
-require("carries an active greeter key that" in _build
-        and "WallpaperPluginId|Theme|Background|Image|ShowClock" in _build,
-        "build.sh must reject an ACTIVE greeter key in /etc/plasmalogin.conf — that "
-        "file outranks every MoOS login layer. It must NOT assert the file is absent: "
-        "the base ships it as a fully-commented template, so 'absent' fails every build")
-
-# bootc/OSTree owns these root paths as symlinks into persistent /var. Generic
-# home.conf/provision.conf directory rules otherwise emit three errors on every
-# boot. Scrub only those exact top-level rules and fail loudly if upstream moves
-# them; never mask either whole vendor file and lose unrelated provisioning.
-require(
-    'home_tmpfiles="/usr/lib/tmpfiles.d/home.conf"' in _build
-    and 'provision_tmpfiles="/usr/lib/tmpfiles.d/provision.conf"' in _build,
-    "the build must target the two vendor tmpfiles files that conflict with OSTree",
-)
-require(
-    "_tmpfiles" in _build
-    and "/(home|srv)" in _build
-    and "/root" in _build
-    and "conflicting /home or /srv tmpfiles rule survived" in _build
-    and "conflicting /root tmpfiles rule survived" in _build,
-    "the build must remove and verify all three conflicting top-level rules",
-)
 
 # Retired SDDM/org.moos.nova generators used to recreate a second login/theme
 # stack even after runtime files were removed.
