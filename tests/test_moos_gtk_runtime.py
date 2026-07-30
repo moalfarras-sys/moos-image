@@ -24,10 +24,12 @@ try:
     gi.require_version("Gtk", "4.0")
     from gi.repository import GLib, Gtk  # noqa: E402
     HAS_GI = True
-except ImportError:
-    # ubuntu-latest does not install PyGObject.  Keep the pure palette and
-    # concurrency contracts active there; only the real Gio/CSS parser test
-    # skips.  The shipped image and local MoOS host exercise the real types.
+except (ImportError, ValueError):
+    # ubuntu-latest may have no PyGObject at all, or PyGObject without the GTK4
+    # typelib (``require_version`` raises ValueError in that second case).
+    # Keep the pure palette and concurrency contracts active there; only the
+    # real Gio/CSS parser test skips. The shipped image and local MoOS host
+    # exercise the real types.
     HAS_GI = False
     gi = types.ModuleType("gi")
     gi.require_version = lambda *_args: None
@@ -55,8 +57,11 @@ except ImportError:
     repository.Gio = types.SimpleNamespace()
     repository.GLib = GLib
     gi.repository = repository
-    sys.modules.setdefault("gi", gi)
-    sys.modules.setdefault("gi.repository", repository)
+    # ``import gi`` may already have succeeded before GTK4 resolution failed.
+    # Replace that partial real module rather than leaving moos_ui2 to hit the
+    # same unavailable namespace again during its own import.
+    sys.modules["gi"] = gi
+    sys.modules["gi.repository"] = repository
 
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
