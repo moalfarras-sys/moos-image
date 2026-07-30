@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+# =============================================================================
+# moai-brain-mode — choose which brain answers the phone agent.
+#
+#   moai-brain-mode              show what is running now
+#   moai-brain-mode hybrid       local first, cloud rescues it   (recommended)
+#   moai-brain-mode local        local only — nothing leaves the machine
+#   moai-brain-mode cloud        cloud first, local rescues it
+#   moai-brain-mode warm         one long turn so the local brain caches its prompt
+#
+# WHY THIS COMMAND EXISTS
+#
+# There is no single right brain for this machine, and the honest reason is that
+# the two fail in opposite directions. Both numbers below are MEASURED on this
+# box, through the real agent, in Arabic:
+#
+#   local  (qwen3:8b, CPU-only)   first message after a cold start: 923 s.
+#                                 Every message after that: 17-30 s. Private,
+#                                 offline, free. The 923 s is the agent's own
+#                                 ~8.5k-token system prompt being read; once it
+#                                 is in the KV cache the same prompt costs
+#                                 nothing, which is why turn 2 was 30x faster.
+#   cloud  (gpt-5.6-luna)         9 s flat, from the very first message, and
+#                                 far stronger at code. Costs money, and the
+#                                 request leaves the machine.
+#
+# So "which is better" depends on the moment, not on the machine — and that is a
+# decision the owner should be able to change in one word, including from a
+# WhatsApp message, because the agent can run this command itself.
+#
+# HYBRID is the default because it is the only mode with no bad failure: the
+# cloud picks up whatever the local brain drops, so a message is never left
+# unanswered. Be clear-eyed about the split, though — the cloud carries MORE than
+# its share, not less. The local KV cache does not survive the gaps between phone
+# messages (a turn a few minutes after the last one reused only ~2,000 of ~9,000
+# prompt tokens), so most messages arrive at a cold brain and the cloud answers
+# them. Local wins the ones that follow closely on another, plus anything sent
+# right after `moai-brain-mode warm`.
+# =============================================================================
+set -uo pipefail
+
+export PATH="${HOME}/.local/node/bin:${HOME}/.local/bin:/usr/bin:/bin"
+
+LOCAL_MODEL="ollama/default"
+CLOUD_MODEL=""
+
+command -v openclaw >/dev/null 2>&1 || {
+    echo "moai-brain-mode: OpenClaw غير مثبّت | OpenClaw is not installed" >&2
+    exit 1
+}
+
+# The cloud model id is whatever the user actually configured — never hardcode
+# it. A machine with no cloud provider must still be able to run this command
+# and land on 'local' rather than fail.
+CLOUD_MODEL="$(python3 - <<'PY' 2>/dev/null
+import json, os
+p = os.path.expanduser("~/.openclaw/openclaw.json")
+try:
+    cfg = json.load(open(p))
+except Exception:
+    raise SystemExit
+prov = (cfg.get("models") or {}).get("providers") or {}
+for name, body in prov.items():
+    if name in ("ollama",):
+        continue
+    for m in (body.get("models") or []):
+        mid = m.get("id") or m.get("name")
+        if mid:
+            print("%s/%s" % (name, mid))
+            raise SystemExit
+PY
+)"
+
+status() {
+    local primary fallbacks
+    primary="$(openclaw config get agents.defaults.model.primary 2>/dev/null | tail -1)"
+    fallbacks="$(openclaw config get agents.defaults.model.fallbacks 2>/dev/null | tr -d ' \n' | tail -c 120)"
+    local mode="مخصّص | custom"
+    case "$primary" in
+        ollama/*) case "$fallbacks" in
+                      *ollama*|"[]"|"") mode="محلي فقط | local only" ;;
+                      *)                mode="هجين: محلي ثم سحابي | hybrid: local, cloud rescues" ;;
+                  esac ;;
+        "")       mode="غير مضبوط | unset" ;;
+        *)        mode="سحابي أولاً | cloud first" ;;
+    esac
+    echo "الوضع | mode     : $mode"
+    echo "الأساسي | primary : ${primary:-—}"
+    echo "الاحتياطي | backup: ${fallbacks:-—}"
+}
+
+# ── The number that actually makes "hybrid" mean something ───────────────────
+#
+# A fallback only fires when the primary FAILS, and a slow brain does not fail —
+# it crawls. So the local request timeout is what decides the whole behaviour,
+# and it has to be set per mode rather than once:
+#
+#   hybrid   45s  A warm local brain answers in 17-30 s (measured), so it still
+#                 comfortably wins and the request stays on the machine. A COLD
+#                 one needs ~15 min and will never make it, so this is really the
+#                 price paid before the cloud takes over — and it is paid on MOST
+#                 messages, because the local KV cache does not survive the gaps
+#                 between them: a turn minutes after the last one reused only
+#                 ~2,000 of ~9,000 prompt tokens and re-read the rest. It started
+#                 at 120 s, which meant two wasted minutes on almost every
+#                 message. 45 s is the smallest value that still lets a genuinely
+#                 warm local brain win the race.
+#                 VERIFIED by forcing the local timeout to 5 s — the reply came
+#                 back in 13 s stamped gpt-5.6-luna, so failover really works.
+#   local   1500s No one is going to rescue this turn, so let the local brain
+#                 have the time it needs, including a cold 15-minute ingest.
+#   cloud   1500s Local is only the offline rescue here; if the network is gone
+#                 a slow answer beats no answer.
+local_timeout_for() {
+    case "$1" in
+        hybrid) printf '45' ;;
+        *)      printf '1500' ;;
+    esac
+}
+
+apply() {  # apply <primary> <fallback-or-empty> <mode>
+    local primary="$1" fb="$2" mode="${3:-local}" json
+    if [ -n "$fb" ]; then
+        json="{\"agents\":{\"defaults\":{\"model\":{\"primary\":\"${primary}\",\"fallbacks\":[\"${fb}\"]}}}}"
+    else
+        json="{\"agents\":{\"defaults\":{\"model\":{\"primary\":\"${primary}\",\"fallbacks\":[]}}}}"
+    fi
+    # Written through OpenClaw's own validated patch rather than by editing the
+    # JSON here: a hand-written config that fails validation takes the gateway
+    # down, and this command is meant to be safe to run from a phone.
+    printf '%s' "$json" | openclaw config patch --stdin >/dev/null 2>&1 || {
+        echo "moai-brain-mode: فشل الحفظ | could not save the change" >&2
+        exit 1
+    }
+
+    # ── Deliberately NOT calling moos-ensure-brain here ──────────────────────
+    #
+    # The obvious thing is to hand the context-budget rule to moos-ensure-brain,
+    # which owns it. That was the first version of this script and it was wrong:
+    # that script can re-tag the served model, which UNLOADS it, and unloading
+    # throws away llama.cpp's KV cache — the very thing that makes the local
+    # brain answer in 17 s instead of 923 s. Switching modes would then silently
+    # cost a fifteen-minute re-warm, which is an absurd price for a one-word
+    # command and exactly the trap this whole setup was built to escape.
+    #
+    # So the context budget is reconciled here directly instead: it is a config
+    # write, and it never touches the model.
+
+    # ── The agent-level context override is a trap in any mode with a fallback ──
+    #
+    # agents.defaults.contextTokens applies to the AGENT, not to a model, so it
+    # follows whichever brain is primary and then strangles whichever brain
+    # actually answers. Pinning it to the local 24576 while a 128k cloud model was
+    # doing the answering put a real WhatsApp turn into a compaction loop:
+    #     low context window: cloud/gpt-5.6-luna ctx=24576 (warn<25600)
+    #     auto-compaction start: reason=overflow ... compactionCount=2 willRetry=true
+    # — burning cloud calls and never replying. That was a bug in this script.
+    #
+    # Both models already declare their own contextWindow (24576 and 128000), so
+    # in any mode where BOTH can serve, the override is deleted and each brain
+    # uses its own. It is only pinned in local-only mode, where there is exactly
+    # one brain and the local ceiling is genuinely the agent's ceiling.
+    if [ "$mode" = "local" ]; then
+        printf '%s' '{"agents":{"defaults":{"contextTokens":24576}}}' \
+            | openclaw config patch --stdin >/dev/null 2>&1 || true
+    else
+        printf '%s' '{"agents":{"defaults":{"contextTokens":null}}}' \
+            | openclaw config patch --stdin >/dev/null 2>&1 || true
+    fi
+
+    printf '{"models":{"providers":{"ollama":{"timeoutSeconds":%s}}}}' "$(local_timeout_for "$mode")" \
+        | openclaw config patch --stdin >/dev/null 2>&1 || true
+    true
+}
+
+need_cloud() {
+    [ -n "$CLOUD_MODEL" ] && return 0
+    echo "moai-brain-mode: ما في عقل سحابي مضبوط — أضف مزوّداً بإعدادات Mo AI أولاً." >&2
+    echo "moai-brain-mode: no cloud brain configured — add a provider in Mo AI settings first." >&2
+    return 1
+}
+
+case "${1:-status}" in
+    status|"")
+        status ;;
+    hybrid)
+        need_cloud || exit 1
+        apply "$LOCAL_MODEL" "$CLOUD_MODEL" hybrid
+        echo "✅ هجين: المحلي بيجاوب، والسحابي بيلحقه إذا تأخّر أو فشل."
+        echo "✅ Hybrid: local answers; cloud catches whatever it drops."
+        status ;;
+    local)
+        apply "$LOCAL_MODEL" "" local
+        echo "✅ محلي فقط — ما في ولا طلب بيطلع برّا الجهاز."
+        echo "✅ Local only — nothing leaves this machine."
+        echo "⚠️  أول رسالة بعد إقلاع أو تغيير إعدادات ممكن تاخذ ~15 دقيقة (تسخين الكاش)."
+        echo "⚠️  The first message after a reboot or a config change can take ~15 min (cache warm-up)."
+        status ;;
+    cloud)
+        need_cloud || exit 1
+        apply "$CLOUD_MODEL" "$LOCAL_MODEL" cloud
+        echo "✅ سحابي أولاً — رد بثواني، والمحلي احتياطي إذا انقطع النت."
+        echo "✅ Cloud first — seconds to reply, local as the offline backup."
+        status ;;
+    warm)
+        # ── Why warming has to be an explicit command ────────────────────────
+        #
+        # The local brain is only fast once its ~8.5k-token system prompt sits in
+        # llama.cpp's KV cache: 923 s for the first turn, then 17-30 s. But in
+        # hybrid mode the 120 s budget cuts every cold attempt off long before it
+        # can finish, so the local brain never warms ON ITS OWN and the cloud ends
+        # up answering forever. Warming is therefore a deliberate act: give the
+        # local brain one turn with all the time it needs, and it holds the floor
+        # from then on.
+        #
+        # Run this after a reboot, after moos-ensure-brain rebuilds the model, or
+        # any time `status` says local but the cloud keeps answering.
+        echo "⏳ تسخين العقل المحلي — مرة وحدة، ~15 دقيقة. لا توقف الأمر."
+        echo "⏳ Warming the local brain — one time, ~15 min. Do not interrupt."
+        prev="$(openclaw config get models.providers.ollama.timeoutSeconds 2>/dev/null | tail -1)"
+        printf '%s' '{"models":{"providers":{"ollama":{"timeoutSeconds":2400}}}}' \
+            | openclaw config patch --stdin >/dev/null 2>&1
+        # The session key must be the one the phone actually uses, or this warms a
+        # prefix nothing will ever ask for again.
+        openclaw agent --session-key "agent:main:main" -m "جاوب بكلمة وحدة: جاهز؟" >/dev/null 2>&1
+        printf '{"models":{"providers":{"ollama":{"timeoutSeconds":%s}}}}' "${prev:-120}" \
+            | openclaw config patch --stdin >/dev/null 2>&1
+        echo "✅ سخّن. جرّب رسالة — المفروض يرد بـ 17-30 ثانية من العقل المحلي."
+        echo "✅ Warm. Send a message — the local brain should answer in 17-30 s." ;;
+    -h|--help|help)
+        sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//' ;;
+    *)
+        echo "moai-brain-mode: وضع غير معروف: $1 | unknown mode: $1" >&2
+        echo "استعمل | use: status | hybrid | local | cloud | warm" >&2
+        exit 2 ;;
+esac

@@ -64,6 +64,56 @@ mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
 GATEWAY_PORT="${MOAI_GATEWAY_PORT:-8080}"
 CONTROL_PORT="${MOAI_CONTROL_PORT:-8079}"
 AGENT_PORT="${MOAI_AGENT_PORT:-8077}"
+
+# ── Is there a GPU to draw with? ─────────────────────────────────────────────
+#
+# On a machine with no real graphics device Qt Quick STILL renders through its
+# OpenGL scene graph; Mesa quietly emulates the GL on the CPU with llvmpipe. And
+# on this box that path is not merely slow, it is broken — the log fills with
+#     MESA: error: ZINK: failed to choose pdev
+#     libEGL warning: egl: failed to create dri2 screen
+# and the render loop then spins CONTINUOUSLY, whether or not a single pixel is
+# animating. Nothing reports a failure; the app just becomes the most expensive
+# process on the machine.
+#
+# MEASURED on this bochs-drm server, same QML, idle window, one variant at a time:
+#     as shipped (GL scene graph)          170.6%   ← 1.7 of 8 cores, forever
+#     QSG_RENDER_LOOP=basic                 98.4%
+#     LIBGL_ALWAYS_SOFTWARE=1              173.0%   ← not a Mesa-selection problem
+#     QT_QUICK_BACKEND=software              4.0%   ← and the Mesa errors stop
+# Every animation in the file forced off measured 141% — so this was never the
+# decoration, it is the GL path itself. Qt's software scene graph renders with
+# QPainter and repaints only what changed, which is what a 2D panel wanted all
+# along. The 1.7 cores it gives back went straight to the local brain: this app
+# was starving the model it talks to.
+#
+# Cost of the switch: `layer.effect: MultiEffect` is unsupported by the software
+# scene graph, so the chat's background doodle loses its theme recolouring. That
+# is the whole visual price, and it is paid only on machines with no GPU.
+#
+# MoOS runs on real desktops AND on virtual servers, so this cannot be a build
+# time constant — it has to be asked of the machine at launch. The list below is
+# of drivers offering NO usable acceleration; an unknown driver is assumed real,
+# because a missed optimisation is cheap and a capable desktop wrongly dropped
+# onto software rendering is not.
+SOFTWARE_RENDER=""
+_has_real_gpu() {
+    for _c in /sys/class/drm/card[0-9]; do
+        [ -r "$_c/device/uevent" ] || continue
+        case "$(sed -n 's/^DRIVER=//p' "$_c/device/uevent" 2>/dev/null)" in
+            ''|bochs-drm|cirrus|qxl|vmwgfx|vboxvideo|simpledrm|hyperv_drm|ast|mgag200|faux_driver) ;;
+            *) return 0 ;;
+        esac
+    done
+    return 1
+}
+if ! _has_real_gpu; then
+    # The env var is what actually saves the 1.7 cores; the flag additionally
+    # tells main.qml to hold the idle decoration still, worth a further ~12%
+    # (15.7% → 3.8% measured) now that repaints are no longer free.
+    export QT_QUICK_BACKEND=software
+    SOFTWARE_RENDER="--software-render"
+fi
 #
 # Run under moos-qml-shell, NOT the bare qml-qt6 runtime. The runtime derives the
 # Wayland app_id from its own executable name — org.qt-project.qml-qt6 — and
@@ -84,6 +134,7 @@ if [ -x /usr/bin/moos-qml-shell ]; then
         -- --gateway-port "$GATEWAY_PORT" \
            --control-port "$CONTROL_PORT" \
            --agent-port   "$AGENT_PORT" \
+           $SOFTWARE_RENDER \
            "$@" 2> >(tee -a "$LOG" >&2)
 fi
 
@@ -98,6 +149,7 @@ for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
         exec "$runner" "$MAIN_QML" -- --gateway-port "$GATEWAY_PORT" \
                                       --control-port "$CONTROL_PORT" \
                                       --agent-port   "$AGENT_PORT" \
+                                      $SOFTWARE_RENDER \
                                       "$@" 2> >(tee -a "$LOG" >&2)
     fi
 done

@@ -799,6 +799,24 @@ class Handler(BaseHTTPRequestHandler):
             # routing token: a proxy that forwards "local:qwen3" as a model name
             # is lying to whatever it is talking to.
             out["model"] = model or short_model(DEFAULT_LOCAL_MODEL) or "default"
+            # ── Never pay for hidden reasoning on the desktop chat ────────────
+            #
+            # Qwen3 and its family think by default, and on a CPU-only box that is
+            # not a quality knob, it is the difference between a usable assistant
+            # and an unusable one. MEASURED here, same one-sentence Arabic question,
+            # through THIS endpoint:
+            #     nothing sent                     86.8s, 377 tokens
+            #     reasoning_effort: "none"          5.7s,  28 tokens
+            # Note the two dialects disagree, which is the whole reason this line
+            # exists: Ollama's NATIVE /api/chat takes `think: false`, but over the
+            # OpenAI-compatible /v1 path that field is silently ignored — `think:
+            # false` still measured 63.1s, as did chat_template_kwargs. Only
+            # reasoning_effort works here. OpenClaw talks the native dialect and
+            # sets its own switch; this is the desktop half of the same contract.
+            #
+            # A caller that explicitly asks for reasoning still gets it.
+            if "reasoning_effort" not in out:
+                out["reasoning_effort"] = "none"
             streaming = bool(out.get("stream"))
             body = json.dumps(out).encode("utf-8")
         self._proxy("POST", LOCAL_BASE + self.path, {}, body, "openai", streaming)

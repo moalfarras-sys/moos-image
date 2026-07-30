@@ -43,7 +43,19 @@ Environment=OLLAMA_CONTEXT_LENGTH=22528
 # One model resident at a time: 8GB VRAM cannot hold two ~5GB models, and
 # letting Ollama try causes swap thrashing.
 Environment=OLLAMA_MAX_LOADED_MODELS=1
-Environment=OLLAMA_KEEP_ALIVE=15m
+# ── Why the brain stays resident far longer than a desktop would need ────────
+#
+# Unloading the model does not only cost the reload — it throws away llama.cpp's
+# KV CACHE, and with it the ingested system+tools prompt. That prompt is ~10k
+# tokens for the OpenClaw agent, and on a CPU-only box ingesting it cold takes
+# minutes; with the cache warm the same turn costs nothing (measured 15.6 tok/s
+# cold against 2209 tok/s on a cached prefix — two orders of magnitude).
+#
+# A phone agent is used in bursts with long gaps, so a 15m keep-alive meant
+# almost every WhatsApp message was a cold start, and cold starts were exactly
+# what the stalled-session watchdog kept aborting. 24h keeps the brain warm
+# between bursts while still releasing ~5 GB on a machine genuinely left unused.
+Environment=OLLAMA_KEEP_ALIVE=24h
 
 Volume=%h/.ollama:/root/.ollama:Z
 

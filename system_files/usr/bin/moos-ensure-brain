@@ -37,18 +37,67 @@ CT="$(podman ps --format '{{.Names}}' 2>/dev/null | grep -ixE 'ollama|moai-brain
 # exist. A brain that cannot hold a sentence in Arabic fails MoOS's bilingual
 # contract no matter how well it codes. That rejection is recorded in
 # moai-control and this must not quietly undo it.
+# ── WHY THE GPU-LESS BOX NOW GETS QWEN3 TOO (this used to say otherwise) ─────
+#
+# The split above was written when the GPU-less machine was assumed to need the
+# cheaper model. Re-measured on the CPU-only server, both at num_thread 6, same
+# Arabic sysadmin question and the same bash task:
+#
+#   qwen2.5:7b-instruct   9.14 tok/s   ARABIC IS BROKEN. Asked in Arabic about a
+#                         dangerous `find -exec rm`, it replied
+#                           "هذا الأمر يبحث عن جميع ملفات日记记录文件 … 使用前请三思"
+#                         — Chinese, mid-sentence, in an Arabic answer. It also
+#                         reached for sudo in a script that did not need it.
+#   qwen3:8b (no think)   7.79 tok/s   Clean Arabic, correct three sentences,
+#                         better script, and a CLEANER tool call: it emits the
+#                         call alone, where qwen2.5 prepends a paragraph of
+#                         chatter to every one.
+#
+# So the honest trade is 15% speed for a brain that can hold a sentence in the
+# user's own language. On a bilingual OS that is not a trade, it is a bug fix —
+# and it is the same reason qwen2.5-coder was rejected in moai-control. The 15%
+# is also affordable only because the thread cap and the desktop's render fix
+# below took generation from 0.47 to 8.5 tok/s; do not restore this split without
+# re-measuring both halves.
+#
+# CONDITION: qwen3 must never be allowed to THINK on this hardware. Measured, one
+# sentence of Arabic: 45s and 1184 characters of hidden reasoning with thinking
+# on, 4s with it off. Ollama 0.32 has no Modelfile switch for it ("unknown
+# parameter 'think'"), so the guarantee lives in the two callers instead —
+# moai-gateway sends reasoning_effort:"none", OpenClaw sends think:false. If you
+# change either, this choice stops being safe.
 pick_brain() {
-    local vram_mib=0
-    if command -v nvidia-smi >/dev/null 2>&1; then
-        vram_mib="$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null \
-                    | head -1 | tr -dc '0-9')"
-    fi
-    if [ "${vram_mib:-0}" -ge 7500 ] 2>/dev/null; then
-        printf 'qwen3:8b'
-    else
+    # RAM, not VRAM, is the binding constraint once there is no GPU: qwen3:8b is
+    # ~5.2 GB against qwen2.5's ~4.7 GB, and a machine that cannot hold it will
+    # swap the weights out mid-token, which costs far more than the model gains.
+    local ram_mib=0
+    ram_mib="$(awk '/^MemTotal:/ {print int($2/1024)}' /proc/meminfo 2>/dev/null)"
+    if [ "${ram_mib:-0}" -lt 7500 ] 2>/dev/null; then
         printf 'qwen2.5:7b-instruct'
+    else
+        printf 'qwen3:8b'
     fi
 }
+
+# ── How many CPU threads the brain may take ──────────────────────────────────
+#
+# llama.cpp synchronises its workers with a SPIN barrier: every thread busy-waits
+# at the end of each layer until the slowest one arrives. So if even one thread
+# loses its core to another process, the whole forward pass stalls — the cost is
+# not proportional, it is a collapse. Ollama's default is one thread per core,
+# which on any machine that also draws a desktop is permanently oversubscribed.
+#
+# MEASURED on the GPU-less box (8 cores, qwen2.5:7b-instruct Q4, same prompt):
+#     num_thread = 8 (ollama default) →  0.47 tok/s
+#     num_thread = 5                  →  6.77 tok/s   ← 14x, same model
+# Leaving two cores for the compositor, the gateway and whatever else the user is
+# doing is worth more than the two cores are worth to inference. Do NOT "optimise"
+# this back up to nproc: the higher number measures slower on a real desktop.
+brain_threads() {
+    local n; n="$(nproc 2>/dev/null || echo 4)"
+    if [ "${n:-4}" -le 4 ]; then printf '%s' "${n:-4}"; else printf '%s' "$((n - 2))"; fi
+}
+THREADS="$(brain_threads)"
 
 BASE="${MOOS_BRAIN_MODEL:-$(pick_brain)}"
 # One Modelfile per brain: they need the same num_ctx contract but not the same
@@ -128,8 +177,12 @@ curl -sf "$OLLAMA/api/tags" >/dev/null 2>&1 || { log "ollama API not up — skip
 want="$(printf '%s' "$BASE" | cut -d: -f1)"
 show="$(curl -sf "$OLLAMA/api/show" -d '{"model":"default"}' 2>/dev/null)"
 ctx="$(printf '%s' "$show" | grep -oE 'num_ctx[^0-9]*[0-9]+' | grep -oE '[0-9]+' | tail -1)"
-if printf '%s' "$show" | grep -qi "$want" && [ "${ctx:-0}" -ge 24576 ]; then
-    log "brain already correct for this machine (${BASE}, num_ctx ${ctx}) — nothing to do"
+# num_thread is part of "correct" too: a brain built before this machine's core
+# count was taken into account runs at a fraction of its speed, and nothing else
+# in the system would ever notice or heal it.
+thr="$(printf '%s' "$show" | grep -oE 'num_thread[^0-9]*[0-9]+' | grep -oE '[0-9]+' | tail -1)"
+if printf '%s' "$show" | grep -qi "$want" && [ "${ctx:-0}" -ge 24576 ] && [ "${thr:-0}" -eq "$THREADS" ]; then
+    log "brain already correct for this machine (${BASE}, num_ctx ${ctx}, num_thread ${thr}) — nothing to do"
     exit 0
 fi
 log "this machine should run ${BASE} (Modelfile: $(basename "$MF"))"
@@ -141,7 +194,16 @@ if ! curl -sf "$OLLAMA/api/tags" 2>/dev/null | grep -q "$BASE"; then
 fi
 
 # Build the fast brain from the shipped Modelfile, then repoint the served tags.
-podman cp "$MF" "$CT":/tmp/moai-brain.Modelfile >/dev/null 2>&1 || exit 0
+#
+# num_thread is appended here rather than baked into the Modelfile because it is
+# the one parameter that depends on the MACHINE, not on the model: the same
+# Modelfile ships to every install, and a hardcoded thread count would be wrong
+# on all but one of them.
+BUILD_MF="$(mktemp)" || exit 0
+trap 'rm -f "$BUILD_MF"' EXIT
+{ cat "$MF"; printf '\nPARAMETER num_thread %s\n' "$THREADS"; } > "$BUILD_MF" || exit 0
+log "building for this machine: num_thread ${THREADS} of $(nproc 2>/dev/null || echo '?') cores"
+podman cp "$BUILD_MF" "$CT":/tmp/moai-brain.Modelfile >/dev/null 2>&1 || exit 0
 if podman exec "$CT" ollama create moai-brain -f /tmp/moai-brain.Modelfile >/dev/null 2>&1; then
     podman exec "$CT" ollama cp moai-brain default >/dev/null 2>&1
     log "fast brain built and served (moai-brain/default → $BASE)"
