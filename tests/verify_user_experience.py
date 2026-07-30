@@ -2387,7 +2387,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=26" in apply_theme_code, "MoOS visual schema must be revision 26")
+require("THEME_REV=21" in apply_theme_code, "MoOS UI2 visual schema must be revision 21")
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
@@ -2416,10 +2416,10 @@ require(brand_add_pos >= 0 and kickoff_capture_pos >= 0
         < brand_reload_pos < kickoff_remove_pos,
         "THEME_REV 21 must ensure org.moos.brand exists before removing the old Kickoff "
         "from an existing user's panel")
-require(re.search(r"--key\s+popupWidth\s+792\b", apply_theme_code) is not None
-        and re.search(r"--key\s+popupHeight\s+576\b", apply_theme_code) is not None,
+require(re.search(r"--key\s+popupWidth\s+720\b", apply_theme_code) is not None
+        and re.search(r"--key\s+popupHeight\s+590\b", apply_theme_code) is not None,
         "the existing org.moos.brand applet's shell-owned popup geometry must migrate to "
-        "792x576; QML implicitWidth/Height cannot override persisted appletsrc values")
+        "720x590; QML implicitWidth/Height cannot override persisted appletsrc values")
 
 # evaluateScript returning over D-Bus proves only that the JavaScript finished;
 # its guarded applet operations may all have failed.  Revision 21 therefore has
@@ -2539,36 +2539,6 @@ for shadowed_plasmoid in ("org.moos.brand", "org.moos.heroclock"):
     require(f'"plasma/plasmoids/{shadowed_plasmoid}"' in shadow_cleanup,
             f"moos-apply-theme must remove a user-local {shadowed_plasmoid} copy that "
             "would otherwise shadow every future image update")
-
-PALETTE_ICON_OVERLAYS = (
-    "MoOSUI2Amethyst", "MoOSUI2AmethystLight",
-    "MoOSUI2Arena", "MoOSUI2ArenaLight",
-    "MoOSUI2Aurora", "MoOSUI2AuroraLight",
-    "MoOSUI2Daylight",
-    "MoOSUI2Forge", "MoOSUI2ForgeLight",
-    "MoOSUI2Midnight",
-    "MoOSUI2Nova", "MoOSUI2NovaLight",
-    "MoOSUI2Scholar", "MoOSUI2ScholarLight",
-)
-for icon_overlay in PALETTE_ICON_OVERLAYS:
-    require(
-        f'"icons/{icon_overlay}"' in shadow_cleanup,
-        f"moos-apply-theme must remove a user-local {icon_overlay} icon package "
-        "that would permanently shadow the palette bridge in the image",
-    )
-    # Delimiter-aware: "icons/MoOSUI2Nova" is a substring of
-    # "icons/MoOSUI2NovaLight", so a plain `in` can never bite for the six
-    # dark palettes whose Light sibling is also listed.
-    require(
-        re.search(rf"icons/{re.escape(icon_overlay)}(?![A-Za-z])", selfcheck)
-        is not None,
-        f"moos-selfcheck must report a user-local {icon_overlay} shadow",
-    )
-require(
-    'want_ico="$want_sty"' in selfcheck,
-    "moos-selfcheck must validate each family member's palette-specific icon "
-    "overlay rather than accepting the shared dark/light base",
-)
 
 # Nova must survive Plasma, not just reach it.
 #
@@ -3091,17 +3061,17 @@ launcher_root_group_pos = layout_code.find(
     "launcher.currentConfigGroup = []", launcher_general_group_pos,
 )
 launcher_popup_width_pos = layout_code.find(
-    'launcher.writeConfig("popupWidth", 792)', launcher_root_group_pos,
+    'launcher.writeConfig("popupWidth", 720)', launcher_root_group_pos,
 )
 launcher_popup_height_pos = layout_code.find(
-    'launcher.writeConfig("popupHeight", 576)', launcher_popup_width_pos,
+    'launcher.writeConfig("popupHeight", 590)', launcher_popup_width_pos,
 )
 require(launcher_layout_pos >= 0 and launcher_general_group_pos > launcher_layout_pos
         and launcher_root_group_pos > launcher_general_group_pos
         and launcher_popup_width_pos > launcher_root_group_pos
         and launcher_popup_height_pos > launcher_popup_width_pos,
         "the fresh-profile org.moos.brand launcher must leave General and seed its "
-        "shell-owned root popup geometry at 792x576; otherwise live selfcheck fails "
+        "shell-owned root popup geometry at 720x590; otherwise live selfcheck fails "
         "until the user manually opens or resizes the menu")
 
 brand_root = ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.brand"
@@ -3134,11 +3104,9 @@ launcher_view_qml = code(read(
 require("if (root.expanded)" in brand_main_qml and "if (expanded)" not in brand_main_qml,
         "the brand applet must qualify root.expanded; the bare signal argument "
         "uses deprecated parameter injection and warns on every Plasma login")
-require('text: "MoOS"' in brand_main_qml
-        and 'root.rtl ? "مساحة الأوامر" : "COMMAND"' in brand_main_qml
-        and "moos-search-symbolic" in brand_main_qml,
-        "the one panel launcher must visibly remain the MoOS wordmark, Command "
-        "Canvas caption and search affordance")
+require('text: "MoOS"' in brand_main_qml and '"LAUNCHER"' in brand_main_qml
+        and "system-search-symbolic" in brand_main_qml,
+        "the one panel launcher must visibly remain the MoOS wordmark plus search affordance")
 
 # Search and browsing are native model operations, not shell commands wearing a
 # search field.  Each engine is instantiated in main.qml and handed to the full
@@ -3206,64 +3174,8 @@ require('"moos-ci-full-representation"' in brand_main_qml
 require("Layout.minimumWidth: implicitWidth" in launcher_view_qml
         and "Layout.minimumHeight: implicitHeight" in launcher_view_qml
         and "MOOS_LAUNCHER_FULL_READY size=" in launcher_view_qml,
-        "the full launcher must enforce and report its unclipped 792x576 representation to "
+        "the full launcher must enforce and report its unclipped 720x590 representation to "
         "the plasmawindowed smoke")
-# Commercial shell language: a 20px outer rhythm, 40px affordances, functional
-# text no smaller than 11px, and four columns that still ride the type ramp.
-# An early four-column launcher was rejected because it drove labels down to
-# 7–10px; the current one is only acceptable because every pixelSize below
-# stays on the 11+ type tokens — that pairing is what this gate holds, and
-# densifying past four columns remains out.
-_launcher_tokens = {
-    "space1": 4, "space2": 8, "space3": 12, "space4": 16, "space5": 20,
-    "space6": 24,
-    "radiusS": 8, "radiusM": 12, "radiusL": 16, "radiusXL": 24,
-    "targetSize": 40, "typeCaption": 11, "typeSecondary": 13,
-    "typeBody": 14, "typeEmphasis": 15, "typeSubheading": 18, "typeTitle": 20,
-}
-require(all(f"readonly property int {name}: {value}" in launcher_view_qml
-            for name, value in _launcher_tokens.items())
-        and "anchors.margins: view.space5" in launcher_view_qml,
-        "the launcher must use the unified 4px spacing, 8/12/16/24 radii, "
-        "40px target and 11/13/14/15/18/20 type tokens")
-require("Press Meta to open" not in launcher_view_qml
-        and "يفتح بزر Meta" not in launcher_view_qml
-        and launcher_view_qml.count(
-            "cellWidth: Math.max(1, Math.floor(width / 4))"
-        ) == 2
-        and re.search(
-            r"cellWidth:.*width\s*/\s*(?:[5-9]|\d{2,})", launcher_view_qml
-        ) is None,
-        "the open launcher must drop the redundant Meta pill and keep the calm "
-        "four-column Pinned/Applications rhythm on the 11px+ type ramp")
-_launcher_type_expressions = re.findall(
-    r"font\.pixelSize\s*:\s*([^\n]+)", launcher_view_qml
-)
-require("readonly property string uiFontFamily: Qt.application.font.family"
-        in launcher_view_qml
-        and re.search(r'font\.family\s*:\s*"', launcher_view_qml) is None
-        and _launcher_type_expressions
-        and all("type" in expression for expression in _launcher_type_expressions)
-        and launcher_view_qml.count("view.targetSize") >= 24,
-        "launcher text must follow the session font and its readable type roles, "
-        "while custom pointer affordances retain at least 40px targets")
-require("readonly property string uiFontFamily: Qt.application.font.family"
-        in brand_main_qml
-        and re.search(r'font\.family\s*:\s*"', brand_main_qml) is None
-        and "font.pixelSize: Math.max(11, Math.round(compact.height * 0.20))"
-            in brand_main_qml,
-        "the dock launcher must follow the session font and never shrink its "
-        "functional caption below 11px")
-# plasmashell already enables inherited LayoutMirroring for an RTL session.
-# Manually swapping physical left/right anchors inside that tree mirrors twice:
-# the navigation rail stayed physically left and the pin affordance stayed right
-# in both languages.  Express each edge once in logical LTR source order.
-require(re.search(r"anchors\.(?:left|right)\s*:\s*view\.rtl\s*\?",
-                  launcher_view_qml) is None
-        and "anchors.left: parent.left" in launcher_view_qml
-        and "anchors.right: parent.right" in launcher_view_qml,
-        "the launcher must use inherited logical anchors once; rtl-conditional "
-        "left/right anchors are double-mirrored by plasmashell")
 
 # Favorites are user state.  Defining helper functions is not enough: require a
 # second occurrence in the composed UI so pin/unpin/reorder are reachable from
@@ -4475,10 +4387,10 @@ require("dbus-run-session -- /usr/bin/plasmawindowed org.moos.brand "
 require('_launcher_smoke_rc" -ne 124' in build_script_code,
         "the launcher smoke must accept only a process that stayed alive to the timeout; "
         "an early clean exit is still a dead applet")
-require("MOOS_LAUNCHER_FULL_READY size=792x576" in build_script_code
-        and re.search(r"geometry=.*792,576", build_script_code) is not None,
+require("MOOS_LAUNCHER_FULL_READY size=720x590" in build_script_code
+        and re.search(r"geometry=.*720,590", build_script_code) is not None,
         "the launcher smoke must prove both LauncherView construction and plasmawindowed's "
-        "real 792x576 full-representation geometry")
+        "real 720x590 full-representation geometry")
 for launcher_runtime_failure in (
     "component is not ready", "error loading qml file", "invalid empty url",
     "compactrepresentationexpander .* is not an item", "type .* unavailable",

@@ -3,9 +3,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls as QQC2
 import QtQuick.Layouts
-import QtQuick.Shapes
 import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PC3
 import org.kde.plasma.extras as PlasmaExtras
@@ -26,42 +24,16 @@ Item {
     readonly property bool rtl: launcher.rtl
     readonly property bool searching: launcher.searchQuery.trim().length > 0
     property string queuedSearchRun: ""
-    property date now: new Date()
-    property bool entranceReady: false
 
-    // Tidal Horizon shell tokens. QML uses logical pixels, so these values
-    // retain the same optical rhythm at 100–275% display scale.
-    readonly property string uiFontFamily: Qt.application.font.family
-    readonly property int space1: 4
-    readonly property int space2: 8
-    readonly property int space3: 12
-    readonly property int space4: 16
-    readonly property int space5: 20
-    readonly property int space6: 24
-    readonly property int radiusS: 8
-    readonly property int radiusM: 12
-    readonly property int radiusL: 16
-    readonly property int radiusXL: 24
-    readonly property int targetSize: 40
-    readonly property int typeCaption: 11
-    readonly property int typeSecondary: 13
-    readonly property int typeBody: 14
-    readonly property int typeEmphasis: 15
-    readonly property int typeSubheading: 18
-    readonly property int typeTitle: 20
-    readonly property int motionFast: Kirigami.Units.longDuration > 1 ? 120 : 0
-    readonly property int motionMedium: Kirigami.Units.longDuration > 1 ? 240 : 0
-
-    implicitWidth: Kirigami.Units.gridUnit * 44
-    implicitHeight: Kirigami.Units.gridUnit * 32
-    // The Command Canvas deliberately owns more breathing room than a menu.
-    // At the reference 225% scale this remains inside a 4K work area while
-    // preserving real 40 px targets and the calm four-column app rhythm.
+    implicitWidth: Kirigami.Units.gridUnit * 40
+    implicitHeight: Kirigami.Units.gridUnit * 32.8
+    // The shell migration writes the same 720x590 logical target.  Keeping the
+    // full representation's minimum at its implicit size prevents an older,
+    // smaller popup geometry from clipping navigation or system actions.
     Layout.minimumWidth: implicitWidth
     Layout.minimumHeight: implicitHeight
 
     Component.onCompleted: {
-        Qt.callLater(() => view.entranceReady = true);
         // A build-only proof that plasmawindowed constructed this component,
         // not merely the compact panel button.  It is silent in a real session.
         if (view.launcher.smokeFullRepresentation) {
@@ -73,52 +45,6 @@ Item {
 
     function local(arabic, english) {
         return view.rtl ? arabic : english;
-    }
-
-    function greeting() {
-        const hour = view.now.getHours();
-        if (hour < 12) {
-            return view.local("صباح هادئ", "Good morning");
-        }
-        if (hour < 18) {
-            return view.local("مساء منتج", "Good afternoon");
-        }
-        return view.local("مساء هادئ", "Good evening");
-    }
-
-    function latinNumerals(text) {
-        let out = "";
-        for (let i = 0; i < text.length; ++i) {
-            const code = text.charCodeAt(i);
-            if (code >= 0x0660 && code <= 0x0669) {
-                out += String.fromCharCode(code - 0x0660 + 0x30);
-            } else if (code >= 0x06F0 && code <= 0x06F9) {
-                out += String.fromCharCode(code - 0x06F0 + 0x30);
-            } else {
-                out += text[i];
-            }
-        }
-        return out;
-    }
-
-    function shortDate() {
-        const formatted = view.rtl
-            ? Qt.locale("ar").toString(view.now, "dddd، d MMMM")
-            : Qt.locale("en").toString(view.now, "dddd · d MMMM");
-        return view.latinNumerals(formatted);
-    }
-
-    function sessionIcon(actionId) {
-        const icons = {
-            "lock-screen": "moos-lock-symbolic",
-            "switch-user": "moos-identity-symbolic",
-            "logout": "moos-external-symbolic",
-            "suspend": "moos-moon-symbolic",
-            "hibernate": "moos-moon-symbolic",
-            "reboot": "moos-refresh-symbolic",
-            "shutdown": "moos-power-symbolic"
-        };
-        return icons[String(actionId)] || "moos-power-symbolic";
     }
 
     function focusSearch() {
@@ -192,152 +118,38 @@ Item {
         }
     }
 
-    // One wake-up per minute is enough for the context deck. The canvas never
-    // pays for a seconds ticker or an idle animation.
-    Timer {
-        interval: 60000 - (view.now.getSeconds() * 1000 + view.now.getMilliseconds())
-        running: view.visible
-        repeat: true
-        onTriggered: {
-            view.now = new Date();
-            interval = 60000 - (view.now.getSeconds() * 1000 + view.now.getMilliseconds());
-        }
-    }
-
-    // One material layer, one KWin shadow. The stepped top-right and bottom-left
-    // shelves are the Tidal Cut silhouette: recognizable before any copy or
-    // icon is read, and still entirely semantic-theme driven.
-    Shape {
-        anchors.fill: parent
-        containsMode: Shape.FillContains
-
-        ShapePath {
-            strokeWidth: 1
-            strokeColor: Qt.alpha(Kirigami.Theme.textColor, 0.16)
-            fillColor: Qt.alpha(Kirigami.Theme.backgroundColor, 0.86)
-            joinStyle: ShapePath.RoundJoin
-            capStyle: ShapePath.RoundCap
-            startX: view.radiusXL
-            startY: 0
-            PathLine { x: view.width - 172; y: 0 }
-            PathQuad {
-                x: view.width - 148; y: view.space6
-                controlX: view.width - 154; controlY: 0
-            }
-            PathLine { x: view.width - view.radiusXL; y: view.space6 }
-            PathQuad {
-                x: view.width; y: view.space6 + view.radiusXL
-                controlX: view.width; controlY: view.space6
-            }
-            PathLine { x: view.width; y: view.height - view.radiusXL }
-            PathQuad {
-                x: view.width - view.radiusXL; y: view.height
-                controlX: view.width; controlY: view.height
-            }
-            PathLine { x: 116; y: view.height }
-            PathQuad {
-                x: 92; y: view.height - view.space6
-                controlX: 98; controlY: view.height
-            }
-            PathLine { x: view.radiusXL; y: view.height - view.space6 }
-            PathQuad {
-                x: 0; y: view.height - view.space6 - view.radiusXL
-                controlX: 0; controlY: view.height - view.space6
-            }
-            PathLine { x: 0; y: view.radiusXL }
-            PathQuad {
-                x: view.radiusXL; y: 0
-                controlX: 0; controlY: 0
-            }
-        }
-    }
-
-    // The Tidal Cut signature: a horizon that deliberately stops short, then
-    // resumes as a bright marker. No Canvas/shader and no perpetual motion.
-    Row {
-        anchors {
-            top: parent.top
-            left: parent.left
-            leftMargin: view.radiusXL
-            topMargin: 1
-        }
-        height: 2
-        spacing: view.space2
-
-        Rectangle {
-            width: Math.round(view.width * 0.23)
-            height: 2
-            radius: 1
-            color: Kirigami.Theme.highlightColor
-            opacity: 0.92
-        }
-        Rectangle {
-            width: view.space2
-            height: 2
-            radius: 1
-            color: Kirigami.Theme.highlightColor
-            opacity: 0.38
-        }
-    }
-
     Rectangle {
-        anchors {
-            right: parent.right
-            top: parent.top
-            rightMargin: view.radiusXL
-            topMargin: view.space6 + 2
-        }
-        width: 2
-        height: view.space6
-        radius: 1
-        color: Kirigami.Theme.highlightColor
-        opacity: 0.64
+        anchors.fill: parent
+        radius: Kirigami.Units.cornerRadius * 1.65
+        color: Qt.alpha(Kirigami.Theme.backgroundColor, 0.26)
+        border.width: 1
+        border.color: Qt.alpha(Kirigami.Theme.textColor, 0.10)
     }
 
     ColumnLayout {
-        id: commandCanvas
         anchors.fill: parent
-        anchors.margins: view.space5
-        spacing: view.space2
-        opacity: view.entranceReady ? 1 : 0
-        scale: view.entranceReady ? 1 : 0.985
-        transformOrigin: Item.Center
-        Behavior on opacity {
-            NumberAnimation {
-                duration: view.motionMedium
-                easing.type: Easing.OutCubic
-            }
-        }
-        Behavior on scale {
-            NumberAnimation {
-                duration: view.motionMedium
-                easing.type: Easing.OutCubic
-            }
-        }
+        anchors.margins: Kirigami.Units.largeSpacing * 1.45
+        spacing: Kirigami.Units.mediumSpacing
 
-        // ── Context deck: identity, the day and the local-first promise ─────
+        // ── Quiet product header ────────────────────────────────────────────
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 50
-            spacing: view.space4
-            // No explicit layoutDirection anywhere in this file: plasmashell runs
-            // this popup with LayoutMirroring enabled+inherited on RTL sessions, and
-            // mirroring INVERTS an explicit Qt.RightToLeft back to visual LTR. The
-            // fifteen rows that declared it rendered backwards; the rows that never
-            // mentioned it were correct the whole time. Mirroring is the one system.
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 3.15
+            spacing: Kirigami.Units.largeSpacing
+            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             Item {
-                Layout.preferredWidth: 44
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 2.75
                 Layout.preferredHeight: width
 
                 Rectangle {
                     anchors.centerIn: parent
                     width: parent.width
                     height: width
-                    radius: view.radiusM
-                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
+                    radius: width / 2
+                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.09)
                     border.width: 1
-                    border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.54)
+                    border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.38)
                 }
 
                 Image {
@@ -358,135 +170,96 @@ Item {
                 Text {
                     text: "MoOS"
                     color: Kirigami.Theme.textColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeSubheading
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 1.12)
                     font.weight: Font.DemiBold
-                    font.letterSpacing: 1.4
+                    font.letterSpacing: 2
                 }
                 Text {
-                    text: view.greeting()
+                    text: view.local("مساحتك، جاهزة لك", "Your space, ready")
                     color: Kirigami.Theme.disabledTextColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeSecondary
-                }
-            }
-
-            Item { Layout.fillWidth: true }
-
-            RowLayout {
-                id: privacyRow
-                spacing: view.space2
-
-                Rectangle {
-                    Layout.preferredWidth: 7
-                    Layout.preferredHeight: 7
-                    radius: width / 2
-                    color: Kirigami.Theme.positiveTextColor
-                }
-                Text {
-                    text: view.local("محلي وخاص", "LOCAL · PRIVATE")
-                    color: Kirigami.Theme.disabledTextColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeCaption
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: view.rtl ? 0 : 0.9
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.60)
                 }
             }
 
             Rectangle {
-                Layout.preferredWidth: 1
-                Layout.preferredHeight: 36
-                color: Qt.alpha(Kirigami.Theme.textColor, 0.14)
-            }
+                Layout.preferredWidth: shortcutRow.implicitWidth + Kirigami.Units.largeSpacing * 1.4
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 1.72
+                radius: height / 2
+                color: Qt.alpha(Kirigami.Theme.textColor, 0.055)
+                border.width: 1
+                border.color: Qt.alpha(Kirigami.Theme.textColor, 0.11)
 
-            ColumnLayout {
-                Layout.minimumWidth: 138
-                spacing: -1
+                RowLayout {
+                    id: shortcutRow
+                    anchors.centerIn: parent
+                    spacing: Kirigami.Units.smallSpacing
 
-                Text {
-                    Layout.fillWidth: true
-                    text: Qt.formatTime(view.now, "HH:mm")
-                    horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
-                    color: Kirigami.Theme.textColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeTitle
-                    font.weight: Font.DemiBold
-                    font.features: ({ "tnum": 1 })
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: view.shortDate()
-                    horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
-                    color: Kirigami.Theme.disabledTextColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeCaption
-                    elide: Text.ElideRight
+                    Rectangle {
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 1.15
+                        Layout.preferredHeight: width
+                        radius: Kirigami.Units.cornerRadius * 0.55
+                        color: Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
+                        border.width: 1
+                        border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.38)
+                        Text {
+                            anchors.centerIn: parent
+                            text: "◆"
+                            color: Kirigami.Theme.highlightColor
+                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.48)
+                        }
+                    }
+                    Text {
+                        text: view.local("يفتح بزر Meta", "Press Meta to open")
+                        color: Kirigami.Theme.disabledTextColor
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.54)
+                        font.weight: Font.Medium
+                    }
                 }
             }
         }
 
-        // ── The command field is the hero, not another menu search box ──────
+        // ── Search is the hero, not another button that opens another window ─
         Rectangle {
             Layout.fillWidth: true
-            Layout.leftMargin: view.space1
-            Layout.rightMargin: view.space1
-            Layout.preferredHeight: 56
-            radius: view.radiusL
-            color: Qt.alpha(Kirigami.Theme.backgroundColor,
-                searchInput.activeFocus ? 0.96 : 0.78)
-            border.width: 1
-            border.color: searchInput.activeFocus
-                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.82)
-                : Qt.alpha(Kirigami.Theme.textColor, 0.16)
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 3.3
+            radius: Kirigami.Units.cornerRadius * 1.55
+            color: Qt.alpha(searchInput.activeFocus
+                ? Kirigami.Theme.highlightColor
+                : Kirigami.Theme.textColor,
+                searchInput.activeFocus ? 0.12 : 0.055)
+            border.width: searchInput.activeFocus ? 2 : 1
+            border.color: Qt.alpha(searchInput.activeFocus
+                ? Kirigami.Theme.highlightColor
+                : Kirigami.Theme.textColor,
+                searchInput.activeFocus ? 0.72 : 0.14)
 
-            Behavior on color { ColorAnimation { duration: view.motionFast } }
-            Behavior on border.color { ColorAnimation { duration: view.motionFast } }
-
-            Row {
-                anchors {
-                    left: parent.left
-                    bottom: parent.bottom
-                    leftMargin: view.radiusL
-                }
-                height: 2
-                spacing: view.space1
-
-                Rectangle {
-                    width: searchInput.activeFocus ? 72 : 36
-                    height: 2
-                    radius: 1
-                    color: Kirigami.Theme.highlightColor
-                    opacity: 0.92
-                    Behavior on width {
-                        NumberAnimation {
-                            duration: view.motionMedium
-                            easing.type: Easing.OutCubic
-                        }
-                    }
-                }
-                Rectangle {
-                    width: view.space2
-                    height: 2
-                    radius: 1
-                    color: Kirigami.Theme.highlightColor
-                    opacity: 0.32
-                }
-            }
+            Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
+            Behavior on border.color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: view.space4
-                anchors.rightMargin: view.space3
-                spacing: view.space4
+                anchors.leftMargin: Kirigami.Units.largeSpacing * 1.2
+                anchors.rightMargin: Kirigami.Units.largeSpacing * 1.2
+                spacing: Kirigami.Units.mediumSpacing
+                layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
-                Kirigami.Icon {
-                    Layout.preferredWidth: 24
-                    Layout.preferredHeight: 20
-                    source: "moos-search-symbolic"
-                    color: searchInput.activeFocus
-                        ? Kirigami.Theme.highlightColor
-                        : Kirigami.Theme.textColor
-                    opacity: searchInput.activeFocus ? 1 : 0.72
+                Rectangle {
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 2.15
+                    Layout.preferredHeight: width
+                    radius: width / 2
+                    color: Qt.alpha(Kirigami.Theme.highlightColor,
+                        searchInput.activeFocus ? 0.20 : 0.10)
+
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        width: Kirigami.Units.iconSizes.medium
+                        height: width
+                        source: "system-search-symbolic"
+                        color: Kirigami.Theme.highlightColor
+                    }
                 }
 
                 Item {
@@ -502,8 +275,8 @@ Item {
                         color: Kirigami.Theme.textColor
                         selectionColor: Kirigami.Theme.highlightColor
                         selectedTextColor: Kirigami.Theme.highlightedTextColor
-                        font.family: view.uiFontFamily
-                        font.pixelSize: view.typeBody
+                        font.family: "IBM Plex Sans"
+                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.76)
                         font.weight: Font.Medium
                         selectByMouse: true
                         clip: true
@@ -527,8 +300,8 @@ Item {
                             verticalAlignment: Text.AlignVCenter
                             horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
                             text: view.local(
-                                "اكتب أمراً، افتح تطبيقاً، أو اعثر على ملف…",
-                                "Run a command, open an app, or find a file…")
+                                "ابحث في التطبيقات والملفات والمجلدات والإعدادات…",
+                                "Search apps, files, folders and settings…")
                             visible: searchInput.text.length === 0
                             color: Kirigami.Theme.disabledTextColor
                             font: searchInput.font
@@ -546,9 +319,7 @@ Item {
 
                 PC3.ToolButton {
                     visible: view.launcher.searchQuery.length > 0
-                    Layout.minimumWidth: view.targetSize
-                    Layout.minimumHeight: view.targetSize
-                    icon.name: "moos-close-symbolic"
+                    icon.name: "edit-clear-symbolic"
                     text: view.local("مسح", "Clear")
                     display: PC3.AbstractButton.IconOnly
                     onClicked: {
@@ -562,10 +333,8 @@ Item {
                     visible: view.launcher.searchQuery.length === 0
                     text: "META"
                     color: Kirigami.Theme.disabledTextColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeCaption
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: 0.8
+                    font.family: "IBM Plex Mono"
+                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.52)
                 }
             }
         }
@@ -574,61 +343,83 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: view.space4
+            spacing: Kirigami.Units.largeSpacing
+            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             ColumnLayout {
-                readonly property real fixedWidth: 140
+                readonly property real fixedWidth: Kirigami.Units.gridUnit * 8.6
 
                 Layout.fillWidth: false
                 Layout.minimumWidth: fixedWidth
                 Layout.preferredWidth: fixedWidth
                 Layout.maximumWidth: fixedWidth
                 Layout.fillHeight: true
-                spacing: view.space2
+                spacing: Kirigami.Units.smallSpacing
 
                 NavButton {
                     page: 0
-                    iconName: "moos-home-symbolic"
+                    iconName: "go-home-symbolic"
                     label: view.local("الرئيسية", "Home")
                 }
                 NavButton {
                     page: 1
-                    iconName: "moos-grid-symbolic"
+                    iconName: "view-app-grid-symbolic"
                     label: view.local("التطبيقات", "Applications")
                 }
                 NavButton {
                     page: 2
-                    iconName: "moos-document-symbolic"
+                    iconName: "folder-symbolic"
                     label: view.local("الأماكن", "Places")
                 }
                 NavButton {
                     page: 3
-                    iconName: "moos-settings-symbolic"
+                    iconName: "adjustlevels-symbolic"
                     label: view.local("تخصيص", "Customize")
                 }
 
                 Item { Layout.fillHeight: true }
 
-                RowLayout {
+                Rectangle {
                     Layout.fillWidth: true
-                    Layout.leftMargin: view.space3
-                    Layout.rightMargin: view.space3
-                    spacing: view.space2
+                    Layout.preferredHeight: scopeColumn.implicitHeight + Kirigami.Units.largeSpacing * 1.35
+                    radius: Kirigami.Units.cornerRadius
+                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.065)
+                    border.width: 1
+                    border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.18)
 
-                    Rectangle {
-                        Layout.preferredWidth: 7
-                        Layout.preferredHeight: 7
-                        radius: width / 2
-                        color: Kirigami.Theme.positiveTextColor
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: view.local("فهرس محلي", "LOCAL INDEX")
-                        color: Kirigami.Theme.disabledTextColor
-                        font.family: view.uiFontFamily
-                        font.pixelSize: view.typeCaption
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: view.rtl ? 0 : 0.8
+                    ColumnLayout {
+                        id: scopeColumn
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.leftMargin: Kirigami.Units.mediumSpacing
+                        anchors.rightMargin: Kirigami.Units.mediumSpacing
+                        spacing: 2
+
+                        RowLayout {
+                            Kirigami.Icon {
+                                Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                                Layout.preferredHeight: width
+                                source: "folder-search-symbolic"
+                                color: Kirigami.Theme.highlightColor
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: view.local("بحث محلي", "Local search")
+                                color: Kirigami.Theme.textColor
+                                font.family: "IBM Plex Sans"
+                                font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.50)
+                                font.weight: Font.DemiBold
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: view.local("ملفاتك المرئية", "Your visible files")
+                            color: Kirigami.Theme.disabledTextColor
+                            font.family: "IBM Plex Sans"
+                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.44)
+                            wrapMode: Text.WordWrap
+                        }
                     }
                 }
             }
@@ -652,65 +443,24 @@ Item {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        spacing: view.space3
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Layout.minimumHeight: 64
-                            Layout.preferredHeight: 64
-                            Layout.maximumHeight: 64
-                            spacing: view.space3
-
-                            CommandCard {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                Layout.preferredWidth: 240
-                                featured: true
-                                iconName: "moos-ai-symbolic"
-                                eyebrow: view.local("مساحة ذكية", "INTELLIGENCE")
-                                title: view.local("ابدأ مع Mo AI", "Create with Mo AI")
-                                onActivated: view.launcher.openDesktop("org.moos.moai.desktop")
-                            }
-                            CommandCard {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                Layout.preferredWidth: 180
-                                iconName: "moos-install-symbolic"
-                                eyebrow: view.local("اكتشف", "DISCOVER")
-                                title: view.local("متجر MoOS", "MoOS Store")
-                                onActivated: view.launcher.openDesktop("org.moos.store.desktop")
-                            }
-                            CommandCard {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                Layout.preferredWidth: 180
-                                iconName: "moos-settings-symbolic"
-                                eyebrow: view.local("تحكم", "CONTROL")
-                                title: view.local("إعدادات النظام", "System Settings")
-                                onActivated: view.launcher.openDesktop("systemsettings.desktop")
-                            }
-                        }
+                        spacing: Kirigami.Units.mediumSpacing
 
                         RowLayout {
                             Layout.fillWidth: true
 
                             SectionTitle {
                                 Layout.fillWidth: true
-                                compact: true
-                                title: view.local("مدارك", "Your orbit")
+                                title: view.local("المثبتة", "Pinned")
                                 subtitle: view.local(
-                                    "أقرب تطبيقاتك في متناولك",
-                                    "What matters, always within reach")
+                                    "تطبيقاتك، بترتيبك",
+                                    "Your apps, in your order")
                             }
 
                             PC3.Button {
-                                Layout.minimumHeight: view.targetSize
                                 text: view.launcher.editMode
                                     ? view.local("تم", "Done")
                                     : view.local("تخصيص", "Customize")
-                                icon.name: view.launcher.editMode
-                                    ? "moos-check-symbolic"
-                                    : "moos-pen-symbolic"
+                                icon.name: view.launcher.editMode ? "dialog-ok-symbolic" : "document-edit-symbolic"
                                 flat: true
                                 checkable: true
                                 checked: view.launcher.editMode
@@ -730,103 +480,28 @@ Item {
                                 model: view.favoritesModel
                                 cellWidth: Math.max(1, Math.floor(width / 4))
                                 cellHeight: Plasmoid.configuration.compactTiles
-                                    ? 82
-                                    : 96
+                                    ? Kirigami.Units.gridUnit * 4.65
+                                    : Kirigami.Units.gridUnit * 5.55
+                                layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
                                 keyNavigationWraps: true
-                                QQC2.ScrollBar.vertical: QQC2.ScrollBar {
-                                    policy: QQC2.ScrollBar.AsNeeded
-                                    // Position indicator only: an interactive
-                                    // bar's ~21px hit area overlays the
-                                    // trailing column's tiles and steals their
-                                    // hover-revealed pin button. Wheel, keys
-                                    // and touch flicks still scroll the grid.
-                                    interactive: false
-                                    implicitWidth: 5
-                                }
 
                                 delegate: AppTile {
-                                    width: GridView.view.cellWidth - view.space1
-                                    height: GridView.view.cellHeight - view.space1
+                                    width: GridView.view.cellWidth - Kirigami.Units.smallSpacing
+                                    height: GridView.view.cellHeight - Kirigami.Units.smallSpacing
                                     sourceModel: view.favoritesModel
                                     favoriteSurface: true
                                 }
                             }
 
-                            ColumnLayout {
+                            PlasmaExtras.PlaceholderMessage {
                                 anchors.centerIn: parent
                                 width: parent.width * 0.72
                                 visible: view.favoritesModel.count === 0
-                                spacing: view.space2
-
-                                Item {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    Layout.preferredWidth: 104
-                                    Layout.preferredHeight: 104
-
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        radius: view.radiusXL
-                                        color: Qt.alpha(Kirigami.Theme.highlightColor, 0.075)
-                                        border.width: 1
-                                        border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.24)
-                                        rotation: 6
-                                    }
-                                    Rectangle {
-                                        anchors.centerIn: parent
-                                        width: 82
-                                        height: 82
-                                        radius: view.radiusL
-                                        color: Qt.alpha(Kirigami.Theme.backgroundColor, 0.62)
-                                        border.width: 1
-                                        border.color: Qt.alpha(Kirigami.Theme.textColor, 0.10)
-                                        rotation: -5
-                                    }
-                                    Kirigami.Icon {
-                                        anchors.centerIn: parent
-                                        width: 72
-                                        height: 72
-                                        source: "moos-orbit-symbolic"
-                                        color: Kirigami.Theme.highlightColor
-                                        opacity: 0.42
-                                    }
-                                    Kirigami.Icon {
-                                        anchors.centerIn: parent
-                                        width: 40
-                                        height: 40
-                                        source: "moos-star-symbolic"
-                                        color: Kirigami.Theme.textColor
-                                    }
-                                }
-
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: view.local(
-                                        "اصنع مدارك الخاص",
-                                        "Build your own orbit")
-                                    horizontalAlignment: Text.AlignHCenter
-                                    color: Kirigami.Theme.textColor
-                                    font.family: view.uiFontFamily
-                                    font.pixelSize: view.typeTitle
-                                    font.weight: Font.DemiBold
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: view.local(
-                                        "ثبّت تطبيقاتك المهمة لتبقى في قلب مساحة MoOS",
-                                        "Pin what matters and keep it at the heart of MoOS")
-                                    horizontalAlignment: Text.AlignHCenter
-                                    color: Kirigami.Theme.disabledTextColor
-                                    font.family: view.uiFontFamily
-                                    font.pixelSize: view.typeSecondary
-                                    wrapMode: Text.WordWrap
-                                }
-                                PC3.Button {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    Layout.minimumHeight: view.targetSize
-                                    text: view.local("استكشف التطبيقات", "Explore applications")
-                                    icon.name: "moos-grid-symbolic"
-                                    onClicked: view.launcher.activePage = 1
-                                }
+                                iconName: "bookmark-new-symbolic"
+                                text: view.local("ثبت تطبيقاتك المفضلة", "Pin your favorite apps")
+                                explanation: view.local(
+                                    "افتح صفحة التطبيقات واضغط النجمة",
+                                    "Open Applications and press the star")
                             }
                         }
 
@@ -837,7 +512,7 @@ Item {
                             Layout.minimumHeight: Layout.preferredHeight
                             Layout.maximumHeight: Layout.preferredHeight
                             visible: Plasmoid.configuration.showRecent && view.recentUsageModel.count > 0
-                            spacing: view.space2
+                            spacing: Kirigami.Units.smallSpacing
 
                             SectionTitle {
                                 Layout.fillWidth: true
@@ -850,14 +525,15 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 orientation: ListView.Horizontal
-                                spacing: view.space2
+                                layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
+                                spacing: Kirigami.Units.smallSpacing
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
                                 model: view.recentUsageModel
 
                                 delegate: RecentTile {
-                                    width: 156
-                                    height: ListView.view.height - view.space2
+                                    width: Kirigami.Units.gridUnit * 8.5
+                                    height: ListView.view.height - Kirigami.Units.smallSpacing
                                     sourceModel: view.recentUsageModel
                                 }
                             }
@@ -872,7 +548,7 @@ Item {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        spacing: view.space3
+                        spacing: Kirigami.Units.mediumSpacing
 
                         RowLayout {
                             Layout.fillWidth: true
@@ -886,24 +562,20 @@ Item {
                             }
 
                             PC3.ToolButton {
-                                Layout.minimumWidth: view.targetSize
-                                Layout.minimumHeight: view.targetSize
                                 text: view.local("تحرير قائمة التطبيقات", "Edit application menu")
-                                icon.name: "moos-pen-symbolic"
+                                icon.name: "kmenuedit"
                                 display: PC3.AbstractButton.IconOnly
                                 onClicked: view.menuEditor.runMenuEditor()
                                 PC3.ToolTip.text: text
                             }
 
                             PC3.ToolButton {
-                                Layout.minimumWidth: view.targetSize
-                                Layout.minimumHeight: view.targetSize
                                 text: Plasmoid.configuration.compactTiles
                                     ? view.local("عرض مريح", "Comfortable view")
                                     : view.local("عرض مضغوط", "Compact view")
                                 icon.name: Plasmoid.configuration.compactTiles
-                                    ? "moos-document-symbolic"
-                                    : "moos-grid-symbolic"
+                                    ? "view-list-icons-symbolic"
+                                    : "view-grid-symbolic"
                                 display: PC3.AbstractButton.IconOnly
                                 onClicked: Plasmoid.configuration.compactTiles = !Plasmoid.configuration.compactTiles
                                 PC3.ToolTip.text: text
@@ -919,20 +591,14 @@ Item {
                             model: view.applicationsModel
                             cellWidth: Math.max(1, Math.floor(width / 4))
                             cellHeight: Plasmoid.configuration.compactTiles
-                                ? 82
-                                : 96
+                                ? Kirigami.Units.gridUnit * 4.5
+                                : Kirigami.Units.gridUnit * 5.45
+                            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
                             keyNavigationWraps: true
-                            QQC2.ScrollBar.vertical: QQC2.ScrollBar {
-                                policy: QQC2.ScrollBar.AsNeeded
-                                // Same indicator-only contract as the pinned
-                                // grid above: never steal trailing-tile input.
-                                interactive: false
-                                implicitWidth: 5
-                            }
 
                             delegate: AppTile {
-                                width: GridView.view.cellWidth - view.space1
-                                height: GridView.view.cellHeight - view.space1
+                                width: GridView.view.cellWidth - Kirigami.Units.smallSpacing
+                                height: GridView.view.cellHeight - Kirigami.Units.smallSpacing
                                 sourceModel: view.applicationsModel
                                 favoriteSurface: false
                             }
@@ -947,7 +613,7 @@ Item {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        spacing: view.space3
+                        spacing: Kirigami.Units.mediumSpacing
 
                         SectionTitle {
                             Layout.fillWidth: true
@@ -959,8 +625,8 @@ Item {
 
                         Rectangle {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: scopeCallout.implicitHeight + view.space4
-                            radius: view.radiusM
+                            Layout.preferredHeight: scopeCallout.implicitHeight + Kirigami.Units.largeSpacing * 1.4
+                            radius: Kirigami.Units.cornerRadius * 1.15
                             color: Qt.alpha(Kirigami.Theme.highlightColor, 0.075)
                             border.width: 1
                             border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.22)
@@ -970,14 +636,15 @@ Item {
                                 anchors.left: parent.left
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
-                                anchors.leftMargin: view.space4
-                                anchors.rightMargin: view.space4
-                                spacing: view.space3
+                                anchors.leftMargin: Kirigami.Units.largeSpacing
+                                anchors.rightMargin: Kirigami.Units.largeSpacing
+                                spacing: Kirigami.Units.mediumSpacing
+                                layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
                                 Kirigami.Icon {
                                     Layout.preferredWidth: Kirigami.Units.iconSizes.medium
                                     Layout.preferredHeight: width
-                                    source: "moos-search-symbolic"
+                                    source: "folder-search-symbolic"
                                     color: Kirigami.Theme.highlightColor
                                 }
                                 ColumnLayout {
@@ -987,8 +654,8 @@ Item {
                                         Layout.fillWidth: true
                                         text: view.local("بحث الملفات يعمل داخل مجلدك الشخصي", "File search covers your home folder")
                                         color: Kirigami.Theme.textColor
-                                        font.family: view.uiFontFamily
-                                        font.pixelSize: view.typeBody
+                                        font.family: "IBM Plex Sans"
+                                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.58)
                                         font.weight: Font.DemiBold
                                         elide: Text.ElideRight
                                     }
@@ -996,15 +663,14 @@ Item {
                                         Layout.fillWidth: true
                                         text: view.local("الملفات المخفية مستثناة لحماية الخصوصية والأداء", "Hidden files stay private and out of the index")
                                         color: Kirigami.Theme.disabledTextColor
-                                        font.family: view.uiFontFamily
-                                        font.pixelSize: view.typeCaption
+                                        font.family: "IBM Plex Sans"
+                                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.47)
                                         elide: Text.ElideRight
                                     }
                                 }
                                 PC3.Button {
-                                    Layout.minimumHeight: view.targetSize
                                     text: view.local("إدارة المواقع", "Manage locations")
-                                    icon.name: "moos-settings-symbolic"
+                                    icon.name: "configure-symbolic"
                                     onClicked: view.launcher.openDesktop("kcm_baloofile.desktop")
                                 }
                             }
@@ -1014,7 +680,7 @@ Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             clip: true
-                            spacing: view.space2
+                            spacing: Kirigami.Units.smallSpacing
                             boundsBehavior: Flickable.StopAtBounds
                             model: view.placesModel
 
@@ -1041,7 +707,7 @@ Item {
                         ColumnLayout {
                             id: customizeColumn
                             width: parent.width
-                            spacing: view.space4
+                            spacing: Kirigami.Units.largeSpacing
 
                             SectionTitle {
                                 Layout.fillWidth: true
@@ -1053,8 +719,8 @@ Item {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: favoritesControl.implicitHeight + view.space6
-                                radius: view.radiusM
+                                Layout.preferredHeight: favoritesControl.implicitHeight + Kirigami.Units.largeSpacing * 1.7
+                                radius: Kirigami.Units.cornerRadius * 1.15
                                 color: Qt.alpha(Kirigami.Theme.textColor, 0.05)
                                 border.width: 1
                                 border.color: Qt.alpha(Kirigami.Theme.textColor, 0.11)
@@ -1064,14 +730,15 @@ Item {
                                     anchors.left: parent.left
                                     anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
-                                    anchors.leftMargin: view.space4
-                                    anchors.rightMargin: view.space4
-                                    spacing: view.space4
+                                    anchors.leftMargin: Kirigami.Units.largeSpacing
+                                    anchors.rightMargin: Kirigami.Units.largeSpacing
+                                    spacing: Kirigami.Units.largeSpacing
+                                    layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
                                     Kirigami.Icon {
                                         Layout.preferredWidth: Kirigami.Units.iconSizes.large
                                         Layout.preferredHeight: width
-                                        source: "moos-star-symbolic"
+                                        source: "bookmarks-symbolic"
                                         color: Kirigami.Theme.highlightColor
                                     }
                                     ColumnLayout {
@@ -1080,8 +747,8 @@ Item {
                                         Text {
                                             text: view.local("التطبيقات المثبتة", "Pinned applications")
                                             color: Kirigami.Theme.textColor
-                                            font.family: view.uiFontFamily
-                                            font.pixelSize: view.typeBody
+                                            font.family: "IBM Plex Sans"
+                                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.64)
                                             font.weight: Font.DemiBold
                                         }
                                         Text {
@@ -1090,24 +757,22 @@ Item {
                                                 "أضف بالنجمة، ثم رتّب أو احذف من الرئيسية",
                                                 "Star apps, then reorder or remove them on Home")
                                             color: Kirigami.Theme.disabledTextColor
-                                            font.family: view.uiFontFamily
-                                            font.pixelSize: view.typeCaption
+                                            font.family: "IBM Plex Sans"
+                                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.49)
                                             elide: Text.ElideRight
                                         }
                                     }
                                     PC3.Button {
-                                        Layout.minimumHeight: view.targetSize
                                         text: view.local("ترتيب الآن", "Arrange now")
-                                        icon.name: "moos-pen-symbolic"
+                                        icon.name: "document-edit-symbolic"
                                         onClicked: {
                                             view.launcher.activePage = 0;
                                             view.launcher.editMode = true;
                                         }
                                     }
                                     PC3.Button {
-                                        Layout.minimumHeight: view.targetSize
                                         text: view.local("استعادة الافتراضي", "Restore defaults")
-                                        icon.name: "moos-refresh-symbolic"
+                                        icon.name: "edit-reset-symbolic"
                                         flat: true
                                         onClicked: view.launcher.restoreFavorites()
                                     }
@@ -1117,18 +782,18 @@ Item {
                             GridLayout {
                                 Layout.fillWidth: true
                                 columns: 2
-                                rowSpacing: view.space3
-                                columnSpacing: view.space3
+                                rowSpacing: Kirigami.Units.mediumSpacing
+                                columnSpacing: Kirigami.Units.mediumSpacing
 
                                 SettingCard {
-                                    iconName: "moos-refresh-symbolic"
+                                    iconName: "view-history-symbolic"
                                     title: view.local("العناصر الأخيرة", "Recent items")
                                     description: view.local("أظهر ما استخدمته مؤخراً في الرئيسية", "Show recently used items on Home")
                                     checked: Plasmoid.configuration.showRecent
                                     onToggled: checked => Plasmoid.configuration.showRecent = checked
                                 }
                                 SettingCard {
-                                    iconName: "moos-grid-symbolic"
+                                    iconName: "view-grid-symbolic"
                                     title: view.local("بطاقات مضغوطة", "Compact tiles")
                                     description: view.local("اعرض تطبيقات أكثر في نفس المساحة", "Fit more apps in the same space")
                                     checked: Plasmoid.configuration.compactTiles
@@ -1138,27 +803,24 @@ Item {
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                spacing: view.space3
+                                spacing: Kirigami.Units.mediumSpacing
 
                                 PC3.Button {
                                     Layout.fillWidth: true
-                                    Layout.minimumHeight: view.targetSize
                                     text: view.local("إعدادات مزودي البحث", "Search providers")
-                                    icon.name: "moos-search-symbolic"
+                                    icon.name: "preferences-desktop-search"
                                     onClicked: view.launcher.openDesktop("kcm_plasmasearch.desktop")
                                 }
                                 PC3.Button {
                                     Layout.fillWidth: true
-                                    Layout.minimumHeight: view.targetSize
                                     text: view.local("مواقع بحث الملفات", "File search locations")
-                                    icon.name: "moos-document-symbolic"
+                                    icon.name: "folder-search-symbolic"
                                     onClicked: view.launcher.openDesktop("kcm_baloofile.desktop")
                                 }
                                 PC3.Button {
                                     Layout.fillWidth: true
-                                    Layout.minimumHeight: view.targetSize
                                     text: view.local("تحرير قائمة التطبيقات", "Edit application menu")
-                                    icon.name: "moos-pen-symbolic"
+                                    icon.name: "kmenuedit"
                                     onClicked: view.menuEditor.runMenuEditor()
                                 }
                             }
@@ -1173,7 +835,7 @@ Item {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        spacing: view.space2
+                        spacing: Kirigami.Units.smallSpacing
 
                         RowLayout {
                             Layout.fillWidth: true
@@ -1188,8 +850,8 @@ Item {
                             Text {
                                 text: searchResults.count.toString()
                                 color: Kirigami.Theme.highlightColor
-                                font.family: view.uiFontFamily
-                                font.pixelSize: view.typeSecondary
+                                font.family: "IBM Plex Mono"
+                                font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.58)
                                 font.weight: Font.DemiBold
                             }
                         }
@@ -1199,7 +861,7 @@ Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             clip: true
-                            spacing: view.space1
+                            spacing: 2
                             boundsBehavior: Flickable.StopAtBounds
                             keyNavigationWraps: true
                             currentIndex: -1
@@ -1231,8 +893,8 @@ Item {
                                 textFormat: Text.PlainText
                                 horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
                                 color: Kirigami.Theme.highlightColor
-                                font.family: view.uiFontFamily
-                                font.pixelSize: view.typeCaption
+                                font.family: "IBM Plex Sans"
+                                font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.49)
                                 font.weight: Font.DemiBold
                             }
 
@@ -1262,14 +924,14 @@ Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             visible: searchResults.count === 0 && !view.searchModel.querying
-                            iconName: "moos-search-symbolic"
+                            iconName: "edit-none-symbolic"
                             text: view.local("لا توجد نتيجة", "No result found")
                             explanation: view.local(
                                 "جرّب اسماً آخر أو راجع مواقع البحث",
                                 "Try another name or review search locations")
                             helpfulAction: Kirigami.Action {
                                 text: view.local("إعدادات البحث", "Search settings")
-                                icon.name: "moos-settings-symbolic"
+                                icon.name: "configure-symbolic"
                                 onTriggered: view.launcher.openDesktop("kcm_plasmasearch.desktop")
                             }
                         }
@@ -1278,45 +940,56 @@ Item {
             }
         }
 
-        // ── Quiet session edge: no duplicate destinations or nested strip ──
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            color: Qt.alpha(Kirigami.Theme.textColor, 0.10)
+        }
+
+        // ── Native session actions + first-party destinations ──────────────
         RowLayout {
             Layout.fillWidth: true
-            Layout.leftMargin: view.space2
-            Layout.rightMargin: view.space2
-            Layout.preferredHeight: view.targetSize
-            spacing: view.space1
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 2.2
+            spacing: Kirigami.Units.smallSpacing
+            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
-            Kirigami.Icon {
-                Layout.preferredWidth: 18
-                Layout.preferredHeight: 18
-                source: "moos-shield-symbolic"
-                color: Kirigami.Theme.positiveTextColor
-            }
-            Text {
-                text: view.local("جلسة محلية موثوقة", "TRUSTED LOCAL SESSION")
-                color: Kirigami.Theme.disabledTextColor
-                font.family: view.uiFontFamily
-                font.pixelSize: view.typeCaption
-                font.weight: Font.DemiBold
-                font.letterSpacing: view.rtl ? 0 : 0.6
+            RowLayout {
+                spacing: Kirigami.Units.smallSpacing
+                Kirigami.Icon {
+                    Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                    Layout.preferredHeight: width
+                    source: "security-high-symbolic"
+                    color: Kirigami.Theme.positiveTextColor
+                }
+                Text {
+                    text: view.local("بحث وتشغيل مدمجان مع النظام", "Native system search and launch")
+                    color: Kirigami.Theme.disabledTextColor
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.48)
+                }
             }
 
             Item { Layout.fillWidth: true }
 
             PC3.ToolButton {
-                Layout.minimumWidth: view.targetSize
-                Layout.minimumHeight: view.targetSize
                 text: view.local("ثيمات MoOS", "MoOS Themes")
-                icon.name: "moos-ui-symbolic"
+                icon.name: "preferences-desktop-theme-global-symbolic"
                 display: PC3.AbstractButton.IconOnly
                 onClicked: view.launcher.openDesktop("org.moos.themepicker.desktop")
+                PC3.ToolTip.text: text
+            }
+            PC3.ToolButton {
+                text: view.local("إعدادات النظام", "System Settings")
+                icon.name: "configure-symbolic"
+                display: PC3.AbstractButton.IconOnly
+                onClicked: view.launcher.openDesktop("systemsettings.desktop")
                 PC3.ToolTip.text: text
             }
 
             Rectangle {
                 Layout.preferredWidth: 1
-                Layout.preferredHeight: 22
-                color: Qt.alpha(Kirigami.Theme.textColor, 0.14)
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 1.35
+                color: Qt.alpha(Kirigami.Theme.textColor, 0.12)
             }
 
             Repeater {
@@ -1333,12 +1006,10 @@ Item {
                         .indexOf(String(model.favoriteId)) >= 0
 
                     visible: shown
-                    Layout.minimumWidth: shown ? view.targetSize : 0
-                    Layout.preferredWidth: shown ? Math.max(view.targetSize, implicitWidth) : 0
-                    Layout.maximumWidth: shown ? Math.max(view.targetSize, implicitWidth) : 0
-                    Layout.minimumHeight: shown ? view.targetSize : 0
+                    Layout.preferredWidth: shown ? implicitWidth : 0
+                    Layout.maximumWidth: shown ? implicitWidth : 0
                     text: model.display
-                    icon.name: view.sessionIcon(model.favoriteId)
+                    icon.name: model.decoration
                     display: PC3.AbstractButton.IconOnly
                     onClicked: view.launcher.triggerEntry(view.sessionModel, index)
                     PC3.ToolTip.text: text
@@ -1353,7 +1024,7 @@ Item {
         property string title: ""
         property string subtitle: ""
         property bool compact: false
-        spacing: compact ? 0 : view.space1
+        spacing: compact ? -1 : 1
 
         Text {
             Layout.fillWidth: true
@@ -1361,8 +1032,8 @@ Item {
             textFormat: Text.PlainText
             horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
             color: Kirigami.Theme.textColor
-            font.family: view.uiFontFamily
-            font.pixelSize: sectionTitle.compact ? view.typeEmphasis : view.typeTitle
+            font.family: "IBM Plex Sans"
+            font.pixelSize: Math.round(Kirigami.Units.gridUnit * (sectionTitle.compact ? 0.63 : 0.78))
             font.weight: Font.DemiBold
             elide: Text.ElideRight
         }
@@ -1373,8 +1044,8 @@ Item {
             horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
             visible: text.length > 0
             color: Kirigami.Theme.disabledTextColor
-            font.family: view.uiFontFamily
-            font.pixelSize: sectionTitle.compact ? view.typeCaption : view.typeSecondary
+            font.family: "IBM Plex Sans"
+            font.pixelSize: Math.round(Kirigami.Units.gridUnit * (sectionTitle.compact ? 0.43 : 0.49))
             elide: Text.ElideRight
         }
     }
@@ -1386,8 +1057,7 @@ Item {
         property string label: ""
 
         Layout.fillWidth: true
-        Layout.minimumHeight: 42
-        Layout.preferredHeight: 42
+        Layout.preferredHeight: Kirigami.Units.gridUnit * 2.65
         hoverEnabled: true
         Accessible.name: label
         Accessible.role: Accessible.Button
@@ -1397,31 +1067,30 @@ Item {
         }
 
         background: Rectangle {
-            radius: view.radiusM
+            radius: Kirigami.Units.cornerRadius
             color: view.launcher.activePage === nav.page && !view.searching
-                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.11)
-                : Qt.alpha(Kirigami.Theme.textColor,
-                    nav.hovered || nav.activeFocus ? 0.065 : 0.0)
-            border.width: nav.activeFocus ? 2 : 0
-            border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.78)
-            Behavior on color { ColorAnimation { duration: view.motionFast } }
+                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.15)
+                : Qt.alpha(Kirigami.Theme.textColor, nav.hovered || nav.activeFocus ? 0.075 : 0.025)
+            border.width: view.launcher.activePage === nav.page && !view.searching || nav.activeFocus ? 1 : 0
+            border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.38)
+            Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
 
             Rectangle {
                 width: 3
                 height: parent.height * 0.44
                 radius: width / 2
                 anchors.verticalCenter: parent.verticalCenter
-                // Logical start: plasmashell's inherited LayoutMirroring turns
-                // this left anchor into the right edge in an RTL session.
-                anchors.left: parent.left
+                anchors.left: view.rtl ? undefined : parent.left
+                anchors.right: view.rtl ? parent.right : undefined
                 color: Kirigami.Theme.highlightColor
                 opacity: view.launcher.activePage === nav.page && !view.searching ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: view.motionFast } }
+                Behavior on opacity { NumberAnimation { duration: Kirigami.Units.shortDuration } }
             }
         }
 
         contentItem: RowLayout {
-            spacing: view.space3
+            spacing: Kirigami.Units.mediumSpacing
+            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             Kirigami.Icon {
                 Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
@@ -1437,8 +1106,8 @@ Item {
                 textFormat: Text.PlainText
                 horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
                 color: Kirigami.Theme.textColor
-                font.family: view.uiFontFamily
-                font.pixelSize: view.typeSecondary
+                font.family: "IBM Plex Sans"
+                font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.56)
                 font.weight: view.launcher.activePage === nav.page ? Font.DemiBold : Font.Medium
                 elide: Text.ElideRight
             }
@@ -1456,7 +1125,7 @@ Item {
         hoverEnabled: true
         Accessible.name: String(model.display || "")
         Accessible.role: Accessible.Button
-        scale: down ? 0.985 : 1.0
+        scale: down ? 0.97 : (hovered ? 1.015 : 1.0)
         function activate() { view.launcher.triggerEntry(sourceModel, index); }
         onClicked: activate()
         Keys.onReturnPressed: event => { tile.activate(); event.accepted = true; }
@@ -1464,34 +1133,35 @@ Item {
         Keys.onSpacePressed: event => { tile.activate(); event.accepted = true; }
 
         Behavior on scale {
-            NumberAnimation { duration: view.motionFast; easing.type: Easing.OutCubic }
+            NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
         }
 
         background: Rectangle {
-            radius: view.radiusM
-            color: tile.down
-                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.15)
-                : tile.hovered || tile.activeFocus
-                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.085)
-                    : "transparent"
-            border.width: tile.activeFocus ? 2 : tile.hovered ? 1 : 0
-            border.color: Qt.alpha(Kirigami.Theme.highlightColor,
-                tile.activeFocus ? 0.82 : 0.34)
-            Behavior on color { ColorAnimation { duration: view.motionFast } }
-            Behavior on border.color { ColorAnimation { duration: view.motionFast } }
+            radius: Kirigami.Units.cornerRadius * 1.05
+            color: Qt.alpha(tile.hovered || tile.activeFocus
+                ? Kirigami.Theme.highlightColor
+                : Kirigami.Theme.textColor,
+                tile.down ? 0.16 : (tile.hovered || tile.activeFocus ? 0.105 : 0.04))
+            border.width: 1
+            border.color: Qt.alpha(tile.hovered || tile.activeFocus
+                ? Kirigami.Theme.highlightColor
+                : Kirigami.Theme.textColor,
+                tile.hovered || tile.activeFocus ? 0.48 : 0.08)
+            Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
+            Behavior on border.color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
         }
 
         contentItem: ColumnLayout {
-            anchors.margins: view.space1
-            spacing: view.space1
+            anchors.margins: Kirigami.Units.smallSpacing
+            spacing: Kirigami.Units.smallSpacing
 
             Kirigami.Icon {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: Plasmoid.configuration.compactTiles
                     ? Kirigami.Units.iconSizes.medium
-                    : 44
+                    : Kirigami.Units.iconSizes.large
                 Layout.preferredHeight: width
-                source: tile.model.decoration || "moos-cube-symbolic"
+                source: tile.model.decoration || "application-x-executable"
                 animated: false
             }
             Text {
@@ -1499,28 +1169,27 @@ Item {
                 text: String(tile.model.compactName || tile.model.display || "")
                 textFormat: Text.PlainText
                 color: Kirigami.Theme.textColor
-                font.family: view.uiFontFamily
-                font.pixelSize: view.typeSecondary
+                font.family: "IBM Plex Sans"
+                font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.52)
                 font.weight: Font.Medium
                 horizontalAlignment: Text.AlignHCenter
-                maximumLineCount: 1
+                maximumLineCount: 2
+                wrapMode: Text.Wrap
                 elide: Text.ElideRight
             }
         }
 
         PC3.ToolButton {
             anchors.top: parent.top
-            // Logical trailing corner; inherited mirroring moves it left in RTL.
-            anchors.right: parent.right
-            anchors.margins: view.space1
-            width: view.targetSize
-            height: view.targetSize
+            anchors.right: view.rtl ? undefined : parent.right
+            anchors.left: view.rtl ? parent.left : undefined
+            anchors.margins: 2
             z: 4
             visible: !tile.favoriteSurface && (tile.hovered || view.launcher.editMode)
                 && String(tile.model.favoriteId || "").length > 0
-            checkable: true
-            checked: view.favoritesModel.isFavorite(String(tile.model.favoriteId || ""))
-            icon.name: "moos-star-symbolic"
+            icon.name: view.favoritesModel.isFavorite(String(tile.model.favoriteId || ""))
+                ? "rating-symbolic"
+                : "rating-unrated-symbolic"
             text: view.favoritesModel.isFavorite(String(tile.model.favoriteId || ""))
                 ? view.local("إزالة من المثبتة", "Unpin")
                 : view.local("تثبيت في الرئيسية", "Pin to Home")
@@ -1536,13 +1205,10 @@ Item {
             z: 4
             visible: tile.favoriteSurface && view.launcher.editMode
             spacing: 1
+            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             PC3.ToolButton {
-                width: view.targetSize
-                height: view.targetSize
-                icon.name: view.rtl
-                    ? "moos-arrow-symbolic"
-                    : "moos-arrow-back-symbolic"
+                icon.name: view.rtl ? "arrow-right-symbolic" : "arrow-left-symbolic"
                 text: view.local("نقل للخلف", "Move earlier")
                 display: PC3.AbstractButton.IconOnly
                 enabled: tile.index > 0
@@ -1550,20 +1216,14 @@ Item {
                 PC3.ToolTip.text: text
             }
             PC3.ToolButton {
-                width: view.targetSize
-                height: view.targetSize
-                icon.name: "moos-trash-symbolic"
+                icon.name: "list-remove-symbolic"
                 text: view.local("إزالة", "Remove")
                 display: PC3.AbstractButton.IconOnly
                 onClicked: view.launcher.toggleFavorite(String(tile.model.favoriteId || ""))
                 PC3.ToolTip.text: text
             }
             PC3.ToolButton {
-                width: view.targetSize
-                height: view.targetSize
-                icon.name: view.rtl
-                    ? "moos-arrow-back-symbolic"
-                    : "moos-arrow-symbolic"
+                icon.name: view.rtl ? "arrow-left-symbolic" : "arrow-right-symbolic"
                 text: view.local("نقل للأمام", "Move later")
                 display: PC3.AbstractButton.IconOnly
                 enabled: tile.index < view.favoritesModel.count - 1
@@ -1590,24 +1250,24 @@ Item {
         Keys.onEnterPressed: event => { recent.activate(); event.accepted = true; }
         Keys.onSpacePressed: event => { recent.activate(); event.accepted = true; }
         background: Rectangle {
-            radius: view.radiusM
-            color: recent.hovered || recent.activeFocus
-                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.085)
-                : "transparent"
-            border.width: recent.activeFocus ? 2 : recent.hovered ? 1 : 0
-            border.color: Qt.alpha(Kirigami.Theme.highlightColor,
-                recent.activeFocus ? 0.82 : 0.34)
-            // Ease the hover like every sibling row (FavoriteTile/nav/search) —
-            // was the one Recent row whose prelight snapped instead of gliding.
-            Behavior on color { ColorAnimation { duration: view.motionFast } }
-            Behavior on border.color { ColorAnimation { duration: view.motionFast } }
+            radius: Kirigami.Units.cornerRadius
+            color: Qt.alpha(recent.hovered
+                ? Kirigami.Theme.highlightColor
+                : Kirigami.Theme.textColor,
+                recent.hovered ? 0.10 : 0.04)
+            border.width: 1
+            border.color: Qt.alpha(recent.hovered || recent.activeFocus
+                ? Kirigami.Theme.highlightColor
+                : Kirigami.Theme.textColor,
+                recent.hovered || recent.activeFocus ? 0.48 : 0.08)
         }
         contentItem: RowLayout {
-            spacing: view.space3
+            spacing: Kirigami.Units.mediumSpacing
+            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
             Kirigami.Icon {
                 Layout.preferredWidth: Kirigami.Units.iconSizes.medium
                 Layout.preferredHeight: width
-                source: recent.model.decoration || "moos-document-symbolic"
+                source: recent.model.decoration || "document-open-recent-symbolic"
             }
             ColumnLayout {
                 Layout.fillWidth: true
@@ -1617,8 +1277,8 @@ Item {
                     text: String(recent.model.compactName || recent.model.display || "")
                     textFormat: Text.PlainText
                     color: Kirigami.Theme.textColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeSecondary
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.48)
                     font.weight: Font.Medium
                     elide: Text.ElideRight
                 }
@@ -1627,8 +1287,8 @@ Item {
                     text: String(recent.model.description || "")
                     textFormat: Text.PlainText
                     color: Kirigami.Theme.disabledTextColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeCaption
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.41)
                     elide: Text.ElideMiddle
                 }
             }
@@ -1641,7 +1301,7 @@ Item {
         required property var model
         required property var sourceModel
 
-        height: 52
+        height: Kirigami.Units.gridUnit * 2.75
         enabled: model.disabled !== true
         hoverEnabled: true
         Accessible.name: String(model.display || "")
@@ -1653,23 +1313,24 @@ Item {
         Keys.onEnterPressed: event => { place.activate(); event.accepted = true; }
         Keys.onSpacePressed: event => { place.activate(); event.accepted = true; }
         background: Rectangle {
-            radius: view.radiusM
-            color: place.hovered || place.activeFocus
-                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.085)
-                : "transparent"
-            border.width: place.activeFocus ? 2 : place.hovered ? 1 : 0
-            border.color: Qt.alpha(Kirigami.Theme.highlightColor,
-                place.activeFocus ? 0.82 : 0.34)
-            // Same eased-hover parity as the Favorite/Recent/nav rows.
-            Behavior on color { ColorAnimation { duration: view.motionFast } }
-            Behavior on border.color { ColorAnimation { duration: view.motionFast } }
+            radius: Kirigami.Units.cornerRadius
+            color: Qt.alpha(place.hovered
+                ? Kirigami.Theme.highlightColor
+                : Kirigami.Theme.textColor,
+                place.hovered ? 0.10 : 0.035)
+            border.width: 1
+            border.color: Qt.alpha(place.hovered || place.activeFocus
+                ? Kirigami.Theme.highlightColor
+                : Kirigami.Theme.textColor,
+                place.hovered || place.activeFocus ? 0.48 : 0.075)
         }
         contentItem: RowLayout {
-            spacing: view.space3
+            spacing: Kirigami.Units.mediumSpacing
+            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
             Kirigami.Icon {
                 Layout.preferredWidth: Kirigami.Units.iconSizes.medium
                 Layout.preferredHeight: width
-                source: place.model.decoration || "moos-document-symbolic"
+                source: place.model.decoration || "folder-symbolic"
             }
             ColumnLayout {
                 Layout.fillWidth: true
@@ -1679,8 +1340,8 @@ Item {
                     text: String(place.model.compactName || place.model.display || "")
                     textFormat: Text.PlainText
                     color: Kirigami.Theme.textColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeBody
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.56)
                     font.weight: Font.Medium
                     elide: Text.ElideRight
                 }
@@ -1690,17 +1351,15 @@ Item {
                     text: String(place.model.description || "")
                     textFormat: Text.PlainText
                     color: Kirigami.Theme.disabledTextColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeCaption
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.44)
                     elide: Text.ElideMiddle
                 }
             }
             Kirigami.Icon {
                 Layout.preferredWidth: Kirigami.Units.iconSizes.small
                 Layout.preferredHeight: width
-                source: view.rtl
-                    ? "moos-arrow-back-symbolic"
-                    : "moos-arrow-symbolic"
+                source: view.rtl ? "arrow-left-symbolic" : "arrow-right-symbolic"
                 color: Kirigami.Theme.disabledTextColor
             }
         }
@@ -1711,7 +1370,7 @@ Item {
         required property int index
         required property var model
 
-        height: 56
+        height: Kirigami.Units.gridUnit * 3.05
         enabled: model.enabled !== false
         hoverEnabled: true
         Accessible.name: String(model.display || "")
@@ -1725,32 +1384,29 @@ Item {
         onClicked: view.launcher.runSearchResult(index)
 
         background: Rectangle {
-            radius: view.radiusM
+            radius: Kirigami.Units.cornerRadius
             color: result.ListView.isCurrentItem
-                ? Qt.alpha(Kirigami.Theme.highlightColor, result.down ? 0.18 : 0.105)
-                : result.hovered
-                    ? Qt.alpha(Kirigami.Theme.textColor, 0.055)
-                    : "transparent"
-            border.width: result.activeFocus ? 2
-                : result.ListView.isCurrentItem ? 1 : 0
-            border.color: Qt.alpha(Kirigami.Theme.highlightColor,
-                result.activeFocus ? 0.82 : 0.34)
-            Behavior on color { ColorAnimation { duration: view.motionFast } }
+                ? Qt.alpha(Kirigami.Theme.highlightColor, result.down ? 0.26 : 0.16)
+                : Qt.alpha(Kirigami.Theme.textColor, result.hovered ? 0.07 : 0.025)
+            border.width: result.ListView.isCurrentItem || result.activeFocus ? 1 : 0
+            border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.42)
+            Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
         }
 
         contentItem: RowLayout {
-            spacing: view.space3
+            spacing: Kirigami.Units.mediumSpacing
+            layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             Rectangle {
-                Layout.preferredWidth: view.targetSize
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 2.1
                 Layout.preferredHeight: width
-                radius: view.radiusM
+                radius: Kirigami.Units.cornerRadius
                 color: Qt.alpha(Kirigami.Theme.highlightColor, 0.10)
                 Kirigami.Icon {
                     anchors.centerIn: parent
                     width: Kirigami.Units.iconSizes.medium
                     height: width
-                    source: result.model.decoration || "moos-search-symbolic"
+                    source: result.model.decoration || "system-search-symbolic"
                     animated: false
                 }
             }
@@ -1762,8 +1418,8 @@ Item {
                     text: String(result.model.display || "")
                     textFormat: Text.PlainText
                     color: Kirigami.Theme.textColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeBody
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.58)
                     font.weight: Font.Medium
                     elide: Text.ElideMiddle
                 }
@@ -1773,8 +1429,8 @@ Item {
                     text: String(result.model.subtext || "")
                     textFormat: Text.PlainText
                     color: Kirigami.Theme.disabledTextColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeCaption
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.44)
                     elide: Text.ElideMiddle
                 }
             }
@@ -1782,153 +1438,35 @@ Item {
                 visible: result.ListView.isCurrentItem
                 text: "↵"
                 color: Kirigami.Theme.highlightColor
-                font.family: view.uiFontFamily
-                font.pixelSize: view.typeBody
-            }
-        }
-    }
-
-    component CommandCard: PC3.ItemDelegate {
-        id: command
-        property string iconName: "moos-spark-symbolic"
-        property string eyebrow: ""
-        property string title: ""
-        property bool featured: false
-        signal activated()
-
-        hoverEnabled: true
-        Accessible.name: command.title
-        Accessible.description: command.eyebrow
-        Accessible.role: Accessible.Button
-        scale: down ? 0.985 : 1
-        onClicked: command.activated()
-        Keys.onReturnPressed: event => {
-            command.activated();
-            event.accepted = true;
-        }
-        Keys.onEnterPressed: event => {
-            command.activated();
-            event.accepted = true;
-        }
-        Keys.onSpacePressed: event => {
-            command.activated();
-            event.accepted = true;
-        }
-
-        Behavior on scale {
-            NumberAnimation {
-                duration: view.motionFast
-                easing.type: Easing.OutCubic
-            }
-        }
-
-        background: Rectangle {
-            radius: view.radiusL
-            color: Qt.alpha(command.featured || command.hovered
-                ? Kirigami.Theme.highlightColor
-                : Kirigami.Theme.textColor,
-                command.down ? 0.16
-                    : (command.featured ? 0.105 : (command.hovered ? 0.075 : 0.025)))
-            border.width: command.activeFocus ? 2 : 1
-            border.color: Qt.alpha(command.featured || command.activeFocus
-                ? Kirigami.Theme.highlightColor
-                : Kirigami.Theme.textColor,
-                command.activeFocus ? 0.82 : command.featured ? 0.34 : 0.09)
-            Behavior on color { ColorAnimation { duration: view.motionFast } }
-            Behavior on border.color { ColorAnimation { duration: view.motionFast } }
-
-            Rectangle {
-                anchors {
-                    left: parent.left
-                    bottom: parent.bottom
-                    leftMargin: view.radiusL
-                }
-                width: command.featured ? 42 : 18
-                height: 2
-                radius: 1
-                color: Kirigami.Theme.highlightColor
-                opacity: command.featured || command.hovered ? 0.94 : 0.34
-                Behavior on width {
-                    NumberAnimation {
-                        duration: view.motionMedium
-                        easing.type: Easing.OutCubic
-                    }
-                }
-            }
-        }
-
-        contentItem: RowLayout {
-            spacing: view.space3
-
-            Rectangle {
-                Layout.preferredWidth: 38
-                Layout.preferredHeight: 38
-                radius: view.radiusM
-                color: Qt.alpha(Kirigami.Theme.highlightColor,
-                    command.featured ? 0.18 : 0.10)
-
-                Kirigami.Icon {
-                    anchors.centerIn: parent
-                    width: 22
-                    height: 22
-                    source: command.iconName
-                    color: command.featured
-                        ? Kirigami.Theme.highlightColor
-                        : Kirigami.Theme.textColor
-                }
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: -1
-
-                Text {
-                    Layout.fillWidth: true
-                    text: command.eyebrow
-                    color: command.featured
-                        ? Kirigami.Theme.highlightColor
-                        : Kirigami.Theme.disabledTextColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeCaption
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: view.rtl ? 0 : 0.7
-                    elide: Text.ElideRight
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: command.title
-                    color: Kirigami.Theme.textColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeSecondary
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
-                }
+                font.family: "IBM Plex Mono"
+                font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.70)
             }
         }
     }
 
     component SettingCard: Rectangle {
         id: setting
-        property string iconName: "moos-settings-symbolic"
+        property string iconName: "configure-symbolic"
         property string title: ""
         property string description: ""
         property bool checked: false
         signal toggled(bool checked)
 
         Layout.fillWidth: true
-        Layout.preferredHeight: 104
-        radius: view.radiusM
+        Layout.preferredHeight: Kirigami.Units.gridUnit * 5.6
+        radius: Kirigami.Units.cornerRadius * 1.1
         color: Qt.alpha(Kirigami.Theme.textColor, 0.045)
         border.width: 1
         border.color: Qt.alpha(Kirigami.Theme.textColor, 0.10)
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: view.space4
-            spacing: view.space2
+            anchors.margins: Kirigami.Units.largeSpacing
+            spacing: Kirigami.Units.smallSpacing
 
             RowLayout {
                 Layout.fillWidth: true
+                layoutDirection: view.rtl ? Qt.RightToLeft : Qt.LeftToRight
                 Kirigami.Icon {
                     Layout.preferredWidth: Kirigami.Units.iconSizes.medium
                     Layout.preferredHeight: width
@@ -1939,8 +1477,8 @@ Item {
                     Layout.fillWidth: true
                     text: setting.title
                     color: Kirigami.Theme.textColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeBody
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.58)
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
@@ -1954,8 +1492,8 @@ Item {
                 Layout.fillWidth: true
                 text: setting.description
                 color: Kirigami.Theme.disabledTextColor
-                font.family: view.uiFontFamily
-                font.pixelSize: view.typeCaption
+                font.family: "IBM Plex Sans"
+                font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.45)
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
             }
