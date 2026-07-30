@@ -18,22 +18,79 @@
       .ColorScheme-NegativeText { color: #ff7d88; }
       .ColorScheme-Accent { color: #4ed7c8; }
     </style>
-    <linearGradient id="moos-themes-sheen" x1="512" y1="72" x2="512" y2="660"
-                    gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".20"/>
+    <linearGradient id="moos-themes-tile-light" x1="512" y1="72" x2="512" y2="952" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="0.25" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="0.75" stop-color="#000" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="moos-themes-rim-light" x1="512" y1="72" x2="512" y2="952" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0.1"/>
+      <stop offset="0.8" stop-color="#000" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.6"/>
+    </linearGradient>
+    <radialGradient id="moos-themes-glow" cx="512" cy="200" r="700" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.3"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="moos-themes-glyph-gradient" x1="512" y1="200" x2="512" y2="800" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="currentColor" stop-opacity="1.0"/>
+      <stop offset="1" stop-color="currentColor" stop-opacity="0.7"/>
+    </linearGradient>
+    <linearGradient id="moos-themes-black">
+      <stop offset="0" stop-color="#000"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+    <linearGradient id="moos-themes-white">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ffffff"/>
     </linearGradient>
   </defs>
+
+  <!-- 3D Drop Shadows (Rendered beneath the tile) -->
+  <rect fill="url(#moos-themes-black)" opacity="0.05" x="72" y="104" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-themes-black)" opacity="0.10" x="72" y="92" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-themes-black)" opacity="0.15" x="72" y="80" width="880" height="880" rx="232"/>
+
+  <!-- Base Color -->
   <rect class="ColorScheme-Highlight" fill="currentColor" x="72" y="72" width="880" height="880" rx="232"/>
-  <rect fill="url(#moos-themes-sheen)" x="72" y="72" width="880" height="880" rx="232"/>
-  <rect class="ColorScheme-HighlightedText" fill="none" stroke="currentColor"
-        stroke-opacity=".16" stroke-width="10" x="82" y="82" width="860" height="860" rx="222"/>
-  <g class="ColorScheme-HighlightedText" fill="currentColor">
-    <circle cx="512" cy="442" r="228" opacity=".3"/>
-    <path d="M351 603A228 228 0 0 1 673 281Z"/>
-    <circle cx="512" cy="442" r="228" fill="none" stroke="currentColor" stroke-width="56"/>
+  
+  <!-- Liquid Glass Shading -->
+  <rect fill="url(#moos-themes-tile-light)" x="72" y="72" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-themes-glow)" x="72" y="72" width="880" height="880" rx="232"/>
+  
+  <!-- Outer Bevel/Rim -->
+  <rect fill="none" stroke="url(#moos-themes-rim-light)" stroke-width="12" x="82" y="82" width="860" height="860" rx="222"/>
+  <rect fill="none" stroke="url(#moos-themes-white)" stroke-opacity="0.3" stroke-width="4" x="76" y="76" width="872" height="872" rx="228"/>
+  
+  <!-- Drop Shadow -->
+  <g fill="url(#moos-themes-black)" opacity="0.2" transform="translate(0, 16)">
+    <circle cx="512" cy="442" r="228"/>
     <circle cx="396" cy="806" r="50"/>
+    <circle cx="512" cy="806" r="50"/>
+    <circle cx="628" cy="806" r="50"/>
+  </g>
+
+  <!-- Base Circle -->
+  <g class="ColorScheme-HighlightedText" fill="currentColor">
+    <circle cx="512" cy="442" r="228" opacity=".2"/>
+    <!-- Diagonal Slash -->
+    <path d="M351 603A228 228 0 0 1 673 281Z" fill="url(#moos-themes-glyph-gradient)"/>
+    
+    <circle cx="512" cy="442" r="228" fill="none" stroke="currentColor" stroke-width="56" opacity="0.9"/>
+    <!-- Inner Ring Bevel -->
+    <circle cx="512" cy="442" r="200" fill="none" stroke="url(#{name}-white)" stroke-width="12" opacity="0.2"/>
+    <circle cx="512" cy="442" r="256" fill="none" stroke="url(#moos-themes-black)" stroke-width="12" opacity="0.1"/>
+
+    <!-- Bottom Dots -->
+    <circle cx="396" cy="806" r="50" fill="url(#moos-themes-glyph-gradient)"/>
     <circle cx="512" cy="806" r="50" opacity=".62"/>
     <circle cx="628" cy="806" r="50" opacity=".34"/>
+  </g>
+  <g fill="url(#{name}-white)" opacity="0.2">
+    <circle cx="396" cy="796" r="34"/>
+    <circle cx="512" cy="796" r="34"/>
+    <circle cx="628" cy="796" r="34"/>
   </g>
 </svg>

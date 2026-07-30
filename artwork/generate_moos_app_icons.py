@@ -92,132 +92,273 @@ MARKS: dict[str, dict[str, str]] = {
     "moos-control-center": {
         "tile": "Highlight",
         "ink": "HighlightedText",
-        # Three control lanes with knobs at different settings: the Control
-        # Centre adjusts the machine, it is not a stock cog.
         "body": """
-  <g class="$INK" fill="currentColor">
-    <rect x="268" y="282" width="488" height="92" rx="46" opacity=".34"/>
-    <rect x="268" y="466" width="488" height="92" rx="46" opacity=".34"/>
-    <rect x="268" y="650" width="488" height="92" rx="46" opacity=".34"/>
-    <rect x="268" y="282" width="368" height="92" rx="46"/>
-    <rect x="268" y="466" width="128" height="92" rx="46"/>
-    <rect x="268" y="650" width="288" height="92" rx="46"/>
+  <!-- Drop shadow for the control center glyph -->
+  <g fill="url(#${NAME}-black)" opacity="0.2" transform="translate(0, 16)">
+    <rect x="268" y="282" width="488" height="92" rx="46"/>
+    <rect x="268" y="466" width="488" height="92" rx="46"/>
+    <rect x="268" y="650" width="488" height="92" rx="46"/>
     <circle cx="636" cy="328" r="74"/>
     <circle cx="396" cy="512" r="74"/>
     <circle cx="556" cy="696" r="74"/>
   </g>
+
+  <g class="$INK" fill="currentColor">
+    <rect x="268" y="282" width="488" height="92" rx="46" opacity="0.25"/>
+    <rect x="268" y="466" width="488" height="92" rx="46" opacity="0.25"/>
+    <rect x="268" y="650" width="488" height="92" rx="46" opacity="0.25"/>
+    <!-- Active track -->
+    <rect x="268" y="282" width="368" height="92" rx="46" fill="url(#${NAME}-glyph-gradient)"/>
+    <rect x="268" y="466" width="128" height="92" rx="46" fill="url(#${NAME}-glyph-gradient)"/>
+    <rect x="268" y="650" width="288" height="92" rx="46" fill="url(#${NAME}-glyph-gradient)"/>
+    
+    <!-- Knobs -->
+    <circle cx="636" cy="328" r="74" fill="url(#${NAME}-glyph-gradient)"/>
+    <circle cx="396" cy="512" r="74" fill="url(#${NAME}-glyph-gradient)"/>
+    <circle cx="556" cy="696" r="74" fill="url(#${NAME}-glyph-gradient)"/>
+  </g>
+
+  <!-- Knob Inner Bevel / Reflection -->
+  <g fill="url(#{name}-white)" opacity="0.3">
+    <circle cx="636" cy="320" r="64"/>
+    <circle cx="396" cy="504" r="64"/>
+    <circle cx="556" cy="688" r="64"/>
+  </g>
+  <g class="$INK" fill="currentColor">
+    <circle cx="636" cy="324" r="64" opacity="0.8"/>
+    <circle cx="396" cy="508" r="64" opacity="0.8"/>
+    <circle cx="556" cy="692" r="64" opacity="0.8"/>
+  </g>
+
   <g class="$TILE" fill="currentColor">
     <circle cx="636" cy="328" r="34"/>
     <circle cx="396" cy="512" r="34"/>
     <circle cx="556" cy="696" r="34"/>
+  </g>
+  <!-- Knob indent shadow -->
+  <g fill="url(#${NAME}-black)" opacity="0.25">
+    <circle cx="636" cy="334" r="34"/>
+    <circle cx="396" cy="518" r="34"/>
+    <circle cx="556" cy="702" r="34"/>
   </g>
 """,
     },
     "moos-store": {
         "tile": "Highlight",
         "ink": "HighlightedText",
-        # A flared carry bag on a thin rope handle.  The flare is load-bearing:
-        # a straight-sided body under a thick arch reads as a padlock at dock
-        # size, which is what the first draft of this mark did.
         "body": """
-  <g class="$INK" fill="currentColor">
-    <path d="M424 452v-22c0-49 39-88 88-88s88 39 88 88v22" fill="none"
-          stroke="currentColor" stroke-width="44" stroke-linecap="round"/>
+  <!-- Drop shadow -->
+  <g fill="url(#${NAME}-black)" opacity="0.2" transform="translate(0, 16)">
+    <path d="M424 452v-22c0-49 39-88 88-88s88 39 88 88v22" fill="none" stroke="url(#${NAME}-black)" stroke-width="44" stroke-linecap="round"/>
     <path d="M292 452h440l44 330c6 41-26 76-67 76H315c-41 0-73-35-67-76Z"/>
   </g>
+
+  <!-- Back of handle -->
+  <g class="$INK" fill="currentColor">
+    <path d="M424 452v-22c0-49 39-88 88-88s88 39 88 88v22" fill="none" stroke="currentColor" stroke-width="44" stroke-linecap="round" opacity="0.85"/>
+  </g>
+  
+  <!-- Bag body -->
+  <g class="$INK" fill="currentColor">
+    <path d="M292 452h440l44 330c6 41-26 76-67 76H315c-41 0-73-35-67-76Z" fill="url(#${NAME}-glyph-gradient)"/>
+  </g>
+
+  <!-- 3D Bag Details (glass highlights & folds) -->
+  <path d="M312 472h400l40 300c3 20-13 40-40 40H312c-27 0-43-20-40-40Z" fill="url(#{name}-white)" opacity="0.15"/>
+  <path d="M322 482h380l36 270c3 20-13 30-36 30H322c-23 0-39-10-36-30Z" fill="url(#{name}-white)" opacity="0.1"/>
 """,
     },
     "moos-pc-remote": {
         "tile": "Highlight",
         "ink": "HighlightedText",
-        # Phone in front of the desktop it is driving.  The tile-coloured gap
-        # around the phone keeps the two devices readable at 16 px.
         "body": """
-  <g class="$INK" fill="currentColor">
+  <!-- Drop Shadow -->
+  <g fill="url(#${NAME}-black)" opacity="0.2" transform="translate(0, 16)">
     <rect x="228" y="230" width="520" height="376" rx="64"/>
     <rect x="433" y="606" width="110" height="56"/>
     <rect x="352" y="662" width="272" height="62" rx="31"/>
+    <rect x="552" y="422" width="268" height="404" rx="80"/>
   </g>
+
+  <!-- Desktop Monitor -->
+  <g class="$INK" fill="currentColor">
+    <rect x="228" y="230" width="520" height="376" rx="64" fill="url(#${NAME}-glyph-gradient)"/>
+    <rect x="433" y="606" width="110" height="56"/>
+    <rect x="352" y="662" width="272" height="62" rx="31"/>
+  </g>
+  <!-- Desktop Screen Bevel/Glow -->
+  <rect fill="url(#{name}-white)" opacity="0.15" x="244" y="246" width="488" height="344" rx="48"/>
   <rect class="$TILE" fill="currentColor" x="296" y="298" width="384" height="240" rx="28"/>
+  <rect fill="url(#${NAME}-black)" opacity="0.15" x="296" y="298" width="384" height="240" rx="28"/>
+
+  <!-- Phone shadow on monitor -->
+  <rect fill="url(#${NAME}-black)" opacity="0.25" x="536" y="414" width="284" height="420" rx="88"/>
+
+  <!-- Phone Body -->
   <rect class="$TILE" fill="currentColor" x="552" y="422" width="268" height="404" rx="80"/>
-  <rect class="$INK" fill="currentColor" x="576" y="446" width="220" height="356" rx="58"/>
+  <rect class="$INK" fill="currentColor" x="576" y="446" width="220" height="356" rx="58" opacity="0.9"/>
+  <!-- Phone Glass Reflection -->
+  <rect fill="url(#{name}-white)" opacity="0.12" x="584" y="454" width="204" height="340" rx="50"/>
+
   <g class="$TILE" fill="currentColor">
     <rect x="656" y="488" width="60" height="18" rx="9"/>
     <rect x="646" y="742" width="80" height="18" rx="9"/>
+  </g>
+  <g fill="url(#${NAME}-black)" opacity="0.2">
+    <rect x="656" y="492" width="60" height="18" rx="9"/>
+    <rect x="646" y="746" width="80" height="18" rx="9"/>
   </g>
 """,
     },
     "moos-updater": {
         "tile": "Highlight",
         "ink": "HighlightedText",
-        # One sync orbit carrying one delivery arrow: the update is fetched and
-        # staged, and the ring is what separates it from the installer.
         "body": """
-  <g class="$INK" fill="currentColor">
-    <path d="M512 260A252 252 0 1 1 275 426" fill="none" stroke="currentColor"
-          stroke-width="92"/>
+  <!-- Drop Shadow -->
+  <g fill="url(#${NAME}-black)" opacity="0.2" transform="translate(0, 16)">
+    <path d="M512 260A252 252 0 1 1 275 426" fill="none" stroke="url(#${NAME}-black)" stroke-width="92"/>
     <path d="M512 186v148l130-74Z"/>
     <rect x="464" y="372" width="96" height="190" rx="20"/>
-    <path d="M512 684 382 530h260Z" stroke="currentColor" stroke-width="36"
-          stroke-linejoin="round"/>
+    <path d="M512 684 382 530h260Z" stroke="url(#${NAME}-black)" stroke-width="36" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Ring and Arrow head -->
+  <g class="$INK" fill="currentColor">
+    <!-- Ring -->
+    <path d="M512 260A252 252 0 1 1 275 426" fill="none" stroke="currentColor" stroke-width="92" opacity="0.85"/>
+    <path d="M512 260A252 252 0 1 1 275 426" fill="none" stroke="url(#{name}-white)" stroke-width="24" opacity="0.2"/>
+    <!-- Outer Triangle -->
+    <path d="M512 186v148l130-74Z" fill="url(#${NAME}-glyph-gradient)"/>
+  </g>
+
+  <!-- Arrow Body -->
+  <g class="$INK" fill="currentColor">
+    <rect x="464" y="372" width="96" height="190" rx="20" fill="url(#${NAME}-glyph-gradient)"/>
+    <path d="M512 684 382 530h260Z" fill="url(#${NAME}-glyph-gradient)" stroke="currentColor" stroke-width="36" stroke-linejoin="round"/>
+  </g>
+  
+  <g fill="url(#{name}-white)" opacity="0.2">
+    <rect x="472" y="380" width="80" height="174" rx="12"/>
+    <path d="M512 654 402 546h220Z"/>
   </g>
 """,
     },
     "moos-themes": {
         "tile": "Highlight",
         "ink": "HighlightedText",
-        # The light/dark duality on a diagonal, plus three palette weights.
-        # Diagonal, not vertical: a vertically split disc inside a ring is the
-        # brightness control, and this app is not that.
         "body": """
-  <g class="$INK" fill="currentColor">
-    <circle cx="512" cy="442" r="228" opacity=".3"/>
-    <path d="M351 603A228 228 0 0 1 673 281Z"/>
-    <circle cx="512" cy="442" r="228" fill="none" stroke="currentColor" stroke-width="56"/>
+  <!-- Drop Shadow -->
+  <g fill="url(#${NAME}-black)" opacity="0.2" transform="translate(0, 16)">
+    <circle cx="512" cy="442" r="228"/>
     <circle cx="396" cy="806" r="50"/>
+    <circle cx="512" cy="806" r="50"/>
+    <circle cx="628" cy="806" r="50"/>
+  </g>
+
+  <!-- Base Circle -->
+  <g class="$INK" fill="currentColor">
+    <circle cx="512" cy="442" r="228" opacity=".2"/>
+    <!-- Diagonal Slash -->
+    <path d="M351 603A228 228 0 0 1 673 281Z" fill="url(#${NAME}-glyph-gradient)"/>
+    
+    <circle cx="512" cy="442" r="228" fill="none" stroke="currentColor" stroke-width="56" opacity="0.9"/>
+    <!-- Inner Ring Bevel -->
+    <circle cx="512" cy="442" r="200" fill="none" stroke="url(#{name}-white)" stroke-width="12" opacity="0.2"/>
+    <circle cx="512" cy="442" r="256" fill="none" stroke="url(#${NAME}-black)" stroke-width="12" opacity="0.1"/>
+
+    <!-- Bottom Dots -->
+    <circle cx="396" cy="806" r="50" fill="url(#${NAME}-glyph-gradient)"/>
     <circle cx="512" cy="806" r="50" opacity=".62"/>
     <circle cx="628" cy="806" r="50" opacity=".34"/>
+  </g>
+  <g fill="url(#{name}-white)" opacity="0.2">
+    <circle cx="396" cy="796" r="34"/>
+    <circle cx="512" cy="796" r="34"/>
+    <circle cx="628" cy="796" r="34"/>
   </g>
 """,
     },
     "moos-installer": {
         "tile": "PositiveText",
         "ink": "Background",
-        # Write MoOS onto the disk: one committed arrow landing on one drive.
         "body": """
-  <g class="$INK" fill="currentColor">
+  <!-- Drop Shadow -->
+  <g fill="url(#${NAME}-black)" opacity="0.2" transform="translate(0, 16)">
     <rect x="452" y="196" width="120" height="250" rx="30"/>
-    <path d="M512 686 336 458h352Z" stroke="currentColor" stroke-width="40"
-          stroke-linejoin="round"/>
+    <path d="M512 686 336 458h352Z" stroke="url(#${NAME}-black)" stroke-width="40" stroke-linejoin="round"/>
     <rect x="272" y="760" width="480" height="96" rx="48"/>
+  </g>
+
+  <g class="$INK" fill="currentColor">
+    <rect x="452" y="196" width="120" height="250" rx="30" fill="url(#${NAME}-glyph-gradient)"/>
+    <path d="M512 686 336 458h352Z" fill="url(#${NAME}-glyph-gradient)" stroke="currentColor" stroke-width="40" stroke-linejoin="round"/>
+    <rect x="272" y="760" width="480" height="96" rx="48" fill="url(#${NAME}-glyph-gradient)"/>
+  </g>
+
+  <g fill="url(#{name}-white)" opacity="0.2">
+    <rect x="464" y="208" width="96" height="226" rx="18"/>
+    <path d="M512 636 386 478h252Z"/>
+    <rect x="284" y="772" width="456" height="48" rx="24"/>
   </g>
 """,
     },
     "moos-recovery": {
         "tile": "NegativeText",
         "ink": "Background",
-        # A rescue cross inside a shield: the screen you reach when the machine
-        # needs help, and the one place a red tile is the honest signal.
         "body": """
-  <path class="$INK" fill="currentColor"
+  <!-- Drop Shadow for Shield -->
+  <g fill="url(#${NAME}-black)" opacity="0.25" transform="translate(0, 16)">
+    <path d="M512 176c96 62 196 82 268 88v236c0 200-110 268-268 324-158-56-268-124-268-324V264c72-6 172-26 268-88Z"/>
+  </g>
+
+  <!-- Shield -->
+  <path class="$INK" fill="url(#${NAME}-glyph-gradient)"
         d="M512 176c96 62 196 82 268 88v236c0 200-110 268-268 324-158-56-268-124-268-324V264c72-6 172-26 268-88Z"/>
+  <!-- Shield Edge Highlight -->
+  <path fill="none" stroke="url(#{name}-white)" stroke-width="16" stroke-opacity="0.25"
+        d="M512 192c88 56 182 76 250 82v226c0 186-104 248-250 298-146-50-250-112-250-298V274c68-6 162-26 250-82Z"/>
+
+  <!-- Cross Shadow inside Shield -->
+  <g fill="url(#${NAME}-black)" opacity="0.15" transform="translate(0, 12)">
+    <rect x="470" y="390" width="84" height="224" rx="22"/>
+    <rect x="400" y="460" width="224" height="84" rx="22"/>
+  </g>
+  <!-- Cross -->
   <g class="$TILE" fill="currentColor">
     <rect x="470" y="390" width="84" height="224" rx="22"/>
     <rect x="400" y="460" width="224" height="84" rx="22"/>
   </g>
+  <g fill="url(#{name}-white)" opacity="0.2">
+    <rect x="478" y="398" width="68" height="208" rx="14"/>
+    <rect x="408" y="468" width="208" height="68" rx="14"/>
+  </g>
 """,
     },
     "moos-welcome": {
-        # The one inverted tile in the family: the first screen a new machine
-        # shows gets the brightest plate in the palette, and Text/Background is
-        # the highest-contrast pair MoOS has (9.5:1 at worst).
         "tile": "Text",
         "ink": "Background",
-        # Sunrise over the horizon — the Tidal Horizon language, literally.
         "body": """
-  <g class="$INK" fill="currentColor">
+  <!-- Drop Shadow -->
+  <g fill="url(#${NAME}-black)" opacity="0.15" transform="translate(0, 16)">
     <path d="M320 560a192 192 0 0 1 384 0Z"/>
     <rect x="248" y="560" width="528" height="72" rx="36"/>
+    <g fill="none" stroke="url(#${NAME}-black)" stroke-width="64" stroke-linecap="round">
+      <path d="M294 481 215 452"/>
+      <path d="M379 370 331 301"/>
+      <path d="M512 328v-84"/>
+      <path d="M645 370 693 301"/>
+      <path d="M730 481 809 452"/>
+    </g>
+    <rect x="300" y="686" width="424" height="50" rx="25"/>
+    <rect x="356" y="772" width="312" height="50" rx="25"/>
+  </g>
+
+  <g class="$INK" fill="currentColor">
+    <!-- Sun -->
+    <path d="M320 560a192 192 0 0 1 384 0Z" fill="url(#${NAME}-glyph-gradient)"/>
+    <!-- Horizon -->
+    <rect x="248" y="560" width="528" height="72" rx="36" fill="url(#${NAME}-glyph-gradient)"/>
+    <!-- Rays -->
     <g fill="none" stroke="currentColor" stroke-width="64" stroke-linecap="round" opacity=".6">
       <path d="M294 481 215 452"/>
       <path d="M379 370 331 301"/>
@@ -225,23 +366,35 @@ MARKS: dict[str, dict[str, str]] = {
       <path d="M645 370 693 301"/>
       <path d="M730 481 809 452"/>
     </g>
-    <rect x="300" y="686" width="424" height="50" rx="25" opacity=".5"/>
-    <rect x="356" y="772" width="312" height="50" rx="25" opacity=".32"/>
+    <!-- Ocean Waves -->
+    <rect x="300" y="686" width="424" height="50" rx="25" opacity=".6" fill="url(#${NAME}-glyph-gradient)"/>
+    <rect x="356" y="772" width="312" height="50" rx="25" opacity=".4" fill="url(#${NAME}-glyph-gradient)"/>
+  </g>
+  <!-- Highlights -->
+  <g fill="url(#{name}-white)" opacity="0.2">
+    <path d="M336 544a176 176 0 0 1 352 0Z"/>
+    <rect x="256" y="568" width="512" height="40" rx="20"/>
   </g>
 """,
     },
     "moos-moplayer": {
         "tile": "NeutralText",
         "ink": "Background",
-        # MoPlayer's own commissioned logo is an ember M crossed by a current
-        # (moplayer/assets/branding/mark.png).  The dock mark keeps both, at
-        # weights that survive 16 px: the M solid, the current sweeping under
-        # it.  The ember lives in the tile role, not in a hardcoded orange.
         "body": """
-  <g class="$INK" fill="currentColor">
+  <!-- Drop Shadow -->
+  <g fill="url(#${NAME}-black)" opacity="0.2" transform="translate(0, 16)">
     <path d="M275 654V334c0-38 28-66 66-66h18c24 0 46 13 58 34l84 148 84-148c12-21 34-34 58-34h18c38 0 66 28 66 66v320h-92V434l-92 158c-9 16-24 24-42 24s-33-8-42-24l-92-158v220Z"/>
+    <path d="M252 760c126 58 242 26 330-66 82-86 140-120 202-128" fill="none" stroke="url(#${NAME}-black)" stroke-width="64" stroke-linecap="round"/>
+  </g>
+
+  <g class="$INK" fill="currentColor">
+    <!-- The M -->
+    <path d="M275 654V334c0-38 28-66 66-66h18c24 0 46 13 58 34l84 148 84-148c12-21 34-34 58-34h18c38 0 66 28 66 66v320h-92V434l-92 158c-9 16-24 24-42 24s-33-8-42-24l-92-158v220Z" fill="url(#${NAME}-glyph-gradient)"/>
+    <!-- The Current -->
     <path d="M252 760c126 58 242 26 330-66 82-86 140-120 202-128" fill="none"
-          stroke="currentColor" stroke-width="64" stroke-linecap="round" opacity=".55"/>
+          stroke="currentColor" stroke-width="64" stroke-linecap="round" opacity=".7"/>
+    <path d="M252 760c126 58 242 26 330-66 82-86 140-120 202-128" fill="none"
+          stroke="url(#{name}-white)" stroke-width="16" stroke-linecap="round" opacity=".2"/>
   </g>
 """,
     },
@@ -256,6 +409,7 @@ def icon_svg(name: str, mark: dict[str, str]) -> str:
     body = string.Template(mark["body"].strip("\n")).substitute(
         INK=f"ColorScheme-{mark['ink']}",
         TILE=f"ColorScheme-{mark['tile']}",
+        NAME=name,
     )
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
@@ -270,16 +424,52 @@ def icon_svg(name: str, mark: dict[str, str]) -> str:
     <style id="current-color-scheme" type="text/css">
 {stylesheet}
     </style>
-    <linearGradient id="{name}-sheen" x1="512" y1="72" x2="512" y2="660"
-                    gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".20"/>
+    <linearGradient id="{name}-tile-light" x1="512" y1="72" x2="512" y2="952" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="0.25" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="0.75" stop-color="#000" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="{name}-rim-light" x1="512" y1="72" x2="512" y2="952" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0.1"/>
+      <stop offset="0.8" stop-color="#000" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.6"/>
+    </linearGradient>
+    <radialGradient id="{name}-glow" cx="512" cy="200" r="700" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.3"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="{name}-glyph-gradient" x1="512" y1="200" x2="512" y2="800" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="currentColor" stop-opacity="1.0"/>
+      <stop offset="1" stop-color="currentColor" stop-opacity="0.7"/>
+    </linearGradient>
+    <linearGradient id="{name}-black">
+      <stop offset="0" stop-color="#000"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+    <linearGradient id="{name}-white">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ffffff"/>
     </linearGradient>
   </defs>
+
+  <!-- 3D Drop Shadows (Rendered beneath the tile) -->
+  <rect fill="url(#{name}-black)" opacity="0.05" x="72" y="104" width="880" height="880" rx="232"/>
+  <rect fill="url(#{name}-black)" opacity="0.10" x="72" y="92" width="880" height="880" rx="232"/>
+  <rect fill="url(#{name}-black)" opacity="0.15" x="72" y="80" width="880" height="880" rx="232"/>
+
+  <!-- Base Color -->
   <rect class="ColorScheme-{mark['tile']}" fill="currentColor" {TILE}/>
-  <rect fill="url(#{name}-sheen)" {TILE}/>
-  <rect class="ColorScheme-{mark['ink']}" fill="none" stroke="currentColor"
-        stroke-opacity=".16" stroke-width="10" {RIM}/>
+  
+  <!-- Liquid Glass Shading -->
+  <rect fill="url(#{name}-tile-light)" {TILE}/>
+  <rect fill="url(#{name}-glow)" {TILE}/>
+  
+  <!-- Outer Bevel/Rim -->
+  <rect fill="none" stroke="url(#{name}-rim-light)" stroke-width="12" {RIM}/>
+  <rect fill="none" stroke="url(#{name}-white)" stroke-opacity="0.3" stroke-width="4" x="76" y="76" width="872" height="872" rx="228"/>
+  
 {body}
 </svg>
 """
@@ -397,7 +587,7 @@ def render_palette_matrix(magick: str) -> None:
         subprocess.run([
             magick, "montage", *rows,
             "-tile", "1x", "-geometry", "+0+0",
-            "-background", "#000000", str(PALETTE_PREVIEW),
+            "-background", "#000", str(PALETTE_PREVIEW),
         ], check=True)
 
 

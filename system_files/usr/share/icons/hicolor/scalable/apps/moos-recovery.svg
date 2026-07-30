@@ -18,20 +18,76 @@
       .ColorScheme-NegativeText { color: #ff7d88; }
       .ColorScheme-Accent { color: #4ed7c8; }
     </style>
-    <linearGradient id="moos-recovery-sheen" x1="512" y1="72" x2="512" y2="660"
-                    gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".20"/>
+    <linearGradient id="moos-recovery-tile-light" x1="512" y1="72" x2="512" y2="952" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="0.25" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="0.75" stop-color="#000" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="moos-recovery-rim-light" x1="512" y1="72" x2="512" y2="952" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0.1"/>
+      <stop offset="0.8" stop-color="#000" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.6"/>
+    </linearGradient>
+    <radialGradient id="moos-recovery-glow" cx="512" cy="200" r="700" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.3"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="moos-recovery-glyph-gradient" x1="512" y1="200" x2="512" y2="800" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="currentColor" stop-opacity="1.0"/>
+      <stop offset="1" stop-color="currentColor" stop-opacity="0.7"/>
+    </linearGradient>
+    <linearGradient id="moos-recovery-black">
+      <stop offset="0" stop-color="#000"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+    <linearGradient id="moos-recovery-white">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ffffff"/>
     </linearGradient>
   </defs>
+
+  <!-- 3D Drop Shadows (Rendered beneath the tile) -->
+  <rect fill="url(#moos-recovery-black)" opacity="0.05" x="72" y="104" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-recovery-black)" opacity="0.10" x="72" y="92" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-recovery-black)" opacity="0.15" x="72" y="80" width="880" height="880" rx="232"/>
+
+  <!-- Base Color -->
   <rect class="ColorScheme-NegativeText" fill="currentColor" x="72" y="72" width="880" height="880" rx="232"/>
-  <rect fill="url(#moos-recovery-sheen)" x="72" y="72" width="880" height="880" rx="232"/>
-  <rect class="ColorScheme-Background" fill="none" stroke="currentColor"
-        stroke-opacity=".16" stroke-width="10" x="82" y="82" width="860" height="860" rx="222"/>
-  <path class="ColorScheme-Background" fill="currentColor"
+  
+  <!-- Liquid Glass Shading -->
+  <rect fill="url(#moos-recovery-tile-light)" x="72" y="72" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-recovery-glow)" x="72" y="72" width="880" height="880" rx="232"/>
+  
+  <!-- Outer Bevel/Rim -->
+  <rect fill="none" stroke="url(#moos-recovery-rim-light)" stroke-width="12" x="82" y="82" width="860" height="860" rx="222"/>
+  <rect fill="none" stroke="url(#moos-recovery-white)" stroke-opacity="0.3" stroke-width="4" x="76" y="76" width="872" height="872" rx="228"/>
+  
+  <!-- Drop Shadow for Shield -->
+  <g fill="url(#moos-recovery-black)" opacity="0.25" transform="translate(0, 16)">
+    <path d="M512 176c96 62 196 82 268 88v236c0 200-110 268-268 324-158-56-268-124-268-324V264c72-6 172-26 268-88Z"/>
+  </g>
+
+  <!-- Shield -->
+  <path class="ColorScheme-Background" fill="url(#moos-recovery-glyph-gradient)"
         d="M512 176c96 62 196 82 268 88v236c0 200-110 268-268 324-158-56-268-124-268-324V264c72-6 172-26 268-88Z"/>
+  <!-- Shield Edge Highlight -->
+  <path fill="none" stroke="url(#{name}-white)" stroke-width="16" stroke-opacity="0.25"
+        d="M512 192c88 56 182 76 250 82v226c0 186-104 248-250 298-146-50-250-112-250-298V274c68-6 162-26 250-82Z"/>
+
+  <!-- Cross Shadow inside Shield -->
+  <g fill="url(#moos-recovery-black)" opacity="0.15" transform="translate(0, 12)">
+    <rect x="470" y="390" width="84" height="224" rx="22"/>
+    <rect x="400" y="460" width="224" height="84" rx="22"/>
+  </g>
+  <!-- Cross -->
   <g class="ColorScheme-NegativeText" fill="currentColor">
     <rect x="470" y="390" width="84" height="224" rx="22"/>
     <rect x="400" y="460" width="224" height="84" rx="22"/>
+  </g>
+  <g fill="url(#{name}-white)" opacity="0.2">
+    <rect x="478" y="398" width="68" height="208" rx="14"/>
+    <rect x="408" y="468" width="208" height="68" rx="14"/>
   </g>
 </svg>

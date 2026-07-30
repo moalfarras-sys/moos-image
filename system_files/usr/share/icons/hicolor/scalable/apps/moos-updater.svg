@@ -18,22 +18,77 @@
       .ColorScheme-NegativeText { color: #ff7d88; }
       .ColorScheme-Accent { color: #4ed7c8; }
     </style>
-    <linearGradient id="moos-updater-sheen" x1="512" y1="72" x2="512" y2="660"
-                    gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".20"/>
+    <linearGradient id="moos-updater-tile-light" x1="512" y1="72" x2="512" y2="952" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="0.25" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="0.75" stop-color="#000" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="moos-updater-rim-light" x1="512" y1="72" x2="512" y2="952" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0.1"/>
+      <stop offset="0.8" stop-color="#000" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.6"/>
+    </linearGradient>
+    <radialGradient id="moos-updater-glow" cx="512" cy="200" r="700" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.3"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="moos-updater-glyph-gradient" x1="512" y1="200" x2="512" y2="800" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="currentColor" stop-opacity="1.0"/>
+      <stop offset="1" stop-color="currentColor" stop-opacity="0.7"/>
+    </linearGradient>
+    <linearGradient id="moos-updater-black">
+      <stop offset="0" stop-color="#000"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+    <linearGradient id="moos-updater-white">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ffffff"/>
     </linearGradient>
   </defs>
+
+  <!-- 3D Drop Shadows (Rendered beneath the tile) -->
+  <rect fill="url(#moos-updater-black)" opacity="0.05" x="72" y="104" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-updater-black)" opacity="0.10" x="72" y="92" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-updater-black)" opacity="0.15" x="72" y="80" width="880" height="880" rx="232"/>
+
+  <!-- Base Color -->
   <rect class="ColorScheme-Highlight" fill="currentColor" x="72" y="72" width="880" height="880" rx="232"/>
-  <rect fill="url(#moos-updater-sheen)" x="72" y="72" width="880" height="880" rx="232"/>
-  <rect class="ColorScheme-HighlightedText" fill="none" stroke="currentColor"
-        stroke-opacity=".16" stroke-width="10" x="82" y="82" width="860" height="860" rx="222"/>
-  <g class="ColorScheme-HighlightedText" fill="currentColor">
-    <path d="M512 260A252 252 0 1 1 275 426" fill="none" stroke="currentColor"
-          stroke-width="92"/>
+  
+  <!-- Liquid Glass Shading -->
+  <rect fill="url(#moos-updater-tile-light)" x="72" y="72" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-updater-glow)" x="72" y="72" width="880" height="880" rx="232"/>
+  
+  <!-- Outer Bevel/Rim -->
+  <rect fill="none" stroke="url(#moos-updater-rim-light)" stroke-width="12" x="82" y="82" width="860" height="860" rx="222"/>
+  <rect fill="none" stroke="url(#moos-updater-white)" stroke-opacity="0.3" stroke-width="4" x="76" y="76" width="872" height="872" rx="228"/>
+  
+  <!-- Drop Shadow -->
+  <g fill="url(#moos-updater-black)" opacity="0.2" transform="translate(0, 16)">
+    <path d="M512 260A252 252 0 1 1 275 426" fill="none" stroke="url(#moos-updater-black)" stroke-width="92"/>
     <path d="M512 186v148l130-74Z"/>
     <rect x="464" y="372" width="96" height="190" rx="20"/>
-    <path d="M512 684 382 530h260Z" stroke="currentColor" stroke-width="36"
-          stroke-linejoin="round"/>
+    <path d="M512 684 382 530h260Z" stroke="url(#moos-updater-black)" stroke-width="36" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Ring and Arrow head -->
+  <g class="ColorScheme-HighlightedText" fill="currentColor">
+    <!-- Ring -->
+    <path d="M512 260A252 252 0 1 1 275 426" fill="none" stroke="currentColor" stroke-width="92" opacity="0.85"/>
+    <path d="M512 260A252 252 0 1 1 275 426" fill="none" stroke="url(#{name}-white)" stroke-width="24" opacity="0.2"/>
+    <!-- Outer Triangle -->
+    <path d="M512 186v148l130-74Z" fill="url(#moos-updater-glyph-gradient)"/>
+  </g>
+
+  <!-- Arrow Body -->
+  <g class="ColorScheme-HighlightedText" fill="currentColor">
+    <rect x="464" y="372" width="96" height="190" rx="20" fill="url(#moos-updater-glyph-gradient)"/>
+    <path d="M512 684 382 530h260Z" fill="url(#moos-updater-glyph-gradient)" stroke="currentColor" stroke-width="36" stroke-linejoin="round"/>
+  </g>
+  
+  <g fill="url(#{name}-white)" opacity="0.2">
+    <rect x="472" y="380" width="80" height="174" rx="12"/>
+    <path d="M512 654 402 546h220Z"/>
   </g>
 </svg>
