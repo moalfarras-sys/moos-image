@@ -10,11 +10,9 @@
       <feDropShadow dx="0" dy="24" stdDeviation="28" flood-opacity=".15"/>
     </filter>
   </defs>
-  
   <rect x="72" y="72" width="880" height="880" rx="232" fill="currentColor" class="ColorScheme-Background" filter="url(#shadow)"/>
   <rect x="72" y="72" width="880" height="880" rx="232" fill="none" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="8" stroke-opacity="0.3"/>
-  
-  <path d="M300 372h424v310H300Z" fill="currentColor" class="ColorScheme-Highlight" fill-opacity="0.1" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="38" stroke-linejoin="round"/>
+  <path d="M300 372h424v310H300Z" fill="currentColor" fill-opacity="0.1" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="38" stroke-linejoin="round"/>
   <path d="M354 372v-74h316v74" fill="none" stroke="currentColor" class="ColorScheme-Text" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M512 420v150m-66-62 66 66 66-66" fill="none" stroke="currentColor" class="ColorScheme-Text" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M372 730h280" fill="none" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="34" stroke-linecap="round"/>

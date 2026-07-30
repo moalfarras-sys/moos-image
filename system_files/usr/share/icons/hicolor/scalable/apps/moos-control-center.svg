@@ -12,8 +12,8 @@
   </defs>
   <rect x="72" y="72" width="880" height="880" rx="232" fill="currentColor" class="ColorScheme-Background" filter="url(#shadow)"/>
   <rect x="72" y="72" width="880" height="880" rx="232" fill="none" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="8" stroke-opacity="0.3"/>
-  
-  <circle cx="512" cy="512" r="206" fill="currentColor" class="ColorScheme-Text" fill-opacity="0.1" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="34"/>
+  <circle cx="512" cy="512" r="206" fill="currentColor" class="ColorScheme-Text" fill-opacity="0.1"/>
+  <circle cx="512" cy="512" r="206" fill="none" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="34"/>
   <circle cx="512" cy="512" r="132" fill="none" stroke="currentColor" class="ColorScheme-Text" stroke-opacity=".30" stroke-width="26" stroke-dasharray="54 32"/>
   <circle cx="512" cy="512" r="58" fill="currentColor" class="ColorScheme-Highlight"/>
   <path d="M512 264v82M512 678v82M264 512h82M678 512h82" stroke="currentColor" class="ColorScheme-Text" stroke-width="32" stroke-linecap="round"/>

@@ -10,13 +10,14 @@
       <feDropShadow dx="0" dy="24" stdDeviation="28" flood-opacity=".15"/>
     </filter>
   </defs>
-  
   <rect x="72" y="72" width="880" height="880" rx="232" fill="currentColor" class="ColorScheme-Background" filter="url(#shadow)"/>
   <rect x="72" y="72" width="880" height="880" rx="232" fill="none" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="8" stroke-opacity="0.3"/>
-  
   <rect x="278" y="324" width="388" height="286" rx="58" fill="none" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="38"/>
   <path d="M422 660h100l18 64H402l20-64Z" fill="currentColor" class="ColorScheme-Text"/>
-  <rect x="606" y="410" width="150" height="326" rx="48" fill="currentColor" class="ColorScheme-Background" stroke="currentColor" class="ColorScheme-Text" stroke-width="28"/>
+  
+  <rect x="606" y="410" width="150" height="326" rx="48" fill="currentColor" class="ColorScheme-Background"/>
+  <rect x="606" y="410" width="150" height="326" rx="48" fill="none" stroke="currentColor" class="ColorScheme-Text" stroke-width="28"/>
+  
   <path d="M352 526c78-76 136 78 222 0 62-56 102-38 142-10" fill="none" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="32" stroke-linecap="round"/>
   <circle cx="700" cy="654" r="13" fill="currentColor" class="ColorScheme-Highlight"/>
 </svg>

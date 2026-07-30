@@ -12,8 +12,7 @@
   </defs>
   <rect x="72" y="72" width="880" height="880" rx="232" fill="currentColor" class="ColorScheme-Background" filter="url(#shadow)"/>
   <rect x="72" y="72" width="880" height="880" rx="232" fill="none" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="8" stroke-opacity="0.3"/>
-  
-  <path d="M512 256c78 64 156 78 228 84v170c0 126-82 218-228 268-146-50-228-142-228-268V340c72-6 150-20 228-84Z" fill="currentColor" class="ColorScheme-Highlight" fill-opacity="0.1" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="38" stroke-linejoin="round"/>
+  <path d="M512 256c78 64 156 78 228 84v170c0 126-82 218-228 268-146-50-228-142-228-268V340c72-6 150-20 228-84Z" fill="currentColor" fill-opacity="0.1" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="38" stroke-linejoin="round"/>
   <path d="M360 526h82l34-78 62 166 44-88h82" fill="none" stroke="currentColor" class="ColorScheme-Text" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
   <circle cx="512" cy="360" r="26" fill="currentColor" class="ColorScheme-Text"/>
 </svg>
