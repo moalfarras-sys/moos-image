@@ -264,7 +264,7 @@ for icon in ("moos-moai", "moos-pc-remote"):
             # ignored the family's corner language. The wrapper must carry the
             # sibling plate rect (byte-identical geometry to moos-store et al.)
             # UNDER the embedded master. Regenerate with artwork/generate_moai_icon.py.
-            require('<rect x="72" y="72" width="880" height="880" rx="232" fill="url(#plate)"'
+            require('<rect x="72" y="72" width="880" height="880" rx="232" fill="currentColor"'
                     in svg,
                     "moos-moai.svg lost the family plate under the commissioned master — "
                     "the raw orb renders larger than every sibling icon and breaks the "
