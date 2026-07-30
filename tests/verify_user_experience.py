@@ -2393,7 +2393,15 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=26" in apply_theme_code, "MoOS visual schema must be revision 26")
+require("THEME_REV=27" in apply_theme_code, "MoOS visual schema must be revision 27")
+require(
+    "local_icons=" in apply_theme_code
+    and "moos-*" in apply_theme_code
+    and "MoOSUI2*" in apply_theme_code
+    and "icon-theme.cache" in apply_theme_code,
+    "THEME_REV 27 must purge ~/.local/share/icons/MoOSUI2* and hicolor moos-* overrides "
+    "so baked app marks from /usr win over live-preview residue",
+)
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD

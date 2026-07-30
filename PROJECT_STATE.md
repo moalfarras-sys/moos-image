@@ -4,27 +4,33 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-30, later session (the **Tidal Horizon** revision
-(THEME_REV=25) is now **shipped and booted**: the machine runs signed
-`moos-nvidia` **44.20260730.478**, digest `sha256:924414e04dfb…`, with the
-`.477` rollback deployment intact — verified live via `rpm-ostree status`.
-The shipped copy of `tests/post-update-check.sh` returned **46 passed /
-2 failed** on the booted image, and both failures are the expected
-working-tree preview residue (home icon override + `org.moos.brand`
-plasmoid override), not image defects. The follow-up **icon-bridge round**
-(THEME_REV=26, per-palette symbolic icon overlays + Launcher/control polish)
-is implemented in the working tree on `product/tidal-horizon-2026-07-30`
-with every repo gate green, but is not yet committed, published or booted.
-The **application-mark round** below (the nine first-party app icons redrawn
-and baked per palette, Mo AI reseated) sits on top of it in the same working
-tree, all 40 gate files green. The design system remains
+Last updated: 2026-07-30, evening session (the machine currently boots signed
+`moos-nvidia` **44.20260730.486**, digest `sha256:91753fb5f00b…`. The
+**icon-bridge** (THEME_REV=26) and **application-mark** rounds are on
+`main`; **THEME_REV=27** is the follow-up that makes them reach existing
+users. Live diagnosis found the dock still resolving first-party marks from
+`~/.local/share/icons/MoOSUI2*` — preview residue painted with Breeze's
+`#3daee9` — while every gate on `/usr` stayed green. THEME_REV=27 purges
+those home overrides (and `hicolor/**/moos-*`) once on apply so the
+palette-baked marks from the image win. Design system remains
 **MoOS UI — Liquid Glass**).
 
 > **Read [`skills/moos-engineering/SKILL.md`](skills/moos-engineering/SKILL.md) first —
 > it is mandatory for every agent working here.**
 
-> **Application-mark round — 2026-07-30, working tree, on top of the
-> icon-bridge round.** The symbolic overlays gave the *interface* a palette;
+> **THEME_REV=27 — home icon override purge, 2026-07-30 evening.** The
+> redrawn marks and per-palette bakes were already on `main`, but existing
+> sessions never saw them: `~/.local/share/icons` outranks `/usr`, and a
+> live-preview tree left the retired geometry (often still Breeze
+> `#3daee9`) in place forever. `moos-apply-theme` now deletes
+> `~/.local/share/icons/MoOSUI2*` and every `moos-*` / `moplayer.*` under
+> home `hicolor` once per this revision, then rebuilds ksycoca. The UX
+> gate asserts the purge. Until the signed image that carries THEME_REV=27
+> is booted, this machine may still wear a *fresh* home preview of the new
+> marks (MoOS teal / palette-baked) so the dock is honest during the wait;
+> that preview is exactly what THEME_REV=27 clears after reboot.
+>
+> **Application-mark round — 2026-07-30, on `main` (baked per palette).** The symbolic overlays gave the *interface* a palette;
 > the nine first-party **application marks** still did not have one. They are
 > redrawn from scratch in `artwork/generate_moos_app_icons.py` (one 880 px
 > squircle on the 1024 canvas, glyph inside a 640 px safe area, every load-

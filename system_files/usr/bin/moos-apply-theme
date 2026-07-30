@@ -34,7 +34,12 @@ set -uo pipefail
 # 26: palette-matched Tidal Cut icon overlays plus the refined Launcher/control
 #     states. Re-apply once so existing users stop carrying the shared light
 #     symbolic fallback in dark/accent themes.
-THEME_REV=26
+# 27: the nine first-party application marks are redrawn and baked per palette.
+#     Existing sessions must drop ~/.local/share/icons overrides of those marks
+#     (and of MoOSUI2*/hicolor moos-* trees left by live previews) — otherwise
+#     XDG_DATA_HOME keeps showing the retired Breeze-blue geometry forever while
+#     every gate on /usr stays green.
+THEME_REV=27
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -640,6 +645,28 @@ rm -rf "${cache_dir}/qmlcache" \
        "${cache_dir}/kwin/qmlcache" 2>/dev/null || true
 find "${cache_dir}" -mindepth 2 -maxdepth 2 -type d -name qmlcache \
     -exec rm -rf -- {} + 2>/dev/null || true
+
+# Home icon overrides are the SAME class of trap as ~/.config/kdedefaults: they
+# outrank /usr in XDG_DATA_DIRS, and a live preview (or an earlier THEME_REV that
+# planted a fallback) leaves them forever. THEME_REV 27 ships the redrawn
+# first-party application marks baked per palette; if the home tree still holds
+# the retired geometry — often still painted with Breeze's #3daee9 — the dock
+# and launcher keep showing that while every image gate stays green. Drop only
+# the MoOS-owned overlay trees and moos-* / moplayer names under hicolor; never
+# touch third-party icon themes the user may have installed.
+local_icons="${XDG_DATA_HOME:-$HOME/.local/share}/icons"
+if [ -d "$local_icons" ]; then
+    find "$local_icons" -maxdepth 1 -type d \( \
+            -name 'MoOSUI2' -o -name 'MoOSUI2Light' -o -name 'MoOSUI2*' \
+        \) -exec rm -rf -- {} + 2>/dev/null || true
+    find "$local_icons/hicolor" -type f \( \
+            -name 'moos-*' -o -name 'moplayer.*' -o -name 'org.moos.*' \
+        \) -delete 2>/dev/null || true
+    # Empty size dirs left behind are harmless; the icon cache must not keep
+    # pointing at files we just removed.
+    rm -f "${local_icons}/hicolor/icon-theme.cache" \
+          "${cache_dir}/icon-cache.kcache" 2>/dev/null || true
+fi
 
 # ksycoca — the menu/launcher/service database — is the SAME mtime trap one level
 # up: OSTree pins every /usr mtime to the epoch, so a .desktop that was renamed
