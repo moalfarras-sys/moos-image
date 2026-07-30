@@ -248,10 +248,34 @@ if drm_wait.is_file():
     drm_wait_text = drm_wait.read_text(encoding="utf-8")
     require('"$drm_dir"/card*' in drm_wait_text and "MOOS_DRM_WAIT_STEPS" in drm_wait_text,
             "the login DRM preflight is not card-number-agnostic and bounded")
+    require("MOOS_PLASMALOGIN_CONF" in drm_wait_text
+            and "WallpaperPluginId=org.kde.hunyango" in drm_wait_text
+            and ".moos-legacy-hunyango" in drm_wait_text,
+            "the login preflight cannot repair the exact stock config that "
+            "outranks MoOS's greeter drop-in")
 require(drm_dropin.is_file()
         and "ExecStartPre=/usr/libexec/moos-wait-drm"
         in drm_dropin.read_text(encoding="utf-8"),
         "Plasma Login Manager is not wired to wait for a usable DRM card")
+# /etc/plasmalogin.conf outranks every layer MoOS ships, so no ACTIVE key in it may
+# name a greeter surface. Its mere EXISTENCE is not the defect and asserting that
+# would fail every build: plasma-login-manager ships the path as a fully-commented
+# template that decides nothing. What masked the MoOS greeter on the running desktop
+# was a KCM write turning one of these keys on.
+_login_conf = Path("/etc/plasmalogin.conf")
+if _login_conf.is_file():
+    _login_active = [
+        line.strip() for line in _login_conf.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith(("#", ";", "["))
+    ]
+    _login_masking = [
+        line for line in _login_active
+        if line.split("=", 1)[0].strip() in
+        {"WallpaperPluginId", "Theme", "Background", "Image", "ShowClock"}
+    ]
+    require(not _login_masking,
+            "/etc/plasmalogin.conf carries an active greeter key "
+            f"({_login_masking}) that outranks the MoOS login layers")
 
 # The static I/O-scheduler udev rule (the build-time half of hardware adaptation)
 # must ship and pick a scheduler per device type.
@@ -529,6 +553,21 @@ if "plasmalogin" in dm_target:
     login_conf = config(login_defaults_text)
     require("WallpaperPluginId" in login_conf,
             "the login screen has no MoOS wallpaper configured — it would show Plasma's default")
+    # login_conf, NOT login_defaults_text: this file DOCUMENTS the dangling Fedora path
+    # it replaced, because naming what was wrong is the point of the comment. Read raw,
+    # the paragraph explaining the fix trips the gate enforcing it — which is exactly
+    # what happened, twice, on the first CI runs after this gate landed. That is the
+    # reason config() exists at the top of this file; use it.
+    require("/wallpapers/Fedora" not in login_conf,
+            "the login defaults still reference /usr/share/wallpapers/Fedora, which this "
+            "build deletes — the first screen after boot would resolve to nothing")
+    _weak_dir = Path("/usr/lib/plasmalogin/plasmalogin.conf.d")
+    _weak_conf = config("\n".join(
+        p.read_text(encoding="utf-8") for p in sorted(_weak_dir.glob("*.conf"))
+    )) if _weak_dir.is_dir() else ""
+    require("WallpaperPluginId" not in _weak_conf,
+            "a greeter key is duplicated into /usr/lib/plasmalogin/plasmalogin.conf.d, the "
+            "lowest of the four config layers — one value, one file")
     effective_login_conf = login_conf
     etc_login_dir = Path("/etc/plasmalogin.conf.d")
     if etc_login_dir.exists():
@@ -650,6 +689,27 @@ if "plasmalogin" in dm_target:
     require(re.search(r"^ShowClock=false", login_conf, re.MULTILINE),
             "Plasma Login Manager must present the password surface directly; "
             "its idle clock page is a second login layout and can overlap branding")
+    # The greeter account is a system account nobody logs into, so its Plasma config is
+    # image state. Left unprovisioned it carried a LIGHT palette under a DARK wallpaper on
+    # the flagship machine, and the stock chrome (PlasmaExtras.PasswordField, the breeze
+    # components) has no other source of colour.
+    greeter_palette = Path("/usr/share/moos/plasmalogin/kdeglobals")
+    greeter_tmpfiles = Path("/usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf")
+    require(greeter_palette.is_file() and "ColorScheme=MoOSUI2Dark" in greeter_palette.read_text(encoding="utf-8"),
+            "the greeter account has no canonical MoOS palette in /usr — whatever its first "
+            "run happened to write would decide the login chrome's colours")
+    _greeter_rules = greeter_tmpfiles.read_text(encoding="utf-8") if greeter_tmpfiles.is_file() else ""
+    require("C+ /var/lib/plasmalogin/.config/kdeglobals" in _greeter_rules,
+            "nothing materialises the greeter account's palette into /var/lib/plasmalogin, so "
+            "it stays unreproducible local state")
+    # The removal half is not decoration: `C+` does NOT replace an existing file
+    # (measured on systemd 259.8), so without a boot-only `r!` the rule is a no-op on
+    # exactly the machines that already have the wrong palette — which is every machine
+    # that has ever shown a greeter.
+    require("r! /var/lib/plasmalogin/.config/kdeglobals" in _greeter_rules,
+            "the greeter palette rule has no `r!` removal, so `C+` will silently leave a "
+            "pre-existing wrong palette in place on every already-installed machine")
+
 else:
     # There is deliberately no SDDM branch any more. SDDM is not installed on this
     # base (plasmalogin replaced it), the dead theme tree it kept alive is gone,
@@ -1096,17 +1156,42 @@ require(welcome.is_file() and welcome_launcher.is_file()
         and firstrun.is_file() and firstrun_desktop.is_file(),
         "the integrated Welcome / installer first-run chain is incomplete")
 if welcome.is_file():
-    _wq = text(str(welcome))
+    _wq = source(text(str(welcome)))
     require("handoffToInstaller" in _wq and "moos://installer/open" in _wq
             and "onTriggered: Qt.quit()" in _wq,
             "the live Welcome must close after handing off to the installer")
-    require("Object.keys(win.picks)" in _wq and "moos://store/install/" in _wq
-            and 'ln === "DONE"' in _wq and 'ln.indexOf("FAIL")' in _wq,
-            "Welcome app choices are not wired to the real install/status path")
+    require("Object.keys(win.picks)" in _wq
+            and "MoosStore.installApps(ids)" in _wq
+            and 'readonly property string jobPath: win.cacheDir + "/job.json"' in _wq,
+            "Welcome app choices are not wired to the private Mo Store transaction")
+    require("moos://store/install/" not in _wq,
+            "Welcome still authorizes installation through the public moos: URL scheme")
+    for _token in (
+        "previousJobId",
+        "requestEpoch",
+        "matchesInstallJob(document)",
+        'document.action !== "install"',
+        "document.started_at",
+        "doc.job_id === win.previousJobId",
+        "items.length !== win.queue.length",
+        "items[j].id === win.queue[i]",
+        "started + 1000 < win.requestEpoch",
+    ):
+        require(_token in _wq,
+                f"Welcome does not correlate job.json to its install request ({_token} missing)")
+    require('doc.state === "success"' in _wq
+            and 'doc.state === "partial"' in _wq
+            and 'doc.state === "failed"' in _wq
+            and "installHadFailures" in _wq,
+            "Welcome does not surface real success/partial/failure state from job.json")
 if welcome_launcher.is_file():
     _wl = text(str(welcome_launcher))
-    require('rd.live.image' in _wl and '--live="$LIVE"' in _wl,
+    require('rd.live.image' in _wl and '--live="$LIVE"' in _wl
+            and '--cache="$CACHEDIR"' in _wl,
             "the Welcome launcher does not distinguish live and installed sessions")
+    require("/usr/bin/moos-qml-shell" in _wl
+            and "--app-id org.moos.welcome" in _wl,
+            "Welcome does not run under the app id that enables its private StoreBridge")
 if firstrun.is_file() and firstrun_desktop.is_file():
     _fr = text(str(firstrun))
     _frd = text(str(firstrun_desktop))
