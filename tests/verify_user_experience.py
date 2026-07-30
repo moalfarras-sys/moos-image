@@ -258,17 +258,23 @@ for icon in ("moos-moai", "moos-pc-remote"):
             if master_png.is_file():
                 require(_b64.b64encode(master_png.read_bytes()).decode() in svg,
                         "moos-moai.svg must embed the exact mo-ai-1024.png master, byte for byte")
-            # 2026-07-30: the master is SEATED on the family squircle. Raw, the
-            # orb's solid alpha spans 92% of its canvas while every sibling sits
-            # on the shared plate at 86% — Mo AI bulged out of the dock row and
-            # ignored the family's corner language. The wrapper must carry the
-            # sibling plate rect (byte-identical geometry to moos-store et al.)
-            # UNDER the embedded master. Regenerate with artwork/generate_moai_icon.py.
-            require('<rect x="72" y="72" width="880" height="880" rx="232" fill="currentColor"'
-                    in svg,
-                    "moos-moai.svg lost the family plate under the commissioned master — "
-                    "the raw orb renders larger than every sibling icon and breaks the "
-                    "dock's size grid (regenerate with artwork/generate_moai_icon.py)")
+            # 2026-07-30: Mo AI is the one mark with NO tile — the siblings' tiles
+            # are re-inked for all 16 palettes and this artwork carries its own
+            # light, so a plate under it would put a second, competing colour
+            # behind the assistant on every theme. What it still owes the family
+            # is optical weight: the raw master's solid alpha spans 949 of its
+            # 1024 canvas against the siblings' 880 px plate, and shipped raw it
+            # bulged out of the dock row. The wrapper must scale it onto that
+            # span. tests/test_moos_app_icons.py measures the rendered footprint;
+            # this is the markup half. Regenerate with artwork/generate_moai_icon.py.
+            require('<image x="37" y="37" width="950" height="950"' in svg,
+                    "moos-moai.svg no longer seats the commissioned master on the family's "
+                    "880px optical span — the raw orb renders larger than every sibling and "
+                    "breaks the dock's size grid (regenerate with artwork/generate_moai_icon.py)")
+            require('<rect' not in svg,
+                    "moos-moai.svg grew a tile. The commissioned orb is deliberately "
+                    "tile-less: every sibling plate is re-inked per palette and a plate "
+                    "here would fight the artwork on every theme")
         else:
             require("<text" not in svg and "<image" not in svg,
                     f"{icon} must remain original vector geometry with no text or embedded bitmap")

@@ -1,23 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- MoOS UI — Liquid Glass application mark: moos-control-center.
+       Original vector geometry. Every ink is a KDE colour role, and MoOS bakes
+       one copy of this file per palette icon theme — MoOS pins
+       FollowsColorScheme=false, so nothing re-colours it at runtime. The
+       stylesheet below is the MoOS default palette (MoOSUI2Dark) and is what
+       every renderer outside those themes shows.
+       Regenerate with artwork/generate_moos_app_icons.py. -->
   <defs>
-    <style type="text/css" id="current-color-scheme">
-      .ColorScheme-Text { color:#232629; }
-      .ColorScheme-Highlight { color:#3daee9; }
-      .ColorScheme-Background { color:#eff0f1; }
+    <style id="current-color-scheme" type="text/css">
+      .ColorScheme-Text { color: #e8f1ef; }
+      .ColorScheme-Background { color: #1d2529; }
+      .ColorScheme-Highlight { color: #4ed7c8; }
+      .ColorScheme-HighlightedText { color: #142220; }
+      .ColorScheme-PositiveText { color: #69d9a5; }
+      .ColorScheme-NeutralText { color: #f4c56a; }
+      .ColorScheme-NegativeText { color: #ff7d88; }
+      .ColorScheme-Accent { color: #4ed7c8; }
     </style>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
-      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-opacity=".15"/>
-    </filter>
+    <linearGradient id="moos-control-center-sheen" x1="512" y1="72" x2="512" y2="660"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".20"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
   </defs>
-  <rect x="72" y="72" width="880" height="880" rx="232" fill="currentColor" class="ColorScheme-Background" filter="url(#shadow)"/>
-  <rect x="72" y="72" width="880" height="880" rx="232" fill="none" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="8" stroke-opacity="0.3"/>
-  <circle cx="512" cy="512" r="206" fill="currentColor" class="ColorScheme-Text" fill-opacity="0.1"/>
-  <circle cx="512" cy="512" r="206" fill="none" stroke="currentColor" class="ColorScheme-Highlight" stroke-width="34"/>
-  <circle cx="512" cy="512" r="132" fill="none" stroke="currentColor" class="ColorScheme-Text" stroke-opacity=".30" stroke-width="26" stroke-dasharray="54 32"/>
-  <circle cx="512" cy="512" r="58" fill="currentColor" class="ColorScheme-Highlight"/>
-  <path d="M512 264v82M512 678v82M264 512h82M678 512h82" stroke="currentColor" class="ColorScheme-Text" stroke-width="32" stroke-linecap="round"/>
-  <circle cx="660" cy="364" r="30" fill="currentColor" class="ColorScheme-Highlight"/>
-  <circle cx="660" cy="660" r="30" fill="currentColor" class="ColorScheme-Text"/>
-  <circle cx="364" cy="660" r="30" fill="currentColor" class="ColorScheme-Highlight"/>
+  <rect class="ColorScheme-Highlight" fill="currentColor" x="72" y="72" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-control-center-sheen)" x="72" y="72" width="880" height="880" rx="232"/>
+  <rect class="ColorScheme-HighlightedText" fill="none" stroke="currentColor"
+        stroke-opacity=".16" stroke-width="10" x="82" y="82" width="860" height="860" rx="222"/>
+  <g class="ColorScheme-HighlightedText" fill="currentColor">
+    <rect x="268" y="282" width="488" height="92" rx="46" opacity=".34"/>
+    <rect x="268" y="466" width="488" height="92" rx="46" opacity=".34"/>
+    <rect x="268" y="650" width="488" height="92" rx="46" opacity=".34"/>
+    <rect x="268" y="282" width="368" height="92" rx="46"/>
+    <rect x="268" y="466" width="128" height="92" rx="46"/>
+    <rect x="268" y="650" width="288" height="92" rx="46"/>
+    <circle cx="636" cy="328" r="74"/>
+    <circle cx="396" cy="512" r="74"/>
+    <circle cx="556" cy="696" r="74"/>
+  </g>
+  <g class="ColorScheme-Highlight" fill="currentColor">
+    <circle cx="636" cy="328" r="34"/>
+    <circle cx="396" cy="512" r="34"/>
+    <circle cx="556" cy="696" r="34"/>
+  </g>
 </svg>

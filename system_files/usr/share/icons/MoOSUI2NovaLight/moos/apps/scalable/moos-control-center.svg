@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- MoOS UI — Liquid Glass application mark: moos-control-center.
+       Original vector geometry. Every ink is a KDE colour role, and MoOS bakes
+       one copy of this file per palette icon theme — MoOS pins
+       FollowsColorScheme=false, so nothing re-colours it at runtime. The
+       stylesheet below is the MoOS default palette (MoOSUI2Dark) and is what
+       every renderer outside those themes shows.
+       Regenerate with artwork/generate_moos_app_icons.py. -->
+  <defs>
+    <style id="current-color-scheme" type="text/css">.ColorScheme-Text { color:#17302E; }.ColorScheme-Background{ color:#C6DCE9; }.ColorScheme-Highlight{ color:#0E63C4; }.ColorScheme-HighlightedText{ color:#F7FBFF; }.ColorScheme-PositiveText{ color:#086B4B; }.ColorScheme-NeutralText{ color:#7B520F; }.ColorScheme-NegativeText{ color:#A52F3F; }.ColorScheme-Accent{ color:#0E63C4; }</style>
+    <linearGradient id="moos-control-center-sheen" x1="512" y1="72" x2="512" y2="660"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".20"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect class="ColorScheme-Highlight" fill="currentColor" x="72" y="72" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-control-center-sheen)" x="72" y="72" width="880" height="880" rx="232"/>
+  <rect class="ColorScheme-HighlightedText" fill="none" stroke="currentColor"
+        stroke-opacity=".16" stroke-width="10" x="82" y="82" width="860" height="860" rx="222"/>
+  <g class="ColorScheme-HighlightedText" fill="currentColor">
+    <rect x="268" y="282" width="488" height="92" rx="46" opacity=".34"/>
+    <rect x="268" y="466" width="488" height="92" rx="46" opacity=".34"/>
+    <rect x="268" y="650" width="488" height="92" rx="46" opacity=".34"/>
+    <rect x="268" y="282" width="368" height="92" rx="46"/>
+    <rect x="268" y="466" width="128" height="92" rx="46"/>
+    <rect x="268" y="650" width="288" height="92" rx="46"/>
+    <circle cx="636" cy="328" r="74"/>
+    <circle cx="396" cy="512" r="74"/>
+    <circle cx="556" cy="696" r="74"/>
+  </g>
+  <g class="ColorScheme-Highlight" fill="currentColor">
+    <circle cx="636" cy="328" r="34"/>
+    <circle cx="396" cy="512" r="34"/>
+    <circle cx="556" cy="696" r="34"/>
+  </g>
+</svg>

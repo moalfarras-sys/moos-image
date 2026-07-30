@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- MoOS UI — Liquid Glass application mark: moos-pc-remote.
+       Original vector geometry. Every ink is a KDE colour role, and MoOS bakes
+       one copy of this file per palette icon theme — MoOS pins
+       FollowsColorScheme=false, so nothing re-colours it at runtime. The
+       stylesheet below is the MoOS default palette (MoOSUI2Dark) and is what
+       every renderer outside those themes shows.
+       Regenerate with artwork/generate_moos_app_icons.py. -->
+  <defs>
+    <style id="current-color-scheme" type="text/css">.ColorScheme-Text { color:#EAF2FF; }.ColorScheme-Background{ color:#111A2E; }.ColorScheme-Highlight{ color:#6366F1; }.ColorScheme-HighlightedText{ color:#020617; }.ColorScheme-PositiveText{ color:#34D399; }.ColorScheme-NeutralText{ color:#FBBF24; }.ColorScheme-NegativeText{ color:#FB7185; }.ColorScheme-Accent{ color:#6366F1; }</style>
+    <linearGradient id="moos-pc-remote-sheen" x1="512" y1="72" x2="512" y2="660"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".20"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect class="ColorScheme-Highlight" fill="currentColor" x="72" y="72" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-pc-remote-sheen)" x="72" y="72" width="880" height="880" rx="232"/>
+  <rect class="ColorScheme-HighlightedText" fill="none" stroke="currentColor"
+        stroke-opacity=".16" stroke-width="10" x="82" y="82" width="860" height="860" rx="222"/>
+  <g class="ColorScheme-HighlightedText" fill="currentColor">
+    <rect x="228" y="230" width="520" height="376" rx="64"/>
+    <rect x="433" y="606" width="110" height="56"/>
+    <rect x="352" y="662" width="272" height="62" rx="31"/>
+  </g>
+  <rect class="ColorScheme-Highlight" fill="currentColor" x="296" y="298" width="384" height="240" rx="28"/>
+  <rect class="ColorScheme-Highlight" fill="currentColor" x="552" y="422" width="268" height="404" rx="80"/>
+  <rect class="ColorScheme-HighlightedText" fill="currentColor" x="576" y="446" width="220" height="356" rx="58"/>
+  <g class="ColorScheme-Highlight" fill="currentColor">
+    <rect x="656" y="488" width="60" height="18" rx="9"/>
+    <rect x="646" y="742" width="80" height="18" rx="9"/>
+  </g>
+</svg>

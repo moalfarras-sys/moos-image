@@ -14,6 +14,7 @@ import importlib.util
 import io
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -264,35 +265,107 @@ class MoOSSymbolicGtkResolverTests(unittest.TestCase):
                     )
 
 
+def _isolated_kde_environment(runtime: Path) -> dict[str, str]:
+    """An XDG profile with the repository as its only icon data root.
+
+    KIconLoader reads both the active icon theme from kdeglobals and the system
+    data roots.  Merely prepending the checkout is insufficient: under a booted
+    MoOSUI2Light session it searches that installed theme first and returns
+    /usr/share/icons/MoOSUI2Light, so a stale installed byte would pass a gate
+    about the repository.  offscreen keeps this runnable with no display.
+    """
+    environment = os.environ.copy()
+    environment.update({
+        "HOME": str(runtime / "home"),
+        "XDG_CACHE_HOME": str(runtime / "cache"),
+        "XDG_CONFIG_HOME": str(runtime / "config"),
+        "XDG_CONFIG_DIRS": str(runtime / "config-dirs"),
+        "XDG_DATA_HOME": str(runtime / "data"),
+        "XDG_DATA_DIRS": str(ROOT / "system_files/usr/share"),
+        "QT_QPA_PLATFORM": "offscreen",
+    })
+    for key in (
+        "HOME", "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_CONFIG_DIRS", "XDG_DATA_HOME",
+    ):
+        Path(environment[key]).mkdir(parents=True, exist_ok=True)
+    return environment
+
+
+@unittest.skipUnless(shutil.which("kiconfinder6"), "kiconfinder6 is required")
+class MoOSAppMarkThemeResolverTests(unittest.TestCase):
+    """Ask KDE which file it would paint, once per palette.
+
+    This is the empirical half of "the app icons follow the theme".  MoOS pins
+    FollowsColorScheme=false and bakes one copy of every mark per palette icon
+    theme, so the claim is only true if KDE resolves moos-store to the ACTIVE
+    theme's copy — not to hicolor's default-teal master, and not to Colloid's.
+    Nothing about the markup can prove that; only the resolver can.
+    """
+
+    MARKS = ("moos-store", "moos-control-center", "moos-moplayer", "moos-welcome")
+    THEMES = ("MoOSUI2Forge", "MoOSUI2NovaLight", "MoOSUI2Amethyst", "MoOSUI2Daylight")
+
+    @staticmethod
+    def _scheme_accent(theme: str) -> str:
+        scheme = (
+            ROOT / f"system_files/usr/share/color-schemes/{theme}.colors"
+        ).read_text(encoding="utf-8")
+        selection = scheme.split("[Colors:Selection]", 1)[1]
+        red, green, blue = (
+            int(part) for part in
+            re.search(r"BackgroundNormal=([\d,]+)", selection)[1].split(",")[:3]
+        )
+        return f"#{red:02x}{green:02x}{blue:02x}"
+
+    def test_each_palette_theme_resolves_to_its_own_baked_marks(self) -> None:
+        accents: dict[str, str] = {}
+        for theme in self.THEMES:
+            expected_accent = self._scheme_accent(theme)
+            with tempfile.TemporaryDirectory(prefix="moos-app-mark-kde-") as runtime:
+                environment = _isolated_kde_environment(Path(runtime))
+                (Path(environment["XDG_CONFIG_HOME"]) / "kdeglobals").write_text(
+                    f"[Icons]\nTheme={theme}\n", encoding="utf-8"
+                )
+                for mark in self.MARKS:
+                    result = subprocess.run(
+                        ["kiconfinder6", mark],
+                        check=False, text=True, capture_output=True, env=environment,
+                    )
+                    with self.subTest(theme=theme, mark=mark):
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        resolved = Path(result.stdout.strip()).resolve()
+                        self.assertEqual(
+                            resolved,
+                            (ICON_ROOT / theme / "moos/apps/scalable" / f"{mark}.svg")
+                            .resolve(),
+                            f"{theme} does not win the lookup for {mark}; the user "
+                            "would see another theme's colours",
+                        )
+                        accent = re.search(
+                            r"\.ColorScheme-Highlight\s*\{\s*color:\s*(#[0-9a-fA-F]{6})",
+                            resolved.read_text(encoding="utf-8"),
+                        )
+                        self.assertIsNotNone(accent, f"{theme}/{mark} has no accent ink")
+                        self.assertEqual(
+                            accent[1].lower(),
+                            expected_accent,
+                            f"KDE paints {mark} with {accent[1]} under {theme}, whose "
+                            f"colour scheme selects {expected_accent}",
+                        )
+                accents[theme] = expected_accent
+
+        self.assertEqual(
+            len(set(accents.values())),
+            len(self.THEMES),
+            f"these palettes are indistinguishable on the dock: {accents}",
+        )
+
+
 @unittest.skipUnless(shutil.which("kiconfinder6"), "kiconfinder6 is required")
 class MoOSSymbolicKdeResolverTests(unittest.TestCase):
     def test_kde_resolves_every_symbol_from_the_owned_overlay(self) -> None:
-        # KIconLoader reads both the active icon theme from kdeglobals and the
-        # system data roots. Merely prepending the checkout is insufficient:
-        # under a booted MoOSUI2Light session it searches that installed theme
-        # first and returns /usr/share/icons/MoOSUI2Light for all symbols. Give
-        # the resolver an empty XDG profile and the repository as its sole data
-        # root, including isolated cache/data homes so no live cache can win.
         with tempfile.TemporaryDirectory(prefix="moos-symbolic-kde-") as runtime:
-            isolated = Path(runtime)
-            environment = os.environ.copy()
-            environment.update({
-                "HOME": str(isolated / "home"),
-                "XDG_CACHE_HOME": str(isolated / "cache"),
-                "XDG_CONFIG_HOME": str(isolated / "config"),
-                "XDG_CONFIG_DIRS": str(isolated / "config-dirs"),
-                "XDG_DATA_HOME": str(isolated / "data"),
-                "XDG_DATA_DIRS": str(ROOT / "system_files/usr/share"),
-            })
-            for directory in (
-                environment["HOME"],
-                environment["XDG_CACHE_HOME"],
-                environment["XDG_CONFIG_HOME"],
-                environment["XDG_CONFIG_DIRS"],
-                environment["XDG_DATA_HOME"],
-            ):
-                Path(directory).mkdir(parents=True, exist_ok=True)
-
+            environment = _isolated_kde_environment(Path(runtime))
             for name in generator.SYMBOLS:
                 icon_name = f"moos-{name}-symbolic"
                 result = subprocess.run(

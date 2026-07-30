@@ -259,13 +259,25 @@ class MoOSSymbolicIconTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     index["Icon Theme"]["Directories"],
-                    "moos/actions/scalable",
+                    "moos/actions/scalable,moos/apps/scalable",
+                    f"{style} must declare BOTH owned overlays; a directory a "
+                    "theme does not list is a directory KIconTheme never reads",
                 )
                 self.assertEqual(
                     dict(index["moos/actions/scalable"]),
                     {
                         "Size": "24",
                         "Context": "Actions",
+                        "Type": "Scalable",
+                        "MinSize": "16",
+                        "MaxSize": "512",
+                    },
+                )
+                self.assertEqual(
+                    dict(index["moos/apps/scalable"]),
+                    {
+                        "Size": "64",
+                        "Context": "Applications",
                         "Type": "Scalable",
                         "MinSize": "16",
                         "MaxSize": "512",

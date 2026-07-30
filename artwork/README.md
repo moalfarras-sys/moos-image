@@ -8,6 +8,50 @@ rollback source.
 `generate_nova_visuals.py` is the deterministic source for the original MoOS
 app icons, Anaconda artwork, additional wallpaper packages, and GRUB artwork.
 
+## The first-party application marks (current)
+
+`generate_moos_app_icons.py` owns the nine MoOS application marks — Control
+Centre, Store, Mo PC Remote, Updater, Themes, Installer, Recovery, Welcome,
+MoPlayer — and `generate_moai_icon.py` seats the commissioned Mo AI orb beside
+them. Third-party applications keep their own identity; nothing else here is
+ours to draw.
+
+```bash
+python3 artwork/generate_moos_app_icons.py   # masters + PNG ladder + both preview sheets
+python3 artwork/generate_moos_themes.py      # re-bakes all 14 palette icon themes
+```
+
+One grid: an 880 px squircle on a 1024 canvas, the glyph inside a 640 px safe
+area, every load-bearing stroke ≥ 76 units so it still reads in a 16 px dock
+cell. **Every ink is a KDE colour role** (`ColorScheme-Highlight`,
+`ColorScheme-Background`, …) and never a literal colour, so one master can be
+re-inked for every palette. Only the pairings KDE guarantees are used —
+`HighlightedText` on `Highlight`, `Background` on `Positive/Neutral/Negative`,
+and the one inverted `Background`-on-`Text` plate for Welcome.
+
+MoOS pins `FollowsColorScheme=false` on every icon theme (see
+`PROJECT_STATE.md` for the dark-Launcher evidence), so the palette is **baked,
+not followed**: `generate_moos_themes.py` writes a re-inked copy of all nine
+into each of the 14 palette icon themes, and `build.sh`'s `recolor_moos_app_dir`
+does the same for the two broad bases it assembles from Colloid. Mo AI is the
+one tile-less mark — the orb carries its own light, so it is scaled onto the
+family's 880 px footprint instead of sitting on a plate that would be re-inked
+under it.
+
+Review evidence, regenerated with the icons:
+
+* `moos-ui2/previews/moos-app-icons.png` — the family on one sheet.
+* `moos-ui2/previews/moos-app-icons-palettes.png` — six palettes × ten marks,
+  each row on its own window colour. This is the sheet that shows the marks
+  changing with the theme.
+
+`tests/test_moos_app_icons.py` re-derives the WCAG contrast of every tile/glyph
+pair against all 16 shipped palettes (fails under 4:1; the measured minimum is
+4.4:1) and proves the committed masters are exactly what the generator writes.
+`tests/test_moos_symbolic_runtime.py` asks the real `kiconfinder6` which file
+KDE would paint under each palette — hand-editing an SVG here, or copying one
+palette's marks into another theme, fails both.
+
 The generator consumes the canonical transparent emblem already shipped at
 `system_files/usr/share/moos/moos-logo.png`. Its palette values mirror
 `branding/PALETTE.md`, the project-wide source of truth. Runtime PNGs receive an

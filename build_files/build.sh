@@ -1037,6 +1037,35 @@ recolor_moos_symbolic_dir() {
     done
 }
 
+# Same contract for the first-party APPLICATION marks (moos-store, MoPlayer,
+# Mo PC Remote, …). The committed masters under hicolor carry the MoOS default
+# (MoOSUI2Dark) palette in their `current-color-scheme` stylesheet; the 14
+# per-palette icon themes are baked in the repo by
+# artwork/generate_moos_themes.py, and the two broad bases are baked HERE
+# because they are assembled from Colloid at image build time.
+# Argument order matches KIconColors::stylesheet(): text, background,
+# highlight, highlighted text, positive, neutral, negative — accent tracks
+# highlight, so the single teal source hex covers both.
+recolor_moos_app_dir() {
+    local app_dir="$1" text_ink="$2" background_ink="$3" highlight_ink="$4"
+    local selected_ink="$5" positive_ink="$6" neutral_ink="$7" negative_ink="$8"
+    local app_file
+    for app_file in "${app_dir}"/moos-*.svg; do
+        [ -f "${app_file}" ] || continue
+        # moos-moai is the commissioned raster wrapper: no roles to re-ink.
+        grep -q 'id="current-color-scheme"' "${app_file}" || continue
+        sed -i \
+            -e "s/#e8f1ef/${text_ink}/gI" \
+            -e "s/#1d2529/${background_ink}/gI" \
+            -e "s/#4ed7c8/${highlight_ink}/gI" \
+            -e "s/#142220/${selected_ink}/gI" \
+            -e "s/#69d9a5/${positive_ink}/gI" \
+            -e "s/#f4c56a/${neutral_ink}/gI" \
+            -e "s/#ff7d88/${negative_ink}/gI" \
+            "${app_file}"
+    done
+}
+
 # "MoOSUI2" / "MoOSUI2Light" = the UI2 icon themes, teal folders over the same
 # proven copy-index-then-symlink route. Nova/NovaLight stay installed untouched:
 # they are what UI1 (the documented rollback) selects.
@@ -1058,6 +1087,9 @@ done
 mkdir -p /usr/share/icons/MoOSUI2/moos/apps/scalable
 cp /usr/share/icons/hicolor/scalable/apps/moos-*.svg \
     /usr/share/icons/MoOSUI2/moos/apps/scalable/
+recolor_moos_app_dir \
+    /usr/share/icons/MoOSUI2/moos/apps/scalable \
+    '#E8F1EF' '#1D2529' '#4ED7C8' '#142220' '#69D9A5' '#F4C56A' '#FF7D88'
 mkdir -p /usr/share/icons/MoOSUI2/moos/actions/scalable
 cp /usr/share/icons/hicolor/scalable/actions/moos-*-symbolic.svg \
     /usr/share/icons/MoOSUI2/moos/actions/scalable/
@@ -1100,6 +1132,9 @@ done
 mkdir -p /usr/share/icons/MoOSUI2Light/moos/apps/scalable
 cp /usr/share/icons/hicolor/scalable/apps/moos-*.svg \
     /usr/share/icons/MoOSUI2Light/moos/apps/scalable/
+recolor_moos_app_dir \
+    /usr/share/icons/MoOSUI2Light/moos/apps/scalable \
+    '#17302E' '#C9E2DD' '#006D67' '#E1F0EC' '#086B4B' '#7B520F' '#A52F3F'
 mkdir -p /usr/share/icons/MoOSUI2Light/moos/actions/scalable
 cp /usr/share/icons/hicolor/scalable/actions/moos-*-symbolic.svg \
     /usr/share/icons/MoOSUI2Light/moos/actions/scalable/
@@ -1142,6 +1177,20 @@ for t in MoOSUI2 MoOSUI2Light; do
         && grep -q 'id="current-color-scheme"' \
             "/usr/share/icons/${t}/moos/actions/scalable/moos-warning-symbolic.svg" \
         || { echo "GATE FAIL: ${t} has no palette-aware MoOS symbolic actions"; exit 1; }
+    # The two bases must carry DIFFERENT baked inks. MoOS pins
+    # FollowsColorScheme=false, so whatever is in the file is what the user
+    # sees: a light base still holding the dark default teal draws a mark that
+    # fights every surface around it, and a screenshot of the dark session
+    # looks perfect while it does.
+    app_mark="/usr/share/icons/${t}/moos/apps/scalable/moos-store.svg"
+    case "${t}" in
+        MoOSUI2Light)
+            grep -qi '#006D67' "${app_mark}" && ! grep -qi '#4ED7C8' "${app_mark}"
+            ;;
+        *)
+            grep -qi '#4ED7C8' "${app_mark}" && ! grep -qi '#006D67' "${app_mark}"
+            ;;
+    esac || { echo "GATE FAIL: ${t} application marks carry the wrong palette's inks"; exit 1; }
 done
 
 # Each family palette is a deliberately small first-party symbolic overlay over
@@ -1155,6 +1204,14 @@ base_symbol_count="$(
 )"
 [ "${base_symbol_count}" -gt 0 ] \
     || { echo "GATE FAIL: no owned MoOS symbolic source icons reached the image"; exit 1; }
+# The application marks are palette-baked per overlay too (moos-moai is the
+# commissioned raster wrapper and has no colour roles, so it is not counted).
+base_app_count="$(
+    find /usr/share/icons/hicolor/scalable/apps -maxdepth 1 -type f \
+        -name 'moos-*.svg' ! -name 'moos-moai.svg' | wc -l
+)"
+[ "${base_app_count}" -gt 0 ] \
+    || { echo "GATE FAIL: no owned MoOS application marks reached the image"; exit 1; }
 for t in \
     MoOSUI2Amethyst MoOSUI2AmethystLight \
     MoOSUI2Arena MoOSUI2ArenaLight \
@@ -1167,8 +1224,9 @@ for t in \
 do
     theme_index="/usr/share/icons/${t}/index.theme"
     symbol_dir="/usr/share/icons/${t}/moos/actions/scalable"
+    app_dir="/usr/share/icons/${t}/moos/apps/scalable"
     test -f "${theme_index}" \
-        && grep -qx 'Directories=moos/actions/scalable' "${theme_index}" \
+        && grep -qx 'Directories=moos/actions/scalable,moos/apps/scalable' "${theme_index}" \
         && grep -qx 'FollowsColorScheme=false' "${theme_index}" \
         || { echo "GATE FAIL: ${t} is not a valid symbolic overlay"; exit 1; }
     case "${t}" in
@@ -1189,8 +1247,58 @@ do
         && grep -q 'ColorScheme-Highlight' \
             "${symbol_dir}/moos-search-symbolic.svg" \
         || { echo "GATE FAIL: ${t} lost the semantic icon roles"; exit 1; }
+    overlay_app_count="$(
+        find "${app_dir}" -maxdepth 1 -type f -name 'moos-*.svg' | wc -l
+    )"
+    [ "${overlay_app_count}" -eq "${base_app_count}" ] \
+        || { echo "GATE FAIL: ${t} application-mark inventory is incomplete"; exit 1; }
+    # Baked, not inherited: the overlay's own copy must hold THIS palette's
+    # selection colour, taken from the colour scheme that ships under the same
+    # name. Without this, an overlay that merely copied the default teal marks
+    # passes every structural check and puts the wrong accent on the dock.
+    scheme_highlight="$(
+        awk '
+            /^\[Colors:Selection\]/ { inside = 1; next }
+            /^\[/ { inside = 0 }
+            inside && /^BackgroundNormal=/ {
+                split(substr($0, index($0, "=") + 1), rgb, ",")
+                printf "#%02x%02x%02x\n", rgb[1], rgb[2], rgb[3]
+                exit
+            }
+        ' "/usr/share/color-schemes/${t}.colors"
+    )"
+    [ -n "${scheme_highlight}" ] \
+        || { echo "GATE FAIL: ${t} has no selection colour to bake from"; exit 1; }
+    grep -qi "${scheme_highlight}" "${app_dir}/moos-store.svg" \
+        || { echo "GATE FAIL: ${t} application marks are not baked from its own palette"; exit 1; }
     gtk-update-icon-cache -f "/usr/share/icons/${t}" || true
 done
+
+# Ask KDE, in the finished image, which file it would actually paint. Every gate
+# above reads bytes MoOS wrote; this one runs the resolver the desktop runs, so
+# it is the only one that can catch a theme that is perfect on disk and still
+# loses the lookup (to hicolor's default-teal master, or to Colloid). If the
+# overlay does not win here, "the icons follow the theme" is false on the dock
+# no matter how the files look.
+if command -v kiconfinder6 >/dev/null 2>&1; then
+    icon_probe="$(mktemp -d)"
+    for t in MoOSUI2 MoOSUI2Light MoOSUI2Forge MoOSUI2Amethyst MoOSUI2Daylight; do
+        mkdir -p "${icon_probe}/config"
+        printf '[Icons]\nTheme=%s\n' "${t}" > "${icon_probe}/config/kdeglobals"
+        resolved="$(
+            HOME="${icon_probe}" XDG_CONFIG_HOME="${icon_probe}/config" \
+            XDG_CACHE_HOME="${icon_probe}/cache" QT_QPA_PLATFORM=offscreen \
+            kiconfinder6 moos-store 2>/dev/null
+        )"
+        [ "${resolved}" = "/usr/share/icons/${t}/moos/apps/scalable/moos-store.svg" ] \
+            || { echo "GATE FAIL: under ${t}, KDE paints '${resolved}' for moos-store, not that theme's own mark"; exit 1; }
+    done
+    rm -rf "${icon_probe}"
+    echo "ICON RESOLUTION OK: every probed MoOS theme wins its own application marks"
+else
+    echo "GATE FAIL: kiconfinder6 is missing — the icon resolution gate cannot run"
+    exit 1
+fi
 
 # -----------------------------------------------------------------------------
 # (c6) MoOS cursor theme (Bibata Modern Ice, rebranded at build time)

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- MoOS UI — Liquid Glass application mark: moos-moplayer.
+       Original vector geometry. Every ink is a KDE colour role, and MoOS bakes
+       one copy of this file per palette icon theme — MoOS pins
+       FollowsColorScheme=false, so nothing re-colours it at runtime. The
+       stylesheet below is the MoOS default palette (MoOSUI2Dark) and is what
+       every renderer outside those themes shows.
+       Regenerate with artwork/generate_moos_app_icons.py. -->
+  <defs>
+    <style id="current-color-scheme" type="text/css">.ColorScheme-Text { color:#17302E; }.ColorScheme-Background{ color:#C6DCE9; }.ColorScheme-Highlight{ color:#0E63C4; }.ColorScheme-HighlightedText{ color:#F7FBFF; }.ColorScheme-PositiveText{ color:#086B4B; }.ColorScheme-NeutralText{ color:#7B520F; }.ColorScheme-NegativeText{ color:#A52F3F; }.ColorScheme-Accent{ color:#0E63C4; }</style>
+    <linearGradient id="moos-moplayer-sheen" x1="512" y1="72" x2="512" y2="660"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".20"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect class="ColorScheme-NeutralText" fill="currentColor" x="72" y="72" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-moplayer-sheen)" x="72" y="72" width="880" height="880" rx="232"/>
+  <rect class="ColorScheme-Background" fill="none" stroke="currentColor"
+        stroke-opacity=".16" stroke-width="10" x="82" y="82" width="860" height="860" rx="222"/>
+  <g class="ColorScheme-Background" fill="currentColor">
+    <path d="M275 654V334c0-38 28-66 66-66h18c24 0 46 13 58 34l84 148 84-148c12-21 34-34 58-34h18c38 0 66 28 66 66v320h-92V434l-92 158c-9 16-24 24-42 24s-33-8-42-24l-92-158v220Z"/>
+    <path d="M252 760c126 58 242 26 330-66 82-86 140-120 202-128" fill="none"
+          stroke="currentColor" stroke-width="64" stroke-linecap="round" opacity=".55"/>
+  </g>
+</svg>

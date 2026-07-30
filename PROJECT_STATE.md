@@ -15,10 +15,57 @@ plasmoid override), not image defects. The follow-up **icon-bridge round**
 (THEME_REV=26, per-palette symbolic icon overlays + Launcher/control polish)
 is implemented in the working tree on `product/tidal-horizon-2026-07-30`
 with every repo gate green, but is not yet committed, published or booted.
-The design system remains **MoOS UI — Liquid Glass**).
+The **application-mark round** below (the nine first-party app icons redrawn
+and baked per palette, Mo AI reseated) sits on top of it in the same working
+tree, all 40 gate files green. The design system remains
+**MoOS UI — Liquid Glass**).
 
 > **Read [`skills/moos-engineering/SKILL.md`](skills/moos-engineering/SKILL.md) first —
 > it is mandatory for every agent working here.**
+
+> **Application-mark round — 2026-07-30, working tree, on top of the
+> icon-bridge round.** The symbolic overlays gave the *interface* a palette;
+> the nine first-party **application marks** still did not have one. They are
+> redrawn from scratch in `artwork/generate_moos_app_icons.py` (one 880 px
+> squircle on the 1024 canvas, glyph inside a 640 px safe area, every load-
+> bearing stroke ≥ 76 units so it survives the 16 px dock cell) and **every
+> ink is a KDE colour role, never a literal colour**. Because MoOS pins
+> `FollowsColorScheme=false` for the reason below, following the palette is
+> not a runtime property — it is **baked**: `generate_moos_themes.build_icon_theme`
+> writes one re-inked copy of all nine into each of the 14 palette icon themes
+> (`moos/apps/scalable`, now declared in every overlay's `Directories=`), and
+> `build.sh`'s new `recolor_moos_app_dir` does the same for the two broad
+> bases it assembles from Colloid. Role pairing is not free choice: only
+> `HighlightedText`-on-`Highlight`, `Background`-on-`Positive/Neutral/Negative`
+> and the inverted `Background`-on-`Text` plate are used, because those are
+> the pairs KDE guarantees — measured minimum contrast across all 16 shipped
+> palettes is **4.4:1**, and `tests/test_moos_app_icons.py` re-derives it and
+> fails under 4:1. What actually proves the claim is
+> `tests/test_moos_symbolic_runtime.py::MoOSAppMarkThemeResolverTests`: it runs
+> **`kiconfinder6`** under an isolated XDG profile once per palette and asserts
+> KDE resolves `moos-store` (and three siblings) to *that* theme's baked file
+> whose accent equals that palette's own `Colors:Selection`. Rendered evidence:
+> `artwork/moos-ui2/previews/moos-app-icons-palettes.png` (six palettes × ten
+> marks, each row on its own window colour).
+>
+> Three things this round found already broken and fixed:
+> **(1)** `hicolor/scalable/apps/moos-moai.svg` on `main` had **lost the
+> embedded commissioned master entirely** — it was a bare plate carrying
+> Breeze's `#3daee9`/`#eff0f1`, i.e. a foreign identity on the assistant's
+> icon, while the UX gate that requires the byte-exact master sat in a
+> working-tree state that no longer checked it. **(2)** The same working tree
+> had moved every app master from `scalable/apps` to `scalable/places` and
+> pointed `verify_user_experience.py` at the new path — Plasma looks up
+> application icons in `apps`, so that was a silent break with a green gate.
+> **(3)** It had deleted the four `moos-logo.png` rasters the brand plasmoid
+> resolves. All three are restored. Mo AI is now the one **tile-less** mark:
+> its tile would be re-inked per palette like its siblings' and would fight
+> the commissioned orb's own light, so the orb floats — scaled so its visible
+> footprint is the family's 880 px span (`generate_moai_icon.py`), which is
+> measured on the rendered 512 px raster by a gate, not asserted from markup.
+> The stale `72x72` MoPlayer raster (a size the ladder does not produce, left
+> over from MoPlayer's own packaging tree) is dropped rather than left showing
+> the retired ember tile at one size.
 
 > **Icon-bridge round — 2026-07-30, working tree on top of the shipped
 > `.478` (THEME_REV=26).** Continued from the previous session, which stopped

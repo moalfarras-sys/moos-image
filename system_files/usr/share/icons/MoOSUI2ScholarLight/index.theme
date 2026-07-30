@@ -7,11 +7,18 @@ Inherits=MoOSUI2Light
 # live dark Launcher. Owned QML controls use explicit masks for live accent
 # states; this overlay keeps its WCAG-checked palette fallback deterministic.
 FollowsColorScheme=false
-Directories=moos/actions/scalable
+Directories=moos/actions/scalable,moos/apps/scalable
 
 [moos/actions/scalable]
 Size=24
 Context=Actions
+Type=Scalable
+MinSize=16
+MaxSize=512
+
+[moos/apps/scalable]
+Size=64
+Context=Applications
 Type=Scalable
 MinSize=16
 MaxSize=512

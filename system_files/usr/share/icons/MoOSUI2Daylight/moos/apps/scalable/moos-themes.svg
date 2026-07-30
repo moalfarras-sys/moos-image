@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- MoOS UI — Liquid Glass application mark: moos-themes.
+       Original vector geometry. Every ink is a KDE colour role, and MoOS bakes
+       one copy of this file per palette icon theme — MoOS pins
+       FollowsColorScheme=false, so nothing re-colours it at runtime. The
+       stylesheet below is the MoOS default palette (MoOSUI2Dark) and is what
+       every renderer outside those themes shows.
+       Regenerate with artwork/generate_moos_app_icons.py. -->
+  <defs>
+    <style id="current-color-scheme" type="text/css">.ColorScheme-Text { color:#17302E; }.ColorScheme-Background{ color:#C5DAEC; }.ColorScheme-Highlight{ color:#0284C7; }.ColorScheme-HighlightedText{ color:#07111E; }.ColorScheme-PositiveText{ color:#086B4B; }.ColorScheme-NeutralText{ color:#7B520F; }.ColorScheme-NegativeText{ color:#A52F3F; }.ColorScheme-Accent{ color:#0284C7; }</style>
+    <linearGradient id="moos-themes-sheen" x1="512" y1="72" x2="512" y2="660"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".20"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect class="ColorScheme-Highlight" fill="currentColor" x="72" y="72" width="880" height="880" rx="232"/>
+  <rect fill="url(#moos-themes-sheen)" x="72" y="72" width="880" height="880" rx="232"/>
+  <rect class="ColorScheme-HighlightedText" fill="none" stroke="currentColor"
+        stroke-opacity=".16" stroke-width="10" x="82" y="82" width="860" height="860" rx="222"/>
+  <g class="ColorScheme-HighlightedText" fill="currentColor">
+    <circle cx="512" cy="442" r="228" opacity=".3"/>
+    <path d="M351 603A228 228 0 0 1 673 281Z"/>
+    <circle cx="512" cy="442" r="228" fill="none" stroke="currentColor" stroke-width="56"/>
+    <circle cx="396" cy="806" r="50"/>
+    <circle cx="512" cy="806" r="50" opacity=".62"/>
+    <circle cx="628" cy="806" r="50" opacity=".34"/>
+  </g>
+</svg>
