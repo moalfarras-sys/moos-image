@@ -136,6 +136,7 @@ case "${cat}/${tgt}" in
     app/recovery)  gui moos-rollback ;;
     app/welcome)   gui moos-welcome ;;
     app/store)     gui moos-store ;;
+    app/settings)  gui moos-settings ;;
     brain/start)   term moai-start ;;
     ai/config)     gui moai-config ;;
 
@@ -151,6 +152,41 @@ case "${cat}/${tgt}" in
     settings/usb)       gui kinfocenter kcm_usb ;;
     settings/keyboard)  gui systemsettings kcm_keyboard ;;
     settings/mouse)     gui systemsettings kcm_mouse ;;
+    # ── MoOS Command Center: every destination is a fixed, installed Plasma
+    # module or a first-party MoOS application.  There is deliberately no
+    # settings/kcm/* wildcard: the public URL scheme can never turn URL text
+    # into argv.  These routes only open read-only configuration surfaces; the
+    # user performs and confirms any state change in the destination itself.
+    settings/themes)            gui moos-theme-picker ;;
+    settings/display)           gui systemsettings kcm_kscreen ;;
+    settings/night-light)       gui systemsettings kcm_nightlight ;;
+    settings/fonts)             gui systemsettings kcm_fonts ;;
+    settings/wallpaper)         gui systemsettings kcm_wallpaper ;;
+    settings/accessibility)     gui systemsettings kcm_access ;;
+    settings/network)           gui systemsettings kcm_networkmanagement ;;
+    settings/hotspot)           gui systemsettings kcm_mobile_hotspot ;;
+    settings/accounts)          gui systemsettings kcm_kaccounts ;;
+    settings/audio)             gui systemsettings kcm_pulseaudio ;;
+    settings/touchpad)          gui systemsettings kcm_touchpad ;;
+    settings/printers)          gui systemsettings kcm_printer_manager ;;
+    settings/store)             gui moos-store ;;
+    settings/permissions)       gui systemsettings kcm_app-permissions ;;
+    settings/default-apps)      gui systemsettings kcm_componentchooser ;;
+    settings/autostart)         gui systemsettings kcm_autostart ;;
+    settings/notifications)     gui systemsettings kcm_notifications ;;
+    settings/lock)              gui systemsettings kcm_screenlocker ;;
+    settings/file-search)       gui systemsettings kcm_baloofile ;;
+    settings/telemetry)         gui systemsettings kcm_feedback ;;
+    settings/update)            gui moos-update ;;
+    settings/about)             gui systemsettings kcm_about-distro ;;
+    settings/users)             gui systemsettings kcm_users ;;
+    settings/time)              gui systemsettings kcm_clock ;;
+    settings/storage)           gui kinfocenter kcm_block_devices ;;
+    settings/firmware-security) gui kinfocenter kcm_firmware_security ;;
+    settings/recovery)          gui moos-rollback ;;
+    settings/system-monitor)    gui plasma-systemmonitor ;;
+    settings/energy)            gui systemsettings kcm_powerdevilprofilesconfig ;;
+    settings/full)              gui systemsettings ;;
 
     # ── Theme: instant, cosmetic, reversible — the Welcome's look picker fires
     # these. moos-theme itself serializes concurrent runs behind a flock, so a

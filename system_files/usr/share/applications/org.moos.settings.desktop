@@ -1,0 +1,36 @@
+[Desktop Entry]
+Type=Application
+Name=MoOS Command Center
+Name[ar]=مركز قيادة MoOS
+GenericName=System Settings
+GenericName[ar]=إعدادات النظام
+Comment=See your device at a glance and shape every part of MoOS
+Comment[ar]=شاهد حالة جهازك وتحكّم بكل جزء من MoOS
+Exec=moos-settings
+TryExec=moos-settings
+Icon=moos-control-center
+Terminal=false
+StartupWMClass=org.moos.settings
+Categories=Settings;Qt;KDE;
+Keywords=settings;control;system;network;display;privacy;recovery;MoOS;
+Keywords[ar]=إعدادات;تحكم;نظام;شبكة;شاشة;خصوصية;استعادة;
+X-KDE-StartupNotify=true
+Actions=Appearance;Connectivity;Recovery;
+
+[Desktop Action Appearance]
+Name=Appearance
+Name[ar]=المظهر
+Exec=moos-settings --section=appearance
+Icon=moos-ui-symbolic
+
+[Desktop Action Connectivity]
+Name=Connectivity
+Name[ar]=الاتصال
+Exec=moos-settings --section=connectivity
+Icon=moos-network-symbolic
+
+[Desktop Action Recovery]
+Name=Recovery
+Name[ar]=الاستعادة
+Exec=moos-settings --section=recovery
+Icon=moos-repair-symbolic

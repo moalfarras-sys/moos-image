@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# moos-settings — launch MoOS Command Center with a private, live status feed.
+set -euo pipefail
+umask 077
+
+APP_DIR="/usr/share/moos/apps/settings"
+QML="${APP_DIR}/main.qml"
+export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
+export QML_XHR_ALLOW_FILE_READ=1
+
+if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    STATUS_DIR="${XDG_RUNTIME_DIR}/moos-settings"
+else
+    STATUS_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/moos-settings"
+fi
+mkdir -p "$STATUS_DIR"
+chmod 700 "$STATUS_DIR" 2>/dev/null || true
+STATUS="${STATUS_DIR}/status.json"
+
+# Keep the view responsive: publish status in parallel and let QML transition
+# from its honest loading state when the atomic document arrives.  `exec` below
+# preserves this PID, so the helper exits with the Command Center.
+if [ -x /usr/libexec/moos-settings-status ]; then
+    /usr/libexec/moos-settings-status --watch-pid "$$" >/dev/null 2>&1 &
+fi
+
+# OSTree gives every file below /usr the epoch mtime.  Invalidate Qt's shared
+# disk cache by content, once per shipped UI revision, instead of recompiling on
+# every launch or showing a stale first-installed Command Center.
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}"
+if command -v sha256sum >/dev/null 2>&1 && [ -r "$QML" ]; then
+    stamp="${CACHE}/moos-settings.qmlstamp"
+    current="$(find "$APP_DIR" -type f \( -name '*.qml' -o -name '*.js' \) -print0 \
+        | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -c1-32)"
+    if [ -n "$current" ] && [ "$(cat "$stamp" 2>/dev/null)" != "$current" ]; then
+        rm -rf "${CACHE}/qmlcache" 2>/dev/null || true
+        mkdir -p "$CACHE" 2>/dev/null || true
+        printf '%s\n' "$current" >"$stamp" 2>/dev/null || true
+    fi
+else
+    export QML_DISABLE_DISK_CACHE=1
+fi
+
+if [ -x /usr/bin/moos-qml-shell ]; then
+    exec /usr/bin/moos-qml-shell \
+        --app-id org.moos.settings --icon moos-control-center --qml "$QML" \
+        -- --status="file://${STATUS}" "$@"
+fi
+
+for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
+    if command -v "$runner" >/dev/null 2>&1 || [ -x "$runner" ]; then
+        exec "$runner" "$QML" -- --status="file://${STATUS}" "$@"
+    fi
+done
+echo "MoOS Settings: no Qt6 QML runtime found. | لا يوجد محرّك QML." >&2
+exit 127

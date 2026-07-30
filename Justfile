@@ -57,8 +57,16 @@ check:
     python3 tests/test_moos_store_index.py
     python3 tests/test_moos_storectl.py
     python3 tests/test_moos_ui2.py
+    # Tidal Horizon is one generated silhouette and one portal contract across
+    # the wallpaper family, Splash, Login, Lock, Logout and first-party apps.
+    python3 tests/test_tidal_horizon.py
+    python3 tests/test_tidal_portals.py
     python3 tests/test_moos_theme_safety.py
     python3 tests/test_moos_visual_system.py
+    # MoOS Command Center is the owned settings front door: every visual command
+    # must resolve through a fixed route, and its live status boundary stays
+    # read-only, private and atomic.
+    python3 tests/test_moos_settings.py
     # Protected app identities and the small-size icon ladder are separate from
     # the monochrome symbolic family and need their own proof.
     python3 tests/test_moos_app_icons.py

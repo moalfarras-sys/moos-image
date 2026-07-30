@@ -27,6 +27,24 @@ SIZES = (16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512)
 
 
 GLYPHS = {
+    "moos-control-center": {
+        "accent": "#4ED7C8",
+        "secondary": "#78AFFF",
+        "body": """
+  <!-- Command Center: three deliberate control orbits around one system core.
+       It is not a stock cog—the concentric command lanes are the visual motif
+       used by the application's live device constellation. -->
+  <circle cx="512" cy="512" r="206" fill="#182D31" stroke="url(#accent)" stroke-width="34"/>
+  <circle cx="512" cy="512" r="132" fill="none" stroke="#EAF8F6"
+          stroke-opacity=".30" stroke-width="26" stroke-dasharray="54 32"/>
+  <circle cx="512" cy="512" r="58" fill="url(#accent)"/>
+  <path d="M512 264v82M512 678v82M264 512h82M678 512h82"
+        stroke="#EAF8F6" stroke-width="32" stroke-linecap="round"/>
+  <circle cx="660" cy="364" r="30" fill="#78AFFF"/>
+  <circle cx="660" cy="660" r="30" fill="#4ED7C8"/>
+  <circle cx="364" cy="660" r="30" fill="#F4C56A"/>
+""",
+    },
     "moos-moplayer": {
         "accent": "#FF4400",
         "secondary": "#FFD27A",
@@ -228,7 +246,7 @@ def main() -> None:
             str(HICOLOR / f"256x256/apps/{name}.png")
             for name in ("moos-moai", *GLYPHS)
         ],
-        "-tile", "3x3",
+        "-tile", "4x3",
         "-geometry", "220x220+24+24",
         "-background", "#10181B",
         str(PREVIEW),

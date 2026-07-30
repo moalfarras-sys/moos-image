@@ -233,8 +233,16 @@ jobs:
           python3 tests/test_moos_store_index.py
           python3 tests/test_moos_storectl.py
           python3 tests/test_moos_ui2.py
+          # Hold the Tidal Cut geometry and byte-identical doorway component
+          # across every generated theme before any image layer is built.
+          python3 tests/test_tidal_horizon.py
+          python3 tests/test_tidal_portals.py
           python3 tests/test_moos_theme_safety.py
           python3 tests/test_moos_visual_system.py
+          # The MoOS settings front door must ship with its owned icon and
+          # private live-state helper, and every command must remain a fixed
+          # router destination rather than user-controlled argv.
+          python3 tests/test_moos_settings.py
           python3 tests/test_moos_app_icons.py
           # Parse all 16 KDE palettes into first-party GTK roles and hold the
           # remote status poll behind a coalescing background worker.

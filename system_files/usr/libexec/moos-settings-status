@@ -1,0 +1,271 @@
+#!/usr/bin/env python3
+"""Publish the read-only live state consumed by MoOS Command Center.
+
+The QML application intentionally has no process API.  This helper is the
+small, read-only boundary: it gathers a fixed set of facts, writes one private
+atomic JSON document, and never accepts a command or a destination path from
+the UI.  When launched with --watch-pid it refreshes cheap session facts every
+ten seconds and the immutable-deployment facts once per minute.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+import time
+
+
+def runtime_path() -> Path:
+    runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if runtime:
+        base = Path(runtime) / "moos-settings"
+    else:
+        cache = os.environ.get("XDG_CACHE_HOME")
+        if not cache:
+            home = os.environ.get("HOME")
+            cache = str(Path(home) / ".cache") if home else "/tmp"
+        base = Path(cache) / "moos-settings"
+    base.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        base.chmod(0o700)
+    except OSError:
+        pass
+    return base / "status.json"
+
+
+def command(argv: list[str], timeout: float = 1.5) -> str:
+    try:
+        result = subprocess.run(
+            argv,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env={**os.environ, "LC_ALL": "C"},
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return ""
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def human_bytes(value: int) -> str:
+    units = ("B", "KB", "MB", "GB", "TB")
+    amount = float(max(0, value))
+    for unit in units:
+        if amount < 1024 or unit == units[-1]:
+            return f"{amount:.0f} {unit}" if unit != "GB" else f"{amount:.1f} {unit}"
+        amount /= 1024
+    return "—"
+
+
+def read_first(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return ""
+
+
+def memory_state() -> dict[str, object]:
+    values: dict[str, int] = {}
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
+            key, raw = line.split(":", 1)
+            match = re.search(r"\d+", raw)
+            if match:
+                values[key] = int(match.group()) * 1024
+    except (OSError, ValueError):
+        pass
+    total = values.get("MemTotal", 0)
+    available = values.get("MemAvailable", 0)
+    used = max(0, total - available)
+    return {
+        "total": human_bytes(total),
+        "used": human_bytes(used),
+        "percent": round(used * 100 / total) if total else 0,
+    }
+
+
+def storage_state() -> dict[str, object]:
+    try:
+        usage = shutil.disk_usage("/var")
+    except OSError:
+        return {"total": "—", "free": "—", "percent": 0}
+    used = max(0, usage.total - usage.free)
+    return {
+        "total": human_bytes(usage.total),
+        "free": human_bytes(usage.free),
+        "percent": round(used * 100 / usage.total) if usage.total else 0,
+    }
+
+
+def cpu_name() -> str:
+    try:
+        for line in Path("/proc/cpuinfo").read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
+            if line.startswith(("model name", "Hardware")) and ":" in line:
+                value = line.split(":", 1)[1].strip()
+                return re.sub(r"\s+", " ", value)
+    except OSError:
+        pass
+    return "MoOS device"
+
+
+def network_state() -> dict[str, object]:
+    raw = command(["nmcli", "-t", "-f", "STATE,CONNECTIVITY", "general"])
+    state, _, connectivity = raw.partition(":")
+    connected = state == "connected" and connectivity in {"full", "limited", "portal"}
+    active = command(["nmcli", "-t", "-f", "TYPE,NAME", "connection", "show", "--active"])
+    label = ""
+    for line in active.splitlines():
+        kind, _, name = line.partition(":")
+        if kind in {"802-11-wireless", "wifi", "802-3-ethernet", "ethernet"} and name:
+            label = name.replace(r"\:", ":")
+            break
+    return {
+        "connected": connected,
+        "full": connectivity == "full",
+        "label": label,
+    }
+
+
+def bluetooth_state() -> dict[str, object]:
+    raw = command(["bluetoothctl", "show"])
+    available = bool(raw)
+    powered = bool(re.search(r"^\s*Powered:\s+yes\s*$", raw, re.MULTILINE))
+    return {"available": available, "powered": powered}
+
+
+def audio_state() -> dict[str, object]:
+    raw = command(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
+    match = re.search(r"Volume:\s*([0-9.]+)", raw)
+    volume = round(float(match.group(1)) * 100) if match else 0
+    return {"available": bool(match), "volume": volume, "muted": "[MUTED]" in raw}
+
+
+def battery_state() -> dict[str, object]:
+    for battery in sorted(Path("/sys/class/power_supply").glob("BAT*")):
+        capacity = read_first(battery / "capacity")
+        if capacity.isdigit():
+            return {
+                "available": True,
+                "percent": int(capacity),
+                "state": read_first(battery / "status").lower(),
+            }
+    return {"available": False, "percent": 0, "state": ""}
+
+
+def deployment_state() -> dict[str, object]:
+    raw = command(["rpm-ostree", "status", "--json"], timeout=4)
+    try:
+        deployments = json.loads(raw).get("deployments", [])
+    except (json.JSONDecodeError, AttributeError):
+        deployments = []
+    booted = next((item for item in deployments if item.get("booted")), {})
+    staged = next((item for item in deployments if item.get("staged")), {})
+    reference = str(booted.get("container-image-reference", ""))
+    digest = str(booted.get("container-image-reference-digest", ""))
+    return {
+        "version": str(booted.get("version", "—")),
+        "digest": digest[7:19] if digest.startswith("sha256:") else "",
+        "signed": reference.startswith("ostree-image-signed:") and "moos" in reference,
+        "staged": bool(staged),
+        "stagedVersion": str(staged.get("version", "")),
+        "rollback": sum(
+            1 for item in deployments if not item.get("booted") and not item.get("staged")
+        ),
+    }
+
+
+def dynamic_state() -> dict[str, object]:
+    try:
+        uptime = int(float(read_first(Path("/proc/uptime")).split()[0]))
+    except (ValueError, IndexError):
+        uptime = 0
+    return {
+        "generatedAt": int(time.time()),
+        "uptimeSeconds": uptime,
+        "network": network_state(),
+        "bluetooth": bluetooth_state(),
+        "audio": audio_state(),
+        "battery": battery_state(),
+        "memory": memory_state(),
+    }
+
+
+def full_state() -> dict[str, object]:
+    return {
+        "schema": 1,
+        "product": "MoOS",
+        "hostname": command(["hostname", "-s"]) or "MoOS",
+        "kernel": command(["uname", "-r"]) or "—",
+        "cpu": cpu_name(),
+        "storage": storage_state(),
+        "deployment": deployment_state(),
+        **dynamic_state(),
+    }
+
+
+def publish(path: Path, state: dict[str, object]) -> None:
+    fd, temporary = tempfile.mkstemp(prefix=".status-", suffix=".json", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(state, handle, ensure_ascii=False, separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, path)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+
+def process_start(pid: int) -> str:
+    try:
+        # /proc/PID/stat fields after the final ')' begin at field 3; starttime
+        # is field 22, therefore index 19 in this suffix.
+        suffix = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").rsplit(")", 1)[1]
+        return suffix.split()[19]
+    except (OSError, IndexError):
+        return ""
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--watch-pid", type=int)
+    args = parser.parse_args()
+
+    path = runtime_path()
+    state = full_state()
+    publish(path, state)
+    if not args.watch_pid:
+        return 0
+
+    start = process_start(args.watch_pid)
+    if not start:
+        return 0
+    cycle = 0
+    while process_start(args.watch_pid) == start:
+        time.sleep(10)
+        if process_start(args.watch_pid) != start:
+            break
+        cycle += 1
+        if cycle % 6 == 0:
+            state = full_state()
+        else:
+            state.update(dynamic_state())
+        publish(path, state)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
