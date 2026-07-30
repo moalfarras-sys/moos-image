@@ -10,6 +10,7 @@ import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/glass.dart';
+import '../../core/theme/motion.dart';
 import '../../core/theme/nova.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/playback_providers.dart';
@@ -17,6 +18,7 @@ import '../../providers/system_providers.dart';
 import '../../services/player/playback_stats.dart';
 import '../../services/player/player_service.dart';
 import '../../services/system/file_chooser.dart';
+import '../../widgets/accessible_visibility.dart';
 import '../../widgets/buttons.dart';
 import '../../widgets/media_card.dart';
 import '../../widgets/toast.dart';
@@ -47,6 +49,7 @@ class _PlayerOverlayState extends ConsumerState<PlayerOverlay> {
   bool _controlsVisible = true;
   bool _optionsVisible = false;
   PlayerFitMode _fitMode = PlayerFitMode.fit;
+
   /// Owned by the overlay, not the service: a sleep timer is an intention about
   /// this sitting, so changing channel must not cancel it but leaving the player
   /// must.
@@ -234,9 +237,9 @@ class _PlayerOverlayState extends ConsumerState<PlayerOverlay> {
 
                   AnimatedOpacity(
                     opacity: _controlsVisible ? 1 : 0,
-                    duration: Nova.normal,
-                    child: IgnorePointer(
-                      ignoring: !_controlsVisible,
+                    duration: Motion.duration(context, Nova.normal),
+                    child: AccessibleVisibility(
+                      visible: _controlsVisible,
                       child: _Controls(
                         now: now,
                         player: player,
@@ -516,10 +519,7 @@ class _Controls extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (now.isLive)
-                      _LiveTimeshiftBar(
-                        player: player,
-                        onInteract: onInteract,
-                      )
+                      _LiveTimeshiftBar(player: player, onInteract: onInteract)
                     else
                       _SeekBar(player: player, onInteract: onInteract),
                     const SizedBox(height: Nova.space2),
@@ -559,14 +559,16 @@ class _Controls extends ConsumerWidget {
           end: Nova.space5,
           width: 340,
           child: AnimatedSlide(
-            offset: optionsVisible ? Offset.zero : const Offset(0.12, 0),
-            duration: Nova.panel,
+            offset: optionsVisible || Motion.isReduced(context)
+                ? Offset.zero
+                : const Offset(0.12, 0),
+            duration: Motion.duration(context, Nova.panel),
             curve: Curves.easeOutCubic,
             child: AnimatedOpacity(
               opacity: optionsVisible ? 1 : 0,
-              duration: Nova.panel,
-              child: IgnorePointer(
-                ignoring: !optionsVisible,
+              duration: Motion.duration(context, Nova.panel),
+              child: AccessibleVisibility(
+                visible: optionsVisible,
                 child: _PlayerOptionsPanel(
                   player: player,
                   strings: strings,
@@ -810,11 +812,7 @@ class _StatusPipsState extends State<_StatusPips> {
 }
 
 class _Pip extends StatelessWidget {
-  const _Pip({
-    required this.icon,
-    required this.label,
-    required this.colour,
-  });
+  const _Pip({required this.icon, required this.label, required this.colour});
 
   final IconData icon;
   final String label;
@@ -823,10 +821,7 @@ class _Pip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: Nova.space2,
-        vertical: 2,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: Nova.space2, vertical: 2),
       decoration: BoxDecoration(
         color: colour.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(Nova.radiusControl),
@@ -923,7 +918,8 @@ class _LiveTimeshiftBarState extends ConsumerState<_LiveTimeshiftBar> {
     final start = window.start.inMilliseconds.toDouble();
     final edge = window.edge.inMilliseconds.toDouble();
     final position =
-        _dragging ?? window.position.inMilliseconds.toDouble().clamp(start, edge);
+        _dragging ??
+        window.position.inMilliseconds.toDouble().clamp(start, edge);
     final atEdge = _dragging == null && window.isAtLiveEdge;
 
     return Row(
@@ -1437,10 +1433,7 @@ class _ToolsSectionState extends ConsumerState<_ToolsSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _OptionHeading(
-          icon: Icons.build_rounded,
-          label: s.playerOptions,
-        ),
+        _OptionHeading(icon: Icons.build_rounded, label: s.playerOptions),
         const SizedBox(height: Nova.space3),
         Wrap(
           spacing: Nova.space2,
@@ -1647,6 +1640,8 @@ class _PictureAndSyncSectionState extends State<_PictureAndSyncSection> {
           icon: Icons.volume_up_rounded,
           label: s.audioDelay,
           value: _seconds(_audioDelay),
+          decreaseLabel: s.decreaseSetting(s.audioDelay),
+          increaseLabel: s.increaseSetting(s.audioDelay),
           onDecrease: () => _act(() {
             _audioDelay -= 0.05;
             unawaited(player.setAudioDelay(_audioDelay));
@@ -1659,12 +1654,14 @@ class _PictureAndSyncSectionState extends State<_PictureAndSyncSection> {
             _audioDelay = 0;
             unawaited(player.setAudioDelay(0));
           }),
-          resetTooltip: s.resetToDefault,
+          resetTooltip: s.resetSetting(s.audioDelay),
         ),
         NudgeRow(
           icon: Icons.closed_caption_rounded,
           label: s.subtitleDelay,
           value: _seconds(_subDelay),
+          decreaseLabel: s.decreaseSetting(s.subtitleDelay),
+          increaseLabel: s.increaseSetting(s.subtitleDelay),
           onDecrease: () => _act(() {
             _subDelay -= 0.1;
             unawaited(player.setSubtitleDelay(_subDelay));
@@ -1677,12 +1674,14 @@ class _PictureAndSyncSectionState extends State<_PictureAndSyncSection> {
             _subDelay = 0;
             unawaited(player.setSubtitleDelay(0));
           }),
-          resetTooltip: s.resetToDefault,
+          resetTooltip: s.resetSetting(s.subtitleDelay),
         ),
         NudgeRow(
           icon: Icons.format_size_rounded,
           label: s.subtitleSize,
           value: '${(_subScale * 100).round()}%',
+          decreaseLabel: s.decreaseSetting(s.subtitleSize),
+          increaseLabel: s.increaseSetting(s.subtitleSize),
           onDecrease: () => _act(() {
             _subScale = (_subScale - 0.1).clamp(0.25, 4);
             unawaited(player.setSubtitleScale(_subScale));
@@ -1695,7 +1694,7 @@ class _PictureAndSyncSectionState extends State<_PictureAndSyncSection> {
             _subScale = 1;
             unawaited(player.setSubtitleScale(1));
           }),
-          resetTooltip: s.resetToDefault,
+          resetTooltip: s.resetSetting(s.subtitleSize),
         ),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
@@ -1720,6 +1719,8 @@ class _PictureAndSyncSectionState extends State<_PictureAndSyncSection> {
             icon: Icons.circle_outlined,
             label: entry.$2,
             value: '${_picture[entry.$1] ?? 0}',
+            decreaseLabel: s.decreaseSetting(entry.$2),
+            increaseLabel: s.increaseSetting(entry.$2),
             onDecrease: () => _act(() {
               final next = ((_picture[entry.$1] ?? 0) - 5).clamp(-100, 100);
               _picture[entry.$1] = next;
@@ -1734,7 +1735,7 @@ class _PictureAndSyncSectionState extends State<_PictureAndSyncSection> {
               _picture[entry.$1] = 0;
               unawaited(player.setPictureAdjustment(entry.$1, 0));
             }),
-            resetTooltip: s.resetToDefault,
+            resetTooltip: s.resetSetting(entry.$2),
           ),
         const SizedBox(height: Nova.space4),
         _OptionHeading(
@@ -1795,23 +1796,33 @@ class _OptionChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppColors.primary : AppColors.surface3,
-      borderRadius: BorderRadius.circular(Nova.radiusControl),
-      child: InkWell(
-        onTap: onTap,
+    return Semantics(
+      container: true,
+      excludeSemantics: true,
+      button: true,
+      selected: selected,
+      label: label,
+      onTap: onTap,
+      child: Material(
+        color: selected ? AppColors.primary : AppColors.surface3,
         borderRadius: BorderRadius.circular(Nova.radiusControl),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Nova.space3,
-            vertical: Nova.space2,
-          ),
-          child: Text(
-            label,
-            textDirection: textDirection,
-            style: AppText.control.copyWith(
-              color: selected ? Colors.black : AppColors.textPrimary,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Nova.radiusControl),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 40),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Nova.space3),
+              child: Center(
+                child: Text(
+                  label,
+                  textDirection: textDirection,
+                  style: AppText.control.copyWith(
+                    color: selected ? AppColors.onEmber : AppColors.textPrimary,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -1833,37 +1844,49 @@ class _TrackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected
-          ? AppColors.primary.withValues(alpha: 0.12)
-          : Colors.transparent,
-      borderRadius: BorderRadius.circular(Nova.radiusControl),
-      child: InkWell(
-        onTap: onTap,
+    return Semantics(
+      container: true,
+      excludeSemantics: true,
+      button: true,
+      selected: selected,
+      label: label,
+      onTap: onTap,
+      child: Material(
+        color: selected
+            ? AppColors.primary.withValues(alpha: 0.12)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(Nova.radiusControl),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Nova.space3,
-            vertical: Nova.space2,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                size: 17,
-                color: selected ? AppColors.primary : AppColors.textMuted,
-              ),
-              const SizedBox(width: Nova.space2),
-              Flexible(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.control.copyWith(
-                    color: selected ? AppColors.primary : AppColors.textPrimary,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Nova.radiusControl),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 40),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Nova.space3),
+              child: Row(
+                children: [
+                  Icon(
+                    selected
+                        ? Icons.check_circle_rounded
+                        : Icons.circle_outlined,
+                    size: 17,
+                    color: selected ? AppColors.primary : AppColors.textMuted,
                   ),
-                ),
+                  const SizedBox(width: Nova.space2),
+                  Flexible(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.control.copyWith(
+                        color: selected
+                            ? AppColors.primary
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

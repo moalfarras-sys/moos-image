@@ -683,7 +683,28 @@ target_lnf "$1" "$2"
         )
         self.assertNotIn("id: motionExec", picker)
         self.assertIn("themeExec.run(cmd)", picker)
-        self.assertIn("حركة الخلفية  ·  Wallpaper motion", picker)
+        self.assertIn('root.local("حركة الخلفية", "Wallpaper motion")', picker)
+        self.assertNotIn("حركة الخلفية  ·  Wallpaper motion", picker)
+        for icon in (
+            "moos-ui-symbolic",
+            "moos-refresh-symbolic",
+            "moos-orbit-symbolic",
+            "moos-close-symbolic",
+            "moos-check-symbolic",
+            "moos-sun-symbolic",
+            "moos-moon-symbolic",
+        ):
+            self.assertIn(f'"{icon}"', picker)
+        for inherited in (
+            "preferences-desktop-theme-global",
+            "edit-undo",
+            "preferences-desktop-effects",
+            "dialog-close",
+            "checkmark",
+            "weather-clear",
+            "weather-clear-night",
+        ):
+            self.assertNotIn(f'"{inherited}"', picker)
 
         motion_completion = picker[
             picker.index("if (cmd === pendingMotionCommand)"):

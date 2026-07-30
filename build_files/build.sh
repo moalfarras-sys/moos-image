@@ -996,9 +996,10 @@ rm -rf /tmp/colloid
 
 # "MoOSUI2" / "MoOSUI2Light" are the stable internal IDs for the MoOS icon
 # themes.  Colloid provides the broad application/file-type vocabulary, while
-# MoOS-owned applications live in a first-party overlay.  That overlay comes
-# first in Directories=, so MoOS surfaces have one coherent silhouette instead
-# of inheriting whichever upstream app icon happens to exist.
+# MoOS-owned applications and symbolic interface actions live in a first-party
+# overlay. That overlay comes first in Directories=, so first-party controls
+# always resolve the palette-aware MoOS SVG before the broad compatibility
+# vocabulary supplied by Colloid.
 # VERIFIED: an Inherits-only index.theme is NOT enough —
 # - freedesktop icon-theme spec (File Formats, Table 1) marks Directories=
 #   as REQUIRED (Inherits is the optional one);
@@ -1028,7 +1029,7 @@ sed -i \
     -e 's|^Name=.*|Name=MoOS UI|' \
     -e 's|^Comment=.*|Comment=MoOS icons — mineral teal on graphite|' \
     -e 's|^Inherits=.*|Inherits=Colloid-Teal-Dark,Papirus-Dark,breeze-dark,hicolor|' \
-    -e 's|^Directories=|Directories=moos/apps/scalable,|' \
+    -e 's|^Directories=|Directories=moos/actions/scalable,moos/apps/scalable,|' \
     /usr/share/icons/MoOSUI2/index.theme
 test -d /usr/share/icons/Colloid-Teal-Dark/apps
 for d in /usr/share/icons/Colloid-Teal-Dark/*/; do
@@ -1038,7 +1039,17 @@ done
 mkdir -p /usr/share/icons/MoOSUI2/moos/apps/scalable
 cp /usr/share/icons/hicolor/scalable/apps/moos-*.svg \
     /usr/share/icons/MoOSUI2/moos/apps/scalable/
+mkdir -p /usr/share/icons/MoOSUI2/moos/actions/scalable
+cp /usr/share/icons/hicolor/scalable/actions/moos-*-symbolic.svg \
+    /usr/share/icons/MoOSUI2/moos/actions/scalable/
 cat >> /usr/share/icons/MoOSUI2/index.theme <<'EOF'
+
+[moos/actions/scalable]
+Size=24
+Context=Actions
+Type=Scalable
+MinSize=16
+MaxSize=512
 
 [moos/apps/scalable]
 Size=64
@@ -1056,7 +1067,7 @@ sed -i \
     -e 's|^Name=.*|Name=MoOS UI Light|' \
     -e 's|^Comment=.*|Comment=MoOS icons — mineral teal on tidal mist|' \
     -e 's|^Inherits=.*|Inherits=Colloid-Teal-Light,Papirus,breeze,hicolor|' \
-    -e 's|^Directories=|Directories=moos/apps/scalable,|' \
+    -e 's|^Directories=|Directories=moos/actions/scalable,moos/apps/scalable,|' \
     /usr/share/icons/MoOSUI2Light/index.theme
 test -d /usr/share/icons/Colloid-Teal-Light/apps
 for d in /usr/share/icons/Colloid-Teal-Light/*/; do
@@ -1066,7 +1077,17 @@ done
 mkdir -p /usr/share/icons/MoOSUI2Light/moos/apps/scalable
 cp /usr/share/icons/hicolor/scalable/apps/moos-*.svg \
     /usr/share/icons/MoOSUI2Light/moos/apps/scalable/
+mkdir -p /usr/share/icons/MoOSUI2Light/moos/actions/scalable
+cp /usr/share/icons/hicolor/scalable/actions/moos-*-symbolic.svg \
+    /usr/share/icons/MoOSUI2Light/moos/actions/scalable/
 cat >> /usr/share/icons/MoOSUI2Light/index.theme <<'EOF'
+
+[moos/actions/scalable]
+Size=24
+Context=Actions
+Type=Scalable
+MinSize=16
+MaxSize=512
 
 [moos/apps/scalable]
 Size=64
@@ -1085,11 +1106,16 @@ for t in MoOSUI2 MoOSUI2Light; do
         || { echo "GATE FAIL: ${t} icon theme has no Directories= — KIconTheme will reject it"; exit 1; }
     test -d "/usr/share/icons/${t}/apps" \
         || { echo "GATE FAIL: ${t} icon theme has no apps/ dir"; exit 1; }
-    grep -q '^Directories=moos/apps/scalable,' "/usr/share/icons/${t}/index.theme" \
-        || { echo "GATE FAIL: ${t} does not prioritize the MoOS app overlay"; exit 1; }
+    grep -q '^Directories=moos/actions/scalable,moos/apps/scalable,' \
+        "/usr/share/icons/${t}/index.theme" \
+        || { echo "GATE FAIL: ${t} does not prioritize both MoOS icon overlays"; exit 1; }
     test -f "/usr/share/icons/${t}/moos/apps/scalable/moos-themes.svg" \
         && test ! -L "/usr/share/icons/${t}/moos/apps/scalable/moos-themes.svg" \
         || { echo "GATE FAIL: ${t} has no owned MoOS application artwork"; exit 1; }
+    test -f "/usr/share/icons/${t}/moos/actions/scalable/moos-warning-symbolic.svg" \
+        && grep -q 'id="current-color-scheme"' \
+            "/usr/share/icons/${t}/moos/actions/scalable/moos-warning-symbolic.svg" \
+        || { echo "GATE FAIL: ${t} has no palette-aware MoOS symbolic actions"; exit 1; }
 done
 
 # -----------------------------------------------------------------------------

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import configparser
 import pathlib
 import re
 import unittest
@@ -16,6 +17,25 @@ SHARE = ROOT / "system_files/usr/share"
 
 STYLE_NAMES = (
     "MoOSUI2",
+    "MoOSUI2Light",
+    "MoOSUI2Amethyst",
+    "MoOSUI2AmethystLight",
+    "MoOSUI2Aurora",
+    "MoOSUI2AuroraLight",
+    "MoOSUI2Forge",
+    "MoOSUI2ForgeLight",
+    "MoOSUI2Arena",
+    "MoOSUI2ArenaLight",
+    "MoOSUI2Midnight",
+    "MoOSUI2Daylight",
+    "MoOSUI2Nova",
+    "MoOSUI2NovaLight",
+    "MoOSUI2Scholar",
+    "MoOSUI2ScholarLight",
+)
+
+COLOR_SCHEME_NAMES = (
+    "MoOSUI2Dark",
     "MoOSUI2Light",
     "MoOSUI2Amethyst",
     "MoOSUI2AmethystLight",
@@ -92,6 +112,48 @@ def svg_ids(path: pathlib.Path) -> set[str]:
         for element in tree.iter()
         if (element_id := element.attrib.get("id"))
     }
+
+
+def qml_object_block(text: str, marker: str) -> str:
+    """Return the balanced QML object containing a marker near its first property."""
+    marker_at = text.index(marker)
+    open_at = text.rfind("{", 0, marker_at)
+    if open_at < 0:
+        raise AssertionError(f"{marker!r} is not inside a QML object")
+    depth = 1
+    cursor = open_at + 1
+    while cursor < len(text) and depth:
+        depth += (text[cursor] == "{") - (text[cursor] == "}")
+        cursor += 1
+    if depth:
+        raise AssertionError(f"unbalanced QML object containing {marker!r}")
+    return text[open_at:cursor]
+
+
+def relative_luminance(rgb: tuple[int, int, int]) -> float:
+    def linear(channel: int) -> float:
+        value = channel / 255
+        return value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+
+    red, green, blue = (linear(channel) for channel in rgb)
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+
+
+def contrast_ratio(first: tuple[int, int, int], second: tuple[int, int, int]) -> float:
+    lighter, darker = sorted(
+        (relative_luminance(first), relative_luminance(second)),
+        reverse=True,
+    )
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def blend(foreground: tuple[int, int, int],
+          background: tuple[int, int, int],
+          alpha: float) -> tuple[int, int, int]:
+    return tuple(
+        round(foreground[index] * alpha + background[index] * (1 - alpha))
+        for index in range(3)
+    )
 
 
 class MoOSVisualSystemTests(unittest.TestCase):
@@ -361,6 +423,162 @@ class MoOSVisualSystemTests(unittest.TestCase):
             "Qt.formatDate ignores a format string in its locale overload",
         )
 
+    def test_installer_semantic_alert_colours_pass_every_palette(self) -> None:
+        """Danger/warning ink must survive all 16 active light/dark schemes.
+
+        The installer's fixed coral and amber were readable on dark themes but
+        measured only 2.25–2.56:1 and 1.32–1.49:1 on the light family. Semantic
+        KDE colours solve that only if their own tinted chips stay faint enough:
+        painting compliant ink over a strong tint of itself can push it straight
+        back below 4.5:1.
+        """
+        installer = (
+            SHARE / "moos/apps/installer/main.qml"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "readonly property color danger:     Kirigami.Theme.negativeTextColor",
+            installer,
+        )
+        self.assertIn(
+            "readonly property color amber:      Kirigami.Theme.neutralTextColor",
+            installer,
+        )
+        self.assertNotIn("#F0616D", installer)
+        self.assertNotIn("#F5B24A", installer)
+        self.assertRegex(
+            installer,
+            r"readonly property color dangerSoft:\s*Qt\.rgba\("
+            r"win\.danger\.r,\s*win\.danger\.g,\s*"
+            r"win\.danger\.b,\s*0\.05\)",
+        )
+        self.assertEqual(
+            len(re.findall(
+                r"Qt\.rgba\(win\.amber\.r,\s*win\.amber\.g,\s*"
+                r"win\.amber\.b,\s*0\.05\)",
+                installer,
+            )),
+            2,
+            "both amber text chips must use the measured 5% tint ceiling",
+        )
+
+        schemes = SHARE / "color-schemes"
+        actual = {path.stem for path in schemes.glob("*.colors")}
+        self.assertEqual(actual, set(COLOR_SCHEME_NAMES))
+        for name in COLOR_SCHEME_NAMES:
+            parser = configparser.ConfigParser(interpolation=None, strict=False)
+            parser.optionxform = str
+            parser.read(schemes / f"{name}.colors", encoding="utf-8")
+            view = parser["Colors:View"]
+
+            def rgb(key: str) -> tuple[int, int, int]:
+                return tuple(int(part) for part in view[key].split(",")[:3])
+
+            for semantic in ("ForegroundNegative", "ForegroundNeutral"):
+                ink = rgb(semantic)
+                for surface in ("BackgroundNormal", "BackgroundAlternate"):
+                    paper = rgb(surface)
+                    with self.subTest(
+                        scheme=name, semantic=semantic, surface=surface
+                    ):
+                        self.assertGreaterEqual(
+                            contrast_ratio(ink, paper),
+                            4.5,
+                            f"{name} {semantic} fails WCAG AA on {surface}",
+                        )
+                        self.assertGreaterEqual(
+                            contrast_ratio(ink, blend(ink, paper, 0.05)),
+                            4.5,
+                            f"{name} {semantic} fails WCAG AA on its 5% tint",
+                        )
+
+        hold = qml_object_block(installer, "id: holdBtn")
+        self.assertIn("id: holdTrack", hold)
+        self.assertIn("color: win.dangerSoft", hold)
+        self.assertNotIn("win.accentText", hold)
+
+    def test_installer_and_welcome_custom_actions_are_keyboard_complete(self) -> None:
+        """Custom rectangles and the shared button keep native input semantics."""
+        installer = (
+            SHARE / "moos/apps/installer/main.qml"
+        ).read_text(encoding="utf-8")
+        welcome = (
+            SHARE / "moos/apps/welcome/main.qml"
+        ).read_text(encoding="utf-8")
+        shared_button = (
+            SHARE / "moos/apps/ui/Button.qml"
+        ).read_text(encoding="utf-8")
+
+        actions = (
+            ("installer disk choice", installer, "id: diskCard"),
+            ("installer next", installer, "id: installerNavNext"),
+            ("welcome device close", welcome, "id: deviceCloseButton"),
+            ("welcome live install", welcome, "id: liveInstallButton"),
+            ("welcome next/install", welcome, "id: welcomeNavNext"),
+        )
+        for label, source, marker in actions:
+            block = qml_object_block(source, marker)
+            with self.subTest(action=label):
+                for contract in (
+                    "activeFocusOnTab:",
+                    "Accessible.role: Accessible.",
+                    "Accessible.name:",
+                    "Accessible.onPressAction:",
+                    "Keys.onReturnPressed:",
+                    "Keys.onSpacePressed:",
+                    "FocusRing { }",
+                ):
+                    self.assertIn(contract, block)
+
+        # Device settings actions migrated from hand-built rectangles to the
+        # shared AbstractButton. Qt supplies Return/Space and AT press handling;
+        # the shared primitive supplies the focus/name/role contract once.
+        self.assertIn("component DeviceSettingsButton: MoOSUi.Button", welcome)
+        device = qml_object_block(welcome, "id: deviceButton")
+        self.assertIn("onClicked: deviceButton.activate()", device)
+        for contract in (
+            "QQC2.AbstractButton",
+            "activeFocusOnTab:",
+            "Accessible.role: Accessible.Button",
+            "Accessible.name: label",
+            "FocusRing {",
+        ):
+            self.assertIn(contract, shared_button)
+
+        disk = qml_object_block(installer, "id: diskCard")
+        self.assertIn("Accessible.role: Accessible.RadioButton", disk)
+        self.assertIn("Accessible.checkable: true", disk)
+        self.assertIn("Accessible.checked: diskCard.selected", disk)
+        self.assertIn("enabled: !diskCard.disabled", disk)
+        self.assertIn("diskAccessibleName(diskCard.modelData)", disk)
+
+        hold = qml_object_block(installer, "id: holdBtn")
+        for contract in (
+            "activeFocusOnTab:",
+            "enabled: holdBtn.armed",
+            "Accessible.role: Accessible.Button",
+            "Accessible.name:",
+            "Accessible.description:",
+            "Accessible.pressed:",
+            "Keys.onPressed:",
+            "Keys.onReleased:",
+            "Qt.Key_Space",
+            "Qt.Key_Return",
+            "Qt.Key_Enter",
+            "event.isAutoRepeat",
+            "FocusRing { }",
+        ):
+            self.assertIn(contract, hold)
+        self.assertGreaterEqual(
+            hold.count("holdBtn.beginHold()"),
+            2,
+            "pointer and keyboard must share the same safe hold start",
+        )
+        self.assertGreaterEqual(
+            hold.count("holdBtn.endHold()"),
+            3,
+            "release, cancel, and keyboard release must share hold cancellation",
+        )
+
     def test_first_party_icons_are_owned_and_take_theme_precedence(self) -> None:
         expected = {
             "moos-moai.svg",
@@ -394,9 +612,12 @@ class MoOSVisualSystemTests(unittest.TestCase):
 
         build = (ROOT / "build_files/build.sh").read_text(encoding="utf-8")
         self.assertEqual(
-            build.count("Directories=moos/apps/scalable,"),
+            build.count(
+                "Directories=moos/actions/scalable,moos/apps/scalable,"
+            ),
             3,
-            "both theme builders plus the fail-loud gate must name the overlay",
+            "both theme builders plus the fail-loud gate must put the owned "
+            "symbolic action layer and app layer ahead of inherited icons",
         )
         self.assertIn("Name=MoOS UI|", build)
         self.assertIn("Name=MoOS UI Light|", build)

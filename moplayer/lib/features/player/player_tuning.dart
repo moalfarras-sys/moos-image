@@ -24,15 +24,22 @@ class NudgeRow extends StatelessWidget {
     required this.value,
     required this.onDecrease,
     required this.onIncrease,
+    required this.decreaseLabel,
+    required this.increaseLabel,
     this.onReset,
     this.resetTooltip,
-  });
+  }) : assert(
+         onReset == null || resetTooltip != null,
+         'A reset action needs a localized accessible label.',
+       );
 
   final IconData icon;
   final String label;
   final String value;
   final VoidCallback onDecrease;
   final VoidCallback onIncrease;
+  final String decreaseLabel;
+  final String increaseLabel;
   final VoidCallback? onReset;
   final String? resetTooltip;
 
@@ -45,7 +52,11 @@ class NudgeRow extends StatelessWidget {
           Icon(icon, size: 18, color: AppColors.textSecondary),
           const SizedBox(width: Nova.space2),
           Expanded(child: Text(label, style: AppText.control)),
-          _RoundStep(icon: Icons.remove_rounded, onTap: onDecrease),
+          _RoundStep(
+            icon: Icons.remove_rounded,
+            label: decreaseLabel,
+            onTap: onDecrease,
+          ),
           // The value is fixed-width and always left-to-right: a signed number
           // that jumps around as its digit count changes is hard to nudge
           // towards a target, and a negative sign must not be reordered by an
@@ -62,15 +73,17 @@ class NudgeRow extends StatelessWidget {
               ),
             ),
           ),
-          _RoundStep(icon: Icons.add_rounded, onTap: onIncrease),
+          _RoundStep(
+            icon: Icons.add_rounded,
+            label: increaseLabel,
+            onTap: onIncrease,
+          ),
           if (onReset != null) ...[
             const SizedBox(width: Nova.space1),
-            Tooltip(
-              message: resetTooltip ?? '',
-              child: _RoundStep(
-                icon: Icons.settings_backup_restore_rounded,
-                onTap: onReset!,
-              ),
+            _RoundStep(
+              icon: Icons.settings_backup_restore_rounded,
+              label: resetTooltip!,
+              onTap: onReset!,
             ),
           ],
         ],
@@ -80,22 +93,37 @@ class NudgeRow extends StatelessWidget {
 }
 
 class _RoundStep extends StatelessWidget {
-  const _RoundStep({required this.icon, required this.onTap});
+  const _RoundStep({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
+  final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface3,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(Nova.space2),
-          child: Icon(icon, size: 17, color: AppColors.textPrimary),
+    return Tooltip(
+      message: label,
+      excludeFromSemantics: true,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: SizedBox.square(
+          dimension: 40,
+          child: Material(
+            color: AppColors.surface3,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onTap,
+              child: Center(
+                child: Icon(icon, size: 17, color: AppColors.textPrimary),
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -720,7 +720,7 @@ class _NumberChip extends StatelessWidget {
         '$number',
         textDirection: TextDirection.ltr,
         style: AppText.caption.copyWith(
-          color: Colors.white,
+          color: playing ? AppColors.onEmber : Colors.white,
           fontWeight: FontWeight.w700,
         ),
       ),

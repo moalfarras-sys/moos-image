@@ -33,12 +33,20 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "system_files/usr/bin/moos-rollback"
 
 
-def load_deployments():
-    """Import moos-rollback's deployments() without a real GTK/moos_ui2 present."""
+def load_module():
+    """Import moos-rollback without a real GTK/moos_ui2 present."""
     gi = types.ModuleType("gi")
     gi.require_version = lambda *a, **k: None
     repo = types.ModuleType("gi.repository")
-    repo.GLib = types.SimpleNamespace(markup_escape_text=lambda s: s)
+    repo.GLib = types.SimpleNamespace(
+        markup_escape_text=lambda s: s,
+        Error=RuntimeError,
+        IO_IN=1,
+        IO_HUP=2,
+        IO_ERR=4,
+        io_add_watch=lambda *_a, **_k: None,
+        timeout_add=lambda *_a, **_k: None,
+    )
     repo.Gtk = types.SimpleNamespace(Label=object)
     gi.repository = repo
     # The script ends with `Recovery().run()` and has no __main__ guard, so importing
@@ -53,6 +61,8 @@ def load_deployments():
 
     moos_ui2 = types.ModuleType("moos_ui2")
     moos_ui2.MoOSApp = _StubApp
+    moos_ui2.local_text = lambda _arabic, english: english
+    moos_ui2.logical_start = lambda: 0.0
     stubs = {"gi": gi, "gi.repository": repo, "moos_ui2": moos_ui2}
     saved = {name: sys.modules.get(name) for name in stubs}
     sys.modules.update(stubs)
@@ -62,13 +72,18 @@ def load_deployments():
         spec = importlib.util.spec_from_loader(loader.name, loader)
         module = importlib.util.module_from_spec(spec)
         loader.exec_module(module)
-        return module.deployments
+        return module
     finally:
         for name, prior in saved.items():
             if prior is None:
                 sys.modules.pop(name, None)
             else:
                 sys.modules[name] = prior
+
+
+def load_deployments():
+    """Import moos-rollback's deployments() without a real GTK/moos_ui2 present."""
+    return load_module().deployments
 
 
 def run_with(deployments_payload):
@@ -193,14 +208,174 @@ def main() -> int:
     unpack_check("JSON parses but names no booted deployment",
                  stdout=json.dumps({"deployments": [{"version": "44.orphan"}]}))
 
+    # 8. THE QUEUED STATE IS A CANCELLATION, ALL THE WAY THROUGH THE UI.
+    #
+    # The button already said "Cancel the queued rollback", but the confirmation
+    # and success screen used to say "Go back" and "Restart to return to the
+    # previous version". That made the most trust-sensitive screen contradict
+    # itself. Exercise the real callbacks so the action, confirmation, and final
+    # state cannot drift independently again.
+    module = load_module()
+
+    class FakeAlertDialog:
+        last = None
+
+        def __init__(self):
+            FakeAlertDialog.last = self
+            self.message = ""
+            self.detail = ""
+            self.buttons = []
+
+        def set_message(self, value):
+            self.message = value
+
+        def set_detail(self, value):
+            self.detail = value
+
+        def set_buttons(self, value):
+            self.buttons = value
+
+        def set_cancel_button(self, _value):
+            pass
+
+        def set_default_button(self, _value):
+            pass
+
+        def choose(self, _win, _cancellable, callback):
+            self.callback = callback
+
+        def choose_finish(self, result):
+            return result
+
+    class FakeWidget:
+        def __init__(self):
+            self.sensitive = True
+            self.visible = False
+            self.started = False
+            self.text = ""
+            self.label = ""
+            self.markup = ""
+            self.classes = []
+
+        def set_sensitive(self, value):
+            self.sensitive = value
+
+        def set_visible(self, value):
+            self.visible = value
+
+        def start(self):
+            self.started = True
+
+        def stop(self):
+            self.started = False
+
+        def add_css_class(self, value):
+            self.classes.append(value)
+
+        def set_text(self, value):
+            self.text = value
+
+        def set_label(self, value):
+            self.label = value
+
+        def set_markup(self, value):
+            self.markup = value
+
+    module.Gtk.AlertDialog = FakeAlertDialog
+    recovery = module.Recovery()
+    recovery.win = object()
+    recovery.rollback_queued = True
+    recovery.on_rollback(None)
+    dialog = FakeAlertDialog.last
+    if "Cancel the queued rollback?" not in dialog.message:
+        errors.append("queued rollback confirmation still describes starting a rollback")
+    if not dialog.buttons or "Cancel rollback" not in dialog.buttons[-1]:
+        errors.append("queued rollback confirmation action does not say it cancels rollback")
+    if "keep the version you are running" not in dialog.detail:
+        errors.append("queued rollback confirmation does not name the version that will boot")
+
+    recovery.back_btn = FakeWidget()
+    recovery.spinner = FakeWidget()
+    recovery.status = FakeWidget()
+    recovery.target_heading = FakeWidget()
+    recovery.target_version = FakeWidget()
+    recovery.reboot_btn = FakeWidget()
+    recovery.booted_label = "44.BOOTED"
+    recovery.say = lambda _line: None
+    launched = []
+    recovery.run_async = lambda cmd, done: launched.append((cmd, done))
+    recovery._confirmed(dialog, 1)
+    if not recovery.action_cancels_rollback:
+        errors.append("confirmation did not snapshot that the queued action is a cancellation")
+    if not launched or launched[0][0] != ["pkexec", "bootc", "rollback"]:
+        errors.append("confirmed Recovery action did not launch the fixed bootc rollback command")
+    else:
+        launched[0][1](0)
+        if "Rollback cancelled." not in recovery.status.text:
+            errors.append("successful queued cancellation still claims a rollback was prepared")
+        if recovery.target_version.markup != "<b>44.BOOTED</b>":
+            errors.append("successful cancellation does not update the next-boot version to current")
+
+    # 9. THE PRIVILEGED ACTION MUST NOT FREEZE GTK.
+    #
+    # `subprocess.run(timeout=180)` in the confirmation callback froze painting
+    # while both Polkit and bootc ran. Assert the real async helper returns after
+    # registering a GLib watch, before it waits for the process, then stream and
+    # finish it by driving that watch exactly as GTK would.
+    module = load_module()
+    recovery = module.Recovery()
+    output = []
+    completed = []
+    recovery.say = output.append
+    proc = mock.Mock()
+    proc.stdout = mock.Mock()
+    proc.stdout.readline.side_effect = ["first line\n", ""]
+    proc.returncode = 0
+    proc.poll.side_effect = [None, 0]
+    watch = {}
+    timeout = {}
+
+    def add_watch(source, condition, callback):
+        watch.update(source=source, condition=condition, callback=callback)
+        return 1
+
+    def add_timeout(interval, callback):
+        timeout.update(interval=interval, callback=callback)
+        return 2
+
+    module.GLib.io_add_watch = add_watch
+    module.GLib.timeout_add = add_timeout
+    with mock.patch.object(module.subprocess, "Popen", return_value=proc) as popen:
+        recovery.run_async(["pkexec", "bootc", "rollback"], completed.append)
+
+    popen.assert_called_once()
+    if proc.poll.called:
+        errors.append("Recovery polls bootc before returning control to GTK")
+    if watch.get("source") is not proc.stdout:
+        errors.append("Recovery did not register bootc output with GLib's main loop")
+    elif not watch["callback"](proc.stdout, module.GLib.IO_IN):
+        errors.append("Recovery stopped its output watch before the process completed")
+    elif output != ["first line"]:
+        errors.append(f"Recovery did not stream bootc output into the UI: {output!r}")
+    elif watch["callback"](proc.stdout, module.GLib.IO_HUP):
+        errors.append("Recovery kept its GLib watch alive after bootc completed")
+    elif completed:
+        errors.append("Recovery reported completion while bootc was still running")
+    elif timeout.get("interval") != 50:
+        errors.append("Recovery did not defer an early-stdout-close process to GLib")
+    elif timeout["callback"]():
+        errors.append("Recovery kept polling after bootc exited")
+    elif completed != [0]:
+        errors.append("Recovery's GLib watch did not deliver bootc completion")
+
     if errors:
-        print("GATE FAIL: MoOS Recovery would name the wrong rollback target.\n")
+        print("GATE FAIL: MoOS Recovery target or interaction contract regressed.\n")
         for e in errors:
             print(f"  - {e}")
         return 1
 
-    print("OK: Recovery names the deployment AFTER the booted one — correct with a staged update, "
-          "with no staged flag at all, and None when there is nothing to roll back to.")
+    print("OK: Recovery names the right deployment, describes queued cancellation accurately, "
+          "and streams bootc through GLib without blocking GTK.")
     return 0
 
 

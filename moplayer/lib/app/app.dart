@@ -3,6 +3,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_theme.dart';
+import '../core/theme/motion.dart';
+import '../providers/shell_providers.dart';
 import '../providers/system_providers.dart';
 import 'router.dart';
 
@@ -12,6 +14,7 @@ class MoPlayerApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lang = ref.watch(languageProvider);
+    final reducedMotion = ref.watch(reducedMotionProvider);
 
     return MaterialApp.router(
       title: 'MoPlayer',
@@ -33,9 +36,12 @@ class MoPlayerApp extends ConsumerWidget {
       // every icon that points somewhere. `Directionality` here rather than
       // relying on the locale alone, because the shell is built above the
       // Localizations widget that would otherwise supply it.
-      builder: (context, child) => Directionality(
-        textDirection: lang.direction,
-        child: child ?? const SizedBox.shrink(),
+      builder: (context, child) => Motion(
+        reduced: reducedMotion,
+        child: Directionality(
+          textDirection: lang.direction,
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
     );
   }

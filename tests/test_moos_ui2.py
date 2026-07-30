@@ -197,6 +197,16 @@ def hex_rgb(value: str) -> tuple[int, int, int]:
     return tuple(int(value[index:index + 2], 16) for index in (1, 3, 5))
 
 
+def qml_code(text: str) -> str:
+    """Strip QML comments so prose cannot satisfy a relationship gate."""
+    without_blocks = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    return "\n".join(
+        line
+        for line in without_blocks.splitlines()
+        if not line.lstrip().startswith("//")
+    )
+
+
 class TestMoOSUI2(unittest.TestCase):
     maxDiff = None
 
@@ -532,6 +542,10 @@ class TestMoOSUI2(unittest.TestCase):
         runtime_roots = (
             SHARE / "plasma/look-and-feel/org.moos.ui2",
             SHARE / "plasma/look-and-feel/org.moos.ui2.light",
+            SHARE / (
+                "plasma/shells/org.kde.plasma.desktop/contents/"
+                "lockscreen/MainBlock.qml"
+            ),
             SHARE / "plasma/desktoptheme/MoOSUI2",
             SHARE / "plasma/desktoptheme/MoOSUI2Light",
             SHARE / "aurorae/themes/MoOSUI2",
@@ -668,6 +682,308 @@ class TestMoOSUI2(unittest.TestCase):
                 )
                 metadata = load_json(package / "metadata.json")
                 self.assertEqual(metadata["KPlugin"]["Id"], package_id)
+
+    def test_session_controls_use_only_wcag_paired_foregrounds(self) -> None:
+        """Security/session glyphs must sit on a scheme-paired flat colour.
+
+        accentB is a generated hue used for decorative depth; KDE has no
+        foreground role paired with it.  The old gradients put the Unlock and
+        power glyphs over that unpaired endpoint (1.77:1 on Graphite).  Destructive
+        actions also used Selection foreground on ForegroundNegative (2.78:1 in
+        Daylight).  Hold both the QML relationship and all 16 numeric schemes.
+        """
+        lock_path = (
+            SHARE / "plasma/shells/org.kde.plasma.desktop/contents/"
+            "lockscreen/MainBlock.qml"
+        )
+        lock = qml_code(lock_path.read_text(encoding="utf-8"))
+        unlock_start = lock.index("id: loginButton")
+        unlock = lock[unlock_start:lock.index("component FailableLabel", unlock_start)]
+        self.assertIn("color: sessionManager.accentA", unlock)
+        self.assertIn("color: Kirigami.Theme.highlightedTextColor", unlock)
+        self.assertIn(
+            "scale: loginButton.down ? 0.94 : 1.0",
+            unlock,
+            "contrast-safe flat fill must still acknowledge a press",
+        )
+        self.assertNotIn(
+            "gradient: Gradient",
+            unlock,
+            "Unlock glyph must not cross an unpaired accentB gradient",
+        )
+        self.assertNotRegex(
+            unlock,
+            r'color\s*:\s*["\']white["\']|Qt\.rgba\(\s*1\s*,\s*1\s*,\s*1\s*,',
+            "Unlock must use the active scheme's selected ink, never literal white",
+        )
+
+        logout_root = SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout"
+        logout_screen = qml_code(
+            (logout_root / "Logout.qml").read_text(encoding="utf-8")
+        )
+        button = qml_code(
+            (logout_root / "MoOSUI2ActionButton.qml").read_text(encoding="utf-8")
+        )
+        self.assertIn(
+            "Kirigami.Theme.colorSet: Kirigami.Theme.Complementary",
+            logout_screen,
+            "destructive foreground/fill pairing below assumes Complementary",
+        )
+        self.assertRegex(
+            button,
+            r"readonly property color filledInk:\s*control\.destructive\s*"
+            r"\?\s*Kirigami\.Theme\.backgroundColor\s*"
+            r":\s*Kirigami\.Theme\.highlightedTextColor",
+        )
+        disc_start = button.index("id: disc")
+        disc = button[disc_start:button.index("QQC2.Label {", disc_start)]
+        self.assertIn("? control.accentA", disc)
+        self.assertIn("? control.accentB", disc)
+        self.assertIn("? control.filledInk", disc)
+        self.assertNotIn(
+            "filledGrad",
+            disc,
+            "the power glyph must sit on flat accentA; accentB is rim-only",
+        )
+
+        scheme_paths = sorted(
+            (SHARE / "color-schemes").glob("MoOSUI2*.colors")
+        )
+        self.assertEqual(
+            len(scheme_paths),
+            16,
+            "session contrast must be measured across the complete theme family",
+        )
+        for scheme_path in scheme_paths:
+            scheme = load_kconfig(scheme_path)
+            selection = scheme["Colors:Selection"]
+            selected_ink = parse_rgb(selection["ForegroundNormal"])
+            selected_fill = parse_rgb(selection["BackgroundNormal"])
+            selected_ratio = contrast_ratio(selected_ink, selected_fill)
+
+            complementary = scheme["Colors:Complementary"]
+            destructive_ink = parse_rgb(complementary["BackgroundNormal"])
+            destructive_fill = parse_rgb(complementary["ForegroundNegative"])
+            destructive_ratio = contrast_ratio(destructive_ink, destructive_fill)
+            with self.subTest(session_scheme=scheme_path.name):
+                self.assertGreaterEqual(
+                    selected_ratio,
+                    4.5,
+                    f"{scheme_path}: unlock/on-accent contrast is only "
+                    f"{selected_ratio:.2f}:1",
+                )
+                self.assertGreaterEqual(
+                    destructive_ratio,
+                    4.5,
+                    f"{scheme_path}: destructive power glyph contrast is only "
+                    f"{destructive_ratio:.2f}:1",
+                )
+
+    def test_session_splash_reduced_motion_reaches_static_resting_frame(self) -> None:
+        """The splash owns one reveal, one sweep, and a truly static off state."""
+        splash = qml_code((
+            SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/Splash.qml"
+        ).read_text(encoding="utf-8"))
+        static_frame = splash.split("function showStaticFrame()", 1)[1].split(
+            "onMotionEnabledChanged:", 1
+        )[0]
+        for resting_value in (
+            "revealAnimation.stop()",
+            "progressMotion.stop()",
+            "content.opacity = 1",
+            "hero.scale = 1",
+            "progressSweep.x = (progressTrack.width - progressSweep.width) / 2",
+        ):
+            self.assertIn(
+                resting_value,
+                static_frame,
+                f"reduced-motion frame is missing {resting_value}",
+            )
+
+        stage_handler = splash.split("onStageChanged:", 1)[1].split("Rectangle {", 1)[0]
+        self.assertRegex(
+            stage_handler,
+            re.compile(
+                r"if\s*\(stage\s*===\s*2\)\s*\{.*?"
+                r"if\s*\(root\.motionEnabled\)\s*\{\s*"
+                r"revealAnimation\.restart\(\);\s*\}\s*else\s*\{\s*"
+                r"root\.showStaticFrame\(\);",
+                re.DOTALL,
+            ),
+            "stage 2 must start the sole reveal only behind motionEnabled",
+        )
+        self.assertRegex(
+            stage_handler,
+            re.compile(
+                r"stage\s*===\s*5\)\s*\{\s*"
+                r"revealAnimation\.stop\(\);\s*"
+                r"progressMotion\.stop\(\);\s*"
+                r"progressTrack\.opacity\s*=\s*0;",
+                re.DOTALL,
+            ),
+            "stage 5 must stop motion and hand off without another animation",
+        )
+        self.assertEqual(
+            splash.count("loops: Animation.Infinite"),
+            1,
+            "only the loading sweep may loop; the logo and atmosphere stay static",
+        )
+        self.assertEqual(splash.count("id: revealAnimation"), 1)
+        self.assertEqual(splash.count("id: progressMotion"), 1)
+        for retired_motion in (
+            "ringReveal", "shineSweep", "bloomFlash", "particleBurst",
+            "typewriterTimer", "logoBreathe", "outroAnimation",
+        ):
+            self.assertNotIn(
+                retired_motion,
+                splash,
+                f"the over-animated splash primitive {retired_motion} returned",
+            )
+        self.assertRegex(
+            splash,
+            r"running:\s*root\.motionEnabled\s*&&\s*root\.visible\s*"
+            r"&&\s*root\.stage\s*>=\s*2\s*&&\s*root\.stage\s*<\s*5",
+            "the one loading sweep must stop for reduced motion, invisibility and handoff",
+        )
+
+        family = sorted(
+            path for path in
+            (SHARE / "plasma/look-and-feel").glob("org.moos.ui2*")
+            if path.is_dir()
+        )
+        splash_bytes = {
+            (path / "contents/splash/Splash.qml").read_bytes()
+            for path in family
+        }
+        logout_bytes = {
+            (path / "contents/logout/Logout.qml").read_bytes()
+            for path in family
+        }
+        self.assertEqual(len(family), 16)
+        self.assertEqual(
+            len(splash_bytes), 1,
+            "all 16 palettes must use the same reviewed splash composition",
+        )
+        self.assertEqual(
+            len(logout_bytes), 1,
+            "all 16 palettes must use the same reviewed session-language policy",
+        )
+
+    def test_shell_rtl_uses_inherited_logical_edges_once(self) -> None:
+        """Plasma mirrors applet trees; manual RTL mirroring reverses them twice."""
+        launcher = qml_code((
+            SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml"
+        ).read_text(encoding="utf-8"))
+        self.assertNotRegex(
+            launcher,
+            r"anchors\.(?:left|right)\s*:\s*view\.rtl\s*\?",
+            "launcher edges must be logical anchors; plasmashell mirrors them",
+        )
+        nav = launcher.split("component NavButton:", 1)[1].split(
+            "component AppTile:", 1
+        )[0]
+        self.assertIn(
+            "anchors.left: parent.left",
+            nav,
+            "the active rail belongs on logical start",
+        )
+        app_tile = launcher.split("component AppTile:", 1)[1].split(
+            "component RecentTile:", 1
+        )[0]
+        self.assertIn(
+            "anchors.right: parent.right",
+            app_tile,
+            "the pin affordance belongs on logical trailing",
+        )
+
+        clock = qml_code((
+            SHARE / "plasma/plasmoids/org.moos.nova.clock/contents/ui/main.qml"
+        ).read_text(encoding="utf-8"))
+        self.assertNotRegex(
+            clock,
+            r"layoutDirection\s*:\s*root\.rtl\s*\?",
+            "clock rows inherit plasmashell RTL; setting RTL again double-mirrors",
+        )
+
+    def test_launcher_uses_one_readable_low_density_shell_language(self) -> None:
+        """The launcher must not regress to a dense, microtyped KDE grid."""
+        launcher = qml_code((
+            SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml"
+        ).read_text(encoding="utf-8"))
+        dock = qml_code((
+            SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/main.qml"
+        ).read_text(encoding="utf-8"))
+
+        for token, value in (
+            ("space1", 4), ("space2", 8), ("space3", 12),
+            ("space4", 16), ("space6", 24),
+            ("radiusS", 8), ("radiusM", 12),
+            ("radiusL", 16), ("radiusXL", 24),
+            ("targetSize", 40), ("typeCaption", 11),
+            ("typeSecondary", 13), ("typeBody", 14),
+            ("typeEmphasis", 15), ("typeTitle", 20),
+        ):
+            self.assertIn(
+                f"readonly property int {token}: {value}",
+                launcher,
+                f"launcher lost the unified MoOS {token} token",
+            )
+        self.assertIn(
+            "readonly property string uiFontFamily: Qt.application.font.family",
+            launcher,
+        )
+        self.assertNotRegex(
+            launcher,
+            r'font\.family\s*:\s*"',
+            "the launcher must follow the session font instead of pinning a family",
+        )
+        self.assertNotIn("Press Meta to open", launcher)
+        self.assertNotIn("يفتح بزر Meta", launcher)
+        self.assertIn("anchors.margins: view.space6", launcher)
+        self.assertEqual(
+            launcher.count("cellWidth: Math.max(1, Math.floor(width / 3))"),
+            2,
+            "Pinned and All Apps must share the calmer three-column proportion",
+        )
+        self.assertNotRegex(launcher, r"cellWidth:.*width\s*/\s*4")
+        self.assertGreaterEqual(
+            launcher.count("view.targetSize"),
+            24,
+            "custom launcher affordances must retain 40px pointer targets",
+        )
+        pixel_sizes = re.findall(r"font\.pixelSize\s*:\s*([^\n]+)", launcher)
+        self.assertTrue(pixel_sizes)
+        self.assertTrue(
+            all("type" in expression for expression in pixel_sizes),
+            f"launcher bypasses its type scale: {pixel_sizes}",
+        )
+
+        self.assertIn(
+            "readonly property string uiFontFamily: Qt.application.font.family",
+            dock,
+        )
+        self.assertNotRegex(dock, r'font\.family\s*:\s*"')
+        self.assertIn(
+            "font.pixelSize: Math.max(11, Math.round(compact.height * 0.20))",
+            dock,
+            "the dock launcher caption must never shrink below 11px",
+        )
+
+    def test_logout_draws_only_the_active_session_language(self) -> None:
+        logout = qml_code((
+            SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/Logout.qml"
+        ).read_text(encoding="utf-8"))
+        formatter = logout.split(
+            "function bilingual(arabic, english)", 1
+        )[1].split("function shortLabel", 1)[0]
+        self.assertIn('return "\\u2067" + arabic + "\\u2069"', formatter)
+        self.assertIn('return "\\u2066" + english + "\\u2069"', formatter)
+        self.assertNotIn(' + "  ·  " + ', formatter)
+        self.assertNotRegex(
+            formatter,
+            r"\bar\s*\+.*\ben\b|\ben\s*\+.*\bar\b",
+            "Logout must not concatenate two visible languages",
+        )
 
     def test_glass_surfaces_keep_rounded_blur_masks_and_translucency(self) -> None:
         dialog_master = ART / "plasma/dialog-background.svg.in"

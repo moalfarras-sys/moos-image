@@ -17,6 +17,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import "../ui" as MoOSUi
+import "../ui/SymbolCatalog.js" as MoOSSymbols
 
 ApplicationWindow {
     id: win
@@ -47,13 +49,15 @@ ApplicationWindow {
     // pixels move with DPI and points do not, so dividing by the shipped 10pt gives exactly
     // 1.0 on every screen at the default and scales only when the USER changes the setting.
     //
-    // fs() deliberately preserves today's proportions rather than snapping sizes onto a tidy
-    // scale. Collapsing the 18 distinct sizes to a modular scale is a visual redesign that has
-    // to be reviewed screen by screen; making them respond to the user is a correctness fix
-    // that can be proven neutral. This is the second one. The first is still worth doing.
+    // fs() remains for geometry that grows with the user's font setting. Text goes
+    // through typePx(), which snaps the old ad-hoc values to the reviewed
+    // 11/13/14/15/20/24/32 role ramp and keeps 11 px as the functional minimum.
     readonly property real fontScale: Qt.application.font.pointSize > 0
                                       ? Qt.application.font.pointSize / 10 : 1
     function fs(px) { return Math.round(px * win.fontScale) }
+    function typePx(px) { return design.typeSize(px, win.fontScale) }
+    function local(ar, en) { return win.rtl ? ar : en }
+    MoOSUi.Tokens { id: design }
 
     // The UI face is the SYSTEM face, not a string repeated in this file.
     //
@@ -105,6 +109,7 @@ ApplicationWindow {
     readonly property color blue:     Kirigami.Theme.highlightColor
     readonly property color cyan:     Kirigami.Theme.linkColor
     readonly property color violet:   Kirigami.Theme.visitedLinkColor
+    readonly property color dangerInk: Kirigami.Theme.negativeTextColor
     readonly property color txt:      Kirigami.Theme.textColor
     readonly property color txt2:     Kirigami.Theme.disabledTextColor
     readonly property color accentText: Kirigami.Theme.highlightedTextColor
@@ -975,71 +980,22 @@ ApplicationWindow {
         }
     }
 
-    // Stroke-only glyphs keep navigation crisp while real application artwork
-    // comes from AppStream.
-    readonly property var glyphs: ({
-        "compass":  "<circle cx='12' cy='12' r='9'/><path d='M15.5 8.5l-2.4 5.1-5.1 2.4 2.4-5.1z'/>",
-        "gamepad":  "<rect x='2.5' y='7.5' width='19' height='10' rx='5'/><path d='M7 11v3M5.5 12.5h3'/><circle cx='15.5' cy='11.5' r='1.1'/><circle cx='18' cy='14' r='1.1'/>",
-        "code":     "<path d='M9 8l-4.5 4L9 16M15 8l4.5 4L15 16'/>",
-        "spark":    "<path d='M12 3l1.9 6.1L20 11l-6.1 1.9L12 19l-1.9-6.1L4 11l6.1-1.9z'/>",
-        "globe":    "<circle cx='12' cy='12' r='9'/><path d='M3 12h18'/><path d='M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18'/>",
-        "shield":   "<path d='M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z'/>",
-        "camera":   "<rect x='3' y='7' width='18' height='13' rx='3'/><circle cx='12' cy='13.5' r='4'/><path d='M8.5 7l1.5-2.5h4L15.5 7'/>",
-        "mic":      "<rect x='9' y='3' width='6' height='11' rx='3'/><path d='M5 11a7 7 0 0 0 14 0'/><path d='M12 18v3'/>",
-        "doc":      "<path d='M6 3h8l4 4v14H6z'/><path d='M14 3v4h4'/><path d='M9 13h6M9 16.5h6'/>",
-        "note":     "<circle cx='7' cy='18' r='2.4'/><circle cx='17' cy='15.5' r='2.4'/><path d='M9.4 18V6.5l10-2V15.5'/>",
-        "mail":     "<rect x='3' y='5' width='18' height='14' rx='2.5'/><path d='M3.5 7l8.5 6 8.5-6'/>",
-        "lock":     "<rect x='5' y='11' width='14' height='9' rx='2.5'/><path d='M8 11V8a4 4 0 0 1 8 0v3'/>",
-        "flask":    "<path d='M9.5 3h5M10.5 3v5.5L6 17.5a2 2 0 0 0 1.8 3h8.4a2 2 0 0 0 1.8-3L13.5 8.5V3'/><path d='M8 15.5h8'/>",
-        "joystick": "<circle cx='12' cy='6' r='3'/><path d='M12 9v6'/><path d='M6 21c1-4 3-6 6-6s5 2 6 6z'/>",
-        "target":   "<circle cx='12' cy='12' r='9'/><circle cx='12' cy='12' r='5'/><circle cx='12' cy='12' r='1.4'/>",
-        "gear":     "<circle cx='12' cy='12' r='3.2'/><path d='M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1'/>",
-        "chat":     "<path d='M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-5 4z'/>",
-        "car":      "<path d='M4 13l2.2-5.2h11.6L20 13'/><rect x='3' y='13' width='18' height='5' rx='2'/><circle cx='7.5' cy='18.5' r='1.4'/><circle cx='16.5' cy='18.5' r='1.4'/>",
-        "bolt":     "<path d='M13 2.5L5 13.5h5l-1 8 8-11h-5z'/>",
-        "container":"<rect x='3' y='8' width='18' height='11' rx='1.5'/><path d='M8 8v11M12 8v11M16 8v11'/><path d='M3 8l3-3h12l3 3'/>",
-        "database": "<ellipse cx='12' cy='6' rx='7' ry='3'/><path d='M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6'/><path d='M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3'/>",
-        "android":  "<path d='M6 12a6 6 0 0 1 12 0'/><rect x='6' y='12' width='12' height='7' rx='2'/><path d='M8 8.2L7 6M16 8.2L17 6M9.5 10h.01M14.5 10h.01'/>",
-        "cube":     "<path d='M12 3l8 4.5v9L12 21l-8-4.5v-9z'/><path d='M12 3v18M4 7.5l8 4.5 8-4.5'/>",
-        "orbit":    "<circle cx='12' cy='12' r='2.6'/><path d='M6.5 6.5a12 12 0 0 0-1.7 1.8C2.6 11.2 2.2 14 3.8 15.6c1.8 1.8 5.6 1 9.4-1.9s5.9-6.6 4.1-8.4c-1.2-1.2-3.5-1-6 .3'/>",
-        "diamond":  "<path d='M12 3l6 6-6 12-6-12z'/><path d='M6 9h12'/>",
-        "brain":    "<path d='M9.5 5.5A3 3 0 0 0 6.5 8.7 3 3 0 0 0 5.5 14c0 2 1.8 3.2 3.8 3.2M14.5 5.5a3 3 0 0 1 3 3.2 3 3 0 0 1 1 5.3c0 2-1.8 3.2-3.8 3.2M12 5v14'/>",
-        "bulb":     "<path d='M9 17.5h6M10 20.5h4'/><path d='M12 3a6 6 0 0 0-4 10.4c.8.9.9 1.7.9 2.6h6.2c0-.9.1-1.7.9-2.6A6 6 0 0 0 12 3z'/>",
-        "wave":     "<path d='M3 12h2.2M8 8v8M11.5 5v14M15 8.5v7M18.8 12H21'/>",
-        "monitor":  "<rect x='3' y='4' width='18' height='12' rx='2'/><path d='M9 20h6M12 16v4'/>",
-        "briefcase":"<rect x='3' y='8' width='18' height='12' rx='2.5'/><path d='M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2'/><path d='M3 13h18'/>",
-        "gem":      "<path d='M12 3L5 9.5 12 21l7-11.5z'/><path d='M5 9.5h14M12 3l-2.6 6.5L12 21l2.6-11.5z'/>",
-        "pen":      "<path d='M4 20l1.2-4.2L16.4 4.6a2 2 0 0 1 2.8 0l.2.2a2 2 0 0 1 0 2.8L8.2 18.8z'/><path d='M14.5 6.5l3 3'/>",
-        "video":    "<rect x='3' y='6' width='13' height='12' rx='2.5'/><path d='M16 10.5l5-3v9l-5-3z'/>",
-        "home":     "<path d='M3.5 11L12 3.5l8.5 7.5'/><path d='M5.5 9.5V21h13V9.5M9.5 21v-6h5v6'/>",
-        "grid":     "<rect x='3' y='3' width='7' height='7' rx='2'/><rect x='14' y='3' width='7' height='7' rx='2'/><rect x='3' y='14' width='7' height='7' rx='2'/><rect x='14' y='14' width='7' height='7' rx='2'/>",
-        "boxes":    "<path d='M4 7l4-2.5L12 7 8 9.5zM12 7l4-2.5L20 7l-4 2.5zM8 14.5l4-2.5 4 2.5-4 2.5z'/><path d='M4 7v5l4 2.5 4-2.5V7M12 7v5l4 2.5 4-2.5V7M8 14.5v4.5l4 2.5 4-2.5v-4.5'/>",
-        "check":    "<path d='M4.5 12.5l5 5L20 6.5'/>",
-        "refresh":  "<path d='M20 8a8.5 8.5 0 0 0-14.5-2L3 8.5'/><path d='M3 4v4.5h4.5M4 16a8.5 8.5 0 0 0 14.5 2L21 15.5'/><path d='M21 20v-4.5h-4.5'/>",
-        "search":   "<circle cx='10.5' cy='10.5' r='6.5'/><path d='M15.5 15.5L21 21'/>",
-        "download": "<path d='M12 3v12M7 10l5 5 5-5'/><path d='M4 20h16'/>",
-        "trash":    "<path d='M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6'/>",
-        "external": "<path d='M13 4h7v7M20 4l-9 9'/><path d='M18 14v6H4V6h6'/>",
-        "close":    "<path d='M6.5 6.5l11 11M17.5 6.5l-11 11'/>",
-        "star":     "<path d='M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z'/>"
+    // Shared palette-aware symbolic vocabulary; application artwork remains
+    // AppStream-provided, while every control glyph comes from the MoOS layer.
+    readonly property var glyphAliases: ({
+        "android": "android-apps", "brain": "ai", "doc": "document",
+        "gamepad": "gaming", "gear": "settings", "mic": "microphone",
+        "monitor": "system", "note": "music", "warn": "warning",
+        "download": "install", "disk": "storage"
     })
-
-    function hex2(number) {
-        var value = Math.round(Math.max(0, Math.min(1, number)) * 255).toString(16)
-        return value.length < 2 ? "0" + value : value
+    function glyphIcon(name) {
+        return MoOSSymbols.resolve(win.glyphAliases[name] || name || "spark")
     }
-
-    function hexColor(colour) {
-        return "#" + win.hex2(colour.r) + win.hex2(colour.g) + win.hex2(colour.b)
-    }
-
-    function glyphURL(name, colour, stroke) {
-        var inner = win.glyphs[name] || win.glyphs.spark
-        var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' "
-            + "stroke='" + win.hexColor(colour) + "' stroke-opacity='" + colour.a.toFixed(3) + "' "
-            + "stroke-width='" + stroke + "' stroke-linecap='round' stroke-linejoin='round'>"
-            + inner + "</svg>"
-        return "data:image/svg+xml;base64," + Qt.btoa(Array.from(svg))
+    component Glyph: MoOSUi.SymbolIcon {
+        property string name: "spark"
+        property color tint: win.txt
+        symbol: win.glyphIcon(name)
+        foreground: tint
     }
 
     // A control that has keyboard focus must SHOW it. WCAG 2.4.7, and plain courtesy.
@@ -1061,15 +1017,8 @@ ApplicationWindow {
     // control's own border, and it follows the parent's own radius so a pill stays a pill and a
     // card stays a card. No animation: a focus ring must appear the instant focus lands, and
     // Liquid Glass surfaces already gate their motion on `motionEnabled`.
-    component FocusRing: Rectangle {
-        anchors.fill: parent
-        anchors.margins: -3
-        radius: (parent && parent.radius !== undefined ? parent.radius : 0) + 3
-        color: "transparent"
-        border.width: 2
-        border.color: win.accent
-        visible: parent ? parent.activeFocus : false
-        z: 99
+    component FocusRing: MoOSUi.FocusRing {
+        accentColor: win.accent
     }
 
     // A focus ring nobody can see is no focus ring. Every focusable here is a bare
@@ -1119,68 +1068,24 @@ ApplicationWindow {
         event.accepted = true
     }
 
-    component Glyph: Image {
-        property string name: "spark"
-        property color tint: win.txt
-        property real stroke: 1.7
-        source: win.glyphURL(name, tint, stroke)
-        sourceSize.width: Math.max(2, width)
-        sourceSize.height: Math.max(2, height)
-        fillMode: Image.PreserveAspectFit
-        smooth: true
-    }
-
-    component ActionButton: Rectangle {
+    component ActionButton: MoOSUi.Button {
         id: action
-        property string label: ""
         property string glyphName: ""
-        property bool primary: false
-        property bool destructive: false
         property var triggered
-        implicitWidth: actionRow.implicitWidth + 28
         implicitHeight: win.fs(40)
-        radius: win.fs(13)
-        opacity: enabled ? 1 : 0.45
-        color: primary ? (actionTap.pressed ? Qt.darker(win.accent, 1.12)
-                                             : actionHover.hovered ? Qt.lighter(win.accent, 1.07) : win.accent)
-                       : actionHover.hovered ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 1)
-                                             : Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.74)
-        border.width: primary ? 0 : 1
-        border.color: destructive ? win.violet : (actionHover.hovered ? win.accent : win.outline)
-        activeFocusOnTab: true
-        Accessible.role: Accessible.Button
-        Accessible.name: action.label
-        FocusRing { }
-        HoverHandler { id: actionHover; enabled: action.enabled }
-        TapHandler {
-            id: actionTap
-            enabled: action.enabled
-            onTapped: if (action.triggered) action.triggered()
-        }
-        Keys.onReturnPressed: if (action.enabled && action.triggered) action.triggered()
-        Keys.onSpacePressed: if (action.enabled && action.triggered) action.triggered()
-        Behavior on color { ColorAnimation { duration: 120 } }
-        RowLayout {
-            id: actionRow
-            anchors.centerIn: parent
-            spacing: 7
-            Glyph {
-                visible: action.glyphName !== ""
-                name: action.glyphName
-                tint: action.primary ? win.accentText
-                                     : action.destructive ? win.violet : win.txt
-                Layout.preferredWidth: win.fs(16)
-                Layout.preferredHeight: win.fs(16)
-            }
-            Text {
-                text: action.label
-                color: action.primary ? win.accentText
-                                      : action.destructive ? win.violet : win.txt
-                font.family: win.uiFont
-                font.pixelSize: win.fs(13)
-                font.bold: true
-            }
-        }
+        cornerRadius: design.radiusControl
+        iconName: action.glyphName === "" ? "" : win.glyphIcon(action.glyphName)
+        iconPixelSize: win.typePx(14)
+        fontPixelSize: win.typePx(13)
+        motionEnabled: win.motionEnabled
+        surfaceColor: Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.74)
+        accentColor: win.accent
+        dangerColor: win.dangerInk
+        textColor: win.txt
+        mutedTextColor: win.txt2
+        accentForegroundColor: win.accentText
+        outlineColor: win.outline
+        onClicked: if (action.triggered) action.triggered()
     }
 
     component AppArtwork: Rectangle {
@@ -1213,7 +1118,6 @@ ApplicationWindow {
             name: artwork.app && artwork.app.glyph
                   ? artwork.app.glyph : win.categoryGlyph(win.normalizedCategory(artwork.app || ({})))
             tint: win.accent
-            stroke: 1.65
             visible: !realIcon.visible
         }
     }
@@ -1228,7 +1132,7 @@ ApplicationWindow {
         RowLayout {
             id: badgeRow
             anchors.centerIn: parent
-            spacing: 4
+            spacing: design.space1
             Glyph {
                 name: badge.app && badge.app.verified === true ? "check"
                                                               : badge.app && badge.app.flatpak_ref ? "shield" : "external"
@@ -1240,7 +1144,7 @@ ApplicationWindow {
                 text: win.sourceLabel(badge.app)
                 color: badge.app && badge.app.verified === true ? win.accent : win.txt2
                 font.family: win.uiFont
-                font.pixelSize: win.fs(10)
+                font.pixelSize: win.typePx(10)
                 font.bold: true
             }
         }
@@ -1251,7 +1155,7 @@ ApplicationWindow {
         required property var app
         property bool selected: win.isPicked(app.id)
         property bool installed: win.isInstalled(app)
-        radius: win.fs(20)
+        radius: design.radiusCard
         color: cardHover.hovered
              ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.98)
              : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.82)
@@ -1268,9 +1172,9 @@ ApplicationWindow {
         TapHandler { onTapped: win.openDetails(card.app) }
         Keys.onReturnPressed: win.openDetails(card.app)
         Keys.onSpacePressed: win.openDetails(card.app)
-        Behavior on color { ColorAnimation { duration: 130 } }
-        Behavior on border.color { ColorAnimation { duration: 130 } }
-        Behavior on scale { NumberAnimation { duration: 130; easing.type: Easing.OutQuad } }
+        Behavior on color { ColorAnimation { duration: win.motionEnabled ? design.motionPress : 0 } }
+        Behavior on border.color { ColorAnimation { duration: win.motionEnabled ? design.motionPress : 0 } }
+        Behavior on scale { NumberAnimation { duration: win.motionEnabled ? design.motionPress : 0; easing.type: Easing.OutQuad } }
 
         ColumnLayout {
             anchors.fill: parent
@@ -1288,7 +1192,7 @@ ApplicationWindow {
                         text: win.localName(card.app)
                         color: win.txt
                         font.family: win.uiFont
-                        font.pixelSize: win.fs(15)
+                        font.pixelSize: win.typePx(15)
                         font.bold: true
                         elide: Text.ElideRight
                     }
@@ -1297,7 +1201,7 @@ ApplicationWindow {
                         text: card.app.developer || card.app.id
                         color: win.txt2
                         font.family: win.uiFont
-                        font.pixelSize: win.fs(10)
+                        font.pixelSize: win.typePx(10)
                         elide: Text.ElideRight
                     }
                 }
@@ -1315,7 +1219,7 @@ ApplicationWindow {
                 text: win.localSummary(card.app)
                 color: win.txt2
                 font.family: win.uiFont
-                font.pixelSize: win.fs(11)
+                font.pixelSize: win.typePx(11)
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
                 elide: Text.ElideRight
@@ -1396,12 +1300,12 @@ ApplicationWindow {
             Layout.preferredWidth: win.compactRail ? 82 : 222
             color: Qt.rgba(win.chrome.r, win.chrome.g, win.chrome.b, 0.82)
             border.width: 0
-            Behavior on Layout.preferredWidth { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+            Behavior on Layout.preferredWidth { NumberAnimation { duration: win.motionEnabled ? design.motionPress : 0; easing.type: Easing.OutCubic } }
 
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 14
-                spacing: 8
+                spacing: design.space2
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -1410,7 +1314,7 @@ ApplicationWindow {
                     Rectangle {
                         Layout.preferredWidth: win.fs(46)
                         Layout.preferredHeight: win.fs(46)
-                        radius: win.fs(15)
+                        radius: design.radiusCard
                         color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.12)
                         border.width: 1
                         border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.26)
@@ -1431,7 +1335,7 @@ ApplicationWindow {
                             text: "MO STORE"
                             color: win.txt
                             font.family: win.uiFont
-                            font.pixelSize: win.fs(16)
+                            font.pixelSize: win.typePx(16)
                             font.bold: true
                             font.letterSpacing: 1.5
                         }
@@ -1439,7 +1343,7 @@ ApplicationWindow {
                             text: win.rtl ? "مركز تطبيقات MoOS" : "MoOS app centre"
                             color: win.txt2
                             font.family: win.uiFont
-                            font.pixelSize: win.fs(10)
+                            font.pixelSize: win.typePx(10)
                         }
                     }
                 }
@@ -1456,7 +1360,7 @@ ApplicationWindow {
                         readonly property bool active: win.page === nav.modelData.id
                         Layout.fillWidth: true
                         Layout.preferredHeight: win.fs(46)
-                        radius: win.fs(14)
+                        radius: design.radiusControl
                         color: active ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
                                       : navHover.hovered ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.72)
                                                          : "transparent"
@@ -1469,12 +1373,12 @@ ApplicationWindow {
                         HoverHandler { id: navHover }
                         TapHandler { onTapped: win.navigate(nav.modelData.id) }
                         Keys.onReturnPressed: win.navigate(nav.modelData.id)
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Behavior on color { ColorAnimation { duration: win.motionEnabled ? design.motionFast : 0 } }
                         RowLayout {
                             anchors.fill: parent
                             anchors.leftMargin: win.compactRail ? 15 : 14
                             anchors.rightMargin: 12
-                            spacing: 12
+                            spacing: design.space3
                             Glyph {
                                 name: nav.modelData.glyph
                                 tint: nav.active ? win.accent : win.txt2
@@ -1487,7 +1391,7 @@ ApplicationWindow {
                                 text: win.rtl ? nav.modelData.ar : nav.modelData.en
                                 color: nav.active ? win.txt : win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(13)
+                                font.pixelSize: win.typePx(13)
                                 font.bold: nav.active
                             }
                             Rectangle {
@@ -1502,7 +1406,7 @@ ApplicationWindow {
                                     text: win.installedCount()
                                     color: win.accent
                                     font.family: win.uiFont
-                                    font.pixelSize: win.fs(10)
+                                    font.pixelSize: win.typePx(10)
                                     font.bold: true
                                 }
                             }
@@ -1521,7 +1425,7 @@ ApplicationWindow {
                                     text: win.updateItems().length
                                     color: win.accent
                                     font.family: win.uiFont
-                                    font.pixelSize: win.fs(10)
+                                    font.pixelSize: win.typePx(10)
                                     font.bold: true
                                 }
                             }
@@ -1534,7 +1438,7 @@ ApplicationWindow {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: win.compactRail ? 50 : 72
-                    radius: win.fs(16)
+                    radius: design.radiusCard
                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                     border.width: 1
                     border.color: win.outline
@@ -1579,11 +1483,11 @@ ApplicationWindow {
                                     loops: Animation.Infinite
                                     NumberAnimation {
                                         target: railWorkingDot; property: "pulse"
-                                        from: 0.35; to: 1; duration: 850
+                                        from: 0.35; to: 1; duration: win.motionEnabled ? 850 : 0
                                     }
                                     NumberAnimation {
                                         target: railWorkingDot; property: "pulse"
-                                        from: 1; to: 0.35; duration: 850
+                                        from: 1; to: 0.35; duration: win.motionEnabled ? 850 : 0
                                     }
                                 }
                             }
@@ -1602,14 +1506,14 @@ ApplicationWindow {
                                         : (win.rtl ? "الفهرس المحدود · يحتاج اتصالًا" : "Limited catalogue · connection needed")
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(11)
+                                font.pixelSize: win.typePx(11)
                                 font.bold: true
                             }
                             Text {
                                 text: win.allApps.length + (win.rtl ? " تطبيق" : " apps")
                                 color: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(10)
+                                font.pixelSize: win.typePx(10)
                             }
                         }
                     }
@@ -1639,7 +1543,7 @@ ApplicationWindow {
                     anchors.fill: parent
                     anchors.leftMargin: 26
                     anchors.rightMargin: 26
-                    spacing: 16
+                    spacing: design.space4
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0
@@ -1652,7 +1556,7 @@ ApplicationWindow {
                             }
                             color: win.txt
                             font.family: win.uiFont
-                            font.pixelSize: win.fs(22)
+                            font.pixelSize: win.typePx(22)
                             font.bold: true
                         }
                         Text {
@@ -1662,14 +1566,14 @@ ApplicationWindow {
                                 : win.visibleApps.length + (win.rtl ? " نتيجة" : " results")
                             color: win.txt2
                             font.family: win.uiFont
-                            font.pixelSize: win.fs(11)
+                            font.pixelSize: win.typePx(11)
                         }
                     }
 
                     Rectangle {
                         Layout.preferredWidth: Math.min(430, win.width * 0.38)
                         Layout.preferredHeight: win.fs(46)
-                        radius: win.fs(15)
+                        radius: design.radiusCard
                         color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.82)
                         border.width: searchField.activeFocus ? 1.5 : 1
                         border.color: searchField.activeFocus ? win.accent : win.outline
@@ -1677,7 +1581,7 @@ ApplicationWindow {
                             anchors.fill: parent
                             anchors.leftMargin: 13
                             anchors.rightMargin: 11
-                            spacing: 8
+                            spacing: design.space2
                             Glyph {
                                 name: "search"
                                 tint: searchField.activeFocus ? win.accent : win.txt2
@@ -1692,7 +1596,7 @@ ApplicationWindow {
                                 placeholderText: win.rtl ? "ابحث في كل التطبيقات…" : "Search every app…"
                                 placeholderTextColor: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(13)
+                                font.pixelSize: win.typePx(13)
                                 selectByMouse: true
                                 onTextChanged: {
                                     win.query = text
@@ -1706,7 +1610,7 @@ ApplicationWindow {
                                 text: "Ctrl K"
                                 color: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(9)
+                                font.pixelSize: win.typePx(9)
                             }
                         }
                     }
@@ -1763,15 +1667,15 @@ ApplicationWindow {
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.margins: 28
-                                spacing: 24
+                                spacing: design.space5
                                 ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: 8
+                                    spacing: design.space2
                                     Text {
                                         text: win.rtl ? "MO STORE · جيل جديد" : "MO STORE · REIMAGINED"
                                         color: win.accent
                                         font.family: win.uiFont
-                                        font.pixelSize: win.fs(10)
+                                        font.pixelSize: win.typePx(10)
                                         font.bold: true
                                         font.letterSpacing: 1.5
                                     }
@@ -1779,7 +1683,9 @@ ApplicationWindow {
                                         text: win.rtl ? "كل تطبيقاتك. متجر واحد." : "Every app. One beautiful home."
                                         color: win.txt
                                         font.family: win.uiFont
-                                        font.pixelSize: Math.min(34, win.width * 0.029)
+                                        font.pixelSize: Math.min(win.typePx(32),
+                                                                 Math.max(win.typePx(24),
+                                                                          win.width * 0.029))
                                         font.bold: true
                                     }
                                     Text {
@@ -1790,7 +1696,7 @@ ApplicationWindow {
                                             : "Search the complete local Flatpak catalogue, install safely, and manage apps, updates and system engines from one experience."
                                         color: win.txt2
                                         font.family: win.uiFont
-                                        font.pixelSize: win.fs(13)
+                                        font.pixelSize: win.typePx(13)
                                         wrapMode: Text.WordWrap
                                     }
                                     RowLayout {
@@ -1825,7 +1731,7 @@ ApplicationWindow {
                                             required property var modelData
                                             Layout.fillWidth: true
                                             Layout.fillHeight: true
-                                            radius: win.fs(15)
+                                            radius: design.radiusCard
                                             color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
                                             border.width: 1
                                             border.color: win.outline
@@ -1845,14 +1751,14 @@ ApplicationWindow {
                                                         text: modelData.value
                                                         color: win.txt
                                                         font.family: win.uiFont
-                                                        font.pixelSize: win.fs(18)
+                                                        font.pixelSize: win.typePx(18)
                                                         font.bold: true
                                                     }
                                                     Text {
                                                         text: modelData.label
                                                         color: win.txt2
                                                         font.family: win.uiFont
-                                                        font.pixelSize: win.fs(9)
+                                                        font.pixelSize: win.typePx(9)
                                                     }
                                                 }
                                             }
@@ -1868,14 +1774,14 @@ ApplicationWindow {
                                 text: win.rtl ? "اختيارات MoOS" : "MoOS picks"
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(17)
+                                font.pixelSize: win.typePx(17)
                                 font.bold: true
                             }
                             Text {
                                 text: win.rtl ? "· تطبيقات موثوقة للبدء" : "· trusted ways to get started"
                                 color: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(11)
+                                font.pixelSize: win.typePx(11)
                             }
                             Item { Layout.fillWidth: true }
                             ActionButton {
@@ -1908,7 +1814,7 @@ ApplicationWindow {
                                 text: win.rtl ? "فئات لكل استخدام" : "Made for every kind of day"
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(17)
+                                font.pixelSize: win.typePx(17)
                                 font.bold: true
                             }
                             Item { Layout.fillWidth: true }
@@ -1916,7 +1822,7 @@ ApplicationWindow {
                                 text: win.rtl ? "من العمل إلى اللعب، ومن التصميم إلى الذكاء الاصطناعي" : "Work, play, create, learn and build"
                                 color: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(11)
+                                font.pixelSize: win.typePx(11)
                             }
                         }
 
@@ -1932,7 +1838,7 @@ ApplicationWindow {
                                     required property var modelData
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: win.fs(82)
-                                    radius: win.fs(18)
+                                    radius: design.radiusCard
                                     color: homeCategoryHover.hovered
                                         ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.94)
                                         : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
@@ -1948,11 +1854,11 @@ ApplicationWindow {
                                     RowLayout {
                                         anchors.fill: parent
                                         anchors.margins: 14
-                                        spacing: 12
+                                        spacing: design.space3
                                         Rectangle {
                                             Layout.preferredWidth: win.fs(44)
                                             Layout.preferredHeight: win.fs(44)
-                                            radius: win.fs(14)
+                                            radius: design.radiusControl
                                             color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.13)
                                             Glyph { anchors.centerIn: parent; width: 22; height: 22; name: homeCategory.modelData.glyph; tint: win.accent }
                                         }
@@ -1963,14 +1869,14 @@ ApplicationWindow {
                                                 text: win.rtl ? homeCategory.modelData.ar : homeCategory.modelData.en
                                                 color: win.txt
                                                 font.family: win.uiFont
-                                                font.pixelSize: win.fs(13)
+                                                font.pixelSize: win.typePx(13)
                                                 font.bold: true
                                             }
                                             Text {
                                                 text: win.categoryCount(homeCategory.modelData.id) + (win.rtl ? " تطبيق" : " apps")
                                                 color: win.txt2
                                                 font.family: win.uiFont
-                                                font.pixelSize: win.fs(10)
+                                                font.pixelSize: win.typePx(10)
                                             }
                                         }
                                         Glyph { name: "external"; tint: win.txt2; Layout.preferredWidth: win.fs(14); Layout.preferredHeight: win.fs(14) }
@@ -1986,14 +1892,14 @@ ApplicationWindow {
                                 text: win.rtl ? "حزم ذكية" : "Smart collections"
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(17)
+                                font.pixelSize: win.typePx(17)
                                 font.bold: true
                             }
                             Text {
                                 text: win.rtl ? "· ثبّت مجموعة كاملة بمراجعة واحدة" : "· one review, a complete setup"
                                 color: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(11)
+                                font.pixelSize: win.typePx(11)
                             }
                             Item { Layout.fillWidth: true }
                         }
@@ -2010,7 +1916,7 @@ ApplicationWindow {
                                     required property var modelData
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: win.fs(132)
-                                    radius: win.fs(20)
+                                    radius: design.radiusCard
                                     color: bundleHover.hovered
                                         ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.96)
                                         : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.76)
@@ -2034,14 +1940,14 @@ ApplicationWindow {
                                                 text: win.rtl ? bundleCard.modelData.ar : bundleCard.modelData.en
                                                 color: win.txt
                                                 font.family: win.uiFont
-                                                font.pixelSize: win.fs(14)
+                                                font.pixelSize: win.typePx(14)
                                                 font.bold: true
                                             }
                                             Text {
                                                 text: (bundleCard.modelData.apps || []).length
                                                 color: win.accent
                                                 font.family: win.uiFont
-                                                font.pixelSize: win.fs(12)
+                                                font.pixelSize: win.typePx(12)
                                                 font.bold: true
                                             }
                                         }
@@ -2050,7 +1956,7 @@ ApplicationWindow {
                                             text: win.rtl ? bundleCard.modelData.desc_ar : bundleCard.modelData.desc_en
                                             color: win.txt2
                                             font.family: win.uiFont
-                                            font.pixelSize: win.fs(10)
+                                            font.pixelSize: win.typePx(10)
                                             wrapMode: Text.WordWrap
                                             maximumLineCount: 2
                                             elide: Text.ElideRight
@@ -2074,11 +1980,11 @@ ApplicationWindow {
                     anchors.fill: parent
                     anchors.margins: 22
                     visible: win.page === "apps" || win.page === "installed"
-                    spacing: 12
+                    spacing: design.space3
 
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 8
+                        spacing: design.space2
                         Flickable {
                             id: chipFlick
                             Layout.fillWidth: true
@@ -2110,7 +2016,7 @@ ApplicationWindow {
                                         readonly property bool active: win.activeCategory === modelData.id
                                         implicitWidth: pillRow.implicitWidth + 22
                                         Layout.preferredHeight: win.fs(36)
-                                        radius: win.fs(12)
+                                        radius: design.radiusControl
                                         color: active ? win.accent
                                                       : pillHover.hovered ? win.raised : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                                         border.width: active ? 0 : 1
@@ -2137,7 +2043,7 @@ ApplicationWindow {
                                                 text: win.rtl ? categoryPill.modelData.ar : categoryPill.modelData.en
                                                 color: categoryPill.active ? win.accentText : win.txt
                                                 font.family: win.uiFont
-                                                font.pixelSize: win.fs(11)
+                                                font.pixelSize: win.typePx(11)
                                                 font.bold: categoryPill.active
                                             }
                                         }
@@ -2149,7 +2055,7 @@ ApplicationWindow {
                             text: win.visibleApps.length + (win.rtl ? " تطبيق" : " apps")
                             color: win.txt2
                             font.family: win.uiFont
-                            font.pixelSize: win.fs(11)
+                            font.pixelSize: win.typePx(11)
                         }
                         ActionButton {
                             id: bulkAdd
@@ -2210,7 +2116,7 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         visible: win.visibleApps.length === 0
-                        spacing: 8
+                        spacing: design.space2
                         Item { Layout.fillHeight: true }
                         Glyph {
                             Layout.alignment: Qt.AlignHCenter
@@ -2226,7 +2132,7 @@ ApplicationWindow {
                                 : (win.rtl ? "لا توجد نتائج" : "No results")
                             color: win.txt
                             font.family: win.uiFont
-                            font.pixelSize: win.fs(16)
+                            font.pixelSize: win.typePx(16)
                             font.bold: true
                         }
                         Text {
@@ -2234,7 +2140,7 @@ ApplicationWindow {
                             text: win.rtl ? "جرّب كلمة بحث أو فئة مختلفة." : "Try another search or category."
                             color: win.txt2
                             font.family: win.uiFont
-                            font.pixelSize: win.fs(11)
+                            font.pixelSize: win.typePx(11)
                         }
                         Item { Layout.fillHeight: true }
                     }
@@ -2259,7 +2165,7 @@ ApplicationWindow {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(122)
-                            radius: win.fs(24)
+                            radius: design.radiusPanel
                             color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.12)
                             border.width: 1
                             border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.3)
@@ -2281,14 +2187,14 @@ ApplicationWindow {
                                         text: win.rtl ? "اختر حسب ما تريد إنجازه" : "Start with what you want to do"
                                         color: win.txt
                                         font.family: win.uiFont
-                                        font.pixelSize: win.fs(22)
+                                        font.pixelSize: win.typePx(22)
                                         font.bold: true
                                     }
                                     Text {
                                         text: win.rtl ? "فئات عملية بدل قوائم تقنية طويلة." : "Human categories instead of package-manager jargon."
                                         color: win.txt2
                                         font.family: win.uiFont
-                                        font.pixelSize: win.fs(12)
+                                        font.pixelSize: win.typePx(12)
                                     }
                                 }
                             }
@@ -2321,13 +2227,13 @@ ApplicationWindow {
                                     ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: 16
-                                        spacing: 8
+                                        spacing: design.space2
                                         RowLayout {
                                             Layout.fillWidth: true
                                             Rectangle {
                                                 Layout.preferredWidth: win.fs(46)
                                                 Layout.preferredHeight: win.fs(46)
-                                                radius: win.fs(15)
+                                                radius: design.radiusCard
                                                 color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.13)
                                                 Glyph { anchors.centerIn: parent; width: 24; height: 24; name: categoryTile.modelData.glyph; tint: win.accent }
                                             }
@@ -2336,7 +2242,7 @@ ApplicationWindow {
                                                 text: win.categoryCount(categoryTile.modelData.id)
                                                 color: win.accent
                                                 font.family: win.uiFont
-                                                font.pixelSize: win.fs(15)
+                                                font.pixelSize: win.typePx(15)
                                                 font.bold: true
                                             }
                                         }
@@ -2344,14 +2250,14 @@ ApplicationWindow {
                                             text: win.rtl ? categoryTile.modelData.ar : categoryTile.modelData.en
                                             color: win.txt
                                             font.family: win.uiFont
-                                            font.pixelSize: win.fs(14)
+                                            font.pixelSize: win.typePx(14)
                                             font.bold: true
                                         }
                                         Text {
                                             text: win.rtl ? "استكشف التطبيقات" : "Explore apps"
                                             color: win.txt2
                                             font.family: win.uiFont
-                                            font.pixelSize: win.fs(10)
+                                            font.pixelSize: win.typePx(10)
                                         }
                                     }
                                 }
@@ -2373,7 +2279,7 @@ ApplicationWindow {
                         id: updateBody
                         x: 26
                         width: parent.width - 52
-                        spacing: 16
+                        spacing: design.space4
                         Item { Layout.preferredHeight: win.fs(4) }
                         Rectangle {
                             Layout.fillWidth: true
@@ -2389,7 +2295,7 @@ ApplicationWindow {
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.margins: 28
-                                spacing: 24
+                                spacing: design.space5
                                 Rectangle {
                                     Layout.preferredWidth: win.fs(92)
                                     Layout.preferredHeight: win.fs(92)
@@ -2423,7 +2329,7 @@ ApplicationWindow {
                                         }
                                         color: win.txt
                                         font.family: win.uiFont
-                                        font.pixelSize: win.fs(24)
+                                        font.pixelSize: win.typePx(24)
                                         font.bold: true
                                     }
                                     Text {
@@ -2444,11 +2350,11 @@ ApplicationWindow {
                                         }
                                         color: win.txt2
                                         font.family: win.uiFont
-                                        font.pixelSize: win.fs(12)
+                                        font.pixelSize: win.typePx(12)
                                         wrapMode: Text.WordWrap
                                     }
                                     RowLayout {
-                                        spacing: 8
+                                        spacing: design.space2
                                         ActionButton {
                                             label: win.updateItems().length === 0
                                                    && win.updateComponentCount() > 0
@@ -2491,7 +2397,7 @@ ApplicationWindow {
                                 text: win.rtl ? "بانتظار التحديث" : "Waiting to update"
                                 color: win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(12)
+                                font.pixelSize: win.typePx(12)
                                 font.bold: true
                             }
                             Repeater {
@@ -2501,7 +2407,7 @@ ApplicationWindow {
                                     required property var modelData
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: win.fs(62)
-                                    radius: win.fs(16)
+                                    radius: design.radiusCard
                                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
                                     border.width: 1
                                     border.color: win.outline
@@ -2513,7 +2419,7 @@ ApplicationWindow {
                                         Rectangle {
                                             Layout.preferredWidth: win.fs(36)
                                             Layout.preferredHeight: win.fs(36)
-                                            radius: win.fs(11)
+                                            radius: design.radiusControl
                                             color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
                                             Glyph {
                                                 anchors.centerIn: parent
@@ -2529,7 +2435,7 @@ ApplicationWindow {
                                                 text: pendingRow.modelData.name || pendingRow.modelData.id
                                                 color: win.txt
                                                 font.family: win.uiFont
-                                                font.pixelSize: win.fs(14)
+                                                font.pixelSize: win.typePx(14)
                                                 font.bold: true
                                                 elide: Text.ElideRight
                                             }
@@ -2540,7 +2446,7 @@ ApplicationWindow {
                                                         ? " · " + pendingRow.modelData.version : "")
                                                 color: win.txt2
                                                 font.family: win.uiFont
-                                                font.pixelSize: win.fs(11)
+                                                font.pixelSize: win.typePx(11)
                                                 elide: Text.ElideRight
                                             }
                                         }
@@ -2548,7 +2454,7 @@ ApplicationWindow {
                                             text: pendingRow.modelData.origin || ""
                                             color: win.txt2
                                             font.family: win.uiFont
-                                            font.pixelSize: win.fs(11)
+                                            font.pixelSize: win.typePx(11)
                                         }
                                     }
                                 }
@@ -2576,7 +2482,7 @@ ApplicationWindow {
                                     ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: 16
-                                        spacing: 8
+                                        spacing: design.space2
                                         Glyph {
                                             name: updateCard.modelData.glyph
                                             tint: win.accent
@@ -2587,7 +2493,7 @@ ApplicationWindow {
                                             text: win.rtl ? updateCard.modelData.ar : updateCard.modelData.en
                                             color: win.txt
                                             font.family: win.uiFont
-                                            font.pixelSize: win.fs(14)
+                                            font.pixelSize: win.typePx(14)
                                             font.bold: true
                                         }
                                         Text {
@@ -2595,7 +2501,7 @@ ApplicationWindow {
                                             text: win.rtl ? updateCard.modelData.ar2 : updateCard.modelData.en2
                                             color: win.txt2
                                             font.family: win.uiFont
-                                            font.pixelSize: win.fs(10)
+                                            font.pixelSize: win.typePx(10)
                                             wrapMode: Text.WordWrap
                                         }
                                         Item { Layout.fillHeight: true }
@@ -2666,12 +2572,12 @@ ApplicationWindow {
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: 4
+                                    spacing: design.space1
                                     Text {
                                         text: win.rtl ? "مصادر متعددة، تجربة واحدة." : "Many sources. One coherent store."
                                         color: win.txt
                                         font.family: win.uiFont
-                                        font.pixelSize: win.fs(23)
+                                        font.pixelSize: win.typePx(23)
                                         font.bold: true
                                     }
                                     Text {
@@ -2681,7 +2587,7 @@ ApplicationWindow {
                                             : "Mo Store unifies discovery and management while keeping specialist engines available without duplicate storefronts."
                                         color: win.txt2
                                         font.family: win.uiFont
-                                        font.pixelSize: win.fs(11)
+                                        font.pixelSize: win.typePx(11)
                                         wrapMode: Text.WordWrap
                                     }
                                 }
@@ -2758,13 +2664,13 @@ ApplicationWindow {
                                     ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: 16
-                                        spacing: 8
+                                        spacing: design.space2
                                         RowLayout {
                                             Layout.fillWidth: true
                                             Rectangle {
                                                 Layout.preferredWidth: win.fs(46)
                                                 Layout.preferredHeight: win.fs(46)
-                                                radius: win.fs(15)
+                                                radius: design.radiusCard
                                                 color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.13)
                                                 Glyph { anchors.centerIn: parent; width: 24; height: 24; name: sourceCard.modelData.glyph; tint: win.accent }
                                             }
@@ -2775,14 +2681,14 @@ ApplicationWindow {
                                                     text: win.rtl ? sourceCard.modelData.ar : sourceCard.modelData.en
                                                     color: win.txt
                                                     font.family: win.uiFont
-                                                    font.pixelSize: win.fs(14)
+                                                    font.pixelSize: win.typePx(14)
                                                     font.bold: true
                                                 }
                                                 Text {
                                                     text: win.rtl ? sourceCard.modelData.stateAr : sourceCard.modelData.stateEn
                                                     color: win.accent
                                                     font.family: win.uiFont
-                                                    font.pixelSize: win.fs(10)
+                                                    font.pixelSize: win.typePx(10)
                                                     font.bold: true
                                                 }
                                             }
@@ -2792,7 +2698,7 @@ ApplicationWindow {
                                             text: win.rtl ? sourceCard.modelData.ar2 : sourceCard.modelData.en2
                                             color: win.txt2
                                             font.family: win.uiFont
-                                            font.pixelSize: win.fs(10)
+                                            font.pixelSize: win.typePx(10)
                                             wrapMode: Text.WordWrap
                                             maximumLineCount: 3
                                             elide: Text.ElideRight
@@ -2841,12 +2747,12 @@ ApplicationWindow {
                               && !win.jobIsTerminal() ? 20 : -84
         width: Math.min(610, win.width - 56)
         height: 58
-        radius: win.fs(20)
+        radius: design.radiusCard
         visible: anchors.bottomMargin > -84
         color: Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.98)
         border.width: 1
         border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.48)
-        Behavior on anchors.bottomMargin { NumberAnimation { duration: 220; easing.type: Easing.OutBack } }
+        Behavior on anchors.bottomMargin { NumberAnimation { duration: win.motionEnabled ? design.motionGeometry : 0; easing.type: Easing.OutBack } }
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: 13
@@ -2855,14 +2761,14 @@ ApplicationWindow {
             Rectangle {
                 Layout.preferredWidth: win.fs(34)
                 Layout.preferredHeight: win.fs(34)
-                radius: win.fs(12)
+                radius: design.radiusControl
                 color: win.accent
                 Text {
                     anchors.centerIn: parent
                     text: win.pickCount
                     color: win.accentText
                     font.family: win.uiFont
-                    font.pixelSize: win.fs(13)
+                    font.pixelSize: win.typePx(13)
                     font.bold: true
                 }
             }
@@ -2873,14 +2779,14 @@ ApplicationWindow {
                     text: win.rtl ? "قائمة التثبيت جاهزة" : "Install list ready"
                     color: win.txt
                     font.family: win.uiFont
-                    font.pixelSize: win.fs(12)
+                    font.pixelSize: win.typePx(12)
                     font.bold: true
                 }
                 Text {
                     text: win.rtl ? "راجع المصدر قبل البدء" : "Review sources before starting"
                     color: win.txt2
                     font.family: win.uiFont
-                    font.pixelSize: win.fs(9)
+                    font.pixelSize: win.typePx(9)
                 }
             }
             ActionButton {
@@ -2912,15 +2818,15 @@ ApplicationWindow {
         border.width: 1
         border.color: win.job.state === "failed" ? win.violet
                       : Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.48)
-        Behavior on anchors.bottomMargin { NumberAnimation { duration: 220; easing.type: Easing.OutBack } }
+        Behavior on anchors.bottomMargin { NumberAnimation { duration: win.motionEnabled ? design.motionGeometry : 0; easing.type: Easing.OutBack } }
         RowLayout {
             anchors.fill: parent
             anchors.margins: 13
-            spacing: 12
+            spacing: design.space3
             Rectangle {
                 Layout.preferredWidth: win.fs(44)
                 Layout.preferredHeight: win.fs(44)
-                radius: win.fs(15)
+                radius: design.radiusCard
                 color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
                 Glyph {
                     anchors.centerIn: parent
@@ -2942,7 +2848,7 @@ ApplicationWindow {
                             : win.job.message || (win.rtl ? "جارٍ تنفيذ العملية" : "Working")
                         color: win.txt
                         font.family: win.uiFont
-                        font.pixelSize: win.fs(12)
+                        font.pixelSize: win.typePx(12)
                         font.bold: true
                         elide: Text.ElideRight
                     }
@@ -2951,7 +2857,7 @@ ApplicationWindow {
                         text: Math.round(win.job.progress || 0) + "%"
                         color: win.accent
                         font.family: win.uiFont
-                        font.pixelSize: win.fs(11)
+                        font.pixelSize: win.typePx(11)
                         font.bold: true
                     }
                 }
@@ -2968,7 +2874,7 @@ ApplicationWindow {
                         radius: height / 2
                         width: parent.width * Math.max(0, Math.min(100, win.job.progress || 0)) / 100
                         color: win.accent
-                        Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                        Behavior on width { NumberAnimation { duration: win.motionEnabled ? design.motionGeometry : 0; easing.type: Easing.OutCubic } }
                     }
                     Rectangle {
                         id: jobProgressIndeterminate
@@ -2983,7 +2889,7 @@ ApplicationWindow {
                             NumberAnimation {
                                 from: -jobProgressIndeterminate.width
                                 to: jobProgressTrack.width
-                                duration: 1200
+                                duration: win.motionEnabled ? 1200 : 0
                                 easing.type: Easing.InOutQuad
                             }
                         }
@@ -3026,8 +2932,8 @@ ApplicationWindow {
         }
         Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.54) }
         enter: Transition {
-            NumberAnimation { property: "scale"; from: 0.96; to: 1; duration: 170; easing.type: Easing.OutBack }
-            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 130 }
+            NumberAnimation { property: "scale"; from: 0.96; to: 1; duration: win.motionEnabled ? design.motionPress : 0; easing.type: Easing.OutBack }
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: win.motionEnabled ? design.motionPress : 0 }
         }
         Flickable {
             id: detailFlick
@@ -3054,7 +2960,7 @@ ApplicationWindow {
                             text: win.localName(win.selectedApp)
                             color: win.txt
                             font.family: win.uiFont
-                            font.pixelSize: win.fs(24)
+                            font.pixelSize: win.typePx(24)
                             font.bold: true
                             elide: Text.ElideRight
                         }
@@ -3063,7 +2969,7 @@ ApplicationWindow {
                             text: win.selectedApp ? (win.selectedApp.developer || win.selectedApp.id) : ""
                             color: win.txt2
                             font.family: win.uiFont
-                            font.pixelSize: win.fs(11)
+                            font.pixelSize: win.typePx(11)
                             elide: Text.ElideRight
                         }
                         RowLayout {
@@ -3080,7 +2986,7 @@ ApplicationWindow {
                                     text: win.selectedApp ? win.selectedApp.license : ""
                                     color: win.txt2
                                     font.family: win.uiFont
-                                    font.pixelSize: win.fs(9)
+                                    font.pixelSize: win.typePx(9)
                                 }
                             }
                         }
@@ -3096,7 +3002,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.preferredHeight: win.selectedApp && win.selectedApp.screenshot ? 250 : 0
                     visible: height > 0
-                    radius: win.fs(18)
+                    radius: design.radiusCard
                     color: win.canvas
                     clip: true
                     Image {
@@ -3120,7 +3026,7 @@ ApplicationWindow {
                     text: win.localSummary(win.selectedApp)
                     color: win.txt
                     font.family: win.uiFont
-                    font.pixelSize: win.fs(15)
+                    font.pixelSize: win.typePx(15)
                     font.bold: true
                     wrapMode: Text.WordWrap
                 }
@@ -3133,7 +3039,7 @@ ApplicationWindow {
                     text: win.localDescription(win.selectedApp)
                     color: win.txt2
                     font.family: win.uiFont
-                    font.pixelSize: win.fs(11)
+                    font.pixelSize: win.typePx(11)
                     wrapMode: Text.WordWrap
                     maximumLineCount: 8
                     elide: Text.ElideRight
@@ -3165,7 +3071,7 @@ ApplicationWindow {
                             required property var modelData
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(78)
-                            radius: win.fs(15)
+                            radius: design.radiusCard
                             color: Qt.rgba(win.canvas.r, win.canvas.g, win.canvas.b, 0.5)
                             border.width: 1
                             border.color: win.outline
@@ -3187,7 +3093,7 @@ ApplicationWindow {
                                         text: modelData.label
                                         color: win.txt2
                                         font.family: win.uiFont
-                                        font.pixelSize: win.fs(9)
+                                        font.pixelSize: win.typePx(9)
                                     }
                                     Text {
                                         Layout.fillWidth: true
@@ -3195,7 +3101,7 @@ ApplicationWindow {
                                         text: modelData.value
                                         color: win.txt
                                         font.family: win.uiFont
-                                        font.pixelSize: win.fs(11)
+                                        font.pixelSize: win.typePx(11)
                                         font.bold: true
                                         elide: Text.ElideRight
                                     }
@@ -3212,7 +3118,7 @@ ApplicationWindow {
                                                           || (win.selectedApp.install
                                                               && win.selectedApp.install.requires_review === true)
                                                           || (win.selectedApp.install && win.selectedApp.install.kind === "npm"))
-                    radius: win.fs(16)
+                    radius: design.radiusCard
                     color: Qt.rgba(win.violet.r, win.violet.g, win.violet.b, 0.1)
                     border.width: 1
                     border.color: Qt.rgba(win.violet.r, win.violet.g, win.violet.b, 0.34)
@@ -3228,7 +3134,7 @@ ApplicationWindow {
                                 : "Advanced source: review the package and install method before continuing."
                             color: win.txt
                             font.family: win.uiFont
-                            font.pixelSize: win.fs(10)
+                            font.pixelSize: win.typePx(10)
                             wrapMode: Text.WordWrap
                         }
                     }
@@ -3241,7 +3147,7 @@ ApplicationWindow {
                         text: win.rtl ? "مُدار مع النظام" : "System managed"
                         color: win.txt2
                         font.family: win.uiFont
-                        font.pixelSize: win.fs(10)
+                        font.pixelSize: win.typePx(10)
                         font.bold: true
                     }
                     Item { Layout.fillWidth: true }
@@ -3292,7 +3198,7 @@ ApplicationWindow {
         padding: 0
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         background: Rectangle {
-            radius: win.fs(24)
+            radius: design.radiusPanel
             color: win.surface
             border.width: 1
             border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.4)
@@ -3307,7 +3213,7 @@ ApplicationWindow {
                 Rectangle {
                     Layout.preferredWidth: win.fs(48)
                     Layout.preferredHeight: win.fs(48)
-                    radius: win.fs(16)
+                    radius: design.radiusCard
                     color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
                     Glyph { anchors.centerIn: parent; width: 25; height: 25; name: "shield"; tint: win.accent }
                 }
@@ -3324,7 +3230,7 @@ ApplicationWindow {
                                 : (win.rtl ? "راجع قبل التثبيت" : "Review before installing")
                         color: win.txt
                         font.family: win.uiFont
-                        font.pixelSize: win.fs(18)
+                        font.pixelSize: win.typePx(18)
                         font.bold: true
                     }
                     Text {
@@ -3341,7 +3247,7 @@ ApplicationWindow {
                                     : "Flatpaks install for your user only. Advanced sources are clearly marked below.")
                         color: win.txt2
                         font.family: win.uiFont
-                        font.pixelSize: win.fs(10)
+                        font.pixelSize: win.typePx(10)
                     }
                 }
             }
@@ -3350,7 +3256,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
-                spacing: 8
+                spacing: design.space2
                 model: Object.keys(win.picks)
                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                 delegate: Rectangle {
@@ -3359,7 +3265,7 @@ ApplicationWindow {
                     readonly property var app: win.appById(modelData)
                     width: ListView.view.width
                     height: 68
-                    radius: win.fs(15)
+                    radius: design.radiusCard
                     color: Qt.rgba(win.canvas.r, win.canvas.g, win.canvas.b, 0.5)
                     border.width: 1
                     border.color: win.outline
@@ -3376,7 +3282,7 @@ ApplicationWindow {
                                 text: win.localName(reviewItem.app)
                                 color: win.txt
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(12)
+                                font.pixelSize: win.typePx(12)
                                 font.bold: true
                                 elide: Text.ElideRight
                             }
@@ -3389,7 +3295,7 @@ ApplicationWindow {
                                                && reviewItem.app.install.requires_review))
                                        ? win.violet : win.txt2
                                 font.family: win.uiFont
-                                font.pixelSize: win.fs(9)
+                                font.pixelSize: win.typePx(9)
                                 elide: Text.ElideRight
                             }
                         }
@@ -3404,7 +3310,7 @@ ApplicationWindow {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: win.fs(58)
-                radius: win.fs(15)
+                radius: design.radiusCard
                 color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.1)
                 RowLayout {
                     anchors.fill: parent
@@ -3418,7 +3324,7 @@ ApplicationWindow {
                             : "No administrator access, and external websites never install automatically. Marked npm tools may run package scripts after your approval."
                         color: win.txt
                         font.family: win.uiFont
-                        font.pixelSize: win.fs(10)
+                        font.pixelSize: win.typePx(10)
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -3458,7 +3364,7 @@ ApplicationWindow {
         modal: false
         closePolicy: Popup.NoAutoClose
         background: Rectangle {
-            radius: win.fs(16)
+            radius: design.radiusCard
             color: win.raised
             border.width: 1
             border.color: win.accent
@@ -3471,7 +3377,7 @@ ApplicationWindow {
             text: "Mo Store"
             color: win.txt
             font.family: win.uiFont
-            font.pixelSize: win.fs(11)
+            font.pixelSize: win.typePx(11)
             elide: Text.ElideRight
         }
         Timer { id: toastTimer; interval: 2500; onTriggered: toast.close() }

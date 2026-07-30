@@ -48,6 +48,7 @@ PlasmoidItem {
         ? fullRepresentation : compactRepresentation
 
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property string uiFontFamily: Qt.application.font.family
     readonly property var shippedFavorites: [
         "org.moos.moai.desktop",
         "org.moos.store.desktop",
@@ -60,7 +61,7 @@ PlasmoidItem {
     ]
 
     property string searchQuery: ""
-    property int activePage: 0
+    property int activePage: 1
     property bool editMode: false
     property int appsModelRow: 1
     property var favoriteSearchIds: []
@@ -309,7 +310,9 @@ PlasmoidItem {
     compactRepresentation: MouseArea {
         id: compact
 
-        readonly property int contentWidth: Math.round(height * 2.55)
+        // Enough optical width for the 11px functional caption in both
+        // languages; the old 2.55 ratio only worked by shrinking it to 7px.
+        readonly property int contentWidth: Math.round(height * 3.60)
 
         implicitWidth: contentWidth
         implicitHeight: Kirigami.Units.gridUnit * 2
@@ -369,7 +372,7 @@ PlasmoidItem {
 
         RowLayout {
             anchors.centerIn: parent
-            width: Math.round(compact.contentWidth * 0.80)
+            width: Math.round(compact.contentWidth * 0.86)
             height: Math.round(compact.height * 0.68)
             spacing: Math.max(4, Kirigami.Units.smallSpacing)
             // No explicit layoutDirection: plasmashell mirrors this tree on RTL
@@ -424,7 +427,7 @@ PlasmoidItem {
                 Text {
                     text: "MoOS"
                     color: Kirigami.Theme.textColor
-                    font.family: "IBM Plex Sans"
+                    font.family: root.uiFontFamily
                     font.pixelSize: Math.max(12, Math.round(compact.height * 0.26))
                     font.weight: Font.DemiBold
                     font.letterSpacing: 1.5
@@ -434,8 +437,10 @@ PlasmoidItem {
                     color: compact.containsMouse
                         ? Kirigami.Theme.highlightColor
                         : Kirigami.Theme.disabledTextColor
-                    font.family: "IBM Plex Sans"
-                    font.pixelSize: Math.max(7, Math.round(compact.height * 0.13))
+                    font.family: root.uiFontFamily
+                    // The previous 7px floor disappeared on a dense panel and
+                    // made the dock brand look like decorative microcopy.
+                    font.pixelSize: Math.max(11, Math.round(compact.height * 0.20))
                     font.weight: Font.DemiBold
                     font.letterSpacing: root.rtl ? 0 : 1.1
                     Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
@@ -445,7 +450,7 @@ PlasmoidItem {
             Kirigami.Icon {
                 Layout.preferredWidth: Kirigami.Units.iconSizes.small
                 Layout.preferredHeight: width
-                source: "system-search-symbolic"
+                source: "moos-search-symbolic"
                 color: compact.containsMouse
                     ? Kirigami.Theme.highlightColor
                     : Kirigami.Theme.textColor
@@ -468,12 +473,12 @@ PlasmoidItem {
     Plasmoid.contextualActions: [
         PlasmaCore.Action {
             text: root.rtl ? "تحرير التطبيقات…" : "Edit applications…"
-            icon.name: "kmenuedit"
+            icon.name: "moos-pen-symbolic"
             onTriggered: processRunner.runMenuEditor()
         },
         PlasmaCore.Action {
             text: root.rtl ? "إعدادات البحث…" : "Search settings…"
-            icon.name: "preferences-desktop-search"
+            icon.name: "moos-search-symbolic"
             onTriggered: root.openDesktop("kcm_plasmasearch.desktop")
         }
     ]

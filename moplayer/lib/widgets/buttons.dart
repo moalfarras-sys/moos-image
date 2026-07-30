@@ -201,18 +201,18 @@ class EmberButton extends StatelessWidget {
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: AppColors.onEmber,
                   ),
                 )
               else if (icon != null)
-                Icon(icon, size: compact ? 17 : 19, color: Colors.white),
+                Icon(icon, size: compact ? 17 : 19, color: AppColors.onEmber),
               if (busy || icon != null) const SizedBox(width: Nova.space2),
               Flexible(
                 child: Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.button.copyWith(color: Colors.white),
+                  style: AppText.button.copyWith(color: AppColors.onEmber),
                 ),
               ),
             ],
@@ -384,7 +384,7 @@ class IconPill extends StatelessWidget {
         final color = !enabled
             ? AppColors.textMuted
             : filled
-            ? Colors.white
+            ? AppColors.onEmber
             : active
             ? AppColors.primary
             : (hovered ? AppColors.textPrimary : AppColors.textSecondary);

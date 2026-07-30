@@ -231,7 +231,7 @@ class CacheService {
       if (ttl != null) {
         final ts = (map['ts'] as num?)?.toInt() ?? 0;
         final age = DateTime.now().millisecondsSinceEpoch - ts;
-        if (age > ttl.inMilliseconds) return null;
+        if (age >= ttl.inMilliseconds) return null;
       }
       final rows = (map['data'] as List<dynamic>)
           .whereType<Map>()
@@ -253,7 +253,7 @@ class CacheService {
   bool _isExpired(String raw, Duration ttl) {
     final match = RegExp(r'"ts"\s*:\s*(\d+)').firstMatch(raw);
     final ts = int.tryParse(match?.group(1) ?? '') ?? 0;
-    return DateTime.now().millisecondsSinceEpoch - ts > ttl.inMilliseconds;
+    return DateTime.now().millisecondsSinceEpoch - ts >= ttl.inMilliseconds;
   }
 
   /// A document that is not a list of rows — the XMLTV guide, which is ~1 MB of
@@ -275,7 +275,7 @@ class CacheService {
       if (ttl != null) {
         final ts = (map['ts'] as num?)?.toInt() ?? 0;
         final age = DateTime.now().millisecondsSinceEpoch - ts;
-        if (age > ttl.inMilliseconds) return null;
+        if (age >= ttl.inMilliseconds) return null;
       }
       return map['text'] as String?;
     } catch (_) {

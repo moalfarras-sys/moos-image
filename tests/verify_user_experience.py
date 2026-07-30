@@ -79,6 +79,67 @@ require("Gtk.Application" in native_remote,
 require('UNIT = "mo-remote-personal.service"' in native_remote,
         "Mo PC Remote must manage the MoPC backend")
 
+# First-party GTK surfaces must follow the SAME active ColorScheme as Plasma,
+# including all family accents — a binary Graphite/Tidal guess makes fourteen of
+# sixteen theme choices look half-applied.  Selection foreground is the only
+# colour KDE pairs with the accent; generated hue endpoints are not safe.
+gtk_ui2 = code(read("system_files/usr/lib/moos/moos_ui2.py"))
+require(all(token in gtk_ui2 for token in (
+            "def palette_from_color_scheme(",
+            "def active_color_scheme(",
+            "def find_color_scheme(",
+            'on_accent = colour(selection, "ForegroundNormal")',
+            "def watch_kdeglobals(",
+            "monitor_directory(",
+            "class UI2StyleController:",
+            "self._monitor = watch_kdeglobals(self.schedule_restyle",
+            "self._style_controller = UI2StyleController(self._css)",
+        )),
+        "first-party GTK must parse the active KDE .colors file, take on_accent "
+        "from Selection.ForegroundNormal, and live-restyle on kdeglobals changes")
+_gtk_suggested = gtk_ui2.split(
+    "window.moos-ui2 button.suggested-action", 1
+)[1].split("}", 1)[0] if "window.moos-ui2 button.suggested-action" in gtk_ui2 else ""
+require("background-color: @ui2_primary" in _gtk_suggested
+        and "linear-gradient" not in _gtk_suggested,
+        "GTK suggested buttons must put Selection foreground on its paired flat "
+        "Selection background; the secondary gradient endpoint reaches only 3.01:1")
+
+# The three-second Mo PC Remote poll used to execute systemctl/Tailscale/qrencode
+# serially on GTK's main thread (as many as nine 5-second timeouts). Collect on one
+# daemon worker, coalesce bursts, and marshal immutable results through idle_add.
+remote_code = code(native_remote)
+require("class CoalescingWorker:" in remote_code
+        and "GLib.idle_add" in remote_code
+        and "collect_remote_snapshot" in remote_code
+        and "self._refresh_worker.request()" in remote_code
+        and "self.style_controller=UI2StyleController(self.style_provider)" in remote_code,
+        "Mo PC Remote must use the shared live GTK theme controller and a "
+        "GLib.idle_add coalescing refresh worker")
+try:
+    _remote_tree = ast.parse(native_remote)
+    _remote_app = next(node for node in _remote_tree.body
+                       if isinstance(node, ast.ClassDef) and node.name == "App")
+    _remote_apply = next(node for node in _remote_app.body
+                         if isinstance(node, ast.FunctionDef)
+                         and node.name == "_apply_refresh")
+    _remote_apply_calls = {
+        node.func.id for node in ast.walk(_remote_apply)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+except (SyntaxError, StopIteration):
+    _remote_apply_calls = {"invalid-remote-source"}
+require(not (_remote_apply_calls & {
+            "run", "active", "tailscale_url", "qr_png",
+            "collect_remote_snapshot", "open", "invalid-remote-source",
+        }),
+        "Mo PC Remote's GTK apply path still performs blocking I/O instead of "
+        "consuming the worker snapshot")
+gtk_runtime_test = "python3 tests/test_moos_gtk_runtime.py"
+require(gtk_runtime_test in read("Justfile")
+        and gtk_runtime_test in read(".github/workflows/build.yml"),
+        "the 16-palette/live-restyle/non-blocking GTK gate must run locally and in CI")
+
 # ── Remote control must be a whole, regression-proof chain ────────────────────
 #
 # Mo PC Remote is how the owner drives this machine from a phone, so every link
@@ -2996,7 +3057,7 @@ require("if (root.expanded)" in brand_main_qml and "if (expanded)" not in brand_
         "the brand applet must qualify root.expanded; the bare signal argument "
         "uses deprecated parameter injection and warns on every Plasma login")
 require('text: "MoOS"' in brand_main_qml and '"LAUNCHER"' in brand_main_qml
-        and "system-search-symbolic" in brand_main_qml,
+        and "moos-search-symbolic" in brand_main_qml,
         "the one panel launcher must visibly remain the MoOS wordmark plus search affordance")
 
 # Search and browsing are native model operations, not shell commands wearing a
@@ -3067,6 +3128,57 @@ require("Layout.minimumWidth: implicitWidth" in launcher_view_qml
         and "MOOS_LAUNCHER_FULL_READY size=" in launcher_view_qml,
         "the full launcher must enforce and report its unclipped 720x590 representation to "
         "the plasmawindowed smoke")
+# Commercial shell language: a 24px outer rhythm, 40px affordances, functional
+# text no smaller than 11px, and three generous columns. The old four-column
+# launcher drove labels down to 7–10px and kept a redundant "Press Meta" pill
+# visible after the menu was already open.
+_launcher_tokens = {
+    "space1": 4, "space2": 8, "space3": 12, "space4": 16, "space6": 24,
+    "radiusS": 8, "radiusM": 12, "radiusL": 16, "radiusXL": 24,
+    "targetSize": 40, "typeCaption": 11, "typeSecondary": 13,
+    "typeBody": 14, "typeEmphasis": 15, "typeTitle": 20,
+}
+require(all(f"readonly property int {name}: {value}" in launcher_view_qml
+            for name, value in _launcher_tokens.items())
+        and "anchors.margins: view.space6" in launcher_view_qml,
+        "the launcher must use the unified 4px spacing, 8/12/16/24 radii, "
+        "40px target and 11/13/14/15/20 type tokens")
+require("Press Meta to open" not in launcher_view_qml
+        and "يفتح بزر Meta" not in launcher_view_qml
+        and launcher_view_qml.count(
+            "cellWidth: Math.max(1, Math.floor(width / 3))"
+        ) == 2
+        and re.search(r"cellWidth:.*width\s*/\s*4", launcher_view_qml) is None,
+        "the open launcher must drop the redundant Meta pill and use the calmer "
+        "three-column Pinned/Applications proportion")
+_launcher_type_expressions = re.findall(
+    r"font\.pixelSize\s*:\s*([^\n]+)", launcher_view_qml
+)
+require("readonly property string uiFontFamily: Qt.application.font.family"
+        in launcher_view_qml
+        and re.search(r'font\.family\s*:\s*"', launcher_view_qml) is None
+        and _launcher_type_expressions
+        and all("type" in expression for expression in _launcher_type_expressions)
+        and launcher_view_qml.count("view.targetSize") >= 24,
+        "launcher text must follow the session font and its readable type roles, "
+        "while custom pointer affordances retain at least 40px targets")
+require("readonly property string uiFontFamily: Qt.application.font.family"
+        in brand_main_qml
+        and re.search(r'font\.family\s*:\s*"', brand_main_qml) is None
+        and "font.pixelSize: Math.max(11, Math.round(compact.height * 0.20))"
+            in brand_main_qml,
+        "the dock launcher must follow the session font and never shrink its "
+        "functional caption below 11px")
+# plasmashell already enables inherited LayoutMirroring for an RTL session.
+# Manually swapping physical left/right anchors inside that tree mirrors twice:
+# the navigation rail stayed physically left and the pin affordance stayed right
+# in both languages.  Express each edge once in logical LTR source order.
+require(re.search(r"anchors\.(?:left|right)\s*:\s*view\.rtl\s*\?",
+                  launcher_view_qml) is None
+        and "anchors.left: parent.left" in launcher_view_qml
+        and "anchors.right: parent.right" in launcher_view_qml,
+        "the launcher must use inherited logical anchors once; rtl-conditional "
+        "left/right anchors are double-mirrored by plasmashell")
 
 # Favorites are user state.  Defining helper functions is not enough: require a
 # second occurrence in the composed UI so pin/unpin/reorder are reachable from
@@ -3178,17 +3290,81 @@ require("control.emphasized || control.down" in _action_btn
         and "highlightedTextColor" in _action_btn,
         "the logout action icon is not emphasized/down-aware — an accent glyph on "
         "an accent fill makes the Cancel icon invisible")
+# Selection foreground is paired only with Selection background.  The old
+# accentA→accentB fill put the glyph over a generated hue with no foreground
+# contract; destructive actions then reused Selection foreground on the negative
+# role.  Keep accentB as rim-only and bind each flat fill to its measured ink.
+require(re.search(r"filledInk:\s*control\.destructive\s*"
+                  r"\?\s*Kirigami\.Theme\.backgroundColor\s*"
+                  r":\s*Kirigami\.Theme\.highlightedTextColor",
+                  _action_btn, re.DOTALL) is not None
+        and "color: control.filled\n                    ? control.accentA" in _action_btn
+        and "border.color: control.filled\n                    ? control.accentB" in _action_btn
+        and "? control.filledInk" in _action_btn
+        and "filledGrad" not in _action_btn,
+        "filled logout orbs must put their glyph on one scheme-paired flat fill: "
+        "Selection ink/accent for normal actions, Complementary background/negative "
+        "for destructive actions; accentB is decorative rim only")
+
+_lock_main = code(read("system_files/usr/share/plasma/shells/"
+                       "org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml"),
+                  style="slash")
+_unlock_start = _lock_main.find("id: loginButton")
+_unlock_end = _lock_main.find("component FailableLabel", _unlock_start)
+_unlock = _lock_main[_unlock_start:_unlock_end]
+require(_unlock_start >= 0 and _unlock_end > _unlock_start
+        and "color: sessionManager.accentA" in _unlock
+        and "color: Kirigami.Theme.highlightedTextColor" in _unlock
+        and "scale: loginButton.down ? 0.94 : 1.0" in _unlock
+        and "gradient: Gradient" not in _unlock
+        and re.search(r'color\s*:\s*["\']white["\']|'
+                      r'Qt\.rgba\(\s*1\s*,\s*1\s*,\s*1\s*,', _unlock) is None,
+        "the lock-screen Unlock glyph must use the scheme's selected ink on flat "
+        "accentA; literal white/accentB gradients fall below 3:1 in seven themes")
 # 3) The doorway splash/logout must track the ACTIVE theme, not ship Nova's cosmic
-#    literals on all 16 family members. The splash's third sweep is the linkColor
-#    (secondary) role; the logout aurora ribbons bind Kirigami.Theme.highlightColor
+#    literals on all 16 family members. The splash's sole sweep includes linkColor
+#    (secondary); the logout aurora ribbons bind Kirigami.Theme.highlightColor
 #    (root.accent / root.accentB) straight to their gradient stops.
 #    (The engine was slimmed from six curtains to two ribbons for GPU headroom; the
 #    invariant is unchanged — every accent stop still tracks the theme, not Nova.)
 _splash = code(read("system_files/usr/share/plasma/look-and-feel/org.moos.ui2/"
                     "contents/splash/Splash.qml"), style="slash")
 require("Kirigami.Theme.linkColor" in _splash,
-        "the splash's third progress sweep is a hardcoded violet again — it must be "
+        "the splash progress sweep lost the family secondary role — it must use "
         "Kirigami.Theme.linkColor so every family member tracks its own secondary")
+_splash_stage = _splash.split("onStageChanged:", 1)[1].split(
+    "Rectangle {", 1
+)[0] if "onStageChanged:" in _splash else ""
+_splash_static = _splash.split("function showStaticFrame()", 1)[1].split(
+    "onMotionEnabledChanged:", 1
+)[0] if "function showStaticFrame()" in _splash else ""
+require(re.search(r"if\s*\(stage\s*===\s*2\)\s*\{.*?"
+                  r"if\s*\(root\.motionEnabled\)\s*\{\s*"
+                  r"revealAnimation\.restart\(\);\s*\}\s*else\s*\{\s*"
+                  r"root\.showStaticFrame\(\);",
+                  _splash_stage, re.DOTALL) is not None
+        and re.search(r"stage\s*===\s*5\)\s*\{\s*"
+                      r"revealAnimation\.stop\(\);\s*"
+                      r"progressMotion\.stop\(\);\s*"
+                      r"progressTrack\.opacity\s*=\s*0;",
+                      _splash_stage, re.DOTALL) is not None
+        and all(token in _splash_static for token in (
+            "revealAnimation.stop()", "progressMotion.stop()",
+            "content.opacity = 1", "hero.scale = 1",
+            "progressSweep.x = (progressTrack.width - progressSweep.width) / 2",
+        ))
+        and _splash.count("loops: Animation.Infinite") == 1
+        and _splash.count("id: revealAnimation") == 1
+        and _splash.count("id: progressMotion") == 1
+        and all(retired not in _splash for retired in (
+            "ringReveal", "shineSweep", "bloomFlash", "particleBurst",
+            "typewriterTimer", "logoBreathe", "outroAnimation",
+        ))
+        and re.search(r"running:\s*root\.motionEnabled\s*&&\s*root\.visible\s*"
+                      r"&&\s*root\.stage\s*>=\s*2\s*&&\s*root\.stage\s*<\s*5",
+                      _splash) is not None,
+        "the splash must own exactly one gated reveal and one loading sweep; "
+        "animations-off must land directly on the complete static branded frame")
 _logout_code = code(logout_qml, style="slash")
 require(_logout_code.count("GradientStop { position: 0.5; color: root.accent }") == 1
         and _logout_code.count("GradientStop { position: 0.5; color: root.accentB }") == 1
@@ -3907,8 +4083,16 @@ for icon_name in re.findall(r'iconName:\s*(?:[^"\n]*\?\s*)?"([^"]+)"(?:\s*:\s*"(
 require('function bilingual(arabic, english)' in logout_qml
         and '"\\u2067" + arabic + "\\u2069"' in logout_qml
         and '"\\u2066" + english + "\\u2069"' in logout_qml,
-        "the logout screen must isolate its Arabic and English phrases; without "
-        "Unicode bidi isolation RTL moves punctuation and reverses the language order")
+        "the logout screen must isolate the active-language phrase; without "
+        "Unicode bidi isolation RTL moves punctuation and counts")
+_logout_formatter = _logout_code.split(
+    "function bilingual(arabic, english)", 1
+)[1].split("function shortLabel", 1)[0]
+require(' + "  ·  " + ' not in _logout_formatter
+        and re.search(r"\bar\s*\+.*\ben\b|\ben\s*\+.*\bar\b",
+                      _logout_formatter, re.DOTALL) is None,
+        "Logout must draw only the session language; concatenating Arabic and "
+        "English on every heading, warning and description creates visual noise")
 require('bilingual("ماذا تريد أن تفعل؟", "What would you like to do?")' in logout_qml,
         "the logout heading bypasses the shared bilingual formatter")
 
@@ -4225,6 +4409,9 @@ require("Layout.minimumWidth:" in panel_clock and "Layout.preferredWidth:" in pa
         "representation. implicitWidth alone is not enough — Plasma lays the panel out from "
         "the Layout attached properties, and without them the system tray is positioned "
         "INSIDE the clock's pixels and draws its icons on top of the digits")
+require(re.search(r"layoutDirection\s*:\s*root\.rtl\s*\?", panel_clock) is None,
+        "the panel clock must inherit plasmashell RTL exactly once; forcing RTL on "
+        "its RowLayouts reverses the already-mirrored order a second time")
 
 for label, qml_path in (
     ("org.moos.nova.clock",
@@ -5015,10 +5202,10 @@ require(
     "digest-pinned ISO builds must alias the source to the exact tagged ref the offline installer requests",
 )
 
-# Qt 6.11 deprecates Qt.btoa(string) in favour of an array-like overload, but
-# QML's JavaScript host is not a browser and does not expose TextEncoder. These
-# glyph helpers only build ASCII SVG, so Array.from(svg) is both documented and
-# sufficient; a browser-only encoder would make every generated icon disappear.
+# First-party QML no longer manufactures private base64 SVG libraries at
+# runtime. Every control glyph resolves through the owned symbolic icon theme
+# and the shared SymbolIcon component; this is both cheaper and keeps one
+# geometry/palette contract across Welcome, Installer and Store.
 for _glyph_qml in (
     "system_files/usr/share/moos/apps/installer/main.qml",
     "system_files/usr/share/moos/apps/store/main.qml",
@@ -5027,8 +5214,11 @@ for _glyph_qml in (
     _glyph_text = code(read(_glyph_qml), "slash")
     require("TextEncoder" not in _glyph_text,
             f"{_glyph_qml} must not use browser-only TextEncoder in QML")
-    require("Qt.btoa(Array.from(svg))" in _glyph_text,
-            f"{_glyph_qml} must use Qt 6.11's array-like btoa overload for SVG glyphs")
+    require("Qt.btoa" not in _glyph_text and "data:image/svg+xml" not in _glyph_text,
+            f"{_glyph_qml} must not rebuild first-party glyphs as data-URL SVGs")
+    require('import "../ui" as MoOSUi' in _glyph_text
+            and "component Glyph: MoOSUi.SymbolIcon" in _glyph_text,
+            f"{_glyph_qml} must consume the shared MoOS symbolic icon layer")
 
 # ── No MoOS surface may animate forever without a guard ──────────────────────
 # The dashboard has had this contract for a while (test_moos_ui2.py enforces it for

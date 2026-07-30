@@ -11,7 +11,86 @@ import '../core/theme/nova.dart';
 import '../providers/core_providers.dart';
 import '../providers/shell_providers.dart';
 import '../providers/system_providers.dart';
+import '../services/system/desktop_service.dart';
 import '../widgets/app_logo.dart';
+
+/// The desktop frame shared by the catalogue and the source/login flow.
+///
+/// MoPlayer deliberately asks KWin for a frameless surface, so *every* route has
+/// to provide the replacement: caption, compositor drag, window actions and the
+/// eight resize edges. Keeping that contract here prevents a route added outside
+/// [MainShell] from silently becoming an inescapable borderless window.
+class FramelessWindowFrame extends ConsumerStatefulWidget {
+  const FramelessWindowFrame({
+    super.key,
+    required this.child,
+    this.onHome,
+    this.breadcrumb,
+    this.showCaption = true,
+    this.resizeEnabled = true,
+  });
+
+  final Widget child;
+  final VoidCallback? onHome;
+  final String? breadcrumb;
+  final bool showCaption;
+  final bool resizeEnabled;
+
+  @override
+  ConsumerState<FramelessWindowFrame> createState() =>
+      _FramelessWindowFrameState();
+}
+
+class _FramelessWindowFrameState extends ConsumerState<FramelessWindowFrame>
+    with WindowListener {
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowMaximize() => _setMaximized(true);
+
+  @override
+  void onWindowUnmaximize() => _setMaximized(false);
+
+  void _setMaximized(bool value) {
+    if (!mounted) return;
+    ref.read(windowMaximizedProvider.notifier).state = value;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final maximized = ref.watch(windowMaximizedProvider);
+
+    return Scaffold(
+      backgroundColor: AppColors.surface0,
+      body: ResizeEdges(
+        enabled:
+            widget.resizeEnabled &&
+            !maximized &&
+            !DesktopService.useSystemDecoration,
+        child: Column(
+          children: [
+            if (widget.showCaption)
+              WindowCaption(
+                onHome: widget.onHome,
+                breadcrumb: widget.breadcrumb,
+              ),
+            Expanded(child: widget.child),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 /// MoPlayer's caption bar.
 ///
@@ -24,16 +103,18 @@ import '../widgets/app_logo.dart';
 /// It is deliberately thin. A caption bar is chrome, and chrome that competes
 /// with a hero image has misunderstood which one the user came for.
 class WindowCaption extends ConsumerWidget {
-  const WindowCaption({super.key, required this.onHome, this.breadcrumb});
+  const WindowCaption({super.key, this.onHome, this.breadcrumb});
 
   /// The logo is the Home action. That is why the dashboard is not a dock slot:
   /// six destinations plus a seventh "Home" is the layout of a website's navbar,
   /// and this is not a website.
-  final VoidCallback onHome;
+  final VoidCallback? onHome;
 
   final String? breadcrumb;
 
   static const double height = 46;
+  static const double windowControlsWidth =
+      Nova.space2 + (_WindowButton.targetSize * 3);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -51,37 +132,52 @@ class WindowCaption extends ConsumerWidget {
           color: Color(0xE60A0B0D),
           border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
         ),
-        child: Row(
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            // The window buttons keep the physical position MoOS's own
-            // decoration puts them in — leading-left, in both text directions.
-            // A user does not re-learn where the close button is because they
-            // switched the interface to Arabic.
-            const _WindowButtons(),
-            const SizedBox(width: Nova.space3),
-
-            _HomeButton(onTap: onHome, label: s.home),
-
-            if (breadcrumb != null) ...[
-              const SizedBox(width: Nova.space3),
-              Text('·', style: AppText.caption),
-              const SizedBox(width: Nova.space3),
-              Flexible(
-                child: Text(
-                  breadcrumb!,
-                  style: AppText.caption.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
+            // Physical window chrome is not language direction. Reserve the
+            // left edge explicitly, then let the identity/status row below
+            // inherit RTL normally.
+            const Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: windowControlsWidth,
+              child: Directionality(
+                textDirection: TextDirection.ltr,
+                child: _WindowButtons(),
               ),
-            ],
+            ),
+            Positioned.fill(
+              left: windowControlsWidth,
+              child: Row(
+                children: [
+                  const SizedBox(width: Nova.space3),
+                  _HomeButton(onTap: onHome, label: s.home),
 
-            // Everything between the identity and the status is drag surface.
-            Expanded(child: _DragRegion(desktop: desktop)),
+                  if (breadcrumb != null) ...[
+                    const SizedBox(width: Nova.space3),
+                    Text('·', style: AppText.caption),
+                    const SizedBox(width: Nova.space3),
+                    Flexible(
+                      child: Text(
+                        breadcrumb!,
+                        style: AppText.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
 
-            const _SourceStatus(),
-            const SizedBox(width: Nova.space4),
+                  // Everything between identity and status is drag surface.
+                  Expanded(child: _DragRegion(desktop: desktop)),
+
+                  const _SourceStatus(),
+                  const SizedBox(width: Nova.space4),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -115,9 +211,9 @@ class _DragRegion extends StatelessWidget {
 }
 
 class _HomeButton extends StatefulWidget {
-  const _HomeButton({required this.onTap, required this.label});
+  const _HomeButton({this.onTap, required this.label});
 
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final String label;
 
   @override
@@ -129,6 +225,26 @@ class _HomeButtonState extends State<_HomeButton> {
 
   @override
   Widget build(BuildContext context) {
+    final identity = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Nova.space2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const AppLogo(size: 22),
+          const SizedBox(width: Nova.space2),
+          Text(
+            'MoPlayer',
+            style: AppText.control.copyWith(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (widget.onTap == null) return identity;
+
     return Tooltip(
       message: widget.label,
       child: MouseRegion(
@@ -139,27 +255,11 @@ class _HomeButtonState extends State<_HomeButton> {
           button: true,
           label: widget.label,
           child: GestureDetector(
-            onTap: widget.onTap,
+            onTap: widget.onTap!,
             child: AnimatedOpacity(
               duration: Motion.duration(context, Nova.hover),
               opacity: _hovered ? 1.0 : 0.86,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Nova.space2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const AppLogo(size: 22),
-                    const SizedBox(width: Nova.space2),
-                    Text(
-                      'MoPlayer',
-                      style: AppText.control.copyWith(
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: identity,
             ),
           ),
         ),
@@ -180,10 +280,10 @@ class _SourceStatus extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final playlist = ref.watch(activePlaylistProvider);
-    final online = ref.watch(connectivityProvider).value ?? true;
 
     if (playlist == null) return const SizedBox.shrink();
 
+    final online = ref.watch(connectivityProvider).value ?? true;
     final color = online ? AppColors.success : AppColors.warning;
 
     return Tooltip(
@@ -231,29 +331,24 @@ class _WindowButtons extends ConsumerWidget {
     final maximized = ref.watch(windowMaximizedProvider);
 
     return Padding(
-      padding: const EdgeInsetsDirectional.only(start: Nova.space4),
+      padding: const EdgeInsets.only(left: Nova.space2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _WindowButton(
-            color: const Color(0xFFFF5F57),
-            icon: Icons.close_rounded,
+            kind: _WindowButtonKind.close,
             tooltip: s.windowClose,
             onTap: desktop.close,
           ),
-          const SizedBox(width: Nova.space2),
           _WindowButton(
-            color: const Color(0xFFFEBC2E),
-            icon: Icons.remove_rounded,
+            kind: _WindowButtonKind.minimize,
             tooltip: s.windowMinimize,
             onTap: desktop.minimize,
           ),
-          const SizedBox(width: Nova.space2),
           _WindowButton(
-            color: const Color(0xFF28C840),
-            icon: maximized
-                ? Icons.close_fullscreen_rounded
-                : Icons.open_in_full_rounded,
+            kind: maximized
+                ? _WindowButtonKind.restore
+                : _WindowButtonKind.maximize,
             tooltip: maximized ? s.windowRestore : s.windowMaximize,
             onTap: () async {
               await desktop.toggleMaximize();
@@ -267,18 +362,21 @@ class _WindowButtons extends ConsumerWidget {
   }
 }
 
+enum _WindowButtonKind { close, minimize, maximize, restore }
+
 class _WindowButton extends StatefulWidget {
   const _WindowButton({
-    required this.color,
-    required this.icon,
+    required this.kind,
     required this.tooltip,
     required this.onTap,
   });
 
-  final Color color;
-  final IconData icon;
+  final _WindowButtonKind kind;
   final String tooltip;
   final VoidCallback onTap;
+
+  static const double targetSize = 40;
+  static const double glyphPlateSize = 20;
 
   @override
   State<_WindowButton> createState() => _WindowButtonState();
@@ -287,9 +385,44 @@ class _WindowButton extends StatefulWidget {
 class _WindowButtonState extends State<_WindowButton> {
   bool _hovered = false;
   bool _focused = false;
+  bool _pressed = false;
+
+  Color get _semanticColor {
+    switch (widget.kind) {
+      case _WindowButtonKind.close:
+        return AppColors.danger;
+      case _WindowButtonKind.maximize:
+      case _WindowButtonKind.restore:
+        return AppColors.primary;
+      case _WindowButtonKind.minimize:
+        return AppColors.textSecondary;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final active = _hovered || _focused || _pressed;
+    final semantic = _semanticColor;
+    final plateColor = switch ((widget.kind, active, _pressed)) {
+      (_, _, true) => semantic.withValues(alpha: 0.82),
+      (_WindowButtonKind.close, true, false) => semantic.withValues(
+        alpha: 0.20,
+      ),
+      (_WindowButtonKind.maximize, true, false) ||
+      (
+        _WindowButtonKind.restore,
+        true,
+        false,
+      ) => semantic.withValues(alpha: 0.18),
+      (_WindowButtonKind.minimize, true, false) => AppColors.surface3,
+      _ => AppColors.surface2,
+    };
+    final glyphColor = _pressed
+        ? AppColors.surface0
+        : active
+        ? semantic
+        : AppColors.textSecondary;
+
     return Tooltip(
       message: widget.tooltip,
       child: Semantics(
@@ -309,27 +442,40 @@ class _WindowButtonState extends State<_WindowButton> {
           },
           child: GestureDetector(
             onTap: widget.onTap,
-            child: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: widget.color,
-                shape: BoxShape.circle,
-                border: _focused
-                    ? Border.all(color: AppColors.focus, width: 2)
-                    : null,
-              ),
-              // The glyph appears on hover, the way it does on the system's own
-              // buttons. It is *not* the only affordance: the colours and their
-              // order are, and they are legible without hovering — which is what
-              // keeps this usable for someone who cannot use a pointer at all.
-              child: AnimatedOpacity(
-                duration: Motion.duration(context, Nova.hover),
-                opacity: _hovered || _focused ? 1 : 0,
-                child: Icon(
-                  widget.icon,
-                  size: 9,
-                  color: const Color(0xCC000000),
+            onTapDown: (_) => setState(() => _pressed = true),
+            onTapUp: (_) => setState(() => _pressed = false),
+            onTapCancel: () => setState(() => _pressed = false),
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox.square(
+              dimension: _WindowButton.targetSize,
+              child: Center(
+                child: AnimatedScale(
+                  duration: Motion.duration(context, Nova.press),
+                  scale: _pressed ? 0.92 : 1,
+                  curve: Curves.easeOutCubic,
+                  child: AnimatedContainer(
+                    duration: Motion.duration(context, Nova.hover),
+                    width: _WindowButton.glyphPlateSize,
+                    height: _WindowButton.glyphPlateSize,
+                    decoration: BoxDecoration(
+                      color: plateColor,
+                      borderRadius: BorderRadius.circular(6.2),
+                      border: Border.all(
+                        color: _focused
+                            ? AppColors.focus
+                            : active
+                            ? semantic.withValues(alpha: 0.34)
+                            : AppColors.borderSubtle,
+                        width: _focused ? 2 : 1,
+                      ),
+                    ),
+                    child: CustomPaint(
+                      painter: _WindowGlyphPainter(
+                        kind: widget.kind,
+                        color: glyphColor,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -337,6 +483,80 @@ class _WindowButtonState extends State<_WindowButton> {
         ),
       ),
     );
+  }
+}
+
+/// Original MoOS window-control geometry.
+///
+/// These glyphs deliberately do not come from Material or another icon font.
+/// A 1.7 px round rail and the 6.2 px plate corner match the Aurorae decoration
+/// generated by MoOS itself, so the frameless Flutter surface and native KDE
+/// windows speak the same visual language.
+class _WindowGlyphPainter extends CustomPainter {
+  const _WindowGlyphPainter({required this.kind, required this.color});
+
+  final _WindowButtonKind kind;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.7
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    switch (kind) {
+      case _WindowButtonKind.close:
+        canvas
+          ..drawLine(
+            center.translate(-3.1, -3.1),
+            center.translate(3.1, 3.1),
+            paint,
+          )
+          ..drawLine(
+            center.translate(3.1, -3.1),
+            center.translate(-3.1, 3.1),
+            paint,
+          );
+      case _WindowButtonKind.minimize:
+        canvas.drawLine(
+          center.translate(-3.7, 0),
+          center.translate(3.7, 0),
+          paint,
+        );
+      case _WindowButtonKind.maximize:
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(center: center, width: 7.4, height: 7.4),
+            const Radius.circular(1.35),
+          ),
+          paint,
+        );
+      case _WindowButtonKind.restore:
+        canvas
+          ..drawRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromLTWH(center.dx - 2.0, center.dy - 3.7, 6.0, 6.0),
+              const Radius.circular(1.1),
+            ),
+            paint,
+          )
+          ..drawRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromLTWH(center.dx - 4.0, center.dy - 1.7, 6.0, 6.0),
+              const Radius.circular(1.1),
+            ),
+            paint,
+          );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WindowGlyphPainter oldDelegate) {
+    return oldDelegate.kind != kind || oldDelegate.color != color;
   }
 }
 

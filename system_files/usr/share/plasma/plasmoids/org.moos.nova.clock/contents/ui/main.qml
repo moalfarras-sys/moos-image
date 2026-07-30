@@ -145,7 +145,8 @@ PlasmoidItem {
             id: clockRow
             anchors.centerIn: parent
             spacing: Math.round(Kirigami.Units.smallSpacing * 1.5)
-            layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+            // plasmashell mirrors the compact representation for RTL. An
+            // explicit RightToLeft here mirrors the row a second time.
 
             Text {
                 id: timeLabel
@@ -239,7 +240,7 @@ PlasmoidItem {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Kirigami.Units.largeSpacing
-                layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+                // Inherit the shell's logical direction; do not double-mirror.
 
                 ColumnLayout {
                     Layout.fillWidth: true

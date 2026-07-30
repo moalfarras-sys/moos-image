@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="video-title">
+  <title id="video-title">Video</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #243238; fill: currentColor; }
+    .ColorScheme-Highlight { color: #147d72; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #8a5a00; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #a9364b; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.25 5.25 H13.75 A3 3 0 0 1 16.75 8.25 V15.75 A3 3 0 0 1 13.75 18.75 H5.25 A3 3 0 0 1 2.25 15.75 V8.25 A3 3 0 0 1 5.25 5.25 Z M5.45 7.55 H13.55 A0.9 0.9 0 0 1 14.45 8.45 V15.55 A0.9 0.9 0 0 1 13.55 16.45 H5.45 A0.9 0.9 0 0 1 4.55 15.55 V8.45 A0.9 0.9 0 0 1 5.45 7.55 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M15.4 9.5 L21.75 6.5 L21.75 17.5 L15.4 14.5 Z"/>
+</svg>

@@ -173,28 +173,19 @@ Item {
         }
     }
 
-    // EVERY label that shows a bilingual() string must be drawn in
-    // "IBM Plex Sans Arabic", never "Inter". Inter has no Arabic coverage at all
-    // (its fontconfig lang set carries no 'ar'), so font.family: "Inter" handed
-    // the Arabic half to fontconfig's default \u2014 Noto Sans Arabic \u2014 and this
-    // screen rendered its heading in Noto directly above orb captions in Plex:
-    // two Arabic typefaces on one screen. The obvious per-script fix,
-    // font.families: ["Inter", "IBM Plex Sans Arabic"], does NOT exist on this
-    // stack: Qt 6.11.1 here answers `Cannot assign to non-existent property
-    // "families"` and the whole component then fails to load (verified with
-    // qml-qt6). So a MIXED string takes the one face that carries both scripts \u2014
-    // Plex Arabic ships a full Latin set \u2014 and Inter keeps the Latin-only
-    // strings and the clock.
+    // Session surfaces speak the session language. Keep the shared helper name
+    // because headings, warnings and Accessible descriptions all use it, but
+    // return one isolated phrase instead of drawing Arabic and English together.
+    // The isolation marks still protect punctuation and counts in RTL.
     function bilingual(arabic, english) {
-        const ar = "\u2067" + arabic + "\u2069";
-        const en = "\u2066" + english + "\u2069";
-        return Qt.application.layoutDirection === Qt.RightToLeft ? ar + "  ·  " + en : en + "  ·  " + ar;
+        if (Qt.application.layoutDirection === Qt.RightToLeft) {
+            return "\u2067" + arabic + "\u2069";
+        }
+        return "\u2066" + english + "\u2069";
     }
 
-    // A single-language SHORT label for the orb captions — the full bilingual
-    // string is too wide to sit under a round orb without colliding with its
-    // neighbours, so the caption shows the session's own language and the
-    // bilingual detail lives in the hover description + Accessible name.
+    // Orb captions follow the same single-language rule without isolation
+    // characters so compact label measurement remains predictable.
     function shortLabel(arabic, english) {
         return Qt.application.layoutDirection === Qt.RightToLeft ? arabic : english;
     }

@@ -59,6 +59,24 @@ check:
     python3 tests/test_moos_ui2.py
     python3 tests/test_moos_theme_safety.py
     python3 tests/test_moos_visual_system.py
+    # Protected app identities and the small-size icon ladder are separate from
+    # the monochrome symbolic family and need their own proof.
+    python3 tests/test_moos_app_icons.py
+    # First-party GTK apps must follow all 16 live KDE schemes, and the remote
+    # panel's three-second poll must never run subprocesses on GTK's main loop.
+    python3 tests/test_moos_gtk_runtime.py
+    # Recovery is where a broken update sends the user: its target, queued-state
+    # copy, and non-blocking Polkit/bootc path belong in the local gate too.
+    python3 tests/test_recovery_rollback_target.py
+    # Owned first-party chrome must resolve to deterministic palette-aware SVGs,
+    # never the retired fixed-colour action artwork or a missing icon name.
+    python3 tests/test_moos_symbolic_icons.py
+    # Exercise the real GTK/KDE resolver and librsvg raster path at the five
+    # supported review sizes; static XML alone cannot catch a blank or clipped glyph.
+    python3 tests/test_moos_symbolic_runtime.py
+    # Mo AI's hand-drawn controls, modal exits, palette-driven ambient light and
+    # every fixed-duration transition must remain keyboard/motion complete.
+    python3 tests/test_moos_app_visual_polish.py
     # Runs the motion gate in a REAL QML engine instead of grepping for it. Skips
     # cleanly where there is no Qt (the CI runner); the string half of the same
     # contract is in verify_user_experience.py and runs everywhere.

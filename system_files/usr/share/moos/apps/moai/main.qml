@@ -30,6 +30,7 @@ import QtQuick.Controls as QQC2
 import QtQuick.Shapes
 import QtQuick.Effects
 import org.kde.kirigami as Kirigami
+import "../ui" as MoOSUi
 
 Kirigami.ApplicationWindow {
     id: root
@@ -90,15 +91,8 @@ Kirigami.ApplicationWindow {
     readonly property color accentText:   Kirigami.Theme.highlightedTextColor
 
     // Same focus ring as Mo Store, Welcome and the Installer. One focus treatment across MoOS.
-    component FocusRing: Rectangle {
-        anchors.fill: parent
-        anchors.margins: -3
-        radius: (parent && parent.radius !== undefined ? parent.radius : 0) + 3
-        color: "transparent"
-        border.width: 2
-        border.color: root.novaBlue
-        visible: parent ? parent.activeFocus : false
-        z: 99
+    component FocusRing: MoOSUi.FocusRing {
+        accentColor: root.novaBlue
     }
     // Mo AI is theme-adaptive (its palette comes from the active KDE scheme), so
     // the hero's baked aurora must follow suit: light themes (Tidal/Daylight) get
@@ -121,13 +115,14 @@ Kirigami.ApplicationWindow {
     // pixels move with DPI and points do not, so dividing by the shipped 10pt gives exactly
     // 1.0 on every screen at the default and scales only when the USER changes the setting.
     //
-    // fs() deliberately preserves today's proportions rather than snapping sizes onto a tidy
-    // scale. Collapsing the 18 distinct sizes to a modular scale is a visual redesign that has
-    // to be reviewed screen by screen; making them respond to the user is a correctness fix
-    // that can be proven neutral. This is the second one. The first is still worth doing.
+    // fs() remains for geometry that grows with the user's font setting. Text goes
+    // through typePx(), which snaps the old ad-hoc values to the reviewed
+    // 11/13/14/15/20/24/32 role ramp and keeps 11 px as the functional minimum.
     readonly property real fontScale: Qt.application.font.pointSize > 0
                                       ? Qt.application.font.pointSize / 10 : 1
     function fs(px) { return Math.round(px * root.fontScale) }
+    function typePx(px) { return design.typeSize(px, root.fontScale) }
+    MoOSUi.Tokens { id: design }
 
     readonly property string uiFont: Qt.application.font.family
 
@@ -236,17 +231,18 @@ Kirigami.ApplicationWindow {
     color: surface0
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.None
 
-    // ── The glass backdrop — the roadmap's last Nova Glass item ─────────────
-    // The window used to be one flat colour; the flagship app now sits on a
-    // living scene: a deepening gradient, two aurora bands drifting slower
-    // than the eye tracks, the brand's breathing light, and the mark itself
-    // as a watermark with its comet ring. Everything is palette-driven so all
-    // six family themes (and Tidal light) keep their own identity, and every
-    // sprite is a pre-baked PNG from artwork/generate_login_scene.py at the
-    // canonical /usr/share/moos/brand/ — a missing sprite degrades to the
-    // plain gradient, never to a broken window. Declared as a sibling of the
-    // pageStack at z:-1, so it draws behind every page. Animators only, the
-    // same budget as every MoOS always-on surface.
+    // ── The glass backdrop ──────────────────────────────────────────────────
+    // The flagship app sits on a quiet, static depth scene: a deepening
+    // gradient, two aurora bands, palette-painted radial light and the mark as
+    // a watermark. The light is painted from the live
+    // Kirigami palette rather than fixed cyan/violet PNGs: Arena, Amethyst,
+    // Study and every light partner now receive their own accent pair without
+    // decoding two decorative rasters per launch. The identity mark and ring
+    // remain brand artwork and degrade to the painted gradient if unavailable.
+    // Declared as a sibling of the pageStack at z:-1, so it draws behind every
+    // page. It is intentionally static: six perpetual decorative loops measured
+    // 12.95% of a CPU core while idle and conveyed no state. Identity remains;
+    // motion is reserved for direct interaction and honest live status.
     Item {
         id: ambient
         anchors.fill: parent
@@ -274,20 +270,7 @@ Kirigami.ApplicationWindow {
                 GradientStop { position: 0.5; color: root.novaCyan }
                 GradientStop { position: 1.0; color: "transparent" }
             }
-            XAnimator on x {
-                from: -ambientCyan.width * 0.35
-                to: root.width - ambientCyan.width * 0.65
-                duration: 140000
-                loops: Animation.Infinite
-                easing.type: Easing.InOutSine
-                // The ambient scene idles at ~1/8 of a core (measured 12.95%
-                // over 20s) for as long as the window exists — visible is true
-                // for the app's whole life. paused on !active freezes the six
-                // decorative loops when the window loses focus and resumes them
-                // where they stood, the same idiom the lock screen uses.
-                running: root.visible && root.motionEnabled
-                paused: !root.active
-            }
+            x: -width * 0.18
         }
         Rectangle {
             id: ambientViolet
@@ -302,54 +285,82 @@ Kirigami.ApplicationWindow {
                 GradientStop { position: 0.5; color: root.novaViolet }
                 GradientStop { position: 1.0; color: "transparent" }
             }
-            XAnimator on x {
-                from: root.width - ambientViolet.width * 0.6
-                to: -ambientViolet.width * 0.4
-                duration: 170000
-                loops: Animation.Infinite
-                easing.type: Easing.InOutSine
-                running: root.visible && root.motionEnabled
-                paused: !root.active
-            }
+            x: root.width - width * 0.82
         }
 
-        Image {
+        Shape {
             id: ambientGlowCyan
-            source: "file:///usr/share/moos/brand/glow-cyan.png"
             width: Math.round(Math.min(parent.width, parent.height) * 0.9)
             height: width
             x: -width * 0.35
             y: parent.height - height * 0.55
-            asynchronous: true
             opacity: 0.14
-            SequentialAnimation on opacity {
-                loops: Animation.Infinite
-                running: root.visible && root.motionEnabled
-                paused: !root.active
-                NumberAnimation { to: 0.26; duration: 5200; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 0.14; duration: 5200; easing.type: Easing.InOutSine }
+            ShapePath {
+                strokeWidth: -1
+                fillGradient: RadialGradient {
+                    centerX: ambientGlowCyan.width / 2
+                    centerY: ambientGlowCyan.height / 2
+                    centerRadius: ambientGlowCyan.width / 2
+                    focalX: centerX
+                    focalY: centerY
+                    GradientStop {
+                        position: 0.0
+                        color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.88)
+                    }
+                    GradientStop {
+                        position: 0.42
+                        color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.28)
+                    }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+                PathAngleArc {
+                    centerX: ambientGlowCyan.width / 2
+                    centerY: ambientGlowCyan.height / 2
+                    radiusX: ambientGlowCyan.width / 2
+                    radiusY: ambientGlowCyan.height / 2
+                    startAngle: 0
+                    sweepAngle: 360
+                }
             }
         }
-        Image {
+        Shape {
             id: ambientGlowViolet
-            source: "file:///usr/share/moos/brand/glow-violet.png"
             width: Math.round(Math.min(parent.width, parent.height) * 0.75)
             height: width
             x: parent.width - width * 0.55
             y: -height * 0.35
-            asynchronous: true
             opacity: 0.18
-            SequentialAnimation on opacity {
-                loops: Animation.Infinite
-                running: root.visible && root.motionEnabled
-                paused: !root.active
-                NumberAnimation { to: 0.08; duration: 5200; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 0.18; duration: 5200; easing.type: Easing.InOutSine }
+            ShapePath {
+                strokeWidth: -1
+                fillGradient: RadialGradient {
+                    centerX: ambientGlowViolet.width / 2
+                    centerY: ambientGlowViolet.height / 2
+                    centerRadius: ambientGlowViolet.width / 2
+                    focalX: centerX
+                    focalY: centerY
+                    GradientStop {
+                        position: 0.0
+                        color: Qt.rgba(root.novaViolet.r, root.novaViolet.g, root.novaViolet.b, 0.82)
+                    }
+                    GradientStop {
+                        position: 0.42
+                        color: Qt.rgba(root.novaViolet.r, root.novaViolet.g, root.novaViolet.b, 0.25)
+                    }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+                PathAngleArc {
+                    centerX: ambientGlowViolet.width / 2
+                    centerY: ambientGlowViolet.height / 2
+                    radiusX: ambientGlowViolet.width / 2
+                    radiusY: ambientGlowViolet.height / 2
+                    startAngle: 0
+                    sweepAngle: 360
+                }
             }
         }
 
-        // The watermark: the mark at whisper opacity, its comet ring turning
-        // once a minute — presence, not decoration competing with content.
+        // The watermark stays static at whisper opacity: presence without
+        // decoration competing with content or background battery cost.
         Image {
             id: ambientMark
             source: "file:///usr/share/moos/moos-logo.png"
@@ -360,13 +371,6 @@ Kirigami.ApplicationWindow {
             asynchronous: true
             fillMode: Image.PreserveAspectFit
             opacity: 0.05
-            SequentialAnimation on scale {
-                loops: Animation.Infinite
-                running: root.visible && root.motionEnabled
-                paused: !root.active
-                NumberAnimation { to: 1.02; duration: 6000; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 1.0; duration: 6000; easing.type: Easing.InOutSine }
-            }
         }
         Image {
             anchors.centerIn: ambientMark
@@ -375,13 +379,6 @@ Kirigami.ApplicationWindow {
             height: width
             asynchronous: true
             opacity: 0.10
-            RotationAnimator on rotation {
-                from: 0; to: 360
-                duration: 60000
-                loops: Animation.Infinite
-                running: root.visible && root.motionEnabled
-                paused: !root.active
-            }
         }
     }
 
@@ -521,6 +518,13 @@ Kirigami.ApplicationWindow {
     // signal the whole app mirrors on. The model still replies in whatever
     // language the user writes in — that is per-message, not the static greeting.
     readonly property bool moaiRtl: Qt.application.layoutDirection === Qt.RightToLeft
+    function local(ar, en) { return root.moaiRtl ? ar : en }
+    function localLegacy(value) {
+        var text = String(value || "")
+        var pair = text.split(/\s+\|\s+/)
+        return pair.length > 1 ? (root.moaiRtl ? pair[0] : pair.slice(1).join(" | "))
+                               : text
+    }
     readonly property string greetingText: moaiRtl
         ? ("‏مرحباً! أنا **Mo AI** — مساعد MoOS.\n\n" +
            "أقدر أصلّح التعريفات، أحدّث النظام، أثبّت أي تطبيق، أنظّف الجهاز، وأشغّل Mo PC Remote.\n\n" +
@@ -530,34 +534,34 @@ Kirigami.ApplicationWindow {
            "_Ask me, or use the side rail._")
 
     readonly property var starters: [
-        { ar: "حدّث نظامي",     en: "Update my system", icon: "moos-safe-update", hint: "آمن وموقّع | signed & safe", send: "حدّث نظام MoOS من فضلك" },
-        { ar: "افحص جهازي",     en: "Check my device",  icon: "moos-cpu",         hint: "تعريفات وصحّة | drivers & health", send: "افحص جهازي وقل لي إذا في مشاكل تعريفات أو تحديثات" },
-        { ar: "سرّع ونظّف",      en: "Speed up & clean", icon: "moos-optimize",    hint: "مساحة وذاكرة | space & memory", send: "نظّف النظام وسرّعه من فضلك" },
-        { ar: "صلّح الصوت",      en: "Fix audio",        icon: "moos-audio",       hint: "صوت لا يعمل | no sound", send: "الصوت لا يعمل عندي، ساعدني" }
+        { ar: "حدّث نظامي",     en: "Update my system", icon: "moos-safe-update-symbolic", hint: root.local("آمن وموقّع", "signed & safe"), send: "حدّث نظام MoOS من فضلك" },
+        { ar: "افحص جهازي",     en: "Check my device",  icon: "moos-cpu-symbolic",         hint: root.local("تعريفات وصحّة", "drivers & health"), send: "افحص جهازي وقل لي إذا في مشاكل تعريفات أو تحديثات" },
+        { ar: "سرّع ونظّف",      en: "Speed up & clean", icon: "moos-optimize-symbolic",    hint: root.local("مساحة وذاكرة", "space & memory"), send: "نظّف النظام وسرّعه من فضلك" },
+        { ar: "صلّح الصوت",      en: "Fix audio",        icon: "moos-audio-symbolic",       hint: root.local("صوت لا يعمل", "no sound"), send: "الصوت لا يعمل عندي، ساعدني" }
     ]
 
     // ── The rail ────────────────────────────────────────────────────────────
     readonly property var navItems: [
-        { id: "chat",   icon: "moos-ai",           ar: "المحادثة", en: "Chat" },
-        { id: "device", icon: "moos-gpu",          ar: "الجهاز",   en: "Device" },
-        { id: "apps",   icon: "moos-install",      ar: "التطبيقات", en: "Apps" },
-        { id: "compat", icon: "moos-gaming",       ar: "التوافق",  en: "Compat" },
-        { id: "remote", icon: "moos-phone",        ar: "التحكّم",   en: "Remote" },
-        { id: "dev",    icon: "utilities-terminal", ar: "المطوّر",  en: "Dev" },
-        { id: "agent",  icon: "moos-identity",     ar: "الوكيل",   en: "Agent" }
+        { id: "chat",   icon: "moos-ai-symbolic",           ar: "المحادثة", en: "Chat" },
+        { id: "device", icon: "moos-gpu-symbolic",          ar: "الجهاز",   en: "Device" },
+        { id: "apps",   icon: "moos-install-symbolic",      ar: "التطبيقات", en: "Apps" },
+        { id: "compat", icon: "moos-gaming-symbolic",       ar: "التوافق",  en: "Compat" },
+        { id: "remote", icon: "moos-phone-symbolic",        ar: "التحكّم",   en: "Remote" },
+        { id: "dev",    icon: "moos-code-symbolic", ar: "المطوّر",  en: "Dev" },
+        { id: "agent",  icon: "moos-identity-symbolic",     ar: "الوكيل",   en: "Agent" }
     ]
 
     // Compatibility targets. `key` matches moai-control's /scan compatibility
     // map, so "Ready" is read from the machine, never assumed.
     readonly property var compatCatalog: [
         { key: "steam",      title: "Steam + Proton", ar: "ألعاب Windows", en: "Windows games",
-          url: "moos://do/setup-gaming", icon: "moos-gaming" },
+          url: "moos://do/setup-gaming", icon: "moos-gaming-symbolic" },
         { key: "bottles",    title: "Bottles", ar: "تطبيقات Windows", en: "Windows apps",
-          url: "moos://do/setup-windows", icon: "moos-system" },
+          url: "moos://do/setup-windows", icon: "moos-system-symbolic" },
         { key: "waydroid",   title: "Waydroid", ar: "تطبيقات Android", en: "Android apps",
-          url: "moos://do/setup-waydroid", icon: "moos-android-apps" },
+          url: "moos://do/setup-waydroid", icon: "moos-android-apps-symbolic" },
         { key: "kdeconnect", title: "KDE Connect", ar: "ربط الهاتف", en: "Phone integration",
-          url: "moos://apps/install/org.kde.kdeconnect", icon: "moos-phone" }
+          url: "moos://apps/install/org.kde.kdeconnect", icon: "moos-phone-symbolic" }
     ]
 
     // Pin every paragraph's direction to its OWN language.
@@ -784,7 +788,7 @@ Kirigami.ApplicationWindow {
             root.searching = false
             searchModel.clear()
             if (xhr.status !== 200) {
-                root.searchNote = "تعذّر البحث | search failed"
+                root.searchNote = root.local("تعذّر البحث", "Search failed")
                 return
             }
             try {
@@ -793,11 +797,13 @@ Kirigami.ApplicationWindow {
                 for (let i = 0; i < list.length; i++)
                     searchModel.append(list[i])
                 if (list.length === 0)
-                    root.searchNote = "لا نتائج | no results"
+                    root.searchNote = root.local("لا نتائج", "No results")
                 else if (r.source === "local")
-                    root.searchNote = "بدون إنترنت — نتائج محلية | offline — local results"
+                    root.searchNote = root.local("بدون إنترنت — نتائج محلية",
+                                                 "Offline — local results")
             } catch (e) {
-                root.searchNote = "تعذّر قراءة النتائج | couldn't read results"
+                root.searchNote = root.local("تعذّر قراءة النتائج",
+                                             "Couldn't read results")
             }
         }
         xhr.send()
@@ -971,7 +977,8 @@ Kirigami.ApplicationWindow {
                          + "This is a reasoning model: it spent its budget thinking and never "
                          + "reached the answer. Pick a direct model (qwen2.5:7b-instruct) — on this "
                          + "GPU-less server it is measurably faster."
-                       : "لم أستطع توليد رد، حاول مجدداً. | I couldn't generate a reply — please try again.")
+                       : root.local("لم أستطع توليد رد، حاول مجدداً.",
+                                    "I couldn't generate a reply — please try again."))
                 chatModel.set(idx, { role: "assistant", text: help })
                 root.flashMood(root.serverUp ? "warning" : "error")
             }
@@ -1006,7 +1013,8 @@ Kirigami.ApplicationWindow {
                 return
             root.modelsLoading = false
             if (xhr.status !== 200) {
-                root.modelsError = "تعذّر جلب النماذج | couldn't reach the model list"
+                root.modelsError = root.local("تعذّر جلب النماذج",
+                                              "Couldn't reach the model list")
                 return
             }
             try {
@@ -1020,7 +1028,8 @@ Kirigami.ApplicationWindow {
                 if (root.route === "" && root.defaultRoute !== "")
                     root.route = root.defaultRoute
             } catch (e) {
-                root.modelsError = "تعذّر قراءة النماذج | couldn't read the model list"
+                root.modelsError = root.local("تعذّر قراءة النماذج",
+                                              "Couldn't read the model list")
             }
         }
         xhr.send()
@@ -1066,7 +1075,8 @@ Kirigami.ApplicationWindow {
             let res = {}
             try { res = JSON.parse(xhr.responseText) } catch (e) { res = {} }
             if (xhr.status !== 200 || res.state === "error") {
-                root.pullError = res.error || "تعذّر بدء التنزيل | could not start the download"
+                root.pullError = res.error || root.local("تعذّر بدء التنزيل",
+                                                        "Could not start the download")
                 root.pullModel = ""
                 return
             }
@@ -1098,7 +1108,8 @@ Kirigami.ApplicationWindow {
             try { res = JSON.parse(xhr.responseText) } catch (e) { res = {} }
             root.deleteBusy = ""
             if (xhr.status !== 200 || !res.ok) {
-                root.cfgError = res.error || "تعذّر الحذف | could not delete the model"
+                root.cfgError = res.error || root.local("تعذّر الحذف",
+                                                       "Could not delete the model")
                 return
             }
             root.loadModels()          // the row must disappear now
@@ -1118,15 +1129,15 @@ Kirigami.ApplicationWindow {
     // moai-do action (moos://do/<id> → confirm + Polkit). read=true only shows
     // information. Nothing here is a placeholder.
     readonly property var defaultRepairs: [
-        { id: "diagnose-services", label: "الخدمات الفاشلة | Failed services", read: true },
-        { id: "check-drivers",     label: "الكرت والتعريف | GPU & drivers",    read: true },
-        { id: "inspect-boot",      label: "حالة الإقلاع | Boot status",         read: true },
-        { id: "net-doctor",        label: "تشخيص الشبكة | Network doctor",       read: true },
-        { id: "gpu-report",        label: "ذاكرة كرت الشاشة | GPU memory",       read: true },
-        { id: "fix-audio",         label: "إصلاح الصوت | Fix audio",            read: false },
-        { id: "optimize",          label: "تنظيف وتحرير مساحة | Clean & free space", read: false },
-        { id: "rollback",          label: "الرجوع لنسخة سابقة | Roll back",      read: false },
-        { id: "update",            label: "تحديث MoOS | Update MoOS",           read: false }
+        { id: "diagnose-services", label: root.local("الخدمات الفاشلة", "Failed services"), read: true },
+        { id: "check-drivers",     label: root.local("الكرت والتعريف", "GPU & drivers"), read: true },
+        { id: "inspect-boot",      label: root.local("حالة الإقلاع", "Boot status"), read: true },
+        { id: "net-doctor",        label: root.local("تشخيص الشبكة", "Network doctor"), read: true },
+        { id: "gpu-report",        label: root.local("ذاكرة كرت الشاشة", "GPU memory"), read: true },
+        { id: "fix-audio",         label: root.local("إصلاح الصوت", "Fix audio"), read: false },
+        { id: "optimize",          label: root.local("تنظيف وتحرير مساحة", "Clean & free space"), read: false },
+        { id: "rollback",          label: root.local("الرجوع لنسخة سابقة", "Roll back"), read: false },
+        { id: "update",            label: root.local("تحديث MoOS", "Update MoOS"), read: false }
     ]
     function diagnoseSystem() {
         root.diagLoading = true
@@ -1164,7 +1175,8 @@ Kirigami.ApplicationWindow {
                 pullPoll.stop()
                 root.pullModel = ""
                 if (s.state === "error") {
-                    root.pullError = s.error || "فشل التنزيل | the download failed"
+                    root.pullError = s.error || root.local("فشل التنزيل",
+                                                          "The download failed")
                     return
                 }
                 // Landed. Re-ask what this machine has (the row must stop saying
@@ -1218,7 +1230,7 @@ Kirigami.ApplicationWindow {
             height: orb.height * 1.75
             scale: orb.haloScale
             opacity: orb.alive ? 0.5 : 0.16
-            Behavior on opacity { NumberAnimation { duration: 260 } }
+            Behavior on opacity { NumberAnimation { duration: root.motionEnabled ? design.motionGeometry : 0 } }
             ShapePath {
                 strokeWidth: -1
                 fillGradient: RadialGradient {
@@ -1242,7 +1254,7 @@ Kirigami.ApplicationWindow {
             anchors.fill: parent
             scale: orb.coreScale
             opacity: orb.alive ? 1.0 : 0.42
-            Behavior on opacity { NumberAnimation { duration: 260 } }
+            Behavior on opacity { NumberAnimation { duration: root.motionEnabled ? design.motionGeometry : 0 } }
             ShapePath {
                 fillRule: ShapePath.OddEvenFill
                 strokeWidth: -1
@@ -1288,8 +1300,8 @@ Kirigami.ApplicationWindow {
                 radius: width / 2
                 color: orb.accent
                 opacity: orb.alive ? 1.0 : 0.55
-                Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-                Behavior on color { ColorAnimation { duration: 240 } }
+                Behavior on width { NumberAnimation { duration: root.motionEnabled ? design.motionGeometry : 0; easing.type: Easing.OutCubic } }
+                Behavior on color { ColorAnimation { duration: root.motionEnabled ? design.motionGeometry : 0 } }
             }
         }
 
@@ -1299,12 +1311,12 @@ Kirigami.ApplicationWindow {
             loops: Animation.Infinite
             onStopped: { orb.coreScale = 1.0; orb.haloScale = 1.0 }
             ParallelAnimation {
-                NumberAnimation { target: orb; property: "coreScale"; to: 1.03; duration: 1500; easing.type: Easing.InOutSine }
-                NumberAnimation { target: orb; property: "haloScale"; to: 1.10; duration: 1500; easing.type: Easing.InOutSine }
+                NumberAnimation { target: orb; property: "coreScale"; to: 1.03; duration: root.motionEnabled ? 1500 : 0; easing.type: Easing.InOutSine }
+                NumberAnimation { target: orb; property: "haloScale"; to: 1.10; duration: root.motionEnabled ? 1500 : 0; easing.type: Easing.InOutSine }
             }
             ParallelAnimation {
-                NumberAnimation { target: orb; property: "coreScale"; to: 1.0; duration: 1500; easing.type: Easing.InOutSine }
-                NumberAnimation { target: orb; property: "haloScale"; to: 1.0; duration: 1500; easing.type: Easing.InOutSine }
+                NumberAnimation { target: orb; property: "coreScale"; to: 1.0; duration: root.motionEnabled ? 1500 : 0; easing.type: Easing.InOutSine }
+                NumberAnimation { target: orb; property: "haloScale"; to: 1.0; duration: root.motionEnabled ? 1500 : 0; easing.type: Easing.InOutSine }
             }
         }
 
@@ -1312,7 +1324,7 @@ Kirigami.ApplicationWindow {
         NumberAnimation {
             running: root.visible && orb.mood === "thinking" && root.motionEnabled
             target: orb; property: "ringAngle"
-            from: 0; to: 360; duration: 2600
+            from: 0; to: 360; duration: root.motionEnabled ? 2600 : 0
             loops: Animation.Infinite
             onStopped: orb.ringAngle = 0
         }
@@ -1320,15 +1332,15 @@ Kirigami.ApplicationWindow {
             running: root.visible && orb.mood === "thinking" && root.motionEnabled
             loops: Animation.Infinite
             onStopped: orb.haloScale = 1.0
-            NumberAnimation { target: orb; property: "haloScale"; to: 1.16; duration: 620; easing.type: Easing.InOutSine }
-            NumberAnimation { target: orb; property: "haloScale"; to: 0.98; duration: 620; easing.type: Easing.InOutSine }
+            NumberAnimation { target: orb; property: "haloScale"; to: 1.16; duration: root.motionEnabled ? 620 : 0; easing.type: Easing.InOutSine }
+            NumberAnimation { target: orb; property: "haloScale"; to: 0.98; duration: root.motionEnabled ? 620 : 0; easing.type: Easing.InOutSine }
         }
 
         // Attentive: leans in and holds.
         NumberAnimation {
             running: root.visible && orb.mood === "attentive"
             target: orb; property: "coreScale"
-            to: 1.07; duration: 220; easing.type: Easing.OutBack
+            to: 1.07; duration: root.motionEnabled ? design.motionGeometry : 0; easing.type: Easing.OutBack
             onStopped: if (orb.mood !== "attentive") orb.coreScale = 1.0
         }
 
@@ -1336,8 +1348,8 @@ Kirigami.ApplicationWindow {
         // the same as succeeding, so this says "heard you", not "done".
         SequentialAnimation {
             id: orbPulse
-            NumberAnimation { target: orb; property: "coreScale"; from: 1.0; to: 1.13; duration: 140; easing.type: Easing.OutQuad }
-            NumberAnimation { target: orb; property: "coreScale"; to: 1.0; duration: 240; easing.type: Easing.InQuad }
+            NumberAnimation { target: orb; property: "coreScale"; from: 1.0; to: 1.13; duration: root.motionEnabled ? design.motionPress : 0; easing.type: Easing.OutQuad }
+            NumberAnimation { target: orb; property: "coreScale"; to: 1.0; duration: root.motionEnabled ? design.motionGeometry : 0; easing.type: Easing.InQuad }
             onRunningChanged: if (!running) orb.coreScale = 1.0
         }
         onPulse: orbPulse.restart()
@@ -1347,7 +1359,7 @@ Kirigami.ApplicationWindow {
     component Card: Rectangle {
         default property alias content: inner.data
         property alias pad: inner.anchors.margins
-        radius: root.fs(14)
+        radius: design.radiusCard
         color: root.surface1
         border.width: 1
         border.color: root.hairline
@@ -1355,90 +1367,64 @@ Kirigami.ApplicationWindow {
         Item {
             id: inner
             anchors.fill: parent
-            anchors.margins: 14
+            anchors.margins: design.space4
         }
     }
 
     // The one button style in the app.
-    component MoButton: Rectangle {
+    component MoButton: MoOSUi.Button {
         id: btn
-        property string label: ""
-        property string icon: ""
-        property bool primary: false
         property bool danger: false
         property bool enabled_: true
-        signal clicked()
+        destructive: btn.danger
+        enabled: btn.enabled_
+        compact: true
+        cornerRadius: design.radiusControl
+        iconPixelSize: root.typePx(14)
+        fontPixelSize: root.typePx(13)
+        motionEnabled: root.motionEnabled
+        surfaceColor: root.surface2
+        accentColor: root.novaBlue
+        dangerColor: root.badColor
+        textColor: root.textHi
+        mutedTextColor: root.textLo
+        accentForegroundColor: root.accentText
+        outlineColor: root.hairline
+    }
 
-        // Every button in Mo AI is this component, so one edit makes all 33 of them reachable —
-        // and this is the only MoOS app whose buttons carry a `label`, which means it is the only
-        // one that can announce a real name to a screen reader instead of an anonymous "button".
-        activeFocusOnTab: btn.enabled_
-        Accessible.role: Accessible.Button
-        Accessible.name: btn.label
-        Keys.onReturnPressed: if (btn.enabled_) btn.clicked()
-        Keys.onSpacePressed:  if (btn.enabled_) btn.clicked()
-        FocusRing { }
+    // Keyboard/screen-reader seam for every hand-drawn clickable surface that
+    // is not already a MoButton. MouseArea alone is invisible to Tab and AT;
+    // keeping this in one component also guarantees the same 2 px focus ring
+    // and Enter/Space behaviour across rails, cards, pickers and settings.
+    component ActionArea: MouseArea {
+        id: actionArea
+        required property string actionName
+        property bool checkable: false
+        property bool checked: false
+        property int actionRole: checkable ? Accessible.RadioButton : Accessible.Button
+        property real focusRadius: root.fs(10)
+        signal triggered()
 
-        readonly property color base:
-              !enabled_ ? root.surface2
-            : danger ? root.badColor
-            : primary ? root.novaBlue
-            : root.surface2
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        activeFocusOnTab: enabled && visible
+        Accessible.role: actionRole
+        Accessible.name: actionName
+        Accessible.checked: checked
+        Keys.onReturnPressed: triggered()
+        Keys.onEnterPressed: triggered()
+        Keys.onSpacePressed: triggered()
+        onClicked: triggered()
 
-        implicitHeight: root.fs(34)
-        implicitWidth: row.implicitWidth + 26
-        radius: root.fs(11)
-        color: !enabled_ ? base
-             : ma.pressed ? Qt.darker(base, 1.12)
-             : ma.containsMouse ? Qt.lighter(base, 1.16)
-             : base
-        border.width: 1
-        border.color: primary || danger ? "transparent"
-                    : ma.containsMouse ? root.novaBlue : root.hairline
-        opacity: enabled_ ? 1.0 : 0.45
-        scale: !enabled_ ? 1.0 : (ma.pressed ? 0.97 : (ma.containsMouse ? 1.03 : 1.0))
-        Behavior on color { ColorAnimation { duration: 120 } }
-        Behavior on scale { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
-
-        // glass top sheen — a hairline of light for premium depth
         Rectangle {
-            anchors.top: parent.top
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.topMargin: 1
-            anchors.leftMargin: 6
-            anchors.rightMargin: 6
-            height: 1
-            radius: height / 2
-            color: Qt.rgba(1, 1, 1, btn.primary || btn.danger ? 0.20 : 0.07)
-        }
-
-        RowLayout {
-            id: row
-            anchors.centerIn: parent
-            spacing: 7
-            Kirigami.Icon {
-                visible: btn.icon !== ""
-                source: btn.icon
-                color: btn.primary || btn.danger ? root.accentText : root.textLo
-                Layout.preferredWidth: root.fs(15)
-                Layout.preferredHeight: root.fs(15)
-            }
-            Text {
-                text: btn.label
-                color: btn.primary || btn.danger ? root.accentText : root.textHi
-                font.family: root.uiFont
-                font.pixelSize: root.fs(12)
-                font.weight: Font.DemiBold
-            }
-        }
-        MouseArea {
-            id: ma
             anchors.fill: parent
-            hoverEnabled: true
-            enabled: btn.enabled_
-            cursorShape: Qt.PointingHandCursor
-            onClicked: btn.clicked()
+            anchors.margins: -3
+            radius: actionArea.focusRadius + 3
+            color: "transparent"
+            border.width: 2
+            border.color: root.novaBlue
+            visible: actionArea.activeFocus
+            z: 99
         }
     }
 
@@ -1463,7 +1449,7 @@ Kirigami.ApplicationWindow {
             text: parent.good ? parent.goodText : parent.badText
             color: parent.good ? root.okColor : root.textMute
             font.family: root.uiFont
-            font.pixelSize: root.fs(11)
+            font.pixelSize: root.typePx(11)
             font.weight: Font.DemiBold
         }
     }
@@ -1471,14 +1457,14 @@ Kirigami.ApplicationWindow {
     component SectionTitle: Text {
         color: root.textHi
         font.family: root.uiFont
-        font.pixelSize: root.fs(17)
+        font.pixelSize: root.typePx(17)
         font.weight: Font.DemiBold
     }
 
     component SectionNote: Text {
         color: root.textLo
         font.family: root.uiFont
-        font.pixelSize: root.fs(12)
+        font.pixelSize: root.typePx(12)
         wrapMode: Text.Wrap
     }
 
@@ -1595,7 +1581,7 @@ Kirigami.ApplicationWindow {
                     anchors.fill: parent
                     anchors.topMargin: 14
                     anchors.bottomMargin: 12
-                    spacing: 4
+                    spacing: design.space1
 
                     MoOrb {
                         id: heroOrb
@@ -1617,7 +1603,7 @@ Kirigami.ApplicationWindow {
                         color: root.serverUp ? root.okColor
                              : root.brainStarting ? root.novaBlue : root.textMute
                         font.family: root.uiFont
-                        font.pixelSize: root.fs(9)
+                        font.pixelSize: root.typePx(9)
                         font.weight: Font.DemiBold
                     }
 
@@ -1637,18 +1623,18 @@ Kirigami.ApplicationWindow {
                                 height: nav.active ? 26 : 0
                                 radius: root.fs(2)
                                 color: root.novaCyan
-                                Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+                                Behavior on height { NumberAnimation { duration: root.motionEnabled ? design.motionPress : 0; easing.type: Easing.OutCubic } }
                             }
 
                             Rectangle {
                                 anchors.centerIn: parent
                                 width: 54; height: 46
-                                radius: root.fs(12)
+                                radius: design.radiusControl
                                 color: nav.active
                                      ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
                                                root.novaBlue.b, 0.16)
                                      : navMa.containsMouse ? root.surface2 : "transparent"
-                                Behavior on color { ColorAnimation { duration: 130 } }
+                                Behavior on color { ColorAnimation { duration: root.motionEnabled ? design.motionPress : 0 } }
 
                                 ColumnLayout {
                                     anchors.centerIn: parent
@@ -1666,7 +1652,7 @@ Kirigami.ApplicationWindow {
                                             ? nav.modelData.ar : nav.modelData.en
                                         color: nav.active ? root.textHi : root.textMute
                                         font.family: root.uiFont
-                                        font.pixelSize: root.fs(9)
+                                        font.pixelSize: root.typePx(9)
                                         font.weight: nav.active ? Font.DemiBold : Font.Normal
                                     }
                                 }
@@ -1685,12 +1671,15 @@ Kirigami.ApplicationWindow {
                                 border.color: root.chrome
                             }
 
-                            MouseArea {
+                            ActionArea {
                                 id: navMa
                                 anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.panel = nav.modelData.id
+                                actionName: Qt.application.layoutDirection === Qt.RightToLeft
+                                    ? nav.modelData.ar : nav.modelData.en
+                                checkable: true
+                                checked: nav.active
+                                focusRadius: root.fs(12)
+                                onTriggered: root.panel = nav.modelData.id
                             }
                         }
                     }
@@ -1704,22 +1693,23 @@ Kirigami.ApplicationWindow {
                         Rectangle {
                             anchors.centerIn: parent
                             width: 54; height: 40
-                            radius: root.fs(12)
+                            radius: design.radiusControl
                             color: gearMa.containsMouse ? root.surface2 : "transparent"
-                            Behavior on color { ColorAnimation { duration: 130 } }
+                            Behavior on color { ColorAnimation { duration: root.motionEnabled ? design.motionPress : 0 } }
                             Kirigami.Icon {
                                 anchors.centerIn: parent
                                 width: 19; height: 19
-                                source: "configure"
+                                source: "moos-settings-symbolic"
                                 color: root.textMute
                             }
                         }
-                        MouseArea {
+                        ActionArea {
                             id: gearMa
                             anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: { root.settingsOpen = true }
+                            actionName: Qt.application.layoutDirection === Qt.RightToLeft
+                                ? "الإعدادات" : "Settings"
+                            focusRadius: root.fs(12)
+                            onTriggered: root.settingsOpen = true
                         }
                     }
                 }
@@ -1759,37 +1749,46 @@ Kirigami.ApplicationWindow {
                             Text {
                                 text: {
                                     switch (root.panel) {
-                                    case "device": return "جهازي  |  My device"
-                                    case "apps":   return "التطبيقات  |  Apps"
-                                    case "compat": return "التوافق  |  Compatibility"
+                                    case "device": return root.local("جهازي", "My device")
+                                    case "apps":   return root.local("التطبيقات", "Apps")
+                                    case "compat": return root.local("التوافق", "Compatibility")
                                     case "remote": return "Mo PC Remote"
-                                    case "dev":    return "المطوّر  |  Developer"
-                                    case "agent":  return "الوكيل  |  Agent"
+                                    case "dev":    return root.local("المطوّر", "Developer")
+                                    case "agent":  return root.local("الوكيل", "Agent")
                                     default:       return "Mo AI"
                                     }
                                 }
                                 color: root.textHi
                                 font.family: root.uiFont
-                                font.pixelSize: root.fs(16)
+                                font.pixelSize: root.typePx(16)
                                 font.weight: Font.DemiBold
                             }
                             Text {
                                 text: {
                                     switch (root.panel) {
-                                    case "device": return !root.planReady ? "جارٍ الفحص… | scanning…"
-                                        : root.healthy ? "لا مشاكل | no problems"
-                                        : root.problemCount + " مشكلة | issue(s)"
-                                    case "apps":   return "ابحث وثبّت أي تطبيق | search and install anything"
-                                    case "compat": return "Windows · Android · الألعاب"
-                                    case "remote": return "تحكّم بجهازك من هاتفك | control this PC from your phone"
+                                    case "device": return !root.planReady
+                                        ? root.local("جارٍ الفحص…", "Scanning…")
+                                        : root.healthy
+                                        ? root.local("لا مشاكل", "No problems")
+                                        : root.local(root.problemCount + " مشكلة",
+                                                     root.problemCount + " issue(s)")
+                                    case "apps":   return root.local("ابحث وثبّت أي تطبيق",
+                                                                     "Search and install anything")
+                                    case "compat": return root.local(
+                                        "Windows · Android · الألعاب",
+                                        "Windows · Android · Games")
+                                    case "remote": return root.local("تحكّم بجهازك من هاتفك",
+                                                                     "Control this PC from your phone")
                                     case "dev":    return "OpenCode · Claude Code · Codex"
-                                    case "agent":  return "OpenClaw · Telegram · الجلسات"
-                                    default:       return "مساعد MoOS | MoOS assistant"
+                                    case "agent":  return root.local(
+                                        "OpenClaw · Telegram · الجلسات",
+                                        "OpenClaw · Telegram · Sessions")
+                                    default:       return root.local("مساعد MoOS", "MoOS assistant")
                                     }
                                 }
                                 color: root.textLo
                                 font.family: root.uiFont
-                                font.pixelSize: root.fs(11)
+                                font.pixelSize: root.typePx(11)
                             }
                         }
 
@@ -1797,14 +1796,15 @@ Kirigami.ApplicationWindow {
 
                         MoButton {
                             visible: root.panel === "chat"
-                            label: "محادثة جديدة | New"
+                            label: root.local("محادثة جديدة", "New chat")
                             onClicked: root.newChat()
                         }
                         MoButton {
                             visible: root.panel === "device"
-                            label: root.scanning ? "جارٍ… | Scanning" : "أعد الفحص | Rescan"
+                            label: root.scanning ? root.local("جارٍ…", "Scanning…")
+                                                 : root.local("أعد الفحص", "Rescan")
                             enabled_: !root.scanning
-                            icon: "moos-report"
+                            iconName: "moos-report-symbolic"
                             onClicked: root.refreshScan()
                         }
                     }
@@ -1846,7 +1846,7 @@ Kirigami.ApplicationWindow {
                             anchors.fill: parent
                             visible: chatModel.count > 1
                             clip: true
-                            spacing: 4
+                            spacing: design.space1
                             topMargin: 14
                             bottomMargin: 10
                             leftMargin: 16
@@ -1878,7 +1878,7 @@ Kirigami.ApplicationWindow {
                                     anchors.left: mine ? undefined : parent.left
                                     anchors.leftMargin: mine ? 0 : 36
                                     y: 3
-                                    radius: root.fs(14)
+                                    radius: design.radiusControl
                                     color: mine
                                          ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
                                                    root.novaBlue.b, 0.16)
@@ -1906,7 +1906,7 @@ Kirigami.ApplicationWindow {
                                         color: root.textHi
                                         linkColor: root.novaCyan
                                         font.family: root.uiFont
-                                        font.pixelSize: root.fs(14)
+                                        font.pixelSize: root.typePx(14)
                                         onLinkActivated: function (link) { Qt.openUrlExternally(link) }
 
                                         SequentialAnimation on opacity {
@@ -1916,8 +1916,8 @@ Kirigami.ApplicationWindow {
                                             // typing → assistant flips, force full opacity so the
                                             // streamed reply is not left dimmed.
                                             onRunningChanged: if (!running) body.opacity = 1
-                                            NumberAnimation { from: 1.0; to: 0.30; duration: 460 }
-                                            NumberAnimation { from: 0.30; to: 1.0; duration: 460 }
+                                            NumberAnimation { from: 1.0; to: 0.30; duration: root.motionEnabled ? 460 : 0 }
+                                            NumberAnimation { from: 0.30; to: 1.0; duration: root.motionEnabled ? 460 : 0 }
                                         }
                                     }
                                 }
@@ -1976,7 +1976,7 @@ Kirigami.ApplicationWindow {
                                     text: Qt.application.layoutDirection === Qt.RightToLeft ? "أهلاً، أنا Mo AI" : "Hi, I'm Mo AI"
                                     color: root.textHi
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(32)
+                                    font.pixelSize: root.typePx(32)
                                     font.weight: Font.DemiBold
                                 }
 
@@ -1987,7 +1987,7 @@ Kirigami.ApplicationWindow {
                                         : "Your MoOS assistant — pick a starting point, or just type."
                                     color: root.textLo
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(14)
+                                    font.pixelSize: root.typePx(14)
                                 }
 
                                 // four premium glass suggestion cards (2×2)
@@ -2003,26 +2003,26 @@ Kirigami.ApplicationWindow {
                                             required property var modelData
                                             width: heroCards.columns === 2 ? (heroCards.parent.width - 12) / 2 : heroCards.parent.width
                                             height: 74
-                                            radius: root.fs(16)
+                                            radius: design.radiusCard
                                             color: Qt.rgba(root.surface1.r, root.surface1.g, root.surface1.b, cardMA.containsMouse ? 0.94 : 0.66)
                                             border.width: 1
                                             border.color: cardMA.containsMouse
                                                 ? Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.55)
                                                 : root.hairline
                                             scale: cardMA.containsMouse ? 1.02 : 1.0
-                                            Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-                                            Behavior on border.color { ColorAnimation { duration: 140 } }
-                                            Behavior on color { ColorAnimation { duration: 140 } }
+                                            Behavior on scale { NumberAnimation { duration: root.motionEnabled ? design.motionPress : 0; easing.type: Easing.OutCubic } }
+                                            Behavior on border.color { ColorAnimation { duration: root.motionEnabled ? design.motionPress : 0 } }
+                                            Behavior on color { ColorAnimation { duration: root.motionEnabled ? design.motionPress : 0 } }
 
                                             RowLayout {
                                                 anchors.fill: parent
                                                 anchors.margins: 13
-                                                spacing: 12
+                                                spacing: design.space3
                                                 layoutDirection: Qt.application.layoutDirection
 
                                                 Rectangle {
                                                     Layout.preferredWidth: root.fs(42); Layout.preferredHeight: root.fs(42)
-                                                    radius: root.fs(12)
+                                                    radius: design.radiusControl
                                                     color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.13)
                                                     Kirigami.Icon {
                                                         anchors.centerIn: parent
@@ -2039,7 +2039,7 @@ Kirigami.ApplicationWindow {
                                                         text: Qt.application.layoutDirection === Qt.RightToLeft ? modelData.ar : modelData.en
                                                         color: root.textHi
                                                         font.family: root.uiFont
-                                                        font.pixelSize: root.fs(14)
+                                                        font.pixelSize: root.typePx(14)
                                                         font.weight: Font.DemiBold
                                                         elide: Text.ElideRight
                                                     }
@@ -2048,17 +2048,18 @@ Kirigami.ApplicationWindow {
                                                         text: modelData.hint
                                                         color: root.textMute
                                                         font.family: root.uiFont
-                                                        font.pixelSize: root.fs(11)
+                                                        font.pixelSize: root.typePx(11)
                                                         elide: Text.ElideRight
                                                     }
                                                 }
                                             }
-                                            MouseArea {
+                                            ActionArea {
                                                 id: cardMA
                                                 anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: root.sendPrompt(modelData.send)
+                                                actionName: Qt.application.layoutDirection === Qt.RightToLeft
+                                                    ? modelData.ar : modelData.en
+                                                focusRadius: root.fs(16)
+                                                onTriggered: root.sendPrompt(modelData.send)
                                             }
                                         }
                                     }
@@ -2074,7 +2075,7 @@ Kirigami.ApplicationWindow {
                             Layout.rightMargin: 16
                             Layout.bottomMargin: 8
                             visible: root.problemCount > 0 && chatModel.count <= 1
-                            radius: root.fs(12)
+                            radius: design.radiusControl
                             implicitHeight: bannerRow.implicitHeight + 22
                             color: Qt.rgba(root.warnColor.r, root.warnColor.g,
                                            root.warnColor.b, 0.09)
@@ -2089,10 +2090,10 @@ Kirigami.ApplicationWindow {
                                 anchors.verticalCenter: parent.verticalCenter
                                 anchors.leftMargin: 14
                                 anchors.rightMargin: 14
-                                spacing: 12
+                                spacing: design.space3
 
                                 Kirigami.Icon {
-                                    source: "moos-warning"
+                                    source: "moos-warning-symbolic"
                                     color: root.warnColor
                                     Layout.preferredWidth: root.fs(22)
                                     Layout.preferredHeight: root.fs(22)
@@ -2101,10 +2102,12 @@ Kirigami.ApplicationWindow {
                                     Layout.fillWidth: true
                                     spacing: 2
                                     Text {
-                                        text: "وجدت " + root.problemCount + " مشكلة في جهازك  |  Found " + root.problemCount + " issue(s)"
+                                        text: root.local(
+                                            "وجدت " + root.problemCount + " مشكلة في جهازك",
+                                            "Found " + root.problemCount + " issue(s)")
                                         color: root.textHi
                                         font.family: root.uiFont
-                                        font.pixelSize: root.fs(13)
+                                        font.pixelSize: root.typePx(13)
                                         font.weight: Font.DemiBold
                                     }
                                     Text {
@@ -2112,12 +2115,12 @@ Kirigami.ApplicationWindow {
                                         text: (root.actions[0] || {}).title || ""
                                         color: root.textLo
                                         font.family: root.uiFont
-                                        font.pixelSize: root.fs(11)
+                                        font.pixelSize: root.typePx(11)
                                         elide: Text.ElideRight
                                     }
                                 }
                                 MoButton {
-                                    label: "افتح | Open"
+                                    label: root.local("افتح", "Open")
                                     primary: true
                                     onClicked: root.panel = "device"
                                 }
@@ -2130,13 +2133,13 @@ Kirigami.ApplicationWindow {
                             Layout.leftMargin: 16
                             Layout.rightMargin: 16
                             Layout.bottomMargin: 6
-                            spacing: 8
+                            spacing: design.space2
                             visible: false   // superseded by the hero's premium suggestion cards
                             Repeater {
                                 model: root.starters
                                 delegate: MoButton {
                                     required property var modelData
-                                    label: modelData.ar + "  ·  " + modelData.en
+                                    label: root.local(modelData.ar, modelData.en)
                                     onClicked: root.sendPrompt(modelData.send)
                                 }
                             }
@@ -2154,7 +2157,7 @@ Kirigami.ApplicationWindow {
                             Layout.rightMargin: 16
                             Layout.bottomMargin: 8
                             visible: root.brainsKnown && !root.serverUp
-                            radius: root.fs(12)
+                            radius: design.radiusControl
                             implicitHeight: startCol.implicitHeight + 22
                             color: root.brainStarting
                                  ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
@@ -2175,30 +2178,39 @@ Kirigami.ApplicationWindow {
                                 Text {
                                     Layout.fillWidth: true
                                     text: !root.brains.gateway
-                                        ? "بوابة Mo AI متوقفة — شغّلها:  systemctl --user start moai-gateway\nMo AI's gateway is not running — start it:  systemctl --user start moai-gateway"
+                                        ? root.local(
+                                            "بوابة Mo AI متوقفة — شغّلها:  systemctl --user start moai-gateway",
+                                            "Mo AI's gateway is not running — start it:  systemctl --user start moai-gateway")
                                         : root.routeIsCloud
-                                        ? "العقل السحابي غير مضبوط — أضف المزوّد والمفتاح.\nThe cloud brain is not set up — add the provider and your API key."
+                                        ? root.local(
+                                            "العقل السحابي غير مضبوط — أضف المزوّد والمفتاح.",
+                                            "The cloud brain is not set up — add the provider and your API key.")
                                         : root.brainStarting
-                                        ? "العقل المحلي يبدأ… أول مرة يُحمّل ~2.5GB وقد يأخذ دقائق.\nLocal brain starting… the first run downloads ~2.5 GB."
-                                        : "العقل المحلي متوقف — سأشغّله تلقائياً عند أول رسالة، أو شغّله الآن لتراه.\nThe local brain is off — I'll start it on your first message, or start it now and watch it."
+                                        ? root.local(
+                                            "العقل المحلي يبدأ… أول مرة يُحمّل ~2.5GB وقد يأخذ دقائق.",
+                                            "Local brain starting… the first run downloads ~2.5 GB.")
+                                        : root.local(
+                                            "العقل المحلي متوقف — سأشغّله تلقائياً عند أول رسالة، أو شغّله الآن لتراه.",
+                                            "The local brain is off — I'll start it on your first message, or start it now and watch it.")
                                     color: root.textLo
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(11)
+                                    font.pixelSize: root.typePx(11)
                                     wrapMode: Text.Wrap
                                 }
                                 MoButton {
                                     Layout.fillWidth: true
                                     visible: !!root.brains.gateway && !root.routeIsCloud
                                              && !root.brainStarting
-                                    label: "شغّل العقل المحلي  |  Start local brain"
+                                    label: root.local("شغّل العقل المحلي", "Start local brain")
                                     primary: true
                                     onClicked: root.startBrain()
                                 }
                                 MoButton {
                                     Layout.fillWidth: true
                                     visible: !!root.brains.gateway && root.routeIsCloud
-                                    label: "اضبط العقل السحابي  |  Set up the cloud brain"
-                                    icon: "configure"
+                                    label: root.local("اضبط العقل السحابي",
+                                                      "Set up the cloud brain")
+                                    iconName: "moos-settings-symbolic"
                                     primary: true
                                     onClicked: { root.settingsOpen = true }
                                 }
@@ -2211,14 +2223,14 @@ Kirigami.ApplicationWindow {
                             Layout.leftMargin: 16
                             Layout.rightMargin: 16
                             Layout.bottomMargin: 8
-                            spacing: 8
+                            spacing: design.space2
                             visible: root.pendingRuns.length > 0
                             Repeater {
                                 model: root.pendingRuns
                                 delegate: MoButton {
                                     required property string modelData
                                     label: "نفّذ  moai-do " + modelData
-                                    icon: "moos-safe-update"
+                                    iconName: "moos-safe-update-symbolic"
                                     primary: true
                                     onClicked: root.launch("moos://do/" + modelData, "moai-do " + modelData)
                                 }
@@ -2251,11 +2263,11 @@ Kirigami.ApplicationWindow {
                                     Layout.fillHeight: true
                                     Layout.preferredWidth: chipRow.implicitWidth + 20
                                     Layout.maximumWidth: 200
-                                    radius: root.fs(11)
+                                    radius: design.radiusControl
                                     color: chipMa.containsMouse ? root.surface2 : root.surface1
                                     border.width: 1
                                     border.color: root.pickerOpen ? root.novaBlue : root.hairline
-                                    Behavior on color { ColorAnimation { duration: 120 } }
+                                    Behavior on color { ColorAnimation { duration: root.motionEnabled ? design.motionFast : 0 } }
 
                                     RowLayout {
                                         id: chipRow
@@ -2273,17 +2285,18 @@ Kirigami.ApplicationWindow {
                                             color: !root.serverUp ? root.textMute
                                                  : root.routeIsCloud ? root.novaViolet
                                                  : root.okColor
-                                            Behavior on color { ColorAnimation { duration: 160 } }
+                                            Behavior on color { ColorAnimation { duration: root.motionEnabled ? design.motionPress : 0 } }
                                         }
 
                                         ColumnLayout {
                                             spacing: 0
                                             Text {
-                                                text: root.routeIsCloud ? "سحابي | Cloud"
-                                                                        : "محلي | Local"
+                                                text: root.routeIsCloud
+                                                    ? root.local("سحابي", "Cloud")
+                                                    : root.local("محلي", "Local")
                                                 color: root.textHi
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(11)
+                                                font.pixelSize: root.typePx(11)
                                                 font.weight: Font.DemiBold
                                             }
                                             Text {
@@ -2292,7 +2305,7 @@ Kirigami.ApplicationWindow {
                                                 text: root.routeModel
                                                 color: root.textLo
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(9)
+                                                font.pixelSize: root.typePx(9)
                                                 elide: Text.ElideRight
                                             }
                                         }
@@ -2301,16 +2314,17 @@ Kirigami.ApplicationWindow {
                                             text: "▾"
                                             color: root.textMute
                                             font.family: root.uiFont
-                                            font.pixelSize: root.fs(10)
+                                            font.pixelSize: root.typePx(10)
                                         }
                                     }
 
-                                    MouseArea {
+                                    ActionArea {
                                         id: chipMa
                                         anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.openPicker()
+                                        actionName: Qt.application.layoutDirection === Qt.RightToLeft
+                                            ? "اختيار مسار العقل" : "Choose brain route"
+                                        focusRadius: root.fs(11)
+                                        onTriggered: root.openPicker()
                                     }
                                 }
 
@@ -2318,19 +2332,20 @@ Kirigami.ApplicationWindow {
                                     id: input
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
-                                    placeholderText: "اسأل Mo AI أي شيء… | Ask Mo AI anything…"
+                                    placeholderText: root.local("اسأل Mo AI أي شيء…",
+                                                                "Ask Mo AI anything…")
                                     placeholderTextColor: root.textMute
                                     color: root.textHi
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(14)
+                                    font.pixelSize: root.typePx(14)
                                     leftPadding: 14
                                     rightPadding: 14
                                     background: Rectangle {
                                         color: root.surface1
-                                        radius: root.fs(11)
+                                        radius: design.radiusControl
                                         border.width: 1
                                         border.color: input.activeFocus ? root.novaBlue : root.hairline
-                                        Behavior on border.color { ColorAnimation { duration: 130 } }
+                                        Behavior on border.color { ColorAnimation { duration: root.motionEnabled ? design.motionPress : 0 } }
                                     }
                                     onAccepted: root.send()
                                 }
@@ -2338,7 +2353,7 @@ Kirigami.ApplicationWindow {
                                 Rectangle {
                                     Layout.fillHeight: true
                                     Layout.preferredWidth: root.fs(106)
-                                    radius: root.fs(11)
+                                    radius: design.radiusControl
                                     readonly property bool on_: root.busy || input.text.trim().length > 0
                                     opacity: on_ ? 1.0 : 0.45
                                     gradient: Gradient {
@@ -2354,17 +2369,21 @@ Kirigami.ApplicationWindow {
                                     }
                                     Text {
                                         anchors.centerIn: parent
-                                        text: root.busy ? "إيقاف | Stop" : "إرسال | Send"
+                                        text: root.busy ? root.local("إيقاف", "Stop")
+                                                        : root.local("إرسال", "Send")
                                         color: root.accentText
                                         font.family: root.uiFont
-                                        font.pixelSize: root.fs(13)
+                                        font.pixelSize: root.typePx(13)
                                         font.weight: Font.DemiBold
                                     }
-                                    MouseArea {
+                                    ActionArea {
                                         anchors.fill: parent
                                         enabled: parent.on_
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.busy ? root.stopGenerating() : root.send()
+                                        actionName: root.busy
+                                            ? (root.moaiRtl ? "إيقاف التوليد" : "Stop generating")
+                                            : (root.moaiRtl ? "إرسال الرسالة" : "Send message")
+                                        focusRadius: root.fs(11)
+                                        onTriggered: root.busy ? root.stopGenerating() : root.send()
                                     }
                                 }
                             }
@@ -2384,7 +2403,7 @@ Kirigami.ApplicationWindow {
                             width: parent.width - 32
                             x: 16
                             y: 16
-                            spacing: 12
+                            spacing: design.space3
 
                             // Verdict.
                             Card {
@@ -2408,7 +2427,7 @@ Kirigami.ApplicationWindow {
                                         Kirigami.Icon {
                                             anchors.centerIn: parent
                                             width: 24; height: 24
-                                            source: root.healthy ? "moos-system" : "moos-warning"
+                                            source: root.healthy ? "moos-system-symbolic" : "moos-warning-symbolic"
                                             color: root.healthy ? root.okColor
                                                  : root.hasImportant ? root.badColor : root.warnColor
                                         }
@@ -2418,24 +2437,36 @@ Kirigami.ApplicationWindow {
                                         Layout.fillWidth: true
                                         spacing: 3
                                         Text {
-                                            text: !root.planReady ? "جارٍ فحص جهازك…  |  Checking your device…"
-                                                : root.healthy ? "جهازك سليم  |  Your device is healthy"
-                                                : "وجدت " + root.problemCount + " مشكلة  |  " + root.problemCount + " issue(s) found"
+                                            text: !root.planReady
+                                                ? root.local("جارٍ فحص جهازك…",
+                                                             "Checking your device…")
+                                                : root.healthy
+                                                ? root.local("جهازك سليم",
+                                                             "Your device is healthy")
+                                                : root.local(
+                                                    "وجدت " + root.problemCount + " مشكلة",
+                                                    root.problemCount + " issue(s) found")
                                             color: root.textHi
                                             font.family: root.uiFont
-                                            font.pixelSize: root.fs(16)
+                                            font.pixelSize: root.typePx(16)
                                             font.weight: Font.DemiBold
                                         }
                                         Text {
                                             Layout.fillWidth: true
                                             text: !root.planReady
-                                                ? "أقرأ التعريفات والبرامج الثابتة والأجهزة المتصلة…\nReading drivers, firmware and attached devices…"
+                                                ? root.local(
+                                                    "أقرأ التعريفات والبرامج الثابتة والأجهزة المتصلة…",
+                                                    "Reading drivers, firmware and attached devices…")
                                                 : root.healthy
-                                                ? "لا توجد مشاكل في الأجهزة أو التعريفات.\nNo hardware or driver problems found."
-                                                : "كل مشكلة بالأسفل معها الإصلاح الذي يناسبها.\nEach problem below comes with the repair that fixes it."
+                                                ? root.local(
+                                                    "لا توجد مشاكل في الأجهزة أو التعريفات.",
+                                                    "No hardware or driver problems found.")
+                                                : root.local(
+                                                    "كل مشكلة بالأسفل معها الإصلاح الذي يناسبها.",
+                                                    "Each problem below comes with the repair that fixes it.")
                                             color: root.textLo
                                             font.family: root.uiFont
-                                            font.pixelSize: root.fs(11)
+                                            font.pixelSize: root.typePx(11)
                                             wrapMode: Text.Wrap
                                         }
                                     }
@@ -2453,13 +2484,14 @@ Kirigami.ApplicationWindow {
 
                                     Repeater {
                                         model: [
-                                            { icon: "moos-identity", ar: "النظام", v: (root.snap.os || "MoOS") },
-                                            { icon: "moos-cpu",      ar: "المعالج", v: (root.snap.cpu || "?") + " · " + (root.snap.cores || "?") + " cores" },
-                                            { icon: "moos-memory",   ar: "الذاكرة", v: (root.snap.mem_gb || "?") + " GB RAM" },
-                                            { icon: "moos-gpu",      ar: "الرسوميات", v: (root.snap.gpu || "?") },
-                                            { icon: "moos-storage",  ar: "التخزين", v: (root.snap.disk && root.snap.disk.total_gb)
-                                                 ? (root.snap.disk.free_gb + " / " + root.snap.disk.total_gb + " GB حرّ") : "?" },
-                                            { icon: "moos-system",   ar: "نواة MoOS", v: (root.snap.kernel || "?") }
+                                            { icon: "moos-identity-symbolic", ar: "النظام", en: "System", v: (root.snap.os || "MoOS") },
+                                            { icon: "moos-cpu-symbolic",      ar: "المعالج", en: "Processor", v: (root.snap.cpu || "?") + " · " + (root.snap.cores || "?") + " cores" },
+                                            { icon: "moos-memory-symbolic",   ar: "الذاكرة", en: "Memory", v: (root.snap.mem_gb || "?") + " GB RAM" },
+                                            { icon: "moos-gpu-symbolic",      ar: "الرسوميات", en: "Graphics", v: (root.snap.gpu || "?") },
+                                            { icon: "moos-storage-symbolic",  ar: "التخزين", en: "Storage", v: (root.snap.disk && root.snap.disk.total_gb)
+                                                 ? root.local(root.snap.disk.free_gb + " / " + root.snap.disk.total_gb + " GB حرّ",
+                                                              root.snap.disk.free_gb + " / " + root.snap.disk.total_gb + " GB free") : "?" },
+                                            { icon: "moos-system-symbolic",   ar: "نواة MoOS", en: "MoOS kernel", v: (root.snap.kernel || "?") }
                                         ]
                                         delegate: RowLayout {
                                             required property var modelData
@@ -2472,10 +2504,10 @@ Kirigami.ApplicationWindow {
                                                 Layout.preferredHeight: root.fs(16)
                                             }
                                             Text {
-                                                text: modelData.ar
+                                                text: root.local(modelData.ar, modelData.en)
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(11)
+                                                font.pixelSize: root.typePx(11)
                                                 Layout.preferredWidth: root.fs(54)
                                             }
                                             Text {
@@ -2483,7 +2515,7 @@ Kirigami.ApplicationWindow {
                                                 text: modelData.v
                                                 color: root.textHi
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(12)
+                                                font.pixelSize: root.typePx(12)
                                                 elide: Text.ElideRight
                                             }
                                         }
@@ -2499,7 +2531,7 @@ Kirigami.ApplicationWindow {
                                     width: parent.width
                                     spacing: 10
                                     Kirigami.Icon {
-                                        source: "moos-gpu"
+                                        source: "moos-gpu-symbolic"
                                         color: root.novaViolet
                                         Layout.preferredWidth: root.fs(18)
                                         Layout.preferredHeight: root.fs(18)
@@ -2509,7 +2541,7 @@ Kirigami.ApplicationWindow {
                                         text: root.plan.driver_status || ""
                                         color: root.textHi
                                         font.family: root.uiFont
-                                        font.pixelSize: root.fs(12)
+                                        font.pixelSize: root.typePx(12)
                                         wrapMode: Text.Wrap
                                     }
                                 }
@@ -2525,7 +2557,7 @@ Kirigami.ApplicationWindow {
 
                                     ColumnLayout {
                                         width: parent.width
-                                        spacing: 8
+                                        spacing: design.space2
 
                                         RowLayout {
                                             Layout.fillWidth: true
@@ -2542,7 +2574,7 @@ Kirigami.ApplicationWindow {
                                                 text: issue.modelData.title || ""
                                                 color: root.textHi
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(13)
+                                                font.pixelSize: root.typePx(13)
                                                 font.weight: Font.DemiBold
                                                 elide: Text.ElideRight
                                             }
@@ -2552,20 +2584,20 @@ Kirigami.ApplicationWindow {
                                             text: issue.modelData.detail || ""
                                             color: root.textLo
                                             font.family: root.uiFont
-                                            font.pixelSize: root.fs(11)
+                                            font.pixelSize: root.typePx(11)
                                             wrapMode: Text.Wrap
                                         }
                                         RowLayout {
-                                            spacing: 8
+                                            spacing: design.space2
                                             MoButton {
                                                 visible: String(issue.modelData.url || "").length > 0
-                                                label: "أصلحها الآن  |  Fix it"
+                                                label: root.local("أصلحها الآن", "Fix it")
                                                 primary: true
-                                                icon: "moos-safe-update"
+                                                iconName: "moos-safe-update-symbolic"
                                                 onClicked: root.launch(issue.modelData.url, issue.modelData.title)
                                             }
                                             MoButton {
-                                                label: "اسأل Mo AI  |  Ask"
+                                                label: root.local("اسأل Mo AI", "Ask")
                                                 onClicked: root.askAbout(issue.modelData.title, issue.modelData.detail || "")
                                             }
                                         }
@@ -2574,28 +2606,31 @@ Kirigami.ApplicationWindow {
                             }
 
                             // Maintenance — the whole of the old Hardware Centre's action list.
-                            SectionTitle { text: "الصيانة  |  Maintenance"; Layout.topMargin: 6 }
+                            SectionTitle {
+                                text: root.local("الصيانة", "Maintenance")
+                                Layout.topMargin: 6
+                            }
 
                             Flow {
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: design.space2
                                 Repeater {
                                     model: [
-                                        { ar: "تحديث النظام", en: "Update", url: "moos://do/update", icon: "moos-safe-update" },
-                                        { ar: "فحص التعريفات", en: "Drivers", url: "moos://do/check-drivers", icon: "moos-gpu" },
-                                        { ar: "تحديث البرامج الثابتة", en: "Firmware", url: "moos://do/update-firmware", icon: "moos-system" },
-                                        { ar: "تحسين وتنظيف", en: "Optimize", url: "moos://do/optimize", icon: "moos-optimize" },
-                                        { ar: "إصلاح الصوت", en: "Fix audio", url: "moos://do/fix-audio", icon: "moos-audio" },
-                                        { ar: "تقرير كامل", en: "Report", url: "moos://do/hw-report", icon: "moos-report" },
-                                        { ar: "الخدمات الفاشلة", en: "Services", url: "moos://do/diagnose-services", icon: "moos-system" },
-                                        { ar: "مشاكل الإقلاع", en: "Boot", url: "moos://do/inspect-boot", icon: "moos-warning" },
-                                        { ar: "المحدّث", en: "Updater", url: "moos://app/updater", icon: "moos-safe-update" },
-                                        { ar: "الاستعادة", en: "Recovery", url: "moos://app/recovery", icon: "moos-system" }
+                                        { ar: "تحديث النظام", en: "Update", url: "moos://do/update", icon: "moos-safe-update-symbolic" },
+                                        { ar: "فحص التعريفات", en: "Drivers", url: "moos://do/check-drivers", icon: "moos-gpu-symbolic" },
+                                        { ar: "تحديث البرامج الثابتة", en: "Firmware", url: "moos://do/update-firmware", icon: "moos-system-symbolic" },
+                                        { ar: "تحسين وتنظيف", en: "Optimize", url: "moos://do/optimize", icon: "moos-optimize-symbolic" },
+                                        { ar: "إصلاح الصوت", en: "Fix audio", url: "moos://do/fix-audio", icon: "moos-audio-symbolic" },
+                                        { ar: "تقرير كامل", en: "Report", url: "moos://do/hw-report", icon: "moos-report-symbolic" },
+                                        { ar: "الخدمات الفاشلة", en: "Services", url: "moos://do/diagnose-services", icon: "moos-system-symbolic" },
+                                        { ar: "مشاكل الإقلاع", en: "Boot", url: "moos://do/inspect-boot", icon: "moos-warning-symbolic" },
+                                        { ar: "المحدّث", en: "Updater", url: "moos://app/updater", icon: "moos-safe-update-symbolic" },
+                                        { ar: "الاستعادة", en: "Recovery", url: "moos://app/recovery", icon: "moos-system-symbolic" }
                                     ]
                                     delegate: MoButton {
                                         required property var modelData
-                                        label: modelData.ar + "  ·  " + modelData.en
-                                        icon: modelData.icon
+                                        label: root.local(modelData.ar, modelData.en)
+                                        iconName: modelData.icon
                                         onClicked: root.launch(modelData.url, modelData.ar)
                                     }
                                 }
@@ -2622,16 +2657,18 @@ Kirigami.ApplicationWindow {
                                     id: searchField
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: root.fs(40)
-                                    placeholderText: "ابحث في Flathub… (مثلاً blender) | Search Flathub…"
+                                    placeholderText: root.local(
+                                        "ابحث في Flathub… (مثلاً blender)",
+                                        "Search Flathub…")
                                     placeholderTextColor: root.textMute
                                     color: root.textHi
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(13)
+                                    font.pixelSize: root.typePx(13)
                                     leftPadding: 14
                                     rightPadding: 14
                                     background: Rectangle {
                                         color: root.surface1
-                                        radius: root.fs(11)
+                                        radius: design.radiusControl
                                         border.width: 1
                                         border.color: searchField.activeFocus ? root.novaBlue : root.hairline
                                     }
@@ -2639,8 +2676,8 @@ Kirigami.ApplicationWindow {
                                 }
                                 MoButton {
                                     Layout.preferredHeight: root.fs(40)
-                                    label: root.searching ? "…" : "ابحث | Search"
-                                    icon: "moos-install"
+                                    label: root.searching ? "…" : root.local("ابحث", "Search")
+                                    iconName: "moos-install-symbolic"
                                     primary: true
                                     enabled_: !root.searching
                                     onClicked: root.searchApps(searchField.text)
@@ -2669,7 +2706,7 @@ Kirigami.ApplicationWindow {
                                     text: root.searchNote
                                     color: root.textMute
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(12)
+                                    font.pixelSize: root.typePx(12)
                                 }
 
                                 // Search results.
@@ -2694,17 +2731,17 @@ Kirigami.ApplicationWindow {
 
                                         RowLayout {
                                             width: parent.width
-                                            spacing: 12
+                                            spacing: design.space3
 
                                             Rectangle {
                                                 Layout.preferredWidth: root.fs(38)
                                                 Layout.preferredHeight: root.fs(38)
-                                                radius: root.fs(10)
+                                                radius: design.radiusSmall
                                                 color: root.surface2
                                                 Kirigami.Icon {
                                                     anchors.centerIn: parent
                                                     width: 20; height: 20
-                                                    source: "moos-install"
+                                                    source: "moos-install-symbolic"
                                                     color: root.novaCyan
                                                 }
                                             }
@@ -2718,14 +2755,14 @@ Kirigami.ApplicationWindow {
                                                         text: hit.name
                                                         color: root.textHi
                                                         font.family: root.uiFont
-                                                        font.pixelSize: root.fs(13)
+                                                        font.pixelSize: root.typePx(13)
                                                         font.weight: Font.DemiBold
                                                     }
                                                     Text {
                                                         visible: hit.verified
                                                         text: "✓"
                                                         color: root.novaCyan
-                                                        font.pixelSize: root.fs(12)
+                                                        font.pixelSize: root.typePx(12)
                                                         font.weight: Font.Bold
                                                     }
                                                     // The MoOS pick, said out loud.
@@ -2742,10 +2779,10 @@ Kirigami.ApplicationWindow {
                                                         Text {
                                                             id: pickLabel
                                                             anchors.centerIn: parent
-                                                            text: "اختيار MoOS  |  MoOS pick"
+                                                            text: root.local("اختيار MoOS", "MoOS pick")
                                                             color: root.novaCyan
                                                             font.family: root.uiFont
-                                                            font.pixelSize: root.fs(9)
+                                                            font.pixelSize: root.typePx(9)
                                                             font.weight: Font.DemiBold
                                                         }
                                                     }
@@ -2755,7 +2792,7 @@ Kirigami.ApplicationWindow {
                                                     text: hit.summary
                                                     color: root.textLo
                                                     font.family: root.uiFont
-                                                    font.pixelSize: root.fs(11)
+                                                    font.pixelSize: root.typePx(11)
                                                     elide: Text.ElideRight
                                                 }
                                                 // Why this one — or why NOT that one. Cyan when it is
@@ -2767,19 +2804,21 @@ Kirigami.ApplicationWindow {
                                                     text: (hit.recommended ? "✓ " : "⚠ ") + hit.note
                                                     color: hit.recommended ? root.novaCyan : root.warnColor
                                                     font.family: root.uiFont
-                                                    font.pixelSize: root.fs(10)
+                                                    font.pixelSize: root.typePx(10)
                                                     wrapMode: Text.WordWrap
                                                 }
                                                 Text {
                                                     text: hit.id
                                                     color: root.textMute
                                                     font.family: "JetBrains Mono"
-                                                    font.pixelSize: root.fs(10)
+                                                    font.pixelSize: root.typePx(10)
                                                 }
                                             }
 
                                             MoButton {
-                                                label: hit.installed ? "مثبّت ✓ | Installed" : "ثبّت | Install"
+                                                label: hit.installed
+                                                    ? root.local("مثبّت ✓", "Installed")
+                                                    : root.local("ثبّت", "Install")
                                                 primary: !hit.installed
                                                 enabled_: !hit.installed
                                                 onClicked: root.launch("moos://apps/install/" + hit.id, hit.name)
@@ -2789,7 +2828,7 @@ Kirigami.ApplicationWindow {
                                 }
 
                                 SectionTitle {
-                                    text: "موصى بها  |  Recommended"
+                                    text: root.local("موصى بها", "Recommended")
                                     Layout.topMargin: 4
                                     visible: searchModel.count === 0
                                 }
@@ -2804,17 +2843,17 @@ Kirigami.ApplicationWindow {
 
                                         RowLayout {
                                             width: parent.width
-                                            spacing: 12
+                                            spacing: design.space3
 
                                             Rectangle {
                                                 Layout.preferredWidth: root.fs(38)
                                                 Layout.preferredHeight: root.fs(38)
-                                                radius: root.fs(10)
+                                                radius: design.radiusSmall
                                                 color: root.surface2
                                                 Kirigami.Icon {
                                                     anchors.centerIn: parent
                                                     width: 20; height: 20
-                                                    source: "moos-install"
+                                                    source: "moos-install-symbolic"
                                                     color: root.novaViolet
                                                 }
                                             }
@@ -2825,19 +2864,22 @@ Kirigami.ApplicationWindow {
                                                     text: rec.modelData.title
                                                     color: root.textHi
                                                     font.family: root.uiFont
-                                                    font.pixelSize: root.fs(13)
+                                                    font.pixelSize: root.typePx(13)
                                                     font.weight: Font.DemiBold
                                                 }
                                                 Text {
                                                     Layout.fillWidth: true
-                                                    text: rec.modelData.ar + "  |  " + rec.modelData.en
+                                                    text: root.local(rec.modelData.ar,
+                                                                     rec.modelData.en)
                                                     color: root.textLo
                                                     font.family: root.uiFont
-                                                    font.pixelSize: root.fs(11)
+                                                    font.pixelSize: root.typePx(11)
                                                 }
                                             }
                                             MoButton {
-                                                label: rec.installed ? "مثبّت ✓ | Installed" : "ثبّت | Install"
+                                                label: rec.installed
+                                                    ? root.local("مثبّت ✓", "Installed")
+                                                    : root.local("ثبّت", "Install")
                                                 primary: !rec.installed
                                                 enabled_: !rec.installed
                                                 onClicked: root.launch("moos://apps/install/" + rec.modelData.id,
@@ -2851,7 +2893,9 @@ Kirigami.ApplicationWindow {
                                     Layout.fillWidth: true
                                     Layout.topMargin: 4
                                     visible: searchModel.count === 0
-                                    text: "أو اطلب من Mo AI مباشرة: «ثبّت لي Blender».\nOr just ask Mo AI: “install Blender for me”."
+                                    text: root.local(
+                                        "أو اطلب من Mo AI مباشرة: «ثبّت لي Blender».",
+                                        "Or just ask Mo AI: “install Blender for me”.")
                                 }
                             }
                         }
@@ -2870,12 +2914,13 @@ Kirigami.ApplicationWindow {
                             width: parent.width - 32
                             x: 16
                             y: 16
-                            spacing: 12
+                            spacing: design.space3
 
                             SectionNote {
                                 Layout.fillWidth: true
-                                text: "شغّل تطبيقات وألعاب Windows و Android على MoOS. الحالة مقروءة من جهازك، لا مفترضة.\n"
-                                    + "Run Windows and Android apps and games on MoOS. Status is read from your machine, not assumed."
+                                text: root.local(
+                                    "شغّل تطبيقات وألعاب Windows و Android على MoOS. الحالة مقروءة من جهازك، لا مفترضة.",
+                                    "Run Windows and Android apps and games on MoOS. Status is read from your machine, not assumed.")
                             }
 
                             Repeater {
@@ -2888,12 +2933,12 @@ Kirigami.ApplicationWindow {
 
                                     RowLayout {
                                         width: parent.width
-                                        spacing: 12
+                                        spacing: design.space3
 
                                         Rectangle {
                                             Layout.preferredWidth: root.fs(40)
                                             Layout.preferredHeight: root.fs(40)
-                                            radius: root.fs(11)
+                                            radius: design.radiusControl
                                             color: compat.ready
                                                  ? Qt.rgba(root.okColor.r, root.okColor.g,
                                                            root.okColor.b, 0.13)
@@ -2909,30 +2954,32 @@ Kirigami.ApplicationWindow {
                                             Layout.fillWidth: true
                                             spacing: 3
                                             RowLayout {
-                                                spacing: 8
+                                                spacing: design.space2
                                                 Text {
                                                     text: compat.modelData.title
                                                     color: root.textHi
                                                     font.family: root.uiFont
-                                                    font.pixelSize: root.fs(14)
+                                                    font.pixelSize: root.typePx(14)
                                                     font.weight: Font.DemiBold
                                                 }
                                                 StatusPill {
                                                     good: compat.ready
-                                                    goodText: "جاهز | Ready"
-                                                    badText: "غير مثبّت | Not set up"
+                                                    goodText: root.local("جاهز", "Ready")
+                                                    badText: root.local("غير مثبّت", "Not set up")
                                                 }
                                             }
                                             Text {
                                                 Layout.fillWidth: true
-                                                text: compat.modelData.ar + "  |  " + compat.modelData.en
+                                                text: root.local(compat.modelData.ar,
+                                                                 compat.modelData.en)
                                                 color: root.textLo
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(11)
+                                                font.pixelSize: root.typePx(11)
                                             }
                                         }
                                         MoButton {
-                                            label: compat.ready ? "جاهز ✓" : "إعداد | Set up"
+                                            label: compat.ready ? root.local("جاهز ✓", "Ready")
+                                                                : root.local("إعداد", "Set up")
                                             primary: !compat.ready
                                             enabled_: !compat.ready
                                             onClicked: root.launch(compat.modelData.url, compat.modelData.title)
@@ -2946,36 +2993,40 @@ Kirigami.ApplicationWindow {
                                 Layout.topMargin: 4
                                 RowLayout {
                                     width: parent.width
-                                    spacing: 12
+                                    spacing: design.space3
                                     ColumnLayout {
                                         Layout.fillWidth: true
                                         spacing: 3
                                         Text {
-                                            text: "المحاكاة الافتراضية | Virtualisation (KVM)"
+                                            text: root.local("المحاكاة الافتراضية (KVM)",
+                                                             "Virtualisation (KVM)")
                                             color: root.textHi
                                             font.family: root.uiFont
-                                            font.pixelSize: root.fs(13)
+                                            font.pixelSize: root.typePx(13)
                                             font.weight: Font.DemiBold
                                         }
                                         Text {
-                                            text: "يحتاجه Waydroid والأجهزة الافتراضية.\nNeeded by Waydroid and virtual machines."
+                                            text: root.local(
+                                                "يحتاجه Waydroid والأجهزة الافتراضية.",
+                                                "Needed by Waydroid and virtual machines.")
                                             color: root.textLo
                                             font.family: root.uiFont
-                                            font.pixelSize: root.fs(11)
+                                            font.pixelSize: root.typePx(11)
                                         }
                                     }
                                     StatusPill {
                                         good: !!root.compatState.kvm
-                                        goodText: "مفعّل | Enabled"
-                                        badText: "غير متاح | Unavailable"
+                                        goodText: root.local("مفعّل", "Enabled")
+                                        badText: root.local("غير متاح", "Unavailable")
                                     }
                                 }
                             }
 
                             MoButton {
                                 Layout.topMargin: 4
-                                label: "تثبيت ذكي حسب جهازي  |  Smart setup for my hardware"
-                                icon: "moos-optimize"
+                                label: root.local("تثبيت ذكي حسب جهازي",
+                                                  "Smart setup for my hardware")
+                                iconName: "moos-optimize-symbolic"
                                 onClicked: root.launch("moos://do/smart-setup", "Smart setup")
                             }
                         }
@@ -2994,7 +3045,7 @@ Kirigami.ApplicationWindow {
                             width: parent.width - 32
                             x: 16
                             y: 16
-                            spacing: 12
+                            spacing: design.space3
 
                             Card {
                                 Layout.fillWidth: true
@@ -3013,7 +3064,7 @@ Kirigami.ApplicationWindow {
                                         Kirigami.Icon {
                                             anchors.centerIn: parent
                                             width: 24; height: 24
-                                            source: "moos-phone"
+                                            source: "moos-phone-symbolic"
                                             color: root.remoteState.active ? root.okColor : root.textMute
                                         }
                                         // A live ring while it is actually serving.
@@ -3031,38 +3082,42 @@ Kirigami.ApplicationWindow {
                                             SequentialAnimation on opacity {
                                                 running: !!root.remoteState.active && root.visible && root.motionEnabled
                                                 loops: Animation.Infinite
-                                                NumberAnimation { from: 0.7; to: 0.0; duration: 1200 }
-                                                NumberAnimation { from: 0.0; to: 0.0; duration: 200 }
+                                                NumberAnimation { from: 0.7; to: 0.0; duration: root.motionEnabled ? 1200 : 0 }
+                                                NumberAnimation { from: 0.0; to: 0.0; duration: root.motionEnabled ? design.motionGeometry : 0 }
                                             }
                                             SequentialAnimation on scale {
                                                 running: !!root.remoteState.active && root.visible && root.motionEnabled
                                                 loops: Animation.Infinite
-                                                NumberAnimation { from: 1.0; to: 1.45; duration: 1200 }
-                                                NumberAnimation { from: 1.0; to: 1.0; duration: 200 }
+                                                NumberAnimation { from: 1.0; to: 1.45; duration: root.motionEnabled ? 1200 : 0 }
+                                                NumberAnimation { from: 1.0; to: 1.0; duration: root.motionEnabled ? design.motionGeometry : 0 }
                                             }
                                         }
                                     }
 
                                     ColumnLayout {
                                         Layout.fillWidth: true
-                                        spacing: 4
+                                        spacing: design.space1
                                         Text {
                                             text: root.remoteState.active
-                                                  ? "يعمل الآن  |  Running"
-                                                  : "متوقف  |  Stopped"
+                                                  ? root.local("يعمل الآن", "Running")
+                                                  : root.local("متوقف", "Stopped")
                                             color: root.remoteState.active ? root.okColor : root.textHi
                                             font.family: root.uiFont
-                                            font.pixelSize: root.fs(16)
+                                            font.pixelSize: root.typePx(16)
                                             font.weight: Font.DemiBold
                                         }
                                         Text {
                                             Layout.fillWidth: true
                                             text: root.remoteState.active
-                                                ? "افتح اللوحة لمسح رمز QR من هاتفك.\nOpen the panel to scan the QR code from your phone."
-                                                : "شغّله ليتحكّم هاتفك بهذا الجهاز.\nStart it to control this PC from your phone."
+                                                ? root.local(
+                                                    "افتح اللوحة لمسح رمز QR من هاتفك.",
+                                                    "Open the panel to scan the QR code from your phone.")
+                                                : root.local(
+                                                    "شغّله ليتحكّم هاتفك بهذا الجهاز.",
+                                                    "Start it to control this PC from your phone.")
                                             color: root.textLo
                                             font.family: root.uiFont
-                                            font.pixelSize: root.fs(11)
+                                            font.pixelSize: root.typePx(11)
                                             wrapMode: Text.Wrap
                                         }
                                     }
@@ -3074,28 +3129,28 @@ Kirigami.ApplicationWindow {
                             // directly and Mo AI shows the result on the next poll.
                             Flow {
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: design.space2
 
                                 MoButton {
-                                    label: "تشغيل  |  Start"
-                                    icon: "moos-phone"
+                                    label: root.local("تشغيل", "Start")
+                                    iconName: "moos-phone-symbolic"
                                     primary: true
                                     enabled_: !root.remoteState.active
                                     onClicked: root.launch("moos://remote/start", "Mo PC Remote — start")
                                 }
                                 MoButton {
-                                    label: "إيقاف  |  Stop"
+                                    label: root.local("إيقاف", "Stop")
                                     danger: true
                                     enabled_: !!root.remoteState.active
                                     onClicked: root.launch("moos://remote/stop", "Mo PC Remote — stop")
                                 }
                                 MoButton {
-                                    label: "إعادة الاتصال  |  Reconnect"
-                                    icon: "moos-network"
+                                    label: root.local("إعادة الاتصال", "Reconnect")
+                                    iconName: "moos-network-symbolic"
                                     onClicked: root.launch("moos://remote/restart", "Mo PC Remote — reconnect")
                                 }
                                 MoButton {
-                                    label: "افتح اللوحة  |  Open panel"
+                                    label: root.local("افتح اللوحة", "Open panel")
                                     onClicked: root.launch("moos://app/remote", "Mo PC Remote")
                                 }
                             }
@@ -3107,10 +3162,10 @@ Kirigami.ApplicationWindow {
                                     width: parent.width
                                     spacing: 9
                                     Text {
-                                        text: "المتطلّبات  |  Requirements"
+                                        text: root.local("المتطلّبات", "Requirements")
                                         color: root.textHi
                                         font.family: root.uiFont
-                                        font.pixelSize: root.fs(13)
+                                        font.pixelSize: root.typePx(13)
                                         font.weight: Font.DemiBold
                                     }
                                     Repeater {
@@ -3124,15 +3179,15 @@ Kirigami.ApplicationWindow {
                                             spacing: 10
                                             Text {
                                                 Layout.fillWidth: true
-                                                text: modelData.ar + "  |  " + modelData.en
+                                                text: root.local(modelData.ar, modelData.en)
                                                 color: root.textLo
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(12)
+                                                font.pixelSize: root.typePx(12)
                                             }
                                             StatusPill {
                                                 good: !!root.remoteState[modelData.k]
-                                                goodText: "يعمل | OK"
-                                                badText: "متوقف | Down"
+                                                goodText: root.local("يعمل", "OK")
+                                                badText: root.local("متوقف", "Down")
                                             }
                                         }
                                     }
@@ -3140,8 +3195,9 @@ Kirigami.ApplicationWindow {
                             }
 
                             MoButton {
-                                label: "الوصول من خارج المنزل  |  Reach it from outside"
-                                icon: "moos-network"
+                                label: root.local("الوصول من خارج المنزل",
+                                                  "Reach it from outside")
+                                iconName: "moos-network-symbolic"
                                 onClicked: root.launch("moos://do/remote-anywhere", "Remote anywhere")
                             }
                         }
@@ -3160,12 +3216,13 @@ Kirigami.ApplicationWindow {
                             width: parent.width - 32
                             x: 16
                             y: 16
-                            spacing: 12
+                            spacing: design.space3
 
                             SectionNote {
                                 Layout.fillWidth: true
-                                text: "‏وكلاء برمجة يشتغلون داخل مشروعك كمستخدم عادي — يُثبَّتون في ~/.local، بلا صلاحيات مسؤول ولا مساس بالنظام.\n"
-                                    + "‎Coding agents that run in your project as your user — installed into ~/.local, with no admin rights and no changes to the system."
+                                text: root.local(
+                                    "‏وكلاء برمجة يشتغلون داخل مشروعك كمستخدم عادي — يُثبَّتون في ~/.local، بلا صلاحيات مسؤول ولا مساس بالنظام.",
+                                    "‎Coding agents that run in your project as your user — installed into ~/.local, with no admin rights and no changes to the system.")
                             }
 
                             Repeater {
@@ -3178,17 +3235,17 @@ Kirigami.ApplicationWindow {
                                 model: [
                                     { key: "opencode", title: "OpenCode", local: true,
                                       ar: "وكيل يعمل على عقل MoOS المحلي", en: "Runs on the MoOS local brain",
-                                      needs: "بلا حساب وبلا إنترنت  |  no account, no internet",
+                                      needsAr: "بلا حساب وبلا إنترنت", needsEn: "No account or internet",
                                       pkg: "opencode-ai",
                                       install: "moos://do/install-opencode", run: "moos://dev/opencode" },
                                     { key: "claude", title: "Claude Code", local: false,
                                       ar: "وكيل Anthropic البرمجي", en: "Anthropic's coding agent",
-                                      needs: "يحتاج حساب Anthropic  |  needs an Anthropic account",
+                                      needsAr: "يحتاج حساب Anthropic", needsEn: "Needs an Anthropic account",
                                       pkg: "@anthropic-ai/claude-code",
                                       install: "moos://do/install-claude", run: "moos://dev/claude" },
                                     { key: "codex", title: "Codex", local: false,
                                       ar: "وكيل OpenAI البرمجي", en: "OpenAI's coding agent",
-                                      needs: "يحتاج حساب OpenAI  |  needs an OpenAI account",
+                                      needsAr: "يحتاج حساب OpenAI", needsEn: "Needs an OpenAI account",
                                       pkg: "@openai/codex",
                                       install: "moos://do/install-codex", run: "moos://dev/codex" }
                                 ]
@@ -3209,12 +3266,12 @@ Kirigami.ApplicationWindow {
 
                                     RowLayout {
                                         width: parent.width
-                                        spacing: 12
+                                        spacing: design.space3
 
                                         Rectangle {
                                             Layout.preferredWidth: root.fs(40)
                                             Layout.preferredHeight: root.fs(40)
-                                            radius: root.fs(11)
+                                            radius: design.radiusControl
                                             color: ag.have
                                                    ? Qt.rgba(root.okColor.r, root.okColor.g,
                                                              root.okColor.b, 0.13)
@@ -3224,7 +3281,7 @@ Kirigami.ApplicationWindow {
                                             Kirigami.Icon {
                                                 anchors.centerIn: parent
                                                 width: 21; height: 21
-                                                source: ag.onDevice ? "moos-ai" : "utilities-terminal"
+                                                source: ag.onDevice ? "moos-ai-symbolic" : "moos-code-symbolic"
                                                 color: ag.have ? root.okColor
                                                                : (ag.onDevice ? root.novaCyan : root.textMute)
                                             }
@@ -3233,18 +3290,18 @@ Kirigami.ApplicationWindow {
                                             Layout.fillWidth: true
                                             spacing: 3
                                             RowLayout {
-                                                spacing: 8
+                                                spacing: design.space2
                                                 Text {
                                                     text: ag.modelData.title
                                                     color: root.textHi
                                                     font.family: root.uiFont
-                                                    font.pixelSize: root.fs(14)
+                                                    font.pixelSize: root.typePx(14)
                                                     font.weight: Font.DemiBold
                                                 }
                                                 StatusPill {
                                                     good: ag.have
-                                                    goodText: "مثبّت | Installed"
-                                                    badText: "غير مثبّت | Not installed"
+                                                    goodText: root.local("مثبّت", "Installed")
+                                                    badText: root.local("غير مثبّت", "Not installed")
                                                 }
                                                 // The badge that is the whole point of shipping a
                                                 // local brain: an agent that keeps working when the
@@ -3262,40 +3319,43 @@ Kirigami.ApplicationWindow {
                                                     Text {
                                                         id: offlineText
                                                         anchors.centerIn: parent
-                                                        text: "يعمل بلا إنترنت  |  offline"
+                                                        text: root.local("يعمل بلا إنترنت", "Offline")
                                                         color: root.novaCyan
                                                         font.family: root.uiFont
-                                                        font.pixelSize: root.fs(9)
+                                                        font.pixelSize: root.typePx(9)
                                                         font.weight: Font.DemiBold
                                                     }
                                                 }
                                             }
                                             Text {
                                                 Layout.fillWidth: true
-                                                text: ag.modelData.ar + "  |  " + ag.modelData.en
+                                                text: root.local(ag.modelData.ar,
+                                                                 ag.modelData.en)
                                                 color: root.textLo
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(11)
+                                                font.pixelSize: root.typePx(11)
                                             }
                                             Text {
                                                 Layout.fillWidth: true
-                                                text: ag.modelData.needs
+                                                text: root.local(ag.modelData.needsAr,
+                                                                 ag.modelData.needsEn)
                                                 color: ag.onDevice ? root.novaCyan : root.textMute
                                                 opacity: ag.onDevice ? 0.95 : 0.8
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(10)
+                                                font.pixelSize: root.typePx(10)
                                             }
                                             Text {
                                                 text: ag.modelData.pkg
                                                 color: root.textMute
                                                 font.family: "JetBrains Mono"
-                                                font.pixelSize: root.fs(10)
+                                                font.pixelSize: root.typePx(10)
                                             }
                                         }
                                         MoButton {
-                                            label: ag.have ? "شغّل | Run" : "ثبّت | Install"
+                                            label: ag.have ? root.local("شغّل", "Run")
+                                                           : root.local("ثبّت", "Install")
                                             primary: true
-                                            icon: ag.have ? "utilities-terminal" : "moos-install"
+                                            iconName: ag.have ? "moos-code-symbolic" : "moos-install-symbolic"
                                             onClicked: root.launch(
                                                 ag.have ? ag.modelData.run : ag.modelData.install,
                                                 ag.modelData.title)
@@ -3306,8 +3366,9 @@ Kirigami.ApplicationWindow {
 
                             MoButton {
                                 Layout.topMargin: 4
-                                label: "افتح وكيلاً في مشروع  |  Open an agent in a project"
-                                icon: "utilities-terminal"
+                                label: root.local("افتح وكيلاً في مشروع",
+                                                  "Open an agent in a project")
+                                iconName: "moos-code-symbolic"
                                 // Enabled when ANY agent is installed — moai-code builds its picker
                                 // from what is actually on the machine, so a third agent must not
                                 // be forgotten here (the old condition named two by hand).
@@ -3339,32 +3400,34 @@ Kirigami.ApplicationWindow {
 
                         RowLayout {
                             Layout.fillWidth: true
-                            spacing: 8
-                            SectionTitle { text: "الوكيل  |  Agent" }
+                            spacing: design.space2
+                            SectionTitle { text: root.local("الوكيل", "Agent") }
                             Item { Layout.fillWidth: true }
                             StatusPill {
                                 good: root.agentReady
                                 goodText: root.agentBusy
-                                    ? "يفكّر… | Thinking"
-                                    : "جاهز عند الطلب | Ready on demand"
+                                    ? root.local("يفكّر…", "Thinking")
+                                    : root.local("جاهز عند الطلب", "Ready on demand")
                                 badText: !root.agentStatusLoaded
-                                    ? "جارٍ الفحص… | Checking"
+                                    ? root.local("جارٍ الفحص…", "Checking")
                                     : !root.agentInstalled
-                                        ? "غير مثبّت | Not installed"
+                                        ? root.local("غير مثبّت", "Not installed")
                                         : !root.agentMachineConfigured
-                                            ? "يحتاج إعداد | Setup needed"
-                                            : "غير متصل | Offline"
+                                            ? root.local("يحتاج إعداد", "Setup needed")
+                                            : root.local("غير متصل", "Offline")
                             }
                             MoButton {
-                                label: "تحديث | Refresh"
-                                icon: "moos-report"
+                                label: root.local("تحديث", "Refresh")
+                                iconName: "moos-report-symbolic"
                                 onClicked: root.agentLoadStatus()
                             }
                         }
 
                         SectionNote {
                             Layout.fillWidth: true
-                            text: "نفس المحادثات التي تراها في تليجرام — تقرأها هنا وتكمل من الشاشة."
+                            text: root.local(
+                                "نفس المحادثات التي تراها في تليجرام — تقرأها هنا وتكمل من الشاشة.",
+                                "The same Telegram conversations — read and continue them here.")
                         }
 
                         Card {
@@ -3376,9 +3439,9 @@ Kirigami.ApplicationWindow {
                             RowLayout {
                                 id: agentSetupRow
                                 anchors.fill: parent
-                                spacing: 12
+                                spacing: design.space3
                                 Kirigami.Icon {
-                                    source: root.agentInstalled ? "moos-system" : "moos-install"
+                                    source: root.agentInstalled ? "moos-system-symbolic" : "moos-install-symbolic"
                                     color: root.novaBlue
                                     Layout.preferredWidth: root.fs(28)
                                     Layout.preferredHeight: root.fs(28)
@@ -3389,22 +3452,24 @@ Kirigami.ApplicationWindow {
                                     Text {
                                         Layout.fillWidth: true
                                         text: root.agentInstalled
-                                            ? "أكمل تجهيز الوكيل | Finish agent setup"
-                                            : "ثبّت وكيل الهاتف | Install phone agent"
+                                            ? root.local("أكمل تجهيز الوكيل",
+                                                         "Finish agent setup")
+                                            : root.local("ثبّت وكيل الهاتف",
+                                                         "Install phone agent")
                                         color: root.textHi
                                         font.family: root.uiFont
-                                        font.pixelSize: root.fs(14)
+                                        font.pixelSize: root.typePx(14)
                                         font.weight: Font.DemiBold
                                     }
                                     SectionNote {
                                         Layout.fillWidth: true
                                         text: root.agentSetupNote
-                                        font.pixelSize: root.fs(11)
+                                        font.pixelSize: root.typePx(11)
                                     }
                                 }
                                 MoButton {
                                     primary: true
-                                    icon: root.agentInstalled ? "moos-repair" : "moos-install"
+                                    iconName: root.agentInstalled ? "moos-repair-symbolic" : "moos-install-symbolic"
                                     label: root.agentSetupLabel
                                     onClicked: root.launch(root.agentSetupAction,
                                                            root.agentInstalled
@@ -3421,7 +3486,7 @@ Kirigami.ApplicationWindow {
                                 + "   —   systemctl --user start moai-agent-api.service"
                             color: root.badColor
                             font.family: root.uiFont
-                            font.pixelSize: root.fs(11)
+                            font.pixelSize: root.typePx(11)
                             wrapMode: Text.Wrap
                         }
 
@@ -3437,12 +3502,12 @@ Kirigami.ApplicationWindow {
                                 Layout.fillHeight: true
                                 ColumnLayout {
                                     anchors.fill: parent
-                                    spacing: 4
+                                    spacing: design.space1
                                     Text {
-                                        text: "المحادثات | Sessions"
+                                        text: root.local("المحادثات", "Sessions")
                                         color: root.textMute
                                         font.family: root.uiFont
-                                        font.pixelSize: root.fs(10)
+                                        font.pixelSize: root.typePx(10)
                                         font.weight: Font.DemiBold
                                     }
                                     Flickable {
@@ -3476,12 +3541,15 @@ Kirigami.ApplicationWindow {
                                                         elide: Text.ElideRight
                                                         color: root.agentCurrent === modelData.id ? root.novaBlue : root.textMute
                                                         font.family: root.uiFont
-                                                        font.pixelSize: root.fs(11)
+                                                        font.pixelSize: root.typePx(11)
                                                     }
-                                                    MouseArea {
+                                                    ActionArea {
                                                         anchors.fill: parent
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        onClicked: root.agentOpen(modelData.id, modelData.key)
+                                                        actionName: modelData.label
+                                                        checkable: true
+                                                        checked: root.agentCurrent === modelData.id
+                                                        focusRadius: root.fs(7)
+                                                        onTriggered: root.agentOpen(modelData.id, modelData.key)
                                                     }
                                                 }
                                             }
@@ -3489,11 +3557,12 @@ Kirigami.ApplicationWindow {
                                                 visible: root.agentSessions.length === 0
                                                 Layout.fillWidth: true
                                                 Layout.topMargin: 10
-                                                text: "لا محادثات بعد"
+                                                text: root.local("لا محادثات بعد",
+                                                                 "No sessions yet")
                                                 horizontalAlignment: Text.AlignHCenter
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(10)
+                                                font.pixelSize: root.typePx(10)
                                             }
                                         }
                                     }
@@ -3504,7 +3573,7 @@ Kirigami.ApplicationWindow {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
-                                spacing: 8
+                                spacing: design.space2
 
                                 Card {
                                     Layout.fillWidth: true
@@ -3530,7 +3599,7 @@ Kirigami.ApplicationWindow {
                                                     readonly property bool mine: modelData.role === "user"
                                                     Layout.fillWidth: true
                                                     Layout.preferredHeight: agentBubble.implicitHeight + 16
-                                                    radius: root.fs(10)
+                                                    radius: design.radiusSmall
                                                     color: mine
                                                         ? Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.14)
                                                         : Qt.rgba(root.hairline.r, root.hairline.g, root.hairline.b, 0.18)
@@ -3544,7 +3613,7 @@ Kirigami.ApplicationWindow {
                                                         wrapMode: Text.Wrap
                                                         color: root.textHi
                                                         font.family: root.uiFont
-                                                        font.pixelSize: root.fs(12)
+                                                        font.pixelSize: root.typePx(12)
                                                     }
                                                 }
                                             }
@@ -3552,11 +3621,13 @@ Kirigami.ApplicationWindow {
                                                 visible: root.agentThread.length === 0
                                                 Layout.fillWidth: true
                                                 Layout.topMargin: 30
-                                                text: "اختر محادثة، أو اكتب رسالة لتبدأ واحدة جديدة"
+                                                text: root.local(
+                                                    "اختر محادثة، أو اكتب رسالة لتبدأ واحدة جديدة",
+                                                    "Choose a session, or write a message to start one")
                                                 horizontalAlignment: Text.AlignHCenter
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(11)
+                                                font.pixelSize: root.typePx(11)
                                             }
                                         }
                                     }
@@ -3564,21 +3635,22 @@ Kirigami.ApplicationWindow {
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    spacing: 8
+                                    spacing: design.space2
                                     QQC2.TextField {
                                         id: agentInput
                                         Layout.fillWidth: true
-                                        placeholderText: "اكتب رسالة…  |  Message"
+                                        placeholderText: root.local("اكتب رسالة…", "Message")
                                         enabled: root.agentReady && !root.agentBusy
                                         font.family: root.uiFont
-                                        font.pixelSize: root.fs(12)
+                                        font.pixelSize: root.typePx(12)
                                         onAccepted: if (root.agentReady) {
                                             root.agentSend(text)
                                             text = ""
                                         }
                                     }
                                     MoButton {
-                                        label: root.agentBusy ? "…" : "إرسال | Send"
+                                        label: root.agentBusy ? "…"
+                                                                  : root.local("إرسال", "Send")
                                         enabled_: root.agentReady && !root.agentBusy
                                         onClicked: { root.agentSend(agentInput.text); agentInput.text = "" }
                                     }
@@ -3601,14 +3673,14 @@ Kirigami.ApplicationWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 90
-            radius: root.fs(12)
+            radius: design.radiusControl
             width: Math.min(parent.width - 40, toastCol.implicitWidth + 30)
             height: toastCol.implicitHeight + 20
             color: root.surface2
             border.width: 1
             border.color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
                                   root.novaCyan.b, 0.5)
-            Behavior on opacity { NumberAnimation { duration: 220 } }
+            Behavior on opacity { NumberAnimation { duration: root.motionEnabled ? design.motionGeometry : 0 } }
 
             Timer { id: toastTimer; interval: 2800; onTriggered: toast.opacity = 0 }
             function show(m) {
@@ -3625,17 +3697,17 @@ Kirigami.ApplicationWindow {
                     // Neutral "working" — not a ✓ success claim. The action may
                     // fail-closed (no confirm dialog) or be a no-op; the orb only
                     // knows it dispatched the request, not that it completed.
-                    text: "جارٍ التنفيذ…  |  Working…"
+                    text: root.local("جارٍ التنفيذ…", "Working…")
                     color: root.novaCyan
                     font.family: root.uiFont
-                    font.pixelSize: root.fs(11)
+                    font.pixelSize: root.typePx(11)
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: toast.msg
                     color: root.textHi
                     font.family: root.uiFont
-                    font.pixelSize: root.fs(13)
+                    font.pixelSize: root.typePx(13)
                 }
             }
         }
@@ -3646,11 +3718,17 @@ Kirigami.ApplicationWindow {
         // invented, and a provider with no model list says so instead of being
         // given a made-up menu.
         Rectangle {
+            id: brainPickerDialog
             anchors.fill: parent
             z: 250
             visible: root.pickerOpen
             color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                            Kirigami.Theme.textColor.b, 0.69)
+            focus: visible
+            Accessible.role: Accessible.Dialog
+            Accessible.name: root.moaiRtl ? "اختيار عقل Mo AI" : "Choose the Mo AI brain"
+            Keys.onEscapePressed: root.pickerOpen = false
+            onVisibleChanged: if (visible) forceActiveFocus()
             MouseArea { anchors.fill: parent; onClicked: root.pickerOpen = false }
 
             Rectangle {
@@ -3659,7 +3737,7 @@ Kirigami.ApplicationWindow {
                 anchors.bottomMargin: 86
                 width: Math.min(parent.width - 40, 430)
                 height: Math.min(parent.height - 130, pickCol.implicitHeight + 32)
-                radius: root.fs(16)
+                radius: design.radiusCard
                 color: root.surface1
                 border.width: 1
                 border.color: root.hairline
@@ -3673,23 +3751,31 @@ Kirigami.ApplicationWindow {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 8
+                        spacing: design.space2
                         SectionTitle {
                             Layout.fillWidth: true
-                            text: "العقل والقوة  |  Brain & power"
-                            font.pixelSize: root.fs(15)
+                            text: root.local("العقل والقوة", "Brain & power")
+                            font.pixelSize: root.typePx(15)
                         }
                         MoButton {
-                            label: root.modelsLoading ? "…" : "تحديث | Refresh"
+                            label: root.modelsLoading ? "…"
+                                                      : root.local("تحديث", "Refresh")
+                            iconName: "moos-refresh-symbolic"
                             enabled_: !root.modelsLoading
                             onClicked: root.loadModels()
+                        }
+                        MoButton {
+                            label: root.local("إغلاق", "Close")
+                            iconName: "moos-close-symbolic"
+                            onClicked: root.pickerOpen = false
                         }
                     }
 
                     SectionNote {
                         Layout.fillWidth: true
-                        text: "اختيارك يسري على هذه المحادثة فقط.  |  Applies to this conversation."
-                        font.pixelSize: root.fs(10)
+                        text: root.local("اختيارك يسري على هذه المحادثة فقط.",
+                                         "Applies to this conversation only.")
+                        font.pixelSize: root.typePx(10)
                     }
 
                     Flickable {
@@ -3710,10 +3796,10 @@ Kirigami.ApplicationWindow {
                             // ── Local ──────────────────────────────────────
                             Text {
                                 Layout.topMargin: 2
-                                text: "محلي وخاص  |  Local & private"
+                                text: root.local("محلي وخاص", "Local & private")
                                 color: root.textMute
                                 font.family: root.uiFont
-                                font.pixelSize: root.fs(10)
+                                font.pixelSize: root.typePx(10)
                                 font.weight: Font.DemiBold
                             }
 
@@ -3729,14 +3815,14 @@ Kirigami.ApplicationWindow {
                                             || locRow.modelData.id === root.pullModel)
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: root.fs(40)
-                                    radius: root.fs(10)
+                                    radius: design.radiusSmall
                                     color: locRow.on_
                                          ? Qt.rgba(root.okColor.r, root.okColor.g,
                                                    root.okColor.b, 0.14)
                                          : locMa.containsMouse ? root.surface2 : "transparent"
                                     border.width: 1
                                     border.color: locRow.on_ ? root.okColor : "transparent"
-                                    Behavior on color { ColorAnimation { duration: 110 } }
+                                    Behavior on color { ColorAnimation { duration: root.motionEnabled ? design.motionFast : 0 } }
 
                                     RowLayout {
                                         anchors.fill: parent
@@ -3745,7 +3831,7 @@ Kirigami.ApplicationWindow {
                                         spacing: 9
 
                                         Kirigami.Icon {
-                                            source: "moos-system"
+                                            source: "moos-system-symbolic"
                                             color: root.okColor
                                             Layout.preferredWidth: root.fs(15)
                                             Layout.preferredHeight: root.fs(15)
@@ -3758,7 +3844,7 @@ Kirigami.ApplicationWindow {
                                                 text: locRow.modelData.label
                                                 color: root.textHi
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(12)
+                                                font.pixelSize: root.typePx(12)
                                                 font.weight: locRow.on_ ? Font.DemiBold : Font.Normal
                                                 elide: Text.ElideRight
                                             }
@@ -3769,19 +3855,25 @@ Kirigami.ApplicationWindow {
                                                 // knows what each brain is good at, and what the tap
                                                 // costs, BEFORE anything happens.
                                                 text: locRow.downloading
-                                                      ? ("يُنزَّل الآن — " + root.pullPercent
-                                                         + "% | downloading — keep this open")
-                                                      : (locRow.modelData.note ? locRow.modelData.note + "  ·  " : "")
+                                                      ? root.local(
+                                                            "يُنزَّل الآن — " + root.pullPercent + "٪",
+                                                            "Downloading — " + root.pullPercent + "%; keep this open")
+                                                      : (locRow.modelData.note
+                                                         ? root.localLegacy(locRow.modelData.note) + "  ·  "
+                                                         : "")
                                                       + (!locRow.modelData.pulled
                                                         ? ((locRow.modelData.size_gb > 0
                                                             ? "~" + locRow.modelData.size_gb + " GB — " : "")
-                                                           + "تحميل بضغطة | one-tap download")
+                                                           + root.local("تحميل بضغطة",
+                                                                        "One-tap download"))
                                                         : locRow.modelData.serving
-                                                        ? "جاهز | ready"
-                                                        : "محمَّل — يُعاد تشغيل العقل | downloaded — restarts the brain")
+                                                        ? root.local("جاهز", "Ready")
+                                                        : root.local(
+                                                            "محمَّل — يُعاد تشغيل العقل",
+                                                            "Downloaded — restarts the brain"))
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(9)
+                                                font.pixelSize: root.typePx(9)
                                                 elide: Text.ElideRight
                                             }
                                         }
@@ -3790,7 +3882,7 @@ Kirigami.ApplicationWindow {
                                             text: "✓"
                                             color: root.okColor
                                             font.family: root.uiFont
-                                            font.pixelSize: root.fs(13)
+                                            font.pixelSize: root.typePx(13)
                                             font.weight: Font.DemiBold
                                         }
                                     }
@@ -3815,17 +3907,19 @@ Kirigami.ApplicationWindow {
                                             width: parent.width * (root.pullPercent / 100.0)
                                             radius: root.fs(2)
                                             color: root.okColor
-                                            Behavior on width { NumberAnimation { duration: 260 } }
+                                            Behavior on width { NumberAnimation { duration: root.motionEnabled ? design.motionGeometry : 0 } }
                                         }
                                     }
-                                    MouseArea {
+                                    ActionArea {
                                         id: locMa
                                         anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
+                                        actionName: locRow.modelData.label
+                                        checkable: true
+                                        checked: locRow.on_
+                                        focusRadius: root.fs(9)
                                         // Not pickRoute: an un-pulled brain must be
                                         // fetched before it can answer anything.
-                                        onClicked: root.pickOrPull(locRow.modelData)
+                                        onTriggered: root.pickOrPull(locRow.modelData)
                                     }
                                 }
                             }
@@ -3839,17 +3933,17 @@ Kirigami.ApplicationWindow {
                                 text: root.pullError
                                 color: root.badColor
                                 font.family: root.uiFont
-                                font.pixelSize: root.fs(9)
+                                font.pixelSize: root.typePx(9)
                                 wrapMode: Text.WordWrap
                             }
 
                             // ── Cloud ──────────────────────────────────────
                             Text {
                                 Layout.topMargin: 8
-                                text: "سحابي  |  Cloud"
+                                text: root.local("سحابي", "Cloud")
                                 color: root.textMute
                                 font.family: root.uiFont
-                                font.pixelSize: root.fs(10)
+                                font.pixelSize: root.typePx(10)
                                 font.weight: Font.DemiBold
                             }
 
@@ -3861,14 +3955,14 @@ Kirigami.ApplicationWindow {
                                     readonly property bool on_: root.route === cldRow.modelData.id
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: root.fs(34)
-                                    radius: root.fs(10)
+                                    radius: design.radiusSmall
                                     color: cldRow.on_
                                          ? Qt.rgba(root.novaViolet.r, root.novaViolet.g,
                                                    root.novaViolet.b, 0.18)
                                          : cldMa.containsMouse ? root.surface2 : "transparent"
                                     border.width: 1
                                     border.color: cldRow.on_ ? root.novaViolet : "transparent"
-                                    Behavior on color { ColorAnimation { duration: 110 } }
+                                    Behavior on color { ColorAnimation { duration: root.motionEnabled ? design.motionFast : 0 } }
 
                                     RowLayout {
                                         anchors.fill: parent
@@ -3888,7 +3982,7 @@ Kirigami.ApplicationWindow {
                                             text: cldRow.modelData.label
                                             color: root.textHi
                                             font.family: root.uiFont
-                                            font.pixelSize: root.fs(12)
+                                            font.pixelSize: root.typePx(12)
                                             font.weight: cldRow.on_ ? Font.DemiBold : Font.Normal
                                             elide: Text.ElideRight
                                         }
@@ -3897,16 +3991,18 @@ Kirigami.ApplicationWindow {
                                             text: "✓"
                                             color: root.novaViolet
                                             font.family: root.uiFont
-                                            font.pixelSize: root.fs(13)
+                                            font.pixelSize: root.typePx(13)
                                             font.weight: Font.DemiBold
                                         }
                                     }
-                                    MouseArea {
+                                    ActionArea {
                                         id: cldMa
                                         anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.pickRoute(cldRow.modelData.id)
+                                        actionName: cldRow.modelData.label
+                                        checkable: true
+                                        checked: cldRow.on_
+                                        focusRadius: root.fs(9)
+                                        onTriggered: root.pickRoute(cldRow.modelData.id)
                                     }
                                 }
                             }
@@ -3921,7 +4017,7 @@ Kirigami.ApplicationWindow {
                                 text: root.modelsError
                                 color: root.textMute
                                 font.family: root.uiFont
-                                font.pixelSize: root.fs(10)
+                                font.pixelSize: root.typePx(10)
                                 wrapMode: Text.Wrap
                             }
                         }
@@ -3929,8 +4025,8 @@ Kirigami.ApplicationWindow {
 
                     MoButton {
                         Layout.fillWidth: true
-                        label: "المزوّد والمفتاح  |  Provider & API key"
-                        icon: "configure"
+                        label: root.local("المزوّد والمفتاح", "Provider & API key")
+                        iconName: "moos-settings-symbolic"
                         onClicked: {
                             root.pickerOpen = false
                             root.settingsOpen = true
@@ -3949,18 +4045,24 @@ Kirigami.ApplicationWindow {
         // Secrets are WRITE-ONLY here, as in moai-control: the API reports has_key /
         // has_token and never returns the value, so this sheet cannot leak what it saved.
         Rectangle {
+            id: settingsDialog
             anchors.fill: parent
             z: 300
             visible: root.settingsOpen
             color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                            Kirigami.Theme.textColor.b, 0.82)
+            focus: visible
+            Accessible.role: Accessible.Dialog
+            Accessible.name: root.moaiRtl ? "إعدادات Mo AI" : "Mo AI settings"
+            Keys.onEscapePressed: root.settingsOpen = false
+            onVisibleChanged: if (visible) forceActiveFocus()
             MouseArea { anchors.fill: parent; onClicked: root.settingsOpen = false }
 
             Rectangle {
                 anchors.centerIn: parent
                 width: Math.min(parent.width - 48, 560)
                 height: Math.min(parent.height - 48, 640)
-                radius: root.fs(18)
+                radius: design.radiusCard
                 color: root.surface1
                 border.color: root.hairline
                 border.width: 1
@@ -3969,7 +4071,7 @@ Kirigami.ApplicationWindow {
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 18
-                    spacing: 12
+                    spacing: design.space3
 
                     // ── header ──
                     RowLayout {
@@ -3978,27 +4080,32 @@ Kirigami.ApplicationWindow {
                         ColumnLayout {
                             spacing: 0
                             Text {
-                                text: "الإعدادات  |  Settings"
+                                text: root.local("الإعدادات", "Settings")
                                 color: root.textHi
                                 font.family: root.uiFont
-                                font.pixelSize: root.fs(17)
+                                font.pixelSize: root.typePx(17)
                                 font.weight: Font.DemiBold
                             }
                             Text {
-                                text: "تسري على المحادثة هنا وعلى بوت تليجرام معاً"
+                                text: root.local(
+                                    "تسري على المحادثة هنا وعلى بوت تليجرام معاً",
+                                    "Applies here and to the Telegram bot")
                                 color: root.textMute
                                 font.family: root.uiFont
-                                font.pixelSize: root.fs(10)
+                                font.pixelSize: root.typePx(10)
                             }
                         }
                         Item { Layout.fillWidth: true }
                         StatusPill {
                             good: root.cfgError === ""
-                            goodText: root.cfgSaving ? "يحفظ… | Saving" : "متصل | Linked"
-                            badText: "لوحة التحكم متوقفة"
+                            goodText: root.cfgSaving ? root.local("يحفظ…", "Saving")
+                                                     : root.local("متصل", "Linked")
+                            badText: root.local("لوحة التحكم متوقفة",
+                                                "Control service is offline")
                         }
                         MoButton {
-                            label: "إغلاق | Close"
+                            label: root.local("إغلاق", "Close")
+                            iconName: "moos-close-symbolic"
                             onClicked: root.settingsOpen = false
                         }
                     }
@@ -4006,7 +4113,7 @@ Kirigami.ApplicationWindow {
                     // ── section tabs ──
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 4
+                        spacing: design.space1
                         Repeater {
                             model: [
                                 { id: "brain",   ar: "العقل",     en: "Brain" },
@@ -4022,23 +4129,26 @@ Kirigami.ApplicationWindow {
                                 readonly property bool on_: root.cfgTab === modelData.id
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: root.fs(32)
-                                radius: root.fs(9)
+                                radius: design.radiusSmall
                                 color: on_ ? Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.18)
                                            : "transparent"
                                 border.width: 1
                                 border.color: on_ ? root.novaBlue : root.hairline
                                 Text {
                                     anchors.centerIn: parent
-                                    text: modelData.ar
+                                    text: root.local(modelData.ar, modelData.en)
                                     color: on_ ? root.novaBlue : root.textMute
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(12)
+                                    font.pixelSize: root.typePx(12)
                                     font.weight: on_ ? Font.DemiBold : Font.Normal
                                 }
-                                MouseArea {
+                                ActionArea {
                                     anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.cfgTab = modelData.id
+                                    actionName: root.moaiRtl ? modelData.ar : modelData.en
+                                    checkable: true
+                                    checked: parent.on_
+                                    focusRadius: root.fs(9)
+                                    onTriggered: root.cfgTab = modelData.id
                                 }
                             }
                         }
@@ -4050,7 +4160,7 @@ Kirigami.ApplicationWindow {
                         text: root.cfgError
                         color: root.badColor
                         font.family: root.uiFont
-                        font.pixelSize: root.fs(11)
+                        font.pixelSize: root.typePx(11)
                         wrapMode: Text.Wrap
                     }
 
@@ -4067,30 +4177,36 @@ Kirigami.ApplicationWindow {
                         ColumnLayout {
                             id: cfgBody
                             width: parent.width
-                            spacing: 12
+                            spacing: design.space3
 
                             // ══ BRAIN ══════════════════════════════════════
                             ColumnLayout {
                                 visible: root.cfgTab === "brain"
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: design.space2
 
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "المحلي مجاني وخاص. السحابي أذكى للمهام الصعبة."
+                                    text: root.local(
+                                        "المحلي مجاني وخاص. السحابي أذكى للمهام الصعبة.",
+                                        "Local is free and private. Cloud is stronger for difficult tasks.")
                                 }
 
                                 Repeater {
                                     model: [
-                                        { id: "local", ar: "محلي وخاص", d: "كل رسالة تعالج على هذا الجهاز" },
-                                        { id: "cloud", ar: "سحابي", d: "كل رسالة تذهب إلى المزوّد الذي اخترته" }
+                                        { id: "local", ar: "محلي وخاص", en: "Local & private",
+                                          dAr: "كل رسالة تعالج على هذا الجهاز",
+                                          dEn: "Every message is processed on this device" },
+                                        { id: "cloud", ar: "سحابي", en: "Cloud",
+                                          dAr: "كل رسالة تذهب إلى المزوّد الذي اخترته",
+                                          dEn: "Every message goes to your chosen provider" }
                                     ]
                                     delegate: Rectangle {
                                         required property var modelData
                                         readonly property bool on_: root.cfgMode === modelData.id
                                         Layout.fillWidth: true
                                         Layout.preferredHeight: root.fs(50)
-                                        radius: root.fs(11)
+                                        radius: design.radiusControl
                                         color: on_ ? Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.13)
                                                    : "transparent"
                                         border.width: 1
@@ -4102,28 +4218,34 @@ Kirigami.ApplicationWindow {
                                             anchors.margins: 12
                                             spacing: 1
                                             Text {
-                                                text: modelData.ar
+                                                text: root.local(modelData.ar, modelData.en)
                                                 color: on_ ? root.novaBlue : root.textHi
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(12)
+                                                font.pixelSize: root.typePx(12)
                                                 font.weight: Font.DemiBold
                                             }
                                             Text {
-                                                text: modelData.d
+                                                text: root.local(modelData.dAr, modelData.dEn)
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(10)
+                                                font.pixelSize: root.typePx(10)
                                             }
                                         }
-                                        MouseArea {
+                                        ActionArea {
                                             anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.cfgMode = modelData.id
+                                            actionName: root.local(modelData.ar, modelData.en)
+                                            checkable: true
+                                            checked: parent.on_
+                                            focusRadius: root.fs(11)
+                                            onTriggered: root.cfgMode = modelData.id
                                         }
                                     }
                                 }
 
-                                SectionTitle { text: "المزوّد السحابي" ; Layout.topMargin: 6 }
+                                SectionTitle {
+                                    text: root.local("المزوّد السحابي", "Cloud provider")
+                                    Layout.topMargin: 6
+                                }
 
                                 QQC2.ComboBox {
                                     id: provBox
@@ -4141,30 +4263,37 @@ Kirigami.ApplicationWindow {
                                     Layout.fillWidth: true
                                     placeholderText: "https://…/v1"
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(11)
+                                    font.pixelSize: root.typePx(11)
                                 }
                                 QQC2.TextField {
                                     id: modelField
                                     Layout.fillWidth: true
-                                    placeholderText: "اسم النموذج | model id"
+                                    placeholderText: root.local("اسم النموذج", "Model ID")
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(11)
+                                    font.pixelSize: root.typePx(11)
                                 }
                                 QQC2.TextField {
                                     id: keyField
                                     Layout.fillWidth: true
                                     echoMode: TextInput.Password
                                     placeholderText: root.cfgHasKey
-                                        ? "المفتاح محفوظ — اتركه فارغاً لإبقائه"
-                                        : "sk-…  (يُكتب ولا يُقرأ)"
+                                        ? root.local(
+                                            "المفتاح محفوظ — اتركه فارغاً لإبقائه",
+                                            "Key saved — leave blank to keep it")
+                                        : root.local("sk-…  (يُكتب ولا يُقرأ)",
+                                                     "sk-…  (write-only)")
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(11)
+                                    font.pixelSize: root.typePx(11)
                                 }
                                 SectionNote {
                                     Layout.fillWidth: true
                                     text: root.cfgHasKey
-                                        ? "مفتاح محفوظ في الإعداد. لن يُعرض هنا أبداً."
-                                        : "لا مفتاح محفوظ — الوضع السحابي لن يعمل بدونه."
+                                        ? root.local(
+                                            "مفتاح محفوظ في الإعداد. لن يُعرض هنا أبداً.",
+                                            "A key is saved. It is never displayed here.")
+                                        : root.local(
+                                            "لا مفتاح محفوظ — الوضع السحابي لن يعمل بدونه.",
+                                            "No key saved — cloud mode requires one.")
                                 }
                             }
 
@@ -4172,19 +4301,21 @@ Kirigami.ApplicationWindow {
                             ColumnLayout {
                                 visible: root.cfgTab === "channel"
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: design.space2
 
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "بوت تليجرام — تكلّمه من جوالك وترى المحادثة في لوحة «الوكيل»."
+                                    text: root.local(
+                                        "بوت تليجرام — تكلّمه من جوالك وترى المحادثة في لوحة «الوكيل».",
+                                        "Telegram bot — chat from your phone and see it in the Agent panel.")
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text {
-                                        text: "مفعّلة"
+                                        text: root.local("مفعّلة", "Enabled")
                                         color: root.textHi
                                         font.family: root.uiFont
-                                        font.pixelSize: root.fs(12)
+                                        font.pixelSize: root.typePx(12)
                                     }
                                     Item { Layout.fillWidth: true }
                                     QQC2.Switch { id: tgSwitch }
@@ -4194,21 +4325,28 @@ Kirigami.ApplicationWindow {
                                     Layout.fillWidth: true
                                     echoMode: TextInput.Password
                                     placeholderText: root.cfgHasToken
-                                        ? "التوكن محفوظ — اتركه فارغاً لإبقائه"
-                                        : "123456:AA…  من @BotFather"
+                                        ? root.local(
+                                            "التوكن محفوظ — اتركه فارغاً لإبقائه",
+                                            "Token saved — leave blank to keep it")
+                                        : root.local("123456:AA…  من @BotFather",
+                                                     "123456:AA…  from @BotFather")
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(11)
+                                    font.pixelSize: root.typePx(11)
                                 }
                                 QQC2.TextField {
                                     id: allowField
                                     Layout.fillWidth: true
-                                    placeholderText: "معرّفك الرقمي — مثال: 123456789"
+                                    placeholderText: root.local(
+                                        "معرّفك الرقمي — مثال: 123456789",
+                                        "Your numeric ID — e.g. 123456789")
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(11)
+                                    font.pixelSize: root.typePx(11)
                                 }
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "المعرّف الرقمي لا اسم المستخدم: الأسماء تُغيَّر ويُعاد تخصيصها، والرقم ثابت. اتركه فارغاً فيعود الوضع إلى الاقتران حتى لا تُقفل خارج بوتك."
+                                    text: root.local(
+                                        "المعرّف الرقمي لا اسم المستخدم: الأسماء تُغيَّر ويُعاد تخصيصها، والرقم ثابت. اتركه فارغاً فيعود الوضع إلى الاقتران حتى لا تُقفل خارج بوتك.",
+                                        "Use the numeric ID, not the username: names change and can be reassigned. Leave it blank to return to pairing mode.")
                                 }
                             }
 
@@ -4216,19 +4354,21 @@ Kirigami.ApplicationWindow {
                             ColumnLayout {
                                 visible: root.cfgTab === "voice"
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: design.space2
 
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "تكتب فيرد نصاً، وترسل رسالة صوتية فيرد صوتاً."
+                                    text: root.local(
+                                        "تكتب فيرد نصاً، وترسل رسالة صوتية فيرد صوتاً.",
+                                        "Type for a text reply; send voice for a voice reply.")
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text {
-                                        text: "الرد بصوت"
+                                        text: root.local("الرد بصوت", "Voice replies")
                                         color: root.textHi
                                         font.family: root.uiFont
-                                        font.pixelSize: root.fs(12)
+                                        font.pixelSize: root.typePx(12)
                                     }
                                     Item { Layout.fillWidth: true }
                                     QQC2.Switch { id: ttsSwitch }
@@ -4236,12 +4376,16 @@ Kirigami.ApplicationWindow {
                                 QQC2.ComboBox {
                                     id: ttsAutoBox
                                     Layout.fillWidth: true
-                                    model: ["حين أرسل صوتاً فقط", "دائماً", "أبداً"]
+                                    model: root.moaiRtl
+                                        ? ["حين أرسل صوتاً فقط", "دائماً", "أبداً"]
+                                        : ["Only after voice messages", "Always", "Never"]
                                     font.family: root.uiFont
                                 }
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "الفصحى ممتازة · الشامي مقبول · المغاربية غير مفهومة. صوت واحد: ar_JO-kareem."
+                                    text: root.local(
+                                        "الفصحى ممتازة · الشامي مقبول · المغاربية غير مفهومة. صوت واحد: ar_JO-kareem.",
+                                        "Arabic voice support uses ar_JO-kareem; Modern Standard Arabic works best.")
                                 }
                             }
 
@@ -4249,21 +4393,27 @@ Kirigami.ApplicationWindow {
                             ColumnLayout {
                                 visible: root.cfgTab === "power"
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: design.space2
 
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "متى ينزل النموذج من كرت الشاشة ويترك الجهاز يتنفّس."
+                                    text: root.local(
+                                        "متى ينزل النموذج من كرت الشاشة ويترك الجهاز يتنفّس.",
+                                        "Choose when the model releases GPU memory.")
                                 }
                                 QQC2.ComboBox {
                                     id: keepBox
                                     Layout.fillWidth: true
-                                    model: ["٥ دقائق — أقل ضغط", "١٥ دقيقة — موصى به", "ساعة", "لا ينام أبداً"]
+                                    model: root.moaiRtl
+                                        ? ["٥ دقائق — أقل ضغط", "١٥ دقيقة — موصى به", "ساعة", "لا ينام أبداً"]
+                                        : ["5 minutes — lighter", "15 minutes — recommended", "1 hour", "Never sleep"]
                                     font.family: root.uiFont
                                 }
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "«لا ينام أبداً» يحجز ٤ جيجا باستمرار. مع متصفح مكبّر قد يستنزف الذاكرة ويُسقط سطح المكتب."
+                                    text: root.local(
+                                        "«لا ينام أبداً» يحجز ٤ جيجا باستمرار. مع متصفح مكبّر قد يستنزف الذاكرة ويُسقط سطح المكتب.",
+                                        "“Never sleep” keeps about 4 GB reserved and can exhaust memory beside a heavy browser.")
                                 }
 
                             }
@@ -4282,11 +4432,13 @@ Kirigami.ApplicationWindow {
                             ColumnLayout {
                                 visible: root.cfgTab === "perms"
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: design.space2
 
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "كم يتحكّم الوكيل بجهازك فعلياً من تليجرام (كاميرا، برامج، ترمنال، تحديث، تطوير). ابدأ بـ«مع إذن»."
+                                    text: root.local(
+                                        "كم يتحكّم الوكيل بجهازك فعلياً من تليجرام (كاميرا، برامج، ترمنال، تحديث، تطوير). ابدأ بـ«مع إذن».",
+                                        "Choose how much Telegram can control on this device. Start with “Ask first”.")
                                 }
 
                                 // ── Quick toggle: host control ON / OFF ────────────
@@ -4299,7 +4451,7 @@ Kirigami.ApplicationWindow {
                                     id: hostToggle
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: root.fs(60)
-                                    radius: root.fs(12)
+                                    radius: design.radiusControl
                                     readonly property bool hostOn: root.cfgTier !== "read"
                                     color: hostOn ? Qt.rgba(root.okColor.r, root.okColor.g, root.okColor.b, 0.12)
                                                   : Qt.rgba(root.textMute.r, root.textMute.g, root.textMute.b, 0.07)
@@ -4309,25 +4461,30 @@ Kirigami.ApplicationWindow {
                                         anchors.fill: parent
                                         anchors.leftMargin: 14
                                         anchors.rightMargin: 14
-                                        spacing: 12
+                                        spacing: design.space3
                                         ColumnLayout {
                                             Layout.fillWidth: true
                                             spacing: 1
                                             Text {
-                                                text: "تحكّم البوت بجهازك"
+                                                text: root.local("تحكّم البوت بجهازك",
+                                                                 "Bot device control")
                                                 color: root.textHi
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(13)
+                                                font.pixelSize: root.typePx(13)
                                                 font.weight: Font.DemiBold
                                             }
                                             Text {
                                                 Layout.fillWidth: true
                                                 text: hostToggle.hostOn
-                                                    ? "مُفعّل — يصل للكاميرا والترمنال وتحديث النظام من تليجرام"
-                                                    : "معزول — يردّ فقط، لا يتحكّم بشيء"
+                                                    ? root.local(
+                                                        "مُفعّل — يصل للكاميرا والترمنال وتحديث النظام من تليجرام",
+                                                        "Enabled — Telegram can reach the camera, terminal and system actions")
+                                                    : root.local(
+                                                        "معزول — يردّ فقط، لا يتحكّم بشيء",
+                                                        "Sandboxed — replies only; no device control")
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(10)
+                                                font.pixelSize: root.typePx(10)
                                                 wrapMode: Text.Wrap
                                             }
                                         }
@@ -4352,11 +4509,17 @@ Kirigami.ApplicationWindow {
                                 Repeater {
                                     model: [
                                         { id: "read", ar: "معطّل — بلا تحكّم",
-                                          d: "يردّ ويحلّل داخل عزل فقط. لا كاميرا ولا برامج ولا ترمنال" },
+                                          en: "Disabled — no control",
+                                          dAr: "يردّ ويحلّل داخل عزل فقط. لا كاميرا ولا برامج ولا ترمنال",
+                                          dEn: "Replies inside a sandbox; no camera, apps or terminal" },
                                         { id: "ask",  ar: "مع إذن — تحكّم بموافقة",
-                                          d: "يتحكّم بالجهاز الحقيقي، لكن يعرض كل أمر وتوافق عليه في تليجرام قبل تنفيذه" },
+                                          en: "Ask first — approved control",
+                                          dAr: "يتحكّم بالجهاز الحقيقي، لكن يعرض كل أمر وتوافق عليه في تليجرام قبل تنفيذه",
+                                          dEn: "Can control the device, but every command requires Telegram approval" },
                                         { id: "full", ar: "كامل — تحكّم بلا سؤال",
-                                          d: "ينفّذ أي شيء على جهازك فوراً بلا موافقة. الأقوى والأخطر — لك وحدك" }
+                                          en: "Full — no confirmation",
+                                          dAr: "ينفّذ أي شيء على جهازك فوراً بلا موافقة. الأقوى والأخطر — لك وحدك",
+                                          dEn: "Runs immediately without approval. Most powerful and highest risk" }
                                     ]
                                     delegate: Rectangle {
                                         required property var modelData
@@ -4364,7 +4527,7 @@ Kirigami.ApplicationWindow {
                                         readonly property bool risky: modelData.id === "full"
                                         Layout.fillWidth: true
                                         Layout.preferredHeight: root.fs(54)
-                                        radius: root.fs(11)
+                                        radius: design.radiusControl
                                         color: on_ ? (risky
                                                 ? Qt.rgba(root.badColor.r, root.badColor.g, root.badColor.b, 0.13)
                                                 : Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.13))
@@ -4378,57 +4541,73 @@ Kirigami.ApplicationWindow {
                                             anchors.margins: 12
                                             spacing: 1
                                             Text {
-                                                text: modelData.ar
+                                                text: root.local(modelData.ar, modelData.en)
                                                 color: on_ ? (risky ? root.badColor : root.novaBlue) : root.textHi
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(12)
+                                                font.pixelSize: root.typePx(12)
                                                 font.weight: Font.DemiBold
                                             }
                                             Text {
-                                                text: modelData.d
+                                                text: root.local(modelData.dAr, modelData.dEn)
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.fs(10)
+                                                font.pixelSize: root.typePx(10)
                                                 wrapMode: Text.Wrap
                                             }
                                         }
-                                        MouseArea {
+                                        ActionArea {
                                             anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.cfgTier = modelData.id
+                                            actionName: root.local(modelData.ar, modelData.en)
+                                            checkable: true
+                                            checked: parent.on_
+                                            focusRadius: root.fs(11)
+                                            onTriggered: root.cfgTier = modelData.id
                                         }
                                     }
                                 }
 
-                                SectionTitle { text: "مجلد المشروع" ; Layout.topMargin: 6 }
+                                SectionTitle {
+                                    text: root.local("مجلد المشروع", "Project folder")
+                                    Layout.topMargin: 6
+                                }
                                 QQC2.TextField {
                                     id: projectField
                                     Layout.fillWidth: true
                                     text: root.cfgProject
-                                    placeholderText: "/var/home/moos/… (فارغ = بلا نطاق)"
+                                    placeholderText: root.local(
+                                        "/var/home/moos/… (فارغ = بلا نطاق)",
+                                        "/var/home/moos/… (blank = unrestricted)")
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(11)
+                                    font.pixelSize: root.typePx(11)
                                 }
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "يحصر عمل الوكيل في مجلد واحد. مسار مطلق داخل مجلد المنزل فقط — أي شيء آخر يُرفض."
+                                    text: root.local(
+                                        "يحصر عمل الوكيل في مجلد واحد. مسار مطلق داخل مجلد المنزل فقط — أي شيء آخر يُرفض.",
+                                        "Restricts the agent to one absolute path inside your home folder.")
                                 }
 
-                                SectionTitle { text: "الإنترنت" ; Layout.topMargin: 6 }
+                                SectionTitle {
+                                    text: root.local("الإنترنت", "Internet")
+                                    Layout.topMargin: 6
+                                }
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text {
-                                        text: "بحث وقراءة صفحات"
+                                        text: root.local("بحث وقراءة صفحات",
+                                                         "Search and read pages")
                                         color: root.textHi
                                         font.family: root.uiFont
-                                        font.pixelSize: root.fs(12)
+                                        font.pixelSize: root.typePx(12)
                                     }
                                     Item { Layout.fillWidth: true }
                                     QQC2.Switch { id: webSwitch }
                                 }
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "نموذج 4B ضعيف أمام حقن التعليمات — صفحة خبيثة تقدر تعطيه أوامر باعتبارها محتوى. فعّله مع العقل السحابي فقط."
+                                    text: root.local(
+                                        "نموذج 4B ضعيف أمام حقن التعليمات — صفحة خبيثة تقدر تعطيه أوامر باعتبارها محتوى. فعّله مع العقل السحابي فقط.",
+                                        "A 4B model is vulnerable to prompt injection from malicious pages. Enable this with the cloud brain only.")
                                 }
                             }
 
@@ -4436,20 +4615,24 @@ Kirigami.ApplicationWindow {
                             ColumnLayout {
                                 visible: root.cfgTab === "models"
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: design.space2
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    SectionTitle { text: "النماذج المحلية" }
+                                    SectionTitle {
+                                        text: root.local("النماذج المحلية", "Local models")
+                                    }
                                     Item { Layout.fillWidth: true }
                                     MoButton {
-                                        label: "تحديث | Refresh"
+                                        label: root.local("تحديث", "Refresh")
                                         onClicked: root.loadModels()
                                     }
                                 }
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "تُحمَّل من الجهاز — بلا إنترنت وبلا اشتراك. التنزيل بضغطة واحدة."
+                                    text: root.local(
+                                        "تُحمَّل من الجهاز — بلا إنترنت وبلا اشتراك. التنزيل بضغطة واحدة.",
+                                        "Runs on this device without internet or a subscription. Download in one tap.")
                                 }
 
                                 Repeater {
@@ -4458,40 +4641,45 @@ Kirigami.ApplicationWindow {
                                         required property var modelData
                                         Layout.fillWidth: true
                                         Layout.preferredHeight: root.fs(52)
-                                        radius: root.fs(11)
+                                        radius: design.radiusControl
                                         color: "transparent"
                                         border.width: 1
                                         border.color: root.hairline
                                         RowLayout {
                                             anchors.fill: parent
                                             anchors.margins: 10
-                                            spacing: 8
+                                            spacing: design.space2
                                             ColumnLayout {
                                                 spacing: 1
                                                 Text {
                                                     text: modelData.label || modelData.id
                                                     color: root.textHi
                                                     font.family: root.uiFont
-                                                    font.pixelSize: root.fs(12)
+                                                    font.pixelSize: root.typePx(12)
                                                     font.weight: Font.DemiBold
                                                 }
                                                 Text {
                                                     text: modelData.pulled
-                                                        ? ("محمّل" + (modelData.size ? " · " + modelData.size : ""))
-                                                        : "غير محمّل — اضغط للتنزيل"
+                                                        ? (root.local("محمّل", "Downloaded")
+                                                           + (modelData.size ? " · " + modelData.size : ""))
+                                                        : root.local(
+                                                            "غير محمّل — اضغط للتنزيل",
+                                                            "Not downloaded — tap to get")
                                                     color: root.textMute
                                                     font.family: root.uiFont
-                                                    font.pixelSize: root.fs(10)
+                                                    font.pixelSize: root.typePx(10)
                                                 }
                                             }
                                             Item { Layout.fillWidth: true }
                                             MoButton {
-                                                label: modelData.pulled ? "استخدم | Use" : "نزّل | Get"
+                                                label: modelData.pulled
+                                                    ? root.local("استخدم", "Use")
+                                                    : root.local("نزّل", "Get")
                                                 onClicked: root.pickOrPull(modelData)
                                             }
                                             MoButton {
                                                 visible: !!modelData.pulled
-                                                label: "حذف"
+                                                label: root.local("حذف", "Delete")
                                                 danger: true
                                                 onClicked: root.deleteModel(modelData.id)
                                             }
@@ -4502,10 +4690,12 @@ Kirigami.ApplicationWindow {
                                 Text {
                                     visible: root.pullModel !== ""
                                     Layout.fillWidth: true
-                                    text: "جارٍ تنزيل " + root.pullModel + " — " + root.pullPercent + "٪"
+                                    text: root.local(
+                                        "جارٍ تنزيل " + root.pullModel + " — " + root.pullPercent + "٪",
+                                        "Downloading " + root.pullModel + " — " + root.pullPercent + "%")
                                     color: root.novaBlue
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(11)
+                                    font.pixelSize: root.typePx(11)
                                 }
                                 Text {
                                     visible: root.pullError !== ""
@@ -4513,7 +4703,7 @@ Kirigami.ApplicationWindow {
                                     text: root.pullError
                                     color: root.badColor
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(11)
+                                    font.pixelSize: root.typePx(11)
                                     wrapMode: Text.Wrap
                                 }
                             }
@@ -4525,22 +4715,28 @@ Kirigami.ApplicationWindow {
                             ColumnLayout {
                                 visible: root.cfgTab === "health"
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: design.space2
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    SectionTitle { text: "صحة النظام" }
+                                    SectionTitle {
+                                        text: root.local("صحة النظام", "System health")
+                                    }
                                     Item { Layout.fillWidth: true }
                                     MoButton {
-                                        label: root.diagLoading ? "يفحص…" : "افحص الآن"
+                                        label: root.diagLoading
+                                            ? root.local("يفحص…", "Checking…")
+                                            : root.local("افحص الآن", "Check now")
                                         enabled_: !root.diagLoading
-                                        icon: "moos-report"
+                                        iconName: "moos-report-symbolic"
                                         onClicked: root.diagnoseSystem()
                                     }
                                 }
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: "فحص للقراءة فقط من moos-selfcheck. كل إصلاح فعل مسمّى يسألك قبل تنفيذه."
+                                    text: root.local(
+                                        "فحص للقراءة فقط من moos-selfcheck. كل إصلاح فعل مسمّى يسألك قبل تنفيذه.",
+                                        "Read-only checks from moos-selfcheck. Every repair asks before it runs.")
                                 }
 
                                 Text {
@@ -4549,7 +4745,7 @@ Kirigami.ApplicationWindow {
                                     text: root.diagResult.summary || ""
                                     color: root.textHi
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(12)
+                                    font.pixelSize: root.typePx(12)
                                     wrapMode: Text.Wrap
                                 }
 
@@ -4566,14 +4762,14 @@ Kirigami.ApplicationWindow {
                                         required property var modelData
                                         Layout.fillWidth: true
                                         Layout.preferredHeight: root.fs(52)
-                                        radius: root.fs(11)
+                                        radius: design.radiusControl
                                         color: "transparent"
                                         border.width: 1
                                         border.color: root.hairline
                                         RowLayout {
                                             anchors.fill: parent
                                             anchors.margins: 10
-                                            spacing: 8
+                                            spacing: design.space2
                                             ColumnLayout {
                                                 spacing: 1
                                                 Text {
@@ -4584,7 +4780,7 @@ Kirigami.ApplicationWindow {
                                                     text: modelData.title || modelData.label || modelData.id
                                                     color: root.textHi
                                                     font.family: root.uiFont
-                                                    font.pixelSize: root.fs(12)
+                                                    font.pixelSize: root.typePx(12)
                                                     font.weight: Font.DemiBold
                                                 }
                                                 Text {
@@ -4592,7 +4788,7 @@ Kirigami.ApplicationWindow {
                                                     visible: !!modelData.note
                                                     color: root.textMute
                                                     font.family: root.uiFont
-                                                    font.pixelSize: root.fs(10)
+                                                    font.pixelSize: root.typePx(10)
                                                     wrapMode: Text.Wrap
                                                 }
                                             }
@@ -4601,7 +4797,9 @@ Kirigami.ApplicationWindow {
                                                 // A read-only entry (diagnose-services, net-doctor,
                                                 // gpu-report…) shows information; calling its button
                                                 // "Fix" promises a repair it does not perform.
-                                                label: modelData.read ? "افحص | Check" : "أصلح | Fix"
+                                                label: modelData.read
+                                                    ? root.local("افحص", "Check")
+                                                    : root.local("أصلح", "Fix")
                                                 onClicked: Qt.openUrlExternally("moos://do/" + modelData.id)
                                             }
                                         }
@@ -4614,10 +4812,11 @@ Kirigami.ApplicationWindow {
                                                  || root.diagResult.fixes.length === 0)
                                              && root.diagResult.summary !== undefined
                                     Layout.fillWidth: true
-                                    text: "لا مشاكل تحتاج إصلاحاً."
+                                    text: root.local("لا مشاكل تحتاج إصلاحاً.",
+                                                     "No problems need repair.")
                                     color: root.okColor
                                     font.family: root.uiFont
-                                    font.pixelSize: root.fs(11)
+                                    font.pixelSize: root.typePx(11)
                                 }
                             }
                         }
@@ -4627,7 +4826,7 @@ Kirigami.ApplicationWindow {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: root.fs(44)
-                        radius: root.fs(12)
+                        radius: design.radiusControl
                         opacity: root.cfgSaving ? 0.6 : 1
                         gradient: Gradient {
                             orientation: Gradient.Horizontal
@@ -4636,17 +4835,19 @@ Kirigami.ApplicationWindow {
                         }
                         Text {
                             anchors.centerIn: parent
-                            text: root.cfgSaving ? "جارٍ الحفظ… | Saving…" : "حفظ | Save"
+                            text: root.cfgSaving ? root.local("جارٍ الحفظ…", "Saving…")
+                                                 : root.local("حفظ", "Save")
                             color: root.accentText
                             font.family: root.uiFont
-                            font.pixelSize: root.fs(14)
+                            font.pixelSize: root.typePx(14)
                             font.weight: Font.DemiBold
                         }
-                        MouseArea {
+                        ActionArea {
                             anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
                             enabled: !root.cfgSaving
-                            onClicked: root.cfgSave({
+                            actionName: root.moaiRtl ? "حفظ الإعدادات" : "Save settings"
+                            focusRadius: root.fs(12)
+                            onTriggered: root.cfgSave({
                                 mode: root.cfgMode,
                                 provider: root.cfgProvider,
                                 base: baseField.text,
@@ -4715,7 +4916,9 @@ Kirigami.ApplicationWindow {
         xhr.onreadystatechange = function () {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             if (xhr.status !== 200) {
-                root.cfgError = "لوحة التحكم لا تستجيب — شغّل moai-agent-api.service"
+                root.cfgError = root.local(
+                    "لوحة التحكم لا تستجيب — شغّل moai-agent-api.service",
+                    "Control service is unavailable — start moai-agent-api.service")
                 return
             }
             try {
@@ -4731,7 +4934,8 @@ Kirigami.ApplicationWindow {
                 root.cfgProject = (c.permissions && c.permissions.project) || ""
                 if (done) done(c)
             } catch (e) {
-                root.cfgError = "رد غير مفهوم من لوحة التحكم"
+                root.cfgError = root.local("رد غير مفهوم من لوحة التحكم",
+                                           "Unrecognised control response")
             }
         }
         xhr.send()
@@ -4769,7 +4973,8 @@ Kirigami.ApplicationWindow {
                 if (done) done()
                 root.cfgLoad()
             } else {
-                root.cfgError = "تعذّر الحفظ (HTTP " + xhr.status + ")"
+                root.cfgError = root.local("تعذّر الحفظ (HTTP " + xhr.status + ")",
+                                           "Could not save (HTTP " + xhr.status + ")")
             }
         }
         xhr.send(JSON.stringify(body))
@@ -4807,14 +5012,20 @@ Kirigami.ApplicationWindow {
             : "moos://do/setup-brain"
     readonly property string agentSetupLabel:
         !agentInstalled || !agentOpenClawConfigured
-            ? "ثبّت وأكمل | Install"
-            : "جهّز العقل | Set up"
+            ? root.local("ثبّت وأكمل", "Install")
+            : root.local("جهّز العقل", "Set up")
     readonly property string agentSetupNote:
         !agentInstalled
-            ? "إعداد واحد مؤكّد يثبّت OpenClaw والعقل والصوت محلياً، ثم يبقى التشغيل عند الطلب."
+            ? root.local(
+                "إعداد واحد مؤكّد يثبّت OpenClaw والعقل والصوت محلياً، ثم يبقى التشغيل عند الطلب.",
+                "One confirmed setup installs OpenClaw, the local brain and speech; it then runs on demand.")
             : !agentOpenClawConfigured
-                ? "إعداد OpenClaw غير مكتمل؛ أعد تشغيل المثبّت الآمن ليصلحه دون مسح اختياراتك."
-                : "العقل أو الصوت المحلي غير مجهّز. الإجراء التالي ينشئهما ويتحقق منهما فعلياً."
+                ? root.local(
+                    "إعداد OpenClaw غير مكتمل؛ أعد تشغيل المثبّت الآمن ليصلحه دون مسح اختياراتك.",
+                    "OpenClaw setup is incomplete; rerun the safe installer without losing your choices.")
+                : root.local(
+                    "العقل أو الصوت المحلي غير مجهّز. الإجراء التالي ينشئهما ويتحقق منهما فعلياً.",
+                    "The local brain or speech is not configured. The next action creates and verifies both.")
 
     function agentLoadStatus() {
         const xhr = new XMLHttpRequest()
@@ -4824,7 +5035,9 @@ Kirigami.ApplicationWindow {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             if (xhr.status !== 200) {
                 root.agentStatusLoaded = false
-                root.agentStatusError = "لوحة الوكيل لا تستجيب — moai-agent-api.service"
+                root.agentStatusError = root.local(
+                    "لوحة الوكيل لا تستجيب — moai-agent-api.service",
+                    "Agent service is unavailable — moai-agent-api.service")
                 return
             }
             try {
@@ -4839,7 +5052,8 @@ Kirigami.ApplicationWindow {
                     root.agentLoadSessions()
             } catch (e) {
                 root.agentStatusLoaded = false
-                root.agentStatusError = "رد حالة الوكيل غير مفهوم | Bad status response"
+                root.agentStatusError = root.local("رد حالة الوكيل غير مفهوم",
+                                                   "Bad status response")
             }
         }
         xhr.send()
@@ -4853,9 +5067,13 @@ Kirigami.ApplicationWindow {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             if (xhr.status === 200) {
                 try { root.agentSessions = JSON.parse(xhr.responseText); root.agentError = "" }
-                catch (e) { root.agentError = "رد غير مفهوم | Bad response" }
+                catch (e) {
+                    root.agentError = root.local("رد غير مفهوم", "Bad response")
+                }
             } else {
-                root.agentError = "لوحة الوكيل لا تستجيب — moai-agent-api.service"
+                root.agentError = root.local(
+                    "لوحة الوكيل لا تستجيب — moai-agent-api.service",
+                    "Agent service is unavailable — moai-agent-api.service")
             }
         }
         xhr.send()
@@ -4889,12 +5107,13 @@ Kirigami.ApplicationWindow {
         xhr.onreadystatechange = function () {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             root.agentBusy = false
-            let reply = "لا رد | No reply"
+            let reply = root.local("لا رد", "No reply")
             if (xhr.status === 200) {
                 try { const r = JSON.parse(xhr.responseText); reply = r.reply || r.error || reply }
-                catch (e) { reply = "رد غير مفهوم" }
+                catch (e) { reply = root.local("رد غير مفهوم", "Bad response") }
             } else {
-                reply = "تعذّر الاتصال بالوكيل"
+                reply = root.local("تعذّر الاتصال بالوكيل",
+                                   "Could not connect to the agent")
                 root.agentError = reply
             }
             root.agentThread = root.agentThread.concat([{ role: "assistant", text: reply }])

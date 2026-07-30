@@ -7,9 +7,10 @@
     beneath — a compact dock of round buttons, not a stack of bars. The public API
     is unchanged (iconName, text, description, emphasized, destructive, armed,
     clicked, navigate) so the logout logic drives it exactly as before; only the
-    shape is new. Two-tone accent (accentA→accentB, both derived from the live
-    theme) so every palette lights the orb in its own two colours, never one flat
-    tint. Hover blooms and grows, focus rings, press dims, an armed state pulses
+    shape is new. Two-tone accent (accentA fill + accentB rim, both derived from
+    the live theme) so every palette lights the orb in its own two colours while
+    the glyph remains on one contrast-gated fill. Hover blooms and grows, focus
+    rings, press dims, an armed state pulses
     for the confirm tap on sensitive actions. `subtle` is the one later addition:
     a second, quieter weight for Cancel, which is not a peer of Shut Down.
 */
@@ -35,8 +36,9 @@ QQC2.AbstractButton {
 
     readonly property bool lit: hovered || visualFocus || down
     // accentA is the live theme highlight (or the negative colour for destructive
-    // actions); accentB is a second hue derived from it, so the filled orb spans
-    // TWO of the palette's colours. Achromatic accents fall back to a brighter shade.
+    // actions); accentB is a second hue derived from it for the decorative rim.
+    // It must never sit underneath the glyph: unlike accentA, it has no paired
+    // foreground role in the KDE colour scheme.
     readonly property color accentA: destructive ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.highlightColor
     readonly property color accentB: {
         const c = control.accentA;
@@ -48,10 +50,14 @@ QQC2.AbstractButton {
         return Qt.hsla(nh, Math.min(1, c.hslSaturation), Math.min(0.72, c.hslLightness * 1.08), 1);
     }
     readonly property color ink: Kirigami.Theme.textColor
-    // The disc fills with the accent when emphasized, pressed, or armed for a
-    // confirm — so the glyph must switch to highlightedTextColor there, or an
-    // accent glyph on an accent fill (the old Cancel bug) goes invisible.
+    // The disc fills with one contrast-gated role when emphasized, pressed, or
+    // armed. Selection ink is paired with highlight; destructive ink is the
+    // Complementary background paired with ForegroundNegative. Both relationships
+    // are measured across all 16 schemes in tests/test_moos_ui2.py.
     readonly property bool filled: control.emphasized || control.down || control.armed
+    readonly property color filledInk: control.destructive
+        ? Kirigami.Theme.backgroundColor
+        : Kirigami.Theme.highlightedTextColor
 
     signal navigate(int step)
 
@@ -115,21 +121,14 @@ QQC2.AbstractButton {
                 id: disc
                 anchors.fill: parent
                 radius: width / 2
-                gradient: control.filled ? filledGrad : null
                 color: control.filled
-                    ? "transparent"
+                    ? control.accentA
                     : Qt.rgba(control.ink.r, control.ink.g, control.ink.b, control.lit ? 0.16 : 0.08)
                 border.width: control.visualFocus ? 2 : 1
                 border.color: control.filled
-                    ? "transparent"
+                    ? control.accentB
                     : (control.lit ? Qt.rgba(control.accentA.r, control.accentA.g, control.accentA.b, 0.8)
                                    : Qt.rgba(control.ink.r, control.ink.g, control.ink.b, 0.16))
-
-                Gradient {
-                    id: filledGrad
-                    GradientStop { position: 0.0; color: control.accentB }
-                    GradientStop { position: 1.0; color: control.accentA }
-                }
 
                 Kirigami.Icon {
                     id: actionIcon
@@ -146,7 +145,7 @@ QQC2.AbstractButton {
                     height: width
                     isMask: true
                     color: control.filled
-                        ? Kirigami.Theme.highlightedTextColor
+                        ? control.filledInk
                         : (control.destructive && control.lit ? control.accentA : control.ink)
                 }
             }

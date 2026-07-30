@@ -8,10 +8,10 @@ glyphs.  SVG is canonical; PNG exports are deterministic compatibility assets.
 
 from __future__ import annotations
 
-import base64
 import pathlib
 import shutil
 import subprocess
+import sys
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -19,6 +19,7 @@ HICOLOR = ROOT / "system_files/usr/share/icons/hicolor"
 SCALABLE = HICOLOR / "scalable/apps"
 PREVIEW = ROOT / "artwork/moos-ui2/previews/moos-app-icons.png"
 MOAI_MASTER = ROOT / "artwork/icons/mo-ai-1024.png"
+MOAI_GENERATOR = ROOT / "artwork/generate_moai_icon.py"
 REMOTE_LOGO = ROOT / "moremote/Logo.png"
 LEGACY_REMOTE_SVG = ROOT / "artwork/moos-ui/icons/moos-pc-remote.svg"
 LEGACY_REMOTE_PREVIEW = ROOT / "artwork/moos-ui/previews/moos-pc-remote-512.png"
@@ -26,28 +27,23 @@ SIZES = (16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512)
 
 
 GLYPHS = {
-    "moos-moai": {
-        "accent": "#4ED7C8",
-        "secondary": "#78AFFF",
-        "body": """
-  <path d="M322 520C322 378 408 292 512 292s190 86 190 228-86 212-190 212-190-70-190-212Z"
-        fill="none" stroke="url(#accent)" stroke-width="42"/>
-  <path d="M390 594 452 430l60 112 62-112 62 164" fill="none"
-        stroke="#EAF8F6" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="362" cy="356" r="28" fill="#78AFFF"/>
-  <circle cx="664" cy="350" r="22" fill="#4ED7C8"/>
-  <circle cx="690" cy="620" r="26" fill="#A8F1E8"/>
-  <path d="M512 226v54M485 253h54" stroke="#EAF8F6" stroke-width="22" stroke-linecap="round"/>
-""",
-    },
     "moos-moplayer": {
-        "accent": "#4ED7C8",
-        "secondary": "#9B8CFF",
+        "accent": "#FF4400",
+        "secondary": "#FFD27A",
         "body": """
-  <circle cx="512" cy="504" r="218" fill="none" stroke="url(#accent)" stroke-width="38"/>
-  <path d="m462 392 170 112-170 112Z" fill="#EAF8F6" stroke="#78AFFF" stroke-width="18" stroke-linejoin="round"/>
-  <path d="M312 708c58-38 98 38 156 0s98 38 156 0 98 38 116 22"
-        fill="none" stroke="#4ED7C8" stroke-width="28" stroke-linecap="round"/>
+  <!-- MoPlayer's cinema mark, reduced to one legible M/current/play
+       silhouette for the 16 px dock cell. It is original vector geometry;
+       no icon-font or external pack is involved. -->
+  <path d="M286 694V374c0-38 28-66 66-66h18c24 0 46 13 58 34l84 148
+           84-148c12-21 34-34 58-34h18c38 0 66 28 66 66v320h-92V474
+           l-92 158c-9 16-24 24-42 24s-33-8-42-24l-92-158v220Z"
+        fill="url(#accent)"/>
+  <path d="M252 626c104 54 190 42 266-38 82-86 132-178 262-190"
+        fill="none" stroke="#FFF7ED" stroke-opacity=".88" stroke-width="30"
+        stroke-linecap="round"/>
+  <path d="m728 444 100 68-100 68Z" fill="#FFF7ED"/>
+  <path d="M328 360c36-24 72-30 108-18" fill="none" stroke="#FFF7ED"
+        stroke-opacity=".42" stroke-width="18" stroke-linecap="round"/>
 """,
     },
     "moos-pc-remote": {
@@ -174,19 +170,6 @@ def icon_svg(name: str, spec: dict[str, str]) -> str:
 """
 
 
-def raster_wrapper(path: pathlib.Path) -> str:
-    """Keep the owner's commissioned Mo AI master byte-exact inside SVG."""
-    payload = base64.b64encode(path.read_bytes()).decode("ascii")
-    return f"""<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg"
-     xmlns:xlink="http://www.w3.org/1999/xlink"
-     width="1024" height="1024" viewBox="0 0 1024 1024">
-  <image width="1024" height="1024"
-         xlink:href="data:image/png;base64,{payload}"/>
-</svg>
-"""
-
-
 def main() -> None:
     magick = shutil.which("magick")
     if magick is None:
@@ -195,25 +178,26 @@ def main() -> None:
 
     for name, spec in GLYPHS.items():
         svg = SCALABLE / f"{name}.svg"
-        if name == "moos-moai":
-            if not MOAI_MASTER.is_file():
-                raise SystemExit(f"missing commissioned Mo AI master: {MOAI_MASTER}")
-            svg.write_text(raster_wrapper(MOAI_MASTER), encoding="utf-8")
-            render_source = MOAI_MASTER
-        else:
-            svg.write_text(icon_svg(name, spec), encoding="utf-8")
-            render_source = svg
+        svg.write_text(icon_svg(name, spec), encoding="utf-8")
         for size in SIZES:
             output = HICOLOR / f"{size}x{size}/apps/{name}.png"
             output.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run([
                 magick,
                 "-background", "none",
-                str(render_source),
+                str(svg),
                 "-resize", f"{size}x{size}",
                 "-strip",
                 f"PNG32:{output}",
             ], check=True)
+
+    # Mo AI is a protected commissioned identity, not a glyph in this family.
+    # Delegate to its byte-exact seating generator after all sibling plates are
+    # ready. Keeping it inside GLYPHS used to overwrite the protected wrapper
+    # with an edge-to-edge raster every time this family generator ran.
+    if not MOAI_MASTER.is_file() or not MOAI_GENERATOR.is_file():
+        raise SystemExit("missing protected Mo AI master or its seating generator")
+    subprocess.run([sys.executable, str(MOAI_GENERATOR)], check=True)
 
     # Compatibility names and vendored clients are not separate artwork. Keep
     # every copy mechanically identical to its new MoOS source of truth.
@@ -240,13 +224,19 @@ def main() -> None:
     subprocess.run([
         magick,
         "montage",
-        *[str(HICOLOR / f"256x256/apps/{name}.png") for name in GLYPHS],
+        *[
+            str(HICOLOR / f"256x256/apps/{name}.png")
+            for name in ("moos-moai", *GLYPHS)
+        ],
         "-tile", "3x3",
         "-geometry", "220x220+24+24",
         "-background", "#10181B",
         str(PREVIEW),
     ], check=True)
-    print(f"generated {len(GLYPHS)} MoOS app icons and {PREVIEW.relative_to(ROOT)}")
+    print(
+        f"generated {len(GLYPHS) + 1} MoOS app icons and "
+        f"{PREVIEW.relative_to(ROOT)}"
+    )
 
 
 if __name__ == "__main__":

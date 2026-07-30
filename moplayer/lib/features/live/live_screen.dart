@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/glass.dart';
+import '../../core/theme/motion.dart';
 import '../../core/theme/nova.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/category.dart';
@@ -190,7 +191,7 @@ class _CategoryRowState extends State<_CategoryRow> {
         selected: selected,
         semanticLabel: widget.label,
         child: AnimatedContainer(
-          duration: Nova.fast,
+          duration: Motion.duration(context, Nova.fast),
           margin: const EdgeInsets.only(bottom: 2),
           padding: const EdgeInsets.all(Nova.space3),
           decoration: BoxDecoration(
@@ -204,7 +205,7 @@ class _CategoryRowState extends State<_CategoryRow> {
           child: Row(
             children: [
               AnimatedContainer(
-                duration: Nova.fast,
+                duration: Motion.isReduced(context) ? Duration.zero : Nova.fast,
                 width: 3,
                 height: selected ? 18 : 0,
                 decoration: const BoxDecoration(

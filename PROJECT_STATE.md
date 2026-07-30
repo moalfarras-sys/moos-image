@@ -4,12 +4,44 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-29 (session N round 3 — shipped to main and BOOTED on
-44.20260729.452; `tests/post-update-check.sh` 48 passed / 0 failed. The design
-system is **MoOS UI — Liquid Glass**; the mandatory agent skill is in place).
+Last updated: 2026-07-30 (commercial visual-system source implementation,
+repository gates and the full local generic image build are green; signed
+publication/update/boot still pending. The latest **shipped and boot-proven**
+state remains session N
+round 3 on 44.20260729.452, with `tests/post-update-check.sh` 48 passed /
+0 failed. The design system is **MoOS UI — Liquid Glass**).
 
 > **Read [`skills/moos-engineering/SKILL.md`](skills/moos-engineering/SKILL.md) first —
 > it is mandatory for every agent working here.**
+
+> **Working-tree visual/UX audit — 2026-07-30, branch
+> `audit/commercial-visual-polish-2026-07-30`.** The measured audit and release
+> checklist are in
+> [`artwork/MOOS_VISUAL_POLISH_AUDIT_2026-07-30.md`](artwork/MOOS_VISUAL_POLISH_AUDIT_2026-07-30.md).
+> The rejected 67/68-symbol monoline checkpoint was replaced wholesale by the
+> original **69-symbol Tidal Cut** family: compound filled paths, one generated
+> manifest/catalogue, live semantic theme roles and executable KDE, GTK and
+> librsvg proofs at 16–128 px. The worktree also closes session-control and
+> Installer contrast gaps across all 16 schemes; makes custom actions keyboard-
+> and AT-reachable; binds finite motion to animations-off; maps first-party GTK
+> windows to the active family palette; removes blocking Recovery and Mo PC
+> Remote work from GTK's main loop; and fixes shell double-mirroring in RTL.
+>
+> Source acceptance is now green: the four QML apps share tokens, focus, buttons
+> and symbols; Launcher is a 720×590 three-column MoOS composition; dock type
+> uses the system font/11 pt floor; Splash is one reveal plus progress; Mo AI
+> ambient loops and bilingual duplication are removed; and active-locale copy
+> is enforced. MoPlayer uses palette-native MoOS chrome, passes analyze plus
+> **176/176**, is committed/pushed at canonical `23799ad`, and is vendored from
+> that exact clean revision. Final image-repository `just check` exits 0. The
+> full generic `just build` also exits 0 from this exact worktree and produces
+> `localhost/moos:latest` (`5e64dbf3373a…`): all in-image QML, Launcher,
+> desktop-scene, identity, Store, initramfs/Plymouth and bootc gates pass;
+> initramfs is 122 MB and contains the MoOS Plymouth assets plus
+> `ostree-prepare-root`.
+> **This is still not shipped evidence:** signed publication (including the
+> NVIDIA matrix image), update staging, reboot and post-update check are the
+> remaining release steps.
 
 > **Session N — the practical full-system audit (2026-07-29), branch
 > `fix/full-system-audit-and-completion`.** A live-first audit (bootc/rpm-ostree

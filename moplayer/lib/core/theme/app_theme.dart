@@ -18,7 +18,7 @@ class AppTheme {
           brightness: Brightness.dark,
         ).copyWith(
           primary: AppColors.primary,
-          onPrimary: Colors.white,
+          onPrimary: AppColors.onEmber,
           secondary: AppColors.gold,
           tertiary: AppColors.goldBright,
           surface: AppColors.surface1,

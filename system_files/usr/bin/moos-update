@@ -28,7 +28,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk  # noqa: E402
 
-from moos_ui2 import MoOSApp  # noqa: E402
+from moos_ui2 import MoOSApp, local_text, logical_start  # noqa: E402
 
 
 def sh(*cmd, timeout=25):
@@ -68,27 +68,37 @@ def current_system():
 
 class Updater(MoOSApp):
     APP_ID = "org.moos.updater"      # == org.moos.updater.desktop — see MoOSApp's docstring
-    TITLE = "MoOS Updater"
+    TITLE = local_text("محدّث MoOS", "MoOS Updater")
     SIZE = (760, 660)
 
     def build(self, page):
         pretty, build = current_system()
 
-        page.append(self.title("MoOS Updater"))
-        page.append(self.subtitle(
-            "تحديث ذرّي: يُجهَّز في الخلفية ويُطبَّق عند إعادة التشغيل. نظامك الحالي يبقى سليمًا حتى ذلك الحين.\n"
-            "Atomic update: staged in the background, applied on restart. Your running system stays "
-            "untouched until then."))
+        page.append(self.title(local_text("محدّث MoOS", "MoOS Updater")))
+        page.append(self.subtitle(local_text(
+            "تحديث ذرّي يُجهَّز في الخلفية ويُطبَّق عند إعادة التشغيل. "
+            "يبقى نظامك الحالي سليماً حتى ذلك الحين.",
+            "Atomic updates are staged in the background and applied on restart. "
+            "Your running system stays untouched until then.",
+        )))
 
-        version = Gtk.Label(xalign=0, wrap=True)
+        version = Gtk.Label(xalign=logical_start(), wrap=True)
         version.set_markup(
             f"<b>{GLib.markup_escape_text(pretty)}</b>\n"
             f"<span alpha='65%'>{GLib.markup_escape_text(build or '—')}</span>")
         page.append(self.card(
-            Gtk.Label(label="النظام الحالي  ·  Current system", xalign=0), version))
+            Gtk.Label(
+                label=local_text("النظام الحالي", "Current system"),
+                xalign=logical_start(),
+            ),
+            version,
+        ))
 
-        self.status = Gtk.Label(xalign=0, wrap=True)
-        self.status.set_text("اضغط “فحص التحديثات” للبدء.  ·  Press “Check for updates” to begin.")
+        self.status = Gtk.Label(xalign=logical_start(), wrap=True)
+        self.status.set_text(local_text(
+            "اضغط «فحص التحديثات» للبدء.",
+            "Press “Check for updates” to begin.",
+        ))
 
         self.progress = Gtk.ProgressBar(show_text=False)
         self.progress.set_visible(False)
@@ -101,15 +111,21 @@ class Updater(MoOSApp):
 
         page.append(self.card(self.status, self.progress, log_scroll))
 
-        self.check_btn = Gtk.Button(label="فحص التحديثات  ·  Check for updates")
+        self.check_btn = Gtk.Button(
+            label=local_text("فحص التحديثات", "Check for updates")
+        )
         self.check_btn.connect("clicked", self.on_check)
 
-        self.apply_btn = Gtk.Button(label="تثبيت التحديث  ·  Install update")
+        self.apply_btn = Gtk.Button(
+            label=local_text("تثبيت التحديث", "Install update")
+        )
         self.apply_btn.add_css_class("suggested-action")
         self.apply_btn.set_sensitive(False)
         self.apply_btn.connect("clicked", self.on_apply)
 
-        self.reboot_btn = Gtk.Button(label="إعادة التشغيل الآن  ·  Restart now")
+        self.reboot_btn = Gtk.Button(
+            label=local_text("إعادة التشغيل الآن", "Restart now")
+        )
         self.reboot_btn.add_css_class("suggested-action")
         self.reboot_btn.set_visible(False)
         self.reboot_btn.connect("clicked", self.on_reboot)
@@ -162,39 +178,62 @@ class Updater(MoOSApp):
             on_done(127)
             return
 
+        def complete_when_exited():
+            returncode = proc.poll()
+            if returncode is None:
+                return True
+            on_done(returncode)
+            return False
+
         def pump(_src, _cond):
             line = proc.stdout.readline()
             if line:
                 self.say(line.rstrip("\n"))
                 return True
-            proc.wait()
-            on_done(proc.returncode)
+            # A child can close stdout before it exits. Never wait for that
+            # process from GTK's callback; poll at a low duty cycle instead.
+            if proc.poll() is None:
+                GLib.timeout_add(50, complete_when_exited)
+            else:
+                on_done(proc.returncode)
             return False
 
-        GLib.io_add_watch(proc.stdout, GLib.IO_IN | GLib.IO_HUP, pump)
+        GLib.io_add_watch(
+            proc.stdout,
+            GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR,
+            pump,
+        )
 
     # -- actions ---------------------------------------------------------------
 
     def on_check(self, _btn):
-        self.busy(True, "جارٍ الفحص…  ·  Checking…")
+        self.busy(True, local_text("جارٍ الفحص…", "Checking…"))
         self.say("$ bootc upgrade --check")
 
         def done(rc):
             self.busy(False)
             if rc == 0:
                 self.status.set_text(
-                    "راجع النتيجة أعلاه — إن توفّر تحديث اضغط “تثبيت التحديث”.  ·  "
-                    "If an update is available, press “Install update”.")
+                    local_text(
+                        "راجع النتيجة أعلاه. إن توفّر تحديث، اضغط «تثبيت التحديث».",
+                        "Review the result above. If an update is available, "
+                        "press “Install update”.",
+                    ))
                 self.apply_btn.set_sensitive(True)
             else:
                 self.status.add_css_class("error")
-                self.status.set_text("تعذّر الفحص — تحقّق من الاتصال.  ·  "
-                                     "Check failed — is the network up?")
+                self.status.set_text(local_text(
+                    "تعذّر الفحص. تحقّق من الاتصال.",
+                    "Check failed. Is the network up?",
+                ))
 
         self.run_async(["pkexec", "bootc", "upgrade", "--check"], done)
 
     def on_apply(self, _btn):
-        self.busy(True, "جارٍ التحضير… يمكنك متابعة عملك.  ·  Staging the update… you can keep working.")
+        self.busy(True, local_text(
+            "جارٍ تحضير التحديث… يمكنك متابعة عملك.",
+            "Staging the update… you can keep working.",
+        ))
         self.apply_btn.set_sensitive(False)
         self.say("$ bootc upgrade")
 
@@ -202,13 +241,17 @@ class Updater(MoOSApp):
             self.busy(False)
             if rc == 0:
                 self.status.add_css_class("success")
-                self.status.set_text("✓ التحديث جاهز — يُطبَّق عند إعادة التشغيل.  ·  "
-                                     "Update staged. It applies on the next restart.")
+                self.status.set_text(local_text(
+                    "✓ التحديث جاهز ويُطبَّق عند إعادة التشغيل.",
+                    "✓ Update staged. It applies on the next restart.",
+                ))
                 self.reboot_btn.set_visible(True)
             else:
                 self.status.add_css_class("error")
-                self.status.set_text("فشل التحديث — نظامك الحالي لم يتغيّر.  ·  "
-                                     "Update failed. Your running system is untouched.")
+                self.status.set_text(local_text(
+                    "فشل التحديث. لم يتغيّر نظامك الحالي.",
+                    "Update failed. Your running system is untouched.",
+                ))
                 self.apply_btn.set_sensitive(True)
 
         self.run_async(["pkexec", "bootc", "upgrade"], done)

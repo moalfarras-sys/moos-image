@@ -553,7 +553,7 @@ class _CategoryPillState extends State<CategoryPill> {
                   widget.label,
                   style: AppText.control.copyWith(
                     color: widget.selected
-                        ? Colors.white
+                        ? AppColors.onEmber
                         : AppColors.textSecondary,
                     fontWeight: widget.selected
                         ? FontWeight.w600
@@ -567,7 +567,7 @@ class _CategoryPillState extends State<CategoryPill> {
                     textDirection: TextDirection.ltr,
                     style: AppText.caption.copyWith(
                       color: widget.selected
-                          ? Colors.white.withValues(alpha: 0.82)
+                          ? AppColors.onEmber.withValues(alpha: 0.82)
                           : AppColors.textMuted,
                     ),
                   ),
@@ -734,7 +734,7 @@ class StatTile extends StatelessWidget {
               child: Icon(
                 icon,
                 size: 19,
-                color: accent ? Colors.white : AppColors.textSecondary,
+                color: accent ? AppColors.onEmber : AppColors.textSecondary,
               ),
             ),
             const SizedBox(width: Nova.space3),
