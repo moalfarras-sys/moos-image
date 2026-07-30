@@ -5222,6 +5222,48 @@ require("openssl rand -hex" in disk_workflow
         and "/tmp/moos-bib-config.toml:/config.toml:ro" in disk_workflow,
         "build-disk.yml must inject a fresh private password before publishing qcow2")
 
+# Welcome is the one live-session landing surface, hands off to the unique
+# installer without leaving two wizard windows stacked, and returns once on the
+# first password-authenticated login of the installed account. Its app choices
+# must drive the same catalogued install/status contract as Mo Store.
+_welcome = read("system_files/usr/share/moos/apps/welcome/main.qml")
+_welcome_launch = code(read("system_files/usr/bin/moos-welcome"), "hash")
+_firstrun = code(read("system_files/usr/bin/moos-firstrun"), "hash")
+_firstrun_desktop = read("system_files/etc/xdg/autostart/org.moos.firstrun.desktop")
+require("--live=\"$LIVE\"" in _welcome_launch and "rd.live.image" in _welcome_launch,
+        "moos-welcome must tell the QML whether it runs from the live image")
+require("moos://installer/open" in _welcome and "handoffToInstaller" in _welcome
+        and "onTriggered: Qt.quit()" in _welcome,
+        "the live Welcome must hand off to the installer and close instead of "
+        "leaving two onboarding windows layered")
+require("Object.keys(win.picks)" in _welcome
+        and "moos://store/install/" in _welcome
+        and 'ln === "DONE"' in _welcome and 'ln.indexOf("FAIL")' in _welcome,
+        "Welcome selections must execute the real Mo Store install route and "
+        "surface both success and failure")
+require("Exec=/usr/bin/moos-firstrun" in _firstrun_desktop
+        and "moos-firstrun-done" in _firstrun and "moos-welcome && exit 0" in _firstrun,
+        "the installed account must receive the MoOS Welcome exactly once on first login")
+
+# Confirmation dialogs must render one locale, not a mixed RTL/LTR sentence.
+# The latter visibly moves the question mark and swaps the clauses in kdialog.
+_open_router = code(read("system_files/usr/bin/moos-open"), "hash")
+require("localized_message" in _open_router
+        and 'message="$(localized_message "${1:-}")"' in _open_router,
+        "moos-open confirmations must choose one localized message before opening the dialog")
+require('--warningyesno "$message"' in _open_router
+        and '--warningyesno "$1"' not in _open_router,
+        "kdialog must receive the locale-selected confirmation, never the raw RTL/LTR pair")
+
+# Fedora's legacy mcelog unit exits failed on AMD and explicitly asks for
+# rasdaemon. Ship one cross-vendor RAS owner and lock the build contract in.
+_build = code(read("build_files/build.sh"), "hash")
+require("dnf5 -y install rasdaemon" in _build
+        and "systemctl enable rasdaemon.service" in _build,
+        "the image must install and enable Fedora's cross-vendor rasdaemon")
+require("systemctl mask mcelog.service" in _build,
+        "the AMD-incompatible mcelog unit must be masked to avoid a failed boot unit")
+
 # Retired SDDM/org.moos.nova generators used to recreate a second login/theme
 # stack even after runtime files were removed.
 _legacy_art = code(read("artwork/generate_nova_visuals.py"), "hash")

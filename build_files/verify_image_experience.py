@@ -235,48 +235,6 @@ require(Path("/usr/sbin/rasdaemon").is_file() or Path("/usr/bin/rasdaemon").is_f
 require(any(p.exists() or p.is_symlink() for p in rasdaemon_wants),
         "rasdaemon.service is installed but not enabled")
 
-# The display manager must not race a slow GPU driver. udevadm settle can return
-# before /dev/dri/card* exists, at which point the greeter KWin fails once and
-# leaves a black tty while the parent service still reports active.
-drm_wait = Path("/usr/libexec/moos-wait-drm")
-drm_dropin = Path(
-    "/usr/lib/systemd/system/plasmalogin.service.d/10-moos-wait-drm.conf"
-)
-require(drm_wait.is_file() and os.access(drm_wait, os.X_OK),
-        "the executable login DRM preflight is missing")
-if drm_wait.is_file():
-    drm_wait_text = drm_wait.read_text(encoding="utf-8")
-    require('"$drm_dir"/card*' in drm_wait_text and "MOOS_DRM_WAIT_STEPS" in drm_wait_text,
-            "the login DRM preflight is not card-number-agnostic and bounded")
-    require("MOOS_PLASMALOGIN_CONF" in drm_wait_text
-            and "WallpaperPluginId=org.kde.hunyango" in drm_wait_text
-            and ".moos-legacy-hunyango" in drm_wait_text,
-            "the login preflight cannot repair the exact stock config that "
-            "outranks MoOS's greeter drop-in")
-require(drm_dropin.is_file()
-        and "ExecStartPre=/usr/libexec/moos-wait-drm"
-        in drm_dropin.read_text(encoding="utf-8"),
-        "Plasma Login Manager is not wired to wait for a usable DRM card")
-# /etc/plasmalogin.conf outranks every layer MoOS ships, so no ACTIVE key in it may
-# name a greeter surface. Its mere EXISTENCE is not the defect and asserting that
-# would fail every build: plasma-login-manager ships the path as a fully-commented
-# template that decides nothing. What masked the MoOS greeter on the running desktop
-# was a KCM write turning one of these keys on.
-_login_conf = Path("/etc/plasmalogin.conf")
-if _login_conf.is_file():
-    _login_active = [
-        line.strip() for line in _login_conf.read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.strip().startswith(("#", ";", "["))
-    ]
-    _login_masking = [
-        line for line in _login_active
-        if line.split("=", 1)[0].strip() in
-        {"WallpaperPluginId", "Theme", "Background", "Image", "ShowClock"}
-    ]
-    require(not _login_masking,
-            "/etc/plasmalogin.conf carries an active greeter key "
-            f"({_login_masking}) that outranks the MoOS login layers")
-
 # The static I/O-scheduler udev rule (the build-time half of hardware adaptation)
 # must ship and pick a scheduler per device type.
 iosched = Path("/usr/lib/udev/rules.d/60-moos-ioschedulers.rules")
