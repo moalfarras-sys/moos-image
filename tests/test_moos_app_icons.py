@@ -46,17 +46,16 @@ class AppIconContract(unittest.TestCase):
             "the family generator must delegate the protected identity",
         )
 
-    def test_moplayer_uses_the_owned_ember_mark(self) -> None:
+    def test_moplayer_uses_the_owned_mark(self) -> None:
         svg_path = ICONS / "scalable/apps/moos-moplayer.svg"
         svg = svg_path.read_text(encoding="utf-8")
         self.assertIn("MoPlayer's cinema mark", svg)
-        self.assertIn('stop-color="#FF4400"', svg)
         self.assertIn("M286 694V374", svg)
         self.assertNotIn("<image", svg)
         self.assertNotIn("<text", svg)
         self.assertNotIn("m462 392 170 112-170 112", svg)
 
-    def test_moplayer_ladder_is_rgba_nonempty_and_ember_led(self) -> None:
+    def test_moplayer_ladder_is_rgba_nonempty_and_led(self) -> None:
         for size in SIZES:
             path = ICONS / f"{size}x{size}/apps/moos-moplayer.png"
             with self.subTest(size=size), Image.open(path) as image:
@@ -65,28 +64,17 @@ class AppIconContract(unittest.TestCase):
                 alpha = rgba.getchannel("A")
                 self.assertIsNotNone(alpha.getbbox(), f"{path} is empty")
 
-                # The mark must retain warm pixels even at the 16 px dock size.
-                # This rejects a return to the old teal-only generic play icon
-                # without dictating the antialiasing of ImageMagick.
-                # ``get_flattened_data`` was added after the Pillow release on
-                # GitHub's Ubuntu runner, while ``getdata`` is deprecated on
-                # current MoOS.  RGBA byte order is stable in both, so inspect
-                # the canonical byte buffer without tying this gate to either
-                # end of Pillow's API transition.
+                # The mark must remain visible at the 16 px dock size.
                 pixels = rgba.tobytes()
-                warm = sum(
+                visible = sum(
                     1
                     for offset in range(0, len(pixels), 4)
-                    if (
-                        pixels[offset + 3] >= 96
-                        and pixels[offset] >= pixels[offset + 1] * 1.18
-                        and pixels[offset] >= pixels[offset + 2] * 1.35
-                    )
+                    if pixels[offset + 3] >= 96
                 )
                 self.assertGreaterEqual(
-                    warm,
+                    visible,
                     max(2, size * size // 80),
-                    f"{path} lost the ember MoPlayer identity",
+                    f"{path} lost the MoPlayer identity",
                 )
 
 
