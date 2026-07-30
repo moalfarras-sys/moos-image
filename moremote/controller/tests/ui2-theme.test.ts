@@ -40,20 +40,26 @@ assert.ok(linkedCss && existsSync(resolve(repo, "moremote/agent/wwwroot", linked
 assert.match(html, /content="#14191c" media="\(prefers-color-scheme: dark\)"/);
 assert.match(html, /content="#d8ebe7" media="\(prefers-color-scheme: light\)"/);
 
-// The palette + CSS now live in ONE shared module (/usr/lib/moos/moos_ui2.py);
-// the native GTK panel imports them instead of carrying its own copy.
+// The palette + CSS now live in ONE shared module (/usr/lib/moos/moos_ui2.py).
+// The native GTK panel delegates palette selection and live KDE theme changes
+// to its controller instead of importing a frozen dark/light pair.
 const sharedPalette = readFileSync(resolve(repo, "system_files/usr/lib/moos/moos_ui2.py"), "utf8").toLowerCase();
 for (const token of [...dark, ...light]) assert.ok(sharedPalette.includes(token), `shared palette misses ${token}`);
 for (const token of legacy) assert.ok(!sharedPalette.includes(token), `shared palette retains legacy ${token}`);
 assert.match(sharedPalette, /def gtk_prefers_dark\(\)/);
+assert.match(sharedPalette, /def palette_from_color_scheme\(/);
+assert.match(sharedPalette, /def active_ui2_palette\(/);
+assert.match(sharedPalette, /class ui2stylecontroller:/);
+assert.match(sharedPalette, /watch_kdeglobals\(self\.schedule_restyle/);
 
 const nativePanel = readFileSync(resolve(repo, "system_files/usr/bin/mo-pc-remote"), "utf8").toLowerCase();
-assert.match(nativePanel, /from moos_ui2 import[^\n]*\bui2_dark\b/,
-  "native panel must import the shared dark palette");
-assert.match(nativePanel, /from moos_ui2 import[^\n]*\bui2_light\b/,
-  "native panel must import the shared light palette");
-assert.match(nativePanel, /from moos_ui2 import[^\n]*\bgtk_prefers_dark\b/,
-  "native panel must import the shared dark-preference probe");
+assert.match(nativePanel, /from moos_ui2 import[^\n]*\bui2stylecontroller\b/,
+  "native panel must import the shared live-palette controller");
+assert.match(
+  nativePanel,
+  /self\.style_controller\s*=\s*ui2stylecontroller\(self\.style_provider\)/,
+  "native panel must keep its style provider attached to the live-palette controller",
+);
 assert.match(nativePanel, /add_css_class\("ui2-card"\)/);
 
-console.log("PASS: Mo PC Remote UI2 source, shipping bundle, and native GTK palette");
+console.log("PASS: Mo PC Remote UI2 source, shipping bundle, and live native GTK palette");
