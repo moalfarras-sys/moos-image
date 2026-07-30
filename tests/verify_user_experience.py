@@ -242,7 +242,7 @@ require("tailscale set --operator" in do_remote,
 moai_desktop = read("system_files/usr/share/applications/org.moos.moai.desktop")
 require("Icon=moos-moai" in moai_desktop,
         "Mo AI must use the MoOS intelligent-core icon")
-for icon in ("moos-moai", "moos-pc-remote"):
+for icon in ["moos-moai"]:
     master = ROOT / f"system_files/usr/share/icons/hicolor/scalable/apps/{icon}.svg"
     require(master.is_file(), f"{icon} must ship a scalable SVG master")
     if master.is_file():

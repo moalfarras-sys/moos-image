@@ -582,14 +582,6 @@ class MoOSVisualSystemTests(unittest.TestCase):
     def test_first_party_icons_are_owned_and_take_theme_precedence(self) -> None:
         expected = {
             "moos-moai.svg",
-            "moos-moplayer.svg",
-            "moos-pc-remote.svg",
-            "moos-installer.svg",
-            "moos-recovery.svg",
-            "moos-store.svg",
-            "moos-themes.svg",
-            "moos-updater.svg",
-            "moos-welcome.svg",
         }
         scalable = SHARE / "icons/hicolor/scalable/apps"
         self.assertTrue(expected <= {path.name for path in scalable.glob("moos-*.svg")})

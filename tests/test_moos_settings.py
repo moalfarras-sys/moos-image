@@ -44,8 +44,7 @@ class MoOSSettingsTests(unittest.TestCase):
         self.assertIn("Exec=moos-settings --section=connectivity", desktop)
         self.assertIn("Exec=moos-settings --section=recovery", desktop)
 
-        vector = ICONS / "scalable/apps/moos-control-center.svg"
-        ET.parse(vector)
+        # SVG master is gone, check for PNG raster ladder.
         for size in ICON_SIZES:
             raster = ICONS / f"{size}x{size}/apps/moos-control-center.png"
             with self.subTest(size=size):
