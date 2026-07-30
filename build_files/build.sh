@@ -1832,7 +1832,7 @@ set +e
 HOME="$_launcher_smoke_home" XDG_RUNTIME_DIR="$_launcher_smoke_runtime" \
     QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
     QT_FORCE_STDERR_LOGGING=1 QML_DISABLE_DISK_CACHE=1 \
-    timeout --kill-after=2s 8 dbus-run-session -- \
+    timeout --kill-after=6s 8 dbus-run-session -- \
         /usr/bin/plasmawindowed org.moos.brand moos-ci-full-representation \
         >"$_launcher_smoke_log" 2>&1
 _launcher_smoke_rc=$?
@@ -1848,6 +1848,16 @@ if ! grep -Fq 'MOOS_LAUNCHER_FULL_READY size=792x576' "$_launcher_smoke_log"; th
     exit 1
 fi
 _launcher_smoke_config="${_launcher_smoke_home}/.config/plasmawindowedrc"
+# KConfig flushes this file while the host shuts down, i.e. AFTER `timeout` has
+# already returned. On a GitHub runner that flush lost the race and three
+# consecutive CI builds died here on a launcher that had just printed its ready
+# marker; the same 8 s window is never tight enough locally to show it. Wait for
+# the file instead of racing it — a launcher that truly never hosted the window
+# still fails, six seconds later.
+for _ in $(seq 1 30); do
+    [ -s "$_launcher_smoke_config" ] && break
+    sleep 0.2
+done
 if ! grep -qE '^geometry=[^,]+,[^,]+,792,576$' "$_launcher_smoke_config"; then
     echo "FATAL: plasmawindowed did not host the full 792x576 MoOS launcher"
     cat "$_launcher_smoke_config" 2>/dev/null || true
