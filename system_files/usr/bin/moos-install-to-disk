@@ -302,7 +302,6 @@ seed_target() {
             printf 'USERNAME=%s\n'      "$R_USER"
             printf 'FULLNAME=%s\n'      "$R_FULL"
             printf 'PASSWORD_HASH=%s\n' "$PASS_HASH"
-            printf 'AUTOLOGIN=%s\n'     "${R_AUTO:-0}"
             printf 'KEYMAP=%s\n'        "${R_KEYMAP:-us}"
             printf 'XKBLAYOUT=%s\n'     "${R_XKB:-us}"
             printf 'LOCALE=%s\n'        "$R_LOCALE"

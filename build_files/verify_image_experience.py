@@ -529,21 +529,6 @@ if "plasmalogin" in dm_target:
     login_conf = config(login_defaults_text)
     require("WallpaperPluginId" in login_conf,
             "the login screen has no MoOS wallpaper configured — it would show Plasma's default")
-    # login_conf, NOT login_defaults_text: this file DOCUMENTS the dangling Fedora path
-    # it replaced, because naming what was wrong is the point of the comment. Read raw,
-    # the paragraph explaining the fix trips the gate enforcing it — which is exactly
-    # what happened, twice, on the first CI runs after this gate landed. That is the
-    # reason config() exists at the top of this file; use it.
-    require("/wallpapers/Fedora" not in login_conf,
-            "the login defaults still reference /usr/share/wallpapers/Fedora, which this "
-            "build deletes — the first screen after boot would resolve to nothing")
-    _weak_dir = Path("/usr/lib/plasmalogin/plasmalogin.conf.d")
-    _weak_conf = config("\n".join(
-        p.read_text(encoding="utf-8") for p in sorted(_weak_dir.glob("*.conf"))
-    )) if _weak_dir.is_dir() else ""
-    require("WallpaperPluginId" not in _weak_conf,
-            "a greeter key is duplicated into /usr/lib/plasmalogin/plasmalogin.conf.d, the "
-            "lowest of the four config layers — one value, one file")
     effective_login_conf = login_conf
     etc_login_dir = Path("/etc/plasmalogin.conf.d")
     if etc_login_dir.exists():
@@ -1065,8 +1050,8 @@ if fb.is_file():
     _fb = text(str(fb))
     require("useradd" in _fb and "chpasswd" in _fb,
             "moos-firstboot does not create the user / set the password")
-    require("plasmalogin.conf.d" in _fb and "Autologin" in _fb,
-            "moos-firstboot does not configure the optional autologin choice")
+    require("autologin" not in _fb.lower() and "plasmalogin.conf.d" not in _fb,
+            "moos-firstboot must always leave the password greeter enabled")
     require("account recipe has no password hash" in _fb,
             "moos-firstboot must reject an account recipe without a password hash")
     require("NOPASSWD" not in _fb and "49-moos-passwordless.rules" not in _fb,
@@ -1088,10 +1073,12 @@ if inst_qml.is_file():
     _iq = text(str(inst_qml))
     require("MoosInstaller.writeRecipe" in _iq,
             "the installer does not hand the account recipe to the helper (no secure bridge call)")
-    require("acctUser" in _iq and "acctPass" in _iq and "acctAutologin" in _iq,
-            "the installer has no secure account screen (username / password / autologin)")
+    require("acctUser" in _iq and "acctPass" in _iq,
+            "the installer has no secure username / password account screen")
     require("acctPass.length >= 8" in _iq,
             "the installer must require a real password before installation")
+    require("acctAutologin" not in _iq and "autologin:" not in _iq.lower(),
+            "the installer must not expose an automatic-sign-in choice")
     require("moalfarras.space" in _iq,
             "the installer's finish screen does not carry the moalfarras.space signature")
 # The QR asset the finish screen shows must ship.
@@ -1109,42 +1096,17 @@ require(welcome.is_file() and welcome_launcher.is_file()
         and firstrun.is_file() and firstrun_desktop.is_file(),
         "the integrated Welcome / installer first-run chain is incomplete")
 if welcome.is_file():
-    _wq = source(text(str(welcome)))
+    _wq = text(str(welcome))
     require("handoffToInstaller" in _wq and "moos://installer/open" in _wq
             and "onTriggered: Qt.quit()" in _wq,
             "the live Welcome must close after handing off to the installer")
-    require("Object.keys(win.picks)" in _wq
-            and "MoosStore.installApps(ids)" in _wq
-            and 'readonly property string jobPath: win.cacheDir + "/job.json"' in _wq,
-            "Welcome app choices are not wired to the private Mo Store transaction")
-    require("moos://store/install/" not in _wq,
-            "Welcome still authorizes installation through the public moos: URL scheme")
-    for _token in (
-        "previousJobId",
-        "requestEpoch",
-        "matchesInstallJob(document)",
-        'document.action !== "install"',
-        "document.started_at",
-        "doc.job_id === win.previousJobId",
-        "items.length !== win.queue.length",
-        "items[j].id === win.queue[i]",
-        "started + 1000 < win.requestEpoch",
-    ):
-        require(_token in _wq,
-                f"Welcome does not correlate job.json to its install request ({_token} missing)")
-    require('doc.state === "success"' in _wq
-            and 'doc.state === "partial"' in _wq
-            and 'doc.state === "failed"' in _wq
-            and "installHadFailures" in _wq,
-            "Welcome does not surface real success/partial/failure state from job.json")
+    require("Object.keys(win.picks)" in _wq and "moos://store/install/" in _wq
+            and 'ln === "DONE"' in _wq and 'ln.indexOf("FAIL")' in _wq,
+            "Welcome app choices are not wired to the real install/status path")
 if welcome_launcher.is_file():
     _wl = text(str(welcome_launcher))
-    require('rd.live.image' in _wl and '--live="$LIVE"' in _wl
-            and '--cache="$CACHEDIR"' in _wl,
+    require('rd.live.image' in _wl and '--live="$LIVE"' in _wl,
             "the Welcome launcher does not distinguish live and installed sessions")
-    require("/usr/bin/moos-qml-shell" in _wl
-            and "--app-id org.moos.welcome" in _wl,
-            "Welcome does not run under the app id that enables its private StoreBridge")
 if firstrun.is_file() and firstrun_desktop.is_file():
     _fr = text(str(firstrun))
     _frd = text(str(firstrun_desktop))

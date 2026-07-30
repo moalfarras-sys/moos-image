@@ -184,12 +184,11 @@ ApplicationWindow {
 
     // ── account (step 4). Applied on the target's FIRST boot by moos-firstboot
     // from the recipe the secure bridge writes — bootc install itself makes no
-    // user. A password is always required; automatic sign-in is independent and
-    // never grants passwordless administration. Keyboard/locale/timezone are derived
-    // from the chosen language (Apple-style zero-click) and applied too. ─────────
+    // user. A password is always required at the greeter and for administration;
+    // installed systems never enable automatic sign-in. Keyboard/locale/timezone
+    // are derived from the chosen language and applied too. ─────────────────────
     property string acctUser: "moos"
     property string acctFull: ""
-    property bool   acctAutologin: false
     property string acctPass: ""
     property string acctPass2: ""
     // The CONSOLE keymap (/etc/vconsole.conf). It describes the same physical keyboard the
@@ -431,7 +430,6 @@ ApplicationWindow {
             username:  win.acctUser,
             fullname:  win.acctFull,
             password:  win.acctPass,
-            autologin: win.acctAutologin ? 1 : 0,
             keymap:    win.keymapForLang(),
             xkblayout: win.xkbForLang(),
             locale:    win.localeForLang(),
@@ -1375,8 +1373,8 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
-                            text: win.tr("أنشئ حسابك الآمن. كلمة السر تحمي القفل وإجراءات الإدارة، ويمكنك اختيار الدخول التلقائي.",
-                                         "Create your secure account. The password protects lock and admin actions; auto sign-in stays optional.")
+                            text: win.tr("أنشئ حسابك الآمن. سيطلب MoOS كلمة السر دائماً عند تسجيل الدخول والقفل وإجراءات الإدارة.",
+                                         "Create your secure account. MoOS always asks for your password at sign-in, lock, and admin actions.")
                             color: win.txt2
                             font.family: win.uiFont; font.pixelSize: win.typePx(14); lineHeight: 1.3
                         }
@@ -1459,62 +1457,8 @@ ApplicationWindow {
                         }
                         Item { Layout.preferredHeight: win.fs(22) }
 
-                        // Sign-in behaviour. Both choices keep the required
-                        // password for lock-screen and privileged actions.
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 14
-                            Repeater {
-                                model: [
-                                    { autoLogin: false, glyph: "lock", ar: "الدخول بكلمة السر", en: "Password at sign-in",
-                                      arD: "الخيار الآمن الموصى به", enD: "Recommended — asks at startup" },
-                                    { autoLogin: true, glyph: "bolt", ar: "دخول تلقائي", en: "Auto sign-in",
-                                      arD: "يفتح سطح المكتب مباشرة — تبقى كلمة السر للإدارة والقفل",
-                                      enD: "Opens the desktop directly — password still protects admin and lock" }
-                                ]
-                                delegate: Rectangle {
-                                    id: pwCard
-                                    required property var modelData
-                                    readonly property bool selected: win.acctAutologin === pwCard.modelData.autoLogin
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 92
-                                    radius: 16
-                                    color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
-                                                   pwHover.hovered || pwCard.selected ? 0.95 : 0.6)
-                                    border.width: pwCard.selected ? 2 : 1
-                                    border.color: pwCard.selected ? win.accent : win.outline
-                                    Behavior on border.color { ColorAnimation { duration: 120 } }
-                                    HoverHandler { id: pwHover }
-                                    TapHandler { onTapped: win.acctAutologin = pwCard.modelData.autoLogin }
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 14
-                                        spacing: 4
-                                        RowLayout {
-                                            spacing: 8
-                                            Glyph { name: pwCard.modelData.glyph
-                                                    tint: pwCard.selected ? win.accent : win.txt2
-                                                    width: 18; height: 18 }
-                                            Text {
-                                                text: win.tr(pwCard.modelData.ar, pwCard.modelData.en)
-                                                color: win.txt
-                                                font.family: "IBM Plex Sans"; font.pixelSize: 15; font.weight: Font.DemiBold
-                                            }
-                                        }
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: win.tr(pwCard.modelData.arD, pwCard.modelData.enD)
-                                            color: win.txt2
-                                            font.family: "IBM Plex Sans"; font.pixelSize: 12; wrapMode: Text.WordWrap
-                                        }
-                                        Item { Layout.fillHeight: true }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Password fields are always required. Auto sign-in only
-                        // controls the greeter; it never weakens sudo or Polkit.
+                        // Password fields are mandatory. The installed login manager
+                        // always shows its greeter; there is no automatic-sign-in path.
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0

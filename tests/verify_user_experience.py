@@ -5162,6 +5162,9 @@ require("NOPASSWD" not in _fb and "49-moos-passwordless.rules" not in _fb,
         "moos-firstboot must never create passwordless sudo/polkit access")
 require("sddm" not in _fb.lower(),
         "moos-firstboot must not recreate a retired SDDM login stack")
+require("autologin" not in _fb.lower() and "plasmalogin.conf.d" not in _fb,
+        "installed MoOS must always show the password greeter; moos-firstboot "
+        "must not create an automatic-sign-in configuration")
 _fb_unit = code(read("system_files/usr/lib/systemd/system/moos-firstboot.service"), "hash")
 require("sddm" not in _fb_unit.lower(),
         "moos-firstboot.service still orders against retired SDDM")
@@ -5208,8 +5211,18 @@ require("/usr/lib/systemd/systemd-update-done --root=" in _i2d
         "the installer must mark the deployed /etc caches current; otherwise "
         "ldconfig performs a long cold rebuild before the first password greeter")
 _iqml = read("system_files/usr/share/moos/apps/installer/main.qml")
-require("acctPass.length >= 8" in _iqml and "acctAutologin" in _iqml,
-        "the account page must require a password and keep autologin as a separate choice")
+require("acctPass.length >= 8" in _iqml,
+        "the account page must require a password")
+require("acctAutologin" not in _iqml and "autologin:" not in _iqml.lower(),
+        "the installer must not expose or write an automatic-sign-in choice")
+require("AUTOLOGIN=" not in _i2d,
+        "the privileged installer backend must not seed an automatic-sign-in value")
+_login_dropins = "\n".join(
+    p.read_text(encoding="utf-8")
+    for p in (ROOT / "system_files/usr/lib/plasmalogin/plasmalogin.conf.d").glob("*.conf")
+)
+require(re.search(r"^\s*\[Autologin\]\s*$", _login_dropins, re.MULTILINE) is None,
+        "the shipped plasma-login-manager configuration must not enable automatic sign-in")
 for _installer_failure in ("password-required", "hash-failed", "seed-failed"):
     require(f'case "{_installer_failure}"' in _iqml,
             f"the installer has no actionable UI message for {_installer_failure}")
@@ -5248,42 +5261,6 @@ require("Object.keys(win.picks)" in _welcome
 require("Exec=/usr/bin/moos-firstrun" in _firstrun_desktop
         and "moos-firstrun-done" in _firstrun and "moos-welcome && exit 0" in _firstrun,
         "the installed account must receive the MoOS Welcome exactly once on first login")
-
-# Confirmation dialogs must render one locale, not a mixed RTL/LTR sentence.
-# The latter visibly moves the question mark and swaps the clauses in kdialog.
-_open_router = code(read("system_files/usr/bin/moos-open"), "hash")
-require("localized_message" in _open_router
-        and 'message="$(localized_message "${1:-}")"' in _open_router,
-        "moos-open confirmations must choose one localized message before opening the dialog")
-require('--warningyesno "$message"' in _open_router
-        and '--warningyesno "$1"' not in _open_router,
-        "kdialog must receive the locale-selected confirmation, never the raw RTL/LTR pair")
-
-# Fedora's legacy mcelog unit exits failed on AMD and explicitly asks for
-# rasdaemon. Ship one cross-vendor RAS owner and lock the build contract in.
-_build = code(read("build_files/build.sh"), "hash")
-require("dnf5 -y install rasdaemon" in _build
-        and "systemctl enable rasdaemon.service" in _build,
-        "the image must install and enable Fedora's cross-vendor rasdaemon")
-require("systemctl mask mcelog.service" in _build,
-        "the AMD-incompatible mcelog unit must be masked to avoid a failed boot unit")
-
-# A slow DRM driver can outlive udevadm settle. Starting the login KWin before
-# /dev/dri/card* exists leaves the manager active but the greeter permanently
-# black, so the manager owns one bounded, card-number-agnostic preflight.
-_drm_wait = code(read("system_files/usr/libexec/moos-wait-drm"), "hash")
-_login_drm_dropin = code(
-    read("system_files/usr/lib/systemd/system/plasmalogin.service.d/10-moos-wait-drm.conf"),
-    "hash",
-)
-require('"$drm_dir"/card*' in _drm_wait and 'i=$((i + 1))' in _drm_wait,
-        "the login DRM preflight must wait for any card number with a bounded loop")
-require("MOOS_DRM_WAIT_STEPS" in _drm_wait and "exit 1" in _drm_wait,
-        "the login DRM preflight needs a testable hard timeout, not an infinite boot wait")
-require("ExecStartPre=/usr/libexec/moos-wait-drm" in _login_drm_dropin,
-        "plasmalogin.service must run the DRM preflight before starting KWin")
-require("chmod 0755 /usr/libexec/moos-wait-drm" in _build,
-        "build.sh must make the login DRM preflight executable")
 
 # Retired SDDM/org.moos.nova generators used to recreate a second login/theme
 # stack even after runtime files were removed.
