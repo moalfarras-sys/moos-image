@@ -48,6 +48,11 @@ PlasmoidItem {
         ? fullRepresentation : compactRepresentation
 
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property string uiFontFamily: Qt.application.font.family
+    readonly property int motionFast: Kirigami.Units.longDuration > 1
+        ? Kirigami.Units.shortDuration : 0
+    readonly property int motionMedium: Kirigami.Units.longDuration > 1
+        ? Math.round(Kirigami.Units.longDuration * 1.35) : 0
     readonly property var shippedFavorites: [
         "org.moos.moai.desktop",
         "org.moos.store.desktop",
@@ -60,7 +65,7 @@ PlasmoidItem {
     ]
 
     property string searchQuery: ""
-    property int activePage: 0
+    property int activePage: 1
     property bool editMode: false
     property int appsModelRow: 1
     property var favoriteSearchIds: []
@@ -271,6 +276,8 @@ PlasmoidItem {
         favorites: [
             "kcm_baloofile.desktop",
             "kcm_plasmasearch.desktop",
+            "org.moos.moai.desktop",
+            "org.moos.store.desktop",
             "org.moos.themepicker.desktop",
             "systemsettings.desktop"
         ]
@@ -309,7 +316,9 @@ PlasmoidItem {
     compactRepresentation: MouseArea {
         id: compact
 
-        readonly property int contentWidth: Math.round(height * 2.55)
+        // Enough optical width for the 11px functional caption in both
+        // languages; the old 2.55 ratio only worked by shrinking it to 7px.
+        readonly property int contentWidth: Math.round(height * 3.72)
 
         implicitWidth: contentWidth
         implicitHeight: Kirigami.Units.gridUnit * 2
@@ -350,29 +359,86 @@ PlasmoidItem {
             anchors.centerIn: parent
             width: Math.round(compact.contentWidth * 0.96)
             height: Math.round(compact.height * 0.80)
-            radius: height / 2
-            color: Qt.alpha(compact.containsMouse
+            radius: Math.round(height * 0.32)
+            color: Qt.alpha(root.expanded || compact.containsMouse
                 ? Kirigami.Theme.highlightColor
                 : Kirigami.Theme.textColor,
-                compact.pressed ? 0.22 : (compact.containsMouse ? 0.14 : 0.065))
+                compact.pressed ? 0.24
+                    : (root.expanded ? 0.12 : (compact.containsMouse ? 0.09 : 0.035)))
             border.width: 1
-            border.color: Qt.alpha(compact.containsMouse
+            border.color: Qt.alpha(root.expanded || compact.containsMouse
                 ? Kirigami.Theme.highlightColor
                 : Kirigami.Theme.textColor,
-                compact.containsMouse ? 0.52 : 0.15)
+                root.expanded ? 0.48 : (compact.containsMouse ? 0.32 : 0.10))
             scale: compact.pressed ? 0.97 : 1.0
 
-            Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
-            Behavior on border.color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
-            Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+            Behavior on color { ColorAnimation { duration: root.motionFast } }
+            Behavior on border.color { ColorAnimation { duration: root.motionFast } }
+            Behavior on scale {
+                NumberAnimation {
+                    duration: root.motionFast
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            Row {
+                anchors {
+                    left: parent.left
+                    top: parent.top
+                    leftMargin: parent.radius
+                }
+                height: 2
+                spacing: 5
+                Rectangle {
+                    width: compact.containsMouse || root.expanded ? 34 : 20
+                    height: 2
+                    radius: 1
+                    color: Kirigami.Theme.highlightColor
+                    opacity: 0.92
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: root.motionMedium
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                }
+                Rectangle {
+                    width: 7
+                    height: 2
+                    radius: 1
+                    color: Kirigami.Theme.highlightColor
+                    opacity: 0.34
+                }
+            }
+
+            Rectangle {
+                anchors {
+                    right: parent.right
+                    bottom: parent.bottom
+                    rightMargin: parent.radius * 0.72
+                }
+                width: root.expanded ? 24 : 10
+                height: 2
+                radius: 1
+                color: Kirigami.Theme.highlightColor
+                opacity: root.expanded ? 0.92 : 0.30
+                Behavior on width {
+                    NumberAnimation {
+                        duration: root.motionMedium
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
         }
 
         RowLayout {
             anchors.centerIn: parent
-            width: Math.round(compact.contentWidth * 0.80)
+            width: Math.round(compact.contentWidth * 0.86)
             height: Math.round(compact.height * 0.68)
             spacing: Math.max(4, Kirigami.Units.smallSpacing)
-            layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+            // No explicit layoutDirection: plasmashell mirrors this tree on RTL
+            // sessions, and mirroring inverts an explicit RightToLeft back to
+            // visual LTR — same defect as the fifteen removed in LauncherView.
 
             Item {
                 Layout.preferredWidth: parent.height
@@ -382,13 +448,19 @@ PlasmoidItem {
                     anchors.centerIn: parent
                     width: parent.height * 0.92
                     height: width
-                    radius: width / 2
-                    color: "transparent"
+                    radius: Math.round(width * 0.30)
+                    color: Qt.alpha(Kirigami.Theme.highlightColor,
+                        root.expanded ? 0.13 : 0.065)
                     border.width: Math.max(1, Math.round(width * 0.035))
                     border.color: Qt.alpha(Kirigami.Theme.highlightColor,
-                        compact.containsMouse ? 0.78 : 0.34)
+                        root.expanded ? 0.64 : (compact.containsMouse ? 0.48 : 0.26))
                     scale: compact.containsMouse ? 1.05 : 1.0
-                    Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+                    Behavior on scale {
+                        NumberAnimation {
+                            duration: root.motionFast
+                            easing.type: Easing.OutCubic
+                        }
+                    }
                 }
 
                 Image {
@@ -402,15 +474,24 @@ PlasmoidItem {
                     smooth: true
                     sourceSize: Qt.size(width * 2, height * 2)
 
-                    RotationAnimation {
+                    ParallelAnimation {
                         id: logoFlourish
-                        target: compactLogo
-                        property: "rotation"
-                        from: 0
-                        to: 360
-                        duration: Kirigami.Units.longDuration * 2
-                        easing.type: Easing.OutBack
-                        onStopped: compactLogo.rotation = 0
+                        NumberAnimation {
+                            target: compactLogo
+                            property: "rotation"
+                            from: root.rtl ? 10 : -10
+                            to: 0
+                            duration: root.motionMedium
+                            easing.type: Easing.OutBack
+                        }
+                        NumberAnimation {
+                            target: compactLogo
+                            property: "scale"
+                            from: 0.86
+                            to: 1
+                            duration: root.motionMedium
+                            easing.type: Easing.OutBack
+                        }
                     }
                 }
             }
@@ -428,26 +509,39 @@ PlasmoidItem {
                     font.letterSpacing: 1.5
                 }
                 Text {
-                    text: root.rtl ? "القائمة" : "LAUNCHER"
-                    color: compact.containsMouse
+                    text: root.rtl ? "مساحة الأوامر" : "COMMAND"
+                    color: compact.containsMouse || root.expanded
                         ? Kirigami.Theme.highlightColor
                         : Kirigami.Theme.disabledTextColor
-                    font.family: "IBM Plex Sans"
-                    font.pixelSize: Math.max(7, Math.round(compact.height * 0.13))
+                    font.family: root.uiFontFamily
+                    // The previous 7px floor disappeared on a dense panel and
+                    // made the dock brand look like decorative microcopy.
+                    font.pixelSize: Math.max(11, Math.round(compact.height * 0.20))
                     font.weight: Font.DemiBold
                     font.letterSpacing: root.rtl ? 0 : 1.1
-                    Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
+                    Behavior on color { ColorAnimation { duration: root.motionFast } }
                 }
             }
 
-            Kirigami.Icon {
-                Layout.preferredWidth: Kirigami.Units.iconSizes.small
-                Layout.preferredHeight: width
-                source: "system-search-symbolic"
-                color: compact.containsMouse
-                    ? Kirigami.Theme.highlightColor
-                    : Kirigami.Theme.textColor
-                opacity: compact.containsMouse ? 1.0 : 0.58
+            Rectangle {
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
+                radius: Math.round(width * 0.32)
+                color: Qt.alpha(Kirigami.Theme.textColor,
+                    compact.containsMouse || root.expanded ? 0.10 : 0.045)
+                border.width: 1
+                border.color: Qt.alpha(Kirigami.Theme.textColor, 0.10)
+
+                Kirigami.Icon {
+                    anchors.centerIn: parent
+                    width: 17
+                    height: 17
+                    source: "moos-search-symbolic"
+                    color: compact.containsMouse || root.expanded
+                        ? Kirigami.Theme.highlightColor
+                        : Kirigami.Theme.textColor
+                    opacity: compact.containsMouse || root.expanded ? 1.0 : 0.62
+                }
             }
         }
     }
@@ -466,12 +560,12 @@ PlasmoidItem {
     Plasmoid.contextualActions: [
         PlasmaCore.Action {
             text: root.rtl ? "تحرير التطبيقات…" : "Edit applications…"
-            icon.name: "kmenuedit"
+            icon.name: "moos-pen-symbolic"
             onTriggered: processRunner.runMenuEditor()
         },
         PlasmaCore.Action {
             text: root.rtl ? "إعدادات البحث…" : "Search settings…"
-            icon.name: "preferences-desktop-search"
+            icon.name: "moos-search-symbolic"
             onTriggered: root.openDesktop("kcm_plasmasearch.desktop")
         }
     ]
