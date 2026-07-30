@@ -1,6 +1,6 @@
 # MoOS UI2 — Graphite / Tidal Glass visual contract
 
-Status: **implemented and live-proven; default in the working tree, awaiting signed image rollout**
+Status: **implemented, live-session proven and locally image-built; awaiting signed image rollout**
 Owner: visual-system workstream
 Started: 2026-07-14
 Baseline image: signed MoOS `44.20260713.112`
@@ -90,11 +90,29 @@ used as an excuse for low-contrast text.
 
 ## Visual language
 
-UI2 is **Tidal Glass**: quiet graphite mechanics in Dark and mineral turquoise
-mist in Light. It uses offset bento cards, soft inner highlights, deep but broad
-shadows, one luminous edge, and large calm negative space. Avoid white slabs,
-neon cyberpunk, purple/orchid from UI1, excessive blur, fake macOS traffic-light
-buttons, and animation on every object.
+UI2 is **Tidal Glass** and its product signature is **Tidal Horizon**: quiet
+graphite mechanics in Dark, mineral daylight in Light, and one rising cubic rim
+interrupted by a short central **Tidal Cut**. The signature is spatial rather
+than decorative: it seats content, marks a threshold and gives the system a
+silhouette that remains recognisable when the palette changes.
+
+The normal horizon contract is `left/right=0.11/0.89W`,
+`horizon=0.82H`, `crest=0.12H`, `shoulder=0.22W` and
+`cutHalf=max(11px,0.013W)`. Compact surfaces use `0.04/0.96W`,
+`0.78H`, `0.19H` and `0.18W`. The precision rim is
+`max(1.25px,0.0024H)` above a non-blurred optical under-stroke of
+`max(8px,0.018H)` at 48% intensity. The aperture fades from 7% to 3.5%
+to zero; it never becomes another glass card. Geometry is physical and therefore
+does not mirror in RTL; content and controls keep logical start/end behaviour.
+
+Tidal Horizon appears in the session portals, Command Canvas, Store, Mo AI and
+Control Centre. The MoOS and Mo AI marks keep their existing geometry and are
+seated within the horizon; the motif never redraws either brand.
+
+Surfaces use offset bento cards, soft inner highlights, one broad shadow, one
+luminous edge, and large calm negative space. Avoid white slabs, neon
+cyberpunk, purple/orchid from UI1, excessive blur, fake macOS traffic-light
+buttons, glass stacked on glass, and animation on every object.
 
 The dock keeps one proven Plasma panel. Dark and Light use identical FrameSvg
 geometry: a low floating capsule, translucent tinted fill, one-pixel inner edge,
@@ -104,51 +122,55 @@ disabled in both variants so a maximised window cannot turn only the Light dock
 opaque.
 
 KDE, Qt, GTK, Konsole, Plasma popups, window decorations and first-party cards
-must draw from the active colour scheme. Mo AI and Welcome must stop treating
-the retired Nova generation's hard-coded navy/cyan as their canvas and instead
-derive semantic tokens from their QML `palette`; brand art can retain its own
-identity colours.
+draw from the active colour scheme. Mo AI, Store and Control Centre bind the
+horizon to Kirigami semantic roles; brand art retains its identity geometry.
+
+The Command Canvas is `828×630` logical px (`46×35` grid units) with `24px`
+outer rhythm, a `68px` command bar, targets of at least `40px` and the shared
+`8/12/16/24px` radius scale. It exposes three primary destinations—Mo AI, Store
+and Settings—then quiet contextual actions; it does not repeat the same
+destinations in a second loud strip. Entrance is one finite `240ms`
+opacity/scale transition, interaction feedback is `120ms`, and both collapse to
+zero when `Kirigami.Units.longDuration <= 1`.
 
 ## Wallpaper contract
 
-Each variant owns a distinct 16:9 source and exports 3840×2160, 3440×1440 and
-2560×1600. The upper-left region stays quiet enough for the dashboard. There is
-no text, logo, UI mock-up, fake window, pure white, pure black, purple or visible
+Every variant uses the same 16:9 Tidal Horizon composition and exports
+3840×2160, 3440×1440 and 2560×1600. Two low mineral-glass membranes converge at
+one precise concave cut while the upper 44% stays calm for work and desktop
+information. Palette switching changes light, not geometry. There is no text,
+logo, UI mock-up, fake window, pure white, pure black, copied OS motif or visible
 banding.
 
-Dark prompt:
+Final light generation prompt (`mode=generate`):
 
-> Use case: stylized-concept. Asset type: 4K operating-system wallpaper. Abstract
-> graphite architectural landscape made from broad frosted mineral-glass ribbons
-> and a distant turquoise tidal glow, charcoal grey foundation, restrained cool
-> blue depth, premium soft volumetric light, large quiet negative space in the
-> upper-left for a desktop widget, subtle fine grain, elegant and calm. 16:9,
-> edge-to-edge, no text, no logo, no objects, no UI, no purple, no pure black, no
-> neon cyberpunk, no watermark.
+> Create an original premium operating-system wallpaper called Tidal Horizon:
+> two low sculpted translucent sea-glass membranes approach a precise central
+> concave cut, airy alabaster and mineral turquoise daylight, restrained
+> teal/plum edge light, tactile micro-texture, broad calm upper negative space,
+> cinematic but minimal. Exact 16:9 edge-to-edge composition; no text, logo,
+> objects, UI, watermark, copied interface, pure white, neon or cheap gradient.
 
-Light prompt:
+Final dark sibling prompt (`mode=edit`, using the accepted light master):
 
-> Use case: stylized-concept. Asset type: 4K operating-system wallpaper. Abstract
-> tidal-mist landscape in mineral turquoise, sea-glass and pale graphite, layered
-> translucent sculpted waves with soft daylight and restrained blue-green depth,
-> premium frosted material, large quiet negative space in the upper-left for a
-> desktop widget, subtle fine grain, airy but never white. 16:9, edge-to-edge, no
-> text, no logo, no objects, no UI, no purple, no pure white, no neon, no
-> watermark.
+> Preserve the exact composition, membrane silhouette and central concave cut.
+> Convert only its material and lighting into smoked graphite sea glass with a
+> controlled luminous teal edge and deep mineral atmosphere. Keep the same
+> camera, crop, negative space and micro-texture; add no objects, text, logo,
+> UI, watermark, neon or new geometry.
 
 The built-in image generator is used for the raster masters. Generated output is
 inspected, cropped to 16:9 without stretching, then exported deterministically by
 `artwork/generate_moos_ui2.py`. Runtime packages never reference a file left only
 under `$CODEX_HOME`.
 
-The lossless image-generator PNG masters remain at their native 1672×941
-resolution under `artwork/moos-ui2/wallpapers/`; Lanczos scale-and-crop creates
-the 4K and ultrawide runtime exports. The six installed resolutions are
-deterministic high-quality 4:4:4 JPEG files.
-This reduces the two installed wallpaper packages from roughly 97 MB to 11 MB;
-normalised pixel error against the lossless exports is below 0.6%. Both 4K JPEGs
-were applied and read back through the installed Plasma session before the
-original UI1 wallpaper was restored.
+The accepted lossless masters are
+`moos-ui-tidal-horizon-master-v1.png` and
+`moos-ui-graphite-horizon-master-v1.png`, both 1672×941. The family generator
+maps their luminance and edge mask to all 16 semantic palettes, so every picker
+preview and runtime crop keeps the same geometry. Lanczos scale-and-crop creates
+deterministic 4:4:4 runtime JPEGs. The family proof sheet is
+[`moos-ui2/previews/tidal-horizon-family-v1.jpg`](moos-ui2/previews/tidal-horizon-family-v1.jpg).
 
 ## Desktop dashboard contract
 

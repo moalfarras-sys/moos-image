@@ -4,15 +4,79 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-30 (commercial visual-system source implementation,
-repository gates and the full local generic image build are green; signed
-publication/update/boot still pending. The latest **shipped and boot-proven**
-state remains session N
-round 3 on 44.20260729.452, with `tests/post-update-check.sh` 48 passed /
-0 failed. The design system is **MoOS UI — Liquid Glass**).
+Last updated: 2026-07-30 (the commercial visual-system baseline is now
+**shipped and boot-proven** on signed `moos-nvidia` **44.20260730.477**,
+digest `sha256:87ed100fd228…`; `tests/post-update-check.sh` returned
+**48 passed / 0 failed** with no failed system or user units. The next
+**Tidal Horizon** product-design revision is implemented in the working tree
+on `product/tidal-horizon-2026-07-30`, but is not yet a published or booted
+image. Its release revision is **THEME_REV=25**. The complete repository gate
+and local generic build are green: image `13ce8105e9fd…`, local manifest
+`sha256:28e93f5b8546…`, OSTree `a568b31c85c4…`. The design system remains
+**MoOS UI — Liquid Glass**).
 
 > **Read [`skills/moos-engineering/SKILL.md`](skills/moos-engineering/SKILL.md) first —
 > it is mandatory for every agent working here.**
+
+> **Tidal Horizon product-design pass — 2026-07-30, working tree
+> `product/tidal-horizon-2026-07-30`.** This pass starts from the already
+> accepted commercial audit; it is implementation, not another audit. It gives
+> MoOS one spatial signature across the desktop: two low mineral-glass
+> membranes meet at a precise concave **Tidal Cut**, while content keeps a calm
+> upper field. The normal contract is `left/right=0.11/0.89W`,
+> `horizon=0.82H`, `crest=0.12H`, `shoulder=0.22W` and
+> `cutHalf=max(11px,0.013W)`; compact surfaces use
+> `0.04/0.96W`, `0.78H`, `0.19H` and `0.18W`. It is physical geometry and
+> therefore does not mirror in RTL.
+>
+> The accepted light/dark wallpaper masters are 1672×941 lossless PNGs:
+> `moos-ui-tidal-horizon-master-v1.png`
+> (`b09a5a71e68d…`) and
+> `moos-ui-graphite-horizon-master-v1.png`
+> (`4402f755df0c…`). They keep one silhouette and change only material/light;
+> the family generator maps that geometry to all 16 semantic palettes. The
+> MoOS and Mo AI logos keep their existing geometry. The accepted 69-symbol
+> Tidal Cut family also remains the icon language; this pass does not restart
+> icon design or import another project's artwork.
+>
+> The shell is now the **Command Canvas**, `828×630` logical px with a `24px`
+> outer rhythm, `68px` command bar, ≥`40px` targets and the shared
+> `8/12/16/24px` radius scale. It exposes Mo AI, Store and Settings once,
+> then quiet context/session actions; its finite entrance is `240ms` and
+> interaction feedback `120ms`. Hero Clock updates by the minute and has no
+> perpetual seconds animation. Splash, login, lock and logout share the same
+> horizon geometry; the application component uses one finite `320ms` reveal.
+> Every duration becomes zero when
+> `Kirigami.Units.longDuration <= 1`.
+>
+> Portal motion is deliberately surface-specific: Splash reveal **460ms** +
+> progress **260ms**; Logout background **480ms** + sheet **420ms**; Lock has
+> only finite transitions and a minute-event pulse; the Login wallpaper is
+> static. The canonical portal component hash is
+> `11a0ddbd40ae617a2ff7ac25204ceb9cf63fd42795fa373d531b5fb6caa82705`;
+> the generator synchronises those exact bytes across all 16 family doorways.
+> Store and Mo AI now seat their unchanged identities on the shared horizon
+> instead of unrelated decorative glow layers. The new native MoOS Control
+> Center unifies Overview, Appearance, Connectivity, Hardware, Privacy,
+> Updates and Recovery in one bilingual/RTL shell. It uses ≥`48px` controls,
+> a read-only status helper and **34 fixed allowlisted routes**; storage is
+> measured on `/var`, not composefs `/`. MoPlayer was deliberately not
+> reworked again in this pass: the accepted MoOS chrome and canonical
+> `23799ad` / 176-test state remain the source of truth.
+>
+> Working-tree previews and before/after pairs are indexed at
+> [`artwork/moos-ui2/live-tests/README.md`](artwork/moos-ui2/live-tests/README.md).
+> The final wallpaper and Command Canvas were also captured from the running
+> 3840×2160 Plasma session after a temporary source-package install; that user
+> override was then removed so it cannot shadow the signed image. These are
+> **not signed-deployment evidence**. Measured idle samples from the previews:
+> Launcher **0 ticks / 0.000% over 20s**, Hero Clock **0 / 0.000% over 20s**,
+> Store **0 / 0.000% over 20s**; Control Center held **55.8 MiB current /
+> 58.8 MiB peak** and accumulated **0.427s CPU after minutes**. The full gates
+> and local generic image build have passed. Release remains open until the
+> branch is committed/pushed, CI publishes a signed image, that exact digest is
+> staged and booted, and post-update verification plus final booted-image
+> captures pass.
 
 > **Working-tree visual/UX audit — 2026-07-30, branch
 > `audit/commercial-visual-polish-2026-07-30`.** The measured audit and release
