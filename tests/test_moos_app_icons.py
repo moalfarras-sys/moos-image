@@ -68,10 +68,20 @@ class AppIconContract(unittest.TestCase):
                 # The mark must retain warm pixels even at the 16 px dock size.
                 # This rejects a return to the old teal-only generic play icon
                 # without dictating the antialiasing of ImageMagick.
+                # ``get_flattened_data`` was added after the Pillow release on
+                # GitHub's Ubuntu runner, while ``getdata`` is deprecated on
+                # current MoOS.  RGBA byte order is stable in both, so inspect
+                # the canonical byte buffer without tying this gate to either
+                # end of Pillow's API transition.
+                pixels = rgba.tobytes()
                 warm = sum(
                     1
-                    for red, green, blue, opacity in rgba.get_flattened_data()
-                    if opacity >= 96 and red >= green * 1.18 and red >= blue * 1.35
+                    for offset in range(0, len(pixels), 4)
+                    if (
+                        pixels[offset + 3] >= 96
+                        and pixels[offset] >= pixels[offset + 1] * 1.18
+                        and pixels[offset] >= pixels[offset + 2] * 1.35
+                    )
                 )
                 self.assertGreaterEqual(
                     warm,
