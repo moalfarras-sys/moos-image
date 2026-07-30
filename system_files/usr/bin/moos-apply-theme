@@ -17,11 +17,24 @@ set -uo pipefail
 # `bootc upgrade` re-applies the new look exactly once for EXISTING users (a
 # fixed marker would skip every revision after the first). Old markers are
 # cleaned up so they don't accumulate.
-# 21: the historic org.moos.brand panel item becomes MoOS's single integrated
-#     launcher. The revision removes the duplicated Kickoff button only after it
-#     has handed its KActivities favorites client to the MoOS launcher, expands
-#     the popup, retires user-level QML shadows, and refreshes Baloo coverage.
-THEME_REV=21
+# 22: apply the unified MoOS visual system to existing users: rebuilt Plasma
+#     controls and Aurorae chrome, first-party icons, exact GTK/GSettings pins,
+#     balanced blur, localized RTL clock, and the refreshed 4K wallpaper pair.
+# 23: the dock's own revision. The rim art is repaired (a malformed corner path
+#     dropped a stray turquoise line into the dock, and the rim died at the
+#     corner/side seam), task tiles finally show which apps are OPEN, and the
+#     clock is PUT BACK: rev 22's migration only rewrote an existing
+#     org.kde.plasma.digitalclock into the MoOS clock, so a panel that had no
+#     clock at all — the maintainer's — silently stayed clockless.
+# 24: Aurorae frames changed (flat maximized bar, centred buttons, no blur mask),
+#     and the tray hide-list changed — the remote-control indicator is UNHIDDEN
+#     (a security signal that must surface when Active) and the video bridge
+#     gained its Arabic Id. The rev bump re-runs the tray collapse so existing
+#     sessions get the corrected list, and restarts the shell over the new art.
+# 26: palette-matched Tidal Cut icon overlays plus the refined Launcher/control
+#     states. Re-apply once so existing users stop carrying the shared light
+#     symbolic fallback in dark/accent themes.
+THEME_REV=26
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -926,6 +939,7 @@ if command -v gdbus >/dev/null 2>&1; then
                 }
                 var ws = p.widgets();
                 var kickoffWidget = null;
+                var hasClock = false;
                 for (var j = 0; j < ws.length; j++) {
                     var w = ws[j];
                     try {
@@ -942,6 +956,27 @@ if command -v gdbus >/dev/null 2>&1; then
                         } else if (w.type == "org.kde.plasma.showdesktop") {
                             w.remove();
                         }
+                    } catch (e) {}
+                }
+                /* PUT THE CLOCK BACK.
+                 *
+                 * Every earlier revision only ever REPLACED a clock: it turned
+                 * org.kde.plasma.digitalclock into the MoOS clock and moved on.
+                 * A profile whose dock carried no clock applet at all therefore
+                 * matched nothing and was left without one. That is exactly the
+                 * dock this shipped on: AppletOrder read 399;400;401;402 —
+                 * launcher, tasks, separator, tray, and then nothing at all.
+                 * layout.js does add the clock, but a layout template only ever
+                 * runs for a user who has NO panel yet, so it could never reach
+                 * a desktop that already existed.
+                 *
+                 * Guarded like everything else in this pass: a throw here would
+                 * leave the session mid-layout, and a dock without a clock is a
+                 * far smaller problem than a dock that failed to build. */
+                if (!hasClock) {
+                    try {
+                        p.addWidget("org.moos.nova.clock");
+                        launcherChanged++;
                     } catch (e) {}
                 }
                 /* Remove the duplicate launcher only after the replacement is
@@ -990,12 +1025,13 @@ if command -v gdbus >/dev/null 2>&1; then
                 -m org.kde.PlasmaShell.evaluateScript '
                     var ps = panels();
                     var bottoms = 0, valid = 0, brands = 0;
-                    var legacy = 0, configured = 0;
+                    var legacy = 0, configured = 0, clocks = 0;
                     for (var i = 0; i < ps.length; i++) {
                         var p = ps[i];
                         if (p.location != "bottom") { continue; }
                         bottoms++;
                         var panelBrands = 0, panelLegacy = 0, panelConfigured = 0;
+                        var panelClocks = 0;
                         var ws = p.widgets();
                         for (var j = 0; j < ws.length; j++) {
                             var kind = String(ws[j].type);
@@ -1007,19 +1043,28 @@ if command -v gdbus >/dev/null 2>&1; then
                                 }
                             } else if (kind == "org.kde.plasma.kickoff") {
                                 panelLegacy++;
+                            } else if (kind == "org.moos.nova.clock") {
+                                panelClocks++;
                             }
                         }
                         brands += panelBrands;
                         legacy += panelLegacy;
                         configured += panelConfigured;
-                        if (panelBrands == 1 && panelLegacy == 0 && panelConfigured == 1) {
+                        clocks += panelClocks;
+                        /* The clock counts toward a VALID dock. Without it the
+                           marker is written on a clockless dock and the missing
+                           clock never gets a second chance; with it, a shell
+                           that refused the applet retries at the next login. */
+                        if (panelBrands == 1 && panelLegacy == 0 && panelConfigured == 1
+                                && panelClocks >= 1) {
                             valid++;
                         }
                     }
                     var ok = bottoms > 0 && valid == bottoms;
                     print("MOOS_LAUNCHER_MIGRATION_OK=" + (ok ? "1" : "0")
                         + ";bottom=" + bottoms + ";brand=" + brands
-                        + ";legacy=" + legacy + ";configured=" + configured);
+                        + ";legacy=" + legacy + ";configured=" + configured
+                        + ";clock=" + clocks);
                 ' 2>>"$log"
         )" || launcher_migration_state=""
         printf '%s\n' "$launcher_migration_state" >>"$log" 2>/dev/null || true
@@ -1052,10 +1097,10 @@ if [[ -f "$applets_rc" ]] && command -v kwriteconfig6 >/dev/null 2>&1; then
         [[ "$containment_id" =~ ^[0-9]+$ && "$applet_id" =~ ^[0-9]+$ ]] || continue
         kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
             --group Containments --group "$containment_id" --group Applets \
-            --group "$applet_id" --group Configuration --key popupWidth 720
+            --group "$applet_id" --group Configuration --key popupWidth 792
         kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
             --group Containments --group "$containment_id" --group Applets \
-            --group "$applet_id" --group Configuration --key popupHeight 590
+            --group "$applet_id" --group Configuration --key popupHeight 576
     done < <(
         awk '
             match($0, /^\[Containments\]\[([0-9]+)\]\[Applets\]\[([0-9]+)\]$/, m) {

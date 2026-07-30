@@ -1,20 +1,111 @@
 #!/usr/bin/env bash
-# moos-wait-drm — bound Plasma Login Manager to a usable DRM device.
+# moos-wait-drm — prepare Plasma Login Manager, then bound it to usable DRM.
 #
 # udevadm settle can return successfully before a slow GPU driver has created
 # /dev/dri/card*. KWin then starts once, cannot resolve a DRM node, and the
 # greeter remains black even though plasmalogin.service itself still says
 # "active". This happened on the installed-system second-boot release gate.
 #
+# Plasma Login Manager also writes its KCM choices to the monolithic
+# /etc/plasmalogin.conf. That file is the KConfig main file — it outranks all
+# three vendor layers, including /usr/lib/plasmalogin/defaults.conf where MoOS
+# pins its login scene — so one stock value there can mask the complete MoOS
+# login screen forever. Only /etc can fix /etc, and a build cannot reach it, so
+# the repair lives here.
+#
 # Do not guess a card number: hybrid systems may expose card1 first. The wait is
 # bounded and costs zero time on normal hardware. Overrides exist only so the
-# helper can be exercised against a temporary directory in tests.
+# helper can be exercised against temporary paths in tests.
 set -u
 
 drm_dir="${MOOS_DRM_DIR:-/dev/dri}"
+login_conf="${MOOS_PLASMALOGIN_CONF:-/etc/plasmalogin.conf}"
 steps="${MOOS_DRM_WAIT_STEPS:-150}"
 delay="${MOOS_DRM_WAIT_SLEEP:-0.2}"
 i=0
+
+# ── The login wallpaper repair ───────────────────────────────────────────────
+#
+# THIS BLOCK MUST NEVER BE FATAL. It runs from ExecStartPre of a unit that has
+# Restart=always and StartLimitBurst=2, so a non-zero exit here does not
+# "report a problem" — it burns the restart budget twice and then leaves the
+# machine with NO login screen at all. A cosmetic wallpaper repair is not
+# allowed to cost the user their way into the system. Everything below logs and
+# continues; the only exit codes this script produces are the DRM ones.
+#
+# It also has to be right twice, not once. The previous version matched the
+# whole file against the exact stock two-key payload and moved it aside — a
+# one-shot fix that stopped working the moment an administrator added a single
+# unrelated key, and that took every other setting in the file with it when it
+# did fire. The Login Screen KCM can rewrite this file at ANY time (it writes
+# its whole state on Apply, including its built-in default wallpaper), so the
+# repair has to be safe to run on every boot, forever.
+#
+# Scope is therefore one key, by exact value:
+#
+#   * Only WallpaperPluginId, and only when it holds Plasma's stock
+#     org.kde.hunyango — the value that means "the KCM has never been told
+#     anything else", and the value found masking the MoOS greeter on the
+#     running desktop. Any OTHER wallpaper is a deliberate choice and is left
+#     completely alone. ShowClock is left alone too: it is a preference, not a
+#     mask, and reverting it would be exactly the kind of silent override this
+#     helper exists to undo.
+#   * The line is commented out, not deleted and not rewritten to the MoOS id.
+#     Commenting removes the mask and lets defaults.conf supply the value, so
+#     renaming the MoOS scene later does not strand a stale id in /etc; and it
+#     leaves the administrator looking at what was changed instead of at a hole.
+#   * A commented line no longer matches, so a second boot is a no-op. If the
+#     KCM masks the greeter again, the next boot repairs it again.
+#   * Every other line, key and group in the file survives byte for byte.
+#
+# And it is opt-out-able, because "MoOS keeps changing my file back" is a worse
+# bug than the one being fixed: create /etc/plasmalogin.conf.moos-keep and this
+# block never touches the file again. The comment it writes says so, in the file
+# where somebody would actually read it.
+stock_mask="WallpaperPluginId=org.kde.hunyango"
+if [ -f "$login_conf" ] && [ ! -e "${login_conf}.moos-keep" ]; then
+    repair_note="MoOS: the next line is Plasma's stock login wallpaper, written here by the Login Screen settings module. It outranks every layer the image ships and hides the MoOS login scene, so MoOS commented it out. Remove the two comment marks to keep it, and create ${login_conf}.moos-keep so MoOS leaves this file alone from then on."
+    repair_tmp="${login_conf}.moos-repair.$$"
+    # One expression of the match, whitespace-insensitive, exact value: awk
+    # normalises each line before comparing, so "WallpaperPluginId = org.kde.hunyango"
+    # is caught while "#WallpaperPluginId=org.kde.hunyango" (already repaired) is
+    # not. Exit 0 only when something actually changed, so the rewrite below is
+    # skipped entirely on the overwhelmingly common no-op boot.
+    # Claim the scratch file first. Without this, an unwritable /etc (a
+    # read-only recovery boot, a wedged filesystem) makes the shell itself print
+    # a raw redirect error into the journal and the repair looks like a crash
+    # rather than the deliberate no-op it is.
+    # (2>/dev/null comes FIRST: bash applies redirections left to right, so a
+    # trailing one is installed too late to catch the failing redirect's own
+    # diagnostic.)
+    if ! : 2>/dev/null > "$repair_tmp"; then
+        echo "MoOS login: cannot write beside ${login_conf}; leaving it untouched" >&2
+    elif awk -v mask="$stock_mask" -v note="$repair_note" '
+            { normalised = $0; gsub(/[[:space:]]/, "", normalised) }
+            normalised == mask { print "# " note; print "#" $0; changed = 1; next }
+            { print }
+            END { exit (changed ? 0 : 1) }
+        ' "$login_conf" > "$repair_tmp" 2>/dev/null
+    then
+        # Back up first: the rewrite truncates the live file in place (a plain
+        # redirect, NOT mv, so the inode keeps its mode, owner and SELinux label
+        # — /etc under OSTree is unforgiving about a relabelled config), and the
+        # backup is the only thing covering a crash inside that window. Refreshed
+        # rather than kept-once on purpose: it must show the state the KCM left,
+        # including any administrator keys added since the last repair.
+        if cp -p -- "$login_conf" "${login_conf}.moos-legacy-hunyango" \
+            && [ -s "$repair_tmp" ] \
+            && cat -- "$repair_tmp" > "$login_conf"
+        then
+            echo "MoOS login: commented out the stock login wallpaper in ${login_conf}" \
+                 "(previous file kept at ${login_conf}.moos-legacy-hunyango)"
+        else
+            echo "MoOS login: could not repair ${login_conf}; the login screen may show" \
+                 "Plasma's wallpaper instead of MoOS's" >&2
+        fi
+    fi
+    rm -f -- "$repair_tmp"
+fi
 
 while [ "$i" -lt "$steps" ]; do
     for node in "$drm_dir"/card*; do

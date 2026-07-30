@@ -1734,14 +1734,14 @@ if [ "$_launcher_smoke_rc" -ne 124 ]; then
     cat "$_launcher_smoke_log"
     exit 1
 fi
-if ! grep -Fq 'MOOS_LAUNCHER_FULL_READY size=720x590' "$_launcher_smoke_log"; then
-    echo "FATAL: org.moos.brand stayed alive but LauncherView was not constructed at 720x590"
+if ! grep -Fq 'MOOS_LAUNCHER_FULL_READY size=792x576' "$_launcher_smoke_log"; then
+    echo "FATAL: org.moos.brand stayed alive but LauncherView was not constructed at 792x576"
     cat "$_launcher_smoke_log"
     exit 1
 fi
 _launcher_smoke_config="${_launcher_smoke_home}/.config/plasmawindowedrc"
-if ! grep -qE '^geometry=[^,]+,[^,]+,720,590$' "$_launcher_smoke_config"; then
-    echo "FATAL: plasmawindowed did not host the full 720x590 MoOS launcher"
+if ! grep -qE '^geometry=[^,]+,[^,]+,792,576$' "$_launcher_smoke_config"; then
+    echo "FATAL: plasmawindowed did not host the full 792x576 MoOS launcher"
     cat "$_launcher_smoke_config" 2>/dev/null || true
     cat "$_launcher_smoke_log"
     exit 1
@@ -1755,9 +1755,33 @@ if grep -qiE 'QQmlApplicationEngine failed|component is not ready|error loading 
     cat "$_launcher_smoke_log"
     exit 1
 fi
-rm -rf "$_launcher_smoke_log" "$_launcher_smoke_home" "$_launcher_smoke_runtime"
+# plasmawindowed and the session bus are terminated as a process group by
+# timeout, but a last Qt cache write can briefly race the recursive removal.
+# Retry only these three build-owned paths for a bounded four seconds; do not
+# weaken the smoke result or leave compose-hostile content under /tmp.
+_launcher_cleanup_ok=0
+for _launcher_cleanup_attempt in 1 2 3 4 5 6 7 8 9 10; do
+    if rm -rf -- \
+            "$_launcher_smoke_log" \
+            "$_launcher_smoke_home" \
+            "$_launcher_smoke_runtime" 2>/dev/null; then
+        sleep 0.2
+        if [ ! -e "$_launcher_smoke_log" ] \
+                && [ ! -e "$_launcher_smoke_home" ] \
+                && [ ! -e "$_launcher_smoke_runtime" ]; then
+            _launcher_cleanup_ok=1
+            break
+        fi
+    fi
+    sleep 0.2
+done
+if [ "$_launcher_cleanup_ok" -ne 1 ]; then
+    echo "FATAL: org.moos.brand smoke passed, but its isolated temporary state stayed active"
+    exit 1
+fi
 unset -v _launcher_smoke_log _launcher_smoke_home _launcher_smoke_runtime \
-    _launcher_smoke_config _launcher_smoke_rc
+    _launcher_smoke_config _launcher_smoke_rc _launcher_cleanup_attempt \
+    _launcher_cleanup_ok
 
 # The desktop scene (org.moos.ui2.wallpaper) is not covered by the pure-QML app
 # loop above: its root is a WallpaperItem, which only exists inside plasmashell's

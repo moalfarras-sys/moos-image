@@ -33,6 +33,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import "../ui" as MoOSUi
+import "../ui/SymbolCatalog.js" as MoOSSymbols
 
 ApplicationWindow {
     id: win
@@ -1521,7 +1523,7 @@ ApplicationWindow {
                                 visible: win.acctPass !== "" && win.acctPass.length < 8
                                 text: win.tr("استخدم 8 محارف على الأقل.", "Use at least 8 characters.")
                                 color: win.danger
-                                font.family: "IBM Plex Sans"; font.pixelSize: 11
+                                font.family: win.uiFont; font.pixelSize: win.typePx(11)
                                 Layout.topMargin: 4
                             }
                             Text {

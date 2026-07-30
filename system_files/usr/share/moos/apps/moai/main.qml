@@ -45,23 +45,43 @@ Kirigami.ApplicationWindow {
     // instead of rasterising forever on an idle assistant window.
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
 
-    // ── Semantic design tokens — supplied by the active KDE scheme ───────
-    // These bindings are deliberately owned by ApplicationWindow.palette. A
-    // Global Theme changes KDE's palette at runtime; keeping Nova hex values
-    // here made every card stay navy even on a light desktop.
-    readonly property color surface0: root.palette.base             // canvas
-    readonly property color surface1: root.palette.alternateBase    // cards
-    readonly property color surface2: root.palette.button           // raised controls
-    readonly property color surface3: root.palette.midlight         // hover / selected
-    readonly property color chrome:   root.palette.window           // rail / headers
-    readonly property color hairline: root.palette.mid
-    readonly property color textHi:   root.palette.windowText
-    readonly property color textLo:   root.palette.placeholderText
-    readonly property color textMute: Qt.rgba(root.palette.placeholderText.r,
-                                               root.palette.placeholderText.g,
-                                               root.palette.placeholderText.b, 0.78)
-    readonly property color novaCyan:   root.palette.link
-    readonly property color novaBlue:   root.palette.highlight
+    // ── Semantic design tokens — supplied by the active MoOS colour scheme ───────
+    //
+    // These read Kirigami.Theme, NOT ApplicationWindow.palette, and the difference is not
+    // academic. Measured on one session, one scheme (MoOSUI2Light, selection #006D67), two
+    // MoOS apps sampled at the same moment:
+    //
+    //   an app on Kirigami.Theme  ->  surface #DFEFEA, accent #006D67   (MoOS teal)
+    //   an app on palette.*       ->  surface #FFFFFF, accent #45A7D7   (stock Breeze blue)
+    //
+    // A bare `palette` on a QQuickWindow does not resolve the KDE colour scheme; it falls back
+    // to Qt's built-in defaults, and QT_QPA_PLATFORMTHEME=kde does not change that. The comment
+    // that used to sit here said the bindings were "deliberately owned by
+    // ApplicationWindow.palette" so a Global Theme change would follow at runtime — the intent
+    // was exactly right and the mechanism never delivered it.
+    //
+    // The identifiers stay (novaBlue, novaCyan, novaViolet are load-bearing names); only what
+    // they resolve to changes.
+    Kirigami.Theme.inherit: false
+    Kirigami.Theme.colorSet: Kirigami.Theme.View
+
+    readonly property color surface0: Kirigami.Theme.backgroundColor            // canvas
+    readonly property color surface1: Kirigami.Theme.alternateBackgroundColor   // cards
+    readonly property color surface2: Kirigami.Theme.backgroundColor            // raised controls
+    readonly property color surface3: Kirigami.Theme.hoverColor                 // hover / selected
+    readonly property color chrome:   Kirigami.Theme.backgroundColor            // rail / headers
+    // A tint of the foreground, never Kirigami.Theme.separatorColor: that renders #FFFFFF in
+    // every colour set of this scheme, so binding to it deletes every hairline on a light page.
+    readonly property color hairline: Qt.rgba(Kirigami.Theme.textColor.r,
+                                              Kirigami.Theme.textColor.g,
+                                              Kirigami.Theme.textColor.b, 0.14)
+    readonly property color textHi:   Kirigami.Theme.textColor
+    readonly property color textLo:   Kirigami.Theme.disabledTextColor
+    readonly property color textMute: Qt.rgba(Kirigami.Theme.disabledTextColor.r,
+                                               Kirigami.Theme.disabledTextColor.g,
+                                               Kirigami.Theme.disabledTextColor.b, 0.78)
+    readonly property color novaCyan:   Kirigami.Theme.linkColor
+    readonly property color novaBlue:   Kirigami.Theme.highlightColor
     // Is the active canvas dark? Drives the chat doodle backdrop's opacity so the
     // low-contrast pattern reads on both a graphite and a porcelain surface.
     readonly property bool isDark: (0.299 * Kirigami.Theme.backgroundColor.r
@@ -236,86 +256,25 @@ Kirigami.ApplicationWindow {
             }
         }
 
-        Rectangle {
-            id: ambientCyan
-            width: parent.width * 1.6
-            height: parent.height * 0.5
-            y: parent.height * 0.02
-            rotation: -14
-            opacity: 0.05
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.5; color: root.novaCyan }
-                GradientStop { position: 1.0; color: "transparent" }
-            }
-            XAnimator on x {
-                from: -ambientCyan.width * 0.35
-                to: root.width - ambientCyan.width * 0.65
-                duration: 140000
-                loops: Animation.Infinite
-                easing.type: Easing.InOutSine
-                running: root.visible && root.motionEnabled
-            }
-        }
-        Rectangle {
-            id: ambientViolet
-            width: parent.width * 1.5
-            height: parent.height * 0.45
-            y: parent.height * 0.5
-            rotation: 10
-            opacity: 0.04
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.5; color: root.novaViolet }
-                GradientStop { position: 1.0; color: "transparent" }
-            }
-            XAnimator on x {
-                from: root.width - ambientViolet.width * 0.6
-                to: -ambientViolet.width * 0.4
-                duration: 170000
-                loops: Animation.Infinite
-                easing.type: Easing.InOutSine
-                running: root.visible && root.motionEnabled
-            }
+        // The same concave horizon that owns the desktop, Launcher and session
+        // portals now sits behind Mo AI. It replaces four unrelated
+        // aurora/glow layers with one palette-driven vector signature.
+        MoOSUi.TidalHorizon {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: Math.round(parent.height * 0.58)
+            surfaceColor: root.surface0
+            primaryColor: root.novaBlue
+            secondaryColor: root.novaViolet
+            luminousColor: root.novaCyan
+            strength: root.isLight ? 0.70 : 0.90
+            motionEnabled: root.motionEnabled
+            animateIn: true
         }
 
-        Image {
-            id: ambientGlowCyan
-            source: "file:///usr/share/moos/brand/glow-cyan.png"
-            width: Math.round(Math.min(parent.width, parent.height) * 0.9)
-            height: width
-            x: -width * 0.35
-            y: parent.height - height * 0.55
-            asynchronous: true
-            opacity: 0.14
-            SequentialAnimation on opacity {
-                loops: Animation.Infinite
-                running: root.visible && root.motionEnabled
-                NumberAnimation { to: 0.26; duration: 5200; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 0.14; duration: 5200; easing.type: Easing.InOutSine }
-            }
-        }
-        Image {
-            id: ambientGlowViolet
-            source: "file:///usr/share/moos/brand/glow-violet.png"
-            width: Math.round(Math.min(parent.width, parent.height) * 0.75)
-            height: width
-            x: parent.width - width * 0.55
-            y: -height * 0.35
-            asynchronous: true
-            opacity: 0.18
-            SequentialAnimation on opacity {
-                loops: Animation.Infinite
-                running: root.visible && root.motionEnabled
-                NumberAnimation { to: 0.08; duration: 5200; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 0.18; duration: 5200; easing.type: Easing.InOutSine }
-            }
-        }
-
-        // The watermark: the mark at whisper opacity, its comet ring turning
-        // once a minute — presence, not decoration competing with content.
+        // The watermark stays static at whisper opacity: presence without
+        // decoration competing with content or background battery cost.
         Image {
             id: ambientMark
             source: "file:///usr/share/moos/moos-logo.png"
@@ -326,12 +285,6 @@ Kirigami.ApplicationWindow {
             asynchronous: true
             fillMode: Image.PreserveAspectFit
             opacity: 0.05
-            SequentialAnimation on scale {
-                loops: Animation.Infinite
-                running: root.visible && root.motionEnabled
-                NumberAnimation { to: 1.02; duration: 6000; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 1.0; duration: 6000; easing.type: Easing.InOutSine }
-            }
         }
         Image {
             anchors.centerIn: ambientMark
@@ -340,12 +293,6 @@ Kirigami.ApplicationWindow {
             height: width
             asynchronous: true
             opacity: 0.10
-            RotationAnimator on rotation {
-                from: 0; to: 360
-                duration: 60000
-                loops: Animation.Infinite
-                running: root.visible && root.motionEnabled
-            }
         }
     }
 
@@ -1096,15 +1043,15 @@ Kirigami.ApplicationWindow {
     // moai-do action (moos://do/<id> → confirm + Polkit). read=true only shows
     // information. Nothing here is a placeholder.
     readonly property var defaultRepairs: [
-        { id: "diagnose-services", label: "الخدمات الفاشلة | Failed services", read: true },
-        { id: "check-drivers",     label: "الكرت والتعريف | GPU & drivers",    read: true },
-        { id: "inspect-boot",      label: "حالة الإقلاع | Boot status",         read: true },
-        { id: "net-doctor",        label: "تشخيص الشبكة | Network doctor",       read: true },
-        { id: "gpu-report",        label: "ذاكرة كرت الشاشة | GPU memory",       read: true },
-        { id: "fix-audio",         label: "إصلاح الصوت | Fix audio",            read: false },
-        { id: "optimize",          label: "تنظيف وتحرير مساحة | Clean & free space", read: false },
-        { id: "rollback",          label: "الرجوع لنسخة سابقة | Roll back",      read: false },
-        { id: "update",            label: "تحديث MoOS | Update MoOS",           read: false }
+        { id: "diagnose-services", label: root.local("الخدمات الفاشلة", "Failed services"), read: true },
+        { id: "check-drivers",     label: root.local("الكرت والتعريف", "GPU & drivers"), read: true },
+        { id: "inspect-boot",      label: root.local("حالة الإقلاع", "Boot status"), read: true },
+        { id: "net-doctor",        label: root.local("تشخيص الشبكة", "Network doctor"), read: true },
+        { id: "gpu-report",        label: root.local("ذاكرة كرت الشاشة", "GPU memory"), read: true },
+        { id: "fix-audio",         label: root.local("إصلاح الصوت", "Fix audio"), read: false },
+        { id: "optimize",          label: root.local("تنظيف وتحرير مساحة", "Clean & free space"), read: false },
+        { id: "rollback",          label: root.local("الرجوع لنسخة سابقة", "Roll back"), read: false },
+        { id: "update",            label: root.local("تحديث MoOS", "Update MoOS"), read: false }
     ]
     function diagnoseSystem() {
         root.diagLoading = true
@@ -3050,13 +2997,13 @@ Kirigami.ApplicationWindow {
                                             // visibility term, and without it an active remote session
                                             // kept this ring animating with the panel hidden.
                                             SequentialAnimation on opacity {
-                                                running: !!root.remoteState.active && root.motionEnabled
+                                                running: !!root.remoteState.active && root.visible && root.motionEnabled
                                                 loops: Animation.Infinite
                                                 NumberAnimation { from: 0.7; to: 0.0; duration: root.motionEnabled ? 1200 : 0 }
                                                 NumberAnimation { from: 0.0; to: 0.0; duration: root.motionEnabled ? design.motionGeometry : 0 }
                                             }
                                             SequentialAnimation on scale {
-                                                running: !!root.remoteState.active && root.motionEnabled
+                                                running: !!root.remoteState.active && root.visible && root.motionEnabled
                                                 loops: Animation.Infinite
                                                 NumberAnimation { from: 1.0; to: 1.45; duration: root.motionEnabled ? 1200 : 0 }
                                                 NumberAnimation { from: 1.0; to: 1.0; duration: root.motionEnabled ? design.motionGeometry : 0 }

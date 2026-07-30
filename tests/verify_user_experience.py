@@ -2387,7 +2387,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=21" in apply_theme_code, "MoOS UI2 visual schema must be revision 21")
+require("THEME_REV=26" in apply_theme_code, "MoOS visual schema must be revision 26")
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
@@ -2416,10 +2416,10 @@ require(brand_add_pos >= 0 and kickoff_capture_pos >= 0
         < brand_reload_pos < kickoff_remove_pos,
         "THEME_REV 21 must ensure org.moos.brand exists before removing the old Kickoff "
         "from an existing user's panel")
-require(re.search(r"--key\s+popupWidth\s+720\b", apply_theme_code) is not None
-        and re.search(r"--key\s+popupHeight\s+590\b", apply_theme_code) is not None,
+require(re.search(r"--key\s+popupWidth\s+792\b", apply_theme_code) is not None
+        and re.search(r"--key\s+popupHeight\s+576\b", apply_theme_code) is not None,
         "the existing org.moos.brand applet's shell-owned popup geometry must migrate to "
-        "720x590; QML implicitWidth/Height cannot override persisted appletsrc values")
+        "792x576; QML implicitWidth/Height cannot override persisted appletsrc values")
 
 # evaluateScript returning over D-Bus proves only that the JavaScript finished;
 # its guarded applet operations may all have failed.  Revision 21 therefore has
@@ -2539,6 +2539,36 @@ for shadowed_plasmoid in ("org.moos.brand", "org.moos.heroclock"):
     require(f'"plasma/plasmoids/{shadowed_plasmoid}"' in shadow_cleanup,
             f"moos-apply-theme must remove a user-local {shadowed_plasmoid} copy that "
             "would otherwise shadow every future image update")
+
+PALETTE_ICON_OVERLAYS = (
+    "MoOSUI2Amethyst", "MoOSUI2AmethystLight",
+    "MoOSUI2Arena", "MoOSUI2ArenaLight",
+    "MoOSUI2Aurora", "MoOSUI2AuroraLight",
+    "MoOSUI2Daylight",
+    "MoOSUI2Forge", "MoOSUI2ForgeLight",
+    "MoOSUI2Midnight",
+    "MoOSUI2Nova", "MoOSUI2NovaLight",
+    "MoOSUI2Scholar", "MoOSUI2ScholarLight",
+)
+for icon_overlay in PALETTE_ICON_OVERLAYS:
+    require(
+        f'"icons/{icon_overlay}"' in shadow_cleanup,
+        f"moos-apply-theme must remove a user-local {icon_overlay} icon package "
+        "that would permanently shadow the palette bridge in the image",
+    )
+    # Delimiter-aware: "icons/MoOSUI2Nova" is a substring of
+    # "icons/MoOSUI2NovaLight", so a plain `in` can never bite for the six
+    # dark palettes whose Light sibling is also listed.
+    require(
+        re.search(rf"icons/{re.escape(icon_overlay)}(?![A-Za-z])", selfcheck)
+        is not None,
+        f"moos-selfcheck must report a user-local {icon_overlay} shadow",
+    )
+require(
+    'want_ico="$want_sty"' in selfcheck,
+    "moos-selfcheck must validate each family member's palette-specific icon "
+    "overlay rather than accepting the shared dark/light base",
+)
 
 # Nova must survive Plasma, not just reach it.
 #
@@ -3061,17 +3091,17 @@ launcher_root_group_pos = layout_code.find(
     "launcher.currentConfigGroup = []", launcher_general_group_pos,
 )
 launcher_popup_width_pos = layout_code.find(
-    'launcher.writeConfig("popupWidth", 720)', launcher_root_group_pos,
+    'launcher.writeConfig("popupWidth", 792)', launcher_root_group_pos,
 )
 launcher_popup_height_pos = layout_code.find(
-    'launcher.writeConfig("popupHeight", 590)', launcher_popup_width_pos,
+    'launcher.writeConfig("popupHeight", 576)', launcher_popup_width_pos,
 )
 require(launcher_layout_pos >= 0 and launcher_general_group_pos > launcher_layout_pos
         and launcher_root_group_pos > launcher_general_group_pos
         and launcher_popup_width_pos > launcher_root_group_pos
         and launcher_popup_height_pos > launcher_popup_width_pos,
         "the fresh-profile org.moos.brand launcher must leave General and seed its "
-        "shell-owned root popup geometry at 720x590; otherwise live selfcheck fails "
+        "shell-owned root popup geometry at 792x576; otherwise live selfcheck fails "
         "until the user manually opens or resizes the menu")
 
 brand_root = ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.brand"
@@ -3104,9 +3134,11 @@ launcher_view_qml = code(read(
 require("if (root.expanded)" in brand_main_qml and "if (expanded)" not in brand_main_qml,
         "the brand applet must qualify root.expanded; the bare signal argument "
         "uses deprecated parameter injection and warns on every Plasma login")
-require('text: "MoOS"' in brand_main_qml and '"LAUNCHER"' in brand_main_qml
-        and "system-search-symbolic" in brand_main_qml,
-        "the one panel launcher must visibly remain the MoOS wordmark plus search affordance")
+require('text: "MoOS"' in brand_main_qml
+        and 'root.rtl ? "مساحة الأوامر" : "COMMAND"' in brand_main_qml
+        and "moos-search-symbolic" in brand_main_qml,
+        "the one panel launcher must visibly remain the MoOS wordmark, Command "
+        "Canvas caption and search affordance")
 
 # Search and browsing are native model operations, not shell commands wearing a
 # search field.  Each engine is instantiated in main.qml and handed to the full
@@ -3174,8 +3206,64 @@ require('"moos-ci-full-representation"' in brand_main_qml
 require("Layout.minimumWidth: implicitWidth" in launcher_view_qml
         and "Layout.minimumHeight: implicitHeight" in launcher_view_qml
         and "MOOS_LAUNCHER_FULL_READY size=" in launcher_view_qml,
-        "the full launcher must enforce and report its unclipped 720x590 representation to "
+        "the full launcher must enforce and report its unclipped 792x576 representation to "
         "the plasmawindowed smoke")
+# Commercial shell language: a 20px outer rhythm, 40px affordances, functional
+# text no smaller than 11px, and four columns that still ride the type ramp.
+# An early four-column launcher was rejected because it drove labels down to
+# 7–10px; the current one is only acceptable because every pixelSize below
+# stays on the 11+ type tokens — that pairing is what this gate holds, and
+# densifying past four columns remains out.
+_launcher_tokens = {
+    "space1": 4, "space2": 8, "space3": 12, "space4": 16, "space5": 20,
+    "space6": 24,
+    "radiusS": 8, "radiusM": 12, "radiusL": 16, "radiusXL": 24,
+    "targetSize": 40, "typeCaption": 11, "typeSecondary": 13,
+    "typeBody": 14, "typeEmphasis": 15, "typeSubheading": 18, "typeTitle": 20,
+}
+require(all(f"readonly property int {name}: {value}" in launcher_view_qml
+            for name, value in _launcher_tokens.items())
+        and "anchors.margins: view.space5" in launcher_view_qml,
+        "the launcher must use the unified 4px spacing, 8/12/16/24 radii, "
+        "40px target and 11/13/14/15/18/20 type tokens")
+require("Press Meta to open" not in launcher_view_qml
+        and "يفتح بزر Meta" not in launcher_view_qml
+        and launcher_view_qml.count(
+            "cellWidth: Math.max(1, Math.floor(width / 4))"
+        ) == 2
+        and re.search(
+            r"cellWidth:.*width\s*/\s*(?:[5-9]|\d{2,})", launcher_view_qml
+        ) is None,
+        "the open launcher must drop the redundant Meta pill and keep the calm "
+        "four-column Pinned/Applications rhythm on the 11px+ type ramp")
+_launcher_type_expressions = re.findall(
+    r"font\.pixelSize\s*:\s*([^\n]+)", launcher_view_qml
+)
+require("readonly property string uiFontFamily: Qt.application.font.family"
+        in launcher_view_qml
+        and re.search(r'font\.family\s*:\s*"', launcher_view_qml) is None
+        and _launcher_type_expressions
+        and all("type" in expression for expression in _launcher_type_expressions)
+        and launcher_view_qml.count("view.targetSize") >= 24,
+        "launcher text must follow the session font and its readable type roles, "
+        "while custom pointer affordances retain at least 40px targets")
+require("readonly property string uiFontFamily: Qt.application.font.family"
+        in brand_main_qml
+        and re.search(r'font\.family\s*:\s*"', brand_main_qml) is None
+        and "font.pixelSize: Math.max(11, Math.round(compact.height * 0.20))"
+            in brand_main_qml,
+        "the dock launcher must follow the session font and never shrink its "
+        "functional caption below 11px")
+# plasmashell already enables inherited LayoutMirroring for an RTL session.
+# Manually swapping physical left/right anchors inside that tree mirrors twice:
+# the navigation rail stayed physically left and the pin affordance stayed right
+# in both languages.  Express each edge once in logical LTR source order.
+require(re.search(r"anchors\.(?:left|right)\s*:\s*view\.rtl\s*\?",
+                  launcher_view_qml) is None
+        and "anchors.left: parent.left" in launcher_view_qml
+        and "anchors.right: parent.right" in launcher_view_qml,
+        "the launcher must use inherited logical anchors once; rtl-conditional "
+        "left/right anchors are double-mirrored by plasmashell")
 
 # Favorites are user state.  Defining helper functions is not enough: require a
 # second occurrence in the composed UI so pin/unpin/reorder are reachable from
@@ -4214,55 +4302,6 @@ require(
     "the installed-disk gate must not wait for retired SDDM; MoOS uses plasma-login-manager",
 )
 
-# Every selectable palette is one MoOS UI engine, not another login/session
-# design hiding under a different colour name. KDE needs a look-and-feel package
-# per palette, but the doorway QML must remain byte-identical across all of them.
-lnf_packages = sorted(
-    path for path in (ROOT / "system_files/usr/share/plasma/look-and-feel").glob("org.moos.ui2*")
-    if path.is_dir()
-)
-require(len(lnf_packages) >= 2,
-        "MoOS must ship at least the matched dark/light UI2 pair")
-for doorway in (
-    "contents/splash/Splash.qml",
-    "contents/logout/Logout.qml",
-    "contents/logout/MoOSUI2ActionButton.qml",
-):
-    variants = {
-        (package / doorway).read_bytes()
-        for package in lnf_packages
-        if (package / doorway).is_file()
-    }
-    require(
-        len(variants) == 1
-        and all((package / doorway).is_file() for package in lnf_packages),
-        f"{doorway} must be one shared MoOS design across every UI2 palette; "
-        "a drifting package creates overlapping/inconsistent session screens",
-    )
-family_generator = code(read("artwork/generate_moos_themes.py"), "hash")
-family_lnf = family_generator.split("def build_lnf(", 1)[1].split("\ndef ", 1)[0]
-require('src.suffix == ".svg"' in family_lnf
-        and 'src.suffix in (".qml", ".svg")' not in family_lnf
-        and "shutil.copy2(src, out)" in family_lnf,
-        "the family generator must copy session-screen QML byte-for-byte and "
-        "recolour only artwork; otherwise one rebuild forks 16 login/logout designs")
-
-# The installed-disk release gate must make decisions on an ANSI-free serial
-# log. systemd colours individual words, so grepping the raw stream previously
-# reported failure after the disk had visibly reached Basic System and login.
-disk_workflow = read(".github/workflows/build-disk.yml")
-require(
-    "serial.plain.log" in disk_workflow
-    and "ansi = re.compile" in disk_workflow
-    and disk_workflow.count("/tmp/serial.plain.log") >= 3,
-    "the qcow2 boot gate must strip ANSI once and use the normalised serial log "
-    "for both failure and success decisions",
-)
-require(
-    "sddm-greeter" not in code(disk_workflow),
-    "the installed-disk gate must not wait for retired SDDM; MoOS uses plasma-login-manager",
-)
-
 # ── Arabic in the terminal ────────────────────────────────────────────────────
 #
 # MoOS brands itself Arabic/English and shipped a terminal an Arabic user could not
@@ -4387,10 +4426,10 @@ require("dbus-run-session -- /usr/bin/plasmawindowed org.moos.brand "
 require('_launcher_smoke_rc" -ne 124' in build_script_code,
         "the launcher smoke must accept only a process that stayed alive to the timeout; "
         "an early clean exit is still a dead applet")
-require("MOOS_LAUNCHER_FULL_READY size=720x590" in build_script_code
-        and re.search(r"geometry=.*720,590", build_script_code) is not None,
+require("MOOS_LAUNCHER_FULL_READY size=792x576" in build_script_code
+        and re.search(r"geometry=.*792,576", build_script_code) is not None,
         "the launcher smoke must prove both LauncherView construction and plasmawindowed's "
-        "real 720x590 full-representation geometry")
+        "real 792x576 full-representation geometry")
 for launcher_runtime_failure in (
     "component is not ready", "error loading qml file", "invalid empty url",
     "compactrepresentationexpander .* is not an item", "type .* unavailable",
@@ -5131,7 +5170,7 @@ require("AUTOLOGIN=" not in _i2d,
         "the privileged installer backend must not seed an automatic-sign-in value")
 _login_dropins = "\n".join(
     p.read_text(encoding="utf-8")
-    for p in (ROOT / "system_files/usr/lib/plasmalogin/plasmalogin.conf.d").glob("*.conf")
+    for p in sorted((ROOT / "system_files/usr/lib/plasmalogin").rglob("*.conf"))
 )
 require(re.search(r"^\s*\[Autologin\]\s*$", _login_dropins, re.MULTILINE) is None,
         "the shipped plasma-login-manager configuration must not enable automatic sign-in")
@@ -5166,13 +5205,126 @@ require("moos://installer/open" in _welcome and "handoffToInstaller" in _welcome
         "the live Welcome must hand off to the installer and close instead of "
         "leaving two onboarding windows layered")
 require("Object.keys(win.picks)" in _welcome
-        and "moos://store/install/" in _welcome
-        and 'ln === "DONE"' in _welcome and 'ln.indexOf("FAIL")' in _welcome,
-        "Welcome selections must execute the real Mo Store install route and "
-        "surface both success and failure")
+        and "MoosStore.installApps(ids)" in _welcome
+        and 'doc.state === "success"' in _welcome
+        and 'doc.state === "failed"' in _welcome
+        and "installHadFailures" in _welcome,
+        "Welcome selections must use the private Mo Store transaction and "
+        "surface both success and failure from job.json")
+require("moos://store/install/" not in _welcome,
+        "Welcome must never authorize software changes through the public URL scheme")
 require("Exec=/usr/bin/moos-firstrun" in _firstrun_desktop
         and "moos-firstrun-done" in _firstrun and "moos-welcome && exit 0" in _firstrun,
         "the installed account must receive the MoOS Welcome exactly once on first login")
+
+# Confirmation dialogs must render one locale, not a mixed RTL/LTR sentence.
+# The latter visibly moves the question mark and swaps the clauses in kdialog.
+_open_router = code(read("system_files/usr/bin/moos-open"), "hash")
+require("localized_message" in _open_router
+        and 'message="$(localized_message "${1:-}")"' in _open_router,
+        "moos-open confirmations must choose one localized message before opening the dialog")
+require('--warningyesno "$message"' in _open_router
+        and '--warningyesno "$1"' not in _open_router,
+        "kdialog must receive the locale-selected confirmation, never the raw RTL/LTR pair")
+
+# Fedora's legacy mcelog unit exits failed on AMD and explicitly asks for
+# rasdaemon. Ship one cross-vendor RAS owner and lock the build contract in.
+_build = code(read("build_files/build.sh"), "hash")
+require("dnf5 -y install rasdaemon" in _build
+        and "systemctl enable rasdaemon.service" in _build,
+        "the image must install and enable Fedora's cross-vendor rasdaemon")
+require("systemctl mask mcelog.service" in _build,
+        "the AMD-incompatible mcelog unit must be masked to avoid a failed boot unit")
+
+# A slow DRM driver can outlive udevadm settle. Starting the login KWin before
+# /dev/dri/card* exists leaves the manager active but the greeter permanently
+# black, so the manager owns one bounded, card-number-agnostic preflight.
+_drm_wait = code(read("system_files/usr/libexec/moos-wait-drm"), "hash")
+_login_drm_dropin = code(
+    read("system_files/usr/lib/systemd/system/plasmalogin.service.d/10-moos-wait-drm.conf"),
+    "hash",
+)
+require('"$drm_dir"/card*' in _drm_wait and 'i=$((i + 1))' in _drm_wait,
+        "the login DRM preflight must wait for any card number with a bounded loop")
+require("MOOS_DRM_WAIT_STEPS" in _drm_wait and "exit 1" in _drm_wait,
+        "the login DRM preflight needs a testable hard timeout, not an infinite boot wait")
+require("MOOS_PLASMALOGIN_CONF" in _drm_wait
+        and "WallpaperPluginId=org.kde.hunyango" in _drm_wait
+        and ".moos-legacy-hunyango" in _drm_wait
+        and ".moos-keep" in _drm_wait,
+        "the login preflight must neutralise the exact stock Hunyango key, keep a backup, "
+        "and honour an administrator opt-out; /etc/plasmalogin.conf is the KConfig main "
+        "file and outranks every layer the image ships, defaults.conf included")
+# The repair is COSMETIC and runs from ExecStartPre of a unit with Restart=always and
+# StartLimitBurst=2. A non-zero exit there does not report a problem — it burns the restart
+# budget twice and leaves the machine with no login screen at all. The only exit 1 in this
+# script may be the DRM timeout.
+require(_drm_wait.count("exit 1") == 1 and "no DRM card appeared" in _drm_wait,
+        "moos-wait-drm has an exit 1 outside the DRM timeout — a failed cosmetic login "
+        "wallpaper repair would permanently kill the display manager")
+require("ExecStartPre=/usr/libexec/moos-wait-drm" in _login_drm_dropin,
+        "plasmalogin.service must run the DRM preflight before starting KWin")
+require("chmod 0755 /usr/libexec/moos-wait-drm" in _build,
+        "build.sh must make the login DRM preflight executable")
+
+require("/usr/lib/plasmalogin/defaults.conf" in _build
+        and "GATE FAIL: /usr/lib/plasmalogin/defaults.conf is not MoOS's" in _build,
+        "build.sh must re-assert after its package transactions that MoOS still owns the "
+        "login distro-defaults slot; system_files is copied BEFORE build.sh runs, so a dnf5 "
+        "transaction pulling kde-settings-plasmalogin would restore Fedora's file")
+
+# Run build.sh's login-defaults gate HERE, against the file that is about to ship,
+# instead of discovering it 18 minutes into an image build. The first CI run after
+# that gate landed failed on a CORRECT file: the gate grepped the raw bytes for
+# "wallpapers/Fedora", and MoOS's own defaults.conf DOCUMENTS the dangling Fedora
+# path it replaced — so the paragraph explaining the fix tripped the gate that
+# enforces it. Both halves are simulated the way build.sh now does it: comments
+# stripped first, exactly like the config()/code() helpers this file already has.
+_login_defaults = ROOT / "system_files/usr/lib/plasmalogin/defaults.conf"
+require(_login_defaults.is_file(),
+        "MoOS must own /usr/lib/plasmalogin/defaults.conf — upstream documents it as THE "
+        "distro-defaults slot, and it outranks the plasmalogin.conf.d drop-in MoOS used to "
+        "ship in (measured from the greeter binary: an earlier addConfigSources call wins)")
+if _login_defaults.is_file():
+    _login_defaults_cfg = code(_login_defaults.read_text(encoding="utf-8"))
+    require(any(line.startswith("WallpaperPluginId=org.moos.")
+                for line in _login_defaults_cfg.splitlines()),
+            "the login defaults must name a MoOS greeter wallpaper plugin")
+    require("wallpapers/Fedora" not in _login_defaults_cfg,
+            "the login defaults still POINT at /usr/share/wallpapers/Fedora, a directory "
+            "build.sh deletes — a dangling login wallpaper. (Naming it in a comment is "
+            "fine and expected; this reads the config, not the prose.)")
+require("/usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf" in _build
+        and "/usr/share/moos/plasmalogin/kdeglobals" in _build,
+        "build.sh must provision the plasmalogin greeter account's palette deterministically; "
+        "unprovisioned, /var/lib/plasmalogin decides the login chrome's colours")
+require("r! /var/lib/plasmalogin/.config/kdeglobals" in _build,
+        "the greeter palette tmpfiles rule needs a boot-only `r!` before its `C+`: measured on "
+        "systemd 259.8, `C+` does NOT replace an existing file, so the rule would be a no-op on "
+        "every machine that already carries the wrong palette — which is the bug it fixes")
+require("carries an active greeter key that" in _build
+        and "WallpaperPluginId|Theme|Background|Image|ShowClock" in _build,
+        "build.sh must reject an ACTIVE greeter key in /etc/plasmalogin.conf — that "
+        "file outranks every MoOS login layer. It must NOT assert the file is absent: "
+        "the base ships it as a fully-commented template, so 'absent' fails every build")
+
+# bootc/OSTree owns these root paths as symlinks into persistent /var. Generic
+# home.conf/provision.conf directory rules otherwise emit three errors on every
+# boot. Scrub only those exact top-level rules and fail loudly if upstream moves
+# them; never mask either whole vendor file and lose unrelated provisioning.
+require(
+    'home_tmpfiles="/usr/lib/tmpfiles.d/home.conf"' in _build
+    and 'provision_tmpfiles="/usr/lib/tmpfiles.d/provision.conf"' in _build,
+    "the build must target the two vendor tmpfiles files that conflict with OSTree",
+)
+require(
+    "_tmpfiles" in _build
+    and "/(home|srv)" in _build
+    and "/root" in _build
+    and "conflicting /home or /srv tmpfiles rule survived" in _build
+    and "conflicting /root tmpfiles rule survived" in _build,
+    "the build must remove and verify all three conflicting top-level rules",
+)
 
 # Retired SDDM/org.moos.nova generators used to recreate a second login/theme
 # stack even after runtime files were removed.

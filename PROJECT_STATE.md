@@ -20,6 +20,132 @@ The design system remains **MoOS UI — Liquid Glass**).
 > **Read [`skills/moos-engineering/SKILL.md`](skills/moos-engineering/SKILL.md) first —
 > it is mandatory for every agent working here.**
 
+> **Icon-bridge round — 2026-07-30, working tree on top of the shipped
+> `.478` (THEME_REV=26).** Continued from the previous session, which stopped
+> mid-flight on an external usage limit; its in-progress step (settling the
+> Theme/Icon-bridge test contracts) is now complete. The round gives every one
+> of the 14 family palettes its own first-party symbolic icon overlay
+> (`/usr/share/icons/MoOSUI2<Family>[Light]`, 69 Tidal Cut symbols each,
+> identical geometry, palette-matched inks) inheriting the broad `MoOSUI2` /
+> `MoOSUI2Light` bases built from Colloid. The load-bearing decision is
+> **`FollowsColorScheme=false`** on every MoOS icon theme: with `true`,
+> QIcon recolouring reads the application `QPalette` rather than the Plasma
+> surface colour set, which painted near-invisible dark symbols on the dark
+> Launcher (evidence pair in `artwork/moos-ui2/live-tests/`,
+> `tidal-cut-arena-followscolorscheme-before.png` →
+> `tidal-cut-arena-baked-inks-after.png`, both captured through the real
+> KIconLoader on the live session). Each overlay instead bakes its
+> WCAG-checked palette inks; `_symbol_accent_ink` picks the nearest 1% step
+> from primary toward text clearing 3:1 on every semantic surface, and
+> `tests/test_moos_symbolic_icons.py` holds that math. The bridge is wired
+> end-to-end: look-and-feel `defaults` select the palette overlay,
+> `moos-theme`/`moos-apply-theme`/`moos-selfcheck` expect `icons == style`
+> for every member, `build_files/build.sh` gates all 14 overlays in the image
+> (index validity, inherits direction, full inventory, semantic roles) and
+> recolours the two broad bases' baked inks, and
+> `tests/post-update-check.sh` now proves `kiconfinder6` resolves the
+> overlay from `/usr` after an update. The same round calms the Command
+> Canvas (four columns on the 11px+ type ramp, 20px outer rhythm, 56px
+> command field, quieter tiles/nav, scrollbars) — live-verified at 4K RTL
+> (`launcher-four-column-live-4k.jpg`) — and gives the shared app Button
+> semantic 44px states plus `isMask` symbol foregrounds; the native Plasma
+> widget states (button/lineedit/listitem/menubaritem/viewitem across all 16
+> desktoptheme variants) render through the real KSvg/FrameSvg path
+> (`native-controls-arena-kframe.png`). The four previously-failing gate
+> files were moved to the new contracts without weakening intent (density,
+> type-ramp, target and destructive-pairing protections all kept). Release
+> steps still open: local `just build`, commit/push + CI signed image, host
+> staging, reboot, and the stricter post-update check on the booted image.
+
+> **Tidal Horizon product-design pass — 2026-07-30, working tree
+> `product/tidal-horizon-2026-07-30`.** This pass starts from the already
+> accepted commercial audit; it is implementation, not another audit. It gives
+> MoOS one spatial signature across the desktop: two low mineral-glass
+> membranes meet at a precise concave **Tidal Cut**, while content keeps a calm
+> upper field. The normal contract is `left/right=0.11/0.89W`,
+> `horizon=0.82H`, `crest=0.12H`, `shoulder=0.22W` and
+> `cutHalf=max(11px,0.013W)`; compact surfaces use
+> `0.04/0.96W`, `0.78H`, `0.19H` and `0.18W`. It is physical geometry and
+> therefore does not mirror in RTL.
+>
+> The accepted light/dark wallpaper masters are 1672×941 lossless PNGs:
+> `moos-ui-tidal-horizon-master-v1.png`
+> (`b09a5a71e68d…`) and
+> `moos-ui-graphite-horizon-master-v1.png`
+> (`4402f755df0c…`). They keep one silhouette and change only material/light;
+> the family generator maps that geometry to all 16 semantic palettes. The
+> MoOS and Mo AI logos keep their existing geometry. The accepted 69-symbol
+> Tidal Cut family also remains the icon language; this pass does not restart
+> icon design or import another project's artwork.
+>
+> The shell is now the **Command Canvas**, `828×630` logical px with a `24px`
+> outer rhythm, `68px` command bar, ≥`40px` targets and the shared
+> `8/12/16/24px` radius scale. It exposes Mo AI, Store and Settings once,
+> then quiet context/session actions; its finite entrance is `240ms` and
+> interaction feedback `120ms`. Hero Clock updates by the minute and has no
+> perpetual seconds animation. Splash, login, lock and logout share the same
+> horizon geometry; the application component uses one finite `320ms` reveal.
+> Every duration becomes zero when
+> `Kirigami.Units.longDuration <= 1`.
+>
+> Portal motion is deliberately surface-specific: Splash reveal **460ms** +
+> progress **260ms**; Logout background **480ms** + sheet **420ms**; Lock has
+> only finite transitions and a minute-event pulse; the Login wallpaper is
+> static. The canonical portal component hash is
+> `11a0ddbd40ae617a2ff7ac25204ceb9cf63fd42795fa373d531b5fb6caa82705`;
+> the generator synchronises those exact bytes across all 16 family doorways.
+> Store and Mo AI now seat their unchanged identities on the shared horizon
+> instead of unrelated decorative glow layers. The new native MoOS Control
+> Center unifies Overview, Appearance, Connectivity, Hardware, Privacy,
+> Updates and Recovery in one bilingual/RTL shell. It uses ≥`48px` controls,
+> a read-only status helper and **34 fixed allowlisted routes**; storage is
+> measured on `/var`, not composefs `/`. MoPlayer was deliberately not
+> reworked again in this pass: the accepted MoOS chrome and canonical
+> `23799ad` / 176-test state remain the source of truth.
+>
+> Working-tree previews and before/after pairs are indexed at
+> [`artwork/moos-ui2/live-tests/README.md`](artwork/moos-ui2/live-tests/README.md).
+> The final wallpaper and Command Canvas were also captured from the running
+> 3840×2160 Plasma session after a temporary source-package install; that user
+> override was then removed so it cannot shadow the signed image. These are
+> **not signed-deployment evidence**. Measured idle samples from the previews:
+> Launcher **0 ticks / 0.000% over 20s**, Hero Clock **0 / 0.000% over 20s**,
+> Store **0 / 0.000% over 20s**; Control Center held **55.8 MiB current /
+> 58.8 MiB peak** and accumulated **0.427s CPU after minutes**. The full gates
+> and local generic image build have passed. Release remains open until the
+> branch is committed/pushed, CI publishes a signed image, that exact digest is
+> staged and booted, and post-update verification plus final booted-image
+> captures pass.
+
+> **Working-tree visual/UX audit — 2026-07-30, branch
+> `audit/commercial-visual-polish-2026-07-30`.** The measured audit and release
+> checklist are in
+> [`artwork/MOOS_VISUAL_POLISH_AUDIT_2026-07-30.md`](artwork/MOOS_VISUAL_POLISH_AUDIT_2026-07-30.md).
+> The rejected 67/68-symbol monoline checkpoint was replaced wholesale by the
+> original **69-symbol Tidal Cut** family: compound filled paths, one generated
+> manifest/catalogue, live semantic theme roles and executable KDE, GTK and
+> librsvg proofs at 16–128 px. The worktree also closes session-control and
+> Installer contrast gaps across all 16 schemes; makes custom actions keyboard-
+> and AT-reachable; binds finite motion to animations-off; maps first-party GTK
+> windows to the active family palette; removes blocking Recovery and Mo PC
+> Remote work from GTK's main loop; and fixes shell double-mirroring in RTL.
+>
+> Source acceptance is now green: the four QML apps share tokens, focus, buttons
+> and symbols; Launcher is a 720×590 three-column MoOS composition; dock type
+> uses the system font/11 pt floor; Splash is one reveal plus progress; Mo AI
+> ambient loops and bilingual duplication are removed; and active-locale copy
+> is enforced. MoPlayer uses palette-native MoOS chrome, passes analyze plus
+> **176/176**, is committed/pushed at canonical `23799ad`, and is vendored from
+> that exact clean revision. Final image-repository `just check` exits 0. The
+> full generic `just build` also exits 0 from this exact worktree and produces
+> `localhost/moos:latest` (`5e64dbf3373a…`): all in-image QML, Launcher,
+> desktop-scene, identity, Store, initramfs/Plymouth and bootc gates pass;
+> initramfs is 122 MB and contains the MoOS Plymouth assets plus
+> `ostree-prepare-root`.
+> **This is still not shipped evidence:** signed publication (including the
+> NVIDIA matrix image), update staging, reboot and post-update check are the
+> remaining release steps.
+
 > **Session N — the practical full-system audit (2026-07-29), branch
 > `fix/full-system-audit-and-completion`.** A live-first audit (bootc/rpm-ostree
 > status, failed units, journal, coredumps, boot chain, sysctl-vs-live, ports)
@@ -45,8 +171,9 @@ The design system remains **MoOS UI — Liquid Glass**).
 >   whitelist, not just literals (9569c6e).
 > - **ci** — build-disk/iso now cosign-verify the image before building an
 >   installer; all jobs got timeout-minutes; build-disk got concurrency
->   (8a13cff). Image build now attests an SPDX SBOM with the signing key —
->   first executes on the next main build (592e55f).
+>   (8a13cff). Image build also gained an SPDX SBOM attestation (592e55f) —
+>   **which was removed again on 2026-07-29 after it broke the build twice; see
+>   the round-3 entry below. Do not re-add it to this workflow.**
 > - **moplayer** — the bundled demo playlist could never load (undeclared in
 >   pubspec, wrong asset path); shipped it correctly + regression (b25b158).
 > - **store** — curated npm/AppImage tools could be installed but never removed;
@@ -57,6 +184,97 @@ The design system remains **MoOS UI — Liquid Glass**).
 > returns success (was "Invalid Flatpak app ID"), the test install restored
 > afterward. NOT yet verified (needs a boot / a main build): the sch_fq
 > ordering on a clean single-pass boot, and the SBOM attestation step.
+> **Update:** the SBOM step was never verifiable — it killed the runner on both
+> attempts and was removed (round 3).
+>
+> **Session N, round 3 — shipped to main, booted, and verified on the machine
+> (2026-07-29).** Everything below is running on `44.20260729.452` (rev d567c8b,
+> digest ff45fe58), signature-verified against `/etc/pki/containers/moos.pub`.
+> `tests/post-update-check.sh`: **48 passed, 0 failed** (was 45/3 before this
+> boot), 0 failed system or user units, user `default.target` **1.444s**.
+> - **ci (High)** — the SPDX SBOM step killed the GitHub runner twice; the second
+>   time it took ALL THREE matrix jobs. syft spends ~8 min unpacking a multi-GB
+>   image on a runner already squeezed by `Free disk space`, and the runner does
+>   not come back. `continue-on-error: true` does NOT save it — that forgives a
+>   step which EXITS non-zero, and nothing forgives a runner that is gone, so the
+>   step showed "success" inside a red job. Removed (04b57bd). If it ever returns
+>   it needs its own workflow, off the path that produces the image people boot.
+> - **recovery (High)** — `deployments()` documents a 3-tuple and the call site
+>   unpacks three names, but two failure paths still returned pairs, so Recovery
+>   died with `ValueError: not enough values to unpack (expected 3, got 2)`.
+>   Both paths mean "rpm-ostree is unwell" — the only reason anyone opens
+>   Recovery. It worked on every healthy machine and crashed on the broken one
+>   (db7fd10). Verified on this boot: with rpm-ostree PATH-shadowed by a stub
+>   that exits 1, `/usr/bin/moos-rollback` still draws (timeout 6s -> exit 124,
+>   no traceback); the installed file has 3 three-tuple returns and 0 pairs.
+> - **remote/ui (High)** — the shared `<S>` icon set only a viewBox, so any use
+>   site without a matching CSS rule fell back to the browser default object
+>   size. Measured in Firefox: **290x270px vs 20x19px**, 14.5x too wide, at three
+>   sites (idle-timeout overlay, PC-locked overlay, sign-in lockout hint) — the
+>   same defect as the ~600px settings gear. Fixed on the component so no future
+>   site can repeat it, then sized deliberately: `.center-msg svg` 44px,
+>   `.hint svg` 1.05em (f6118e4, e391f79).
+> - **remote/ui (Medium)** — `.seg button { min-width: 132px }` was tuned for a
+>   FOUR-segment row; Pointer became three and Quality five, so phones wrapped
+>   2+1 and 2+2+1. Re-measured inside the real `.card > .card-pad` nesting (a
+>   first attempt measured the un-nested case, picked 108px and changed nothing):
+>   320px fits three at no value tested, 360px needs <=84px, 390px+ fits all.
+>   84px (d567c8b).
+> - **theme (Medium)** — the UI2 cursor gate required the two halves to name
+>   DIFFERENT themes, which the INVERTED assignment satisfies just as well, and
+>   no file said which theme is the light-coloured one. Now two layers, neither
+>   trusting the name: the repo gate covers all 16 look-and-feels, and
+>   `verify_image_experience.py` decodes the shipped XCursor files and compares
+>   mean opaque-pixel luminance (MoOS 155/255 light, MoOSDark 98/255 dark).
+>   Both passed inside real CI image builds (5403739).
+> - **moai (High)** — every privileged action now leaves a journal record with
+>   four distinct verdicts. Verified on this boot against the INSTALLED binary:
+>   `verdict=ok` (gpu-report), `verdict=declined` (a rollback declined via closed
+>   stdin, deployments unchanged), `verdict=failed status=N`, and `verdict=refused`
+>   for `rm -rf /`, `update; rm -rf /`, `$(reboot)`, `../../bin/sh`, `--exec`
+>   (a5c2536).
+> - **remote/ci (Medium)** — the image ships the vite OUTPUT, and that output is
+>   committed at `moremote/agent/wwwroot`. Editing src/ without `npm run build`
+>   left every test green and the shipped bundle unchanged. Two guards now:
+>   `tests/bundle-freshness.test.ts` (BUILD marker must appear in the bundle, and
+>   sw.js may only precache assets that exist) and a CI step running
+>   `npm ci && npm run build` that fails on ANY diff. The CI step passed
+>   byte-identical on GitHub's runner, so the build is reproducible from the
+>   lockfile (8fe3695).
+> - **security (HIGH, live) — the machine's sound was on the tailnet with no PIN.**
+>   `mo-pc-remote` published moos-cloud-audio with
+>   `tailscale serve --set-path=/audio`, and that service has NO authentication —
+>   its own header says so. `tailscale serve` re-publishes a loopback socket to
+>   the WHOLE tailnet, so on one hostname, one port, one certificate:
+>       POST /api/login (wrong PIN)       -> 401
+>       GET  /audio/stream.webm (no auth) -> 200 audio/webm, a live Opus stream
+>   Four devices were enrolled. Any of them could listen to every call and video,
+>   silently, with nothing on the desktop to say so. Tailnet-only
+>   (`AllowFunnel: None`), all peers one account — bounded, not harmless.
+>   The flaw was architectural: the audio was a SIBLING of the authenticated app
+>   instead of part of it. Two doors, one with no lock. The sound now goes through
+>   the agent at `/api/audio/stream.webm`, behind `UseNetworkGuard` and the session
+>   token, with the token in the query string for the same reason
+>   `/api/files/download` takes it that way — an `<audio>` element cannot send an
+>   Authorization header. `mount_audio()` is replaced by `unmount_audio()`, which
+>   the panel calls on every open, so a machine exposed once closes itself.
+>   Verified end to end against a real agent on a spare port: no token -> 401,
+>   bogus token -> 401, valid token -> 200 audio/webm decoding as WebM. The live
+>   mount was retracted on this machine during the work (200 -> 404).
+>   NOTE FOR THE NEXT AGENT: `tests/test_desktop_sound_reachable.py` used to
+>   REQUIRE the vulnerable mount, and kept passing after the fix only because
+>   `mount_audio` is a substring of `unmount_audio`. It now uses word boundaries
+>   and asserts the opposite. New gate: `tests/test_remote_audio_is_authenticated.py`.
+> Also recorded: the blanket `/etc/sudoers.d/moos-nopasswd` and
+> `49-moos-wheel-nopasswd.rules` on the maintainer's machine are LOCAL dev
+> artifacts, NOT shipped by the image — checked against `system_files/`. A
+> five-agent adversarial audit refuted 6 of 8 candidate findings, including the
+> theory that the 217MB initramfs costs meaningful boot time; do not re-chase it.
+> Sweeps that found nothing, recorded so nobody repeats them: return-arity
+> mismatches across 51 Python files and unbounded `subprocess` calls in 6 GTK
+> apps produced 5 candidates, 4 false positives cleared by reading (the 5th was
+> the Recovery bug above). Mo Store: 33/33 Flathub entries resolve against the
+> Flathub API, and every curated `install.kind` (npm, web) has a handler.
 >
 > **Session N, round 2 — a deeper adversarial pass** on the same branch found
 > and fixed eight more, each reproduced with a regression proven to bite:
