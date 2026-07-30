@@ -34,10 +34,10 @@ Actions=FastOn;FastOff;
 Name=Speed up the connection (Fast Remote)
 Name[ar]=تسريع الاتصال (الوضع السريع)
 Exec=/usr/bin/moos-fast-remote on
-Icon=preferences-system-network-remote
+Icon=moos-pc-remote
 
 [Desktop Action FastOff]
 Name=Restore full quality
 Name[ar]=استعادة الجودة الكاملة
 Exec=/usr/bin/moos-fast-remote off
-Icon=preferences-system-network-remote
+Icon=moos-pc-remote
