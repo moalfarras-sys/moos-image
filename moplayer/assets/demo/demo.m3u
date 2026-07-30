@@ -1,0 +1,29 @@
+#EXTM3U
+# A playlist of public test streams, so MoPlayer can be launched, driven and
+# demonstrated without anyone's real IPTV credentials.
+#
+#   moplayer assets/demo/demo.m3u
+#
+# These are HLS and MPEG-TS from public test rigs — the same two containers a
+# real Xtream panel serves — so this exercises the real playback path, not a mock
+# of it.
+#
+# No commas in the channel names. `#EXTINF` ends its attribute list at the first
+# comma and calls everything after it the name, so "Sintel (HLS, multi-audio)"
+# arrives as a channel called "multi-audio)". Every M3U parser in existence has
+# this hole; the fix is in the playlist, not the parser.
+
+#EXTINF:-1 tvg-id="bbb" tvg-logo="https://image.mux.com/VZtzUzGRv02OhRnZCxcNg49OilvolTqdnFLEqBsTwaxU/thumbnail.png" group-title="Test Streams",Big Buck Bunny
+https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+
+#EXTINF:-1 tvg-id="sintel" group-title="Test Streams",Sintel — multi-audio HLS
+https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8
+
+#EXTINF:-1 tvg-id="apple-basic" group-title="Test Streams",Apple BipBop — fMP4 HLS
+https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8
+
+#EXTINF:-1 tvg-id="nasa" group-title="Live",NASA TV Public
+https://ntv1.akamaized.net/hls/live/2014075/NASA-NTV1-HLS/master.m3u8
+
+#EXTINF:-1 tvg-id="tears" group-title="Live",Tears of Steel
+https://test-streams.mux.dev/pts_shift/master.m3u8

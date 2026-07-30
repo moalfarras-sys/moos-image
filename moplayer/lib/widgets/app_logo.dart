@@ -20,12 +20,17 @@ class AppLogo extends StatelessWidget {
     this.size = 96,
     this.showWordmark = false,
     this.showTagline = false,
+    this.tagline,
     this.bloom = true,
-  });
+  }) : assert(
+         !showTagline || tagline != null,
+         'A visible tagline must come from the current locale.',
+       );
 
   final double size;
   final bool showWordmark;
   final bool showTagline;
+  final String? tagline;
 
   /// The ember glow behind the mark. Off in the caption bar, where a 22 px mark
   /// with a halo just looks smudged.
@@ -77,9 +82,14 @@ class AppLogo extends StatelessWidget {
         if (showTagline) ...[
           const SizedBox(height: Nova.space1),
           Text(
-            'by Moalfarras',
-            style: AppText.label.copyWith(letterSpacing: 3),
-            textDirection: TextDirection.ltr,
+            tagline!,
+            // Tracking breaks Arabic joining; the Latin lockup can carry the
+            // wide cinematic spacing, while Arabic keeps its natural shaping.
+            style: AppText.label.copyWith(
+              letterSpacing: Directionality.of(context) == TextDirection.rtl
+                  ? 0
+                  : 3,
+            ),
           ),
         ],
       ],

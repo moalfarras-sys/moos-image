@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """Native MoOS control panel for Mo PC Remote. Never embeds or opens a browser."""
-import json, os, pwd, re, socket, subprocess, sys, threading, urllib.request
+import hashlib, json, os, pwd, re, socket, subprocess, sys, threading, urllib.request
 
 sys.path.insert(0, "/usr/lib/moos")
 
@@ -11,7 +11,7 @@ from gi.repository import Gtk, Gdk, GLib
 # The palette and the CSS live in ONE place now — /usr/lib/moos/moos_ui2.py. They used to live
 # here, and then MoOS grew two more GTK apps (the updater and Recovery); three copies of a palette
 # is three chances for MoOS to be three slightly different shades of itself.
-from moos_ui2 import UI2_DARK, UI2_LIGHT, ui2_css, gtk_prefers_dark
+from moos_ui2 import UI2StyleController, local_text, logical_start, ui_is_rtl
 
 UNIT = "mo-remote-personal.service"
 PORT = 8765
@@ -23,8 +23,15 @@ PORT = 8765
 def run(*args):
     return subprocess.run(args, text=True, capture_output=True, timeout=5)
 
-def active(unit):
-    return run("systemctl", "--user", "is-active", "--quiet", unit).returncode == 0
+def active(unit, user=True):
+    try:
+        command = ["systemctl"]
+        if user:
+            command.append("--user")
+        command.extend(("is-active", "--quiet", unit))
+        return run(*command).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 def lan_ip():
     try:
@@ -158,6 +165,111 @@ def qr_png(url, path):
     except (OSError, subprocess.SubprocessError):
         return False
 
+
+def _remote_qr_path(url):
+    digest = hashlib.sha256(url.encode("utf-8")).hexdigest()[:12]
+    runtime = os.environ.get("XDG_RUNTIME_DIR") or "/tmp"
+    return os.path.join(runtime, f"mo-remote-qr-{os.getuid()}-{digest}.png")
+
+
+def _fast_remote_enabled():
+    try:
+        return run("moos-fast-remote", "status").stdout.strip() == "on"
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def _recent_log():
+    path = os.path.expanduser("~/.local/share/MoRemotePersonal/log.txt")
+    try:
+        with open(path, errors="replace") as source:
+            return "\n".join(source.read().splitlines()[-30:])
+    except OSError:
+        return local_text("لا يوجد سجل بعد.", "No log yet.")
+
+
+def collect_remote_snapshot():
+    """Collect every slow status off GTK's main thread.
+
+    systemctl and Tailscale each have a five-second timeout.  The previous
+    three-second UI timer ran as many as nine of them serially on the main loop, so
+    one slow daemon could freeze every hover, click and repaint for tens of
+    seconds.  This function deliberately contains no GTK calls.
+    """
+    on = active(UNIT)
+    far = tailscale_url() if on else None
+    qr_path = None
+    if far:
+        candidate = _remote_qr_path(far)
+        if (
+            os.path.isfile(candidate)
+            and os.path.getsize(candidate) > 0
+        ) or qr_png(far, candidate):
+            qr_path = candidate
+    return {
+        "on": on,
+        "far": far,
+        "qr_path": qr_path,
+        "hostname": socket.gethostname(),
+        "portal": active("xdg-desktop-portal.service"),
+        "pipewire": active("pipewire.service"),
+        "input_socket": os.path.exists(
+            f"/run/user/{os.getuid()}/.ydotool_socket"
+        ),
+        "firewall": active("firewalld.service", user=False),
+        "fast_on": _fast_remote_enabled(),
+        "log": _recent_log(),
+    }
+
+
+class CoalescingWorker:
+    """Run one collector at a time and collapse bursts into one trailing run."""
+
+    def __init__(self, collect, deliver, idle_add=GLib.idle_add):
+        self._collect = collect
+        self._deliver = deliver
+        self._idle_add = idle_add
+        self._lock = threading.Lock()
+        self._running = False
+        self._pending = False
+        self._thread = None
+
+    def request(self, *_):
+        with self._lock:
+            if self._running:
+                self._pending = True
+                return True
+            self._running = True
+        self._thread = threading.Thread(
+            target=self._work,
+            name="mo-pc-remote-refresh",
+            daemon=True,
+        )
+        self._thread.start()
+        return True
+
+    def _work(self):
+        payload = None
+        error = None
+        try:
+            payload = self._collect()
+        except Exception as exc:  # keep a status failure from killing the UI
+            error = exc
+        self._idle_add(self._finish_on_main, payload, error)
+
+    def _finish_on_main(self, payload, error):
+        try:
+            self._deliver(payload, error)
+        finally:
+            with self._lock:
+                rerun = self._pending
+                self._pending = False
+                self._running = False
+            if rerun:
+                self.request()
+        return False
+
+
 class App(Gtk.Application):
     def __init__(self): super().__init__(application_id="org.moos.MoPCRemote")
     def do_activate(self):
@@ -176,24 +288,32 @@ class App(Gtk.Application):
             existing.present()
             return
         self.win=Gtk.ApplicationWindow(application=self,title="Mo PC Remote")
+        self.win.set_direction(
+            Gtk.TextDirection.RTL if ui_is_rtl() else Gtk.TextDirection.LTR)
         self.win.add_css_class("moos-ui2")
         self.style_provider=Gtk.CssProvider()
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), self.style_provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-        self.apply_ui2_style()
-        settings=Gtk.Settings.get_default()
-        if settings:
-            settings.connect("notify::gtk-application-prefer-dark-theme",self.apply_ui2_style)
-            settings.connect("notify::gtk-theme-name",self.apply_ui2_style)
+        self.style_controller=UI2StyleController(self.style_provider)
         self.win.set_default_size(720,620)
         outer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14,margin_top=22,margin_bottom=22,margin_start=24,margin_end=24)
         outer.add_css_class("remote-shell")
-        title=Gtk.Label(label="Mo PC Remote",xalign=0); title.add_css_class("title-1"); outer.append(title)
-        sub=Gtk.Label(label="Native MoOS control center · مركز تحكم MoOS الأصلي",xalign=0); sub.add_css_class("dim-label"); outer.append(sub)
-        self.status=Gtk.Label(xalign=0); self.status.set_wrap(True); self.status.add_css_class("ui2-card"); outer.append(self.status)
+        title=Gtk.Label(label="Mo PC Remote",xalign=logical_start()); title.add_css_class("title-1"); outer.append(title)
+        sub=Gtk.Label(
+            label=local_text("مركز تحكم MoOS الأصلي", "Native MoOS control center"),
+            xalign=logical_start())
+        sub.add_css_class("dim-label"); outer.append(sub)
+        self.status=Gtk.Label(
+            label=local_text("جارٍ التحقق من الحالة…", "Checking status…"),
+            xalign=logical_start())
+        self.status.set_wrap(True); self.status.add_css_class("ui2-card"); outer.append(self.status)
         buttons=Gtk.Box(spacing=8)
-        for label,cb,style in (("Start / تشغيل",self.start,"suggested-action"),("Stop / إيقاف",self.stop,"destructive-action"),("Refresh / تحديث",self.refresh,None)):
+        for label,cb,style in (
+            (local_text("تشغيل", "Start"),self.start,"suggested-action"),
+            (local_text("إيقاف", "Stop"),self.stop,"destructive-action"),
+            (local_text("تحديث", "Refresh"),self.refresh,None),
+        ):
             b=Gtk.Button(label=label); b.connect("clicked",cb)
             if style:b.add_css_class(style)
             buttons.append(b)
@@ -209,8 +329,11 @@ class App(Gtk.Application):
         fast=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=16)
         fast.add_css_class("ui2-card")
         fast_text=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=2,hexpand=True)
-        fast_title=Gtk.Label(label="Fast Remote · الوضع السريع",xalign=0); fast_title.add_css_class("heading")
-        self.fast_sub=Gtk.Label(xalign=0); self.fast_sub.set_wrap(True); self.fast_sub.add_css_class("dim-label")
+        fast_title=Gtk.Label(
+            label=local_text("الوضع السريع", "Fast Remote"),
+            xalign=logical_start())
+        fast_title.add_css_class("heading")
+        self.fast_sub=Gtk.Label(xalign=logical_start()); self.fast_sub.set_wrap(True); self.fast_sub.add_css_class("dim-label")
         fast_text.append(fast_title); fast_text.append(self.fast_sub)
         fast.append(fast_text)
         self.fast_switch=Gtk.Switch(valign=Gtk.Align.CENTER)
@@ -223,9 +346,10 @@ class App(Gtk.Application):
         addr=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=16)
         addr.add_css_class("ui2-card")
         addr_text=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=4,hexpand=True)
-        self.address=Gtk.Label(xalign=0,selectable=True); self.address.set_wrap(True); self.address.set_selectable(True)
+        self.address=Gtk.Label(xalign=logical_start(),selectable=True); self.address.set_wrap(True); self.address.set_selectable(True)
         addr_text.append(self.address)
-        self.anywhere_btn=Gtk.Button(label="Enable access from anywhere / تفعيل الوصول من أي مكان")
+        self.anywhere_btn=Gtk.Button(label=local_text(
+            "تفعيل الوصول من أي مكان", "Enable access from anywhere"))
         self.anywhere_btn.add_css_class("suggested-action")
         self.anywhere_btn.connect("clicked",self.on_enable_anywhere); self.anywhere_btn.set_visible(False)
         addr_text.append(self.anywhere_btn)
@@ -237,16 +361,22 @@ class App(Gtk.Application):
         self.grid=Gtk.Grid(column_spacing=18,row_spacing=10)
         self.grid.add_css_class("ui2-card")
         outer.append(self.grid)
-        log_title=Gtk.Label(label="Recent errors / آخر الأخطاء",xalign=0); log_title.add_css_class("heading"); outer.append(log_title)
+        log_title=Gtk.Label(
+            label=local_text("آخر الأخطاء", "Recent errors"),
+            xalign=logical_start())
+        log_title.add_css_class("heading"); outer.append(log_title)
         scroll=Gtk.ScrolledWindow(vexpand=True); self.log=Gtk.TextView(editable=False,monospace=True,wrap_mode=Gtk.WrapMode.WORD_CHAR)
         scroll.add_css_class("ui2-card"); self.log.add_css_class("ui2-log")
         scroll.set_child(self.log); outer.append(scroll)
+        self._refresh_worker=CoalescingWorker(
+            collect_remote_snapshot, self._apply_refresh)
         self.win.set_child(outer); self.win.present(); self.refresh()
         GLib.timeout_add_seconds(3,self.refresh)
-    def apply_ui2_style(self,*_):
-        self.style_provider.load_from_data(ui2_css(UI2_DARK if gtk_prefers_dark() else UI2_LIGHT))
     def row(self,n,label,value,ok):
-        a=Gtk.Label(label=label,xalign=0); b=Gtk.Label(label=("● " if ok else "○ ")+value,xalign=0)
+        a=Gtk.Label(label=label,xalign=logical_start())
+        b=Gtk.Label(
+            label=("● " if ok else "○ ")+value,
+            xalign=logical_start())
         b.add_css_class("success" if ok else "error"); self.grid.attach(a,0,n,1,1); self.grid.attach(b,1,n,1,1)
     def start(self,*_): run("systemctl","--user","enable","--now",UNIT); self.refresh()
     def stop(self,*_): run("systemctl","--user","disable","--now",UNIT); self.refresh()
@@ -255,7 +385,6 @@ class App(Gtk.Application):
     # its status back so the panel always reflects the real mode (e.g. if it was flipped by
     # Meta+R or the launcher's right-click action). The _fast_syncing guard stops that
     # read-back from re-firing the script — set_active() also emits "state-set".
-    def fast_status(self): return run("moos-fast-remote","status").stdout.strip()=="on"
     def on_fast_toggled(self,_switch,state):
         if getattr(self,"_fast_syncing",False): return False
         run("moos-fast-remote","on" if state else "off"); self.refresh()
@@ -272,9 +401,13 @@ class App(Gtk.Application):
         self._setup_running=True
         self.anywhere_btn.set_sensitive(False)
         self._show_setup(
-            "<b>Starting secure sign-in… / جارٍ بدء تسجيل الدخول الآمن…</b>\n"
-            "Approve the local administrator prompt once.\n"
-            "وافق على طلب صلاحية المسؤول مرة واحدة.")
+            "<b>" + local_text(
+                "جارٍ بدء تسجيل الدخول الآمن…",
+                "Starting secure sign-in…",
+            ) + "</b>\n" + local_text(
+                "وافق على طلب صلاحية المسؤول المحلي مرة واحدة.",
+                "Approve the local administrator prompt once.",
+            ))
         threading.Thread(target=self._setup_anywhere,daemon=True).start()
 
     def _show_setup(self,markup,url=None):
@@ -300,9 +433,15 @@ class App(Gtk.Application):
                     if match:
                         url=match.group(0).rstrip(".,)")
                         markup=(
-                            "<b>Finish Tailscale sign-in / أكمل تسجيل دخول Tailscale</b>\n"
-                            "Scan this QR code or open the address, then return here.\n"
-                            "امسح الرمز أو افتح العنوان، ثم ارجع هنا.\n\n"
+                            "<b>" + local_text(
+                                "أكمل تسجيل دخول Tailscale",
+                                "Finish Tailscale sign-in",
+                            ) + "</b>\n"
+                            + local_text(
+                                "امسح رمز QR أو افتح العنوان، ثم ارجع إلى هنا.",
+                                "Scan the QR code or open the address, then return here.",
+                            )
+                            + "\n\n"
                             f"<tt>{GLib.markup_escape_text(url)}</tt>")
                         GLib.idle_add(self._show_setup,markup,url)
                 if proc.wait() != 0:
@@ -327,37 +466,64 @@ class App(Gtk.Application):
         self.anywhere_btn.set_sensitive(True)
         if error:
             self.address.set_markup(
-                "<b>Setup did not finish / لم يكتمل الإعداد</b>\n"
+                "<b>" + local_text(
+                    "لم يكتمل الإعداد",
+                    "Setup did not finish",
+                ) + "</b>\n"
                 +GLib.markup_escape_text(error[:400])
-                +"\n\nTry the button again. / حاول الزر مرة أخرى.")
+                +"\n\n"
+                +local_text("حاول الضغط على الزر مرة أخرى.", "Try the button again."))
             return False
         self.refresh()
         return False
 
     def refresh(self,*_):
-        on=active(UNIT)
-        far=tailscale_url() if on else None
-        self.status.set_markup(f"<b>Service:</b> {'Running' if on else 'Stopped'}    <b>Device:</b> {GLib.markup_escape_text(socket.gethostname())}")
+        return self._refresh_worker.request()
+
+    def _apply_refresh(self,snapshot,error):
+        """Apply one immutable worker result; runs only through GLib.idle_add."""
+        if error is not None:
+            self.status.set_markup(
+                "<b>" + local_text(
+                    "تعذّر تحديث الحالة",
+                    "Status refresh failed",
+                ) + "</b>\n"
+                + GLib.markup_escape_text(str(error)[:300]))
+            return
+
+        on=snapshot["on"]
+        far=snapshot["far"]
+        self.status.set_markup(
+            local_text(
+                f"<b>الخدمة:</b> {'تعمل' if on else 'متوقفة'}    "
+                f"<b>الجهاز:</b> {GLib.markup_escape_text(snapshot['hostname'])}",
+                f"<b>Service:</b> {'Running' if on else 'Stopped'}    "
+                f"<b>Device:</b> {GLib.markup_escape_text(snapshot['hostname'])}",
+            ))
 
         if getattr(self,"_setup_markup",None):
             # Do not let the three-second status poll erase the login URL while the owner is
             # authenticating in Tailscale.
             self.address.set_markup(self._setup_markup)
         elif not on:
-            self.address.set_text("Remote control is off. Press Start to enable it.\nالتحكم عن بُعد متوقف. اضغط تشغيل.")
+            self.address.set_text(local_text(
+                "التحكم عن بُعد متوقف. اضغط «تشغيل» لتفعيله.",
+                "Remote control is off. Press Start to enable it.",
+            ))
             self.anywhere_btn.set_visible(False); self.qr.set_visible(False)
         elif far:
             # The address that survives leaving the house. Say so plainly — the whole failure
             # mode here was a user who had one address and did not know it was the wrong one.
             self.address.set_markup(
-                "<b>From anywhere / من أي مكان</b>  ·  works on mobile data\n"
+                "<b>" + local_text("من أي مكان", "From anywhere") + "</b>\n"
                 f"<tt>{GLib.markup_escape_text(far)}</tt>\n\n"
-                "<small>Scan the code or open the link on your phone, then enter your PIN.\n"
-                "امسح الرمز أو افتح الرابط على جوالك، ثم أدخل الـPIN.</small>")
+                "<small>" + local_text(
+                    "امسح الرمز أو افتح الرابط على هاتفك، ثم أدخل رمز PIN.",
+                    "Scan the code or open the link on your phone, then enter your PIN.",
+                ) + "</small>")
             self.anywhere_btn.set_visible(False)
-            path=os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp",f"mo-remote-qr-{os.getuid()}.png")
-            if qr_png(far,path):
-                self.qr.set_filename(path); self.qr.set_visible(True)
+            if snapshot["qr_path"]:
+                self.qr.set_filename(snapshot["qr_path"]); self.qr.set_visible(True)
             else:
                 self.qr.set_visible(False)
         else:
@@ -365,39 +531,78 @@ class App(Gtk.Application):
             # agent accepts only the Tailscale tailnet + loopback, so we do NOT dangle
             # the blocked LAN address here — we point the user at the path that works.
             self.address.set_markup(
-                "<b>Enable remote access / فعّل الوصول عن بُعد</b>\n"
-                "<small>For your security, MoOS reaches this PC over your private Tailscale "
-                "network — encrypted, and it works from anywhere — not a plain LAN address. "
-                "Press the button below once to set it up.\n"
-                "لأمانك، يصل MoOS لهذا الجهاز عبر شبكة Tailscale الخاصة — مشفّرة وتعمل من أي "
-                "مكان — لا عبر عنوان شبكة محلية مكشوف. اضغط الزر بالأسفل مرة واحدة.</small>")
+                "<b>" + local_text(
+                    "فعّل الوصول عن بُعد",
+                    "Enable remote access",
+                ) + "</b>\n<small>" + local_text(
+                    "لأمانك، يصل MoOS إلى هذا الجهاز عبر شبكة Tailscale الخاصة "
+                    "المشفّرة، لا عبر عنوان شبكة محلية مكشوف. اضغط الزر أدناه مرة "
+                    "واحدة لإعدادها.",
+                    "For your security, MoOS reaches this PC over your private, "
+                    "encrypted Tailscale network rather than an exposed LAN address. "
+                    "Press the button below once to set it up.",
+                ) + "</small>")
             self.anywhere_btn.set_visible(True)
             self.qr.set_visible(False)
         while c:=self.grid.get_first_child(): self.grid.remove(c)
-        portal=active("xdg-desktop-portal.service")
-        pipe=active("pipewire.service")
-        sock=os.path.exists(f"/run/user/{os.getuid()}/.ydotool_socket")
-        fw=run("systemctl","is-active","--quiet","firewalld.service").returncode==0
-        self.row(0,"Firewall", "active" if fw else "inactive",fw)
-        self.row(1,"PipeWire", "active" if pipe else "inactive",pipe)
-        self.row(2,"Desktop portal", "active" if portal else "inactive",portal)
-        self.row(3,"Input permission", "private user socket" if sock else "not ready",sock)
-        self.row(4,"MoPC backend", "touch/keyboard/desktop service" if on else "stopped",on)
+        portal=snapshot["portal"]
+        pipe=snapshot["pipewire"]
+        sock=snapshot["input_socket"]
+        fw=snapshot["firewall"]
+        self.row(
+            0,
+            local_text("جدار الحماية", "Firewall"),
+            local_text("نشط", "active") if fw else local_text("غير نشط", "inactive"),
+            fw,
+        )
+        self.row(
+            1,
+            "PipeWire",
+            local_text("نشط", "active") if pipe else local_text("غير نشط", "inactive"),
+            pipe,
+        )
+        self.row(
+            2,
+            local_text("بوابة سطح المكتب", "Desktop portal"),
+            local_text("نشطة", "active") if portal else local_text("غير نشطة", "inactive"),
+            portal,
+        )
+        self.row(
+            3,
+            local_text("إذن الإدخال", "Input permission"),
+            local_text("مقبس مستخدم خاص", "private user socket")
+            if sock
+            else local_text("غير جاهز", "not ready"),
+            sock,
+        )
+        self.row(
+            4,
+            local_text("خدمة MoPC", "MoPC backend"),
+            local_text("خدمة اللمس ولوحة المفاتيح وسطح المكتب",
+                       "touch, keyboard and desktop service")
+            if on
+            else local_text("متوقفة", "stopped"),
+            on,
+        )
         # Reflect the real Fast Remote mode without re-triggering it.
-        try: fast_on=self.fast_status()
-        except (OSError, subprocess.SubprocessError): fast_on=False
+        fast_on=snapshot["fast_on"]
         self._fast_syncing=True
         self.fast_switch.set_active(fast_on)
         self._fast_syncing=False
         self.fast_sub.set_text(
-            "On — the connection is prioritised: live wallpaper, effects and Mo AI are paused.\n"
-            "مفعّل — الاتصال في الأولوية: الخلفية الحية والتأثيرات وMo AI موقوفة."
-            if fast_on else
-            "Off. Turn it on when the remote feels slow — it frees the machine for the stream.\n"
-            "متوقف. شغّله عندما يبطؤ الاتصال — يفرّغ الجهاز لصالح البث.")
-        path=os.path.expanduser("~/.local/share/MoRemotePersonal/log.txt")
-        try: lines=open(path,errors="replace").read().splitlines()[-30:]; self.log.get_buffer().set_text("\n".join(lines))
-        except OSError: self.log.get_buffer().set_text("No log yet.")
-        return True
+            local_text(
+                "مفعّل. يُعطى الاتصال الأولوية، فتتوقف الخلفية الحية "
+                "والتأثيرات وMo AI مؤقتاً.",
+                "On. The connection is prioritised; live wallpaper, effects "
+                "and Mo AI pause temporarily.",
+            )
+            if fast_on
+            else local_text(
+                "متوقف. فعّله عندما يبطؤ الاتصال لتحرير موارد الجهاز للبث.",
+                "Off. Turn it on when the remote feels slow to free resources "
+                "for the stream.",
+            ))
+        self.log.get_buffer().set_text(snapshot["log"])
 
-App().run()
+if __name__ == "__main__":
+    App().run()

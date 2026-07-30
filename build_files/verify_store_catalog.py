@@ -25,6 +25,7 @@ from urllib.parse import unquote, urlsplit
 CATALOG = "/usr/share/moos/store/catalog.json"
 STORE_QML = "/usr/share/moos/apps/store/main.qml"
 WELCOME_QML = "/usr/share/moos/apps/welcome/main.qml"
+SYMBOL_CATALOG = "/usr/share/moos/apps/ui/SymbolCatalog.js"
 MOOS_STORECTL = "/usr/bin/moos-storectl"
 MOOS_STORE_INDEX = "/usr/bin/moos-store-index"
 MOOS_OPEN = "/usr/bin/moos-open"
@@ -414,11 +415,17 @@ for index, bundle in enumerate(bundles):
 # ── RELATIONSHIP: both QML surfaces safely tolerate new catalog glyphs ─────────
 store_qml = text(STORE_QML)
 welcome_qml = text(WELCOME_QML)
+symbol_catalog = code(text(SYMBOL_CATALOG), "//")
+require(
+    '"moos-spark-symbolic"' in symbol_catalog
+    and "symbolNames[candidate]" in symbol_catalog,
+    "the generated symbolic catalog lost its owned spark fallback",
+)
 for qml_src, label in ((store_qml, "Mo Store"), (welcome_qml, "Welcome")):
     qml_code = code(qml_src, "//")
     require(
-        'glyphs[name]' in qml_code
-        and ('glyphs["spark"]' in qml_code or "glyphs.spark" in qml_code),
+        'import "../ui/SymbolCatalog.js" as MoOSSymbols' in qml_code
+        and "MoOSSymbols.resolve(" in qml_code,
         f"the {label} QML lost the safe spark fallback for new catalog glyphs",
     )
 

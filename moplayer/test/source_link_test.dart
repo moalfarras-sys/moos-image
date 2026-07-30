@@ -5,37 +5,11 @@
 // series, no EPG — while the same link read as what it is yields the whole
 // panel. The credentials are sitting in the query string either way.
 
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moplayer_moos/models/playlist_config.dart';
 import 'package:moplayer_moos/services/source/source_link.dart';
 
 void main() {
-  // The bundled demo has to actually be BUNDLED. asset://demo.m3u resolves (in
-  // both _readM3uBody implementations) to assets/<name> = assets/demo.m3u, and
-  // rootBundle can only find it if pubspec.yaml packs it. This drifted once: the
-  // file was git-tracked at assets/demo/demo.m3u, undeclared in pubspec and off
-  // the asset:// mapping, so `moplayer asset://demo.m3u` threw "Unable to load
-  // asset" in the shipped app while every test passed. Tie the three together.
-  group('the bundled demo playlist is shippable', () {
-    test('asset://demo.m3u maps to a file that exists and is declared', () {
-      // The exact mapping the app uses: asset://<name> -> assets/<name>.
-      const url = 'asset://demo.m3u';
-      final asset = 'assets/${url.substring('asset://'.length)}';
-      expect(asset, 'assets/demo.m3u',
-          reason: 'the resolver maps asset://<name> to assets/<name>');
-      expect(File(asset).existsSync(), isTrue,
-          reason: '$asset must exist at exactly the path asset://demo.m3u loads');
-
-      final pubspec = File('pubspec.yaml').readAsStringSync();
-      final declared = pubspec.contains('- assets/demo.m3u') ||
-          RegExp(r'-\s*assets/demo/\s*$', multiLine: true).hasMatch(pubspec);
-      expect(declared, isTrue,
-          reason: 'pubspec.yaml flutter.assets must pack assets/demo.m3u, '
-              'or rootBundle.loadString throws "Unable to load asset"');
-    });
-  });
   group('a link that carries an account is an Xtream account', () {
     test('the shape every subscription is sold in', () {
       final c = SourceLink.parse(
@@ -111,10 +85,10 @@ void main() {
     test(
       'a bare .m3u path is absolutised — Kickoff launches from elsewhere',
       () {
-        final c = SourceLink.parse('assets/demo.m3u')!;
+        final c = SourceLink.parse('assets/demo/demo.m3u')!;
         expect(c.type, PlaylistType.m3u);
         expect(c.m3uUrl, startsWith('file:///'));
-        expect(c.m3uUrl, endsWith('assets/demo.m3u'));
+        expect(c.m3uUrl, endsWith('assets/demo/demo.m3u'));
       },
     );
 

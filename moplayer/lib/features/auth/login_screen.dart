@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -11,6 +12,7 @@ import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/glass.dart';
+import '../../core/theme/motion.dart';
 import '../../core/theme/nova.dart';
 import '../../models/playlist_config.dart';
 import '../../providers/core_providers.dart';
@@ -310,79 +312,77 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.surface0,
-      body: SceneBackdrop(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Nova.space5,
-              vertical: Nova.space6,
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Center(
-                    child: AppLogo(
-                      size: 88,
-                      showWordmark: true,
-                      showTagline: true,
-                    ),
+    return SceneBackdrop(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Nova.space5,
+            vertical: Nova.space6,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: AppLogo(
+                    size: 88,
+                    showWordmark: true,
+                    showTagline: true,
+                    tagline: s.appTagline,
                   ),
-                  const SizedBox(height: Nova.space6),
-                  GlassPanel(
-                    padding: const EdgeInsets.all(Nova.space5),
-                    radius: Nova.radiusOverlay,
-                    glow: true,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          widget.isAdditional ? s.addSource : s.welcomeTitle,
-                          style: AppText.headline,
-                        ),
-                        if (!widget.isAdditional) ...[
-                          const SizedBox(height: Nova.space1),
-                          Text(s.welcomeBody, style: AppText.body),
-                        ],
-                        const SizedBox(height: Nova.space5),
-                        _MethodTabs(
-                          method: _method,
-                          strings: s,
-                          onChanged: _selectMethod,
-                        ),
-                        const SizedBox(height: Nova.space3),
-                        Text(_methodHint(s), style: AppText.caption),
-                        const SizedBox(height: Nova.space5),
-                        _form(s),
-                        if (_status != null) ...[
-                          const SizedBox(height: Nova.space4),
-                          _Message(text: _status!, pending: _pending),
-                        ],
-                        if (_error != null) ...[
-                          const SizedBox(height: Nova.space4),
-                          _Message(text: _error!, danger: true),
-                        ],
-                        if (widget.isAdditional) ...[
-                          const SizedBox(height: Nova.space4),
-                          Align(
-                            alignment: AlignmentDirectional.centerStart,
-                            child: GhostButton(
-                              label: s.cancel,
-                              icon: Icons.close_rounded,
-                              onPressed: () => context.pop(),
-                            ),
-                          ),
-                        ],
+                ),
+                const SizedBox(height: Nova.space6),
+                GlassPanel(
+                  padding: const EdgeInsets.all(Nova.space5),
+                  radius: Nova.radiusOverlay,
+                  glow: true,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.isAdditional ? s.addSource : s.welcomeTitle,
+                        style: AppText.headline,
+                      ),
+                      if (!widget.isAdditional) ...[
+                        const SizedBox(height: Nova.space1),
+                        Text(s.welcomeBody, style: AppText.body),
                       ],
-                    ),
+                      const SizedBox(height: Nova.space5),
+                      _MethodTabs(
+                        method: _method,
+                        strings: s,
+                        onChanged: _selectMethod,
+                      ),
+                      const SizedBox(height: Nova.space3),
+                      Text(_methodHint(s), style: AppText.caption),
+                      const SizedBox(height: Nova.space5),
+                      _form(s),
+                      if (_status != null) ...[
+                        const SizedBox(height: Nova.space4),
+                        _Message(text: _status!, pending: _pending),
+                      ],
+                      if (_error != null) ...[
+                        const SizedBox(height: Nova.space4),
+                        _Message(text: _error!, danger: true),
+                      ],
+                      if (widget.isAdditional) ...[
+                        const SizedBox(height: Nova.space4),
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: GhostButton(
+                            label: s.cancel,
+                            icon: Icons.close_rounded,
+                            onPressed: () => context.pop(),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -538,7 +538,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-class _MethodTabs extends StatelessWidget {
+class _MethodTabs extends StatefulWidget {
   const _MethodTabs({
     required this.method,
     required this.strings,
@@ -550,11 +550,40 @@ class _MethodTabs extends StatelessWidget {
   final ValueChanged<_Method> onChanged;
 
   @override
+  State<_MethodTabs> createState() => _MethodTabsState();
+}
+
+class _MethodTabsState extends State<_MethodTabs> {
+  late final List<FocusNode> _nodes = List.generate(
+    _Method.values.length,
+    (index) =>
+        FocusNode(debugLabel: 'login-method-${_Method.values[index].name}'),
+  );
+
+  @override
+  void dispose() {
+    for (final node in _nodes) {
+      node.dispose();
+    }
+    super.dispose();
+  }
+
+  void _move(int from, int physicalDelta) {
+    // Arrow keys describe a physical direction. The Row mirrors in Arabic, so
+    // the corresponding enum step mirrors too.
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final logicalDelta = rtl ? -physicalDelta : physicalDelta;
+    final next = (from + logicalDelta) % _Method.values.length;
+    _nodes[next].requestFocus();
+    widget.onChanged(_Method.values[next]);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final tabs = <(_Method, String, IconData)>[
-      (_Method.xtream, strings.xtream, Icons.dns_rounded),
-      (_Method.m3u, strings.m3u, Icons.link_rounded),
-      (_Method.activation, strings.activation, Icons.qr_code_rounded),
+      (_Method.xtream, widget.strings.xtream, Icons.dns_rounded),
+      (_Method.m3u, widget.strings.m3u, Icons.link_rounded),
+      (_Method.activation, widget.strings.activation, Icons.qr_code_rounded),
     ];
 
     return Container(
@@ -566,13 +595,16 @@ class _MethodTabs extends StatelessWidget {
       ),
       child: Row(
         children: [
-          for (final (value, label, icon) in tabs)
+          for (var index = 0; index < tabs.length; index++)
             Expanded(
               child: _Tab(
-                label: label,
-                icon: icon,
-                selected: value == method,
-                onTap: () => onChanged(value),
+                label: tabs[index].$2,
+                icon: tabs[index].$3,
+                selected: tabs[index].$1 == widget.method,
+                focusNode: _nodes[index],
+                onTap: () => widget.onChanged(tabs[index].$1),
+                onMoveLeft: () => _move(index, -1),
+                onMoveRight: () => _move(index, 1),
               ),
             ),
         ],
@@ -586,13 +618,19 @@ class _Tab extends StatefulWidget {
     required this.label,
     required this.icon,
     required this.selected,
+    required this.focusNode,
     required this.onTap,
+    required this.onMoveLeft,
+    required this.onMoveRight,
   });
 
   final String label;
   final IconData icon;
   final bool selected;
+  final FocusNode focusNode;
   final VoidCallback onTap;
+  final VoidCallback onMoveLeft;
+  final VoidCallback onMoveRight;
 
   @override
   State<_Tab> createState() => _TabState();
@@ -600,46 +638,81 @@ class _Tab extends StatefulWidget {
 
 class _TabState extends State<_Tab> {
   bool _hovered = false;
+  bool _focused = false;
 
   @override
   Widget build(BuildContext context) {
     final selected = widget.selected;
     final color = selected
-        ? Colors.white
+        ? AppColors.onEmber
         : (_hovered ? AppColors.textPrimary : AppColors.textSecondary);
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: Nova.fast,
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: Nova.space2),
-          decoration: BoxDecoration(
-            gradient: selected ? AppColors.emberGradient : null,
-            color: selected
-                ? null
-                : (_hovered ? AppColors.surface3 : Colors.transparent),
-            borderRadius: BorderRadius.circular(Nova.radiusControl),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(widget.icon, size: 16, color: color),
-              const SizedBox(width: Nova.space2),
-              Flexible(
-                child: Text(
-                  widget.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.button.copyWith(color: color),
-                ),
+    return Semantics(
+      container: true,
+      excludeSemantics: true,
+      button: true,
+      selected: selected,
+      focusable: true,
+      focused: _focused,
+      label: widget.label,
+      onTap: widget.onTap,
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.arrowLeft):
+              widget.onMoveLeft,
+          const SingleActivator(LogicalKeyboardKey.arrowRight):
+              widget.onMoveRight,
+        },
+        child: FocusableActionDetector(
+          focusNode: widget.focusNode,
+          mouseCursor: SystemMouseCursors.click,
+          onShowHoverHighlight: (value) => setState(() => _hovered = value),
+          onFocusChange: (value) => setState(() => _focused = value),
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.gameButtonA): ActivateIntent(),
+          },
+          actions: {
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) {
+                widget.onTap();
+                return null;
+              },
+            ),
+          },
+          child: GestureDetector(
+            onTap: widget.onTap,
+            behavior: HitTestBehavior.opaque,
+            child: AnimatedContainer(
+              duration: Motion.duration(context, Nova.fast),
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: Nova.space2),
+              decoration: BoxDecoration(
+                gradient: selected ? AppColors.emberGradient : null,
+                color: selected
+                    ? null
+                    : (_hovered ? AppColors.surface3 : Colors.transparent),
+                borderRadius: BorderRadius.circular(Nova.radiusControl),
+                boxShadow: focusRing(_focused),
               ),
-            ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(widget.icon, size: 16, color: color),
+                  const SizedBox(width: Nova.space2),
+                  Flexible(
+                    child: Text(
+                      widget.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.button.copyWith(color: color),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

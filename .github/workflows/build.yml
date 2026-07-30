@@ -235,6 +235,19 @@ jobs:
           python3 tests/test_moos_ui2.py
           python3 tests/test_moos_theme_safety.py
           python3 tests/test_moos_visual_system.py
+          python3 tests/test_moos_app_icons.py
+          # Parse all 16 KDE palettes into first-party GTK roles and hold the
+          # remote status poll behind a coalescing background worker.
+          python3 tests/test_moos_gtk_runtime.py
+          # First-party interface chrome is one owned, palette-aware symbolic
+          # layer; this also catches unresolved icon names before a QML window ships.
+          python3 tests/test_moos_symbolic_icons.py
+          # Runtime rendering is skipped only when the runner lacks the desktop
+          # libraries; on MoOS it resolves through GTK, KDE and librsvg at 16–128px.
+          python3 tests/test_moos_symbolic_runtime.py
+          # Mo AI's custom controls and modal sheets must remain keyboard/AT
+          # reachable; its ambient scene must follow palette and reduced motion.
+          python3 tests/test_moos_app_visual_polish.py
           # Skips on the runner (no Qt); its string half lives in
           # verify_user_experience.py and does run here. Kept in the list so the
           # gate is never forgotten when the runner image gains Qt.

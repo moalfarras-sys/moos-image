@@ -16,7 +16,7 @@ That was a defensible call and it is no longer the one this app makes.
 | | Nova Cinema (was) | Glass Orange Cinema (is) |
 |---|---|---|
 | Surfaces | Cool navy-black (`#07090F`, blue channel leading) | **Warm** near-black (`#070809 → #0D0F12 → #14171B`, plus `#1A1714`) |
-| Focus ring | MoOS UI cyan `#4FC3FF` | **Ember-gold `#FFB347`** |
+| Focus ring | Nova cyan `#4FC3FF` | **Ember-gold `#FFB347`** |
 | Glass | Chrome only, and rare | Chrome only, and the primary material of the dock, caption and player |
 | Navigation | A left rail | A **floating glass dock**, bottom-centre |
 | Window | KWin's decoration | **Frameless**, with the app's own caption bar |
@@ -28,14 +28,14 @@ The reasons, in order of how much they cost to learn:
    colour that ever means "this is MoPlayer", and the surface under it decides
    whether it looks like a brand or an alert.
 2. **The focus ring is a deliberate divergence, and it is the only one.** Every
-   other app in the MoOS image glows MoOS UI cyan when focused, and MoPlayer does
+   other app in the MoOS image glows Nova cyan when focused, and MoPlayer does
    not. This app is frequently a full-screen cinema surface where the focus ring
    is the *only* chrome on top of a moving picture, and a cyan ring over a warm
    film grade reads as a defect in the video rather than as a control. That is
    worth breaking the system convention for. Nothing else is.
 3. **Cool colour survives in exactly two places**, and both are the *system*
    speaking rather than the app: `novaGradient` on the MoOS badge in Settings,
-   and `info` on a network state. Ember leads; MoOS UI signs.
+   and `info` on a network state. Ember leads; Nova signs.
 
 If you are here to "restore consistency" by putting the cyan ring back, read
 point 2 again, then look at the app in fullscreen. The tension is real and it was
@@ -55,6 +55,7 @@ Defined once, in `lib/core/theme/app_colors.dart`. Nothing in the app may write 
 | Warm surface (under glass, hero base) | `#1A1714` |
 | Primary (ember) | `#FF8A1F` |
 | Bright amber | `#FFB347` |
+| Foreground on ember | `#070809` |
 | Gold | `#D9A441` |
 | Highlight gold | `#FFD27A` |
 | Text | `#FFF7ED` / `#B9B1A6` / `#8A8377` |
@@ -69,6 +70,12 @@ The `LIVE` badge is deliberately neither the danger colour nor the brand: an
 on-air badge is not an error and not a selection, and on a wall of channel tiles
 all three must stay distinguishable at a glance.
 
+Ember controls use the single `onEmber` foreground token. White measured only
+**1.78:1 / 2.36:1 / 3.45:1** across the three gradient stops; `#070809` measures
+**11.79:1 / 8.91:1 / 6.08:1**. Text, glyphs and progress indicators on that
+gradient therefore use the dark token in both themes, with a test that measures
+every stop rather than trusting the middle colour.
+
 ## Glass is the material of chrome, and only chrome
 
 The recipe (see `GlassPanel`): a soft dark shadow, a real blur, **a dark fill at
@@ -79,7 +86,7 @@ else.
 Two hard rules, and the first one is load-bearing:
 
 - **The fill is what makes text readable; the blur is decoration on top of it.**
-  The MoOS UI rule — *no text on a variable background without an opaque-enough surface
+  Nova's rule — *no text on a variable background without an opaque-enough surface
   beneath it* — is stricter here than anywhere else in MoOS, because the "variable
   background" is a moving video frame. Turn the blur off and the panel must still
   be legible.
@@ -119,6 +126,17 @@ The bill: server-side decoration provides resize borders, a drop shadow and KWin
 snapping for free, and going frameless means the app implements the first two
 itself (`ResizeEdges`, `WindowCaption`). `MOPLAYER_SSD=1` hands the window back to
 KWin.
+
+That bill applies before a source is configured too. Every top-level route is
+wrapped in `FramelessWindowFrame`; Login is not allowed to bypass the caption or
+the eight resize edges. The three visible controls use the same quiet **20 × 20**
+rounded plate and original 1.7 px glyph geometry as the MoOS Aurorae decoration;
+their pointer/focus targets remain **40 × 40**. The plates are neutral at rest.
+Close receives Negative only on interaction, maximize receives Ember, and
+minimize stays on the neutral text/surface ladder—there is no borrowed
+red/yellow/green traffic-light palette. Their group occupies a fixed
+physical-left **128 px** strip in both LTR and RTL; only the identity and status
+content mirrors. Geometry, provenance and semantics tests enforce the contract.
 
 **And the trap, which cost an afternoon:** on Wayland,
 `gtk_window_set_decorated(FALSE)` does *nothing*. A GTK3 window with no titlebar
@@ -166,6 +184,9 @@ to turn off the whole desktop's animations to get one. See `Motion.isReduced`.
 
 Reduced motion makes transforms *instant*; it does not delete the 60 ms opacity
 fade. Content that teleports is a worse experience than the one being avoided.
+Route fades, Login tabs, Live selection and all Player control/option transitions
+go through `Motion`; the options panel loses its 12% slide and the Live marker
+loses its height animation when motion is reduced.
 
 Decorative motion is never allowed to own a permanent ticker. The weather glyph
 and the live indicator are static on purpose: an infinite animation on the home
@@ -207,6 +228,14 @@ that handles one of them and forgets the others.
   walks the focus off the bottom of the screen and the app looks frozen.
 - The dock is reachable from anywhere with **F6** — because a user three hundred
   posters deep must not have to arrow through all of them to reach Settings.
+- Login's source methods are a real keyboard tab list: Enter/Space activate,
+  physical left/right arrows move to the visually adjacent choice in both
+  directions, and selection/focus are exposed to assistive technology.
+- An opacity-zero control is not merely invisible. Player chrome also leaves the
+  pointer, focus and semantics trees through `AccessibleVisibility`; otherwise
+  Tab and a screen reader can still enter controls the viewer cannot see.
+- Player tuning steps and track choices expose their selected/action state and
+  use a minimum **40 × 40** logical target.
 
 ## RTL is not a translation
 

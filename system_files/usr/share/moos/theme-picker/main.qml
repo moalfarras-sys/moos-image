@@ -20,7 +20,7 @@ import org.kde.plasma.plasma5support as P5Support
 
 Kirigami.ApplicationWindow {
     id: root
-    title: "MoOS Themes"
+    title: local("ثيمات MoOS", "MoOS Themes")
     width: Math.min(Kirigami.Units.gridUnit * 72,
                     Screen.desktopAvailableWidth * 0.90)
     height: Math.min(Kirigami.Units.gridUnit * 46,
@@ -37,6 +37,10 @@ Kirigami.ApplicationWindow {
     readonly property bool lightSurface:
         Kirigami.Theme.backgroundColor.hslLightness > 0.55
     readonly property bool rtl: Qt.application.layoutDirection === Qt.RightToLeft
+
+    function local(ar, en) {
+        return root.rtl ? ar : en;
+    }
 
     // The same focus ring as the four MoOS apps, for the same reason: a control the
     // keyboard can reach must SHOW it has been reached (WCAG 2.4.7). Drawn outside the
@@ -162,7 +166,9 @@ Kirigami.ApplicationWindow {
         if (cmd.indexOf("look-and-feel/org.moos.ui2") >= 0 && cmd.indexOf("metadata.json") >= 0) {
             if (!normalExit(data)) {
                 operationFailed = true;
-                operationMessage = "تعذّر تحميل قائمة الثيمات | Could not load themes";
+                operationMessage = local(
+                    "تعذّر تحميل قائمة الثيمات",
+                    "Could not load themes");
                 return;
             }
             themesModel.clear();
@@ -184,8 +190,9 @@ Kirigami.ApplicationWindow {
                     currentMotion = activeMotion;
                 } else {
                     operationFailed = true;
-                    operationMessage =
-                        "تعذّرت قراءة حركة الخلفية | Could not read wallpaper motion";
+                    operationMessage = local(
+                        "تعذّرت قراءة حركة الخلفية",
+                        "Could not read wallpaper motion");
                 }
                 return;
             }
@@ -193,8 +200,9 @@ Kirigami.ApplicationWindow {
             operationTimeout.stop();
             if (!normalExit(data) || !validMotion) {
                 const detail = resultDetail(data);
-                failOperation("اكتمل الضبط لكن تعذّر التحقق من حركة الخلفية"
-                              + " | Motion changed, but verification failed"
+                failOperation(local(
+                                  "اكتمل الضبط لكن تعذّر التحقق من حركة الخلفية",
+                                  "Motion changed, but verification failed")
                               + (detail ? ": " + detail : ""));
                 return;
             }
@@ -202,8 +210,9 @@ Kirigami.ApplicationWindow {
             currentMotion = activeMotion;
             if (activeMotion !== pendingExpectedMotion) {
                 const expected = pendingExpectedMotion;
-                failOperation("لم تطابق الحركة الفعلية الاختيار"
-                              + " | Active motion differs"
+                failOperation(local(
+                                  "لم تطابق الحركة الفعلية الاختيار",
+                                  "Active motion differs")
                               + ": " + activeMotion + " ≠ " + expected);
                 return;
             }
@@ -212,10 +221,12 @@ Kirigami.ApplicationWindow {
             clearOperationState();
             operationFailed = false;
             operationMessage = wasLate
-                ? "اكتمل ضبط الحركة بعد انتظار أطول وتم التحقق منه"
-                  + " | Motion completed late and was verified"
-                : "تم ضبط حركة الخلفية والتحقق منها"
-                  + " | Wallpaper motion applied and verified";
+                ? local(
+                    "اكتمل ضبط الحركة بعد انتظار أطول وتم التحقق منه",
+                    "Motion completed late and was verified")
+                : local(
+                    "تم ضبط حركة الخلفية والتحقق منها",
+                    "Wallpaper motion applied and verified");
         } else if (cmd === currentQuery) {
             const activeLnf = out.trim();
             if (!awaitingReadback) {
@@ -227,8 +238,9 @@ Kirigami.ApplicationWindow {
             operationTimeout.stop();
             if (!normalExit(data) || !activeLnf) {
                 const detail = resultDetail(data);
-                failOperation("اكتمل التبديل لكن تعذّر التحقق من الثيم"
-                              + " | Theme changed, but verification failed"
+                failOperation(local(
+                                  "اكتمل التبديل لكن تعذّر التحقق من الثيم",
+                                  "Theme changed, but verification failed")
                               + (detail ? ": " + detail : ""));
                 return;
             }
@@ -236,7 +248,9 @@ Kirigami.ApplicationWindow {
             currentLnf = activeLnf;
             if (pendingExpectedLnf && activeLnf !== pendingExpectedLnf) {
                 const expected = pendingExpectedLnf;
-                failOperation("لم يطابق الثيم الفعلي الاختيار | Active theme differs"
+                failOperation(local(
+                                  "لم يطابق الثيم الفعلي الاختيار",
+                                  "Active theme differs")
                               + ": " + activeLnf + " ≠ " + expected);
                 return;
             }
@@ -262,15 +276,17 @@ Kirigami.ApplicationWindow {
             const activeScheme = out.trim().replace(/^'|'$/g, "");
             if (!normalExit(data) || !activeScheme) {
                 const detail = resultDetail(data);
-                failOperation("طُبّق الثيم لكن تعذّر التحقق من مكمّلاته"
-                              + " | Theme applied, but its supplements could not be verified"
+                failOperation(local(
+                                  "طُبّق الثيم لكن تعذّر التحقق من مكمّلاته",
+                                  "Theme applied, but its supplements could not be verified")
                               + (detail ? ": " + detail : ""));
                 return;
             }
             if (activeScheme !== pendingExpectedColorScheme) {
                 const expectedScheme = pendingExpectedColorScheme;
-                failOperation("طُبّق الثيم ولم تتبعه مكمّلاته"
-                              + " | Theme applied, but its supplements did not follow"
+                failOperation(local(
+                                  "طُبّق الثيم ولم تتبعه مكمّلاته",
+                                  "Theme applied, but its supplements did not follow")
                               + ": " + activeScheme + " ≠ " + expectedScheme);
                 return;
             }
@@ -280,11 +296,16 @@ Kirigami.ApplicationWindow {
             clearOperationState();
             operationFailed = false;
             operationMessage = wasLate
-                ? "اكتمل التبديل بعد انتظار أطول وتم التحقق منه"
-                  + " | Theme completed late and was verified"
+                ? local(
+                    "اكتمل التبديل بعد انتظار أطول وتم التحقق منه",
+                    "Theme completed late and was verified")
                 : (wasUndo
-                    ? "تم التراجع والتحقق من الثيم | Undo complete and verified"
-                    : "تم تطبيق الثيم والتحقق منه | Theme applied and verified");
+                    ? local(
+                        "تم التراجع والتحقق من الثيم",
+                        "Undo complete and verified")
+                    : local(
+                        "تم تطبيق الثيم والتحقق منه",
+                        "Theme applied and verified"));
         }
     }
 
@@ -294,7 +315,9 @@ Kirigami.ApplicationWindow {
             pendingMotionCommand = "";
             if (!normalExit(data)) {
                 const detail = resultDetail(data);
-                failOperation("تعذّر ضبط حركة الخلفية | Motion change failed"
+                failOperation(local(
+                                  "تعذّر ضبط حركة الخلفية",
+                                  "Motion change failed")
                               + (detail ? ": " + detail : ""));
                 return;
             }
@@ -315,7 +338,9 @@ Kirigami.ApplicationWindow {
         pendingThemeCommand = "";
         if (!normalExit(data)) {
             const detail = resultDetail(data);
-            failOperation("تعذّر تطبيق الثيم | Theme switch failed"
+            failOperation(local(
+                              "تعذّر تطبيق الثيم",
+                              "Theme switch failed")
                           + (detail ? ": " + detail : ""));
             return;
         }
@@ -356,7 +381,9 @@ Kirigami.ApplicationWindow {
     }
     function applyTheme(lnf) {
         if (!/^org\.moos\.ui2(?:\.[a-z0-9]+)*$/.test(lnf)) {
-            failOperation("معرّف ثيم غير صالح | Invalid theme identifier");
+            failOperation(local(
+                "معرّف ثيم غير صالح",
+                "Invalid theme identifier"));
             return;
         }
         beginThemeOperation("moos-theme apply-lnf " + lnf, lnf, "apply");
@@ -403,7 +430,9 @@ Kirigami.ApplicationWindow {
             cmd = "moos-theme motion alive";
             break;
         default:
-            failOperation("خيار حركة غير صالح | Invalid motion choice");
+            failOperation(local(
+                "خيار حركة غير صالح",
+                "Invalid motion choice"));
             return;
         }
 
@@ -430,9 +459,9 @@ Kirigami.ApplicationWindow {
                 root.operationTimedOut = true;
                 root.busy = false;
                 root.operationFailed = true;
-                root.operationMessage =
-                    "استغرقت العملية أكثر من 30 ثانية؛ ما زالت تعمل بأمان"
-                    + " | The change is still finishing safely";
+                root.operationMessage = root.local(
+                    "استغرقت العملية أكثر من 30 ثانية؛ ما زالت تعمل بأمان",
+                    "The change is still finishing safely");
             } else if (root.awaitingReadback || root.awaitingMotionReadback
                        || root.awaitingSupplementReadback) {
                 // Release exactly the query that is in flight. Connecting a
@@ -442,8 +471,9 @@ Kirigami.ApplicationWindow {
                     root.awaitingMotionReadback ? root.currentMotionQuery
                     : (root.awaitingSupplementReadback ? root.supplementQuery
                                                        : root.currentQuery));
-                root.failOperation(
-                    "انتهت مهلة التحقق | Verification timed out");
+                root.failOperation(root.local(
+                    "انتهت مهلة التحقق",
+                    "Verification timed out"));
             }
         }
     }
@@ -471,24 +501,34 @@ Kirigami.ApplicationWindow {
         }
         contentItem: RowLayout {
             spacing: Kirigami.Units.largeSpacing
-            Kirigami.Icon { source: "preferences-desktop-theme-global"; implicitWidth: Kirigami.Units.iconSizes.medium; implicitHeight: implicitWidth }
+            Kirigami.Icon {
+                source: "moos-ui-symbolic"
+                implicitWidth: Kirigami.Units.iconSizes.medium
+                implicitHeight: implicitWidth
+            }
             ColumnLayout {
                 spacing: 0
                 Layout.fillWidth: true
-                Kirigami.Heading { level: 3; text: "ثيمات MoOS  ·  MoOS Themes"; elide: Text.ElideRight }
+                Kirigami.Heading {
+                    level: 3
+                    text: root.local("ثيمات MoOS", "MoOS Themes")
+                    elide: Text.ElideRight
+                }
                 QQC2.Label {
                     text: root.busy
-                        ? "…يُطبّق | applying"
+                        ? root.local("جارٍ التطبيق…", "Applying…")
                         : (root.operationPending
-                            ? "…بانتظار اكتمال العملية | waiting for completion"
+                            ? root.local(
+                                "بانتظار اكتمال العملية…",
+                                "Waiting for completion…")
                             : root.currentActiveName())
                     opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize; elide: Text.ElideRight
                 }
             }
             QQC2.Button {
                 id: undoBtn
-                text: "تراجع | Undo"
-                icon.name: "edit-undo"
+                text: root.local("تراجع", "Undo")
+                icon.name: "moos-refresh-symbolic"
                 enabled: !root.operationPending
                 onClicked: root.undo()
                 activeFocusOnTab: true
@@ -524,7 +564,7 @@ Kirigami.ApplicationWindow {
             spacing: Kirigami.Units.largeSpacing
 
             Kirigami.Icon {
-                source: "preferences-desktop-effects"
+                source: "moos-orbit-symbolic"
                 implicitWidth: Kirigami.Units.iconSizes.medium
                 implicitHeight: implicitWidth
                 color: root.accent
@@ -533,12 +573,14 @@ Kirigami.ApplicationWindow {
                 spacing: 0
                 Layout.fillWidth: true
                 QQC2.Label {
-                    text: "حركة الخلفية  ·  Wallpaper motion"
+                    text: root.local("حركة الخلفية", "Wallpaper motion")
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
                 QQC2.Label {
-                    text: "اختر مستوى الهدوء والحيوية  ·  Choose the energy level"
+                    text: root.local(
+                        "اختر مستوى الهدوء والحيوية",
+                        "Choose the energy level")
                     opacity: 0.66
                     font.pointSize: Kirigami.Theme.smallFont.pointSize
                     elide: Text.ElideRight
@@ -553,7 +595,7 @@ Kirigami.ApplicationWindow {
             // goes through.
             QQC2.Button {
                 id: motionStill
-                text: "ساكن | Still"
+                text: root.local("ساكن", "Still")
                 checkable: true
                 checked: root.currentMotion === "still"
                 enabled: !root.operationPending
@@ -566,7 +608,7 @@ Kirigami.ApplicationWindow {
             }
             QQC2.Button {
                 id: motionGentle
-                text: "هادئ | Gentle"
+                text: root.local("هادئ", "Gentle")
                 checkable: true
                 checked: root.currentMotion === "gentle"
                 enabled: !root.operationPending
@@ -579,7 +621,7 @@ Kirigami.ApplicationWindow {
             }
             QQC2.Button {
                 id: motionAlive
-                text: "حيّ | Alive"
+                text: root.local("حيّ", "Alive")
                 checkable: true
                 checked: root.currentMotion === "alive"
                 enabled: !root.operationPending
@@ -595,7 +637,9 @@ Kirigami.ApplicationWindow {
 
     function currentActiveName() {
         for (let i = 0; i < themesModel.count; ++i) {
-            if (themesModel.get(i).lnf === root.currentLnf) return "المُطبّق | Active:  " + themesModel.get(i).name;
+            if (themesModel.get(i).lnf === root.currentLnf)
+                return local("المُطبّق:  ", "Active:  ")
+                    + themesModel.get(i).name;
         }
         return root.currentLnf;
     }
@@ -639,8 +683,8 @@ Kirigami.ApplicationWindow {
             : Kirigami.MessageType.Positive
         actions: [
             Kirigami.Action {
-                text: "إغلاق | Dismiss"
-                icon.name: "dialog-close"
+                text: root.local("إغلاق", "Dismiss")
+                icon.name: "moos-close-symbolic"
                 onTriggered: root.operationMessage = ""
             }
         ]
@@ -701,7 +745,9 @@ Kirigami.ApplicationWindow {
                     onClicked: root.applyTheme(themeCard.lnf)
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
-                    Accessible.name: (themeCard.isActive ? "المُطبّق | Active: " : "") + themeCard.name
+                    Accessible.name: (themeCard.isActive
+                        ? root.local("المُطبّق: ", "Active: ")
+                        : "") + themeCard.name
                     Keys.onReturnPressed: if (cardButton.enabled) root.applyTheme(themeCard.lnf)
                     Keys.onSpacePressed: if (cardButton.enabled) root.applyTheme(themeCard.lnf)
                     // Keep the keyboard cursor and the view in step: Tab can land on a
@@ -712,7 +758,12 @@ Kirigami.ApplicationWindow {
                     }
                     FocusRing { radius: Kirigami.Units.gridUnit * 0.6 + 3 }
                     scale: down ? 0.98 : (hovered ? 1.02 : 1.0)
-                    Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+                    Behavior on scale {
+                        NumberAnimation {
+                            duration: Kirigami.Units.longDuration > 1 ? 120 : 0
+                            easing.type: Easing.OutCubic
+                        }
+                    }
 
                     background: Rectangle {
                         radius: Kirigami.Units.gridUnit * 0.6
@@ -739,7 +790,11 @@ Kirigami.ApplicationWindow {
                         border.color: themeCard.isActive || cardButton.hovered
                             ? root.accent
                             : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.14)
-                        Behavior on border.color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
+                        Behavior on border.color {
+                            ColorAnimation {
+                                duration: Kirigami.Units.longDuration > 1 ? 120 : 0
+                            }
+                        }
                         Rectangle {
                             anchors.left: parent.left
                             anchors.right: parent.right
@@ -784,7 +839,7 @@ Kirigami.ApplicationWindow {
                                 color: root.accent
                                 Kirigami.Icon {
                                     anchors.centerIn: parent
-                                    source: "checkmark"
+                                    source: "moos-check-symbolic"
                                     color: Kirigami.Theme.highlightedTextColor
                                     width: Kirigami.Units.iconSizes.small
                                     height: width
@@ -804,7 +859,9 @@ Kirigami.ApplicationWindow {
                                 color: Kirigami.Theme.textColor
                             }
                             Kirigami.Icon {
-                                source: themeCard.isLight ? "weather-clear" : "weather-clear-night"
+                                source: themeCard.isLight
+                                    ? "moos-sun-symbolic"
+                                    : "moos-moon-symbolic"
                                 implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth
                                 opacity: 0.7
                             }

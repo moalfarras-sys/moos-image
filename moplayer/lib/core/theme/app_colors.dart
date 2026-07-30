@@ -93,6 +93,14 @@ class AppColors {
   static const Color goldBright = Color(0xFFFFD27A);
   static const Color ember = Color(0xFFFF4400);
 
+  /// Foreground for anything painted directly on [emberGradient].
+  ///
+  /// White looks conventional, but it measures only 1.78:1 on the bright stop
+  /// and 3.45:1 even on the darkest one. The canvas black clears 6:1 at every
+  /// stop, so the gradient gets one explicit foreground token rather than a
+  /// scattering of locally chosen whites and blacks.
+  static const Color onEmber = surface0;
+
   /// The green pip on the mark, and the only non-warm colour in it. It means
   /// *connected* here, which is what it means on the logo: the source badge in
   /// the caption bar, the "on" side of a switch.

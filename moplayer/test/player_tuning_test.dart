@@ -30,7 +30,9 @@ void main() {
     testWidgets('says so plainly before the first frame is decoded', (
       tester,
     ) async {
-      await tester.pumpWidget(_host(PlaybackStatsBody(stats: null, strings: s)));
+      await tester.pumpWidget(
+        _host(PlaybackStatsBody(stats: null, strings: s)),
+      );
       expect(find.text(s.statsUnavailable), findsOneWidget);
     });
 
@@ -153,13 +155,15 @@ void main() {
               icon: Icons.volume_up_rounded,
               label: s.audioDelay,
               value: value.toStringAsFixed(2),
+              decreaseLabel: s.decreaseSetting(s.audioDelay),
+              increaseLabel: s.increaseSetting(s.audioDelay),
               onDecrease: () => setState(() => value -= 0.05),
               onIncrease: () => setState(() => value += 0.05),
               onReset: () => setState(() {
                 value = 0;
                 resets++;
               }),
-              resetTooltip: s.resetToDefault,
+              resetTooltip: s.resetSetting(s.audioDelay),
             ),
           ),
         ),
@@ -192,6 +196,8 @@ void main() {
             icon: Icons.closed_caption_rounded,
             label: s.subtitleDelay,
             value: '−0.25s',
+            decreaseLabel: s.decreaseSetting(s.subtitleDelay),
+            increaseLabel: s.increaseSetting(s.subtitleDelay),
             onDecrease: () {},
             onIncrease: () {},
           ),
@@ -201,6 +207,39 @@ void main() {
       expect(text.textDirection, TextDirection.ltr);
     });
 
+    testWidgets('step actions have localized semantics and 40 px targets', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          NudgeRow(
+            icon: Icons.volume_up_rounded,
+            label: s.audioDelay,
+            value: '+0.00s',
+            decreaseLabel: s.decreaseSetting(s.audioDelay),
+            increaseLabel: s.increaseSetting(s.audioDelay),
+            onDecrease: () {},
+            onIncrease: () {},
+            onReset: () {},
+            resetTooltip: s.resetSetting(s.audioDelay),
+          ),
+        ),
+      );
+
+      for (final label in [
+        s.decreaseSetting(s.audioDelay),
+        s.increaseSetting(s.audioDelay),
+        s.resetSetting(s.audioDelay),
+      ]) {
+        final action = find.bySemanticsLabel(label);
+        expect(action, findsOneWidget);
+        final rect = tester.getRect(action);
+        expect(rect.width, greaterThanOrEqualTo(40));
+        expect(rect.height, greaterThanOrEqualTo(40));
+        expect(tester.getSemantics(action).flagsCollection.isButton, isTrue);
+      }
+    });
+
     testWidgets('reset is absent when no handler is given', (tester) async {
       await tester.pumpWidget(
         _host(
@@ -208,6 +247,8 @@ void main() {
             icon: Icons.format_size_rounded,
             label: s.subtitleSize,
             value: '100%',
+            decreaseLabel: s.decreaseSetting(s.subtitleSize),
+            increaseLabel: s.increaseSetting(s.subtitleSize),
             onDecrease: () {},
             onIncrease: () {},
           ),

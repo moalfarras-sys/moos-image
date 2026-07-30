@@ -25,7 +25,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk  # noqa: E402
 
-from moos_ui2 import MoOSApp  # noqa: E402
+from moos_ui2 import MoOSApp, local_text, logical_start  # noqa: E402
 
 
 def deployments():
@@ -109,7 +109,7 @@ def deployments():
 
 class Recovery(MoOSApp):
     APP_ID = "org.moos.recovery"     # == org.moos.recovery.desktop — see MoOSApp's docstring
-    TITLE = "MoOS Recovery"
+    TITLE = local_text("استرداد MoOS", "MoOS Recovery")
     # Taller than the updater's (760, 660), not shorter: this page carries a two-line
     # bilingual subtitle, three cards and a log, and at 580 the one button the screen
     # exists for sat below the fold on the reference 4K/225% machine.
@@ -117,45 +117,78 @@ class Recovery(MoOSApp):
 
     def build(self, page):
         booted, target, queued = deployments()
+        # Keep the state that gives `bootc rollback` its meaning.  The command is
+        # a toggle: when a rollback is already queued it CANCELS that rollback,
+        # rather than queueing another one.  Every sentence before and after the
+        # action must branch on the same value as the button label.
+        self.booted_label = booted
+        self.target_label = target
+        self.rollback_queued = queued
 
-        page.append(self.title("MoOS Recovery"))
-        page.append(self.subtitle(
-            "إذا كسر التحديثُ الأخير شيئًا، ارجع إلى النسخة السابقة. ملفاتك وإعداداتك لا تتغيّر.\n"
-            "If the last update broke something, go back to the previous version. Your files and "
-            "settings are not touched."))
+        page.append(self.title(local_text("استرداد MoOS", "MoOS Recovery")))
+        page.append(self.subtitle(local_text(
+            "إذا عطّل التحديث الأخير شيئاً، ارجع إلى النسخة السابقة. "
+            "لن تتغيّر ملفاتك أو إعداداتك.",
+            "If the last update broke something, return to the previous version. "
+            "Your files and settings are not touched.",
+        )))
 
-        now = Gtk.Label(xalign=0, wrap=True)
+        now = Gtk.Label(xalign=logical_start(), wrap=True)
         now.set_markup(f"<b>{GLib.markup_escape_text(booted or '—')}</b>")
         page.append(self.card(
-            Gtk.Label(label="تعمل الآن على  ·  You are running", xalign=0), now))
+            Gtk.Label(
+                label=local_text("تعمل الآن على", "You are running"),
+                xalign=logical_start(),
+            ),
+            now,
+        ))
 
-        back = Gtk.Label(xalign=0, wrap=True)
+        back = Gtk.Label(xalign=logical_start(), wrap=True)
         if target:
             back.set_markup(f"<b>{GLib.markup_escape_text(target)}</b>")
         else:
-            back.set_markup("<span alpha='65%'>لا توجد نسخة سابقة على هذا الجهاز  ·  "
-                            "no previous version on this machine</span>")
+            back.set_markup(
+                "<span alpha='65%'>"
+                + local_text(
+                    "لا توجد نسخة سابقة على هذا الجهاز",
+                    "No previous version exists on this machine",
+                )
+                + "</span>"
+            )
         # The heading has to match the state, or it says the opposite of what will happen.
+        self.target_heading = Gtk.Label(
+            label=(
+                local_text(
+                    "سيقلع الجهاز على",
+                    "Your next restart will use",
+                )
+                if queued
+                else local_text(
+                    "سيعيدك الرجوع إلى",
+                    "Rollback would return you to",
+                )
+            ),
+            xalign=logical_start(),
+        )
+        self.target_version = back
         page.append(self.card(
-            Gtk.Label(
-                label=("سيقلع الجهاز على  ·  Your next restart will use"
-                       if queued else
-                       "سيعيدك الرجوع إلى  ·  Rollback would return you to"),
-                xalign=0),
+            self.target_heading,
             back))
 
-        self.status = Gtk.Label(xalign=0, wrap=True)
-        # This label's base direction is RTL (its first strong character is Arabic), so a
-        # trailing English sentence had its final "." pulled to the line start —
-        # ".reversible". LRI…PDI (U+2066/U+2069) isolates each English clause so its
-        # punctuation stays attached; every write to this label gets the same wrap.
+        self.status = Gtk.Label(xalign=logical_start(), wrap=True)
         self.status.set_text(
-            ("الرجوع مُجهَّز بالفعل: أعد التشغيل لتطبيقه، أو ألغِه للبقاء على النسخة الحالية.  ·  "
-             "⁦A rollback is already queued. Restart to apply it, or cancel it to stay on the "
-             "version you are running.⁩"
-             if queued else
-             "الرجوع لا يحدث فورًا: يسري عند إعادة التشغيل، ويمكن التراجع عنه.  ·  "
-             "⁦Rollback is not immediate. It applies on restart, and it is reversible.⁩"))
+            local_text(
+                "الرجوع مُجهَّز بالفعل. أعد التشغيل لتطبيقه، أو ألغِه "
+                "للبقاء على النسخة الحالية.",
+                "A rollback is already queued. Restart to apply it, or cancel it "
+                "to stay on the version you are running.",
+            )
+            if queued
+            else local_text(
+                "الرجوع ليس فورياً؛ يُطبَّق عند إعادة التشغيل ويمكن التراجع عنه.",
+                "Rollback is not immediate. It applies on restart and is reversible.",
+            )
+        )
 
         self.log = Gtk.TextView(editable=False, monospace=True)
         self.log.add_css_class("ui2-log")
@@ -167,19 +200,32 @@ class Recovery(MoOSApp):
         log_scroll.set_min_content_height(120)
         log_scroll.set_child(self.log)
 
-        page.append(self.card(self.status, log_scroll))
+        self.spinner = Gtk.Spinner()
+        self.spinner.set_visible(False)
+        page.append(self.card(self.status, self.spinner, log_scroll))
 
         # Same command either way (rpm-ostree/bootc rollback toggles the default entry), so
         # the LABEL must say which of the two things it is about to do.
         self.back_btn = Gtk.Button(
-            label=("ألغِ الرجوع المُجهَّز  ·  Cancel the queued rollback"
-                   if queued else
-                   "ارجع إلى النسخة السابقة  ·  Go back to the previous version"))
+            label=(
+                local_text(
+                    "ألغِ الرجوع المُجهَّز",
+                    "Cancel the queued rollback",
+                )
+                if queued
+                else local_text(
+                    "ارجع إلى النسخة السابقة",
+                    "Return to the previous version",
+                )
+            )
+        )
         self.back_btn.add_css_class("destructive-action")
         self.back_btn.set_sensitive(bool(target))
         self.back_btn.connect("clicked", self.on_rollback)
 
-        self.reboot_btn = Gtk.Button(label="إعادة التشغيل الآن  ·  Restart now")
+        self.reboot_btn = Gtk.Button(
+            label=local_text("إعادة التشغيل الآن", "Restart now")
+        )
         self.reboot_btn.add_css_class("suggested-action")
         self.reboot_btn.set_visible(False)
         self.reboot_btn.connect(
@@ -199,10 +245,34 @@ class Recovery(MoOSApp):
         # Ask first. This is the one button in MoOS that changes which operating system boots next.
         # It is reversible — and somebody who did not mean to press it should still be asked.
         dlg = Gtk.AlertDialog()
-        dlg.set_message("الرجوع إلى النسخة السابقة؟  ·  Go back to the previous version?")
-        dlg.set_detail("يسري عند إعادة التشغيل القادمة. ملفاتك وإعداداتك لا تتغيّر.\n"
-                       "It applies on your next restart. Your files and settings are unchanged.")
-        dlg.set_buttons(["إلغاء · Cancel", "ارجع · Roll back"])
+        if self.rollback_queued:
+            dlg.set_message(local_text(
+                "إلغاء الرجوع المُجهَّز؟",
+                "Cancel the queued rollback?",
+            ))
+            dlg.set_detail(local_text(
+                "سيبقى الجهاز على النسخة التي تعمل عليها الآن بعد إعادة التشغيل. "
+                "لن تتغيّر ملفاتك أو إعداداتك.",
+                "The next restart will keep the version you are running. "
+                "Your files and settings are unchanged.",
+            ))
+            dlg.set_buttons([
+                local_text("إلغاء", "Cancel"),
+                local_text("ألغِ الرجوع", "Cancel rollback"),
+            ])
+        else:
+            dlg.set_message(local_text(
+                "الرجوع إلى النسخة السابقة؟",
+                "Return to the previous version?",
+            ))
+            dlg.set_detail(local_text(
+                "يُطبَّق عند إعادة التشغيل القادمة. لن تتغيّر ملفاتك أو إعداداتك.",
+                "It applies on your next restart. Your files and settings are unchanged.",
+            ))
+            dlg.set_buttons([
+                local_text("إلغاء", "Cancel"),
+                local_text("ارجع", "Roll back"),
+            ])
         dlg.set_cancel_button(0)
         dlg.set_default_button(0)
         dlg.choose(self.win, None, self._confirmed)
@@ -214,28 +284,107 @@ class Recovery(MoOSApp):
         except GLib.Error:
             return
 
+        # Preserve the meaning even if some external tool changes the deployment
+        # state while pkexec is open.  This operation answers the confirmation the
+        # user just saw; its completion copy must describe that same operation.
+        self.action_cancels_rollback = self.rollback_queued
         self.back_btn.set_sensitive(False)
         self.say("$ bootc rollback")
+        self.spinner.set_visible(True)
+        self.spinner.start()
+        self.run_async(["pkexec", "bootc", "rollback"], self._rollback_done)
+
+    def run_async(self, cmd, on_done):
+        """Stream bootc without blocking GTK's main loop.
+
+        Recovery used to call subprocess.run(timeout=180) from the confirmation
+        callback.  While Polkit waited, and for the whole rollback operation, the
+        rescue window stopped painting and looked crashed.  The updater already
+        uses this GLib pipe pattern for the same bootc/Polkit combination.
+        """
         try:
-            r = subprocess.run(["pkexec", "bootc", "rollback"],
-                               capture_output=True, text=True, timeout=180)
-        except (OSError, subprocess.SubprocessError) as e:
-            self.say(str(e))
-            self.status.add_css_class("error")
-            self.status.set_text("تعذّر تنفيذ الرجوع.  ·  ⁦Rollback could not run.⁩")
-            self.back_btn.set_sensitive(True)
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+        except OSError as exc:
+            self.say(str(exc))
+            on_done(127)
             return
 
-        self.say(((r.stdout or "") + (r.stderr or "")).strip())
-        if r.returncode == 0:
+        def complete_when_exited():
+            returncode = proc.poll()
+            if returncode is None:
+                return True
+            on_done(returncode)
+            return False
+
+        def pump(_source, _condition):
+            line = proc.stdout.readline()
+            if line:
+                self.say(line.rstrip("\n"))
+                return True
+            # EOF normally arrives with process exit, but a child is allowed to
+            # close stdout earlier. Never turn that unusual case into a blocking
+            # wait on GTK's callback: poll it at a low duty cycle instead.
+            if proc.poll() is None:
+                GLib.timeout_add(50, complete_when_exited)
+            else:
+                on_done(proc.returncode)
+            return False
+
+        GLib.io_add_watch(
+            proc.stdout,
+            GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR,
+            pump,
+        )
+
+    def _rollback_done(self, returncode):
+        self.spinner.stop()
+        self.spinner.set_visible(False)
+
+        if returncode == 0:
             self.status.add_css_class("success")
-            self.status.set_text("✓ جاهز — أعد التشغيل لتعود إلى النسخة السابقة.  ·  "
-                                 "⁦Done. Restart to return to the previous version.⁩")
+            if self.action_cancels_rollback:
+                self.rollback_queued = False
+                self.status.set_text(local_text(
+                    "✓ أُلغي الرجوع. ستبقى على النسخة الحالية بعد إعادة التشغيل.",
+                    "✓ Rollback cancelled. The next restart keeps the version "
+                    "you are running.",
+                ))
+                self.target_heading.set_label(local_text(
+                    "سيبقى الجهاز على",
+                    "Your next restart will keep",
+                ))
+                self.target_version.set_markup(
+                    f"<b>{GLib.markup_escape_text(self.booted_label or '—')}</b>")
+            else:
+                self.rollback_queued = True
+                self.status.set_text(local_text(
+                    "✓ جاهز. أعد التشغيل لتعود إلى النسخة السابقة.",
+                    "✓ Done. Restart to return to the previous version.",
+                ))
+                self.target_heading.set_label(local_text(
+                    "سيقلع الجهاز على",
+                    "Your next restart will use",
+                ))
             self.reboot_btn.set_visible(True)
         else:
             self.status.add_css_class("error")
-            self.status.set_text("لم يكتمل الرجوع — نظامك الحالي لم يتغيّر.  ·  "
-                                 "⁦Rollback did not complete. Your system is unchanged.⁩")
+            if self.action_cancels_rollback:
+                self.status.set_text(local_text(
+                    "لم يُلغَ الرجوع المُجهَّز. لم يتغيّر اختيار الإقلاع.",
+                    "The queued rollback was not cancelled. "
+                    "The boot choice is unchanged.",
+                ))
+            else:
+                self.status.set_text(local_text(
+                    "لم يكتمل الرجوع. لم يتغيّر نظامك الحالي.",
+                    "Rollback did not complete. Your system is unchanged.",
+                ))
             self.back_btn.set_sensitive(True)
 
 

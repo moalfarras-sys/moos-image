@@ -409,6 +409,12 @@ class S {
   String get loadSubtitleFile =>
       _('تحميل ملف ترجمة…', 'Load subtitle file…', 'Untertiteldatei laden…');
   String get resetToDefault => _('إعادة الضبط', 'Reset', 'Zurücksetzen');
+  String decreaseSetting(String setting) =>
+      _('خفض $setting', 'Decrease $setting', '$setting verringern');
+  String increaseSetting(String setting) =>
+      _('زيادة $setting', 'Increase $setting', '$setting erhöhen');
+  String resetSetting(String setting) =>
+      _('إعادة ضبط $setting', 'Reset $setting', '$setting zurücksetzen');
 
   // --- Picture and sound adjustment ----------------------------------------
   String get pictureAdjust => _('ضبط الصورة', 'Picture', 'Bild');
@@ -430,8 +436,11 @@ class S {
   String get stopRecording =>
       _('إيقاف التسجيل', 'Stop recording', 'Aufnahme beenden');
   String get recording => _('يسجّل…', 'Recording…', 'Nimmt auf…');
-  String recordingSaved(String path) =>
-      _('حُفظ التسجيل في $path', 'Recording saved to $path', 'Aufnahme gespeichert unter $path');
+  String recordingSaved(String path) => _(
+    'حُفظ التسجيل في $path',
+    'Recording saved to $path',
+    'Aufnahme gespeichert unter $path',
+  );
   String get recordingFailed => _(
     'تعذّر بدء التسجيل.',
     'Could not start recording.',
@@ -446,10 +455,16 @@ class S {
   String timeshiftAvailable(String duration) =>
       _('متاح $duration للخلف', '$duration available', '$duration verfügbar');
   String get screenshot => _('لقطة من الفيديو', 'Screenshot', 'Bildschirmfoto');
-  String screenshotSaved(String path) =>
-      _('حُفظت اللقطة في $path', 'Screenshot saved to $path', 'Bildschirmfoto gespeichert unter $path');
-  String get screenshotFailed =>
-      _('تعذّر حفظ اللقطة.', 'Could not save the screenshot.', 'Bildschirmfoto fehlgeschlagen.');
+  String screenshotSaved(String path) => _(
+    'حُفظت اللقطة في $path',
+    'Screenshot saved to $path',
+    'Bildschirmfoto gespeichert unter $path',
+  );
+  String get screenshotFailed => _(
+    'تعذّر حفظ اللقطة.',
+    'Could not save the screenshot.',
+    'Bildschirmfoto fehlgeschlagen.',
+  );
   String get sleepTimer => _('مؤقّت النوم', 'Sleep timer', 'Sleep-Timer');
   String get sleepTimerOff => _('معطّل', 'Off', 'Aus');
   String sleepTimerIn(int minutes) => _(
@@ -480,8 +495,7 @@ class S {
   String get statsBitrate => _('معدّل البت', 'Bitrate', 'Bitrate');
   String get statsBuffer => _('المخزن المؤقت', 'Buffer', 'Puffer');
   String get statsAudio => _('الصوت', 'Audio', 'Audio');
-  String get statsVideoPath =>
-      _('مسار العرض', 'Render path', 'Renderpfad');
+  String get statsVideoPath => _('مسار العرض', 'Render path', 'Renderpfad');
   String get statsGpuPath => _('بطاقة الرسوم (GL)', 'GPU (GL)', 'GPU (GL)');
   String get statsCpuPath => _('المعالج (نسخ)', 'CPU (copy)', 'CPU (Kopie)');
   String get statsUnavailable =>
@@ -770,12 +784,7 @@ class ShortcutHelp {
       'Vollbild verlassen oder zurück',
     ),
     ShortcutHelp('M', 'كتم الصوت', 'Mute', 'Stummschalten'),
-    ShortcutHelp(
-      'O',
-      'إعدادات المشغّل',
-      'Player options',
-      'Player-Optionen',
-    ),
+    ShortcutHelp('O', 'إعدادات المشغّل', 'Player options', 'Player-Optionen'),
     ShortcutHelp(
       'S',
       'تبديل الترجمة',

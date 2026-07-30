@@ -5,15 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 // window_manager ships a `WindowCaption` of its own — a GNOME-looking bar we
-// explicitly do not want. Hidden so that `WindowCaption` in this file is
-// unambiguously MoPlayer's.
+// explicitly do not want. Hidden so the frame imported from `window_chrome.dart`
+// remains unambiguously MoPlayer's.
 import 'package:window_manager/window_manager.dart' hide WindowCaption;
 
 import '../core/constants/app_constants.dart';
 import '../core/utils/app_logger.dart';
-import '../core/theme/app_colors.dart';
 import '../core/theme/glass.dart';
-import '../core/theme/motion.dart';
 import '../core/theme/nova.dart';
 import '../features/player/mini_player.dart';
 import '../features/player/player_overlay.dart';
@@ -21,7 +19,6 @@ import '../providers/core_providers.dart';
 import '../providers/playback_providers.dart';
 import '../providers/shell_providers.dart';
 import '../providers/system_providers.dart';
-import '../services/system/desktop_service.dart';
 import '../widgets/glass_dock.dart';
 import '../widgets/mo_icons.dart';
 import 'launch_args.dart';
@@ -249,8 +246,6 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
   Widget build(BuildContext context) {
     final view = ref.watch(playerViewProvider);
     final fullscreen = ref.watch(fullscreenProvider);
-    final maximized = ref.watch(windowMaximizedProvider);
-    final reduced = ref.watch(reducedMotionProvider);
     final location = GoRouterState.of(context).matchedLocation;
 
     // Immersive: the player has the window, and every piece of desktop chrome
@@ -261,8 +256,11 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
     final destinations = _destinations(ref);
     final dockReserve = _dockHeight(context);
 
-    return Motion(
-      reduced: reduced,
+    return FramelessWindowFrame(
+      onHome: () => context.go(Routes.home),
+      breadcrumb: _breadcrumb(ref, location),
+      showCaption: !immersive,
+      resizeEnabled: !immersive,
       child: CallbackShortcuts(
         bindings: {
           // Only Ctrl-chorded shortcuts are global. A bare `F` here would fire
@@ -293,80 +291,59 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
           const SingleActivator(LogicalKeyboardKey.home, control: true): () =>
               context.go(Routes.home),
         },
-        child: Scaffold(
-          backgroundColor: AppColors.surface0,
-          body: ResizeEdges(
-            // No edges to pull when the window fills the screen, and arming them
-            // there means a click near the top of a maximized window starts a
-            // resize the user did not ask for.
-            enabled: !maximized && !immersive && !_systemDecorated,
-            child: AmbientScene(
-              child: Stack(
-                children: [
-                  Column(
-                    children: [
-                      if (!immersive)
-                        WindowCaption(
-                          onHome: () => context.go(Routes.home),
-                          breadcrumb: _breadcrumb(ref, location),
-                        ),
-                      Expanded(
-                        child: MediaQuery(
-                          // Every scrolling screen reads this and adds it to the
-                          // bottom of its scroll padding, which is how the last
-                          // row of a grid ends up *above* the dock instead of
-                          // under it. The shell owns the number because the shell
-                          // owns the dock.
-                          data: MediaQuery.of(context).copyWith(
-                            padding: MediaQuery.paddingOf(
-                              context,
-                            ).copyWith(bottom: dockReserve),
-                          ),
-                          child: widget.child,
-                        ),
-                      ),
-                    ],
+        child: AmbientScene(
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: MediaQuery(
+                  // Every scrolling screen reads this and adds it to the bottom
+                  // of its scroll padding, which is how the last row of a grid
+                  // ends up *above* the dock instead of under it. The shell owns
+                  // the number because the shell owns the dock.
+                  data: MediaQuery.of(context).copyWith(
+                    padding: MediaQuery.paddingOf(
+                      context,
+                    ).copyWith(bottom: dockReserve),
                   ),
-
-                  // The mini player rides just above the dock, and is nudged up
-                  // by it — the two must never overlap, and the dock is the one
-                  // that was there first.
-                  if (view == PlayerView.mini && !immersive)
-                    Positioned(
-                      left: Nova.space5,
-                      right: Nova.space5,
-                      bottom: dockReserve + Nova.space2,
-                      child: const MiniPlayer(),
-                    ),
-
-                  if (!immersive)
-                    Positioned(
-                      bottom: Nova.space5,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: GlassDock(
-                          destinations: destinations,
-                          currentRoute: location,
-                          focusNodes: _dockNodes,
-                          onSelect: context.go,
-                          onEscape: _leaveDock,
-                        ),
-                      ),
-                    ),
-
-                  if (view == PlayerView.expanded)
-                    const Positioned.fill(child: PlayerOverlay()),
-                ],
+                  child: widget.child,
+                ),
               ),
-            ),
+
+              // The mini player rides just above the dock, and is nudged up by
+              // it — the two must never overlap, and the dock is the one that
+              // was there first.
+              if (view == PlayerView.mini && !immersive)
+                Positioned(
+                  left: Nova.space5,
+                  right: Nova.space5,
+                  bottom: dockReserve + Nova.space2,
+                  child: const MiniPlayer(),
+                ),
+
+              if (!immersive)
+                Positioned(
+                  bottom: Nova.space5,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: GlassDock(
+                      destinations: destinations,
+                      currentRoute: location,
+                      focusNodes: _dockNodes,
+                      onSelect: context.go,
+                      onEscape: _leaveDock,
+                    ),
+                  ),
+                ),
+
+              if (view == PlayerView.expanded)
+                const Positioned.fill(child: PlayerOverlay()),
+            ],
           ),
         ),
       ),
     );
   }
-
-  bool get _systemDecorated => DesktopService.useSystemDecoration;
 
   /// How much room the dock needs at the foot of the window, including its
   /// margin. Kept in one place because three widgets depend on it and a

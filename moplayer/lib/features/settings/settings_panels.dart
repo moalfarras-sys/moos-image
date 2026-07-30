@@ -680,7 +680,12 @@ class _AboutPanel extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const AppLogo(size: 76, showWordmark: true, showTagline: true),
+                AppLogo(
+                  size: 76,
+                  showWordmark: true,
+                  showTagline: true,
+                  tagline: s.appTagline,
+                ),
                 const SizedBox(height: Nova.space4),
                 Text(s.forMoOS, style: AppText.body),
               ],
@@ -952,7 +957,7 @@ class _Plate extends StatelessWidget {
       child: Icon(
         icon,
         size: size * 0.5,
-        color: accent ? Colors.white : AppColors.textSecondary,
+        color: accent ? AppColors.onEmber : AppColors.textSecondary,
       ),
     );
   }
@@ -1042,7 +1047,7 @@ class _SegmentState extends State<_Segment> {
   Widget build(BuildContext context) {
     final selected = widget.selected;
     final color = selected
-        ? Colors.white
+        ? AppColors.onEmber
         : (_hovered ? AppColors.textPrimary : AppColors.textSecondary);
 
     return Semantics(

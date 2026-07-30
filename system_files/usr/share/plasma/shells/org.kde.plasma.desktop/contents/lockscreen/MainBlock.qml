@@ -315,33 +315,37 @@ SessionManagementScreen {
             onClicked: sessionManager.startLogin()
             Keys.onEnterPressed: clicked()
             Keys.onReturnPressed: clicked()
+            scale: loginButton.down ? 0.94 : 1.0
+            Behavior on scale {
+                NumberAnimation {
+                    duration: Kirigami.Units.shortDuration
+                    easing.type: Easing.OutCubic
+                }
+            }
 
             // ── MoOS UI2 visual only (see AUTH SAFETY CONTRACT) ──────────────
-            // A round accent button: the active theme's highlight, a touch
-            // brighter at the crest, dimming on press. The go-next glyph is the
-            // base control's icon, re-rendered white so it reads on the accent.
+            // A round accent button.  Its fill stays on accentA — the colour
+            // scheme's Selection background — because highlightedTextColor is
+            // WCAG-gated against that exact role in every MoOS palette.  The old
+            // accentA→accentB gradient crossed through colours the scheme does
+            // not pair with highlighted ink (Graphite's white glyph reached only
+            // 1.77:1), making the security-critical Unlock action disappear.
+            // accentB remains in the decorative focus rim, where it cannot
+            // compromise glyph contrast.
             background: Rectangle {
                 radius: height / 2
-                gradient: Gradient {
-                    GradientStop {
-                        position: 0.0
-                        color: loginButton.down ? Qt.darker(sessionManager.accentB, 1.08) : sessionManager.accentB
-                    }
-                    GradientStop {
-                        position: 1.0
-                        color: loginButton.down
-                            ? Qt.darker(sessionManager.accentA, 1.12)
-                            : sessionManager.accentA
-                    }
-                }
-                border.width: 1
-                border.color: Qt.rgba(1, 1, 1, loginButton.activeFocus ? 0.55 : 0.22)
+                color: sessionManager.accentA
+                border.width: loginButton.activeFocus ? 2 : 1
+                border.color: Qt.rgba(sessionManager.accentB.r,
+                                      sessionManager.accentB.g,
+                                      sessionManager.accentB.b,
+                                      loginButton.activeFocus ? 0.90 : 0.48)
                 Behavior on border.color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
             }
             contentItem: Kirigami.Icon {
                 source: loginButton.icon.name
                 isMask: true
-                color: "white"
+                color: Kirigami.Theme.highlightedTextColor
                 implicitWidth: Kirigami.Units.iconSizes.smallMedium
                 implicitHeight: Kirigami.Units.iconSizes.smallMedium
             }

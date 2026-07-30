@@ -14,10 +14,12 @@ import '../features/series/series_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../models/series.dart';
 import '../models/vod_movie.dart';
+import '../core/theme/motion.dart';
 import '../providers/core_providers.dart';
 import 'launch_args.dart';
 import 'main_shell.dart';
 import 'routes.dart';
+import 'window_chrome.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -43,8 +45,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: Routes.login,
-        builder: (context, state) =>
-            LoginScreen(isAdditional: state.uri.queryParameters['add'] == '1'),
+        builder: (context, state) => FramelessWindowFrame(
+          child: LoginScreen(
+            isAdditional: state.uri.queryParameters['add'] == '1',
+          ),
+        ),
       ),
 
       // One shell, one IndexedStack: switching sections on a desktop must not
@@ -54,41 +59,41 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: Routes.home,
-            pageBuilder: (c, s) => _fade(s, const HomeScreen()),
+            pageBuilder: (c, s) => _fade(c, s, const HomeScreen()),
           ),
           GoRoute(
             path: Routes.live,
-            pageBuilder: (c, s) => _fade(s, const LiveScreen()),
+            pageBuilder: (c, s) => _fade(c, s, const LiveScreen()),
           ),
           GoRoute(
             path: Routes.movies,
-            pageBuilder: (c, s) => _fade(s, const MoviesScreen()),
+            pageBuilder: (c, s) => _fade(c, s, const MoviesScreen()),
           ),
           GoRoute(
             path: Routes.series,
-            pageBuilder: (c, s) => _fade(s, const SeriesScreen()),
+            pageBuilder: (c, s) => _fade(c, s, const SeriesScreen()),
           ),
           GoRoute(
             path: Routes.search,
-            pageBuilder: (c, s) => _fade(s, const SearchScreen()),
+            pageBuilder: (c, s) => _fade(c, s, const SearchScreen()),
           ),
           GoRoute(
             path: Routes.favorites,
-            pageBuilder: (c, s) => _fade(s, const FavoritesScreen()),
+            pageBuilder: (c, s) => _fade(c, s, const FavoritesScreen()),
           ),
           GoRoute(
             path: Routes.settings,
-            pageBuilder: (c, s) => _fade(s, const SettingsScreen()),
+            pageBuilder: (c, s) => _fade(c, s, const SettingsScreen()),
           ),
           GoRoute(
             path: Routes.movieDetail,
             pageBuilder: (c, s) =>
-                _fade(s, MovieDetailScreen(movie: s.extra! as VodMovie)),
+                _fade(c, s, MovieDetailScreen(movie: s.extra! as VodMovie)),
           ),
           GoRoute(
             path: Routes.seriesDetail,
             pageBuilder: (c, s) =>
-                _fade(s, SeriesDetailScreen(series: s.extra! as SeriesItem)),
+                _fade(c, s, SeriesDetailScreen(series: s.extra! as SeriesItem)),
           ),
         ],
       ),
@@ -98,11 +103,18 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 /// A cross-fade, not a slide. A slide has a direction, and a direction is wrong
 /// half the time in an app that is also laid out right-to-left.
-CustomTransitionPage<void> _fade(GoRouterState state, Widget child) {
+CustomTransitionPage<void> _fade(
+  BuildContext context,
+  GoRouterState state,
+  Widget child,
+) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
     child: child,
-    transitionDuration: const Duration(milliseconds: 180),
+    transitionDuration: Motion.duration(
+      context,
+      const Duration(milliseconds: 180),
+    ),
     transitionsBuilder: (context, animation, secondary, child) =>
         FadeTransition(opacity: animation, child: child),
   );
