@@ -52,22 +52,59 @@ def deployments():
     except (OSError, subprocess.SubprocessError, ValueError):
         return None, None, False
 
-    booted, target = None, None
-    for d in deps:
-        label = d.get("version") or (d.get("checksum") or "")[:12] or "?"
-        if d.get("booted"):
-            booted = label
-        elif d.get("staged"):
-            # A STAGED deployment is a pending update waiting for the next boot —
-            # rpm-ostree lists it at index 0, BEFORE the booted one. `bootc
-            # rollback` goes the other way, to the PRIOR deployment, so a staged
-            # update must never be offered as the rollback target: doing so told
-            # the user "roll back to <the newer version>", the exact opposite of
-            # what the button does, on the one screen that must never mislead.
-            continue
-        elif target is None:
-            target = label
-    return booted, target
+    # WHAT ROLLBACK ACTUALLY DOES, quoting `man rpm-ostree` (bootc behaves the same way):
+    #
+    #   "The entry at index 0 is the default bootloader entry. ... This command then changes
+    #    the default bootloader entry. If the current default is booted, then set the default
+    #    to the previous entry. Otherwise, make the currently booted tree the default."
+    #
+    # So there are two states and the button means something different in each:
+    #
+    #   booted IS index 0   -> pressing it QUEUES a return to the next non-staged entry.
+    #   booted is NOT index 0 -> a return is ALREADY queued, and pressing it CANCELS that
+    #                            and makes the running system the default again.
+    #
+    # Two earlier versions got this wrong. "First deployment that is not booted" named a
+    # STAGED UPDATE as the thing rollback returns to — a version NEWER than the one running,
+    # the exact opposite of what the button does. Replacing that with "the entry after
+    # booted" fixed the staged case and broke the second state: once a rollback was queued,
+    # booted is no longer index 0 and there is nothing after it, so Recovery told a user in
+    # the middle of a rescue "no previous version on this machine" and greyed out its only
+    # button.
+    #
+    # A staged deployment is excluded by its own flag. That flag IS present in this
+    # rpm-ostree's JSON — every deployment carries "staged": true/false (an earlier commit
+    # message claimed otherwise; it was reading a probe that hid false values).
+    #
+    # Returns (booted_label, target_label, already_queued).
+    def label_of(d):
+        version = d.get("version")
+        short = (d.get("checksum") or "")[:12]
+        # Layered packages do not change the base version, so two deployments can report the
+        # SAME version string and the two cards would read identically. Disambiguate with the
+        # commit when that happens — the user needs to see that these are different systems.
+        if version and short:
+            same = [x for x in deps if x.get("version") == version]
+            if len(same) > 1:
+                return f"{version} ({short})"
+        return version or short or "?"
+
+    booted_at = next((i for i, d in enumerate(deps) if d.get("booted")), None)
+    if booted_at is None:
+        return None, None, False
+
+    # What sits AHEAD of booted decides which of the two states we are in — but only a
+    # NON-STAGED entry counts. A staged deployment is a pending upgrade that also sorts
+    # ahead of booted, and it is not a queued rollback: with only staged entries ahead,
+    # booted is still the deployment rollback moves away from.
+    ahead = [d for d in deps[:booted_at] if not d.get("staged")]
+    if ahead:
+        # A previous deployment is already the default. The machine will come back on it,
+        # and pressing the button now makes the RUNNING system the default again.
+        return label_of(deps[booted_at]), label_of(ahead[0]), True
+
+    target = next((d for d in deps[booted_at + 1:] if not d.get("staged")), None)
+    return label_of(deps[booted_at]), (label_of(target) if target else None), False
 
 
 class Recovery(MoOSApp):

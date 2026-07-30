@@ -36,6 +36,38 @@ MOOS_SELFCHECK = "/usr/bin/moos-selfcheck"
 errors = []
 IMAGE_ROOT = Path(os.environ.get("MOOS_TEST_ROOT", "/"))
 
+SLUG_RE = re.compile(r"(?=.{1,64}\Z)[a-z][a-z0-9]*(?:-[a-z0-9]+)*\Z")
+_DOMAIN_LABEL = r"[a-z0-9_](?:[a-z0-9_-]{0,61}[a-z0-9_])?"
+_APP_LABEL = r"[A-Za-z0-9_](?:[A-Za-z0-9_-]{0,61}[A-Za-z0-9_])?"
+FLATPAK_ID_RE = re.compile(
+    rf"(?=.{{3,255}}\Z){_DOMAIN_LABEL}\.{_DOMAIN_LABEL}"
+    rf"(?:\.{_APP_LABEL})+\Z"
+)
+GLYPH_RE = re.compile(r"(?=.{1,64}\Z)[a-z][a-z0-9_]*\Z")
+BIN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
+VERSION_RE = re.compile(r"[0-9][A-Za-z0-9._+-]{0,63}\Z")
+SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+
+# Web recipes open a human-facing page; they never name a package or executable.
+# Exact hosts (no wildcard subdomains) and exact page paths keep a compromised
+# catalog entry from turning `xdg-open` into a generic URL launcher.
+WEB_PAGE_ALLOWLIST = {
+    "cursor.com": frozenset({"/download", "/downloads"}),
+    "antigravity.google": frozenset({"/"}),
+    "lmstudio.ai": frozenset({"/download"}),
+}
+DIRECT_DOWNLOAD_SUFFIXES = (
+    ".appimage", ".deb", ".rpm", ".exe", ".msi", ".dmg", ".pkg",
+    ".tar", ".tar.gz", ".tgz", ".zip",
+)
+
+# Npm is intentionally an exact recipe allowlist, not a package-name pattern.
+# A catalog edit cannot substitute a similarly named package or swap the binary.
+NPM_RECIPE_ALLOWLIST = {
+    "claude-code": ("@anthropic-ai/claude-code", "claude"),
+    "codex": ("@openai/codex", "codex"),
+}
+
 
 def require(ok, message):
     if not ok:
@@ -46,6 +78,12 @@ def text(path):
     # In the image build the root is `/`. Developers can run the identical gate
     # against system_files on Windows/Linux with MOOS_TEST_ROOT=<repo>/system_files.
     return (IMAGE_ROOT / str(path).lstrip("/")).read_text(encoding="utf-8")
+
+
+def build_text(name):
+    """Read a build-context sibling both locally and from the image build."""
+    path = Path(__file__).resolve().parent / name
+    return path.read_text(encoding="utf-8")
 
 
 def code(raw, marker):
