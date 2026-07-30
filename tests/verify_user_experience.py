@@ -5203,6 +5203,10 @@ require('fail "password-required"' in _i2d and '${#R_PASS}' in _i2d,
         "moos-install-to-disk must reject a missing/short password in the privileged backend")
 require('fail "seed-failed"' in _i2d,
         "the installer must not report success when the target account recipe could not be saved")
+require("/usr/lib/systemd/systemd-update-done --root=" in _i2d
+        and '.updated' in _i2d,
+        "the installer must mark the deployed /etc caches current; otherwise "
+        "ldconfig performs a long cold rebuild before the first password greeter")
 _iqml = read("system_files/usr/share/moos/apps/installer/main.qml")
 require("acctPass.length >= 8" in _iqml and "acctAutologin" in _iqml,
         "the account page must require a password and keep autologin as a separate choice")

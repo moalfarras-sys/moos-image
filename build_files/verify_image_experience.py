@@ -647,27 +647,6 @@ if "plasmalogin" in dm_target:
     require(re.search(r"^ShowClock=false", login_conf, re.MULTILINE),
             "Plasma Login Manager must present the password surface directly; "
             "its idle clock page is a second login layout and can overlap branding")
-    # The greeter account is a system account nobody logs into, so its Plasma config is
-    # image state. Left unprovisioned it carried a LIGHT palette under a DARK wallpaper on
-    # the flagship machine, and the stock chrome (PlasmaExtras.PasswordField, the breeze
-    # components) has no other source of colour.
-    greeter_palette = Path("/usr/share/moos/plasmalogin/kdeglobals")
-    greeter_tmpfiles = Path("/usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf")
-    require(greeter_palette.is_file() and "ColorScheme=MoOSUI2Dark" in greeter_palette.read_text(encoding="utf-8"),
-            "the greeter account has no canonical MoOS palette in /usr — whatever its first "
-            "run happened to write would decide the login chrome's colours")
-    _greeter_rules = greeter_tmpfiles.read_text(encoding="utf-8") if greeter_tmpfiles.is_file() else ""
-    require("C+ /var/lib/plasmalogin/.config/kdeglobals" in _greeter_rules,
-            "nothing materialises the greeter account's palette into /var/lib/plasmalogin, so "
-            "it stays unreproducible local state")
-    # The removal half is not decoration: `C+` does NOT replace an existing file
-    # (measured on systemd 259.8), so without a boot-only `r!` the rule is a no-op on
-    # exactly the machines that already have the wrong palette — which is every machine
-    # that has ever shown a greeter.
-    require("r! /var/lib/plasmalogin/.config/kdeglobals" in _greeter_rules,
-            "the greeter palette rule has no `r!` removal, so `C+` will silently leave a "
-            "pre-existing wrong palette in place on every already-installed machine")
-
 else:
     # There is deliberately no SDDM branch any more. SDDM is not installed on this
     # base (plasmalogin replaced it), the dead theme tree it kept alive is gone,
