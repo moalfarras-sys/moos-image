@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- MoOS UI — Liquid Glass application mark: moos-recovery.
+       Premium 3D liquid-glass plate. Every ink is a KDE colour role; MoOS bakes
+       one copy of this file per palette icon theme (FollowsColorScheme=false).
+       Glass sheens are white/black opacity only — theme-safe material.
+       No clipPath: every fill is a rounded rect so Plasma cannot paint a
+       square scratch behind the squircle.
+       Regenerate with artwork/generate_moos_app_icons.py. -->
+  <defs>
+    <style id="current-color-scheme" type="text/css">.ColorScheme-Text { color:#17302E; }.ColorScheme-Background{ color:#D5D9EE; }.ColorScheme-Highlight{ color:#7C3AED; }.ColorScheme-HighlightedText{ color:#F7FBFF; }.ColorScheme-PositiveText{ color:#086B4B; }.ColorScheme-NeutralText{ color:#7B520F; }.ColorScheme-NegativeText{ color:#A52F3F; }.ColorScheme-Accent{ color:#7C3AED; }</style>
+    <linearGradient id="moos-recovery-sheen" x1="512" y1="72" x2="512" y2="700"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".55"/>
+      <stop offset="0.22" stop-color="#ffffff" stop-opacity=".22"/>
+      <stop offset="0.48" stop-color="#ffffff" stop-opacity=".06"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="moos-recovery-depth" x1="512" y1="360" x2="512" y2="952"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="0.45" stop-color="#000000" stop-opacity=".06"/>
+      <stop offset="1" stop-color="#000000" stop-opacity=".30"/>
+    </linearGradient>
+    <linearGradient id="moos-recovery-refract" x1="120" y1="100" x2="860" y2="780"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.32" stop-color="#ffffff" stop-opacity=".20"/>
+      <stop offset="0.46" stop-color="#ffffff" stop-opacity=".05"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="moos-recovery-caustic" gradientUnits="userSpaceOnUse"
+                    cx="300" cy="260" r="420">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".58"/>
+      <stop offset="0.35" stop-color="#ffffff" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="moos-recovery-floor" gradientUnits="userSpaceOnUse"
+                    cx="512" cy="780" r="340">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".14"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="moos-recovery-rim-hi" x1="130" y1="80" x2="820" y2="820"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".78"/>
+      <stop offset="0.28" stop-color="#ffffff" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="moos-recovery-aura" gradientUnits="userSpaceOnUse"
+                    cx="512" cy="520" r="520">
+      <stop offset="0.72" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="0.88" stop-color="#000000" stop-opacity=".10"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect fill="url(#moos-recovery-aura)" x="36" y="36" width="952" height="952" rx="292"/>
+  <rect class="ColorScheme-NegativeText" fill="currentColor" x="72" y="72" width="880" height="880" rx="264"/>
+  <rect fill="url(#moos-recovery-sheen)" x="72" y="72" width="880" height="880" rx="264"/>
+  <rect fill="url(#moos-recovery-depth)" x="72" y="72" width="880" height="880" rx="264"/>
+  <rect fill="url(#moos-recovery-refract)" x="72" y="72" width="880" height="880" rx="264"/>
+  <rect fill="url(#moos-recovery-caustic)" x="72" y="72" width="880" height="880" rx="264"/>
+  <rect fill="url(#moos-recovery-floor)" x="72" y="72" width="880" height="880" rx="264"/>
+  <rect fill="none" stroke="url(#moos-recovery-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="252"/>
+  <rect class="ColorScheme-Background" fill="none" stroke="currentColor"
+        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="252"/>
+  <path class="ColorScheme-Background" fill="currentColor"
+        d="M512 176c96 62 196 82 268 88v236c0 200-110 268-268 324-158-56-268-124-268-324V264c72-6 172-26 268-88Z"/>
+  <g class="ColorScheme-NegativeText" fill="currentColor">
+    <rect x="470" y="390" width="84" height="224" rx="22"/>
+    <rect x="400" y="460" width="224" height="84" rx="22"/>
+  </g>
+</svg>

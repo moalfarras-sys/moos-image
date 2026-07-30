@@ -4,19 +4,34 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-30, evening session (the machine currently boots signed
-`moos-nvidia` **44.20260730.486**, digest `sha256:91753fb5f00b…`. The
-**icon-bridge** (THEME_REV=26) and **application-mark** rounds are on
-`main`; **THEME_REV=27** is the follow-up that makes them reach existing
-users. Live diagnosis found the dock still resolving first-party marks from
-`~/.local/share/icons/MoOSUI2*` — preview residue painted with Breeze's
-`#3daee9` — while every gate on `/usr` stayed green. THEME_REV=27 purges
-those home overrides (and `hicolor/**/moos-*`) once on apply so the
-palette-baked marks from the image win. Design system remains
-**MoOS UI — Liquid Glass**).
+Last updated: 2026-07-31, early session — **Premium Liquid Glass application
+marks** on branch `product/liquid-glass-app-icons-2026-07-30`. The machine
+still boots signed `moos-nvidia` **44.20260730.486**; this round restores the
+theme-baked SVG architecture (after a mid-flight PNG/hardcoded-RGB diversion
+broke palette baking and the app-icon gates) and upgrades the plate material
+to multi-layer Liquid Glass. Design system remains **MoOS UI — Liquid Glass**.
 
 > **Read [`skills/moos-engineering/SKILL.md`](skills/moos-engineering/SKILL.md) first —
 > it is mandatory for every agent working here.**
+
+> **Premium Liquid Glass app marks — 2026-07-31, branch
+> `product/liquid-glass-app-icons-2026-07-30`.** A same-day diversion replaced
+> the nine themeable SVG marks with static RGB PNG squircles (and stole
+> Firefox/Dolphin/Konsole/Gwenview identity). That broke
+> `generate_moos_themes.build_icon_theme`'s `recoloured()` bake,
+> `tests/test_moos_app_icons.py`, and the "icons follow the theme" claim.
+> This round restores SVG masters with KDE colour roles, upgrades the plate to
+> a multi-layer Liquid Glass stack (sheen / depth / refraction / caustic /
+> floor / rim — white+black opacity only, theme-safe), and redesigns Mo Store
+> as a four-tile modern storefront (not a shopping bag). Mo AI stays the
+> commissioned floating orb. Third-party overrides are removed. Live evidence:
+> Daylight bake → blue store, Amethyst bake → purple store
+> (`artwork/moos-ui2/live-tests/daylight-store-256.png`,
+> `amethyst-store-256.png`); family sheet
+> `artwork/moos-ui2/previews/moos-app-icons.png` + palette matrix
+> `moos-app-icons-palettes.png`. `artwork/generate_3d_squircle.py` is retired.
+> Release still needs commit/push, signed image, and THEME_REV=27's home purge
+> on reboot so `/usr` wins over any leftover preview.
 
 > **THEME_REV=27 — home icon override purge, 2026-07-30 evening.** The
 > redrawn marks and per-palette bakes were already on `main`, but existing
