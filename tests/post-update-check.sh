@@ -102,12 +102,16 @@ case "$theme_lnf" in
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light
         if [[ "$theme_lnf" == *.light ]]; then
             [ "$theme_family" = midnight ] && Name=Daylight || Name="${Name}Light"
-            want_icons=MoOSUI2Light; theme_name="UI2 ${Name} Light"
+            theme_name="UI2 ${Name} Light"
         else
-            want_icons=MoOSUI2; theme_name="UI2 ${Name} Dark"
+            theme_name="UI2 ${Name} Dark"
         fi
         want_deco="__aurorae__svg__MoOSUI2${Name}"
         want_scheme="MoOSUI2${Name}"; want_style="MoOSUI2${Name}"; want_wallpaper="MoOSUI2${Name}"
+        # Each member owns a small symbolic-action overlay named after its
+        # Plasma style. KIconLoader keeps the SVG fallback colours, so sharing
+        # only MoOSUI2 dark/light here would make several palettes unreadable.
+        want_icons="$want_style"
         ;;
     *)
         theme_family=""; theme_name=""; want_deco=""; want_scheme=""; want_icons=""
@@ -127,6 +131,10 @@ if [ -n "$theme_family" ]; then
     [ "$theme_icons" = "$want_icons" ] \
         && ok "icon theme matches ${theme_name}" \
         || bad "icon theme is '${theme_icons:-unset}', expected ${want_icons}"
+    resolved_symbol="$(kiconfinder6 moos-warning-symbolic 2>/dev/null)"
+    [ "$resolved_symbol" = "/usr/share/icons/${want_icons}/moos/actions/scalable/moos-warning-symbolic.svg" ] \
+        && ok "symbolic icons resolve from ${want_icons}'s signed image package" \
+        || bad "moos-warning-symbolic resolves to '${resolved_symbol:-missing}', expected the ${want_icons} palette overlay under /usr/share"
     [ "$theme_style" = "$want_style" ] \
         && ok "Plasma style matches ${theme_name}" \
         || bad "Plasma style is '${theme_style:-unset}', expected ${want_style}"

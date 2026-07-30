@@ -1019,6 +1019,24 @@ rm -rf /tmp/colloid
 # subdir the second base lacks would have left a stale foreign-colour symlink
 # behind. One pass, from a clean directory, cannot.
 
+# KIconLoader keeps the fallback colours embedded in a normal themed SVG. The
+# owned `-symbolic` geometry is one source, but the dark and light icon-theme
+# packages must carry their own semantic palette; copying the light fallback
+# bytes into both made dark Launchers draw almost-black symbols on graphite.
+recolor_moos_symbolic_dir() {
+    local symbol_dir="$1" text_ink="$2" accent_ink="$3"
+    local warning_ink="$4" danger_ink="$5" symbol_file
+    for symbol_file in "${symbol_dir}"/moos-*-symbolic.svg; do
+        [ -f "${symbol_file}" ] || continue
+        sed -i \
+            -e "s/#243238/${text_ink}/gI" \
+            -e "s/#147d72/${accent_ink}/gI" \
+            -e "s/#8a5a00/${warning_ink}/gI" \
+            -e "s/#a9364b/${danger_ink}/gI" \
+            "${symbol_file}"
+    done
+}
+
 # "MoOSUI2" / "MoOSUI2Light" = the UI2 icon themes, teal folders over the same
 # proven copy-index-then-symlink route. Nova/NovaLight stay installed untouched:
 # they are what UI1 (the documented rollback) selects.
@@ -1029,6 +1047,7 @@ sed -i \
     -e 's|^Name=.*|Name=MoOS UI|' \
     -e 's|^Comment=.*|Comment=MoOS icons — mineral teal on graphite|' \
     -e 's|^Inherits=.*|Inherits=Colloid-Teal-Dark,Papirus-Dark,breeze-dark,hicolor|' \
+    -e 's|^FollowsColorScheme=.*|FollowsColorScheme=false|' \
     -e 's|^Directories=|Directories=moos/actions/scalable,moos/apps/scalable,|' \
     /usr/share/icons/MoOSUI2/index.theme
 test -d /usr/share/icons/Colloid-Teal-Dark/apps
@@ -1042,6 +1061,9 @@ cp /usr/share/icons/hicolor/scalable/apps/moos-*.svg \
 mkdir -p /usr/share/icons/MoOSUI2/moos/actions/scalable
 cp /usr/share/icons/hicolor/scalable/actions/moos-*-symbolic.svg \
     /usr/share/icons/MoOSUI2/moos/actions/scalable/
+recolor_moos_symbolic_dir \
+    /usr/share/icons/MoOSUI2/moos/actions/scalable \
+    '#E8F1EF' '#4ED7C8' '#F4C56A' '#FF7D88'
 cat >> /usr/share/icons/MoOSUI2/index.theme <<'EOF'
 
 [moos/actions/scalable]
@@ -1067,6 +1089,7 @@ sed -i \
     -e 's|^Name=.*|Name=MoOS UI Light|' \
     -e 's|^Comment=.*|Comment=MoOS icons — mineral teal on tidal mist|' \
     -e 's|^Inherits=.*|Inherits=Colloid-Teal-Light,Papirus,breeze,hicolor|' \
+    -e 's|^FollowsColorScheme=.*|FollowsColorScheme=false|' \
     -e 's|^Directories=|Directories=moos/actions/scalable,moos/apps/scalable,|' \
     /usr/share/icons/MoOSUI2Light/index.theme
 test -d /usr/share/icons/Colloid-Teal-Light/apps
@@ -1080,6 +1103,9 @@ cp /usr/share/icons/hicolor/scalable/apps/moos-*.svg \
 mkdir -p /usr/share/icons/MoOSUI2Light/moos/actions/scalable
 cp /usr/share/icons/hicolor/scalable/actions/moos-*-symbolic.svg \
     /usr/share/icons/MoOSUI2Light/moos/actions/scalable/
+recolor_moos_symbolic_dir \
+    /usr/share/icons/MoOSUI2Light/moos/actions/scalable \
+    '#17302E' '#006D67' '#7B520F' '#A52F3F'
 cat >> /usr/share/icons/MoOSUI2Light/index.theme <<'EOF'
 
 [moos/actions/scalable]
@@ -1098,7 +1124,7 @@ MaxSize=512
 EOF
 gtk-update-icon-cache -f /usr/share/icons/MoOSUI2Light || true
 
-# Gate all four. An icon theme whose Directories= is missing is treated as INVALID by
+# Gate both broad bases. An icon theme whose Directories= is missing is treated as INVALID by
 # KIconTheme and Plasma silently falls back — the desktop looks fine at a glance
 # and every icon is somebody else's.
 for t in MoOSUI2 MoOSUI2Light; do
@@ -1116,6 +1142,54 @@ for t in MoOSUI2 MoOSUI2Light; do
         && grep -q 'id="current-color-scheme"' \
             "/usr/share/icons/${t}/moos/actions/scalable/moos-warning-symbolic.svg" \
         || { echo "GATE FAIL: ${t} has no palette-aware MoOS symbolic actions"; exit 1; }
+done
+
+# Each family palette is a deliberately small first-party symbolic overlay over
+# one of those two broad bases.  Gate the image contents here, after the package
+# transactions, rather than trusting that the generated source directory was
+# copied.  A missing/invalid overlay makes plasma-changeicons reject the exact
+# theme that moos-apply-theme pins and silently keeps the previous palette.
+base_symbol_count="$(
+    find /usr/share/icons/hicolor/scalable/actions -maxdepth 1 -type f \
+        -name 'moos-*-symbolic.svg' | wc -l
+)"
+[ "${base_symbol_count}" -gt 0 ] \
+    || { echo "GATE FAIL: no owned MoOS symbolic source icons reached the image"; exit 1; }
+for t in \
+    MoOSUI2Amethyst MoOSUI2AmethystLight \
+    MoOSUI2Arena MoOSUI2ArenaLight \
+    MoOSUI2Aurora MoOSUI2AuroraLight \
+    MoOSUI2Daylight \
+    MoOSUI2Forge MoOSUI2ForgeLight \
+    MoOSUI2Midnight \
+    MoOSUI2Nova MoOSUI2NovaLight \
+    MoOSUI2Scholar MoOSUI2ScholarLight
+do
+    theme_index="/usr/share/icons/${t}/index.theme"
+    symbol_dir="/usr/share/icons/${t}/moos/actions/scalable"
+    test -f "${theme_index}" \
+        && grep -qx 'Directories=moos/actions/scalable' "${theme_index}" \
+        && grep -qx 'FollowsColorScheme=false' "${theme_index}" \
+        || { echo "GATE FAIL: ${t} is not a valid symbolic overlay"; exit 1; }
+    case "${t}" in
+        *Light|MoOSUI2Daylight)
+            grep -qx 'Inherits=MoOSUI2Light' "${theme_index}"
+            ;;
+        *)
+            grep -qx 'Inherits=MoOSUI2' "${theme_index}"
+            ;;
+    esac || { echo "GATE FAIL: ${t} inherits the wrong contrast base"; exit 1; }
+    overlay_symbol_count="$(
+        find "${symbol_dir}" -maxdepth 1 -type f \
+            -name 'moos-*-symbolic.svg' | wc -l
+    )"
+    [ "${overlay_symbol_count}" -eq "${base_symbol_count}" ] \
+        || { echo "GATE FAIL: ${t} symbolic inventory is incomplete"; exit 1; }
+    grep -q 'ColorScheme-Text' "${symbol_dir}/moos-search-symbolic.svg" \
+        && grep -q 'ColorScheme-Highlight' \
+            "${symbol_dir}/moos-search-symbolic.svg" \
+        || { echo "GATE FAIL: ${t} lost the semantic icon roles"; exit 1; }
+    gtk-update-icon-cache -f "/usr/share/icons/${t}" || true
 done
 
 # -----------------------------------------------------------------------------
@@ -1660,14 +1734,14 @@ if [ "$_launcher_smoke_rc" -ne 124 ]; then
     cat "$_launcher_smoke_log"
     exit 1
 fi
-if ! grep -Fq 'MOOS_LAUNCHER_FULL_READY size=828x630' "$_launcher_smoke_log"; then
-    echo "FATAL: org.moos.brand stayed alive but LauncherView was not constructed at 828x630"
+if ! grep -Fq 'MOOS_LAUNCHER_FULL_READY size=792x576' "$_launcher_smoke_log"; then
+    echo "FATAL: org.moos.brand stayed alive but LauncherView was not constructed at 792x576"
     cat "$_launcher_smoke_log"
     exit 1
 fi
 _launcher_smoke_config="${_launcher_smoke_home}/.config/plasmawindowedrc"
-if ! grep -qE '^geometry=[^,]+,[^,]+,828,630$' "$_launcher_smoke_config"; then
-    echo "FATAL: plasmawindowed did not host the full 828x630 MoOS launcher"
+if ! grep -qE '^geometry=[^,]+,[^,]+,792,576$' "$_launcher_smoke_config"; then
+    echo "FATAL: plasmawindowed did not host the full 792x576 MoOS launcher"
     cat "$_launcher_smoke_config" 2>/dev/null || true
     cat "$_launcher_smoke_log"
     exit 1

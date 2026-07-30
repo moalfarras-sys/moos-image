@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="settings-title">
+  <title id="settings-title">Settings</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #F5E9FF; fill: currentColor; }
+    .ColorScheme-Highlight { color: #FF2D95; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #FBBF24; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #FF4D6D; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M14.523 2.582 L18.894 5.106 L21.418 9.477 L21.418 14.523 L18.894 18.894 L14.523 21.418 L9.477 21.418 L5.106 18.894 L2.582 14.523 L2.582 9.477 L5.106 5.106 L9.477 2.582 Z M17.9 12 A5.9 5.9 0 1 1 6.1 12 A5.9 5.9 0 1 1 17.9 12 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M16.45 12 A4.45 4.45 0 1 1 7.55 12 A4.45 4.45 0 1 1 16.45 12 Z M14.1 12 A2.1 2.1 0 1 1 9.9 12 A2.1 2.1 0 1 1 14.1 12 Z"/>
+</svg>

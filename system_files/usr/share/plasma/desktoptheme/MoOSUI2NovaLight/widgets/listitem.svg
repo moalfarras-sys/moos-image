@@ -1,111 +1,65 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="112" height="200" viewBox="0 0 112 200">
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="208" viewBox="0 0 128 208">
+  <!-- MoOS native list rows: borderless at rest, quiet prelight, semantic pressed selection. -->
   <style id="current-color-scheme" type="text/css">
     .ColorScheme-Background { color: #C6DCE9; }
-    .ColorScheme-Highlight  { color: #0E63C4; }
-    .ColorScheme-Text       { color: #17302E; }
+    .ColorScheme-Highlight { color: #0E63C4; }
+    .ColorScheme-Text { color: #17302E; }
+    .ColorScheme-ButtonBackground { color: #BFD7E4; }
+    .ColorScheme-ButtonText { color: #17302E; }
   </style>
-  <g id="normal-topleft">
-    <path d="M 0,9 A 9,9 0 0 1 9,0 L 9,9 Z" fill="#C6DCE9" fill-opacity="0.01"/>
-    <path d="M 0,9 A 9,9 0 0 1 9,0 L 9,1.0 A 8.0,8.0 0 0 0 1.0,9 Z" fill="#3D5854" fill-opacity="0.01"/>
-  </g>
-  <g id="normal-topright">
-    <path d="M 33,0 A 9,9 0 0 1 42,9 L 33,9 Z" fill="#C6DCE9" fill-opacity="0.01"/>
-    <path d="M 33,0 A 9,9 0 0 1 42,9 L 41.0,9 A 8.0,8.0 0 0 0 33,1.0 Z" fill="#3D5854" fill-opacity="0.01"/>
-  </g>
-  <g id="normal-bottomleft">
-    <path d="M 9,42 A 9,9 0 0 1 0,33 L 9,33 Z" fill="#C6DCE9" fill-opacity="0.01"/>
-    <path d="M 9,42 A 9,9 0 0 1 0,33 L 1.0,33 A 8.0,8.0 0 0 0 9,41.0 Z" fill="#3D5854" fill-opacity="0.01"/>
-  </g>
-  <g id="normal-bottomright">
-    <path d="M 42,33 A 9,9 0 0 1 33,42 L 33,33 Z" fill="#C6DCE9" fill-opacity="0.01"/>
-    <path d="M 42,33 A 9,9 0 0 1 33,42 L 33,41.0 A 8.0,8.0 0 0 0 41.0,33 Z" fill="#3D5854" fill-opacity="0.01"/>
-  </g>
-  <g id="normal-top"><rect x="9" y="0" width="24" height="9" fill="#C6DCE9" fill-opacity="0.01"/><rect x="9" y="0" width="24" height="1" fill="#3D5854" fill-opacity="0.01"/></g>
-  <g id="normal-bottom"><rect x="9" y="33" width="24" height="9" fill="#C6DCE9" fill-opacity="0.01"/><rect x="9" y="41" width="24" height="1" fill="#3D5854" fill-opacity="0.0055000000000000005"/></g>
-  <g id="normal-left"><rect x="0" y="9" width="9" height="24" fill="#C6DCE9" fill-opacity="0.01"/><rect x="0" y="9" width="1" height="24" fill="#3D5854" fill-opacity="0.006999999999999999"/></g>
-  <g id="normal-right"><rect x="33" y="9" width="9" height="24" fill="#C6DCE9" fill-opacity="0.01"/><rect x="41" y="9" width="1" height="24" fill="#3D5854" fill-opacity="0.006999999999999999"/></g>
-  <rect id="normal-center" x="9" y="9" width="24" height="24" fill="#C6DCE9" fill-opacity="0.01"/>
-  <rect id="normal-hint-top-margin" x="80" y="0" width="4" height="5" fill="none" opacity="0"/>
-  <rect id="normal-hint-bottom-margin" x="80" y="7" width="4" height="5" fill="none" opacity="0"/>
-  <rect id="normal-hint-left-margin" x="76" y="14" width="7" height="4" fill="none" opacity="0"/>
-  <rect id="normal-hint-right-margin" x="87" y="14" width="7" height="4" fill="none" opacity="0"/>
-  <g id="pressed-topleft">
-    <path d="M 0,53 A 9,9 0 0 1 9,44 L 9,53 Z" fill="#BFD7E4" fill-opacity="0.94"/>
-    <path d="M 0,53 A 9,9 0 0 1 9,44 L 9,45.0 A 8.0,8.0 0 0 0 1.0,53 Z" fill="#1A76D8" fill-opacity="0.82"/>
-  </g>
-  <g id="pressed-topright">
-    <path d="M 33,44 A 9,9 0 0 1 42,53 L 33,53 Z" fill="#BFD7E4" fill-opacity="0.94"/>
-    <path d="M 33,44 A 9,9 0 0 1 42,53 L 41.0,53 A 8.0,8.0 0 0 0 33,45.0 Z" fill="#1A76D8" fill-opacity="0.82"/>
-  </g>
-  <g id="pressed-bottomleft">
-    <path d="M 9,86 A 9,9 0 0 1 0,77 L 9,77 Z" fill="#BFD7E4" fill-opacity="0.94"/>
-    <path d="M 9,86 A 9,9 0 0 1 0,77 L 1.0,77 A 8.0,8.0 0 0 0 9,85.0 Z" fill="#1A76D8" fill-opacity="0.82"/>
-  </g>
-  <g id="pressed-bottomright">
-    <path d="M 42,77 A 9,9 0 0 1 33,86 L 33,77 Z" fill="#BFD7E4" fill-opacity="0.94"/>
-    <path d="M 42,77 A 9,9 0 0 1 33,86 L 33,85.0 A 8.0,8.0 0 0 0 41.0,77 Z" fill="#1A76D8" fill-opacity="0.82"/>
-  </g>
-  <g id="pressed-top"><rect x="9" y="44" width="24" height="9" fill="#BFD7E4" fill-opacity="0.94"/><rect x="9" y="44" width="24" height="1" fill="#1A76D8" fill-opacity="0.82"/></g>
-  <g id="pressed-bottom"><rect x="9" y="77" width="24" height="9" fill="#BFD7E4" fill-opacity="0.94"/><rect x="9" y="85" width="24" height="1" fill="#1A76D8" fill-opacity="0.451"/></g>
-  <g id="pressed-left"><rect x="0" y="53" width="9" height="24" fill="#BFD7E4" fill-opacity="0.94"/><rect x="0" y="53" width="1" height="24" fill="#1A76D8" fill-opacity="0.574"/></g>
-  <g id="pressed-right"><rect x="33" y="53" width="9" height="24" fill="#BFD7E4" fill-opacity="0.94"/><rect x="41" y="53" width="1" height="24" fill="#1A76D8" fill-opacity="0.574"/></g>
-  <rect id="pressed-center" x="9" y="53" width="24" height="24" fill="#BFD7E4" fill-opacity="0.94"/>
-  <rect id="pressed-hint-top-margin" x="80" y="24" width="4" height="5" fill="none" opacity="0"/>
-  <rect id="pressed-hint-bottom-margin" x="80" y="31" width="4" height="5" fill="none" opacity="0"/>
-  <rect id="pressed-hint-left-margin" x="76" y="38" width="7" height="4" fill="none" opacity="0"/>
-  <rect id="pressed-hint-right-margin" x="87" y="38" width="7" height="4" fill="none" opacity="0"/>
-  <g id="section-topleft">
-    <path d="M 0,97 A 9,9 0 0 1 9,88 L 9,97 Z" fill="#C6DCE9" fill-opacity="0.01"/>
-    <path d="M 0,97 A 9,9 0 0 1 9,88 L 9,89.0 A 8.0,8.0 0 0 0 1.0,97 Z" fill="#3D5854" fill-opacity="0.01"/>
-  </g>
-  <g id="section-topright">
-    <path d="M 33,88 A 9,9 0 0 1 42,97 L 33,97 Z" fill="#C6DCE9" fill-opacity="0.01"/>
-    <path d="M 33,88 A 9,9 0 0 1 42,97 L 41.0,97 A 8.0,8.0 0 0 0 33,89.0 Z" fill="#3D5854" fill-opacity="0.01"/>
-  </g>
-  <g id="section-bottomleft">
-    <path d="M 9,130 A 9,9 0 0 1 0,121 L 9,121 Z" fill="#C6DCE9" fill-opacity="0.01"/>
-    <path d="M 9,130 A 9,9 0 0 1 0,121 L 1.0,121 A 8.0,8.0 0 0 0 9,129.0 Z" fill="#3D5854" fill-opacity="0.01"/>
-  </g>
-  <g id="section-bottomright">
-    <path d="M 42,121 A 9,9 0 0 1 33,130 L 33,121 Z" fill="#C6DCE9" fill-opacity="0.01"/>
-    <path d="M 42,121 A 9,9 0 0 1 33,130 L 33,129.0 A 8.0,8.0 0 0 0 41.0,121 Z" fill="#3D5854" fill-opacity="0.01"/>
-  </g>
-  <g id="section-top"><rect x="9" y="88" width="24" height="9" fill="#C6DCE9" fill-opacity="0.01"/><rect x="9" y="88" width="24" height="1" fill="#3D5854" fill-opacity="0.01"/></g>
-  <g id="section-bottom"><rect x="9" y="121" width="24" height="9" fill="#C6DCE9" fill-opacity="0.01"/><rect x="9" y="129" width="24" height="1" fill="#3D5854" fill-opacity="0.0055000000000000005"/></g>
-  <g id="section-left"><rect x="0" y="97" width="9" height="24" fill="#C6DCE9" fill-opacity="0.01"/><rect x="0" y="97" width="1" height="24" fill="#3D5854" fill-opacity="0.006999999999999999"/></g>
-  <g id="section-right"><rect x="33" y="97" width="9" height="24" fill="#C6DCE9" fill-opacity="0.01"/><rect x="41" y="97" width="1" height="24" fill="#3D5854" fill-opacity="0.006999999999999999"/></g>
-  <rect id="section-center" x="9" y="97" width="24" height="24" fill="#C6DCE9" fill-opacity="0.01"/>
-  <rect id="section-hint-top-margin" x="80" y="48" width="4" height="5" fill="none" opacity="0"/>
-  <rect id="section-hint-bottom-margin" x="80" y="55" width="4" height="5" fill="none" opacity="0"/>
-  <rect id="section-hint-left-margin" x="76" y="62" width="7" height="4" fill="none" opacity="0"/>
-  <rect id="section-hint-right-margin" x="87" y="62" width="7" height="4" fill="none" opacity="0"/>
-  <rect id="separator" x="0" y="140" width="32" height="1" fill="#3D5854" fill-opacity="0.24"/>
-  <rect id="hint-tile-center" x="104" y="0" width="1" height="1" fill="none" opacity="0"/>
-  <!-- hover: the mouse-over prelight Breeze ships but MoOS lacked. A calm accent
-       lift (#0E63C4 @0.12 body + luminous #1A76D8 rim), far softer than pressed
-       (0.94), so hover reads as a gentle glow and press still clearly wins.
-       Geometry = the pressed 9-slice translated +106px in y; both hexes are
-       dark-palette roles, so both generators recolour it per variant. -->
-  <g id="hover-topleft">
-    <path d="M 0,159 A 9,9 0 0 1 9,150 L 9,159 Z" fill="#0E63C4" fill-opacity="0.20"/>
-    <path d="M 0,159 A 9,9 0 0 1 9,150 L 9,151.0 A 8.0,8.0 0 0 0 1.0,159 Z" fill="#1A76D8" fill-opacity="0.34"/>
-  </g>
-  <g id="hover-topright">
-    <path d="M 33,150 A 9,9 0 0 1 42,159 L 33,159 Z" fill="#0E63C4" fill-opacity="0.20"/>
-    <path d="M 33,150 A 9,9 0 0 1 42,159 L 41.0,159 A 8.0,8.0 0 0 0 33,151.0 Z" fill="#1A76D8" fill-opacity="0.34"/>
-  </g>
-  <g id="hover-bottomleft">
-    <path d="M 9,192 A 9,9 0 0 1 0,183 L 9,183 Z" fill="#0E63C4" fill-opacity="0.20"/>
-    <path d="M 9,192 A 9,9 0 0 1 0,183 L 1.0,183 A 8.0,8.0 0 0 0 9,191.0 Z" fill="#1A76D8" fill-opacity="0.16"/>
-  </g>
-  <g id="hover-bottomright">
-    <path d="M 42,183 A 9,9 0 0 1 33,192 L 33,183 Z" fill="#0E63C4" fill-opacity="0.20"/>
-    <path d="M 42,183 A 9,9 0 0 1 33,192 L 33,191.0 A 8.0,8.0 0 0 0 41.0,183 Z" fill="#1A76D8" fill-opacity="0.16"/>
-  </g>
-  <g id="hover-top"><rect x="9" y="150" width="24" height="9" fill="#0E63C4" fill-opacity="0.20"/><rect x="9" y="150" width="24" height="1" fill="#1A76D8" fill-opacity="0.34"/></g>
-  <g id="hover-bottom"><rect x="9" y="183" width="24" height="9" fill="#0E63C4" fill-opacity="0.20"/><rect x="9" y="191" width="24" height="1" fill="#1A76D8" fill-opacity="0.16"/></g>
-  <g id="hover-left"><rect x="0" y="159" width="9" height="24" fill="#0E63C4" fill-opacity="0.20"/><rect x="0" y="159" width="1" height="24" fill="#1A76D8" fill-opacity="0.22"/></g>
-  <g id="hover-right"><rect x="33" y="159" width="9" height="24" fill="#0E63C4" fill-opacity="0.20"/><rect x="41" y="159" width="1" height="24" fill="#1A76D8" fill-opacity="0.22"/></g>
-  <rect id="hover-center" x="9" y="159" width="24" height="24" fill="#0E63C4" fill-opacity="0.20"/>
+  <g id="normal-topleft"><path d="M0 9A9 9 0 0 1 9 0V9H0Z" fill="#C6DCE9" fill-opacity="0.010"/><path d="M0 9A9 9 0 0 1 9 0V1A8 8 0 0 0 1 9Z" fill="#527F79" fill-opacity="0.010"/></g>
+  <g id="normal-topright"><path d="M33 0A9 9 0 0 1 42 9H33Z" fill="#C6DCE9" fill-opacity="0.010"/><path d="M33 0A9 9 0 0 1 42 9H41A8 8 0 0 0 33 1Z" fill="#527F79" fill-opacity="0.010"/></g>
+  <g id="normal-bottomleft"><path d="M0 33A9 9 0 0 0 9 42V33Z" fill="#C6DCE9" fill-opacity="0.010"/><path d="M0 33A9 9 0 0 0 9 42V41A8 8 0 0 1 1 33Z" fill="#527F79" fill-opacity="0.006"/></g>
+  <g id="normal-bottomright"><path d="M42 33A9 9 0 0 1 33 42V33Z" fill="#C6DCE9" fill-opacity="0.010"/><path d="M42 33A9 9 0 0 1 33 42V41A8 8 0 0 0 41 33Z" fill="#527F79" fill-opacity="0.006"/></g>
+  <g id="normal-top"><rect x="9" y="0" width="24" height="9" fill="#C6DCE9" fill-opacity="0.010"/><rect x="9" y="0" width="24" height="1" fill="#527F79" fill-opacity="0.010"/></g>
+  <g id="normal-bottom"><rect x="9" y="33" width="24" height="9" fill="#C6DCE9" fill-opacity="0.010"/><rect x="9" y="41" width="24" height="1" fill="#527F79" fill-opacity="0.006"/></g>
+  <g id="normal-left"><rect x="0" y="9" width="9" height="24" fill="#C6DCE9" fill-opacity="0.010"/><rect x="0" y="9" width="1" height="24" fill="#527F79" fill-opacity="0.008"/></g>
+  <g id="normal-right"><rect x="33" y="9" width="9" height="24" fill="#C6DCE9" fill-opacity="0.010"/><rect x="41" y="9" width="1" height="24" fill="#527F79" fill-opacity="0.008"/></g>
+  <rect id="normal-center" x="9" y="9" width="24" height="24" fill="#C6DCE9" fill-opacity="0.010"/>
+  <rect id="normal-hint-top-margin" x="47" y="0" width="3" height="7" fill="none"/>
+  <rect id="normal-hint-bottom-margin" x="47" y="9" width="3" height="7" fill="none"/>
+  <rect id="normal-hint-left-margin" x="52" y="0" width="7" height="3" fill="none"/>
+  <rect id="normal-hint-right-margin" x="52" y="5" width="7" height="3" fill="none"/>
+  <g id="hover-topleft"><path d="M0 61A9 9 0 0 1 9 52V61H0Z" fill="#BFD7E4" fill-opacity="0.540"/><path d="M0 61A9 9 0 0 1 9 52V53A8 8 0 0 0 1 61Z" fill="#1A76D8" fill-opacity="0.240"/></g>
+  <g id="hover-topright"><path d="M33 52A9 9 0 0 1 42 61H33Z" fill="#BFD7E4" fill-opacity="0.540"/><path d="M33 52A9 9 0 0 1 42 61H41A8 8 0 0 0 33 53Z" fill="#1A76D8" fill-opacity="0.240"/></g>
+  <g id="hover-bottomleft"><path d="M0 85A9 9 0 0 0 9 94V85Z" fill="#BFD7E4" fill-opacity="0.540"/><path d="M0 85A9 9 0 0 0 9 94V93A8 8 0 0 1 1 85Z" fill="#1A76D8" fill-opacity="0.149"/></g>
+  <g id="hover-bottomright"><path d="M42 85A9 9 0 0 1 33 94V85Z" fill="#BFD7E4" fill-opacity="0.540"/><path d="M42 85A9 9 0 0 1 33 94V93A8 8 0 0 0 41 85Z" fill="#1A76D8" fill-opacity="0.149"/></g>
+  <g id="hover-top"><rect x="9" y="52" width="24" height="9" fill="#BFD7E4" fill-opacity="0.540"/><rect x="9" y="52" width="24" height="1" fill="#1A76D8" fill-opacity="0.240"/></g>
+  <g id="hover-bottom"><rect x="9" y="85" width="24" height="9" fill="#BFD7E4" fill-opacity="0.540"/><rect x="9" y="93" width="24" height="1" fill="#1A76D8" fill-opacity="0.149"/></g>
+  <g id="hover-left"><rect x="0" y="61" width="9" height="24" fill="#BFD7E4" fill-opacity="0.540"/><rect x="0" y="61" width="1" height="24" fill="#1A76D8" fill-opacity="0.187"/></g>
+  <g id="hover-right"><rect x="33" y="61" width="9" height="24" fill="#BFD7E4" fill-opacity="0.540"/><rect x="41" y="61" width="1" height="24" fill="#1A76D8" fill-opacity="0.187"/></g>
+  <rect id="hover-center" x="9" y="61" width="24" height="24" fill="#BFD7E4" fill-opacity="0.540"/>
+  <rect id="hover-hint-top-margin" x="47" y="52" width="3" height="7" fill="none"/>
+  <rect id="hover-hint-bottom-margin" x="47" y="61" width="3" height="7" fill="none"/>
+  <rect id="hover-hint-left-margin" x="52" y="52" width="7" height="3" fill="none"/>
+  <rect id="hover-hint-right-margin" x="52" y="57" width="7" height="3" fill="none"/>
+  <g id="pressed-topleft"><path d="M0 113A9 9 0 0 1 9 104V113H0Z" fill="#0E63C4" fill-opacity="0.150"/><path d="M0 113A9 9 0 0 1 9 104V105A8 8 0 0 0 1 113Z" fill="#0E63C4" fill-opacity="0.600"/></g>
+  <g id="pressed-topright"><path d="M33 104A9 9 0 0 1 42 113H33Z" fill="#0E63C4" fill-opacity="0.150"/><path d="M33 104A9 9 0 0 1 42 113H41A8 8 0 0 0 33 105Z" fill="#0E63C4" fill-opacity="0.600"/></g>
+  <g id="pressed-bottomleft"><path d="M0 137A9 9 0 0 0 9 146V137Z" fill="#0E63C4" fill-opacity="0.150"/><path d="M0 137A9 9 0 0 0 9 146V145A8 8 0 0 1 1 137Z" fill="#0E63C4" fill-opacity="0.372"/></g>
+  <g id="pressed-bottomright"><path d="M42 137A9 9 0 0 1 33 146V137Z" fill="#0E63C4" fill-opacity="0.150"/><path d="M42 137A9 9 0 0 1 33 146V145A8 8 0 0 0 41 137Z" fill="#0E63C4" fill-opacity="0.372"/></g>
+  <g id="pressed-top"><rect x="9" y="104" width="24" height="9" fill="#0E63C4" fill-opacity="0.150"/><rect x="9" y="104" width="24" height="1" fill="#0E63C4" fill-opacity="0.600"/></g>
+  <g id="pressed-bottom"><rect x="9" y="137" width="24" height="9" fill="#0E63C4" fill-opacity="0.150"/><rect x="9" y="145" width="24" height="1" fill="#0E63C4" fill-opacity="0.372"/></g>
+  <g id="pressed-left"><rect x="0" y="113" width="9" height="24" fill="#0E63C4" fill-opacity="0.150"/><rect x="0" y="113" width="1" height="24" fill="#0E63C4" fill-opacity="0.468"/></g>
+  <g id="pressed-right"><rect x="33" y="113" width="9" height="24" fill="#0E63C4" fill-opacity="0.150"/><rect x="41" y="113" width="1" height="24" fill="#0E63C4" fill-opacity="0.468"/></g>
+  <rect id="pressed-center" x="9" y="113" width="24" height="24" fill="#0E63C4" fill-opacity="0.150"/>
+  <rect id="pressed-hint-top-margin" x="47" y="104" width="3" height="7" fill="none"/>
+  <rect id="pressed-hint-bottom-margin" x="47" y="113" width="3" height="7" fill="none"/>
+  <rect id="pressed-hint-left-margin" x="52" y="104" width="7" height="3" fill="none"/>
+  <rect id="pressed-hint-right-margin" x="52" y="109" width="7" height="3" fill="none"/>
+  <g id="section-topleft"><path d="M0 165A9 9 0 0 1 9 156V165H0Z" fill="#C6DCE9" fill-opacity="0.300"/><path d="M0 165A9 9 0 0 1 9 156V157A8 8 0 0 0 1 165Z" fill="#527F79" fill-opacity="0.120"/></g>
+  <g id="section-topright"><path d="M33 156A9 9 0 0 1 42 165H33Z" fill="#C6DCE9" fill-opacity="0.300"/><path d="M33 156A9 9 0 0 1 42 165H41A8 8 0 0 0 33 157Z" fill="#527F79" fill-opacity="0.120"/></g>
+  <g id="section-bottomleft"><path d="M0 189A9 9 0 0 0 9 198V189Z" fill="#C6DCE9" fill-opacity="0.300"/><path d="M0 189A9 9 0 0 0 9 198V197A8 8 0 0 1 1 189Z" fill="#527F79" fill-opacity="0.074"/></g>
+  <g id="section-bottomright"><path d="M42 189A9 9 0 0 1 33 198V189Z" fill="#C6DCE9" fill-opacity="0.300"/><path d="M42 189A9 9 0 0 1 33 198V197A8 8 0 0 0 41 189Z" fill="#527F79" fill-opacity="0.074"/></g>
+  <g id="section-top"><rect x="9" y="156" width="24" height="9" fill="#C6DCE9" fill-opacity="0.300"/><rect x="9" y="156" width="24" height="1" fill="#527F79" fill-opacity="0.120"/></g>
+  <g id="section-bottom"><rect x="9" y="189" width="24" height="9" fill="#C6DCE9" fill-opacity="0.300"/><rect x="9" y="197" width="24" height="1" fill="#527F79" fill-opacity="0.074"/></g>
+  <g id="section-left"><rect x="0" y="165" width="9" height="24" fill="#C6DCE9" fill-opacity="0.300"/><rect x="0" y="165" width="1" height="24" fill="#527F79" fill-opacity="0.094"/></g>
+  <g id="section-right"><rect x="33" y="165" width="9" height="24" fill="#C6DCE9" fill-opacity="0.300"/><rect x="41" y="165" width="1" height="24" fill="#527F79" fill-opacity="0.094"/></g>
+  <rect id="section-center" x="9" y="165" width="24" height="24" fill="#C6DCE9" fill-opacity="0.300"/>
+  <rect id="section-hint-top-margin" x="47" y="156" width="3" height="7" fill="none"/>
+  <rect id="section-hint-bottom-margin" x="47" y="165" width="3" height="7" fill="none"/>
+  <rect id="section-hint-left-margin" x="52" y="156" width="7" height="3" fill="none"/>
+  <rect id="section-hint-right-margin" x="52" y="161" width="7" height="3" fill="none"/>
+  <rect id="hint-tile-center" x="116" y="0" width="4" height="4" fill="none"/>
+  <rect id="separator" x="116" y="12" width="8" height="1" fill="#527F79" fill-opacity="0.32"/>
 </svg>

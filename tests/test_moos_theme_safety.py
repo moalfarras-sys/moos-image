@@ -89,7 +89,8 @@ set -euo pipefail
 {constant_block}
 {loader_in_tree}
 load_profile "$1"
-printf '%s\\t%s\\n' "$konsole_profile" "$konsole_profile_name"
+printf '%s\\t%s\\t%s\\t%s\\n' \
+    "$konsole_profile" "$konsole_profile_name" "$style" "$icons"
 """
         lnfs = re.findall(r'^[A-Z_]+_LNF="([^"]+)"', constant_block, re.M)
         self.assertEqual(len(lnfs), 16, "the gate must exercise all MoOS looks")
@@ -102,8 +103,8 @@ printf '%s\\t%s\\n' "$konsole_profile" "$konsole_profile_name"
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                 ).stdout.rstrip("\n").split("\t")
-                self.assertEqual(len(selected), 2)
-                profile_file, selected_name = selected
+                self.assertEqual(len(selected), 4)
+                profile_file, selected_name, selected_style, selected_icons = selected
                 parser = configparser.ConfigParser(interpolation=None)
                 parser.optionxform = str
                 self.assertTrue(
@@ -114,6 +115,12 @@ printf '%s\\t%s\\n' "$konsole_profile" "$konsole_profile_name"
                     selected_name,
                     parser["General"]["Name"],
                     f"{lnf}: D-Bus retint must use the profile's live Name value",
+                )
+                self.assertEqual(
+                    selected_icons,
+                    selected_style,
+                    f"{lnf}: moos-theme must apply the palette-specific symbolic "
+                    "overlay named after its Plasma style",
                 )
 
         self.assertEqual(

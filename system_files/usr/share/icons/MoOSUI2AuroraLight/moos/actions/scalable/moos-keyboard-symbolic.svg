@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="keyboard-title">
+  <title id="keyboard-title">Keyboard</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #0F766E; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M4.85 4.5 H19.15 A2.6 2.6 0 0 1 21.75 7.1 V16.9 A2.6 2.6 0 0 1 19.15 19.5 H4.85 A2.6 2.6 0 0 1 2.25 16.9 V7.1 A2.6 2.6 0 0 1 4.85 4.5 Z M5.15 6.6 H18.85 A0.8 0.8 0 0 1 19.65 7.4 V16.6 A0.8 0.8 0 0 1 18.85 17.4 H5.15 A0.8 0.8 0 0 1 4.35 16.6 V7.4 A0.8 0.8 0 0 1 5.15 6.6 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.75 8 H6.8 A0.55 0.55 0 0 1 7.35 8.55 V9.5 A0.55 0.55 0 0 1 6.8 10.05 H5.75 A0.55 0.55 0 0 1 5.2 9.5 V8.55 A0.55 0.55 0 0 1 5.75 8 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M8.95 8 H10 A0.55 0.55 0 0 1 10.55 8.55 V9.5 A0.55 0.55 0 0 1 10 10.05 H8.95 A0.55 0.55 0 0 1 8.4 9.5 V8.55 A0.55 0.55 0 0 1 8.95 8 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M12.15 8 H13.2 A0.55 0.55 0 0 1 13.75 8.55 V9.5 A0.55 0.55 0 0 1 13.2 10.05 H12.15 A0.55 0.55 0 0 1 11.6 9.5 V8.55 A0.55 0.55 0 0 1 12.15 8 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M15.35 8 H16.4 A0.55 0.55 0 0 1 16.95 8.55 V9.5 A0.55 0.55 0 0 1 16.4 10.05 H15.35 A0.55 0.55 0 0 1 14.8 9.5 V8.55 A0.55 0.55 0 0 1 15.35 8 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.75 11.25 H6.8 A0.55 0.55 0 0 1 7.35 11.8 V12.75 A0.55 0.55 0 0 1 6.8 13.3 H5.75 A0.55 0.55 0 0 1 5.2 12.75 V11.8 A0.55 0.55 0 0 1 5.75 11.25 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M8.95 11.25 H10 A0.55 0.55 0 0 1 10.55 11.8 V12.75 A0.55 0.55 0 0 1 10 13.3 H8.95 A0.55 0.55 0 0 1 8.4 12.75 V11.8 A0.55 0.55 0 0 1 8.95 11.25 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M12.15 11.25 H13.2 A0.55 0.55 0 0 1 13.75 11.8 V12.75 A0.55 0.55 0 0 1 13.2 13.3 H12.15 A0.55 0.55 0 0 1 11.6 12.75 V11.8 A0.55 0.55 0 0 1 12.15 11.25 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M15.35 11.25 H16.4 A0.55 0.55 0 0 1 16.95 11.8 V12.75 A0.55 0.55 0 0 1 16.4 13.3 H15.35 A0.55 0.55 0 0 1 14.8 12.75 V11.8 A0.55 0.55 0 0 1 15.35 11.25 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M7.85 14.55 H16.15 A0.7 0.7 0 0 1 16.85 15.25 V15.75 A0.7 0.7 0 0 1 16.15 16.45 H7.85 A0.7 0.7 0 0 1 7.15 15.75 V15.25 A0.7 0.7 0 0 1 7.85 14.55 Z"/>
+</svg>

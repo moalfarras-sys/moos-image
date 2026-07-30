@@ -283,13 +283,27 @@ class SharedQmlDesignSystemTests(unittest.TestCase):
             "Accessible.name: label",
             "FocusRing {",
             "restingColor: primary ? accentColor : surfaceColor",
-            "foregroundColor: primary ? accentForegroundColor",
+            "foregroundColor: !enabled ? mutedTextColor",
+            ": primary ? accentForegroundColor",
             ": destructive ? dangerColor",
             "border.width: control.primary ? 0 : 1",
+            "implicitHeight: compact ? tokens.targetCompact : tokens.targetControl",
         ):
             self.assertIn(token, button)
         self.assertNotIn("primary || destructive", button)
         self.assertNotIn("MouseArea", button)
+
+        tokens_qml = (UI / "Tokens.qml").read_text(encoding="utf-8")
+        self.assertIn("readonly property int targetCompact: 40", tokens_qml)
+        self.assertIn("readonly property int targetControl: 44", tokens_qml)
+
+        # The icon themes bake per-palette inks (FollowsColorScheme=false);
+        # Buttons get their exact disabled/destructive/primary foregrounds
+        # only because SymbolIcon renders the symbol as a mask. Without this
+        # the app-side half of that contract can silently revert.
+        symbol_icon = (UI / "SymbolIcon.qml").read_text(encoding="utf-8")
+        self.assertIn("isMask: true", symbol_icon)
+        self.assertIn("color: foreground", symbol_icon)
 
         for app, component in (
             ("welcome", "DeviceSettingsButton: MoOSUi.Button"),

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="music-title">
+  <title id="music-title">Music</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #E6EDF3; fill: currentColor; }
+    .ColorScheme-Highlight { color: #3FB950; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #D29922; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #F85149; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M9.2 5 H9.35 A1 1 0 0 1 10.35 6 V16.6 A1 1 0 0 1 9.35 17.6 H9.2 A1 1 0 0 1 8.2 16.6 V6 A1 1 0 0 1 9.2 5 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M8.2 5 L20.2 2.25 L20.2 5.4 L8.2 8.15 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M19.05 4.2 H19.2 A1 1 0 0 1 20.2 5.2 V13.6 A1 1 0 0 1 19.2 14.6 H19.05 A1 1 0 0 1 18.05 13.6 V5.2 A1 1 0 0 1 19.05 4.2 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M9.7 18.2 A3.2 2.55 0 1 1 3.3 18.2 A3.2 2.55 0 1 1 9.7 18.2 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M19.55 15.25 A3.2 2.55 0 1 1 13.15 15.25 A3.2 2.55 0 1 1 19.55 15.25 Z"/>
+</svg>

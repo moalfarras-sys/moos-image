@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="danger-title">
+  <title id="danger-title">Critical warning</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #EAF2FF; fill: currentColor; }
+    .ColorScheme-Highlight { color: #6366F1; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #FBBF24; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #FB7185; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-NegativeText error" fill="#e01b24" fill-rule="evenodd" d="M15.827 2.761 L21.239 8.173 L21.239 15.827 L15.827 21.239 L8.173 21.239 L2.761 15.827 L2.761 8.173 L8.173 2.761 Z M10.925 7.2 L10.925 13.7 A1.075 1.075 0 0 1 13.075 13.7 L13.075 7.2 A1.075 1.075 0 0 1 10.925 7.2 Z M13.15 17 A1.15 1.15 0 1 1 10.85 17 A1.15 1.15 0 1 1 13.15 17 Z"/>
+</svg>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="ai-title">
+  <title id="ai-title">Mo AI</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #1A7F37; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.5 3.25 H18.5 A3.25 3.25 0 0 1 21.75 6.5 V14 A3.25 3.25 0 0 1 18.5 17.25 H12.6 L7.1 21 V17.25 H5.5 A3.25 3.25 0 0 1 2.25 14 V6.5 A3.25 3.25 0 0 1 5.5 3.25 Z M8.55 10.25 A1.05 1.05 0 1 1 6.45 10.25 A1.05 1.05 0 1 1 8.55 10.25 Z M13.05 10.25 A1.05 1.05 0 1 1 10.95 10.25 A1.05 1.05 0 1 1 13.05 10.25 Z M17.55 10.25 A1.05 1.05 0 1 1 15.45 10.25 A1.05 1.05 0 1 1 17.55 10.25 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M18.5 2.15 L19.009 3.741 L20.6 4.25 L19.009 4.759 L18.5 6.35 L17.991 4.759 L16.4 4.25 L17.991 3.741 Z"/>
+</svg>

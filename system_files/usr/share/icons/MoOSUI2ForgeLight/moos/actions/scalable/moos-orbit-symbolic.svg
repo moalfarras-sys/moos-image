@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="orbit-title">
+  <title id="orbit-title">Orbit</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #1A7F37; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M20.622 6.184 L20.905 6.833 L20.969 7.609 L20.812 8.493 L20.438 9.464 L19.856 10.496 L19.081 11.566 L18.131 12.647 L17.031 13.712 L15.807 14.734 L14.488 15.689 L13.109 16.554 L11.702 17.306 L10.303 17.927 L8.945 18.403 L7.663 18.721 L6.487 18.873 L5.447 18.857 L4.569 18.671 L3.873 18.321 L3.378 17.816 L3.095 17.167 L3.031 16.391 L3.188 15.507 L3.562 14.536 L4.144 13.504 L4.919 12.434 L5.869 11.353 L6.969 10.288 L8.193 9.266 L9.512 8.311 L10.891 7.446 L12.298 6.694 L13.697 6.073 L15.055 5.597 L16.337 5.279 L17.513 5.127 L18.553 5.143 L19.431 5.329 L20.127 5.679 Z M18.55 7.139 L18.099 7.01 L17.498 7.005 L16.761 7.123 L15.907 7.36 L14.957 7.712 L13.934 8.17 L12.864 8.722 L11.772 9.354 L10.686 10.052 L9.632 10.797 L8.637 11.573 L7.724 12.359 L6.917 13.135 L6.234 13.885 L5.694 14.587 L5.309 15.226 L5.089 15.786 L5.039 16.252 L5.16 16.613 L5.45 16.861 L5.901 16.99 L6.502 16.995 L7.239 16.877 L8.093 16.64 L9.043 16.288 L10.066 15.83 L11.136 15.278 L12.228 14.646 L13.314 13.948 L14.368 13.203 L15.363 12.427 L16.276 11.641 L17.083 10.865 L17.766 10.115 L18.306 9.413 L18.691 8.774 L18.911 8.214 L18.961 7.748 L18.84 7.387 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M15.2 12 A3.2 3.2 0 1 1 8.8 12 A3.2 3.2 0 1 1 15.2 12 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M13.2 12 A1.2 1.2 0 1 1 10.8 12 A1.2 1.2 0 1 1 13.2 12 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M20.85 7.25 A1.65 1.65 0 1 1 17.55 7.25 A1.65 1.65 0 1 1 20.85 7.25 Z"/>
+</svg>

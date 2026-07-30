@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="phone-title">
+  <title id="phone-title">Phone</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #1A7F37; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M8.9 2.25 H15.1 A3.4 3.4 0 0 1 18.5 5.65 V18.35 A3.4 3.4 0 0 1 15.1 21.75 H8.9 A3.4 3.4 0 0 1 5.5 18.35 V5.65 A3.4 3.4 0 0 1 8.9 2.25 Z M8.8 5.1 H15.2 A1.1 1.1 0 0 1 16.3 6.2 V16.8 A1.1 1.1 0 0 1 15.2 17.9 H8.8 A1.1 1.1 0 0 1 7.7 16.8 V6.2 A1.1 1.1 0 0 1 8.8 5.1 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M10.2 4.625 L13.8 4.625 A0.625 0.625 0 0 1 13.8 3.375 L10.2 3.375 A0.625 0.625 0 0 1 10.2 4.625 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M10.2 20.475 L13.8 20.475 A0.775 0.775 0 0 1 13.8 18.925 L10.2 18.925 A0.775 0.775 0 0 1 10.2 20.475 Z"/>
+</svg>

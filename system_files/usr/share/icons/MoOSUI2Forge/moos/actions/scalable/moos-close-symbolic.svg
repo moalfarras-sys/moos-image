@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="close-title">
+  <title id="close-title">Close</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #E6EDF3; fill: currentColor; }
+    .ColorScheme-Highlight { color: #3FB950; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #D29922; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #F85149; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.319 6.981 L17.019 18.681 A1.175 1.175 0 0 1 18.681 17.019 L6.981 5.319 A1.175 1.175 0 0 1 5.319 6.981 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M17.019 5.319 L5.319 17.019 A1.175 1.175 0 0 1 6.981 18.681 L18.681 6.981 A1.175 1.175 0 0 1 17.019 5.319 Z"/>
+</svg>

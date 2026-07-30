@@ -27,7 +27,7 @@ Theme=org.moos.ui2.amethyst.light
 Engine=KSplashQML
 
 [kdeglobals][Icons]
-Theme=MoOSUI2Light
+Theme=MoOSUI2AmethystLight
 
 [kdeglobals][Sounds]
 Enable=true

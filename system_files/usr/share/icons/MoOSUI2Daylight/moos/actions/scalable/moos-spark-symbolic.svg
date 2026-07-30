@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="spark-title">
+  <title id="spark-title">Spark</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #047CB9; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M12 2.25 L13.874 10.126 L21.75 12 L13.874 13.874 L12 21.75 L10.126 13.874 L2.25 12 L10.126 10.126 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M18.9 2.3 L19.452 4.148 L21.3 4.7 L19.452 5.252 L18.9 7.1 L18.348 5.252 L16.5 4.7 L18.348 4.148 Z"/>
+</svg>

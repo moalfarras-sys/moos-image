@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="audio-title">
+  <title id="audio-title">Audio</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #0F766E; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M2.5 9 L6.7 9 L12 4.75 L12 19.25 L6.7 15 L2.5 15 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M15.615 7.43 A6.15 6.15 0 0 1 15.615 16.57 L14.277 15.084 A4.15 4.15 0 0 0 14.277 8.916 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M18.19 5.54 A9.3 9.3 0 0 1 18.19 18.46 L16.715 17.036 A7.25 7.25 0 0 0 16.715 6.964 Z"/>
+</svg>

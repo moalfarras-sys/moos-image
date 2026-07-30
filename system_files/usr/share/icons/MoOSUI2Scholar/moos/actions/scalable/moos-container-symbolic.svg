@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="container-title">
+  <title id="container-title">Container</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #F3EADB; fill: currentColor; }
+    .ColorScheme-Highlight { color: #E0A458; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #E0A458; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #E08B7D; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M4.35 6.25 H19.65 A2.1 2.1 0 0 1 21.75 8.35 V18.65 A2.1 2.1 0 0 1 19.65 20.75 H4.35 A2.1 2.1 0 0 1 2.25 18.65 V8.35 A2.1 2.1 0 0 1 4.35 6.25 Z M5.1 9 H18.9 A0.7 0.7 0 0 1 19.6 9.7 V17.2 A0.7 0.7 0 0 1 18.9 17.9 H5.1 A0.7 0.7 0 0 1 4.4 17.2 V9.7 A0.7 0.7 0 0 1 5.1 9 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M6.625 9.6 L6.625 17.3 A0.775 0.775 0 0 1 8.175 17.3 L8.175 9.6 A0.775 0.775 0 0 1 6.625 9.6 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M11.225 9.6 L11.225 17.3 A0.775 0.775 0 0 1 12.775 17.3 L12.775 9.6 A0.775 0.775 0 0 1 11.225 9.6 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M15.825 9.6 L15.825 17.3 A0.775 0.775 0 0 1 17.375 17.3 L17.375 9.6 A0.775 0.775 0 0 1 15.825 9.6 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M4.2 6.25 L7.2 3.25 L16.8 3.25 L19.8 6.25 Z"/>
+</svg>

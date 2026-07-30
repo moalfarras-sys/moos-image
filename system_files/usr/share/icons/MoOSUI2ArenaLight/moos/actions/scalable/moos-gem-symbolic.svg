@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="gem-title">
+  <title id="gem-title">Gem</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #C81D7A; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M7 3 L17 3 L21.5 9.1 L12 21.5 L2.5 9.1 Z M8.05 5.5 L10.45 8.35 L5.9 8.35 Z M15.95 5.5 L18.1 8.35 L13.55 8.35 Z M8.1 10.6 L15.9 10.6 L12 17.1 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M10.6 3 L13.4 3 L12 7.3 Z"/>
+</svg>

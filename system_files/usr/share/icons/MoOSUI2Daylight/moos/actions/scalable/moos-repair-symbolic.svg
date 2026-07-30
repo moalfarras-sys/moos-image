@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="repair-title">
+  <title id="repair-title">Repair</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #047CB9; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M14.2 2.45 C11.05 3.1 9.1 6.15 9.8 9.25 L3.1 15.95 A3.45 3.45 0 1 0 7.95 20.85 L14.65 14.15 C17.75 14.85 20.8 12.9 21.45 9.75 L17.55 11.45 L14.1 8 L15.8 4.55 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M7.25 17.9 A1.2 1.2 0 1 1 4.85 17.9 A1.2 1.2 0 1 1 7.25 17.9 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M19.2 15.15 L19.78 17.12 L21.75 17.7 L19.78 18.28 L19.2 20.25 L18.62 18.28 L16.65 17.7 L18.62 17.12 Z"/>
+</svg>

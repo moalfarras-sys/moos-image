@@ -44,6 +44,21 @@ def code(text: str, style: str = "hash") -> str:
     )
 
 
+def kconfig_value(text: str, section: str, key: str) -> str:
+    """Read one exact KConfig key without leaking into a later section."""
+    section_match = re.search(
+        rf"(?ms)^\[{re.escape(section)}\]\s*$\n(.*?)(?=^\[|\Z)",
+        text,
+    )
+    if section_match is None:
+        return ""
+    key_match = re.search(
+        rf"(?m)^{re.escape(key)}\s*=\s*(.*?)\s*$",
+        section_match.group(1),
+    )
+    return key_match.group(1) if key_match is not None else ""
+
+
 # One product, one launcher. Ignore development templates and documentation.
 launchers = []
 for path in (ROOT / "system_files/usr/share/applications").glob("*.desktop"):
@@ -2372,7 +2387,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=25" in apply_theme_code, "MoOS visual schema must be revision 25")
+require("THEME_REV=26" in apply_theme_code, "MoOS visual schema must be revision 26")
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
@@ -2401,10 +2416,10 @@ require(brand_add_pos >= 0 and kickoff_capture_pos >= 0
         < brand_reload_pos < kickoff_remove_pos,
         "THEME_REV 21 must ensure org.moos.brand exists before removing the old Kickoff "
         "from an existing user's panel")
-require(re.search(r"--key\s+popupWidth\s+828\b", apply_theme_code) is not None
-        and re.search(r"--key\s+popupHeight\s+630\b", apply_theme_code) is not None,
+require(re.search(r"--key\s+popupWidth\s+792\b", apply_theme_code) is not None
+        and re.search(r"--key\s+popupHeight\s+576\b", apply_theme_code) is not None,
         "the existing org.moos.brand applet's shell-owned popup geometry must migrate to "
-        "828x630; QML implicitWidth/Height cannot override persisted appletsrc values")
+        "792x576; QML implicitWidth/Height cannot override persisted appletsrc values")
 
 # evaluateScript returning over D-Bus proves only that the JavaScript finished;
 # its guarded applet operations may all have failed.  Revision 21 therefore has
@@ -2524,6 +2539,36 @@ for shadowed_plasmoid in ("org.moos.brand", "org.moos.heroclock"):
     require(f'"plasma/plasmoids/{shadowed_plasmoid}"' in shadow_cleanup,
             f"moos-apply-theme must remove a user-local {shadowed_plasmoid} copy that "
             "would otherwise shadow every future image update")
+
+PALETTE_ICON_OVERLAYS = (
+    "MoOSUI2Amethyst", "MoOSUI2AmethystLight",
+    "MoOSUI2Arena", "MoOSUI2ArenaLight",
+    "MoOSUI2Aurora", "MoOSUI2AuroraLight",
+    "MoOSUI2Daylight",
+    "MoOSUI2Forge", "MoOSUI2ForgeLight",
+    "MoOSUI2Midnight",
+    "MoOSUI2Nova", "MoOSUI2NovaLight",
+    "MoOSUI2Scholar", "MoOSUI2ScholarLight",
+)
+for icon_overlay in PALETTE_ICON_OVERLAYS:
+    require(
+        f'"icons/{icon_overlay}"' in shadow_cleanup,
+        f"moos-apply-theme must remove a user-local {icon_overlay} icon package "
+        "that would permanently shadow the palette bridge in the image",
+    )
+    # Delimiter-aware: "icons/MoOSUI2Nova" is a substring of
+    # "icons/MoOSUI2NovaLight", so a plain `in` can never bite for the six
+    # dark palettes whose Light sibling is also listed.
+    require(
+        re.search(rf"icons/{re.escape(icon_overlay)}(?![A-Za-z])", selfcheck)
+        is not None,
+        f"moos-selfcheck must report a user-local {icon_overlay} shadow",
+    )
+require(
+    'want_ico="$want_sty"' in selfcheck,
+    "moos-selfcheck must validate each family member's palette-specific icon "
+    "overlay rather than accepting the shared dark/light base",
+)
 
 # Nova must survive Plasma, not just reach it.
 #
@@ -2647,6 +2692,39 @@ FAMILY_LNF = ["org.moos.ui2", "org.moos.ui2.amethyst", "org.moos.ui2.amethyst.li
 lnf_dirs = sorted(p.name for p in (ROOT / "system_files/usr/share/plasma/look-and-feel").iterdir())
 require(lnf_dirs == FAMILY_LNF,
         f"the MoOS Global Theme family must be exactly {FAMILY_LNF}; found {lnf_dirs}")
+
+# KIconLoader renders a normal themed SVG with the fallback colours embedded in
+# that icon package. Reusing MoOSUI2/MoOSUI2Light for every family member made
+# Arena's dark launcher draw the light fallback ink almost black. The Global
+# Theme must therefore select the symbolic overlay named after its own Plasma
+# style; the overlay inherits the broad base vocabulary separately.
+for package in FAMILY_LNF:
+    defaults = code(read(
+        f"system_files/usr/share/plasma/look-and-feel/{package}/contents/defaults"
+    ))
+    family_style = kconfig_value(defaults, "plasmarc][Theme", "name")
+    family_icons = kconfig_value(defaults, "kdeglobals][Icons", "Theme")
+    require(
+        family_style and family_icons == family_style,
+        f"{package} must select its own palette-matched symbolic icon overlay "
+        f"({family_style or 'missing style'}); found {family_icons or 'missing icon theme'}",
+    )
+    if package not in ("org.moos.ui2", "org.moos.ui2.light"):
+        family_scheme = kconfig_value(
+            defaults, "kdeglobals][General", "ColorScheme"
+        )
+        require(
+            family_scheme == family_style,
+            f"{package} icon/style palette {family_style or 'missing'} must match "
+            f"its colour scheme {family_scheme or 'missing'}",
+        )
+
+require(
+    apply_theme_code.count('expected_icons="$expected_style"') == 5
+    and apply_theme_code.count('want_icons="$want_style"') == 5,
+    "moos-apply-theme must validate and pin every non-base family member's "
+    "palette-specific icon overlay instead of collapsing them to MoOSUI2 dark/light",
+)
 
 FAMILY_PROFILES = ["MoOSUI2.profile", "MoOSUI2Amethyst.profile", "MoOSUI2AmethystLight.profile",
                    "MoOSUI2Arena.profile", "MoOSUI2ArenaLight.profile", "MoOSUI2Aurora.profile",
@@ -3013,17 +3091,17 @@ launcher_root_group_pos = layout_code.find(
     "launcher.currentConfigGroup = []", launcher_general_group_pos,
 )
 launcher_popup_width_pos = layout_code.find(
-    'launcher.writeConfig("popupWidth", 828)', launcher_root_group_pos,
+    'launcher.writeConfig("popupWidth", 792)', launcher_root_group_pos,
 )
 launcher_popup_height_pos = layout_code.find(
-    'launcher.writeConfig("popupHeight", 630)', launcher_popup_width_pos,
+    'launcher.writeConfig("popupHeight", 576)', launcher_popup_width_pos,
 )
 require(launcher_layout_pos >= 0 and launcher_general_group_pos > launcher_layout_pos
         and launcher_root_group_pos > launcher_general_group_pos
         and launcher_popup_width_pos > launcher_root_group_pos
         and launcher_popup_height_pos > launcher_popup_width_pos,
         "the fresh-profile org.moos.brand launcher must leave General and seed its "
-        "shell-owned root popup geometry at 828x630; otherwise live selfcheck fails "
+        "shell-owned root popup geometry at 792x576; otherwise live selfcheck fails "
         "until the user manually opens or resizes the menu")
 
 brand_root = ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.brand"
@@ -3128,31 +3206,36 @@ require('"moos-ci-full-representation"' in brand_main_qml
 require("Layout.minimumWidth: implicitWidth" in launcher_view_qml
         and "Layout.minimumHeight: implicitHeight" in launcher_view_qml
         and "MOOS_LAUNCHER_FULL_READY size=" in launcher_view_qml,
-        "the full launcher must enforce and report its unclipped 828x630 representation to "
+        "the full launcher must enforce and report its unclipped 792x576 representation to "
         "the plasmawindowed smoke")
-# Commercial shell language: a 24px outer rhythm, 40px affordances, functional
-# text no smaller than 11px, and three generous columns. The old four-column
-# launcher drove labels down to 7–10px and kept a redundant "Press Meta" pill
-# visible after the menu was already open.
+# Commercial shell language: a 20px outer rhythm, 40px affordances, functional
+# text no smaller than 11px, and four columns that still ride the type ramp.
+# An early four-column launcher was rejected because it drove labels down to
+# 7–10px; the current one is only acceptable because every pixelSize below
+# stays on the 11+ type tokens — that pairing is what this gate holds, and
+# densifying past four columns remains out.
 _launcher_tokens = {
-    "space1": 4, "space2": 8, "space3": 12, "space4": 16, "space6": 24,
+    "space1": 4, "space2": 8, "space3": 12, "space4": 16, "space5": 20,
+    "space6": 24,
     "radiusS": 8, "radiusM": 12, "radiusL": 16, "radiusXL": 24,
     "targetSize": 40, "typeCaption": 11, "typeSecondary": 13,
-    "typeBody": 14, "typeEmphasis": 15, "typeTitle": 20,
+    "typeBody": 14, "typeEmphasis": 15, "typeSubheading": 18, "typeTitle": 20,
 }
 require(all(f"readonly property int {name}: {value}" in launcher_view_qml
             for name, value in _launcher_tokens.items())
-        and "anchors.margins: view.space6" in launcher_view_qml,
+        and "anchors.margins: view.space5" in launcher_view_qml,
         "the launcher must use the unified 4px spacing, 8/12/16/24 radii, "
-        "40px target and 11/13/14/15/20 type tokens")
+        "40px target and 11/13/14/15/18/20 type tokens")
 require("Press Meta to open" not in launcher_view_qml
         and "يفتح بزر Meta" not in launcher_view_qml
         and launcher_view_qml.count(
-            "cellWidth: Math.max(1, Math.floor(width / 3))"
+            "cellWidth: Math.max(1, Math.floor(width / 4))"
         ) == 2
-        and re.search(r"cellWidth:.*width\s*/\s*4", launcher_view_qml) is None,
-        "the open launcher must drop the redundant Meta pill and use the calmer "
-        "three-column Pinned/Applications proportion")
+        and re.search(
+            r"cellWidth:.*width\s*/\s*(?:[5-9]|\d{2,})", launcher_view_qml
+        ) is None,
+        "the open launcher must drop the redundant Meta pill and keep the calm "
+        "four-column Pinned/Applications rhythm on the 11px+ type ramp")
 _launcher_type_expressions = re.findall(
     r"font\.pixelSize\s*:\s*([^\n]+)", launcher_view_qml
 )
@@ -4343,10 +4426,10 @@ require("dbus-run-session -- /usr/bin/plasmawindowed org.moos.brand "
 require('_launcher_smoke_rc" -ne 124' in build_script_code,
         "the launcher smoke must accept only a process that stayed alive to the timeout; "
         "an early clean exit is still a dead applet")
-require("MOOS_LAUNCHER_FULL_READY size=828x630" in build_script_code
-        and re.search(r"geometry=.*828,630", build_script_code) is not None,
+require("MOOS_LAUNCHER_FULL_READY size=792x576" in build_script_code
+        and re.search(r"geometry=.*792,576", build_script_code) is not None,
         "the launcher smoke must prove both LauncherView construction and plasmawindowed's "
-        "real 828x630 full-representation geometry")
+        "real 792x576 full-representation geometry")
 for launcher_runtime_failure in (
     "component is not ready", "error loading qml file", "invalid empty url",
     "compactrepresentationexpander .* is not an item", "type .* unavailable",

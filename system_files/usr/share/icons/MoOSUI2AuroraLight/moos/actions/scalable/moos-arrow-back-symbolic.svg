@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="arrow-back-title">
+  <title id="arrow-back-title">Back</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #0F766E; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M20.75 10.9 L6.8 10.9 A1.1 1.1 0 0 1 6.8 13.1 L20.75 13.1 A1.1 1.1 0 0 1 20.75 10.9 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M10.8 4.5 L2.5 12 L10.8 19.5 L10.8 15.8 L6.6 12 L10.8 8.2 Z"/>
+</svg>

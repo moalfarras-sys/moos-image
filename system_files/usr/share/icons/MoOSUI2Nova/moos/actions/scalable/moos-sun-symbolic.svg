@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="sun-title">
+  <title id="sun-title">Light appearance</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #EAF2FF; fill: currentColor; }
+    .ColorScheme-Highlight { color: #6366F1; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #FBBF24; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #FB7185; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M16.8 12 A4.8 4.8 0 1 1 7.2 12 A4.8 4.8 0 1 1 16.8 12 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M19.1 12.95 L21.4 12.95 A0.95 0.95 0 0 1 21.4 11.05 L19.1 11.05 A0.95 0.95 0 0 1 19.1 12.95 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M16.349 17.692 L17.975 19.319 A0.95 0.95 0 0 1 19.319 17.975 L17.692 16.349 A0.95 0.95 0 0 1 16.349 17.692 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M11.05 19.1 L11.05 21.4 A0.95 0.95 0 0 1 12.95 21.4 L12.95 19.1 A0.95 0.95 0 0 1 11.05 19.1 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M6.308 16.349 L4.681 17.975 A0.95 0.95 0 0 1 6.025 19.319 L7.651 17.692 A0.95 0.95 0 0 1 6.308 16.349 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M4.9 11.05 L2.6 11.05 A0.95 0.95 0 0 1 2.6 12.95 L4.9 12.95 A0.95 0.95 0 0 1 4.9 11.05 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M7.651 6.308 L6.025 4.681 A0.95 0.95 0 0 1 4.681 6.025 L6.308 7.651 A0.95 0.95 0 0 1 7.651 6.308 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M12.95 4.9 L12.95 2.6 A0.95 0.95 0 0 1 11.05 2.6 L11.05 4.9 A0.95 0.95 0 0 1 12.95 4.9 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M17.692 7.651 L19.319 6.025 A0.95 0.95 0 0 1 17.975 4.681 L16.349 6.308 A0.95 0.95 0 0 1 17.692 7.651 Z"/>
+</svg>

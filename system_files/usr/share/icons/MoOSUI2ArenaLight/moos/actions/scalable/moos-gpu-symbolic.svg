@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="gpu-title">
+  <title id="gpu-title">Graphics</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #C81D7A; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.05 4.25 H18.95 A2.8 2.8 0 0 1 21.75 7.05 V16.95 A2.8 2.8 0 0 1 18.95 19.75 H5.05 A2.8 2.8 0 0 1 2.25 16.95 V7.05 A2.8 2.8 0 0 1 5.05 4.25 Z M14.7 12 A4.5 4.5 0 1 1 5.7 12 A4.5 4.5 0 1 1 14.7 12 Z M17.2 8 H18.7 A0.6 0.6 0 0 1 19.3 8.6 V9.2 A0.6 0.6 0 0 1 18.7 9.8 H17.2 A0.6 0.6 0 0 1 16.6 9.2 V8.6 A0.6 0.6 0 0 1 17.2 8 Z M17.2 11.1 H18.7 A0.6 0.6 0 0 1 19.3 11.7 V12.3 A0.6 0.6 0 0 1 18.7 12.9 H17.2 A0.6 0.6 0 0 1 16.6 12.3 V11.7 A0.6 0.6 0 0 1 17.2 11.1 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M13.45 12 A3.25 3.25 0 1 1 6.95 12 A3.25 3.25 0 1 1 13.45 12 Z M11.45 12 A1.25 1.25 0 1 1 8.95 12 A1.25 1.25 0 1 1 11.45 12 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M11.45 12 A1.25 1.25 0 1 1 8.95 12 A1.25 1.25 0 1 1 11.45 12 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M4.75 19.75 L4.75 21.75 A0.75 0.75 0 0 1 6.25 21.75 L6.25 19.75 A0.75 0.75 0 0 1 4.75 19.75 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M8.25 19.75 L8.25 21.75 A0.75 0.75 0 0 1 9.75 21.75 L9.75 19.75 A0.75 0.75 0 0 1 8.25 19.75 Z"/>
+</svg>

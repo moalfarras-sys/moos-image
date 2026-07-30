@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="external-title">
+  <title id="external-title">Open externally</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #B45309; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.05 5.5 H15.7 A2.8 2.8 0 0 1 18.5 8.3 V18.95 A2.8 2.8 0 0 1 15.7 21.75 H5.05 A2.8 2.8 0 0 1 2.25 18.95 V8.3 A2.8 2.8 0 0 1 5.05 5.5 Z M5.05 7.7 H15.7 A0.6 0.6 0 0 1 16.3 8.3 V18.95 A0.6 0.6 0 0 1 15.7 19.55 H5.05 A0.6 0.6 0 0 1 4.45 18.95 V8.3 A0.6 0.6 0 0 1 5.05 7.7 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M11.042 14.442 L20.942 4.542 A1.05 1.05 0 0 1 19.458 3.058 L9.558 12.958 A1.05 1.05 0 0 1 11.042 14.442 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M13.25 2.25 L21.75 2.25 L21.75 10.75 L19.25 8.25 L19.25 6.5 L17.5 6.5 Z"/>
+</svg>

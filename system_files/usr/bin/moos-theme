@@ -157,7 +157,7 @@ load_profile() {
         "$NOVA_LNF")
             scheme=MoOSUI2Nova; style=MoOSUI2Nova
             konsole_profile=MoOSUI2Nova.profile
-            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-nova.css; cursor=MoOS
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-nova.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Nova
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Nova
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
@@ -166,7 +166,7 @@ load_profile() {
         "$AMETHYST_LNF")
             scheme=MoOSUI2Amethyst; style=MoOSUI2Amethyst
             konsole_profile=MoOSUI2Amethyst.profile
-            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-amethyst.css; cursor=MoOS
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-amethyst.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Amethyst
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Amethyst
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
@@ -175,7 +175,7 @@ load_profile() {
         "$MIDNIGHT_LNF")
             scheme=MoOSUI2Midnight; style=MoOSUI2Midnight
             konsole_profile=MoOSUI2Midnight.profile
-            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-midnight.css; cursor=MoOS
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-midnight.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Midnight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Midnight
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
@@ -184,7 +184,7 @@ load_profile() {
         "$AURORA_LNF")
             scheme=MoOSUI2Aurora; style=MoOSUI2Aurora
             konsole_profile=MoOSUI2Aurora.profile
-            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-aurora.css; cursor=MoOS
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-aurora.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Aurora
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Aurora
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
@@ -193,7 +193,7 @@ load_profile() {
         "$NOVA_LIGHT_LNF")
             scheme=MoOSUI2NovaLight; style=MoOSUI2NovaLight
             konsole_profile=MoOSUI2NovaLight.profile
-            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-nova-light.css; cursor=MoOSDark
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-nova-light.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2NovaLight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2NovaLight
             wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
@@ -202,7 +202,7 @@ load_profile() {
         "$AMETHYST_LIGHT_LNF")
             scheme=MoOSUI2AmethystLight; style=MoOSUI2AmethystLight
             konsole_profile=MoOSUI2AmethystLight.profile
-            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-amethyst-light.css; cursor=MoOSDark
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-amethyst-light.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2AmethystLight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2AmethystLight
             wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
@@ -211,7 +211,7 @@ load_profile() {
         "$AURORA_LIGHT_LNF")
             scheme=MoOSUI2AuroraLight; style=MoOSUI2AuroraLight
             konsole_profile=MoOSUI2AuroraLight.profile
-            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-aurora-light.css; cursor=MoOSDark
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-aurora-light.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2AuroraLight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2AuroraLight
             wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
@@ -220,7 +220,7 @@ load_profile() {
         "$DAYLIGHT_LNF")
             scheme=MoOSUI2Daylight; style=MoOSUI2Daylight
             konsole_profile=MoOSUI2Daylight.profile
-            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-daylight.css; cursor=MoOSDark
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-daylight.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2Daylight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Daylight
             wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
@@ -229,7 +229,7 @@ load_profile() {
         "$GAMING_LNF")
             scheme=MoOSUI2Arena; style=MoOSUI2Arena
             konsole_profile=MoOSUI2Arena.profile
-            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-gaming.css; cursor=MoOS
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-gaming.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Arena
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Arena
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
@@ -238,7 +238,7 @@ load_profile() {
         "$DEV_LNF")
             scheme=MoOSUI2Forge; style=MoOSUI2Forge
             konsole_profile=MoOSUI2Forge.profile
-            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-dev.css; cursor=MoOS
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-dev.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Forge
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Forge
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
@@ -247,7 +247,7 @@ load_profile() {
         "$STUDY_LNF")
             scheme=MoOSUI2Scholar; style=MoOSUI2Scholar
             konsole_profile=MoOSUI2Scholar.profile
-            icons=MoOSUI2; adw_css=/usr/share/moos/gtk/moos-ui2-study.css; cursor=MoOS
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-study.css; cursor=MoOS
             deco=__aurorae__svg__MoOSUI2Scholar
             wallpaper_package=/usr/share/wallpapers/MoOSUI2Scholar
             wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
@@ -256,7 +256,7 @@ load_profile() {
         "$GAMING_LIGHT_LNF")
             scheme=MoOSUI2ArenaLight; style=MoOSUI2ArenaLight
             konsole_profile=MoOSUI2ArenaLight.profile
-            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-gaming-light.css; cursor=MoOSDark
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-gaming-light.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2ArenaLight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2ArenaLight
             wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
@@ -265,7 +265,7 @@ load_profile() {
         "$DEV_LIGHT_LNF")
             scheme=MoOSUI2ForgeLight; style=MoOSUI2ForgeLight
             konsole_profile=MoOSUI2ForgeLight.profile
-            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-dev-light.css; cursor=MoOSDark
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-dev-light.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2ForgeLight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2ForgeLight
             wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
@@ -274,7 +274,7 @@ load_profile() {
         "$STUDY_LIGHT_LNF")
             scheme=MoOSUI2ScholarLight; style=MoOSUI2ScholarLight
             konsole_profile=MoOSUI2ScholarLight.profile
-            icons=MoOSUI2Light; adw_css=/usr/share/moos/gtk/moos-ui2-study-light.css; cursor=MoOSDark
+            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-study-light.css; cursor=MoOSDark
             deco=__aurorae__svg__MoOSUI2ScholarLight
             wallpaper_package=/usr/share/wallpapers/MoOSUI2ScholarLight
             wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
@@ -605,12 +605,12 @@ apply() {
         plasma-apply-cursortheme "$cursor" >/dev/null 2>&1 || true
     fi
 
-    # The icon theme is not colour-scheme aware: Nova's symbolics are drawn light so
-    # they read on a dark panel, and they disappear on porcelain. The kdeglobals
-    # write below is SILENT — running apps only drop their icon caches when the
-    # icons KCM's helper broadcasts the KIconLoader change signal, so without
-    # plasma-changeicons the new family arrives at the NEXT LOGIN and the switch
-    # reads as broken.
+    # Each family owns a small palette-matched Tidal Cut symbolic overlay over
+    # the broad dark/light icon vocabulary. The kdeglobals write below is
+    # SILENT — running apps only drop their icon caches when the icons KCM's
+    # helper broadcasts the KIconLoader change signal, so without
+    # plasma-changeicons the new palette arrives at the NEXT LOGIN and the
+    # switch reads as broken.
     if [ -x /usr/libexec/plasma-changeicons ]; then
         run_with_timeout /usr/libexec/plasma-changeicons "$icons" >/dev/null 2>&1 || true
     fi

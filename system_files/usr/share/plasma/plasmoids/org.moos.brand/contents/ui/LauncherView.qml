@@ -3,6 +3,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import QtQuick.Shapes
 import org.kde.plasma.plasmoid
@@ -35,6 +36,7 @@ Item {
     readonly property int space2: 8
     readonly property int space3: 12
     readonly property int space4: 16
+    readonly property int space5: 20
     readonly property int space6: 24
     readonly property int radiusS: 8
     readonly property int radiusM: 12
@@ -45,15 +47,16 @@ Item {
     readonly property int typeSecondary: 13
     readonly property int typeBody: 14
     readonly property int typeEmphasis: 15
+    readonly property int typeSubheading: 18
     readonly property int typeTitle: 20
     readonly property int motionFast: Kirigami.Units.longDuration > 1 ? 120 : 0
     readonly property int motionMedium: Kirigami.Units.longDuration > 1 ? 240 : 0
 
-    implicitWidth: Kirigami.Units.gridUnit * 46
-    implicitHeight: Kirigami.Units.gridUnit * 35
+    implicitWidth: Kirigami.Units.gridUnit * 44
+    implicitHeight: Kirigami.Units.gridUnit * 32
     // The Command Canvas deliberately owns more breathing room than a menu.
     // At the reference 225% scale this remains inside a 4K work area while
-    // preserving real 40 px targets and the calm three-column app rhythm.
+    // preserving real 40 px targets and the calm four-column app rhythm.
     Layout.minimumWidth: implicitWidth
     Layout.minimumHeight: implicitHeight
 
@@ -294,8 +297,8 @@ Item {
     ColumnLayout {
         id: commandCanvas
         anchors.fill: parent
-        anchors.margins: view.space6
-        spacing: view.space3
+        anchors.margins: view.space5
+        spacing: view.space2
         opacity: view.entranceReady ? 1 : 0
         scale: view.entranceReady ? 1 : 0.985
         transformOrigin: Item.Center
@@ -315,7 +318,7 @@ Item {
         // ── Context deck: identity, the day and the local-first promise ─────
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 58
+            Layout.preferredHeight: 50
             spacing: view.space4
             // No explicit layoutDirection anywhere in this file: plasmashell runs
             // this popup with LayoutMirroring enabled+inherited on RTL sessions, and
@@ -324,14 +327,14 @@ Item {
             // mentioned it were correct the whole time. Mirroring is the one system.
 
             Item {
-                Layout.preferredWidth: 50
+                Layout.preferredWidth: 44
                 Layout.preferredHeight: width
 
                 Rectangle {
                     anchors.centerIn: parent
                     width: parent.width
                     height: width
-                    radius: view.radiusL
+                    radius: view.radiusM
                     color: Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
                     border.width: 1
                     border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.54)
@@ -356,7 +359,7 @@ Item {
                     text: "MoOS"
                     color: Kirigami.Theme.textColor
                     font.family: view.uiFontFamily
-                    font.pixelSize: view.typeTitle
+                    font.pixelSize: view.typeSubheading
                     font.weight: Font.DemiBold
                     font.letterSpacing: 1.4
                 }
@@ -425,15 +428,16 @@ Item {
         // ── The command field is the hero, not another menu search box ──────
         Rectangle {
             Layout.fillWidth: true
-            Layout.leftMargin: view.space2
-            Layout.rightMargin: view.space2
-            Layout.preferredHeight: 68
+            Layout.leftMargin: view.space1
+            Layout.rightMargin: view.space1
+            Layout.preferredHeight: 56
             radius: view.radiusL
             color: Qt.alpha(Kirigami.Theme.backgroundColor,
-                searchInput.activeFocus ? 0.98 : 0.90)
-            border.width: searchInput.activeFocus ? 2 : 1
-            border.color: Qt.alpha(Kirigami.Theme.highlightColor,
-                searchInput.activeFocus ? 0.92 : 0.48)
+                searchInput.activeFocus ? 0.96 : 0.78)
+            border.width: 1
+            border.color: searchInput.activeFocus
+                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.82)
+                : Qt.alpha(Kirigami.Theme.textColor, 0.16)
 
             Behavior on color { ColorAnimation { duration: view.motionFast } }
             Behavior on border.color { ColorAnimation { duration: view.motionFast } }
@@ -448,7 +452,7 @@ Item {
                 spacing: view.space1
 
                 Rectangle {
-                    width: searchInput.activeFocus ? 92 : 56
+                    width: searchInput.activeFocus ? 72 : 36
                     height: 2
                     radius: 1
                     color: Kirigami.Theme.highlightColor
@@ -471,7 +475,7 @@ Item {
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: view.space6
+                anchors.leftMargin: view.space4
                 anchors.rightMargin: view.space3
                 spacing: view.space4
 
@@ -556,7 +560,7 @@ Item {
 
                 Text {
                     visible: view.launcher.searchQuery.length === 0
-                    text: view.local("⌘  META", "META  ⌘")
+                    text: "META"
                     color: Kirigami.Theme.disabledTextColor
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeCaption
@@ -573,7 +577,7 @@ Item {
             spacing: view.space4
 
             ColumnLayout {
-                readonly property real fixedWidth: 152
+                readonly property real fixedWidth: 140
 
                 Layout.fillWidth: false
                 Layout.minimumWidth: fixedWidth
@@ -652,9 +656,9 @@ Item {
 
                         RowLayout {
                             Layout.fillWidth: true
-                            Layout.minimumHeight: 72
-                            Layout.preferredHeight: 72
-                            Layout.maximumHeight: 72
+                            Layout.minimumHeight: 64
+                            Layout.preferredHeight: 64
+                            Layout.maximumHeight: 64
                             spacing: view.space3
 
                             CommandCard {
@@ -724,15 +728,25 @@ Item {
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
                                 model: view.favoritesModel
-                                cellWidth: Math.max(1, Math.floor(width / 3))
+                                cellWidth: Math.max(1, Math.floor(width / 4))
                                 cellHeight: Plasmoid.configuration.compactTiles
-                                    ? 92
-                                    : 112
+                                    ? 82
+                                    : 96
                                 keyNavigationWraps: true
+                                QQC2.ScrollBar.vertical: QQC2.ScrollBar {
+                                    policy: QQC2.ScrollBar.AsNeeded
+                                    // Position indicator only: an interactive
+                                    // bar's ~21px hit area overlays the
+                                    // trailing column's tiles and steals their
+                                    // hover-revealed pin button. Wheel, keys
+                                    // and touch flicks still scroll the grid.
+                                    interactive: false
+                                    implicitWidth: 5
+                                }
 
                                 delegate: AppTile {
-                                    width: GridView.view.cellWidth - view.space2
-                                    height: GridView.view.cellHeight - view.space2
+                                    width: GridView.view.cellWidth - view.space1
+                                    height: GridView.view.cellHeight - view.space1
                                     sourceModel: view.favoritesModel
                                     favoriteSurface: true
                                 }
@@ -903,15 +917,22 @@ Item {
                             clip: true
                             boundsBehavior: Flickable.StopAtBounds
                             model: view.applicationsModel
-                            cellWidth: Math.max(1, Math.floor(width / 3))
+                            cellWidth: Math.max(1, Math.floor(width / 4))
                             cellHeight: Plasmoid.configuration.compactTiles
-                                ? 92
-                                : 112
+                                ? 82
+                                : 96
                             keyNavigationWraps: true
+                            QQC2.ScrollBar.vertical: QQC2.ScrollBar {
+                                policy: QQC2.ScrollBar.AsNeeded
+                                // Same indicator-only contract as the pinned
+                                // grid above: never steal trailing-tile input.
+                                interactive: false
+                                implicitWidth: 5
+                            }
 
                             delegate: AppTile {
-                                width: GridView.view.cellWidth - view.space2
-                                height: GridView.view.cellHeight - view.space2
+                                width: GridView.view.cellWidth - view.space1
+                                height: GridView.view.cellHeight - view.space1
                                 sourceModel: view.applicationsModel
                                 favoriteSurface: false
                             }
@@ -1365,8 +1386,8 @@ Item {
         property string label: ""
 
         Layout.fillWidth: true
-        Layout.minimumHeight: 44
-        Layout.preferredHeight: 44
+        Layout.minimumHeight: 42
+        Layout.preferredHeight: 42
         hoverEnabled: true
         Accessible.name: label
         Accessible.role: Accessible.Button
@@ -1378,10 +1399,11 @@ Item {
         background: Rectangle {
             radius: view.radiusM
             color: view.launcher.activePage === nav.page && !view.searching
-                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.15)
-                : Qt.alpha(Kirigami.Theme.textColor, nav.hovered || nav.activeFocus ? 0.075 : 0.025)
-            border.width: view.launcher.activePage === nav.page && !view.searching || nav.activeFocus ? 1 : 0
-            border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.38)
+                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.11)
+                : Qt.alpha(Kirigami.Theme.textColor,
+                    nav.hovered || nav.activeFocus ? 0.065 : 0.0)
+            border.width: nav.activeFocus ? 2 : 0
+            border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.78)
             Behavior on color { ColorAnimation { duration: view.motionFast } }
 
             Rectangle {
@@ -1434,7 +1456,7 @@ Item {
         hoverEnabled: true
         Accessible.name: String(model.display || "")
         Accessible.role: Accessible.Button
-        scale: down ? 0.97 : (hovered ? 1.015 : 1.0)
+        scale: down ? 0.985 : 1.0
         function activate() { view.launcher.triggerEntry(sourceModel, index); }
         onClicked: activate()
         Keys.onReturnPressed: event => { tile.activate(); event.accepted = true; }
@@ -1447,28 +1469,27 @@ Item {
 
         background: Rectangle {
             radius: view.radiusM
-            color: Qt.alpha(tile.hovered || tile.activeFocus
-                ? Kirigami.Theme.highlightColor
-                : Kirigami.Theme.textColor,
-                tile.down ? 0.16 : (tile.hovered || tile.activeFocus ? 0.105 : 0.04))
-            border.width: 1
-            border.color: Qt.alpha(tile.hovered || tile.activeFocus
-                ? Kirigami.Theme.highlightColor
-                : Kirigami.Theme.textColor,
-                tile.hovered || tile.activeFocus ? 0.48 : 0.08)
+            color: tile.down
+                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.15)
+                : tile.hovered || tile.activeFocus
+                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.085)
+                    : "transparent"
+            border.width: tile.activeFocus ? 2 : tile.hovered ? 1 : 0
+            border.color: Qt.alpha(Kirigami.Theme.highlightColor,
+                tile.activeFocus ? 0.82 : 0.34)
             Behavior on color { ColorAnimation { duration: view.motionFast } }
             Behavior on border.color { ColorAnimation { duration: view.motionFast } }
         }
 
         contentItem: ColumnLayout {
-            anchors.margins: view.space2
-            spacing: view.space2
+            anchors.margins: view.space1
+            spacing: view.space1
 
             Kirigami.Icon {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: Plasmoid.configuration.compactTiles
                     ? Kirigami.Units.iconSizes.medium
-                    : Kirigami.Units.iconSizes.large
+                    : 44
                 Layout.preferredHeight: width
                 source: tile.model.decoration || "moos-cube-symbolic"
                 animated: false
@@ -1482,8 +1503,7 @@ Item {
                 font.pixelSize: view.typeSecondary
                 font.weight: Font.Medium
                 horizontalAlignment: Text.AlignHCenter
-                maximumLineCount: 2
-                wrapMode: Text.Wrap
+                maximumLineCount: 1
                 elide: Text.ElideRight
             }
         }
@@ -1571,15 +1591,12 @@ Item {
         Keys.onSpacePressed: event => { recent.activate(); event.accepted = true; }
         background: Rectangle {
             radius: view.radiusM
-            color: Qt.alpha(recent.hovered
-                ? Kirigami.Theme.highlightColor
-                : Kirigami.Theme.textColor,
-                recent.hovered ? 0.10 : 0.04)
-            border.width: 1
-            border.color: Qt.alpha(recent.hovered || recent.activeFocus
-                ? Kirigami.Theme.highlightColor
-                : Kirigami.Theme.textColor,
-                recent.hovered || recent.activeFocus ? 0.48 : 0.08)
+            color: recent.hovered || recent.activeFocus
+                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.085)
+                : "transparent"
+            border.width: recent.activeFocus ? 2 : recent.hovered ? 1 : 0
+            border.color: Qt.alpha(Kirigami.Theme.highlightColor,
+                recent.activeFocus ? 0.82 : 0.34)
             // Ease the hover like every sibling row (FavoriteTile/nav/search) —
             // was the one Recent row whose prelight snapped instead of gliding.
             Behavior on color { ColorAnimation { duration: view.motionFast } }
@@ -1637,15 +1654,12 @@ Item {
         Keys.onSpacePressed: event => { place.activate(); event.accepted = true; }
         background: Rectangle {
             radius: view.radiusM
-            color: Qt.alpha(place.hovered
-                ? Kirigami.Theme.highlightColor
-                : Kirigami.Theme.textColor,
-                place.hovered ? 0.10 : 0.035)
-            border.width: 1
-            border.color: Qt.alpha(place.hovered || place.activeFocus
-                ? Kirigami.Theme.highlightColor
-                : Kirigami.Theme.textColor,
-                place.hovered || place.activeFocus ? 0.48 : 0.075)
+            color: place.hovered || place.activeFocus
+                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.085)
+                : "transparent"
+            border.width: place.activeFocus ? 2 : place.hovered ? 1 : 0
+            border.color: Qt.alpha(Kirigami.Theme.highlightColor,
+                place.activeFocus ? 0.82 : 0.34)
             // Same eased-hover parity as the Favorite/Recent/nav rows.
             Behavior on color { ColorAnimation { duration: view.motionFast } }
             Behavior on border.color { ColorAnimation { duration: view.motionFast } }
@@ -1713,10 +1727,14 @@ Item {
         background: Rectangle {
             radius: view.radiusM
             color: result.ListView.isCurrentItem
-                ? Qt.alpha(Kirigami.Theme.highlightColor, result.down ? 0.26 : 0.16)
-                : Qt.alpha(Kirigami.Theme.textColor, result.hovered ? 0.07 : 0.025)
-            border.width: result.ListView.isCurrentItem || result.activeFocus ? 1 : 0
-            border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.42)
+                ? Qt.alpha(Kirigami.Theme.highlightColor, result.down ? 0.18 : 0.105)
+                : result.hovered
+                    ? Qt.alpha(Kirigami.Theme.textColor, 0.055)
+                    : "transparent"
+            border.width: result.activeFocus ? 2
+                : result.ListView.isCurrentItem ? 1 : 0
+            border.color: Qt.alpha(Kirigami.Theme.highlightColor,
+                result.activeFocus ? 0.82 : 0.34)
             Behavior on color { ColorAnimation { duration: view.motionFast } }
         }
 
@@ -1782,7 +1800,7 @@ Item {
         Accessible.name: command.title
         Accessible.description: command.eyebrow
         Accessible.role: Accessible.Button
-        scale: down ? 0.975 : (hovered ? 1.012 : 1)
+        scale: down ? 0.985 : 1
         onClicked: command.activated()
         Keys.onReturnPressed: event => {
             command.activated();
@@ -1809,13 +1827,13 @@ Item {
             color: Qt.alpha(command.featured || command.hovered
                 ? Kirigami.Theme.highlightColor
                 : Kirigami.Theme.textColor,
-                command.down ? 0.22
-                    : (command.featured ? 0.14 : (command.hovered ? 0.105 : 0.045)))
-            border.width: 1
+                command.down ? 0.16
+                    : (command.featured ? 0.105 : (command.hovered ? 0.075 : 0.025)))
+            border.width: command.activeFocus ? 2 : 1
             border.color: Qt.alpha(command.featured || command.activeFocus
                 ? Kirigami.Theme.highlightColor
                 : Kirigami.Theme.textColor,
-                command.featured || command.activeFocus ? 0.42 : 0.10)
+                command.activeFocus ? 0.82 : command.featured ? 0.34 : 0.09)
             Behavior on color { ColorAnimation { duration: view.motionFast } }
             Behavior on border.color { ColorAnimation { duration: view.motionFast } }
 

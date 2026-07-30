@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="home-title">
+  <title id="home-title">Home</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #0E63C4; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M2.25 10.5 L12 2.25 L21.75 10.5 L19.5 12.4 L19.5 21.5 L4.5 21.5 L4.5 12.4 Z M10.6 14.2 H13.4 A1.1 1.1 0 0 1 14.5 15.3 V20.4 A1.1 1.1 0 0 1 13.4 21.5 H10.6 A1.1 1.1 0 0 1 9.5 20.4 V15.3 A1.1 1.1 0 0 1 10.6 14.2 Z M6.9 10.8 H8.6 A0.7 0.7 0 0 1 9.3 11.5 V13.2 A0.7 0.7 0 0 1 8.6 13.9 H6.9 A0.7 0.7 0 0 1 6.2 13.2 V11.5 A0.7 0.7 0 0 1 6.9 10.8 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M15.6 10.8 H17.1 A0.7 0.7 0 0 1 17.8 11.5 V13 A0.7 0.7 0 0 1 17.1 13.7 H15.6 A0.7 0.7 0 0 1 14.9 13 V11.5 A0.7 0.7 0 0 1 15.6 10.8 Z"/>
+</svg>

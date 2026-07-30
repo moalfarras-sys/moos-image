@@ -33,9 +33,14 @@ QQC2.AbstractButton {
     // ink + outline. Only highlightColor uses highlightedTextColor as its
     // theme-defined paired foreground.
     readonly property color restingColor: primary ? accentColor : surfaceColor
-    readonly property color foregroundColor: primary ? accentForegroundColor
-                                                      : destructive ? dangerColor
-                                                      : textColor
+    readonly property color foregroundColor: !enabled ? mutedTextColor
+                                            : primary ? accentForegroundColor
+                                            : destructive ? dangerColor
+                                            : textColor
+    readonly property real stateLayerOpacity: !enabled ? 0
+                                             : down ? 0.14
+                                             : hovered ? 0.075
+                                             : 0
 
     text: label
     hoverEnabled: true
@@ -43,13 +48,14 @@ QQC2.AbstractButton {
     Accessible.role: Accessible.Button
     Accessible.name: label
 
-    implicitHeight: compact ? 36 : 40
-    implicitWidth: Math.max(40, contentRow.implicitWidth + tokens.space5)
+    implicitHeight: compact ? tokens.targetCompact : tokens.targetControl
+    implicitWidth: Math.max(tokens.targetControl,
+        contentRow.implicitWidth + tokens.space5)
     leftPadding: tokens.space3
     rightPadding: tokens.space3
     topPadding: tokens.space2
     bottomPadding: tokens.space2
-    opacity: enabled ? 1 : 0.45
+    opacity: enabled ? 1 : 0.72
     scale: enabled && down ? 0.97 : 1
 
     Behavior on scale {
@@ -61,21 +67,32 @@ QQC2.AbstractButton {
 
     background: Rectangle {
         radius: control.cornerRadius
-        color: !control.enabled ? control.surfaceColor
-             : control.down ? Qt.darker(control.restingColor, 1.10)
-             : control.hovered ? Qt.lighter(control.restingColor, 1.08)
-             : control.restingColor
+        color: control.enabled ? control.restingColor : control.surfaceColor
         border.width: control.primary ? 0 : 1
-        border.color: control.hovered ? control.actionColor : control.outlineColor
+        border.color: !control.enabled ? control.outlineColor
+                    : control.destructive ? Qt.alpha(control.dangerColor,
+                        control.hovered || control.activeFocus ? 0.82 : 0.52)
+                    : control.hovered ? Qt.alpha(control.actionColor, 0.58)
+                    : control.outlineColor
 
-        Behavior on color {
+        Behavior on border.color {
             ColorAnimation {
                 duration: control.motionEnabled ? tokens.motionFast : 0
             }
         }
-        Behavior on border.color {
-            ColorAnimation {
-                duration: control.motionEnabled ? tokens.motionFast : 0
+
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            color: control.primary
+                ? Qt.alpha(control.accentForegroundColor, control.stateLayerOpacity)
+                : Qt.alpha(control.actionColor, control.stateLayerOpacity)
+            opacity: control.enabled ? 1 : 0
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: control.motionEnabled ? tokens.motionFast : 0
+                }
             }
         }
     }

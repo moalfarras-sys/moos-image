@@ -941,12 +941,13 @@ class TestMoOSUI2(unittest.TestCase):
 
         for token, value in (
             ("space1", 4), ("space2", 8), ("space3", 12),
-            ("space4", 16), ("space6", 24),
+            ("space4", 16), ("space5", 20), ("space6", 24),
             ("radiusS", 8), ("radiusM", 12),
             ("radiusL", 16), ("radiusXL", 24),
             ("targetSize", 40), ("typeCaption", 11),
             ("typeSecondary", 13), ("typeBody", 14),
-            ("typeEmphasis", 15), ("typeTitle", 20),
+            ("typeEmphasis", 15), ("typeSubheading", 18),
+            ("typeTitle", 20),
         ):
             self.assertIn(
                 f"readonly property int {token}: {value}",
@@ -964,13 +965,17 @@ class TestMoOSUI2(unittest.TestCase):
         )
         self.assertNotIn("Press Meta to open", launcher)
         self.assertNotIn("يفتح بزر Meta", launcher)
-        self.assertIn("anchors.margins: view.space6", launcher)
+        self.assertIn("anchors.margins: view.space5", launcher)
         self.assertEqual(
-            launcher.count("cellWidth: Math.max(1, Math.floor(width / 3))"),
+            launcher.count("cellWidth: Math.max(1, Math.floor(width / 4))"),
             2,
-            "Pinned and All Apps must share the calmer three-column proportion",
+            "Pinned and All Apps must share the calm four-column rhythm",
         )
-        self.assertNotRegex(launcher, r"cellWidth:.*width\s*/\s*4")
+        self.assertNotRegex(
+            launcher,
+            r"cellWidth:.*width\s*/\s*(?:[5-9]|\d{2,})",
+            "the app grid must never densify past four columns",
+        )
         self.assertGreaterEqual(
             launcher.count("view.targetSize"),
             24,
@@ -1007,8 +1012,8 @@ class TestMoOSUI2(unittest.TestCase):
             SHARE / "plasma/plasmoids/org.moos.heroclock/contents/ui/main.qml"
         ).read_text(encoding="utf-8"))
 
-        self.assertIn("implicitWidth: Kirigami.Units.gridUnit * 46", launcher)
-        self.assertIn("implicitHeight: Kirigami.Units.gridUnit * 35", launcher)
+        self.assertIn("implicitWidth: Kirigami.Units.gridUnit * 44", launcher)
+        self.assertIn("implicitHeight: Kirigami.Units.gridUnit * 32", launcher)
         self.assertIn("LOCAL · PRIVATE", launcher)
         self.assertIn("import QtQuick.Shapes", launcher)
         self.assertIn("ShapePath {", launcher)

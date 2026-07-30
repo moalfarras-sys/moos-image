@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="bluetooth-title">
+  <title id="bluetooth-title">Bluetooth</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #0E63C4; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M11.875 2.25 H11.875 A1.075 1.075 0 0 1 12.95 3.325 V20.675 A1.075 1.075 0 0 1 11.875 21.75 H11.875 A1.075 1.075 0 0 1 10.8 20.675 V3.325 A1.075 1.075 0 0 1 11.875 2.25 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M11.8 2.4 L18.15 8.1 L13 12.35 L13 9.55 L15.2 7.9 L11.8 4.8 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M13 11.65 L18.15 15.9 L11.8 21.6 L11.8 19.2 L15.2 16.1 L13 14.45 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M5.656 7.898 L16.056 17.498 A0.95 0.95 0 0 1 17.344 16.102 L6.944 6.502 A0.95 0.95 0 0 1 5.656 7.898 Z"/>
+</svg>

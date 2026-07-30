@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="refresh-title">
+  <title id="refresh-title">Refresh</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #0F766E; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M2.437 11.163 A9.6 9.6 0 0 1 21.273 9.515 L19.1 10.098 A7.35 7.35 0 0 0 4.678 11.359 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M18.4 3.1 L21.75 9.2 L14.85 8.4 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M21.563 12.837 A9.6 9.6 0 0 1 2.727 14.485 L4.9 13.902 A7.35 7.35 0 0 0 19.322 12.641 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.6 20.9 L2.25 14.8 L9.15 15.6 Z"/>
+</svg>

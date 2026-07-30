@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="safe-update-title">
+  <title id="safe-update-title">Safe update</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #F5E9FF; fill: currentColor; }
+    .ColorScheme-Highlight { color: #FF2D95; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #FBBF24; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #FF4D6D; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M12 2.25 L20 5.55 V11.7 C20 16.35 17.05 19.75 12 21.75 C6.95 19.75 4 16.35 4 11.7 V5.55 Z M12 5.1 L17.65 7.45 V11.55 C17.65 14.75 15.8 17.25 12 18.95 C8.2 17.25 6.35 14.75 6.35 11.55 V7.45 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M7.46 10.684 A4.7 4.7 0 0 1 16.54 10.684 L14.753 11.162 A2.85 2.85 0 0 0 9.247 11.162 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M14.8 7.35 L17.2 11.2 L12.65 10.65 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M16.54 13.116 A4.7 4.7 0 0 1 7.46 13.116 L9.247 12.638 A2.85 2.85 0 0 0 14.753 12.638 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M9.2 16.45 L6.8 12.6 L11.35 13.15 Z"/>
+</svg>

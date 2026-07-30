@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="android-apps-title">
+  <title id="android-apps-title">Android apps</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #7C3AED; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M7.999 5.001 L6.499 2.751 A0.9 0.9 0 0 1 5.001 3.749 L6.501 5.999 A0.9 0.9 0 0 1 7.999 5.001 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M17.499 5.999 L18.999 3.749 A0.9 0.9 0 0 1 17.501 2.751 L16.001 5.001 A0.9 0.9 0 0 1 17.499 5.999 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M6.15 5.25 H17.85 A3.4 3.4 0 0 1 21.25 8.65 V16.6 A3.4 3.4 0 0 1 17.85 20 H6.15 A3.4 3.4 0 0 1 2.75 16.6 V8.65 A3.4 3.4 0 0 1 6.15 5.25 Z M6.7 8 H17.3 A1.7 1.7 0 0 1 19 9.7 V15 A1.7 1.7 0 0 1 17.3 16.7 H6.7 A1.7 1.7 0 0 1 5 15 V9.7 A1.7 1.7 0 0 1 6.7 8 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M7.2 9.4 H9.8 A0.8 0.8 0 0 1 10.6 10.2 V11.2 A0.8 0.8 0 0 1 9.8 12 H7.2 A0.8 0.8 0 0 1 6.4 11.2 V10.2 A0.8 0.8 0 0 1 7.2 9.4 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M14.2 9.4 H16.8 A0.8 0.8 0 0 1 17.6 10.2 V11.2 A0.8 0.8 0 0 1 16.8 12 H14.2 A0.8 0.8 0 0 1 13.4 11.2 V10.2 A0.8 0.8 0 0 1 14.2 9.4 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M7.15 13.1 H9.85 A0.75 0.75 0 0 1 10.6 13.85 V14.6 A0.75 0.75 0 0 1 9.85 15.35 H7.15 A0.75 0.75 0 0 1 6.4 14.6 V13.85 A0.75 0.75 0 0 1 7.15 13.1 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M14.15 13.1 H16.85 A0.75 0.75 0 0 1 17.6 13.85 V14.6 A0.75 0.75 0 0 1 16.85 15.35 H14.15 A0.75 0.75 0 0 1 13.4 14.6 V13.85 A0.75 0.75 0 0 1 14.15 13.1 Z"/>
+</svg>

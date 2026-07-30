@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="code-title">
+  <title id="code-title">Code</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #ECF2FB; fill: currentColor; }
+    .ColorScheme-Highlight { color: #3B82F6; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #FBBF24; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #FB7185; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M9.2 5.2 L2.75 12 L9.2 18.8 L10.8 16.7 L6.35 12 L10.8 7.3 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M14.8 5.2 L21.25 12 L14.8 18.8 L13.2 16.7 L17.65 12 L13.2 7.3 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M12.975 3.586 L9.175 19.986 A0.95 0.95 0 0 1 11.025 20.414 L14.825 4.014 A0.95 0.95 0 0 1 12.975 3.586 Z"/>
+</svg>

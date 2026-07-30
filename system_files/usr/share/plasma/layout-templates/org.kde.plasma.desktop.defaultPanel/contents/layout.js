@@ -75,11 +75,11 @@ try {
     launcher.writeConfig("compactTiles", false);
     /* Popup geometry belongs to the applet's root Configuration group, not
      * General. Seed it for a brand-new profile too: otherwise the launcher is
-     * visually 828x630 through its QML minimum, but live readback remains zero
+     * visually 792x576 through its QML minimum, but live readback remains zero
      * until the user opens/resizes it for the first time. */
     launcher.currentConfigGroup = [];
-    launcher.writeConfig("popupWidth", 828);
-    launcher.writeConfig("popupHeight", 630);
+    launcher.writeConfig("popupWidth", 792);
+    launcher.writeConfig("popupHeight", 576);
 } catch (e) { /* the bar survives launcherless */ }
 
 /* Icons-Only Task Manager — Mo AI pinned FIRST, then browser, files, Mo PC

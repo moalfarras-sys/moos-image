@@ -18,6 +18,9 @@ QtObject {
     readonly property int radiusCard: 16
     readonly property int radiusPanel: 24
 
+    readonly property int targetCompact: 40
+    readonly property int targetControl: 44
+
     readonly property int typeCaption: 11
     readonly property int typeSecondary: 13
     readonly property int typeBody: 14

@@ -25,9 +25,12 @@ SURFACE_FILENAMES = (
     "actionbutton.svg",
     "arrows.svg",
     "background.svg",
+    "button.svg",
     "busywidget.svg",
     "checkmarks.svg",
     "frame.svg",
+    "lineedit.svg",
+    "listitem.svg",
     "menubaritem.svg",
     "pager.svg",
     "radiobutton.svg",
@@ -38,6 +41,7 @@ SURFACE_FILENAMES = (
     "toolbar.svg",
     "tooltip.svg",
     "translucentbackground.svg",
+    "viewitem.svg",
 )
 
 
@@ -92,6 +96,7 @@ def _frame(
     radius: int = 10,
     inner: int = 24,
     hints: bool = True,
+    hint_margin: float | None = None,
 ) -> list[str]:
     """Return one rounded, scalable Plasma FrameSvg.
 
@@ -162,11 +167,12 @@ def _frame(
     ))
     if hints:
         hx = x3 + 5
+        hm = max(4, r - 2) if hint_margin is None else hint_margin
         out.extend((
-            f'  <rect id="{_id(prefix, "hint-top-margin")}" x="{hx}" y="{y0}" width="3" height="{max(4, r - 2)}" fill="none"/>',
-            f'  <rect id="{_id(prefix, "hint-bottom-margin")}" x="{hx}" y="{y1}" width="3" height="{max(4, r - 2)}" fill="none"/>',
-            f'  <rect id="{_id(prefix, "hint-left-margin")}" x="{hx + 5}" y="{y0}" width="{max(4, r - 2)}" height="3" fill="none"/>',
-            f'  <rect id="{_id(prefix, "hint-right-margin")}" x="{hx + 5}" y="{y0 + 5}" width="{max(4, r - 2)}" height="3" fill="none"/>',
+            f'  <rect id="{_id(prefix, "hint-top-margin")}" x="{hx}" y="{y0}" width="3" height="{hm}" fill="none"/>',
+            f'  <rect id="{_id(prefix, "hint-bottom-margin")}" x="{hx}" y="{y1}" width="3" height="{hm}" fill="none"/>',
+            f'  <rect id="{_id(prefix, "hint-left-margin")}" x="{hx + 5}" y="{y0}" width="{hm}" height="3" fill="none"/>',
+            f'  <rect id="{_id(prefix, "hint-right-margin")}" x="{hx + 5}" y="{y0 + 5}" width="{hm}" height="3" fill="none"/>',
         ))
     return out
 
@@ -185,6 +191,70 @@ def _mask_frame(prefix: str, *, x: int, y: int, radius: int = 10, inner: int = 2
         f'  <path id="{_id(prefix, "bottomleft")}" d="M{x0} {y2}A{r} {r} 0 0 0 {x1} {y3}V{y2}Z" fill="#000"/>',
         f'  <rect id="{_id(prefix, "bottom")}" x="{x1}" y="{y2}" width="{i}" height="{r}" fill="#000"/>',
         f'  <path id="{_id(prefix, "bottomright")}" d="M{x3} {y2}A{r} {r} 0 0 1 {x2} {y3}V{y2}Z" fill="#000"/>',
+    ]
+
+
+def _soft_shadow_frame(
+    p: Mapping[str, str],
+    *,
+    x: int,
+    y: int,
+    radius: int = 10,
+    inner: int = 24,
+) -> list[str]:
+    """Return a low-cost, outer-only shadow for Plasma's native buttons.
+
+    PC3 expands the ``shadow`` FrameSvg by its margins before drawing the
+    normal button above it. A filled shadow centre therefore becomes a large
+    rectangular slab around every resting button. Keep the centre virtually
+    transparent (as upstream FrameSvg consumers expect) and fade only the
+    perimeter. This uses static SVG gradients; there is no runtime blur or
+    shader cost.
+    """
+    r, i = radius, inner
+    x0, x1, x2, x3 = x, x + r, x + r + i, x + r + i + r
+    y0, y1, y2, y3 = y, y + r, y + r + i, y + r + i + r
+    color = p["shadow"]
+    return [
+        "  <defs>",
+        f'    <linearGradient id="moos-button-shadow-top" x1="0" y1="0" x2="0" y2="1">'
+        f'<stop offset="0" stop-color="{color}" stop-opacity="0"/>'
+        f'<stop offset="1" stop-color="{color}" stop-opacity="0.11"/></linearGradient>',
+        f'    <linearGradient id="moos-button-shadow-bottom" x1="0" y1="0" x2="0" y2="1">'
+        f'<stop offset="0" stop-color="{color}" stop-opacity="0.15"/>'
+        f'<stop offset="1" stop-color="{color}" stop-opacity="0"/></linearGradient>',
+        f'    <linearGradient id="moos-button-shadow-left" x1="0" y1="0" x2="1" y2="0">'
+        f'<stop offset="0" stop-color="{color}" stop-opacity="0"/>'
+        f'<stop offset="1" stop-color="{color}" stop-opacity="0.10"/></linearGradient>',
+        f'    <linearGradient id="moos-button-shadow-right" x1="0" y1="0" x2="1" y2="0">'
+        f'<stop offset="0" stop-color="{color}" stop-opacity="0.10"/>'
+        f'<stop offset="1" stop-color="{color}" stop-opacity="0"/></linearGradient>',
+        f'    <radialGradient id="moos-button-shadow-tl" cx="1" cy="1" r="1">'
+        f'<stop offset="0" stop-color="{color}" stop-opacity="0.11"/>'
+        f'<stop offset="1" stop-color="{color}" stop-opacity="0"/></radialGradient>',
+        f'    <radialGradient id="moos-button-shadow-tr" cx="0" cy="1" r="1">'
+        f'<stop offset="0" stop-color="{color}" stop-opacity="0.11"/>'
+        f'<stop offset="1" stop-color="{color}" stop-opacity="0"/></radialGradient>',
+        f'    <radialGradient id="moos-button-shadow-bl" cx="1" cy="0" r="1">'
+        f'<stop offset="0" stop-color="{color}" stop-opacity="0.15"/>'
+        f'<stop offset="1" stop-color="{color}" stop-opacity="0"/></radialGradient>',
+        f'    <radialGradient id="moos-button-shadow-br" cx="0" cy="0" r="1">'
+        f'<stop offset="0" stop-color="{color}" stop-opacity="0.15"/>'
+        f'<stop offset="1" stop-color="{color}" stop-opacity="0"/></radialGradient>',
+        "  </defs>",
+        f'  <rect id="shadow-topleft" x="{x0}" y="{y0}" width="{r}" height="{r}" fill="url(#moos-button-shadow-tl)"/>',
+        f'  <rect id="shadow-top" x="{x1}" y="{y0}" width="{i}" height="{r}" fill="url(#moos-button-shadow-top)"/>',
+        f'  <rect id="shadow-topright" x="{x2}" y="{y0}" width="{r}" height="{r}" fill="url(#moos-button-shadow-tr)"/>',
+        f'  <rect id="shadow-left" x="{x0}" y="{y1}" width="{r}" height="{i}" fill="url(#moos-button-shadow-left)"/>',
+        f'  <rect id="shadow-center" x="{x1}" y="{y1}" width="{i}" height="{i}" fill="{color}" fill-opacity="0.001"/>',
+        f'  <rect id="shadow-right" x="{x2}" y="{y1}" width="{r}" height="{i}" fill="url(#moos-button-shadow-right)"/>',
+        f'  <rect id="shadow-bottomleft" x="{x0}" y="{y2}" width="{r}" height="{r}" fill="url(#moos-button-shadow-bl)"/>',
+        f'  <rect id="shadow-bottom" x="{x1}" y="{y2}" width="{i}" height="{r}" fill="url(#moos-button-shadow-bottom)"/>',
+        f'  <rect id="shadow-bottomright" x="{x2}" y="{y2}" width="{r}" height="{r}" fill="url(#moos-button-shadow-br)"/>',
+        f'  <rect id="shadow-hint-top-margin" x="{x3 + 5}" y="{y0}" width="3" height="{max(4, r - 2)}" fill="none"/>',
+        f'  <rect id="shadow-hint-bottom-margin" x="{x3 + 5}" y="{y1}" width="3" height="{max(4, r - 2)}" fill="none"/>',
+        f'  <rect id="shadow-hint-left-margin" x="{x3 + 10}" y="{y0}" width="{max(4, r - 2)}" height="3" fill="none"/>',
+        f'  <rect id="shadow-hint-right-margin" x="{x3 + 10}" y="{y0 + 5}" width="{max(4, r - 2)}" height="3" fill="none"/>',
     ]
 
 
@@ -228,6 +298,135 @@ def _multi_frame(
         ))
     body.append(f'  <rect id="hint-tile-center" x="104" y="0" width="4" height="4" fill="none"/>')
     return _document(body, p, 128, len(states) * 52, comment=comment)
+
+
+def _state_frames(
+    p: Mapping[str, str],
+    states: list[tuple[str, str, float, str, float]],
+    *,
+    radius: int,
+    comment: str,
+    include_masks: tuple[str, ...] = (),
+) -> str:
+    """Render a compact stack of native Plasma FrameSvg interaction states."""
+    body: list[str] = []
+    for index, (prefix, fill, opacity, rim, rim_opacity) in enumerate(states):
+        body.extend(_frame(
+            prefix,
+            x=0,
+            y=index * 52,
+            fill=fill,
+            fill_opacity=opacity,
+            rim=rim,
+            rim_opacity=rim_opacity,
+            radius=radius,
+        ))
+    for index, prefix in enumerate(include_masks):
+        body.extend(_mask_frame(
+            f"mask-{prefix}",
+            x=64,
+            y=index * 52,
+            radius=radius,
+        ))
+    body.append('  <rect id="hint-tile-center" x="116" y="0" width="4" height="4" fill="none"/>')
+    return _document(
+        body,
+        p,
+        128,
+        max(1, len(states)) * 52,
+        comment=comment,
+    )
+
+
+def _button(p: Mapping[str, str]) -> str:
+    # The hint margin per state is a live PC3 contract, not styling freedom:
+    # ButtonHover/ButtonFocus draw "hover"/"focus"/"toolbutton-focus" EXPANDED
+    # outward by exactly these margins on top of the resting face, so a filled
+    # state must stay contained (0.001) and a keyboard ring may spread only a
+    # couple of px. "normal"/"pressed" margins become the button's padding and
+    # "toolbutton-hover" margins the flat button's padding — those fill their
+    # rect and never overhang.
+    states = [
+        ("normal", p["raised"], 0.82, p["outline"], 0.30, 8),
+        ("hover", p["raised"], 0.96, p["luminous"], 0.42, 0.001),
+        ("focus", p["surface"], 0.01, p["luminous"], 0.94, 2),
+        ("pressed", p["card"], 0.98, p["primary"], 0.76, 8),
+        ("toolbutton-hover", p["raised"], 0.58, p["luminous"], 0.30, 4),
+        ("toolbutton-focus", p["surface"], 0.01, p["luminous"], 0.92, 2),
+        ("toolbutton-pressed", p["primary"], 0.16, p["primary"], 0.72, 4),
+    ]
+    body = _soft_shadow_frame(p, x=64, y=0, radius=10)
+    for index, (prefix, fill, opacity, rim, rim_opacity, hint_margin) in enumerate(states):
+        body.extend(_frame(
+            prefix,
+            x=0,
+            y=index * 52,
+            fill=fill,
+            fill_opacity=opacity,
+            rim=rim,
+            rim_opacity=rim_opacity,
+            radius=10,
+            hint_margin=hint_margin,
+        ))
+    body.extend(_mask_frame("mask-normal", x=64, y=52, radius=10))
+    body.append('  <rect id="hint-tile-center" x="116" y="0" width="4" height="4" fill="none"/>')
+    return _document(
+        body,
+        p,
+        136,
+        len(states) * 52,
+        comment=(
+            "MoOS native Plasma buttons: one quiet surface, separated hover, "
+            "pressed and keyboard-focus states, plus an outer-only static shadow."
+        ),
+    )
+
+
+def _lineedit(p: Mapping[str, str]) -> str:
+    return _state_frames(
+        p,
+        [
+            ("base", p["surface"], 0.90, p["outline"], 0.38),
+            ("hover", p["surface"], 0.96, p["luminous"], 0.34),
+            ("focus", p["surface"], 1.00, p["primary"], 0.88),
+            ("focusframe", p["surface"], 0.01, p["luminous"], 0.98),
+        ],
+        radius=10,
+        comment="MoOS native text fields with a calm resting edge and an unmistakable keyboard-focus rim.",
+    )
+
+
+def _listitem(p: Mapping[str, str]) -> str:
+    text = _state_frames(
+        p,
+        [
+            ("normal", p["surface"], 0.01, p["outline"], 0.01),
+            ("hover", p["raised"], 0.54, p["luminous"], 0.24),
+            ("pressed", p["primary"], 0.15, p["primary"], 0.60),
+            ("section", p["surface"], 0.30, p["outline"], 0.12),
+        ],
+        radius=9,
+        comment="MoOS native list rows: borderless at rest, quiet prelight, semantic pressed selection.",
+    )
+    separator = (
+        f'  <rect id="separator" x="116" y="12" width="8" height="1" '
+        f'fill="{p["outline"]}" fill-opacity="0.32"/>\n'
+    )
+    return text.replace("</svg>", separator + "</svg>")
+
+
+def _viewitem(p: Mapping[str, str]) -> str:
+    return _state_frames(
+        p,
+        [
+            ("normal", p["surface"], 0.01, p["outline"], 0.01),
+            ("hover", p["raised"], 0.50, p["luminous"], 0.22),
+            ("selected", p["primary"], 0.16, p["primary"], 0.58),
+            ("selected+hover", p["primary"], 0.24, p["luminous"], 0.72),
+        ],
+        radius=9,
+        comment="MoOS native view items with low-noise hover and a palette-owned selected state.",
+    )
 
 
 def _arrows(p: Mapping[str, str]) -> str:
@@ -405,10 +604,14 @@ def render_surface_suite(target: pathlib.Path, p: Mapping[str, str]) -> None:
         ("plain", p["surface"], 0.38, p["outline"], 0.22),
         ("raised", p["raised"], 0.86, p["luminous"], 0.28),
     ], comment="MoOS grouping frames: sunken, plain and raised."))
+    _write(widgets / "button.svg", _button(p))
+    _write(widgets / "lineedit.svg", _lineedit(p))
+    _write(widgets / "listitem.svg", _listitem(p))
+    _write(widgets / "viewitem.svg", _viewitem(p))
     _write(widgets / "menubaritem.svg", _multi_frame(p, [
         ("normal", p["surface"], 0.01, p["outline"], 0.01),
-        ("hover", p["raised"], 0.78, p["luminous"], 0.46),
-        ("pressed", p["card"], 0.96, p["primary"], 0.92),
+        ("hover", p["raised"], 0.54, p["luminous"], 0.28),
+        ("pressed", p["primary"], 0.16, p["primary"], 0.64),
     ], comment="MoOS menu item interaction states."))
     _write(widgets / "pager.svg", _multi_frame(p, [
         ("normal", p["surface"], 0.36, p["outline"], 0.32),
@@ -483,6 +686,28 @@ def validate_surface_suite(target: pathlib.Path) -> None:
                 f"{menu} is missing the {state} interaction frame: "
                 f"{sorted(missing)[0]}"
             )
+
+    state_contracts = {
+        "button.svg": (
+            "shadow", "normal", "hover", "focus", "pressed",
+            "toolbutton-hover", "toolbutton-focus", "toolbutton-pressed",
+        ),
+        "lineedit.svg": ("base", "hover", "focus", "focusframe"),
+        "listitem.svg": ("normal", "hover", "pressed", "section"),
+        "viewitem.svg": ("normal", "hover", "selected", "selected+hover"),
+    }
+    for filename, states in state_contracts.items():
+        path = widgets / filename
+        ids = _svg_ids(path)
+        for state in states:
+            missing = {
+                f"{state}-{position}" for position in POSITIONS
+            } - ids
+            if missing:
+                raise SystemExit(
+                    f"{path} is missing the {state} interaction frame: "
+                    f"{sorted(missing)[0]}"
+                )
 
     tabbar = widgets / "tabbar.svg"
     tab_ids = _svg_ids(tabbar)

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="system-title">
+  <title id="system-title">System</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #C81D7A; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.25 3.25 H18.75 A3 3 0 0 1 21.75 6.25 V15.05 A3 3 0 0 1 18.75 18.05 H5.25 A3 3 0 0 1 2.25 15.05 V6.25 A3 3 0 0 1 5.25 3.25 Z M5.45 5.55 H18.55 A0.9 0.9 0 0 1 19.45 6.45 V14.85 A0.9 0.9 0 0 1 18.55 15.75 H5.45 A0.9 0.9 0 0 1 4.55 14.85 V6.45 A0.9 0.9 0 0 1 5.45 5.55 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M11 18.05 L11 21 A1 1 0 0 1 13 21 L13 18.05 A1 1 0 0 1 11 18.05 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M7.8 22 L16.2 22 A1 1 0 0 1 16.2 20 L7.8 20 A1 1 0 0 1 7.8 22 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M12 7.4 L15.4 10.65 L12 14 L8.6 10.65 Z"/>
+</svg>

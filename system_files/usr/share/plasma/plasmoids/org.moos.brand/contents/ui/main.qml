@@ -364,12 +364,12 @@ PlasmoidItem {
                 ? Kirigami.Theme.highlightColor
                 : Kirigami.Theme.textColor,
                 compact.pressed ? 0.24
-                    : (root.expanded ? 0.17 : (compact.containsMouse ? 0.13 : 0.055)))
+                    : (root.expanded ? 0.12 : (compact.containsMouse ? 0.09 : 0.035)))
             border.width: 1
             border.color: Qt.alpha(root.expanded || compact.containsMouse
                 ? Kirigami.Theme.highlightColor
                 : Kirigami.Theme.textColor,
-                root.expanded ? 0.72 : (compact.containsMouse ? 0.50 : 0.14))
+                root.expanded ? 0.48 : (compact.containsMouse ? 0.32 : 0.10))
             scale: compact.pressed ? 0.97 : 1.0
 
             Behavior on color { ColorAnimation { duration: root.motionFast } }
@@ -450,10 +450,10 @@ PlasmoidItem {
                     height: width
                     radius: Math.round(width * 0.30)
                     color: Qt.alpha(Kirigami.Theme.highlightColor,
-                        root.expanded ? 0.18 : 0.08)
+                        root.expanded ? 0.13 : 0.065)
                     border.width: Math.max(1, Math.round(width * 0.035))
                     border.color: Qt.alpha(Kirigami.Theme.highlightColor,
-                        root.expanded ? 0.88 : (compact.containsMouse ? 0.72 : 0.34))
+                        root.expanded ? 0.64 : (compact.containsMouse ? 0.48 : 0.26))
                     scale: compact.containsMouse ? 1.05 : 1.0
                     Behavior on scale {
                         NumberAnimation {

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="compass-title">
+  <title id="compass-title">Explore</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #F5E9FF; fill: currentColor; }
+    .ColorScheme-Highlight { color: #FF2D95; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #FBBF24; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #FF4D6D; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M21.5 12 A9.5 9.5 0 1 1 2.5 12 A9.5 9.5 0 1 1 21.5 12 Z M19.25 12 A7.25 7.25 0 1 1 4.75 12 A7.25 7.25 0 1 1 19.25 12 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M16.9 6.4 L13.65 13.45 L7.1 17.6 L10.35 10.55 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M16.9 6.4 L13.65 13.45 L10.35 10.55 Z"/>
+</svg>

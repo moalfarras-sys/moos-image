@@ -31,7 +31,10 @@ set -uo pipefail
 #     (a security signal that must surface when Active) and the video bridge
 #     gained its Arabic Id. The rev bump re-runs the tray collapse so existing
 #     sessions get the corrected list, and restarts the shell over the new art.
-THEME_REV=25
+# 26: palette-matched Tidal Cut icon overlays plus the refined Launcher/control
+#     states. Re-apply once so existing users stop carrying the shared light
+#     symbolic fallback in dark/accent themes.
+THEME_REV=26
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -368,20 +371,20 @@ theme_intact() {
             local fam="${lnf##*.}"; local Fam="${fam^}"   # nova -> Nova
             expected_deco="__aurorae__svg__MoOSUI2${Fam}"
             expected_scheme="MoOSUI2${Fam}"; expected_style="MoOSUI2${Fam}"
-            expected_icons=MoOSUI2; expected_cursor=MoOS
+            expected_icons="$expected_style"; expected_cursor=MoOS
             expected_scene=scene-each
             ;;
         "$NOVA_LIGHT_LNF"|"$AMETHYST_LIGHT_LNF"|"$AURORA_LIGHT_LNF")
             local fam="${lnf%.light}"; fam="${fam##*.}"; local Fam="${fam^}"
             expected_deco="__aurorae__svg__MoOSUI2${Fam}Light"
             expected_scheme="MoOSUI2${Fam}Light"; expected_style="MoOSUI2${Fam}Light"
-            expected_icons=MoOSUI2Light; expected_cursor=MoOSDark
+            expected_icons="$expected_style"; expected_cursor=MoOSDark
             expected_scene=scene-each
             ;;
         "$DAYLIGHT_LNF")
             expected_deco=__aurorae__svg__MoOSUI2Daylight
             expected_scheme=MoOSUI2Daylight; expected_style=MoOSUI2Daylight
-            expected_icons=MoOSUI2Light; expected_cursor=MoOSDark
+            expected_icons="$expected_style"; expected_cursor=MoOSDark
             expected_scene=scene-each
             ;;
         "$GAMING_LNF"|"$DEV_LNF"|"$STUDY_LNF")
@@ -392,7 +395,7 @@ theme_intact() {
             esac
             expected_deco="__aurorae__svg__MoOSUI2${Fam}"
             expected_scheme="MoOSUI2${Fam}"; expected_style="MoOSUI2${Fam}"
-            expected_icons=MoOSUI2; expected_cursor=MoOS
+            expected_icons="$expected_style"; expected_cursor=MoOS
             expected_scene=scene-each
             ;;
         "$GAMING_LIGHT_LNF"|"$DEV_LIGHT_LNF"|"$STUDY_LIGHT_LNF")
@@ -403,7 +406,7 @@ theme_intact() {
             esac
             expected_deco="__aurorae__svg__MoOSUI2${Fam}"
             expected_scheme="MoOSUI2${Fam}"; expected_style="MoOSUI2${Fam}"
-            expected_icons=MoOSUI2Light; expected_cursor=MoOSDark
+            expected_icons="$expected_style"; expected_cursor=MoOSDark
             expected_scene=scene-each
             ;;
         *) return 1 ;;
@@ -690,12 +693,13 @@ case "$want_lnf" in
         ;;
     "$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF")
         # One branch, four looks: the assets follow the LNF suffix. All members
-        # are dark-canvas, so they share the dark cursor/icons/GTK side.
+        # are dark-canvas, while their symbolic overlay carries this palette's
+        # own ink/accent/status roles and inherits the broad dark vocabulary.
         want_fam="${want_lnf##*.}"; want_Fam="${want_fam^}"   # nova -> Nova
         want_scheme="MoOSUI2${want_Fam}"
         want_style="MoOSUI2${want_Fam}"
         want_deco="__aurorae__svg__MoOSUI2${want_Fam}"
-        want_icons=MoOSUI2
+        want_icons="$want_style"
         want_konsole="MoOSUI2${want_Fam}.profile"
         want_wallpaper_package="/usr/share/wallpapers/MoOSUI2${want_Fam}"
         want_wallpaper="${want_wallpaper_package}/contents/images_dark/3840x2160.jpg"
@@ -703,13 +707,13 @@ case "$want_lnf" in
         want_cursor=MoOS
         ;;
     "$NOVA_LIGHT_LNF"|"$AMETHYST_LIGHT_LNF"|"$AURORA_LIGHT_LNF")
-        # Light siblings of the accent families: light canvas, dark cursor, light
-        # icons, GTK light. Assets follow the LNF suffix (nova.light -> NovaLight).
+        # Light siblings of the accent families: light canvas, dark cursor and
+        # their own palette-matched symbolic overlay on the broad light icons.
         want_fam="${want_lnf%.light}"; want_fam="${want_fam##*.}"; want_Fam="${want_fam^}Light"
         want_scheme="MoOSUI2${want_Fam}"
         want_style="MoOSUI2${want_Fam}"
         want_deco="__aurorae__svg__MoOSUI2${want_Fam}"
-        want_icons=MoOSUI2Light
+        want_icons="$want_style"
         want_konsole="MoOSUI2${want_Fam}.profile"
         want_wallpaper_package="/usr/share/wallpapers/MoOSUI2${want_Fam}"
         want_wallpaper="${want_wallpaper_package}/contents/images/3840x2160.jpg"
@@ -721,7 +725,7 @@ case "$want_lnf" in
         want_scheme=MoOSUI2Daylight
         want_style=MoOSUI2Daylight
         want_deco=__aurorae__svg__MoOSUI2Daylight
-        want_icons=MoOSUI2Light
+        want_icons="$want_style"
         want_konsole=MoOSUI2Daylight.profile
         want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Daylight
         want_wallpaper=${want_wallpaper_package}/contents/images/3840x2160.jpg
@@ -738,7 +742,7 @@ case "$want_lnf" in
         want_scheme="MoOSUI2${want_Fam}"
         want_style="MoOSUI2${want_Fam}"
         want_deco="__aurorae__svg__MoOSUI2${want_Fam}"
-        want_icons=MoOSUI2
+        want_icons="$want_style"
         want_konsole="MoOSUI2${want_Fam}.profile"
         want_wallpaper_package="/usr/share/wallpapers/MoOSUI2${want_Fam}"
         want_wallpaper="${want_wallpaper_package}/contents/images_dark/3840x2160.jpg"
@@ -754,7 +758,7 @@ case "$want_lnf" in
         want_scheme="MoOSUI2${want_Fam}"
         want_style="MoOSUI2${want_Fam}"
         want_deco="__aurorae__svg__MoOSUI2${want_Fam}"
-        want_icons=MoOSUI2Light
+        want_icons="$want_style"
         want_konsole="MoOSUI2${want_Fam}.profile"
         want_wallpaper_package="/usr/share/wallpapers/MoOSUI2${want_Fam}"
         want_wallpaper="${want_wallpaper_package}/contents/images/3840x2160.jpg"
@@ -1085,16 +1089,18 @@ fi
 # brand applet's exact containment/applet pair and migrate its persisted size.
 # A later shell restart in this revision makes the new geometry live; no panel
 # structure, user launcher choice, or other applet is touched.
+# THEME_REV 26: the Command Canvas tightened to 44x32 grid units (792x576 at
+# the reference metrics); the same migration carries existing sessions there.
 applets_rc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
 if [[ -f "$applets_rc" ]] && command -v kwriteconfig6 >/dev/null 2>&1; then
     while read -r containment_id applet_id; do
         [[ "$containment_id" =~ ^[0-9]+$ && "$applet_id" =~ ^[0-9]+$ ]] || continue
         kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
             --group Containments --group "$containment_id" --group Applets \
-            --group "$applet_id" --group Configuration --key popupWidth 828
+            --group "$applet_id" --group Configuration --key popupWidth 792
         kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
             --group Containments --group "$containment_id" --group Applets \
-            --group "$applet_id" --group Configuration --key popupHeight 630
+            --group "$applet_id" --group Configuration --key popupHeight 576
     done < <(
         awk '
             match($0, /^\[Containments\]\[([0-9]+)\]\[Applets\]\[([0-9]+)\]$/, m) {
@@ -1634,6 +1640,20 @@ for rel in \
     "icons/NovaLight" \
     "icons/MoOSUI2" \
     "icons/MoOSUI2Light" \
+    "icons/MoOSUI2Amethyst" \
+    "icons/MoOSUI2AmethystLight" \
+    "icons/MoOSUI2Arena" \
+    "icons/MoOSUI2ArenaLight" \
+    "icons/MoOSUI2Aurora" \
+    "icons/MoOSUI2AuroraLight" \
+    "icons/MoOSUI2Daylight" \
+    "icons/MoOSUI2Forge" \
+    "icons/MoOSUI2ForgeLight" \
+    "icons/MoOSUI2Midnight" \
+    "icons/MoOSUI2Nova" \
+    "icons/MoOSUI2NovaLight" \
+    "icons/MoOSUI2Scholar" \
+    "icons/MoOSUI2ScholarLight" \
 ; do
     if [ -e "/usr/share/$rel" ] && [ -e "${user_share}/$rel" ]; then
         rm -rf "${user_share:?}/$rel"

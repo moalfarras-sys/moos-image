@@ -909,15 +909,41 @@ ROLE_STYLE = {
     ERROR: ("ColorScheme-NegativeText error", "#e01b24"),
 }
 
-STYLE = """  <style id="current-color-scheme" type="text/css">
-    .ColorScheme-Text { color: #243238; fill: currentColor; }
-    .ColorScheme-Highlight { color: #147d72; fill: currentColor; }
-    .ColorScheme-NeutralText { color: #8a5a00; fill: currentColor; }
-    .ColorScheme-NegativeText { color: #a9364b; fill: currentColor; }
+DEFAULT_PALETTE = {
+    TEXT: "#243238",
+    HIGHLIGHT: "#147d72",
+    WARNING: "#8a5a00",
+    ERROR: "#a9364b",
+}
+
+
+def palette_style(palette: dict[str, str] | None = None) -> str:
+    """Return the KDE colour-role stylesheet for one icon-theme palette.
+
+    KIconLoader resolves action icons through the active icon theme and keeps
+    the stylesheet's fallback colours when rendering them as a normal QIcon.
+    Therefore copying the same light fallback SVG into both light and dark icon
+    themes makes the dark desktop draw almost-black symbols.  The geometry
+    remains one source, while each generated icon-theme overlay receives the
+    exact semantic ink/accent/warning/error roles of its look-and-feel.
+    """
+    roles = DEFAULT_PALETTE if palette is None else palette
+    return f"""  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text {{ color: {roles[TEXT]}; fill: currentColor; }}
+    .ColorScheme-Highlight {{ color: {roles[HIGHLIGHT]}; fill: currentColor; }}
+    .ColorScheme-NeutralText {{ color: {roles[WARNING]}; fill: currentColor; }}
+    .ColorScheme-NegativeText {{ color: {roles[ERROR]}; fill: currentColor; }}
   </style>"""
 
 
-def render(name: str, symbol: Symbol) -> str:
+STYLE = palette_style()
+
+
+def render(
+    name: str,
+    symbol: Symbol,
+    palette: dict[str, str] | None = None,
+) -> str:
     paths = []
     for shape in symbol.shapes:
         class_name, fallback = ROLE_STYLE[shape.role]
@@ -929,7 +955,7 @@ def render(name: str, symbol: Symbol) -> str:
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
      role="img" aria-labelledby="{name}-title">
   <title id="{name}-title">{symbol.title}</title>
-{STYLE}
+{palette_style(palette)}
 {chr(10).join(paths)}
 </svg>
 """

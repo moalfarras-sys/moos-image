@@ -4,19 +4,58 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-30 (the commercial visual-system baseline is now
-**shipped and boot-proven** on signed `moos-nvidia` **44.20260730.477**,
-digest `sha256:87ed100fd228…`; `tests/post-update-check.sh` returned
-**48 passed / 0 failed** with no failed system or user units. The next
-**Tidal Horizon** product-design revision is implemented in the working tree
-on `product/tidal-horizon-2026-07-30`, but is not yet a published or booted
-image. Its release revision is **THEME_REV=25**. The complete repository gate
-and local generic build are green: image `13ce8105e9fd…`, local manifest
-`sha256:28e93f5b8546…`, OSTree `a568b31c85c4…`. The design system remains
-**MoOS UI — Liquid Glass**).
+Last updated: 2026-07-30, later session (the **Tidal Horizon** revision
+(THEME_REV=25) is now **shipped and booted**: the machine runs signed
+`moos-nvidia` **44.20260730.478**, digest `sha256:924414e04dfb…`, with the
+`.477` rollback deployment intact — verified live via `rpm-ostree status`.
+The shipped copy of `tests/post-update-check.sh` returned **46 passed /
+2 failed** on the booted image, and both failures are the expected
+working-tree preview residue (home icon override + `org.moos.brand`
+plasmoid override), not image defects. The follow-up **icon-bridge round**
+(THEME_REV=26, per-palette symbolic icon overlays + Launcher/control polish)
+is implemented in the working tree on `product/tidal-horizon-2026-07-30`
+with every repo gate green, but is not yet committed, published or booted.
+The design system remains **MoOS UI — Liquid Glass**).
 
 > **Read [`skills/moos-engineering/SKILL.md`](skills/moos-engineering/SKILL.md) first —
 > it is mandatory for every agent working here.**
+
+> **Icon-bridge round — 2026-07-30, working tree on top of the shipped
+> `.478` (THEME_REV=26).** Continued from the previous session, which stopped
+> mid-flight on an external usage limit; its in-progress step (settling the
+> Theme/Icon-bridge test contracts) is now complete. The round gives every one
+> of the 14 family palettes its own first-party symbolic icon overlay
+> (`/usr/share/icons/MoOSUI2<Family>[Light]`, 69 Tidal Cut symbols each,
+> identical geometry, palette-matched inks) inheriting the broad `MoOSUI2` /
+> `MoOSUI2Light` bases built from Colloid. The load-bearing decision is
+> **`FollowsColorScheme=false`** on every MoOS icon theme: with `true`,
+> QIcon recolouring reads the application `QPalette` rather than the Plasma
+> surface colour set, which painted near-invisible dark symbols on the dark
+> Launcher (evidence pair in `artwork/moos-ui2/live-tests/`,
+> `tidal-cut-arena-followscolorscheme-before.png` →
+> `tidal-cut-arena-baked-inks-after.png`, both captured through the real
+> KIconLoader on the live session). Each overlay instead bakes its
+> WCAG-checked palette inks; `_symbol_accent_ink` picks the nearest 1% step
+> from primary toward text clearing 3:1 on every semantic surface, and
+> `tests/test_moos_symbolic_icons.py` holds that math. The bridge is wired
+> end-to-end: look-and-feel `defaults` select the palette overlay,
+> `moos-theme`/`moos-apply-theme`/`moos-selfcheck` expect `icons == style`
+> for every member, `build_files/build.sh` gates all 14 overlays in the image
+> (index validity, inherits direction, full inventory, semantic roles) and
+> recolours the two broad bases' baked inks, and
+> `tests/post-update-check.sh` now proves `kiconfinder6` resolves the
+> overlay from `/usr` after an update. The same round calms the Command
+> Canvas (four columns on the 11px+ type ramp, 20px outer rhythm, 56px
+> command field, quieter tiles/nav, scrollbars) — live-verified at 4K RTL
+> (`launcher-four-column-live-4k.jpg`) — and gives the shared app Button
+> semantic 44px states plus `isMask` symbol foregrounds; the native Plasma
+> widget states (button/lineedit/listitem/menubaritem/viewitem across all 16
+> desktoptheme variants) render through the real KSvg/FrameSvg path
+> (`native-controls-arena-kframe.png`). The four previously-failing gate
+> files were moved to the new contracts without weakening intent (density,
+> type-ramp, target and destructive-pairing protections all kept). Release
+> steps still open: local `just build`, commit/push + CI signed image, host
+> staging, reboot, and the stricter post-update check on the booted image.
 
 > **Tidal Horizon product-design pass — 2026-07-30, working tree
 > `product/tidal-horizon-2026-07-30`.** This pass starts from the already

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="identity-title">
+  <title id="identity-title">MoOS identity</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #1A7F37; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M11.4 2.5 L13.203 8.997 L19.7 10.8 L13.203 12.603 L11.4 19.1 L9.597 12.603 L3.1 10.8 L9.597 8.997 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M19.655 17.85 A10.2 10.2 0 0 1 2.945 17.85 L4.624 16.675 A8.15 8.15 0 0 0 17.976 16.675 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M21.05 18.4 A1.65 1.65 0 1 1 17.75 18.4 A1.65 1.65 0 1 1 21.05 18.4 Z"/>
+</svg>

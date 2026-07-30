@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="storage-title">
+  <title id="storage-title">Storage</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #C81D7A; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.5 3.25 H18.5 A3 3 0 0 1 21.5 6.25 V17.75 A3 3 0 0 1 18.5 20.75 H5.5 A3 3 0 0 1 2.5 17.75 V6.25 A3 3 0 0 1 5.5 3.25 Z M5.75 5.5 H18.25 A1 1 0 0 1 19.25 6.5 V8.9 A1 1 0 0 1 18.25 9.9 H5.75 A1 1 0 0 1 4.75 8.9 V6.5 A1 1 0 0 1 5.75 5.5 Z M5.75 12.1 H18.25 A1 1 0 0 1 19.25 13.1 V15.5 A1 1 0 0 1 18.25 16.5 H5.75 A1 1 0 0 1 4.75 15.5 V13.1 A1 1 0 0 1 5.75 12.1 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M6.3 8.875 L13.2 8.875 A0.775 0.775 0 0 1 13.2 7.325 L6.3 7.325 A0.775 0.775 0 0 1 6.3 8.875 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M6.3 15.475 L13.2 15.475 A0.775 0.775 0 0 1 13.2 13.925 L6.3 13.925 A0.775 0.775 0 0 1 6.3 15.475 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M18.25 14.7 A1.15 1.15 0 1 1 15.95 14.7 A1.15 1.15 0 1 1 18.25 14.7 Z"/>
+</svg>

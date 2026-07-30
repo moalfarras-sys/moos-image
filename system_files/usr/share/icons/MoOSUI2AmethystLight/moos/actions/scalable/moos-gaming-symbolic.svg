@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="gaming-title">
+  <title id="gaming-title">Gaming</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #7C3AED; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M7.1 6.4 H16.9 C19.25 6.4 20.55 8.1 21 11.15 L21.75 16.5 C22.15 19.25 19.1 21 17.15 19.05 L14.6 16.45 H9.4 L6.85 19.05 C4.9 21 1.85 19.25 2.25 16.5 L3 11.15 C3.45 8.1 4.75 6.4 7.1 6.4 Z M8.35 11.75 A1.25 1.25 0 1 1 5.85 11.75 A1.25 1.25 0 1 1 8.35 11.75 Z M17.75 10.35 A1.05 1.05 0 1 1 15.65 10.35 A1.05 1.05 0 1 1 17.75 10.35 Z M19.85 13.05 A1.05 1.05 0 1 1 17.75 13.05 A1.05 1.05 0 1 1 19.85 13.05 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M6.275 9.3 L6.275 14.2 A0.825 0.825 0 0 1 7.925 14.2 L7.925 9.3 A0.825 0.825 0 0 1 6.275 9.3 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M4.65 12.575 L9.55 12.575 A0.825 0.825 0 0 1 9.55 10.925 L4.65 10.925 A0.825 0.825 0 0 1 4.65 12.575 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M17.58 10.35 A0.88 0.88 0 1 1 15.82 10.35 A0.88 0.88 0 1 1 17.58 10.35 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M19.68 13.05 A0.88 0.88 0 1 1 17.92 13.05 A0.88 0.88 0 1 1 19.68 13.05 Z"/>
+</svg>

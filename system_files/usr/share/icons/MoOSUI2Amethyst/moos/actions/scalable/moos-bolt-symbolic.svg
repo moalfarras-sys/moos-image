@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="bolt-title">
+  <title id="bolt-title">Power</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #F1E9F5; fill: currentColor; }
+    .ColorScheme-Highlight { color: #C084FC; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #FBBF24; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #FB7185; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M13.4 2.25 L4.75 13.35 L10.25 13.35 L8.85 21.75 L19.25 9.45 L13.2 9.45 Z"/>
+</svg>

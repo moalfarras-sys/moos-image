@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="microphone-title">
+  <title id="microphone-title">Microphone</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #F5E9FF; fill: currentColor; }
+    .ColorScheme-Highlight { color: #FF2D95; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #FBBF24; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #FF4D6D; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M12 2.25 H12 A3.9 3.9 0 0 1 15.9 6.15 V11.45 A3.9 3.9 0 0 1 12 15.35 H12 A3.9 3.9 0 0 1 8.1 11.45 V6.15 A3.9 3.9 0 0 1 12 2.25 Z M11.1 5.1 L11.1 10.7 A0.9 0.9 0 0 1 12.9 10.7 L12.9 5.1 A0.9 0.9 0 0 1 11.1 5.1 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M19.5 10.8 A7.5 7.5 0 0 1 4.5 10.8 L6.55 10.8 A5.45 5.45 0 0 0 17.45 10.8 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M11 17.3 L11 21.25 A1 1 0 0 1 13 21.25 L13 17.3 A1 1 0 0 1 11 17.3 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M8.2 22.25 L15.8 22.25 A1 1 0 0 1 15.8 20.25 L8.2 20.25 A1 1 0 0 1 8.2 22.25 Z"/>
+</svg>

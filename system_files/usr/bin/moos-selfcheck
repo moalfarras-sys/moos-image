@@ -112,14 +112,13 @@ case "$lnf" in
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light
         if [[ "$lnf" == *.light ]]; then
             [ "$family" = midnight ] && Name=Daylight || Name="${Name}Light"
-            want_ico=MoOSUI2Light
             mode="MoOS ${Name} Light"
         else
-            want_ico=MoOSUI2
             mode="MoOS ${Name} Dark"
         fi
         want_deco="__aurorae__svg__MoOSUI2${Name}"
         want_sch="MoOSUI2${Name}"; want_sty="MoOSUI2${Name}"; want_wall="MoOSUI2${Name}"
+        want_ico="$want_sty"
         ;;
     *) want_deco=""; want_wall=""; pair_dark=""; pair_light=""; family=""; mode="" ;;
 esac
@@ -640,6 +639,14 @@ for rel in plasma/plasmoids/org.moos.nova.clock \
            wallpapers/MoOSUI2Graphite wallpapers/MoOSUI2Tide \
            color-schemes/MoOSUI2Dark.colors color-schemes/MoOSUI2Light.colors \
            icons/MoOSUI2 icons/MoOSUI2Light \
+           icons/MoOSUI2Amethyst icons/MoOSUI2AmethystLight \
+           icons/MoOSUI2Arena icons/MoOSUI2ArenaLight \
+           icons/MoOSUI2Aurora icons/MoOSUI2AuroraLight \
+           icons/MoOSUI2Daylight \
+           icons/MoOSUI2Forge icons/MoOSUI2ForgeLight \
+           icons/MoOSUI2Midnight \
+           icons/MoOSUI2Nova icons/MoOSUI2NovaLight \
+           icons/MoOSUI2Scholar icons/MoOSUI2ScholarLight \
            konsole/MoOSUI2.profile konsole/MoOSUI2Light.profile; do
     if [ -e "/usr/share/$rel" ] && [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
         bad "~/.local/share/${rel} shadows the image copy — later updates will never reach you"

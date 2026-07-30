@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="power-title">
+  <title id="power-title">Power</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #7C3AED; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M18.39 19.297 A9.55 9.55 0 1 1 18.39 5.103 L16.851 6.812 A7.25 7.25 0 1 0 16.851 17.588 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M6.75 6.8 A1.15 1.15 0 1 1 4.45 6.8 A1.15 1.15 0 1 1 6.75 6.8 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M19.55 6.8 A1.15 1.15 0 1 1 17.25 6.8 A1.15 1.15 0 1 1 19.55 6.8 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M10.8 2.25 L10.8 11.8 A1.2 1.2 0 0 1 13.2 11.8 L13.2 2.25 A1.2 1.2 0 0 1 10.8 2.25 Z"/>
+</svg>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="ui-title">
+  <title id="ui-title">MoOS UI</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #E6EDF3; fill: currentColor; }
+    .ColorScheme-Highlight { color: #3FB950; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #D29922; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #F85149; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M12 2.25 L21.4 7.15 L12 12.05 L2.6 7.15 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M3.2 11 L12 15.6 L20.8 11 L20.8 13.65 L12 18.25 L3.2 13.65 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M3.2 16.1 L12 20.7 L20.8 16.1 L20.8 18.75 L12 21.75 L3.2 18.75 Z"/>
+</svg>

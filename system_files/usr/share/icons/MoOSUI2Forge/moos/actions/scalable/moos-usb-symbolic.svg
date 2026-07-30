@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="usb-title">
+  <title id="usb-title">USB</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #E6EDF3; fill: currentColor; }
+    .ColorScheme-Highlight { color: #3FB950; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #D29922; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #F85149; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M11 4.1 L11 19.5 A1 1 0 0 1 13 19.5 L13 4.1 A1 1 0 0 1 11 4.1 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M12 2.25 L8.6 6.25 L10.9 6.25 L12 4.9 L13.1 6.25 L15.4 6.25 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M12 12.5 L17.8 12.5 A1 1 0 0 1 17.8 10.5 L12 10.5 A1 1 0 0 1 12 12.5 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M16.8 11.5 L16.8 15 A1 1 0 0 1 18.8 15 L18.8 11.5 A1 1 0 0 1 16.8 11.5 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M19.9 16.7 A2.1 2.1 0 1 1 15.7 16.7 A2.1 2.1 0 1 1 19.9 16.7 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M12 13.1 L7 13.1 A1 1 0 0 1 7 15.1 L12 15.1 A1 1 0 0 1 12 13.1 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M6 14.1 L6 17.3 A1 1 0 0 1 8 17.3 L8 14.1 A1 1 0 0 1 6 14.1 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.9 17.3 H8.1 A1 1 0 0 1 9.1 18.3 V20.5 A1 1 0 0 1 8.1 21.5 H5.9 A1 1 0 0 1 4.9 20.5 V18.3 A1 1 0 0 1 5.9 17.3 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M13.8 20.2 A1.8 1.8 0 1 1 10.2 20.2 A1.8 1.8 0 1 1 13.8 20.2 Z"/>
+</svg>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="wave-title">
+  <title id="wave-title">Audio wave</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #E6EDF3; fill: currentColor; }
+    .ColorScheme-Highlight { color: #3FB950; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #D29922; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #F85149; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M2.75 13 L5.1 13 A1 1 0 0 1 5.1 11 L2.75 11 A1 1 0 0 1 2.75 13 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M6.925 8.25 L6.925 15.75 A1.075 1.075 0 0 1 9.075 15.75 L9.075 8.25 A1.075 1.075 0 0 1 6.925 8.25 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M10.925 4.25 L10.925 19.75 A1.075 1.075 0 0 1 13.075 19.75 L13.075 4.25 A1.075 1.075 0 0 1 10.925 4.25 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M14.925 7.2 L14.925 16.8 A1.075 1.075 0 0 1 17.075 16.8 L17.075 7.2 A1.075 1.075 0 0 1 14.925 7.2 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M18.9 13 L21.25 13 A1 1 0 0 1 21.25 11 L18.9 11 A1 1 0 0 1 18.9 13 Z"/>
+</svg>
