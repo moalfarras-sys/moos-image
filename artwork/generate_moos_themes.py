@@ -911,6 +911,99 @@ def make_wallpaper_light(base_key: str):
     return img
 
 
+def make_tidal_horizon(key: str, light: bool):
+    """Re-colour the shared Tidal Horizon composition from semantic roles.
+
+    Every MoOS theme now owns the same instantly recognisable spatial
+    signature: two low tidal membranes meeting at one precise concave cut.
+    Palettes may change, but geometry, negative space and light direction do
+    not.  This is deliberately different from drawing a bespoke collection of
+    unrelated ribbons per colourway: theme switching should feel like the same
+    physical MoOS desktop under different light.
+
+    The lossless light/dark masters are original MoOS artwork.  We remap their
+    luminance to each theme's canvas/surface ramp, then use the master's
+    saturation as an edge-light mask for the semantic primary/luminous roles.
+    A very restrained secondary tint is confined to that same mask, so no
+    colour overlay can muddy the clean upper workspace or alter the silhouette.
+    """
+    try:
+        from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
+    except Exception:
+        return None
+
+    p = _roles(key)
+    source = ART / "moos-ui2/wallpapers" / (
+        "moos-ui-tidal-horizon-master-v1.png" if light
+        else "moos-ui-graphite-horizon-master-v1.png"
+    )
+    if not source.is_file():
+        raise SystemExit(f"missing Tidal Horizon master: {source}")
+
+    original = Image.open(source).convert("RGB")
+    gray = ImageOps.grayscale(original)
+
+    if light:
+        shadow = _mix_hex(p["shadow"], p["primary"], 0.05)
+        middle = _mix_hex(p["surface"], p["primary"], 0.055)
+        highlight = _mix_hex(p["canvas"], "#FFFFFF", 0.72)
+        base = ImageOps.colorize(
+            gray, black=shadow, mid=middle, white=highlight,
+            blackpoint=8, whitepoint=252, midpoint=148,
+        )
+        accent_shadow = _mix_hex(p["surface"], p["primary"], 0.26)
+    else:
+        shadow = _mix_hex(p["shadow"], p["canvas"], 0.30)
+        middle = _mix_hex(p["canvas"], p["primary"], 0.065)
+        highlight = _mix_hex(p["raised"], p["luminous"], 0.32)
+        base = ImageOps.colorize(
+            gray, black=shadow, mid=middle, white=highlight,
+            blackpoint=3, whitepoint=244, midpoint=122,
+        )
+        accent_shadow = _mix_hex(p["canvas"], p["primary"], 0.28)
+
+    # Fine source luminance remains visible after recolouring, which preserves
+    # the micro-texture without adding a costly runtime shader.
+    detail = ImageOps.autocontrast(gray, cutoff=1).convert("RGB")
+    base = ImageChops.soft_light(base, detail)
+
+    saturation = original.convert("HSV").getchannel("S")
+    edge_mask = saturation.point(
+        lambda value: max(0, min(255, int((value - 12) * 2.5)))
+    ).filter(ImageFilter.GaussianBlur(1.2))
+
+    primary_light = ImageOps.colorize(
+        gray,
+        black=accent_shadow,
+        mid=p["primary"],
+        white=_mix_hex(p["luminous"], "#FFFFFF", 0.16),
+        blackpoint=0,
+        whitepoint=250,
+        midpoint=117,
+    )
+    base = Image.composite(primary_light, base, edge_mask)
+
+    # A secondary glint follows the lower-right tide only.  It gives each
+    # palette a two-colour identity while the shared concave cut stays primary.
+    mw, mh = original.size
+    small = Image.new("L", (96, 54), 0)
+    ImageDraw.Draw(small).ellipse((49, 23, 107, 70), fill=176)
+    secondary_region = small.filter(ImageFilter.GaussianBlur(10)).resize(
+        (mw, mh), Image.Resampling.BICUBIC
+    )
+    secondary_mask = ImageChops.multiply(edge_mask, secondary_region)
+    secondary_light = ImageOps.colorize(
+        gray,
+        black=_mix_hex(p["canvas"], p["secondary"], 0.22),
+        mid=p["secondary"],
+        white=_mix_hex(p["luminous"], p["secondary"], 0.22),
+        blackpoint=0,
+        whitepoint=250,
+        midpoint=122,
+    )
+    return Image.composite(secondary_light, base, secondary_mask)
+
+
 def build_gtk(key: str, meta: dict) -> None:
     """Per-theme libadwaita palette — the UI2 dark GTK-4 CSS recoloured to this
     theme, so Flatpak/GTK-4 apps carry the theme's accent, not UI2's teal."""
@@ -941,8 +1034,7 @@ def crop_to_fill(img, size: tuple[int, int]):
 
 
 def build_wallpaper(key: str, meta: dict) -> bool:
-    img = (make_wallpaper_light(meta["base"]) if meta.get("light")
-           else make_wallpaper(key, meta.get("mood", "cosmic")))
+    img = make_tidal_horizon(key, meta.get("light", False))
     if img is None:
         return False
     pkg = SHARE / "wallpapers" / meta["wall"]

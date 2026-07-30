@@ -6,11 +6,11 @@
     The host contract (signals, ShutdownType, spdMethods, maysd, canLogout,
     softwareUpdatePending, remainingTime) is KDE Plasma 6.7's org.kde.breeze
     Logout.qml — untouched, so every action stays wired to the system. The
-    visual design is an original MoOS UI2 ground-up rework: an immersive
-    theme-driven scene, a centred live-clock + emblem header, and a DOCK of
-    circular action ORBS with labels beneath — no tile grid, no bento, no bars.
+    visual design is an original MoOS UI2 ground-up rework: the Tidal Horizon
+    portal, a centred live-clock + emblem header, and a compact command island
+    whose actions use the same portal-key geometry as Login and Lock.
     Shut Down / Restart are gated behind a confirm tap (armOrFire); the signal
-    each orb emits stays byte-identical to the stock contract.
+    each portal key emits stays byte-identical to the stock contract.
 */
 pragma ComponentBehavior: Bound
 
@@ -58,28 +58,22 @@ Item {
     //   accentA = Kirigami.Theme.highlightColor       · live theme accent
     //   accentB = accentA HSL hue +0.09               · two-tone signature
     //   ink     = Kirigami.Theme.textColor            · neutral glyph / text
-    //   orb     = gridUnit*4.6 disc · iconSizes.medium glyph · radius w/2
-    //             idle fill ink 0.08 · lit fill ink 0.16 · border accent 0.8 lit / ink 0.16 idle
+    //   key     = gridUnit*5.8 × 4.8 · icon 0.42 of height · radius 0.28h
+    //             idle fill ink 0.08 · lit fill ink 0.16 · crest cut + horizon
     //   pill    = radius height/2 (password field)
     //   scrim   = backgroundColor  0.52 / 0.30 / 0.60  (top / mid / foot)
     //   blur    = 54 wallpaper (lock's breeze WallpaperFader = 50)
-    //   fonts   = Inter (Latin-only strings + digits) · IBM Plex Sans Arabic
-    //             (any string that CONTAINS Arabic — see the bilingual note below)
+    //   fonts   = IBM Plex Sans Arabic across both scripts and all numerals
     //   clock   = Font.Thin · letterSpacing -2 · accent colon · hairline accent
     //   motion  = Units.shortDuration (hover/press) · longDuration (fades) · OutCubic
     // ══════════════════════════════════════════════════════════════════════
     readonly property color accent: Kirigami.Theme.highlightColor
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     // accentB — the two-tone partner (accentA hue-rotated +0.09 in HSL), same
-    // derivation as the orb. The aurora ribbons ride accentA/accentB so their
+    // derivation as the portal rim. The horizon rides accentA/accentB so its
     // hue is 100% theme-derived — no hardcoded base colour anywhere.
     //
-    // The ribbons bind these roles STRAIGHT to their gradient stops. There used
-    // to be an auroraTint(base) helper in between, documented as "keeps its
-    // designed hue but pulls 40% toward the live accent" — but by then both call
-    // sites already passed a theme colour, and Qt.tint(accent, accent@0.40) is
-    // accent, exactly. So the helper proved nothing about theming (the test that
-    // counted calls to it proved nothing either) while quietly dragging accentB
-    // 40% back onto accentA and flattening the two-tone signature it exists for.
+    // The shared TidalHorizon component consumes both roles directly.
     readonly property color accentB: {
         const c = Kirigami.Theme.highlightColor;
         if (c.hslSaturation < 0.08 || c.hslHue < 0) { return Qt.lighter(c, 1.28); }
@@ -143,9 +137,9 @@ Item {
 
     // ── Confirm-on-sensitive ────────────────────────────────────────────────
     // Shut Down / Restart are gated behind a second tap: the first tap ARMS the
-    // orb (it pulses + shows a "press again" hint), the second FIRES the real
+    // key (it fills + shows a "press again" hint), the second FIRES the real
     // system signal. Everything else (Sleep, Log Out, Lock) fires immediately.
-    // This only gates the click — the signal each orb emits is byte-identical to
+    // This only gates the click — the signal each key emits is byte-identical to
     // the stock contract, so the system path is untouched.
     property var armedButton: null
     Timer { id: armTimer; interval: 4000; onTriggered: root.disarm() }
@@ -223,9 +217,15 @@ Item {
         // MoOS token: the same wallpaper blur the lock uses (breeze WallpaperFader
         // is 50) — so the frosted background reads identically on both screens.
         layer.effect: FastBlur { radius: 54 }
-        Component.onCompleted: backdropFade.start()
+        Component.onCompleted: {
+            if (root.motionEnabled) {
+                backdropFade.start();
+            } else {
+                wallpaper.opacity = 1;
+            }
+        }
         OpacityAnimator { id: backdropFade; target: wallpaper; from: 0; to: 1.0
-            duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+            duration: 420; easing.type: Easing.OutCubic }
     }
     // Legibility scrim — the theme's own canvas, heavier at the top and foot so
     // the clock and the dock stay readable over any wallpaper. Calculated
@@ -245,64 +245,42 @@ Item {
         }
     }
 
-    // ── The aurora: two wide accent veils drifting over the blurred wallpaper ──
-    // The id is load-bearing. An Animator is a QObject, not an Item, so inside
-    // it `parent` resolves to NOTHING — the old `target: parent` bound the fade
-    // to null, the animator never ran, and this entire layer (the screen's main
-    // piece of design) sat at opacity 0 forever, while its two infinite
-    // animations still drove the render loop repainting 5760x1339 rectangles
-    // nobody could see. From inside an Animator/Animation, always target an id.
-    Item {
-        id: aurora
-        anchors.fill: parent
-        opacity: 0
-        Component.onCompleted: auroraFade.start()
-        OpacityAnimator { id: auroraFade; target: aurora; from: 0; to: 1
-            duration: Kirigami.Units.veryLongDuration; easing.type: Easing.OutCubic }
-        // Both drifts loop FOREVER, so the motion gate is `longDuration > 1`,
-        // never `> 0`: Kirigami floors longDuration at 1 when the user turns
-        // animations off, so `> 0` is true even then and the gate never fires.
-        // (KDE's own three BusyIndicator.qml files use `> 1` for the same
-        // reason.) Ungated, either of these repaints the whole 4K window at full
-        // frame rate for as long as the doorway is open — about 11% of a core.
-        //
-        // GEOMETRY RULE: a ribbon's gradient fades only along its VERTICAL axis,
-        // so its left and right edges are hard cuts. Both must stay off-screen at
-        // every point of the drift, including the sideways shift the rotation
-        // adds (height/2 · sin(angle)) — the second ribbon used to start at
-        // x = +0.12·width and drew a crisp diagonal seam straight down the left
-        // third of the wallpaper. Overhang generously; the width past the screen
-        // edge costs nothing because the band is uniform along it.
-        Rectangle {
-            width: root.width * 1.8; height: root.height * 0.62
-            x: -root.width * 0.42; y: root.height * 0.04
-            rotation: -9; transformOrigin: Item.Center; opacity: 0.10
-            gradient: Gradient { orientation: Gradient.Vertical
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.5; color: root.accent }
-                GradientStop { position: 1.0; color: "transparent" } }
-            SequentialAnimation on x {
-                loops: Animation.Infinite
-                running: root.visible && Kirigami.Units.longDuration > 1
-                NumberAnimation { to: -root.width * 0.25; duration: 42000; easing.type: Easing.InOutSine }
-                NumberAnimation { to: -root.width * 0.42; duration: 42000; easing.type: Easing.InOutSine }
+    // ── Tidal Horizon Portal ─────────────────────────────────────────────────
+    // One shared curve now identifies every doorway. There are no drifting
+    // curtains, breathing rings, or decorative loops: the portal performs one
+    // short depth reveal, then becomes completely still.
+    TidalHorizon {
+        id: portal
+        anchors.horizontalCenter: parent.horizontalCenter
+        // The arc is a FRAME, never a line through the controls.  Its crest
+        // stays behind the brand while its horizon lands below the Cancel key.
+        // A wide 1.8:1 field also keeps both shoulders outside the five-action
+        // dock on 16:9, 16:10 and ultrawide displays.
+        y: parent.height * 0.10
+        width: Math.min(parent.width * 0.96, parent.height * 1.80)
+        height: Math.min(parent.height * 0.90, width * 0.56)
+        accentA: root.accent
+        accentB: root.accentB
+        ink: Kirigami.Theme.textColor
+        surface: Kirigami.Theme.alternateBackgroundColor
+        compact: root.width < Kirigami.Units.gridUnit * 64
+        reveal: root.motionEnabled ? 0 : 1
+        intensity: 0.88
+
+        Component.onCompleted: {
+            if (root.motionEnabled) {
+                portalReveal.start();
             }
         }
-        Rectangle {
-            width: root.width * 1.6; height: root.height * 0.5
-            x: -root.width * 0.30; y: root.height * 0.36
-            rotation: 12; transformOrigin: Item.Center; opacity: 0.05
-            gradient: Gradient { orientation: Gradient.Vertical
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.5; color: root.accentB }
-                GradientStop { position: 1.0; color: "transparent" } }
-            SequentialAnimation on x {
-                loops: Animation.Infinite
-                running: root.visible && Kirigami.Units.longDuration > 1
-                NumberAnimation { to: -root.width * 0.38; duration: 54000; easing.type: Easing.InOutSine }
-                NumberAnimation { to: -root.width * 0.30; duration: 54000; easing.type: Easing.InOutSine }
-            }
-        }
+    }
+    NumberAnimation {
+        id: portalReveal
+        target: portal
+        property: "reveal"
+        from: 0
+        to: 1
+        duration: 480
+        easing.type: Easing.OutCubic
     }
 
     // The scene ABSORBS clicks; it does not cancel on one. This MouseArea used
@@ -310,27 +288,64 @@ Item {
     // shield its own background from it — declared `acceptedButtons:
     // Qt.NoButton`, which makes a MouseArea decline every button and let the
     // press fall straight through to this one. So a click on the giant clock, on
-    // the heading, or in the gaps between the orbs silently cancelled a pending
+    // the heading, or in the gaps between the keys silently cancelled a pending
     // shutdown. Dismissing the doorway is now exactly two gestures, both
-    // deliberate: the Cancel orb and Escape.
+    // deliberate: the Cancel key and Escape.
     MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
 
     // ── The command sheet: a live-clock header over a column of action rows ──
     Item {
         id: sheet
         anchors.centerIn: parent
-        width: Math.min(root.width - Kirigami.Units.gridUnit * 3, Kirigami.Units.gridUnit * 64)
+        // 50 grid units comfortably hold five 7-unit action cells while
+        // avoiding the full-window "settings sheet" silhouette at HiDPI.
+        width: Math.min(root.width - Kirigami.Units.gridUnit * 3, Kirigami.Units.gridUnit * 50)
         height: Math.min(root.height - Kirigami.Units.gridUnit * 3, column.implicitHeight)
 
-        opacity: 0
+        opacity: root.motionEnabled ? 0 : 1
         transform: Translate { id: sheetRise; y: Kirigami.Units.gridUnit * 2 }
-        Component.onCompleted: sheetEnter.start()
+        Component.onCompleted: {
+            if (root.motionEnabled) {
+                sheetEnter.start();
+            } else {
+                sheetRise.y = 0;
+            }
+        }
         ParallelAnimation {
             id: sheetEnter
             NumberAnimation { target: sheet; property: "opacity"; from: 0; to: 1
-                duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+                duration: 420; easing.type: Easing.OutCubic }
             NumberAnimation { target: sheetRise; property: "y"; from: Kirigami.Units.gridUnit * 2; to: 0
-                duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+                duration: 420; easing.type: Easing.OutCubic }
+        }
+
+        // The command island is deliberately compact: a still translucent plate
+        // inside the large portal, with one Tidal Cut on its upper rim.
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: -Kirigami.Units.gridUnit * 1.3
+            radius: Math.min(Kirigami.Units.gridUnit * 1.6, height * 0.075)
+            color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                           Kirigami.Theme.backgroundColor.g,
+                           Kirigami.Theme.backgroundColor.b, 0.42)
+            border.width: 1
+            border.color: Qt.rgba(Kirigami.Theme.textColor.r,
+                                  Kirigami.Theme.textColor.g,
+                                  Kirigami.Theme.textColor.b, 0.16)
+
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top
+                anchors.topMargin: -height / 2
+                width: Kirigami.Units.gridUnit * 4.2
+                height: 3
+                radius: height / 2
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0; color: root.accent }
+                    GradientStop { position: 1; color: root.accentB }
+                }
+            }
         }
 
         ColumnLayout {
@@ -341,8 +356,8 @@ Item {
             // ── Header: emblem, live clock, context — centred over the dock ──
             Item {
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 4.4
-                Layout.preferredHeight: Kirigami.Units.gridUnit * 4.4
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 5.2
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 5.2
                 // The emblem's halo, drawn from the live accent. It used to be a
                 // shipped raster, images/glow-cyan.png — a fixed #22D3EE cyan
                 // that the family generator can never retint, because it
@@ -351,7 +366,7 @@ Item {
                 // halo measured hue ~270 against an accent of hue ~330. Built
                 // from Kirigami.Theme.highlightColor it tracks every palette,
                 // and the PNG no longer ships. Same RadialGradient idiom as the
-                // orb bloom in MoOSUI2ActionButton, explicit radii for a clean
+                // portal-key bloom in MoOSUI2ActionButton, explicit radii for a clean
                 // circle.
                 RadialGradient {
                     anchors.centerIn: parent
@@ -368,13 +383,6 @@ Item {
                     anchors.fill: parent
                     source: "../splash/images/moos-logo.png"
                     fillMode: Image.PreserveAspectFit; smooth: true; asynchronous: true
-                    // Infinite → gated on longDuration > 1, see the aurora note.
-                    SequentialAnimation on scale {
-                        loops: Animation.Infinite
-                        running: root.visible && Kirigami.Units.longDuration > 1
-                        NumberAnimation { to: 1.03; duration: 3200; easing.type: Easing.InOutSine }
-                        NumberAnimation { to: 1.0; duration: 3200; easing.type: Easing.InOutSine }
-                    }
                 }
             }
             // ── Editorial clock — the ONE MoOS clock face, unified with the lock's
@@ -388,20 +396,20 @@ Item {
                 QQC2.Label {
                     text: root.nowTime.split(":")[0]
                     color: Kirigami.Theme.textColor
-                    font.family: "Inter"; font.weight: Font.Thin
+                    font.family: "IBM Plex Sans Arabic"; font.weight: Font.ExtraLight
                     font.pointSize: Kirigami.Theme.defaultFont.pointSize + 34
                     font.letterSpacing: -2
                 }
                 QQC2.Label {
                     text: ":"
                     color: root.accent
-                    font.family: "Inter"; font.weight: Font.Thin
+                    font.family: "IBM Plex Sans Arabic"; font.weight: Font.ExtraLight
                     font.pointSize: Kirigami.Theme.defaultFont.pointSize + 34
                 }
                 QQC2.Label {
                     text: root.nowTime.split(":")[1]
                     color: Kirigami.Theme.textColor
-                    font.family: "Inter"; font.weight: Font.Thin
+                    font.family: "IBM Plex Sans Arabic"; font.weight: Font.ExtraLight
                     font.pointSize: Kirigami.Theme.defaultFont.pointSize + 34
                     font.letterSpacing: -2
                 }
@@ -445,7 +453,7 @@ Item {
                 text: currentUser.fullName
                 visible: text.length > 0
                 color: Kirigami.Theme.textColor
-                font.family: "Inter"; font.weight: Font.DemiBold
+                font.family: "IBM Plex Sans Arabic"; font.weight: Font.DemiBold
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
 
@@ -479,7 +487,7 @@ Item {
                 }
                 QQC2.Label {
                     text: root.remainingTime
-                    color: root.accent; font.family: "Inter"; font.weight: Font.Bold
+                    color: root.accent; font.family: "IBM Plex Sans Arabic"; font.weight: Font.Bold
                     font.pointSize: Kirigami.Theme.smallFont.pointSize
                 }
             }

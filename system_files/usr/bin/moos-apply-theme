@@ -31,7 +31,7 @@ set -uo pipefail
 #     (a security signal that must surface when Active) and the video bridge
 #     gained its Arabic Id. The rev bump re-runs the tray collapse so existing
 #     sessions get the corrected list, and restarts the shell over the new art.
-THEME_REV=24
+THEME_REV=25
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -1091,10 +1091,10 @@ if [[ -f "$applets_rc" ]] && command -v kwriteconfig6 >/dev/null 2>&1; then
         [[ "$containment_id" =~ ^[0-9]+$ && "$applet_id" =~ ^[0-9]+$ ]] || continue
         kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
             --group Containments --group "$containment_id" --group Applets \
-            --group "$applet_id" --group Configuration --key popupWidth 720
+            --group "$applet_id" --group Configuration --key popupWidth 828
         kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
             --group Containments --group "$containment_id" --group Applets \
-            --group "$applet_id" --group Configuration --key popupHeight 590
+            --group "$applet_id" --group Configuration --key popupHeight 630
     done < <(
         awk '
             match($0, /^\[Containments\]\[([0-9]+)\]\[Applets\]\[([0-9]+)\]$/, m) {

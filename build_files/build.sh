@@ -1660,14 +1660,14 @@ if [ "$_launcher_smoke_rc" -ne 124 ]; then
     cat "$_launcher_smoke_log"
     exit 1
 fi
-if ! grep -Fq 'MOOS_LAUNCHER_FULL_READY size=720x590' "$_launcher_smoke_log"; then
-    echo "FATAL: org.moos.brand stayed alive but LauncherView was not constructed at 720x590"
+if ! grep -Fq 'MOOS_LAUNCHER_FULL_READY size=828x630' "$_launcher_smoke_log"; then
+    echo "FATAL: org.moos.brand stayed alive but LauncherView was not constructed at 828x630"
     cat "$_launcher_smoke_log"
     exit 1
 fi
 _launcher_smoke_config="${_launcher_smoke_home}/.config/plasmawindowedrc"
-if ! grep -qE '^geometry=[^,]+,[^,]+,720,590$' "$_launcher_smoke_config"; then
-    echo "FATAL: plasmawindowed did not host the full 720x590 MoOS launcher"
+if ! grep -qE '^geometry=[^,]+,[^,]+,828,630$' "$_launcher_smoke_config"; then
+    echo "FATAL: plasmawindowed did not host the full 828x630 MoOS launcher"
     cat "$_launcher_smoke_config" 2>/dev/null || true
     cat "$_launcher_smoke_log"
     exit 1

@@ -4,7 +4,7 @@
 
     MoOS UI2 lock clock — editorial. A drop-in for org.kde.breeze components'
     Clock (same Item + `shadow` alias contract). Deliberately NOT a widget: a
-    single oversized, ultra-thin Inter time set in generous space, a hairline
+    single oversized, ultra-light IBM Plex Sans Arabic time set in generous space, a hairline
     accent, and one quiet date. No capsule, no chrome. Premium by restraint,
     and fully theme-driven so it reads on any palette or wallpaper.
 */
@@ -101,9 +101,9 @@ Item {
                 id: hours
                 text: Qt.formatTime(timeSource.now, "HH")
                 color: Kirigami.Theme.textColor
-                font.family: "Inter"
+                font.family: "IBM Plex Sans Arabic"
                 font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 11)
-                font.weight: Font.Thin
+                font.weight: Font.ExtraLight
                 font.letterSpacing: -2
                 renderType: Text.CurveRendering
             }
@@ -111,9 +111,9 @@ Item {
                 id: colon
                 text: ":"
                 color: Kirigami.Theme.highlightColor
-                font.family: "Inter"
+                font.family: "IBM Plex Sans Arabic"
                 font.pointSize: hours.font.pointSize
-                font.weight: Font.Thin
+                font.weight: Font.ExtraLight
                 renderType: Text.CurveRendering
                 opacity: 0.9
 
@@ -152,9 +152,9 @@ Item {
                 id: minutes
                 text: Qt.formatTime(timeSource.now, "mm")
                 color: Kirigami.Theme.textColor
-                font.family: "Inter"
+                font.family: "IBM Plex Sans Arabic"
                 font.pointSize: hours.font.pointSize
-                font.weight: Font.Thin
+                font.weight: Font.ExtraLight
                 font.letterSpacing: -2
                 renderType: Text.CurveRendering
             }

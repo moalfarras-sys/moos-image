@@ -12,7 +12,7 @@
     It was the last stock-Breeze surface on an otherwise fully-MoOS lock screen —
     the deferred "auth card" item. This fork dresses the password field, the
     unlock button and the notice line in MoOS UI2 (glass field with a
-    brand-accent focus ring; a round accent unlock button; a glass notice pill in
+    brand-accent focus ring; a Tidal Portal unlock key; a glass notice pill in
     place of the base's plain italic label) and NOTHING else.
 
     AUTH SAFETY CONTRACT — read before editing:
@@ -32,7 +32,6 @@
 import QtQuick
 
 import QtQuick.Layouts
-import QtQuick.Controls as QQC2
 
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.plasma.extras as PlasmaExtras
@@ -308,7 +307,7 @@ SessionManagementScreen {
             id: loginButton
             Accessible.name: i18ndc("plasma_shell_org.kde.plasma.desktop", "@action:button accessible only", "Unlock")
             Layout.preferredHeight: passwordBox.implicitHeight
-            Layout.preferredWidth: loginButton.Layout.preferredHeight
+            Layout.preferredWidth: loginButton.Layout.preferredHeight * 1.28
 
             icon.name: LayoutMirroring.enabled ? "go-previous" : "go-next"
 
@@ -324,7 +323,7 @@ SessionManagementScreen {
             }
 
             // ── MoOS UI2 visual only (see AUTH SAFETY CONTRACT) ──────────────
-            // A round accent button.  Its fill stays on accentA — the colour
+            // A compact Tidal Portal key. Its fill stays on accentA — the colour
             // scheme's Selection background — because highlightedTextColor is
             // WCAG-gated against that exact role in every MoOS palette.  The old
             // accentA→accentB gradient crossed through colours the scheme does
@@ -333,7 +332,7 @@ SessionManagementScreen {
             // accentB remains in the decorative focus rim, where it cannot
             // compromise glyph contrast.
             background: Rectangle {
-                radius: height / 2
+                radius: height * 0.30
                 color: sessionManager.accentA
                 border.width: loginButton.activeFocus ? 2 : 1
                 border.color: Qt.rgba(sessionManager.accentB.r,
@@ -341,6 +340,29 @@ SessionManagementScreen {
                                       sessionManager.accentB.b,
                                       loginButton.activeFocus ? 0.90 : 0.48)
                 Behavior on border.color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
+
+                // Crest cut + quiet lower horizon: the same two marks used by
+                // Login, Logout and every session action key.
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: -height / 2
+                    width: parent.width * 0.30
+                    height: loginButton.activeFocus ? 3 : 2
+                    radius: height / 2
+                    color: Kirigami.Theme.highlightedTextColor
+                    opacity: loginButton.activeFocus ? 0.96 : 0.72
+                }
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: Math.max(4, parent.height * 0.10)
+                    width: parent.width * 0.42
+                    height: 1
+                    radius: height / 2
+                    color: Kirigami.Theme.highlightedTextColor
+                    opacity: loginButton.activeFocus ? 0.52 : 0.28
+                }
             }
             contentItem: Kirigami.Icon {
                 source: loginButton.icon.name

@@ -1,4 +1,4 @@
-# MoOS Quiet Horizon
+# MoOS Graphite Horizon
 
 Original MoOS wallpaper generated from the project-bound raster master under
 `artwork/moos-ui2/wallpapers/`. Runtime crops are exported deterministically

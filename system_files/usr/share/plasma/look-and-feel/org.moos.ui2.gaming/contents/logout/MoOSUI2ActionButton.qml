@@ -2,22 +2,20 @@
     SPDX-FileCopyrightText: 2026 Moalfarras
     SPDX-License-Identifier: GPL-2.0-or-later
 
-    MoOS UI2 — power ORB. A ground-up redesign of the power action: the full-width
-    command rows are gone. Each action is a circular glyph ORB with a label
-    beneath — a compact dock of round buttons, not a stack of bars. The public API
+    MoOS UI2 — Tidal Portal key. Each action is a compact rounded threshold with
+    a horizon cut and a label beneath. The public API
     is unchanged (iconName, text, description, emphasized, destructive, armed,
     clicked, navigate) so the logout logic drives it exactly as before; only the
     shape is new. Two-tone accent (accentA fill + accentB rim, both derived from
-    the live theme) so every palette lights the orb in its own two colours while
+    the live theme) so every palette lights the key in its own two colours while
     the glyph remains on one contrast-gated fill. Hover blooms and grows, focus
-    rings, press dims, an armed state pulses
+    rings and press acknowledgement. Armed state is a still high-contrast fill
     for the confirm tap on sensitive actions. `subtle` is the one later addition:
     a second, quieter weight for Cancel, which is not a peer of Shut Down.
 */
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
-import Qt5Compat.GraphicalEffects
 
 import org.kde.kirigami as Kirigami
 
@@ -29,12 +27,13 @@ QQC2.AbstractButton {
     property bool emphasized: false
     property bool destructive: false
     property bool armed: false   // a sensitive action awaiting its confirm tap
-    // The way OUT is not an action. `subtle` renders the same orb one step down
+    // The way OUT is not an action. `subtle` renders the same key one step down
     // the hierarchy — a smaller disc, a lighter caption — so the dock reads
     // first and Cancel second. Only Cancel sets it.
     property bool subtle: false
 
     readonly property bool lit: hovered || visualFocus || down
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     // accentA is the live theme highlight (or the negative colour for destructive
     // actions); accentB is a second hue derived from it for the decorative rim.
     // It must never sit underneath the glyph: unlike accentA, it has no paired
@@ -66,12 +65,18 @@ QQC2.AbstractButton {
     focusPolicy: Qt.StrongFocus
     hoverEnabled: true
 
-    readonly property real orb: Kirigami.Units.gridUnit * (control.subtle ? 3.2 : 4.6)
+    readonly property real keyHeight: Kirigami.Units.gridUnit * (control.subtle ? 3.6 : 4.8)
+    readonly property real keyWidth: Kirigami.Units.gridUnit * (control.subtle ? 4.8 : 5.8)
     implicitWidth: Kirigami.Units.gridUnit * 7
-    implicitHeight: orb + Kirigami.Units.gridUnit * 2.7
+    implicitHeight: keyHeight + Kirigami.Units.gridUnit * 2.7
     padding: 0
-    scale: down ? 0.96 : (lit ? 1.03 : 1.0)
-    Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+    scale: down ? 0.97 : (lit ? 1.025 : 1.0)
+    Behavior on scale {
+        NumberAnimation {
+            duration: control.motionEnabled ? Kirigami.Units.shortDuration : 0
+            easing.type: Easing.OutCubic
+        }
+    }
 
     Keys.onUpPressed: navigate(-1)
     Keys.onDownPressed: navigate(1)
@@ -83,44 +88,29 @@ QQC2.AbstractButton {
     contentItem: ColumnLayout {
         spacing: Kirigami.Units.smallSpacing
 
-        // ── The orb ──────────────────────────────────────────────────────────
+        // ── The portal key ───────────────────────────────────────────────────
         Item {
             Layout.alignment: Qt.AlignHCenter
-            implicitWidth: control.orb
-            implicitHeight: control.orb
+            implicitWidth: control.keyWidth
+            implicitHeight: control.keyHeight
 
-            // Ambient bloom on hover / focus / armed — a soft accent pool behind
-            // the disc (RadialGradient with explicit radii → a clean circle).
-            RadialGradient {
+            // A still depth plate replaces the old pulsing orb. Armed state is
+            // unmistakable through fill, text and border; it never needs a loop.
+            Rectangle {
                 anchors.centerIn: parent
-                width: parent.width * 1.75
-                height: width
+                width: parent.width * 1.12
+                height: parent.height * 1.24
+                radius: Math.min(width, height) * 0.28
                 visible: control.lit || control.armed
-                horizontalRadius: width * 0.5
-                verticalRadius: height * 0.5
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.rgba(control.accentA.r, control.accentA.g, control.accentA.b, control.armed ? 0.5 : 0.32) }
-                    GradientStop { position: 0.55; color: "transparent" }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-                // The confirm pulse loops FOREVER while the orb is armed, so its
-                // gate is `longDuration > 1`, not `> 0`: Kirigami floors
-                // longDuration at 1 when animations are off, which makes `> 0`
-                // always true and the gate dead. Armed still reads without it —
-                // the bloom is already brighter (0.5 vs 0.32) and the disc fills.
-                SequentialAnimation on opacity {
-                    running: control.armed && Kirigami.Units.longDuration > 1
-                    loops: Animation.Infinite
-                    NumberAnimation { to: 0.55; duration: 700; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 1.0; duration: 700; easing.type: Easing.InOutSine }
-                }
+                color: control.accentA
+                opacity: control.armed ? 0.12 : 0.055
             }
 
-            // The disc.
+            // One contrast-paired key surface.
             Rectangle {
                 id: disc
                 anchors.fill: parent
-                radius: width / 2
+                radius: Math.min(width, height) * 0.28
                 color: control.filled
                     ? control.accentA
                     : Qt.rgba(control.ink.r, control.ink.g, control.ink.b, control.lit ? 0.16 : 0.08)
@@ -130,18 +120,39 @@ QQC2.AbstractButton {
                     : (control.lit ? Qt.rgba(control.accentA.r, control.accentA.g, control.accentA.b, 0.8)
                                    : Qt.rgba(control.ink.r, control.ink.g, control.ink.b, 0.16))
 
+                // The same crest cut that seals the full-screen horizon.
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: -height / 2
+                    width: parent.width * 0.30
+                    height: control.visualFocus ? 3 : 2
+                    radius: height / 2
+                    color: control.filled ? control.filledInk : control.accentB
+                    opacity: control.lit || control.filled ? 0.95 : 0.62
+                }
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: Math.max(5, parent.height * 0.10)
+                    width: parent.width * 0.42
+                    height: 1
+                    radius: height / 2
+                    color: control.filled ? control.filledInk : control.accentA
+                    opacity: control.lit || control.filled ? 0.55 : 0.22
+                }
+
                 Kirigami.Icon {
                     id: actionIcon
                     anchors.centerIn: parent
                     // Size the glyph FROM the disc it sits in. This was
                     // iconSizes.medium — one fixed step that does not know the
-                    // orb exists, so the mark rattled around inside the disc
-                    // (0.39 of it) and looked lost on the 4K session. 0.46 is
-                    // the ratio the orb was drawn for. Not snapped to a standard
+                    // key exists, so the mark cannot rattle around inside the
+                    // surface. Not snapped to a standard
                     // icon step on purpose: the sources are -symbolic SVGs, so
                     // Kirigami renders them crisp at any size, and snapping down
                     // (roundedIconSize(38) is 32) would just restore the bug.
-                    width: Math.round(control.orb * 0.46)
+                    width: Math.round(control.keyHeight * 0.42)
                     height: width
                     isMask: true
                     color: control.filled
@@ -163,9 +174,8 @@ QQC2.AbstractButton {
             color: (control.lit || control.emphasized || control.armed)
                 ? Kirigami.Theme.textColor
                 : Qt.rgba(control.ink.r, control.ink.g, control.ink.b, 0.85)
-            // Arabic captions use IBM Plex Sans Arabic (as on the lock screen),
-            // Latin uses Inter — one bilingual type system across every surface.
-            font.family: Qt.application.layoutDirection === Qt.RightToLeft ? "IBM Plex Sans Arabic" : "Inter"
+            // Plex carries both scripts so focus never swaps typefaces.
+            font.family: "IBM Plex Sans Arabic"
             font.weight: control.subtle ? Font.Normal : Font.DemiBold
             font.pointSize: Kirigami.Theme.defaultFont.pointSize
         }

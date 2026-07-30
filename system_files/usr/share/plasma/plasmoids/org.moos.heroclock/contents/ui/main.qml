@@ -1,20 +1,16 @@
 // MoOS Hero Clock — the glass desktop clock.
 //
 // The owner asked for a first-party desktop widget that carries the brand:
-// a large, light-weight time on a translucent glass card, the bilingual
-// Arabic/English date, and the living MoOS mark with its comet-ring orbit in
-// the corner — the same orbit the login, lock and logout scenes carry, so
-// the desktop reads as one system.
+// a large, light-weight time on a translucent glass card, one active-locale
+// date, and the protected MoOS mark seated in Tidal Cut geometry.
 //
 // Rules inherited from org.moos.nova.clock and org.moos.brand (read their
 // headers before editing):
 // - Kirigami.Theme for colours, never PlasmaCore.Theme (does not exist).
 // - The compact representation MUST set Layout.minimumWidth/preferredWidth or
 //   the panel lays the next applet inside this one's pixels.
-// - Motion is Animators/NumberAnimations only — no ShaderEffect, no
-//   MultiEffect, no Lottie, no pkexec/sudo. This runs in plasmashell, forever.
-// - The glow/ring/spark sprites are pre-baked by artwork/generate_login_scene.py
-//   and MUST ship beside this file (the sprite gate checks).
+// - Motion is finite and meaningful: the minute change only. No ShaderEffect,
+//   MultiEffect, Lottie or always-running loop in plasmashell.
 // - Run the QML linter over this file before shipping a change.
 pragma ComponentBehavior: Bound
 
@@ -34,31 +30,36 @@ PlasmoidItem {
     preferredRepresentation: fullRepresentation
 
     property date now: new Date()
-    // The colon breathes at half-second phase; the seconds strip is live, so
-    // the widget ticks at 1 Hz (the lock clock already does the same).
-    property bool tick: true
+    readonly property var displayLocale: rtl ? Qt.locale("ar") : Qt.locale()
+    readonly property int motionMedium: Kirigami.Units.longDuration > 1
+        ? Math.round(Kirigami.Units.longDuration * 1.35) : 0
 
-    // Each theme animates in its own tempo. The energy is read straight off the
-    // active accent's vividness (saturation × value), so a hot magenta Arena
-    // pulses quick and bright while a muted Scholar sage breathes slow and
-    // gentle — the SAME widget, a different heartbeat per look. Nothing is
-    // hard-coded to a theme id; switch the Global Theme and the motion follows
-    // the colour. 0 = calm, 1 = energetic.
-    readonly property real accentEnergy: Math.max(0.0, Math.min(1.0,
-        Kirigami.Theme.highlightColor.hsvSaturation * Kirigami.Theme.highlightColor.hsvValue))
+    function local(arabic, english) {
+        return root.rtl ? arabic : english;
+    }
+
+    // MoOS keeps clock and calendar numerals Latin in every locale while the
+    // surrounding Arabic copy and reading order remain genuinely RTL.
+    function latinNumerals(value) {
+        return String(value)
+            .replace(/[٠۰]/g, "0").replace(/[١۱]/g, "1")
+            .replace(/[٢۲]/g, "2").replace(/[٣۳]/g, "3")
+            .replace(/[٤۴]/g, "4").replace(/[٥۵]/g, "5")
+            .replace(/[٦۶]/g, "6").replace(/[٧۷]/g, "7")
+            .replace(/[٨۸]/g, "8").replace(/[٩۹]/g, "9");
+    }
 
     toolTipMainText: Qt.formatTime(now, Locale.LongFormat)
-    toolTipSubText: Qt.formatDate(now, Locale.LongFormat)
+    toolTipSubText: latinNumerals(Qt.formatDate(now, Locale.LongFormat))
 
     Timer {
-        interval: 1000
+        interval: 60000 - (root.now.getSeconds() * 1000 + root.now.getMilliseconds())
         repeat: true
         running: true
-        triggeredOnStart: true
         onTriggered: {
             const d = new Date();
-            root.tick = d.getSeconds() % 2 === 0;
             root.now = d;
+            interval = 60000 - (d.getSeconds() * 1000 + d.getMilliseconds());
         }
     }
 
@@ -106,137 +107,108 @@ PlasmoidItem {
         // glass. Verified live at square and wide aspect.
         readonly property int timePx: Math.round(Math.min(height * 0.34, width * 0.165))
 
-        // Per-theme heartbeat, all derived from root.accentEnergy (0 calm → 1
-        // energetic): a livelier theme breathes faster, glows brighter, and spins
-        // its comet quicker. Bounds keep even the most vivid theme tasteful on a
-        // surface that stays up for hours.
-        readonly property int breathMs: Math.round(4200 - root.accentEnergy * 1800)   // 4200→2400
-        readonly property int ringMs:   Math.round(26000 - root.accentEnergy * 11000) // 26s→15s
-
-        // "Animations off" has to reach these three, and `visible` alone does not.
-        //
-        // The breathing glow, the breathing emblem and the spinning ring all loop
-        // Animation.Infinite. Gated only on visibility they run for the entire
-        // uptime of the session — and the RotationAnimator is worse than the other
-        // two, because Animator types run on the RENDER thread: it keeps asking the
-        // compositor for frames while plasmashell's main thread sits idle, so the
-        // cost appears as a saturated rasterizer that profiling the main loop never
-        // explains.
-        //
-        // This is the same shape as the Mo Store rail dot that burned a core to
-        // blink (aee2724). It matters most on MoOS Cloud, which sets
-        // AnimationDurationFactor=0 precisely so ambient motion stops — a server
-        // renders every pixel on the CPU, and nobody is looking at the emblem.
-        //
-        // Kirigami.Units.longDuration is what the factor actually moves, and it is
-        // the same gate org.moos.ui2.wallpaper's DashboardBento already uses.
-        // `> 1`, not `> 0`: Kirigami FLOORS longDuration at 1 when the animation
-        // factor is 0, so `> 0` is true even with animations fully disabled — the
-        // gate never fired and the breathing glow, breathing emblem and spinning
-        // comet ring ran regardless. KDE's own BusyIndicator.qml uses `> 1`.
-        readonly property bool motionEnabled: hero.visible && Kirigami.Units.longDuration > 1
-        readonly property real glowPeak: 0.48 + root.accentEnergy * 0.34              // 0.48→0.82
-        readonly property real breathTo: 1.03 + root.accentEnergy * 0.03             // 1.03→1.06
-
-        // Glass: translucent fill via colour alpha (never item opacity — that
-        // would dim the time and the emblem with it), hairline border, one
-        // top highlight. The same glass language as the logout panel.
+        // The first generation ran five perpetual animations and a one-second
+        // timer on an always-visible desktop surface. Tidal Horizon treats calm
+        // as a premium feature: the card wakes once per minute and animates only
+        // that meaningful change.
         Rectangle {
             id: card
             anchors.fill: parent
-            radius: Kirigami.Units.gridUnit * 0.75
-            color: Qt.alpha(Kirigami.Theme.backgroundColor, 0.58)
+            radius: Kirigami.Units.gridUnit * 1.05
+            color: Qt.alpha(Kirigami.Theme.backgroundColor, 0.72)
             border.width: 1
-            border.color: Qt.alpha(Kirigami.Theme.textColor, 0.14)
-        }
-        Rectangle {
-            anchors {
-                top: card.top
-                horizontalCenter: card.horizontalCenter
-                topMargin: 1
-            }
-            width: card.width - Kirigami.Units.gridUnit * 1.5
-            height: 1
-            radius: 1
-            color: Kirigami.Theme.textColor
-            opacity: 0.12
+            border.color: Qt.alpha(Kirigami.Theme.textColor, 0.16)
         }
 
-        // The living mark, lower right corner (mirrors for RTL via layout),
-        // breathing behind its counter-rotating comet ring.
+        Rectangle {
+            anchors {
+                left: card.left
+                right: card.right
+                top: card.top
+            }
+            height: Math.round(card.height * 0.44)
+            radius: card.radius
+            gradient: Gradient {
+                GradientStop {
+                    position: 0
+                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.18)
+                }
+                GradientStop {
+                    position: 1
+                    color: "transparent"
+                }
+            }
+        }
+
+        Row {
+            anchors {
+                left: card.left
+                top: card.top
+                leftMargin: card.radius
+                topMargin: 1
+            }
+            height: 2
+            spacing: Kirigami.Units.smallSpacing
+
+            Rectangle {
+                width: Math.round(hero.width * 0.26)
+                height: 2
+                radius: 1
+                color: Kirigami.Theme.highlightColor
+                opacity: 0.92
+            }
+            Rectangle {
+                width: Kirigami.Units.smallSpacing
+                height: 2
+                radius: 1
+                color: Kirigami.Theme.highlightColor
+                opacity: 0.34
+            }
+        }
+
+        // The protected MoOS mark sits inside a palette-native Tidal Cut plate.
+        // Its geometry is untouched; only its seating changed.
         Item {
             id: brandCorner
-            width: Math.round(Math.min(hero.width, hero.height) * 0.36)
+            width: Math.round(Math.min(hero.width, hero.height) * 0.32)
             height: width
             anchors {
                 right: parent.right
-                bottom: parent.bottom
+                verticalCenter: parent.verticalCenter
                 rightMargin: Kirigami.Units.largeSpacing * 2
-                bottomMargin: Kirigami.Units.largeSpacing * 2
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                radius: Math.round(width * 0.30)
+                color: Qt.alpha(Kirigami.Theme.highlightColor, 0.10)
+                border.width: 1
+                border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.44)
             }
 
             Image {
-                anchors.centerIn: cornerEmblem
-                width: cornerEmblem.width * 2.0
-                height: width
-                source: "../images/glow-cyan.png"
-                opacity: 0.4
-                SequentialAnimation on opacity {
-                    loops: Animation.Infinite
-                    running: hero.motionEnabled
-                    NumberAnimation { to: hero.glowPeak; duration: hero.breathMs; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 0.4; duration: hero.breathMs; easing.type: Easing.InOutSine }
-                }
-            }
-            Image {
                 id: cornerEmblem
-                anchors.fill: parent
+                anchors.centerIn: parent
+                width: Math.round(parent.width * 0.78)
+                height: width
                 source: "file:///usr/share/moos/moos-logo.png"
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 smooth: true
                 sourceSize: Qt.size(width * 2, height * 2)
-                SequentialAnimation on scale {
-                    loops: Animation.Infinite
-                    running: hero.motionEnabled
-                    NumberAnimation { to: hero.breathTo; duration: hero.breathMs; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 1.0; duration: hero.breathMs; easing.type: Easing.InOutSine }
-                }
             }
-            Image {
-                id: cornerRing
-                anchors.centerIn: cornerEmblem
-                width: cornerEmblem.width * 1.45
-                height: width
-                source: "../images/ring.png"
-                mirror: true
-                opacity: 0.6
-                sourceSize: Qt.size(width * 2, height * 2)
-                RotationAnimator on rotation {
-                    from: 360; to: 0
-                    duration: hero.ringMs
-                    loops: Animation.Infinite
-                    running: hero.motionEnabled
+
+            Rectangle {
+                anchors {
+                    right: parent.right
+                    bottom: parent.bottom
+                    rightMargin: Math.round(parent.width * 0.18)
                 }
-                // The comet HEAD, riding the ring's leading edge — the same
-                // orbiting spark the panel brand, lock and login carry, so the
-                // desktop's clock reads as one living mark with the rest.
-                Image {
-                    source: "../images/spark.png"
-                    width: cornerRing.width * 0.22
-                    height: width
-                    x: (cornerRing.width - width) / 2
-                    y: -height * 0.28
-                    smooth: true
-                    sourceSize: Qt.size(width * 2, height * 2)
-                    opacity: 0.85
-                    SequentialAnimation on scale {
-                        loops: Animation.Infinite
-                        running: hero.motionEnabled
-                        NumberAnimation { to: 1.25; duration: Math.round(hero.breathMs * 0.4); easing.type: Easing.InOutSine }
-                        NumberAnimation { to: 1.0; duration: Math.round(hero.breathMs * 0.4); easing.type: Easing.InOutSine }
-                    }
-                }
+                width: parent.width * 0.30
+                height: 2
+                radius: 1
+                color: Kirigami.Theme.highlightColor
+                opacity: 0.82
             }
         }
 
@@ -251,107 +223,104 @@ PlasmoidItem {
             spacing: Math.round(Kirigami.Units.smallSpacing * 1.2)
 
             RowLayout {
-                spacing: 0
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
 
-                Text {
-                    text: Qt.formatTime(root.now, "HH")
-                    color: Kirigami.Theme.textColor
-                    font.family: "IBM Plex Sans"
-                    font.pixelSize: hero.timePx
-                    font.weight: Font.Light
-                    renderType: Text.NativeRendering
+                Rectangle {
+                    Layout.preferredWidth: 7
+                    Layout.preferredHeight: 7
+                    radius: width / 2
+                    color: Kirigami.Theme.positiveTextColor
                 }
                 Text {
-                    id: heroColon
-                    text: ":"
-                    color: Kirigami.Theme.highlightColor
-                    font.family: "IBM Plex Sans"
-                    font.pixelSize: hero.timePx
-                    font.weight: Font.Light
-                    renderType: Text.NativeRendering
-                    opacity: root.tick ? 1.0 : 0.35
-                    Behavior on opacity {
-                        NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.InOutQuad }
-                    }
-                }
-                Text {
-                    text: Qt.formatTime(root.now, "mm")
-                    color: Kirigami.Theme.textColor
-                    font.family: "IBM Plex Sans"
-                    font.pixelSize: hero.timePx
-                    font.weight: Font.Light
-                    renderType: Text.NativeRendering
-                }
-                Text {
-                    text: Qt.formatTime(root.now, "ss")
-                    color: Kirigami.Theme.highlightColor
-                    leftPadding: Kirigami.Units.smallSpacing * 2
-                    font.family: "IBM Plex Sans"
-                    font.pixelSize: Math.round(hero.timePx * 0.40)
-                    font.weight: Font.Normal
-                    renderType: Text.NativeRendering
-                    Layout.alignment: Qt.AlignBottom
-                }
-            }
-
-            // The accent hairline with the gliding spark — the greeter's
-            // glint, carried onto the desktop.
-            Rectangle {
-                id: heroHairline
-                Layout.preferredWidth: Math.round(hero.width * 0.34)
-                Layout.preferredHeight: 2
-                radius: 1
-                color: Kirigami.Theme.highlightColor
-                opacity: 0.85
-
-                Image {
-                    id: heroSpark
-                    source: "../images/spark.png"
-                    width: 14
-                    height: 14
-                    y: Math.round((parent.height - height) / 2)
-                    opacity: 0
-                    SequentialAnimation {
-                        running: hero.motionEnabled
-                        loops: Animation.Infinite
-                        PauseAnimation { duration: 5200 }
-                        ParallelAnimation {
-                            NumberAnimation { target: heroSpark; property: "x"
-                                from: -heroSpark.width * 0.5
-                                to: heroHairline.width - heroSpark.width * 0.5
-                                duration: 1600; easing.type: Easing.InOutSine }
-                            SequentialAnimation {
-                                NumberAnimation { target: heroSpark; property: "opacity"
-                                    to: 0.9; duration: 380; easing.type: Easing.OutCubic }
-                                PauseAnimation { duration: 800 }
-                                NumberAnimation { target: heroSpark; property: "opacity"
-                                    to: 0; duration: 420; easing.type: Easing.InCubic }
-                            }
-                        }
-                    }
+                    Layout.fillWidth: true
+                    text: root.local("التوقيت المحلي", "LOCAL TIME")
+                    color: Kirigami.Theme.disabledTextColor
+                    font.family: root.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+                    font.pixelSize: Math.max(10, Math.round(hero.timePx * 0.20))
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: root.rtl ? 0 : 1.2
                 }
             }
 
             Text {
-                text: Qt.formatDate(root.now, Qt.locale("ar"), Qt.locale("ar").dateFormat(Locale.LongFormat))
+                id: minuteLabel
+                text: Qt.formatTime(root.now, "HH:mm")
+                color: Kirigami.Theme.textColor
+                font.family: "IBM Plex Sans"
+                font.pixelSize: hero.timePx
+                font.weight: Font.Light
+                font.features: ({ "tnum": 1 })
+                renderType: Text.NativeRendering
+                transform: Translate { id: minuteShift }
+
+                onTextChanged: minutePulse.restart()
+                ParallelAnimation {
+                    id: minutePulse
+                    NumberAnimation {
+                        target: minuteShift
+                        property: "y"
+                        from: -Math.round(Kirigami.Units.gridUnit * 0.32)
+                        to: 0
+                        duration: root.motionMedium
+                        easing.type: Easing.OutCubic
+                    }
+                    NumberAnimation {
+                        target: minuteLabel
+                        property: "opacity"
+                        from: 0.35
+                        to: 1
+                        duration: root.motionMedium
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
+
+            Row {
+                id: heroHairline
+                Layout.preferredWidth: Math.round(hero.width * 0.38)
+                Layout.preferredHeight: 2
+                spacing: Kirigami.Units.smallSpacing
+
+                Rectangle {
+                    width: Math.round(heroHairline.width * 0.72)
+                    height: 2
+                    radius: 1
+                    color: Kirigami.Theme.highlightColor
+                    opacity: 0.90
+                }
+                Rectangle {
+                    width: Math.round(heroHairline.width * 0.12)
+                    height: 2
+                    radius: 1
+                    color: Kirigami.Theme.highlightColor
+                    opacity: 0.34
+                }
+            }
+
+            Text {
+                text: root.latinNumerals(root.displayLocale.toString(root.now,
+                    root.rtl ? "dddd، d MMMM yyyy" : "dddd · d MMMM yyyy"))
                 color: Kirigami.Theme.textColor
                 opacity: 0.9
                 Layout.fillWidth: true
                 elide: Text.ElideRight
                 horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
-                font.family: "IBM Plex Sans Arabic"
+                font.family: root.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
                 font.pixelSize: Math.round(hero.timePx * 0.30)
                 renderType: Text.NativeRendering
             }
             Text {
-                text: Qt.formatDate(root.now, Qt.locale("en"), "dddd, d MMMM yyyy")
+                text: root.local("MoOS · أفقك اليومي", "MoOS · YOUR DAILY HORIZON")
                 color: Kirigami.Theme.textColor
                 opacity: 0.55
                 Layout.fillWidth: true
                 elide: Text.ElideRight
                 horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
-                font.family: "IBM Plex Sans"
+                font.family: root.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
                 font.pixelSize: Math.round(hero.timePx * 0.24)
+                font.weight: Font.DemiBold
+                font.letterSpacing: root.rtl ? 0 : 0.9
                 renderType: Text.NativeRendering
             }
         }

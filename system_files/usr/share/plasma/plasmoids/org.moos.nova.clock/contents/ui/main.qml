@@ -34,6 +34,8 @@ PlasmoidItem {
     property date now: new Date()
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
     readonly property var displayLocale: rtl ? Qt.locale("ar") : Qt.locale()
+    readonly property int motionFast: Kirigami.Units.longDuration > 1 ? 140 : 0
+    readonly property int motionMedium: Kirigami.Units.longDuration > 1 ? 240 : 0
 
     // Same helper as the lock clock (MoOSClock.qml): day and month names stay
     // the locale's own, only the DIGITS fold to Latin — one number system on
@@ -99,7 +101,7 @@ PlasmoidItem {
             anchors.fill: parent
             anchors.topMargin: Kirigami.Units.smallSpacing
             anchors.bottomMargin: Kirigami.Units.smallSpacing
-            radius: height / 2
+            radius: Math.round(height * 0.32)
 
             // The glass is an ALPHA on the colour, never `opacity`. Item opacity
             // multiplies onto children, so a 0.05 chip took the lit hairline
@@ -108,18 +110,45 @@ PlasmoidItem {
                                         : (root.expanded ? 0.10 : 0.05)
             color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                            Kirigami.Theme.textColor.b, glass)
-            Behavior on color { ColorAnimation { duration: 140 } }
+            border.width: 1
+            border.color: Qt.alpha(compact.containsMouse || root.expanded
+                ? Kirigami.Theme.highlightColor
+                : Kirigami.Theme.textColor,
+                compact.containsMouse || root.expanded ? 0.42 : 0.09)
+            Behavior on color { ColorAnimation { duration: root.motionFast } }
+            Behavior on border.color { ColorAnimation { duration: root.motionFast } }
 
-            // One hairline along the top edge, lit like the dock's own rim, so
-            // the chip is made of the same material as the panel under it.
-            Rectangle {
-                anchors { left: parent.left; right: parent.right; top: parent.top }
-                anchors.leftMargin: parent.radius * 0.6
-                anchors.rightMargin: parent.radius * 0.6
-                height: 1
-                color: Kirigami.Theme.highlightColor
-                opacity: compact.containsMouse ? 0.60 : 0.30
-                Behavior on opacity { NumberAnimation { duration: 140 } }
+            // Tidal Cut: the top horizon is deliberately broken into a signal
+            // and a marker, matching the Command Canvas and its dock island.
+            Row {
+                anchors {
+                    left: parent.left
+                    top: parent.top
+                    leftMargin: parent.radius
+                }
+                height: 2
+                spacing: 5
+
+                Rectangle {
+                    width: compact.containsMouse || root.expanded ? 38 : 24
+                    height: 2
+                    radius: 1
+                    color: Kirigami.Theme.highlightColor
+                    opacity: compact.containsMouse ? 0.78 : 0.42
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: root.motionMedium
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                }
+                Rectangle {
+                    width: 7
+                    height: 2
+                    radius: 1
+                    color: Kirigami.Theme.highlightColor
+                    opacity: 0.28
+                }
             }
         }
 
@@ -137,8 +166,13 @@ PlasmoidItem {
             radius: 1
             color: Kirigami.Theme.highlightColor
             opacity: compact.containsMouse ? 0.9 : 0
-            Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-            Behavior on opacity { NumberAnimation { duration: 150 } }
+            Behavior on width {
+                NumberAnimation {
+                    duration: root.motionMedium
+                    easing.type: Easing.OutCubic
+                }
+            }
+            Behavior on opacity { NumberAnimation { duration: root.motionFast } }
         }
 
         RowLayout {
@@ -174,12 +208,12 @@ PlasmoidItem {
                         NumberAnimation {
                             target: minuteShift; property: "y"
                             from: -Math.round(Kirigami.Units.gridUnit * 0.35); to: 0
-                            duration: 340; easing.type: Easing.OutCubic
+                            duration: root.motionMedium; easing.type: Easing.OutCubic
                         }
                         NumberAnimation {
                             target: timeLabel; property: "opacity"
                             from: 0.25; to: 1.0
-                            duration: 300; easing.type: Easing.OutCubic
+                            duration: root.motionMedium; easing.type: Easing.OutCubic
                         }
                     }
                 }
@@ -198,7 +232,7 @@ PlasmoidItem {
                     GradientStop { position: 1.0; color: Kirigami.Theme.textColor }
                 }
                 opacity: compact.containsMouse ? 0.75 : 0.45
-                Behavior on opacity { NumberAnimation { duration: 140 } }
+                Behavior on opacity { NumberAnimation { duration: root.motionFast } }
             }
 
             Text {

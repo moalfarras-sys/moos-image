@@ -337,8 +337,8 @@ class MoOSVisualSystemTests(unittest.TestCase):
     def test_generated_wallpaper_pair_is_project_bound(self) -> None:
         masters = ROOT / "artwork/moos-ui2/wallpapers"
         expected = {
-            "moos-ui-graphite-flow-master-v4.png",
-            "moos-ui-tidal-flow-master-v3.png",
+            "moos-ui-graphite-horizon-master-v1.png",
+            "moos-ui-tidal-horizon-master-v1.png",
         }
         self.assertTrue(expected <= {path.name for path in masters.glob("*.png")})
         generator = (ROOT / "artwork/generate_moos_ui2.py").read_text(

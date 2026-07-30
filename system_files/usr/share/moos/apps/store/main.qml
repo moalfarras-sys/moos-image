@@ -1654,17 +1654,25 @@ ApplicationWindow {
                             border.width: 1
                             border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.38)
                             clip: true
-                            Rectangle {
-                                width: 300
-                                height: 300
-                                radius: height / 2
+                            // Store is a MoOS destination, not a generic card
+                            // with a decorative circle. The shared horizon cut
+                            // gives this hero the same silhouette as the
+                            // desktop, Launcher, portals and Mo AI.
+                            MoOSUi.TidalHorizon {
+                                anchors.left: parent.left
                                 anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.rightMargin: -70
-                                color: win.accent
-                                opacity: 0.08
+                                anchors.bottom: parent.bottom
+                                height: Math.round(parent.height * 0.36)
+                                surfaceColor: win.surface
+                                primaryColor: win.accent
+                                secondaryColor: win.violet
+                                luminousColor: win.cyan
+                                strength: 0.86
+                                motionEnabled: win.motionEnabled
+                                animateIn: true
                             }
                             RowLayout {
+                                z: 1
                                 anchors.fill: parent
                                 anchors.margins: 28
                                 spacing: design.space5

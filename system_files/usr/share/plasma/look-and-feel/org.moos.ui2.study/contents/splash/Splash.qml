@@ -1,13 +1,9 @@
 /*
-    MoOS UI — Liquid Glass session splash
+    MoOS Tidal Horizon session splash.
 
-    The ksplashqml host increments `stage`; stage 2 reveals the branded frame
-    and stage 5 hands off to the desktop. Keep those triggers intact.
-
-    Motion budget: one finite reveal and one progress sweep. The logo, orbital
-    geometry and atmosphere are otherwise static, which keeps session startup
-    calm and leaves CPU/GPU time to KWin and plasmashell. Plasma animations-off
-    bypasses both motions and lands directly on the complete resting frame.
+    ksplashqml increments `stage`; stage 2 reveals the portal and stage 5 hands
+    off to the desktop. Motion is finite: one 460 ms entrance and short stage
+    interpolation. There are no decorative loops.
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */
@@ -23,13 +19,15 @@ Rectangle {
 
     readonly property color deepest: Kirigami.Theme.backgroundColor
     readonly property color surface: Kirigami.Theme.alternateBackgroundColor
-    readonly property color electric: Kirigami.Theme.highlightColor
-    readonly property color cyan: Kirigami.Theme.hoverColor
-    readonly property color violet: Kirigami.Theme.linkColor
-    readonly property color secondaryText: Kirigami.Theme.disabledTextColor
+    readonly property color accentA: Kirigami.Theme.highlightColor
+    readonly property color accentB: Kirigami.Theme.linkColor
+    readonly property color ink: Kirigami.Theme.textColor
+    readonly property color muted: Kirigami.Theme.disabledTextColor
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
-    readonly property int heroSize: Math.max(220, Math.min(320,
-        Math.round(Math.min(width, height) * 0.34)))
+    readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property real progress: Math.max(0.08, Math.min(1, stage / 5))
+    readonly property int logoSize: Math.max(92, Math.min(146,
+        Math.round(Math.min(width, height) * 0.14)))
 
     property int stage
 
@@ -37,10 +35,9 @@ Rectangle {
 
     function showStaticFrame() {
         revealAnimation.stop();
-        progressMotion.stop();
         content.opacity = 1;
-        hero.scale = 1;
-        progressSweep.x = (progressTrack.width - progressSweep.width) / 2;
+        contentShift.y = 0;
+        portal.reveal = 1;
     }
 
     onMotionEnabledChanged: {
@@ -51,181 +48,173 @@ Rectangle {
 
     onStageChanged: {
         if (stage === 2) {
-            progressTrack.opacity = 1;
+            content.opacity = root.motionEnabled ? 0 : 1;
+            portal.reveal = root.motionEnabled ? 0 : 1;
             if (root.motionEnabled) {
                 revealAnimation.restart();
             } else {
                 root.showStaticFrame();
             }
-        } else if (stage === 5) {
+        } else if (stage >= 5) {
             revealAnimation.stop();
-            progressMotion.stop();
-            progressTrack.opacity = 0;
         }
     }
 
-    // Static vertical wash: every family member receives its own scheme roles.
+    // A mineral depth field. It is static and theme-native.
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: root.deepest }
-            GradientStop { position: 0.58; color: Qt.tint(root.deepest,
-                Qt.rgba(root.electric.r, root.electric.g, root.electric.b, 0.035)) }
-            GradientStop { position: 1.0; color: root.surface }
+            GradientStop { position: 0; color: root.deepest }
+            GradientStop {
+                position: 0.58
+                color: Qt.tint(root.deepest,
+                    Qt.rgba(root.accentB.r, root.accentB.g, root.accentB.b, 0.04))
+            }
+            GradientStop { position: 1; color: root.surface }
         }
     }
 
-    // A quiet asymmetric light field gives depth without driving the render loop.
     Rectangle {
-        width: Math.min(root.width, root.height) * 0.92
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: parent.height * 0.18
+        width: Math.min(parent.width * 0.72, parent.height * 1.18)
         height: width
         radius: width / 2
-        anchors.centerIn: parent
-        anchors.horizontalCenterOffset: -width * 0.16
-        color: root.electric
+        color: root.accentA
         opacity: 0.018
-    }
-    Rectangle {
-        width: Math.min(root.width, root.height) * 0.64
-        height: width
-        radius: width / 2
-        anchors.centerIn: parent
-        anchors.horizontalCenterOffset: width * 0.34
-        anchors.verticalCenterOffset: -height * 0.18
-        color: root.violet
-        opacity: 0.014
     }
 
     Item {
         id: content
         anchors.fill: parent
         opacity: root.motionEnabled ? 0 : 1
+        transform: Translate {
+            id: contentShift
+            y: root.motionEnabled ? Kirigami.Units.gridUnit * 0.8 : 0
+        }
+
+        TidalHorizon {
+            id: portal
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: parent.height * 0.17
+            width: Math.min(parent.width * 0.82, parent.height * 1.28)
+            height: Math.min(parent.height * 0.68, width * 0.62)
+            accentA: root.accentA
+            accentB: root.accentB
+            ink: root.ink
+            surface: root.surface
+            compact: root.width < 900
+            reveal: root.motionEnabled ? 0 : 1
+            intensity: 0.92
+        }
 
         Item {
-            id: hero
-            width: root.heroSize
-            height: root.heroSize
-            anchors.centerIn: parent
-            anchors.verticalCenterOffset: -28
-            scale: root.motionEnabled ? 0.965 : 1
+            id: brandStage
+            width: root.logoSize
+            height: width
+            anchors.horizontalCenter: portal.horizontalCenter
+            y: portal.y + portal.crestY - height * 0.54
 
-            // Layered, theme-driven orbital geometry. Nothing here moves.
             Rectangle {
                 anchors.centerIn: parent
-                width: parent.width * 0.96
+                width: parent.width * 1.42
                 height: width
                 radius: width / 2
-                color: "transparent"
-                border.width: 1
-                border.color: Qt.rgba(root.electric.r, root.electric.g,
-                    root.electric.b, 0.16)
-                rotation: -10
+                color: root.accentA
+                opacity: 0.07
             }
             Rectangle {
                 anchors.centerIn: parent
-                width: parent.width * 0.78
+                width: parent.width * 1.15
                 height: width
                 radius: width / 2
-                color: Qt.rgba(root.electric.r, root.electric.g,
-                    root.electric.b, 0.025)
-                border.width: 1
-                border.color: Qt.rgba(root.violet.r, root.violet.g,
-                    root.violet.b, 0.24)
-                rotation: 14
+                color: root.accentB
+                opacity: 0.045
             }
-
             Image {
-                anchors.centerIn: parent
-                width: parent.width
-                height: parent.height
-                asynchronous: true
-                source: "images/ring.png"
-                sourceSize: Qt.size(width * 2, height * 2)
-                fillMode: Image.PreserveAspectFit
-                opacity: 0.34
-                smooth: true
-                mipmap: true
-            }
-
-            Rectangle {
-                anchors.centerIn: parent
-                width: parent.width * 0.61
-                height: width
-                radius: 24
-                color: Qt.rgba(root.surface.r, root.surface.g, root.surface.b, 0.32)
-                border.width: 1
-                border.color: Qt.rgba(root.electric.r, root.electric.g,
-                    root.electric.b, 0.20)
-            }
-
-            // Protected MoOS identity asset: seating and palette may change;
-            // the mark itself is never redrawn or transformed.
-            Image {
-                id: logo
-                anchors.centerIn: parent
-                width: parent.width * 0.66
-                height: width
-                asynchronous: true
+                anchors.fill: parent
                 source: "images/moos-logo.png"
                 sourceSize: Qt.size(512, 512)
                 fillMode: Image.PreserveAspectFit
+                asynchronous: false
                 smooth: true
                 mipmap: true
             }
         }
 
-        Text {
-            id: brandText
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: hero.bottom
-            anchors.topMargin: 16
-            text: "MoOS"
-            textFormat: Text.PlainText
-            color: Kirigami.Theme.textColor
-            font.family: Qt.application.font.family
-            font.pixelSize: 20
-            font.weight: Font.DemiBold
-            font.letterSpacing: 1.4
-            Accessible.name: text
-            Accessible.role: Accessible.StaticText
+        Column {
+            anchors.horizontalCenter: portal.horizontalCenter
+            y: brandStage.y + brandStage.height + Kirigami.Units.gridUnit * 1.25
+            spacing: Kirigami.Units.smallSpacing
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "MoOS"
+                textFormat: Text.PlainText
+                color: root.ink
+                font.family: "IBM Plex Sans Arabic"
+                font.pixelSize: Math.max(20, Math.round(root.logoSize * 0.19))
+                font.weight: Font.DemiBold
+                font.letterSpacing: 1.8
+                renderType: Text.QtRendering
+                Accessible.name: text
+                Accessible.role: Accessible.StaticText
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: root.rtl
+                    ? "نجهّز مساحتك"
+                    : "Preparing your space"
+                textFormat: Text.PlainText
+                color: root.ink
+                opacity: 0.72
+                font.family: "IBM Plex Sans Arabic"
+                font.pixelSize: Math.max(12, Math.round(root.logoSize * 0.105))
+                font.weight: Font.Normal
+                renderType: Text.QtRendering
+                Accessible.name: text
+                Accessible.role: Accessible.StaticText
+            }
         }
 
         Rectangle {
             id: progressTrack
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: brandText.bottom
-            anchors.topMargin: 20
-            width: 240
+            anchors.horizontalCenter: portal.horizontalCenter
+            y: portal.y + portal.horizonY - height / 2
+            width: Math.max(220, Math.min(360, portal.width * 0.29))
             height: 4
-            radius: 2
-            color: Qt.rgba(root.secondaryText.r, root.secondaryText.g,
-                root.secondaryText.b, 0.18)
+            radius: height / 2
+            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.15)
             clip: true
+            opacity: root.stage >= 5 ? 0 : 1
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: root.motionEnabled ? Kirigami.Units.shortDuration : 0
+                    easing.type: Easing.OutCubic
+                }
+            }
 
             Rectangle {
-                id: progressSweep
-                width: 84
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width * root.progress
                 height: parent.height
-                radius: parent.radius
-                x: (progressTrack.width - width) / 2
+                radius: height / 2
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
-                    GradientStop {
-                        position: 0.0
-                        color: Qt.rgba(root.cyan.r, root.cyan.g, root.cyan.b, 0)
-                    }
-                    GradientStop { position: 0.42; color: root.electric }
-                    GradientStop { position: 0.66; color: root.violet }
-                    GradientStop {
-                        position: 1.0
-                        color: Qt.rgba(root.violet.r, root.violet.g, root.violet.b, 0)
+                    GradientStop { position: 0; color: root.accentA }
+                    GradientStop { position: 1; color: root.accentB }
+                }
+                Behavior on width {
+                    NumberAnimation {
+                        duration: root.motionEnabled ? 260 : 0
+                        easing.type: Easing.OutCubic
                     }
                 }
             }
         }
     }
 
-    // The only entrance: a restrained 420ms opacity/scale settle.
     ParallelAnimation {
         id: revealAnimation
         running: false
@@ -234,29 +223,24 @@ Rectangle {
             target: content
             from: 0
             to: 1
-            duration: 420
+            duration: 460
             easing.type: Easing.OutCubic
         }
-        ScaleAnimator {
-            target: hero
-            from: 0.965
+        NumberAnimation {
+            target: contentShift
+            property: "y"
+            from: Kirigami.Units.gridUnit * 0.8
+            to: 0
+            duration: 460
+            easing.type: Easing.OutCubic
+        }
+        NumberAnimation {
+            target: portal
+            property: "reveal"
+            from: 0
             to: 1
-            duration: 420
+            duration: 460
             easing.type: Easing.OutCubic
         }
-    }
-
-    // The only continuous motion, and only while the host is actually loading.
-    NumberAnimation {
-        id: progressMotion
-        target: progressSweep
-        property: "x"
-        from: -progressSweep.width
-        to: progressTrack.width
-        duration: 1100
-        loops: Animation.Infinite
-        easing.type: Easing.InOutCubic
-        running: root.motionEnabled && root.visible
-            && root.stage >= 2 && root.stage < 5
     }
 }

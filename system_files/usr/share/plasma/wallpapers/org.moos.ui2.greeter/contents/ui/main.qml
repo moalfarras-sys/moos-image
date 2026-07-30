@@ -1,9 +1,10 @@
 // org.moos.ui2.greeter — the MoOS login scene (Liquid Glass).
 //
 // Plasma Login Manager owns the password card; this wallpaper owns only the calm
-// scene behind it. The image (MoOSUI2Graphite, the premium sculpted-glass horizon)
-// and a legibility veil paint synchronously so the password boundary is never
-// delayed, and the brand is a quiet top-left signature. Content leads.
+// scene behind it. The image, legibility veil and shared Tidal Horizon Portal
+// paint synchronously so the password boundary is never delayed. The static
+// portal frames the compiled authentication cluster; the protected brand stays
+// a quiet top-left signature.
 //
 // The greeter compiles its own layout into a Qt resource
 // (qrc:/qt/qml/org/kde/plasma/login/Main.qml), so this scene and
@@ -124,17 +125,22 @@ WallpaperItem {
         }
     }
 
-    // ── A single static breath of the MoOS accent along the lower edge ──────
-    // The calm, motionless echo of the power screen's aurora, so the login and
-    // the logout share one identity. Static gradient only — nothing moves, per
-    // the greeter contract; it never touches the centred password surface.
-    Rectangle {
-        anchors.fill: parent
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "transparent" }
-            GradientStop { position: 0.74; color: "transparent" }
-            GradientStop { position: 1.0; color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.11) }
-        }
+    // ── Tidal Horizon Portal ────────────────────────────────────────────────
+    // Login is a security boundary and remains fully static. The exact shared
+    // geometry appears again in Splash, Lock and Logout, making the transition
+    // between processes read as one MoOS threshold instead of four themes.
+    TidalHorizon {
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: parent.height * 0.055
+        width: Math.min(parent.width * 0.76, parent.height * 1.28)
+        height: Math.min(parent.height * 0.86, width * 0.69)
+        accentA: root.accent
+        accentB: root.lightScene ? "#1D6278" : "#78AFFF"
+        ink: root.ink
+        surface: root.canvas
+        compact: root.width < 900
+        reveal: 1
+        intensity: 0.76
     }
 
     // ── MoOS signature — quiet, top-left (gate: brand stays in its corner) ──
@@ -165,7 +171,7 @@ WallpaperItem {
             Text {
                 text: "MoOS"
                 color: root.ink
-                font.family: "Inter"
+                font.family: "IBM Plex Sans Arabic"
                 font.pixelSize: Math.max(22, Math.round(root.height * 0.03))
                 font.weight: Font.DemiBold
                 font.letterSpacing: 1

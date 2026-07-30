@@ -387,8 +387,8 @@ class TestMoOSUI2(unittest.TestCase):
             # preflight() runs before any rename. Raster validity is irrelevant
             # here because the injected fifth backup failure happens first.
             for master in (
-                art / "wallpapers/moos-ui-graphite-flow-master-v4.png",
-                art / "wallpapers/moos-ui-tidal-flow-master-v3.png",
+                art / "wallpapers/moos-ui-graphite-horizon-master-v1.png",
+                art / "wallpapers/moos-ui-tidal-horizon-master-v1.png",
             ):
                 master.parent.mkdir(parents=True, exist_ok=True)
                 master.write_bytes(b"fixture-png")
@@ -780,7 +780,7 @@ class TestMoOSUI2(unittest.TestCase):
                 )
 
     def test_session_splash_reduced_motion_reaches_static_resting_frame(self) -> None:
-        """The splash owns one reveal, one sweep, and a truly static off state."""
+        """The splash owns one finite reveal and a truly static off state."""
         splash = qml_code((
             SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/Splash.qml"
         ).read_text(encoding="utf-8"))
@@ -789,10 +789,9 @@ class TestMoOSUI2(unittest.TestCase):
         )[0]
         for resting_value in (
             "revealAnimation.stop()",
-            "progressMotion.stop()",
             "content.opacity = 1",
-            "hero.scale = 1",
-            "progressSweep.x = (progressTrack.width - progressSweep.width) / 2",
+            "contentShift.y = 0",
+            "portal.reveal = 1",
         ):
             self.assertIn(
                 resting_value,
@@ -815,21 +814,26 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertRegex(
             stage_handler,
             re.compile(
-                r"stage\s*===\s*5\)\s*\{\s*"
-                r"revealAnimation\.stop\(\);\s*"
-                r"progressMotion\.stop\(\);\s*"
-                r"progressTrack\.opacity\s*=\s*0;",
+                r"stage\s*>=\s*5\)\s*\{\s*"
+                r"revealAnimation\.stop\(\);",
                 re.DOTALL,
             ),
-            "stage 5 must stop motion and hand off without another animation",
+            "stage 5 must stop the reveal and hand off without another animation",
         )
         self.assertEqual(
             splash.count("loops: Animation.Infinite"),
-            1,
-            "only the loading sweep may loop; the logo and atmosphere stay static",
+            0,
+            "a boot doorway must settle completely; progress is finite stage interpolation",
         )
         self.assertEqual(splash.count("id: revealAnimation"), 1)
-        self.assertEqual(splash.count("id: progressMotion"), 1)
+        self.assertNotIn("progressMotion", splash)
+        self.assertRegex(
+            splash,
+            r"Behavior on width\s*\{\s*NumberAnimation\s*\{\s*"
+            r"duration:\s*root\.motionEnabled\s*\?\s*260\s*:\s*0",
+            "stage progress must use one short reduced-motion-aware interpolation",
+        )
+        self.assertIn("opacity: root.stage >= 5 ? 0 : 1", splash)
         for retired_motion in (
             "ringReveal", "shineSweep", "bloomFlash", "particleBurst",
             "typewriterTimer", "logoBreathe", "outroAnimation",
@@ -839,12 +843,9 @@ class TestMoOSUI2(unittest.TestCase):
                 splash,
                 f"the over-animated splash primitive {retired_motion} returned",
             )
-        self.assertRegex(
-            splash,
-            r"running:\s*root\.motionEnabled\s*&&\s*root\.visible\s*"
-            r"&&\s*root\.stage\s*>=\s*2\s*&&\s*root\.stage\s*<\s*5",
-            "the one loading sweep must stop for reduced motion, invisibility and handoff",
-        )
+        self.assertIn("TidalHorizon {", splash)
+        self.assertIn("accentA: root.accentA", splash)
+        self.assertIn("accentB: root.accentB", splash)
 
         family = sorted(
             path for path in
@@ -859,6 +860,18 @@ class TestMoOSUI2(unittest.TestCase):
             (path / "contents/logout/Logout.qml").read_bytes()
             for path in family
         }
+        splash_portal_bytes = {
+            (path / "contents/splash/TidalHorizon.qml").read_bytes()
+            for path in family
+        }
+        logout_button_bytes = {
+            (path / "contents/logout/MoOSUI2ActionButton.qml").read_bytes()
+            for path in family
+        }
+        logout_portal_bytes = {
+            (path / "contents/logout/TidalHorizon.qml").read_bytes()
+            for path in family
+        }
         self.assertEqual(len(family), 16)
         self.assertEqual(
             len(splash_bytes), 1,
@@ -867,6 +880,18 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertEqual(
             len(logout_bytes), 1,
             "all 16 palettes must use the same reviewed session-language policy",
+        )
+        self.assertEqual(
+            len(splash_portal_bytes), 1,
+            "all 16 splash packages must use one reviewed portal geometry",
+        )
+        self.assertEqual(
+            len(logout_button_bytes), 1,
+            "all 16 palettes must use one reviewed session-action geometry",
+        )
+        self.assertEqual(
+            len(logout_portal_bytes), 1,
+            "all 16 logout packages must use one reviewed portal geometry",
         )
 
     def test_shell_rtl_uses_inherited_logical_edges_once(self) -> None:
@@ -968,6 +993,60 @@ class TestMoOSUI2(unittest.TestCase):
             dock,
             "the dock launcher caption must never shrink below 11px",
         )
+
+    def test_tidal_command_canvas_is_a_product_surface_not_a_menu(self) -> None:
+        """Hold the distinctive shell composition and its zero-idle contract."""
+        launcher_raw = (
+            SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml"
+        ).read_text(encoding="utf-8")
+        launcher = qml_code(launcher_raw)
+        dock = qml_code((
+            SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/main.qml"
+        ).read_text(encoding="utf-8"))
+        hero = qml_code((
+            SHARE / "plasma/plasmoids/org.moos.heroclock/contents/ui/main.qml"
+        ).read_text(encoding="utf-8"))
+
+        self.assertIn("implicitWidth: Kirigami.Units.gridUnit * 46", launcher)
+        self.assertIn("implicitHeight: Kirigami.Units.gridUnit * 35", launcher)
+        self.assertIn("LOCAL · PRIVATE", launcher)
+        self.assertIn("import QtQuick.Shapes", launcher)
+        self.assertIn("ShapePath {", launcher)
+        self.assertGreaterEqual(
+            launcher.count("PathQuad {"), 4,
+            "the Tidal Cut silhouette collapsed back into a generic rectangle",
+        )
+        self.assertIn("component CommandCard:", launcher)
+        self.assertEqual(
+            launcher.count("CommandCard {"), 3,
+            "the Command Canvas must keep exactly three hero destinations",
+        )
+        for destination in (
+            "org.moos.moai.desktop",
+            "org.moos.store.desktop",
+            "org.moos.themepicker.desktop",
+            "systemsettings.desktop",
+        ):
+            self.assertIn(destination, launcher + dock)
+        self.assertIn('text: root.rtl ? "مساحة الأوامر" : "COMMAND"', dock)
+        self.assertIn("readonly property int motionMedium: Kirigami.Units.longDuration > 1", launcher)
+        quiet_edge = launcher_raw.split(
+            "// ── Quiet session edge:", 1
+        )[1].split("// ── Reusable pieces", 1)[0]
+        self.assertNotIn("org.moos.moai.desktop", quiet_edge)
+        self.assertNotIn("org.moos.store.desktop", quiet_edge)
+        self.assertNotIn("systemsettings.desktop", quiet_edge)
+        self.assertIn("org.moos.themepicker.desktop", quiet_edge)
+
+        # The always-visible hero clock used to wake at 1 Hz while five ambient
+        # loops repainted plasmashell forever. Tidal Horizon wakes on the minute
+        # and moves only when the displayed value changes.
+        self.assertIn("interval: 60000 -", hero)
+        self.assertNotIn("Animation.Infinite", hero)
+        self.assertNotIn('Qt.formatTime(root.now, "ss")', hero)
+        self.assertIn("onTextChanged: minutePulse.restart()", hero)
+        self.assertIn("root.latinNumerals(root.displayLocale.toString", hero)
+        self.assertIn("YOUR DAILY HORIZON", hero)
 
     def test_logout_draws_only_the_active_session_language(self) -> None:
         logout = qml_code((

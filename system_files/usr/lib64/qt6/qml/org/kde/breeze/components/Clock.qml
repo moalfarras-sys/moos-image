@@ -24,10 +24,9 @@
 // on the desktop Hero Clock — the same family, the same weights, so the login
 // screen, the lock screen and the desktop read as one system:
 //   · large Light-weight HH:mm, because Light at scale is what modern reads like;
-//   · the colon breathing in the brand colour — the one proof the clock is live
-//     and not a picture;
-//   · one turquoise tick that swells in period with the brand mark above it;
-//   · the date bilingually, Arabic first, exactly as MoOS speaks everywhere else.
+//   · one static brand-colour colon and one horizon cut;
+//   · one date in the active locale. Session surfaces never print two languages
+//     at once.
 //
 // Upstream's ENGINE is kept on purpose: PlasmaClock.Clock is the system clock
 // source and handles timezone and resume correctly. Only the face changed, and
@@ -45,15 +44,26 @@ ColumnLayout {
     id: root
 
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
+    readonly property var sessionLocale: Qt.locale()
 
-    // The breathing colon. Two seconds on, two off — slow enough to read as
-    // alive rather than as a flashing error.
-    property bool tick: true
+    function latinNumerals(s) {
+        return String(s)
+            .replace(/[٠۰]/g, "0").replace(/[١۱]/g, "1")
+            .replace(/[٢۲]/g, "2").replace(/[٣۳]/g, "3")
+            .replace(/[٤۴]/g, "4").replace(/[٥۵]/g, "5")
+            .replace(/[٦۶]/g, "6").replace(/[٧۷]/g, "7")
+            .replace(/[٨۸]/g, "8").replace(/[٩۹]/g, "9");
+    }
 
     spacing: Kirigami.Units.largeSpacing
 
     RowLayout {
         Layout.alignment: Qt.AlignHCenter
+        // Time is semantic LTR even in an Arabic session. Without this explicit
+        // island, LayoutMirroring reverses the three children and 11:26 is drawn
+        // as 26:11 on the real plasma-login greeter.
+        LayoutMirroring.enabled: false
+        layoutDirection: Qt.LeftToRight
         spacing: 0
 
         PlasmaComponents3.Label {
@@ -68,10 +78,10 @@ ColumnLayout {
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
             color: Kirigami.Theme.textColor
-            font.family: "Inter"
+            font.family: "IBM Plex Sans Arabic"
             font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 7.4)
-            font.weight: Font.Light
-            renderType: Text.NativeRendering // looks better than QtTextRendering at large size, while CurveRendering suffers from jagged diagonals with some fonts (QTBUG-146898)
+            font.weight: Font.ExtraLight
+            renderType: Text.CurveRendering
         }
         PlasmaComponents3.Label {
             id: colon
@@ -80,17 +90,11 @@ ColumnLayout {
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
             color: Kirigami.Theme.highlightColor
-            font.family: "Inter"
+            font.family: "IBM Plex Sans Arabic"
             font.pointSize: hours.font.pointSize
-            font.weight: Font.Light
-            renderType: Text.NativeRendering
-            opacity: root.tick ? 1.0 : 0.35
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: Kirigami.Units.longDuration
-                    easing.type: Easing.InOutQuad
-                }
-            }
+            font.weight: Font.ExtraLight
+            renderType: Text.CurveRendering
+            opacity: 0.92
         }
         PlasmaComponents3.Label {
             id: minutes
@@ -99,14 +103,14 @@ ColumnLayout {
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
             color: Kirigami.Theme.textColor
-            font.family: "Inter"
+            font.family: "IBM Plex Sans Arabic"
             font.pointSize: hours.font.pointSize
-            font.weight: Font.Light
-            renderType: Text.NativeRendering
+            font.weight: Font.ExtraLight
+            renderType: Text.CurveRendering
         }
     }
 
-    // The one luminous accent, breathing in period with the brand above it.
+    // The one luminous horizon cut. It is static by design.
     Rectangle {
         Layout.alignment: Qt.AlignHCenter
         Layout.preferredWidth: Math.round(hours.implicitWidth * 0.6)
@@ -114,18 +118,14 @@ ColumnLayout {
         radius: height
         color: Kirigami.Theme.highlightColor
         opacity: 0.9
-        SequentialAnimation on scale {
-            loops: Animation.Infinite
-            running: root.visible
-            NumberAnimation { to: 1.18; duration: 3000; easing.type: Easing.InOutSine }
-            NumberAnimation { to: 1.0; duration: 3000; easing.type: Easing.InOutSine }
-        }
     }
 
     PlasmaComponents3.Label {
         Layout.alignment: Qt.AlignHCenter
-        text: Qt.formatDate(timeSource.dateTime, Qt.locale("ar"),
-                            Qt.locale("ar").dateFormat(Locale.LongFormat))
+        text: root.latinNumerals(
+            root.sessionLocale.toString(
+                timeSource.dateTime,
+                root.sessionLocale.dateFormat(Locale.LongFormat)))
         textFormat: Text.PlainText
         style: root.softwareRendering ? Text.Outline : Text.Normal
         styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
@@ -138,30 +138,8 @@ ColumnLayout {
         renderType: Text.NativeRendering
     }
 
-    PlasmaComponents3.Label {
-        Layout.alignment: Qt.AlignHCenter
-        text: Qt.formatDate(timeSource.dateTime, Qt.locale("en"), "dddd, d MMMM yyyy")
-        textFormat: Text.PlainText
-        style: root.softwareRendering ? Text.Outline : Text.Normal
-        styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
-        color: Kirigami.Theme.textColor
-        opacity: 0.62
-        font.family: "Inter"
-        font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.05)
-        font.weight: Font.Normal
-        horizontalAlignment: Text.AlignHCenter
-        renderType: Text.NativeRendering
-    }
-
     PlasmaClock.Clock {
         id: timeSource
-        // The colon needs a second-resolution source to breathe; upstream only
-        // tracked seconds when the locale's short format asked for them.
-        trackSeconds: true
-        onDateTimeChanged: {
-            if (timeSource.dateTime.getSeconds() % 2 === 0) {
-                root.tick = !root.tick;
-            }
-        }
+        trackSeconds: false
     }
 }

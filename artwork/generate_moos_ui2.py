@@ -190,6 +190,12 @@ def rewrite_tree(root: pathlib.Path, mapping: dict[str, str]) -> None:
     for path in root.rglob("*"):
         if not path.is_file() or path.suffix.lower() in binary:
             continue
+        # TidalHorizon is one physical geometry whose colours are supplied by
+        # each host at runtime.  Palette-rewriting its fallback literals makes
+        # the generated light copy drift from the splash/logout/lock contract
+        # even though those fallbacks are never the theme source of truth.
+        if path.name == "TidalHorizon.qml":
+            continue
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
@@ -651,12 +657,12 @@ def wallpaper_metadata(package: str, light: bool) -> str:
     return json.dumps({
         "KPlugin": {
             "Id": package,
-            "Name": "MoOS Tidal Mist" if light else "MoOS Quiet Horizon",
-            "Name[ar]": "ضباب MoOS التركوازي" if light else "أفق MoOS الهادئ",
-            "Description": ("Mineral turquoise daylight for MoOS UI"
-                            if light else "A calm graphite horizon with restrained cyan and emerald light"),
-            "Description[ar]": ("تركواز معدني هادئ لسمة MoOS UI الفاتحة"
-                                if light else "أفق غرافيتي هادئ بإضاءة سماوية وزمردية محسوبة"),
+            "Name": "MoOS Tidal Horizon" if light else "MoOS Graphite Horizon",
+            "Name[ar]": "أفق MoOS المدّي" if light else "أفق MoOS الغرافيتي",
+            "Description": ("An alabaster tidal horizon with a signature concave cut"
+                            if light else "A smoked graphite tidal horizon with a luminous cut"),
+            "Description[ar]": ("أفق مدّي من المرمر بهندسة القطع المقعّر المميزة"
+                                if light else "أفق مدّي غرافيتي داكن بقطع ضوئي مميز"),
             "Authors": [{"Name": "Moalfarras"}], "License": "CC-BY-SA-4.0",
         }
     }, ensure_ascii=False, indent=2)
@@ -760,8 +766,8 @@ def generate_wallpaper(variant: str) -> None:
     light = variant == "light"
     package = "MoOSUI2Tide" if light else "MoOSUI2Graphite"
     source = ART / "wallpapers" / (
-        "moos-ui-tidal-flow-master-v3.png" if light else
-        "moos-ui-graphite-flow-master-v4.png"
+        "moos-ui-tidal-horizon-master-v1.png" if light else
+        "moos-ui-graphite-horizon-master-v1.png"
     )
     target = SHARE / f"wallpapers/{package}"
     if target.exists():
@@ -772,7 +778,7 @@ def generate_wallpaper(variant: str) -> None:
             scale_crop(source, target / f"contents/{folder}/{filename}", width, height)
     scale_crop(source, target / "contents/screenshot.png", 1920, 1080)
     write(target / "metadata.json", wallpaper_metadata(package, light))
-    title = "MoOS Tidal Mist" if light else "MoOS Quiet Horizon"
+    title = "MoOS Tidal Horizon" if light else "MoOS Graphite Horizon"
     write(target / "README.md", f"""# {title}
 
 Original MoOS wallpaper generated from the project-bound raster master under
@@ -800,8 +806,8 @@ def preflight() -> None:
         if not source.exists():
             raise SystemExit(f"missing canonical UI2 source: {source}")
     for master in (
-        ART / "wallpapers/moos-ui-graphite-flow-master-v4.png",
-        ART / "wallpapers/moos-ui-tidal-flow-master-v3.png",
+        ART / "wallpapers/moos-ui-graphite-horizon-master-v1.png",
+        ART / "wallpapers/moos-ui-tidal-horizon-master-v1.png",
         ART / "plasma/dialog-background.svg.in",
         ART / "plasma/panel-background.svg.in",
     ):
@@ -824,8 +830,8 @@ def generate_previews(variant: str) -> None:
     light = variant == "light"
     package = "org.moos.ui2.light" if light else "org.moos.ui2"
     source = ART / "wallpapers" / (
-        "moos-ui-tidal-flow-master-v3.png" if light else
-        "moos-ui-graphite-flow-master-v4.png"
+        "moos-ui-tidal-horizon-master-v1.png" if light else
+        "moos-ui-graphite-horizon-master-v1.png"
     )
     target = SHARE / f"plasma/look-and-feel/{package}/contents/previews"
     scale_crop(source, target / "preview.png", 600, 337)

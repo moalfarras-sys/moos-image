@@ -4,6 +4,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Shapes
 import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PC3
 import org.kde.plasma.extras as PlasmaExtras
@@ -24,9 +25,11 @@ Item {
     readonly property bool rtl: launcher.rtl
     readonly property bool searching: launcher.searchQuery.trim().length > 0
     property string queuedSearchRun: ""
+    property date now: new Date()
+    property bool entranceReady: false
 
-    // MoOS UI shell tokens. QML uses logical pixels, so these values retain the
-    // same optical rhythm at 100–275% display scale.
+    // Tidal Horizon shell tokens. QML uses logical pixels, so these values
+    // retain the same optical rhythm at 100–275% display scale.
     readonly property string uiFontFamily: Qt.application.font.family
     readonly property int space1: 4
     readonly property int space2: 8
@@ -44,16 +47,18 @@ Item {
     readonly property int typeEmphasis: 15
     readonly property int typeTitle: 20
     readonly property int motionFast: Kirigami.Units.longDuration > 1 ? 120 : 0
+    readonly property int motionMedium: Kirigami.Units.longDuration > 1 ? 240 : 0
 
-    implicitWidth: Kirigami.Units.gridUnit * 40
-    implicitHeight: Kirigami.Units.gridUnit * 32.8
-    // The shell migration writes the same 720x590 logical target.  Keeping the
-    // full representation's minimum at its implicit size prevents an older,
-    // smaller popup geometry from clipping navigation or system actions.
+    implicitWidth: Kirigami.Units.gridUnit * 46
+    implicitHeight: Kirigami.Units.gridUnit * 35
+    // The Command Canvas deliberately owns more breathing room than a menu.
+    // At the reference 225% scale this remains inside a 4K work area while
+    // preserving real 40 px targets and the calm three-column app rhythm.
     Layout.minimumWidth: implicitWidth
     Layout.minimumHeight: implicitHeight
 
     Component.onCompleted: {
+        Qt.callLater(() => view.entranceReady = true);
         // A build-only proof that plasmawindowed constructed this component,
         // not merely the compact panel button.  It is silent in a real session.
         if (view.launcher.smokeFullRepresentation) {
@@ -65,6 +70,39 @@ Item {
 
     function local(arabic, english) {
         return view.rtl ? arabic : english;
+    }
+
+    function greeting() {
+        const hour = view.now.getHours();
+        if (hour < 12) {
+            return view.local("صباح هادئ", "Good morning");
+        }
+        if (hour < 18) {
+            return view.local("مساء منتج", "Good afternoon");
+        }
+        return view.local("مساء هادئ", "Good evening");
+    }
+
+    function latinNumerals(text) {
+        let out = "";
+        for (let i = 0; i < text.length; ++i) {
+            const code = text.charCodeAt(i);
+            if (code >= 0x0660 && code <= 0x0669) {
+                out += String.fromCharCode(code - 0x0660 + 0x30);
+            } else if (code >= 0x06F0 && code <= 0x06F9) {
+                out += String.fromCharCode(code - 0x06F0 + 0x30);
+            } else {
+                out += text[i];
+            }
+        }
+        return out;
+    }
+
+    function shortDate() {
+        const formatted = view.rtl
+            ? Qt.locale("ar").toString(view.now, "dddd، d MMMM")
+            : Qt.locale("en").toString(view.now, "dddd · d MMMM");
+        return view.latinNumerals(formatted);
     }
 
     function sessionIcon(actionId) {
@@ -151,23 +189,133 @@ Item {
         }
     }
 
-    Rectangle {
+    // One wake-up per minute is enough for the context deck. The canvas never
+    // pays for a seconds ticker or an idle animation.
+    Timer {
+        interval: 60000 - (view.now.getSeconds() * 1000 + view.now.getMilliseconds())
+        running: view.visible
+        repeat: true
+        onTriggered: {
+            view.now = new Date();
+            interval = 60000 - (view.now.getSeconds() * 1000 + view.now.getMilliseconds());
+        }
+    }
+
+    // One material layer, one KWin shadow. The stepped top-right and bottom-left
+    // shelves are the Tidal Cut silhouette: recognizable before any copy or
+    // icon is read, and still entirely semantic-theme driven.
+    Shape {
         anchors.fill: parent
-        radius: view.radiusXL
-        color: Qt.alpha(Kirigami.Theme.backgroundColor, 0.26)
-        border.width: 1
-        border.color: Qt.alpha(Kirigami.Theme.textColor, 0.10)
+        containsMode: Shape.FillContains
+
+        ShapePath {
+            strokeWidth: 1
+            strokeColor: Qt.alpha(Kirigami.Theme.textColor, 0.16)
+            fillColor: Qt.alpha(Kirigami.Theme.backgroundColor, 0.86)
+            joinStyle: ShapePath.RoundJoin
+            capStyle: ShapePath.RoundCap
+            startX: view.radiusXL
+            startY: 0
+            PathLine { x: view.width - 172; y: 0 }
+            PathQuad {
+                x: view.width - 148; y: view.space6
+                controlX: view.width - 154; controlY: 0
+            }
+            PathLine { x: view.width - view.radiusXL; y: view.space6 }
+            PathQuad {
+                x: view.width; y: view.space6 + view.radiusXL
+                controlX: view.width; controlY: view.space6
+            }
+            PathLine { x: view.width; y: view.height - view.radiusXL }
+            PathQuad {
+                x: view.width - view.radiusXL; y: view.height
+                controlX: view.width; controlY: view.height
+            }
+            PathLine { x: 116; y: view.height }
+            PathQuad {
+                x: 92; y: view.height - view.space6
+                controlX: 98; controlY: view.height
+            }
+            PathLine { x: view.radiusXL; y: view.height - view.space6 }
+            PathQuad {
+                x: 0; y: view.height - view.space6 - view.radiusXL
+                controlX: 0; controlY: view.height - view.space6
+            }
+            PathLine { x: 0; y: view.radiusXL }
+            PathQuad {
+                x: view.radiusXL; y: 0
+                controlX: 0; controlY: 0
+            }
+        }
+    }
+
+    // The Tidal Cut signature: a horizon that deliberately stops short, then
+    // resumes as a bright marker. No Canvas/shader and no perpetual motion.
+    Row {
+        anchors {
+            top: parent.top
+            left: parent.left
+            leftMargin: view.radiusXL
+            topMargin: 1
+        }
+        height: 2
+        spacing: view.space2
+
+        Rectangle {
+            width: Math.round(view.width * 0.23)
+            height: 2
+            radius: 1
+            color: Kirigami.Theme.highlightColor
+            opacity: 0.92
+        }
+        Rectangle {
+            width: view.space2
+            height: 2
+            radius: 1
+            color: Kirigami.Theme.highlightColor
+            opacity: 0.38
+        }
+    }
+
+    Rectangle {
+        anchors {
+            right: parent.right
+            top: parent.top
+            rightMargin: view.radiusXL
+            topMargin: view.space6 + 2
+        }
+        width: 2
+        height: view.space6
+        radius: 1
+        color: Kirigami.Theme.highlightColor
+        opacity: 0.64
     }
 
     ColumnLayout {
+        id: commandCanvas
         anchors.fill: parent
         anchors.margins: view.space6
         spacing: view.space3
+        opacity: view.entranceReady ? 1 : 0
+        scale: view.entranceReady ? 1 : 0.985
+        transformOrigin: Item.Center
+        Behavior on opacity {
+            NumberAnimation {
+                duration: view.motionMedium
+                easing.type: Easing.OutCubic
+            }
+        }
+        Behavior on scale {
+            NumberAnimation {
+                duration: view.motionMedium
+                easing.type: Easing.OutCubic
+            }
+        }
 
-        // ── Quiet product header ────────────────────────────────────────────
+        // ── Context deck: identity, the day and the local-first promise ─────
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 48
+            Layout.preferredHeight: 58
             spacing: view.space4
             // No explicit layoutDirection anywhere in this file: plasmashell runs
             // this popup with LayoutMirroring enabled+inherited on RTL sessions, and
@@ -176,17 +324,17 @@ Item {
             // mentioned it were correct the whole time. Mirroring is the one system.
 
             Item {
-                Layout.preferredWidth: 44
+                Layout.preferredWidth: 50
                 Layout.preferredHeight: width
 
                 Rectangle {
                     anchors.centerIn: parent
                     width: parent.width
                     height: width
-                    radius: view.radiusM
-                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.09)
+                    radius: view.radiusL
+                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
                     border.width: 1
-                    border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.38)
+                    border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.54)
                 }
 
                 Image {
@@ -213,40 +361,122 @@ Item {
                     font.letterSpacing: 1.4
                 }
                 Text {
-                    text: view.local("مساحتك، جاهزة لك", "Your space, ready")
+                    text: view.greeting()
                     color: Kirigami.Theme.disabledTextColor
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeSecondary
                 }
             }
+
+            Item { Layout.fillWidth: true }
+
+            RowLayout {
+                id: privacyRow
+                spacing: view.space2
+
+                Rectangle {
+                    Layout.preferredWidth: 7
+                    Layout.preferredHeight: 7
+                    radius: width / 2
+                    color: Kirigami.Theme.positiveTextColor
+                }
+                Text {
+                    text: view.local("محلي وخاص", "LOCAL · PRIVATE")
+                    color: Kirigami.Theme.disabledTextColor
+                    font.family: view.uiFontFamily
+                    font.pixelSize: view.typeCaption
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: view.rtl ? 0 : 0.9
+                }
+            }
+
+            Rectangle {
+                Layout.preferredWidth: 1
+                Layout.preferredHeight: 36
+                color: Qt.alpha(Kirigami.Theme.textColor, 0.14)
+            }
+
+            ColumnLayout {
+                Layout.minimumWidth: 138
+                spacing: -1
+
+                Text {
+                    Layout.fillWidth: true
+                    text: Qt.formatTime(view.now, "HH:mm")
+                    horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
+                    color: Kirigami.Theme.textColor
+                    font.family: view.uiFontFamily
+                    font.pixelSize: view.typeTitle
+                    font.weight: Font.DemiBold
+                    font.features: ({ "tnum": 1 })
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: view.shortDate()
+                    horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
+                    color: Kirigami.Theme.disabledTextColor
+                    font.family: view.uiFontFamily
+                    font.pixelSize: view.typeCaption
+                    elide: Text.ElideRight
+                }
+            }
         }
 
-        // ── Search is the hero, not another button that opens another window ─
+        // ── The command field is the hero, not another menu search box ──────
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 52
+            Layout.leftMargin: view.space2
+            Layout.rightMargin: view.space2
+            Layout.preferredHeight: 68
             radius: view.radiusL
-            color: Qt.alpha(searchInput.activeFocus
-                ? Kirigami.Theme.highlightColor
-                : Kirigami.Theme.textColor,
-                searchInput.activeFocus ? 0.11 : 0.05)
-            border.width: 1
-            border.color: Qt.alpha(searchInput.activeFocus
-                ? Kirigami.Theme.highlightColor
-                : Kirigami.Theme.textColor,
-                searchInput.activeFocus ? 0.72 : 0.12)
+            color: Qt.alpha(Kirigami.Theme.backgroundColor,
+                searchInput.activeFocus ? 0.98 : 0.90)
+            border.width: searchInput.activeFocus ? 2 : 1
+            border.color: Qt.alpha(Kirigami.Theme.highlightColor,
+                searchInput.activeFocus ? 0.92 : 0.48)
 
             Behavior on color { ColorAnimation { duration: view.motionFast } }
             Behavior on border.color { ColorAnimation { duration: view.motionFast } }
 
+            Row {
+                anchors {
+                    left: parent.left
+                    bottom: parent.bottom
+                    leftMargin: view.radiusL
+                }
+                height: 2
+                spacing: view.space1
+
+                Rectangle {
+                    width: searchInput.activeFocus ? 92 : 56
+                    height: 2
+                    radius: 1
+                    color: Kirigami.Theme.highlightColor
+                    opacity: 0.92
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: view.motionMedium
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                }
+                Rectangle {
+                    width: view.space2
+                    height: 2
+                    radius: 1
+                    color: Kirigami.Theme.highlightColor
+                    opacity: 0.32
+                }
+            }
+
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: view.space4
-                anchors.rightMargin: view.space2
-                spacing: view.space3
+                anchors.leftMargin: view.space6
+                anchors.rightMargin: view.space3
+                spacing: view.space4
 
                 Kirigami.Icon {
-                    Layout.preferredWidth: 20
+                    Layout.preferredWidth: 24
                     Layout.preferredHeight: 20
                     source: "moos-search-symbolic"
                     color: searchInput.activeFocus
@@ -293,8 +523,8 @@ Item {
                             verticalAlignment: Text.AlignVCenter
                             horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
                             text: view.local(
-                                "ابحث في التطبيقات والملفات والمجلدات والإعدادات…",
-                                "Search apps, files, folders and settings…")
+                                "اكتب أمراً، افتح تطبيقاً، أو اعثر على ملف…",
+                                "Run a command, open an app, or find a file…")
                             visible: searchInput.text.length === 0
                             color: Kirigami.Theme.disabledTextColor
                             font: searchInput.font
@@ -326,7 +556,7 @@ Item {
 
                 Text {
                     visible: view.launcher.searchQuery.length === 0
-                    text: "META"
+                    text: view.local("⌘  META", "META  ⌘")
                     color: Kirigami.Theme.disabledTextColor
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeCaption
@@ -343,7 +573,7 @@ Item {
             spacing: view.space4
 
             ColumnLayout {
-                readonly property real fixedWidth: 136
+                readonly property real fixedWidth: 152
 
                 Layout.fillWidth: false
                 Layout.minimumWidth: fixedWidth
@@ -375,47 +605,26 @@ Item {
 
                 Item { Layout.fillHeight: true }
 
-                Rectangle {
+                RowLayout {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: scopeColumn.implicitHeight + view.space4
-                    radius: view.radiusM
-                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.065)
-                    border.width: 1
-                    border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.18)
+                    Layout.leftMargin: view.space3
+                    Layout.rightMargin: view.space3
+                    spacing: view.space2
 
-                    ColumnLayout {
-                        id: scopeColumn
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: view.space3
-                        anchors.rightMargin: view.space3
-                        spacing: view.space1
-
-                        RowLayout {
-                            Kirigami.Icon {
-                                Layout.preferredWidth: Kirigami.Units.iconSizes.small
-                                Layout.preferredHeight: width
-                                source: "moos-search-symbolic"
-                                color: Kirigami.Theme.highlightColor
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                text: view.local("بحث محلي", "Local search")
-                                color: Kirigami.Theme.textColor
-                                font.family: view.uiFontFamily
-                                font.pixelSize: view.typeSecondary
-                                font.weight: Font.DemiBold
-                            }
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: view.local("ملفاتك المرئية", "Your visible files")
-                            color: Kirigami.Theme.disabledTextColor
-                            font.family: view.uiFontFamily
-                            font.pixelSize: view.typeCaption
-                            wrapMode: Text.WordWrap
-                        }
+                    Rectangle {
+                        Layout.preferredWidth: 7
+                        Layout.preferredHeight: 7
+                        radius: width / 2
+                        color: Kirigami.Theme.positiveTextColor
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: view.local("فهرس محلي", "LOCAL INDEX")
+                        color: Kirigami.Theme.disabledTextColor
+                        font.family: view.uiFontFamily
+                        font.pixelSize: view.typeCaption
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: view.rtl ? 0 : 0.8
                     }
                 }
             }
@@ -443,13 +652,51 @@ Item {
 
                         RowLayout {
                             Layout.fillWidth: true
+                            Layout.minimumHeight: 72
+                            Layout.preferredHeight: 72
+                            Layout.maximumHeight: 72
+                            spacing: view.space3
+
+                            CommandCard {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 240
+                                featured: true
+                                iconName: "moos-ai-symbolic"
+                                eyebrow: view.local("مساحة ذكية", "INTELLIGENCE")
+                                title: view.local("ابدأ مع Mo AI", "Create with Mo AI")
+                                onActivated: view.launcher.openDesktop("org.moos.moai.desktop")
+                            }
+                            CommandCard {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 180
+                                iconName: "moos-install-symbolic"
+                                eyebrow: view.local("اكتشف", "DISCOVER")
+                                title: view.local("متجر MoOS", "MoOS Store")
+                                onActivated: view.launcher.openDesktop("org.moos.store.desktop")
+                            }
+                            CommandCard {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 180
+                                iconName: "moos-settings-symbolic"
+                                eyebrow: view.local("تحكم", "CONTROL")
+                                title: view.local("إعدادات النظام", "System Settings")
+                                onActivated: view.launcher.openDesktop("systemsettings.desktop")
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
 
                             SectionTitle {
                                 Layout.fillWidth: true
-                                title: view.local("المثبتة", "Pinned")
+                                compact: true
+                                title: view.local("مدارك", "Your orbit")
                                 subtitle: view.local(
-                                    "تطبيقاتك، بترتيبك",
-                                    "Your apps, in your order")
+                                    "أقرب تطبيقاتك في متناولك",
+                                    "What matters, always within reach")
                             }
 
                             PC3.Button {
@@ -1010,32 +1257,27 @@ Item {
             }
         }
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Qt.alpha(Kirigami.Theme.textColor, 0.10)
-        }
-
-        // ── Native session actions + first-party destinations ──────────────
+        // ── Quiet session edge: no duplicate destinations or nested strip ──
         RowLayout {
             Layout.fillWidth: true
+            Layout.leftMargin: view.space2
+            Layout.rightMargin: view.space2
             Layout.preferredHeight: view.targetSize
-            spacing: view.space2
+            spacing: view.space1
 
-            RowLayout {
-                spacing: view.space2
-                Kirigami.Icon {
-                    Layout.preferredWidth: Kirigami.Units.iconSizes.small
-                    Layout.preferredHeight: width
-                    source: "moos-shield-symbolic"
-                    color: Kirigami.Theme.positiveTextColor
-                }
-                Text {
-                    text: view.local("بحث وتشغيل مدمجان مع النظام", "Native system search and launch")
-                    color: Kirigami.Theme.disabledTextColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeCaption
-                }
+            Kirigami.Icon {
+                Layout.preferredWidth: 18
+                Layout.preferredHeight: 18
+                source: "moos-shield-symbolic"
+                color: Kirigami.Theme.positiveTextColor
+            }
+            Text {
+                text: view.local("جلسة محلية موثوقة", "TRUSTED LOCAL SESSION")
+                color: Kirigami.Theme.disabledTextColor
+                font.family: view.uiFontFamily
+                font.pixelSize: view.typeCaption
+                font.weight: Font.DemiBold
+                font.letterSpacing: view.rtl ? 0 : 0.6
             }
 
             Item { Layout.fillWidth: true }
@@ -1049,20 +1291,11 @@ Item {
                 onClicked: view.launcher.openDesktop("org.moos.themepicker.desktop")
                 PC3.ToolTip.text: text
             }
-            PC3.ToolButton {
-                Layout.minimumWidth: view.targetSize
-                Layout.minimumHeight: view.targetSize
-                text: view.local("إعدادات النظام", "System Settings")
-                icon.name: "moos-settings-symbolic"
-                display: PC3.AbstractButton.IconOnly
-                onClicked: view.launcher.openDesktop("systemsettings.desktop")
-                PC3.ToolTip.text: text
-            }
 
             Rectangle {
                 Layout.preferredWidth: 1
-                Layout.preferredHeight: Kirigami.Units.gridUnit * 1.35
-                color: Qt.alpha(Kirigami.Theme.textColor, 0.12)
+                Layout.preferredHeight: 22
+                color: Qt.alpha(Kirigami.Theme.textColor, 0.14)
             }
 
             Repeater {
@@ -1533,6 +1766,125 @@ Item {
                 color: Kirigami.Theme.highlightColor
                 font.family: view.uiFontFamily
                 font.pixelSize: view.typeBody
+            }
+        }
+    }
+
+    component CommandCard: PC3.ItemDelegate {
+        id: command
+        property string iconName: "moos-spark-symbolic"
+        property string eyebrow: ""
+        property string title: ""
+        property bool featured: false
+        signal activated()
+
+        hoverEnabled: true
+        Accessible.name: command.title
+        Accessible.description: command.eyebrow
+        Accessible.role: Accessible.Button
+        scale: down ? 0.975 : (hovered ? 1.012 : 1)
+        onClicked: command.activated()
+        Keys.onReturnPressed: event => {
+            command.activated();
+            event.accepted = true;
+        }
+        Keys.onEnterPressed: event => {
+            command.activated();
+            event.accepted = true;
+        }
+        Keys.onSpacePressed: event => {
+            command.activated();
+            event.accepted = true;
+        }
+
+        Behavior on scale {
+            NumberAnimation {
+                duration: view.motionFast
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        background: Rectangle {
+            radius: view.radiusL
+            color: Qt.alpha(command.featured || command.hovered
+                ? Kirigami.Theme.highlightColor
+                : Kirigami.Theme.textColor,
+                command.down ? 0.22
+                    : (command.featured ? 0.14 : (command.hovered ? 0.105 : 0.045)))
+            border.width: 1
+            border.color: Qt.alpha(command.featured || command.activeFocus
+                ? Kirigami.Theme.highlightColor
+                : Kirigami.Theme.textColor,
+                command.featured || command.activeFocus ? 0.42 : 0.10)
+            Behavior on color { ColorAnimation { duration: view.motionFast } }
+            Behavior on border.color { ColorAnimation { duration: view.motionFast } }
+
+            Rectangle {
+                anchors {
+                    left: parent.left
+                    bottom: parent.bottom
+                    leftMargin: view.radiusL
+                }
+                width: command.featured ? 42 : 18
+                height: 2
+                radius: 1
+                color: Kirigami.Theme.highlightColor
+                opacity: command.featured || command.hovered ? 0.94 : 0.34
+                Behavior on width {
+                    NumberAnimation {
+                        duration: view.motionMedium
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
+        }
+
+        contentItem: RowLayout {
+            spacing: view.space3
+
+            Rectangle {
+                Layout.preferredWidth: 38
+                Layout.preferredHeight: 38
+                radius: view.radiusM
+                color: Qt.alpha(Kirigami.Theme.highlightColor,
+                    command.featured ? 0.18 : 0.10)
+
+                Kirigami.Icon {
+                    anchors.centerIn: parent
+                    width: 22
+                    height: 22
+                    source: command.iconName
+                    color: command.featured
+                        ? Kirigami.Theme.highlightColor
+                        : Kirigami.Theme.textColor
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: -1
+
+                Text {
+                    Layout.fillWidth: true
+                    text: command.eyebrow
+                    color: command.featured
+                        ? Kirigami.Theme.highlightColor
+                        : Kirigami.Theme.disabledTextColor
+                    font.family: view.uiFontFamily
+                    font.pixelSize: view.typeCaption
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: view.rtl ? 0 : 0.7
+                    elide: Text.ElideRight
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: command.title
+                    color: Kirigami.Theme.textColor
+                    font.family: view.uiFontFamily
+                    font.pixelSize: view.typeSecondary
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
             }
         }
     }

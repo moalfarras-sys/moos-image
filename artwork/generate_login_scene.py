@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
-"""generate_login_scene.py — the animated-brand glow sprites.
+"""generate_login_scene.py — deterministic MoOS doorway assets.
 
-Every surface that animates the MoOS emblem — the login scene
-(org.moos.ui2.greeter), the logout greeter (org.moos.ui2*/contents/logout),
-and the lock screen (the plasma-desktop shell override) — lights it the same
-way: a breathing brand glow behind the mark and a small orbiting spark. QML
-has no radial gradients without a shader, and shaders are banned from MoOS
-always-on scenes (they run forever, on every boot, on every GPU), so the
-light is pre-baked here as tiny alpha sprites the scenes only move and fade —
-the exact philosophy the boot splash already uses (translucent discs,
-Animators only).
-
-The family look-and-feel packages (nova/amethyst/midnight/aurora) do NOT get
-sprites from here: generate_moos_themes.py copies the base logout tree —
-sprites included — when it builds them. Only the two hand-maintained LNF
-halves and the two non-LNF surfaces are written directly.
+Splash, Login, Lock and Logout use the code-native Tidal Horizon Portal. This
+script synchronises that reviewed QML byte-for-byte across every doorway and
+all 16 look-and-feel palettes. It also retains deterministic glow/ring sprites
+for the separate panel-brand, Hero Clock and Mo AI scenes that still consume
+them. Doorway QML itself is loop-free and does not reference those rasters.
 
 Deterministic: same inputs -> same bytes (PIL, no randomness, no timestamps).
+
+The Tidal Horizon Portal is code-native QML, not a rendered bitmap. Its reviewed
+master lives at artwork/tidal-portal/TidalHorizon.qml and is copied byte-for-byte
+into Splash, Login, Lock and Logout. That relationship matters more than four
+similar-looking implementations: when the horizon geometry changes, every
+doorway changes together.
 
 Usage:
     python3 artwork/generate_login_scene.py
@@ -27,18 +24,55 @@ from PIL import Image
 
 REPO = Path(__file__).resolve().parent.parent
 SHARE = REPO / "system_files/usr/share"
+PORTAL_MASTER = REPO / "artwork/tidal-portal/TidalHorizon.qml"
+PORTAL_OUTS = (
+    SHARE / "plasma/wallpapers/org.moos.ui2.greeter/contents/ui/TidalHorizon.qml",
+    SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen/TidalHorizon.qml",
+    SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/TidalHorizon.qml",
+    SHARE / "plasma/look-and-feel/org.moos.ui2.light/contents/splash/TidalHorizon.qml",
+    SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/TidalHorizon.qml",
+    SHARE / "plasma/look-and-feel/org.moos.ui2.light/contents/logout/TidalHorizon.qml",
+)
+SPLASH_MASTER = REPO / "artwork/tidal-portal/Splash.qml"
+SPLASH_OUTS = (
+    SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/Splash.qml",
+    SHARE / "plasma/look-and-feel/org.moos.ui2.light/contents/splash/Splash.qml",
+)
+SESSION_QML_MIRRORS = (
+    (
+        SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/Logout.qml",
+        SHARE / "plasma/look-and-feel/org.moos.ui2.light/contents/logout/Logout.qml",
+    ),
+    (
+        SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/MoOSUI2ActionButton.qml",
+        SHARE / "plasma/look-and-feel/org.moos.ui2.light/contents/logout/MoOSUI2ActionButton.qml",
+    ),
+)
+FAMILY_QML = (
+    (
+        "splash/Splash.qml",
+        SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/Splash.qml",
+    ),
+    (
+        "splash/TidalHorizon.qml",
+        SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/TidalHorizon.qml",
+    ),
+    (
+        "logout/Logout.qml",
+        SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/Logout.qml",
+    ),
+    (
+        "logout/MoOSUI2ActionButton.qml",
+        SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/MoOSUI2ActionButton.qml",
+    ),
+    (
+        "logout/TidalHorizon.qml",
+        SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/TidalHorizon.qml",
+    ),
+)
 OUTS = (
-    SHARE / "plasma/wallpapers/org.moos.ui2.greeter/contents/images",
-    # NOT the logout greeter any more: Logout.qml draws the emblem's halo with a
-    # RadialGradient from Kirigami.Theme.highlightColor so it tracks all 16
-    # palettes. The baked sprite could not — the family generator recolours .svg
-    # only, so the cyan PNG shipped unchanged onto Arena's magenta accent.
-    # Writing it here again would put a dead file back into every package.
-    SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen/images",
     SHARE / "plasma/plasmoids/org.moos.brand/contents/images",
     SHARE / "plasma/plasmoids/org.moos.heroclock/contents/images",
-    SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/images",
-    SHARE / "plasma/look-and-feel/org.moos.ui2.light/contents/splash/images",
     # The canonical shared copy for APPS (Mo AI's glass backdrop reads these
     # absolute paths — plasma packages keep their own package-local copies).
     SHARE / "moos/brand",
@@ -106,6 +140,31 @@ def comet_ring(size: int, head: tuple[int, int, int], tail: tuple[int, int, int]
 
 
 def main() -> None:
+    portal = PORTAL_MASTER.read_bytes()
+    for out in PORTAL_OUTS:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(portal)
+        print(f"wrote {out}")
+
+    splash = SPLASH_MASTER.read_bytes()
+    for out in SPLASH_OUTS:
+        out.write_bytes(splash)
+        print(f"wrote {out}")
+
+    for source, out in SESSION_QML_MIRRORS:
+        out.write_bytes(source.read_bytes())
+        print(f"mirrored {source.name} -> {out}")
+
+    family_root = SHARE / "plasma/look-and-feel"
+    for package in sorted(family_root.glob("org.moos.ui2*")):
+        if not package.is_dir():
+            continue
+        for relative, source in FAMILY_QML:
+            out = package / "contents" / relative
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(source.read_bytes())
+        print(f"synced Tidal Portal QML -> {package.name}")
+
     # The brand halo behind the emblem — wide, quiet falloff.
     glow_cyan = radial_glow(640, CYAN, peak=170, gamma=2.6)
     glow_violet = radial_glow(640, VIOLET, peak=170, gamma=2.6)

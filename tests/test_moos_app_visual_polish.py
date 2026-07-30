@@ -97,24 +97,26 @@ class MoAIVisualPolishTests(unittest.TestCase):
             "Escape are supplementary, not the only exit",
         )
 
-    def test_ambient_light_is_static_palette_geometry_not_fixed_rasters(self) -> None:
+    def test_ambient_light_is_shared_palette_geometry_not_fixed_rasters(self) -> None:
         self.assertNotIn("glow-cyan.png", self.source)
         self.assertNotIn("glow-violet.png", self.source)
         ambient = self.source[
             self.source.index("id: ambient"):
             self.source.index("// ── Health")
         ]
-        for object_id, color in (
-            ("ambientGlowCyan", "root.novaCyan"),
-            ("ambientGlowViolet", "root.novaViolet"),
+        self.assertIn("MoOSUi.TidalHorizon {", ambient)
+        for binding in (
+            "surfaceColor: root.surface0",
+            "primaryColor: root.novaBlue",
+            "secondaryColor: root.novaViolet",
+            "luminousColor: root.novaCyan",
+            "motionEnabled: root.motionEnabled",
         ):
-            start = self.code.index(f"id: {object_id}")
-            window = self.code[start:start + 1700]
-            with self.subTest(glow=object_id):
-                self.assertIn("ShapePath", window)
-                self.assertIn("fillGradient: RadialGradient", window)
-                self.assertIn(color, window)
-                self.assertIn('color: "transparent"', window)
+            self.assertIn(binding, ambient)
+        horizon = (UI / "TidalHorizon.qml").read_text(encoding="utf-8")
+        self.assertIn("fillGradient: LinearGradient", horizon)
+        self.assertIn("PathMove {", horizon)
+        self.assertIn("animateIn && motionEnabled", horizon)
         for forbidden in (
             "XAnimator on x",
             "SequentialAnimation on opacity",

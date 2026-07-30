@@ -1,10 +1,10 @@
 {
   "KPlugin": {
     "Id": "MoOSUI2Graphite",
-    "Name": "MoOS Quiet Horizon",
-    "Name[ar]": "أفق MoOS الهادئ",
-    "Description": "A calm graphite horizon with restrained cyan and emerald light",
-    "Description[ar]": "أفق غرافيتي هادئ بإضاءة سماوية وزمردية محسوبة",
+    "Name": "MoOS Graphite Horizon",
+    "Name[ar]": "أفق MoOS الغرافيتي",
+    "Description": "A smoked graphite tidal horizon with a luminous cut",
+    "Description[ar]": "أفق مدّي غرافيتي داكن بقطع ضوئي مميز",
     "Authors": [
       {
         "Name": "Moalfarras"

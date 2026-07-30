@@ -29,8 +29,8 @@
 //      -symbolic variant, and isMask paints it in the brand colour.
 //   2. Destructive intent is SAID, not decorated: Shut Down and Restart carry
 //      the negative colour, exactly as they do on MoOS's logout screen.
-//   3. The circle is MoOS glass — a tinted brand halo that answers the pointer —
-//      instead of a flat 15%-opacity text-coloured blob.
+//   3. The control is a MoOS portal key — rounded threshold, crest cut and
+//      horizon line — instead of Plasma's generic circle.
 //   4. IBM Plex Sans, the family every other MoOS surface uses.
 //
 // The upstream contract is untouched: same id, same API (text, icon.name,
@@ -90,8 +90,8 @@ PlasmaComponents3.AbstractButton {
     font.pointSize: Kirigami.Theme.defaultFont.pointSize + 1
     font.underline: root.activeFocus
 
-    // MoOS token: medium glyph inside a gridUnit*4.6 disc — identical to the
-    // logout dock's orb, so the lock's session buttons and the power dock are
+    // MoOS token: medium glyph inside the same portal key used by Logout, so
+    // the lock's session buttons and the power dock are
     // the same control at the same size.
     icon.width: Kirigami.Units.iconSizes.medium
     icon.height: Kirigami.Units.iconSizes.medium
@@ -140,13 +140,14 @@ PlasmaComponents3.AbstractButton {
     }
 
     background: Rectangle {
-        // MoOS token: the orb disc size (gridUnit * 4.6), matching the logout dock.
-        implicitWidth: Kirigami.Units.gridUnit * 4.6
-        implicitHeight: Kirigami.Units.gridUnit * 4.6
+        // The Tidal Portal key: a wide, calm threshold instead of a generic
+        // circular icon button.
+        implicitWidth: Kirigami.Units.gridUnit * 5.4
+        implicitHeight: Kirigami.Units.gridUnit * 3.9
         // explicitly set size to keep it from expanding or shrinking
         width: implicitWidth
         height: implicitHeight
-        radius: width / 2
+        radius: height * 0.30
         // MoOS glass: the brand tint, warmed by the pointer. Software rendering
         // keeps upstream's opaque fallback — a tint over an unblurred surface
         // reads as dirt, and that path exists for machines with no GPU at all.
@@ -184,6 +185,30 @@ PlasmaComponents3.AbstractButton {
                 ? (root.destructive ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.highlightColor)
                 : Kirigami.Theme.textColor
             opacity: root.lit ? 0.8 : 0.16
+        }
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: -height / 2
+            width: parent.width * 0.28
+            height: root.activeFocus ? 3 : 2
+            radius: height / 2
+            color: root.destructive
+                ? Kirigami.Theme.negativeTextColor
+                : Kirigami.Theme.highlightColor
+            opacity: root.lit ? 0.96 : 0.62
+        }
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Math.max(4, parent.height * 0.10)
+            width: parent.width * 0.42
+            height: 1
+            radius: height / 2
+            color: root.destructive
+                ? Kirigami.Theme.negativeTextColor
+                : Kirigami.Theme.highlightColor
+            opacity: root.lit ? 0.55 : 0.22
         }
         Rectangle {
             anchors.fill: parent

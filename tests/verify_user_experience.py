@@ -2372,7 +2372,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=24" in apply_theme_code, "MoOS visual schema must be revision 24")
+require("THEME_REV=25" in apply_theme_code, "MoOS visual schema must be revision 25")
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
 # Qt's qmlcache is keyed on mtime, so plasmashell happily keeps executing the COMPILED OLD
@@ -2401,10 +2401,10 @@ require(brand_add_pos >= 0 and kickoff_capture_pos >= 0
         < brand_reload_pos < kickoff_remove_pos,
         "THEME_REV 21 must ensure org.moos.brand exists before removing the old Kickoff "
         "from an existing user's panel")
-require(re.search(r"--key\s+popupWidth\s+720\b", apply_theme_code) is not None
-        and re.search(r"--key\s+popupHeight\s+590\b", apply_theme_code) is not None,
+require(re.search(r"--key\s+popupWidth\s+828\b", apply_theme_code) is not None
+        and re.search(r"--key\s+popupHeight\s+630\b", apply_theme_code) is not None,
         "the existing org.moos.brand applet's shell-owned popup geometry must migrate to "
-        "720x590; QML implicitWidth/Height cannot override persisted appletsrc values")
+        "828x630; QML implicitWidth/Height cannot override persisted appletsrc values")
 
 # evaluateScript returning over D-Bus proves only that the JavaScript finished;
 # its guarded applet operations may all have failed.  Revision 21 therefore has
@@ -3013,17 +3013,17 @@ launcher_root_group_pos = layout_code.find(
     "launcher.currentConfigGroup = []", launcher_general_group_pos,
 )
 launcher_popup_width_pos = layout_code.find(
-    'launcher.writeConfig("popupWidth", 720)', launcher_root_group_pos,
+    'launcher.writeConfig("popupWidth", 828)', launcher_root_group_pos,
 )
 launcher_popup_height_pos = layout_code.find(
-    'launcher.writeConfig("popupHeight", 590)', launcher_popup_width_pos,
+    'launcher.writeConfig("popupHeight", 630)', launcher_popup_width_pos,
 )
 require(launcher_layout_pos >= 0 and launcher_general_group_pos > launcher_layout_pos
         and launcher_root_group_pos > launcher_general_group_pos
         and launcher_popup_width_pos > launcher_root_group_pos
         and launcher_popup_height_pos > launcher_popup_width_pos,
         "the fresh-profile org.moos.brand launcher must leave General and seed its "
-        "shell-owned root popup geometry at 720x590; otherwise live selfcheck fails "
+        "shell-owned root popup geometry at 828x630; otherwise live selfcheck fails "
         "until the user manually opens or resizes the menu")
 
 brand_root = ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.brand"
@@ -3056,9 +3056,11 @@ launcher_view_qml = code(read(
 require("if (root.expanded)" in brand_main_qml and "if (expanded)" not in brand_main_qml,
         "the brand applet must qualify root.expanded; the bare signal argument "
         "uses deprecated parameter injection and warns on every Plasma login")
-require('text: "MoOS"' in brand_main_qml and '"LAUNCHER"' in brand_main_qml
+require('text: "MoOS"' in brand_main_qml
+        and 'root.rtl ? "مساحة الأوامر" : "COMMAND"' in brand_main_qml
         and "moos-search-symbolic" in brand_main_qml,
-        "the one panel launcher must visibly remain the MoOS wordmark plus search affordance")
+        "the one panel launcher must visibly remain the MoOS wordmark, Command "
+        "Canvas caption and search affordance")
 
 # Search and browsing are native model operations, not shell commands wearing a
 # search field.  Each engine is instantiated in main.qml and handed to the full
@@ -3126,7 +3128,7 @@ require('"moos-ci-full-representation"' in brand_main_qml
 require("Layout.minimumWidth: implicitWidth" in launcher_view_qml
         and "Layout.minimumHeight: implicitHeight" in launcher_view_qml
         and "MOOS_LAUNCHER_FULL_READY size=" in launcher_view_qml,
-        "the full launcher must enforce and report its unclipped 720x590 representation to "
+        "the full launcher must enforce and report its unclipped 828x630 representation to "
         "the plasmawindowed smoke")
 # Commercial shell language: a 24px outer rhythm, 40px affordances, functional
 # text no smaller than 11px, and three generous columns. The old four-column
@@ -3321,16 +3323,16 @@ require(_unlock_start >= 0 and _unlock_end > _unlock_start
                       r'Qt\.rgba\(\s*1\s*,\s*1\s*,\s*1\s*,', _unlock) is None,
         "the lock-screen Unlock glyph must use the scheme's selected ink on flat "
         "accentA; literal white/accentB gradients fall below 3:1 in seven themes")
-# 3) The doorway splash/logout must track the ACTIVE theme, not ship Nova's cosmic
-#    literals on all 16 family members. The splash's sole sweep includes linkColor
-#    (secondary); the logout aurora ribbons bind Kirigami.Theme.highlightColor
-#    (root.accent / root.accentB) straight to their gradient stops.
-#    (The engine was slimmed from six curtains to two ribbons for GPU headroom; the
-#    invariant is unchanged — every accent stop still tracks the theme, not Nova.)
+# 3) Every MoOS doorway uses one Tidal Horizon geometry and the ACTIVE theme.
+#    The component is code-native and byte-identical across Splash, Login, Lock
+#    and Logout; each host supplies semantic accent/ink/surface roles. Doorway
+#    motion is one finite reveal, never an idle animation that burns GPU while
+#    the user waits at a security/session surface.
 _splash = code(read("system_files/usr/share/plasma/look-and-feel/org.moos.ui2/"
                     "contents/splash/Splash.qml"), style="slash")
+_portal = code(read("artwork/tidal-portal/TidalHorizon.qml"), style="slash")
 require("Kirigami.Theme.linkColor" in _splash,
-        "the splash progress sweep lost the family secondary role — it must use "
+        "the splash portal lost the family secondary role — it must use "
         "Kirigami.Theme.linkColor so every family member tracks its own secondary")
 _splash_stage = _splash.split("onStageChanged:", 1)[1].split(
     "Rectangle {", 1
@@ -3343,48 +3345,61 @@ require(re.search(r"if\s*\(stage\s*===\s*2\)\s*\{.*?"
                   r"revealAnimation\.restart\(\);\s*\}\s*else\s*\{\s*"
                   r"root\.showStaticFrame\(\);",
                   _splash_stage, re.DOTALL) is not None
-        and re.search(r"stage\s*===\s*5\)\s*\{\s*"
-                      r"revealAnimation\.stop\(\);\s*"
-                      r"progressMotion\.stop\(\);\s*"
-                      r"progressTrack\.opacity\s*=\s*0;",
+        and re.search(r"stage\s*>=\s*5\)\s*\{\s*"
+                      r"revealAnimation\.stop\(\);",
                       _splash_stage, re.DOTALL) is not None
         and all(token in _splash_static for token in (
-            "revealAnimation.stop()", "progressMotion.stop()",
-            "content.opacity = 1", "hero.scale = 1",
-            "progressSweep.x = (progressTrack.width - progressSweep.width) / 2",
+            "revealAnimation.stop()", "content.opacity = 1",
+            "contentShift.y = 0", "portal.reveal = 1",
         ))
-        and _splash.count("loops: Animation.Infinite") == 1
+        and _splash.count("loops: Animation.Infinite") == 0
         and _splash.count("id: revealAnimation") == 1
-        and _splash.count("id: progressMotion") == 1
+        and "progressMotion" not in _splash
+        and re.search(r"Behavior on width\s*\{\s*NumberAnimation\s*\{\s*"
+                      r"duration:\s*root\.motionEnabled\s*\?\s*260\s*:\s*0",
+                      _splash) is not None
+        and "opacity: root.stage >= 5 ? 0 : 1" in _splash
+        and "TidalHorizon {" in _splash
+        and "accentA: root.accentA" in _splash
+        and "accentB: root.accentB" in _splash
         and all(retired not in _splash for retired in (
             "ringReveal", "shineSweep", "bloomFlash", "particleBurst",
             "typewriterTimer", "logoBreathe", "outroAnimation",
-        ))
-        and re.search(r"running:\s*root\.motionEnabled\s*&&\s*root\.visible\s*"
-                      r"&&\s*root\.stage\s*>=\s*2\s*&&\s*root\.stage\s*<\s*5",
-                      _splash) is not None,
-        "the splash must own exactly one gated reveal and one loading sweep; "
+        )),
+        "the splash must own exactly one gated finite reveal; "
         "animations-off must land directly on the complete static branded frame")
 _logout_code = code(logout_qml, style="slash")
-require(_logout_code.count("GradientStop { position: 0.5; color: root.accent }") == 1
-        and _logout_code.count("GradientStop { position: 0.5; color: root.accentB }") == 1
+require("TidalHorizon {" in _logout_code
+        and "accentA: root.accent" in _logout_code
+        and "accentB: root.accentB" in _logout_code
+        and "parent.width * 0.96" in _logout_code
+        and "parent.height * 1.80" in _logout_code
+        and "Kirigami.Units.gridUnit * 50" in _logout_code
+        and "Animation.Infinite" not in _logout_code
         and re.search(r"#[0-9A-Fa-f]{3,8}\b", _logout_code) is None,
-        "the logout aurora ribbons must bind the live accent roles STRAIGHT to "
-        "their gradient stops (root.accent / root.accentB, both derived from "
-        "Kirigami.Theme.highlightColor), and Logout.qml must carry no colour "
-        "literal at all. The gate this replaces counted calls to auroraTint(), a "
-        "helper that computed Qt.tint(accent, accent@0.40) — mathematically its "
-        "own input — so it proved nothing about the theme reaching the ribbons "
-        "while it dragged accentB 40% back onto accentA")
+        "Logout must frame its compact command island with the live-accent Tidal "
+        "Horizon, carry no hard-coded palette, and settle after finite entry motion")
 
-# The aurora backdrop fades in with an OpacityAnimator. An Animator is a
-# QObject, not an Item, so `parent` inside one resolves to NULL: `target: parent`
-# bound the fade to nothing, it never ran, and the whole backdrop sat at opacity
-# 0 for two weeks while its infinite animations still drove the render loop.
-# Pin the id, and ban the shape that caused it.
-require("target: aurora" in _logout_code and "target: parent" not in _logout_code,
-        "the logout aurora fade must target an id, never `parent` — from inside "
-        "an Animator `parent` is null and the animation silently never runs")
+# An Animator is a QObject, not an Item, so `target: parent` resolves to NULL.
+# Every doorway animator pins a concrete Item and the portal reveal itself is a
+# finite NumberAnimation.
+require("target: wallpaper" in _logout_code
+        and "target: portal" in _logout_code
+        and 'property: "reveal"' in _logout_code
+        and "target: parent" not in _logout_code,
+        "logout entry motion must target concrete ids; target: parent inside an "
+        "Animator is null and silently leaves a doorway invisible")
+require(all(token in _portal for token in (
+            "property color accentA", "property color accentB",
+            "property color ink", "property color surface",
+            "readonly property real horizonY",
+            "readonly property real crestY", "PathCubic", "PathMove",
+        ))
+        and all(token not in _portal for token in (
+            "Timer {", "Animation.Infinite", "MouseArea {", "ShaderEffect",
+        )),
+        "the canonical Tidal Horizon must stay pure, theme-fed geometry with no "
+        "input, shader, timer or self-running animation")
 
 # Dismissing the power screen must stay deliberate. The scene-wide MouseArea
 # used to call cancelRequested(), and the sheet's "blocker" was declared
@@ -3977,7 +3992,7 @@ require("THE IDENTITY CONTRACT" in read("AGENTS.md"),
 # MainBlock/PasswordSync beside it — this gate makes sure the override stays MoOS
 # AND keeps the auth wiring, so it can neither look un-MoOS nor lock a user out.
 shell_lock = "system_files/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen"
-for lock_file in ("LockScreenUi.qml", "MoOSClock.qml"):
+for lock_file in ("LockScreenUi.qml", "MoOSClock.qml", "TidalHorizon.qml"):
     require((ROOT / shell_lock / lock_file).is_file(),
             f"the shell lockscreen override is missing {lock_file} — the lock "
             "screen would be Plasma's default, not MoOS's")
@@ -3991,6 +4006,12 @@ require("MainBlock" in lock_ui and "onPasswordResult" in lock_ui,
 # It must be MoOS, not the stock shell UI: the MoOS clock has to be there.
 require("MoOSClock" in lock_ui,
         "the lock screen override dropped the MoOS clock — it would read as the Breeze default")
+require("TidalHorizon {" in lock_ui
+        and "accentA: lockScreenUi.accentA" in lock_ui
+        and "accentB: lockScreenUi.accentB" in lock_ui
+        and "Animation.Infinite" not in lock_ui,
+        "the lock screen must share the finite, live-theme Tidal Horizon and must "
+        "not run decorative loops while the machine is locked")
 require("MoOSClock" in read(f"{shell_lock}/MoOSClock.qml") or "MoOS" in read(f"{shell_lock}/MoOSClock.qml"),
         "MoOSClock.qml is not the MoOS clock")
 # Qt.formatTime has no (date, locale, format-string) overload. With a locale
@@ -4012,7 +4033,9 @@ require(re.search(r"^Theme=", read("system_files/etc/xdg/kscreenlockerrc"), re.M
 # kscreenlocker_greet --testing). The floor below the brand is what keeps them
 # apart; a rewrite that loses it re-ships the collision on every tall screen.
 require(re.search(r"MoOSClock\s*\{(?:[^{}]|\{[^{}]*\})*anchors\.(?:left|right):\s*parent\.(?:left|right)",
-                  lock_ui, re.DOTALL) is not None,
+                  lock_ui, re.DOTALL) is not None
+        or ("anchors.left: lockScreenUi.rtl ? undefined : parent.left" in lock_ui
+            and "anchors.right: lockScreenUi.rtl ? parent.right : undefined" in lock_ui),
         "the lock clock must anchor to a top CORNER (a hero, off the centred brand) "
         "so it never draws through the MoOS emblem and wordmark on a tall panel")
 # The auth cluster INSIDE the card (avatar, password field, unlock button) was
@@ -4042,8 +4065,16 @@ for wire, why in (
 require("AUTH SAFETY CONTRACT" in mainblock,
         "MoOS MainBlock.qml lost its AUTH SAFETY CONTRACT banner — either it "
         "reverted to stock Breeze or someone rewrote it without the guardrails")
-# ── The animated brand's light is pre-baked sprites, and they must travel with
-#    every QML file that names them. A QML that references images/glow-cyan.png
+require("Layout.preferredWidth: loginButton.Layout.preferredHeight * 1.28" in mainblock
+        and "radius: height * 0.30" in mainblock
+        and "width: parent.width * 0.30" in mainblock
+        and "width: parent.width * 0.42" in mainblock,
+        "the lock-screen Unlock action must be the compact Tidal Portal key; a "
+        "square circular button breaks the session control family")
+# ── Any pre-baked brand sprite still named by QML must travel with that QML.
+#    Doorway identity is now code-native and static; this remains a guard for
+#    components outside the doorway that intentionally retain a shipped sprite.
+#    A QML that references images/glow-cyan.png
 #    with no sprite beside it fails SILENTLY (Image logs a warning nobody reads
 #    and draws nothing) — the brand would quietly lose its glow.
 for qml_dir in (Path("system_files/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen"),
@@ -4107,6 +4138,35 @@ require("wrapper.name.charAt(0).toUpperCase()" in user_delegate
         and "visible: faceIcon.visible" in user_delegate,
         "accounts without a custom photo must use an intentional initial avatar, "
         "not Plasma's generic outline")
+login_wallpaper = code(read(
+    "system_files/usr/share/plasma/wallpapers/org.moos.ui2.greeter/contents/ui/main.qml"
+), style="slash")
+login_action = read(
+    "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/ActionButton.qml"
+)
+login_clock = read(
+    "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/Clock.qml"
+)
+require("TidalHorizon {" in login_wallpaper
+        and "Animation.Infinite" not in login_wallpaper
+        and "Timer {" not in login_wallpaper
+        and "ShaderEffect" not in login_wallpaper,
+        "the plasma-login wallpaper must identify MoOS with a static Tidal Horizon "
+        "without layering a second animated UI over the compiled greeter")
+require("The Tidal Portal key" in login_action
+        and "radius: height * 0.30" in login_action
+        and "IBM Plex Sans Arabic" in login_action,
+        "the compiled plasma-login controls must use the shared MoOS portal-key "
+        "geometry and typography instead of generic circular Breeze actions")
+require("trackSeconds: false" in login_clock
+        and "Animation.Infinite" not in login_clock
+        and 'text: ":"' in login_clock
+        and "Locale.LongFormat" in login_clock
+        and "sessionLocale.dateFormat(Locale.LongFormat)" in login_clock
+        and "LayoutMirroring.enabled: false" in login_clock
+        and "layoutDirection: Qt.LeftToRight" in login_clock,
+        "the login clock must be one static MoOS editorial face: active-locale "
+        "date, accent colon, minute precision, semantic LTR time and no idle animation")
 
 # Every selectable palette is one MoOS UI engine, not another login/session
 # design hiding under a different colour name. KDE needs a look-and-feel package
@@ -4119,8 +4179,10 @@ require(len(lnf_packages) >= 2,
         "MoOS must ship at least the matched dark/light UI2 pair")
 for doorway in (
     "contents/splash/Splash.qml",
+    "contents/splash/TidalHorizon.qml",
     "contents/logout/Logout.qml",
     "contents/logout/MoOSUI2ActionButton.qml",
+    "contents/logout/TidalHorizon.qml",
 ):
     variants = {
         (package / doorway).read_bytes()
@@ -4281,10 +4343,10 @@ require("dbus-run-session -- /usr/bin/plasmawindowed org.moos.brand "
 require('_launcher_smoke_rc" -ne 124' in build_script_code,
         "the launcher smoke must accept only a process that stayed alive to the timeout; "
         "an early clean exit is still a dead applet")
-require("MOOS_LAUNCHER_FULL_READY size=720x590" in build_script_code
-        and re.search(r"geometry=.*720,590", build_script_code) is not None,
+require("MOOS_LAUNCHER_FULL_READY size=828x630" in build_script_code
+        and re.search(r"geometry=.*828,630", build_script_code) is not None,
         "the launcher smoke must prove both LauncherView construction and plasmawindowed's "
-        "real 720x590 full-representation geometry")
+        "real 828x630 full-representation geometry")
 for launcher_runtime_failure in (
     "component is not ready", "error loading qml file", "invalid empty url",
     "compactrepresentationexpander .* is not an item", "type .* unavailable",

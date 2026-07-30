@@ -1,10 +1,10 @@
 {
   "KPlugin": {
     "Id": "MoOSUI2Tide",
-    "Name": "MoOS Tidal Mist",
-    "Name[ar]": "ضباب MoOS التركوازي",
-    "Description": "Mineral turquoise daylight for MoOS UI",
-    "Description[ar]": "تركواز معدني هادئ لسمة MoOS UI الفاتحة",
+    "Name": "MoOS Tidal Horizon",
+    "Name[ar]": "أفق MoOS المدّي",
+    "Description": "An alabaster tidal horizon with a signature concave cut",
+    "Description[ar]": "أفق مدّي من المرمر بهندسة القطع المقعّر المميزة",
     "Authors": [
       {
         "Name": "Moalfarras"

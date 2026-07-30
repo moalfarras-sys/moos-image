@@ -53,15 +53,7 @@ Item {
     // failure mode is silent: with `> 0` the animation simply keeps running and
     // nothing is reported, because a busy rasteriser is not an error.
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
-
-    // The aurora curtains keep their designed hue but pull toward the live accent,
-    // so the lock background is theme-driven — it lights up in each palette's own
-    // colour (turquoise on Tidal, amber on Study, indigo on Nova …) instead of a
-    // fixed cosmic sweep. One shared helper, used by all four curtains below.
-    function auroraTint(base) {
-        const a = Kirigami.Theme.highlightColor;
-        return Qt.tint(base, Qt.rgba(a.r, a.g, a.b, 0.5));
-    }
+    readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
 
     // ── Two-tone MoOS accent ──────────────────────────────────────────────
     // accentA is the live theme highlight; accentB is a second hue derived
@@ -325,6 +317,33 @@ Item {
             }
         }
 
+        // ── Tidal Horizon Portal ─────────────────────────────────────────────
+        // The same code-native horizon frames Splash, Login and Logout. Lock
+        // keeps it visible while idle and raises its intensity only when the
+        // user returns; this is a finite state transition, never ambient motion.
+        TidalHorizon {
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: parent.height * 0.055
+            width: Math.min(parent.width * 0.78, parent.height * 1.30)
+            height: Math.min(parent.height * 0.86, width * 0.69)
+            accentA: lockScreenUi.accentA
+            accentB: lockScreenUi.accentB
+            ink: Kirigami.Theme.textColor
+            surface: Kirigami.Theme.alternateBackgroundColor
+            compact: parent.width < Kirigami.Units.gridUnit * 64
+            reveal: 1
+            intensity: lockScreenRoot.uiVisible ? 0.88 : 0.52
+
+            Behavior on intensity {
+                NumberAnimation {
+                    duration: lockScreenUi.motionEnabled
+                        ? Kirigami.Units.longDuration
+                        : 0
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
+
         // The MoOS mark, quiet, upper-centre — brand identity without shouting.
         ColumnLayout {
             id: brand
@@ -337,93 +356,29 @@ Item {
             opacity: 0.92
             transform: Translate { id: brandShift }
 
-            // The animated brand: breathing halo, the emblem, one slow spark —
-            // the same living mark the login scene and logout greeter carry.
-            // Sprites are pre-baked alpha PNGs (artwork/generate_login_scene.py,
-            // copied into this shell dir); motion is Animators-only, no shaders
-            // on a screen that can stay up for hours.
+            // The protected emblem sits at the Tidal Cut. It is intentionally
+            // still: the portal's finite reveal is the doorway motion.
             Item {
                 id: brandStage
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 3.6
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 4.2
                 Layout.preferredHeight: Layout.preferredWidth
 
-                // ── Why every loop below carries TWO gates ───────────────────
-                // Five endless animations lived here — two glow breaths, the
-                // emblem breath, the orbiting spark and the counter-rotating
-                // comet ring — each gated only on `brandStage.visible`, which is
-                // true for as long as the machine is locked. An infinite QML
-                // animation holds the render loop at full frame rate and
-                // repaints the WHOLE window regardless of how small the moving
-                // item is. Measured on this machine with these six loops and
-                // nobody touching anything — /proc/<greeter>/stat over 20 s of a
-                // LOCKED, IDLE screen: 11.8% of a CPU core before, 0.7% after,
-                // for a logo nobody was looking at. The two Animators are the
-                // worst of them: Animator types run on the RENDER thread, so
-                // they ask the compositor for frames while the main loop sits
-                // idle and profiling the main thread shows nothing at all.
-                //
-                //   running: … && motionEnabled — the hard gate. `> 1`, never
-                //     `> 0`; see the note on lockScreenUi.motionEnabled.
-                //   paused:  !uiVisible          — the idle gate. The mark
-                //     breathes for the person standing at the machine and
-                //     freezes ten seconds after they walk away.
-                //
-                // The idle gate is `paused`, deliberately NOT `running`. These
-                // two RotationAnimators run `from: 0; to: 360`, so stopping and
-                // restarting them SNAPS the spark and the comet back to twelve
-                // o'clock — a teleport at exactly the moment the owner touches
-                // the mouse and looks at the screen. Pausing suspends the
-                // animation job (no frames requested, same saving) and resumes
-                // it where it stood.
-                // The halo pair is drawn from the live two-tone accent, not the
-                // old glow-cyan/glow-violet rasters. Those PNGs were fixed
-                // #22D3EE/#8B5CF6 that the family generator can never retint
-                // (it recolours .svg and copies every other file byte-for-byte),
-                // so all 16 palettes wore the same cyan-violet ring — the exact
-                // defect the logout screen removed and documented, and these two
-                // surfaces are contractually mirrored (see the token note at the
-                // top of Logout.qml). accentA/accentB give each palette its own
-                // two-colour signature; the breathing geometry is unchanged.
-                RadialGradient {
-                    anchors.centerIn: brandEmblem
-                    width: brandStage.width * 2.3
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width * 1.42
                     height: width
-                    horizontalRadius: width * 0.5
-                    verticalRadius: height * 0.5
-                    opacity: 0.45
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Qt.rgba(lockScreenUi.accentA.r, lockScreenUi.accentA.g, lockScreenUi.accentA.b, 0.30) }
-                        GradientStop { position: 0.36; color: Qt.rgba(lockScreenUi.accentA.r, lockScreenUi.accentA.g, lockScreenUi.accentA.b, 0.14) }
-                        GradientStop { position: 1.0; color: "transparent" }
-                    }
-                    SequentialAnimation on opacity {
-                        loops: Animation.Infinite
-                        running: brandStage.visible && lockScreenUi.motionEnabled
-                        paused: !lockScreenRoot.uiVisible
-                        NumberAnimation { to: 0.75; duration: 3600; easing.type: Easing.InOutSine }
-                        NumberAnimation { to: 0.45; duration: 3600; easing.type: Easing.InOutSine }
-                    }
+                    radius: width / 2
+                    color: lockScreenUi.accentA
+                    opacity: 0.075
                 }
-                RadialGradient {
-                    anchors.centerIn: brandEmblem
-                    width: brandStage.width * 1.75
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width * 1.14
                     height: width
-                    horizontalRadius: width * 0.5
-                    verticalRadius: height * 0.5
-                    opacity: 0.5
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Qt.rgba(lockScreenUi.accentB.r, lockScreenUi.accentB.g, lockScreenUi.accentB.b, 0.32) }
-                        GradientStop { position: 0.38; color: Qt.rgba(lockScreenUi.accentB.r, lockScreenUi.accentB.g, lockScreenUi.accentB.b, 0.15) }
-                        GradientStop { position: 1.0; color: "transparent" }
-                    }
-                    SequentialAnimation on opacity {
-                        loops: Animation.Infinite
-                        running: brandStage.visible && lockScreenUi.motionEnabled
-                        paused: !lockScreenRoot.uiVisible
-                        NumberAnimation { to: 0.3; duration: 3600; easing.type: Easing.InOutSine }
-                        NumberAnimation { to: 0.5; duration: 3600; easing.type: Easing.InOutSine }
-                    }
+                    radius: width / 2
+                    color: lockScreenUi.accentB
+                    opacity: 0.05
                 }
                 Image {
                     id: brandEmblem
@@ -437,49 +392,6 @@ Item {
                     fillMode: Image.PreserveAspectFit
                     asynchronous: true
                     smooth: true
-                    SequentialAnimation on scale {
-                        loops: Animation.Infinite
-                        running: brandStage.visible && lockScreenUi.motionEnabled
-                        paused: !lockScreenRoot.uiVisible
-                        NumberAnimation { to: 1.03; duration: 3000; easing.type: Easing.InOutSine }
-                        NumberAnimation { to: 1.0; duration: 3000; easing.type: Easing.InOutSine }
-                    }
-                }
-                Item {
-                    anchors.fill: parent
-                    RotationAnimator on rotation {
-                        from: 0; to: 360
-                        duration: 24000
-                        loops: Animation.Infinite
-                        running: brandStage.visible && lockScreenUi.motionEnabled
-                        paused: !lockScreenRoot.uiVisible
-                    }
-                    Image {
-                        source: "images/spark.png"
-                        width: brandStage.width * 0.15
-                        height: width
-                        x: (brandStage.width - width) / 2
-                        y: -brandStage.width * 0.10
-                    }
-                }
-                // The comet ring, counter-rotating against the spark — the
-                // same orbit the login and logout scenes carry, so lock,
-                // login and logout read as one brand.
-                Image {
-                    anchors.centerIn: brandEmblem
-                    width: brandStage.width * 1.5
-                    height: width
-                    source: "images/ring.png"
-                    mirror: true
-                    opacity: 0.65
-                    sourceSize: Qt.size(width * 2, height * 2)
-                    RotationAnimator on rotation {
-                        from: 360; to: 0
-                        duration: 28000
-                        loops: Animation.Infinite
-                        running: brandStage.visible && lockScreenUi.motionEnabled
-                        paused: !lockScreenRoot.uiVisible
-                    }
                 }
             }
             Text {
@@ -487,9 +399,7 @@ Item {
                 text: "MoOS"
                 color: Kirigami.Theme.textColor
                 opacity: 0.85
-                // MoOS token: the wordmark is Inter (matching the login scene) —
-                // one Latin type for the brand across every surface.
-                font.family: "Inter"
+                font.family: "IBM Plex Sans Arabic"
                 font.pointSize: Kirigami.Theme.defaultFont.pointSize + 2
                 font.weight: Font.DemiBold
                 font.letterSpacing: 2
@@ -507,45 +417,69 @@ Item {
             }
         }
 
-        // ── MoOS Lumen: NO card, NO box. `authCard` is now just a transparent
-        // geometry anchor — it keeps the id, the fade/scale and the y the auth
-        // cluster + WallpaperFader expect, but paints nothing. All depth comes
-        // from soft ELLIPTICAL light blooms below (RadialGradient → no
-        // rectangular edges), so the cluster floats in the theme's own light.
+        // ── Authentication island ────────────────────────────────────────────
+        // A still mineral-glass plate gives the security boundary an authored
+        // home inside the large portal. It remains purely visual; MainBlock and
+        // every authentication wire stay outside and untouched.
         Rectangle {
             id: authCard
             anchors.horizontalCenter: parent.horizontalCenter
             y: mainStack.y + mainStack.height * 0.5 - height * 0.5
-            width: Math.min(parent.width - Kirigami.Units.gridUnit * 4, Kirigami.Units.gridUnit * 23)
-            height: Kirigami.Units.gridUnit * 32
-            radius: Kirigami.Units.gridUnit * 8
-            color: "transparent"
-            border.width: 0
+            width: Math.min(parent.width - Kirigami.Units.gridUnit * 4,
+                            Kirigami.Units.gridUnit * 25)
+            height: Math.min(parent.height - Kirigami.Units.gridUnit * 8,
+                             Kirigami.Units.gridUnit * 32)
+            radius: Kirigami.Units.gridUnit * 2.5
+            color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                           Kirigami.Theme.backgroundColor.g,
+                           Kirigami.Theme.backgroundColor.b, 0.38)
+            border.width: 1
+            border.color: Qt.rgba(Kirigami.Theme.textColor.r,
+                                  Kirigami.Theme.textColor.g,
+                                  Kirigami.Theme.textColor.b, 0.16)
             visible: opacity > 0
             opacity: lockScreenRoot.uiVisible ? 1 : 0
             scale: lockScreenRoot.uiVisible ? 1 : 0.96
-            Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
-            Behavior on scale { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: lockScreenUi.motionEnabled
+                        ? Kirigami.Units.longDuration
+                        : 0
+                    easing.type: Easing.OutCubic
+                }
+            }
+            Behavior on scale {
+                NumberAnimation {
+                    duration: lockScreenUi.motionEnabled
+                        ? Kirigami.Units.longDuration
+                        : 0
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top
+                anchors.topMargin: -height / 2
+                width: Kirigami.Units.gridUnit * 4
+                height: 3
+                radius: height / 2
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0; color: lockScreenUi.accentA }
+                    GradientStop { position: 1; color: lockScreenUi.accentB }
+                }
+            }
         }
 
-        // Ambient light pool — a soft, tall elliptical bloom of the theme accent
-        // behind the whole cluster. RadialGradient fades to nothing on every
-        // side, so there is no panel, no edge — just light. Decorative only.
-        //
-        // It used to be exactly the auth card's box, and the card's box stops at
-        // the password field: the Sleep and Switch User buttons sat OUTSIDE the
-        // theme's light entirely, reading as a second, unrelated screen bolted
-        // under the first. The pool is taller now and hangs a little lower, so
-        // avatar, field and session actions are one cluster standing in one pool
-        // of light. Still elliptical, still fading to nothing on every side —
-        // MoOS Lumen has no rectangles.
+        // A quiet accent pool gives the island depth without animated blur.
         RadialGradient {
             anchors.horizontalCenter: authCard.horizontalCenter
             y: authCard.y - Kirigami.Units.gridUnit
             width: authCard.width
             height: authCard.height + Kirigami.Units.gridUnit * 10
             visible: authCard.opacity > 0 && !lockScreenUi.softwareRendering
-            opacity: authCard.opacity
+            opacity: authCard.opacity * 0.68
             scale: authCard.scale
             horizontalRadius: width * 0.46
             verticalRadius: height * 0.5
@@ -619,8 +553,10 @@ Item {
             id: clock
             shadow: clockShadow
             visible: y > 0 && config.alwaysShowClock
-            anchors.left: parent.left
-            anchors.leftMargin: Kirigami.Units.gridUnit * 5
+            anchors.left: lockScreenUi.rtl ? undefined : parent.left
+            anchors.right: lockScreenUi.rtl ? parent.right : undefined
+            anchors.leftMargin: lockScreenUi.rtl ? 0 : Kirigami.Units.gridUnit * 5
+            anchors.rightMargin: lockScreenUi.rtl ? Kirigami.Units.gridUnit * 5 : 0
             y: Kirigami.Units.gridUnit * 4.5
             Layout.alignment: Qt.AlignBaseline
         }

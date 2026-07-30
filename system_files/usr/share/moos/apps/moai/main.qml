@@ -232,13 +232,12 @@ Kirigami.ApplicationWindow {
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.None
 
     // ── The glass backdrop ──────────────────────────────────────────────────
-    // The flagship app sits on a quiet, static depth scene: a deepening
-    // gradient, two aurora bands, palette-painted radial light and the mark as
-    // a watermark. The light is painted from the live
-    // Kirigami palette rather than fixed cyan/violet PNGs: Arena, Amethyst,
-    // Study and every light partner now receive their own accent pair without
-    // decoding two decorative rasters per launch. The identity mark and ring
-    // remain brand artwork and degrade to the painted gradient if unavailable.
+    // The flagship app sits on a quiet depth scene: a deepening gradient, the
+    // shared Tidal Horizon cut and the unchanged MoOS mark as a watermark. The
+    // horizon is painted from the live Kirigami palette: Arena, Amethyst, Study
+    // and every light partner receive their own accent pair without decoding
+    // decorative rasters per launch. The identity mark and ring remain brand
+    // artwork and degrade to the painted gradient if unavailable.
     // Declared as a sibling of the pageStack at z:-1, so it draws behind every
     // page. It is intentionally static: six perpetual decorative loops measured
     // 12.95% of a CPU core while idle and conveyed no state. Identity remains;
@@ -257,106 +256,21 @@ Kirigami.ApplicationWindow {
             }
         }
 
-        Rectangle {
-            id: ambientCyan
-            width: parent.width * 1.6
-            height: parent.height * 0.5
-            y: parent.height * 0.02
-            rotation: -14
-            opacity: 0.05
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.5; color: root.novaCyan }
-                GradientStop { position: 1.0; color: "transparent" }
-            }
-            x: -width * 0.18
-        }
-        Rectangle {
-            id: ambientViolet
-            width: parent.width * 1.5
-            height: parent.height * 0.45
-            y: parent.height * 0.5
-            rotation: 10
-            opacity: 0.04
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.5; color: root.novaViolet }
-                GradientStop { position: 1.0; color: "transparent" }
-            }
-            x: root.width - width * 0.82
-        }
-
-        Shape {
-            id: ambientGlowCyan
-            width: Math.round(Math.min(parent.width, parent.height) * 0.9)
-            height: width
-            x: -width * 0.35
-            y: parent.height - height * 0.55
-            opacity: 0.14
-            ShapePath {
-                strokeWidth: -1
-                fillGradient: RadialGradient {
-                    centerX: ambientGlowCyan.width / 2
-                    centerY: ambientGlowCyan.height / 2
-                    centerRadius: ambientGlowCyan.width / 2
-                    focalX: centerX
-                    focalY: centerY
-                    GradientStop {
-                        position: 0.0
-                        color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.88)
-                    }
-                    GradientStop {
-                        position: 0.42
-                        color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.28)
-                    }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-                PathAngleArc {
-                    centerX: ambientGlowCyan.width / 2
-                    centerY: ambientGlowCyan.height / 2
-                    radiusX: ambientGlowCyan.width / 2
-                    radiusY: ambientGlowCyan.height / 2
-                    startAngle: 0
-                    sweepAngle: 360
-                }
-            }
-        }
-        Shape {
-            id: ambientGlowViolet
-            width: Math.round(Math.min(parent.width, parent.height) * 0.75)
-            height: width
-            x: parent.width - width * 0.55
-            y: -height * 0.35
-            opacity: 0.18
-            ShapePath {
-                strokeWidth: -1
-                fillGradient: RadialGradient {
-                    centerX: ambientGlowViolet.width / 2
-                    centerY: ambientGlowViolet.height / 2
-                    centerRadius: ambientGlowViolet.width / 2
-                    focalX: centerX
-                    focalY: centerY
-                    GradientStop {
-                        position: 0.0
-                        color: Qt.rgba(root.novaViolet.r, root.novaViolet.g, root.novaViolet.b, 0.82)
-                    }
-                    GradientStop {
-                        position: 0.42
-                        color: Qt.rgba(root.novaViolet.r, root.novaViolet.g, root.novaViolet.b, 0.25)
-                    }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-                PathAngleArc {
-                    centerX: ambientGlowViolet.width / 2
-                    centerY: ambientGlowViolet.height / 2
-                    radiusX: ambientGlowViolet.width / 2
-                    radiusY: ambientGlowViolet.height / 2
-                    startAngle: 0
-                    sweepAngle: 360
-                }
-            }
+        // The same concave horizon that owns the desktop, Launcher and session
+        // portals now sits behind Mo AI. It replaces four unrelated
+        // aurora/glow layers with one palette-driven vector signature.
+        MoOSUi.TidalHorizon {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: Math.round(parent.height * 0.58)
+            surfaceColor: root.surface0
+            primaryColor: root.novaBlue
+            secondaryColor: root.novaViolet
+            luminousColor: root.novaCyan
+            strength: root.isLight ? 0.70 : 0.90
+            motionEnabled: root.motionEnabled
+            animateIn: true
         }
 
         // The watermark stays static at whisper opacity: presence without
@@ -1924,29 +1838,19 @@ Kirigami.ApplicationWindow {
                             }
                         }
 
-                        // ══ Empty-state hero — premium welcome (aurora art + brand + suggestion cards) ══
+                        // ══ Empty-state hero — Tidal Horizon + brand + suggestion cards ══
                         // Shown before the first exchange (chatModel holds only the seeded
-                        // greeting). A generated mesh-gradient aurora fills the void; the
-                        // brand orb sits over a soft accent glow; four glass cards (crafted
-                        // icon + prompt + hint) seed the conversation via sendPrompt. The
-                        // ListView and its greeting bubble take over on the first reply.
+                        // greeting). The same concave horizon used by the shell seats the
+                        // unchanged Mo AI orb; four glass cards seed the conversation via
+                        // sendPrompt. The ListView takes over on the first reply.
                         Item {
                             anchors.fill: parent
                             visible: chatModel.count <= 1
 
-                            Image {
-                                anchors.fill: parent
-                                source: root.isLight ? "hero-bg-light.png" : "hero-bg.png"
-                                fillMode: Image.PreserveAspectCrop
-                                opacity: root.isLight ? 0.75 : 0.92
-                                asynchronous: true
-                            }
-
-                            // Same doodle weave as the conversation, over the aurora and
-                            // below the brand content — so the pattern is already visible
-                            // the moment the app opens, not only once a chat begins.
+                            // Doodles remain a quiet texture, no longer the dominant identity.
                             ChatDoodle {
                                 anchors.fill: parent
+                                opacity: root.isLight ? 0.10 : 0.14
                             }
 
                             Column {
@@ -1958,6 +1862,19 @@ Kirigami.ApplicationWindow {
                                 Item {
                                     width: 130; height: 130
                                     anchors.horizontalCenter: parent.horizontalCenter
+                                    MoOSUi.TidalHorizon {
+                                        width: 360
+                                        height: 116
+                                        anchors.centerIn: parent
+                                        anchors.verticalCenterOffset: 22
+                                        surfaceColor: root.surface0
+                                        primaryColor: root.novaBlue
+                                        secondaryColor: root.novaViolet
+                                        luminousColor: root.novaCyan
+                                        strength: root.isLight ? 0.92 : 1.0
+                                        motionEnabled: root.motionEnabled
+                                        animateIn: true
+                                    }
                                     Rectangle {
                                         anchors.centerIn: parent; width: 130; height: 130; radius: 65
                                         color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.06)

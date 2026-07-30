@@ -17,6 +17,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from collections import deque
 from pathlib import Path
@@ -235,8 +236,14 @@ class MoOSSymbolicRasterTests(unittest.TestCase):
 class MoOSSymbolicGtkResolverTests(unittest.TestCase):
     def test_gtk_resolves_every_symbol_as_the_owned_hicolor_asset(self) -> None:
         theme = Gtk.IconTheme.new()
-        theme.add_search_path(str(ICON_ROOT))
+        # add_search_path() appends after the live session's user/system paths.
+        # On an installed MoOS machine that lets GTK satisfy every lookup from
+        # /usr/share/icons before it ever reaches this checkout, producing a
+        # green test for stale installed bytes. Replace the resolver path
+        # completely: this gate is about the repository, not the running image.
+        theme.set_search_path([str(ICON_ROOT)])
         theme.set_theme_name("hicolor")
+        self.assertEqual(theme.get_search_path(), [str(ICON_ROOT)])
         for name in generator.SYMBOLS:
             icon_name = f"moos-{name}-symbolic"
             for size in SIZES:
@@ -260,24 +267,47 @@ class MoOSSymbolicGtkResolverTests(unittest.TestCase):
 @unittest.skipUnless(shutil.which("kiconfinder6"), "kiconfinder6 is required")
 class MoOSSymbolicKdeResolverTests(unittest.TestCase):
     def test_kde_resolves_every_symbol_from_the_owned_overlay(self) -> None:
-        environment = os.environ.copy()
-        existing = environment.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share")
-        environment["XDG_DATA_DIRS"] = f"{ROOT / 'system_files/usr/share'}:{existing}"
-        for name in generator.SYMBOLS:
-            icon_name = f"moos-{name}-symbolic"
-            result = subprocess.run(
-                ["kiconfinder6", icon_name],
-                check=False,
-                text=True,
-                capture_output=True,
-                env=environment,
-            )
-            with self.subTest(icon=icon_name):
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(
-                    Path(result.stdout.strip()).resolve(),
-                    (ACTION_DIR / f"{icon_name}.svg").resolve(),
+        # KIconLoader reads both the active icon theme from kdeglobals and the
+        # system data roots. Merely prepending the checkout is insufficient:
+        # under a booted MoOSUI2Light session it searches that installed theme
+        # first and returns /usr/share/icons/MoOSUI2Light for all symbols. Give
+        # the resolver an empty XDG profile and the repository as its sole data
+        # root, including isolated cache/data homes so no live cache can win.
+        with tempfile.TemporaryDirectory(prefix="moos-symbolic-kde-") as runtime:
+            isolated = Path(runtime)
+            environment = os.environ.copy()
+            environment.update({
+                "HOME": str(isolated / "home"),
+                "XDG_CACHE_HOME": str(isolated / "cache"),
+                "XDG_CONFIG_HOME": str(isolated / "config"),
+                "XDG_CONFIG_DIRS": str(isolated / "config-dirs"),
+                "XDG_DATA_HOME": str(isolated / "data"),
+                "XDG_DATA_DIRS": str(ROOT / "system_files/usr/share"),
+            })
+            for directory in (
+                environment["HOME"],
+                environment["XDG_CACHE_HOME"],
+                environment["XDG_CONFIG_HOME"],
+                environment["XDG_CONFIG_DIRS"],
+                environment["XDG_DATA_HOME"],
+            ):
+                Path(directory).mkdir(parents=True, exist_ok=True)
+
+            for name in generator.SYMBOLS:
+                icon_name = f"moos-{name}-symbolic"
+                result = subprocess.run(
+                    ["kiconfinder6", icon_name],
+                    check=False,
+                    text=True,
+                    capture_output=True,
+                    env=environment,
                 )
+                with self.subTest(icon=icon_name):
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(
+                        Path(result.stdout.strip()).resolve(),
+                        (ACTION_DIR / f"{icon_name}.svg").resolve(),
+                    )
 
 
 if __name__ == "__main__":
