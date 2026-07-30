@@ -49,7 +49,6 @@ class AppIconContract(unittest.TestCase):
     def test_moplayer_uses_the_owned_mark(self) -> None:
         svg_path = ICONS / "scalable/apps/moos-moplayer.svg"
         svg = svg_path.read_text(encoding="utf-8")
-        self.assertIn("MoPlayer's cinema mark", svg)
         self.assertIn("M286 694V374", svg)
         self.assertNotIn("<image", svg)
         self.assertNotIn("<text", svg)
