@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="wifi-title">
+  <title id="wifi-title">WiFi</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #0F766E; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M17.25 3.407 A10.5 10.5 0 0 1 17.25 21.593 L16.1 19.601 A8.2 8.2 0 0 0 16.1 5.399 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M15.65 6.178 A7.3 7.3 0 0 1 15.65 18.822 L14.6 17.003 A5.2 5.2 0 0 0 14.6 7.997 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M14.1 8.863 A4.2 4.2 0 0 1 14.1 16.137 L13.15 14.492 A2.3 2.3 0 0 0 13.15 10.508 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M13.8 19.5 A1.8 1.8 0 1 1 10.2 19.5 A1.8 1.8 0 1 1 13.8 19.5 Z"/>
+</svg>

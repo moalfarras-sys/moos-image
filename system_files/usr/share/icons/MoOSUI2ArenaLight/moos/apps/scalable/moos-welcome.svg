@@ -1,26 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- MoOS UI — Liquid Glass application mark: moos-welcome.
-       Premium 3D liquid-glass plate. Every ink is a KDE colour role; MoOS bakes
-       one copy of this file per palette icon theme (FollowsColorScheme=false).
-       Glass sheens are white/black opacity only — theme-safe material.
-       No clipPath: every fill is a rounded rect so Plasma cannot paint a
-       square scratch behind the squircle.
+  <!-- MoOS UI — Premium 3D Liquid Glass application mark: moos-welcome.
+       Premium 3D liquid-glass plate with enhanced 7-layer glass material.
+       Every ink is a KDE colour role; MoOS bakes one copy of this file per
+       palette icon theme (FollowsColorScheme=false).  Glass sheens are white/black
+       opacity only — theme-safe material.  No clipPath: every fill is a rounded
+       rect so Plasma cannot paint a square scratch behind the squircle.
        Regenerate with artwork/generate_moos_app_icons.py. -->
   <defs>
     <style id="current-color-scheme" type="text/css">.ColorScheme-Text { color:#17302E; }.ColorScheme-Background{ color:#DDD0E9; }.ColorScheme-Highlight{ color:#C81D7A; }.ColorScheme-HighlightedText{ color:#F7FBFF; }.ColorScheme-PositiveText{ color:#086B4B; }.ColorScheme-NeutralText{ color:#7B520F; }.ColorScheme-NegativeText{ color:#A52F3F; }.ColorScheme-Accent{ color:#C81D7A; }</style>
-    <linearGradient id="moos-welcome-sheen" x1="512" y1="72" x2="512" y2="700"
+    <linearGradient id="moos-welcome-sheen" x1="512" y1="72" x2="512" y2="680"
                     gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".55"/>
-      <stop offset="0.22" stop-color="#ffffff" stop-opacity=".22"/>
-      <stop offset="0.48" stop-color="#ffffff" stop-opacity=".06"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".72"/>
+      <stop offset="0.15" stop-color="#ffffff" stop-opacity=".32"/>
+      <stop offset="0.35" stop-color="#ffffff" stop-opacity=".08"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity=".02"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
-    <linearGradient id="moos-welcome-depth" x1="512" y1="360" x2="512" y2="952"
+    <linearGradient id="moos-welcome-depth" x1="512" y1="320" x2="512" y2="952"
                     gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="0.45" stop-color="#000000" stop-opacity=".06"/>
-      <stop offset="1" stop-color="#000000" stop-opacity=".30"/>
+      <stop offset="0.40" stop-color="#000000" stop-opacity=".04"/>
+      <stop offset="0.70" stop-color="#000000" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#000000" stop-opacity=".38"/>
+    </linearGradient>
+    <linearGradient id="moos-welcome-shimmer" x1="140" y1="80" x2="880" y2="820"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.22" stop-color="#ffffff" stop-opacity=".14"/>
+      <stop offset="0.28" stop-color="#ffffff" stop-opacity=".22"/>
+      <stop offset="0.34" stop-color="#ffffff" stop-opacity=".14"/>
+      <stop offset="0.50" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
     <linearGradient id="moos-welcome-refract" x1="120" y1="100" x2="860" y2="780"
                     gradientUnits="userSpaceOnUse">
@@ -30,35 +41,46 @@
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
     <radialGradient id="moos-welcome-caustic" gradientUnits="userSpaceOnUse"
-                    cx="300" cy="260" r="420">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".58"/>
-      <stop offset="0.35" stop-color="#ffffff" stop-opacity=".16"/>
+                    cx="280" cy="220" r="460">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".68"/>
+      <stop offset="0.25" stop-color="#ffffff" stop-opacity=".20"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity=".05"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="moos-welcome-rimlight" gradientUnits="userSpaceOnUse"
+                    cx="740" cy="760" r="520">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".25"/>
+      <stop offset="0.40" stop-color="#ffffff" stop-opacity=".08"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
     <radialGradient id="moos-welcome-floor" gradientUnits="userSpaceOnUse"
-                    cx="512" cy="780" r="340">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".14"/>
+                    cx="512" cy="800" r="360">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".18"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="moos-welcome-rim-hi" x1="130" y1="80" x2="820" y2="820"
+    <linearGradient id="moos-welcome-rim-hi" x1="120" y1="60" x2="860" y2="860"
                     gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".78"/>
-      <stop offset="0.28" stop-color="#ffffff" stop-opacity=".24"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".85"/>
+      <stop offset="0.18" stop-color="#ffffff" stop-opacity=".32"/>
+      <stop offset="0.42" stop-color="#ffffff" stop-opacity=".10"/>
+      <stop offset="0.68" stop-color="#ffffff" stop-opacity=".04"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
     <radialGradient id="moos-welcome-aura" gradientUnits="userSpaceOnUse"
-                    cx="512" cy="520" r="520">
-      <stop offset="0.72" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="0.88" stop-color="#000000" stop-opacity=".10"/>
+                    cx="512" cy="520" r="580">
+      <stop offset="0.60" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="0.85" stop-color="#000000" stop-opacity=".14"/>
       <stop offset="1" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
   </defs>
   <rect fill="url(#moos-welcome-aura)" x="36" y="36" width="952" height="952" rx="292"/>
   <rect class="ColorScheme-Text" fill="currentColor" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-welcome-sheen)" x="72" y="72" width="880" height="880" rx="264"/>
   <rect fill="url(#moos-welcome-depth)" x="72" y="72" width="880" height="880" rx="264"/>
+  <rect fill="url(#moos-welcome-sheen)" x="72" y="72" width="880" height="880" rx="264"/>
+  <rect fill="url(#moos-welcome-shimmer)" x="72" y="72" width="880" height="880" rx="264"/>
   <rect fill="url(#moos-welcome-refract)" x="72" y="72" width="880" height="880" rx="264"/>
   <rect fill="url(#moos-welcome-caustic)" x="72" y="72" width="880" height="880" rx="264"/>
+  <rect fill="url(#moos-welcome-rimlight)" x="72" y="72" width="880" height="880" rx="264"/>
   <rect fill="url(#moos-welcome-floor)" x="72" y="72" width="880" height="880" rx="264"/>
   <rect fill="none" stroke="url(#moos-welcome-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="252"/>
   <rect class="ColorScheme-Background" fill="none" stroke="currentColor"

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="download-title">
+  <title id="download-title">Download</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #0F766E; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M10.9 3 L10.9 16.5 A1.1 1.1 0 0 1 13.1 16.5 L13.1 3 A1.1 1.1 0 0 1 10.9 3 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M7 13 L12 18.5 L17 13 L14 13 L12 15.5 L10 13 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M6 17.5 H18 A2.5 2.5 0 0 1 20.5 20 V20 A2.5 2.5 0 0 1 18 22.5 H6 A2.5 2.5 0 0 1 3.5 20 V20 A2.5 2.5 0 0 1 6 17.5 Z"/>
+</svg>

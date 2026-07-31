@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="heart-title">
+  <title id="heart-title">Favourite</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #0E63C4; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M12 20.5C5.5 14.5 2.5 10.5 3.5 7C4.5 3.5 8.5 3 12 6C15.5 3 19.5 3.5 20.5 7C21.5 10.5 18.5 14.5 12 20.5Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M9.3 6.5 A0.8 0.8 0 1 1 7.7 6.5 A0.8 0.8 0 1 1 9.3 6.5 Z"/>
+</svg>

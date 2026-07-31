@@ -2,7 +2,7 @@
 
 `Tidal Cut` is MoOS's owned action-icon language. Its single geometry source is
 [`generate_moos_symbolic_icons.py`](generate_moos_symbolic_icons.py), which
-generates all 69 SVGs and
+generates all 93 SVGs and
 [`moos_symbolic_manifest.js`](moos_symbolic_manifest.js). The visual harness
 imports that manifest; it does not carry a second hand-maintained name list.
 Application launch icons and the MoOS / Mo AI identity marks remain separate
@@ -110,6 +110,30 @@ one colour and in high-contrast GTK masking.
 | `video` | Video | media |
 | `warning` | Warning | status |
 | `wave` | Audio wave | media |
+| `notification` | Notifications | system |
+| `download` | Download | actions |
+| `upload` | Upload | actions |
+| `folder` | Folder | files |
+| `terminal` | Terminal | development |
+| `clock` | Clock | time |
+| `calendar` | Calendar | time |
+| `battery` | Battery | hardware |
+| `wifi` | WiFi | connectivity |
+| `menu` | Menu | navigation |
+| `about` | About | status |
+| `user` | User | system |
+| `heart` | Favourite | status |
+| `play` | Play | media |
+| `pause` | Pause | media |
+| `volume` | Volume | media |
+| `volume-off` | Volume off | media |
+| `image` | Image | media |
+| `pin` | Pin | navigation |
+| `cast` | Cast | connectivity |
+| `help` | Help | status |
+| `pulse` | Activity | status |
+| `login` | Login | navigation |
+| `logout` | Logout | navigation |
 
 ## Verification
 

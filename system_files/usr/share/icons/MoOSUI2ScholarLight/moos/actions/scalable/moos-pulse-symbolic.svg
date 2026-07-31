@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="pulse-title">
+  <title id="pulse-title">Activity</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #B45309; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M2.75 13.5 L5.5 13.5 A1.5 1.5 0 0 1 5.5 10.5 L2.75 10.5 A1.5 1.5 0 0 1 2.75 13.5 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M6.423 12.385 L8.923 6.385 A1 1 0 0 1 7.077 5.615 L4.577 11.615 A1 1 0 0 1 6.423 12.385 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M7.017 6.184 L8.517 14.184 A1 1 0 0 1 10.483 13.816 L8.983 5.816 A1 1 0 0 1 7.017 6.184 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M10.47 14.243 L11.97 8.243 A1 1 0 0 1 10.03 7.757 L8.53 13.757 A1 1 0 0 1 10.47 14.243 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M10.03 8.243 L12.03 16.243 A1 1 0 0 1 13.97 15.757 L11.97 7.757 A1 1 0 0 1 10.03 8.243 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M13.97 16.243 L15.47 10.243 A1 1 0 0 1 13.53 9.757 L12.03 15.757 A1 1 0 0 1 13.97 16.243 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M13.7 10.6 L15.2 12.6 A1 1 0 0 1 16.8 11.4 L15.3 9.4 A1 1 0 0 1 13.7 10.6 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M16 13 L21.25 13 A1 1 0 0 1 21.25 11 L16 11 A1 1 0 0 1 16 13 Z"/>
+</svg>

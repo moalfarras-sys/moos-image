@@ -89,12 +89,10 @@ class _MoIconPainter extends CustomPainter {
 
     switch (icon) {
       case MoIcon.search:
-        canvas.drawCircle(const Offset(10.5, 10.5), 6.5, stroke);
-        canvas.drawLine(const Offset(15.4, 15.4), const Offset(20, 20), stroke);
+        canvas.drawCircle(const Offset(10, 10), 7, stroke);
+        canvas.drawLine(const Offset(15.5, 15.5), const Offset(21, 21), stroke);
 
       case MoIcon.live:
-        // A screen, and the two arcs of a signal leaving it. The arcs are what
-        // make it "live" rather than "a television".
         canvas.drawRRect(
           RRect.fromRectAndRadius(
             const Rect.fromLTWH(2.5, 7, 19, 13.5),
@@ -119,8 +117,6 @@ class _MoIconPainter extends CustomPainter {
         canvas.drawCircle(const Offset(12, 13.7), 1.9, fill);
 
       case MoIcon.movies:
-        // A frame with the perforations of a film strip down both edges, and a
-        // play triangle sitting in the gate.
         final frame = RRect.fromRectAndRadius(
           const Rect.fromLTWH(2.5, 4, 19, 16),
           const Radius.circular(3),
@@ -135,15 +131,13 @@ class _MoIconPainter extends CustomPainter {
         canvas.drawPath(
           Path()
             ..moveTo(10.6, 8.8)
-            ..lineTo(15.0, 12.0)
+            ..lineTo(15, 12)
             ..lineTo(10.6, 15.2)
             ..close(),
           fill,
         );
 
       case MoIcon.series:
-        // Stacked panes, receding — an episode is one of many, and the shape
-        // should say so before the label does.
         canvas.drawRRect(
           RRect.fromRectAndRadius(
             const Rect.fromLTWH(2.5, 8.5, 19, 12),
@@ -161,33 +155,29 @@ class _MoIconPainter extends CustomPainter {
       case MoIcon.favorites:
         final heart = Path()
           ..moveTo(12, 20.2)
-          ..cubicTo(12, 20.2, 3.2, 15.1, 3.2, 9.2)
-          ..cubicTo(3.2, 6.3, 5.5, 4.1, 8.3, 4.1)
-          ..cubicTo(9.9, 4.1, 11.2, 4.9, 12, 6.1)
-          ..cubicTo(12.8, 4.9, 14.1, 4.1, 15.7, 4.1)
-          ..cubicTo(18.5, 4.1, 20.8, 6.3, 20.8, 9.2)
-          ..cubicTo(20.8, 15.1, 12, 20.2, 12, 20.2)
+          ..cubicTo(5.5, 14.5, 2.8, 10.2, 3.8, 7)
+          ..cubicTo(4.8, 3.5, 8.8, 3, 12, 6)
+          ..cubicTo(15.2, 3, 19.2, 3.5, 20.2, 7)
+          ..cubicTo(21.2, 10.2, 18.5, 14.5, 12, 20.2)
           ..close();
         canvas.drawPath(heart, filled ? fill : stroke);
 
       case MoIcon.settings:
-        // Faders, not a cogwheel. A cogwheel is a *machine*; this app's settings
-        // are a mixing desk, and the shape is the first thing that says so.
         for (final y in const [6.0, 12.0, 18.0]) {
-          canvas.drawLine(Offset(3.2, y), Offset(20.8, y), stroke);
+          canvas.drawLine(Offset(3, y), Offset(21, y), stroke);
         }
-        canvas.drawCircle(const Offset(8.5, 6), 2.5, fill);
-        canvas.drawCircle(const Offset(15.5, 12), 2.5, fill);
-        canvas.drawCircle(const Offset(7.0, 18), 2.5, fill);
+        canvas.drawCircle(const Offset(8, 6), 2.5, fill);
+        canvas.drawCircle(const Offset(16, 12), 2.5, fill);
+        canvas.drawCircle(const Offset(6, 18), 2.5, fill);
 
       case MoIcon.home:
         canvas.drawPath(
           Path()
-            ..moveTo(3.2, 10.4)
-            ..lineTo(12, 3.4)
-            ..lineTo(20.8, 10.4)
-            ..lineTo(20.8, 19.6)
-            ..lineTo(3.2, 19.6)
+            ..moveTo(3, 10.4)
+            ..lineTo(12, 3)
+            ..lineTo(21, 10.4)
+            ..lineTo(21, 20)
+            ..lineTo(3, 20)
             ..close(),
           stroke,
         );

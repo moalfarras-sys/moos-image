@@ -23,20 +23,20 @@ const S = (props: { children: ReactNode } & P) => (
 
 export const IconKeyboard = (p: P) => (
   <S {...p}>
-    <rect x="2" y="6" width="20" height="12" rx="2" />
-    <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" />
+    <rect x="2.5" y="5" width="19" height="14" rx="2" />
+    <path d="M5.5 8.5h2M9.5 8.5h2M13.5 8.5h2M17.5 8.5h2M5.5 12h2M9.5 12h2M13.5 12h2M17.5 12h2M7.5 15.5h9" />
   </S>
 );
 export const IconSpeaker = (p: P) => (
   <S {...p}>
-    <path d="M11 5 6 9H3v6h3l5 4V5Z" />
-    <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+    <path d="M7 8.5L11 8.5 17 3.5v17l-6-5H7z" />
+    <path d="M19.5 7.8a5.5 5.5 0 0 1 0 8.4M22.4 5.6a9 9 0 0 1 0 12.8" />
   </S>
 );
 export const IconSpeakerOff = (p: P) => (
   <S {...p}>
-    <path d="M11 5 6 9H3v6h3l5 4V5Z" />
-    <path d="M16 9.5l5 5M21 9.5l-5 5" />
+    <path d="M7 8.5L11 8.5 17 3.5v17l-6-5H7z" />
+    <path d="M15.2 9.7l5.6 5.6M20.8 9.7l-5.6 5.6" />
   </S>
 );
 export const IconEsc = (p: P) => (
@@ -70,8 +70,6 @@ export const IconMore = (p: P) => (
     <circle cx="19" cy="12" r="1.6" />
   </S>
 );
-// A gear, for the sheet that is actually the settings panel. Three dots say "there is more
-// somewhere"; a gear says what the button opens, which is the whole point of an icon.
 export const IconSettings = (p: P) => (
   <S {...p}>
     <circle cx="12" cy="12" r="3.2" />
@@ -98,20 +96,21 @@ export const IconFullscreen = (p: P) => (
 );
 export const IconPower = (p: P) => (
   <S {...p}>
-    <path d="M12 3v9" />
+    <path d="M12 3v10" />
     <path d="M6.4 6.4a8 8 0 1 0 11.2 0" />
   </S>
 );
 export const IconShield = (p: P) => (
   <S {...p}>
-    <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
-    <path d="M9 12l2 2 4-4" />
+    <path d="M12 2.5l7.5 3.5v7c0 5-3.5 8.5-7.5 10-4-1.5-7.5-5-7.5-10V6z" />
+    <path d="M9 12l2.5 2.5 4.5-5" />
   </S>
 );
 export const IconMouse = (p: P) => (
   <S {...p}>
     <rect x="6" y="3" width="12" height="18" rx="6" />
-    <path d="M12 7v4" />
+    <path d="M12 3.5v5.5" />
+    <path d="M9.5 6.5a2.5 2.5 0 0 1 5 0v2" />
   </S>
 );
 export const IconTrackpad = (p: P) => (
@@ -134,8 +133,8 @@ export const IconBackspace = (p: P) => (
 );
 export const IconPause = (p: P) => (
   <S {...p}>
-    <rect x="6" y="5" width="4" height="14" rx="1" />
-    <rect x="14" y="5" width="4" height="14" rx="1" />
+    <rect x="7" y="4" width="3.5" height="16" rx="1" />
+    <rect x="13.5" y="4" width="3.5" height="16" rx="1" />
   </S>
 );
 export const IconStop = (p: P) => (
@@ -151,8 +150,8 @@ export const IconRefresh = (p: P) => (
 );
 export const IconLock = (p: P) => (
   <S {...p}>
-    <rect x="5" y="11" width="14" height="9" rx="2" />
-    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3" />
   </S>
 );
 export const IconClipboard = (p: P) => (
@@ -198,12 +197,13 @@ export const IconSend = (p: P) => (
 );
 export const IconFolder = (p: P) => (
   <S {...p}>
-    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <path d="M3 7.5a2 2 0 0 1 2-2h4.5l2 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <path d="M5.5 10.5h13" />
   </S>
 );
 export const IconUpload = (p: P) => (
   <S {...p}>
     <path d="M12 16V4M7 9l5-5 5 5" />
-    <path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" />
+    <path d="M4 17.5v2.5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2.5" />
   </S>
 );

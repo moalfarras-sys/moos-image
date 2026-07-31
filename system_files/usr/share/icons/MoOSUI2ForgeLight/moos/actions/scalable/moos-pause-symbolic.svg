@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="pause-title">
+  <title id="pause-title">Pause</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #1A7F37; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M7.75 3 H7.75 A2.75 2.75 0 0 1 10.5 5.75 V18.25 A2.75 2.75 0 0 1 7.75 21 H7.75 A2.75 2.75 0 0 1 5 18.25 V5.75 A2.75 2.75 0 0 1 7.75 3 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M16.25 3 H16.25 A2.75 2.75 0 0 1 19 5.75 V18.25 A2.75 2.75 0 0 1 16.25 21 H16.25 A2.75 2.75 0 0 1 13.5 18.25 V5.75 A2.75 2.75 0 0 1 16.25 3 Z"/>
+</svg>

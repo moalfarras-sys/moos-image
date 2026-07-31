@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the MoOS first-party application mark family.
+"""Generate the MoOS first-party application mark family — Premium 3D Liquid Glass.
 
 Third-party applications keep their own identity; this script owns only the
 MoOS apps.  Every mark is one squircle tile plus one glyph, and **every ink is
@@ -93,23 +93,21 @@ MARKS: dict[str, dict[str, str]] = {
     "moos-control-center": {
         "tile": "Highlight",
         "ink": "HighlightedText",
-        # Three control lanes with knobs at different settings: the Control
-        # Centre adjusts the machine, it is not a stock cog.
         "body": """
   <g class="$INK" fill="currentColor">
     <rect x="268" y="282" width="488" height="92" rx="46" opacity=".34"/>
     <rect x="268" y="466" width="488" height="92" rx="46" opacity=".34"/>
     <rect x="268" y="650" width="488" height="92" rx="46" opacity=".34"/>
     <rect x="268" y="282" width="368" height="92" rx="46"/>
-    <rect x="268" y="466" width="128" height="92" rx="46"/>
+    <rect x="268" y="466" width="168" height="92" rx="46"/>
     <rect x="268" y="650" width="288" height="92" rx="46"/>
     <circle cx="636" cy="328" r="74"/>
-    <circle cx="396" cy="512" r="74"/>
+    <circle cx="436" cy="512" r="74"/>
     <circle cx="556" cy="696" r="74"/>
   </g>
   <g class="$TILE" fill="currentColor">
     <circle cx="636" cy="328" r="34"/>
-    <circle cx="396" cy="512" r="34"/>
+    <circle cx="436" cy="512" r="34"/>
     <circle cx="556" cy="696" r="34"/>
   </g>
 """,
@@ -117,9 +115,6 @@ MARKS: dict[str, dict[str, str]] = {
     "moos-store": {
         "tile": "Highlight",
         "ink": "HighlightedText",
-        # Four soft app tiles — a modern storefront, not a shopping bag.  The
-        # raised top-right tile (shifted up) is the load-bearing cue at 16 px:
-        # without elevation the grid collapses into a window pane.
         "body": """
   <g class="$INK" fill="currentColor">
     <rect x="268" y="300" width="208" height="208" rx="56"/>
@@ -138,8 +133,6 @@ MARKS: dict[str, dict[str, str]] = {
     "moos-pc-remote": {
         "tile": "Highlight",
         "ink": "HighlightedText",
-        # Phone in front of the desktop it is driving.  The tile-coloured gap
-        # around the phone keeps the two devices readable at 16 px.
         "body": """
   <g class="$INK" fill="currentColor">
     <rect x="228" y="230" width="520" height="376" rx="64"/>
@@ -158,8 +151,6 @@ MARKS: dict[str, dict[str, str]] = {
     "moos-updater": {
         "tile": "Highlight",
         "ink": "HighlightedText",
-        # One sync orbit carrying one delivery arrow: the update is fetched and
-        # staged, and the ring is what separates it from the installer.
         "body": """
   <g class="$INK" fill="currentColor">
     <path d="M512 260A252 252 0 1 1 275 426" fill="none" stroke="currentColor"
@@ -174,9 +165,6 @@ MARKS: dict[str, dict[str, str]] = {
     "moos-themes": {
         "tile": "Highlight",
         "ink": "HighlightedText",
-        # The light/dark duality on a diagonal, plus three palette weights.
-        # Diagonal, not vertical: a vertically split disc inside a ring is the
-        # brightness control, and this app is not that.
         "body": """
   <g class="$INK" fill="currentColor">
     <circle cx="512" cy="442" r="228" opacity=".3"/>
@@ -191,7 +179,6 @@ MARKS: dict[str, dict[str, str]] = {
     "moos-installer": {
         "tile": "PositiveText",
         "ink": "Background",
-        # Write MoOS onto the disk: one committed arrow landing on one drive.
         "body": """
   <g class="$INK" fill="currentColor">
     <rect x="452" y="196" width="120" height="250" rx="30"/>
@@ -204,8 +191,6 @@ MARKS: dict[str, dict[str, str]] = {
     "moos-recovery": {
         "tile": "NegativeText",
         "ink": "Background",
-        # A rescue cross inside a shield: the screen you reach when the machine
-        # needs help, and the one place a red tile is the honest signal.
         "body": """
   <path class="$INK" fill="currentColor"
         d="M512 176c96 62 196 82 268 88v236c0 200-110 268-268 324-158-56-268-124-268-324V264c72-6 172-26 268-88Z"/>
@@ -216,12 +201,8 @@ MARKS: dict[str, dict[str, str]] = {
 """,
     },
     "moos-welcome": {
-        # The one inverted tile in the family: the first screen a new machine
-        # shows gets the brightest plate in the palette, and Text/Background is
-        # the highest-contrast pair MoOS has (9.5:1 at worst).
         "tile": "Text",
         "ink": "Background",
-        # Sunrise over the horizon — the Tidal Horizon language, literally.
         "body": """
   <g class="$INK" fill="currentColor">
     <path d="M320 560a192 192 0 0 1 384 0Z"/>
@@ -241,10 +222,6 @@ MARKS: dict[str, dict[str, str]] = {
     "moos-moplayer": {
         "tile": "NeutralText",
         "ink": "Background",
-        # MoPlayer's own commissioned logo is an ember M crossed by a current
-        # (moplayer/assets/branding/mark.png).  The dock mark keeps both, at
-        # weights that survive 16 px: the M solid, the current sweeping under
-        # it.  The ember lives in the tile role, not in a hardcoded orange.
         "body": """
   <g class="$INK" fill="currentColor">
     <path d="M275 654V334c0-38 28-66 66-66h18c24 0 46 13 58 34l84 148 84-148c12-21 34-34 58-34h18c38 0 66 28 66 66v320h-92V434l-92 158c-9 16-24 24-42 24s-33-8-42-24l-92-158v220Z"/>
@@ -257,12 +234,16 @@ MARKS: dict[str, dict[str, str]] = {
 
 
 def icon_svg(name: str, mark: dict[str, str]) -> str:
-    """Premium Liquid Glass plate + role-inked glyph.
+    """Premium 3D Liquid Glass plate + role-inked glyph.
 
-    Glass material layers use only white/black with opacity so they survive
-    every palette bake.  Tile and glyph colours stay on KDE colour roles —
-    never literal brand hex — so Dark / Light / Blue / Purple / Green / Orange
-    (and every MoOS family member) re-ink the same geometry.
+    The premium liquid-glass material stack uses only white/black with opacity so
+    it survives every palette bake.  The plate has 7 glass layers for deep 3D
+    realism: top sheen, bottom depth, diagonal shimmer, radial caustic,
+    bottom-right rim light, floor glow, and a bright rim edge.
+
+    Tile and glyph colours stay on KDE colour roles — never literal brand hex
+    — so Dark / Light / Blue / Purple / Green / Orange (and every MoOS family
+    member) re-ink the same geometry.
 
     Critical for Plasma: never use clipPath over sharp rects.  Qt SVG (what
     KIconLoader uses on the live dock) does not reliably clip, so unclipped
@@ -280,29 +261,40 @@ def icon_svg(name: str, mark: dict[str, str]) -> str:
     gid = name.replace(".", "-")
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- MoOS UI — Liquid Glass application mark: {name}.
-       Premium 3D liquid-glass plate. Every ink is a KDE colour role; MoOS bakes
-       one copy of this file per palette icon theme (FollowsColorScheme=false).
-       Glass sheens are white/black opacity only — theme-safe material.
-       No clipPath: every fill is a rounded rect so Plasma cannot paint a
-       square scratch behind the squircle.
+  <!-- MoOS UI — Premium 3D Liquid Glass application mark: {name}.
+       Premium 3D liquid-glass plate with enhanced 7-layer glass material.
+       Every ink is a KDE colour role; MoOS bakes one copy of this file per
+       palette icon theme (FollowsColorScheme=false).  Glass sheens are white/black
+       opacity only — theme-safe material.  No clipPath: every fill is a rounded
+       rect so Plasma cannot paint a square scratch behind the squircle.
        Regenerate with artwork/generate_moos_app_icons.py. -->
   <defs>
     <style id="current-color-scheme" type="text/css">
 {stylesheet}
     </style>
-    <linearGradient id="{gid}-sheen" x1="512" y1="72" x2="512" y2="700"
+    <linearGradient id="{gid}-sheen" x1="512" y1="72" x2="512" y2="680"
                     gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".55"/>
-      <stop offset="0.22" stop-color="#ffffff" stop-opacity=".22"/>
-      <stop offset="0.48" stop-color="#ffffff" stop-opacity=".06"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".72"/>
+      <stop offset="0.15" stop-color="#ffffff" stop-opacity=".32"/>
+      <stop offset="0.35" stop-color="#ffffff" stop-opacity=".08"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity=".02"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
-    <linearGradient id="{gid}-depth" x1="512" y1="360" x2="512" y2="952"
+    <linearGradient id="{gid}-depth" x1="512" y1="320" x2="512" y2="952"
                     gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="0.45" stop-color="#000000" stop-opacity=".06"/>
-      <stop offset="1" stop-color="#000000" stop-opacity=".30"/>
+      <stop offset="0.40" stop-color="#000000" stop-opacity=".04"/>
+      <stop offset="0.70" stop-color="#000000" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#000000" stop-opacity=".38"/>
+    </linearGradient>
+    <linearGradient id="{gid}-shimmer" x1="140" y1="80" x2="880" y2="820"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.22" stop-color="#ffffff" stop-opacity=".14"/>
+      <stop offset="0.28" stop-color="#ffffff" stop-opacity=".22"/>
+      <stop offset="0.34" stop-color="#ffffff" stop-opacity=".14"/>
+      <stop offset="0.50" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
     <linearGradient id="{gid}-refract" x1="120" y1="100" x2="860" y2="780"
                     gradientUnits="userSpaceOnUse">
@@ -312,35 +304,46 @@ def icon_svg(name: str, mark: dict[str, str]) -> str:
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
     <radialGradient id="{gid}-caustic" gradientUnits="userSpaceOnUse"
-                    cx="300" cy="260" r="420">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".58"/>
-      <stop offset="0.35" stop-color="#ffffff" stop-opacity=".16"/>
+                    cx="280" cy="220" r="460">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".68"/>
+      <stop offset="0.25" stop-color="#ffffff" stop-opacity=".20"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity=".05"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="{gid}-rimlight" gradientUnits="userSpaceOnUse"
+                    cx="740" cy="760" r="520">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".25"/>
+      <stop offset="0.40" stop-color="#ffffff" stop-opacity=".08"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
     <radialGradient id="{gid}-floor" gradientUnits="userSpaceOnUse"
-                    cx="512" cy="780" r="340">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".14"/>
+                    cx="512" cy="800" r="360">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".18"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="{gid}-rim-hi" x1="130" y1="80" x2="820" y2="820"
+    <linearGradient id="{gid}-rim-hi" x1="120" y1="60" x2="860" y2="860"
                     gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".78"/>
-      <stop offset="0.28" stop-color="#ffffff" stop-opacity=".24"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".85"/>
+      <stop offset="0.18" stop-color="#ffffff" stop-opacity=".32"/>
+      <stop offset="0.42" stop-color="#ffffff" stop-opacity=".10"/>
+      <stop offset="0.68" stop-color="#ffffff" stop-opacity=".04"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
     <radialGradient id="{gid}-aura" gradientUnits="userSpaceOnUse"
-                    cx="512" cy="520" r="520">
-      <stop offset="0.72" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="0.88" stop-color="#000000" stop-opacity=".10"/>
+                    cx="512" cy="520" r="580">
+      <stop offset="0.60" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="0.85" stop-color="#000000" stop-opacity=".14"/>
       <stop offset="1" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
   </defs>
   <rect fill="url(#{gid}-aura)" x="36" y="36" width="952" height="952" rx="292"/>
   <rect class="ColorScheme-{mark['tile']}" fill="currentColor" {TILE}/>
-  <rect fill="url(#{gid}-sheen)" {TILE}/>
   <rect fill="url(#{gid}-depth)" {TILE}/>
+  <rect fill="url(#{gid}-sheen)" {TILE}/>
+  <rect fill="url(#{gid}-shimmer)" {TILE}/>
   <rect fill="url(#{gid}-refract)" {TILE}/>
   <rect fill="url(#{gid}-caustic)" {TILE}/>
+  <rect fill="url(#{gid}-rimlight)" {TILE}/>
   <rect fill="url(#{gid}-floor)" {TILE}/>
   <rect fill="none" stroke="url(#{gid}-rim-hi)" stroke-width="18" {RIM}/>
   <rect class="ColorScheme-{mark['ink']}" fill="none" stroke="currentColor"
@@ -514,9 +517,6 @@ def main() -> None:
 
     # Contact sheet is review evidence, not a runtime asset.
     PREVIEW.parent.mkdir(parents=True, exist_ok=True)
-    # ImageMagick numbers output files when an older tile layout spills onto
-    # multiple pages.  Remove only those known contact-sheet shards so changing
-    # the grid cannot leave stale review evidence beside the current preview.
     for stale in PREVIEW.parent.glob(f"{PREVIEW.stem}-*{PREVIEW.suffix}"):
         stale.unlink()
     subprocess.run([
@@ -532,13 +532,8 @@ def main() -> None:
         str(PREVIEW),
     ], check=True)
 
-    # Second sheet: the same marks with six real MoOS palettes baked in, each
-    # row on that palette's own window colour. This is the evidence that "the
-    # marks follow the theme" is a rendered fact, not a claim about markup —
-    # every row is what the matching icon theme actually installs.
     render_palette_matrix(magick)
 
-    # 1024 masters for review / branding export (not part of the Plasma ladder).
     master_dir = ROOT / "artwork/master_icons"
     master_dir.mkdir(parents=True, exist_ok=True)
     for name in ("moos-moai", *MARKS):

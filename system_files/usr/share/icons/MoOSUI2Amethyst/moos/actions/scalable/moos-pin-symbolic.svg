@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="pin-title">
+  <title id="pin-title">Pin</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #F1E9F5; fill: currentColor; }
+    .ColorScheme-Highlight { color: #C084FC; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #FBBF24; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #FB7185; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M12 2.5C7 2.5 4 6 4 10C4 16 12 21.5 12 21.5C12 21.5 20 16 20 10C20 6 17 2.5 12 2.5Z M15 9.5 A3 3 0 1 1 9 9.5 A3 3 0 1 1 15 9.5 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M13.5 9.5 A1.5 1.5 0 1 1 10.5 9.5 A1.5 1.5 0 1 1 13.5 9.5 Z"/>
+</svg>

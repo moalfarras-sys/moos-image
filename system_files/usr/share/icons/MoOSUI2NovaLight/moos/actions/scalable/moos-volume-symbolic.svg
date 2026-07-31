@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="volume-title">
+  <title id="volume-title">Volume</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #0E63C4; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M6 8.5 L10 8.5 L16 3.5 L16 20.5 L10 15.5 L6 15.5 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M19.535 7.787 A5.5 5.5 0 0 1 19.535 16.213 L18.25 14.681 A3.5 3.5 0 0 0 18.25 9.319 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M20.178 7.021 A6.5 6.5 0 0 1 20.178 16.979 L18.893 15.447 A4.5 4.5 0 0 0 18.893 8.553 Z"/>
+</svg>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="calendar-title">
+  <title id="calendar-title">Calendar</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Highlight { color: #C81D7A; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.3 4.5 H18.7 A2.8 2.8 0 0 1 21.5 7.3 V18.2 A2.8 2.8 0 0 1 18.7 21 H5.3 A2.8 2.8 0 0 1 2.5 18.2 V7.3 A2.8 2.8 0 0 1 5.3 4.5 Z M5.3 6.5 H18.7 A0.8 0.8 0 0 1 19.5 7.3 V9.7 A0.8 0.8 0 0 1 18.7 10.5 H5.3 A0.8 0.8 0 0 1 4.5 9.7 V7.3 A0.8 0.8 0 0 1 5.3 6.5 Z M8.5 3.2 L8.5 4.5 A0.5 0.5 0 0 1 9.5 4.5 L9.5 3.2 A0.5 0.5 0 0 1 8.5 3.2 Z M14.5 3.2 L14.5 4.5 A0.5 0.5 0 0 1 15.5 4.5 L15.5 3.2 A0.5 0.5 0 0 1 14.5 3.2 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M5.4 12 H10.6 A0.4 0.4 0 0 1 11 12.4 V13.1 A0.4 0.4 0 0 1 10.6 13.5 H5.4 A0.4 0.4 0 0 1 5 13.1 V12.4 A0.4 0.4 0 0 1 5.4 12 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.4 15 H10.6 A0.4 0.4 0 0 1 11 15.4 V16.1 A0.4 0.4 0 0 1 10.6 16.5 H5.4 A0.4 0.4 0 0 1 5 16.1 V15.4 A0.4 0.4 0 0 1 5.4 15 Z"/>
+</svg>
