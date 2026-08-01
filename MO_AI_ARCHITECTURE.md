@@ -226,17 +226,17 @@ cleanup lands. No decorative perpetual animation is allowed.
   The unreachable duplicate Health settings page was removed. Live 4K RTL source
   evidence covered the twelve-page grid, Hybrid selection and configured
   OpenClaw status.
-- [ ] Light/dark and Arabic/English coverage at compact, desktop and 4K sizes.
-  Partial evidence now exists for the complete Settings grid and Terminal page
-  in English/LTR at the enforced compact minimum `720×540`, plus Permissions in
-  Dark/RTL on the live 4K session. The exact prior `MoOS Scholar Light` theme was
-  restored after review. Chat, Projects, Tasks and Terminal still need the full
-  cross-product before this item can close.
-  A source-only `--layout-direction ltr|rtl` review switch now makes both
-  directions deterministic without changing the owner's KDE session. New live
-  captures verified 720×540 Light/LTR Providers, 1440×900 Dark/LTR Chat and
-  720×540 Dark/RTL Terminal; the exact Scholar Light theme was restored. These
-  add real matrix cells but do not yet close the full cross-product.
+- [x] Light/dark and Arabic/English coverage at compact, desktop and 4K sizes.
+  The source QML and source Agent backend were run together on the live 4K
+  Wayland session. Conversations, Projects, Tasks and Terminal were each
+  captured in Light/Dark × LTR/RTL at the enforced `720×540` minimum, a
+  `1120×760` desktop window and the native 4K-scaled window: 48 real screenshots,
+  reviewed as three 4×4 contact sheets. They contain the real MoOS project,
+  OpenClaw sessions and a completed task rather than mock data. The invalid first
+  compact capture against the older installed backend was explicitly discarded
+  and the matrix rerun on isolated source port 18077. No QML binding/type/load
+  errors appeared. The owner's exact `org.moos.ui2.study.light` /
+  `MoOSUI2ScholarLight` pair was read back after both theme switches.
 - [x] Keyboard navigation, focus order, screen-reader labels and reduced motion.
   Every hand-drawn action uses the shared Tab/Enter/Space `ActionArea`; modal
   sheets take focus and close with Escape. A live Qt accessibility run with
@@ -246,8 +246,13 @@ cleanup lands. No decorative perpetual animation is allowed.
   chat actions, composer, modal Close and Settings tabs in order. The existing
   real-QML motion gate proves all fixed transitions collapse and all loops stop
   when KDE animations are disabled.
-- [ ] Remove superseded panels and code only after runtime consumers and gates
-  prove they are unused.
+- [x] Remove superseded panels and code only after runtime consumers and gates
+  prove they are unused. The unreachable Health settings duplicate was already
+  removed; the remaining always-instantiated, `visible:false` starter Flow was
+  deleted after proving the hero cards own its sole behavior. A gate now rejects
+  that dormant panel. No hidden/superseded/mock panel remains; all seven main
+  panels are members of `navItems`/the StackLayout and the compatibility launch
+  shims and desktop actions are covered by the route gates.
 
 ### Phase 6 — release proof
 
@@ -265,7 +270,10 @@ cleanup lands. No decorative perpetual animation is allowed.
   `7.1.5-201.fc44.x86_64`. The signed CI matrix remains a separate open proof.
 - [ ] Live functional evidence: chat, voice, image, file, terminal, each brain
   route, task stop/resume, approvals and both configured phone channels.
-- [ ] Live screenshots: light/dark × RTL/LTR × compact/4K primary screens.
+- [x] Live screenshots: light/dark × RTL/LTR × compact/desktop/4K primary
+  screens. The 48-source-run matrix is recorded above; contact sheets are
+  `/var/tmp/moai-review-source-{compact,desktop}-full-matrix.png` plus the four
+  4K primary sheets from the same run.
 - [ ] Update `PROJECT_STATE.md` and `MOOS_ROADMAP.md` with only verified facts.
 - [ ] Publish and signature-verify all three images, stage the live update,
   reboot with user consent and run `tests/post-update-check.sh`.

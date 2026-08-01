@@ -85,7 +85,12 @@ states were captured and visually inspected without clipping. Live 4K RTL eviden
 OpenClaw status. Settings also passed English/LTR at the enforced compact
 `720×540` minimum and Permissions passed Dark/RTL on the live 4K session; the
 machine was restored to its exact prior `MoOS Scholar Light` theme afterward.
-This is partial visual-matrix evidence, not completion of the full app matrix.
+The visual matrix is now complete for the four primary workspaces. Source QML
+and the source Agent backend were run together on the live 4K Wayland session;
+Conversations, Projects, Tasks and Terminal were captured in Light/Dark ×
+LTR/RTL at `720×540`, `1120×760` and native 4K scale: 48 real screenshots,
+reviewed as three 4×4 contact sheets. The captures show the real MoOS project,
+real OpenClaw sessions and a completed task. No binding/type/load errors appeared.
 The accessibility surface is now live-proven rather than only grepped: Qt's
 AT-SPI tree exposed the source app, every interactive node had a name or named
 `labelledBy` relation after fixing six anonymous secret/switch controls, and
@@ -95,8 +100,8 @@ Visual review direction can now be selected per source run with the validated
 `--layout-direction ltr|rtl` argument, avoiding global locale changes. Live
 captures added Light/LTR compact Providers, Dark/LTR 1440×900 Chat and Dark/RTL
 compact Terminal, then restored `org.moos.ui2.study.light` and
-`MoOSUI2ScholarLight` exactly. The remaining full primary-screen cross-product
-is still open.
+`MoOSUI2ScholarLight` exactly. The full primary-workspace cross-product is now
+closed; the evidence contact sheets remain under `/var/tmp/moai-review-source-*`.
 OpenClaw also gains a `moai/hybrid` loopback
 provider so phone turns use the same smart routing policy. The installed OpenClaw
 advertises WhatsApp Web support and Mo AI now exposes its fixed login route.
