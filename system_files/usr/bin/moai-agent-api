@@ -10,6 +10,7 @@ has_key/has_token فقط، ولا يعيد القيمة نفسها ولو للو
     GET  /                     الواجهة
     GET  /api/status           الخدمات + الكرت + النموذج المحمّل
     GET  /api/config           الإعداد الحالي (بلا أسرار)
+    GET  /api/channels         حالة Telegram وWhatsApp الفعلية (بلا أسرار)
     POST /api/config           كتابة الإعداد + إعادة تشغيل ما يلزم فقط
     GET  /api/sessions         قائمة المحادثات
     GET  /api/session?id=…     رسائل محادثة
@@ -18,15 +19,28 @@ has_key/has_token فقط، ولا يعيد القيمة نفسها ولو للو
 from __future__ import annotations
 
 import copy
+import asyncio
+import base64
+import html
+import hashlib
 import json
+import mimetypes
 import os
+import pty
 import re
+import select
+import signal
+import shutil
+import socket
 import subprocess
 import sys
 import tempfile
 import threading
 import time
 import urllib.parse
+import uuid
+import zipfile
+import xml.etree.ElementTree as ET
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -38,11 +52,15 @@ OC_CFG = HOME / ".openclaw/openclaw.json"
 # makes the whole config invalid and the gateway refuses to start.
 STATE = CONFIG_HOME / "moai-agent/state.json"
 LEGACY_STATE = CONFIG_HOME / "moapp/state.json"
+WORKSPACE = CONFIG_HOME / "moai-agent/workspace.json"
+DATA_HOME = Path(os.environ.get("XDG_DATA_HOME", str(HOME / ".local/share"))).expanduser()
+ATTACHMENTS = DATA_HOME / "moai-agent/attachments"
 SESSIONS = HOME / ".openclaw/agents/main/sessions"
 QUADLET_DIR = CONFIG_HOME / "containers/systemd"
 ENGINE_HELPER = Path(os.environ.get(
     "MOAI_LOCAL_ENGINE_HELPER", "/usr/libexec/moai-local-engine"))
 TRANSCRIBE = Path("/usr/bin/moai-transcribe")
+PW_RECORD = Path("/usr/bin/pw-record")
 # Shipped by the image: the UI lives under /usr/share, not beside the script.
 # A dev checkout can override it for iteration without touching /usr.
 UI = Path(os.environ.get("MOAI_AGENT_UI",
@@ -55,6 +73,12 @@ PORT = int(os.environ.get("MOAI_AGENT_PORT", "8077"))
 # implement), while the body cap prevents an accidental local memory sink.
 API_HEADER = "X-Moai-Agent"
 MAX_BODY_BYTES = 1024 * 1024
+MAX_TERMINAL_INPUT = 64 * 1024
+MAX_TERMINAL_BUFFER = 2 * 1024 * 1024
+MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
+MAX_TEXT_ATTACHMENT_BYTES = 512 * 1024
+MAX_PROJECT_FILE_BYTES = 1024 * 1024
+MAX_PROJECT_DIFF_BYTES = 2 * 1024 * 1024
 
 # OpenClaw is a per-user npm install (~386 MB, needs Node >= 22.22.3), so the
 # image does NOT ship it — `moai-do install-openclaw` puts it in ~/.local, the
@@ -94,7 +118,14 @@ SPEACHES_TTS = {
     "speakerVoice": "kareem",
     "responseFormat": "mp3",
 }
+MOAI_HYBRID_PROVIDER = {
+    "baseUrl": "http://127.0.0.1:8080/v1",
+    "apiKey": "moai-loopback",
+    "api": "openai-completions",
+}
 CONFIG_WRITE_LOCK = threading.RLock()
+TASK_RUNNER_LOCK = threading.RLock()
+TASK_RUNNERS: dict[str, subprocess.Popen] = {}
 
 # Cloud providers Mo AI already knows about, kept identical so the two settings
 # surfaces never disagree about what "cloud" means.
@@ -151,9 +182,18 @@ TIERS = {
         "exec_ask": "off",
         "deny": ["group:web", "browser", "exec"],
     },
-    # مع إذن — تحكّم حقيقي بالجهاز، لكن يقترح كل أمر وتوافق من Telegram قبله.
-    # (approve) HOST reach, every command shown in the chat and run only on yes.
-    "ask": {
+    # تعديل مشروع — كتابة داخل workspace المعزول، بلا وصول إلى جلسة المضيف.
+    "project": {
+        "elevated": "off",
+        "workspace": "rw",
+        "approvals": False,
+        "sandbox": "all",
+        "exec_security": "full",
+        "exec_ask": "off",
+        "deny": ["group:web", "browser"],
+    },
+    # تحكّم بالنظام — وصول حقيقي، وكل أمر يحتاج موافقة من القناة الأصلية.
+    "system": {
         "elevated": "ask",
         "workspace": "rw",
         "approvals": True,
@@ -296,6 +336,32 @@ def save_state(st: dict) -> None:
         _atomic_bytes(STATE, _json_bytes(st))
 
 
+def load_workspace() -> dict:
+    """Read Mo AI-owned metadata without extending OpenClaw's strict schema."""
+    try:
+        value = json.loads(WORKSPACE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {"version": 1, "sessions": {}, "projects": {}, "tasks": {},
+                "attachments": {}, "audit": []}
+    except Exception as exc:
+        raise ValueError(f"could not read Mo AI workspace metadata: {exc}") from exc
+    if not isinstance(value, dict) or value.get("version") != 1:
+        raise ValueError("unsupported Mo AI workspace metadata")
+    for key in ("sessions", "projects", "tasks", "attachments"):
+        if not isinstance(value.get(key, {}), dict):
+            raise ValueError(f"workspace field {key!r} must be an object")
+        value.setdefault(key, {})
+    if not isinstance(value.get("audit", []), list):
+        raise ValueError("workspace field 'audit' must be an array")
+    value.setdefault("audit", [])
+    return value
+
+
+def save_workspace(workspace: dict) -> None:
+    with CONFIG_WRITE_LOCK:
+        _atomic_bytes(WORKSPACE, _json_bytes(workspace))
+
+
 def unit_active(name: str) -> bool:
     return sh(["systemctl", "--user", "is-active", name], 8) == "active"
 
@@ -397,6 +463,128 @@ def status() -> dict:
     }
 
 
+def capabilities() -> dict:
+    """Machine-readable product contract; read-only and does not wake services."""
+    cfg = load_cfg()
+    st = load_state()
+    tier = _actual_tier(cfg) or st.get("tier", "read")
+    return {
+        "schema": 1,
+        "workspace": {
+            "sessions": True, "projects": True, "tasks": True,
+            "project_files": True, "git_status_diff": True, "audit": True,
+            "attachments": {
+                "images": True, "text": True, "binary_extract": True,
+                "document_formats": ["pdf", "docx", "odt"],
+            },
+        },
+        "agent": {
+            "installed": Path(BIN).is_file() and os.access(BIN, os.X_OK),
+            "task_execution": True,
+            "approval_queue": True,
+            "permission_tiers": list(TIERS),
+            "active_tier": tier if tier in TIERS else "read",
+        },
+        "terminal": {"pty": True, "tabs": True, "model_access": False},
+        "voice": {"push_to_talk": PW_RECORD.is_file(),
+                  "transcription": TRANSCRIBE.is_file()},
+        "channels": {"telegram": True, "whatsapp": True,
+                     "shared_openclaw_sessions": True},
+        "brains": {"local": True, "cloud": True, "hybrid": True},
+    }
+
+
+def channel_status() -> dict:
+    """Probe OpenClaw channels and return a small, secret-free product view."""
+    empty = {
+        name: {"configured": False, "running": False, "connected": False,
+               "account": "", "mode": "", "error": ""}
+        for name in ("telegram", "whatsapp")
+    }
+    if not (Path(BIN).is_file() and os.access(BIN, os.X_OK)):
+        return {"available": False, "channels": empty,
+                "error": "OpenClaw is not installed"}
+
+    # A channel probe is an explicit user request, so waking the on-demand
+    # gateway here is intentional. Its idle timer remains responsible for sleep.
+    subprocess.run(
+        ["systemctl", "--user", "start", "openclaw-gateway.service"],
+        env=ENV, capture_output=True, text=True, timeout=15, check=False,
+    )
+    cfg = load_cfg()
+    try:
+        port = int((cfg.get("gateway") or {}).get("port") or 18789)
+    except (TypeError, ValueError):
+        port = 18789
+    if not 1024 <= port <= 65535:
+        port = 18789
+    if not _wait_gateway_ready(port):
+        return {"available": True, "channels": empty,
+                "error": "OpenClaw Gateway did not become ready"}
+    try:
+        proc = subprocess.run(
+            [BIN, "channels", "status", "--probe", "--json"],
+            env=ENV, capture_output=True, text=True, timeout=30, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"available": True, "channels": empty,
+                "error": f"Channel probe unavailable: {exc}"[:240]}
+
+    raw = proc.stdout
+    start = raw.find("{")
+    try:
+        report = json.loads(raw[start:]) if start >= 0 else {}
+    except json.JSONDecodeError:
+        report = {}
+    if proc.returncode or not isinstance(report, dict):
+        detail = (proc.stderr or proc.stdout or "Channel probe failed").strip()
+        return {"available": True, "channels": empty, "error": detail[-240:]}
+
+    source = report.get("channels") or {}
+    if not isinstance(source, dict):
+        source = {}
+    accounts = report.get("channelAccounts") or {}
+    if not isinstance(accounts, dict):
+        accounts = {}
+    for name in empty:
+        item = source.get(name) or {}
+        if not item:
+            rows = accounts.get(name) or []
+            if isinstance(rows, list) and rows and isinstance(rows[0], dict):
+                item = rows[0]
+        if not isinstance(item, dict):
+            continue
+        probe = item.get("probe") or {}
+        if not isinstance(probe, dict):
+            probe = {}
+        info = probe.get("botInfo") or probe.get("bot") or {}
+        if not isinstance(info, dict):
+            info = {}
+        account = str(info.get("username") or info.get("displayName") or "")[:80]
+        error = str(probe.get("error") or item.get("lastError") or "")[:240]
+        empty[name] = {
+            "configured": bool(item.get("configured")),
+            "running": bool(item.get("running")),
+            "connected": bool(probe.get("ok")),
+            "account": account,
+            "mode": str(item.get("mode") or "")[:40],
+            "error": error,
+        }
+    return {"available": True, "channels": empty, "error": ""}
+
+
+def _wait_gateway_ready(port: int, timeout: float = 12.0) -> bool:
+    """Wait for the loopback listener, not merely systemd's active state."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                return True
+        except OSError:
+            time.sleep(0.1)
+    return False
+
+
 # ── config ──────────────────────────────────────────────────────────────
 
 def _primary(cfg: dict) -> str:
@@ -407,7 +595,11 @@ def _primary(cfg: dict) -> str:
 
 
 def _primary_mode(primary: str) -> str:
-    return "cloud" if primary.startswith("cloud/") else "local"
+    if primary.startswith("cloud/"):
+        return "cloud"
+    if primary == "moai/hybrid":
+        return "hybrid"
+    return "local"
 
 
 def _model_from_primary(primary: str, provider: str) -> str:
@@ -453,7 +645,7 @@ def _openclaw_configured(cfg: dict, primary: str | None = None) -> bool:
     if "/" not in primary:
         return False
     provider_id, model_id = primary.split("/", 1)
-    if provider_id not in ("ollama", "cloud") or not model_id:
+    if provider_id not in ("ollama", "cloud", "moai") or not model_id:
         return False
     node = (((cfg.get("models") or {}).get("providers") or {}).get(provider_id) or {})
     models = node.get("models") or []
@@ -467,10 +659,19 @@ def _openclaw_configured(cfg: dict, primary: str | None = None) -> bool:
 
 
 def _actual_tier(cfg: dict) -> str:
+    defaults = ((cfg.get("agents") or {}).get("defaults") or {})
+    sandbox = defaults.get("sandbox") or {}
     tools_exec = ((cfg.get("tools") or {}).get("exec") or {})
-    pair = (tools_exec.get("security", "deny"), tools_exec.get("ask", "off"))
+    approvals = ((cfg.get("approvals") or {}).get("exec") or {})
     for name, tier in TIERS.items():
-        if pair == (tier["exec_security"], tier["exec_ask"]):
+        if (
+            tools_exec.get("security", "deny") == tier["exec_security"]
+            and tools_exec.get("ask", "off") == tier["exec_ask"]
+            and defaults.get("elevatedDefault", "off") == tier["elevated"]
+            and sandbox.get("workspaceAccess", "ro") == tier["workspace"]
+            and sandbox.get("mode", "all") == tier["sandbox"]
+            and bool(approvals.get("enabled")) == tier["approvals"]
+        ):
             return name
     return "read"
 
@@ -629,8 +830,8 @@ def write_config(body: dict) -> dict:
         # ── the real primary, never a UI-only hybrid flag ──
         if "mode" in body:
             mode = str(body["mode"])
-            if mode not in ("local", "cloud"):
-                raise ValueError("الوضع يجب أن يكون محلياً أو سحابياً فقط")
+            if mode not in ("local", "cloud", "hybrid"):
+                raise ValueError("الوضع يجب أن يكون محلياً أو سحابياً أو هجينا")
             defaults = c.setdefault("agents", {}).setdefault("defaults", {})
             model_node = defaults.setdefault("model", {})
             providers = c.setdefault("models", {}).setdefault("providers", {})
@@ -646,7 +847,7 @@ def write_config(body: dict) -> dict:
                 _upsert_model(ollama, local_id)
                 new_primary = f"ollama/{local_id}"
                 st["local_model"] = new_primary
-            else:
+            elif mode == "cloud":
                 cloud = providers.setdefault("cloud", {})
                 cloud_id = _clean_model(
                     cl.get("model") or st.get("cloud_model"), "نموذج السحابة")
@@ -657,7 +858,17 @@ def write_config(body: dict) -> dict:
                 _upsert_model(cloud, cloud_id)
                 new_primary = f"cloud/{cloud_id}"
                 st["cloud_model"] = cloud_id
+            else:
+                moai = providers.setdefault("moai", {})
+                for key, value in MOAI_HYBRID_PROVIDER.items():
+                    moai[key] = value
+                _upsert_model(moai, "hybrid")
+                new_primary = "moai/hybrid"
             model_node["primary"] = new_primary
+            allowed_models = defaults.setdefault("models", {})
+            if not isinstance(allowed_models, dict):
+                raise ValueError("قائمة نماذج OpenClaw المسموحة غير صالحة")
+            allowed_models.setdefault(new_primary, {})
             st["mode"] = mode  # migration breadcrumb; reads use primary only.
             if original_primary and original_primary != new_primary:
                 policies = c.setdefault("tools", {}).setdefault("byProvider", {})
@@ -740,6 +951,8 @@ def write_config(body: dict) -> dict:
         if not isinstance(permissions, dict):
             raise ValueError("إعداد الصلاحيات غير صالح")
         tier = permissions.get("tier")
+        if tier == "ask":  # upgrade compatibility with the retired three-tier UI
+            tier = "system"
         if tier is not None and tier not in TIERS:
             raise ValueError("مستوى الصلاحيات غير معروف")
         if tier in TIERS:
@@ -894,6 +1107,14 @@ def write_config(body: dict) -> dict:
                 f"لم يُفعّل التغيير وأُعيد الإعداد السابق: {exc}"
             ) from exc
 
+        permission_change = body.get("permissions") or {}
+        if isinstance(permission_change, dict) and (
+            "tier" in permission_change or "project" in permission_change
+        ):
+            append_audit(
+                "permission", "policy-change", str(st.get("project") or ""), "applied",
+                {"tier": str(st.get("tier") or _actual_tier(c) or "read")},
+            )
         return {
             "ok": True,
             "restarted": restarted,
@@ -902,14 +1123,1006 @@ def write_config(body: dict) -> dict:
         }
 
 
+# ── workspace: projects and tasks ───────────────────────────────────────
+
+TASK_STATES = {"pending", "running", "paused", "failed", "completed", "cancelled"}
+STEP_STATES = {"pending", "running", "completed", "failed", "skipped"}
+TERMINAL_ID_RE = re.compile(r"^[0-9a-f-]{36}$")
+
+
+def _home_directory(value: str) -> Path:
+    try:
+        home_real = HOME.resolve(strict=True)
+        resolved = Path(str(value or "")).expanduser().resolve(strict=True)
+    except OSError as exc:
+        raise ValueError("project path does not exist") from exc
+    if not resolved.is_dir() or (resolved != home_real and home_real not in resolved.parents):
+        raise ValueError("project must be inside the real home directory")
+    return resolved
+
+
+def list_projects(include_archived: bool = False) -> list[dict]:
+    values = []
+    for project in load_workspace()["projects"].values():
+        if not isinstance(project, dict):
+            continue
+        if project.get("archived") and not include_archived:
+            continue
+        values.append(project)
+    return sorted(values, key=lambda p: (not p.get("pinned", False),
+                                          -int(p.get("updated", 0))))
+
+
+def upsert_project(body: dict) -> dict:
+    allowed = {"id", "name", "path", "pinned", "archived"}
+    unknown = set(body) - allowed
+    if unknown:
+        raise ValueError("unknown project metadata: " + ", ".join(sorted(unknown)))
+    resolved = _home_directory(str(body.get("path") or ""))
+    project_id = hashlib.sha256(str(resolved).encode()).hexdigest()[:20]
+    supplied = str(body.get("id") or "")
+    if supplied and supplied != project_id:
+        raise ValueError("project id does not match its canonical path")
+    workspace = load_workspace()
+    current = workspace["projects"].get(project_id, {})
+    now = int(time.time())
+    name = str(body.get("name") or current.get("name") or resolved.name or resolved).strip()
+    if not name or len(name) > 120 or any(ord(ch) < 32 for ch in name):
+        raise ValueError("invalid project name")
+    project = {
+        "id": project_id,
+        "name": name,
+        "path": str(resolved),
+        "pinned": bool(body.get("pinned", current.get("pinned", False))),
+        "archived": bool(body.get("archived", current.get("archived", False))),
+        "created": int(current.get("created", now)),
+        "updated": now,
+    }
+    workspace["projects"][project_id] = project
+    save_workspace(workspace)
+    return {"ok": True, **project}
+
+
+def _project(project_id: str) -> tuple[dict, Path]:
+    if not re.fullmatch(r"[0-9a-f]{20}", str(project_id or "")):
+        raise ValueError("invalid project id")
+    value = load_workspace()["projects"].get(project_id)
+    if not isinstance(value, dict):
+        raise ValueError("project does not exist")
+    root = _home_directory(str(value.get("path") or ""))
+    return value, root
+
+
+def _project_path(project_id: str, relative: str, *, directory=False) -> tuple[dict, Path, Path]:
+    project, root = _project(project_id)
+    raw = str(relative or "").replace("\\", "/")
+    if raw.startswith("/") or "\x00" in raw:
+        raise ValueError("project path must be relative")
+    try:
+        candidate = (root / raw).resolve(strict=True)
+    except OSError as exc:
+        raise ValueError("project entry does not exist") from exc
+    if candidate != root and root not in candidate.parents:
+        raise ValueError("project path escapes its root")
+    if directory and not candidate.is_dir():
+        raise ValueError("project entry is not a directory")
+    return project, root, candidate
+
+
+def project_files(project_id: str, relative: str = "") -> dict:
+    project, root, directory = _project_path(project_id, relative, directory=True)
+    entries = []
+    try:
+        children = sorted(directory.iterdir(), key=lambda p: (not p.is_dir(), p.name.casefold()))
+    except OSError as exc:
+        raise ValueError(f"could not list project directory: {exc}") from exc
+    visible_children = [child for child in children if child.name != ".git"]
+    for child in visible_children[:500]:
+        try:
+            resolved = child.resolve(strict=True)
+            if resolved != root and root not in resolved.parents:
+                continue
+            stat = resolved.stat()
+        except OSError:
+            continue
+        entries.append({
+            "name": child.name,
+            "path": str(resolved.relative_to(root)),
+            "type": "directory" if resolved.is_dir() else "file",
+            "size": stat.st_size if resolved.is_file() else 0,
+        })
+    display_path = "" if directory == root else str(directory.relative_to(root))
+    return {"project": project, "path": display_path,
+            "parent": "" if directory == root else str(directory.parent.relative_to(root)),
+            "entries": entries, "truncated": len(visible_children) > 500}
+
+
+def project_file(project_id: str, relative: str) -> dict:
+    project, root, path = _project_path(project_id, relative)
+    if not path.is_file():
+        raise ValueError("project entry is not a file")
+    size = path.stat().st_size
+    if size > MAX_PROJECT_FILE_BYTES:
+        raise ValueError("project file is larger than the 1 MiB preview limit")
+    data = path.read_bytes()
+    if b"\x00" in data:
+        raise ValueError("binary project files are not previewed")
+    try:
+        content = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("project file is not UTF-8 text") from exc
+    append_audit("project", "read-file", str(path.relative_to(root)), "allowed",
+                 {"project": project["id"], "bytes": size})
+    return {"project": project["id"], "path": str(path.relative_to(root)),
+            "size": size, "content": content}
+
+
+def _git(project_id: str, args: list[str], limit: int) -> tuple[dict, str]:
+    project, root = _project(project_id)
+    if not (root / ".git").exists():
+        raise ValueError("project is not a Git worktree")
+    proc = subprocess.run(["git", "-C", str(root), *args], capture_output=True,
+                          text=True, timeout=20, env=ENV)
+    if proc.returncode:
+        raise ValueError((proc.stderr or "Git command failed").strip()[:500])
+    encoded = (proc.stdout or "").encode("utf-8", errors="replace")
+    truncated = len(encoded) > limit
+    return project, encoded[:limit].decode("utf-8", errors="replace") + (
+        "\n… output truncated …\n" if truncated else "")
+
+
+def project_git_status(project_id: str) -> dict:
+    project, output = _git(project_id, ["status", "--short", "--untracked-files=all"],
+                           MAX_PROJECT_DIFF_BYTES)
+    return {"project": project["id"], "status": output}
+
+
+def project_git_diff(project_id: str, relative: str = "") -> dict:
+    if relative:
+        _project_path(project_id, relative)
+    path_args = ["--", relative] if relative else []
+    project, unstaged = _git(project_id, ["diff", "--no-ext-diff", *path_args],
+                             MAX_PROJECT_DIFF_BYTES // 2)
+    _, staged = _git(project_id, ["diff", "--cached", "--no-ext-diff", *path_args],
+                     MAX_PROJECT_DIFF_BYTES // 2)
+    append_audit("project", "git-diff", relative or ".", "allowed",
+                 {"project": project["id"]})
+    return {"project": project["id"], "path": relative,
+            "unstaged": unstaged, "staged": staged}
+
+
+def append_audit(category: str, action: str, target: str, outcome: str,
+                 detail: dict | None = None) -> dict:
+    event = {
+        "id": str(uuid.uuid4()), "ts": int(time.time()),
+        "category": str(category)[:40], "action": str(action)[:80],
+        "target": str(target)[:300], "outcome": str(outcome)[:40],
+        "detail": detail if isinstance(detail, dict) else {},
+    }
+    with CONFIG_WRITE_LOCK:
+        workspace = load_workspace()
+        workspace["audit"].append(event)
+        workspace["audit"] = workspace["audit"][-2000:]
+        save_workspace(workspace)
+    return event
+
+
+def list_audit(limit: int = 200) -> list[dict]:
+    limit = min(500, max(1, int(limit)))
+    return list(reversed(load_workspace()["audit"][-limit:]))
+
+
+def _gateway_details() -> tuple[str, str]:
+    """Return the loopback Gateway URL and shared secret without exposing either."""
+    cfg = load_cfg()
+    gateway = cfg.get("gateway") or {}
+    auth = gateway.get("auth") or {}
+    token = str(auth.get("token") or "")
+    try:
+        port = int(gateway.get("port", 18789))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("OpenClaw Gateway port is invalid") from exc
+    if not token or port < 1 or port > 65535:
+        raise ValueError("OpenClaw Gateway is not configured")
+    return f"ws://127.0.0.1:{port}", token
+
+
+async def _gateway_rpc_async(method: str, params: dict) -> object:
+    """Call one fixed OpenClaw approval RPC as a trusted loopback backend."""
+    try:
+        import websockets
+    except ImportError as exc:
+        raise ValueError("python3-websockets is required for OpenClaw approvals") from exc
+    url, token = _gateway_details()
+    try:
+        async with websockets.connect(
+            url, origin=None, open_timeout=4, close_timeout=2,
+            max_size=2 * 1024 * 1024,
+        ) as socket:
+            challenge = json.loads(await asyncio.wait_for(socket.recv(), 4))
+            if challenge.get("event") != "connect.challenge":
+                raise ValueError("OpenClaw Gateway returned an invalid challenge")
+            request_id = str(uuid.uuid4())
+            await socket.send(json.dumps({
+                "type": "req", "id": request_id, "method": "connect",
+                "params": {
+                    "minProtocol": 4, "maxProtocol": 4,
+                    "client": {
+                        "id": "gateway-client", "version": "1",
+                        "platform": "linux", "mode": "backend",
+                        "displayName": "Mo AI",
+                    },
+                    "role": "operator",
+                    # Admin makes requests from every owner surface visible;
+                    # no generic RPC or credential ever crosses our HTTP API.
+                    "scopes": ["operator.admin", "operator.approvals"],
+                    "caps": [], "commands": [], "permissions": {},
+                    "auth": {"token": token}, "locale": "en-US",
+                    "userAgent": "moai-agent-api/1",
+                },
+            }))
+            hello = json.loads(await asyncio.wait_for(socket.recv(), 4))
+            if hello.get("id") != request_id or not hello.get("ok"):
+                raise ValueError("OpenClaw Gateway rejected the approval client")
+            request_id = str(uuid.uuid4())
+            await socket.send(json.dumps({
+                "type": "req", "id": request_id, "method": method,
+                "params": params,
+            }))
+            while True:
+                response = json.loads(await asyncio.wait_for(socket.recv(), 8))
+                if response.get("id") != request_id:
+                    continue
+                if not response.get("ok"):
+                    error = response.get("error") or {}
+                    raise ValueError(str(error.get("message") or
+                                         "OpenClaw approval request failed")[:300])
+                return response.get("payload")
+    except (OSError, TimeoutError, asyncio.TimeoutError) as exc:
+        raise ValueError("OpenClaw Gateway is unavailable") from exc
+
+
+def _gateway_rpc(method: str, params: dict) -> object:
+    if method not in {"exec.approval.list", "exec.approval.resolve"}:
+        raise ValueError("unsupported OpenClaw approval method")
+    return asyncio.run(_gateway_rpc_async(method, params))
+
+
+def list_approvals() -> list[dict]:
+    """Return bounded, display-safe pending exec approvals from OpenClaw."""
+    payload = _gateway_rpc("exec.approval.list", {})
+    if not isinstance(payload, list):
+        raise ValueError("OpenClaw returned an invalid approval list")
+    rows = []
+    for value in payload[:100]:
+        if not isinstance(value, dict):
+            continue
+        approval_id = str(value.get("id") or "")
+        request = value.get("request") or {}
+        if not re.fullmatch(r"[0-9a-fA-F-]{36}", approval_id) \
+                or not isinstance(request, dict):
+            continue
+        session_key = str(request.get("sessionKey") or "")[:300]
+        match = re.search(r"moai-task-([0-9a-f-]{36})$", session_key)
+        allowed = [decision for decision in request.get("allowedDecisions", [])
+                   if decision in {"allow-once", "allow-always", "deny"}]
+        if not allowed:
+            allowed = ["allow-once", "deny"]
+        rows.append({
+            "id": approval_id,
+            "task": match.group(1) if match else "",
+            "command": str(request.get("command") or "")[:4000],
+            "cwd": str(request.get("cwd") or "")[:1000],
+            "warning": str(request.get("warningText") or "")[:2000],
+            "allowed": allowed,
+            "created": int(value.get("createdAtMs") or 0),
+            "expires": int(value.get("expiresAtMs") or 0),
+        })
+    return rows
+
+
+def resolve_approval(body: dict) -> dict:
+    if set(body) != {"id", "decision"}:
+        raise ValueError("approval resolution accepts only id and decision")
+    approval_id = str(body.get("id") or "")
+    decision = str(body.get("decision") or "")
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", approval_id):
+        raise ValueError("invalid approval id")
+    if decision not in {"allow-once", "allow-always", "deny"}:
+        raise ValueError("invalid approval decision")
+    match = next((row for row in list_approvals()
+                  if row["id"] == approval_id), None)
+    if not match:
+        raise ValueError("approval is no longer pending")
+    if decision not in match["allowed"]:
+        raise ValueError("this decision is not allowed for the command")
+    _gateway_rpc("exec.approval.resolve", {
+        "id": approval_id, "decision": decision,
+    })
+    append_audit("approval", "resolve", approval_id, decision, {
+        "task": match["task"], "cwd": match["cwd"],
+        "command_sha256": hashlib.sha256(
+            match["command"].encode("utf-8")).hexdigest(),
+    })
+    return {"ok": True, "id": approval_id, "decision": decision,
+            "task": match["task"]}
+
+
+def list_tasks(project: str = "", state: str = "") -> list[dict]:
+    if state and state not in TASK_STATES:
+        raise ValueError("invalid task state")
+    out = []
+    for task in load_workspace()["tasks"].values():
+        if not isinstance(task, dict):
+            continue
+        if project and task.get("project") != project:
+            continue
+        if state and task.get("status") != state:
+            continue
+        out.append(task)
+    return sorted(out, key=lambda t: -int(t.get("updated", 0)))[:200]
+
+
+def create_task(body: dict) -> dict:
+    allowed = {"title", "description", "project", "steps"}
+    unknown = set(body) - allowed
+    if unknown:
+        raise ValueError("unknown task fields: " + ", ".join(sorted(unknown)))
+    title = str(body.get("title") or "").strip()
+    description = str(body.get("description") or "").strip()
+    if not title or len(title) > 160 or any(ord(ch) < 32 for ch in title):
+        raise ValueError("invalid task title")
+    if len(description) > 8000:
+        raise ValueError("task description is too long")
+    project_id = str(body.get("project") or "")
+    workspace = load_workspace()
+    if project_id and project_id not in workspace["projects"]:
+        raise ValueError("unknown task project")
+    raw_steps = body.get("steps") or []
+    if not isinstance(raw_steps, list) or len(raw_steps) > 100:
+        raise ValueError("invalid task steps")
+    steps = []
+    for index, value in enumerate(raw_steps):
+        text = str(value.get("title") if isinstance(value, dict) else value).strip()
+        if not text or len(text) > 300 or any(ord(ch) < 32 for ch in text):
+            raise ValueError("invalid task step")
+        steps.append({"id": index + 1, "title": text, "status": "pending",
+                      "error": "", "result": ""})
+    now = int(time.time())
+    task = {
+        "id": str(uuid.uuid4()), "title": title, "description": description,
+        "project": project_id, "status": "pending", "steps": steps,
+        "tools": [], "error": "", "result": "", "created": now, "updated": now,
+    }
+    workspace["tasks"][task["id"]] = task
+    save_workspace(workspace)
+    return {"ok": True, **task}
+
+
+def update_task(body: dict) -> dict:
+    allowed = {"id", "status", "step", "step_status", "error", "result", "tool"}
+    unknown = set(body) - allowed
+    if unknown:
+        raise ValueError("unknown task update: " + ", ".join(sorted(unknown)))
+    task_id = str(body.get("id") or "")
+    if not re.fullmatch(r"[0-9a-f-]{36}", task_id):
+        raise ValueError("invalid task id")
+    workspace = load_workspace()
+    task = workspace["tasks"].get(task_id)
+    if not isinstance(task, dict):
+        raise ValueError("task does not exist")
+    status_value = body.get("status")
+    if status_value is not None:
+        if status_value not in TASK_STATES:
+            raise ValueError("invalid task state")
+        task["status"] = status_value
+    if "step" in body:
+        try:
+            step_id = int(body["step"])
+        except (TypeError, ValueError) as exc:
+            raise ValueError("invalid task step id") from exc
+        matches = [step for step in task.get("steps", []) if step.get("id") == step_id]
+        if len(matches) != 1 or body.get("step_status") not in STEP_STATES:
+            raise ValueError("invalid task step update")
+        matches[0]["status"] = body["step_status"]
+        if "error" in body:
+            matches[0]["error"] = str(body.get("error") or "")[:2000]
+        if "result" in body:
+            matches[0]["result"] = str(body.get("result") or "")[:8000]
+    else:
+        if "error" in body:
+            task["error"] = str(body.get("error") or "")[:2000]
+        if "result" in body:
+            task["result"] = str(body.get("result") or "")[:8000]
+    if "tool" in body:
+        tool = str(body.get("tool") or "").strip()
+        if not tool or len(tool) > 120:
+            raise ValueError("invalid task tool")
+        task.setdefault("tools", []).append({"name": tool, "ts": int(time.time())})
+        task["tools"] = task["tools"][-200:]
+    task["updated"] = int(time.time())
+    save_workspace(workspace)
+    return {"ok": True, **task}
+
+
+def _task_prompt(task: dict, project: dict | None) -> str:
+    """Build fixed execution context; the UI never supplies a command/executable."""
+    lines = [
+        "You are executing a tracked Mo AI task. Work carefully and report only real results.",
+        f"Task: {task['title']}",
+    ]
+    if task.get("description"):
+        lines.append(f"Description: {task['description']}")
+    if project:
+        lines.extend([
+            f"Project name: {project['name']}",
+            f"Canonical project directory: {project['path']}",
+            "Stay inside that project unless the active permission policy explicitly allows more.",
+        ])
+    steps = task.get("steps") or []
+    if steps:
+        lines.append("Requested steps:")
+        lines.extend(f"{step['id']}. {step['title']}" for step in steps)
+    lines.append("Inspect first, make the smallest sound changes, run relevant tests, then summarize evidence.")
+    return "\n".join(lines)
+
+
+def _task_session_tool_events(task_id: str) -> list[dict]:
+    """Read bounded tool outcomes from the task's OpenClaw JSONL session."""
+    try:
+        index = json.loads((SESSIONS / "sessions.json").read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    session_id = ""
+    expected = f"moai-task-{task_id}"
+    for key, value in index.items() if isinstance(index, dict) else []:
+        if str(key).split(":")[-1] == expected and isinstance(value, dict):
+            session_id = str(value.get("sessionId") or "")
+            break
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", session_id):
+        return []
+    calls: dict[str, str] = {}
+    events: list[dict] = []
+    resolved: set[str] = set()
+    try:
+        path = SESSIONS / f"{session_id}.jsonl"
+        with path.open("rb") as handle:
+            size = path.stat().st_size
+            handle.seek(max(0, size - 8 * 1024 * 1024))
+            raw = handle.read(8 * 1024 * 1024)
+        if size > len(raw):
+            raw = raw.split(b"\n", 1)[-1]
+        lines = raw.decode("utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    for line in lines:
+        try:
+            message = (json.loads(line).get("message") or {})
+        except Exception:
+            continue
+        role = str(message.get("role") or "")
+        if role == "toolResult":
+            call_id = str(message.get("toolCallId") or "")[:200]
+            name = str(message.get("toolName") or calls.get(call_id) or "").strip()
+            if name and len(name) <= 120:
+                events.append({
+                    "name": name,
+                    "outcome": "error" if message.get("isError") is True else "success",
+                    "call": hashlib.sha256(call_id.encode()).hexdigest()[:16]
+                            if call_id else "",
+                })
+                if call_id:
+                    resolved.add(call_id)
+            continue
+        content = message.get("content") or []
+        if not isinstance(content, list):
+            content = []
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            kind = str(block.get("type") or "").lower().replace("_", "")
+            if kind not in {"toolcall", "tooluse"}:
+                continue
+            name = str(block.get("name") or block.get("toolName") or "").strip()
+            call_id = str(block.get("id") or block.get("toolCallId") or "")[:200]
+            if name and len(name) <= 120 and call_id:
+                calls[call_id] = name
+    for call_id, name in calls.items():
+        if call_id not in resolved:
+            events.append({
+                "name": name, "outcome": "missing-result",
+                "call": hashlib.sha256(call_id.encode()).hexdigest()[:16],
+            })
+    return events[-200:]
+
+
+def _task_session_tools(task_id: str) -> list[str]:
+    """Unique tool names for the compact task card presentation."""
+    names = []
+    for event in _task_session_tool_events(task_id):
+        if event["name"] not in names:
+            names.append(event["name"])
+    return names[:100]
+
+
+def _finish_task(task_id: str, process: subprocess.Popen) -> None:
+    try:
+        stdout, stderr = process.communicate(timeout=3600)
+        output = (stdout or "").strip()
+        error = (stderr or "").strip()
+        current = next((t for t in list_tasks() if t.get("id") == task_id), None)
+        if current and current.get("status") == "cancelled":
+            append_audit("task", "finish", task_id, "cancelled",
+                         {"exit_code": process.returncode, "tools": []})
+            return
+        tool_events = _task_session_tool_events(task_id)
+        tools = []
+        for event in tool_events:
+            if event["name"] not in tools:
+                tools.append(event["name"])
+            append_audit("tool", event["name"], task_id, event["outcome"],
+                         {"call": event["call"]})
+        for tool in tools:
+            update_task({"id": task_id, "tool": tool})
+        if process.returncode == 0:
+            for step in (current or {}).get("steps", []):
+                if step.get("status") in {"pending", "running"}:
+                    update_task({"id": task_id, "step": step["id"],
+                                 "step_status": "completed",
+                                 "result": "Completed by the agent run."})
+            update_task({"id": task_id, "status": "completed",
+                         "result": output[-8000:] or "Agent completed without a text summary."})
+            append_audit("task", "finish", task_id, "completed",
+                         {"exit_code": 0, "tools": tools})
+        else:
+            detail = error or output or f"OpenClaw exited with status {process.returncode}"
+            update_task({"id": task_id, "status": "failed", "error": detail[-2000:]})
+            append_audit("task", "finish", task_id, "failed",
+                         {"exit_code": process.returncode, "tools": tools})
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+            process.wait(timeout=5)
+        except Exception:
+            pass
+        update_task({"id": task_id, "status": "failed",
+                     "error": "Agent execution exceeded the one-hour safety limit."})
+        append_audit("task", "finish", task_id, "timeout", {"tools": []})
+    except Exception as exc:
+        update_task({"id": task_id, "status": "failed", "error": str(exc)[:2000]})
+        append_audit("task", "finish", task_id, "internal-error", {"tools": []})
+    finally:
+        with TASK_RUNNER_LOCK:
+            if TASK_RUNNERS.get(task_id) is process:
+                TASK_RUNNERS.pop(task_id, None)
+
+
+def task_action(body: dict) -> dict:
+    """Control one tracked OpenClaw process without accepting arbitrary commands."""
+    if set(body) != {"id", "action"}:
+        raise ValueError("task action accepts only id and action")
+    task_id = str(body.get("id") or "")
+    action = str(body.get("action") or "")
+    if not re.fullmatch(r"[0-9a-f-]{36}", task_id):
+        raise ValueError("invalid task id")
+    if action not in {"start", "pause", "resume", "cancel"}:
+        raise ValueError("invalid task action")
+    workspace = load_workspace()
+    task = workspace["tasks"].get(task_id)
+    if not isinstance(task, dict):
+        raise ValueError("task does not exist")
+    with TASK_RUNNER_LOCK:
+        process = TASK_RUNNERS.get(task_id)
+        if action == "start":
+            if process and process.poll() is None:
+                raise ValueError("task is already running")
+            if not Path(BIN).is_file() or not os.access(BIN, os.X_OK):
+                raise ValueError("OpenClaw is not installed")
+            project = None
+            if task.get("project"):
+                project = workspace["projects"].get(task["project"])
+                if not isinstance(project, dict):
+                    raise ValueError("task project no longer exists")
+                # Selecting a project is part of starting its task. OpenClaw then
+                # enforces the currently selected read/project/system/full tier.
+                write_config({"permissions": {"project": project["path"]}})
+            argv = [BIN, "agent", "--session-key", f"moai-task-{task_id}",
+                    "-m", _task_prompt(task, project)]
+            process = subprocess.Popen(
+                argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                env=ENV, start_new_session=True,
+            )
+            TASK_RUNNERS[task_id] = process
+            update_task({"id": task_id, "status": "running", "error": "",
+                         "result": "", "tool": "openclaw-agent"})
+            threading.Thread(target=_finish_task, args=(task_id, process),
+                             daemon=True, name=f"moai-task-{task_id[:8]}").start()
+            append_audit("task", "start", task_id, "allowed",
+                         {"project": task.get("project", "")})
+        elif not process or process.poll() is not None:
+            raise ValueError("task has no live agent process")
+        elif action == "pause":
+            os.killpg(process.pid, signal.SIGSTOP)
+            update_task({"id": task_id, "status": "paused"})
+            append_audit("task", "pause", task_id, "allowed")
+        elif action == "resume":
+            os.killpg(process.pid, signal.SIGCONT)
+            update_task({"id": task_id, "status": "running"})
+            append_audit("task", "resume", task_id, "allowed")
+        else:
+            os.killpg(process.pid, signal.SIGTERM)
+            update_task({"id": task_id, "status": "cancelled",
+                         "result": "Cancelled by the user."})
+            append_audit("task", "cancel", task_id, "allowed")
+    return {"ok": True, "id": task_id,
+            "status": next(t["status"] for t in list_tasks() if t["id"] == task_id)}
+
+
+# ── real user terminals ─────────────────────────────────────────────────
+
+class TerminalSession:
+    """One bounded PTY running the user's fixed shell without elevation."""
+
+    def __init__(self, cwd: Path, title: str):
+        self.id = str(uuid.uuid4())
+        self.cwd = str(cwd)
+        self.title = title[:80] or cwd.name or "Terminal"
+        self.created = int(time.time())
+        self.buffer = bytearray()
+        self.base_offset = 0
+        self.lock = threading.Lock()
+        master, slave = pty.openpty()
+        env = dict(os.environ)
+        env.update({"TERM": "dumb", "PS1": r"moai:\w$ ", "PROMPT_COMMAND": ""})
+        try:
+            self.process = subprocess.Popen(
+                ["/bin/bash", "--noprofile", "--norc"], cwd=cwd, env=env,
+                stdin=slave, stdout=slave, stderr=slave, close_fds=True,
+                start_new_session=True,
+            )
+        finally:
+            os.close(slave)
+        self.master = master
+        os.set_blocking(master, False)
+        self.reader = threading.Thread(target=self._read_loop, daemon=True)
+        self.reader.start()
+
+    def _read_loop(self) -> None:
+        while True:
+            try:
+                ready, _, _ = select.select([self.master], [], [], 0.25)
+                if ready:
+                    chunk = os.read(self.master, 65536)
+                    if chunk:
+                        with self.lock:
+                            self.buffer.extend(chunk)
+                            if len(self.buffer) > MAX_TERMINAL_BUFFER:
+                                trim = len(self.buffer) - MAX_TERMINAL_BUFFER
+                                del self.buffer[:trim]
+                                self.base_offset += trim
+                        continue
+            except (BlockingIOError, InterruptedError):
+                continue
+            except OSError:
+                break
+            if self.process.poll() is not None:
+                break
+        try:
+            os.close(self.master)
+        except OSError:
+            pass
+
+    def write(self, value: str) -> None:
+        data = value.encode("utf-8")
+        if not data or len(data) > MAX_TERMINAL_INPUT or "\x00" in value:
+            raise ValueError("invalid terminal input")
+        if self.process.poll() is not None:
+            raise ValueError("terminal has exited")
+        try:
+            os.write(self.master, data)
+        except OSError as exc:
+            raise ValueError("terminal input failed") from exc
+
+    def output(self, offset: int) -> dict:
+        with self.lock:
+            start = max(0, offset - self.base_offset)
+            data = bytes(self.buffer[start:])
+            next_offset = self.base_offset + len(self.buffer)
+            truncated = offset < self.base_offset
+        return {
+            "id": self.id,
+            "output": data.decode("utf-8", errors="replace"),
+            "offset": next_offset,
+            "truncated": truncated,
+            "running": self.process.poll() is None,
+            "exit_code": self.process.poll(),
+        }
+
+    def stop(self) -> None:
+        if self.process.poll() is None:
+            try:
+                os.killpg(self.process.pid, signal.SIGTERM)
+                self.process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                os.killpg(self.process.pid, signal.SIGKILL)
+                self.process.wait(timeout=3)
+            except ProcessLookupError:
+                pass
+
+    def summary(self) -> dict:
+        return {"id": self.id, "title": self.title, "cwd": self.cwd,
+                "created": self.created, "running": self.process.poll() is None,
+                "exit_code": self.process.poll()}
+
+
+TERMINAL_LOCK = threading.RLock()
+TERMINALS: dict[str, TerminalSession] = {}
+
+
+def _terminal(terminal_id: str) -> TerminalSession:
+    if not TERMINAL_ID_RE.fullmatch(terminal_id or ""):
+        raise ValueError("invalid terminal id")
+    with TERMINAL_LOCK:
+        session = TERMINALS.get(terminal_id)
+    if session is None:
+        raise ValueError("terminal does not exist")
+    return session
+
+
+def list_terminals() -> list[dict]:
+    with TERMINAL_LOCK:
+        return [session.summary() for session in TERMINALS.values()]
+
+
+def start_terminal(body: dict) -> dict:
+    if set(body) - {"project", "title"}:
+        raise ValueError("unknown terminal option")
+    project_id = str(body.get("project") or "")
+    workspace = load_workspace()
+    if project_id:
+        project = workspace["projects"].get(project_id)
+        if not isinstance(project, dict):
+            raise ValueError("unknown terminal project")
+        cwd = _home_directory(project.get("path", ""))
+        default_title = str(project.get("name") or cwd.name)
+    else:
+        cwd = _home_directory(str(HOME))
+        default_title = "Terminal"
+    title = str(body.get("title") or default_title).strip()
+    if len(title) > 80 or any(ord(ch) < 32 for ch in title):
+        raise ValueError("invalid terminal title")
+    session = TerminalSession(cwd, title)
+    with TERMINAL_LOCK:
+        TERMINALS[session.id] = session
+    return {"ok": True, **session.summary()}
+
+
+def write_terminal(body: dict) -> dict:
+    if set(body) != {"id", "input"}:
+        raise ValueError("terminal write requires id and input")
+    session = _terminal(str(body.get("id") or ""))
+    session.write(str(body.get("input") or ""))
+    return {"ok": True, "id": session.id}
+
+
+def stop_terminal(body: dict) -> dict:
+    if set(body) != {"id"}:
+        raise ValueError("terminal stop requires id")
+    session = _terminal(str(body.get("id") or ""))
+    session.stop()
+    return {"ok": True, **session.summary()}
+
+
+# ── private attachments ─────────────────────────────────────────────────
+
+DOCUMENT_MIMES = {
+    "application/pdf": "pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    "application/vnd.oasis.opendocument.text": "odt",
+}
+
+
+def _bounded_document_text(path: Path, kind: str) -> tuple[str, bool]:
+    """Extract a bounded document preview with fixed tools/member names."""
+    if kind == "pdf":
+        if not Path("/usr/bin/pdftotext").is_file():
+            raise ValueError("PDF text extraction is unavailable")
+        with tempfile.TemporaryDirectory(prefix="moai-pdf-") as directory:
+            output = Path(directory) / "document.txt"
+            process = subprocess.run(
+                ["/usr/bin/pdftotext", "-f", "1", "-l", "50", "-nopgbrk",
+                 str(path), str(output)],
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                timeout=30, check=False,
+            )
+            if process.returncode != 0 or not output.is_file():
+                raise ValueError("could not extract text from this PDF")
+            raw = output.read_bytes()[:MAX_TEXT_ATTACHMENT_BYTES + 1]
+    else:
+        member = "word/document.xml" if kind == "docx" else "content.xml"
+        try:
+            with zipfile.ZipFile(path) as archive:
+                info = archive.getinfo(member)
+                if info.file_size > MAX_TEXT_ATTACHMENT_BYTES * 4:
+                    raise ValueError("document XML is too large")
+                raw_xml = archive.read(info)
+        except (KeyError, OSError, zipfile.BadZipFile) as exc:
+            raise ValueError(f"could not read this {kind.upper()} document") from exc
+        try:
+            root = ET.fromstring(raw_xml)
+        except ET.ParseError as exc:
+            raise ValueError("document XML is invalid") from exc
+        # Word/ODF use element boundaries for paragraphs and tabs. itertext is
+        # safe here because only the exact bounded XML member is parsed; no ZIP
+        # path is extracted and ElementTree does not fetch external entities.
+        raw = html.unescape(" ".join(root.itertext())).encode("utf-8")
+    truncated = len(raw) > MAX_TEXT_ATTACHMENT_BYTES
+    text = raw[:MAX_TEXT_ATTACHMENT_BYTES].decode("utf-8", errors="replace")
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{4,}", "\n\n\n", text).strip()
+    if truncated:
+        text += "\n\n… document text truncated …"
+    if not text:
+        raise ValueError("the document contains no extractable text")
+    return text, truncated
+
+def _attachment_payload(meta: dict) -> dict:
+    path = ATTACHMENTS / meta["stored"]
+    if not path.is_file():
+        raise ValueError("attachment content is missing")
+    mime = str(meta.get("mime") or "application/octet-stream")
+    payload = dict(meta)
+    if mime.startswith("image/"):
+        payload["content"] = "data:" + mime + ";base64," + base64.b64encode(
+            path.read_bytes()).decode("ascii")
+        payload["content_type"] = "image"
+    elif mime.startswith("text/") or mime in {
+        "application/json", "application/xml", "application/x-yaml",
+        "application/javascript", "application/sql",
+    }:
+        if path.stat().st_size > MAX_TEXT_ATTACHMENT_BYTES:
+            raise ValueError("text attachment is too large to include in a chat")
+        payload["content"] = path.read_text(encoding="utf-8", errors="replace")
+        payload["content_type"] = "text"
+    elif mime in DOCUMENT_MIMES:
+        payload["content"], payload["truncated"] = _bounded_document_text(
+            path, DOCUMENT_MIMES[mime])
+        payload["content_type"] = "text"
+        payload["extracted"] = True
+    else:
+        payload["content"] = ""
+        payload["content_type"] = "file"
+    return payload
+
+
+def import_attachment(body: dict) -> dict:
+    if set(body) != {"path"}:
+        raise ValueError("attachment import requires one path")
+    raw = str(body.get("path") or "").strip()
+    if raw.startswith("file:"):
+        parsed = urllib.parse.urlsplit(raw)
+        if parsed.scheme != "file" or parsed.netloc not in ("", "localhost"):
+            raise ValueError("invalid local file URL")
+        raw = urllib.parse.unquote(parsed.path)
+    try:
+        home_real = HOME.resolve(strict=True)
+        source = Path(raw).expanduser().resolve(strict=True)
+    except OSError as exc:
+        raise ValueError("attachment does not exist") from exc
+    if not source.is_file() or home_real not in source.parents:
+        raise ValueError("attachment must be a regular file inside the real home")
+    size = source.stat().st_size
+    if size < 0 or size > MAX_ATTACHMENT_BYTES:
+        raise ValueError("attachment exceeds the 20 MB limit")
+    mime = mimetypes.guess_type(source.name)[0] or "application/octet-stream"
+    attachment_id = str(uuid.uuid4())
+    suffix = source.suffix.lower()[:16] if re.fullmatch(r"\.[a-zA-Z0-9._+-]{1,16}", source.suffix) else ""
+    stored = attachment_id + suffix
+    ATTACHMENTS.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(ATTACHMENTS, 0o700)
+    destination = ATTACHMENTS / stored
+    with source.open("rb") as src, destination.open("xb") as dst:
+        shutil.copyfileobj(src, dst, 1024 * 1024)
+        dst.flush()
+        os.fsync(dst.fileno())
+    os.chmod(destination, 0o600)
+    workspace = load_workspace()
+    meta = {
+        "id": attachment_id, "name": source.name[:180], "stored": stored,
+        "mime": mime, "size": size, "created": int(time.time()),
+    }
+    workspace["attachments"][attachment_id] = meta
+    save_workspace(workspace)
+    return {"ok": True, **_attachment_payload(meta)}
+
+
+def list_attachments() -> list[dict]:
+    out = []
+    for meta in load_workspace()["attachments"].values():
+        if isinstance(meta, dict) and (ATTACHMENTS / str(meta.get("stored", ""))).is_file():
+            out.append({key: value for key, value in meta.items() if key != "stored"})
+    return sorted(out, key=lambda item: -int(item.get("created", 0)))[:200]
+
+
+# ── push-to-talk voice capture ──────────────────────────────────────────
+
+VOICE_LOCK = threading.RLock()
+VOICE_CAPTURE: dict[str, object] = {}
+
+
+def voice_status() -> dict:
+    with VOICE_LOCK:
+        process = VOICE_CAPTURE.get("process")
+        recording = bool(process is not None and process.poll() is None)
+        return {"recording": recording,
+                "started": int(VOICE_CAPTURE.get("started", 0)) if recording else 0}
+
+
+def start_voice() -> dict:
+    if not PW_RECORD.is_file() or not os.access(PW_RECORD, os.X_OK):
+        raise ValueError("PipeWire recorder is unavailable")
+    with VOICE_LOCK:
+        process = VOICE_CAPTURE.get("process")
+        if process is not None and process.poll() is None:
+            raise ValueError("voice recording is already active")
+        ATTACHMENTS.mkdir(parents=True, exist_ok=True, mode=0o700)
+        os.chmod(ATTACHMENTS, 0o700)
+        path = ATTACHMENTS / ("voice-" + str(uuid.uuid4()) + ".wav")
+        process = subprocess.Popen(
+            [str(PW_RECORD), "--rate", "16000", "--channels", "1", str(path)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE, start_new_session=True,
+        )
+        VOICE_CAPTURE.clear()
+        VOICE_CAPTURE.update({"process": process, "path": path, "started": int(time.time())})
+        return {"ok": True, "recording": True, "started": VOICE_CAPTURE["started"]}
+
+
+def stop_voice() -> dict:
+    with VOICE_LOCK:
+        process = VOICE_CAPTURE.get("process")
+        path = VOICE_CAPTURE.get("path")
+        if process is None or process.poll() is not None or not isinstance(path, Path):
+            raise ValueError("voice recording is not active")
+        try:
+            os.killpg(process.pid, signal.SIGINT)
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait(timeout=3)
+        VOICE_CAPTURE.clear()
+    try:
+        if not path.is_file() or path.stat().st_size <= 44:
+            detail = (process.stderr.read() if process.stderr else b"").decode(
+                "utf-8", errors="replace")[-300:]
+            raise ValueError("no microphone audio was captured" + (": " + detail if detail else ""))
+        result = subprocess.run(
+            [str(TRANSCRIBE), str(path)], capture_output=True, text=True,
+            timeout=180, env=ENV,
+        )
+        transcript = (result.stdout or "").strip()
+        if result.returncode != 0 or not transcript:
+            error = (result.stderr or "voice transcription returned no text").strip()[-500:]
+            raise ValueError(error)
+        return {"ok": True, "recording": False, "text": transcript}
+    finally:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+
+
 # ── conversations ───────────────────────────────────────────────────────
 
-def list_sessions() -> list[dict]:
+def list_sessions(search: str = "", include_archived: bool = False) -> list[dict]:
     idx = SESSIONS / "sessions.json"
     try:
         data = json.loads(idx.read_text(encoding="utf-8"))
     except Exception:
         return []
+    workspace = load_workspace()
+    metadata = workspace["sessions"]
+    needle = str(search or "").strip().casefold()[:120]
     out = []
     for key, meta in (data.items() if isinstance(data, dict) else []):
         sid = meta.get("sessionId")
@@ -918,13 +2131,80 @@ def list_sessions() -> list[dict]:
         f = SESSIONS / f"{sid}.jsonl"
         if not f.exists():
             continue
+        own = metadata.get(sid, {})
+        if not isinstance(own, dict):
+            own = {}
+        archived = bool(own.get("archived", False))
+        if archived and not include_archived:
+            continue
+        label = str(own.get("title") or key.split(":")[-1]).strip()[:120]
+        if needle and needle not in label.casefold() and needle not in key.casefold():
+            continue
         out.append({
             "key": key,
             "id": sid,
-            "label": key.split(":")[-1],
+            "label": label,
+            "pinned": bool(own.get("pinned", False)),
+            "archived": archived,
+            "project": str(own.get("project") or ""),
             "updated": int(meta.get("updatedAt", 0) / 1000) or int(f.stat().st_mtime),
         })
-    return sorted(out, key=lambda s: s["updated"], reverse=True)[:60]
+    return sorted(out, key=lambda s: (not s["pinned"], -s["updated"]))[:60]
+
+
+def update_session(body: dict) -> dict:
+    """Update presentation metadata for a real OpenClaw session.
+
+    OpenClaw owns its JSONL and index. Mo AI stores only product metadata in a
+    separate atomic file so an OpenClaw update cannot reject our fields.
+    """
+    sid = str(body.get("id") or "")
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", sid):
+        raise ValueError("invalid session id")
+    if not (SESSIONS / f"{sid}.jsonl").is_file():
+        raise ValueError("session does not exist")
+    allowed = {"title", "pinned", "archived", "project"}
+    unknown = set(body) - allowed - {"id"}
+    if unknown:
+        raise ValueError("unknown session metadata: " + ", ".join(sorted(unknown)))
+
+    workspace = load_workspace()
+    current = workspace["sessions"].get(sid, {})
+    if not isinstance(current, dict):
+        current = {}
+    current = dict(current)
+    if "title" in body:
+        title = str(body.get("title") or "").strip()
+        if len(title) > 120 or any(ord(ch) < 32 for ch in title):
+            raise ValueError("invalid session title")
+        if title:
+            current["title"] = title
+        else:
+            current.pop("title", None)
+    for field in ("pinned", "archived"):
+        if field in body:
+            if not isinstance(body[field], bool):
+                raise ValueError(f"{field} must be boolean")
+            current[field] = body[field]
+    if "project" in body:
+        project = str(body.get("project") or "").strip()
+        if project:
+            try:
+                home_real = HOME.resolve(strict=True)
+                resolved = Path(project).expanduser().resolve(strict=True)
+            except OSError as exc:
+                raise ValueError("project path does not exist") from exc
+            if not resolved.is_dir() or (
+                resolved != home_real and home_real not in resolved.parents
+            ):
+                raise ValueError("project must be inside the real home directory")
+            current["project"] = str(resolved)
+        else:
+            current.pop("project", None)
+    current["changed"] = int(time.time())
+    workspace["sessions"][sid] = current
+    save_workspace(workspace)
+    return {"ok": True, "id": sid, **current}
 
 
 def _text_of(content) -> str:
@@ -943,8 +2223,19 @@ def read_session(sid: str) -> list[dict]:
     f = SESSIONS / f"{sid}.jsonl"
     if not f.exists():
         return []
+    # Session transcripts can grow for months and tool results can be huge.
+    # The UI needs recent context, not an unbounded read that freezes its small
+    # loopback service. Start at a line boundary within the last 8 MiB and cap
+    # each rendered card independently.
+    with f.open("rb") as stream:
+        size = f.stat().st_size
+        offset = max(0, size - 8 * 1024 * 1024)
+        stream.seek(offset)
+        if offset:
+            stream.readline()
+        transcript = stream.read().decode("utf-8", errors="replace")
     msgs = []
-    for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
+    for line in transcript.splitlines():
         if not line.strip():
             continue
         try:
@@ -955,13 +2246,44 @@ def read_session(sid: str) -> list[dict]:
             continue
         m = d.get("message") or {}
         role = m.get("role")
-        if role not in ("user", "assistant"):
-            continue
-        text = _text_of(m.get("content"))
-        if not text:
-            continue
-        msgs.append({"role": role, "text": text, "ts": d.get("timestamp", "")})
-    return msgs
+        content = m.get("content")
+        timestamp = d.get("timestamp", "")
+        if role in ("user", "assistant"):
+            text_parts = []
+            tool_parts = []
+            if isinstance(content, list):
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get("type") == "text" and block.get("text"):
+                        text_parts.append(str(block["text"]))
+                    elif block.get("type") == "toolCall":
+                        name = str(block.get("name") or "tool")[:80]
+                        arguments = block.get("arguments")
+                        try:
+                            detail = json.dumps(arguments, ensure_ascii=False, indent=2)
+                        except (TypeError, ValueError):
+                            detail = str(arguments or "")
+                        tool_parts.append(f"⚙ {name}\n{detail[:8000]}")
+            else:
+                plain = _text_of(content)
+                if plain:
+                    text_parts.append(plain)
+            text = "\n".join(text_parts).strip()[:12000]
+            if text:
+                msgs.append({"role": role, "text": text, "ts": timestamp})
+            for tool_text in tool_parts:
+                msgs.append({"role": "tool", "text": tool_text,
+                             "ts": timestamp, "status": "running"})
+        elif role == "toolResult":
+            name = str(m.get("toolName") or "tool")[:80]
+            text = _text_of(content)[:12000]
+            if text:
+                state = "error" if bool(m.get("isError")) else "success"
+                mark = "✕" if state == "error" else "✓"
+                msgs.append({"role": "tool", "text": f"{mark} {name}\n{text}",
+                             "ts": timestamp, "status": state})
+    return msgs[-400:]
 
 
 def send(key: str, text: str) -> dict:
@@ -1052,12 +2374,56 @@ class H(BaseHTTPRequestHandler):
                 return self._send(UI.read_bytes(), ctype="text/html")
             if u.path == "/api/status":
                 return self._send(status())
+            if u.path == "/api/capabilities":
+                return self._send(capabilities())
             if u.path == "/api/config":
                 return self._send(read_config())
+            if u.path == "/api/channels":
+                return self._send(channel_status())
             if u.path == "/api/sessions":
-                return self._send(list_sessions())
+                search = (q.get("q") or [""])[0]
+                archived = (q.get("archived") or [""])[0] == "1"
+                return self._send(list_sessions(search, archived))
             if u.path == "/api/session":
                 return self._send(read_session((q.get("id") or [""])[0]))
+            if u.path == "/api/projects":
+                archived = (q.get("archived") or [""])[0] == "1"
+                return self._send(list_projects(archived))
+            if u.path == "/api/project/files":
+                return self._send(project_files((q.get("project") or [""])[0],
+                                                (q.get("path") or [""])[0]))
+            if u.path == "/api/project/file":
+                return self._send(project_file((q.get("project") or [""])[0],
+                                               (q.get("path") or [""])[0]))
+            if u.path == "/api/project/git-status":
+                return self._send(project_git_status((q.get("project") or [""])[0]))
+            if u.path == "/api/project/git-diff":
+                return self._send(project_git_diff((q.get("project") or [""])[0],
+                                                   (q.get("path") or [""])[0]))
+            if u.path == "/api/audit":
+                try:
+                    limit = int((q.get("limit") or ["200"])[0])
+                except ValueError as exc:
+                    raise ValueError("invalid audit limit") from exc
+                return self._send(list_audit(limit))
+            if u.path == "/api/tasks":
+                return self._send(list_tasks((q.get("project") or [""])[0],
+                                             (q.get("status") or [""])[0]))
+            if u.path == "/api/approvals":
+                return self._send(list_approvals())
+            if u.path == "/api/terminals":
+                return self._send(list_terminals())
+            if u.path == "/api/attachments":
+                return self._send(list_attachments())
+            if u.path == "/api/voice/status":
+                return self._send(voice_status())
+            if u.path == "/api/terminal/output":
+                terminal_id = (q.get("id") or [""])[0]
+                try:
+                    offset = max(0, int((q.get("offset") or ["0"])[0]))
+                except ValueError as exc:
+                    raise ValueError("invalid terminal offset") from exc
+                return self._send(_terminal(terminal_id).output(offset))
         except Exception as e:
             return self._send({"error": str(e)[:300]}, 500)
         self._send({"error": "not found"}, 404)
@@ -1095,6 +2461,34 @@ class H(BaseHTTPRequestHandler):
                 return self._send(write_config(body))
             if u.path == "/api/send":
                 return self._send(send(body.get("key", "console"), body.get("text", "")))
+            if u.path == "/api/session/update":
+                return self._send(update_session(body))
+            if u.path == "/api/project/upsert":
+                return self._send(upsert_project(body))
+            if u.path == "/api/task/create":
+                return self._send(create_task(body))
+            if u.path == "/api/task/update":
+                return self._send(update_task(body))
+            if u.path == "/api/task/action":
+                return self._send(task_action(body))
+            if u.path == "/api/approval/resolve":
+                return self._send(resolve_approval(body))
+            if u.path == "/api/terminal/start":
+                return self._send(start_terminal(body))
+            if u.path == "/api/terminal/write":
+                return self._send(write_terminal(body))
+            if u.path == "/api/terminal/stop":
+                return self._send(stop_terminal(body))
+            if u.path == "/api/attachment/import":
+                return self._send(import_attachment(body))
+            if u.path == "/api/voice/start":
+                if body:
+                    raise ValueError("voice start takes no options")
+                return self._send(start_voice())
+            if u.path == "/api/voice/stop":
+                if body:
+                    raise ValueError("voice stop takes no options")
+                return self._send(stop_voice())
         except ValueError as e:
             return self._send({"error": str(e)}, 400)
         except Exception as e:

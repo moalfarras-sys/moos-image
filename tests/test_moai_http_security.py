@@ -343,6 +343,7 @@ class GatewaySecurityTests(unittest.TestCase):
         self.calls = []
         scope = self.handler.do_POST.__globals__
         scope["load_cfg"] = lambda: {"mode": "local"}
+        scope["load_product_cfg"] = lambda: {"mode": "local"}
 
         calls = self.calls
 
@@ -453,7 +454,10 @@ class AgentClientHeaderTests(unittest.TestCase):
             for index, line in enumerate(lines)
             if "xhr.open(" in line and "agentApi" in line
         ]
-        self.assertEqual(len(opens), 6)
+        # Keep a floor so accidentally deleting the agent client still bites,
+        # but inspect every request dynamically: adding a legitimate endpoint
+        # must require the header, not require editing a brittle route count.
+        self.assertGreaterEqual(len(opens), 6)
         for index in opens:
             with self.subTest(request=lines[index].strip()):
                 nearby = "\n".join(lines[index : index + 4])

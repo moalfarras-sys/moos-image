@@ -235,7 +235,12 @@ def cloud_ready():
 
 def brain_online():
     """Can the DEFAULT brain answer right now?"""
-    return cloud_ready() if load().get("mode") == "cloud" else local_online()
+    mode = load().get("mode")
+    if mode == "cloud":
+        return cloud_ready()
+    if mode == "hybrid":
+        return local_online() or cloud_ready()
+    return local_online()
 
 
 def short_model(name):
@@ -321,7 +326,20 @@ def ollama_models():
         name = short_model(item.get("name") or item.get("model") or "")
         if not name:
             continue
-        out.append({"name": name, "size": int(item.get("size") or 0)})
+        inputs = ["text"]
+        try:
+            shown = ollama_request("/api/show", method="POST",
+                                    payload={"model": name}, timeout=4)
+            capabilities = shown.get("capabilities", []) \
+                if isinstance(shown, dict) else []
+            if isinstance(capabilities, list) and "vision" in capabilities:
+                inputs.append("image")
+        except Exception:
+            # Capability uncertainty is text-only. Sending a private image to
+            # an unverified model is never an acceptable optimistic fallback.
+            pass
+        out.append({"name": name, "size": int(item.get("size") or 0),
+                    "input": inputs})
     return out
 
 
@@ -939,7 +957,8 @@ def local_models():
             seen.add(name)
             out.append({"id": "local:" + name, "label": name,
                         "pulled": True, "serving": same_model(name, served),
-                        "size_gb": round((item.get("size") or 0) / 1e9, 1)})
+                        "size_gb": round((item.get("size") or 0) / 1e9, 1),
+                        "input": item.get("input") or ["text"]})
     else:
         try:
             result = subprocess.run(["ramalama", "list", "--json"],
@@ -1022,9 +1041,15 @@ def cloud_models(cfg):
 
     out, seen = [], set()
     for item in items:
+        inputs = ["text"]
         if isinstance(item, dict):
             model_id = (item.get("id") or item.get("name") or "").strip()
             label = (item.get("display_name") or "").strip() or model_id
+            advertised = item.get("input") or item.get("modalities") or []
+            if isinstance(advertised, list) and any(
+                    str(value).lower() in ("image", "vision")
+                    for value in advertised):
+                inputs.append("image")
         else:
             model_id = str(item).strip()
             label = model_id
@@ -1032,13 +1057,13 @@ def cloud_models(cfg):
             continue
         seen.add(model_id)
         out.append({"id": "cloud:" + model_id, "label": label,
-                    "serving": model_id == configured})
+                    "serving": model_id == configured, "input": inputs})
     return out, ""
 
 
 def models():
     cfg = load()
-    mode = "cloud" if cfg.get("mode") == "cloud" else "local"
+    mode = cfg.get("mode") if cfg.get("mode") in ("local", "cloud", "hybrid") else "local"
     configured = (cfg.get("cloud_model") or "").strip()
 
     # Bust the cache when the provider changes, not only when the clock runs out.
@@ -1057,7 +1082,9 @@ def models():
         cloud.insert(0, {"id": "cloud:" + configured, "label": configured,
                          "serving": True})
 
-    if mode == "cloud":
+    if mode == "hybrid":
+        default = "hybrid"
+    elif mode == "cloud":
         default = "cloud:" + configured if configured else "cloud"
     else:
         default = next((m["id"] for m in local if m["serving"]), "local")
@@ -1467,7 +1494,8 @@ class H(BaseHTTPRequestHandler):
 
         if route != "/config":
             return self._send(404, {"error": "not found"})
-        mode = "cloud" if data.get("mode") == "cloud" else "local"
+        requested_mode = data.get("mode")
+        mode = requested_mode if requested_mode in ("local", "cloud", "hybrid") else "local"
         key = data.get("cloud_key") or ""
         if key and not store_secret(key):
             return self._send(503, {"error": "Mo AI private storage is unavailable"})

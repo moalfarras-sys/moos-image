@@ -60,6 +60,11 @@ MOOS_DIR = os.path.expanduser("~/.config/moos")
 ENV_FILE = os.path.join(MOOS_DIR, "moai.env")
 CREDENTIAL_STORE = os.environ.get(
     "MOAI_CREDENTIAL_STORE", "/usr/libexec/moai-credential-store")
+OPENCLAW_CONFIG = os.path.expanduser("~/.openclaw/openclaw.json")
+OPENCLAW_BIN = os.path.expanduser("~/.local/bin/openclaw")
+OPENCLAW_HOST = "127.0.0.1"
+OPENCLAW_PORT = int(os.environ.get("MOAI_OPENCLAW_PORT", "18789"))
+OPENCLAW_BASE = "http://%s:%d" % (OPENCLAW_HOST, OPENCLAW_PORT)
 
 PORT = int(os.environ.get("MOAI_GATEWAY_PORT", "8080"))
 RAMALAMA_UNIT = "moai.service"
@@ -122,6 +127,7 @@ USER_AGENT = "MoOS-MoAI/1.0 (+https://github.com/moalfarras-sys/moos-image)"
 
 ANTHROPIC_VERSION = "2023-06-01"
 DEFAULT_MAX_TOKENS = 2048
+MAX_BODY_BYTES = 20 * 1024 * 1024
 
 # A base URL is expected to carry its API version ("…/v1", "…/v1beta/openai").
 VERSIONED = re.compile(r"/v\d[\w.]*(/|$)")
@@ -138,6 +144,48 @@ def load_cfg():
         return {}
 
 
+def load_product_cfg():
+    """Merge the shared OpenClaw settings over the legacy gateway fallback.
+
+    Mo AI Settings and phone channels own one OpenClaw configuration. Older
+    installations may still have ~/.config/moai/config.json and the credential
+    helper, so those remain fallback-only instead of becoming a second truth.
+    """
+    merged = dict(load_cfg())
+    try:
+        with open(OPENCLAW_CONFIG, encoding="utf-8") as handle:
+            oc = json.load(handle)
+        providers = ((oc.get("models") or {}).get("providers") or {})
+        cloud = providers.get("cloud") or {}
+        defaults = (oc.get("agents") or {}).get("defaults") or {}
+        primary = str(((defaults.get("model") or {}).get("primary") or ""))
+        base = str(cloud.get("baseUrl") or "").rstrip("/")
+        key = str(cloud.get("apiKey") or "")
+        model = primary.removeprefix("cloud/") if primary.startswith("cloud/") else ""
+        if not model:
+            catalog = cloud.get("models") or []
+            if isinstance(catalog, list) and catalog and isinstance(catalog[0], dict):
+                model = str(catalog[0].get("id") or "")
+        api = str(cloud.get("api") or "").lower()
+        if base:
+            merged["cloud_base"] = base
+        if key:
+            merged["cloud_key"] = key
+        if model:
+            merged["cloud_model"] = model
+        if api:
+            merged["cloud_wire"] = "anthropic" if api.startswith("anthropic") else "openai"
+        if primary == "moai/hybrid":
+            merged["mode"] = "hybrid"
+        elif primary.startswith("cloud/"):
+            merged["mode"] = "cloud"
+        elif primary.startswith("ollama/"):
+            merged["mode"] = "local"
+    except Exception:
+        pass
+    return merged
+
+
 def load_secret():
     try:
         result = subprocess.run(
@@ -146,6 +194,73 @@ def load_secret():
         return result.stdout.rstrip("\n") if result.returncode == 0 else ""
     except Exception:
         return ""
+
+
+def load_openclaw_client():
+    """Return private desktop-client material without ever exposing the token."""
+    try:
+        with open(OPENCLAW_CONFIG, encoding="utf-8") as handle:
+            cfg = json.load(handle)
+        gateway = cfg.get("gateway") or {}
+        auth = gateway.get("auth") or {}
+        endpoint = ((((gateway.get("http") or {}).get("endpoints") or {})
+                     .get("chatCompletions") or {}))
+        token = str(auth.get("token") or "")
+        enabled = endpoint.get("enabled") is True
+        providers = ((cfg.get("models") or {}).get("providers") or {})
+        primary = str(((((cfg.get("agents") or {}).get("defaults") or {})
+                        .get("model") or {}).get("primary") or ""))
+        if auth.get("mode") != "token" or not token or not enabled:
+            return {}
+        return {"token": token, "providers": providers, "primary": primary}
+    except Exception:
+        return {}
+
+
+def ensure_openclaw_gateway(timeout=45.0):
+    """Wake the fixed user service and prove its loopback listener is ready."""
+    try:
+        subprocess.run(["systemctl", "--user", "start", "openclaw-gateway.service"],
+                       capture_output=True, text=True, timeout=timeout, check=False)
+    except Exception as exc:
+        return "could not start OpenClaw: %s" % exc
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection((OPENCLAW_HOST, OPENCLAW_PORT), timeout=0.5):
+                return ""
+        except OSError:
+            time.sleep(0.25)
+    return "OpenClaw gateway did not become ready"
+
+
+def openclaw_model(client, brain, model, cfg):
+    """Map Mo AI's route to an actually configured OpenClaw provider model."""
+    provider = "ollama" if brain == "local" else "cloud"
+    node = client.get("providers", {}).get(provider) or {}
+    catalog = [str(item.get("id") or "") for item in node.get("models", [])
+               if isinstance(item, dict) and item.get("id")]
+    requested = str(model or "").strip()
+    if requested and not re.fullmatch(r"[A-Za-z0-9._:+/-]{1,200}", requested):
+        return ""
+    if brain == "cloud" and not requested:
+        requested = str(cfg.get("cloud_model") or "").strip()
+    if requested and requested in catalog:
+        return provider + "/" + requested
+    # Ollama is discovered dynamically by OpenClaw (`/api/show` supplies the
+    # real input/tool/thinking capabilities). Mo AI's picker may therefore name
+    # a pulled model that isn't in the small persisted bootstrap catalog. The
+    # following ensure_local() call proves the tag exists before any request is
+    # forwarded; cloud ids stay catalog-only because their inventory/auth is a
+    # different trust boundary.
+    if brain == "local" and requested and node.get("baseUrl"):
+        return provider + "/" + requested
+    primary = str(client.get("primary") or "")
+    if primary.startswith(provider + "/"):
+        return primary
+    if catalog:
+        return provider + "/" + catalog[0]
+    return ""
 
 
 # ── The local brain ──────────────────────────────────────────────────────────
@@ -540,6 +655,10 @@ def parse_model(field):
         return "cloud", ""
     if low.startswith("cloud:"):
         return "cloud", raw.split(":", 1)[1].strip()
+    if low == "hybrid":
+        return "hybrid", ""
+    if low.startswith("hybrid:"):
+        return "hybrid", raw.split(":", 1)[1].strip()
     return "", ""
 
 
@@ -547,11 +666,85 @@ def resolve(field, cfg):
     """(brain, model) for this request, falling back to the configured default."""
     brain, model = parse_model(field)
     if not brain:
-        brain = "cloud" if cfg.get("mode") == "cloud" else "local"
+        mode = cfg.get("mode")
+        brain = mode if mode in ("local", "cloud", "hybrid") else "local"
         model = ""
     if brain == "cloud" and not model:
         model = cfg.get("cloud_model") or ""
     return brain, model
+
+
+def _request_text(req):
+    chunks = []
+    for message in req.get("messages", []) if isinstance(req, dict) else []:
+        content = message.get("content", "") if isinstance(message, dict) else ""
+        if isinstance(content, str):
+            chunks.append(content)
+        elif isinstance(content, list):
+            for part in content:
+                if isinstance(part, dict) and isinstance(part.get("text"), str):
+                    chunks.append(part["text"])
+    return "\n".join(chunks)
+
+
+def _has_private_attachment(req):
+    for message in req.get("messages", []) if isinstance(req, dict) else []:
+        content = message.get("content", []) if isinstance(message, dict) else []
+        if not isinstance(content, list):
+            continue
+        for part in content:
+            if isinstance(part, dict) and str(part.get("type") or "").lower() in {
+                "image", "image_url", "input_image", "file", "input_file"
+            }:
+                return True
+    return False
+
+
+_network_cache = {"base": "", "at": 0.0, "available": False}
+
+
+def cloud_network_available(base):
+    """Cheap cached reachability check used before Hybrid chooses cloud."""
+    now = time.monotonic()
+    if _network_cache["base"] == base and now - _network_cache["at"] < 10:
+        return _network_cache["available"]
+    try:
+        parsed = urllib.parse.urlsplit(base)
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        with socket.create_connection((parsed.hostname, port), timeout=0.6):
+            available = True
+    except Exception:
+        available = False
+    _network_cache.update({"base": base, "at": now, "available": available})
+    return available
+
+
+def choose_hybrid(req, cfg, check_network=True):
+    """Return (route, reason, may_fallback_to_cloud) for a Hybrid request."""
+    meta = req.get("moai") if isinstance(req.get("moai"), dict) else {}
+    privacy = str(meta.get("privacy") or "standard").lower()
+    attachment = _has_private_attachment(req)
+    if privacy in {"local", "private", "confidential"}:
+        return "local", "privacy", False
+    if attachment and meta.get("allow_cloud_attachments") is not True:
+        return "local", "private-attachment", False
+
+    base = str(cfg.get("cloud_base") or "").rstrip("/")
+    has_cloud = bool(base and cfg.get("cloud_key"))
+    if not has_cloud:
+        return "local", "cloud-not-configured", False
+    if check_network and not cloud_network_available(base):
+        return "local", "cloud-offline", False
+
+    text = _request_text(req)
+    lowered = text.casefold()
+    difficult = len(text) >= 2400 or any(token in lowered for token in (
+        "```", "refactor", "debug", "architecture", "research", "analyze project",
+        "إعادة هيكلة", "حلّل المشروع", "ابحث", "خطّة كاملة",
+    ))
+    if str(meta.get("prefer") or "").lower() == "cloud" or difficult:
+        return "cloud", "complex-task", True
+    return "local", "fast-private-default", True
 
 
 def upstream_url(base, path, wire):
@@ -681,7 +874,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _cloud_cfg(self, cfg):
         return ((cfg.get("cloud_base") or "").rstrip("/"),
-                load_secret(),
+                cfg.get("cloud_key") or load_secret(),
                 (cfg.get("cloud_wire") or "openai").lower())
 
     def _foreign_origin(self):
@@ -710,7 +903,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self._foreign_origin():
             return self._err(403, "foreign origin")
-        cfg = load_cfg()
+        cfg = load_product_cfg()
 
         # The liveness probe. Cheap on purpose — moai-control polls it every few
         # seconds and must never make it reach out to a provider to answer.
@@ -721,14 +914,19 @@ class Handler(BaseHTTPRequestHandler):
                 "port": PORT,
                 "local_port": LOCAL_PORT,
                 "local_unit": LOCAL_UNIT,
-                "default_mode": "cloud" if cfg.get("mode") == "cloud" else "local",
+                "default_mode": (cfg.get("mode")
+                                 if cfg.get("mode") in ("local", "cloud", "hybrid")
+                                 else "local"),
             })
 
         # What this door will actually route. Every id here is a real route; a
         # `cloud:<id>` for any other model the provider knows is accepted too —
         # moai-control's /models asks the provider for that list.
         if self.path.startswith("/v1/models"):
-            data = [{"id": "default", "object": "model", "owned_by": "moos"}]
+            data = [
+                {"id": "default", "object": "model", "owned_by": "moos"},
+                {"id": "hybrid", "object": "model", "owned_by": "moos"},
+            ]
             names = [short_model(n) for n in pulled_models()]
             for name in names:
                 data.append({"id": "local:" + name, "object": "model",
@@ -770,9 +968,11 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError
         except (TypeError, ValueError):
             return self._err(400, "bad content length")
+        if length > MAX_BODY_BYTES:
+            return self._err(413, "request body too large")
         raw = self.rfile.read(length) if length else b""
 
-        cfg = load_cfg()
+        cfg = load_product_cfg()
         try:
             req = json.loads(raw)
         except Exception:
@@ -780,13 +980,115 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(req, dict):
             return self._err(400, "json body must be an object")
 
+        self.moai_route = ""
+        self.moai_route_reason = ""
+        self.moai_agent = ""
+        meta = req.get("moai") if isinstance(req.get("moai"), dict) else {}
+        wants_agent = meta.get("agent") is True
         brain, model = resolve(req.get("model", ""), cfg)
+        if brain == "hybrid":
+            brain, reason, may_fallback = choose_hybrid(req, cfg)
+            self.moai_route = brain
+            self.moai_route_reason = reason
+            req = dict(req)
+            if brain == "local":
+                error = ensure_local(model)
+                if error and may_fallback:
+                    self.moai_route = "cloud"
+                    self.moai_route_reason = "local-unavailable"
+                    if wants_agent and self._to_agent(req, "cloud", model, cfg):
+                        return
+                    req.pop("moai", None)
+                    raw = json.dumps(req).encode("utf-8")
+                    return self._to_cloud(req, raw, model, cfg)
+                if error:
+                    return self._err(503, error)
+                if wants_agent and self._to_agent(req, "local", model, cfg,
+                                                  local_prepared=True):
+                    return
+                req.pop("moai", None)
+                return self._to_local(req, model, prepared=True)
+            if wants_agent and self._to_agent(req, "cloud", model, cfg):
+                return
+            req.pop("moai", None)
+            raw = json.dumps(req).encode("utf-8")
+            return self._to_cloud(req, raw, model, cfg)
+        if wants_agent and self._to_agent(req, brain, model, cfg):
+            return
+        req = dict(req)
+        req.pop("moai", None)
+        raw = json.dumps(req).encode("utf-8")
         if brain == "local":
             return self._to_local(req, model)
         return self._to_cloud(req, raw, model, cfg)
 
-    def _to_local(self, req, model):
-        error = ensure_local(model)
+    def _to_agent(self, req, brain, model, cfg, local_prepared=False):
+        """Route desktop chat through the same OpenClaw runtime as phone channels.
+
+        False means the runtime is not configured and the caller may use the
+        existing direct-model path. Once a request reaches OpenClaw, its result is
+        authoritative and is streamed straight back; no secret enters QML.
+        """
+        client = load_openclaw_client()
+        if not client or not os.path.isfile(OPENCLAW_BIN):
+            self.moai_agent = "direct-fallback"
+            return False
+        selected = openclaw_model(client, brain, model, cfg)
+        if not selected:
+            self.moai_agent = "direct-fallback"
+            return False
+        if brain == "local" and not local_prepared:
+            error = ensure_local(model)
+            if error:
+                self._err(503, error)
+                return True
+        error = ensure_openclaw_gateway()
+        if error:
+            self.moai_agent = "direct-fallback"
+            self.moai_route_reason = "openclaw-unavailable"
+            return False
+        meta = req.get("moai") if isinstance(req.get("moai"), dict) else {}
+        session = str(meta.get("session") or "").strip()
+        if not re.fullmatch(r"[A-Za-z0-9_.:-]{8,120}", session):
+            self._err(400, "invalid Mo AI conversation id")
+            return True
+        session_key = str(meta.get("session_key") or "").strip()
+        if session_key and (
+            not re.fullmatch(r"[A-Za-z0-9_.:-]{1,180}", session_key)
+            or session_key.startswith(("subagent:", "cron:", "acp:"))
+        ):
+            self._err(400, "invalid OpenClaw session key")
+            return True
+        latest_user = None
+        for message in reversed(req.get("messages", [])):
+            if isinstance(message, dict) and message.get("role") == "user":
+                latest_user = message
+                break
+        if latest_user is None:
+            self._err(400, "agent chat needs a user message")
+            return True
+        out = {
+            "model": "openclaw/default",
+            "messages": [latest_user],
+            "stream": bool(req.get("stream")),
+        }
+        if not session_key:
+            out["user"] = session
+        headers = {
+            "Authorization": "Bearer " + client["token"],
+            "x-openclaw-message-channel": "webchat",
+        }
+        if selected != client.get("primary"):
+            headers["x-openclaw-model"] = selected
+        if session_key:
+            headers["x-openclaw-session-key"] = session_key
+        self.moai_agent = "openclaw"
+        self._proxy("POST", OPENCLAW_BASE + "/v1/chat/completions", headers,
+                    json.dumps(out).encode("utf-8"), "openai", out["stream"])
+        return True
+
+    def _to_local(self, req, model, prepared=False):
+        error = None if prepared else ensure_local(model)
         if error:
             return self._err(503, error)
         # A real local chat just happened: refresh the idle clock so moai-idle keeps
@@ -866,6 +1168,11 @@ class Handler(BaseHTTPRequestHandler):
             # We rewrite the body, so never echo the upstream content type.
             ctype = "text/event-stream" if streaming else "application/json"
         self.send_header("Content-Type", ctype)
+        if getattr(self, "moai_route", ""):
+            self.send_header("X-MoAI-Route", self.moai_route)
+            self.send_header("X-MoAI-Route-Reason", self.moai_route_reason)
+        if getattr(self, "moai_agent", ""):
+            self.send_header("X-MoAI-Agent", self.moai_agent)
         self.send_header("Transfer-Encoding", "chunked")
         self.end_headers()
 
@@ -917,6 +1224,11 @@ class Handler(BaseHTTPRequestHandler):
         payload = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
+        if getattr(self, "moai_route", ""):
+            self.send_header("X-MoAI-Route", self.moai_route)
+            self.send_header("X-MoAI-Route-Reason", self.moai_route_reason)
+        if getattr(self, "moai_agent", ""):
+            self.send_header("X-MoAI-Agent", self.moai_agent)
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         try:
@@ -929,6 +1241,9 @@ class Handler(BaseHTTPRequestHandler):
                              ensure_ascii=False).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
+        if getattr(self, "moai_route", ""):
+            self.send_header("X-MoAI-Route", self.moai_route)
+            self.send_header("X-MoAI-Route-Reason", self.moai_route_reason)
         self.send_header("Content-Length", str(len(payload)))
         self.send_header("Connection", "close")   # don't reuse a poisoned socket
         self.close_connection = True

@@ -1629,7 +1629,8 @@ TAILSCALE_REPO
 # qrencode: the Mo PC Remote panel renders its address as a QR code. Without it the user has to
 # read an address off the screen and type it into a phone — which is exactly how they end up on
 # the LAN address that dies the moment they leave the house.
-dnf5 -y install tailscale ydotool wl-clipboard spectacle python3-gobject qrencode \
+dnf5 -y install tailscale ydotool wl-clipboard spectacle python3-gobject \
+    python3-websockets poppler-utils qrencode \
     gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good pipewire-gstreamer
 systemctl enable tailscaled.service
 systemctl --global disable mo-remote-personal.service || true

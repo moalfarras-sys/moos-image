@@ -4,7 +4,140 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-01 — release pipeline recovery. The public, NVIDIA and
+Last updated: 2026-08-01 — Mo AI Workspace rebuild, first implementation slice
+on `product/moai-workspace-rebuild-2026-08-01`. `MO_AI_ARCHITECTURE.md` is now
+the durable architecture and completion ledger. The existing Qt/Kirigami and
+Python stack is retained; no second Mo AI and no risky language rewrite was
+introduced. `moai-agent-api` now owns separate atomic workspace metadata for
+OpenClaw conversations (search/pin/rename/archive), canonical home-contained
+projects and persistent task state. It also provides bounded user-owned PTYs:
+the source UI was run on the live 4K RTL session and showed real shell output
+from `printf 'Mo-AI-terminal-live\n'`, with tabs and process stop. Image/text
+attachments now enter through a private non-executable store via picker or
+drag/drop. PDF (first 50 pages), DOCX and ODT text extraction is real and capped
+at 512 KiB; PDF uses fixed `pdftotext` argv and Office/ODF reads only an exact
+bounded XML member, while unsupported binaries remain honestly metadata-only.
+Vision routing now reads explicit model input metadata: Ollama's real
+`/api/show` capability or provider-advertised `input`/`modalities`; it no longer
+guesses from a model name, and uncertain routes remain text-only. A live PNG
+request through the source Mo AI gateway and unified OpenClaw runtime reached
+`qwen3-vl:4b` and returned `blue` in 17.6 seconds. Push-to-talk uses `pw-record`
+→ the existing `moai-transcribe` path. A synthesized English speech proof was
+auto-detected as `en` with 0.93 probability and returned `Hello, I am the MOAI
+assistant.`; transcription now defaults to bilingual auto detection rather
+than forcing every clip through Arabic. A real human Arabic microphone sample
+is still not verified. The Speaches Quadlet now treats its known exit 137 after
+clean ASGI shutdown as a successful idle stop, avoiding a false failed service.
+`moai-gateway` gains
+an explainable Hybrid route: sensitive data and attachments remain local by
+default, complex work may use configured/reachable cloud, and routing/fallback
+reasons are returned to the UI. The gateway now reads the same OpenClaw cloud provider/key written
+by Settings, with the old Mo AI config retained only as an upgrade fallback;
+this fixes a live contradiction where Settings reported Cloud linked but the
+gateway returned `cloud brain not configured`. Source runtime proofs returned
+the exact Cloud and Local markers, then routed Hybrid private to `local/privacy`
+and Hybrid complex to `cloud/complex-task`, all HTTP 200 with
+`X-MoAI-Agent: openclaw`. OpenClaw permissions are split into the four
+real levels (read/project/system-with-approval/full). Tracked tasks now launch
+the fixed OpenClaw agent command, persist real outcomes, expose pause/resume/
+cancel, and ingest tool-call names from the OpenClaw session JSONL. The project
+Workbench provides canonical-root file browsing, bounded UTF-8 preview and
+fixed-argv Git status/diff; traversal and symlink escapes are tested, and a
+bounded persistent audit ledger records task actions, project reads/diffs and
+permission-policy changes. Agent process completion now adds a separate bounded
+`task/finish` event for completed, failed, cancelled, timed-out or internal-error
+outcomes with only exit status and observed tool names; model prompts and process
+output are deliberately excluded from the audit record. OpenClaw tool outcomes
+are now audited individually too: success/error and explicit
+`missing-result`, bounded to the newest 8 MiB and 200 events, with only tool name
+and a short call-id hash. Arguments and tool output never enter the ledger.
+Tracked task cards consume OpenClaw's real
+Gateway exec-approval queue and expose only its allowed decisions; a live
+source-API proof listed an exact pending command, denied it through
+`exec.approval.resolve`, verified removal from the queue and recorded the
+decision plus command hash in the audit ledger. The shared Gateway token stays
+inside the backend, and `python3-websockets` is now an explicit image
+dependency. Live 4K RTL evidence exists for Tasks and the real
+Git Workbench. The primary Chat canvas now uses OpenClaw's authenticated
+loopback Chat Completions endpoint, so desktop, Telegram and WhatsApp share the
+same agent runtime, sessions, memory, tools and policy while the existing QML
+keeps streaming and multimodal payloads. A real local two-turn test preserved
+the token `MOAI-LOCAL-UNIFIED-READY` in one OpenClaw session; the live UI proof
+shows `qwen3-vl:4b · وكيل موحّد`. The central Chat now includes a searchable
+conversation drawer and can load/continue the exact OpenClaw thread shared with
+phone channels. A 4K RTL source run rendered all four messages from the proof
+session; a subsequent request using its guarded session key returned the same
+token with `X-MoAI-Agent: openclaw`. Replies retain Markdown/fenced-code
+rendering, are selectable and have a one-click Qt clipboard action. Real
+OpenClaw tool calls/results now render as bounded semantic status cards; a live
+4K RTL run displayed the actual `exec` call and `opened (setsid): code` result.
+Streaming can be stopped through the real active XHR, and Regenerate now removes
+the prior turn then replays its exact stored payload—including image/document
+parts—without duplicating conversation history.
+Settings are now twelve distinct functional pages (Models, Providers, OpenClaw,
+Telegram, WhatsApp, Voice, Permissions, Memory, Projects, Terminal, Privacy and
+Appearance) rather than seven mixed buckets. Hybrid is a first-class privacy
+choice, secrets remain write-only, and the retired unreachable Health duplicate
+was removed. The fixed narrow rail is now a responsive workspace sidebar: it
+keeps the 76 px compact form at 720×540 and expands to 188 px with readable
+horizontal labels at 1120 px and above. Both compact and 1440×900 RTL source-QML
+states were captured and visually inspected without clipping. Live 4K RTL evidence covered the section grid and real configured
+OpenClaw status. Settings also passed English/LTR at the enforced compact
+`720×540` minimum and Permissions passed Dark/RTL on the live 4K session; the
+machine was restored to its exact prior `MoOS Scholar Light` theme afterward.
+The visual matrix is now complete for the four primary workspaces. Source QML
+and the source Agent backend were run together on the live 4K Wayland session;
+Conversations, Projects, Tasks and Terminal were captured in Light/Dark ×
+LTR/RTL at `720×540`, `1120×760` and native 4K scale: 48 real screenshots,
+reviewed as three 4×4 contact sheets. The captures show the real MoOS project,
+real OpenClaw sessions and a completed task. No binding/type/load errors appeared.
+The accessibility surface is now live-proven rather than only grepped: Qt's
+AT-SPI tree exposed the source app, every interactive node had a name or named
+`labelledBy` relation after fixing six anonymous secret/switch controls, and
+real Tab traversal reached named chat, composer and Settings actions. Reduced
+motion remains enforced by the existing real-QML runtime gate.
+The bilingual speech proof now covers Arabic too: an 11.96-second synthesized
+Arabic WAV traversed the shipped `moai-transcribe` and live Speaches service
+with `MOAI_STT_LANG=ar`, returned recognisable Arabic text and exit 0, after
+which Speaches was stopped and reset to clean inactive state.
+Visual review direction can now be selected per source run with the validated
+`--layout-direction ltr|rtl` argument, avoiding global locale changes. Live
+captures added Light/LTR compact Providers, Dark/LTR 1440×900 Chat and Dark/RTL
+compact Terminal, then restored `org.moos.ui2.study.light` and
+`MoOSUI2ScholarLight` exactly. The full primary-workspace cross-product is now
+closed; the evidence contact sheets remain under `/var/tmp/moai-review-source-*`.
+OpenClaw also gains a `moai/hybrid` loopback
+provider so phone turns use the same smart routing policy. The installed OpenClaw
+advertises WhatsApp Web support and Mo AI now exposes its fixed login route.
+Channel settings now call a bounded, secret-free `/api/channels` probe instead
+of implying connectivity: a live source-backend probe verified Telegram polling
+connected as `@Moalfarras_bot`, while WhatsApp correctly reported unconfigured.
+The latter still needs the owner's real QR pairing and is not complete. The
+endpoint wakes OpenClaw only for this explicit status request and leaves idle
+sleep policy intact. `just check` passed after this slice. All of this is
+unreleased working-branch state
+until merge, signed CI matrix and live update pass. The final release image proof
+was repeated after the last code change from branch head `622926a2`: generic
+image `localhost/moos:latest` (`e3f83010083e…`). Its final 122 MB initramfs contains the OSTree boot path and
+MoOS Plymouth assets; all shipped QML apps, Launcher, desktop scene, Store,
+image-experience, identity and foreign-identity firewall gates passed, followed
+by `bootc container lint` (9 checks passed, four pre-existing warning classes).
+The same exact head produced Cloud image
+`localhost/moos-cloud:latest` (`11eb2b525ba1…`) and NVIDIA image
+`localhost/moos-nvidia:latest` (`7de9463dc16d…`); both passed edition-specific
+gates and bootc lint. NVIDIA used kernel `7.1.5-201.fc44.x86_64`, matched
+`kmod-nvidia` and `nvidia-driver` at `610.43.03`, and proved seven NVIDIA modules
+inside its final 217 MB initramfs. This proves all three local composes—not
+signed publication, the booted deployment or post-update behavior.
+Telegram is now end-to-end proven: the live config restricts DMs to owner
+`1142563280`, the real shared session records owner inbound turns plus explicit
+`telegram-final` delivery mirrors to that same chat, and a new cold-start source
+probe returned `@Moalfarras_bot` connected via polling. That cold proof exposed
+and fixed a status race: the API now waits up to 12 seconds for the configured
+loopback Gateway port before invoking OpenClaw, instead of treating systemd's
+early active state as socket readiness. WhatsApp remains honestly unpaired.
+
+Previous update: 2026-08-01 — release pipeline recovery. The public, NVIDIA and
 cloud images built and pushed in CI, but all three jobs were killed afterward by
 an accidentally reintroduced in-job Syft SBOM scan. This is the exact failure
 already recorded on 2026-07-29. Heavy SBOM work is removed again from
