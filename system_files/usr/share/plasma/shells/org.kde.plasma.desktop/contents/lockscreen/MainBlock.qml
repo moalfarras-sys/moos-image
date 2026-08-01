@@ -212,6 +212,7 @@ SessionManagementScreen {
 
         PlasmaExtras.PasswordField {
             id: passwordBox
+            Accessible.name: i18ndc("plasma_shell_org.kde.plasma.desktop", "@info:accessible", "Password")
             font.pointSize: Kirigami.Theme.defaultFont.pointSize + 1
             Layout.fillWidth: true
             text: PasswordSync.password
@@ -305,7 +306,9 @@ SessionManagementScreen {
 
         PlasmaComponents3.Button {
             id: loginButton
+            Accessible.role: Accessible.Button
             Accessible.name: i18ndc("plasma_shell_org.kde.plasma.desktop", "@action:button accessible only", "Unlock")
+            Accessible.pressed: down
             Layout.preferredHeight: passwordBox.implicitHeight
             Layout.preferredWidth: loginButton.Layout.preferredHeight * 1.28
 

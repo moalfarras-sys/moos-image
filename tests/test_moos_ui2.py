@@ -701,6 +701,27 @@ class TestMoOSUI2(unittest.TestCase):
         for direction in ("Up", "Down", "Left", "Right"):
             self.assertIn(f"Keys.on{direction}Pressed: navigate(", button)
 
+    def test_lock_authentication_exposes_explicit_accessibility_state(self) -> None:
+        lock_path = (
+            SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen/"
+            "MainBlock.qml"
+        )
+        lock = qml_code(lock_path.read_text(encoding="utf-8"))
+        password_start = lock.index("id: passwordBox")
+        password = lock[password_start:lock.index("Binding {", password_start)]
+        self.assertIn("Accessible.name:", password)
+
+        unlock_start = lock.index("id: loginButton")
+        unlock = lock[unlock_start:lock.index("component FailableLabel", unlock_start)]
+        for contract in (
+            "Accessible.role: Accessible.Button",
+            "Accessible.name:",
+            "Accessible.pressed: down",
+            "Keys.onEnterPressed: clicked()",
+            "Keys.onReturnPressed: clicked()",
+        ):
+            self.assertIn(contract, unlock)
+
     def test_session_controls_use_only_wcag_paired_foregrounds(self) -> None:
         """Security/session glyphs must sit on a scheme-paired flat colour.
 
