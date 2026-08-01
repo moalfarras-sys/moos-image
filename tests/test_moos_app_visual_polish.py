@@ -142,8 +142,8 @@ class MoAIVisualPolishTests(unittest.TestCase):
         ):
             self.assertIn(binding, ambient)
         horizon = (UI / "TidalHorizon.qml").read_text(encoding="utf-8")
-        self.assertIn("DropShadow {", horizon)
-        self.assertIn("radius: Math.min(width, height) * 0.25", horizon)
+        self.assertIn("fillGradient: LinearGradient", horizon)
+        self.assertIn("PathMove {", horizon)
         self.assertIn("animateIn && motionEnabled", horizon)
         for forbidden in (
             "XAnimator on x",
