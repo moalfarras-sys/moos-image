@@ -2,6 +2,20 @@
 
 آخر تحديث تنفيذي: 2026-08-01 (`PROJECT_STATE.md` هو الخريطة الحية الأحدث دائماً)
 
+> **حالة الإصدار الحي:** اندمج Mo AI الجديد على `main` في `77707fd1`، ونجح
+> تشغيل GitHub Actions `30704582346` للنسخ العامة والسحابية وNVIDIA: build +
+> push + cosign + تحقق بالمفتاح المفروض في MoOS. الجهاز أقلع فعلياً من NVIDIA
+> digest `c73d9002…` مع kernel `7.1.5-201`. ربط المالك WhatsApp الحقيقي، وأثبت
+> `openclaw status --deep` أن Telegram `OK` وWhatsApp `LINKED` على نفس Gateway.
+> كشف الربط أن API الواجهة كان يقرأ `probe.ok` الخاص بTelegram فقط، فكان يعرض
+> WhatsApp disconnected رغم اتصاله؛ أُصلح محلل OpenClaw 2026.7 وأثبت backend
+> المصدر الحي القناتين `connected:true`. ثُبتت أيضاً allowlist صريحة لإضافات
+> OpenClaw الموثوقة عند وجود WhatsApp. `just check` أخضر. يلزم نشر هذا التصحيح
+> الصغير الموقّع، ثم إثبات رسالة WhatsApp inbound وفحص post-update نظيف بعد
+> بدء جلسة جديدة؛ الفحص الأول كان 46/3 بسبب ملف keyboard ونسختي MoPlayer قديمة
+> في `$HOME`، وقد نُقلت نسختا MoPlayer لنسخة احتياطية وصار الإعداد المكتوب
+> `de,us,ara` مطابقاً للصورة.
+
 > **إعادة بناء Mo AI Workspace — شريحة الأساس قيد التنفيذ على فرع المنتج.** ثُبّت
 > المخطط الدائم في `MO_AI_ARCHITECTURE.md`. المنفّذ والمختبر حتى الآن: إدارة
 > محادثات OpenClaw (بحث/تثبيت/تسمية/أرشفة)، سجل مشاريع canonical داخل home،

@@ -89,11 +89,21 @@ def main() -> None:
         def fake_run(argv, **kwargs):
             if argv[0] == "systemctl":
                 return subprocess.CompletedProcess(argv, 0, "", "")
-            payload = {"channels": {"telegram": {
-                "configured": True, "running": True, "mode": "polling",
-                "botToken": "must-not-leak",
-                "probe": {"ok": True, "botInfo": {
-                    "username": "Mo_bot", "id": 123}}}}}
+            payload = {"channels": {
+                "telegram": {
+                    "configured": True, "running": True, "mode": "polling",
+                    "botToken": "must-not-leak",
+                    "probe": {"ok": True, "botInfo": {
+                        "username": "Mo_bot", "id": 123}},
+                },
+                "whatsapp": {
+                    "configured": True, "running": True, "connected": True,
+                    "linked": True, "statusState": "linked",
+                    "healthState": "healthy",
+                    "self": {"e164": "+49123456789",
+                             "jid": "must-not-leak@s.whatsapp.net"},
+                },
+            }}
             return subprocess.CompletedProcess(argv, 0, json.dumps(payload), "")
 
         globals_["subprocess"].run = fake_run
@@ -104,7 +114,9 @@ def main() -> None:
         assert channels["channels"]["telegram"] == {
             "configured": True, "running": True, "connected": True,
             "account": "Mo_bot", "mode": "polling", "error": ""}
-        assert channels["channels"]["whatsapp"]["configured"] is False
+        assert channels["channels"]["whatsapp"] == {
+            "configured": True, "running": True, "connected": True,
+            "account": "+49123456789", "mode": "linked", "error": ""}
         assert "must-not-leak" not in json.dumps(channels)
 
         thread = module["read_session"](sid_new)

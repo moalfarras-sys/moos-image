@@ -560,14 +560,34 @@ def channel_status() -> dict:
         info = probe.get("botInfo") or probe.get("bot") or {}
         if not isinstance(info, dict):
             info = {}
-        account = str(info.get("username") or info.get("displayName") or "")[:80]
+        self_info = item.get("self") or {}
+        if not isinstance(self_info, dict):
+            self_info = {}
+        account = str(
+            info.get("username")
+            or info.get("displayName")
+            or self_info.get("e164")
+            or ""
+        )[:80]
         error = str(probe.get("error") or item.get("lastError") or "")[:240]
+        # Telegram exposes probe.ok.  WhatsApp Web has no probe object in
+        # OpenClaw 2026.7: its authoritative live fields are connected/linked,
+        # statusState=linked and healthState=healthy.  Reading only probe.ok
+        # made Mo AI claim "disconnected" while OpenClaw was already listening
+        # for inbound WhatsApp messages.
+        connected = bool(
+            probe.get("ok")
+            or item.get("connected")
+            or item.get("linked")
+            or item.get("statusState") == "linked"
+            or (item.get("running") and item.get("healthState") == "healthy")
+        )
         empty[name] = {
             "configured": bool(item.get("configured")),
             "running": bool(item.get("running")),
-            "connected": bool(probe.get("ok")),
+            "connected": connected,
             "account": account,
-            "mode": str(item.get("mode") or "")[:40],
+            "mode": str(item.get("mode") or item.get("statusState") or "")[:40],
             "error": error,
         }
     return {"available": True, "channels": empty, "error": ""}

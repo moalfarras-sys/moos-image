@@ -458,6 +458,28 @@ class OpenClawBootstrapTests(unittest.TestCase):
             self.assertIn("moai/hybrid", merged["agents"]["defaults"]["models"])
             self.assertIn("cloud/current", merged["agents"]["defaults"]["models"])
 
+    def test_whatsapp_uses_an_explicit_trusted_plugin_inventory(self):
+        with tempfile.TemporaryDirectory() as home:
+            bootstrap = load_script(OPENCLAW_BOOTSTRAP, home)
+            merged = bootstrap["merge_baseline"]({
+                "channels": {"whatsapp": {"enabled": True}},
+                "plugins": {"entries": {"whatsapp": {"enabled": True}}},
+            })
+            self.assertEqual(
+                merged["plugins"]["allow"],
+                bootstrap["MOAI_WHATSAPP_PLUGIN_ALLOW"],
+            )
+
+            custom = ["memory-core", "whatsapp", "owner-plugin"]
+            preserved = bootstrap["merge_baseline"]({
+                "channels": {"whatsapp": {"enabled": True}},
+                "plugins": {"allow": custom.copy()},
+            })
+            self.assertEqual(preserved["plugins"]["allow"], custom)
+
+            fresh = bootstrap["merge_baseline"]({})
+            self.assertNotIn("allow", fresh.get("plugins", {}))
+
     def test_existing_only_does_not_create_a_fresh_account_config(self):
         with tempfile.TemporaryDirectory() as home:
             result = subprocess.run(

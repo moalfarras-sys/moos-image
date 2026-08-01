@@ -217,9 +217,14 @@ cleanup lands. No decorative perpetual animation is allowed.
   `/api/channels` proof then waited for the actual Gateway socket and returned
   `@Moalfarras_bot`, polling and `connected:true`. The status implementation was
   fixed to wait for loopback readiness rather than racing systemd startup.
-- [ ] WhatsApp: the installed OpenClaw build confirms a supported WhatsApp Web
-  login adapter and Mo AI exposes its fixed login route. Account pairing and an
-  end-to-end message are not yet verified.
+- [x] WhatsApp account pairing and transport health. The owner scanned the real
+  QR after the signed update; `openclaw status --deep` reports WhatsApp
+  `LINKED`, and the gateway log confirms it is listening for inbound messages.
+  A live source `/api/channels` projection returns
+  `configured/running/connected:true`, the paired E.164 account and mode
+  `linked`. Its OpenClaw 2026.7 status schema and explicit trusted-plugin
+  allowlist are regression-tested. A real inbound turn and response is still
+  required for end-to-end message proof.
 
 ### Phase 5 — settings and product polish
 
@@ -274,14 +279,20 @@ cleanup lands. No decorative perpetual animation is allowed.
   `kmod-nvidia` and `nvidia-driver` both report `610.43.03` against kernel
   `7.1.5-201.fc44.x86_64`. The signed CI matrix remains a separate open proof.
 - [ ] Live functional evidence: chat, voice, image, file, terminal, each brain
-  route, task stop/resume, approvals and both configured phone channels.
+  route, task stop/resume and approvals are proven above; Telegram is end to
+  end and WhatsApp is paired/linked. One inbound WhatsApp turn remains.
 - [x] Live screenshots: light/dark × RTL/LTR × compact/desktop/4K primary
   screens. The 48-source-run matrix is recorded above; contact sheets are
   `/var/tmp/moai-review-source-{compact,desktop}-full-matrix.png` plus the four
   4K primary sheets from the same run.
-- [ ] Update `PROJECT_STATE.md` and `MOOS_ROADMAP.md` with only verified facts.
-- [ ] Publish and signature-verify all three images, stage the live update,
-  reboot with user consent and run `tests/post-update-check.sh`.
+- [x] Update `PROJECT_STATE.md` and `MOOS_ROADMAP.md` with only verified facts.
+- [x] Initial release: run `30704582346` signed and verified all three images;
+  NVIDIA digest `c73d9002…` was staged with `moai-do update`, rebooted with
+  owner consent and confirmed as booted. The first post-update run was 46/3
+  because of three recoverable `$HOME` shadows, not image gates; those are
+  repaired, but the live keyboard process needs one more session start before
+  the clean rerun. The post-pairing status/allowlist correction also needs a new
+  signed matrix and live update.
 
 ## Verification commands
 

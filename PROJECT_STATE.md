@@ -4,7 +4,36 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-01 — Mo AI Workspace rebuild, first implementation slice
+Last updated: 2026-08-01 — the Mo AI Workspace rebuild is merged on `main`,
+published and booted. GitHub Actions run `30704582346` built, pushed, cosign-
+signed and verified `moos`, `moos-cloud` and `moos-nvidia` from merge
+`77707fd1461774b931518df14a418e9286251ba4`. The maintainer machine is booted
+from signed NVIDIA digest
+`sha256:c73d9002efb3db9ffc2c6c2d4a7141b17d8af5e283172adb3c2790dccc0731e7`
+with kernel `7.1.5-201.fc44.x86_64`; the previous deployment remains available.
+OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
+WhatsApp account `LINKED`, both on the same gateway/session store. That live
+pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through
+`connected`/`linked` rather than Telegram's `probe.ok`, so Mo AI rendered a
+false disconnected state. The source API now consumes both contracts; a real
+isolated source run returned both channels `connected:true`, WhatsApp account
+`+4917623419358`, mode `linked`. The bootstrap also pins the exact seven trusted
+runtime plugins once WhatsApp exists, removing unrestricted extension discovery
+without overwriting an owner-managed allowlist. `just check` passes with
+regression tests. This post-pairing correction still needs its own signed
+matrix/update before the installed UI contains it.
+
+The first booted-image `post-update-check.sh` proved the published digest,
+signature policy, MoOS identity/UI, Mo AI runtime, boot and zero failed units;
+it returned 46/3 only because `$HOME` shadowed the image with an old `de,ara`
+keyboard file and two hand-installed MoPlayer launchers. The MoPlayer shadows
+were moved to recoverable
+`~/.local/state/moos/post-update-backup-20260801-1810`; `/usr/bin/moplayer` now
+wins. The keyboard file agrees with the image at `de,us,ara`, but the already-
+running KWin process retains `de,ara` until the next login/reboot. A clean rerun
+therefore remains open and must not be claimed yet.
+
+Mo AI Workspace rebuild, first implementation slice
 on `product/moai-workspace-rebuild-2026-08-01`. `MO_AI_ARCHITECTURE.md` is now
 the durable architecture and completion ledger. The existing Qt/Kirigami and
 Python stack is retained; no second Mo AI and no risky language rewrite was
@@ -111,8 +140,10 @@ provider so phone turns use the same smart routing policy. The installed OpenCla
 advertises WhatsApp Web support and Mo AI now exposes its fixed login route.
 Channel settings now call a bounded, secret-free `/api/channels` probe instead
 of implying connectivity: a live source-backend probe verified Telegram polling
-connected as `@Moalfarras_bot`, while WhatsApp correctly reported unconfigured.
-The latter still needs the owner's real QR pairing and is not complete. The
+connected as `@Moalfarras_bot`. The owner has now completed the real WhatsApp
+QR pairing and OpenClaw deep health reports the account `LINKED`; the repaired
+source projection returns both channels connected. A real inbound WhatsApp turn
+is the remaining channel proof. The
 endpoint wakes OpenClaw only for this explicit status request and leaves idle
 sleep policy intact. `just check` passed after this slice. All of this is
 unreleased working-branch state
@@ -135,7 +166,8 @@ Telegram is now end-to-end proven: the live config restricts DMs to owner
 probe returned `@Moalfarras_bot` connected via polling. That cold proof exposed
 and fixed a status race: the API now waits up to 12 seconds for the configured
 loopback Gateway port before invoking OpenClaw, instead of treating systemd's
-early active state as socket readiness. WhatsApp remains honestly unpaired.
+early active state as socket readiness. WhatsApp is now paired and linked;
+inbound-turn proof remains open.
 
 Previous update: 2026-08-01 — release pipeline recovery. The public, NVIDIA and
 cloud images built and pushed in CI, but all three jobs were killed afterward by

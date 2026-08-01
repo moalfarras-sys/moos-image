@@ -68,6 +68,22 @@ SPEACHES_TTS = {
     "responseFormat": "mp3",
 }
 
+# The exact plugins Mo AI deliberately exposes when WhatsApp is configured.
+# WhatsApp is a downloaded extension; without an explicit allowlist OpenClaw
+# will discover and load any extension directory that appears beside it.  Keep
+# bundled runtime dependencies in the same list because plugins.allow gates
+# those too.  Do not seed this before WhatsApp exists: a phantom `whatsapp`
+# entry is itself an audit finding on a fresh account.
+MOAI_WHATSAPP_PLUGIN_ALLOW = [
+    "memory-core",
+    "ollama",
+    "openai",
+    "phone-control",
+    "talk-voice",
+    "telegram",
+    "whatsapp",
+]
+
 
 def object_at(parent: dict, key: str) -> dict:
     value = parent.get(key)
@@ -152,6 +168,20 @@ def merge_baseline(cfg: dict) -> dict:
     local_policy.setdefault("deny", ["group:web", "browser", "exec"])
     hybrid_policy = object_at(by_provider, "moai/hybrid")
     hybrid_policy.setdefault("deny", ["group:web", "browser", "exec"])
+
+    channels = cfg.get("channels")
+    whatsapp = channels.get("whatsapp") if isinstance(channels, dict) else None
+    plugins_root = cfg.get("plugins")
+    plugin_entries = (
+        plugins_root.get("entries") if isinstance(plugins_root, dict) else None
+    )
+    whatsapp_entry = (
+        plugin_entries.get("whatsapp")
+        if isinstance(plugin_entries, dict) else None
+    )
+    if isinstance(whatsapp, dict) or isinstance(whatsapp_entry, dict):
+        plugins = object_at(cfg, "plugins")
+        plugins.setdefault("allow", list(MOAI_WHATSAPP_PLUGIN_ALLOW))
 
     # `audio.transcription` was retired in OpenClaw 2026.7. Inbound voice now
     # uses the shared media pipeline. Remove only that obsolete leaf (leaving
