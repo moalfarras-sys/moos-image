@@ -11,8 +11,12 @@ client = (ROOT / "moremote/controller/src/lib/api.ts").read_text(encoding="utf-8
 checks = {
     "downloads still put a reusable bearer token in the URL":
         "download?path=" not in client and "&token=" not in client,
-    "download tickets are not authenticated and single-use":
-        'download-ticket' in api and 'Tickets.Consume(ticket, "download"' in api,
+    "downloads do not use a bounded resource-specific retry lease":
+        'download-ticket' in api and 'IssueLease(' in api
+        and 'UseLease(ticket, "download"' in api and "maxUses: 32" in api,
+    "downloads advertise no HTTP Range or stable validators":
+        "enableRangeProcessing: true" in api and "EntityTagHeaderValue" in api
+        and "lastModified: modified" in api,
     "upload size is not rejected before reading the request":
         "ContentLength > FileService.MaxUploadBytes" in api and "statusCode: 413" in api,
     "uploads are not written through an isolated temporary file":

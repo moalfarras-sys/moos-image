@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Net.Http.Headers;
 
 namespace MoRemote;
 
@@ -223,14 +224,19 @@ public static class WebApi
             var req = await ReadJson<DownloadTicketReq>(ctx);
             var path = req?.path ?? "";
             if (!File.Exists(path)) return Results.Json(new { error = "not_found" }, statusCode: 404);
-            return Results.Json(new { ticket = svc.Tickets.Issue("download", Path.GetFullPath(path)) });
+            return Results.Json(new { ticket = svc.Tickets.IssueLease(
+                "download", Path.GetFullPath(path), maxUses: 32, lifetime: TimeSpan.FromMinutes(5)) });
         });
         app.MapGet("/api/files/download", (string? ticket) =>
         {
-            if (!svc.Tickets.Consume(ticket, "download", out var path))
+            if (!svc.Tickets.UseLease(ticket, "download", out var path))
                 return Results.Json(new { error = "unauthorized" }, statusCode: 401);
             if (!File.Exists(path)) return Results.Json(new { error = "not_found" }, statusCode: 404);
-            return Results.File(File.OpenRead(path), "application/octet-stream", Path.GetFileName(path));
+            var file = new FileInfo(path);
+            var modified = new DateTimeOffset(file.LastWriteTimeUtc);
+            var etag = new EntityTagHeaderValue($"\"{file.Length:x}-{file.LastWriteTimeUtc.Ticks:x}\"");
+            return Results.File(path, "application/octet-stream", Path.GetFileName(path),
+                enableRangeProcessing: true, lastModified: modified, entityTag: etag);
         });
         app.MapPost("/api/files/upload", async (HttpContext ctx, string dir, string name) =>
         {
