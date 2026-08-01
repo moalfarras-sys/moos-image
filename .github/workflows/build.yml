@@ -168,6 +168,8 @@ jobs:
           python3 tests/test_device_plan.py
           python3 tests/test_moai_do.py
           python3 tests/test_moai_control.py
+          python3 tests/test_moai_workspace.py
+          python3 tests/test_moai_hybrid.py
           # moos-open's session/logout and session/power hardcoded `qdbus6`, absent on Plasma 6
           # (which ships qdbus-qt6), so they confirmed then silently did nothing. This asserts the
           # qdbus_run resolver finds qdbus-qt6 and the session routes use it.

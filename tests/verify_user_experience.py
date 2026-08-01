@@ -2133,13 +2133,14 @@ require('systemctl("start")' in gateway_code and "def ensure_local" in gateway_c
 # that names none must still work exactly as it did — an older client, or a chat
 # opened before /models answered, sends "default" and must get the configured brain.
 require('low.startswith("local:")' in gateway_code
-        and 'low.startswith("cloud:")' in gateway_code,
-        "moai-gateway must route on the request's model field: local:<m> / cloud:<m>")
-require('brain = "cloud" if cfg.get("mode") == "cloud" else "local"' in gateway_code,
+        and 'low.startswith("cloud:")' in gateway_code
+        and 'low.startswith("hybrid:")' in gateway_code,
+        "moai-gateway must route on the request's model field: local:<m> / cloud:<m> / hybrid")
+require('mode in ("local", "cloud", "hybrid")' in gateway_code
+        and 'brain = mode if mode in' in gateway_code,
         "a request that names no brain must fall back to the configured default in "
-        "config.json, or every existing client breaks. (Gate the line in resolve(), not "
-        "the bare expression — it also appears in /healthz, so the loose form passed with "
-        "the routing decision itself replaced by False.)")
+        "config.json (local, cloud or hybrid), or every existing client breaks. "
+        "Gate the assignment in resolve(), not only a mode expression elsewhere.")
 
 # llama.cpp IGNORES the model field — verified: it answers a request for a model
 # that does not exist with whatever weights it has loaded. So a picker offering
@@ -2213,8 +2214,10 @@ require("cloud_error" in control_code,
         "free-text model field instead of showing an invented list")
 
 # …and the app must actually USE the route, or all of the above is decoration.
-require("model: root.route" in moai_qml,
-        "Mo AI must send the chosen route as the request's model field")
+require("let selectedRoute = root.route" in moai_qml
+        and "model: selectedRoute" in moai_qml,
+        "Mo AI must send the chosen route (or the locally installed VL route selected for "
+        "an attached image) as the request's model field")
 require("function pickRoute(" in moai_qml and "root.pickRoute(" in moai_qml
         and "function loadModels()" in moai_qml and "root.loadModels()" in moai_qml,
         "Mo AI must offer the brain/model picker and populate it from moai-control")

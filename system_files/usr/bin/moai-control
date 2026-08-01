@@ -235,7 +235,12 @@ def cloud_ready():
 
 def brain_online():
     """Can the DEFAULT brain answer right now?"""
-    return cloud_ready() if load().get("mode") == "cloud" else local_online()
+    mode = load().get("mode")
+    if mode == "cloud":
+        return cloud_ready()
+    if mode == "hybrid":
+        return local_online() or cloud_ready()
+    return local_online()
 
 
 def short_model(name):
@@ -1038,7 +1043,7 @@ def cloud_models(cfg):
 
 def models():
     cfg = load()
-    mode = "cloud" if cfg.get("mode") == "cloud" else "local"
+    mode = cfg.get("mode") if cfg.get("mode") in ("local", "cloud", "hybrid") else "local"
     configured = (cfg.get("cloud_model") or "").strip()
 
     # Bust the cache when the provider changes, not only when the clock runs out.
@@ -1057,7 +1062,9 @@ def models():
         cloud.insert(0, {"id": "cloud:" + configured, "label": configured,
                          "serving": True})
 
-    if mode == "cloud":
+    if mode == "hybrid":
+        default = "hybrid"
+    elif mode == "cloud":
         default = "cloud:" + configured if configured else "cloud"
     else:
         default = next((m["id"] for m in local if m["serving"]), "local")
@@ -1467,7 +1474,8 @@ class H(BaseHTTPRequestHandler):
 
         if route != "/config":
             return self._send(404, {"error": "not found"})
-        mode = "cloud" if data.get("mode") == "cloud" else "local"
+        requested_mode = data.get("mode")
+        mode = requested_mode if requested_mode in ("local", "cloud", "hybrid") else "local"
         key = data.get("cloud_key") or ""
         if key and not store_secret(key):
             return self._send(503, {"error": "Mo AI private storage is unavailable"})

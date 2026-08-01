@@ -4,7 +4,29 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-01 — release pipeline recovery. The public, NVIDIA and
+Last updated: 2026-08-01 — Mo AI Workspace rebuild, first implementation slice
+on `product/moai-workspace-rebuild-2026-08-01`. `MO_AI_ARCHITECTURE.md` is now
+the durable architecture and completion ledger. The existing Qt/Kirigami and
+Python stack is retained; no second Mo AI and no risky language rewrite was
+introduced. `moai-agent-api` now owns separate atomic workspace metadata for
+OpenClaw conversations (search/pin/rename/archive), canonical home-contained
+projects and persistent task state. It also provides bounded user-owned PTYs:
+the source UI was run on the live 4K RTL session and showed real shell output
+from `printf 'Mo-AI-terminal-live\n'`, with tabs and process stop. Image/text
+attachments now enter through a private non-executable store via picker or
+drag/drop; multimodal requests select a locally installed VL model when
+available. Push-to-talk uses `pw-record` → the existing `moai-transcribe` path;
+live silence correctly reached the transcriber and returned no-speech rather
+than fake text, but a spoken phrase is still not verified. `moai-gateway` gains
+an explainable Hybrid route: sensitive data and attachments remain local by
+default, complex work may use configured/reachable cloud, and routing/fallback
+reasons are returned to the UI. OpenClaw permissions are split into the four
+real levels (read/project/system-with-approval/full). The installed OpenClaw
+advertises WhatsApp Web support and Mo AI now exposes its fixed login route;
+account pairing remains open. All of this is unreleased working-branch state
+until the full gates, image build, merge, signed CI matrix and live update pass.
+
+Previous update: 2026-08-01 — release pipeline recovery. The public, NVIDIA and
 cloud images built and pushed in CI, but all three jobs were killed afterward by
 an accidentally reintroduced in-job Syft SBOM scan. This is the exact failure
 already recorded on 2026-07-29. Heavy SBOM work is removed again from

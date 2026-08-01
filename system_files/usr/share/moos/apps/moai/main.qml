@@ -27,6 +27,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
+import QtQuick.Dialogs
 import QtQuick.Shapes
 import QtQuick.Effects
 import org.kde.kirigami as Kirigami
@@ -172,6 +173,8 @@ Kirigami.ApplicationWindow {
     property bool brainStarting: false
     property var history: []            // [{role, content}] — last 12 turns
     property var pendingRuns: []        // moai-do actions the model just named
+    property var pendingAttachments: [] // private imported image/text/file payloads
+    property bool voiceRecording: false
     property string panel: "chat"       // chat|device|apps|compat|remote|dev|agent
 
     // ── Which brain answers THIS conversation ───────────────────────────────
@@ -197,6 +200,8 @@ Kirigami.ApplicationWindow {
 
     readonly property bool routeIsCloud: root.route.indexOf("cloud") === 0
     readonly property bool routeIsLocal: root.route.indexOf("local") === 0
+    readonly property bool routeIsHybrid: root.route.indexOf("hybrid") === 0
+    property string hybridDecision: ""
     // The part after the FIRST colon — a model id may contain colons of its own
     // ("local:qwen3:4b").
     readonly property string routeModel: {
@@ -215,6 +220,7 @@ Kirigami.ApplicationWindow {
           !root.brains.gateway ? false
         : root.routeIsLocal ? !!root.brains.local
         : root.routeIsCloud ? !!root.brains.cloud
+        : root.routeIsHybrid ? (!!root.brains.local || !!root.brains.cloud)
         : root.defaultOnline
 
     // Live system state from moai-control.
@@ -547,6 +553,29 @@ Kirigami.ApplicationWindow {
                     root.panel = p
             }
         }
+        const workspaceIndex = argv.indexOf("--workspace")
+        if (workspaceIndex !== -1 && workspaceIndex + 1 < argv.length) {
+            const workspace = argv[workspaceIndex + 1]
+            if (["conversations", "projects", "tasks", "terminal"].indexOf(workspace) !== -1) {
+                root.panel = "agent"
+                root.agentWorkspaceTab = workspace
+            }
+        }
+        const routeIndex = argv.indexOf("--route")
+        if (routeIndex !== -1 && routeIndex + 1 < argv.length) {
+            const requestedRoute = argv[routeIndex + 1]
+            if (requestedRoute === "hybrid"
+                    || requestedRoute.indexOf("local") === 0
+                    || requestedRoute.indexOf("cloud") === 0)
+                root.route = requestedRoute
+        }
+    }
+
+    FileDialog {
+        id: attachmentDialog
+        title: root.local("أرفق صورة أو ملفاً", "Attach an image or file")
+        fileMode: FileDialog.OpenFile
+        onAccepted: root.importAttachment(selectedFile.toString())
     }
 
     // Cheap poll: brain + remote + agents. moai-control serves this without
@@ -780,8 +809,29 @@ Kirigami.ApplicationWindow {
             return
         root.panel = "chat"
         input.text = ""
-        chatModel.append({ role: "user", text: msg })
-        history.push({ role: "user", content: msg })
+        const attachments = root.pendingAttachments.slice(0)
+        const attachmentNames = attachments.map(function (item) { return item.name }).join(", ")
+        chatModel.append({ role: "user", text: msg
+            + (attachmentNames === "" ? "" : "\n📎 " + attachmentNames) })
+        let userContent = msg
+        if (attachments.length > 0) {
+            const parts = [{ type: "text", text: msg }]
+            for (let attachmentIndex = 0; attachmentIndex < attachments.length; ++attachmentIndex) {
+                const attachment = attachments[attachmentIndex]
+                if (attachment.content_type === "image") {
+                    parts.push({ type: "image_url", image_url: { url: attachment.content } })
+                } else if (attachment.content_type === "text") {
+                    parts.push({ type: "text", text: "\n\n--- " + attachment.name
+                        + " ---\n" + attachment.content })
+                } else {
+                    parts.push({ type: "text", text: "\n\nAttached file: " + attachment.name
+                        + " (" + attachment.mime + ", " + attachment.size + " bytes)" })
+                }
+            }
+            userContent = parts
+        }
+        history.push({ role: "user", content: userContent })
+        root.pendingAttachments = []
         trimHistory()
         chatModel.append({ role: "typing", text: "…" })
         const idx = chatModel.count - 1
@@ -856,6 +906,12 @@ Kirigami.ApplicationWindow {
                 return
             root.busy = false
             root.activeXhr = null
+            if (root.routeIsHybrid) {
+                const chosen = xhr.getResponseHeader("X-MoAI-Route") || ""
+                const reason = xhr.getResponseHeader("X-MoAI-Route-Reason") || ""
+                root.hybridDecision = chosen === ""
+                    ? "" : chosen + (reason === "" ? "" : " · " + reason)
+            }
 
             if (sawData && acc.trim() !== "") {
                 chatModel.set(idx, { role: "assistant", text: acc })
@@ -897,16 +953,28 @@ Kirigami.ApplicationWindow {
                 root.flashMood(root.serverUp ? "warning" : "error")
             }
         }
-        xhr.send(JSON.stringify({
+        let selectedRoute = root.route !== "" ? root.route : "default"
+        if (attachments.some(function (item) { return item.content_type === "image"; })) {
+            const vision = root.localModels.filter(function (model) {
+                return String(model.id).toLowerCase().indexOf("vl") !== -1
+                    || String(model.label).toLowerCase().indexOf("vision") !== -1
+            })
+            if (vision.length > 0 && (root.routeIsLocal || root.routeIsHybrid))
+                selectedRoute = vision[0].id
+        }
+        const request = {
             // THE ROUTE. moai-gateway reads this and sends the request to the
             // local brain or to the cloud provider accordingly; "default" (or an
             // empty route, before /models has answered) means "whatever
             // ~/.config/moai/config.json says", which is the old behaviour.
-            model: root.route !== "" ? root.route : "default",
+            model: selectedRoute,
             messages: [{ role: "system", content: systemPrompt + root.machineContext }]
                           .concat(history),
             stream: true
-        }))
+        }
+        if (root.routeIsHybrid)
+            request.moai = { privacy: "standard" }
+        xhr.send(JSON.stringify(request))
     }
 
     // ── The brain picker ────────────────────────────────────────────────────
@@ -1755,6 +1823,36 @@ Kirigami.ApplicationWindow {
                             z: -1
                         }
 
+                        DropArea {
+                            id: chatDropArea
+                            anchors.fill: parent
+                            z: 20
+                            onDropped: function (drop) {
+                                const urls = drop.urls || []
+                                for (let i = 0; i < Math.min(urls.length, 8); ++i)
+                                    root.importAttachment(String(urls[i]))
+                                drop.accept()
+                            }
+                            Rectangle {
+                                anchors.fill: parent
+                                visible: chatDropArea.containsDrag
+                                color: Qt.rgba(root.novaBlue.r, root.novaBlue.g,
+                                               root.novaBlue.b, 0.12)
+                                border.width: 2
+                                border.color: root.novaBlue
+                                radius: design.radiusCard
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: root.local("أفلت الصور أو الملفات هنا",
+                                                     "Drop images or files here")
+                                    color: root.textHi
+                                    font.family: root.uiFont
+                                    font.pixelSize: root.typePx(15)
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+                        }
+
                         ListView {
                             id: listView
                             anchors.fill: parent
@@ -2154,6 +2252,58 @@ Kirigami.ApplicationWindow {
                             }
                         }
 
+                        Flow {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 16
+                            Layout.rightMargin: 16
+                            Layout.bottomMargin: root.pendingAttachments.length ? 8 : 0
+                            spacing: design.space1
+                            visible: root.pendingAttachments.length > 0
+                            Repeater {
+                                model: root.pendingAttachments
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    width: attachmentChipRow.implicitWidth + 18
+                                    height: root.fs(32)
+                                    radius: design.radiusControl
+                                    color: root.surface1
+                                    border.width: 1
+                                    border.color: root.hairline
+                                    RowLayout {
+                                        id: attachmentChipRow
+                                        anchors.centerIn: parent
+                                        spacing: design.space1
+                                        Kirigami.Icon {
+                                            source: modelData.content_type === "image"
+                                                ? "image-x-generic" : "text-x-generic"
+                                            color: root.novaCyan
+                                            Layout.preferredWidth: root.fs(15)
+                                            Layout.preferredHeight: root.fs(15)
+                                        }
+                                        Text {
+                                            text: modelData.name
+                                            color: root.textHi
+                                            font.family: root.uiFont
+                                            font.pixelSize: root.typePx(10)
+                                            elide: Text.ElideMiddle
+                                            Layout.maximumWidth: root.fs(180)
+                                        }
+                                        Text {
+                                            text: "×"
+                                            color: root.textMute
+                                            font.pixelSize: root.typePx(13)
+                                        }
+                                    }
+                                    ActionArea {
+                                        anchors.fill: parent
+                                        actionName: root.local("إزالة المرفق", "Remove attachment")
+                                        focusRadius: root.fs(8)
+                                        onTriggered: root.removePendingAttachment(modelData.id)
+                                    }
+                                }
+                            }
+                        }
+
                         // Input
                         Rectangle {
                             Layout.fillWidth: true
@@ -2169,6 +2319,21 @@ Kirigami.ApplicationWindow {
                                 anchors.fill: parent
                                 anchors.margins: 14
                                 spacing: 10
+
+                                MoButton {
+                                    label: root.local("إرفاق", "Attach")
+                                    iconName: "mail-attachment"
+                                    onClicked: attachmentDialog.open()
+                                }
+                                MoButton {
+                                    label: root.voiceRecording
+                                        ? root.local("إيقاف التسجيل", "Stop recording")
+                                        : root.local("صوت", "Voice")
+                                    iconName: root.voiceRecording
+                                        ? "media-playback-stop" : "audio-input-microphone"
+                                    primary: root.voiceRecording
+                                    onClicked: root.toggleVoiceRecording()
+                                }
 
                                 // ── Which brain answers this conversation ──────
                                 // The choice used to live in a settings sheet, be
@@ -2201,6 +2366,7 @@ Kirigami.ApplicationWindow {
                                             radius: height / 2
                                             color: !root.serverUp ? root.textMute
                                                  : root.routeIsCloud ? root.novaViolet
+                                                 : root.routeIsHybrid ? root.novaCyan
                                                  : root.okColor
                                             Behavior on color { ColorAnimation { duration: root.motionEnabled ? design.motionPress : 0 } }
                                         }
@@ -2210,7 +2376,9 @@ Kirigami.ApplicationWindow {
                                             Text {
                                                 text: root.routeIsCloud
                                                     ? root.local("سحابي", "Cloud")
-                                                    : root.local("محلي", "Local")
+                                                    : root.routeIsHybrid
+                                                        ? root.local("هجين", "Hybrid")
+                                                        : root.local("محلي", "Local")
                                                 color: root.textHi
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.typePx(11)
@@ -2219,7 +2387,10 @@ Kirigami.ApplicationWindow {
                                             Text {
                                                 Layout.maximumWidth: 118
                                                 visible: root.routeModel !== ""
-                                                text: root.routeModel
+                                                         || (root.routeIsHybrid
+                                                             && root.hybridDecision !== "")
+                                                text: root.routeIsHybrid && root.hybridDecision !== ""
+                                                    ? root.hybridDecision : root.routeModel
                                                 color: root.textLo
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.typePx(9)
@@ -3410,6 +3581,33 @@ Kirigami.ApplicationWindow {
                         RowLayout {
                             visible: root.agentMachineConfigured
                             Layout.fillWidth: true
+                            spacing: design.space1
+                            Repeater {
+                                model: [
+                                    { id: "conversations", ar: "المحادثات", en: "Conversations" },
+                                    { id: "projects", ar: "المشاريع", en: "Projects" },
+                                    { id: "tasks", ar: "المهام", en: "Tasks" },
+                                    { id: "terminal", ar: "الطرفية", en: "Terminal" }
+                                ]
+                                delegate: MoButton {
+                                    required property var modelData
+                                    label: root.local(modelData.ar, modelData.en)
+                                    primary: root.agentWorkspaceTab === modelData.id
+                                    onClicked: {
+                                        root.agentWorkspaceTab = modelData.id
+                                        if (modelData.id === "projects") root.agentLoadProjects()
+                                        if (modelData.id === "tasks") root.agentLoadTasks()
+                                        if (modelData.id === "terminal") root.agentLoadTerminals()
+                                    }
+                                }
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
+
+                        RowLayout {
+                            visible: root.agentMachineConfigured
+                                     && root.agentWorkspaceTab === "conversations"
+                            Layout.fillWidth: true
                             Layout.fillHeight: true
                             spacing: 10
 
@@ -3426,6 +3624,35 @@ Kirigami.ApplicationWindow {
                                         font.family: root.uiFont
                                         font.pixelSize: root.typePx(10)
                                         font.weight: Font.DemiBold
+                                    }
+                                    QQC2.TextField {
+                                        id: agentSearchField
+                                        Layout.fillWidth: true
+                                        placeholderText: root.local("بحث…", "Search…")
+                                        font.family: root.uiFont
+                                        font.pixelSize: root.typePx(11)
+                                        Accessible.name: placeholderText
+                                        onTextChanged: {
+                                            root.agentSearch = text
+                                            agentSearchDelay.restart()
+                                        }
+                                        Timer {
+                                            id: agentSearchDelay
+                                            interval: 180
+                                            repeat: false
+                                            onTriggered: root.agentLoadSessions()
+                                        }
+                                    }
+                                    QQC2.CheckBox {
+                                        Layout.fillWidth: true
+                                        text: root.local("المؤرشفة", "Archived")
+                                        checked: root.agentShowArchived
+                                        font.family: root.uiFont
+                                        font.pixelSize: root.typePx(10)
+                                        onToggled: {
+                                            root.agentShowArchived = checked
+                                            root.agentLoadSessions()
+                                        }
                                     }
                                     Flickable {
                                         Layout.fillWidth: true
@@ -3452,13 +3679,38 @@ Kirigami.ApplicationWindow {
                                                     Text {
                                                         anchors.verticalCenter: parent.verticalCenter
                                                         anchors.left: parent.left
-                                                        anchors.right: parent.right
+                                                        anchors.right: pinSessionButton.left
                                                         anchors.margins: 8
                                                         text: modelData.label
                                                         elide: Text.ElideRight
                                                         color: root.agentCurrent === modelData.id ? root.novaBlue : root.textMute
                                                         font.family: root.uiFont
                                                         font.pixelSize: root.typePx(11)
+                                                    }
+                                                    Item {
+                                                        id: pinSessionButton
+                                                        z: 3
+                                                        anchors.right: parent.right
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                        width: root.fs(30)
+                                                        height: root.fs(30)
+                                                        Kirigami.Icon {
+                                                            anchors.centerIn: parent
+                                                            source: "pin"
+                                                            color: modelData.pinned
+                                                                ? root.novaBlue : root.textMute
+                                                            width: root.fs(16)
+                                                            height: root.fs(16)
+                                                        }
+                                                        ActionArea {
+                                                            anchors.fill: parent
+                                                            actionName: root.local(
+                                                                modelData.pinned ? "إلغاء التثبيت" : "تثبيت",
+                                                                modelData.pinned ? "Unpin" : "Pin")
+                                                            focusRadius: root.fs(7)
+                                                            onTriggered: root.agentUpdateSession(
+                                                                modelData.id, { pinned: !modelData.pinned })
+                                                        }
                                                     }
                                                     ActionArea {
                                                         anchors.fill: parent
@@ -3491,6 +3743,33 @@ Kirigami.ApplicationWindow {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 spacing: design.space2
+
+                                RowLayout {
+                                    visible: root.agentCurrent !== ""
+                                    Layout.fillWidth: true
+                                    spacing: design.space1
+                                    QQC2.TextField {
+                                        id: agentTitleField
+                                        Layout.fillWidth: true
+                                        text: root.agentCurrentLabel
+                                        placeholderText: root.local("اسم المحادثة", "Conversation name")
+                                        font.family: root.uiFont
+                                        font.pixelSize: root.typePx(11)
+                                        onAccepted: root.agentUpdateSession(
+                                            root.agentCurrent, { title: text })
+                                    }
+                                    MoButton {
+                                        label: root.local("إعادة تسمية", "Rename")
+                                        enabled_: agentTitleField.text.trim() !== ""
+                                        onClicked: root.agentUpdateSession(
+                                            root.agentCurrent, { title: agentTitleField.text })
+                                    }
+                                    MoButton {
+                                        label: root.local("أرشفة", "Archive")
+                                        onClicked: root.agentUpdateSession(
+                                            root.agentCurrent, { archived: true })
+                                    }
+                                }
 
                                 Card {
                                     Layout.fillWidth: true
@@ -3572,6 +3851,265 @@ Kirigami.ApplicationWindow {
                                         onClicked: { root.agentSend(agentInput.text); agentInput.text = "" }
                                     }
                                 }
+                            }
+                        }
+
+                        ColumnLayout {
+                            visible: root.agentMachineConfigured
+                                     && root.agentWorkspaceTab === "projects"
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            spacing: design.space2
+                            RowLayout {
+                                Layout.fillWidth: true
+                                QQC2.TextField {
+                                    id: projectPathField
+                                    Layout.fillWidth: true
+                                    placeholderText: root.local(
+                                        "مسار مشروع داخل مجلد المنزل…",
+                                        "Project path inside your home…")
+                                    font.family: root.uiFont
+                                    font.pixelSize: root.typePx(11)
+                                    onAccepted: root.agentAddProject(text)
+                                }
+                                MoButton {
+                                    label: root.local("إضافة مشروع", "Add project")
+                                    enabled_: projectPathField.text.trim() !== ""
+                                    onClicked: root.agentAddProject(projectPathField.text)
+                                }
+                            }
+                            ListView {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                model: root.agentProjects
+                                spacing: design.space1
+                                clip: true
+                                QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+                                delegate: Card {
+                                    required property var modelData
+                                    width: ListView.view.width
+                                    height: root.fs(66)
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        spacing: design.space2
+                                        Kirigami.Icon {
+                                            source: "folder"
+                                            color: root.novaBlue
+                                            Layout.preferredWidth: root.fs(24)
+                                            Layout.preferredHeight: root.fs(24)
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 1
+                                            Text {
+                                                text: modelData.name
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(12)
+                                                font.weight: Font.DemiBold
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: modelData.path
+                                                elide: Text.ElideMiddle
+                                                color: root.textMute
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(10)
+                                            }
+                                        }
+                                        MoButton {
+                                            label: root.local("مهمة جديدة", "New task")
+                                            onClicked: {
+                                                root.agentTaskProject = modelData.id
+                                                root.agentWorkspaceTab = "tasks"
+                                                root.agentLoadTasks()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        ColumnLayout {
+                            visible: root.agentMachineConfigured
+                                     && root.agentWorkspaceTab === "tasks"
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            spacing: design.space2
+                            RowLayout {
+                                Layout.fillWidth: true
+                                QQC2.TextField {
+                                    id: taskTitleField
+                                    Layout.fillWidth: true
+                                    placeholderText: root.local("صف المهمة…", "Describe a task…")
+                                    font.family: root.uiFont
+                                    font.pixelSize: root.typePx(11)
+                                    onAccepted: root.agentCreateTask(text)
+                                }
+                                MoButton {
+                                    label: root.local("إنشاء", "Create")
+                                    primary: true
+                                    enabled_: taskTitleField.text.trim() !== ""
+                                    onClicked: root.agentCreateTask(taskTitleField.text)
+                                }
+                            }
+                            ListView {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                model: root.agentTasks
+                                spacing: design.space1
+                                clip: true
+                                QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+                                delegate: Card {
+                                    required property var modelData
+                                    width: ListView.view.width
+                                    height: taskColumn.implicitHeight + root.fs(24)
+                                    ColumnLayout {
+                                        id: taskColumn
+                                        anchors.fill: parent
+                                        spacing: design.space1
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: modelData.title
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(13)
+                                                font.weight: Font.DemiBold
+                                            }
+                                            StatusPill {
+                                                good: modelData.status === "completed"
+                                                goodText: root.local("مكتملة", "Completed")
+                                                badText: modelData.status
+                                            }
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: root.local(
+                                                (modelData.steps || []).length + " خطوات · "
+                                                    + (modelData.tools || []).length + " أدوات",
+                                                (modelData.steps || []).length + " steps · "
+                                                    + (modelData.tools || []).length + " tools")
+                                            color: root.textMute
+                                            font.family: root.uiFont
+                                            font.pixelSize: root.typePx(10)
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            visible: modelData.status !== "completed"
+                                                     && modelData.status !== "cancelled"
+                                            Item { Layout.fillWidth: true }
+                                            MoButton {
+                                                label: modelData.status === "running"
+                                                    ? root.local("إيقاف مؤقت", "Pause")
+                                                    : modelData.status === "failed"
+                                                        ? root.local("إعادة المحاولة", "Retry")
+                                                        : root.local("بدء", "Start")
+                                                onClicked: root.agentUpdateTask(
+                                                    modelData.id,
+                                                    modelData.status === "running" ? "paused" : "running")
+                                            }
+                                            MoButton {
+                                                label: root.local("إلغاء", "Cancel")
+                                                onClicked: root.agentUpdateTask(modelData.id, "cancelled")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        ColumnLayout {
+                            visible: root.agentMachineConfigured
+                                     && root.agentWorkspaceTab === "terminal"
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            spacing: design.space2
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: design.space1
+                                Repeater {
+                                    model: root.agentTerminals
+                                    delegate: MoButton {
+                                        required property var modelData
+                                        label: modelData.title
+                                        primary: root.agentTerminalCurrent === modelData.id
+                                        onClicked: root.agentSelectTerminal(modelData.id)
+                                    }
+                                }
+                                MoButton {
+                                    label: root.local("+ طرفية", "+ Terminal")
+                                    onClicked: root.agentStartTerminal()
+                                }
+                                Item { Layout.fillWidth: true }
+                                MoButton {
+                                    visible: root.agentTerminalCurrent !== ""
+                                    label: root.local("إيقاف", "Stop")
+                                    onClicked: root.agentStopTerminal()
+                                }
+                            }
+                            Card {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                color: Qt.rgba(0.02, 0.025, 0.03, 0.96)
+                                Flickable {
+                                    id: terminalFlick
+                                    anchors.fill: parent
+                                    anchors.margins: design.space2
+                                    contentWidth: width
+                                    contentHeight: terminalOutput.implicitHeight
+                                    clip: true
+                                    boundsBehavior: Flickable.StopAtBounds
+                                    QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+                                    onContentHeightChanged: contentY = Math.max(0, contentHeight - height)
+                                    TextEdit {
+                                        id: terminalOutput
+                                        width: terminalFlick.width
+                                        text: root.agentTerminalOutput
+                                        readOnly: true
+                                        selectByMouse: true
+                                        wrapMode: TextEdit.WrapAnywhere
+                                        color: "#d7eee7"
+                                        selectionColor: root.novaBlue
+                                        selectedTextColor: root.accentText
+                                        font.family: "JetBrains Mono"
+                                        font.pixelSize: root.typePx(11)
+                                        Accessible.name: root.local("مخرجات الطرفية", "Terminal output")
+                                    }
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                QQC2.TextField {
+                                    id: terminalInput
+                                    Layout.fillWidth: true
+                                    enabled: root.agentTerminalCurrent !== ""
+                                    placeholderText: root.local("اكتب أمراً كمستخدمك…", "Run as your user…")
+                                    font.family: "JetBrains Mono"
+                                    font.pixelSize: root.typePx(11)
+                                    onAccepted: {
+                                        root.agentWriteTerminal(text + "\n")
+                                        text = ""
+                                    }
+                                }
+                                MoButton {
+                                    label: root.local("تشغيل", "Run")
+                                    enabled_: root.agentTerminalCurrent !== ""
+                                              && terminalInput.text !== ""
+                                    onClicked: {
+                                        root.agentWriteTerminal(terminalInput.text + "\n")
+                                        terminalInput.text = ""
+                                    }
+                                }
+                            }
+                            Timer {
+                                interval: 180
+                                repeat: true
+                                running: root.panel === "agent"
+                                         && root.agentWorkspaceTab === "terminal"
+                                         && root.agentTerminalCurrent !== ""
+                                onTriggered: root.agentPollTerminal()
                             }
                         }
                     }
@@ -3693,6 +4231,67 @@ Kirigami.ApplicationWindow {
                         text: root.local("اختيارك يسري على هذه المحادثة فقط.",
                                          "Applies to this conversation only.")
                         font.pixelSize: root.typePx(10)
+                    }
+
+                    Rectangle {
+                        id: hybridRow
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: root.fs(52)
+                        radius: design.radiusSmall
+                        color: root.routeIsHybrid
+                            ? Qt.rgba(root.novaCyan.r, root.novaCyan.g,
+                                      root.novaCyan.b, 0.16)
+                            : hybridMa.containsMouse ? root.surface2 : "transparent"
+                        border.width: 1
+                        border.color: root.routeIsHybrid ? root.novaCyan : root.hairline
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 10
+                            anchors.rightMargin: 10
+                            spacing: design.space2
+                            Kirigami.Icon {
+                                source: "moos-ai-symbolic"
+                                color: root.novaCyan
+                                Layout.preferredWidth: root.fs(20)
+                                Layout.preferredHeight: root.fs(20)
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 1
+                                Text {
+                                    text: root.local("هجين ذكي", "Smart Hybrid")
+                                    color: root.textHi
+                                    font.family: root.uiFont
+                                    font.pixelSize: root.typePx(12)
+                                    font.weight: Font.DemiBold
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: root.local(
+                                        "خاص وسريع محلياً؛ السحابة للمهام الصعبة فقط",
+                                        "Private and fast locally; cloud only for harder work")
+                                    color: root.textMute
+                                    font.family: root.uiFont
+                                    font.pixelSize: root.typePx(9)
+                                    elide: Text.ElideRight
+                                }
+                            }
+                            Text {
+                                visible: root.routeIsHybrid
+                                text: "✓"
+                                color: root.novaCyan
+                                font.pixelSize: root.typePx(13)
+                            }
+                        }
+                        ActionArea {
+                            id: hybridMa
+                            anchors.fill: parent
+                            actionName: root.local("اختيار العقل الهجين", "Choose Hybrid brain")
+                            checkable: true
+                            checked: root.routeIsHybrid
+                            focusRadius: root.fs(9)
+                            onTriggered: root.pickRoute("hybrid")
+                        }
                     }
 
                     Flickable {
@@ -4265,6 +4864,37 @@ Kirigami.ApplicationWindow {
                                         "المعرّف الرقمي لا اسم المستخدم: الأسماء تُغيَّر ويُعاد تخصيصها، والرقم ثابت. اتركه فارغاً فيعود الوضع إلى الاقتران حتى لا تُقفل خارج بوتك.",
                                         "Use the numeric ID, not the username: names change and can be reassigned. Leave it blank to return to pairing mode.")
                                 }
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: root.fs(1)
+                                    color: root.hairline
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: design.space2
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        Text {
+                                            text: "WhatsApp"
+                                            color: root.textHi
+                                            font.family: root.uiFont
+                                            font.pixelSize: root.typePx(13)
+                                            font.weight: Font.DemiBold
+                                        }
+                                        SectionNote {
+                                            Layout.fillWidth: true
+                                            text: root.local(
+                                                "اربط WhatsApp Web عبر OpenClaw؛ يستخدم نفس الوكيل والذاكرة والصلاحيات.",
+                                                "Link WhatsApp Web through OpenClaw; it shares this agent, memory and permissions.")
+                                        }
+                                    }
+                                    MoButton {
+                                        label: root.local("ربط WhatsApp", "Link WhatsApp")
+                                        iconName: "network-connect"
+                                        onClicked: root.launch(
+                                            "moos://agent/whatsapp-login", "WhatsApp")
+                                    }
+                                }
                             }
 
                             // ══ VOICE ══════════════════════════════════════
@@ -4336,10 +4966,11 @@ Kirigami.ApplicationWindow {
                             }
 
                             // ══ ACCESS ═════════════════════════════════════
-                            // Three tiers, mapped onto OpenClaw's OWN enforcement. The
+                            // Four tiers, mapped onto OpenClaw's OWN enforcement. The
                             // decisive knob is sandbox.mode (all=boxed, off=host):
                             //   read → معطّل: sandbox=all, exec denied — no reach to the machine
-                            //   ask  → مع إذن: sandbox=off (HOST) + approvals forwarded to the
+                            //   project → sandbox=all, workspace rw; never reaches the host
+                            //   system → sandbox=off (HOST) + approvals forwarded to the
                             //          origin chat, so a Telegram request is approved from
                             //          Telegram before the command runs on the real computer
                             //   full → كامل: sandbox=off (HOST), elevatedDefault=full, nothing
@@ -4369,7 +5000,8 @@ Kirigami.ApplicationWindow {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: root.fs(60)
                                     radius: design.radiusControl
-                                    readonly property bool hostOn: root.cfgTier !== "read"
+                                    readonly property bool hostOn:
+                                        root.cfgTier === "system" || root.cfgTier === "full"
                                     color: hostOn ? Qt.rgba(root.okColor.r, root.okColor.g, root.okColor.b, 0.12)
                                                   : Qt.rgba(root.textMute.r, root.textMute.g, root.textMute.b, 0.07)
                                     border.width: 1
@@ -4406,10 +5038,10 @@ Kirigami.ApplicationWindow {
                                             }
                                         }
                                         QQC2.Switch {
-                                            checked: root.cfgTier !== "read"
+                                            checked: hostToggle.hostOn
                                             enabled: !root.cfgSaving
                                             onToggled: {
-                                                root.cfgTier = checked ? "full" : "read"
+                                                root.cfgTier = checked ? "system" : "read"
                                                 root.cfgSave({
                                                     mode: root.cfgMode, provider: root.cfgProvider,
                                                     base: baseField.text, model: modelField.text, key: keyField.text,
@@ -4429,8 +5061,12 @@ Kirigami.ApplicationWindow {
                                           en: "Disabled — no control",
                                           dAr: "يردّ ويحلّل داخل عزل فقط. لا كاميرا ولا برامج ولا ترمنال",
                                           dEn: "Replies inside a sandbox; no camera, apps or terminal" },
-                                        { id: "ask",  ar: "مع إذن — تحكّم بموافقة",
-                                          en: "Ask first — approved control",
+                                        { id: "project", ar: "تعديل المشروع",
+                                          en: "Edit project",
+                                          dAr: "يقرأ ويعدّل ويختبر داخل مجلد المشروع المعزول، بلا وصول للنظام",
+                                          dEn: "Reads, edits and tests inside the sandboxed project; no system access" },
+                                        { id: "system",  ar: "تحكّم بالنظام — بموافقة",
+                                          en: "System control — ask first",
                                           dAr: "يتحكّم بالجهاز الحقيقي، لكن يعرض كل أمر وتوافق عليه في تليجرام قبل تنفيذه",
                                           dEn: "Can control the device, but every command requires Telegram approval" },
                                         { id: "full", ar: "كامل — تحكّم بلا سؤال",
@@ -4908,6 +5544,22 @@ Kirigami.ApplicationWindow {
     property var  agentThread: []
     property string agentCurrent: ""
     property string agentCurrentKey: "console"
+    property string agentCurrentLabel: ""
+    property string agentSearch: ""
+    property bool agentShowArchived: false
+    property string agentWorkspaceTab: "conversations"
+    onAgentWorkspaceTabChanged: {
+        if (agentWorkspaceTab === "projects") agentLoadProjects()
+        else if (agentWorkspaceTab === "tasks") agentLoadTasks()
+        else if (agentWorkspaceTab === "terminal") agentLoadTerminals()
+    }
+    property var agentProjects: []
+    property var agentTasks: []
+    property string agentTaskProject: ""
+    property var agentTerminals: []
+    property string agentTerminalCurrent: ""
+    property string agentTerminalOutput: ""
+    property int agentTerminalOffset: 0
     property bool agentBusy: false
     property string agentError: ""
     property string agentStatusError: ""
@@ -4978,7 +5630,9 @@ Kirigami.ApplicationWindow {
 
     function agentLoadSessions() {
         const xhr = new XMLHttpRequest()
-        xhr.open("GET", root.agentApi + "/api/sessions")
+        let query = "?q=" + encodeURIComponent(root.agentSearch)
+        if (root.agentShowArchived) query += "&archived=1"
+        xhr.open("GET", root.agentApi + "/api/sessions" + query)
         xhr.setRequestHeader("X-Moai-Agent", "1")
         xhr.onreadystatechange = function () {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
@@ -4999,6 +5653,12 @@ Kirigami.ApplicationWindow {
     function agentOpen(id, key) {
         root.agentCurrent = id
         root.agentCurrentKey = String(key).split(":").pop()
+        for (let i = 0; i < root.agentSessions.length; ++i) {
+            if (root.agentSessions[i].id === id) {
+                root.agentCurrentLabel = root.agentSessions[i].label
+                break
+            }
+        }
         const xhr = new XMLHttpRequest()
         xhr.open("GET", root.agentApi + "/api/session?id=" + encodeURIComponent(id))
         xhr.setRequestHeader("X-Moai-Agent", "1")
@@ -5009,6 +5669,278 @@ Kirigami.ApplicationWindow {
             }
         }
         xhr.send()
+    }
+
+    function agentUpdateSession(id, fields) {
+        if (!id) return
+        const payload = { id: id }
+        if (fields.title !== undefined) payload.title = fields.title
+        if (fields.pinned !== undefined) payload.pinned = fields.pinned
+        if (fields.archived !== undefined) payload.archived = fields.archived
+        if (fields.project !== undefined) payload.project = fields.project
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/session/update")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                root.agentError = ""
+                if (payload.title !== undefined)
+                    root.agentCurrentLabel = String(payload.title).trim()
+                if (payload.archived === true && !root.agentShowArchived) {
+                    root.agentCurrent = ""
+                    root.agentCurrentLabel = ""
+                    root.agentThread = []
+                }
+                root.agentLoadSessions()
+            } else {
+                try { root.agentError = JSON.parse(xhr.responseText).error }
+                catch (e) { root.agentError = root.local("تعذّر حفظ المحادثة",
+                                                         "Could not save conversation") }
+            }
+        }
+        xhr.send(JSON.stringify(payload))
+    }
+
+    function agentLoadProjects() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/projects")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                try { root.agentProjects = JSON.parse(xhr.responseText); root.agentError = "" }
+                catch (e) { root.agentError = root.local("رد مشاريع غير مفهوم", "Bad projects response") }
+            } else root.agentError = root.local("تعذّر تحميل المشاريع", "Could not load projects")
+        }
+        xhr.send()
+    }
+
+    function agentAddProject(path) {
+        if (!String(path).trim()) return
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/project/upsert")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                projectPathField.text = ""
+                root.agentError = ""
+                root.agentLoadProjects()
+            } else {
+                try { root.agentError = JSON.parse(xhr.responseText).error }
+                catch (e) { root.agentError = root.local("تعذّرت إضافة المشروع", "Could not add project") }
+            }
+        }
+        xhr.send(JSON.stringify({ path: String(path).trim() }))
+    }
+
+    function agentLoadTasks() {
+        const xhr = new XMLHttpRequest()
+        let query = root.agentTaskProject
+            ? "?project=" + encodeURIComponent(root.agentTaskProject) : ""
+        xhr.open("GET", root.agentApi + "/api/tasks" + query)
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                try { root.agentTasks = JSON.parse(xhr.responseText); root.agentError = "" }
+                catch (e) { root.agentError = root.local("رد مهام غير مفهوم", "Bad tasks response") }
+            } else root.agentError = root.local("تعذّر تحميل المهام", "Could not load tasks")
+        }
+        xhr.send()
+    }
+
+    function agentCreateTask(title) {
+        title = String(title).trim()
+        if (!title) return
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/task/create")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                taskTitleField.text = ""
+                root.agentError = ""
+                root.agentLoadTasks()
+            } else {
+                try { root.agentError = JSON.parse(xhr.responseText).error }
+                catch (e) { root.agentError = root.local("تعذّر إنشاء المهمة", "Could not create task") }
+            }
+        }
+        xhr.send(JSON.stringify({ title: title, project: root.agentTaskProject, steps: [] }))
+    }
+
+    function agentUpdateTask(id, status) {
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/task/update")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) root.agentLoadTasks()
+            else {
+                try { root.agentError = JSON.parse(xhr.responseText).error }
+                catch (e) { root.agentError = root.local("تعذّر تحديث المهمة", "Could not update task") }
+            }
+        }
+        xhr.send(JSON.stringify({ id: id, status: status }))
+    }
+
+    function agentLoadTerminals() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/terminals")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                try {
+                    root.agentTerminals = JSON.parse(xhr.responseText)
+                    if (!root.agentTerminalCurrent && root.agentTerminals.length)
+                        root.agentSelectTerminal(root.agentTerminals[0].id)
+                } catch (e) {
+                    root.agentError = root.local("رد طرفية غير مفهوم", "Bad terminal response")
+                }
+            }
+        }
+        xhr.send()
+    }
+
+    function agentSelectTerminal(id) {
+        root.agentTerminalCurrent = id
+        root.agentTerminalOutput = ""
+        root.agentTerminalOffset = 0
+        root.agentPollTerminal()
+    }
+
+    function agentStartTerminal() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/terminal/start")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                try {
+                    const created = JSON.parse(xhr.responseText)
+                    root.agentLoadTerminals()
+                    root.agentSelectTerminal(created.id)
+                } catch (e) { root.agentError = root.local("تعذّر فتح الطرفية", "Could not open terminal") }
+            } else {
+                try { root.agentError = JSON.parse(xhr.responseText).error }
+                catch (e) { root.agentError = root.local("تعذّر فتح الطرفية", "Could not open terminal") }
+            }
+        }
+        xhr.send(JSON.stringify({ project: root.agentTaskProject }))
+    }
+
+    function agentPollTerminal() {
+        if (!root.agentTerminalCurrent) return
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/terminal/output?id="
+                 + encodeURIComponent(root.agentTerminalCurrent)
+                 + "&offset=" + root.agentTerminalOffset)
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200) return
+            try {
+                const data = JSON.parse(xhr.responseText)
+                if (data.truncated) root.agentTerminalOutput = ""
+                root.agentTerminalOutput += data.output || ""
+                root.agentTerminalOffset = data.offset || root.agentTerminalOffset
+                if (!data.running) root.agentLoadTerminals()
+            } catch (e) { }
+        }
+        xhr.send()
+    }
+
+    function agentWriteTerminal(input) {
+        if (!root.agentTerminalCurrent || !input) return
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/terminal/write")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE && xhr.status !== 200)
+                root.agentError = root.local("تعذّرت كتابة الأمر", "Could not write command")
+        }
+        xhr.send(JSON.stringify({ id: root.agentTerminalCurrent, input: input }))
+    }
+
+    function agentStopTerminal() {
+        if (!root.agentTerminalCurrent) return
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/terminal/stop")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            root.agentPollTerminal()
+            root.agentLoadTerminals()
+        }
+        xhr.send(JSON.stringify({ id: root.agentTerminalCurrent }))
+    }
+
+    function importAttachment(path) {
+        if (!path) return
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/attachment/import")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                try {
+                    const attachment = JSON.parse(xhr.responseText)
+                    root.pendingAttachments = root.pendingAttachments.concat([attachment])
+                    root.agentError = ""
+                } catch (e) {
+                    root.agentError = root.local("رد مرفق غير مفهوم", "Bad attachment response")
+                }
+            } else {
+                try { root.agentError = JSON.parse(xhr.responseText).error }
+                catch (e) { root.agentError = root.local("تعذّر إرفاق الملف", "Could not attach file") }
+                toast.show(root.agentError)
+            }
+        }
+        xhr.send(JSON.stringify({ path: path }))
+    }
+
+    function removePendingAttachment(id) {
+        root.pendingAttachments = root.pendingAttachments.filter(function (item) {
+            return item.id !== id
+        })
+    }
+
+    function toggleVoiceRecording() {
+        const stopping = root.voiceRecording
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi
+                 + (stopping ? "/api/voice/stop" : "/api/voice/start"))
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                try {
+                    const result = JSON.parse(xhr.responseText)
+                    root.voiceRecording = !!result.recording
+                    if (result.text) input.text = result.text
+                    if (result.text) input.forceActiveFocus()
+                } catch (e) {
+                    root.voiceRecording = false
+                    toast.show(root.local("رد الصوت غير مفهوم", "Bad voice response"))
+                }
+            } else {
+                root.voiceRecording = false
+                try { toast.show(JSON.parse(xhr.responseText).error) }
+                catch (e) { toast.show(root.local("تعذّر تشغيل الصوت", "Voice failed")) }
+            }
+        }
+        xhr.send("{}")
     }
 
     function agentSend(text) {

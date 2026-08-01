@@ -253,6 +253,9 @@ case "${cat}/${tgt}" in
     dev/codex)     term moai-code --agent codex ;;
     dev/claude)    term moai-code --agent claude ;;
     dev/opencode)  term moai-code --agent opencode ;;
+    agent/whatsapp-login)
+                   term env PATH="$HOME/.local/node/bin:$HOME/.local/bin:/usr/bin:/bin" \
+                        openclaw channels login --channel whatsapp ;;
 
     # ── App Centre: install a Flathub app by id ──────────────────────────────
     # The id is free-form (it comes from a Flathub search), so validate the

@@ -32,6 +32,8 @@ check:
     python3 tests/test_device_plan.py
     python3 tests/test_moai_do.py
     python3 tests/test_moai_control.py
+    python3 tests/test_moai_workspace.py
+    python3 tests/test_moai_hybrid.py
     python3 tests/test_moos_open_qdbus.py
     python3 tests/test_moai_http_security.py
     python3 tests/test_moai_gateway_streaming.py
