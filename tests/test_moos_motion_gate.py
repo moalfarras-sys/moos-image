@@ -62,6 +62,8 @@ GATED_SURFACES = (
     SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/Splash.qml",
     SHARE / "plasma/plasmoids/org.moos.heroclock/contents/ui/main.qml",
     SHARE / "plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/main.qml",
+    ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/ActionButton.qml",
+    ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml",
 )
 
 PROBE = """

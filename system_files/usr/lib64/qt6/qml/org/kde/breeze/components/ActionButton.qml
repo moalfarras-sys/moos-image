@@ -45,6 +45,7 @@ import org.kde.kirigami as Kirigami
 PlasmaComponents3.AbstractButton {
     id: root
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
 
     // MoOS: the greeter hands us a full-colour icon name. Map it to the symbolic
     // glyph so isMask can paint it in the brand colour. Names already ending in
@@ -122,7 +123,7 @@ PlasmaComponents3.AbstractButton {
     opacity: root.lit ? 1 : 0.85
     Behavior on opacity {
         PropertyAnimation { // OpacityAnimator makes it turn black at random intervals
-            duration: Kirigami.Units.longDuration
+            duration: root.motionEnabled ? Kirigami.Units.longDuration : 0
             easing.type: Easing.InOutQuad
         }
     }
@@ -131,7 +132,7 @@ PlasmaComponents3.AbstractButton {
     scale: root.down ? 0.98 : (root.hovered ? 1.03 : 1.0)
     Behavior on scale {
         NumberAnimation {
-            duration: Kirigami.Units.shortDuration
+            duration: root.motionEnabled ? Kirigami.Units.shortDuration : 0
             easing.type: Easing.OutCubic
         }
     }
@@ -175,7 +176,7 @@ PlasmaComponents3.AbstractButton {
         }
         Behavior on opacity {
             PropertyAnimation { // OpacityAnimator makes it turn black at random intervals
-                duration: Kirigami.Units.longDuration
+                duration: root.motionEnabled ? Kirigami.Units.longDuration : 0
                 easing.type: Easing.InOutQuad
             }
         }
@@ -226,7 +227,7 @@ PlasmaComponents3.AbstractButton {
             scale: root.down ? 1 : 0
             Behavior on scale {
                 PropertyAnimation {
-                    duration: Kirigami.Units.shortDuration
+                    duration: root.motionEnabled ? Kirigami.Units.shortDuration : 0
                     easing.type: Easing.InOutQuart
                 }
             }

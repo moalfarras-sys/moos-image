@@ -46,6 +46,7 @@ Item {
     // If we're using software rendering, draw outlines instead of shadows
     // See https://bugs.kde.org/show_bug.cgi?id=398317
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
 
     property bool isCurrent: true
 
@@ -66,7 +67,7 @@ Item {
 
     Behavior on opacity {
         OpacityAnimator {
-            duration: Kirigami.Units.longDuration
+            duration: wrapper.motionEnabled ? Kirigami.Units.longDuration : 0
         }
     }
 
@@ -84,7 +85,7 @@ Item {
         opacity: wrapper.softwareRendering ? 0.6 : (wrapper.isCurrent ? 0.22 : 0.12)
         Behavior on opacity {
             NumberAnimation {
-                duration: Kirigami.Units.longDuration
+                duration: wrapper.motionEnabled ? Kirigami.Units.longDuration : 0
                 easing.type: Easing.InOutQuad
             }
         }
@@ -98,7 +99,7 @@ Item {
         Behavior on width {
             PropertyAnimation {
                 from: wrapper.faceSize
-                duration: Kirigami.Units.longDuration;
+                duration: wrapper.motionEnabled ? Kirigami.Units.longDuration : 0
             }
         }
         width: wrapper.isCurrent ? wrapper.faceSize : wrapper.faceSize - Kirigami.Units.gridUnit

@@ -749,6 +749,24 @@ class TestMoOSUI2(unittest.TestCase):
             self.assertIn(contract, user)
         self.assertNotIn("function accessiblePressAction", user)
 
+    def test_login_greeter_reduced_motion_is_a_true_static_state(self) -> None:
+        components = ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components"
+        for filename, owner, expected_durations in (
+            ("ActionButton.qml", "root", 4),
+            ("UserDelegate.qml", "wrapper", 3),
+        ):
+            with self.subTest(filename=filename):
+                source = qml_code((components / filename).read_text(encoding="utf-8"))
+                self.assertIn(
+                    "readonly property bool motionEnabled: Kirigami.Units.longDuration > 1",
+                    source,
+                )
+                durations = re.findall(r"duration:\s*([^\n}]+)", source)
+                self.assertEqual(len(durations), expected_durations)
+                for duration in durations:
+                    self.assertIn(f"{owner}.motionEnabled ?", duration)
+                    self.assertRegex(duration, r":\s*0\s*$")
+
     def test_session_controls_use_only_wcag_paired_foregrounds(self) -> None:
         """Security/session glyphs must sit on a scheme-paired flat colour.
 
