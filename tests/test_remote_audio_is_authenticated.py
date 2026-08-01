@@ -25,7 +25,8 @@ THE INVARIANT THIS GUARDS:
 
 1. Nothing may publish the audio service as a separate unauthenticated mount.
 2. The agent must expose the audio behind the same session check as everything else.
-3. The controller must send the token, and must not corrupt the query string doing it.
+3. The controller must exchange the bearer for a short-lived one-use ticket; reusable session
+   tokens must never enter a media URL.
 4. `mo-pc-remote` must actively REMOVE a legacy mount, because a machine exposed once stays
    exposed until something takes it down.
 """
@@ -90,16 +91,17 @@ if panel.count("unmount_audio(") < 2:
         f"unmount_audio is referenced {panel.count('unmount_audio(')} time(s); it must be DEFINED "
         "and CALLED from the panel-open path, so opening Mo PC Remote retracts a stale mount")
 
-# 3. The agent must serve the audio, behind the session check.
+# 3. The agent must issue an authenticated ticket and consume it on the stream route.
 if "/api/audio/stream.webm" not in agent:
     errors.append("the agent exposes no /api/audio/stream.webm — the sound has no authenticated "
                   "route to travel on")
 else:
     route = agent[agent.index("/api/audio/stream.webm"):]
     window = route[:2000]
-    if "ValidateAndTouch" not in window:
-        errors.append("the agent's audio route never calls Sessions.ValidateAndTouch — it would "
-                      "serve the machine's sound to anyone who can reach the port")
+    if '/api/audio/ticket' not in agent or 'IsAuthed(ctx, svc)' not in agent:
+        errors.append("the agent exposes no authenticated audio-ticket endpoint")
+    if 'Tickets.Consume(ticket, "audio"' not in window:
+        errors.append("the audio stream does not consume a single-use audio ticket")
     if "Status401Unauthorized" not in window:
         errors.append("the agent's audio route never answers 401 — an unauthenticated caller must "
                       "be refused, not quietly given a stream")
@@ -111,22 +113,11 @@ else:
         errors.append("the agent's audio route leaves HttpClient's default 100s timeout in place "
                       "— the sound would cut out every 100 seconds")
 
-# 4. The controller must authenticate, and must not corrupt the query string doing it.
-audio_url = re.search(r"const AUDIO_URL\s*=\s*(.+)", screen)
-if not audio_url:
-    errors.append("RemoteScreen defines no AUDIO_URL")
-else:
-    value = audio_url.group(1)
-    if "token" not in value:
-        errors.append(f"AUDIO_URL carries no token ({value.strip()}) — an <audio> element cannot "
-                      "send an Authorization header, so the token must ride in the query string")
-    if "api/audio" not in value:
-        errors.append(f"AUDIO_URL does not point at the agent's authenticated route ({value.strip()})")
-# every cache-buster must extend the existing query string, never start a new one
-for bad in re.finditer(r"\$\{AUDIO_URL\}\?", screen):
-    errors.append(
-        "a cache-buster appends '?' to AUDIO_URL, which already has a query string — the token "
-        "would become part of a parameter NAME and the request would arrive unauthenticated")
+# 4. The controller must request a fresh ticket for starts and retries.
+if "audioStreamUrl(token)" not in screen:
+    errors.append("RemoteScreen never requests an authenticated audio ticket")
+if "stream.webm?token=" in screen or "AUDIO_URL" in screen:
+    errors.append("RemoteScreen still puts its reusable session bearer in a media URL")
 
 if errors:
     print("GATE FAIL: the desktop's sound is reachable without a session.\n")

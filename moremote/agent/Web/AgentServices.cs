@@ -8,6 +8,7 @@ public sealed class AgentServices
     public required SessionState State { get; init; }
     public required ScreenCapture Capture { get; init; }
     public required InputInjector Input { get; init; }
+    public AccessTicketStore Tickets { get; } = new();
 
     /// <summary>When HTTPS is enabled, the Tailscale MagicDNS name the cert is valid for (else null).</summary>
     public string? HttpsHost { get; init; }

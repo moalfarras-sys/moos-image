@@ -95,7 +95,7 @@ internal static class Program
         // cert for HTTPS when configured, else plain HTTP.
         builder.WebHost.ConfigureKestrel(o =>
         {
-            o.Limits.MaxRequestBodySize = 2_000_000_000; // allow large file uploads
+            o.Limits.MaxRequestBodySize = FileService.MaxUploadBytes;
             o.ListenAnyIP(config.Port, lo => { if (tls != null) lo.UseHttps(tls.Certificate); });
         });
 

@@ -11,6 +11,7 @@ public static class WebApi
     public record ChangePinReq(string? currentPin, string? newPin);
     public record ClipboardReq(string? text);
     public record PowerReq(string? action);
+    public record DownloadTicketReq(string? path);
 
     private const int MinPinLength = 6;
     private const int MaxPinLength = 64;
@@ -150,10 +151,17 @@ public static class WebApi
             try { return Results.Json(FileService.List(path)); }
             catch (Exception ex) { return Results.Json(new { error = ex.Message }, statusCode: 400); }
         });
-        app.MapGet("/api/files/download", (HttpContext ctx, string path, string? token) =>
+        app.MapPost("/api/files/download-ticket", async (HttpContext ctx) =>
         {
-            // accept token via query so a native browser download (large files) works without a header
-            if (!svc.Sessions.ValidateAndTouch(token ?? BearerToken(ctx)))
+            if (!IsAuthed(ctx, svc)) return Results.Json(new { error = "unauthorized" }, statusCode: 401);
+            var req = await ReadJson<DownloadTicketReq>(ctx);
+            var path = req?.path ?? "";
+            if (!File.Exists(path)) return Results.Json(new { error = "not_found" }, statusCode: 404);
+            return Results.Json(new { ticket = svc.Tickets.Issue("download", Path.GetFullPath(path)) });
+        });
+        app.MapGet("/api/files/download", (string? ticket) =>
+        {
+            if (!svc.Tickets.Consume(ticket, "download", out var path))
                 return Results.Json(new { error = "unauthorized" }, statusCode: 401);
             if (!File.Exists(path)) return Results.Json(new { error = "not_found" }, statusCode: 404);
             return Results.File(File.OpenRead(path), "application/octet-stream", Path.GetFileName(path));
@@ -161,13 +169,15 @@ public static class WebApi
         app.MapPost("/api/files/upload", async (HttpContext ctx, string dir, string name) =>
         {
             if (!IsAuthed(ctx, svc)) return Results.Json(new { error = "unauthorized" }, statusCode: 401);
+            if (ctx.Request.ContentLength > FileService.MaxUploadBytes)
+                return Results.Json(new { error = "too_large", maxBytes = FileService.MaxUploadBytes }, statusCode: 413);
             try
             {
-                Directory.CreateDirectory(dir);
-                var target = FileService.UniquePath(dir, name);
-                await using (var fs = File.Create(target)) await ctx.Request.Body.CopyToAsync(fs);
+                var target = await FileService.SaveUploadAsync(
+                    ctx.Request.Body, dir, name, ctx.RequestAborted);
                 return Results.Json(new { ok = true, saved = Path.GetFileName(target) });
             }
+            catch (InvalidDataException ex) { return Results.Json(new { error = ex.Message }, statusCode: 413); }
             catch (Exception ex) { return Results.Json(new { error = ex.Message }, statusCode: 400); }
         });
 
@@ -195,13 +205,16 @@ public static class WebApi
         // or loopback only) and holding a valid session token, exactly like the clipboard, the
         // files and the input channel.
         //
-        // The token arrives in the query string, and that is not laziness — it is the same
-        // reason /api/files/download takes it that way. This URL is consumed by an <audio>
-        // element, and a media element cannot be given an Authorization header. A bearer header
-        // is still accepted for anything that can send one.
-        app.MapGet("/api/audio/stream.webm", async (HttpContext ctx, string? token) =>
+        app.MapPost("/api/audio/ticket", (HttpContext ctx) =>
         {
-            if (!svc.Sessions.ValidateAndTouch(token ?? BearerToken(ctx)))
+            if (!IsAuthed(ctx, svc)) return Results.Json(new { error = "unauthorized" }, statusCode: 401);
+            return Results.Json(new { ticket = svc.Tickets.Issue("audio") });
+        });
+        // Media elements cannot attach Authorization headers. Give them a 45-second,
+        // single-use capability instead of exposing a reusable session bearer in the URL.
+        app.MapGet("/api/audio/stream.webm", async (HttpContext ctx, string? ticket) =>
+        {
+            if (!svc.Tickets.Consume(ticket, "audio", out _))
             {
                 ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 await ctx.Response.WriteAsync("unauthorized");

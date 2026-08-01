@@ -96,8 +96,16 @@ export async function listFiles(token: string, path?: string | null): Promise<Fi
   return (await res.json()) as FileListing;
 }
 
-export function fileDownloadUrl(token: string, path: string): string {
-  return "/api/files/download?path=" + encodeURIComponent(path) + "&token=" + encodeURIComponent(token);
+export async function fileDownloadUrl(token: string, path: string): Promise<string> {
+  const { status, data } = await post<{ ticket?: string }>("/api/files/download-ticket", { path }, token);
+  if (status !== 200 || !data.ticket) throw new Error("download ticket failed");
+  return "/api/files/download?ticket=" + encodeURIComponent(data.ticket);
+}
+
+export async function audioStreamUrl(token: string): Promise<string> {
+  const { status, data } = await post<{ ticket?: string }>("/api/audio/ticket", {}, token);
+  if (status !== 200 || !data.ticket) throw new Error("audio ticket failed");
+  return "api/audio/stream.webm?ticket=" + encodeURIComponent(data.ticket);
 }
 
 export async function uploadFile(token: string, dir: string, file: File): Promise<void> {

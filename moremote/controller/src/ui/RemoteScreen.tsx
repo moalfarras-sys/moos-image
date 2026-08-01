@@ -5,7 +5,7 @@ import { DesktopInput } from "../lib/desktop";
 import {normalizeContentPoint, normalizeRotatedPoint, projectPoint} from "../lib/coordinates";
 import { decodeJpeg, drawableSize, closeDrawable, canDecodeH264, H264Stream, type Drawable } from "../lib/decode";
 import {
-  getClipboard, setClipboard, setClipboardImage, listFiles, fileDownloadUrl, uploadFile, powerAction,
+  getClipboard, setClipboard, setClipboardImage, listFiles, fileDownloadUrl, audioStreamUrl, uploadFile, powerAction,
   type ClipResult, type FileListing, type FileEntry, type PowerAction,
 } from "../lib/api";
 import { pickStartPreset, readDeviceHints, describeHints } from "../lib/quality";
@@ -1462,9 +1462,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
     setFileBusy(false);
   };
   const openFiles = () => setSheet("files"); // the effect below loads the listing on open
-  const downloadFile = (en: FileEntry) => {
+  const downloadFile = async (en: FileEntry) => {
     const a = document.createElement("a");
-    a.href = fileDownloadUrl(token, en.path);
+    try { a.href = await fileDownloadUrl(token, en.path); }
+    catch { showToast("Download authorization failed"); return; }
     a.download = en.name;
     document.body.appendChild(a); a.click(); a.remove();
     showToast("Downloading " + en.name);
@@ -1504,14 +1505,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   // certificate as a desktop that demands a 6-digit PIN — measured at 200 while POST /api/login
   // returned 401. Every device on the tailnet could listen, silently.
   //
-  // It now goes through the agent, which is the only thing here that owns authentication. The
-  // token rides in the query string for the same reason /api/files/download takes it that way:
-  // this URL is consumed by an <audio> element, and a media element cannot send an Authorization
-  // header.
-  //
-  // RELATIVE, not "/api/...": if this page is ever served under a prefix, an absolute path would
-  // leave that prefix behind.
-  const AUDIO_URL = "api/audio/stream.webm?token=" + encodeURIComponent(token);
+  // It now goes through the agent, which is the only thing here that owns authentication. Since an
+  // <audio> element cannot send an Authorization header, the client asks for a short-lived,
+  // single-use ticket. The reusable session bearer never enters browser or proxy URL history.
 
   const stopSound = useCallback(() => {
     if (audioRetryRef.current) { window.clearTimeout(audioRetryRef.current); audioRetryRef.current = null; }
@@ -1520,7 +1516,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
     setSound("off");
   }, []);
 
-  const startSound = useCallback(() => {
+  const startSound = useCallback(async () => {
     const a = audioRef.current;
     if (!a) return;
     setSound("connecting");
@@ -1528,11 +1524,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
     // and kills it on disconnect, so the previous response is a DEAD stream. Safari will happily
     // re-use it from cache and play nothing at all, reporting no error.
     //
-    // `&` and not `?`: AUDIO_URL already carries the session token in its query string, and a
-    // second `?` would make the token part of a parameter NAME. The request would then arrive
-    // unauthenticated and the sound would fail with a 401 that looks exactly like a missing
-    // endpoint.
-    a.src = `${AUDIO_URL}&t=${Date.now()}`;
+    try { a.src = `${await audioStreamUrl(token)}&t=${Date.now()}`; }
+    catch { setSound("unavailable"); showToast("Sound authorization failed"); return; }
     a.play().then(() => setSound("on")).catch(() => {
       // Autoplay policy needs a gesture; this IS one (a click), so a rejection here means the
       // endpoint did not deliver: either the session token was rejected (401) or moos-cloud-audio
@@ -1567,9 +1560,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
         showToast("No sound endpoint — run: moos-cloud-desktop doctor");
         return;
       }
-      audioRetryRef.current = window.setTimeout(() => {
-        // `&`, for the same reason as in startSound: the token is already in the query string.
-        if (a.src) { a.src = `${AUDIO_URL}&t=${Date.now()}`; a.play().catch(() => setSound("unavailable")); }
+      audioRetryRef.current = window.setTimeout(async () => {
+        if (a.src) {
+          try { a.src = `${await audioStreamUrl(token)}&t=${Date.now()}`; await a.play(); }
+          catch { setSound("unavailable"); }
+        }
       }, 1200);
     };
     a.addEventListener("playing", onPlaying);
@@ -1579,7 +1574,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       for (const ev of ["error", "ended", "stalled"] as const) a.removeEventListener(ev, onBroken);
       if (audioRetryRef.current) window.clearTimeout(audioRetryRef.current);
     };
-  }, []);
+  }, [token]);
 
   const fullscreen = () => {
     const el = document.documentElement as any;

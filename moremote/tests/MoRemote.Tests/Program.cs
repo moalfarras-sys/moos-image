@@ -54,4 +54,51 @@ Directory.Delete(editionDir, true);
 Eq(true, PowerActions.Execute(new("/usr/bin/true", []), "test"), "accepted command succeeds");
 Eq(false, PowerActions.Execute(new("/usr/bin/false", []), "test"), "rejected command is not fake success");
 Eq(false, PowerActions.Execute(new("/usr/bin/sleep", ["1"]), "test", 5), "hung command times out");
+var tickets = new AccessTicketStore();
+var downloadTicket = tickets.Issue("download", "/tmp/report.pdf");
+Eq(true, tickets.Consume(downloadTicket, "download", out var ticketPath), "download ticket works once");
+Eq("/tmp/report.pdf", ticketPath, "download ticket carries only its fixed resource");
+Eq(false, tickets.Consume(downloadTicket, "download", out _), "download ticket cannot be replayed");
+var audioTicket = tickets.Issue("audio");
+Eq(false, tickets.Consume(audioTicket, "download", out _), "ticket purpose cannot be confused");
+Eq(false, tickets.Consume(audioTicket, "audio", out _), "wrong-purpose attempt consumes the capability");
+var uploadDir = Path.Combine(Path.GetTempPath(), "moremote-upload-" + Guid.NewGuid());
+Directory.CreateDirectory(uploadDir);
+var savedUpload = await FileService.SaveUploadAsync(
+    new MemoryStream("complete"u8.ToArray()), uploadDir, "../safe.txt", CancellationToken.None);
+Eq("safe.txt", Path.GetFileName(savedUpload), "upload strips path traversal from the name");
+Eq("complete", File.ReadAllText(savedUpload), "upload becomes visible only when complete");
+try
+{
+    await FileService.SaveUploadAsync(new FailingReadStream(), uploadDir, "broken.bin", CancellationToken.None);
+    throw new Exception("interrupted upload did not fail");
+}
+catch (IOException) { passed++; }
+Eq(0, Directory.GetFiles(uploadDir, ".moremote-upload-*.part").Length,
+    "interrupted upload removes its partial file");
+Directory.Delete(uploadDir, true);
 Console.WriteLine($"PASS: {passed} mapping/validation/Unicode tests");
+
+sealed class FailingReadStream : Stream
+{
+    private bool _first = true;
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_first) throw new IOException("simulated disconnect");
+        _first = false;
+        buffer.Span[0] = 1;
+        await Task.Yield();
+        return 1;
+    }
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+    public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+    public override void Flush() => throw new NotSupportedException();
+    public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+}

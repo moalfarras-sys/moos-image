@@ -236,6 +236,7 @@ jobs:
           python3 tests/test_remote_dotnet_dependencies.py
           python3 tests/test_remote_data_dir.py
           python3 tests/test_remote_power_policy.py
+          python3 tests/test_remote_transfer_security.py
           # Injecting input used to run on the socket-reading thread, so every ping queued behind
           # every click — and the auto-quality ladder reads those pongs, so USING the remote made
           # it lower its own picture quality. Measured on loopback: 0.7ms idle, 133ms after 5 clicks.

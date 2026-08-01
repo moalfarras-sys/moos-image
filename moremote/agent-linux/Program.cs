@@ -71,7 +71,7 @@ using var capture=new ScreenCapture(portal); using var input=new InputInjector(p
 var svc=new AgentServices{Config=config,Sessions=new SessionManager(config),State=new SessionState(),Capture=capture,Input=input,HttpsHost=tls?.Host};
 var builder=WebApplication.CreateBuilder(new WebApplicationOptions{ContentRootPath=AppContext.BaseDirectory,Args=args});
 builder.Logging.ClearProviders(); builder.Services.AddSingleton(svc);
-builder.WebHost.ConfigureKestrel(o=>o.ListenAnyIP(config.Port,lo=>{if(tls!=null)lo.UseHttps(tls.Certificate);}));
+builder.WebHost.ConfigureKestrel(o=>{o.Limits.MaxRequestBodySize=FileService.MaxUploadBytes;o.ListenAnyIP(config.Port,lo=>{if(tls!=null)lo.UseHttps(tls.Certificate);});});
 var app=builder.Build(); WebApi.UseNetworkGuard(app,svc); // Both values, because the interval alone is another gate that never fires. KeepAliveTimeout defaults
 // to InfiniteTimeSpan, so ASP.NET sent a keep-alive ping every two minutes and then waited forever for
 // a reply that a wedged peer was never going to send — the connection stayed "open" indefinitely, which

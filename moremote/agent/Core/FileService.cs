@@ -9,6 +9,8 @@ public sealed record FileListing(string title, string? path, string? parent, Fil
 /// </summary>
 public static class FileService
 {
+    public const long MaxUploadBytes = 1_073_741_824; // 1 GiB per file
+    private const long FreeSpaceReserve = 536_870_912; // keep 512 MiB for the OS and logs
     public static FileListing List(string? path)
     {
         if (string.IsNullOrWhiteSpace(path)) return Roots();
@@ -38,6 +40,60 @@ public static class FileService
             i++;
         }
         return target;
+    }
+
+    public static async Task<string> SaveUploadAsync(Stream source, string dir, string name,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(dir);
+        var target = UniquePath(dir, name);
+        var temp = Path.Combine(dir, $".moremote-upload-{Guid.NewGuid():N}.part");
+        var buffer = new byte[128 * 1024];
+        long written = 0;
+        long nextSpaceCheck = 0;
+        try
+        {
+            await using (var output = new FileStream(temp, FileMode.CreateNew, FileAccess.Write,
+                FileShare.None, buffer.Length, FileOptions.Asynchronous))
+            {
+                while (true)
+                {
+                    var read = await source.ReadAsync(buffer, cancellationToken);
+                    if (read == 0) break;
+                    written += read;
+                    if (written > MaxUploadBytes)
+                        throw new InvalidDataException("File exceeds the 1 GiB upload limit");
+                    // DriveInfo can be a filesystem query. Refresh every 64 MiB, not for every
+                    // 128 KiB network chunk (8,192 stat calls for a 1 GiB file).
+                    if (written >= nextSpaceCheck)
+                    {
+                        if (AvailableSpaceFor(dir) < FreeSpaceReserve + buffer.Length)
+                            throw new IOException("Not enough free space to finish the upload safely");
+                        nextSpaceCheck = written + 64L * 1024 * 1024;
+                    }
+                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                }
+                await output.FlushAsync(cancellationToken);
+            }
+            File.Move(temp, target);
+            return target;
+        }
+        catch
+        {
+            try { File.Delete(temp); } catch { }
+            throw;
+        }
+    }
+
+    private static long AvailableSpaceFor(string path)
+    {
+        var full = Path.GetFullPath(path);
+        var drive = DriveInfo.GetDrives()
+            .Where(d => d.IsReady && full.StartsWith(d.RootDirectory.FullName,
+                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            .OrderByDescending(d => d.RootDirectory.FullName.Length)
+            .FirstOrDefault();
+        return drive?.AvailableFreeSpace ?? long.MaxValue;
     }
 
     private static IEnumerable<DirectoryInfo> SafeDirs(DirectoryInfo d)
