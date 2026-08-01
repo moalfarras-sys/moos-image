@@ -683,6 +683,24 @@ class TestMoOSUI2(unittest.TestCase):
                 metadata = load_json(package / "metadata.json")
                 self.assertEqual(metadata["KPlugin"]["Id"], package_id)
 
+    def test_logout_actions_expose_complete_accessibility_state(self) -> None:
+        """The out-of-process session greeter must not depend on implicit roles."""
+        button_path = (
+            SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/"
+            "MoOSUI2ActionButton.qml"
+        )
+        button = qml_code(button_path.read_text(encoding="utf-8"))
+        for contract in (
+            "Accessible.role: Accessible.Button",
+            "Accessible.name: text",
+            "Accessible.description: description",
+            "Accessible.pressed: down",
+            "focusPolicy: Qt.StrongFocus",
+        ):
+            self.assertIn(contract, button)
+        for direction in ("Up", "Down", "Left", "Right"):
+            self.assertIn(f"Keys.on{direction}Pressed: navigate(", button)
+
     def test_session_controls_use_only_wcag_paired_foregrounds(self) -> None:
         """Security/session glyphs must sit on a scheme-paired flat colour.
 

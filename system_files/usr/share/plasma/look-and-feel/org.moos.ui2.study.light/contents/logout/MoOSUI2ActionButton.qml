@@ -60,8 +60,14 @@ QQC2.AbstractButton {
 
     signal navigate(int step)
 
+    // Do not rely on AbstractButton's platform-specific implicit accessibility
+    // mapping on the logout greeter.  This component is also loaded by
+    // ksmserver outside a normal application window, where assistive clients
+    // need the role and transient pressed state to be explicit.
+    Accessible.role: Accessible.Button
     Accessible.name: text
     Accessible.description: description
+    Accessible.pressed: down
     focusPolicy: Qt.StrongFocus
     hoverEnabled: true
 
