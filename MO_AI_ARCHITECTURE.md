@@ -251,7 +251,13 @@ cleanup lands. No decorative perpetual animation is allowed.
 
 ### Phase 6 — release proof
 
-- [ ] Source and image builds pass the exact CI gates.
+- [ ] Source and image builds pass the exact CI gates. `just check` is green and
+  the generic `just build` completed from commit `4440a91d`, producing
+  `localhost/moos:latest` (`05bb9e19bbb2…`). The in-image QML, Launcher,
+  desktop scene, Store, identity, experience, foreign-identity firewall,
+  initramfs/Plymouth and bootc lint gates all passed; the final initramfs is
+  122 MB and contains both `ostree-prepare-root` and MoOS Plymouth. Cloud and
+  NVIDIA local builds plus the signed CI matrix remain open.
 - [ ] Live functional evidence: chat, voice, image, file, terminal, each brain
   route, task stop/resume, approvals and both configured phone channels.
 - [ ] Live screenshots: light/dark × RTL/LTR × compact/4K primary screens.

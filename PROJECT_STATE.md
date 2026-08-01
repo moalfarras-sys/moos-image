@@ -107,7 +107,15 @@ The latter still needs the owner's real QR pairing and is not complete. The
 endpoint wakes OpenClaw only for this explicit status request and leaves idle
 sleep policy intact. `just check` passed after this slice. All of this is
 unreleased working-branch state
-until the full gates, image build, merge, signed CI matrix and live update pass.
+until the remaining edition builds, merge, signed CI matrix and live update pass.
+The first release image proof is now real: `just build` completed from commit
+`4440a91d` and produced generic image `localhost/moos:latest`
+(`05bb9e19bbb2…`). Its final 122 MB initramfs contains the OSTree boot path and
+MoOS Plymouth assets; all shipped QML apps, Launcher, desktop scene, Store,
+image-experience, identity and foreign-identity firewall gates passed, followed
+by `bootc container lint` (9 checks passed, four pre-existing warning classes).
+This proves the generic local compose only—not Cloud/NVIDIA, signed publication,
+the booted deployment or post-update behavior.
 Telegram is now end-to-end proven: the live config restricts DMs to owner
 `1142563280`, the real shared session records owner inbound turns plus explicit
 `telegram-final` delivery mirrors to that same chat, and a new cold-start source
