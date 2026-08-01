@@ -237,6 +237,23 @@ production build, shipped-assets gate and the complete repository check pass.
 The committed controller is PWA v25. A real tailnet black-hole test from a phone
 remains open live proof.
 
+Remote Linux network-boundary audit (`efaa3c98`): the Linux agent still used
+Kestrel `ListenAnyIP`, leaving a raw cleartext port beside the intended
+Tailscale-Serve HTTPS door. Its CGNAT-range middleware was not an interface
+boundary, and the Cloud account manager had escaped the earlier audio fix: it
+still created an unauthenticated `/audio` sibling mount for both the seat owner
+and private desktops. Linux Kestrel now listens on loopback only; Desktop and
+Cloud publish that single door through Tailscale Serve. Both Cloud setup paths
+actively retract legacy audio mounts, and Doctor now treats such a mount as an
+exposure instead of a requirement. Sound remains available through the agent's
+authenticated, one-use-ticket proxy. A new regression gate covers the listener,
+both publishers, the truthful startup log and the Cloud audio path, and is part
+of `just check`. Runtime proof against the built .NET agent returned HTTP 200 on
+loopback and refused both the host network and tailnet interfaces; .NET built
+with zero warnings, all 48 behavior tests passed, and the complete repository
+check passed. A real phone connection through Tailscale Serve remains open live
+proof.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds
