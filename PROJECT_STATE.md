@@ -347,6 +347,21 @@ checks and CI; focused Mo AI tests and the complete repo check recipe pass.
 This Cloud host has no systemd user runtime, so installed-unit restart-rate and
 shutdown timing remain image/live evidence rather than claimed measurements.
 
+Mo AI small-service lifecycle follow-up: the original gate covered only the
+heavy OpenClaw/AI containers. `moai-control` could still restart every five
+seconds forever, `moai-wake` had the same crash-loop shape, and the gateway's
+30 attempts at a four-second cadence sat on the exact edge of its 120-second
+window, so the limiter was not a reliable stop. Control now permits 6/120s,
+gateway 12/120s, and wake 5/300s; Mo PC Remote receives the same 5/300s bound.
+Control, gateway, wake, agent API, Remote and Cloud audio now have explicit
+10–15 second stop bounds instead of the default 90 seconds. The regression gate
+was also repaired: its section parser previously matched `[Service]` written in
+a comment before the real header, so it could inspect dead text. It now matches
+only actual systemd headers and verifies directive placement. Focused Mo AI
+tests and the complete repository check pass. This off-image Cloud host lacks
+`systemd-analyze`, so unit loading and shutdown latency still require the image
+build/live system and are not claimed here.
+
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through

@@ -34,6 +34,7 @@ ExecStart=/usr/bin/moos-cloud-audio
 # then exits, so sound worked once per restart and the unit churned to keep up.
 Restart=always
 RestartSec=2
+TimeoutStopSec=15s
 
 # Idle cost is nothing at all: no encoder is started until somebody actually
 # requests /stream.webm, and it is killed when they disconnect. The cap covers the

@@ -22,7 +22,9 @@ After=graphical-session.target
 # again — so keep retrying rather than giving up after the default burst.
 # (These two live in [Unit], not [Service]: systemd moved them in v229.)
 StartLimitIntervalSec=120
-StartLimitBurst=30
+# Twelve attempts give the legacy-port migration almost a minute to repair 8080. The
+# former 30-at-4s shape sat exactly on the 120s window boundary and could retry forever.
+StartLimitBurst=12
 
 [Service]
 Type=simple
@@ -38,6 +40,7 @@ EnvironmentFile=-%h/.config/moos/moai-local.env
 ExecStart=/usr/bin/moai-gateway
 Restart=on-failure
 RestartSec=4
+TimeoutStopSec=15s
 
 [Install]
 WantedBy=default.target

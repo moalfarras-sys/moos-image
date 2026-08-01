@@ -5,12 +5,17 @@ Documentation=file:///usr/bin/moai-wake
 # stay up whether or not Ollama/OpenClaw are running, so it depends on neither.
 Wants=network-online.target
 After=network-online.target
+# Network failures are handled inside the process with bounded backoff. Reaching systemd
+# therefore means a real crash; five crashes in five minutes must stay failed and visible.
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
 ExecStart=/usr/bin/moai-wake
 Restart=always
 RestartSec=5
+TimeoutStopSec=10s
 # This is the ONLY piece of Mo AI that is always resident. Keep it tiny: pure
 # Python stdlib, no model, no Node, no podman — a few MB. The cap is a backstop.
 MemoryMax=128M

@@ -4,6 +4,11 @@
 [Unit]
 Description=Mo AI control API (in-app settings backend)
 After=graphical-session.target
+# A port clash or syntax regression must become a visible failed unit, not a tiny but
+# permanent five-second fork loop. Six attempts still give transient session startup
+# failures half a minute to recover.
+StartLimitIntervalSec=120
+StartLimitBurst=6
 
 [Service]
 Type=simple
@@ -17,6 +22,7 @@ EnvironmentFile=-%h/.config/moos/moai-local.env
 ExecStart=/usr/bin/moai-control
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=15s
 
 [Install]
 WantedBy=default.target

@@ -4,6 +4,10 @@ ConditionUser=!@system
 After=plasma-workspace.target network-online.target ydotoold-moremote.service
 Wants=network-online.target ydotoold-moremote.service
 PartOf=plasma-workspace.target
+# A missing runtime/port conflict previously restarted every three seconds indefinitely:
+# the default 10-second window can never contain systemd's five failures at that cadence.
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -30,6 +34,7 @@ Type=simple
 ExecStart=/bin/sh -c 'export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-$(basename "$(find "%t" -maxdepth 1 -type s -name "wayland-*" -print -quit)")}"; if /usr/bin/systemd-inhibit --what=sleep:idle --who=MoRemotePersonal --why=Remote-access-availability --mode=block /bin/true 2>/dev/null; then exec /usr/bin/systemd-inhibit --what=sleep:idle --who=MoRemotePersonal --why=Remote-access-availability --mode=block /usr/lib/mo-remote/MoRemotePersonal; else echo "mo-remote: no sleep inhibitor (session is not local+active) — starting without it" >&2; exec /usr/lib/mo-remote/MoRemotePersonal; fi'
 Restart=on-failure
 RestartSec=3
+TimeoutStopSec=15s
 Environment=DOTNET_EnableDiagnostics=0
 Environment=YDOTOOL_SOCKET=%t/.ydotool_socket
 Environment=XDG_RUNTIME_DIR=%t

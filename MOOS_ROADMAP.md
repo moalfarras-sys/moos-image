@@ -94,6 +94,11 @@
 > بدل استهلاك CPU/RAM للأبد. حُدّد teardown لـOpenClaw/Ollama بـ30 ثانية كي لا
 > يعلقا logout/reboot 90 ثانية. بقي reload وwake-on-demand وAutoUpdate كما هي،
 > وأضيف gate إلى CI ونجح `just check`. القياس الحي بعد compose ما يزال مطلوباً.
+> تدقيق لاحق وسّع الحد إلى الخدمات الصغيرة: control ‏6/120s، gateway ‏12/120s،
+> wake وMo PC Remote ‏5/300s، مع TimeoutStopSec بين 10 و15 ثانية لكل من control/
+> gateway/wake/agent-api/Remote/Cloud-audio. كما أُصلح محلل gate كان يلتقط اسم
+> `[Service]` من تعليق بدل القسم النافذ. اختبارات Mo AI والفحص الكامل نجحا؛ مضيف
+> Cloud خارج الصورة لا يملك systemd-analyze، لذلك قياس الإيقاف الحي ليس مُدّعى.
 
 > **حالة الإصدار الحي:** اندمج Mo AI الجديد على `main` في `77707fd1`، ونجح
 > تشغيل GitHub Actions `30704582346` للنسخ العامة والسحابية وNVIDIA: build +

@@ -31,6 +31,7 @@ ExecStartPre=-/usr/libexec/moai-openclaw-bootstrap --existing-only
 ExecStart=/usr/bin/moai-agent-api
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=15s
 UMask=0077
 
 # ── Hardening, and what is deliberately absent ─────────────────────────
