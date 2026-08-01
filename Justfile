@@ -32,7 +32,9 @@ check:
     python3 tests/test_device_plan.py
     python3 tests/test_moai_do.py
     python3 tests/test_moai_control.py
+    python3 tests/test_moos_open_qdbus.py
     python3 tests/test_moai_http_security.py
+    python3 tests/test_moai_gateway_streaming.py
     python3 tests/test_moai_credential_store.py
     python3 tests/test_moos_cloud_audio.py
     python3 tests/test_fwupd_refresh_policy.py
@@ -41,19 +43,25 @@ check:
     # moremote/.gitignore hides the very directory it lives in. This catches an index.html
     # pointing at an asset that never made it into git — which serves a blank page with a 200.
     python3 tests/test_shipped_bundle_is_tracked.py
+    python3 tests/test_release_workflow_safety.py
     # The kernel half of "the remote feels slow": BBR must be both asked for and loadable, and
     # every key must exist on the kernel that will read it. Both failures are silent otherwise.
     python3 tests/test_kernel_network_tuning.py
     # Claim and recovery for a headless cloud account's PIN — both failures look like a healthy server.
     python3 tests/test_cloud_set_pin.py
+    python3 tests/test_cloud_subid_range.py
+    python3 tests/test_moai_ports_fail_closed.py
+    python3 tests/test_openclaw_bootstrap_noop.py
     # A connect burst must coalesce into ONE pipeline build, and idle teardown must stay immediate.
     python3 tests/test_remote_rebuild_debounce.py
     # Input must not block the socket that carries the pings the quality ladder measures.
     python3 tests/test_input_off_socket_thread.py
     # Raising the resolution ceiling must not change what an old cached client's `scale` means.
     python3 tests/test_remote_resolution_ceiling.py
+    python3 tests/test_remote_h264_fallback.py
     # Desktop sound must be enabled everywhere AND bind loopback (the service has no auth).
     python3 tests/test_desktop_sound_reachable.py
+    python3 tests/test_remote_audio_is_authenticated.py
     python3 tests/test_moos_store_index.py
     python3 tests/test_moos_storectl.py
     python3 tests/test_moos_ui2.py

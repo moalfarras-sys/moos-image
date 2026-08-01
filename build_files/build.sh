@@ -1654,7 +1654,7 @@ systemctl --global disable mo-remote-personal.service || true
 # on the WiFi. It binds 127.0.0.1 now and `tailscale serve` is the only way in; see the long note
 # at the top of /usr/bin/moos-cloud-audio.
 systemctl --global enable moos-cloud-audio.service
-echo "=== per-account audio stream enabled (loopback; reached via tailscale serve /audio) ==="
+echo "=== per-account audio enabled on loopback; the authenticated agent proxies /api/audio/stream.webm ==="
 chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
     /usr/lib/mo-remote/mo-remote-portal.py \
     /usr/bin/mo-pc-remote

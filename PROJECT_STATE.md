@@ -4,7 +4,22 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-07-31, early session — **Premium Liquid Glass application
+Last updated: 2026-08-01 — release pipeline recovery. The public, NVIDIA and
+cloud images built and pushed in CI, but all three jobs were killed afterward by
+an accidentally reintroduced in-job Syft SBOM scan. This is the exact failure
+already recorded on 2026-07-29. Heavy SBOM work is removed again from
+`build.yml`, while digest signing and verification against the installed MoOS
+public key remain mandatory. `tests/test_release_workflow_safety.py` now prevents
+the release-critical workflow from regressing. The locally callable `just check`
+suite is also brought back in sync with CI's qdbus, gateway-streaming, cloud UID,
+fail-closed ports, OpenClaw no-op, H.264 fallback and authenticated-audio gates.
+The cloud build's stale status line claiming the retired unauthenticated
+`tailscale serve /audio` mount is corrected to name the authenticated agent
+proxy, and the audio regression test now holds the build-log contract too.
+Publication, staging, reboot and
+post-update verification remain open until the repaired CI run completes.
+
+Previous update: 2026-07-31, early session — **Premium Liquid Glass application
 marks** on branch `product/liquid-glass-app-icons-2026-07-30`. The machine
 still boots signed `moos-nvidia` **44.20260730.486**; this round restores the
 theme-baked SVG architecture (after a mid-flight PNG/hardcoded-RGB diversion
