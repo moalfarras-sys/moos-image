@@ -24,9 +24,11 @@ try:
     gi.require_version("Gtk", "4.0")
     from gi.repository import GLib, Gtk  # noqa: E402
     HAS_GI = True
-except (ImportError, ValueError):
+except (ImportError, ValueError, AttributeError):
     # ubuntu-latest may have no PyGObject at all, or PyGObject without the GTK4
-    # typelib (``require_version`` raises ValueError in that second case).
+    # typelib (``require_version`` raises ValueError in that second case). Some
+    # minimal cloud images also expose an unrelated/partial ``gi`` namespace
+    # with no require_version attribute; treat it as unavailable PyGObject.
     # Keep the pure palette and concurrency contracts active there; only the
     # real Gio/CSS parser test skips. The shipped image and local MoOS host
     # exercise the real types.
