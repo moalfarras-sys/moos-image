@@ -62,6 +62,8 @@ Eq(false, tickets.Consume(downloadTicket, "download", out _), "download ticket c
 var audioTicket = tickets.Issue("audio");
 Eq(false, tickets.Consume(audioTicket, "download", out _), "ticket purpose cannot be confused");
 Eq(false, tickets.Consume(audioTicket, "audio", out _), "wrong-purpose attempt consumes the capability");
+for (var i = 0; i < 1100; i++) tickets.Issue("pressure", i.ToString());
+Eq(true, tickets.Count <= 1024, "ticket pressure remains memory bounded");
 var uploadDir = Path.Combine(Path.GetTempPath(), "moremote-upload-" + Guid.NewGuid());
 Directory.CreateDirectory(uploadDir);
 var savedUpload = await FileService.SaveUploadAsync(

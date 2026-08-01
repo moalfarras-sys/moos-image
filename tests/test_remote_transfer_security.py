@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 api = (ROOT / "moremote/agent/Web/WebApi.cs").read_text(encoding="utf-8")
 files = (ROOT / "moremote/agent/Core/FileService.cs").read_text(encoding="utf-8")
+tickets = (ROOT / "moremote/agent/Core/AccessTicketStore.cs").read_text(encoding="utf-8")
 client = (ROOT / "moremote/controller/src/lib/api.ts").read_text(encoding="utf-8")
 
 checks = {
@@ -20,6 +21,9 @@ checks = {
         "File.Delete(temp)" in files,
     "upload streaming does not reserve space for the running OS":
         "FreeSpaceReserve" in files and "AvailableSpaceFor(dir)" in files,
+    "ticket issuance is unbounded or performs a full dictionary sweep per request":
+        "MaxTickets = 1024" in tickets and "ConcurrentQueue<string>" in tickets
+        and "foreach (var pair in _tickets)" not in tickets,
 }
 failed = [message for message, ok in checks.items() if not ok]
 if failed:
