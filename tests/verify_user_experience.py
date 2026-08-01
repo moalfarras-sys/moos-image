@@ -1996,6 +1996,8 @@ _moai_qml = code(read("system_files/usr/share/moos/apps/moai/main.qml"), style="
 require("modelData.note" in _moai_qml and "modelData.size_gb" in _moai_qml,
         "Mo AI's picker must render the starters' note and size_gb — a catalog "
         "the UI never shows is not a catalog")
+require("superseded by the hero's premium suggestion cards" not in _moai_qml,
+        "Mo AI still instantiates its hidden superseded starter panel")
 
 # ── "one-tap download" must BE one tap ───────────────────────────────────────
 #

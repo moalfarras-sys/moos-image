@@ -2525,24 +2525,6 @@ Kirigami.ApplicationWindow {
                             }
                         }
 
-                        // Starters — only on a fresh conversation.
-                        Flow {
-                            Layout.fillWidth: true
-                            Layout.leftMargin: 16
-                            Layout.rightMargin: 16
-                            Layout.bottomMargin: 6
-                            spacing: design.space2
-                            visible: false   // superseded by the hero's premium suggestion cards
-                            Repeater {
-                                model: root.starters
-                                delegate: MoButton {
-                                    required property var modelData
-                                    label: root.local(modelData.ar, modelData.en)
-                                    onClicked: root.sendPrompt(modelData.send)
-                                }
-                            }
-                        }
-
                         // The chosen brain cannot answer → a real control, not a
                         // dead end. WHICH control depends on the route: a cloud
                         // route needs a provider and a key, a local route needs
