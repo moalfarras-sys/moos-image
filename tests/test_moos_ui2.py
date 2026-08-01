@@ -722,6 +722,33 @@ class TestMoOSUI2(unittest.TestCase):
         ):
             self.assertIn(contract, unlock)
 
+    def test_login_greeter_actions_are_operable_by_assistive_clients(self) -> None:
+        components = ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components"
+        action = qml_code((components / "ActionButton.qml").read_text(encoding="utf-8"))
+        for contract in (
+            "Accessible.role: Accessible.Button",
+            "Accessible.name: root.text",
+            "Accessible.pressed: root.down",
+            "Accessible.onPressAction: root.animateClick()",
+            "Keys.onEnterPressed: clicked()",
+            "Keys.onReturnPressed: clicked()",
+        ):
+            self.assertIn(contract, action)
+
+        user = qml_code((components / "UserDelegate.qml").read_text(encoding="utf-8"))
+        for contract in (
+            "Accessible.role: Accessible.Button",
+            "Accessible.name: name",
+            "Accessible.focusable: true",
+            "Accessible.focused: activeFocus",
+            "Accessible.onPressAction: wrapper.clicked()",
+            "Keys.onSpacePressed: wrapper.clicked()",
+            "Keys.onEnterPressed: wrapper.clicked()",
+            "Keys.onReturnPressed: wrapper.clicked()",
+        ):
+            self.assertIn(contract, user)
+        self.assertNotIn("function accessiblePressAction", user)
+
     def test_session_controls_use_only_wcag_paired_foregrounds(self) -> None:
         """Security/session glyphs must sit on a scheme-paired flat colour.
 

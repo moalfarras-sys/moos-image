@@ -237,8 +237,12 @@ Item {
     }
 
     Keys.onSpacePressed: wrapper.clicked()
+    Keys.onEnterPressed: wrapper.clicked()
+    Keys.onReturnPressed: wrapper.clicked()
 
     Accessible.name: name
     Accessible.role: Accessible.Button
-    function accessiblePressAction() { wrapper.clicked() }
+    Accessible.focusable: true
+    Accessible.focused: activeFocus
+    Accessible.onPressAction: wrapper.clicked()
 }

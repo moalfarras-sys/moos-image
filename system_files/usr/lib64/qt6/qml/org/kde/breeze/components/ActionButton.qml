@@ -98,6 +98,14 @@ PlasmaComponents3.AbstractButton {
 
     hoverEnabled: true
 
+    // The login manager loads this file from disk into an otherwise compiled
+    // greeter. Keep the assistive contract local and explicit: a screen-reader
+    // press must follow the exact same animated click path as the mnemonic.
+    Accessible.role: Accessible.Button
+    Accessible.name: root.text
+    Accessible.pressed: root.down
+    Accessible.onPressAction: root.animateClick()
+
     // Expand clickable area, keep background centered
     leftInset: Math.max(Kirigami.Units.largeSpacing * 4, (implicitContentWidth - implicitBackgroundWidth) / 2)
     rightInset: leftInset
