@@ -6,8 +6,11 @@ namespace MoRemote;
 
 public static class WebApi
 {
-    public record SetupReq(string? pin);
-    public record LoginReq(string? pin);
+    public record SetupReq(string? pin, bool trustDevice = false, string? deviceName = null);
+    public record LoginReq(string? pin, bool trustDevice = false, string? deviceName = null);
+    public record DeviceResumeReq(string? deviceId, string? deviceToken);
+    public record DeviceRevokeReq(string? deviceId);
+    public record LogoutReq(bool revokeDevice = true);
     public record ChangePinReq(string? currentPin, string? newPin);
     public record ClipboardReq(string? text);
     public record PowerReq(string? action);
@@ -62,8 +65,21 @@ public static class WebApi
             var pin = req?.pin ?? "";
             if (!IsValidPin(pin))
                 return Results.Json(new { error = "weak_pin", minLength = MinPinLength }, statusCode: 400);
-            var token = svc.Sessions.SetupPin(pin);
-            return Results.Json(new { token, ttlMinutes = svc.Config.TokenTtlMinutes });
+            AuthGrant grant;
+            try
+            {
+                grant = svc.Sessions.SetupPin(pin, req!.trustDevice
+                    ? (string.IsNullOrWhiteSpace(req.deviceName) ? "Trusted device" : req.deviceName)
+                    : null);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Json(new { error = "already_configured" }, statusCode: 409);
+            }
+            return Results.Json(new {
+                token = grant.Token, deviceId = grant.DeviceId, deviceToken = grant.DeviceToken,
+                ttlMinutes = svc.Config.TokenTtlMinutes
+            });
         });
 
         // ---- Login ----
@@ -72,15 +88,48 @@ public static class WebApi
             if (svc.Sessions.FirstRun)
                 return Results.Json(new { error = "needs_setup" }, statusCode: 409);
             var req = await ReadJson<LoginReq>(ctx);
-            var result = svc.Sessions.Login(req?.pin ?? "", out var token);
+            var result = svc.Sessions.Login(req?.pin ?? "",
+                req?.trustDevice == true
+                    ? (string.IsNullOrWhiteSpace(req.deviceName) ? "Trusted device" : req.deviceName)
+                    : null, out var grant);
             return result switch
             {
-                LoginResult.Ok => Results.Json(new { token, ttlMinutes = svc.Config.TokenTtlMinutes }),
+                LoginResult.Ok => Results.Json(new {
+                    token = grant.Token, deviceId = grant.DeviceId, deviceToken = grant.DeviceToken,
+                    ttlMinutes = svc.Config.TokenTtlMinutes
+                }),
                 LoginResult.LockedOut => Results.Json(
                     new { error = "locked", lockoutSeconds = svc.Sessions.LockoutRemainingSeconds() },
                     statusCode: 423),
                 _ => Results.Json(new { error = "invalid_pin" }, statusCode: 401),
             };
+        });
+
+        // ---- Trusted devices: persistent credential -> short in-memory session ----
+        app.MapPost("/api/devices/resume", async (HttpContext ctx) =>
+        {
+            var req = await ReadJson<DeviceResumeReq>(ctx);
+            return svc.Sessions.ResumeTrustedDevice(req?.deviceId, req?.deviceToken, out var token)
+                ? Results.Json(new { token, ttlMinutes = svc.Config.TokenTtlMinutes })
+                : Results.Json(new { error = "untrusted_device" }, statusCode: 401);
+        });
+        app.MapGet("/api/session", (HttpContext ctx) =>
+            IsAuthed(ctx, svc) ? Results.Json(new { ok = true })
+                               : Results.Json(new { error = "unauthorized" }, statusCode: 401));
+        app.MapGet("/api/devices", (HttpContext ctx) =>
+        {
+            var token = BearerToken(ctx);
+            if (!svc.Sessions.ValidateAndTouch(token))
+                return Results.Json(new { error = "unauthorized" }, statusCode: 401);
+            return Results.Json(new { devices = svc.Sessions.ListTrustedDevices(token) });
+        });
+        app.MapPost("/api/devices/revoke", async (HttpContext ctx) =>
+        {
+            var token = BearerToken(ctx);
+            var req = await ReadJson<DeviceRevokeReq>(ctx);
+            return svc.Sessions.RevokeTrustedDevice(token, req?.deviceId)
+                ? Results.Json(new { ok = true })
+                : Results.Json(new { error = "not_found" }, statusCode: 404);
         });
 
         // ---- Change PIN (requires a valid token) ----
@@ -96,9 +145,15 @@ public static class WebApi
         });
 
         // ---- Logout ----
-        app.MapPost("/api/logout", (HttpContext ctx) =>
+        app.MapPost("/api/logout", async (HttpContext ctx) =>
         {
-            svc.Sessions.Revoke(BearerToken(ctx));
+            var token = BearerToken(ctx);
+            var req = await ReadJson<LogoutReq>(ctx);
+            var deviceId = svc.Sessions.DeviceIdFor(token);
+            if (req?.revokeDevice != false && deviceId != null)
+                svc.Sessions.RevokeTrustedDevice(token, deviceId);
+            else
+                svc.Sessions.Revoke(token);
             return Results.Json(new { ok = true });
         });
 

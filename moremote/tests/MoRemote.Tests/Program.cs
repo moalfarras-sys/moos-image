@@ -1,5 +1,8 @@
 using MoRemote;
 
+var trustDir = Path.Combine(Path.GetTempPath(), "moremote-tests-" + Guid.NewGuid());
+Environment.SetEnvironmentVariable("MOREMOTE_DATA_DIR", trustDir);
+
 int passed=0;
 void Eq<T>(T expected,T actual,string name){if(!EqualityComparer<T>.Default.Equals(expected,actual))throw new Exception($"{name}: expected {expected}, got {actual}");passed++;}
 void Throws(Action a,string name){try{a();throw new Exception(name+": did not reject");}catch(ArgumentOutOfRangeException){passed++;}}
@@ -79,6 +82,27 @@ catch (IOException) { passed++; }
 Eq(0, Directory.GetFiles(uploadDir, ".moremote-upload-*.part").Length,
     "interrupted upload removes its partial file");
 Directory.Delete(uploadDir, true);
+
+var trustConfig = new AppConfig { PinHash = PinHasher.Hash("246810") };
+trustConfig.Save();
+var auth = new SessionManager(trustConfig);
+try { auth.SetupPin("135790", "Racing browser"); throw new Exception("second setup replaced the PIN"); }
+catch (InvalidOperationException) { passed++; }
+Eq(LoginResult.Ok, auth.Login("246810", "  Pixel 9\n", out var grant), "trusted login succeeds");
+Eq(true, !string.IsNullOrEmpty(grant.Token), "trusted login returns access token");
+Eq(true, !string.IsNullOrEmpty(grant.DeviceId), "trusted login returns device id");
+Eq(true, !string.IsNullOrEmpty(grant.DeviceToken), "trusted login returns device secret once");
+Eq(false, File.ReadAllText(Paths.ConfigFile).Contains(grant.DeviceToken!), "persisted config never stores raw device secret");
+var restartedAuth = new SessionManager(AppConfig.Load());
+Eq(false, restartedAuth.ResumeTrustedDevice(grant.DeviceId, "wrong", out _), "wrong device secret is rejected");
+Eq(true, restartedAuth.ResumeTrustedDevice(grant.DeviceId, grant.DeviceToken, out var resumed), "trusted device survives agent restart");
+var devices = restartedAuth.ListTrustedDevices(resumed);
+Eq(1, devices.Count, "trusted device appears in owner-visible inventory");
+Eq("Pixel 9", devices[0].Name, "device name strips control characters");
+Eq(true, devices[0].Current, "inventory marks the current device");
+Eq(true, restartedAuth.RevokeTrustedDevice(resumed, grant.DeviceId), "device can revoke itself");
+Eq(false, restartedAuth.ResumeTrustedDevice(grant.DeviceId, grant.DeviceToken, out _), "revoked device cannot resume");
+Directory.Delete(trustDir, true);
 Console.WriteLine($"PASS: {passed} mapping/validation/Unicode tests");
 
 sealed class FailingReadStream : Stream

@@ -24,6 +24,7 @@ public sealed class AppConfig
     public bool EmbedCursor { get; set; }
 
     public bool NeverLock { get; set; }
+    public List<TrustedDevice> TrustedDevices { get; set; } = [];
     [JsonIgnore] public bool FirstRun => string.IsNullOrEmpty(PinHash);
 
     /// <summary>The config the process started with — read by PortalBridge when it spawns the helper.</summary>

@@ -42,6 +42,8 @@ public sealed class AppConfig
     // ---- Convenience ----
     /// <summary>"Never lock — stay reachable" toggle (tray). Applied on startup when true.</summary>
     public bool NeverLock { get; set; } = false;
+    /// <summary>Long-lived device credentials. Only SHA-256 hashes are persisted.</summary>
+    public List<TrustedDevice> TrustedDevices { get; set; } = [];
 
     [JsonIgnore] public bool FirstRun => string.IsNullOrEmpty(PinHash);
 

@@ -1,12 +1,33 @@
 import type { ServerStatus } from "../types";
 
 const TOKEN_KEY = "mo_remote_token";
+const DEVICE_ID_KEY = "mo_remote_device_id";
+const DEVICE_TOKEN_KEY = "mo_remote_device_token";
 const CONTROL_REQUEST_TIMEOUT_MS = 15_000;
 
+const storageGet = (key: string) => { try { return localStorage.getItem(key) || ""; } catch { return ""; } };
+const storageSet = (key: string, value: string) => { try { localStorage.setItem(key, value); } catch { /* private mode */ } };
+const storageRemove = (key: string) => { try { localStorage.removeItem(key); } catch { /* private mode */ } };
+
 export const tokenStore = {
-  get: () => localStorage.getItem(TOKEN_KEY) || "",
-  set: (t: string) => localStorage.setItem(TOKEN_KEY, t),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
+  get: () => storageGet(TOKEN_KEY),
+  set: (t: string) => storageSet(TOKEN_KEY, t),
+  clear: () => storageRemove(TOKEN_KEY),
+};
+
+export const deviceStore = {
+  get: () => ({
+    id: storageGet(DEVICE_ID_KEY),
+    token: storageGet(DEVICE_TOKEN_KEY),
+  }),
+  set: (id: string, token: string) => {
+    storageSet(DEVICE_ID_KEY, id);
+    storageSet(DEVICE_TOKEN_KEY, token);
+  },
+  clear: () => {
+    storageRemove(DEVICE_ID_KEY);
+    storageRemove(DEVICE_TOKEN_KEY);
+  },
 };
 
 /** Bound short control-plane requests without imposing a deadline on file upload or media. */
@@ -55,19 +76,57 @@ export interface AuthResult {
   token?: string;
   error?: string;
   lockoutSeconds?: number;
+  deviceId?: string;
+  deviceToken?: string;
 }
 
-export async function setupPin(pin: string): Promise<AuthResult> {
-  const { status, data } = await post<any>("/api/setup", { pin });
-  if (status === 200) return { ok: true, token: data.token };
+export async function setupPin(pin: string, trustDevice = false, deviceName = ""): Promise<AuthResult> {
+  const { status, data } = await post<any>("/api/setup", { pin, trustDevice, deviceName });
+  if (status === 200) return { ok: true, token: data.token, deviceId: data.deviceId, deviceToken: data.deviceToken };
   return { ok: false, error: data.error || "error" };
 }
 
-export async function login(pin: string): Promise<AuthResult> {
-  const { status, data } = await post<any>("/api/login", { pin });
-  if (status === 200) return { ok: true, token: data.token };
+export async function login(pin: string, trustDevice = false, deviceName = ""): Promise<AuthResult> {
+  const { status, data } = await post<any>("/api/login", { pin, trustDevice, deviceName });
+  if (status === 200) return { ok: true, token: data.token, deviceId: data.deviceId, deviceToken: data.deviceToken };
   if (status === 423) return { ok: false, error: "locked", lockoutSeconds: data.lockoutSeconds };
   return { ok: false, error: data.error || "invalid_pin" };
+}
+
+export async function validateSession(token: string): Promise<boolean> {
+  const res = await fetchWithTimeout("/api/session", {
+    cache: "no-store", headers: { authorization: "Bearer " + token },
+  });
+  if (res.status === 401) return false;
+  if (!res.ok) throw new Error(`session validation failed: ${res.status}`);
+  return true;
+}
+
+export async function resumeTrustedDevice(deviceId: string, deviceToken: string): Promise<AuthResult> {
+  const { status, data } = await post<any>("/api/devices/resume", { deviceId, deviceToken });
+  return status === 200 ? { ok: true, token: data.token } : { ok: false, error: data.error || "untrusted_device" };
+}
+
+export interface TrustedDeviceInfo {
+  id: string;
+  name: string;
+  createdUnix: number;
+  lastUsedUnix: number;
+  expiresUnix: number;
+  current: boolean;
+}
+
+export async function listTrustedDevices(token: string): Promise<TrustedDeviceInfo[]> {
+  const res = await fetchWithTimeout("/api/devices", {
+    cache: "no-store", headers: { authorization: "Bearer " + token },
+  });
+  if (!res.ok) throw new Error("device inventory failed");
+  return ((await res.json()) as { devices?: TrustedDeviceInfo[] }).devices || [];
+}
+
+export async function revokeTrustedDevice(token: string, deviceId: string): Promise<boolean> {
+  const { status } = await post("/api/devices/revoke", { deviceId }, token);
+  return status === 200;
 }
 
 export async function changePin(token: string, currentPin: string, newPin: string): Promise<AuthResult> {
@@ -169,4 +228,5 @@ export async function logout(token: string): Promise<void> {
     /* ignore */
   }
   tokenStore.clear();
+  deviceStore.clear();
 }

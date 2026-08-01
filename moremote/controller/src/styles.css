@@ -200,6 +200,35 @@ button {
   color: var(--ok);
 }
 
+.trust-device {
+  width: min(100%, 310px);
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -4px 0 16px;
+  padding: 9px 12px;
+  text-align: start;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.trust-device input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+}
+.trust-device span { display: grid; gap: 2px; }
+.trust-device b { font-size: 13px; font-weight: 650; }
+.trust-device small { color: var(--muted); font-size: 11px; line-height: 1.35; }
+.trust-device:focus-within {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
 /* numeric keypad */
 .keypad {
   display: grid;
@@ -1287,6 +1316,28 @@ button {
   font-weight: 700;
   color: var(--accent);
 }
+
+.trusted-row {
+  min-height: 58px;
+  padding: 9px 12px 9px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.device-revoke {
+  min-width: 76px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: 12px;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+.device-revoke:disabled { opacity: 0.55; cursor: default; }
+.device-revoke:focus-visible { outline: 2px solid var(--danger); outline-offset: 2px; }
 
 /* ── Switch — a real switch, so on/off is legible without reading a label ─── */
 .switch {

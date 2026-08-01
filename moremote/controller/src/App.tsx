@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { getStatus, logout, tokenStore } from "./lib/api";
+import {
+  deviceStore, getStatus, logout, resumeTrustedDevice, tokenStore, validateSession,
+  type AuthResult,
+} from "./lib/api";
 import { SetupScreen, LoginScreen } from "./ui/AuthScreens";
 import { RemoteScreen } from "./ui/RemoteScreen";
 
@@ -16,9 +19,23 @@ export default function App() {
   const decide = async () => {
     try {
       const s = await getStatus();
-      if (s.firstRun) return setView({ name: "setup" });
+      if (s.firstRun) {
+        tokenStore.clear(); deviceStore.clear();
+        return setView({ name: "setup" });
+      }
       const tok = tokenStore.get();
-      if (tok) return setView({ name: "remote", token: tok, hostPowerAllowed: s.hostPowerAllowed !== false });
+      if (tok && await validateSession(tok))
+        return setView({ name: "remote", token: tok, hostPowerAllowed: s.hostPowerAllowed !== false });
+      tokenStore.clear();
+      const remembered = deviceStore.get();
+      if (remembered.id && remembered.token) {
+        const resumed = await resumeTrustedDevice(remembered.id, remembered.token);
+        if (resumed.ok && resumed.token) {
+          tokenStore.set(resumed.token);
+          return setView({ name: "remote", token: resumed.token, hostPowerAllowed: s.hostPowerAllowed !== false });
+        }
+        deviceStore.clear();
+      }
       return setView({ name: "login", lockout: s.locked ? s.lockoutSeconds : 0 });
     } catch {
       setView({ name: "error", message: "Cannot reach the PC. Is the agent running and Tailscale connected?" });
@@ -29,12 +46,14 @@ export default function App() {
     void decide();
   }, []);
 
-  const enterRemote = async (token: string) => {
-    tokenStore.set(token);
+  const enterRemote = async (grant: AuthResult) => {
+    if (!grant.token) return;
+    tokenStore.set(grant.token);
+    if (grant.deviceId && grant.deviceToken) deviceStore.set(grant.deviceId, grant.deviceToken);
     setView({ name: "loading" });
     try {
       const status = await getStatus();
-      setView({ name: "remote", token, hostPowerAllowed: status.hostPowerAllowed !== false });
+      setView({ name: "remote", token: grant.token, hostPowerAllowed: status.hostPowerAllowed !== false });
     } catch {
       // Keep the freshly issued token. Retry runs decide(), and as soon as status is reachable it
       // enters the remote without asking the user to type the PIN a second time.

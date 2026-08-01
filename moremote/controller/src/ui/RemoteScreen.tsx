@@ -6,7 +6,8 @@ import {normalizeContentPoint, normalizeRotatedPoint, projectPoint} from "../lib
 import { decodeJpeg, drawableSize, closeDrawable, canDecodeH264, H264Stream, type Drawable } from "../lib/decode";
 import {
   getClipboard, setClipboard, setClipboardImage, listFiles, fileDownloadUrl, audioStreamUrl, uploadFile, powerAction,
-  type ClipResult, type FileListing, type FileEntry, type PowerAction,
+  listTrustedDevices, revokeTrustedDevice,
+  type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
 import { pickStartPreset, readDeviceHints, describeHints } from "../lib/quality";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
@@ -296,6 +297,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   const latRef = useRef(0);
   const [kbOpen, setKbOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
+  const [trustedDevices, setTrustedDevices] = useState<TrustedDeviceInfo[] | null>(null);
+  const [deviceBusy, setDeviceBusy] = useState("");
   const closeSheet = useCallback(() => setSheet(null), []);
   const [powerConfirm, setPowerConfirm] = useState<PendingPower | null>(null);
   const [powerBusy, setPowerBusy] = useState(false);
@@ -406,6 +409,33 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       toastTimer.current = null;
       setToast((t) => (t === m ? null : t));
     }, 1900);
+  };
+
+  useEffect(() => {
+    if (sheet !== "more") return;
+    let live = true;
+    setTrustedDevices(null);
+    void listTrustedDevices(token).then(devices => {
+      if (live) setTrustedDevices(devices);
+    }).catch(() => {
+      if (live) { setTrustedDevices([]); showToast("Could not load trusted devices"); }
+    });
+    return () => { live = false; };
+  }, [sheet, token]);
+
+  const revokeDevice = async (device: TrustedDeviceInfo) => {
+    if (deviceBusy) return;
+    setDeviceBusy(device.id);
+    try {
+      if (!await revokeTrustedDevice(token, device.id)) throw new Error("revoke failed");
+      if (device.current) { await onExit(); return; }
+      setTrustedDevices(list => list?.filter(item => item.id !== device.id) ?? []);
+      showToast(`${device.name} removed`);
+    } catch {
+      showToast("Could not remove that device");
+    } finally {
+      setDeviceBusy("");
+    }
   };
 
   // ---------- toolbar auto-hide ----------
@@ -2108,6 +2138,25 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
                  sub="When the keyboard opens, the desktop lifts clear of it and zooms to the cursor so you can read the line you are writing.">
               <Switch on={typingZoom} onToggle={() => setTypingZoom(v => !v)} />
             </Row>
+          </div>
+
+          <div className="sec-label">Security</div>
+          <div className="card trusted-list" aria-busy={trustedDevices === null}>
+            {trustedDevices === null && <div className="card-pad muted" role="status">Loading trusted devices…</div>}
+            {trustedDevices?.length === 0 && <div className="card-pad muted">No remembered devices.</div>}
+            {trustedDevices?.map(device => (
+              <div className="trusted-row" key={device.id}>
+                <div className="row-main">
+                  <div className="row-title">{device.name}{device.current ? " · This device" : ""}</div>
+                  <div className="row-sub">Last used {new Date(device.lastUsedUnix * 1000).toLocaleDateString()}</div>
+                </div>
+                <button className="device-revoke" disabled={!!deviceBusy}
+                        onClick={() => void revokeDevice(device)}
+                        aria-label={`Remove trusted device ${device.name}`}>
+                  {deviceBusy === device.id ? "Removing…" : "Remove"}
+                </button>
+              </div>
+            ))}
           </div>
 
           <div className="sec-label">Actions</div>

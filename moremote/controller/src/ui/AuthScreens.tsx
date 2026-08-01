@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { login, setupPin } from "../lib/api";
+import { login, setupPin, type AuthResult } from "../lib/api";
 import { BUILD } from "../types";
 import { IconBackspace, IconEnter, IconLock } from "./icons";
 
@@ -22,6 +22,26 @@ function Signature() {
     <div className="signature">
       by <b>Moalfarras</b> · <span style={{ color: "var(--ok)" }}>{BUILD}</span>
     </div>
+  );
+}
+
+function defaultDeviceName() {
+  const ua = navigator.userAgent;
+  if (/iPad/i.test(ua)) return "iPad";
+  if (/iPhone/i.test(ua)) return "iPhone";
+  if (/Android/i.test(ua)) return "Android phone";
+  if (/Windows/i.test(ua)) return "Windows device";
+  if (/Macintosh/i.test(ua)) return "Mac";
+  if (/Linux/i.test(ua)) return "Linux device";
+  return "My device";
+}
+
+function TrustDevice({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
+  return (
+    <label className="trust-device">
+      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
+      <span><b>Trust this device for 30 days</b><small>Reconnect after an agent restart without entering the PIN.</small></span>
+    </label>
   );
 }
 
@@ -98,13 +118,14 @@ function Keypad({
   );
 }
 
-export function SetupScreen({ onDone }: { onDone: (token: string) => Promise<void> }) {
+export function SetupScreen({ onDone }: { onDone: (grant: AuthResult) => Promise<void> }) {
   const [step, setStep] = useState<"create" | "confirm">("create");
   const [first, setFirst] = useState("");
   const [pin, setPin] = useState("");
   const [hint, setHint] = useState("Choose a PIN of at least 6 digits.");
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [trustDevice, setTrustDevice] = useState(true);
 
   const add = (d: string) => {
     setError(false);
@@ -135,10 +156,10 @@ export function SetupScreen({ onDone }: { onDone: (token: string) => Promise<voi
     setBusy(true);
     let handedOff = false;
     try {
-      const r = await setupPin(pin);
+      const r = await setupPin(pin, trustDevice, defaultDeviceName());
       if (r.ok && r.token) {
         handedOff = true;
-        await onDone(r.token);
+        await onDone(r);
         return;
       }
       setError(true);
@@ -156,6 +177,7 @@ export function SetupScreen({ onDone }: { onDone: (token: string) => Promise<voi
       <Brand subtitle={step === "create" ? "Set up your private access PIN" : "Confirm your PIN"} />
       <PinDots count={pin.length} error={error} />
       <div className={"hint" + (error ? " error" : "")} role={error ? "alert" : "status"}>{hint}</div>
+      <TrustDevice checked={trustDevice} onChange={setTrustDevice} />
       <Keypad onDigit={add} onBackspace={back} onSubmit={submit}
               canSubmit={pin.length >= 6 && !busy} disabled={busy} />
       <Signature />
@@ -163,12 +185,13 @@ export function SetupScreen({ onDone }: { onDone: (token: string) => Promise<voi
   );
 }
 
-export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (token: string) => Promise<void>; lockoutSeconds: number }) {
+export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (grant: AuthResult) => Promise<void>; lockoutSeconds: number }) {
   const [pin, setPin] = useState("");
   const [hint, setHint] = useState("Enter your PIN to connect.");
   const [error, setError] = useState(false);
   const [locked, setLocked] = useState(lockoutSeconds);
   const [busy, setBusy] = useState(false);
+  const [trustDevice, setTrustDevice] = useState(true);
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -205,11 +228,11 @@ export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (token: string
     setBusy(true);
     let handedOff = false;
     try {
-      const r = await login(pin);
+      const r = await login(pin, trustDevice, defaultDeviceName());
       setPin("");
       if (r.ok && r.token) {
         handedOff = true;
-        await onDone(r.token);
+        await onDone(r);
       } else if (r.error === "locked") {
         setLocked(r.lockoutSeconds || 300);
       } else {
@@ -232,6 +255,7 @@ export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (token: string
            role={error ? "alert" : "status"} aria-live={locked > 0 ? "off" : "polite"}>
         {locked > 0 && <IconLock className="" />} {hint}
       </div>
+      <TrustDevice checked={trustDevice} onChange={setTrustDevice} />
       <Keypad onDigit={add} onBackspace={back} onSubmit={submit}
               canSubmit={pin.length >= 6 && locked <= 0 && !busy}
               disabled={busy || locked > 0} />

@@ -33,7 +33,10 @@ try {
 }
 
 for (const contract of [
-  'tokenStore.set(token);',
+  'tokenStore.set(grant.token);',
+  'await validateSession(tok)',
+  'await resumeTrustedDevice(remembered.id, remembered.token)',
+  'deviceStore.clear();',
   'setView({ name: "loading" });',
   'Access was approved, but the PC connection dropped.',
   'const retry = () => {',
@@ -48,11 +51,18 @@ assert.equal((auth.match(/finally \{/g) ?? []).length, 2,
   "setup and login must both release busy state through finally");
 assert.equal((auth.match(/Connection dropped\. Reconnect to the PC and retry\./g) ?? []).length, 2,
   "setup and login need an explicit recoverable network error");
-assert.equal((auth.match(/onDone: \(token: string\) => Promise<void>/g) ?? []).length, 2,
+assert.equal((auth.match(/onDone: \(grant: AuthResult\) => Promise<void>/g) ?? []).length, 2,
   "both auth screens must await the handoff instead of leaking its rejection");
 assert.ok((auth.match(/aria-busy=\{busy\}/g) ?? []).length === 2,
   "setup and login must expose their in-flight state to assistive clients");
 assert.ok(auth.includes('if (!handedOff) setBusy(false);'),
   "the auth screen must release busy on failure without updating after a successful unmount");
+for (const contract of [
+  "Trust this device for 30 days",
+  "Reconnect after an agent restart without entering the PIN.",
+  "trustDevice, defaultDeviceName()",
+]) {
+  assert.ok(auth.includes(contract), `trusted-device consent misses ${contract}`);
+}
 
 console.log("PASS: auth handoff, retry, HTTP status, and busy-state recovery are bounded");
