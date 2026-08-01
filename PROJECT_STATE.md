@@ -52,7 +52,7 @@ after these changes. Image compose, installed-service proof and a real phone
 session remain open.
 
 Session/login/power accessibility correction, later in the same unpublished
-Cloud audit (`4073365e`, `e5c18d9b`, `2c298613`): the shared logout action had a visible keyboard focus ring,
+Cloud audit (`4073365e`, `e5c18d9b`, `2c298613`, `d51a1252`): the shared logout action had a visible keyboard focus ring,
 four-direction navigation, a name and a description, but relied on
 `AbstractButton` to infer its assistive role while running in ksmserver's
 out-of-process greeter. All 16 theme copies now explicitly expose
@@ -69,6 +69,11 @@ replaced by the Qt-supported `Accessible.onPressAction`, so assistive activation
 selects a user through the same real click signal; Enter and Return now match
 Space. The compiled greeter's shared action button also routes assistive presses
 through its existing `animateClick()` path.
+The greeter's four button transitions and three user-selection transitions now
+also resolve to a literal zero duration when `AnimationDurationFactor=0`; both
+components are registered in the real Qt motion-gate test. The Cloud source gate
+passes, while the runtime branch remains explicitly pending an image environment
+with Qt/KDE and `kwriteconfig6`.
 
 Mo PC Remote server proof, later in the same Cloud audit: Microsoft’s temporary
 .NET 10.0.302 SDK ran the exact Containerfile test (`21` mapping, validation and
