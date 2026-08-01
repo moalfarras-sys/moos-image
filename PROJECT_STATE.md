@@ -74,6 +74,12 @@ also resolve to a literal zero duration when `AnimationDurationFactor=0`; both
 components are registered in the real Qt motion-gate test. The Cloud source gate
 passes, while the runtime branch remains explicitly pending an image environment
 with Qt/KDE and `kwriteconfig6`.
+The same audit then closed the lock surface (`ebcebc57`): all eight auth-card
+transitions and six scene transitions are explicitly duration-zero when motion
+is disabled, and a repeated authentication notice no longer starts its bounce.
+PAM, grace timers, password bindings and unlock signals remain unchanged. Both
+lock files are now held by the real Qt motion-gate test; the complete repository
+check recipe passes on Cloud, with its Qt runtime branch honestly skipped.
 
 Mo PC Remote server proof, later in the same Cloud audit: Microsoft’s temporary
 .NET 10.0.302 SDK ran the exact Containerfile test (`21` mapping, validation and
