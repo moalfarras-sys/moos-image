@@ -169,8 +169,14 @@ cleanup lands. No decorative perpetual animation is allowed.
 
 ### Phase 5 — settings and product polish
 
-- [ ] Reorganize settings into Models, Providers, OpenClaw, Telegram, WhatsApp,
-  Voice, Permissions, Memory, Projects, Terminal, Privacy and Appearance.
+- [x] Reorganize settings into twelve distinct functional pages: Models,
+  Providers, OpenClaw, Telegram, WhatsApp, Voice, Permissions, Memory, Projects,
+  Terminal, Privacy and Appearance. Privacy exposes all three real brain modes;
+  secret fields stay write-only; OpenClaw shows live setup status; Terminal opens
+  the real PTY workspace; Appearance delegates to the shared MoOS theme picker.
+  The unreachable duplicate Health settings page was removed. Live 4K RTL source
+  evidence covered the twelve-page grid, Hybrid selection and configured
+  OpenClaw status.
 - [ ] Light/dark and Arabic/English coverage at compact, desktop and 4K sizes.
 - [ ] Keyboard navigation, focus order, screen-reader labels and reduced motion.
 - [ ] Remove superseded panels and code only after runtime consumers and gates

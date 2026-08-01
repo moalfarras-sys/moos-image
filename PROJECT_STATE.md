@@ -41,6 +41,12 @@ token with `X-MoAI-Agent: openclaw`. Replies retain Markdown/fenced-code
 rendering, are selectable and have a one-click Qt clipboard action. Real
 OpenClaw tool calls/results now render as bounded semantic status cards; a live
 4K RTL run displayed the actual `exec` call and `opened (setsid): code` result.
+Settings are now twelve distinct functional pages (Models, Providers, OpenClaw,
+Telegram, WhatsApp, Voice, Permissions, Memory, Projects, Terminal, Privacy and
+Appearance) rather than seven mixed buckets. Hybrid is a first-class privacy
+choice, secrets remain write-only, and the retired unreachable Health duplicate
+was removed. Live 4K RTL evidence covered the section grid and real configured
+OpenClaw status.
 OpenClaw also gains a `moai/hybrid` loopback
 provider so phone turns use the same smart routing policy. The installed OpenClaw
 advertises WhatsApp Web support and Mo AI now exposes its fixed login route;

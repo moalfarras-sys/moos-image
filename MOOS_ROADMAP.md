@@ -19,6 +19,10 @@
 > الرمز `MOAI-LOCAL-UNIFIED-READY` من مسار `X-MoAI-Agent: openclaw`. أصبحت ردود
 > Markdown قابلة للتحديد والنسخ بزر واحد، وتظهر استدعاءات ونتائج أدوات OpenClaw
 > كبطاقات حالة حقيقية محدودة الحجم؛ أثبت فحص 4K RTL أمر `exec` ونتيجته الفعلية.
+> أُعيد تنظيم الإعدادات إلى 12 صفحة فعلية منفصلة: Models وProviders وOpenClaw
+> وTelegram وWhatsApp وVoice وPermissions وMemory وProjects وTerminal وPrivacy
+> وAppearance. صار Hybrid خيار خصوصية مباشر، وبقيت الأسرار write-only، وحُذفت
+> صفحة Health القديمة المخفية والمكررة. أثبت الفحص الحي شبكة RTL وحالة OpenClaw.
 > لم يُثبت بعد
 > كلام صوتي مفهوم أو ربط حساب WhatsApp أو مصفوفة Light/Dark ×
 > RTL/LTR؛ لا تُعامل هذه البنود كمنجزة حتى تتغيّر علاماتها في سجل المعمارية.

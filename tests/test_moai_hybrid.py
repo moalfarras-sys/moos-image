@@ -104,6 +104,13 @@ def main() -> None:
     assert 'Text.MarkdownText' in qml and 'body.copy()' in qml
     assert 'msg.role.indexOf("tool-") === 0' in qml
     assert 'msg.role === "tool-error" ? root.badColor' in qml
+    for section in ("models", "providers", "openclaw", "telegram", "whatsapp",
+                    "voice", "permissions", "memory", "projects", "terminal",
+                    "privacy", "appearance"):
+        assert f'{{ id: "{section}"' in qml, f"missing settings section: {section}"
+    assert '{ id: "hybrid", ar: "هجين ذكي", en: "Smart hybrid"' in qml
+    assert 'visible: root.cfgTab === "health"' not in qml
+    assert 'root.launch("moos://settings/themes", "MoOS themes")' in qml
     assert 'xhr.getResponseHeader("X-MoAI-Agent")' in qml
     assert 'argv.indexOf("--prompt")' in qml
     preflight = (ROOT / "system_files/usr/libexec/moai-openclaw-preflight").read_text(

@@ -605,6 +605,16 @@ Kirigami.ApplicationWindow {
             Qt.callLater(function () { root.agentLoadStatus() })
         }
         root.chatSessionStart = argv.indexOf("--session-start") !== -1
+        const settingsIndex = argv.indexOf("--settings")
+        if (settingsIndex !== -1 && settingsIndex + 1 < argv.length) {
+            const settingsSection = String(argv[settingsIndex + 1])
+            if (["models", "providers", "openclaw", "telegram", "whatsapp",
+                 "voice", "permissions", "memory", "projects", "terminal",
+                 "privacy", "appearance"].indexOf(settingsSection) !== -1) {
+                root.cfgTab = settingsSection
+                root.settingsOpen = true
+            }
+        }
         const promptIndex = argv.indexOf("--prompt")
         if (promptIndex !== -1 && promptIndex + 1 < argv.length) {
             const startupPrompt = String(argv[promptIndex + 1]).trim()
@@ -5031,7 +5041,7 @@ Kirigami.ApplicationWindow {
 
             Rectangle {
                 anchors.centerIn: parent
-                width: Math.min(parent.width - 48, 560)
+                width: Math.min(parent.width - 48, 760)
                 height: Math.min(parent.height - 48, 640)
                 radius: design.radiusCard
                 color: root.surface1
@@ -5059,8 +5069,8 @@ Kirigami.ApplicationWindow {
                             }
                             Text {
                                 text: root.local(
-                                    "تسري على المحادثة هنا وعلى بوت تليجرام معاً",
-                                    "Applies here and to the Telegram bot")
+                                    "إعداد واحد لسطح المكتب وOpenClaw وتليجرام وواتساب",
+                                    "One configuration for desktop, OpenClaw, Telegram and WhatsApp")
                                 color: root.textMute
                                 font.family: root.uiFont
                                 font.pixelSize: root.typePx(10)
@@ -5082,18 +5092,25 @@ Kirigami.ApplicationWindow {
                     }
 
                     // ── section tabs ──
-                    RowLayout {
+                    GridLayout {
                         Layout.fillWidth: true
-                        spacing: design.space1
+                        columns: width < root.fs(560) ? 3 : 4
+                        rowSpacing: design.space1
+                        columnSpacing: design.space1
                         Repeater {
                             model: [
-                                { id: "brain",   ar: "العقل",     en: "Brain" },
-                                { id: "channel", ar: "القناة",    en: "Channel" },
-                                { id: "voice",   ar: "الصوت",     en: "Voice" },
-                                { id: "power",   ar: "الطاقة",    en: "Power" },
-                                { id: "perms",   ar: "الصلاحيات", en: "Access" },
-                                { id: "models",  ar: "النماذج",   en: "Models" },
-                                { id: "health",  ar: "الصحة",     en: "Health" }
+                                { id: "models",      ar: "النماذج",   en: "Models" },
+                                { id: "providers",   ar: "المزوّدون", en: "Providers" },
+                                { id: "openclaw",    ar: "OpenClaw",  en: "OpenClaw" },
+                                { id: "telegram",    ar: "تليجرام",   en: "Telegram" },
+                                { id: "whatsapp",    ar: "واتساب",    en: "WhatsApp" },
+                                { id: "voice",       ar: "الصوت",     en: "Voice" },
+                                { id: "permissions", ar: "الصلاحيات", en: "Permissions" },
+                                { id: "memory",      ar: "الذاكرة",   en: "Memory" },
+                                { id: "projects",    ar: "المشاريع",  en: "Projects" },
+                                { id: "terminal",    ar: "الطرفية",   en: "Terminal" },
+                                { id: "privacy",     ar: "الخصوصية",  en: "Privacy" },
+                                { id: "appearance",  ar: "المظهر",    en: "Appearance" }
                             ]
                             delegate: Rectangle {
                                 required property var modelData
@@ -5152,25 +5169,30 @@ Kirigami.ApplicationWindow {
 
                             // ══ BRAIN ══════════════════════════════════════
                             ColumnLayout {
-                                visible: root.cfgTab === "brain"
+                                visible: root.cfgTab === "privacy" || root.cfgTab === "providers"
                                 Layout.fillWidth: true
                                 spacing: design.space2
 
                                 SectionNote {
+                                    visible: root.cfgTab === "privacy"
                                     Layout.fillWidth: true
                                     text: root.local(
-                                        "المحلي مجاني وخاص. السحابي أذكى للمهام الصعبة.",
-                                        "Local is free and private. Cloud is stronger for difficult tasks.")
+                                        "اختر محلياً أو سحابياً أو دع الوضع الهجين يحمي الخاص ويصعّد الصعب.",
+                                        "Choose local or cloud, or let Hybrid keep private work local and escalate difficult tasks.")
                                 }
 
                                 Repeater {
+                                    visible: root.cfgTab === "privacy"
                                     model: [
                                         { id: "local", ar: "محلي وخاص", en: "Local & private",
                                           dAr: "كل رسالة تعالج على هذا الجهاز",
                                           dEn: "Every message is processed on this device" },
                                         { id: "cloud", ar: "سحابي", en: "Cloud",
                                           dAr: "كل رسالة تذهب إلى المزوّد الذي اخترته",
-                                          dEn: "Every message goes to your chosen provider" }
+                                          dEn: "Every message goes to your chosen provider" },
+                                        { id: "hybrid", ar: "هجين ذكي", en: "Smart hybrid",
+                                          dAr: "يحافظ على الخاص محلياً ويستخدم السحابة للمهام الصعبة فقط",
+                                          dEn: "Keeps private work local and uses cloud only for difficult tasks" }
                                     ]
                                     delegate: Rectangle {
                                         required property var modelData
@@ -5214,12 +5236,14 @@ Kirigami.ApplicationWindow {
                                 }
 
                                 SectionTitle {
+                                    visible: root.cfgTab === "providers"
                                     text: root.local("المزوّد السحابي", "Cloud provider")
                                     Layout.topMargin: 6
                                 }
 
                                 QQC2.ComboBox {
                                     id: provBox
+                                    visible: root.cfgTab === "providers"
                                     Layout.fillWidth: true
                                     model: root.cfgProviderNames
                                     font.family: root.uiFont
@@ -5231,6 +5255,7 @@ Kirigami.ApplicationWindow {
                                 }
                                 QQC2.TextField {
                                     id: baseField
+                                    visible: root.cfgTab === "providers"
                                     Layout.fillWidth: true
                                     placeholderText: "https://…/v1"
                                     font.family: root.uiFont
@@ -5238,6 +5263,7 @@ Kirigami.ApplicationWindow {
                                 }
                                 QQC2.TextField {
                                     id: modelField
+                                    visible: root.cfgTab === "providers"
                                     Layout.fillWidth: true
                                     placeholderText: root.local("اسم النموذج", "Model ID")
                                     font.family: root.uiFont
@@ -5245,6 +5271,7 @@ Kirigami.ApplicationWindow {
                                 }
                                 QQC2.TextField {
                                     id: keyField
+                                    visible: root.cfgTab === "providers"
                                     Layout.fillWidth: true
                                     echoMode: TextInput.Password
                                     placeholderText: root.cfgHasKey
@@ -5257,6 +5284,7 @@ Kirigami.ApplicationWindow {
                                     font.pixelSize: root.typePx(11)
                                 }
                                 SectionNote {
+                                    visible: root.cfgTab === "providers"
                                     Layout.fillWidth: true
                                     text: root.cfgHasKey
                                         ? root.local(
@@ -5270,17 +5298,19 @@ Kirigami.ApplicationWindow {
 
                             // ══ CHANNEL ════════════════════════════════════
                             ColumnLayout {
-                                visible: root.cfgTab === "channel"
+                                visible: root.cfgTab === "telegram" || root.cfgTab === "whatsapp"
                                 Layout.fillWidth: true
                                 spacing: design.space2
 
                                 SectionNote {
+                                    visible: root.cfgTab === "telegram"
                                     Layout.fillWidth: true
                                     text: root.local(
                                         "بوت تليجرام — تكلّمه من جوالك وترى المحادثة في لوحة «الوكيل».",
                                         "Telegram bot — chat from your phone and see it in the Agent panel.")
                                 }
                                 RowLayout {
+                                    visible: root.cfgTab === "telegram"
                                     Layout.fillWidth: true
                                     Text {
                                         text: root.local("مفعّلة", "Enabled")
@@ -5293,6 +5323,7 @@ Kirigami.ApplicationWindow {
                                 }
                                 QQC2.TextField {
                                     id: tokenField
+                                    visible: root.cfgTab === "telegram"
                                     Layout.fillWidth: true
                                     echoMode: TextInput.Password
                                     placeholderText: root.cfgHasToken
@@ -5306,6 +5337,7 @@ Kirigami.ApplicationWindow {
                                 }
                                 QQC2.TextField {
                                     id: allowField
+                                    visible: root.cfgTab === "telegram"
                                     Layout.fillWidth: true
                                     placeholderText: root.local(
                                         "معرّفك الرقمي — مثال: 123456789",
@@ -5314,17 +5346,20 @@ Kirigami.ApplicationWindow {
                                     font.pixelSize: root.typePx(11)
                                 }
                                 SectionNote {
+                                    visible: root.cfgTab === "telegram"
                                     Layout.fillWidth: true
                                     text: root.local(
                                         "المعرّف الرقمي لا اسم المستخدم: الأسماء تُغيَّر ويُعاد تخصيصها، والرقم ثابت. اتركه فارغاً فيعود الوضع إلى الاقتران حتى لا تُقفل خارج بوتك.",
                                         "Use the numeric ID, not the username: names change and can be reassigned. Leave it blank to return to pairing mode.")
                                 }
                                 Rectangle {
+                                    visible: root.cfgTab === "whatsapp"
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: root.fs(1)
                                     color: root.hairline
                                 }
                                 RowLayout {
+                                    visible: root.cfgTab === "whatsapp"
                                     Layout.fillWidth: true
                                     spacing: design.space2
                                     ColumnLayout {
@@ -5393,7 +5428,7 @@ Kirigami.ApplicationWindow {
 
                             // ══ POWER ══════════════════════════════════════
                             ColumnLayout {
-                                visible: root.cfgTab === "power"
+                                visible: root.cfgTab === "memory"
                                 Layout.fillWidth: true
                                 spacing: design.space2
 
@@ -5433,11 +5468,12 @@ Kirigami.ApplicationWindow {
                             // Only the allowlisted owner can drive any of it. Each switch
                             // writes the key the engine already obeys — no invented layer.
                             ColumnLayout {
-                                visible: root.cfgTab === "perms"
+                                visible: root.cfgTab === "permissions" || root.cfgTab === "projects"
                                 Layout.fillWidth: true
                                 spacing: design.space2
 
                                 SectionNote {
+                                    visible: root.cfgTab === "permissions"
                                     Layout.fillWidth: true
                                     text: root.local(
                                         "كم يتحكّم الوكيل بجهازك فعلياً من تليجرام (كاميرا، برامج، ترمنال، تحديث، تطوير). ابدأ بـ«مع إذن».",
@@ -5452,6 +5488,7 @@ Kirigami.ApplicationWindow {
                                 // "with approval" choice.
                                 Rectangle {
                                     id: hostToggle
+                                    visible: root.cfgTab === "permissions"
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: root.fs(60)
                                     radius: design.radiusControl
@@ -5511,6 +5548,7 @@ Kirigami.ApplicationWindow {
                                 }
 
                                 Repeater {
+                                    visible: root.cfgTab === "permissions"
                                     model: [
                                         { id: "read", ar: "معطّل — بلا تحكّم",
                                           en: "Disabled — no control",
@@ -5575,11 +5613,13 @@ Kirigami.ApplicationWindow {
                                 }
 
                                 SectionTitle {
+                                    visible: root.cfgTab === "projects"
                                     text: root.local("مجلد المشروع", "Project folder")
                                     Layout.topMargin: 6
                                 }
                                 QQC2.TextField {
                                     id: projectField
+                                    visible: root.cfgTab === "projects"
                                     Layout.fillWidth: true
                                     text: root.cfgProject
                                     placeholderText: root.local(
@@ -5589,6 +5629,7 @@ Kirigami.ApplicationWindow {
                                     font.pixelSize: root.typePx(11)
                                 }
                                 SectionNote {
+                                    visible: root.cfgTab === "projects"
                                     Layout.fillWidth: true
                                     text: root.local(
                                         "يحصر عمل الوكيل في مجلد واحد. مسار مطلق داخل مجلد المنزل فقط — أي شيء آخر يُرفض.",
@@ -5596,10 +5637,12 @@ Kirigami.ApplicationWindow {
                                 }
 
                                 SectionTitle {
+                                    visible: root.cfgTab === "permissions"
                                     text: root.local("الإنترنت", "Internet")
                                     Layout.topMargin: 6
                                 }
                                 RowLayout {
+                                    visible: root.cfgTab === "permissions"
                                     Layout.fillWidth: true
                                     Text {
                                         text: root.local("بحث وقراءة صفحات",
@@ -5612,10 +5655,170 @@ Kirigami.ApplicationWindow {
                                     QQC2.Switch { id: webSwitch }
                                 }
                                 SectionNote {
+                                    visible: root.cfgTab === "permissions"
                                     Layout.fillWidth: true
                                     text: root.local(
                                         "نموذج 4B ضعيف أمام حقن التعليمات — صفحة خبيثة تقدر تعطيه أوامر باعتبارها محتوى. فعّله مع العقل السحابي فقط.",
                                         "A 4B model is vulnerable to prompt injection from malicious pages. Enable this with the cloud brain only.")
+                                }
+                            }
+
+                            // ══ OPENCLAW ══════════════════════════════════
+                            ColumnLayout {
+                                visible: root.cfgTab === "openclaw"
+                                Layout.fillWidth: true
+                                spacing: design.space2
+
+                                SectionTitle { text: "OpenClaw" }
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: root.local(
+                                        "المحرّك الموحّد لسطح المكتب وتليجرام وواتساب؛ نفس الجلسات والذاكرة والأدوات.",
+                                        "The shared desktop, Telegram and WhatsApp runtime: one session store, memory and tool policy.")
+                                }
+                                StatusPill {
+                                    good: root.agentOpenClawConfigured
+                                    goodText: root.local("مثبّت ومهيّأ", "Installed and configured")
+                                    badText: root.local("يحتاج إعداداً", "Setup required")
+                                }
+                                MoButton {
+                                    Layout.fillWidth: true
+                                    label: root.agentMachineConfigured
+                                        ? root.local("افتح مساحة الوكيل", "Open Agent workspace")
+                                        : root.agentSetupLabel
+                                    primary: true
+                                    onClicked: {
+                                        if (!root.agentMachineConfigured) {
+                                            Qt.openUrlExternally(root.agentSetupAction)
+                                            return
+                                        }
+                                        root.settingsOpen = false
+                                        root.panel = "agent"
+                                        root.agentWorkspaceTab = "conversations"
+                                        root.agentLoadStatus()
+                                    }
+                                }
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: root.fs(1)
+                                    color: root.hairline
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    SectionTitle { text: root.local("صحة النظام", "System health") }
+                                    Item { Layout.fillWidth: true }
+                                    MoButton {
+                                        label: root.diagLoading
+                                            ? root.local("يفحص…", "Checking…")
+                                            : root.local("افحص الآن", "Check now")
+                                        enabled_: !root.diagLoading
+                                        iconName: "moos-report-symbolic"
+                                        onClicked: root.diagnoseSystem()
+                                    }
+                                }
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: root.local(
+                                        "أدوات MoOS الأصلية للقراءة والإصلاح؛ كل إصلاح فعل ثابت يطلب التأكيد.",
+                                        "Native read-only MoOS diagnostics and fixed repair actions; every repair asks first.")
+                                }
+                                Text {
+                                    visible: !root.diagLoading
+                                             && root.diagResult.summary !== undefined
+                                    Layout.fillWidth: true
+                                    text: root.diagResult.summary || ""
+                                    color: root.textHi
+                                    font.family: root.uiFont
+                                    font.pixelSize: root.typePx(11)
+                                    wrapMode: Text.Wrap
+                                }
+                                Repeater {
+                                    model: (root.diagResult.fixes && root.diagResult.fixes.length)
+                                           ? root.diagResult.fixes : root.defaultRepairs
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: root.fs(48)
+                                        radius: design.radiusControl
+                                        color: "transparent"
+                                        border.width: 1
+                                        border.color: root.hairline
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.margins: root.fs(9)
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: modelData.title || modelData.label || modelData.id
+                                                color: root.textHi
+                                                elide: Text.ElideRight
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(11)
+                                            }
+                                            MoButton {
+                                                label: modelData.read
+                                                    ? root.local("افحص", "Check")
+                                                    : root.local("أصلح", "Fix")
+                                                onClicked: Qt.openUrlExternally("moos://do/" + modelData.id)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ══ TERMINAL ══════════════════════════════════
+                            ColumnLayout {
+                                visible: root.cfgTab === "terminal"
+                                Layout.fillWidth: true
+                                spacing: design.space2
+
+                                SectionTitle { text: root.local("الطرفية المدمجة", "Integrated terminal") }
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: root.local(
+                                        "PTY حقيقي بتبويبات ومخرجات حية وإيقاف للعمليات. يبدأ داخل المشروع المختار ولا يقبل أمراً مركّباً من الواجهة.",
+                                        "A real tabbed PTY with live output and process stop. It starts in the selected project and the UI cannot supply an executable.")
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: root.local(
+                                        root.agentTerminals.length + " جلسة طرفية حالية",
+                                        root.agentTerminals.length + " current terminal session(s)")
+                                    color: root.textHi
+                                    font.family: root.uiFont
+                                    font.pixelSize: root.typePx(12)
+                                }
+                                MoButton {
+                                    Layout.fillWidth: true
+                                    label: root.local("افتح الطرفية", "Open terminal")
+                                    primary: true
+                                    onClicked: {
+                                        root.settingsOpen = false
+                                        root.panel = "agent"
+                                        root.agentWorkspaceTab = "terminal"
+                                        root.agentLoadTerminals()
+                                    }
+                                }
+                            }
+
+                            // ══ APPEARANCE ════════════════════════════════
+                            ColumnLayout {
+                                visible: root.cfgTab === "appearance"
+                                Layout.fillWidth: true
+                                spacing: design.space2
+
+                                SectionTitle { text: root.local("مظهر Mo AI", "Mo AI appearance") }
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: root.local(
+                                        "Mo AI يتبع لوحة MoOS النشطة، اتجاه اللغة، حجم الخط وتقليل الحركة تلقائياً. غيّرها من منتقي MoOS الموحد.",
+                                        "Mo AI follows the active MoOS palette, language direction, font scale and reduced-motion setting. Change them in the shared MoOS picker.")
+                                }
+                                MoButton {
+                                    Layout.fillWidth: true
+                                    label: root.local("افتح المظهر والثيمات", "Open appearance and themes")
+                                    iconName: "moos-themes-symbolic"
+                                    primary: true
+                                    onClicked: root.launch("moos://settings/themes", "MoOS themes")
                                 }
                             }
 
@@ -5716,122 +5919,13 @@ Kirigami.ApplicationWindow {
                                 }
                             }
 
-                            // ══ HEALTH ═════════════════════════════════════
-                            // Repairs are moos://do/<id> — a NAMED action that moai-do
-                            // confirms and runs behind Polkit. Never a composed command:
-                            // that is the safety contract the build gate enforces.
-                            ColumnLayout {
-                                visible: root.cfgTab === "health"
-                                Layout.fillWidth: true
-                                spacing: design.space2
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    SectionTitle {
-                                        text: root.local("صحة النظام", "System health")
-                                    }
-                                    Item { Layout.fillWidth: true }
-                                    MoButton {
-                                        label: root.diagLoading
-                                            ? root.local("يفحص…", "Checking…")
-                                            : root.local("افحص الآن", "Check now")
-                                        enabled_: !root.diagLoading
-                                        iconName: "moos-report-symbolic"
-                                        onClicked: root.diagnoseSystem()
-                                    }
-                                }
-                                SectionNote {
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "فحص للقراءة فقط من moos-selfcheck. كل إصلاح فعل مسمّى يسألك قبل تنفيذه.",
-                                        "Read-only checks from moos-selfcheck. Every repair asks before it runs.")
-                                }
-
-                                Text {
-                                    visible: !root.diagLoading && (root.diagResult.summary !== undefined)
-                                    Layout.fillWidth: true
-                                    text: root.diagResult.summary || ""
-                                    color: root.textHi
-                                    font.family: root.uiFont
-                                    font.pixelSize: root.typePx(12)
-                                    wrapMode: Text.Wrap
-                                }
-
-                                Repeater {
-                                    // defaultRepairs is the documented fallback ("always shown,
-                                    // and the fallback before a diagnose run has returned") — but
-                                    // nothing ever rendered it, so it was dead code and the safe
-                                    // repair menu simply did not exist until a diagnose returned
-                                    // fixes. Use it whenever the backend has none, which is also
-                                    // what makes the read-only diagnostics reachable.
-                                    model: (root.diagResult.fixes && root.diagResult.fixes.length)
-                                           ? root.diagResult.fixes : root.defaultRepairs
-                                    delegate: Rectangle {
-                                        required property var modelData
-                                        Layout.fillWidth: true
-                                        Layout.preferredHeight: root.fs(52)
-                                        radius: design.radiusControl
-                                        color: "transparent"
-                                        border.width: 1
-                                        border.color: root.hairline
-                                        RowLayout {
-                                            anchors.fill: parent
-                                            anchors.margins: 10
-                                            spacing: design.space2
-                                            ColumnLayout {
-                                                spacing: 1
-                                                Text {
-                                                    // Two shapes reach this delegate: the backend's
-                                                    // fixes carry `title`, defaultRepairs carries
-                                                    // `label`. Accept both, or the fallback list
-                                                    // renders bare ids at the user.
-                                                    text: modelData.title || modelData.label || modelData.id
-                                                    color: root.textHi
-                                                    font.family: root.uiFont
-                                                    font.pixelSize: root.typePx(12)
-                                                    font.weight: Font.DemiBold
-                                                }
-                                                Text {
-                                                    text: modelData.note || ""
-                                                    visible: !!modelData.note
-                                                    color: root.textMute
-                                                    font.family: root.uiFont
-                                                    font.pixelSize: root.typePx(10)
-                                                    wrapMode: Text.Wrap
-                                                }
-                                            }
-                                            Item { Layout.fillWidth: true }
-                                            MoButton {
-                                                // A read-only entry (diagnose-services, net-doctor,
-                                                // gpu-report…) shows information; calling its button
-                                                // "Fix" promises a repair it does not perform.
-                                                label: modelData.read
-                                                    ? root.local("افحص", "Check")
-                                                    : root.local("أصلح", "Fix")
-                                                onClicked: Qt.openUrlExternally("moos://do/" + modelData.id)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Text {
-                                    visible: !root.diagLoading
-                                             && (root.diagResult.fixes === undefined
-                                                 || root.diagResult.fixes.length === 0)
-                                             && root.diagResult.summary !== undefined
-                                    Layout.fillWidth: true
-                                    text: root.local("لا مشاكل تحتاج إصلاحاً.",
-                                                     "No problems need repair.")
-                                    color: root.okColor
-                                    font.family: root.uiFont
-                                    font.pixelSize: root.typePx(11)
-                                }
-                            }
                         }
                     }
 
                     // ── save ──
                     Rectangle {
+                        visible: ["privacy", "providers", "telegram", "voice",
+                                  "memory", "permissions", "projects"].indexOf(root.cfgTab) !== -1
                         Layout.fillWidth: true
                         Layout.preferredHeight: root.fs(44)
                         radius: design.radiusControl
@@ -5905,7 +5999,7 @@ Kirigami.ApplicationWindow {
     // One backend for BOTH surfaces: this sheet and the Telegram bot read and
     // write the same ~/.openclaw/openclaw.json through moai-agent-api. There is
     // no second copy of "which brain" or "which key" to drift out of sync.
-    property string cfgTab: "brain"
+    property string cfgTab: "privacy"
     property string cfgMode: "local"
     property string cfgProvider: "synterolink"
     property var    cfgProviders: []
@@ -5916,6 +6010,11 @@ Kirigami.ApplicationWindow {
     property string cfgError: ""
     property string cfgTier: "ask"
     property string cfgProject: ""
+    onCfgTabChanged: {
+        if (cfgTab === "openclaw") root.agentLoadStatus()
+        else if (cfgTab === "models") root.loadModels()
+        else if (cfgTab === "terminal") root.agentLoadTerminals()
+    }
 
     function cfgLoad(done) {
         const xhr = new XMLHttpRequest()
