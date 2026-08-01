@@ -7,6 +7,7 @@ import runpy
 import subprocess
 import tempfile
 import time
+import zipfile
 from pathlib import Path
 
 
@@ -72,7 +73,9 @@ def main() -> None:
         assert caps["workspace"]["tasks"] is True
         assert caps["agent"]["approval_queue"] is True
         assert caps["terminal"] == {"pty": True, "tabs": True, "model_access": False}
-        assert caps["workspace"]["attachments"]["binary_extract"] is False
+        assert caps["workspace"]["attachments"]["binary_extract"] is True
+        assert caps["workspace"]["attachments"]["document_formats"] == [
+            "pdf", "docx", "odt"]
 
         thread = module["read_session"](sid_new)
         assert [message["role"] for message in thread] == [
@@ -277,6 +280,16 @@ def main() -> None:
         assert module["list_attachments"]()[0]["id"] == attached["id"]
         stored_files = list(globals_["ATTACHMENTS"].iterdir())
         assert len(stored_files) == 1 and stored_files[0].stat().st_mode & 0o177 == 0
+
+        document = home / "brief.docx"
+        with zipfile.ZipFile(document, "w") as archive:
+            archive.writestr("word/document.xml", """
+                <w:document xmlns:w="urn:test"><w:body><w:p>
+                <w:r><w:t>Mo AI document proof</w:t></w:r>
+                </w:p></w:body></w:document>""")
+        extracted = module["import_attachment"]({"path": document.as_uri()})
+        assert extracted["content_type"] == "text" and extracted["extracted"]
+        assert "Mo AI document proof" in extracted["content"]
         try:
             module["import_attachment"]({"path": "/etc/hosts"})
         except ValueError:
@@ -304,6 +317,7 @@ def main() -> None:
     assert 'u.path == "/api/terminal/start"' in source
     assert '["/bin/bash", "--noprofile", "--norc"]' in source
     assert 'u.path == "/api/attachment/import"' in source
+    assert '["/usr/bin/pdftotext", "-f", "1", "-l", "50", "-nopgbrk"' in source
     assert 'u.path == "/api/voice/start"' in source
     assert '[str(PW_RECORD), "--rate", "16000", "--channels", "1", str(path)]' in source
     assert '[str(TRANSCRIBE), str(path)]' in source

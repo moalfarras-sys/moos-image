@@ -120,9 +120,13 @@ cleanup lands. No decorative perpetual animation is allowed.
   card so a long-lived phone session cannot freeze the desktop. A real 4K RTL
   source run rendered `exec` arguments and its actual `opened (setsid): code`
   result from OpenClaw session `b8c34309-36c9-4dcd-9280-239be24e4ab6`.
-- [x] Private attachment ingest for images and text files, drag/drop and picker;
-  image payloads use the OpenAI multimodal shape and select an installed VL
-  route. Arbitrary binary document extraction remains open.
+- [x] Private attachment ingest for images, text and common documents through
+  drag/drop and picker. PDF extraction uses fixed `/usr/bin/pdftotext` argv,
+  the first 50 pages and a bounded private temporary output; DOCX/ODT read only
+  their exact bounded XML member without extracting ZIP paths. All document
+  text is capped at 512 KiB before entering chat. Image payloads use the OpenAI
+  multimodal shape and the capability-verified vision route. Other binary
+  formats remain metadata-only rather than pretending their content was read.
 - [x] Desktop push-to-talk capture uses PipeWire and the existing local speech
   service. Live capture reached transcription; the silent three-second proof
   correctly returned "no speech", so spoken-language verification remains open.

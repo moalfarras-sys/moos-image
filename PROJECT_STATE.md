@@ -14,7 +14,10 @@ projects and persistent task state. It also provides bounded user-owned PTYs:
 the source UI was run on the live 4K RTL session and showed real shell output
 from `printf 'Mo-AI-terminal-live\n'`, with tabs and process stop. Image/text
 attachments now enter through a private non-executable store via picker or
-drag/drop. Vision routing now reads explicit model input metadata: Ollama's real
+drag/drop. PDF (first 50 pages), DOCX and ODT text extraction is real and capped
+at 512 KiB; PDF uses fixed `pdftotext` argv and Office/ODF reads only an exact
+bounded XML member, while unsupported binaries remain honestly metadata-only.
+Vision routing now reads explicit model input metadata: Ollama's real
 `/api/show` capability or provider-advertised `input`/`modalities`; it no longer
 guesses from a model name, and uncertain routes remain text-only. A live PNG
 request through the source Mo AI gateway and unified OpenClaw runtime reached
