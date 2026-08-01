@@ -479,6 +479,10 @@ button {
   outline: 2px solid var(--accent-2);
   outline-offset: 2px;
 }
+.sheet-close:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
 .sheet h3 {
   margin: 4px 2px 12px;
   font-size: 15px;
@@ -808,6 +812,56 @@ button {
   background: var(--surface-2);
   border: 1px solid var(--border);
   color: var(--text);
+}
+.btn.danger {
+  background: var(--danger);
+  color: var(--on-accent);
+  box-shadow: 0 8px 24px var(--danger-soft);
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 3px;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.confirm-panel {
+  max-width: 440px;
+  margin: 0 auto;
+  text-align: center;
+}
+.confirm-icon {
+  width: 58px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  margin: 2px auto 12px;
+  border-radius: 16px;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid color-mix(in srgb, var(--danger) 42%, transparent);
+}
+.confirm-icon svg {
+  width: 28px;
+  height: 28px;
+}
+.confirm-panel h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+.confirm-panel p {
+  max-width: 390px;
+  margin: 0 auto 20px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 @keyframes spin {

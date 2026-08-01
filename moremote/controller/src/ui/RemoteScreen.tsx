@@ -20,6 +20,7 @@ import {
 
 type Conn = "connecting" | "live" | "paused" | "stopped" | "reconnecting" | "idle";
 type Sheet = null | "view" | "more" | "clip" | "files";
+type PendingPower = { action: PowerAction; label: string };
 /**
  * The on-screen rectangle the picture occupies, and whether it is drawn turned a quarter turn
  * inside it. `dispW`/`dispH` are always the SCREEN box — so letterboxing, panning, zoom clamping
@@ -171,10 +172,15 @@ function Switch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
  * the invoking control afterwards. This keeps phone screen-readers and desktop
  * keyboard users on the same interaction path as touch users.
  */
-function SheetPanel({ label, onClose, children }: {
+function SheetPanel({ label, onClose, children, role = "dialog", descriptionId,
+  initialFocusSelector = ".sheet-close", dismissible = true }: {
   label: string;
   onClose: () => void;
   children: React.ReactNode;
+  role?: "dialog" | "alertdialog";
+  descriptionId?: string;
+  initialFocusSelector?: string;
+  dismissible?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -186,11 +192,11 @@ function SheetPanel({ label, onClose, children }: {
       'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), summary, [contenteditable="true"], [tabindex]:not([tabindex="-1"])',
     )).filter((item) => !item.hidden && item.getAttribute("aria-hidden") !== "true");
 
-    (focusable()[0] ?? panel).focus();
+    (panel.querySelector<HTMLElement>(initialFocusSelector) ?? focusable()[0] ?? panel).focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        if (dismissible) onClose();
         return;
       }
       if (event.key !== "Tab") return;
@@ -215,11 +221,13 @@ function SheetPanel({ label, onClose, children }: {
       panel.removeEventListener("keydown", onKeyDown);
       previous?.focus();
     };
-  }, [onClose]);
+  }, [dismissible, initialFocusSelector, onClose]);
 
   return (
-    <div ref={panelRef} className="sheet" role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}>
-      <button type="button" className="sheet-close" onClick={onClose} aria-label={`Close ${label}`}>×</button>
+    <div ref={panelRef} className="sheet" role={role} aria-modal="true" aria-label={label}
+         aria-describedby={descriptionId} tabIndex={-1}>
+      <button type="button" className="sheet-close" onClick={onClose} disabled={!dismissible}
+              aria-label={`Close ${label}`}>×</button>
       {children}
     </div>
   );
@@ -289,6 +297,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   const [kbOpen, setKbOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
   const closeSheet = useCallback(() => setSheet(null), []);
+  const [powerConfirm, setPowerConfirm] = useState<PendingPower | null>(null);
+  const [powerBusy, setPowerBusy] = useState(false);
+  const powerInFlightRef = useRef(false);
+  const cancelPowerConfirm = useCallback(() => {
+    setPowerConfirm(null);
+    setSheet("more");
+  }, []);
   const [mods, setMods] = useState<Set<string>>(new Set());
   const [fps, setFps] = useState(0);
   const [latency, setLatency] = useState(0);
@@ -1738,11 +1753,28 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
     showToast(`Screen ${i + 1}`);
   };
 
-  const doPower = async (action: PowerAction, label: string, needConfirm = false) => {
-    if (needConfirm && !window.confirm(`${label} the PC?`)) return;
+  const runPower = async ({ action, label }: PendingPower) => {
+    if (powerInFlightRef.current) return;
+    powerInFlightRef.current = true;
+    setPowerBusy(true);
+    try {
+      const ok = await powerAction(token, action);
+      setPowerConfirm(null);
+      showToast(ok ? `${label}…` : `${label} failed`);
+    } finally {
+      powerInFlightRef.current = false;
+      setPowerBusy(false);
+    }
+  };
+  const doPower = (action: PowerAction, label: string, needConfirm = false) => {
+    const pending = { action, label };
+    if (needConfirm) {
+      setSheet(null);
+      setPowerConfirm(pending);
+      return;
+    }
     setSheet(null);
-    const ok = await powerAction(token, action);
-    showToast(ok ? `${label}…` : `${label} failed`);
+    void runPower(pending);
   };
 
   const statusInfo = {
@@ -1923,7 +1955,42 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       )}
 
       {/* sheets */}
-      {sheet && <div className="sheet-backdrop" aria-hidden="true" onClick={closeSheet} />}
+      {(sheet || powerConfirm) && (
+        <div className="sheet-backdrop" aria-hidden="true"
+             onClick={powerConfirm ? (powerBusy ? undefined : cancelPowerConfirm) : closeSheet} />
+      )}
+
+      {powerConfirm && (
+        <SheetPanel
+          label={`Confirm ${powerConfirm.label}`}
+          role="alertdialog"
+          descriptionId="power-confirm-description"
+          initialFocusSelector="#power-confirm-cancel"
+          onClose={cancelPowerConfirm}
+          dismissible={!powerBusy}
+        >
+          <div className="grip" />
+          <div className="confirm-panel">
+            <div className="confirm-icon"><IconPower /></div>
+            <h3>{powerConfirm.label} this PC?</h3>
+            <p id="power-confirm-description">
+              {powerConfirm.action === "shutdown"
+                ? "The remote session will end and this computer will power off. Unsaved work may be lost."
+                : powerConfirm.action === "restart"
+                  ? "The remote session will end while this computer restarts. Unsaved work may be lost."
+                  : "The current desktop session will end. Unsaved work may be lost."}
+            </p>
+            <div className="confirm-actions">
+              <button id="power-confirm-cancel" type="button" className="btn ghost"
+                      disabled={powerBusy} onClick={cancelPowerConfirm}>Cancel</button>
+              <button type="button" className="btn danger"
+                      disabled={powerBusy} onClick={() => void runPower(powerConfirm)}>
+                {powerBusy ? "Working…" : powerConfirm.label}
+              </button>
+            </div>
+          </div>
+        </SheetPanel>
+      )}
 
       {sheet === "view" && (
         <SheetPanel label="Display" onClose={closeSheet}>

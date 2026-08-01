@@ -11,7 +11,8 @@ const styles = readFileSync(resolve(here, "../src/styles.css"), "utf8");
 // Bottom sheets are true modal dialogs: focus enters them, Tab cannot escape,
 // Escape closes, and the invoking toolbar control receives focus again.
 for (const contract of [
-  'role="dialog"',
+  'role = "dialog"',
+  'role={role}',
   'aria-modal="true"',
   'tabIndex={-1}',
   'event.key === "Escape"',
@@ -59,3 +60,25 @@ assert.ok(!/animation-duration:\s*0?\.0*1m?s/i.test(styles),
   "Reduced Motion must be truly static, not a near-zero animation workaround");
 
 console.log("PASS: Reduced Motion is a true static state across the complete PWA");
+
+assert.ok(!source.includes("window.confirm("),
+  "sensitive power actions must not fall back to an unthemed browser confirm");
+for (const contract of [
+  'role="alertdialog"',
+  'descriptionId="power-confirm-description"',
+  'initialFocusSelector="#power-confirm-cancel"',
+  'id="power-confirm-cancel"',
+  'Unsaved work may be lost.',
+  'onClick={() => void runPower(powerConfirm)}',
+  'if (powerInFlightRef.current) return;',
+  'powerInFlightRef.current = true;',
+  'dismissible={!powerBusy}',
+  'disabled={powerBusy}',
+  '{powerBusy ? "Working…" : powerConfirm.label}',
+]) {
+  assert.ok(source.includes(contract), `power confirmation misses ${contract}`);
+}
+assert.match(source, /if \(needConfirm\) \{[\s\S]*?setPowerConfirm\(pending\);[\s\S]*?return;/,
+  "a sensitive power action must stop at the confirmation state before reaching the API");
+
+console.log("PASS: sensitive power actions use one themed, focus-safe confirmation path");
