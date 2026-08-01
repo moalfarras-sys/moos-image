@@ -51,6 +51,17 @@ the repository and CI (`2877c228`). The complete repo `just check` recipe passes
 after these changes. Image compose, installed-service proof and a real phone
 session remain open.
 
+Session/power accessibility correction, later in the same unpublished Cloud
+audit (`4073365e`): the shared logout action had a visible keyboard focus ring,
+four-direction navigation, a name and a description, but relied on
+`AbstractButton` to infer its assistive role while running in ksmserver's
+out-of-process greeter. All 16 theme copies now explicitly expose
+`Accessible.Button` and their transient pressed state. A repository gate holds
+the role, name, description, pressed state, strong focus policy and arrow-key
+contract. The complete `just check` recipe passes. This is source/gate evidence,
+not a live screen-reader claim; Qt/KDE runtime and live Light/Dark × RTL/LTR ×
+4K verification remain open on an installed image.
+
 Mo PC Remote server proof, later in the same Cloud audit: Microsoft’s temporary
 .NET 10.0.302 SDK ran the exact Containerfile test (`21` mapping, validation and
 Unicode checks) and published the Linux agent self-contained in Release with no
