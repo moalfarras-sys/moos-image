@@ -32,6 +32,24 @@ authenticated sound, private Cloud desktop, PIN ownership, subids and per-user
 ports. This Cloud environment has no Node/npm, .NET, systemd, Qt/KDE runtime or
 display, so controller compilation, image compose, live phone control and new
 Light/Dark × RTL/LTR × 4K captures remain explicitly unverified in this round.
+The same round later gained a real isolated Node build environment verified
+against Node's published SHA256 for the current LTS `v24.18.0`. Mo PC Remote's
+controller now cancels generation-bound reconnect timers on logout/unmount
+(`1ac17902`), closing a ghost-socket path that could restart streaming after the
+screen had exited. Its committed PWA was rebuilt deterministically after moving
+to React 19.2.8, Vite 8.2.0, TypeScript 7.0.2 and vite-plugin-pwa 1.3.0
+(`d66a3ff6`); `npm ci`, controller tests, `tsc --noEmit`, two byte-identical
+builds and `npm audit` (0 vulnerabilities) passed. CI now enforces typecheck and
+audit before comparing the shipped bundle. `@vitejs/plugin-react` remains on
+5.2.0, the newest cleanly resolving line that supports Vite 8; 6.0.5 currently
+has an unsatisfied Babel 8 peer graph and was not forced with legacy resolution.
+Cloud audio cleanup is bounded after both TERM and KILL, and Mo AI activity
+stamps use unique atomic temporaries under concurrent requests (`9f120c27`).
+Two duplicated troubleshooting reports that exposed an owner phone number and
+an unsafe allow-all example were removed; `tests/test_docs_privacy.py` now gates
+the repository and CI (`2877c228`). The complete repo `just check` recipe passes
+after these changes. Image compose, installed-service proof and a real phone
+session remain open.
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through
