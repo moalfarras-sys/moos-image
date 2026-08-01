@@ -262,14 +262,14 @@ cleanup lands. No decorative perpetual animation is allowed.
 ### Phase 6 — release proof
 
 - [x] Source and all three local image builds pass the exact CI gates. `just
-  check` is green and the generic `just build` completed from commit
-  `4440a91d`, producing
-  `localhost/moos:latest` (`05bb9e19bbb2…`). The in-image QML, Launcher,
+  check` is green and all three builds were repeated after the final code change
+  from branch head `622926a2`. Generic produced
+  `localhost/moos:latest` (`e3f83010083e…`). The in-image QML, Launcher,
   desktop scene, Store, identity, experience, foreign-identity firewall,
   initramfs/Plymouth and bootc lint gates all passed; the final initramfs is
   122 MB and contains both `ostree-prepare-root` and MoOS Plymouth. The same
-  source also produced `moos-cloud:latest` (`89d3aab0f08a…`) and
-  `moos-nvidia:latest` (`f4b27ae37189…`), each passing its edition gates and
+  same head produced `moos-cloud:latest` (`11eb2b525ba1…`) and
+  `moos-nvidia:latest` (`7de9463dc16d…`), each passing its edition gates and
   bootc lint. NVIDIA's 217 MB initramfs contains seven NVIDIA kernel modules;
   `kmod-nvidia` and `nvidia-driver` both report `610.43.03` against kernel
   `7.1.5-201.fc44.x86_64`. The signed CI matrix remains a separate open proof.

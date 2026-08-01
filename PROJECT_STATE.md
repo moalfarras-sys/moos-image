@@ -116,16 +116,15 @@ The latter still needs the owner's real QR pairing and is not complete. The
 endpoint wakes OpenClaw only for this explicit status request and leaves idle
 sleep policy intact. `just check` passed after this slice. All of this is
 unreleased working-branch state
-until the remaining edition builds, merge, signed CI matrix and live update pass.
-The first release image proof is now real: `just build` completed from commit
-`4440a91d` and produced generic image `localhost/moos:latest`
-(`05bb9e19bbb2…`). Its final 122 MB initramfs contains the OSTree boot path and
+until merge, signed CI matrix and live update pass. The final release image proof
+was repeated after the last code change from branch head `622926a2`: generic
+image `localhost/moos:latest` (`e3f83010083e…`). Its final 122 MB initramfs contains the OSTree boot path and
 MoOS Plymouth assets; all shipped QML apps, Launcher, desktop scene, Store,
 image-experience, identity and foreign-identity firewall gates passed, followed
 by `bootc container lint` (9 checks passed, four pre-existing warning classes).
-The same committed source subsequently produced Cloud image
-`localhost/moos-cloud:latest` (`89d3aab0f08a…`) and NVIDIA image
-`localhost/moos-nvidia:latest` (`f4b27ae37189…`); both passed edition-specific
+The same exact head produced Cloud image
+`localhost/moos-cloud:latest` (`11eb2b525ba1…`) and NVIDIA image
+`localhost/moos-nvidia:latest` (`7de9463dc16d…`); both passed edition-specific
 gates and bootc lint. NVIDIA used kernel `7.1.5-201.fc44.x86_64`, matched
 `kmod-nvidia` and `nvidia-driver` at `610.43.03`, and proved seven NVIDIA modules
 inside its final 217 MB initramfs. This proves all three local composes—not
