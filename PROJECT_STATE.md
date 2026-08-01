@@ -293,6 +293,20 @@ the PWA v27 production build is deterministic, and the shipped-assets and full
 repository gates pass. A real large transfer interrupted over a phone tailnet
 remains open live evidence; automatic background folder sync is not claimed.
 
+Remote resumable-download audit (`a8689686`): the download URL previously held
+a one-use capability, so enabling HTTP Range alone would have made the first
+partial request consume the ticket and every retry fail. Downloads now receive
+a five-minute, resource-bound lease limited to 32 uses; wrong-purpose use burns
+it, its FIFO shares the existing 1,024-capability memory ceiling, and audio
+remains strictly single-use. The file response enables Range and supplies stable
+Last-Modified plus length/mtime ETag validators so a browser does not splice two
+versions of a changing file. Live HTTP proof against the built Linux agent used
+one lease for two ranges: both returned 206, `bytes 5-9/37` and `bytes 10-15/37`,
+with the requested payload and identical ETag. Linux and Windows builds have
+zero warnings, 72 core behavior tests and the complete repository check pass.
+This proves resumable downloads; resumable uploads and bidirectional background
+folder sync remain separate, unimplemented protocols and are not claimed.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds
