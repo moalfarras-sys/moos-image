@@ -402,7 +402,7 @@ class Handler(BaseHTTPRequestHandler):
                 stderr=None,                 # real errors go to the journal
                 start_new_session=True,      # so terminate() cannot reach us
             )
-        except Exception as exc:
+        except OSError as exc:
             os.close(read_fd)
             os.close(write_fd)
             self.log_message("cannot start gst-launch-1.0: %s", exc)
@@ -451,7 +451,13 @@ def _reap(proc: typing.Optional['subprocess.Popen[typing.Any]']) -> None:
             os.killpg(proc.pid, signal.SIGKILL)
         except (ProcessLookupError, PermissionError, OSError):
             proc.kill()
-        proc.wait()
+        try:
+            proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            # A process that survives SIGKILL is normally stuck in an
+            # uninterruptible kernel wait. Never pin an HTTP worker forever;
+            # systemd remains the final lifecycle boundary for that process.
+            return
 
 
 class Server(ThreadingHTTPServer):

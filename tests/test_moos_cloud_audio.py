@@ -115,6 +115,18 @@ class TestPipelineShape(unittest.TestCase):
         for line in directives:
             self.assertNotIn("ffmpeg", line)
 
+    def test_encoder_reaping_is_bounded_even_after_sigkill(self):
+        """A wedged encoder must never pin an HTTP worker indefinitely."""
+        reap = re.search(r"def _reap\(.*?(?=\n\nclass Server)", self.src, re.S)
+        self.assertIsNotNone(reap, "could not locate the encoder reaper")
+        body = reap.group(0)
+        waits = re.findall(r"proc\.wait\(([^)]*)\)", body)
+        self.assertEqual(
+            waits, ["timeout=3", "timeout=3"],
+            "both TERM and KILL waits must be bounded",
+        )
+        self.assertNotIn("except Exception", body)
+
 
 @unittest.skipIf(shutil.which("python3") is None, "no python3")
 class TestServerBehaviour(unittest.TestCase):

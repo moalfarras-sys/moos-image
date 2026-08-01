@@ -51,7 +51,7 @@
 # This process is the only thing that ever sees the API key: it reads the provider
 # (base URL + model + wire) from ~/.config/moai/config.json and the KEY from Mo
 # AI's private XDG data store. Stdlib only (no pip deps).
-import json, os, re, socket, subprocess, sys, threading, time
+import json, os, re, socket, subprocess, sys, tempfile, threading, time
 import urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -99,13 +99,24 @@ ACTIVITY_FILE = os.path.join(
 
 def mark_activity() -> None:
     """Record that the local brain was just used, for moai-idle's staleness check."""
+    tmp = ""
     try:
-        tmp = ACTIVITY_FILE + ".tmp"
-        with open(tmp, "w") as handle:
+        runtime_dir = os.path.dirname(ACTIVITY_FILE)
+        fd, tmp = tempfile.mkstemp(prefix=".moai-activity-", dir=runtime_dir,
+                                   text=True)
+        with os.fdopen(fd, "w") as handle:
             handle.write(str(int(time.time())))
+            handle.flush()
+            os.fsync(handle.fileno())
         os.replace(tmp, ACTIVITY_FILE)
     except OSError:
         pass
+    finally:
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except FileNotFoundError:
+                pass
 
 # How long to wait for the local brain after starting it. A model that is already
 # pulled loads in well under a minute; the FIRST ever start downloads ~2.5 GB and

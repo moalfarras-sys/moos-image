@@ -24,8 +24,11 @@ close-on-drop behaviour (a full handler is impractical to instantiate here).
 """
 
 import importlib.util
+import os
 import re
 import sys
+import tempfile
+import threading
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
@@ -69,6 +72,23 @@ def main() -> int:
     module = load_gateway()
     errors: list[str] = []
 
+    # Activity stamps are written from request threads. They must remain valid
+    # and leave no shared temporary path behind under a concurrent burst.
+    with tempfile.TemporaryDirectory() as directory:
+        module.ACTIVITY_FILE = os.path.join(directory, "moai-activity")
+        threads = [threading.Thread(target=module.mark_activity) for _ in range(32)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        try:
+            int(Path(module.ACTIVITY_FILE).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            errors.append("concurrent activity stamps did not leave one valid timestamp")
+        leftovers = list(Path(directory).glob(".moai-activity-*"))
+        if leftovers:
+            errors.append("concurrent activity stamps leaked temporary files")
+
     # 1. Anthropic error event mid-stream: surfaced as text, then [DONE].
     got = translate(module,
                     b'data: {"type":"content_block_delta","delta":{"text":"Hi"}}\n'
@@ -102,6 +122,10 @@ def main() -> int:
     #    is impractical to instantiate). The success path sets a completion flag; the except
     #    path must, when not completed, set self.close_connection = True.
     code = GATEWAY.read_text(encoding="utf-8")
+    if 'tempfile.mkstemp(prefix=".moai-activity-"' not in code:
+        errors.append("activity stamping does not allocate a unique temporary file per request")
+    if 'ACTIVITY_FILE + ".tmp"' in code:
+        errors.append("activity stamping uses one shared temporary path across request threads")
     proxy = re.search(r"def _proxy\(self.*?(?=\n    def )", code, re.S)
     if not proxy:
         errors.append("could not locate _proxy() to verify close-on-drop.")
