@@ -59,6 +59,7 @@ check:
     python3 tests/test_openclaw_bootstrap_noop.py
     # A connect burst must coalesce into ONE pipeline build, and idle teardown must stay immediate.
     python3 tests/test_remote_rebuild_debounce.py
+    python3 tests/test_remote_connection_lifecycle.py
     # Input must not block the socket that carries the pings the quality ladder measures.
     python3 tests/test_input_off_socket_thread.py
     # Raising the resolution ceiling must not change what an old cached client's `scale` means.

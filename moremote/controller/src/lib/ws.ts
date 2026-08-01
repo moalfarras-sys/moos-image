@@ -34,6 +34,7 @@ export class RemoteConnection {
   private ws: WebSocket | null = null;
   private closedByUs = false;
   private backoff = 500;
+  private reconnectTimer: number | null = null;
   private pingTimer: number | null = null;
   /** When a pong last arrived. The stall watchdog in startPing() is the only reader. */
   private lastPongAt = 0;
@@ -48,6 +49,7 @@ export class RemoteConnection {
   constructor(private token: string, private h: Handlers, private inputMeta?: () => any) {}
 
   connect() {
+    this.stopReconnect();
     const generation=++this.generation;
     try{this.ws?.close();}catch{/* ignore */}
     this.closedByUs = false;
@@ -122,7 +124,11 @@ export class RemoteConnection {
       this.stopPing();
       this.h.onClose?.();
       if (!this.closedByUs) {
-        setTimeout(() => this.connect(), this.backoff);
+        const delay = this.backoff;
+        this.reconnectTimer = window.setTimeout(() => {
+          this.reconnectTimer = null;
+          if (generation === this.generation && !this.closedByUs) this.connect();
+        }, delay);
         this.backoff = Math.min(this.backoff * 1.6, 5000);
       }
     };
@@ -136,6 +142,7 @@ export class RemoteConnection {
     this.flushText();
     this.generation++;
     this.closedByUs = true;
+    this.stopReconnect();
     this.stopPing();
     try {
       this.ws?.close();
@@ -176,6 +183,10 @@ export class RemoteConnection {
   private stopPing() {
     if (this.pingTimer) window.clearInterval(this.pingTimer);
     this.pingTimer = null;
+  }
+  private stopReconnect() {
+    if (this.reconnectTimer !== null) window.clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
   }
 
   /** Re-declare what this client can decode. Used when the decoder gives up mid-session: the agent
