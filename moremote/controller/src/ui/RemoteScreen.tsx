@@ -179,6 +179,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   const desktopRef = useRef<DesktopInput | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioRetryRef = useRef<number | null>(null);
+  const audioGenerationRef = useRef(0);
+  const refreshTimerRef = useRef<number | null>(null);
   const audioFailsRef = useRef(0);
 
   const frameRef = useRef<Drawable | null>(null);
@@ -206,6 +208,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   const drawEpochRef = useRef(0);
   const invalidate = useCallback(() => { drawEpochRef.current++; }, []);
   const hideTimer = useRef<number | null>(null);
+  const toastTimer = useRef<number | null>(null);
 
   const [status, setStatus] = useState<Conn>("connecting");
   const [mode, setMode] = usePref<GestureMode>("mode", defaultMode());
@@ -322,7 +325,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
 
   const showToast = (m: string) => {
     setToast(m);
-    window.setTimeout(() => setToast((t) => (t === m ? null : t)), 1900);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => {
+      toastTimer.current = null;
+      setToast((t) => (t === m ? null : t));
+    }, 1900);
   };
 
   // ---------- toolbar auto-hide ----------
@@ -725,9 +732,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
     // What replaces it is said once, ever, and is about the thing that is genuinely not guessable:
     // the gesture. Two fingers do three different jobs here and none of them is discoverable by
     // looking, so the one hint that earns its space is the one naming them.
+    let gestureHintTimer: number | null = null;
     if (!localStorage.getItem("moremote.seenGestureHint")) {
       try { localStorage.setItem("moremote.seenGestureHint", "1"); } catch { /* private mode */ }
-      window.setTimeout(() => showToast("Two fingers: scroll · pinch to zoom · double-tap to magnify"), 1400);
+      gestureHintTimer = window.setTimeout(
+        () => showToast("Two fingers: scroll · pinch to zoom · double-tap to magnify"), 1400);
     }
 
     return () => {
@@ -738,6 +747,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       h264Ref.current = null;
       cancelAnimationFrame(raf);
       window.clearInterval(fpsTimer);
+      if (gestureHintTimer) window.clearTimeout(gestureHintTimer);
+      if (refreshTimerRef.current) window.clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+      if (toastTimer.current) window.clearTimeout(toastTimer.current);
+      toastTimer.current = null;
       if (hideTimer.current) window.clearTimeout(hideTimer.current);
       window.removeEventListener("resize", resize);
       window.removeEventListener("orientationchange", resize);
@@ -1510,6 +1524,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   // single-use ticket. The reusable session bearer never enters browser or proxy URL history.
 
   const stopSound = useCallback(() => {
+    audioGenerationRef.current++;
     if (audioRetryRef.current) { window.clearTimeout(audioRetryRef.current); audioRetryRef.current = null; }
     const a = audioRef.current;
     if (a) { a.pause(); a.removeAttribute("src"); a.load(); }
@@ -1519,14 +1534,25 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   const startSound = useCallback(async () => {
     const a = audioRef.current;
     if (!a) return;
+    const generation = ++audioGenerationRef.current;
     setSound("connecting");
     // Cache-busting is load-bearing, not superstition: the service spawns one encoder per listener
     // and kills it on disconnect, so the previous response is a DEAD stream. Safari will happily
     // re-use it from cache and play nothing at all, reporting no error.
     //
-    try { a.src = `${await audioStreamUrl(token)}&t=${Date.now()}`; }
-    catch { setSound("unavailable"); showToast("Sound authorization failed"); return; }
-    a.play().then(() => setSound("on")).catch(() => {
+    try {
+      const url = await audioStreamUrl(token);
+      if (generation !== audioGenerationRef.current || audioRef.current !== a) return;
+      a.src = `${url}&t=${Date.now()}`;
+    }
+    catch {
+      if (generation !== audioGenerationRef.current) return;
+      setSound("unavailable"); showToast("Sound authorization failed"); return;
+    }
+    a.play().then(() => {
+      if (generation === audioGenerationRef.current) setSound("on");
+    }).catch(() => {
+      if (generation !== audioGenerationRef.current) return;
       // Autoplay policy needs a gesture; this IS one (a click), so a rejection here means the
       // endpoint did not deliver: either the session token was rejected (401) or moos-cloud-audio
       // is not running (502).
@@ -1543,7 +1569,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
-    const onPlaying = () => { audioFailsRef.current = 0; setSound("on"); };
+    const onPlaying = () => {
+      if (!a.src) return;
+      audioFailsRef.current = 0;
+      setSound("on");
+    };
     const onBroken = () => {
       if (!a.src) return;
       // Bounded, and the bound is the point. Retrying for ever is right for the case this was
@@ -1560,9 +1590,15 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
         showToast("No sound endpoint — run: moos-cloud-desktop doctor");
         return;
       }
+      const generation = audioGenerationRef.current;
       audioRetryRef.current = window.setTimeout(async () => {
         if (a.src) {
-          try { a.src = `${await audioStreamUrl(token)}&t=${Date.now()}`; await a.play(); }
+          try {
+            const url = await audioStreamUrl(token);
+            if (generation !== audioGenerationRef.current || audioRef.current !== a) return;
+            a.src = `${url}&t=${Date.now()}`;
+            await a.play();
+          }
           catch { setSound("unavailable"); }
         }
       }, 1200);
@@ -1570,9 +1606,14 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
     a.addEventListener("playing", onPlaying);
     for (const ev of ["error", "ended", "stalled"] as const) a.addEventListener(ev, onBroken);
     return () => {
+      audioGenerationRef.current++;
       a.removeEventListener("playing", onPlaying);
       for (const ev of ["error", "ended", "stalled"] as const) a.removeEventListener(ev, onBroken);
       if (audioRetryRef.current) window.clearTimeout(audioRetryRef.current);
+      audioRetryRef.current = null;
+      a.pause();
+      a.removeAttribute("src");
+      a.load();
     };
   }, [token]);
 
@@ -1604,9 +1645,29 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       showToast("Safari ▸ Share ▸ Add to Home Screen");
     }
   };
-  const refreshStream = () => { setStatus("connecting"); connRef.current?.disconnect(); setTimeout(() => connRef.current?.connect(), 120); showToast("Refreshing…"); };
-  const reconnect = () => { setStatus("connecting"); connRef.current?.connect(); };
-  const disconnect = () => { connRef.current?.disconnect(); onExit(); };
+  const refreshStream = () => {
+    setStatus("connecting");
+    connRef.current?.disconnect();
+    if (refreshTimerRef.current) window.clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = window.setTimeout(() => {
+      refreshTimerRef.current = null;
+      connRef.current?.connect();
+    }, 120);
+    showToast("Refreshing…");
+  };
+  const reconnect = () => {
+    if (refreshTimerRef.current) window.clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = null;
+    setStatus("connecting");
+    connRef.current?.connect();
+  };
+  const disconnect = () => {
+    if (refreshTimerRef.current) window.clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = null;
+    stopSound();
+    connRef.current?.disconnect();
+    onExit();
+  };
 
   const chooseMonitor = (i: number) => {
     if (i === selMonitor) return;
