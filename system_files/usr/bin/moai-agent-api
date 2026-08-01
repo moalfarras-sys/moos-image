@@ -1584,8 +1584,11 @@ def _finish_task(task_id: str, process: subprocess.Popen) -> None:
         error = (stderr or "").strip()
         current = next((t for t in list_tasks() if t.get("id") == task_id), None)
         if current and current.get("status") == "cancelled":
+            append_audit("task", "finish", task_id, "cancelled",
+                         {"exit_code": process.returncode, "tools": []})
             return
-        for tool in _task_session_tools(task_id):
+        tools = _task_session_tools(task_id)
+        for tool in tools:
             update_task({"id": task_id, "tool": tool})
         if process.returncode == 0:
             for step in (current or {}).get("steps", []):
@@ -1595,9 +1598,13 @@ def _finish_task(task_id: str, process: subprocess.Popen) -> None:
                                  "result": "Completed by the agent run."})
             update_task({"id": task_id, "status": "completed",
                          "result": output[-8000:] or "Agent completed without a text summary."})
+            append_audit("task", "finish", task_id, "completed",
+                         {"exit_code": 0, "tools": tools})
         else:
             detail = error or output or f"OpenClaw exited with status {process.returncode}"
             update_task({"id": task_id, "status": "failed", "error": detail[-2000:]})
+            append_audit("task", "finish", task_id, "failed",
+                         {"exit_code": process.returncode, "tools": tools})
     except subprocess.TimeoutExpired:
         try:
             os.killpg(process.pid, signal.SIGTERM)
@@ -1606,8 +1613,10 @@ def _finish_task(task_id: str, process: subprocess.Popen) -> None:
             pass
         update_task({"id": task_id, "status": "failed",
                      "error": "Agent execution exceeded the one-hour safety limit."})
+        append_audit("task", "finish", task_id, "timeout", {"tools": []})
     except Exception as exc:
         update_task({"id": task_id, "status": "failed", "error": str(exc)[:2000]})
+        append_audit("task", "finish", task_id, "internal-error", {"tools": []})
     finally:
         with TASK_RUNNER_LOCK:
             if TASK_RUNNERS.get(task_id) is process:

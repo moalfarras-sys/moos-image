@@ -38,7 +38,10 @@ cancel, and ingest tool-call names from the OpenClaw session JSONL. The project
 Workbench provides canonical-root file browsing, bounded UTF-8 preview and
 fixed-argv Git status/diff; traversal and symlink escapes are tested, and a
 bounded persistent audit ledger records task actions, project reads/diffs and
-permission-policy changes. Tracked task cards now consume OpenClaw's real
+permission-policy changes. Agent process completion now adds a separate bounded
+`task/finish` event for completed, failed, cancelled, timed-out or internal-error
+outcomes with only exit status and observed tool names; model prompts and process
+output are deliberately excluded from the audit record. Tracked task cards now consume OpenClaw's real
 Gateway exec-approval queue and expose only its allowed decisions; a live
 source-API proof listed an exact pending command, denied it through
 `exec.approval.resolve`, verified removal from the queue and recorded the

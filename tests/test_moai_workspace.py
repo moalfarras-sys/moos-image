@@ -258,6 +258,18 @@ def main() -> None:
         assert all(step["status"] == "completed" for step in finished["steps"])
         assert "tracked-agent-result" in finished["result"]
         assert finished["tools"][-1]["name"] == "openclaw-agent"
+        finish_event = None
+        for _ in range(100):
+            finish_event = next((event for event in module["list_audit"]()
+                                 if event["category"] == "task"
+                                 and event["action"] == "finish"), None)
+            if finish_event:
+                break
+            time.sleep(0.01)
+        assert finish_event is not None
+        assert finish_event["outcome"] == "completed"
+        assert finish_event["detail"] == {"exit_code": 0, "tools": []}
+        assert "tracked-agent-result" not in json.dumps(finish_event)
         try:
             module["task_action"]({
                 "id": task["id"], "action": "start", "command": "sudo sh"})
