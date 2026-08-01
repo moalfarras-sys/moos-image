@@ -217,6 +217,11 @@ cleanup lands. No decorative perpetual animation is allowed.
   Dark/RTL on the live 4K session. The exact prior `MoOS Scholar Light` theme was
   restored after review. Chat, Projects, Tasks and Terminal still need the full
   cross-product before this item can close.
+  A source-only `--layout-direction ltr|rtl` review switch now makes both
+  directions deterministic without changing the owner's KDE session. New live
+  captures verified 720×540 Light/LTR Providers, 1440×900 Dark/LTR Chat and
+  720×540 Dark/RTL Terminal; the exact Scholar Light theme was restored. These
+  add real matrix cells but do not yet close the full cross-product.
 - [x] Keyboard navigation, focus order, screen-reader labels and reduced motion.
   Every hand-drawn action uses the shared Tab/Enter/Space `ActionArea`; modal
   sheets take focus and close with Escape. A live Qt accessibility run with

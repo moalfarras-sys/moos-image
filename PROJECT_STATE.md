@@ -81,6 +81,12 @@ AT-SPI tree exposed the source app, every interactive node had a name or named
 `labelledBy` relation after fixing six anonymous secret/switch controls, and
 real Tab traversal reached named chat, composer and Settings actions. Reduced
 motion remains enforced by the existing real-QML runtime gate.
+Visual review direction can now be selected per source run with the validated
+`--layout-direction ltr|rtl` argument, avoiding global locale changes. Live
+captures added Light/LTR compact Providers, Dark/LTR 1440×900 Chat and Dark/RTL
+compact Terminal, then restored `org.moos.ui2.study.light` and
+`MoOSUI2ScholarLight` exactly. The remaining full primary-screen cross-product
+is still open.
 OpenClaw also gains a `moai/hybrid` loopback
 provider so phone turns use the same smart routing policy. The installed OpenClaw
 advertises WhatsApp Web support and Mo AI now exposes its fixed login route.

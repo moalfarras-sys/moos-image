@@ -88,6 +88,12 @@ class MoAIVisualPolishTests(unittest.TestCase):
         self.assertIn("design.motionGeometry", self.source)
         self.assertNotIn("design.motionStructure", self.source)
 
+    def test_visual_review_can_override_direction_without_changing_the_session(self) -> None:
+        self.assertIn('argv.indexOf("--layout-direction")', self.source)
+        self.assertIn('value === "rtl" || value === "ltr"', self.source)
+        self.assertIn("LayoutMirroring.enabled: root.moaiRtl", self.source)
+        self.assertEqual(self.source.count("Qt.application.layoutDirection"), 1)
+
     def test_settings_secrets_and_switches_have_screen_reader_labels(self) -> None:
         for object_id in ("keyField", "tokenField"):
             start = self.source.index(f"id: {object_id}")

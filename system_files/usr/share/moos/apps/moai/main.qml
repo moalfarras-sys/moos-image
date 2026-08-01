@@ -173,6 +173,18 @@ Kirigami.ApplicationWindow {
         const minimum = axis === 0 ? 720 : 540
         return value >= minimum && value <= 7680 ? value : fallback
     }
+    function argLayoutDirection() {
+        const argv = Qt.application.arguments
+        const i = argv.indexOf("--layout-direction")
+        if (i === -1 || i + 1 >= argv.length)
+            return ""
+        const value = String(argv[i + 1]).toLowerCase()
+        return value === "rtl" || value === "ltr" ? value : ""
+    }
+    readonly property string layoutDirectionOverride: root.argLayoutDirection()
+    readonly property bool moaiRtl: layoutDirectionOverride === "rtl"
+        || (layoutDirectionOverride === ""
+            && Qt.application.layoutDirection === Qt.RightToLeft)
     readonly property int gatewayPort: root.argPort("--gateway-port", 8080)
     readonly property int controlPort: root.argPort("--control-port", 8079)
     readonly property int agentPort:   root.argPort("--agent-port",   8077)
@@ -440,7 +452,7 @@ Kirigami.ApplicationWindow {
     // paragraph; the mark then pins that paragraph's direction instead of leaving it to
     // whatever character happens to come first (an English line that opens with "Mo AI"
     // would still resolve fine, but one that opens with a digit or "«" would not).
-    readonly property string offlineHelp: (Qt.application.layoutDirection === Qt.RightToLeft)
+    readonly property string offlineHelp: root.moaiRtl
         ? ("‏العقل المحلي غير مشغّل.\n\n" +
            "اضغط **«شغّل العقل المحلي»** بالأسفل — أو شغّل `moai-start` في الطرفية.\n\n" +
            "ثم أعد المحاولة.")
@@ -448,7 +460,7 @@ Kirigami.ApplicationWindow {
            "Tap **“Start local brain”** below — or run `moai-start` in a terminal.\n\n" +
            "Then try again.")
 
-    readonly property string startingHelp: (Qt.application.layoutDirection === Qt.RightToLeft)
+    readonly property string startingHelp: root.moaiRtl
         ? ("‏العقل المحلي يبدأ الآن… أول تشغيل يُحمّل النموذج (~2.5GB) وقد يأخذ دقائق.\n\n" +
            "سأصبح جاهزاً تلقائياً عند الانتهاء.")
         : ("‎The local brain is starting… the first run downloads the model (~2.5 GB) and may take a few minutes.\n\n" +
@@ -458,7 +470,6 @@ Kirigami.ApplicationWindow {
     // English; now it shows only the session language (RTL ⇒ Arabic), the same
     // signal the whole app mirrors on. The model still replies in whatever
     // language the user writes in — that is per-message, not the static greeting.
-    readonly property bool moaiRtl: Qt.application.layoutDirection === Qt.RightToLeft
     // Preserve the compact 720 px layout, but use the room available on a
     // desktop/4K window for a readable workspace sidebar instead of scaling a
     // phone-sized icon rail across every form factor.
@@ -1674,7 +1685,7 @@ Kirigami.ApplicationWindow {
         }
 
         // Full RTL mirroring for Arabic sessions; cascades to every child.
-        LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+        LayoutMirroring.enabled: root.moaiRtl
         LayoutMirroring.childrenInherit: true
 
         RowLayout {
@@ -1724,7 +1735,7 @@ Kirigami.ApplicationWindow {
                         Layout.bottomMargin: 8
                         // Bilingual by session direction, like the rest of the app —
                         // it was Arabic-only, breaking the convention on English sessions.
-                        text: (Qt.application.layoutDirection === Qt.RightToLeft)
+                        text: root.moaiRtl
                               ? (root.serverUp ? "متصل" : root.brainStarting ? "يبدأ…" : "غير متصل")
                               : (root.serverUp ? "Online" : root.brainStarting ? "Starting…" : "Offline")
                         color: root.serverUp ? root.okColor
@@ -1784,7 +1795,7 @@ Kirigami.ApplicationWindow {
                                         Layout.fillWidth: root.workspaceSidebarExpanded
                                         Layout.alignment: root.workspaceSidebarExpanded
                                             ? Qt.AlignVCenter : Qt.AlignHCenter | Qt.AlignBottom
-                                        text: Qt.application.layoutDirection === Qt.RightToLeft
+                                        text: root.moaiRtl
                                             ? nav.modelData.ar : nav.modelData.en
                                         color: nav.active ? root.textHi : root.textMute
                                         font.family: root.uiFont
@@ -1813,7 +1824,7 @@ Kirigami.ApplicationWindow {
                             ActionArea {
                                 id: navMa
                                 anchors.fill: parent
-                                actionName: Qt.application.layoutDirection === Qt.RightToLeft
+                                actionName: root.moaiRtl
                                     ? nav.modelData.ar : nav.modelData.en
                                 checkable: true
                                 checked: nav.active
@@ -1863,7 +1874,7 @@ Kirigami.ApplicationWindow {
                         ActionArea {
                             id: gearMa
                             anchors.fill: parent
-                            actionName: Qt.application.layoutDirection === Qt.RightToLeft
+                            actionName: root.moaiRtl
                                 ? "الإعدادات" : "Settings"
                             focusRadius: root.fs(12)
                             onTriggered: root.settingsOpen = true
@@ -2359,7 +2370,7 @@ Kirigami.ApplicationWindow {
 
                                 Text {
                                     anchors.horizontalCenter: parent.horizontalCenter
-                                    text: Qt.application.layoutDirection === Qt.RightToLeft ? "أهلاً، أنا Mo AI" : "Hi, I'm Mo AI"
+                                    text: root.moaiRtl ? "أهلاً، أنا Mo AI" : "Hi, I'm Mo AI"
                                     color: root.textHi
                                     font.family: root.uiFont
                                     font.pixelSize: root.typePx(32)
@@ -2368,7 +2379,7 @@ Kirigami.ApplicationWindow {
 
                                 Text {
                                     anchors.horizontalCenter: parent.horizontalCenter
-                                    text: Qt.application.layoutDirection === Qt.RightToLeft
+                                    text: root.moaiRtl
                                         ? "مساعد MoOS — اختر بداية، أو اكتب طلبك."
                                         : "Your MoOS assistant — pick a starting point, or just type."
                                     color: root.textLo
@@ -2404,7 +2415,8 @@ Kirigami.ApplicationWindow {
                                                 anchors.fill: parent
                                                 anchors.margins: 13
                                                 spacing: design.space3
-                                                layoutDirection: Qt.application.layoutDirection
+                                                layoutDirection: root.moaiRtl
+                                                    ? Qt.RightToLeft : Qt.LeftToRight
 
                                                 Rectangle {
                                                     Layout.preferredWidth: root.fs(42); Layout.preferredHeight: root.fs(42)
@@ -2422,7 +2434,7 @@ Kirigami.ApplicationWindow {
                                                     spacing: 1
                                                     Text {
                                                         Layout.fillWidth: true
-                                                        text: Qt.application.layoutDirection === Qt.RightToLeft ? modelData.ar : modelData.en
+                                                        text: root.moaiRtl ? modelData.ar : modelData.en
                                                         color: root.textHi
                                                         font.family: root.uiFont
                                                         font.pixelSize: root.typePx(14)
@@ -2442,7 +2454,7 @@ Kirigami.ApplicationWindow {
                                             ActionArea {
                                                 id: cardMA
                                                 anchors.fill: parent
-                                                actionName: Qt.application.layoutDirection === Qt.RightToLeft
+                                                actionName: root.moaiRtl
                                                     ? modelData.ar : modelData.en
                                                 focusRadius: root.fs(16)
                                                 onTriggered: root.sendPrompt(modelData.send)
@@ -2801,7 +2813,7 @@ Kirigami.ApplicationWindow {
                                     ActionArea {
                                         id: chipMa
                                         anchors.fill: parent
-                                        actionName: Qt.application.layoutDirection === Qt.RightToLeft
+                                        actionName: root.moaiRtl
                                             ? "اختيار مسار العقل" : "Choose brain route"
                                         focusRadius: root.fs(11)
                                         onTriggered: root.openPicker()
