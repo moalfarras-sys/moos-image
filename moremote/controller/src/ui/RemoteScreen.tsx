@@ -165,6 +165,66 @@ function Switch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   );
 }
 
+/**
+ * A bottom sheet is a modal dialog, not merely a card drawn above a scrim.
+ * Own focus while it is open, close on Escape, wrap Tab inside it, and restore
+ * the invoking control afterwards. This keeps phone screen-readers and desktop
+ * keyboard users on the same interaction path as touch users.
+ */
+function SheetPanel({ label, onClose, children }: {
+  label: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusable = () => Array.from(panel.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), summary, [contenteditable="true"], [tabindex]:not([tabindex="-1"])',
+    )).filter((item) => !item.hidden && item.getAttribute("aria-hidden") !== "true");
+
+    (focusable()[0] ?? panel).focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (items.length === 0) {
+        event.preventDefault();
+        panel.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    panel.addEventListener("keydown", onKeyDown);
+    return () => {
+      panel.removeEventListener("keydown", onKeyDown);
+      previous?.focus();
+    };
+  }, [onClose]);
+
+  return (
+    <div ref={panelRef} className="sheet" role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}>
+      <button type="button" className="sheet-close" onClick={onClose} aria-label={`Close ${label}`}>×</button>
+      {children}
+    </div>
+  );
+}
+
 export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   token: string;
   hostPowerAllowed: boolean;
@@ -228,6 +288,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   const latRef = useRef(0);
   const [kbOpen, setKbOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
+  const closeSheet = useCallback(() => setSheet(null), []);
   const [mods, setMods] = useState<Set<string>>(new Set());
   const [fps, setFps] = useState(0);
   const [latency, setLatency] = useState(0);
@@ -1738,13 +1799,19 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
 
           When something is actually wrong it does the opposite — it stays put, refuses to hide,
           and names ONLY the thing that broke. A list of ticks is noise; "No video" is news. */}
-      <div
+      <button
+        type="button"
         className={
           "topbar"
           + (compactBar ? " mini" : "")
           + (compactBar && !toolbar ? " gone" : "")
         }
-        onClick={() => setStatsOpen((v) => !v)}
+        onClick={() => { if (healthy) setStatsOpen((v) => !v); }}
+        aria-expanded={!compactBar}
+        aria-label={healthy
+          ? (compactBar ? "Connection healthy. Show connection details" : "Connection healthy. Hide connection details")
+          : `${statusInfo.text}. Connection details are shown`}
+        aria-live="polite"
       >
         <span className={"dot " + statusInfo.cls} />
         {!compactBar && (
@@ -1756,7 +1823,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
             {status === "live" && <span>· {fps}fps · {latency}ms · {codec === "h264" ? "H.264" : "JPEG"} · {MODE_LABEL[mode]}</span>}
           </>
         )}
-      </div>
+      </button>
 
       {overlay && (
         <div className="center-msg">
@@ -1856,10 +1923,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       )}
 
       {/* sheets */}
-      {sheet && <div className="sheet-backdrop" onClick={() => setSheet(null)} />}
+      {sheet && <div className="sheet-backdrop" aria-hidden="true" onClick={closeSheet} />}
 
       {sheet === "view" && (
-        <div className="sheet">
+        <SheetPanel label="Display" onClose={closeSheet}>
           <div className="grip" /><h3>Display</h3>
           <div className="row-label">Screen</div>
           <div className="seg">
@@ -1909,11 +1976,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
                 title={p.detail}>{p.label}<small>{p.detail}</small></button>
             ))}
           </div>
-        </div>
+        </SheetPanel>
       )}
 
       {sheet === "more" && (
-        <div className="sheet">
+        <SheetPanel label="Settings" onClose={closeSheet}>
           {/* Rebuilt as grouped cards. See styles.css "Settings sheet" for why this shape:
               a small uppercase label, then a card holding related rows. The card edge is
               what lets you find a row without reading every line — which the previous flat
@@ -2037,11 +2104,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
           </div>
 
           <div className="credit">Mo Remote Personal · by Moalfarras</div>
-        </div>
+        </SheetPanel>
       )}
 
       {sheet === "files" && (
-        <div className="sheet">
+        <SheetPanel label="Files" onClose={closeSheet}>
           <div className="grip" />
           <h3>Files · {fileList?.title ?? "…"}</h3>
           <div className="file-actions">
@@ -2061,11 +2128,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
               </button>
             ))}
           </div>
-        </div>
+        </SheetPanel>
       )}
 
       {sheet === "clip" && (
-        <div className="sheet">
+        <SheetPanel label="Clipboard sync" onClose={closeSheet}>
           <div className="grip" /><h3>Clipboard sync</h3>
 
           <div className="row-label">PC → Phone</div>
@@ -2095,14 +2162,14 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
             onInput={onPasteBoxInput}
             data-ph="…or long-press here → Paste a copied image"
           />
-        </div>
+        </SheetPanel>
       )}
 
       {!toolbar && !kbOpen && !sheet && !overlay && (
         <button className="show-tab" onClick={bumpToolbar}><IconChevronDown /></button>
       )}
 
-      {toast && <div className="toast">{toast}</div>}
+      {toast && <div className="toast" role="status" aria-live="polite">{toast}</div>}
     </div>
   );
 }
