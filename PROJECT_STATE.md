@@ -11,6 +11,27 @@ signed and verified `moos`, `moos-cloud` and `moos-nvidia` from merge
 from signed NVIDIA digest
 `sha256:c73d9002efb3db9ffc2c6c2d4a7141b17d8af5e283172adb3c2790dccc0731e7`
 with kernel `7.1.5-201.fc44.x86_64`; the previous deployment remains available.
+
+Working-tree correction, later on 2026-08-01 (`push-temp`): the unpublished
+`0a6a05d3` glass pass replaced the reviewed Tidal Cut doorway with a full-frame
+`Qt5Compat.GraphicalEffects` DropShadow (65 samples plus an offscreen layer) in
+Splash, Login, Lock, Logout and first-party apps, then changed three regression
+gates to require that implementation. This was an identity and GPU-cost
+regression, not accepted polish. Commits `2811e138`, `b2ddb444` and `c0154aa0`
+restore the code-native Qt Quick Shapes horizon and make the gates require its
+cut/gradient geometry again across all 38 synchronised copies. The Cloud-hosted
+repo gate suite passes by executing the complete `just check` recipe directly
+(`just` itself is absent). Minimal Cloud Python also exposed two real portability
+defects: DOCX/ODT MIME detection depended on a host MIME database (`a7dc930b`
+now recognises the three supported document suffixes deterministically), and two
+runtime gates crashed on a partial non-PyGObject `gi` namespace (`41c40bf4`,
+`b2ddb444` now retain their pure contracts and skip only unavailable GTK/KDE
+runtime checks). Mo PC Remote's available source gates pass for capture rebuild
+coalescing, non-blocking input, resolution negotiation, H.264 fallback/restart,
+authenticated sound, private Cloud desktop, PIN ownership, subids and per-user
+ports. This Cloud environment has no Node/npm, .NET, systemd, Qt/KDE runtime or
+display, so controller compilation, image compose, live phone control and new
+Light/Dark × RTL/LTR × 4K captures remain explicitly unverified in this round.
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through
