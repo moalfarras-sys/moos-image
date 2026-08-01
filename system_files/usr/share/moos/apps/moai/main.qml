@@ -161,6 +161,18 @@ Kirigami.ApplicationWindow {
         }
         return fallback
     }
+    function argWindowDimension(axis, fallback) {
+        const argv = Qt.application.arguments
+        const i = argv.indexOf("--window-size")
+        if (i === -1 || i + 1 >= argv.length)
+            return fallback
+        const match = /^(\d{3,4})x(\d{3,4})$/.exec(String(argv[i + 1]))
+        if (!match)
+            return fallback
+        const value = parseInt(match[axis + 1], 10)
+        const minimum = axis === 0 ? 720 : 540
+        return value >= minimum && value <= 7680 ? value : fallback
+    }
     readonly property int gatewayPort: root.argPort("--gateway-port", 8080)
     readonly property int controlPort: root.argPort("--control-port", 8079)
     readonly property int agentPort:   root.argPort("--agent-port",   8077)
@@ -236,8 +248,8 @@ Kirigami.ApplicationWindow {
     property string machineContext: ""
 
     title: "Mo AI"
-    width: 940
-    height: 700
+    width: root.argWindowDimension(0, 940)
+    height: root.argWindowDimension(1, 700)
     minimumWidth: 720
     minimumHeight: 540
     color: surface0

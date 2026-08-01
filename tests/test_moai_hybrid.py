@@ -111,6 +111,8 @@ def main() -> None:
     assert '{ id: "hybrid", ar: "هجين ذكي", en: "Smart hybrid"' in qml
     assert 'visible: root.cfgTab === "health"' not in qml
     assert 'root.launch("moos://settings/themes", "MoOS themes")' in qml
+    assert 'argv.indexOf("--window-size")' in qml
+    assert 'value >= minimum && value <= 7680' in qml
     assert 'xhr.getResponseHeader("X-MoAI-Agent")' in qml
     assert 'argv.indexOf("--prompt")' in qml
     preflight = (ROOT / "system_files/usr/libexec/moai-openclaw-preflight").read_text(

@@ -178,6 +178,11 @@ cleanup lands. No decorative perpetual animation is allowed.
   evidence covered the twelve-page grid, Hybrid selection and configured
   OpenClaw status.
 - [ ] Light/dark and Arabic/English coverage at compact, desktop and 4K sizes.
+  Partial evidence now exists for the complete Settings grid and Terminal page
+  in English/LTR at the enforced compact minimum `720×540`, plus Permissions in
+  Dark/RTL on the live 4K session. The exact prior `MoOS Scholar Light` theme was
+  restored after review. Chat, Projects, Tasks and Terminal still need the full
+  cross-product before this item can close.
 - [ ] Keyboard navigation, focus order, screen-reader labels and reduced motion.
 - [ ] Remove superseded panels and code only after runtime consumers and gates
   prove they are unused.

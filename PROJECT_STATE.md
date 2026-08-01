@@ -46,7 +46,10 @@ Telegram, WhatsApp, Voice, Permissions, Memory, Projects, Terminal, Privacy and
 Appearance) rather than seven mixed buckets. Hybrid is a first-class privacy
 choice, secrets remain write-only, and the retired unreachable Health duplicate
 was removed. Live 4K RTL evidence covered the section grid and real configured
-OpenClaw status.
+OpenClaw status. Settings also passed English/LTR at the enforced compact
+`720×540` minimum and Permissions passed Dark/RTL on the live 4K session; the
+machine was restored to its exact prior `MoOS Scholar Light` theme afterward.
+This is partial visual-matrix evidence, not completion of the full app matrix.
 OpenClaw also gains a `moai/hybrid` loopback
 provider so phone turns use the same smart routing policy. The installed OpenClaw
 advertises WhatsApp Web support and Mo AI now exposes its fixed login route;

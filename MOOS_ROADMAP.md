@@ -23,6 +23,9 @@
 > وTelegram وWhatsApp وVoice وPermissions وMemory وProjects وTerminal وPrivacy
 > وAppearance. صار Hybrid خيار خصوصية مباشر، وبقيت الأسرار write-only، وحُذفت
 > صفحة Health القديمة المخفية والمكررة. أثبت الفحص الحي شبكة RTL وحالة OpenClaw.
+> كما نجحت Settings وTerminal بالإنجليزية/LTR عند الحد الأدنى `720×540`، ونجحت
+> Permissions بالداكن/RTL على 4K، ثم أُعيد الجهاز إلى `MoOS Scholar Light` كما
+> كان. هذه عينة من المصفوفة وليست إغلاقاً لبند كل الشاشات.
 > لم يُثبت بعد
 > كلام صوتي مفهوم أو ربط حساب WhatsApp أو مصفوفة Light/Dark ×
 > RTL/LTR؛ لا تُعامل هذه البنود كمنجزة حتى تتغيّر علاماتها في سجل المعمارية.
