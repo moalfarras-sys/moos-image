@@ -1,7 +1,7 @@
 namespace MoRemote;
 
 /// <summary>The shared singletons, bundled for DI + the tray.</summary>
-public sealed class AgentServices
+public sealed class AgentServices : IDisposable
 {
     public required AppConfig Config { get; init; }
     public required SessionManager Sessions { get; init; }
@@ -26,4 +26,6 @@ public sealed class AgentServices
             return $"http://{host}:{Config.Port}";
         }
     }
+
+    public void Dispose() => Uploads.Dispose();
 }

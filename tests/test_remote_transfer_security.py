@@ -40,7 +40,8 @@ checks = {
         and 'MapMethods("/api/files/upload/chunk", ["PATCH"]' in api,
     "abandoned upload sessions have no expiry or cleanup":
         "TimeSpan.FromMinutes(30)" in sessions and "CleanupAbandonedFiles" in sessions
-        and "File.Delete(session.TempPath)" in sessions,
+        and "File.Delete(session.TempPath)" in sessions and "new System.Threading.Timer" in sessions
+        and "SweepExpired()" in sessions and "IDisposable" in sessions,
     "phone client does not persist and recover the server upload offset":
         "mo_remote_pending_upload_v2" in client and "uploadStatus" in client
         and "file.slice(offset, end)" in client and "select the same file to resume" in client,

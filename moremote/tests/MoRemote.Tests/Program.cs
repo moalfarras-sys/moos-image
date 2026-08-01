@@ -94,7 +94,7 @@ Directory.Delete(uploadDir, true);
 var chunkDir = Path.Combine(Path.GetTempPath(), "moremote-chunks-" + Guid.NewGuid());
 Directory.CreateDirectory(chunkDir);
 File.WriteAllText(Path.Combine(chunkDir, "report.bin"), "existing");
-var uploads = new UploadSessionStore();
+using var uploads = new UploadSessionStore();
 var upload = uploads.Start("owner-token", chunkDir, "../report.bin", 6);
 var firstChunk = await uploads.AppendAsync("owner-token", upload.Id, 0,
     new MemoryStream("abc"u8.ToArray()), CancellationToken.None);
@@ -123,6 +123,17 @@ Eq(false, File.Exists(Path.Combine(chunkDir, "partial.bin")), "partial target re
 Eq(true, uploads.Cancel("owner-token", partial.Id), "cancel removes a partial upload");
 Eq(0, Directory.GetFiles(chunkDir, ".moremote-upload-session-*.part").Length,
     "cancel leaves no chunk-session temporary file");
+var uploadClock = new ManualTimeProvider(DateTimeOffset.Parse("2026-08-01T00:00:00Z"));
+using (var expiringUploads = new UploadSessionStore(uploadClock))
+{
+    var expiring = expiringUploads.Start("owner-token", chunkDir, "expired.bin", 4);
+    await expiringUploads.AppendAsync("owner-token", expiring.Id, 0,
+        new MemoryStream("ab"u8.ToArray()), CancellationToken.None);
+    uploadClock.Advance(TimeSpan.FromMinutes(31));
+    Eq(1, expiringUploads.SweepExpired(), "idle expiry sweep removes the abandoned session");
+    Eq(false, File.Exists(Path.Combine(chunkDir, $".moremote-upload-session-{expiring.Id}.part")),
+        "idle expiry sweep deletes the abandoned partial file");
+}
 Directory.Delete(chunkDir, true);
 var bounded = await FileService.ReadBoundedAsync(
     new MemoryStream("exact"u8.ToArray()), 5, CancellationToken.None);
@@ -187,4 +198,11 @@ sealed class FailingReadStream : Stream
     public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
     public override void SetLength(long value) => throw new NotSupportedException();
     public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+}
+
+sealed class ManualTimeProvider(DateTimeOffset now) : TimeProvider
+{
+    private DateTimeOffset _now = now;
+    public override DateTimeOffset GetUtcNow() => _now;
+    public void Advance(TimeSpan amount) => _now += amount;
 }

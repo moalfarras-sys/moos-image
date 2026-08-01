@@ -73,7 +73,7 @@ internal static class Program
 
         var tls = TlsManager.TryLoad(); // optional HTTPS via a Tailscale cert (else plain HTTP)
         var capture = new ScreenCapture();
-        var services = new AgentServices
+        using var services = new AgentServices
         {
             Config = config,
             Sessions = new SessionManager(config),

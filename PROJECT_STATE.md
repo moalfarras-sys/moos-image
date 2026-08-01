@@ -321,8 +321,14 @@ the same bytes twice. Live HTTP proof against the built Linux agent wrote two
 chunks around a deliberate duplicate-offset conflict: the conflict returned 409
 with authoritative offset 3, no target existed before commit, commit returned
 200 with exactly `abcdef`, and commit replay returned 404. Linux and Windows
-builds completed with zero warnings; 82 core tests, PWA tests/typecheck, npm audit
+builds completed with zero warnings; 84 core tests, PWA tests/typecheck, npm audit
 (zero findings), shipped-bundle freshness and the complete repository check pass.
+A follow-up audit found that the original expiry cleanup was request-driven: a
+phone that vanished caused no later request, so its `.part` file could survive
+for the lifetime of the agent. A five-minute timer now sweeps the bounded
+64-entry table even while idle, is disposed with the agent services, and has a
+clock-controlled regression test proving both session and file disappear after
+expiry.
 A service restart intentionally invalidates in-memory upload sessions, and a real
 interrupted large transfer on a physical phone remains open evidence; automatic
 background folder sync is not claimed.

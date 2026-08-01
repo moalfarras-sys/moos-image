@@ -68,7 +68,7 @@ var tls=TlsManager.TryLoad();
 // One portal session backs both the video stream and input injection.
 using var portal=new PortalBridge();
 using var capture=new ScreenCapture(portal); using var input=new InputInjector(portal,capture);
-var svc=new AgentServices{Config=config,Sessions=new SessionManager(config),State=new SessionState(),Capture=capture,Input=input,HttpsHost=tls?.Host};
+using var svc=new AgentServices{Config=config,Sessions=new SessionManager(config),State=new SessionState(),Capture=capture,Input=input,HttpsHost=tls?.Host};
 var builder=WebApplication.CreateBuilder(new WebApplicationOptions{ContentRootPath=AppContext.BaseDirectory,Args=args});
 builder.Logging.ClearProviders(); builder.Services.AddSingleton(svc);
 // Linux is published through `tailscale serve`, which terminates HTTPS on the MagicDNS name and

@@ -8,7 +8,7 @@ public sealed record UploadStart(string Id, long Offset, long TotalBytes);
 public sealed record UploadProgress(long Offset, long TotalBytes);
 
 /// <summary>Bounded, sequential chunk uploads with atomic visibility at commit.</summary>
-public sealed class UploadSessionStore
+public sealed class UploadSessionStore : IDisposable
 {
     public const int MaxChunkBytes = 4 * 1024 * 1024;
     private const int MaxSessions = 64;
@@ -30,8 +30,19 @@ public sealed class UploadSessionStore
     private readonly ConcurrentDictionary<string, Session> _sessions = new();
     private readonly ConcurrentQueue<string> _order = new();
     private readonly TimeProvider _clock;
+    private readonly System.Threading.Timer _cleanupTimer;
 
-    public UploadSessionStore(TimeProvider? clock = null) => _clock = clock ?? TimeProvider.System;
+    public UploadSessionStore(TimeProvider? clock = null)
+    {
+        _clock = clock ?? TimeProvider.System;
+        // A vanished phone sends no later request to trigger opportunistic cleanup. Sweep the
+        // bounded (64-entry) table infrequently so expiry also releases disk while truly idle.
+        _cleanupTimer = new System.Threading.Timer(_ =>
+        {
+            try { SweepExpired(); }
+            catch (Exception ex) { Log.Error("Upload-session cleanup failed.", ex); }
+        }, null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+    }
 
     public UploadStart Start(string ownerToken, string directory, string name, long totalBytes)
     {
@@ -40,7 +51,7 @@ public sealed class UploadSessionStore
             throw new InvalidDataException("Upload size is outside the supported range");
         var dir = Path.GetFullPath(directory);
         Directory.CreateDirectory(dir);
-        CleanupExpired();
+        SweepExpired();
         while (_sessions.Count >= MaxSessions && _order.TryDequeue(out var oldest))
         {
             if (_sessions.TryGetValue(oldest, out var oldSession))
@@ -147,14 +158,18 @@ public sealed class UploadSessionStore
         return true;
     }
 
-    private void CleanupExpired()
+    internal int SweepExpired()
     {
+        var removed = 0;
         var now = _clock.GetUtcNow();
         foreach (var pair in _sessions)
             if (pair.Value.Expires < now)
                 lock (pair.Value.Gate)
-                    if (pair.Value.Expires < now) Remove(pair.Key);
+                    if (pair.Value.Expires < now && Remove(pair.Key)) removed++;
+        return removed;
     }
+
+    public void Dispose() => _cleanupTimer.Dispose();
 
     private static void CleanupAbandonedFiles(string directory, string current)
     {
