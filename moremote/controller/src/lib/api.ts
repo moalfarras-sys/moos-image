@@ -192,14 +192,103 @@ export async function audioStreamUrl(token: string): Promise<string> {
   return "api/audio/stream.webm?ticket=" + encodeURIComponent(data.ticket);
 }
 
-export async function uploadFile(token: string, dir: string, file: File): Promise<void> {
-  const url = "/api/files/upload?dir=" + encodeURIComponent(dir) + "&name=" + encodeURIComponent(file.name);
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { authorization: "Bearer " + token, "content-type": "application/octet-stream" },
-    body: file,
+interface PendingUpload {
+  id: string;
+  dir: string;
+  name: string;
+  size: number;
+  lastModified: number;
+  fingerprint: string;
+  chunkBytes: number;
+}
+const PENDING_UPLOAD_KEY = "mo_remote_pending_upload_v2";
+
+function readPendingUpload(): PendingUpload | null {
+  try { return JSON.parse(localStorage.getItem(PENDING_UPLOAD_KEY) || "null") as PendingUpload | null; }
+  catch { return null; }
+}
+function writePendingUpload(value: PendingUpload | null) {
+  try {
+    if (value) localStorage.setItem(PENDING_UPLOAD_KEY, JSON.stringify(value));
+    else localStorage.removeItem(PENDING_UPLOAD_KEY);
+  } catch { /* private mode: this run still resumes in memory */ }
+}
+
+async function uploadFingerprint(file: File): Promise<string> {
+  const sampleBytes = 64 * 1024;
+  const first = new Uint8Array(await file.slice(0, sampleBytes).arrayBuffer());
+  const lastStart = Math.max(first.length, file.size - sampleBytes);
+  const last = new Uint8Array(await file.slice(lastStart).arrayBuffer());
+  const meta = new TextEncoder().encode(`${file.name}\0${file.size}\0${file.lastModified}\0`);
+  const input = new Uint8Array(meta.length + first.length + last.length);
+  input.set(meta); input.set(first, meta.length); input.set(last, meta.length + first.length);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", input));
+  return Array.from(digest, byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function uploadStatus(token: string, id: string): Promise<number> {
+  const res = await fetchWithTimeout("/api/files/upload/status?id=" + encodeURIComponent(id), {
+    cache: "no-store", headers: { authorization: "Bearer " + token },
   });
-  if (!res.ok) throw new Error("upload failed");
+  if (!res.ok) throw new Error("upload session unavailable");
+  return Number(((await res.json()) as { offset?: number }).offset || 0);
+}
+
+export async function uploadFile(token: string, dir: string, file: File,
+  onProgress?: (sent: number, total: number) => void): Promise<void> {
+  const fingerprint = await uploadFingerprint(file);
+  let pending = readPendingUpload();
+  const matches = pending && pending.dir === dir && pending.name === file.name
+    && pending.size === file.size && pending.lastModified === file.lastModified
+    && pending.fingerprint === fingerprint;
+  let offset = 0;
+  if (matches && pending) {
+    try { offset = await uploadStatus(token, pending.id); }
+    catch { pending = null; writePendingUpload(null); }
+  }
+  if (!pending) {
+    const { status, data } = await post<{ id?: string; offset?: number; chunkBytes?: number }>(
+      "/api/files/upload/start", { dir, name: file.name, size: file.size }, token);
+    if (status !== 200 || !data.id || !data.chunkBytes) throw new Error("upload start failed");
+    pending = { id: data.id, dir, name: file.name, size: file.size,
+      lastModified: file.lastModified, fingerprint, chunkBytes: data.chunkBytes };
+    offset = Number(data.offset || 0);
+    writePendingUpload(pending);
+  }
+  onProgress?.(offset, file.size);
+  while (offset < file.size) {
+    const end = Math.min(file.size, offset + pending.chunkBytes);
+    const chunk = file.slice(offset, end);
+    let advanced = false;
+    for (let attempt = 0; attempt < 3 && !advanced; attempt++) {
+      try {
+        const res = await fetchWithTimeout(
+          `/api/files/upload/chunk?id=${encodeURIComponent(pending.id)}&offset=${offset}`,
+          { method: "PATCH", headers: { authorization: "Bearer " + token,
+            "content-type": "application/octet-stream" }, body: chunk }, 180_000);
+        const data = (await res.json().catch(() => ({}))) as { offset?: number };
+        if (res.ok || res.status === 409) {
+          const next = Number(data.offset);
+          if (Number.isFinite(next) && next > offset && next <= file.size) {
+            offset = next; advanced = true;
+          }
+        }
+      } catch { /* query the authoritative offset below */ }
+      if (!advanced) {
+        try {
+          const serverOffset = await uploadStatus(token, pending.id);
+          if (serverOffset > offset && serverOffset <= file.size) {
+            offset = serverOffset; advanced = true;
+          }
+        } catch { /* retry this chunk */ }
+      }
+    }
+    if (!advanced) throw new Error("upload interrupted; select the same file to resume");
+    onProgress?.(offset, file.size);
+  }
+  const { status } = await post("/api/files/upload/commit", { id: pending.id }, token);
+  if (status !== 200) throw new Error("upload commit failed");
+  writePendingUpload(null);
 }
 
 export async function setClipboardImage(token: string, blob: Blob): Promise<void> {

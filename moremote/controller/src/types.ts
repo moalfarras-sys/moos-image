@@ -5,7 +5,7 @@
 // tell at a glance which one you are looking at. v14 also described behaviour that no longer
 // exists ("fill-screen portrait" was the automatic quarter-turn, now removed), so it was
 // actively misleading while debugging exactly that.
-export const BUILD = "v27 · bounded file transfer";
+export const BUILD = "v28 · resumable uploads";
 
 export interface ServerStatus {
   name: string;

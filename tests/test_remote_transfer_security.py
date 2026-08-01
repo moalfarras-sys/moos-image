@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 api = (ROOT / "moremote/agent/Web/WebApi.cs").read_text(encoding="utf-8")
 files = (ROOT / "moremote/agent/Core/FileService.cs").read_text(encoding="utf-8")
 tickets = (ROOT / "moremote/agent/Core/AccessTicketStore.cs").read_text(encoding="utf-8")
+sessions = (ROOT / "moremote/agent/Core/UploadSessionStore.cs").read_text(encoding="utf-8")
 client = (ROOT / "moremote/controller/src/lib/api.ts").read_text(encoding="utf-8")
 
 checks = {
@@ -32,6 +33,19 @@ checks = {
     "directory listings can allocate and serialize without a bound":
         "MaxListingEntries = 500" in files and "truncated = true" in files
         and "Take(MaxListingEntries + 1)" in files,
+    "resumable uploads have no bounded sequential atomic protocol":
+        "MaxChunkBytes = 4 * 1024 * 1024" in sessions
+        and "MaxSessions = 64" in sessions and "Offset mismatch:" in sessions
+        and "flushToDisk: true" in sessions and "File.Move(session.TempPath, target)" in sessions
+        and 'MapMethods("/api/files/upload/chunk", ["PATCH"]' in api,
+    "abandoned upload sessions have no expiry or cleanup":
+        "TimeSpan.FromMinutes(30)" in sessions and "CleanupAbandonedFiles" in sessions
+        and "File.Delete(session.TempPath)" in sessions,
+    "phone client does not persist and recover the server upload offset":
+        "mo_remote_pending_upload_v2" in client and "uploadStatus" in client
+        and "file.slice(offset, end)" in client and "select the same file to resume" in client,
+    "resume identity trusts filename metadata without sampling file content":
+        'crypto.subtle.digest("SHA-256"' in client and "pending.fingerprint === fingerprint" in client,
     "ticket issuance is unbounded or performs a full dictionary sweep per request":
         "MaxTickets = 1024" in tickets and "ConcurrentQueue<string>" in tickets
         and "foreach (var pair in _tickets)" not in tickets,

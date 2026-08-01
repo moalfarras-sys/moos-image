@@ -395,6 +395,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileList, setFileList] = useState<FileListing | null>(null);
   const [fileBusy, setFileBusy] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
   const fileUpRef = useRef<HTMLInputElement>(null);
 
   const kbOpenRef = useRef(kbOpen); kbOpenRef.current = kbOpen;
@@ -1594,8 +1595,15 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
     const files = e.target.files; const dir = fileList?.path;
     if (!files || !dir) { e.target.value = ""; return; }
     setFileBusy(true);
-    try { for (const f of Array.from(files)) await uploadFile(token, dir, f); showToast(`Uploaded ${files.length} to PC`); await navFiles(dir); }
-    catch { showToast("Upload failed"); }
+    try {
+      for (const f of Array.from(files)) {
+        await uploadFile(token, dir, f, (sent, total) =>
+          setUploadProgress(`${f.name} · ${Math.floor(sent * 100 / total)}%`));
+      }
+      showToast(`Uploaded ${files.length} to PC`); await navFiles(dir);
+    }
+    catch { showToast("Upload paused — select the same file to resume"); }
+    setUploadProgress("");
     setFileBusy(false);
     e.target.value = "";
   };
@@ -2234,7 +2242,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
           </div>
           <input ref={fileUpRef} type="file" multiple hidden onChange={onUploadFiles} />
           <div className="file-list">
-            {fileBusy && <div className="hintline">Loading…</div>}
+            {fileBusy && <div className="hintline" role="status">{uploadProgress || "Loading…"}</div>}
             {!fileBusy && fileList?.truncated &&
               <div className="hintline" role="status">Showing the first 500 items. Open a smaller folder to continue.</div>}
             {!fileBusy && fileList && fileList.entries.length === 0 && <div className="hintline">Empty folder</div>}

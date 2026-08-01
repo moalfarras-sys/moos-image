@@ -91,6 +91,39 @@ catch (IOException) { passed++; }
 Eq(0, Directory.GetFiles(uploadDir, ".moremote-upload-*.part").Length,
     "interrupted upload removes its partial file");
 Directory.Delete(uploadDir, true);
+var chunkDir = Path.Combine(Path.GetTempPath(), "moremote-chunks-" + Guid.NewGuid());
+Directory.CreateDirectory(chunkDir);
+File.WriteAllText(Path.Combine(chunkDir, "report.bin"), "existing");
+var uploads = new UploadSessionStore();
+var upload = uploads.Start("owner-token", chunkDir, "../report.bin", 6);
+var firstChunk = await uploads.AppendAsync("owner-token", upload.Id, 0,
+    new MemoryStream("abc"u8.ToArray()), CancellationToken.None);
+Eq(3L, firstChunk.Offset, "chunk upload records authoritative offset");
+Eq(3L, uploads.Status("owner-token", upload.Id).Offset, "upload status resumes after interruption");
+try { uploads.Status("different-device", upload.Id); throw new Exception("upload session crossed owners"); }
+catch (UnauthorizedAccessException) { passed++; }
+try
+{
+    await uploads.AppendAsync("owner-token", upload.Id, 0,
+        new MemoryStream("abc"u8.ToArray()), CancellationToken.None);
+    throw new Exception("duplicate offset was accepted");
+}
+catch (InvalidOperationException) { passed++; }
+await uploads.AppendAsync("owner-token", upload.Id, 3,
+    new MemoryStream("def"u8.ToArray()), CancellationToken.None);
+var committed = uploads.Commit("owner-token", upload.Id);
+Eq("report (1).bin", Path.GetFileName(committed), "atomic commit never overwrites a conflict");
+Eq("abcdef", File.ReadAllText(committed), "committed chunks preserve byte order");
+var partial = uploads.Start("owner-token", chunkDir, "partial.bin", 4);
+await uploads.AppendAsync("owner-token", partial.Id, 0,
+    new MemoryStream("ab"u8.ToArray()), CancellationToken.None);
+try { uploads.Commit("owner-token", partial.Id); throw new Exception("partial upload became visible"); }
+catch (InvalidOperationException) { passed++; }
+Eq(false, File.Exists(Path.Combine(chunkDir, "partial.bin")), "partial target remains invisible");
+Eq(true, uploads.Cancel("owner-token", partial.Id), "cancel removes a partial upload");
+Eq(0, Directory.GetFiles(chunkDir, ".moremote-upload-session-*.part").Length,
+    "cancel leaves no chunk-session temporary file");
+Directory.Delete(chunkDir, true);
 var bounded = await FileService.ReadBoundedAsync(
     new MemoryStream("exact"u8.ToArray()), 5, CancellationToken.None);
 Eq("exact", System.Text.Encoding.UTF8.GetString(bounded), "bounded body accepts its exact limit");

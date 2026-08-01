@@ -18,6 +18,7 @@
   <ItemGroup>
     <Compile Include="../agent/Core/Logging.cs" Link="Core/Logging.cs" />
     <Compile Include="../agent/Core/AccessTicketStore.cs" Link="Core/AccessTicketStore.cs" />
+    <Compile Include="../agent/Core/UploadSessionStore.cs" Link="Core/UploadSessionStore.cs" />
     <Compile Include="../agent/Core/FileService.cs" Link="Core/FileService.cs" />
     <Compile Include="../agent/Core/InputSequenceGuard.cs" Link="Core/InputSequenceGuard.cs" />
     <Compile Include="../agent/Core/NetworkGuard.cs" Link="Core/NetworkGuard.cs" />

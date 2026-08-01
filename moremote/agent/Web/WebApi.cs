@@ -16,6 +16,8 @@ public static class WebApi
     public record ClipboardReq(string? text);
     public record PowerReq(string? action);
     public record DownloadTicketReq(string? path);
+    public record UploadStartReq(string? dir, string? name, long size);
+    public record UploadSessionReq(string? id);
 
     private const int MinPinLength = 6;
     private const int MaxPinLength = 64;
@@ -251,6 +253,75 @@ public static class WebApi
             }
             catch (InvalidDataException ex) { return Results.Json(new { error = ex.Message }, statusCode: 413); }
             catch (Exception ex) { return Results.Json(new { error = ex.Message }, statusCode: 400); }
+        });
+
+        // ---- Resumable upload v2: explicit offset + atomic commit ----
+        app.MapPost("/api/files/upload/start", async (HttpContext ctx) =>
+        {
+            var token = BearerToken(ctx);
+            if (!svc.Sessions.ValidateAndTouch(token))
+                return Results.Json(new { error = "unauthorized" }, statusCode: 401);
+            var req = await ReadJson<UploadStartReq>(ctx);
+            try
+            {
+                var started = svc.Uploads.Start(token!, req?.dir ?? "", req?.name ?? "", req?.size ?? 0);
+                return Results.Json(new { id = started.Id, offset = started.Offset, totalBytes = started.TotalBytes,
+                    chunkBytes = UploadSessionStore.MaxChunkBytes });
+            }
+            catch (InvalidDataException ex) { return Results.Json(new { error = ex.Message }, statusCode: 413); }
+            catch (Exception ex) { return Results.Json(new { error = ex.Message }, statusCode: 400); }
+        });
+        app.MapGet("/api/files/upload/status", (HttpContext ctx, string? id) =>
+        {
+            var token = BearerToken(ctx);
+            if (!svc.Sessions.ValidateAndTouch(token))
+                return Results.Json(new { error = "unauthorized" }, statusCode: 401);
+            try { return Results.Json(svc.Uploads.Status(token!, id)); }
+            catch (UnauthorizedAccessException) { return Results.Json(new { error = "not_found" }, statusCode: 404); }
+            catch (TimeoutException) { return Results.Json(new { error = "expired" }, statusCode: 410); }
+        });
+        app.MapMethods("/api/files/upload/chunk", ["PATCH"], async (HttpContext ctx, string? id, long offset) =>
+        {
+            var token = BearerToken(ctx);
+            if (!svc.Sessions.ValidateAndTouch(token))
+                return Results.Json(new { error = "unauthorized" }, statusCode: 401);
+            if (ctx.Request.ContentLength is > UploadSessionStore.MaxChunkBytes)
+                return Results.Json(new { error = "chunk_too_large" }, statusCode: 413);
+            try { return Results.Json(await svc.Uploads.AppendAsync(token!, id, offset,
+                ctx.Request.Body, ctx.RequestAborted)); }
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("Offset mismatch:"))
+            {
+                return Results.Json(new { error = "offset_mismatch",
+                    offset = long.Parse(ex.Message["Offset mismatch:".Length..]) }, statusCode: 409);
+            }
+            catch (InvalidDataException ex) { return Results.Json(new { error = ex.Message }, statusCode: 413); }
+            catch (UnauthorizedAccessException) { return Results.Json(new { error = "not_found" }, statusCode: 404); }
+            catch (TimeoutException) { return Results.Json(new { error = "expired" }, statusCode: 410); }
+        });
+        app.MapPost("/api/files/upload/commit", async (HttpContext ctx) =>
+        {
+            var token = BearerToken(ctx);
+            if (!svc.Sessions.ValidateAndTouch(token))
+                return Results.Json(new { error = "unauthorized" }, statusCode: 401);
+            var req = await ReadJson<UploadSessionReq>(ctx);
+            try
+            {
+                var saved = svc.Uploads.Commit(token!, req?.id);
+                return Results.Json(new { ok = true, saved = Path.GetFileName(saved) });
+            }
+            catch (InvalidOperationException ex) { return Results.Json(new { error = "incomplete", detail = ex.Message }, statusCode: 409); }
+            catch (UnauthorizedAccessException) { return Results.Json(new { error = "not_found" }, statusCode: 404); }
+            catch (TimeoutException) { return Results.Json(new { error = "expired" }, statusCode: 410); }
+        });
+        app.MapPost("/api/files/upload/cancel", async (HttpContext ctx) =>
+        {
+            var token = BearerToken(ctx);
+            if (!svc.Sessions.ValidateAndTouch(token))
+                return Results.Json(new { error = "unauthorized" }, statusCode: 401);
+            var req = await ReadJson<UploadSessionReq>(ctx);
+            return svc.Uploads.Cancel(token!, req?.id)
+                ? Results.Json(new { ok = true })
+                : Results.Json(new { error = "not_found" }, statusCode: 404);
         });
 
         // ---- Desktop audio, behind the SAME door as everything else ----
