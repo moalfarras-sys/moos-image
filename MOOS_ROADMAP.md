@@ -23,6 +23,13 @@
 > Windows builds، TypeScript، PWA v17 و`just check`. اختبار نقل حقيقي من هاتف
 > عبر tailnet وcompose الصورة ما زالا مطلوبين قبل الشحن.
 
+> **دورة حياة Mo PC Remote (`44ab6880`):** أُغلق سباقان كانا يعيدان العمل بعد
+> خروج المستخدم: مؤقت Refresh غير المملوك كان يستطيع فتح socket بعد Sign out،
+> وطلب audio ticket المتأخر كان يستطيع بدء الصوت بعد Stop. صارت الاتصالات
+> والمؤقتات مملوكة وقابلة للإلغاء، والصوت generation-bound مع إزالة media src
+> وإغلاق encoder عند Stop/unmount. أضيف gate إلى CI، وبُنيت PWA v18 ونجح
+> `just check` كامل.
+
 > **حالة الإصدار الحي:** اندمج Mo AI الجديد على `main` في `77707fd1`، ونجح
 > تشغيل GitHub Actions `30704582346` للنسخ العامة والسحابية وNVIDIA: build +
 > push + cosign + تحقق بالمفتاح المفروض في MoOS. الجهاز أقلع فعلياً من NVIDIA

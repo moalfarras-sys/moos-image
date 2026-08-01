@@ -112,6 +112,17 @@ warnings), TypeScript typecheck, controller tests, committed PWA v17 and the
 complete repo check recipe all pass. A real phone/tailnet transfer and full
 image compose remain open release evidence.
 
+Mo PC Remote asynchronous lifecycle audit (`44ab6880`): Refresh owned a raw
+120 ms `setTimeout(connect)` that could reopen a socket after Disconnect/Sign
+out, and an audio-ticket request could finish after Stop and begin playback
+behind the user's back. Refresh/Reconnect/Disconnect now retire one owned timer;
+audio start and retry results are generation-bound, Stop/unmount invalidate the
+generation, remove the media source and close the upstream encoder. Toast and
+first-use hint timers are also cleared on unmount. The new
+`test_remote_async_lifecycle.py` gate runs in local checks and CI, the committed
+controller is PWA v18, TypeScript/controller tests pass, and the complete repo
+check recipe is green.
+
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through
