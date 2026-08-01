@@ -2,6 +2,15 @@
 
 آخر تحديث تنفيذي: 2026-08-01 (`PROJECT_STATE.md` هو الخريطة الحية الأحدث دائماً)
 
+> **تدقيق Mo PC Remote للطاقة والجلسة (غير منشور بعد):** أُصلحت أوامر Linux
+> الوهمية: Lock وSign out أصبحا يستهدفان جلسة Plasma نفسها، وSleep/Restart/
+> Shutdown تستخدم تنفيذًا non-blocking مع فحص exit code وtimeout بدل إعلان
+> النجاح بعد `Process.Start`. وفي `moos-cloud` يمنع الـAPI نفسه عمليات طاقة
+> المضيف المشترك ويرجع 403، وتخفي واجهة الهاتف أزرارها مع إبقاء Lock/Sign out؛
+> MoOS المكتبي يحتفظ بكل الوظائف. نجح 34 اختبار .NET، نشر Linux، بناء Windows،
+> TypeScript typecheck، PWA v16 و`just check` كامل. لم يُنفذ أمر طاقة فعلي؛
+> compose للصورة واختبار الهاتف/البوابة الحقيقيان ما زالا مطلوبين.
+
 > **حالة الإصدار الحي:** اندمج Mo AI الجديد على `main` في `77707fd1`، ونجح
 > تشغيل GitHub Actions `30704582346` للنسخ العامة والسحابية وNVIDIA: build +
 > push + cosign + تحقق بالمفتاح المفروض في MoOS. الجهاز أقلع فعلياً من NVIDIA

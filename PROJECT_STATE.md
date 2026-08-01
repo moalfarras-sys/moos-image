@@ -69,6 +69,25 @@ prevents an automated major bump from breaking the image build. The complete
 repo gate recipe passes after this server proof. Screen capture through the real
 KDE portal, phone input over a real tailnet, image compose and installed-service
 behavior remain separate open proofs.
+
+Mo PC Remote power/session audit, later on 2026-08-01: the Linux agent's five
+buttons were not real. It sent `lock-session` and `terminate-user` to
+`systemctl` (both belong to other session interfaces), and treated
+`Process.Start` as success even when the command immediately failed. Commit
+`59600e7d` now uses fixed-argument Plasma D-Bus calls for the exact user
+session, non-blocking logind operations for suspend/reboot/poweroff, and checks
+timeout plus exit status. The .NET suite now has 32 tests including accepted,
+rejected and hung-process execution; Linux publish succeeded. The next audit
+found a multi-user Cloud boundary: an authenticated developer PIN could expose
+sleep/reboot/poweroff for the shared server. Commit `c489d10c` bakes an
+authoritative edition marker, rejects those three operations at the API with
+403 on `moos-cloud`, and removes their controls from the phone while preserving
+Lock/Sign out for that Plasma session and all five controls on desktop MoOS.
+The committed PWA is v16; Linux and Windows agents build with zero warnings,
+controller tests/typecheck/build pass, and the complete repo check recipe is
+green. No destructive power command was run on the audit host. Image compose,
+installed Cloud service behavior and a real tailnet/phone session remain open.
+
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through
