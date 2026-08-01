@@ -98,6 +98,13 @@ endpoint wakes OpenClaw only for this explicit status request and leaves idle
 sleep policy intact. `just check` passed after this slice. All of this is
 unreleased working-branch state
 until the full gates, image build, merge, signed CI matrix and live update pass.
+Telegram is now end-to-end proven: the live config restricts DMs to owner
+`1142563280`, the real shared session records owner inbound turns plus explicit
+`telegram-final` delivery mirrors to that same chat, and a new cold-start source
+probe returned `@Moalfarras_bot` connected via polling. That cold proof exposed
+and fixed a status race: the API now waits up to 12 seconds for the configured
+loopback Gateway port before invoking OpenClaw, instead of treating systemd's
+early active state as socket readiness. WhatsApp remains honestly unpaired.
 
 Previous update: 2026-08-01 — release pipeline recovery. The public, NVIDIA and
 cloud images built and pushed in CI, but all three jobs were killed afterward by

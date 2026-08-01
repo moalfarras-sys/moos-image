@@ -83,6 +83,7 @@ def main() -> None:
         fake_openclaw.write_text("#!/bin/sh\n", encoding="utf-8")
         fake_openclaw.chmod(0o700)
         globals_["BIN"] = str(fake_openclaw)
+        globals_["_wait_gateway_ready"] = lambda port: True
         real_run = globals_["subprocess"].run
 
         def fake_run(argv, **kwargs):

@@ -196,7 +196,13 @@ cleanup lands. No decorative perpetual animation is allowed.
 - [x] OpenClaw can select `moai/hybrid`, an internal loopback provider that sends
   phone turns through `moai-gateway`'s privacy/availability/complexity policy
   without recursively invoking the agent endpoint.
-- [ ] Telegram verified end to end with the owner allowlist.
+- [x] Telegram verified end to end with the owner allowlist. Current config is
+  `dmPolicy=allowlist` for owner `1142563280`; a real `agent:main:main` session
+  contains five owner-marked inbound turns and two assistant delivery mirrors
+  whose ids are explicitly `telegram-final:…:1142563280`. A cold-start source
+  `/api/channels` proof then waited for the actual Gateway socket and returned
+  `@Moalfarras_bot`, polling and `connected:true`. The status implementation was
+  fixed to wait for loopback readiness rather than racing systemd startup.
 - [ ] WhatsApp: the installed OpenClaw build confirms a supported WhatsApp Web
   login adapter and Mo AI exposes its fixed login route. Account pairing and an
   end-to-end message are not yet verified.

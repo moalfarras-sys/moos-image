@@ -31,6 +31,7 @@ import re
 import select
 import signal
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -510,6 +511,16 @@ def channel_status() -> dict:
         ["systemctl", "--user", "start", "openclaw-gateway.service"],
         env=ENV, capture_output=True, text=True, timeout=15, check=False,
     )
+    cfg = load_cfg()
+    try:
+        port = int((cfg.get("gateway") or {}).get("port") or 18789)
+    except (TypeError, ValueError):
+        port = 18789
+    if not 1024 <= port <= 65535:
+        port = 18789
+    if not _wait_gateway_ready(port):
+        return {"available": True, "channels": empty,
+                "error": "OpenClaw Gateway did not become ready"}
     try:
         proc = subprocess.run(
             [BIN, "channels", "status", "--probe", "--json"],
@@ -532,8 +543,15 @@ def channel_status() -> dict:
     source = report.get("channels") or {}
     if not isinstance(source, dict):
         source = {}
+    accounts = report.get("channelAccounts") or {}
+    if not isinstance(accounts, dict):
+        accounts = {}
     for name in empty:
         item = source.get(name) or {}
+        if not item:
+            rows = accounts.get(name) or []
+            if isinstance(rows, list) and rows and isinstance(rows[0], dict):
+                item = rows[0]
         if not isinstance(item, dict):
             continue
         probe = item.get("probe") or {}
@@ -553,6 +571,18 @@ def channel_status() -> dict:
             "error": error,
         }
     return {"available": True, "channels": empty, "error": ""}
+
+
+def _wait_gateway_ready(port: int, timeout: float = 12.0) -> bool:
+    """Wait for the loopback listener, not merely systemd's active state."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                return True
+        except OSError:
+            time.sleep(0.1)
+    return False
 
 
 # ── config ──────────────────────────────────────────────────────────────
