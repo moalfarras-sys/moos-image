@@ -214,6 +214,14 @@ button {
   transform: scale(0.93);
   background: var(--surface-2);
 }
+.key:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+.key:disabled:active {
+  transform: none;
+  background: var(--surface);
+}
 .key.wide {
   background: transparent;
   box-shadow: none;
@@ -223,9 +231,6 @@ button {
   background: var(--accent-grad);
   color: var(--on-accent);
   border: none;
-}
-.key.accent:disabled {
-  opacity: 0.4;
 }
 .key svg {
   width: 28px;

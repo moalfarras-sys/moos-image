@@ -28,7 +28,11 @@ function Signature() {
 function PinDots({ count, error }: { count: number; error?: boolean }) {
   const shown = Math.max(6, count);
   return (
-    <div className={"pin-dots" + (error ? " error" : "")}>
+    <div
+      className={"pin-dots" + (error ? " error" : "")}
+      role="status"
+      aria-label={`${count} PIN digits entered`}
+    >
       {Array.from({ length: shown }).map((_, i) => (
         <i key={i} className={i < count ? "on" : ""} />
       ))}
@@ -41,30 +45,53 @@ function Keypad({
   onBackspace,
   onSubmit,
   canSubmit,
+  disabled = false,
 }: {
   onDigit: (d: string) => void;
   onBackspace: () => void;
   onSubmit: () => void;
   canSubmit: boolean;
+  disabled?: boolean;
 }) {
   const tap = (fn: () => void) => () => {
     if ("vibrate" in navigator) navigator.vibrate?.(8);
     fn();
   };
+  useEffect(() => {
+    if (disabled) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.altKey || event.metaKey) return;
+      if (event.target instanceof HTMLButtonElement
+          && (event.key === "Enter" || event.key === " ")) return;
+      if (/^[0-9]$/.test(event.key)) {
+        event.preventDefault();
+        onDigit(event.key);
+      } else if (event.key === "Backspace" || event.key === "Delete") {
+        event.preventDefault();
+        onBackspace();
+      } else if (event.key === "Enter" && canSubmit) {
+        event.preventDefault();
+        onSubmit();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [canSubmit, disabled, onBackspace, onDigit, onSubmit]);
+
   return (
-    <div className="keypad">
+    <div className="keypad" aria-disabled={disabled}>
       {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
-        <button key={d} className="key" onClick={tap(() => onDigit(d))}>
+        <button key={d} className="key" onClick={tap(() => onDigit(d))} disabled={disabled}>
           {d}
         </button>
       ))}
-      <button className="key wide" onClick={tap(onBackspace)} aria-label="Backspace">
+      <button className="key wide" onClick={tap(onBackspace)} disabled={disabled} aria-label="Backspace">
         <IconBackspace />
       </button>
-      <button className="key" onClick={tap(() => onDigit("0"))}>
+      <button className="key" onClick={tap(() => onDigit("0"))} disabled={disabled}>
         0
       </button>
-      <button className="key accent" onClick={tap(onSubmit)} disabled={!canSubmit} aria-label="Confirm">
+      <button className="key accent" onClick={tap(onSubmit)} disabled={disabled || !canSubmit} aria-label="Confirm">
         <IconEnter />
       </button>
     </div>
@@ -120,7 +147,8 @@ export function SetupScreen({ onDone }: { onDone: (token: string) => void }) {
       <Brand subtitle={step === "create" ? "Set up your private access PIN" : "Confirm your PIN"} />
       <PinDots count={pin.length} error={error} />
       <div className={"hint" + (error ? " error" : "")}>{hint}</div>
-      <Keypad onDigit={add} onBackspace={back} onSubmit={submit} canSubmit={pin.length >= 6 && !busy} />
+      <Keypad onDigit={add} onBackspace={back} onSubmit={submit}
+              canSubmit={pin.length >= 6 && !busy} disabled={busy} />
       <Signature />
     </div>
   );
@@ -186,7 +214,9 @@ export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (token: string
       <div className={"hint" + (error ? " error" : locked > 0 ? " error" : "")}>
         {locked > 0 && <IconLock className="" />} {hint}
       </div>
-      <Keypad onDigit={add} onBackspace={back} onSubmit={submit} canSubmit={pin.length >= 6 && locked <= 0 && !busy} />
+      <Keypad onDigit={add} onBackspace={back} onSubmit={submit}
+              canSubmit={pin.length >= 6 && locked <= 0 && !busy}
+              disabled={busy || locked > 0} />
       <Signature />
     </div>
   );
