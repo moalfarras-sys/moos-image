@@ -88,6 +88,18 @@ class MoAIVisualPolishTests(unittest.TestCase):
         self.assertIn("design.motionGeometry", self.source)
         self.assertNotIn("design.motionStructure", self.source)
 
+    def test_settings_secrets_and_switches_have_screen_reader_labels(self) -> None:
+        for object_id in ("keyField", "tokenField"):
+            start = self.source.index(f"id: {object_id}")
+            field = self.source[start:start + 800]
+            self.assertIn("Accessible.name:", field)
+            self.assertIn("Accessible.labelledBy:", field)
+        for object_id in ("tgSwitch", "ttsSwitch", "webSwitch"):
+            start = self.source.index(f"id: {object_id}")
+            self.assertIn("Accessible.labelledBy:", self.source[start:start + 350])
+        self.assertIn("Accessible.labelledBy: botDeviceControlLabel", self.source)
+        self.assertGreaterEqual(self.source.count("Accessible.name: text"), 6)
+
     def test_modal_sheets_are_named_keyboard_dismissible_dialogs(self) -> None:
         for object_id in ("brainPickerDialog", "settingsDialog"):
             marker = f"id: {object_id}"

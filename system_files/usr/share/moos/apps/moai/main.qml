@@ -5469,11 +5469,21 @@ Kirigami.ApplicationWindow {
                                     font.family: root.uiFont
                                     font.pixelSize: root.typePx(11)
                                 }
+                                SectionNote {
+                                    id: cloudKeyLabel
+                                    visible: root.cfgTab === "providers"
+                                    Layout.fillWidth: true
+                                    text: root.local("مفتاح API السحابي", "Cloud API key")
+                                    Accessible.name: text
+                                }
                                 QQC2.TextField {
                                     id: keyField
                                     visible: root.cfgTab === "providers"
                                     Layout.fillWidth: true
                                     echoMode: TextInput.Password
+                                    Accessible.name: root.local("مفتاح API السحابي",
+                                                                "Cloud API key")
+                                    Accessible.labelledBy: cloudKeyLabel
                                     placeholderText: root.cfgHasKey
                                         ? root.local(
                                             "المفتاح محفوظ — اتركه فارغاً لإبقائه",
@@ -5526,19 +5536,35 @@ Kirigami.ApplicationWindow {
                                     visible: root.cfgTab === "telegram"
                                     Layout.fillWidth: true
                                     Text {
+                                        id: telegramEnabledLabel
                                         text: root.local("مفعّلة", "Enabled")
+                                        Accessible.name: text
                                         color: root.textHi
                                         font.family: root.uiFont
                                         font.pixelSize: root.typePx(12)
                                     }
                                     Item { Layout.fillWidth: true }
-                                    QQC2.Switch { id: tgSwitch }
+                                    QQC2.Switch {
+                                        id: tgSwitch
+                                        implicitWidth: root.fs(48)
+                                        Accessible.labelledBy: telegramEnabledLabel
+                                    }
+                                }
+                                SectionNote {
+                                    id: telegramTokenLabel
+                                    visible: root.cfgTab === "telegram"
+                                    Layout.fillWidth: true
+                                    text: root.local("توكن بوت تليجرام", "Telegram bot token")
+                                    Accessible.name: text
                                 }
                                 QQC2.TextField {
                                     id: tokenField
                                     visible: root.cfgTab === "telegram"
                                     Layout.fillWidth: true
                                     echoMode: TextInput.Password
+                                    Accessible.name: root.local("توكن بوت تليجرام",
+                                                                "Telegram bot token")
+                                    Accessible.labelledBy: telegramTokenLabel
                                     placeholderText: root.cfgHasToken
                                         ? root.local(
                                             "التوكن محفوظ — اتركه فارغاً لإبقائه",
@@ -5633,13 +5659,19 @@ Kirigami.ApplicationWindow {
                                 RowLayout {
                                     Layout.fillWidth: true
                                     Text {
+                                        id: voiceRepliesLabel
                                         text: root.local("الرد بصوت", "Voice replies")
+                                        Accessible.name: text
                                         color: root.textHi
                                         font.family: root.uiFont
                                         font.pixelSize: root.typePx(12)
                                     }
                                     Item { Layout.fillWidth: true }
-                                    QQC2.Switch { id: ttsSwitch }
+                                    QQC2.Switch {
+                                        id: ttsSwitch
+                                        implicitWidth: root.fs(48)
+                                        Accessible.labelledBy: voiceRepliesLabel
+                                    }
                                 }
                                 QQC2.ComboBox {
                                     id: ttsAutoBox
@@ -5738,8 +5770,10 @@ Kirigami.ApplicationWindow {
                                             Layout.fillWidth: true
                                             spacing: 1
                                             Text {
+                                                id: botDeviceControlLabel
                                                 text: root.local("تحكّم البوت بجهازك",
                                                                  "Bot device control")
+                                                Accessible.name: text
                                                 color: root.textHi
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.typePx(13)
@@ -5763,6 +5797,8 @@ Kirigami.ApplicationWindow {
                                         QQC2.Switch {
                                             checked: hostToggle.hostOn
                                             enabled: !root.cfgSaving
+                                            implicitWidth: root.fs(48)
+                                            Accessible.labelledBy: botDeviceControlLabel
                                             onToggled: {
                                                 root.cfgTier = checked ? "system" : "read"
                                                 root.cfgSave({
@@ -5876,14 +5912,20 @@ Kirigami.ApplicationWindow {
                                     visible: root.cfgTab === "permissions"
                                     Layout.fillWidth: true
                                     Text {
+                                        id: webAccessLabel
                                         text: root.local("بحث وقراءة صفحات",
                                                          "Search and read pages")
+                                        Accessible.name: text
                                         color: root.textHi
                                         font.family: root.uiFont
                                         font.pixelSize: root.typePx(12)
                                     }
                                     Item { Layout.fillWidth: true }
-                                    QQC2.Switch { id: webSwitch }
+                                    QQC2.Switch {
+                                        id: webSwitch
+                                        implicitWidth: root.fs(48)
+                                        Accessible.labelledBy: webAccessLabel
+                                    }
                                 }
                                 SectionNote {
                                     visible: root.cfgTab === "permissions"

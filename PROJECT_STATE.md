@@ -76,6 +76,11 @@ OpenClaw status. Settings also passed English/LTR at the enforced compact
 `720×540` minimum and Permissions passed Dark/RTL on the live 4K session; the
 machine was restored to its exact prior `MoOS Scholar Light` theme afterward.
 This is partial visual-matrix evidence, not completion of the full app matrix.
+The accessibility surface is now live-proven rather than only grepped: Qt's
+AT-SPI tree exposed the source app, every interactive node had a name or named
+`labelledBy` relation after fixing six anonymous secret/switch controls, and
+real Tab traversal reached named chat, composer and Settings actions. Reduced
+motion remains enforced by the existing real-QML runtime gate.
 OpenClaw also gains a `moai/hybrid` loopback
 provider so phone turns use the same smart routing policy. The installed OpenClaw
 advertises WhatsApp Web support and Mo AI now exposes its fixed login route.

@@ -217,7 +217,15 @@ cleanup lands. No decorative perpetual animation is allowed.
   Dark/RTL on the live 4K session. The exact prior `MoOS Scholar Light` theme was
   restored after review. Chat, Projects, Tasks and Terminal still need the full
   cross-product before this item can close.
-- [ ] Keyboard navigation, focus order, screen-reader labels and reduced motion.
+- [x] Keyboard navigation, focus order, screen-reader labels and reduced motion.
+  Every hand-drawn action uses the shared Tab/Enter/Space `ActionArea`; modal
+  sheets take focus and close with Escape. A live Qt accessibility run with
+  `QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1` exposed Mo AI through AT-SPI, found zero
+  unnamed interactive controls after adding explicit labels/`labelledBy` links
+  for secret fields and switches, and real `ydotool` Tab traversal reached named
+  chat actions, composer, modal Close and Settings tabs in order. The existing
+  real-QML motion gate proves all fixed transitions collapse and all loops stop
+  when KDE animations are disabled.
 - [ ] Remove superseded panels and code only after runtime consumers and gates
   prove they are unused.
 
