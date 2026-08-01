@@ -91,6 +91,24 @@ controller tests/typecheck/build pass, and the complete repo check recipe is
 green. No destructive power command was run on the audit host. Image compose,
 installed Cloud service behavior and a real tailnet/phone session remain open.
 
+Mo PC Remote transfer/authentication audit, later on 2026-08-01 (`67e58e6a`):
+native downloads and the HTML audio element embedded the reusable session bearer
+in their query strings, exposing it to browser/proxy history and copied URLs.
+Both now exchange the Authorization header for a cryptographically random
+256-bit, purpose-bound, single-use ticket that expires after 45 seconds. An
+isolated real HTTP run proved download `200`, replay `401`, missing ticket `401`;
+an audio ticket reached the absent upstream (`502`) and replay was still `401`.
+Uploads no longer stream directly into the visible destination: each file is
+limited to 1 GiB at Kestrel and application boundaries, written to an isolated
+partial, removed on disconnect/error, moved atomically only after completion,
+and stops before consuming the final 512 MiB of its actual longest-matching
+filesystem. Space checks are paced at 64 MiB rather than per 128 KiB network
+chunk. The .NET suite now passes 47 tests including ticket replay/purpose
+confusion and interrupted-upload cleanup; Linux publish, Windows build (zero
+warnings), TypeScript typecheck, controller tests, committed PWA v17 and the
+complete repo check recipe all pass. A real phone/tailnet transfer and full
+image compose remain open release evidence.
+
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through
