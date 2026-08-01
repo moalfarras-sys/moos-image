@@ -2235,6 +2235,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
           <input ref={fileUpRef} type="file" multiple hidden onChange={onUploadFiles} />
           <div className="file-list">
             {fileBusy && <div className="hintline">Loading…</div>}
+            {!fileBusy && fileList?.truncated &&
+              <div className="hintline" role="status">Showing the first 500 items. Open a smaller folder to continue.</div>}
             {!fileBusy && fileList && fileList.entries.length === 0 && <div className="hintline">Empty folder</div>}
             {!fileBusy && fileList?.entries.map((en) => (
               <button key={en.path} className="file-row" onClick={() => (en.isDir ? navFiles(en.path) : downloadFile(en))}>

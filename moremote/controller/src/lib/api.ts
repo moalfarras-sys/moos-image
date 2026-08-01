@@ -170,6 +170,7 @@ export interface FileListing {
   path: string | null;
   parent: string | null;
   entries: FileEntry[];
+  truncated?: boolean;
 }
 
 export async function listFiles(token: string, path?: string | null): Promise<FileListing> {

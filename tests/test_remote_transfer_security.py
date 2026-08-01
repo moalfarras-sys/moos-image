@@ -21,6 +21,13 @@ checks = {
         "File.Delete(temp)" in files,
     "upload streaming does not reserve space for the running OS":
         "FreeSpaceReserve" in files and "AvailableSpaceFor(dir)" in files,
+    "clipboard images are buffered before their size limit is enforced":
+        "ReadBoundedAsync" in files and "remaining + 1" in files
+        and "ContentLength is > MaxClipboardImageBytes" in api
+        and "CopyToAsync(ms)" not in api,
+    "directory listings can allocate and serialize without a bound":
+        "MaxListingEntries = 500" in files and "truncated = true" in files
+        and "Take(MaxListingEntries + 1)" in files,
     "ticket issuance is unbounded or performs a full dictionary sweep per request":
         "MaxTickets = 1024" in tickets and "ConcurrentQueue<string>" in tickets
         and "foreach (var pair in _tickets)" not in tickets,

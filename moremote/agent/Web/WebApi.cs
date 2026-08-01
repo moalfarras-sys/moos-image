@@ -18,6 +18,7 @@ public static class WebApi
 
     private const int MinPinLength = 6;
     private const int MaxPinLength = 64;
+    private const int MaxClipboardImageBytes = 25_000_000;
 
     /// <summary>moos-cloud-audio listens this far above the agent's port (8765 -> 8775).</summary>
     private const int AudioPortOffset = 10;
@@ -179,10 +180,20 @@ public static class WebApi
         app.MapPost("/api/clipboard/image", async (HttpContext ctx) =>
         {
             if (!IsAuthed(ctx, svc)) return Results.Json(new { error = "unauthorized" }, statusCode: 401);
-            using var ms = new MemoryStream();
-            await ctx.Request.Body.CopyToAsync(ms);
-            if (ms.Length == 0 || ms.Length > 25_000_000) return Results.Json(new { error = "bad_size" }, statusCode: 400);
-            ClipboardBridge.SetImagePng(ms.ToArray());
+            if (ctx.Request.ContentLength is > MaxClipboardImageBytes)
+                return Results.Json(new { error = "bad_size" }, statusCode: 413);
+            byte[] image;
+            try
+            {
+                image = await FileService.ReadBoundedAsync(
+                    ctx.Request.Body, MaxClipboardImageBytes, ctx.RequestAborted);
+            }
+            catch (InvalidDataException)
+            {
+                return Results.Json(new { error = "bad_size" }, statusCode: 413);
+            }
+            if (image.Length == 0) return Results.Json(new { error = "bad_size" }, statusCode: 400);
+            ClipboardBridge.SetImagePng(image);
             return Results.Json(new { ok = true });
         });
 

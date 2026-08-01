@@ -82,6 +82,24 @@ catch (IOException) { passed++; }
 Eq(0, Directory.GetFiles(uploadDir, ".moremote-upload-*.part").Length,
     "interrupted upload removes its partial file");
 Directory.Delete(uploadDir, true);
+var bounded = await FileService.ReadBoundedAsync(
+    new MemoryStream("exact"u8.ToArray()), 5, CancellationToken.None);
+Eq("exact", System.Text.Encoding.UTF8.GetString(bounded), "bounded body accepts its exact limit");
+try
+{
+    await FileService.ReadBoundedAsync(
+        new MemoryStream("one-byte-too-many"u8.ToArray()), 16, CancellationToken.None);
+    throw new Exception("bounded body retained data beyond its limit");
+}
+catch (InvalidDataException) { passed++; }
+var listingDir = Path.Combine(Path.GetTempPath(), "moremote-listing-" + Guid.NewGuid());
+Directory.CreateDirectory(listingDir);
+for (var i = 0; i < FileService.MaxListingEntries + 20; i++)
+    File.WriteAllText(Path.Combine(listingDir, $"item-{i:D4}.txt"), "x");
+var listing = FileService.List(listingDir);
+Eq(FileService.MaxListingEntries, listing.entries.Length, "large directory listing is bounded");
+Eq(true, listing.truncated, "large directory reports truncation instead of pretending complete");
+Directory.Delete(listingDir, true);
 
 var trustConfig = new AppConfig { PinHash = PinHasher.Hash("246810") };
 trustConfig.Save();
