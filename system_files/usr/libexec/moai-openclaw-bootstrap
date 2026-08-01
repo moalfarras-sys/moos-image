@@ -22,6 +22,9 @@ HOME = Path.home()
 CONFIG_DIR = HOME / ".openclaw"
 CONFIG = CONFIG_DIR / "openclaw.json"
 LOCAL_BIN = HOME / ".local/bin"
+LEGACY_GATEWAY_UNIT = HOME / ".config/systemd/user/openclaw-gateway.service"
+SYSTEM_GATEWAY_UNIT = Path("/usr/lib/systemd/user/openclaw-gateway.service")
+MIGRATION_DIR = HOME / ".local/state/moos/migrations"
 DOCKER_SHIM = LOCAL_BIN / "docker"
 PODMAN = Path("/usr/bin/podman")
 DOCKER_SHIM_CONTENT = b'#!/bin/sh\nexec /usr/bin/podman "$@"\n'
@@ -284,6 +287,47 @@ def ensure_podman_docker_shim() -> None:
         raise ValueError("the existing Docker/Podman sandbox command failed its smoke test")
 
 
+def retire_legacy_gateway_unit() -> bool:
+    """Move only MoOS's exact obsolete user unit so the signed /usr unit wins.
+
+    Early OpenClaw installers wrote a complete unit into ~/.config/systemd/user.
+    That path outranks every future image forever; the legacy copy hard-required
+    Ollama and used Restart=on-failure, so a clean WhatsApp config reload left
+    both phone channels offline. Never touch a symlink or a customised unit.
+    """
+    if (
+        not SYSTEM_GATEWAY_UNIT.is_file()
+        or not LEGACY_GATEWAY_UNIT.is_file()
+        or LEGACY_GATEWAY_UNIT.is_symlink()
+    ):
+        return False
+    text = LEGACY_GATEWAY_UNIT.read_text(encoding="utf-8")
+    fingerprints = (
+        "Description=OpenClaw Gateway (local agent, Telegram channel)",
+        "Requires=ollama.service",
+        "ExecStart=%h/.local/bin/openclaw gateway",
+    )
+    if not all(value in text for value in fingerprints):
+        return False
+
+    MIGRATION_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(MIGRATION_DIR, 0o700)
+    for suffix in ("", *(f".{index}" for index in range(1, 100))):
+        backup = MIGRATION_DIR / f"openclaw-gateway.service.legacy{suffix}"
+        if backup.exists() or backup.is_symlink():
+            continue
+        os.replace(LEGACY_GATEWAY_UNIT, backup)
+        os.chmod(backup, 0o600)
+        _fsync_dir(MIGRATION_DIR)
+        _fsync_dir(LEGACY_GATEWAY_UNIT.parent)
+        subprocess.run(
+            ["systemctl", "--user", "daemon-reload"],
+            capture_output=True, text=True, timeout=15, check=False,
+        )
+        return True
+    raise ValueError("could not allocate a private backup for the legacy gateway unit")
+
+
 def validate_staged_config(path: Path) -> None:
     """Ask the installed, pinned OpenClaw runtime to validate before commit."""
     if not OPENCLAW.is_file() or not os.access(OPENCLAW, os.X_OK):
@@ -357,6 +401,7 @@ def main() -> int:
     ):
         return 0
     try:
+        retire_legacy_gateway_unit()
         ensure_podman_docker_shim()
         # merge_baseline only fills MISSING fields, so on an already-configured machine the
         # merged config is byte-identical to what is on disk. atomic_save is expensive — it
@@ -369,6 +414,7 @@ def main() -> int:
         merged = merge_baseline(copy.deepcopy(before))
         if not (CONFIG.is_file() and merged == before):
             atomic_save(merged)
+        harden_config_permissions()
     except (OSError, subprocess.SubprocessError, ValueError) as exc:
         print(f"moai-openclaw-bootstrap: {exc}", file=sys.stderr)
         return 1

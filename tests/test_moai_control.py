@@ -480,6 +480,45 @@ class OpenClawBootstrapTests(unittest.TestCase):
             fresh = bootstrap["merge_baseline"]({})
             self.assertNotIn("allow", fresh.get("plugins", {}))
 
+    def test_exact_legacy_gateway_shadow_is_backed_up_but_custom_unit_is_preserved(self):
+        with tempfile.TemporaryDirectory() as home:
+            bootstrap = load_script(OPENCLAW_BOOTSTRAP, home)
+            scope = bootstrap["retire_legacy_gateway_unit"].__globals__
+            system_unit = Path(home) / "usr/openclaw-gateway.service"
+            system_unit.parent.mkdir(parents=True)
+            system_unit.write_text("signed image unit\n", encoding="utf-8")
+            scope["SYSTEM_GATEWAY_UNIT"] = system_unit
+            legacy = scope["LEGACY_GATEWAY_UNIT"]
+            legacy.parent.mkdir(parents=True)
+            legacy_text = (
+                "[Unit]\n"
+                "Description=OpenClaw Gateway (local agent, Telegram channel)\n"
+                "Requires=ollama.service\n"
+                "[Service]\n"
+                "ExecStart=%h/.local/bin/openclaw gateway\n"
+            )
+            legacy.write_text(legacy_text, encoding="utf-8")
+            real_run = scope["subprocess"].run
+            calls = []
+            scope["subprocess"].run = lambda argv, **_kwargs: (
+                calls.append(argv) or subprocess.CompletedProcess(argv, 0, "", "")
+            )
+            try:
+                self.assertTrue(bootstrap["retire_legacy_gateway_unit"]())
+            finally:
+                scope["subprocess"].run = real_run
+            self.assertFalse(legacy.exists())
+            backups = list(scope["MIGRATION_DIR"].glob("openclaw-gateway.service.legacy*"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(backups[0].read_text(encoding="utf-8"), legacy_text)
+            self.assertEqual(backups[0].stat().st_mode & 0o777, 0o600)
+            self.assertEqual(calls, [["systemctl", "--user", "daemon-reload"]])
+
+            custom = "[Service]\nExecStart=/owner/custom-agent\n"
+            legacy.write_text(custom, encoding="utf-8")
+            self.assertFalse(bootstrap["retire_legacy_gateway_unit"]())
+            self.assertEqual(legacy.read_text(encoding="utf-8"), custom)
+
     def test_existing_only_does_not_create_a_fresh_account_config(self):
         with tempfile.TemporaryDirectory() as home:
             result = subprocess.run(

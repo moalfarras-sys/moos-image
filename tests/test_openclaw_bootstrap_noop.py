@@ -47,6 +47,8 @@ def main() -> int:
     saves: list[dict] = []
 
     with mock.patch.object(module, "atomic_save", lambda cfg: saves.append(cfg)), \
+         mock.patch.object(module, "harden_config_permissions", lambda: None), \
+         mock.patch.object(module, "retire_legacy_gateway_unit", lambda: False), \
          mock.patch.object(module, "ensure_podman_docker_shim", lambda: None), \
          mock.patch.object(module, "OPENCLAW", types.SimpleNamespace(is_file=lambda: True)), \
          mock.patch.object(module, "CONFIG", types.SimpleNamespace(is_file=lambda: True)), \

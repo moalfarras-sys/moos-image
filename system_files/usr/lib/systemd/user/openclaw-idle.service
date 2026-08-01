@@ -1,5 +1,5 @@
 [Unit]
-Description=Sleep the Mo AI Telegram agent (openclaw-gateway) when idle; moai-wake resumes
+Description=Sleep the on-demand Mo AI runtime when no persistent phone channel needs it
 Documentation=file:///usr/bin/openclaw-idle
 
 [Service]

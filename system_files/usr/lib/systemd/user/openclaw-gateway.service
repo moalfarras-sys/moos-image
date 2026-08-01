@@ -1,5 +1,5 @@
 [Unit]
-Description=Mo AI phone agent gateway (Telegram, on demand)
+Description=Mo AI phone agent gateway (Telegram and WhatsApp)
 Documentation=https://docs.openclaw.ai/
 After=network-online.target
 Wants=network-online.target
@@ -16,7 +16,12 @@ Environment=OLLAMA_API_KEY=ollama-local
 # allowlist used by the desktop. Do not hard-code Requires= to either name.
 ExecStartPre=/usr/libexec/moai-openclaw-preflight
 ExecStart=%h/.local/bin/openclaw gateway
-Restart=on-failure
+# OpenClaw performs a full, clean process exit when a channel/config reload
+# requires a restart. Restart=on-failure treats that expected exit as "done"
+# and silently leaves Telegram/WhatsApp offline. Restart=always repairs clean
+# reloads too; an explicit `systemctl stop` from openclaw-idle still suppresses
+# restart by systemd design.
+Restart=always
 RestartSec=10
 UMask=0077
 

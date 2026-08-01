@@ -23,6 +23,20 @@ without overwriting an owner-managed allowlist. `just check` passes with
 regression tests. This post-pairing correction still needs its own signed
 matrix/update before the installed UI contains it.
 
+The pairing audit also found two lifecycle traps that would have made a linked
+channel unreliable. OpenClaw exits successfully when a channel config reload
+needs a full restart, so `Restart=on-failure` left both channels offline; the
+signed unit now uses `Restart=always` (an explicit systemd stop still suppresses
+restart). A legacy installer-created user unit also outranked that signed unit
+forever and hard-required Ollama. The bootstrap now recognizes only its exact
+old fingerprint, moves it to a private recoverable migration backup and reloads
+the user manager; customised units and symlinks are untouched. Finally,
+`openclaw-idle` no longer stops the sole WhatsApp Web receiver while WhatsApp is
+enabled. The local model still unloads itself and frees VRAM after its keepalive;
+machines without a persistent WhatsApp channel retain the lightweight Telegram
+wake/sleep path. These contracts have behavioral/static gates and were applied
+to the live account; their signed image update remains pending.
+
 The first booted-image `post-update-check.sh` proved the published digest,
 signature policy, MoOS identity/UI, Mo AI runtime, boot and zero failed units;
 it returned 46/3 only because `$HOME` shadowed the image with an old `de,ara`

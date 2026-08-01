@@ -2334,8 +2334,16 @@ openclaw_unit = code(
     read("system_files/usr/lib/systemd/user/openclaw-gateway.service"), "hash")
 require("ExecStartPre=/usr/libexec/moai-openclaw-preflight" in openclaw_unit
         and "Requires=ollama.service" not in openclaw_unit
-        and "Requires=moai-brain.service" not in openclaw_unit,
+        and "Requires=moai-brain.service" not in openclaw_unit
+        and "Restart=always" in openclaw_unit,
         "the phone agent must resolve either allowlisted Ollama Quadlet at runtime")
+openclaw_idle = code(read("system_files/usr/bin/openclaw-idle"))
+require('c.get("enabled") is True' in openclaw_idle
+        and 'if [ "$keep_gateway" != 1 ]; then' in openclaw_idle
+        and 'if [ "$resident" = "0" ] && [ "$keep_gateway" != 1 ]; then'
+        in openclaw_idle,
+        "a configured WhatsApp Web channel must keep its only inbound receiver "
+        "alive while Ollama's own keep-alive unloads the idle model")
 moai_wake = code(read("system_files/usr/bin/moai-wake"))
 require("if started.returncode != 0:" in moai_wake
         and "if not gateway_active():" in moai_wake

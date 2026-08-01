@@ -13,7 +13,12 @@
 #   • moai-wake re-wakes openclaw-gateway on the next allowlisted Telegram message;
 #     its preflight starts the selected Ollama unit. Telegram redelivers any
 #     message that arrived during the handoff, so nothing is dropped.
-# ONE signal covers both clients (they share one Ollama): the model's residency.
+# WhatsApp Web has no lightweight stateless wake API: its linked WebSocket IS the
+# inbound receiver. Once the owner enables WhatsApp, keep only the Gateway and
+# its small model-server shell alive; Ollama still unloads the model/VRAM after
+# its keep-alive. Stopping the Gateway would make "message me after idle" false.
+#
+# ONE signal covers desktop + Telegram clients (they share one Ollama): model residency.
 # A resident model means someone is mid-conversation — leave everything up. A
 # per-unit start grace stops us tearing down a stack that only just came up (the
 # few seconds between "ollama started" and "model finished loading").
@@ -51,6 +56,19 @@ try: print((json.load(open(os.path.expanduser("~/.openclaw/openclaw.json"))).get
 except Exception: print("")' 2>/dev/null)"
 case "$primary" in cloud/*) cloud_primary=1 ;; esac
 
+# A linked/enabled WhatsApp channel must keep its WebSocket receiver alive.
+# Read only the boolean enable flag; malformed or absent config fails closed to
+# the old on-demand behavior. Telegram still uses the lightweight moai-wake path.
+whatsapp_enabled="$(python3 -c 'import json,os
+try:
+ c=json.load(open(os.path.expanduser("~/.openclaw/openclaw.json"))).get("channels",{}).get("whatsapp",{})
+ print(1 if isinstance(c,dict) and c.get("enabled") is True else 0)
+except Exception: print(0)' 2>/dev/null)"
+keep_gateway=0
+if [ "$cloud_primary" = 1 ] || [ "$whatsapp_enabled" = 1 ]; then
+    keep_gateway=1
+fi
+
 stop_unit() {  # stop + normalise, but only if active and past its start grace
     local u="$1" started now start_s
     systemctl --user is-active --quiet "$u" || return 0
@@ -70,13 +88,13 @@ stop_unit() {  # stop + normalise, but only if active and past its start grace
 # Sleep the heavy stack, consumer before providers (OpenClaw uses speech/Ollama).
 # On a cloud brain, leave the gateway + speaches up (see cloud_primary above) so
 # the bot stays responsive and apps it opened are not torn down.
-if [ "$cloud_primary" != 1 ]; then
+if [ "$keep_gateway" != 1 ]; then
     stop_unit openclaw-gateway.service
     stop_unit speaches.service
     # Compatibility with the first shipped setup-brain Quadlet name.
     stop_unit moai-speech.service
 fi
-if [ "$resident" = "0" ]; then
+if [ "$resident" = "0" ] && [ "$keep_gateway" != 1 ]; then
     stop_unit "$OLLAMA_UNIT"   # was up but idle → free its RAM + any VRAM
 fi
 exit 0

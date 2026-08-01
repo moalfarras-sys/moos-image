@@ -1,5 +1,5 @@
 [Unit]
-Description=Periodically check whether the Mo AI Telegram agent can sleep
+Description=Periodically check whether the Mo AI phone runtime can sleep
 Documentation=file:///usr/bin/openclaw-idle
 
 [Timer]

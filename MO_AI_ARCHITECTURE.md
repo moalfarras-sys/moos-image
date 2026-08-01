@@ -225,6 +225,13 @@ cleanup lands. No decorative perpetual animation is allowed.
   `linked`. Its OpenClaw 2026.7 status schema and explicit trusted-plugin
   allowlist are regression-tested. A real inbound turn and response is still
   required for end-to-end message proof.
+- [x] Phone-channel lifecycle is loss-aware. OpenClaw's clean config-reload exit
+  is covered by `Restart=always`; the bootstrap retires only the exact obsolete
+  user-unit fingerprint that could shadow the signed unit; and the idle policy
+  keeps WhatsApp's only WebSocket receiver alive while a linked channel is
+  enabled. Telegram-only machines still sleep the Node gateway and wake through
+  the lightweight long-poll receiver. Ollama's model keepalive still unloads
+  model weights/VRAM when WhatsApp requires the transport to remain online.
 
 ### Phase 5 — settings and product polish
 
