@@ -103,7 +103,10 @@ limited to 1 GiB at Kestrel and application boundaries, written to an isolated
 partial, removed on disconnect/error, moved atomically only after completion,
 and stops before consuming the final 512 MiB of its actual longest-matching
 filesystem. Space checks are paced at 64 MiB rather than per 128 KiB network
-chunk. The .NET suite now passes 47 tests including ticket replay/purpose
+chunk. Ticket storage is capped at 1024 entries with amortised O(1) FIFO
+eviction (`a5d9e954`); it no longer scans the entire dictionary on every issue,
+which made an authenticated issuance burst quadratic. The .NET suite now passes
+48 tests including pressure bounds, ticket replay/purpose
 confusion and interrupted-upload cleanup; Linux publish, Windows build (zero
 warnings), TypeScript typecheck, controller tests, committed PWA v17 and the
 complete repo check recipe all pass. A real phone/tailnet transfer and full
