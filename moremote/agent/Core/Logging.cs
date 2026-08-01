@@ -84,6 +84,20 @@ public static class Paths
 
     private static string ResolveDataDir()
     {
+        // Explicit service/container boundary. HOME is not a reliable isolation
+        // knob for a process whose uid still resolves to an existing passwd
+        // entry: .NET may return that account's real LocalApplicationData even
+        // when HOME/XDG_DATA_HOME were replaced. Accept only an absolute path so
+        // tests and isolated cloud units can never fall back to the working tree.
+        var explicitDir = Environment.GetEnvironmentVariable("MOREMOTE_DATA_DIR");
+        if (!string.IsNullOrEmpty(explicitDir))
+        {
+            if (!Path.IsPathFullyQualified(explicitDir))
+                throw new InvalidOperationException(
+                    "MOREMOTE_DATA_DIR must be an absolute path; refusing a relative " +
+                    "configuration directory that could expose first-run setup.");
+            return Path.GetFullPath(explicitDir);
+        }
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         if (string.IsNullOrEmpty(local))
         {

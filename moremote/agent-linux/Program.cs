@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MoRemote;
+using System.Security.Cryptography;
+using System.Text;
 
 Log.Init();
 
@@ -47,7 +49,19 @@ if (args.Length > 0 && args[0] == "--set-pin")
     return 0;
 }
 
-using var mutex = new Mutex(true, "MoRemotePersonal_Linux", out var first);
+// The normal desktop remains single-instance. An explicitly isolated absolute
+// data directory represents a separate container/test service and therefore
+// gets its own deterministic mutex without weakening the default boundary.
+var isolatedDataDir = Environment.GetEnvironmentVariable("MOREMOTE_DATA_DIR");
+var mutexName = "MoRemotePersonal_Linux";
+if (!string.IsNullOrEmpty(isolatedDataDir))
+{
+    // Paths.DataDir performs the absolute-path validation before this point.
+    var digest = Convert.ToHexString(
+        SHA256.HashData(Encoding.UTF8.GetBytes(Paths.DataDir)))[..16];
+    mutexName += "_" + digest;
+}
+using var mutex = new Mutex(true, mutexName, out var first);
 if (!first) return 0;
 var config=AppConfig.Load(); UserSettings.Apply(config);
 var tls=TlsManager.TryLoad();

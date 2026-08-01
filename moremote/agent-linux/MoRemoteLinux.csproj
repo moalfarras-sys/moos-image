@@ -10,6 +10,9 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Konscious.Security.Cryptography.Argon2" Version="1.3.1" />
+    <!-- ImageSharp 4.x requires a separate Six Labors commercial license at
+         build time. 3.1.11 is the newest license-compatible line currently
+         reported with no known NuGet vulnerabilities; do not auto-major it. -->
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
   </ItemGroup>
   <ItemGroup>
