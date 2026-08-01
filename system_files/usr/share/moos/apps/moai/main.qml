@@ -175,6 +175,9 @@ Kirigami.ApplicationWindow {
     property var pendingRuns: []        // moai-do actions the model just named
     property var pendingAttachments: [] // private imported image/text/file payloads
     property bool voiceRecording: false
+    property string chatSessionId: "moai-desktop-" + Date.now().toString(36)
+                                   + "-" + Math.floor(Math.random() * 0x1000000).toString(36)
+    property string agentDecision: ""
     property string panel: "chat"       // chat|device|apps|compat|remote|dev|agent
 
     // ── Which brain answers THIS conversation ───────────────────────────────
@@ -578,6 +581,14 @@ Kirigami.ApplicationWindow {
                     || requestedRoute.indexOf("cloud") === 0)
                 root.route = requestedRoute
         }
+        const promptIndex = argv.indexOf("--prompt")
+        if (promptIndex !== -1 && promptIndex + 1 < argv.length) {
+            const startupPrompt = String(argv[promptIndex + 1]).trim()
+            if (startupPrompt !== "" && startupPrompt.length <= 8000) {
+                root.panel = "chat"
+                Qt.callLater(function () { root.sendPrompt(startupPrompt) })
+            }
+        }
     }
 
     FileDialog {
@@ -789,6 +800,9 @@ Kirigami.ApplicationWindow {
         chatModel.clear()
         history = []
         pendingRuns = []
+        chatSessionId = "moai-desktop-" + Date.now().toString(36)
+                        + "-" + Math.floor(Math.random() * 0x1000000).toString(36)
+        agentDecision = ""
         stopGenerating()
         chatModel.append({ role: "assistant", text: greetingText })
     }
@@ -921,6 +935,11 @@ Kirigami.ApplicationWindow {
                 root.hybridDecision = chosen === ""
                     ? "" : chosen + (reason === "" ? "" : " · " + reason)
             }
+            const agentPath = xhr.getResponseHeader("X-MoAI-Agent") || ""
+            root.agentDecision = agentPath === "openclaw"
+                ? root.local("وكيل موحّد", "Unified agent")
+                : agentPath === "direct-fallback"
+                    ? root.local("رد مباشر احتياطي", "Direct fallback") : ""
 
             if (sawData && acc.trim() !== "") {
                 chatModel.set(idx, { role: "assistant", text: acc })
@@ -981,8 +1000,11 @@ Kirigami.ApplicationWindow {
                           .concat(history),
             stream: true
         }
-        if (root.routeIsHybrid)
-            request.moai = { privacy: "standard" }
+        request.moai = {
+            privacy: "standard",
+            agent: true,
+            session: root.chatSessionId
+        }
         xhr.send(JSON.stringify(request))
     }
 
@@ -2396,10 +2418,17 @@ Kirigami.ApplicationWindow {
                                             Text {
                                                 Layout.maximumWidth: 118
                                                 visible: root.routeModel !== ""
+                                                         || root.agentDecision !== ""
                                                          || (root.routeIsHybrid
                                                              && root.hybridDecision !== "")
-                                                text: root.routeIsHybrid && root.hybridDecision !== ""
-                                                    ? root.hybridDecision : root.routeModel
+                                                text: {
+                                                    const routeText = root.routeIsHybrid
+                                                        && root.hybridDecision !== ""
+                                                        ? root.hybridDecision : root.routeModel
+                                                    if (routeText !== "" && root.agentDecision !== "")
+                                                        return routeText + " · " + root.agentDecision
+                                                    return routeText !== "" ? routeText : root.agentDecision
+                                                }
                                                 color: root.textLo
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.typePx(9)

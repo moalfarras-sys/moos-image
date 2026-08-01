@@ -112,6 +112,11 @@ SPEACHES_TTS = {
     "speakerVoice": "kareem",
     "responseFormat": "mp3",
 }
+MOAI_HYBRID_PROVIDER = {
+    "baseUrl": "http://127.0.0.1:8080/v1",
+    "apiKey": "moai-loopback",
+    "api": "openai-completions",
+}
 CONFIG_WRITE_LOCK = threading.RLock()
 TASK_RUNNER_LOCK = threading.RLock()
 TASK_RUNNERS: dict[str, subprocess.Popen] = {}
@@ -489,7 +494,11 @@ def _primary(cfg: dict) -> str:
 
 
 def _primary_mode(primary: str) -> str:
-    return "cloud" if primary.startswith("cloud/") else "local"
+    if primary.startswith("cloud/"):
+        return "cloud"
+    if primary == "moai/hybrid":
+        return "hybrid"
+    return "local"
 
 
 def _model_from_primary(primary: str, provider: str) -> str:
@@ -535,7 +544,7 @@ def _openclaw_configured(cfg: dict, primary: str | None = None) -> bool:
     if "/" not in primary:
         return False
     provider_id, model_id = primary.split("/", 1)
-    if provider_id not in ("ollama", "cloud") or not model_id:
+    if provider_id not in ("ollama", "cloud", "moai") or not model_id:
         return False
     node = (((cfg.get("models") or {}).get("providers") or {}).get(provider_id) or {})
     models = node.get("models") or []
@@ -720,8 +729,8 @@ def write_config(body: dict) -> dict:
         # ── the real primary, never a UI-only hybrid flag ──
         if "mode" in body:
             mode = str(body["mode"])
-            if mode not in ("local", "cloud"):
-                raise ValueError("الوضع يجب أن يكون محلياً أو سحابياً فقط")
+            if mode not in ("local", "cloud", "hybrid"):
+                raise ValueError("الوضع يجب أن يكون محلياً أو سحابياً أو هجينا")
             defaults = c.setdefault("agents", {}).setdefault("defaults", {})
             model_node = defaults.setdefault("model", {})
             providers = c.setdefault("models", {}).setdefault("providers", {})
@@ -737,7 +746,7 @@ def write_config(body: dict) -> dict:
                 _upsert_model(ollama, local_id)
                 new_primary = f"ollama/{local_id}"
                 st["local_model"] = new_primary
-            else:
+            elif mode == "cloud":
                 cloud = providers.setdefault("cloud", {})
                 cloud_id = _clean_model(
                     cl.get("model") or st.get("cloud_model"), "نموذج السحابة")
@@ -748,7 +757,17 @@ def write_config(body: dict) -> dict:
                 _upsert_model(cloud, cloud_id)
                 new_primary = f"cloud/{cloud_id}"
                 st["cloud_model"] = cloud_id
+            else:
+                moai = providers.setdefault("moai", {})
+                for key, value in MOAI_HYBRID_PROVIDER.items():
+                    moai[key] = value
+                _upsert_model(moai, "hybrid")
+                new_primary = "moai/hybrid"
             model_node["primary"] = new_primary
+            allowed_models = defaults.setdefault("models", {})
+            if not isinstance(allowed_models, dict):
+                raise ValueError("قائمة نماذج OpenClaw المسموحة غير صالحة")
+            allowed_models.setdefault(new_primary, {})
             st["mode"] = mode  # migration breadcrumb; reads use primary only.
             if original_primary and original_primary != new_primary:
                 policies = c.setdefault("tools", {}).setdefault("byProvider", {})

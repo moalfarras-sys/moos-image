@@ -99,7 +99,13 @@ cleanup lands. No decorative perpetual animation is allowed.
 - [x] Persistent task records: plan, steps, status, errors, result, stop/retry.
 - [ ] Replace the icon-only rail with a responsive workspace sidebar while
   preserving direct `moai --panel …` compatibility shims.
-- [ ] Merge the separate Agent panel into the primary conversation canvas.
+- [ ] Merge the workspace conversation/history sidebar visually into the
+  primary conversation canvas. The backend half is complete: the primary
+  streaming/multimodal canvas now routes through the
+  same token-authenticated, loopback OpenClaw runtime used by phone channels.
+  Stable per-chat session ids preserve memory; direct-model fallback is explicit
+  when OpenClaw is unavailable. Projects/tasks/terminal remain a workbench, but
+  conversation history is still reached through its Agent workspace tab.
 
 ### Phase 2 — composer and content
 
@@ -137,7 +143,15 @@ cleanup lands. No decorative perpetual animation is allowed.
 
 - [x] Add `hybrid` routing with a documented privacy/availability/complexity
   policy and deterministic fallback; never silently send private files to cloud.
-- [ ] One session/memory/tool backend for desktop and OpenClaw.
+- [x] One session/memory/tool backend for desktop and OpenClaw. A real local
+  two-turn desktop request returned `MOAI-LOCAL-UNIFIED-READY` from memory, and
+  the shared OpenClaw index recorded session
+  `agent:main:openai-user:moai-desktop-local-proof`. The source QML streaming
+  proof is `/var/tmp/moai-unified-chat-live.png` and visibly reports
+  `Unified agent` beside `qwen3-vl:4b`.
+- [x] OpenClaw can select `moai/hybrid`, an internal loopback provider that sends
+  phone turns through `moai-gateway`'s privacy/availability/complexity policy
+  without recursively invoking the agent endpoint.
 - [ ] Telegram verified end to end with the owner allowlist.
 - [ ] WhatsApp: the installed OpenClaw build confirms a supported WhatsApp Web
   login adapter and Mo AI exposes its fixed login route. Account pairing and an

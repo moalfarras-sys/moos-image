@@ -41,6 +41,17 @@ OLLAMA_DEFAULT_MODEL = {
     "contextWindow": 24576,
     "maxTokens": 2048,
 }
+MOAI_PROVIDER = {
+    "baseUrl": "http://127.0.0.1:8080/v1",
+    "apiKey": "moai-loopback",
+    "api": "openai-completions",
+}
+MOAI_HYBRID_MODEL = {
+    "id": "hybrid",
+    "name": "Mo AI Smart Hybrid",
+    "contextWindow": 128000,
+    "maxTokens": 4096,
+}
 AUDIO_TRANSCRIBER = {
     "type": "cli",
     "command": "/usr/bin/moai-transcribe",
@@ -83,6 +94,18 @@ def load_existing() -> dict:
 def merge_baseline(cfg: dict) -> dict:
     gateway = object_at(cfg, "gateway")
     gateway.setdefault("mode", "local")
+    # Mo AI desktop is another trusted local client of the SAME agent runtime as
+    # Telegram/WhatsApp. The OpenAI-compatible endpoint preserves OpenClaw's
+    # sessions, memory, tools and approval policy while letting the Qt composer
+    # keep streaming and multimodal payloads. It remains token-authenticated and
+    # loopback-bound; the token never enters QML or an HTTP response.
+    gateway_http = object_at(gateway, "http")
+    endpoints = object_at(gateway_http, "endpoints")
+    chat_endpoint = object_at(endpoints, "chatCompletions")
+    chat_endpoint.setdefault("enabled", True)
+    chat_endpoint.setdefault("maxBodyBytes", 20 * 1024 * 1024)
+    chat_endpoint.setdefault("maxImageParts", 8)
+    chat_endpoint.setdefault("maxTotalImageBytes", 20 * 1024 * 1024)
 
     providers = object_at(object_at(cfg, "models"), "providers")
     ollama = object_at(providers, "ollama")
@@ -96,9 +119,25 @@ def merge_baseline(cfg: dict) -> dict:
     elif not any(isinstance(item, dict) and item.get("id") == "default" for item in models):
         models.append(dict(OLLAMA_DEFAULT_MODEL))
 
+    moai = object_at(providers, "moai")
+    for key, value in MOAI_PROVIDER.items():
+        moai.setdefault(key, value)
+    moai_models = moai.get("models")
+    if moai_models is None:
+        moai["models"] = [dict(MOAI_HYBRID_MODEL)]
+    elif not isinstance(moai_models, list):
+        raise ValueError("OpenClaw config field 'models.providers.moai.models' must be an array")
+    elif not any(isinstance(item, dict) and item.get("id") == "hybrid"
+                 for item in moai_models):
+        moai_models.append(dict(MOAI_HYBRID_MODEL))
+
     defaults = object_at(object_at(cfg, "agents"), "defaults")
     model = object_at(defaults, "model")
     model.setdefault("primary", "ollama/default")
+    allowed_models = object_at(defaults, "models")
+    object_at(allowed_models, "ollama/default")
+    object_at(allowed_models, "moai/hybrid")
+    object_at(allowed_models, str(model["primary"]))
     defaults.setdefault("elevatedDefault", "off")
     sandbox = object_at(defaults, "sandbox")
     sandbox.setdefault("mode", "all")
@@ -111,6 +150,8 @@ def merge_baseline(cfg: dict) -> dict:
     by_provider = object_at(tools, "byProvider")
     local_policy = object_at(by_provider, "ollama/default")
     local_policy.setdefault("deny", ["group:web", "browser", "exec"])
+    hybrid_policy = object_at(by_provider, "moai/hybrid")
+    hybrid_policy.setdefault("deny", ["group:web", "browser", "exec"])
 
     # `audio.transcription` was retired in OpenClaw 2026.7. Inbound voice now
     # uses the shared media pipeline. Remove only that obsolete leaf (leaving

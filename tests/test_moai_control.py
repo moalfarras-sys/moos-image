@@ -412,6 +412,26 @@ class RuntimeRelationshipTests(unittest.TestCase):
 
 
 class OpenClawBootstrapTests(unittest.TestCase):
+    def test_desktop_endpoint_and_hybrid_provider_share_the_agent_runtime(self):
+        with tempfile.TemporaryDirectory() as home:
+            bootstrap = load_script(OPENCLAW_BOOTSTRAP, home)
+            merged = bootstrap["merge_baseline"]({
+                "agents": {"defaults": {"model": {"primary": "cloud/current"}}},
+                "models": {"providers": {"cloud": {
+                    "baseUrl": "https://provider.invalid/v1",
+                    "apiKey": "secret", "api": "openai-responses",
+                    "models": [{"id": "current"}],
+                }}},
+            })
+            endpoint = merged["gateway"]["http"]["endpoints"]["chatCompletions"]
+            self.assertTrue(endpoint["enabled"])
+            self.assertEqual(endpoint["maxBodyBytes"], 20 * 1024 * 1024)
+            hybrid = merged["models"]["providers"]["moai"]
+            self.assertEqual(hybrid["baseUrl"], "http://127.0.0.1:8080/v1")
+            self.assertEqual(hybrid["api"], "openai-completions")
+            self.assertIn("moai/hybrid", merged["agents"]["defaults"]["models"])
+            self.assertIn("cloud/current", merged["agents"]["defaults"]["models"])
+
     def test_existing_only_does_not_create_a_fresh_account_config(self):
         with tempfile.TemporaryDirectory() as home:
             result = subprocess.run(

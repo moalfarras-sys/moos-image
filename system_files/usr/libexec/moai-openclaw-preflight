@@ -47,6 +47,11 @@ case "$primary" in
     cloud/*)
         exit 0
         ;;
+    moai/hybrid)
+        # The always-lightweight Mo AI gateway owns per-request Local/Cloud
+        # selection and wakes Ollama itself only when Hybrid chooses local.
+        exit 0
+        ;;
     ollama/*)
         ;;
     *)

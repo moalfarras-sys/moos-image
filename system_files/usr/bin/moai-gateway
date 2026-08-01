@@ -60,6 +60,11 @@ MOOS_DIR = os.path.expanduser("~/.config/moos")
 ENV_FILE = os.path.join(MOOS_DIR, "moai.env")
 CREDENTIAL_STORE = os.environ.get(
     "MOAI_CREDENTIAL_STORE", "/usr/libexec/moai-credential-store")
+OPENCLAW_CONFIG = os.path.expanduser("~/.openclaw/openclaw.json")
+OPENCLAW_BIN = os.path.expanduser("~/.local/bin/openclaw")
+OPENCLAW_HOST = "127.0.0.1"
+OPENCLAW_PORT = int(os.environ.get("MOAI_OPENCLAW_PORT", "18789"))
+OPENCLAW_BASE = "http://%s:%d" % (OPENCLAW_HOST, OPENCLAW_PORT)
 
 PORT = int(os.environ.get("MOAI_GATEWAY_PORT", "8080"))
 RAMALAMA_UNIT = "moai.service"
@@ -122,6 +127,7 @@ USER_AGENT = "MoOS-MoAI/1.0 (+https://github.com/moalfarras-sys/moos-image)"
 
 ANTHROPIC_VERSION = "2023-06-01"
 DEFAULT_MAX_TOKENS = 2048
+MAX_BODY_BYTES = 20 * 1024 * 1024
 
 # A base URL is expected to carry its API version ("…/v1", "…/v1beta/openai").
 VERSIONED = re.compile(r"/v\d[\w.]*(/|$)")
@@ -146,6 +152,63 @@ def load_secret():
         return result.stdout.rstrip("\n") if result.returncode == 0 else ""
     except Exception:
         return ""
+
+
+def load_openclaw_client():
+    """Return private desktop-client material without ever exposing the token."""
+    try:
+        with open(OPENCLAW_CONFIG, encoding="utf-8") as handle:
+            cfg = json.load(handle)
+        gateway = cfg.get("gateway") or {}
+        auth = gateway.get("auth") or {}
+        endpoint = ((((gateway.get("http") or {}).get("endpoints") or {})
+                     .get("chatCompletions") or {}))
+        token = str(auth.get("token") or "")
+        enabled = endpoint.get("enabled") is True
+        providers = ((cfg.get("models") or {}).get("providers") or {})
+        primary = str(((((cfg.get("agents") or {}).get("defaults") or {})
+                        .get("model") or {}).get("primary") or ""))
+        if auth.get("mode") != "token" or not token or not enabled:
+            return {}
+        return {"token": token, "providers": providers, "primary": primary}
+    except Exception:
+        return {}
+
+
+def ensure_openclaw_gateway(timeout=45.0):
+    """Wake the fixed user service and prove its loopback listener is ready."""
+    try:
+        subprocess.run(["systemctl", "--user", "start", "openclaw-gateway.service"],
+                       capture_output=True, text=True, timeout=timeout, check=False)
+    except Exception as exc:
+        return "could not start OpenClaw: %s" % exc
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection((OPENCLAW_HOST, OPENCLAW_PORT), timeout=0.5):
+                return ""
+        except OSError:
+            time.sleep(0.25)
+    return "OpenClaw gateway did not become ready"
+
+
+def openclaw_model(client, brain, model, cfg):
+    """Map Mo AI's route to an actually configured OpenClaw provider model."""
+    provider = "ollama" if brain == "local" else "cloud"
+    node = client.get("providers", {}).get(provider) or {}
+    catalog = [str(item.get("id") or "") for item in node.get("models", [])
+               if isinstance(item, dict) and item.get("id")]
+    requested = str(model or "").strip()
+    if brain == "cloud" and not requested:
+        requested = str(cfg.get("cloud_model") or "").strip()
+    if requested and requested in catalog:
+        return provider + "/" + requested
+    primary = str(client.get("primary") or "")
+    if primary.startswith(provider + "/"):
+        return primary
+    if catalog:
+        return provider + "/" + catalog[0]
+    return ""
 
 
 # ── The local brain ──────────────────────────────────────────────────────────
@@ -853,6 +916,8 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError
         except (TypeError, ValueError):
             return self._err(400, "bad content length")
+        if length > MAX_BODY_BYTES:
+            return self._err(413, "request body too large")
         raw = self.rfile.read(length) if length else b""
 
         cfg = load_cfg()
@@ -865,28 +930,100 @@ class Handler(BaseHTTPRequestHandler):
 
         self.moai_route = ""
         self.moai_route_reason = ""
+        self.moai_agent = ""
+        meta = req.get("moai") if isinstance(req.get("moai"), dict) else {}
+        wants_agent = meta.get("agent") is True
         brain, model = resolve(req.get("model", ""), cfg)
         if brain == "hybrid":
             brain, reason, may_fallback = choose_hybrid(req, cfg)
             self.moai_route = brain
             self.moai_route_reason = reason
             req = dict(req)
-            req.pop("moai", None)
             if brain == "local":
                 error = ensure_local(model)
                 if error and may_fallback:
                     self.moai_route = "cloud"
                     self.moai_route_reason = "local-unavailable"
+                    if wants_agent and self._to_agent(req, "cloud", model, cfg):
+                        return
+                    req.pop("moai", None)
                     raw = json.dumps(req).encode("utf-8")
                     return self._to_cloud(req, raw, model, cfg)
                 if error:
                     return self._err(503, error)
+                if wants_agent and self._to_agent(req, "local", model, cfg,
+                                                  local_prepared=True):
+                    return
+                req.pop("moai", None)
                 return self._to_local(req, model, prepared=True)
+            if wants_agent and self._to_agent(req, "cloud", model, cfg):
+                return
+            req.pop("moai", None)
             raw = json.dumps(req).encode("utf-8")
             return self._to_cloud(req, raw, model, cfg)
+        if wants_agent and self._to_agent(req, brain, model, cfg):
+            return
+        req = dict(req)
+        req.pop("moai", None)
+        raw = json.dumps(req).encode("utf-8")
         if brain == "local":
             return self._to_local(req, model)
         return self._to_cloud(req, raw, model, cfg)
+
+    def _to_agent(self, req, brain, model, cfg, local_prepared=False):
+        """Route desktop chat through the same OpenClaw runtime as phone channels.
+
+        False means the runtime is not configured and the caller may use the
+        existing direct-model path. Once a request reaches OpenClaw, its result is
+        authoritative and is streamed straight back; no secret enters QML.
+        """
+        client = load_openclaw_client()
+        if not client or not os.path.isfile(OPENCLAW_BIN):
+            self.moai_agent = "direct-fallback"
+            return False
+        selected = openclaw_model(client, brain, model, cfg)
+        if not selected:
+            self.moai_agent = "direct-fallback"
+            return False
+        if brain == "local" and not local_prepared:
+            error = ensure_local(model)
+            if error:
+                self._err(503, error)
+                return True
+        error = ensure_openclaw_gateway()
+        if error:
+            self.moai_agent = "direct-fallback"
+            self.moai_route_reason = "openclaw-unavailable"
+            return False
+        meta = req.get("moai") if isinstance(req.get("moai"), dict) else {}
+        session = str(meta.get("session") or "").strip()
+        if not re.fullmatch(r"[A-Za-z0-9_.:-]{8,120}", session):
+            self._err(400, "invalid Mo AI conversation id")
+            return True
+        latest_user = None
+        for message in reversed(req.get("messages", [])):
+            if isinstance(message, dict) and message.get("role") == "user":
+                latest_user = message
+                break
+        if latest_user is None:
+            self._err(400, "agent chat needs a user message")
+            return True
+        out = {
+            "model": "openclaw/default",
+            "user": session,
+            "messages": [latest_user],
+            "stream": bool(req.get("stream")),
+        }
+        headers = {
+            "Authorization": "Bearer " + client["token"],
+            "x-openclaw-message-channel": "webchat",
+        }
+        if selected != client.get("primary"):
+            headers["x-openclaw-model"] = selected
+        self.moai_agent = "openclaw"
+        self._proxy("POST", OPENCLAW_BASE + "/v1/chat/completions", headers,
+                    json.dumps(out).encode("utf-8"), "openai", out["stream"])
+        return True
 
     def _to_local(self, req, model, prepared=False):
         error = None if prepared else ensure_local(model)
@@ -972,6 +1109,8 @@ class Handler(BaseHTTPRequestHandler):
         if getattr(self, "moai_route", ""):
             self.send_header("X-MoAI-Route", self.moai_route)
             self.send_header("X-MoAI-Route-Reason", self.moai_route_reason)
+        if getattr(self, "moai_agent", ""):
+            self.send_header("X-MoAI-Agent", self.moai_agent)
         self.send_header("Transfer-Encoding", "chunked")
         self.end_headers()
 
@@ -1026,6 +1165,8 @@ class Handler(BaseHTTPRequestHandler):
         if getattr(self, "moai_route", ""):
             self.send_header("X-MoAI-Route", self.moai_route)
             self.send_header("X-MoAI-Route-Reason", self.moai_route_reason)
+        if getattr(self, "moai_agent", ""):
+            self.send_header("X-MoAI-Agent", self.moai_agent)
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         try:

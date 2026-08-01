@@ -28,7 +28,13 @@ Workbench provides canonical-root file browsing, bounded UTF-8 preview and
 fixed-argv Git status/diff; traversal and symlink escapes are tested, and a
 bounded persistent audit ledger records task actions, project reads/diffs and
 permission-policy changes. Live 4K RTL evidence exists for Tasks and the real
-Git Workbench. The installed OpenClaw
+Git Workbench. The primary Chat canvas now uses OpenClaw's authenticated
+loopback Chat Completions endpoint, so desktop, Telegram and WhatsApp share the
+same agent runtime, sessions, memory, tools and policy while the existing QML
+keeps streaming and multimodal payloads. A real local two-turn test preserved
+the token `MOAI-LOCAL-UNIFIED-READY` in one OpenClaw session; the live UI proof
+shows `qwen3-vl:4b · وكيل موحّد`. OpenClaw also gains a `moai/hybrid` loopback
+provider so phone turns use the same smart routing policy. The installed OpenClaw
 advertises WhatsApp Web support and Mo AI now exposes its fixed login route;
 account pairing remains open. All of this is unreleased working-branch state
 until the full gates, image build, merge, signed CI matrix and live update pass.
