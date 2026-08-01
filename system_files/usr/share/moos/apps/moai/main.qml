@@ -561,6 +561,15 @@ Kirigami.ApplicationWindow {
                 root.agentWorkspaceTab = workspace
             }
         }
+        const projectIndex = argv.indexOf("--project")
+        if (projectIndex !== -1 && projectIndex + 1 < argv.length) {
+            const projectId = argv[projectIndex + 1]
+            if (/^[0-9a-f]{20}$/.test(projectId)) {
+                root.panel = "agent"
+                root.agentWorkspaceTab = "projects"
+                Qt.callLater(function () { root.agentOpenProject(projectId) })
+            }
+        }
         const routeIndex = argv.indexOf("--route")
         if (routeIndex !== -1 && routeIndex + 1 < argv.length) {
             const requestedRoute = argv[routeIndex + 1]
@@ -3878,35 +3887,40 @@ Kirigami.ApplicationWindow {
                                     onClicked: root.agentAddProject(projectPathField.text)
                                 }
                             }
-                            ListView {
+                            RowLayout {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
-                                model: root.agentProjects
-                                spacing: design.space1
-                                clip: true
-                                QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
-                                delegate: Card {
-                                    required property var modelData
-                                    width: ListView.view.width
-                                    height: root.fs(66)
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        spacing: design.space2
-                                        Kirigami.Icon {
-                                            source: "folder"
-                                            color: root.novaBlue
-                                            Layout.preferredWidth: root.fs(24)
-                                            Layout.preferredHeight: root.fs(24)
-                                        }
+                                spacing: design.space2
+                                ListView {
+                                    Layout.preferredWidth: root.fs(250)
+                                    Layout.fillHeight: true
+                                    model: root.agentProjects
+                                    spacing: design.space1
+                                    clip: true
+                                    QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+                                    delegate: Card {
+                                        required property var modelData
+                                        width: ListView.view.width
+                                        height: root.fs(86)
                                         ColumnLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 1
-                                            Text {
-                                                text: modelData.name
-                                                color: root.textHi
-                                                font.family: root.uiFont
-                                                font.pixelSize: root.typePx(12)
-                                                font.weight: Font.DemiBold
+                                            anchors.fill: parent
+                                            spacing: 2
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                Kirigami.Icon {
+                                                    source: "folder"
+                                                    color: root.novaBlue
+                                                    Layout.preferredWidth: root.fs(20)
+                                                    Layout.preferredHeight: root.fs(20)
+                                                }
+                                                Text {
+                                                    Layout.fillWidth: true
+                                                    text: modelData.name
+                                                    color: root.textHi
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: root.typePx(11)
+                                                    font.weight: Font.DemiBold
+                                                }
                                             }
                                             Text {
                                                 Layout.fillWidth: true
@@ -3914,15 +3928,147 @@ Kirigami.ApplicationWindow {
                                                 elide: Text.ElideMiddle
                                                 color: root.textMute
                                                 font.family: root.uiFont
-                                                font.pixelSize: root.typePx(10)
+                                                font.pixelSize: root.typePx(9)
+                                            }
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                Item { Layout.fillWidth: true }
+                                                MoButton {
+                                                    label: root.local("فتح", "Open")
+                                                    onClicked: root.agentOpenProject(modelData.id)
+                                                }
+                                                MoButton {
+                                                    label: root.local("مهمة", "Task")
+                                                    onClicked: {
+                                                        root.agentTaskProject = modelData.id
+                                                        root.agentWorkspaceTab = "tasks"
+                                                        root.agentLoadTasks()
+                                                    }
+                                                }
                                             }
                                         }
-                                        MoButton {
-                                            label: root.local("مهمة جديدة", "New task")
-                                            onClicked: {
-                                                root.agentTaskProject = modelData.id
-                                                root.agentWorkspaceTab = "tasks"
-                                                root.agentLoadTasks()
+                                    }
+                                }
+                                Card {
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        spacing: design.space1
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: root.agentProjectCurrent
+                                                      ? root.local("مساحة عمل المشروع", "Project workbench")
+                                                      : root.local("اختر مشروعاً لعرض ملفاته وتغييرات Git",
+                                                                   "Select a project to inspect files and Git changes")
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(11)
+                                                font.weight: Font.DemiBold
+                                            }
+                                            MoButton {
+                                                visible: root.agentProjectCurrent !== ""
+                                                label: root.local("الحالة", "Status")
+                                                onClicked: root.agentLoadProjectGitStatus()
+                                            }
+                                            MoButton {
+                                                visible: root.agentProjectCurrent !== ""
+                                                label: root.local("الفروقات", "Diff")
+                                                onClicked: root.agentLoadProjectDiff("")
+                                            }
+                                        }
+                                        Text {
+                                            visible: root.agentProjectCurrent !== ""
+                                            Layout.fillWidth: true
+                                            text: (root.agentProjectPath || ".")
+                                            color: root.textMute
+                                            font.family: "JetBrains Mono"
+                                            font.pixelSize: root.typePx(9)
+                                            elide: Text.ElideMiddle
+                                        }
+                                        RowLayout {
+                                            visible: root.agentProjectCurrent !== ""
+                                            Layout.fillWidth: true
+                                            Layout.fillHeight: true
+                                            spacing: design.space1
+                                            ListView {
+                                                Layout.preferredWidth: root.fs(220)
+                                                Layout.fillHeight: true
+                                                model: root.agentProjectEntries
+                                                clip: true
+                                                spacing: 1
+                                                QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+                                                header: MoButton {
+                                                    visible: root.agentProjectPath !== ""
+                                                    width: ListView.view.width
+                                                    label: root.local("↩ المجلد الأعلى", "↩ Parent folder")
+                                                    onClicked: root.agentLoadProjectFiles(root.agentProjectParent)
+                                                }
+                                                delegate: Rectangle {
+                                                    required property var modelData
+                                                    width: ListView.view.width
+                                                    height: root.fs(30)
+                                                    radius: root.fs(6)
+                                                    color: "transparent"
+                                                    RowLayout {
+                                                        anchors.fill: parent
+                                                        anchors.margins: 4
+                                                        Kirigami.Icon {
+                                                            source: modelData.type === "directory" ? "folder" : "text-x-generic"
+                                                            color: modelData.type === "directory" ? root.novaBlue : root.textMute
+                                                            Layout.preferredWidth: root.fs(15)
+                                                            Layout.preferredHeight: root.fs(15)
+                                                        }
+                                                        Text {
+                                                            Layout.fillWidth: true
+                                                            text: modelData.name
+                                                            elide: Text.ElideMiddle
+                                                            color: root.textHi
+                                                            font.family: root.uiFont
+                                                            font.pixelSize: root.typePx(9)
+                                                        }
+                                                    }
+                                                    ActionArea {
+                                                        anchors.fill: parent
+                                                        actionName: modelData.name
+                                                        focusRadius: root.fs(6)
+                                                        onTriggered: modelData.type === "directory"
+                                                            ? root.agentLoadProjectFiles(modelData.path)
+                                                            : root.agentLoadProjectFile(modelData.path)
+                                                    }
+                                                }
+                                            }
+                                            Rectangle {
+                                                Layout.fillWidth: true
+                                                Layout.fillHeight: true
+                                                radius: root.fs(7)
+                                                color: Qt.rgba(0.02, 0.025, 0.03, 0.96)
+                                                Flickable {
+                                                    anchors.fill: parent
+                                                    anchors.margins: design.space1
+                                                    contentWidth: width
+                                                    contentHeight: projectPreview.implicitHeight
+                                                    clip: true
+                                                    QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+                                                    TextEdit {
+                                                        id: projectPreview
+                                                        width: parent.width
+                                                        readOnly: true
+                                                        selectByMouse: true
+                                                        text: root.agentProjectPreview
+                                                        color: "#d7eee7"
+                                                        selectionColor: root.novaBlue
+                                                        selectedTextColor: root.accentText
+                                                        font.family: "JetBrains Mono"
+                                                        font.pixelSize: root.typePx(9)
+                                                        wrapMode: TextEdit.WrapAnywhere
+                                                        Accessible.name: root.local(
+                                                            "معاينة الملف أو تغييرات Git",
+                                                            "File or Git change preview")
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -5606,11 +5752,14 @@ Kirigami.ApplicationWindow {
     property bool agentShowArchived: false
     property string agentWorkspaceTab: "conversations"
     onAgentWorkspaceTabChanged: {
-        if (agentWorkspaceTab === "projects") agentLoadProjects()
-        else if (agentWorkspaceTab === "tasks") agentLoadTasks()
-        else if (agentWorkspaceTab === "terminal") agentLoadTerminals()
+        root.agentLoadCurrentWorkspace()
     }
     property var agentProjects: []
+    property string agentProjectCurrent: ""
+    property string agentProjectPath: ""
+    property string agentProjectParent: ""
+    property var agentProjectEntries: []
+    property string agentProjectPreview: ""
     property var agentTasks: []
     property string agentTaskProject: ""
     property var agentTerminals: []
@@ -5653,6 +5802,13 @@ Kirigami.ApplicationWindow {
                     "العقل أو الصوت المحلي غير مجهّز. الإجراء التالي ينشئهما ويتحقق منهما فعلياً.",
                     "The local brain or speech is not configured. The next action creates and verifies both.")
 
+    function agentLoadCurrentWorkspace() {
+        if (root.agentWorkspaceTab === "projects") root.agentLoadProjects()
+        else if (root.agentWorkspaceTab === "tasks") root.agentLoadTasks()
+        else if (root.agentWorkspaceTab === "terminal") root.agentLoadTerminals()
+        else root.agentLoadSessions()
+    }
+
     function agentLoadStatus() {
         const xhr = new XMLHttpRequest()
         xhr.open("GET", root.agentApi + "/api/status")
@@ -5675,7 +5831,7 @@ Kirigami.ApplicationWindow {
                 root.agentStatusLoaded = true
                 root.agentStatusError = ""
                 if (root.agentMachineConfigured)
-                    root.agentLoadSessions()
+                    root.agentLoadCurrentWorkspace()
             } catch (e) {
                 root.agentStatusLoaded = false
                 root.agentStatusError = root.local("رد حالة الوكيل غير مفهوم",
@@ -5792,6 +5948,120 @@ Kirigami.ApplicationWindow {
             }
         }
         xhr.send(JSON.stringify({ path: String(path).trim() }))
+    }
+
+    function agentOpenProject(id) {
+        root.agentProjectCurrent = id
+        root.agentTaskProject = id
+        root.agentProjectPreview = ""
+        root.agentLoadProjectFiles("")
+        root.agentLoadProjectGitStatus()
+    }
+
+    function agentLoadProjectFiles(path) {
+        if (!root.agentProjectCurrent) return
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/project/files?project="
+                 + encodeURIComponent(root.agentProjectCurrent)
+                 + "&path=" + encodeURIComponent(path || ""))
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                try {
+                    const result = JSON.parse(xhr.responseText)
+                    root.agentProjectEntries = result.entries || []
+                    root.agentProjectPath = result.path || ""
+                    root.agentProjectParent = result.parent || ""
+                    root.agentError = ""
+                } catch (e) { root.agentError = root.local("رد ملفات غير مفهوم", "Bad file response") }
+            } else {
+                try { root.agentError = JSON.parse(xhr.responseText).error }
+                catch (e) { root.agentError = root.local("تعذّر عرض ملفات المشروع",
+                                                         "Could not list project files") }
+            }
+        }
+        xhr.send()
+    }
+
+    function agentLoadProjectFile(path) {
+        if (!root.agentProjectCurrent) return
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/project/file?project="
+                 + encodeURIComponent(root.agentProjectCurrent)
+                 + "&path=" + encodeURIComponent(path))
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                try {
+                    const result = JSON.parse(xhr.responseText)
+                    root.agentProjectPreview = result.content || ""
+                    root.agentError = ""
+                } catch (e) { root.agentError = root.local("رد ملف غير مفهوم", "Bad file response") }
+            } else {
+                try { root.agentError = JSON.parse(xhr.responseText).error }
+                catch (e) { root.agentError = root.local("تعذّرت معاينة الملف",
+                                                         "Could not preview file") }
+            }
+        }
+        xhr.send()
+    }
+
+    function agentLoadProjectGitStatus() {
+        if (!root.agentProjectCurrent) return
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/project/git-status?project="
+                 + encodeURIComponent(root.agentProjectCurrent))
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                try {
+                    const result = JSON.parse(xhr.responseText)
+                    root.agentProjectPreview = result.status
+                        || root.local("شجرة العمل نظيفة.", "Working tree is clean.")
+                    root.agentError = ""
+                } catch (e) { root.agentError = root.local("رد Git غير مفهوم", "Bad Git response") }
+            } else {
+                try { root.agentError = JSON.parse(xhr.responseText).error }
+                catch (e) { root.agentError = root.local("تعذّر قراءة حالة Git",
+                                                         "Could not read Git status") }
+            }
+        }
+        xhr.send()
+    }
+
+    function agentLoadProjectDiff(path) {
+        if (!root.agentProjectCurrent) return
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/project/git-diff?project="
+                 + encodeURIComponent(root.agentProjectCurrent)
+                 + "&path=" + encodeURIComponent(path || ""))
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                try {
+                    const result = JSON.parse(xhr.responseText)
+                    let output = ""
+                    if (result.staged) output += root.local("التغييرات المجهزة:\n",
+                                                           "Staged changes:\n") + result.staged
+                    if (result.unstaged) output += (output ? "\n" : "")
+                                                 + root.local("التغييرات غير المجهزة:\n",
+                                                              "Unstaged changes:\n")
+                                                 + result.unstaged
+                    root.agentProjectPreview = output
+                        || root.local("لا توجد فروقات.", "No changes.")
+                    root.agentError = ""
+                } catch (e) { root.agentError = root.local("رد فرق غير مفهوم", "Bad diff response") }
+            } else {
+                try { root.agentError = JSON.parse(xhr.responseText).error }
+                catch (e) { root.agentError = root.local("تعذّر عرض فروقات Git",
+                                                         "Could not show Git diff") }
+            }
+        }
+        xhr.send()
     }
 
     function agentLoadTasks() {

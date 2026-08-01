@@ -71,6 +71,8 @@ MAX_TERMINAL_INPUT = 64 * 1024
 MAX_TERMINAL_BUFFER = 2 * 1024 * 1024
 MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
 MAX_TEXT_ATTACHMENT_BYTES = 512 * 1024
+MAX_PROJECT_FILE_BYTES = 1024 * 1024
+MAX_PROJECT_DIFF_BYTES = 2 * 1024 * 1024
 
 # OpenClaw is a per-user npm install (~386 MB, needs Node >= 22.22.3), so the
 # image does NOT ship it — `moai-do install-openclaw` puts it in ~/.local, the
@@ -329,7 +331,7 @@ def load_workspace() -> dict:
         value = json.loads(WORKSPACE.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return {"version": 1, "sessions": {}, "projects": {}, "tasks": {},
-                "attachments": {}}
+                "attachments": {}, "audit": []}
     except Exception as exc:
         raise ValueError(f"could not read Mo AI workspace metadata: {exc}") from exc
     if not isinstance(value, dict) or value.get("version") != 1:
@@ -338,6 +340,9 @@ def load_workspace() -> dict:
         if not isinstance(value.get(key, {}), dict):
             raise ValueError(f"workspace field {key!r} must be an object")
         value.setdefault(key, {})
+    if not isinstance(value.get("audit", []), list):
+        raise ValueError("workspace field 'audit' must be an array")
+    value.setdefault("audit", [])
     return value
 
 
@@ -456,6 +461,7 @@ def capabilities() -> dict:
         "schema": 1,
         "workspace": {
             "sessions": True, "projects": True, "tasks": True,
+            "project_files": True, "git_status_diff": True, "audit": True,
             "attachments": {"images": True, "text": True, "binary_extract": False},
         },
         "agent": {
@@ -981,6 +987,14 @@ def write_config(body: dict) -> dict:
                 f"لم يُفعّل التغيير وأُعيد الإعداد السابق: {exc}"
             ) from exc
 
+        permission_change = body.get("permissions") or {}
+        if isinstance(permission_change, dict) and (
+            "tier" in permission_change or "project" in permission_change
+        ):
+            append_audit(
+                "permission", "policy-change", str(st.get("project") or ""), "applied",
+                {"tier": str(st.get("tier") or _actual_tier(c) or "read")},
+            )
         return {
             "ok": True,
             "restarted": restarted,
@@ -1047,6 +1061,135 @@ def upsert_project(body: dict) -> dict:
     workspace["projects"][project_id] = project
     save_workspace(workspace)
     return {"ok": True, **project}
+
+
+def _project(project_id: str) -> tuple[dict, Path]:
+    if not re.fullmatch(r"[0-9a-f]{20}", str(project_id or "")):
+        raise ValueError("invalid project id")
+    value = load_workspace()["projects"].get(project_id)
+    if not isinstance(value, dict):
+        raise ValueError("project does not exist")
+    root = _home_directory(str(value.get("path") or ""))
+    return value, root
+
+
+def _project_path(project_id: str, relative: str, *, directory=False) -> tuple[dict, Path, Path]:
+    project, root = _project(project_id)
+    raw = str(relative or "").replace("\\", "/")
+    if raw.startswith("/") or "\x00" in raw:
+        raise ValueError("project path must be relative")
+    try:
+        candidate = (root / raw).resolve(strict=True)
+    except OSError as exc:
+        raise ValueError("project entry does not exist") from exc
+    if candidate != root and root not in candidate.parents:
+        raise ValueError("project path escapes its root")
+    if directory and not candidate.is_dir():
+        raise ValueError("project entry is not a directory")
+    return project, root, candidate
+
+
+def project_files(project_id: str, relative: str = "") -> dict:
+    project, root, directory = _project_path(project_id, relative, directory=True)
+    entries = []
+    try:
+        children = sorted(directory.iterdir(), key=lambda p: (not p.is_dir(), p.name.casefold()))
+    except OSError as exc:
+        raise ValueError(f"could not list project directory: {exc}") from exc
+    visible_children = [child for child in children if child.name != ".git"]
+    for child in visible_children[:500]:
+        try:
+            resolved = child.resolve(strict=True)
+            if resolved != root and root not in resolved.parents:
+                continue
+            stat = resolved.stat()
+        except OSError:
+            continue
+        entries.append({
+            "name": child.name,
+            "path": str(resolved.relative_to(root)),
+            "type": "directory" if resolved.is_dir() else "file",
+            "size": stat.st_size if resolved.is_file() else 0,
+        })
+    display_path = "" if directory == root else str(directory.relative_to(root))
+    return {"project": project, "path": display_path,
+            "parent": "" if directory == root else str(directory.parent.relative_to(root)),
+            "entries": entries, "truncated": len(visible_children) > 500}
+
+
+def project_file(project_id: str, relative: str) -> dict:
+    project, root, path = _project_path(project_id, relative)
+    if not path.is_file():
+        raise ValueError("project entry is not a file")
+    size = path.stat().st_size
+    if size > MAX_PROJECT_FILE_BYTES:
+        raise ValueError("project file is larger than the 1 MiB preview limit")
+    data = path.read_bytes()
+    if b"\x00" in data:
+        raise ValueError("binary project files are not previewed")
+    try:
+        content = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("project file is not UTF-8 text") from exc
+    append_audit("project", "read-file", str(path.relative_to(root)), "allowed",
+                 {"project": project["id"], "bytes": size})
+    return {"project": project["id"], "path": str(path.relative_to(root)),
+            "size": size, "content": content}
+
+
+def _git(project_id: str, args: list[str], limit: int) -> tuple[dict, str]:
+    project, root = _project(project_id)
+    if not (root / ".git").exists():
+        raise ValueError("project is not a Git worktree")
+    proc = subprocess.run(["git", "-C", str(root), *args], capture_output=True,
+                          text=True, timeout=20, env=ENV)
+    if proc.returncode:
+        raise ValueError((proc.stderr or "Git command failed").strip()[:500])
+    encoded = (proc.stdout or "").encode("utf-8", errors="replace")
+    truncated = len(encoded) > limit
+    return project, encoded[:limit].decode("utf-8", errors="replace") + (
+        "\n… output truncated …\n" if truncated else "")
+
+
+def project_git_status(project_id: str) -> dict:
+    project, output = _git(project_id, ["status", "--short", "--untracked-files=all"],
+                           MAX_PROJECT_DIFF_BYTES)
+    return {"project": project["id"], "status": output}
+
+
+def project_git_diff(project_id: str, relative: str = "") -> dict:
+    if relative:
+        _project_path(project_id, relative)
+    path_args = ["--", relative] if relative else []
+    project, unstaged = _git(project_id, ["diff", "--no-ext-diff", *path_args],
+                             MAX_PROJECT_DIFF_BYTES // 2)
+    _, staged = _git(project_id, ["diff", "--cached", "--no-ext-diff", *path_args],
+                     MAX_PROJECT_DIFF_BYTES // 2)
+    append_audit("project", "git-diff", relative or ".", "allowed",
+                 {"project": project["id"]})
+    return {"project": project["id"], "path": relative,
+            "unstaged": unstaged, "staged": staged}
+
+
+def append_audit(category: str, action: str, target: str, outcome: str,
+                 detail: dict | None = None) -> dict:
+    event = {
+        "id": str(uuid.uuid4()), "ts": int(time.time()),
+        "category": str(category)[:40], "action": str(action)[:80],
+        "target": str(target)[:300], "outcome": str(outcome)[:40],
+        "detail": detail if isinstance(detail, dict) else {},
+    }
+    with CONFIG_WRITE_LOCK:
+        workspace = load_workspace()
+        workspace["audit"].append(event)
+        workspace["audit"] = workspace["audit"][-2000:]
+        save_workspace(workspace)
+    return event
+
+
+def list_audit(limit: int = 200) -> list[dict]:
+    limit = min(500, max(1, int(limit)))
+    return list(reversed(load_workspace()["audit"][-limit:]))
 
 
 def list_tasks(project: str = "", state: str = "") -> list[dict]:
@@ -1285,18 +1428,23 @@ def task_action(body: dict) -> dict:
                          "result": "", "tool": "openclaw-agent"})
             threading.Thread(target=_finish_task, args=(task_id, process),
                              daemon=True, name=f"moai-task-{task_id[:8]}").start()
+            append_audit("task", "start", task_id, "allowed",
+                         {"project": task.get("project", "")})
         elif not process or process.poll() is not None:
             raise ValueError("task has no live agent process")
         elif action == "pause":
             os.killpg(process.pid, signal.SIGSTOP)
             update_task({"id": task_id, "status": "paused"})
+            append_audit("task", "pause", task_id, "allowed")
         elif action == "resume":
             os.killpg(process.pid, signal.SIGCONT)
             update_task({"id": task_id, "status": "running"})
+            append_audit("task", "resume", task_id, "allowed")
         else:
             os.killpg(process.pid, signal.SIGTERM)
             update_task({"id": task_id, "status": "cancelled",
                          "result": "Cancelled by the user."})
+            append_audit("task", "cancel", task_id, "allowed")
     return {"ok": True, "id": task_id,
             "status": next(t["status"] for t in list_tasks() if t["id"] == task_id)}
 
@@ -1832,6 +1980,23 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/projects":
                 archived = (q.get("archived") or [""])[0] == "1"
                 return self._send(list_projects(archived))
+            if u.path == "/api/project/files":
+                return self._send(project_files((q.get("project") or [""])[0],
+                                                (q.get("path") or [""])[0]))
+            if u.path == "/api/project/file":
+                return self._send(project_file((q.get("project") or [""])[0],
+                                               (q.get("path") or [""])[0]))
+            if u.path == "/api/project/git-status":
+                return self._send(project_git_status((q.get("project") or [""])[0]))
+            if u.path == "/api/project/git-diff":
+                return self._send(project_git_diff((q.get("project") or [""])[0],
+                                                   (q.get("path") or [""])[0]))
+            if u.path == "/api/audit":
+                try:
+                    limit = int((q.get("limit") or ["200"])[0])
+                except ValueError as exc:
+                    raise ValueError("invalid audit limit") from exc
+                return self._send(list_audit(limit))
             if u.path == "/api/tasks":
                 return self._send(list_tasks((q.get("project") or [""])[0],
                                              (q.get("status") or [""])[0]))

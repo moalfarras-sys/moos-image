@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import runpy
+import subprocess
 import tempfile
 import time
 from pathlib import Path
@@ -98,6 +99,38 @@ def main() -> None:
         project = module["upsert_project"]({"name": "MoOS", "path": str(home)})
         assert project["ok"] and project["path"] == str(home)
         assert module["list_projects"]()[0]["id"] == project["id"]
+
+        repo = home / "repo"
+        repo.mkdir()
+        (repo / "src").mkdir()
+        source_file = repo / "src/main.txt"
+        source_file.write_text("before\n", encoding="utf-8")
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        subprocess.run(["git", "-C", str(repo), "add", "src/main.txt"], check=True)
+        subprocess.run(
+            ["git", "-C", str(repo), "-c", "user.name=Mo AI Test",
+             "-c", "user.email=moai@example.invalid", "commit", "-qm", "initial"],
+            check=True)
+        repo_project = module["upsert_project"]({"name": "Repository", "path": str(repo)})
+        root_files = module["project_files"](repo_project["id"])
+        assert root_files["path"] == ""
+        assert all(item["name"] != ".git" for item in root_files["entries"])
+        assert any(item["path"] == "src" and item["type"] == "directory"
+                   for item in root_files["entries"])
+        preview = module["project_file"](repo_project["id"], "src/main.txt")
+        assert preview["content"] == "before\n"
+        source_file.write_text("after\n", encoding="utf-8")
+        status = module["project_git_status"](repo_project["id"])
+        assert "src/main.txt" in status["status"]
+        diff = module["project_git_diff"](repo_project["id"], "src/main.txt")
+        assert "-before" in diff["unstaged"] and "+after" in diff["unstaged"]
+        assert module["list_audit"]()[0]["action"] == "git-diff"
+        try:
+            module["project_file"](repo_project["id"], "../../etc/hosts")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("project file preview escaped the registered root")
 
         task = module["create_task"]({
             "title": "Run the gates", "project": project["id"],
@@ -195,6 +228,11 @@ def main() -> None:
     assert 'u.path == "/api/session/update"' in source
     assert 'u.path == "/api/capabilities"' in source
     assert 'u.path == "/api/project/upsert"' in source
+    assert 'u.path == "/api/project/files"' in source
+    assert 'u.path == "/api/project/file"' in source
+    assert 'u.path == "/api/project/git-status"' in source
+    assert 'u.path == "/api/project/git-diff"' in source
+    assert 'u.path == "/api/audit"' in source
     assert 'u.path == "/api/task/create"' in source
     assert 'u.path == "/api/task/action"' in source
     assert 'if set(body) != {"id", "action"}' in source

@@ -118,10 +118,16 @@ cleanup lands. No decorative perpetual animation is allowed.
 - [x] Real PTY backend with terminal tabs, bounded output, stop and exit status.
 - [x] Terminal UI rendered inside Mo AI; no fake command list. Live evidence
   showed `printf 'Mo-AI-terminal-live\n'` and its real shell output.
-- [ ] Project file tree, diff review and test/Git tool result cards.
+- [x] Project file tree, bounded UTF-8 preview and real Git status/diff review;
+  fixed Git argv, canonical-root enforcement and symlink escape tests are in
+  `test_moai_workspace.py`. The live 4K RTL workbench evidence is
+  `/var/tmp/moai-project-workbench-direct.png`.
 - [ ] Approval queue tied to task steps. The four actual enforcement levels
   (read, project, system-with-approval, full) are implemented and tested.
 - [ ] Append-only audit events for every executed tool and policy decision.
+  The bounded persistent ledger now covers task process actions, project reads,
+  Git diff and permission/project policy changes; approval decisions and all
+  OpenClaw tool outcomes still need ingestion.
 - [x] Tracked task execution launches only the fixed OpenClaw binary/arguments,
   persists real exit output, extracts actual JSONL tool-call names, and controls
   its process group for pause, resume and cancel. The 4K RTL/Light task surface

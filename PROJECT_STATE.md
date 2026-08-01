@@ -21,7 +21,14 @@ than fake text, but a spoken phrase is still not verified. `moai-gateway` gains
 an explainable Hybrid route: sensitive data and attachments remain local by
 default, complex work may use configured/reachable cloud, and routing/fallback
 reasons are returned to the UI. OpenClaw permissions are split into the four
-real levels (read/project/system-with-approval/full). The installed OpenClaw
+real levels (read/project/system-with-approval/full). Tracked tasks now launch
+the fixed OpenClaw agent command, persist real outcomes, expose pause/resume/
+cancel, and ingest tool-call names from the OpenClaw session JSONL. The project
+Workbench provides canonical-root file browsing, bounded UTF-8 preview and
+fixed-argv Git status/diff; traversal and symlink escapes are tested, and a
+bounded persistent audit ledger records task actions, project reads/diffs and
+permission-policy changes. Live 4K RTL evidence exists for Tasks and the real
+Git Workbench. The installed OpenClaw
 advertises WhatsApp Web support and Mo AI now exposes its fixed login route;
 account pairing remains open. All of this is unreleased working-branch state
 until the full gates, image build, merge, signed CI matrix and live update pass.
