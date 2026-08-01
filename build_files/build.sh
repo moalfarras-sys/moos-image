@@ -2274,7 +2274,7 @@ systemctl --global mask grub-boot-success.service 2>/dev/null || true
 #    different unit that works and stays enabled. The alternative (RuntimeMaxSec=infinity)
 #    keeps the pickup and also clears the red, but leaves the processor running all session
 #    beside the socket launcher, risking DOUBLE crash dialogs — worse than the noise it fixes.
-#    So: mask, and keep the crash reporter that works. See FIXES_2026-07-16b.md.
+#    So: mask, and keep the crash reporter that works. See docs/FIXES_2026-07-16b.md.
 systemctl --global mask drkonqi-coredump-pickup.service 2>/dev/null || true
 
 # Mo AI in-app Settings backend: a tiny per-user control API. --global enables it

@@ -97,11 +97,13 @@ ACTIVITY_FILE = os.path.join(
     "moai-activity")
 
 
-def mark_activity():
+def mark_activity() -> None:
     """Record that the local brain was just used, for moai-idle's staleness check."""
     try:
-        with open(ACTIVITY_FILE, "w") as handle:
+        tmp = ACTIVITY_FILE + ".tmp"
+        with open(tmp, "w") as handle:
             handle.write(str(int(time.time())))
+        os.replace(tmp, ACTIVITY_FILE)
     except OSError:
         pass
 
@@ -136,7 +138,8 @@ VERSIONED = re.compile(r"/v\d[\w.]*(/|$)")
 SCHEME = re.compile(r"^[a-z0-9+.-]+://")
 
 
-def load_cfg():
+def load_cfg() -> dict:
+    """Load the legacy Mo AI gateway configuration if it exists."""
     try:
         with open(CONFIG, encoding="utf-8") as f:
             return json.load(f)
@@ -186,7 +189,8 @@ def load_product_cfg():
     return merged
 
 
-def load_secret():
+def load_secret() -> str:
+    """Retrieve the legacy cloud API key from the local credential store."""
     try:
         result = subprocess.run(
             [CREDENTIAL_STORE, "get"], capture_output=True, text=True,
@@ -265,7 +269,7 @@ def openclaw_model(client, brain, model, cfg):
 
 # ── The local brain ──────────────────────────────────────────────────────────
 
-def short_model(name):
+def short_model(name: str) -> str:
     """`ollama://library/qwen3:4b` → `qwen3:4b`.
 
     RamaLama normalises `ollama://qwen3:4b` to `ollama://library/qwen3:4b`, so the
@@ -279,16 +283,18 @@ def short_model(name):
     return n
 
 
-def comparable_model(name):
+def comparable_model(name: str) -> str:
+    """Normalize a model name to its base alphanumeric identity for comparisons."""
     name = short_model(name)
     return name[:-len(":latest")] if name.endswith(":latest") else name
 
 
-def same_model(left, right):
+def same_model(left: str, right: str) -> bool:
+    """Check if two model identifiers refer to the same base model."""
     return comparable_model(left) == comparable_model(right)
 
 
-def env_model():
+def env_model() -> str:
     """The model the local unit will ACTUALLY serve.
 
     moai.env is the unit's EnvironmentFile, so it outranks the unit's own
@@ -311,7 +317,7 @@ def env_model():
     return DEFAULT_LOCAL_MODEL
 
 
-def env_port():
+def env_port() -> "int | None":
     """The port the local unit will ACTUALLY bind, or None if the file says nothing.
 
     Same trap as env_model(), and it is the one that actually bit: moai.env is the
@@ -331,7 +337,7 @@ def env_port():
     return None
 
 
-def set_env_model(model):
+def set_env_model(model: str) -> None:
     """Point the local unit at `model`.
 
     The port is rewritten too, and never taken from the old file: 8080 is the
@@ -354,7 +360,7 @@ _pulled_cache = {"names": [], "ts": 0.0}
 PULLED_TTL = 30.0
 
 
-def pulled_models():
+def pulled_models() -> "list[str]":
     """The models the selected engine has already downloaded."""
     with _pulled_lock:
         if _pulled_cache["names"] and time.monotonic() - _pulled_cache["ts"] < PULLED_TTL:
@@ -531,7 +537,7 @@ def systemctl(verb):
 _local_lock = threading.Lock()
 
 
-def ensure_local(want):
+def ensure_local(want: str) -> str:
     """Bring the local brain up, serving `want` ("" = whatever it already serves).
 
     Returns "" on success, or a message meant for the user. Serialised: two chats

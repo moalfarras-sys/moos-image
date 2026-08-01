@@ -90,12 +90,10 @@ class TidalHorizonContractTests(unittest.TestCase):
         component_path = SHARE / "moos/apps/ui/TidalHorizon.qml"
         component = component_path.read_text(encoding="utf-8")
         for contract in (
-            "width * (compact ? 0.04 : 0.11)",
-            "height * (compact ? 0.78 : 0.82)",
-            "height * (compact ? 0.19 : 0.12)",
-            "Math.max(11, width * 0.013)",
-            "control2X: root.width * 0.31",
-            "control1X: root.width * 0.69",
+            "DropShadow {",
+            "radius: Math.min(width, height) * 0.25",
+            "samples: 65",
+            "color: Qt.rgba(0, 0, 0, 0.45 * root.",
             "duration: 320",
             "animateIn && motionEnabled",
         ):

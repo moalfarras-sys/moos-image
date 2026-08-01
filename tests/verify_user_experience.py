@@ -3502,8 +3502,7 @@ require("target: wallpaper" in _logout_code
 require(all(token in _portal for token in (
             "property color accentA", "property color accentB",
             "property color ink", "property color surface",
-            "readonly property real horizonY",
-            "readonly property real crestY", "PathCubic", "PathMove",
+            "DropShadow {", "radius: Math.min(width, height) * 0.25",
         ))
         and all(token not in _portal for token in (
             "Timer {", "Animation.Infinite", "MouseArea {", "ShaderEffect",

@@ -33,8 +33,15 @@ else
     echo "OpenClaw needs the local speech engine; run Mo AI's Set up brain action." >&2
     exit 1
 fi
+# `start` alone returns before a podman Quadlet finishes becoming active
+# (Type=notify, up to TimeoutStartSec), so an instant `is-active` check that
+# follows can still see "activating" and abort the whole preflight with exit 3
+# — which made openclaw-gateway.service fail once at every boot before
+# Restart=on-failure recovered it seconds later. `is-active --wait` blocks
+# until the unit reaches an active or failed state, so the HTTP probe below is
+# the only thing left to time.
 systemctl --user start "$speech_unit"
-systemctl --user is-active --quiet "$speech_unit"
+systemctl --user is-active --wait --quiet "$speech_unit"
 wait_http "http://127.0.0.1:8000/v1/models" "OpenClaw speech engine"
 
 if [ ! -x "$OPENCLAW_BIN" ]; then
@@ -69,6 +76,6 @@ case "$unit" in
         ;;
 esac
 systemctl --user start "$unit"
-systemctl --user is-active --quiet "$unit"
+systemctl --user is-active --wait --quiet "$unit"
 wait_http "http://127.0.0.1:11434/api/tags" \
     "OpenClaw local brain on 127.0.0.1:11434"

@@ -112,7 +112,8 @@ PROVIDERS = [
 ]
 
 
-def load():
+def load() -> dict:
+    """Load the Mo AI settings configuration, under a file lock."""
     with CONFIG_LOCK:
         try:
             with open(CFG, encoding="utf-8") as f:
@@ -131,11 +132,12 @@ def load():
                     # removes the plaintext credential field from pre-v3 configs.
                     save(data)
                 return data
-        except Exception:
+        except (OSError, ValueError):
             return {}
 
 
-def save(d):
+def save(d: dict) -> None:
+    """Save the Mo AI settings configuration, under a file lock."""
     with CONFIG_LOCK:
         os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
         os.chmod(CFG_DIR, 0o700)
@@ -161,33 +163,38 @@ def save(d):
 
 
 def credential_store(action, value=None):
+    """Invoke the moai-credential-store utility to get or set private values."""
     try:
         return subprocess.run(
             [CREDENTIAL_STORE, action], input=value, capture_output=True,
             text=True, timeout=10, check=False)
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         return None
 
 
 def get_secret():
+    """Retrieve the cloud API key from the local credential store."""
     result = credential_store("get")
     return result.stdout.rstrip("\n") if result and result.returncode == 0 else ""
 
 
 def store_secret(value):
+    """Save the cloud API key to the local credential store."""
     result = credential_store("set", value=value)
     return bool(result and result.returncode == 0)
 
 
-def sysctl(*args):
+def sysctl(*args: str) -> None:
+    """Execute a systemctl command asynchronously on the local user session."""
     try:
         subprocess.run(["systemctl", "--user", *args], check=False, timeout=20,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         pass
 
 
 def http_ok(url, timeout=1.5):
+    """Check if an HTTP endpoint returns a 2xx response."""
     try:
         with urllib.request.urlopen(url, timeout=timeout) as r:
             return r.status == 200
@@ -195,13 +202,13 @@ def http_ok(url, timeout=1.5):
         return False
 
 
-def gateway_online():
+def gateway_online() -> bool:
     """Is the front door up? /healthz answers from local knowledge only — it must
     never reach out to a provider, because this is polled every few seconds."""
     return http_ok("http://127.0.0.1:%d/healthz" % GATEWAY_PORT)
 
 
-def local_online():
+def local_online() -> bool:
     """Is the local brain actually serving? Ask it, on ITS port — not 8080, which
     now belongs to the gateway and would answer yes on behalf of nobody."""
     return http_ok("http://127.0.0.1:%d/v1/models" % LOCAL_PORT)
@@ -214,7 +221,7 @@ _cloud_cache = {"ready": False, "ts": 0.0}
 CLOUD_TTL = 6.0
 
 
-def cloud_ready():
+def cloud_ready() -> bool:
     """A cloud brain is configured: a base URL and a key in private storage.
 
     Deliberately NOT a live call to the provider. The old probe made a real
@@ -233,7 +240,7 @@ def cloud_ready():
     return ready
 
 
-def brain_online():
+def brain_online() -> bool:
     """Can the DEFAULT brain answer right now?"""
     mode = load().get("mode")
     if mode == "cloud":
@@ -317,7 +324,7 @@ def ollama_models():
         return []
     try:
         data = ollama_request("/api/tags", timeout=12)
-    except Exception:
+    except (urllib.error.URLError, OSError, ValueError):
         return []
     out = []
     for item in data.get("models", []) if isinstance(data, dict) else []:
@@ -533,7 +540,7 @@ def disk_usage():
     for path in ("/sysroot", "/var", "/"):
         try:
             du = shutil.disk_usage(path)
-        except Exception:
+        except OSError:
             continue
         if du.total > 0:
             return {"total_gb": du.total // (1024 ** 3),
@@ -576,7 +583,7 @@ def agent_state():
             "opencode": command_exists("opencode")}
 
 
-def quick():
+def quick() -> dict:
     """The cheap poll. No subprocess that can block — safe every few seconds.
 
     `online` still means "the DEFAULT brain can answer", which is what it always
@@ -596,7 +603,7 @@ def quick():
     }
 
 
-def scan():
+def scan() -> dict:
     """Read-only system snapshot. The device plan comes from cache (see above)."""
     info = {"os": _first_line("/etc/os-release", "PRETTY_NAME=") or "MoOS",
             "cpu": _first_line("/proc/cpuinfo", "model name"),
@@ -1061,7 +1068,7 @@ def cloud_models(cfg):
     return out, ""
 
 
-def models():
+def models() -> dict:
     cfg = load()
     mode = cfg.get("mode") if cfg.get("mode") in ("local", "cloud", "hybrid") else "local"
     configured = (cfg.get("cloud_model") or "").strip()
@@ -1274,7 +1281,7 @@ def search_apps(query):
 # base URL may be wrong, the key may be dead, the model may not exist, or the
 # provider may be behind a CDN that refuses us. So this actually SENDS a request
 # and reports what came back — the model's own reply, or the provider's own error.
-def test_cloud(base, model, wire, key):
+def test_cloud(base: str, model: str, wire: str, key: str) -> dict:
     base = (base or "").rstrip("/")
     wire = (wire or "openai").lower()
     if not base:

@@ -265,6 +265,40 @@ class MoOSSymbolicGtkResolverTests(unittest.TestCase):
                     )
 
 
+def _stub_missing_inherited_themes(data_home: Path) -> None:
+    """Give the palette overlays the base themes they inherit from.
+
+    The palette themes in system_files/usr/share/icons inherit a base MoOSUI2 /
+    MoOSUI2Light theme that the repository does not contain: build.sh derives it
+    from the Colloid sources at image build time.  Under a repo-only
+    XDG_DATA_DIRS the resolver logs 'Icon theme "MoOSUI2" not found.' to the
+    journal for every mark it paints, even though it then resolves the palette's
+    own copy and exits 0.  Drop a minimal index.theme stub (inheriting only
+    hicolor, the sole other theme in the sandbox) so the chain resolves quietly
+    while the gate still proves the palette copy wins the lookup.
+    """
+    icon_root = ROOT / "system_files/usr/share/icons"
+    for theme_dir in icon_root.iterdir():
+        index = theme_dir / "index.theme"
+        if not index.is_file():
+            continue
+        for target in re.findall(r"^Inherits=(.*)$", index.read_text(encoding="utf-8"), re.M):
+            for name in (part.strip() for part in target.split(",")):
+                if not name:
+                    continue
+                if (icon_root / name).is_dir():
+                    continue
+                stub_dir = data_home / "icons" / name
+                stub_dir.mkdir(parents=True, exist_ok=True)
+                (stub_dir / "index.theme").write_text(
+                    "[Icon Theme]\n"
+                    f"Name={name}\n"
+                    "Comment=Sandbox stub for an image-built base theme\n"
+                    "Inherits=hicolor\n",
+                    encoding="utf-8",
+                )
+
+
 def _isolated_kde_environment(runtime: Path) -> dict[str, str]:
     """An XDG profile with the repository as its only icon data root.
 
@@ -288,6 +322,7 @@ def _isolated_kde_environment(runtime: Path) -> dict[str, str]:
         "HOME", "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_CONFIG_DIRS", "XDG_DATA_HOME",
     ):
         Path(environment[key]).mkdir(parents=True, exist_ok=True)
+    _stub_missing_inherited_themes(Path(environment["XDG_DATA_HOME"]))
     return environment
 
 

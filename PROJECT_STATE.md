@@ -205,6 +205,14 @@ theme-baked SVG architecture (after a mid-flight PNG/hardcoded-RGB diversion
 broke palette baking and the app-icon gates) and upgrades the plate material
 to multi-layer Liquid Glass. Design system remains **MoOS UI — Liquid Glass**.
 
+> **Mo AI phone-agent repair — 2026-08-01.** The gateway unit now uses the
+> same `~/.local/node` runtime that `moai-do install-openclaw` provisions;
+> the contradictory nvm-only drop-in was removed and the SQLite gate checks
+> the installer/service contract. Bootstrap now reapplies mode `0700` to the
+> OpenClaw credentials directory even when configuration content is unchanged.
+> The local `just check` list was also brought back in line with CI's omitted
+> runtime, cloud, recovery, streaming and remote-security gates.
+
 > **Read [`skills/moos-engineering/SKILL.md`](skills/moos-engineering/SKILL.md) first —
 > it is mandatory for every agent working here.**
 
@@ -704,7 +712,7 @@ to multi-layer Liquid Glass. Design system remains **MoOS UI — Liquid Glass**.
 > diagnostic evidence only: signed CI publication, signed staging and
 > post-reboot proof remain mandatory and must not be claimed until recorded.
 
-> **Session H — the first-boot session (2026-07-17, full writeup in `FIXES_2026-07-17b.md`).**
+> **Session H — the first-boot session (2026-07-17, full writeup in `docs/FIXES_2026-07-17b.md`).**
 > ISO `44.20260717.190` was walked end-to-end in QEMU (all green: splash+ring, DE live
 > keyboard, 9-page installer, moving progress bar, offline install, target first boot on
 > Vienna time) and the walkthrough caught two shipped bugs no gate had seen: (1) the zram
@@ -717,7 +725,7 @@ to multi-layer Liquid Glass. Design system remains **MoOS UI — Liquid Glass**.
 > gates broken-once and watched go red. Forensics trick that cracked it: power the VM off,
 > guestfish the journal out of the target disk, read it with `journalctl --directory`.
 
-> **Session G — the polish session (2026-07-17, full writeup in `FIXES_2026-07-17.md`).**
+> **Session G — the polish session (2026-07-17, full writeup in `docs/FIXES_2026-07-17.md`).**
 > Wallpapers v2: the four family themes now carry LIT-SILK art (crest-lit bands, aurora
 > veil, screen-blended neon edges — make_wallpaper rewritten; Canva retried, account AI
 > quota still hard-blocked). A new pre-baked `ring.png` comet-ring sprite orbits the emblem
@@ -730,7 +738,7 @@ to multi-layer Liquid Glass. Design system remains **MoOS UI — Liquid Glass**.
 > breathes; panel clock glints on hover. Gates extended (heroclock completeness + the
 > always-on shader ban loop), both watched go red.
 
-> **Session F — the brand session (2026-07-16, full writeup in `FIXES_2026-07-16c.md`).**
+> **Session F — the brand session (2026-07-16, full writeup in `docs/FIXES_2026-07-16c.md`).**
 > The owner's vector logo landed (`artwork/logo/`) and the animated MoOS brand now lives on
 > every doorway surface: the login scene is `org.moos.ui2.greeter` (a Plasma/Wallpaper package
 > the greeter's wallpaper process loads — the greeter QML itself is compiled into the binary),
@@ -875,7 +883,7 @@ to multi-layer Liquid Glass. Design system remains **MoOS UI — Liquid Glass**.
 >   live dark-variant path).
 >
 > **Update 2026-07-16 (session C) — read this before touching themes, the keyboard, or Mo Remote.**
-> Full writeup in `FIXES_2026-07-16.md`. Four things landed and are on `main`:
+> Full writeup in `docs/FIXES_2026-07-16.md`. Four things landed and are on `main`:
 >
 > 1. **Theme FAMILY.** MoOS is no longer "ONE look" — it is a **family** on the single UI2
 >    engine. Graphite (dark) + Tidal (light) stay the base; four palette-driven members were

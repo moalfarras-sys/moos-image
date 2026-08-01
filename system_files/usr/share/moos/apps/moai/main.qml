@@ -2525,6 +2525,7 @@ Kirigami.ApplicationWindow {
                             }
                         }
 
+
                         // The chosen brain cannot answer → a real control, not a
                         // dead end. WHICH control depends on the route: a cloud
                         // route needs a provider and a key, a local route needs

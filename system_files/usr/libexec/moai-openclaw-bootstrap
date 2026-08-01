@@ -21,6 +21,7 @@ from pathlib import Path
 HOME = Path.home()
 CONFIG_DIR = HOME / ".openclaw"
 CONFIG = CONFIG_DIR / "openclaw.json"
+CREDENTIALS_DIR = CONFIG_DIR / "credentials"
 LOCAL_BIN = HOME / ".local/bin"
 LEGACY_GATEWAY_UNIT = HOME / ".config/systemd/user/openclaw-gateway.service"
 SYSTEM_GATEWAY_UNIT = Path("/usr/lib/systemd/user/openclaw-gateway.service")
@@ -363,6 +364,8 @@ def harden_config_permissions() -> None:
     os.chmod(CONFIG_DIR, 0o700)
     if CONFIG.is_file():
         os.chmod(CONFIG, 0o600)
+    if CREDENTIALS_DIR.is_dir():
+        os.chmod(CREDENTIALS_DIR, 0o700)
 
 
 def atomic_save(cfg: dict) -> None:

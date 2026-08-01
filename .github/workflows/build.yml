@@ -212,6 +212,10 @@ jobs:
           # config on EVERY login — a ~1.7s / ~428 MB Node cold start for no net change. This asserts
           # a no-op config skips the save while a drifted config still self-heals.
           python3 tests/test_openclaw_bootstrap_noop.py
+          # OpenClaw's SQLite state DB needs 3.51.3+; Fedora 44's system Node 22.23.1 embeds
+          # the broken 3.51.2, which silently dropped WhatsApp replies. The shipped systemd
+          # override must keep pinning a SQLite-safe Node on the gateway's PATH.
+          python3 tests/test_openclaw_nodejs_sqlite.py
           python3 tests/test_mo_remote_codec_resend.py
           # The H.264->JPEG fallback latch was dead code: `if not pick_h264()` tests a 2-tuple that is
           # always truthy, and the mid-stream blacklist keyed the instance name 'enc' and called

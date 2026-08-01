@@ -45,9 +45,10 @@ def main() -> int:
     errors: list[str] = []
     full = module.merge_baseline({})           # the complete baseline
     saves: list[dict] = []
+    hardens: list[bool] = []
 
     with mock.patch.object(module, "atomic_save", lambda cfg: saves.append(cfg)), \
-         mock.patch.object(module, "harden_config_permissions", lambda: None), \
+         mock.patch.object(module, "harden_config_permissions", lambda: hardens.append(True)), \
          mock.patch.object(module, "retire_legacy_gateway_unit", lambda: False), \
          mock.patch.object(module, "ensure_podman_docker_shim", lambda: None), \
          mock.patch.object(module, "OPENCLAW", types.SimpleNamespace(is_file=lambda: True)), \
@@ -62,17 +63,22 @@ def main() -> int:
         if saves:
             errors.append("an unchanged config still triggered atomic_save — the ~1.7s/428 MB Node "
                           "validate+rewrite runs on every login for no change.")
+        if not hardens:
+            errors.append("an unchanged config skipped credential permission hardening.")
 
         # A drifted config (a field went missing): healing MUST still write.
         partial = copy.deepcopy(full)
         partial.pop(next(iter(partial)))
         saves.clear()
+        hardens.clear()
         with mock.patch.object(module, "load_existing", lambda: copy.deepcopy(partial)):
             sys.argv = ["moai-openclaw-bootstrap"]
             module.main()
         if not saves:
             errors.append("a drifted config was NOT re-saved — the short-circuit is too broad and "
                           "self-healing is lost.")
+        if not hardens:
+            errors.append("a healed config skipped credential permission hardening.")
 
     if errors:
         print("GATE FAIL: openclaw-bootstrap's per-login save is wrong.\n")

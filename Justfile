@@ -86,6 +86,8 @@ check:
     # Recovery is where a broken update sends the user: its target, queued-state
     # copy, and non-blocking Polkit/bootc path belong in the local gate too.
     python3 tests/test_recovery_rollback_target.py
+    python3 tests/test_moai_ports_fail_closed.py
+    python3 tests/test_openclaw_bootstrap_noop.py
     # Owned first-party chrome must resolve to deterministic palette-aware SVGs,
     # never the retired fixed-colour action artwork or a missing icon name.
     python3 tests/test_moos_symbolic_icons.py
@@ -95,12 +97,22 @@ check:
     # Mo AI's hand-drawn controls, modal exits, palette-driven ambient light and
     # every fixed-duration transition must remain keyboard/motion complete.
     python3 tests/test_moos_app_visual_polish.py
+    # An Arabic user's terminal must stay legible: the fontconfig rule has to be
+    # installed, Kawkab Mono must sit in JetBrains Mono's fallback chain, and
+    # every Konsole profile must keep asking for JetBrains Mono by name so the
+    # weak accept alias engages instead of detaching the cursive joins.
+    python3 tests/test_arabic_terminal_font.py
+    # OpenClaw's state DB needs SQLite 3.51.3+, and Fedora 44's system Node
+    # (22.23.1) embeds the broken 3.51.2. The shipped systemd override must keep
+    # pinning a SQLite-safe Node on the gateway's PATH, or replies silently drop.
+    python3 tests/test_openclaw_nodejs_sqlite.py
     # Runs the motion gate in a REAL QML engine instead of grepping for it. Skips
     # cleanly where there is no Qt (the CI runner); the string half of the same
     # contract is in verify_user_experience.py and runs everywhere.
     python3 tests/test_moos_motion_gate.py
     python3 tests/test_cloud_private_desktop.py
     python3 tests/test_mo_remote_codec_resend.py
+    python3 tests/test_remote_h264_fallback.py
     python3 artwork/verify_visuals.py
     # Same gate build.sh runs against the finished image, pointed at the tree that
     # is about to become it. Keeping it here means a drifted catalogue recipe or a
