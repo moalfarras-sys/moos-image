@@ -37,6 +37,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PANEL = ROOT / "system_files/usr/bin/mo-pc-remote"
 AGENT = ROOT / "moremote/agent/Web/WebApi.cs"
 SCREEN = ROOT / "moremote/controller/src/ui/RemoteScreen.tsx"
+BUILD = ROOT / "build_files/build.sh"
 
 errors = []
 
@@ -63,6 +64,12 @@ def read(p: Path) -> str:
 panel = code(read(PANEL), "#")
 agent = code(read(AGENT), "//")
 screen = code(read(SCREEN), "//")
+build = code(read(BUILD), "#")
+
+if "tailscale serve /audio" in build:
+    errors.append("build.sh still claims the retired unauthenticated /audio mount is active")
+if "authenticated agent proxies /api/audio/stream.webm" not in build:
+    errors.append("build.sh does not describe the authenticated audio route it actually ships")
 
 # 1. Nothing may create the unauthenticated mount, from any call site.
 if "--set-path=/audio" in panel and '"off"' not in panel:
