@@ -70,6 +70,7 @@ def main() -> None:
         caps = module["capabilities"]()
         assert caps["schema"] == 1
         assert caps["workspace"]["tasks"] is True
+        assert caps["agent"]["approval_queue"] is True
         assert caps["terminal"] == {"pty": True, "tabs": True, "model_access": False}
         assert caps["workspace"]["attachments"]["binary_extract"] is False
 
@@ -167,6 +168,44 @@ def main() -> None:
         assert running["tools"][-1]["name"] == "rg"
         assert module["list_tasks"]()[0]["id"] == task["id"]
 
+        # Desktop approvals are a narrow bridge to OpenClaw's real queue. The
+        # browser cannot choose an RPC method, and resolutions are checked
+        # against the exact pending request before they reach the Gateway.
+        approval_id = "33333333-3333-3333-3333-333333333333"
+        calls = []
+        def fake_gateway(method, params):
+            calls.append((method, params))
+            if method == "exec.approval.list":
+                return [{
+                    "id": approval_id,
+                    "request": {
+                        "command": "just check", "cwd": str(repo),
+                        "sessionKey": f"moai-task-{task['id']}",
+                        "allowedDecisions": ["allow-once", "deny"],
+                    },
+                    "createdAtMs": 10, "expiresAtMs": 20,
+                }]
+            return {"ok": True}
+        globals_["_gateway_rpc"] = fake_gateway
+        pending = module["list_approvals"]()
+        assert pending[0]["task"] == task["id"]
+        assert pending[0]["command"] == "just check"
+        resolved = module["resolve_approval"]({
+            "id": approval_id, "decision": "deny",
+        })
+        assert resolved["ok"] and resolved["task"] == task["id"]
+        assert calls[-1] == (
+            "exec.approval.resolve", {"id": approval_id, "decision": "deny"})
+        assert module["list_audit"]()[0]["category"] == "approval"
+        try:
+            module["resolve_approval"]({
+                "id": approval_id, "decision": "allow-always",
+            })
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("unavailable approval decision was accepted")
+
         # The task button must launch the fixed OpenClaw argv and persist the
         # real process outcome; no caller-provided executable or shell text.
         fake_openclaw = home / "openclaw"
@@ -256,6 +295,9 @@ def main() -> None:
     assert 'u.path == "/api/audit"' in source
     assert 'u.path == "/api/task/create"' in source
     assert 'u.path == "/api/task/action"' in source
+    assert 'u.path == "/api/approvals"' in source
+    assert 'u.path == "/api/approval/resolve"' in source
+    assert 'if method not in {"exec.approval.list", "exec.approval.resolve"}' in source
     assert 'if set(body) != {"id", "action"}' in source
     assert '[BIN, "agent", "--session-key", f"moai-task-{task_id}",' in source
     assert 'def _task_session_tools(task_id: str)' in source

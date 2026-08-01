@@ -138,12 +138,21 @@ cleanup lands. No decorative perpetual animation is allowed.
   fixed Git argv, canonical-root enforcement and symlink escape tests are in
   `test_moai_workspace.py`. The live 4K RTL workbench evidence is
   `/var/tmp/moai-project-workbench-direct.png`.
-- [ ] Approval queue tied to task steps. The four actual enforcement levels
-  (read, project, system-with-approval, full) are implemented and tested.
+- [x] OpenClaw's real exec-approval queue is tied to tracked tasks by their
+  guarded `moai-task-<uuid>` session key. Task cards show the exact bounded
+  command/cwd and only the decisions OpenClaw allows (`allow-once`, optional
+  `allow-always`, `deny`). Mo AI resolves through the official Gateway
+  WebSocket protocol; the credential and arbitrary RPC methods never reach
+  QML. A live source-API proof listed request
+  `9c42b3e3-b9a4-4c52-bcfb-cbf296315cc5`, denied it, observed an empty queue,
+  and persisted the hashed-command decision in the audit ledger. The four
+  actual enforcement levels (read, project, system-with-approval, full) remain
+  implemented and tested.
 - [ ] Append-only audit events for every executed tool and policy decision.
   The bounded persistent ledger now covers task process actions, project reads,
-  Git diff and permission/project policy changes; approval decisions and all
-  OpenClaw tool outcomes still need ingestion.
+  Git diff, permission/project policy changes and approval decisions (with a
+  command hash rather than duplicated command text). All OpenClaw tool outcomes
+  still need ingestion before this item can close.
 - [x] Tracked task execution launches only the fixed OpenClaw binary/arguments,
   persists real exit output, extracts actual JSONL tool-call names, and controls
   its process group for pause, resume and cancel. The 4K RTL/Light task surface

@@ -27,7 +27,13 @@ cancel, and ingest tool-call names from the OpenClaw session JSONL. The project
 Workbench provides canonical-root file browsing, bounded UTF-8 preview and
 fixed-argv Git status/diff; traversal and symlink escapes are tested, and a
 bounded persistent audit ledger records task actions, project reads/diffs and
-permission-policy changes. Live 4K RTL evidence exists for Tasks and the real
+permission-policy changes. Tracked task cards now consume OpenClaw's real
+Gateway exec-approval queue and expose only its allowed decisions; a live
+source-API proof listed an exact pending command, denied it through
+`exec.approval.resolve`, verified removal from the queue and recorded the
+decision plus command hash in the audit ledger. The shared Gateway token stays
+inside the backend, and `python3-websockets` is now an explicit image
+dependency. Live 4K RTL evidence exists for Tasks and the real
 Git Workbench. The primary Chat canvas now uses OpenClaw's authenticated
 loopback Chat Completions endpoint, so desktop, Telegram and WhatsApp share the
 same agent runtime, sessions, memory, tools and policy while the existing QML

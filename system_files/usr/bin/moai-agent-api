@@ -18,6 +18,7 @@ has_key/has_token فقط، ولا يعيد القيمة نفسها ولو للو
 from __future__ import annotations
 
 import copy
+import asyncio
 import base64
 import hashlib
 import json
@@ -472,6 +473,7 @@ def capabilities() -> dict:
         "agent": {
             "installed": Path(BIN).is_file() and os.access(BIN, os.X_OK),
             "task_execution": True,
+            "approval_queue": True,
             "permission_tiers": list(TIERS),
             "active_tier": tier if tier in TIERS else "read",
         },
@@ -1209,6 +1211,142 @@ def append_audit(category: str, action: str, target: str, outcome: str,
 def list_audit(limit: int = 200) -> list[dict]:
     limit = min(500, max(1, int(limit)))
     return list(reversed(load_workspace()["audit"][-limit:]))
+
+
+def _gateway_details() -> tuple[str, str]:
+    """Return the loopback Gateway URL and shared secret without exposing either."""
+    cfg = load_cfg()
+    gateway = cfg.get("gateway") or {}
+    auth = gateway.get("auth") or {}
+    token = str(auth.get("token") or "")
+    try:
+        port = int(gateway.get("port", 18789))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("OpenClaw Gateway port is invalid") from exc
+    if not token or port < 1 or port > 65535:
+        raise ValueError("OpenClaw Gateway is not configured")
+    return f"ws://127.0.0.1:{port}", token
+
+
+async def _gateway_rpc_async(method: str, params: dict) -> object:
+    """Call one fixed OpenClaw approval RPC as a trusted loopback backend."""
+    try:
+        import websockets
+    except ImportError as exc:
+        raise ValueError("python3-websockets is required for OpenClaw approvals") from exc
+    url, token = _gateway_details()
+    try:
+        async with websockets.connect(
+            url, origin=None, open_timeout=4, close_timeout=2,
+            max_size=2 * 1024 * 1024,
+        ) as socket:
+            challenge = json.loads(await asyncio.wait_for(socket.recv(), 4))
+            if challenge.get("event") != "connect.challenge":
+                raise ValueError("OpenClaw Gateway returned an invalid challenge")
+            request_id = str(uuid.uuid4())
+            await socket.send(json.dumps({
+                "type": "req", "id": request_id, "method": "connect",
+                "params": {
+                    "minProtocol": 4, "maxProtocol": 4,
+                    "client": {
+                        "id": "gateway-client", "version": "1",
+                        "platform": "linux", "mode": "backend",
+                        "displayName": "Mo AI",
+                    },
+                    "role": "operator",
+                    # Admin makes requests from every owner surface visible;
+                    # no generic RPC or credential ever crosses our HTTP API.
+                    "scopes": ["operator.admin", "operator.approvals"],
+                    "caps": [], "commands": [], "permissions": {},
+                    "auth": {"token": token}, "locale": "en-US",
+                    "userAgent": "moai-agent-api/1",
+                },
+            }))
+            hello = json.loads(await asyncio.wait_for(socket.recv(), 4))
+            if hello.get("id") != request_id or not hello.get("ok"):
+                raise ValueError("OpenClaw Gateway rejected the approval client")
+            request_id = str(uuid.uuid4())
+            await socket.send(json.dumps({
+                "type": "req", "id": request_id, "method": method,
+                "params": params,
+            }))
+            while True:
+                response = json.loads(await asyncio.wait_for(socket.recv(), 8))
+                if response.get("id") != request_id:
+                    continue
+                if not response.get("ok"):
+                    error = response.get("error") or {}
+                    raise ValueError(str(error.get("message") or
+                                         "OpenClaw approval request failed")[:300])
+                return response.get("payload")
+    except (OSError, TimeoutError, asyncio.TimeoutError) as exc:
+        raise ValueError("OpenClaw Gateway is unavailable") from exc
+
+
+def _gateway_rpc(method: str, params: dict) -> object:
+    if method not in {"exec.approval.list", "exec.approval.resolve"}:
+        raise ValueError("unsupported OpenClaw approval method")
+    return asyncio.run(_gateway_rpc_async(method, params))
+
+
+def list_approvals() -> list[dict]:
+    """Return bounded, display-safe pending exec approvals from OpenClaw."""
+    payload = _gateway_rpc("exec.approval.list", {})
+    if not isinstance(payload, list):
+        raise ValueError("OpenClaw returned an invalid approval list")
+    rows = []
+    for value in payload[:100]:
+        if not isinstance(value, dict):
+            continue
+        approval_id = str(value.get("id") or "")
+        request = value.get("request") or {}
+        if not re.fullmatch(r"[0-9a-fA-F-]{36}", approval_id) \
+                or not isinstance(request, dict):
+            continue
+        session_key = str(request.get("sessionKey") or "")[:300]
+        match = re.search(r"moai-task-([0-9a-f-]{36})$", session_key)
+        allowed = [decision for decision in request.get("allowedDecisions", [])
+                   if decision in {"allow-once", "allow-always", "deny"}]
+        if not allowed:
+            allowed = ["allow-once", "deny"]
+        rows.append({
+            "id": approval_id,
+            "task": match.group(1) if match else "",
+            "command": str(request.get("command") or "")[:4000],
+            "cwd": str(request.get("cwd") or "")[:1000],
+            "warning": str(request.get("warningText") or "")[:2000],
+            "allowed": allowed,
+            "created": int(value.get("createdAtMs") or 0),
+            "expires": int(value.get("expiresAtMs") or 0),
+        })
+    return rows
+
+
+def resolve_approval(body: dict) -> dict:
+    if set(body) != {"id", "decision"}:
+        raise ValueError("approval resolution accepts only id and decision")
+    approval_id = str(body.get("id") or "")
+    decision = str(body.get("decision") or "")
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", approval_id):
+        raise ValueError("invalid approval id")
+    if decision not in {"allow-once", "allow-always", "deny"}:
+        raise ValueError("invalid approval decision")
+    match = next((row for row in list_approvals()
+                  if row["id"] == approval_id), None)
+    if not match:
+        raise ValueError("approval is no longer pending")
+    if decision not in match["allowed"]:
+        raise ValueError("this decision is not allowed for the command")
+    _gateway_rpc("exec.approval.resolve", {
+        "id": approval_id, "decision": decision,
+    })
+    append_audit("approval", "resolve", approval_id, decision, {
+        "task": match["task"], "cwd": match["cwd"],
+        "command_sha256": hashlib.sha256(
+            match["command"].encode("utf-8")).hexdigest(),
+    })
+    return {"ok": True, "id": approval_id, "decision": decision,
+            "task": match["task"]}
 
 
 def list_tasks(project: str = "", state: str = "") -> list[dict]:
@@ -2061,6 +2199,8 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/tasks":
                 return self._send(list_tasks((q.get("project") or [""])[0],
                                              (q.get("status") or [""])[0]))
+            if u.path == "/api/approvals":
+                return self._send(list_approvals())
             if u.path == "/api/terminals":
                 return self._send(list_terminals())
             if u.path == "/api/attachments":
@@ -2121,6 +2261,8 @@ class H(BaseHTTPRequestHandler):
                 return self._send(update_task(body))
             if u.path == "/api/task/action":
                 return self._send(task_action(body))
+            if u.path == "/api/approval/resolve":
+                return self._send(resolve_approval(body))
             if u.path == "/api/terminal/start":
                 return self._send(start_terminal(body))
             if u.path == "/api/terminal/write":

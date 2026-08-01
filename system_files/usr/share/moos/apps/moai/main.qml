@@ -4469,6 +4469,75 @@ Kirigami.ApplicationWindow {
                                             font.pixelSize: root.typePx(10)
                                             wrapMode: Text.Wrap
                                         }
+                                        Repeater {
+                                            model: root.agentTaskApprovals(modelData.id)
+                                            delegate: Rectangle {
+                                                required property var modelData
+                                                Layout.fillWidth: true
+                                                height: approvalColumn.implicitHeight + root.fs(20)
+                                                radius: root.fs(9)
+                                                color: Qt.rgba(root.warnColor.r, root.warnColor.g,
+                                                               root.warnColor.b, 0.10)
+                                                border.color: Qt.rgba(root.warnColor.r, root.warnColor.g,
+                                                                      root.warnColor.b, 0.42)
+                                                ColumnLayout {
+                                                    id: approvalColumn
+                                                    anchors.fill: parent
+                                                    anchors.margins: root.fs(10)
+                                                    spacing: design.space1
+                                                    Text {
+                                                        Layout.fillWidth: true
+                                                        text: root.local("بانتظار موافقتك", "Waiting for your approval")
+                                                        color: root.warnColor
+                                                        font.family: root.uiFont
+                                                        font.pixelSize: root.typePx(11)
+                                                        font.weight: Font.DemiBold
+                                                    }
+                                                    TextEdit {
+                                                        Layout.fillWidth: true
+                                                        readOnly: true
+                                                        selectByMouse: true
+                                                        text: modelData.command
+                                                        color: root.textHi
+                                                        font.family: "JetBrains Mono"
+                                                        font.pixelSize: root.typePx(9)
+                                                        wrapMode: TextEdit.WrapAnywhere
+                                                    }
+                                                    Text {
+                                                        visible: modelData.cwd !== ""
+                                                        Layout.fillWidth: true
+                                                        text: modelData.cwd
+                                                        color: root.textMute
+                                                        font.family: "JetBrains Mono"
+                                                        font.pixelSize: root.typePx(8)
+                                                        elide: Text.ElideMiddle
+                                                    }
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        Item { Layout.fillWidth: true }
+                                                        MoButton {
+                                                            visible: modelData.allowed.indexOf("allow-always") >= 0
+                                                            label: root.local("السماح دائماً", "Always allow")
+                                                            onClicked: root.agentResolveApproval(
+                                                                modelData.id, "allow-always")
+                                                        }
+                                                        MoButton {
+                                                            visible: modelData.allowed.indexOf("allow-once") >= 0
+                                                            label: root.local("السماح مرة", "Allow once")
+                                                            primary: true
+                                                            onClicked: root.agentResolveApproval(
+                                                                modelData.id, "allow-once")
+                                                        }
+                                                        MoButton {
+                                                            visible: modelData.allowed.indexOf("deny") >= 0
+                                                            label: root.local("رفض", "Deny")
+                                                            onClicked: root.agentResolveApproval(
+                                                                modelData.id, "deny")
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                         RowLayout {
                                             Layout.fillWidth: true
                                             visible: modelData.status !== "completed"
@@ -4494,6 +4563,16 @@ Kirigami.ApplicationWindow {
                                         }
                                     }
                                 }
+                            }
+                            Timer {
+                                interval: 1500
+                                repeat: true
+                                running: root.panel === "agent"
+                                         && root.agentWorkspaceTab === "tasks"
+                                         && root.agentTasks.some(function (task) {
+                                             return task.status === "running"
+                                         })
+                                onTriggered: root.agentLoadTasks()
                             }
                         }
 
@@ -6124,6 +6203,7 @@ Kirigami.ApplicationWindow {
     property var agentProjectEntries: []
     property string agentProjectPreview: ""
     property var agentTasks: []
+    property var agentApprovals: []
     property string agentTaskProject: ""
     property var agentTerminals: []
     property string agentTerminalCurrent: ""
@@ -6496,6 +6576,47 @@ Kirigami.ApplicationWindow {
             } else root.agentError = root.local("تعذّر تحميل المهام", "Could not load tasks")
         }
         xhr.send()
+        root.agentLoadApprovals()
+    }
+
+    function agentLoadApprovals() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/approvals")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                try { root.agentApprovals = JSON.parse(xhr.responseText) }
+                catch (e) { root.agentApprovals = [] }
+            } else root.agentApprovals = []
+        }
+        xhr.send()
+    }
+
+    function agentTaskApprovals(taskId) {
+        return root.agentApprovals.filter(function (approval) {
+            return approval.task === taskId
+        })
+    }
+
+    function agentResolveApproval(id, decision) {
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/approval/resolve")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                root.agentError = ""
+                root.agentLoadTasks()
+            } else {
+                try { root.agentError = JSON.parse(xhr.responseText).error }
+                catch (e) { root.agentError = root.local(
+                    "تعذّر حسم الموافقة", "Could not resolve approval") }
+                root.agentLoadApprovals()
+            }
+        }
+        xhr.send(JSON.stringify({ id: id, decision: decision }))
     }
 
     function agentCreateTask(title) {
