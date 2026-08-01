@@ -78,6 +78,18 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Reduced Motion is a system preference, not a suggestion for two controls.
+ * Sheets, toasts, the connection pill, keypad feedback and the perpetual
+ * connecting spinner all stop together. State changes still happen; they snap
+ * directly to their resting frame without keeping a compositor loop alive. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 html,
 body,
 #root {
@@ -1249,9 +1261,6 @@ button {
 .switch[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
 .switch[aria-checked="true"]::after { transform: translateX(20px); background: var(--on-accent); }
 .switch:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) {
-  .switch, .switch::after { transition: none; }
-}
 
 /* ── Slider row: the value sits with the title, the track spans the card ──── */
 .slider-row { padding: 12px 14px 14px; }
@@ -1284,9 +1293,6 @@ button {
 }
 .fold[open] > summary svg { transform: rotate(180deg); }
 .fold[open] > summary { border-bottom: 1px solid var(--border); }
-@media (prefers-reduced-motion: reduce) {
-  .fold > summary svg { transition: none; }
-}
 
 /* ── About rows ───────────────────────────────────────────────────────────── */
 .kv {

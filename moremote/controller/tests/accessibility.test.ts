@@ -6,6 +6,7 @@ import {fileURLToPath} from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(resolve(here, "../src/ui/RemoteScreen.tsx"), "utf8");
 const auth = readFileSync(resolve(here, "../src/ui/AuthScreens.tsx"), "utf8");
+const styles = readFileSync(resolve(here, "../src/styles.css"), "utf8");
 
 // Bottom sheets are true modal dialogs: focus enters them, Tab cannot escape,
 // Escape closes, and the invoking toolbar control receives focus again.
@@ -48,3 +49,13 @@ assert.ok((auth.match(/disabled=\{disabled\}/g) ?? []).length >= 3,
   "lockout/busy state must disable every digit and correction control, not only Confirm");
 
 console.log("PASS: PIN is keyboard-operable and atomically disabled during lockout/request");
+
+assert.match(
+  styles,
+  /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\*,\s*\*::before,\s*\*::after\s*\{[\s\S]*?animation:\s*none\s*!important;[\s\S]*?transition:\s*none\s*!important;/,
+  "Reduced Motion must stop every PWA animation and transition, including pseudo-elements",
+);
+assert.ok(!/animation-duration:\s*0?\.0*1m?s/i.test(styles),
+  "Reduced Motion must be truly static, not a near-zero animation workaround");
+
+console.log("PASS: Reduced Motion is a true static state across the complete PWA");
