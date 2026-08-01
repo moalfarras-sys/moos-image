@@ -133,6 +133,20 @@ and the complete repo check recipe passes. The server revocation endpoint itself
 was already proven in the isolated HTTP login/logout sequence earlier in this
 audit; this change connects the real phone action to it.
 
+Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
+Node gateway used `Restart=always` with a heavy preflight but no start limit, so
+a persistent binary/config failure could rebuild its stack every ten seconds
+forever. It now permits eight attempts per five minutes—enough for intentional
+clean reloads—then becomes visibly failed, and its stop is bounded at 30 seconds
+instead of the systemd default 90-second logout/reboot stall. The on-demand
+Ollama and ~1.5 GB Speaches Quadlets had the same unbounded five-second restart
+shape; each now has a five-per-five-minute limit, and Ollama teardown is bounded
+at 30 seconds. Explicit stop, wake-on-demand, clean OpenClaw reloads and
+AutoUpdate behavior are unchanged. `test_moai_service_lifecycle.py` is in local
+checks and CI; focused Mo AI tests and the complete repo check recipe pass.
+This Cloud host has no systemd user runtime, so installed-unit restart-rate and
+shutdown timing remain image/live evidence rather than claimed measurements.
+
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through

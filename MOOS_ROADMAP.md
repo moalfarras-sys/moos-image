@@ -35,6 +35,13 @@
 > الإبطال server-side مع بقاء الخروج المحلي آمناً عند انقطاع الشبكة. أضيف gate
 > إلى CI، وبُنيت PWA v19 ونجح `just check` كامل.
 
+> **حدود خدمات Mo AI (`1cf194b3`, `017df8a6`):** أُغلق restart loop غير محدود
+> في OpenClaw (~386MB + preflight ثقيل)، وعقل Ollama وSpeaches (~1.5GB). صار
+> OpenClaw يسمح 8 محاولات/5 دقائق، والـQuadlets خمساً/5 دقائق، ثم يظهر failed
+> بدل استهلاك CPU/RAM للأبد. حُدّد teardown لـOpenClaw/Ollama بـ30 ثانية كي لا
+> يعلقا logout/reboot 90 ثانية. بقي reload وwake-on-demand وAutoUpdate كما هي،
+> وأضيف gate إلى CI ونجح `just check`. القياس الحي بعد compose ما يزال مطلوباً.
+
 > **حالة الإصدار الحي:** اندمج Mo AI الجديد على `main` في `77707fd1`، ونجح
 > تشغيل GitHub Actions `30704582346` للنسخ العامة والسحابية وNVIDIA: build +
 > push + cosign + تحقق بالمفتاح المفروض في MoOS. الجهاز أقلع فعلياً من NVIDIA
