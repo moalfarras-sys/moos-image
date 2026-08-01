@@ -50,6 +50,25 @@ an unsafe allow-all example were removed; `tests/test_docs_privacy.py` now gates
 the repository and CI (`2877c228`). The complete repo `just check` recipe passes
 after these changes. Image compose, installed-service proof and a real phone
 session remain open.
+
+Mo PC Remote server proof, later in the same Cloud audit: Microsoft’s temporary
+.NET 10.0.302 SDK ran the exact Containerfile test (`21` mapping, validation and
+Unicode checks) and published the Linux agent self-contained in Release with no
+compiler warnings. The resulting 109 MB distribution was launched on isolated
+loopback port `18765`; a real HTTP sequence proved fresh status, PIN setup,
+token revoke/logout, rejection of a wrong PIN, successful login, and delivery
+of the committed React PWA. Its config landed mode `0600`. `MOREMOTE_DATA_DIR`
+is now an explicit absolute-only service/container boundary with a deterministic
+per-directory mutex, so an isolated validation instance cannot read the owner's
+live configuration or be suppressed by the live agent (`65ac6d71`). A relative
+override was actually run and rejected nonzero. NuGet reports no known
+vulnerabilities for the Linux project. ImageSharp 4.0 was tested but its build
+requires a separate Six Labors commercial license; the project therefore stays
+intentionally on the newest license-compatible 3.1.11 line, with a gate that
+prevents an automated major bump from breaking the image build. The complete
+repo gate recipe passes after this server proof. Screen capture through the real
+KDE portal, phone input over a real tailnet, image compose and installed-service
+behavior remain separate open proofs.
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through
