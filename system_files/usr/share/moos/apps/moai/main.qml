@@ -5464,6 +5464,19 @@ Kirigami.ApplicationWindow {
                                         "بوت تليجرام — تكلّمه من جوالك وترى المحادثة في لوحة «الوكيل».",
                                         "Telegram bot — chat from your phone and see it in the Agent panel.")
                                 }
+                                SectionNote {
+                                    visible: root.cfgTab === "telegram"
+                                    Layout.fillWidth: true
+                                    text: root.cfgChannelsBusy
+                                        ? root.local("جارٍ فحص الاتصال…", "Checking connection…")
+                                        : root.cfgChannels.telegram.connected
+                                            ? root.local(
+                                                "متصل فعلياً" + (root.cfgChannels.telegram.account ? " · @" + root.cfgChannels.telegram.account : ""),
+                                                "Connected" + (root.cfgChannels.telegram.account ? " · @" + root.cfgChannels.telegram.account : ""))
+                                            : root.cfgChannels.telegram.configured
+                                                ? root.local("مهيّأ لكن غير متصل", "Configured but offline")
+                                                : root.local("غير مهيّأ", "Not configured")
+                                }
                                 RowLayout {
                                     visible: root.cfgTab === "telegram"
                                     Layout.fillWidth: true
@@ -5532,13 +5545,31 @@ Kirigami.ApplicationWindow {
                                                 "اربط WhatsApp Web عبر OpenClaw؛ يستخدم نفس الوكيل والذاكرة والصلاحيات.",
                                                 "Link WhatsApp Web through OpenClaw; it shares this agent, memory and permissions.")
                                         }
+                                        SectionNote {
+                                            Layout.fillWidth: true
+                                            text: root.cfgChannelsBusy
+                                                ? root.local("جارٍ فحص الاتصال…", "Checking connection…")
+                                                : root.cfgChannels.whatsapp.connected
+                                                    ? root.local("متصل فعلياً", "Connected")
+                                                    : root.cfgChannels.whatsapp.configured
+                                                        ? root.local("مهيّأ لكن غير متصل", "Configured but offline")
+                                                        : root.local("غير مربوط — سيفتح الربط رمز QR", "Not linked — pairing opens a QR code")
+                                        }
                                     }
                                     MoButton {
-                                        label: root.local("ربط WhatsApp", "Link WhatsApp")
+                                        label: root.cfgChannels.whatsapp.connected
+                                            ? root.local("إعادة الربط", "Relink")
+                                            : root.local("ربط WhatsApp", "Link WhatsApp")
                                         iconName: "network-connect"
                                         onClicked: root.launch(
                                             "moos://agent/whatsapp-login", "WhatsApp")
                                     }
+                                }
+                                SectionNote {
+                                    visible: (root.cfgTab === "telegram" || root.cfgTab === "whatsapp")
+                                             && root.cfgChannelsError !== ""
+                                    Layout.fillWidth: true
+                                    text: root.cfgChannelsError
                                 }
                             }
 
@@ -6161,6 +6192,14 @@ Kirigami.ApplicationWindow {
     property var    cfgProviderNames: []
     property bool   cfgHasKey: false
     property bool   cfgHasToken: false
+    property var    cfgChannels: ({
+        telegram: { configured: false, running: false, connected: false,
+                    account: "", mode: "", error: "" },
+        whatsapp: { configured: false, running: false, connected: false,
+                    account: "", mode: "", error: "" }
+    })
+    property bool   cfgChannelsBusy: false
+    property string cfgChannelsError: ""
     property bool   cfgSaving: false
     property string cfgError: ""
     property string cfgTier: "ask"
@@ -6169,6 +6208,32 @@ Kirigami.ApplicationWindow {
         if (cfgTab === "openclaw") root.agentLoadStatus()
         else if (cfgTab === "models") root.loadModels()
         else if (cfgTab === "terminal") root.agentLoadTerminals()
+        else if (cfgTab === "telegram" || cfgTab === "whatsapp") root.cfgLoadChannels()
+    }
+
+    function cfgLoadChannels() {
+        root.cfgChannelsBusy = true
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/channels")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            root.cfgChannelsBusy = false
+            if (xhr.status !== 200) {
+                root.cfgChannelsError = root.local(
+                    "تعذّر فحص القنوات", "Could not probe channels")
+                return
+            }
+            try {
+                const result = JSON.parse(xhr.responseText)
+                root.cfgChannels = result.channels
+                root.cfgChannelsError = result.error || ""
+            } catch (e) {
+                root.cfgChannelsError = root.local(
+                    "رد حالة القنوات غير مفهوم", "Bad channel status response")
+            }
+        }
+        xhr.send()
     }
 
     function cfgLoad(done) {

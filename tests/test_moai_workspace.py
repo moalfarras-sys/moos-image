@@ -77,6 +77,35 @@ def main() -> None:
         assert caps["workspace"]["attachments"]["document_formats"] == [
             "pdf", "docx", "odt"]
 
+        # Channel status is a bounded projection of OpenClaw's report: it may
+        # expose connection state and a public bot name, never config secrets.
+        fake_openclaw = home / "openclaw"
+        fake_openclaw.write_text("#!/bin/sh\n", encoding="utf-8")
+        fake_openclaw.chmod(0o700)
+        globals_["BIN"] = str(fake_openclaw)
+        real_run = globals_["subprocess"].run
+
+        def fake_run(argv, **kwargs):
+            if argv[0] == "systemctl":
+                return subprocess.CompletedProcess(argv, 0, "", "")
+            payload = {"channels": {"telegram": {
+                "configured": True, "running": True, "mode": "polling",
+                "botToken": "must-not-leak",
+                "probe": {"ok": True, "botInfo": {
+                    "username": "Mo_bot", "id": 123}}}}}
+            return subprocess.CompletedProcess(argv, 0, json.dumps(payload), "")
+
+        globals_["subprocess"].run = fake_run
+        try:
+            channels = module["channel_status"]()
+        finally:
+            globals_["subprocess"].run = real_run
+        assert channels["channels"]["telegram"] == {
+            "configured": True, "running": True, "connected": True,
+            "account": "Mo_bot", "mode": "polling", "error": ""}
+        assert channels["channels"]["whatsapp"]["configured"] is False
+        assert "must-not-leak" not in json.dumps(channels)
+
         thread = module["read_session"](sid_new)
         assert [message["role"] for message in thread] == [
             "user", "tool", "tool", "assistant"]
@@ -300,6 +329,7 @@ def main() -> None:
     source = API.read_text(encoding="utf-8")
     assert 'u.path == "/api/session/update"' in source
     assert 'u.path == "/api/capabilities"' in source
+    assert 'u.path == "/api/channels"' in source
     assert 'u.path == "/api/project/upsert"' in source
     assert 'u.path == "/api/project/files"' in source
     assert 'u.path == "/api/project/file"' in source
@@ -335,6 +365,8 @@ def main() -> None:
     assert '(model.input || []).indexOf("image") >= 0' in qml
     assert 'indexOf("vl")' not in qml
     assert "no local model advertises image input" in qml
+    assert 'root.agentApi + "/api/channels"' in qml
+    assert '"Not linked — pairing opens a QR code"' in qml
     print("Mo AI workspace metadata tests passed")
 
 

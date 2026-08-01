@@ -72,8 +72,14 @@ machine was restored to its exact prior `MoOS Scholar Light` theme afterward.
 This is partial visual-matrix evidence, not completion of the full app matrix.
 OpenClaw also gains a `moai/hybrid` loopback
 provider so phone turns use the same smart routing policy. The installed OpenClaw
-advertises WhatsApp Web support and Mo AI now exposes its fixed login route;
-account pairing remains open. All of this is unreleased working-branch state
+advertises WhatsApp Web support and Mo AI now exposes its fixed login route.
+Channel settings now call a bounded, secret-free `/api/channels` probe instead
+of implying connectivity: a live source-backend probe verified Telegram polling
+connected as `@Moalfarras_bot`, while WhatsApp correctly reported unconfigured.
+The latter still needs the owner's real QR pairing and is not complete. The
+endpoint wakes OpenClaw only for this explicit status request and leaves idle
+sleep policy intact. `just check` passed after this slice. All of this is
+unreleased working-branch state
 until the full gates, image build, merge, signed CI matrix and live update pass.
 
 Previous update: 2026-08-01 — release pipeline recovery. The public, NVIDIA and

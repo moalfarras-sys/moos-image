@@ -10,6 +10,7 @@ has_key/has_token فقط، ولا يعيد القيمة نفسها ولو للو
     GET  /                     الواجهة
     GET  /api/status           الخدمات + الكرت + النموذج المحمّل
     GET  /api/config           الإعداد الحالي (بلا أسرار)
+    GET  /api/channels         حالة Telegram وWhatsApp الفعلية (بلا أسرار)
     POST /api/config           كتابة الإعداد + إعادة تشغيل ما يلزم فقط
     GET  /api/sessions         قائمة المحادثات
     GET  /api/session?id=…     رسائل محادثة
@@ -490,6 +491,68 @@ def capabilities() -> dict:
                      "shared_openclaw_sessions": True},
         "brains": {"local": True, "cloud": True, "hybrid": True},
     }
+
+
+def channel_status() -> dict:
+    """Probe OpenClaw channels and return a small, secret-free product view."""
+    empty = {
+        name: {"configured": False, "running": False, "connected": False,
+               "account": "", "mode": "", "error": ""}
+        for name in ("telegram", "whatsapp")
+    }
+    if not (Path(BIN).is_file() and os.access(BIN, os.X_OK)):
+        return {"available": False, "channels": empty,
+                "error": "OpenClaw is not installed"}
+
+    # A channel probe is an explicit user request, so waking the on-demand
+    # gateway here is intentional. Its idle timer remains responsible for sleep.
+    subprocess.run(
+        ["systemctl", "--user", "start", "openclaw-gateway.service"],
+        env=ENV, capture_output=True, text=True, timeout=15, check=False,
+    )
+    try:
+        proc = subprocess.run(
+            [BIN, "channels", "status", "--probe", "--json"],
+            env=ENV, capture_output=True, text=True, timeout=30, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"available": True, "channels": empty,
+                "error": f"Channel probe unavailable: {exc}"[:240]}
+
+    raw = proc.stdout
+    start = raw.find("{")
+    try:
+        report = json.loads(raw[start:]) if start >= 0 else {}
+    except json.JSONDecodeError:
+        report = {}
+    if proc.returncode or not isinstance(report, dict):
+        detail = (proc.stderr or proc.stdout or "Channel probe failed").strip()
+        return {"available": True, "channels": empty, "error": detail[-240:]}
+
+    source = report.get("channels") or {}
+    if not isinstance(source, dict):
+        source = {}
+    for name in empty:
+        item = source.get(name) or {}
+        if not isinstance(item, dict):
+            continue
+        probe = item.get("probe") or {}
+        if not isinstance(probe, dict):
+            probe = {}
+        info = probe.get("botInfo") or probe.get("bot") or {}
+        if not isinstance(info, dict):
+            info = {}
+        account = str(info.get("username") or info.get("displayName") or "")[:80]
+        error = str(probe.get("error") or item.get("lastError") or "")[:240]
+        empty[name] = {
+            "configured": bool(item.get("configured")),
+            "running": bool(item.get("running")),
+            "connected": bool(probe.get("ok")),
+            "account": account,
+            "mode": str(item.get("mode") or "")[:40],
+            "error": error,
+        }
+    return {"available": True, "channels": empty, "error": ""}
 
 
 # ── config ──────────────────────────────────────────────────────────────
@@ -2232,6 +2295,8 @@ class H(BaseHTTPRequestHandler):
                 return self._send(capabilities())
             if u.path == "/api/config":
                 return self._send(read_config())
+            if u.path == "/api/channels":
+                return self._send(channel_status())
             if u.path == "/api/sessions":
                 search = (q.get("q") or [""])[0]
                 archived = (q.get("archived") or [""])[0] == "1"
