@@ -211,6 +211,20 @@ TypeScript, npm audit, deterministic production build, shipped assets and the
 complete repository check pass. The committed controller is PWA v23. A safe
 non-destructive live confirmation run on desktop MoOS remains open evidence.
 
+Remote authentication-handoff audit (`b8ff5480`): a network drop during
+`login()` or first-time `setupPin()` threw past the screen and left `busy=true`,
+permanently disabling the keypad. A second race happened after the server issued
+a token: if the immediate status read failed, `enterRemote()` leaked a rejected
+Promise with no recovery UI. Both auth screens now catch network failure and
+release busy through `finally`; successful handoff deliberately avoids updating
+an unmounted screen. App stores the issued token, enters an accessible Loading
+state, and on status failure shows a Retry path that reuses the token rather than
+asking for the PIN again. Non-2xx `/api/status` is rejected instead of parsed as
+a valid status. A Node behavior test proves HTTP 503 rejection and gates both
+handoffs. TypeScript, npm audit, deterministic production build, shipped assets
+and the complete repository check pass. The committed controller is PWA v24;
+an actual mid-handoff network interruption on a phone remains open live proof.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds

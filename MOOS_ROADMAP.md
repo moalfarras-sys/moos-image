@@ -81,6 +81,13 @@
 > يلغي أمراً وصل للخادم. Cloud يبقى بلا هذه العمليات. نجحت البوابة وTypeScript
 > وnpm audit والبناء المتطابق و`just check`، وشُحنت PWA v23.
 
+> **استرداد انتقال المصادقة (`b8ff5480`):** كان انقطاع الشبكة أثناء Login أو
+> Setup يترك `busy=true` ويجمّد keypad، وفشل status بعد إصدار التوكن ينتج Promise
+> غير معالج. صار المساران catch/finally، ويحفظ App التوكن ويعرض Loading/Error
+> قابلاً لإعادة المحاولة بلا إعادة PIN. تُرفض استجابة status غير 2xx فعلياً؛
+> أثبت اختبار Node سلوك 503. نجحت TypeScript وnpm audit والبناء المتطابق و`just
+> check`، وشُحنت PWA v24. يبقى قطع شبكة حي أثناء handoff دليلاً مطلوباً.
+
 > **حدود خدمات Mo AI (`1cf194b3`, `017df8a6`):** أُغلق restart loop غير محدود
 > في OpenClaw (~386MB + preflight ثقيل)، وعقل Ollama وSpeaches (~1.5GB). صار
 > OpenClaw يسمح 8 محاولات/5 دقائق، والـQuadlets خمساً/5 دقائق، ثم يظهر failed
