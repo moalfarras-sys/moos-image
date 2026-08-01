@@ -74,6 +74,13 @@
 > بقاء تغييرات الحالة فورية. نجحت البوابة وTypeScript وnpm audit والبناء
 > المتطابق و`just check`، وشُحنت PWA v22. يلزم إثبات مرئي من هاتف حقيقي.
 
+> **تأكيد الطاقة الموحد (`34a1f8b0`):** أُزيل `window.confirm()` الرخيص من
+> Sign out/Restart/Shutdown واستُبدل بـMoOS `alertdialog` داخل عقد focus نفسه،
+> يبدأ على Cancel ويشرح فقدان العمل. التنفيذ single-flight ذري يمنع النقر
+> المزدوج، وبعد الإرسال يصبح الحوار Working وغير قابل للإغلاق لأن الإغلاق لا
+> يلغي أمراً وصل للخادم. Cloud يبقى بلا هذه العمليات. نجحت البوابة وTypeScript
+> وnpm audit والبناء المتطابق و`just check`، وشُحنت PWA v23.
+
 > **حدود خدمات Mo AI (`1cf194b3`, `017df8a6`):** أُغلق restart loop غير محدود
 > في OpenClaw (~386MB + preflight ثقيل)، وعقل Ollama وSpeaches (~1.5GB). صار
 > OpenClaw يسمح 8 محاولات/5 دقائق، والـQuadlets خمساً/5 دقائق، ثم يظهر failed

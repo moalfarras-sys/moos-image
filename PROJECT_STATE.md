@@ -197,6 +197,20 @@ The source gate, TypeScript, npm audit, deterministic production rebuild,
 shipped-asset gate and complete repository check pass. The committed controller
 is PWA v22; a real phone setting toggle remains open visual evidence.
 
+Remote sensitive-power confirmation audit (`34a1f8b0`): Sign out, Restart and
+Shut down used the browser's `window.confirm()`, producing an unthemed platform
+dialog outside the Liquid Glass interaction and an untestable focus path. They
+now use a MoOS `alertdialog` built on the same modal/focus contract as the phone
+sheets, with Cancel focused first, explicit unsaved-work consequences and a
+single shared API execution path. An atomic in-flight guard prevents a fast
+double tap from issuing the action twice. Once submitted, the dialog becomes a
+non-dismissible Working state because closing it cannot cancel a command already
+delivered to the host. Cloud still exposes none of these host actions. The source
+gate bans `window.confirm` and holds confirmation-before-API plus single-flight;
+TypeScript, npm audit, deterministic production build, shipped assets and the
+complete repository check pass. The committed controller is PWA v23. A safe
+non-destructive live confirmation run on desktop MoOS remains open evidence.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds
