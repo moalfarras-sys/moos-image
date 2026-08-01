@@ -37,6 +37,8 @@
 > وTelegram وWhatsApp وVoice وPermissions وMemory وProjects وTerminal وPrivacy
 > وAppearance. صار Hybrid خيار خصوصية مباشر، وبقيت الأسرار write-only، وحُذفت
 > صفحة Health القديمة المخفية والمكررة. أثبت الفحص الحي شبكة RTL وحالة OpenClaw.
+> صار شريط Workspace متجاوباً فعلياً: يبقى 76px عند 720×540، ويتوسع إلى 188px
+> بتسميات أفقية مقروءة من 1120px؛ فُحصت لقطتا RTL حقيقيتان للحالتين بلا قص.
 > تعرض صفحتا القنوات الآن probe حقيقياً محدوداً بلا أسرار بدل حالة افتراضية:
 > أثبت backend المصدر اتصال Telegram الفعلي بـ `@Moalfarras_bot` عبر polling،
 > وأظهر WhatsApp كغير مربوط مع شرح أن زر الربط سيفتح QR. لا يزال مسح QR من

@@ -68,7 +68,10 @@ Settings are now twelve distinct functional pages (Models, Providers, OpenClaw,
 Telegram, WhatsApp, Voice, Permissions, Memory, Projects, Terminal, Privacy and
 Appearance) rather than seven mixed buckets. Hybrid is a first-class privacy
 choice, secrets remain write-only, and the retired unreachable Health duplicate
-was removed. Live 4K RTL evidence covered the section grid and real configured
+was removed. The fixed narrow rail is now a responsive workspace sidebar: it
+keeps the 76 px compact form at 720×540 and expands to 188 px with readable
+horizontal labels at 1120 px and above. Both compact and 1440×900 RTL source-QML
+states were captured and visually inspected without clipping. Live 4K RTL evidence covered the section grid and real configured
 OpenClaw status. Settings also passed English/LTR at the enforced compact
 `720×540` minimum and Permissions passed Dark/RTL on the live 4K session; the
 machine was restored to its exact prior `MoOS Scholar Light` theme afterward.

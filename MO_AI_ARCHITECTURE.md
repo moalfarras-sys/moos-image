@@ -97,8 +97,12 @@ cleanup lands. No decorative perpetual animation is allowed.
 - [x] Project registry with canonical paths, recent activity and per-project
   permission policy.
 - [x] Persistent task records: plan, steps, status, errors, result, stop/retry.
-- [ ] Replace the icon-only rail with a responsive workspace sidebar while
-  preserving direct `moai --panel …` compatibility shims.
+- [x] Replace the fixed 76 px rail with a responsive workspace sidebar while
+  preserving direct `moai --panel …` compatibility shims. It stays compact at
+  the supported 720 px minimum and expands to 188 px at 1120 px, with readable
+  12 px horizontal labels and a labelled Settings action. Real source-QML
+  captures inspected both 720×540 RTL compact and 1440×900 RTL expanded states
+  (`/var/tmp/moai-sidebar-{compact,expanded}.png`) without clipping.
 - [x] Merge the workspace conversation/history sidebar visually into the
   primary conversation canvas. The searchable/archived session drawer now
   opens a real OpenClaw JSONL thread in the central chat and continues with its

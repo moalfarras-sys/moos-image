@@ -459,6 +459,10 @@ Kirigami.ApplicationWindow {
     // signal the whole app mirrors on. The model still replies in whatever
     // language the user writes in — that is per-message, not the static greeting.
     readonly property bool moaiRtl: Qt.application.layoutDirection === Qt.RightToLeft
+    // Preserve the compact 720 px layout, but use the room available on a
+    // desktop/4K window for a readable workspace sidebar instead of scaling a
+    // phone-sized icon rail across every form factor.
+    readonly property bool workspaceSidebarExpanded: width >= 1120
     function local(ar, en) { return root.moaiRtl ? ar : en }
     function localLegacy(value) {
         var text = String(value || "")
@@ -1679,9 +1683,16 @@ Kirigami.ApplicationWindow {
 
             // ── The rail ────────────────────────────────────────────────────
             Rectangle {
-                Layout.preferredWidth: root.fs(76)
+                Layout.preferredWidth: root.workspaceSidebarExpanded
+                    ? root.fs(188) : root.fs(76)
                 Layout.fillHeight: true
                 color: root.chrome
+                Behavior on Layout.preferredWidth {
+                    NumberAnimation {
+                        duration: root.motionEnabled ? design.motionGeometry : 0
+                        easing.type: Easing.OutCubic
+                    }
+                }
 
                 Rectangle {
                     anchors.right: parent.right
@@ -1697,7 +1708,9 @@ Kirigami.ApplicationWindow {
 
                     MoOrb {
                         id: heroOrb
-                        Layout.alignment: Qt.AlignHCenter
+                        Layout.alignment: root.workspaceSidebarExpanded
+                            ? Qt.AlignLeft : Qt.AlignHCenter
+                        Layout.leftMargin: root.workspaceSidebarExpanded ? root.fs(18) : 0
                         Layout.preferredWidth: root.fs(42)
                         Layout.preferredHeight: root.fs(42)
                         Layout.bottomMargin: 4
@@ -1705,7 +1718,9 @@ Kirigami.ApplicationWindow {
                     }
 
                     Text {
-                        Layout.alignment: Qt.AlignHCenter
+                        Layout.alignment: root.workspaceSidebarExpanded
+                            ? Qt.AlignLeft : Qt.AlignHCenter
+                        Layout.leftMargin: root.workspaceSidebarExpanded ? root.fs(18) : 0
                         Layout.bottomMargin: 8
                         // Bilingual by session direction, like the rest of the app —
                         // it was Arabic-only, breaking the convention on English sessions.
@@ -1740,7 +1755,9 @@ Kirigami.ApplicationWindow {
 
                             Rectangle {
                                 anchors.centerIn: parent
-                                width: 54; height: 46
+                                width: root.workspaceSidebarExpanded
+                                    ? parent.width - root.fs(20) : root.fs(54)
+                                height: root.fs(46)
                                 radius: design.radiusControl
                                 color: nav.active
                                      ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
@@ -1748,24 +1765,34 @@ Kirigami.ApplicationWindow {
                                      : navMa.containsMouse ? root.surface2 : "transparent"
                                 Behavior on color { ColorAnimation { duration: root.motionEnabled ? design.motionPress : 0 } }
 
-                                ColumnLayout {
-                                    anchors.centerIn: parent
-                                    spacing: 3
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: root.workspaceSidebarExpanded
+                                        ? root.fs(14) : 0
+                                    anchors.rightMargin: root.workspaceSidebarExpanded
+                                        ? root.fs(12) : 0
+                                    spacing: root.workspaceSidebarExpanded ? design.space3 : 0
                                     Kirigami.Icon {
-                                        Layout.alignment: Qt.AlignHCenter
+                                        Layout.alignment: root.workspaceSidebarExpanded
+                                            ? Qt.AlignVCenter : Qt.AlignHCenter | Qt.AlignTop
                                         Layout.preferredWidth: root.fs(20)
                                         Layout.preferredHeight: root.fs(20)
                                         source: nav.modelData.icon
                                         color: nav.active ? root.novaCyan : root.textMute
                                     }
                                     Text {
-                                        Layout.alignment: Qt.AlignHCenter
+                                        Layout.fillWidth: root.workspaceSidebarExpanded
+                                        Layout.alignment: root.workspaceSidebarExpanded
+                                            ? Qt.AlignVCenter : Qt.AlignHCenter | Qt.AlignBottom
                                         text: Qt.application.layoutDirection === Qt.RightToLeft
                                             ? nav.modelData.ar : nav.modelData.en
                                         color: nav.active ? root.textHi : root.textMute
                                         font.family: root.uiFont
-                                        font.pixelSize: root.typePx(9)
+                                        font.pixelSize: root.typePx(root.workspaceSidebarExpanded ? 12 : 9)
                                         font.weight: nav.active ? Font.DemiBold : Font.Normal
+                                        horizontalAlignment: root.workspaceSidebarExpanded
+                                            ? Text.AlignLeft : Text.AlignHCenter
+                                        elide: Text.ElideRight
                                     }
                                 }
                             }
@@ -1804,15 +1831,33 @@ Kirigami.ApplicationWindow {
                         Layout.preferredHeight: root.fs(46)
                         Rectangle {
                             anchors.centerIn: parent
-                            width: 54; height: 40
+                            width: root.workspaceSidebarExpanded
+                                ? parent.width - root.fs(20) : root.fs(54)
+                            height: root.fs(40)
                             radius: design.radiusControl
                             color: gearMa.containsMouse ? root.surface2 : "transparent"
                             Behavior on color { ColorAnimation { duration: root.motionEnabled ? design.motionPress : 0 } }
                             Kirigami.Icon {
-                                anchors.centerIn: parent
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.left: parent.left
+                                anchors.leftMargin: root.workspaceSidebarExpanded
+                                    ? root.fs(14) : (parent.width - width) / 2
                                 width: 19; height: 19
                                 source: "moos-settings-symbolic"
                                 color: root.textMute
+                            }
+                            Text {
+                                visible: root.workspaceSidebarExpanded
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.left: parent.left
+                                anchors.leftMargin: root.fs(48)
+                                anchors.right: parent.right
+                                anchors.rightMargin: root.fs(12)
+                                text: root.local("الإعدادات", "Settings")
+                                color: root.textMute
+                                font.family: root.uiFont
+                                font.pixelSize: root.typePx(12)
+                                elide: Text.ElideRight
                             }
                         }
                         ActionArea {

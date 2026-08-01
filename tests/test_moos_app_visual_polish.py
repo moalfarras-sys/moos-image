@@ -78,6 +78,16 @@ class MoAIVisualPolishTests(unittest.TestCase):
         ):
             self.assertIn(token, button.group(1))
 
+    def test_workspace_sidebar_expands_without_breaking_compact_layout(self) -> None:
+        self.assertIn("readonly property bool workspaceSidebarExpanded: width >= 1120",
+                      self.source)
+        self.assertIn("? root.fs(188) : root.fs(76)", self.source)
+        self.assertIn("root.typePx(root.workspaceSidebarExpanded ? 12 : 9)",
+                      self.source)
+        self.assertIn("visible: root.workspaceSidebarExpanded", self.source)
+        self.assertIn("design.motionGeometry", self.source)
+        self.assertNotIn("design.motionStructure", self.source)
+
     def test_modal_sheets_are_named_keyboard_dismissible_dialogs(self) -> None:
         for object_id in ("brainPickerDialog", "settingsDialog"):
             marker = f"id: {object_id}"
