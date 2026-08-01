@@ -304,8 +304,28 @@ versions of a changing file. Live HTTP proof against the built Linux agent used
 one lease for two ranges: both returned 206, `bytes 5-9/37` and `bytes 10-15/37`,
 with the requested payload and identical ETag. Linux and Windows builds have
 zero warnings, 72 core behavior tests and the complete repository check pass.
-This proves resumable downloads; resumable uploads and bidirectional background
-folder sync remain separate, unimplemented protocols and are not claimed.
+This proves resumable downloads; bidirectional background folder sync remains a
+separate, unimplemented protocol and is not claimed.
+
+Remote resumable-upload audit (`e484249e`): the PWA formerly sent every selected
+file as one request, so losing the final response forced a full restart and made
+it unsafe to guess whether the server had accepted the bytes. Uploads now use an
+owner-bound, 30-minute session and authoritative offset, with 4 MiB chunks, a
+64-session ceiling and a 1 GiB file ceiling. Chunks are written to a hidden file
+in the destination filesystem; only a complete commit atomically moves it into
+place, incomplete/cancelled/expired sessions clean their temporary file, and a
+name collision still uses the existing unique-name policy. The PWA fingerprints
+the selected file from metadata plus its first and last 64 KiB before resuming,
+shows byte progress, and queries status after a lost response instead of sending
+the same bytes twice. Live HTTP proof against the built Linux agent wrote two
+chunks around a deliberate duplicate-offset conflict: the conflict returned 409
+with authoritative offset 3, no target existed before commit, commit returned
+200 with exactly `abcdef`, and commit replay returned 404. Linux and Windows
+builds completed with zero warnings; 82 core tests, PWA tests/typecheck, npm audit
+(zero findings), shipped-bundle freshness and the complete repository check pass.
+A service restart intentionally invalidates in-memory upload sessions, and a real
+interrupted large transfer on a physical phone remains open evidence; automatic
+background folder sync is not claimed.
 
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
