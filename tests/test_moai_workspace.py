@@ -104,6 +104,34 @@ def main() -> None:
         assert running["tools"][-1]["name"] == "rg"
         assert module["list_tasks"]()[0]["id"] == task["id"]
 
+        # The task button must launch the fixed OpenClaw argv and persist the
+        # real process outcome; no caller-provided executable or shell text.
+        fake_openclaw = home / "openclaw"
+        fake_openclaw.write_text(
+            "#!/bin/sh\nprintf 'tracked-agent-result\\n'\n", encoding="utf-8")
+        fake_openclaw.chmod(0o700)
+        globals_["BIN"] = str(fake_openclaw)
+        globals_["write_config"] = lambda body: {"ok": True}
+        started = module["task_action"]({"id": task["id"], "action": "start"})
+        assert started["status"] == "running"
+        finished = None
+        for _ in range(100):
+            finished = module["list_tasks"]()[0]
+            if finished["status"] != "running":
+                break
+            time.sleep(0.02)
+        assert finished["status"] == "completed"
+        assert all(step["status"] == "completed" for step in finished["steps"])
+        assert "tracked-agent-result" in finished["result"]
+        assert finished["tools"][-1]["name"] == "openclaw-agent"
+        try:
+            module["task_action"]({
+                "id": task["id"], "action": "start", "command": "sudo sh"})
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("task runner accepted a caller-controlled command")
+
         try:
             module["upsert_project"]({"name": "outside", "path": "/"})
         except ValueError:
@@ -158,6 +186,10 @@ def main() -> None:
     assert 'u.path == "/api/session/update"' in source
     assert 'u.path == "/api/project/upsert"' in source
     assert 'u.path == "/api/task/create"' in source
+    assert 'u.path == "/api/task/action"' in source
+    assert 'if set(body) != {"id", "action"}' in source
+    assert '[BIN, "agent", "--session-key", f"moai-task-{task_id}",' in source
+    assert 'def _task_session_tools(task_id: str)' in source
     assert 'u.path == "/api/terminal/start"' in source
     assert '["/bin/bash", "--noprofile", "--norc"]' in source
     assert 'u.path == "/api/attachment/import"' in source

@@ -111,6 +111,8 @@ SPEACHES_TTS = {
     "responseFormat": "mp3",
 }
 CONFIG_WRITE_LOCK = threading.RLock()
+TASK_RUNNER_LOCK = threading.RLock()
+TASK_RUNNERS: dict[str, subprocess.Popen] = {}
 
 # Cloud providers Mo AI already knows about, kept identical so the two settings
 # surfaces never disagree about what "cloud" means.
@@ -1118,6 +1120,161 @@ def update_task(body: dict) -> dict:
     return {"ok": True, **task}
 
 
+def _task_prompt(task: dict, project: dict | None) -> str:
+    """Build fixed execution context; the UI never supplies a command/executable."""
+    lines = [
+        "You are executing a tracked Mo AI task. Work carefully and report only real results.",
+        f"Task: {task['title']}",
+    ]
+    if task.get("description"):
+        lines.append(f"Description: {task['description']}")
+    if project:
+        lines.extend([
+            f"Project name: {project['name']}",
+            f"Canonical project directory: {project['path']}",
+            "Stay inside that project unless the active permission policy explicitly allows more.",
+        ])
+    steps = task.get("steps") or []
+    if steps:
+        lines.append("Requested steps:")
+        lines.extend(f"{step['id']}. {step['title']}" for step in steps)
+    lines.append("Inspect first, make the smallest sound changes, run relevant tests, then summarize evidence.")
+    return "\n".join(lines)
+
+
+def _task_session_tools(task_id: str) -> list[str]:
+    """Read actual tool-call names from the task's OpenClaw JSONL session."""
+    try:
+        index = json.loads((SESSIONS / "sessions.json").read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    session_id = ""
+    expected = f"moai-task-{task_id}"
+    for key, value in index.items() if isinstance(index, dict) else []:
+        if str(key).split(":")[-1] == expected and isinstance(value, dict):
+            session_id = str(value.get("sessionId") or "")
+            break
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", session_id):
+        return []
+    names = []
+    try:
+        lines = (SESSIONS / f"{session_id}.jsonl").read_text(
+            encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    for line in lines:
+        try:
+            message = (json.loads(line).get("message") or {})
+        except Exception:
+            continue
+        content = message.get("content") or []
+        if not isinstance(content, list):
+            content = []
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            kind = str(block.get("type") or "").lower().replace("_", "")
+            if kind not in {"toolcall", "tooluse"}:
+                continue
+            name = str(block.get("name") or block.get("toolName") or "").strip()
+            if name and len(name) <= 120 and name not in names:
+                names.append(name)
+    return names[:100]
+
+
+def _finish_task(task_id: str, process: subprocess.Popen) -> None:
+    try:
+        stdout, stderr = process.communicate(timeout=3600)
+        output = (stdout or "").strip()
+        error = (stderr or "").strip()
+        current = next((t for t in list_tasks() if t.get("id") == task_id), None)
+        if current and current.get("status") == "cancelled":
+            return
+        for tool in _task_session_tools(task_id):
+            update_task({"id": task_id, "tool": tool})
+        if process.returncode == 0:
+            for step in (current or {}).get("steps", []):
+                if step.get("status") in {"pending", "running"}:
+                    update_task({"id": task_id, "step": step["id"],
+                                 "step_status": "completed",
+                                 "result": "Completed by the agent run."})
+            update_task({"id": task_id, "status": "completed",
+                         "result": output[-8000:] or "Agent completed without a text summary."})
+        else:
+            detail = error or output or f"OpenClaw exited with status {process.returncode}"
+            update_task({"id": task_id, "status": "failed", "error": detail[-2000:]})
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+            process.wait(timeout=5)
+        except Exception:
+            pass
+        update_task({"id": task_id, "status": "failed",
+                     "error": "Agent execution exceeded the one-hour safety limit."})
+    except Exception as exc:
+        update_task({"id": task_id, "status": "failed", "error": str(exc)[:2000]})
+    finally:
+        with TASK_RUNNER_LOCK:
+            if TASK_RUNNERS.get(task_id) is process:
+                TASK_RUNNERS.pop(task_id, None)
+
+
+def task_action(body: dict) -> dict:
+    """Control one tracked OpenClaw process without accepting arbitrary commands."""
+    if set(body) != {"id", "action"}:
+        raise ValueError("task action accepts only id and action")
+    task_id = str(body.get("id") or "")
+    action = str(body.get("action") or "")
+    if not re.fullmatch(r"[0-9a-f-]{36}", task_id):
+        raise ValueError("invalid task id")
+    if action not in {"start", "pause", "resume", "cancel"}:
+        raise ValueError("invalid task action")
+    workspace = load_workspace()
+    task = workspace["tasks"].get(task_id)
+    if not isinstance(task, dict):
+        raise ValueError("task does not exist")
+    with TASK_RUNNER_LOCK:
+        process = TASK_RUNNERS.get(task_id)
+        if action == "start":
+            if process and process.poll() is None:
+                raise ValueError("task is already running")
+            if not Path(BIN).is_file() or not os.access(BIN, os.X_OK):
+                raise ValueError("OpenClaw is not installed")
+            project = None
+            if task.get("project"):
+                project = workspace["projects"].get(task["project"])
+                if not isinstance(project, dict):
+                    raise ValueError("task project no longer exists")
+                # Selecting a project is part of starting its task. OpenClaw then
+                # enforces the currently selected read/project/system/full tier.
+                write_config({"permissions": {"project": project["path"]}})
+            argv = [BIN, "agent", "--session-key", f"moai-task-{task_id}",
+                    "-m", _task_prompt(task, project)]
+            process = subprocess.Popen(
+                argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                env=ENV, start_new_session=True,
+            )
+            TASK_RUNNERS[task_id] = process
+            update_task({"id": task_id, "status": "running", "error": "",
+                         "result": "", "tool": "openclaw-agent"})
+            threading.Thread(target=_finish_task, args=(task_id, process),
+                             daemon=True, name=f"moai-task-{task_id[:8]}").start()
+        elif not process or process.poll() is not None:
+            raise ValueError("task has no live agent process")
+        elif action == "pause":
+            os.killpg(process.pid, signal.SIGSTOP)
+            update_task({"id": task_id, "status": "paused"})
+        elif action == "resume":
+            os.killpg(process.pid, signal.SIGCONT)
+            update_task({"id": task_id, "status": "running"})
+        else:
+            os.killpg(process.pid, signal.SIGTERM)
+            update_task({"id": task_id, "status": "cancelled",
+                         "result": "Cancelled by the user."})
+    return {"ok": True, "id": task_id,
+            "status": next(t["status"] for t in list_tasks() if t["id"] == task_id)}
+
+
 # ── real user terminals ─────────────────────────────────────────────────
 
 class TerminalSession:
@@ -1708,6 +1865,8 @@ class H(BaseHTTPRequestHandler):
                 return self._send(create_task(body))
             if u.path == "/api/task/update":
                 return self._send(update_task(body))
+            if u.path == "/api/task/action":
+                return self._send(task_action(body))
             if u.path == "/api/terminal/start":
                 return self._send(start_terminal(body))
             if u.path == "/api/terminal/write":

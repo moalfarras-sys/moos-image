@@ -3995,6 +3995,60 @@ Kirigami.ApplicationWindow {
                                             font.family: root.uiFont
                                             font.pixelSize: root.typePx(10)
                                         }
+                                        Text {
+                                            visible: (modelData.description || "") !== ""
+                                            Layout.fillWidth: true
+                                            text: modelData.description || ""
+                                            color: root.textMute
+                                            font.family: root.uiFont
+                                            font.pixelSize: root.typePx(10)
+                                            wrapMode: Text.Wrap
+                                        }
+                                        Repeater {
+                                            model: modelData.steps || []
+                                            delegate: Text {
+                                                required property var modelData
+                                                Layout.fillWidth: true
+                                                text: (modelData.status === "completed" ? "✓ "
+                                                       : modelData.status === "failed" ? "! " : "• ")
+                                                      + modelData.title
+                                                color: modelData.status === "failed"
+                                                       ? root.badColor : root.textMute
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(10)
+                                                wrapMode: Text.Wrap
+                                            }
+                                        }
+                                        Text {
+                                            visible: (modelData.tools || []).length > 0
+                                            Layout.fillWidth: true
+                                            text: root.local("الأدوات: ", "Tools: ")
+                                                  + (modelData.tools || []).map(function (tool) {
+                                                      return tool.name
+                                                  }).join(" · ")
+                                            color: root.novaCyan
+                                            font.family: root.uiFont
+                                            font.pixelSize: root.typePx(9)
+                                            wrapMode: Text.WrapAnywhere
+                                        }
+                                        Text {
+                                            visible: (modelData.error || "") !== ""
+                                            Layout.fillWidth: true
+                                            text: modelData.error || ""
+                                            color: root.badColor
+                                            font.family: root.uiFont
+                                            font.pixelSize: root.typePx(10)
+                                            wrapMode: Text.Wrap
+                                        }
+                                        Text {
+                                            visible: (modelData.result || "") !== ""
+                                            Layout.fillWidth: true
+                                            text: modelData.result || ""
+                                            color: root.textHi
+                                            font.family: root.uiFont
+                                            font.pixelSize: root.typePx(10)
+                                            wrapMode: Text.Wrap
+                                        }
                                         RowLayout {
                                             Layout.fillWidth: true
                                             visible: modelData.status !== "completed"
@@ -4003,16 +4057,19 @@ Kirigami.ApplicationWindow {
                                             MoButton {
                                                 label: modelData.status === "running"
                                                     ? root.local("إيقاف مؤقت", "Pause")
+                                                    : modelData.status === "paused"
+                                                        ? root.local("استكمال", "Resume")
                                                     : modelData.status === "failed"
                                                         ? root.local("إعادة المحاولة", "Retry")
                                                         : root.local("بدء", "Start")
-                                                onClicked: root.agentUpdateTask(
+                                                onClicked: root.agentTaskAction(
                                                     modelData.id,
-                                                    modelData.status === "running" ? "paused" : "running")
+                                                    modelData.status === "running" ? "pause"
+                                                        : modelData.status === "paused" ? "resume" : "start")
                                             }
                                             MoButton {
                                                 label: root.local("إلغاء", "Cancel")
-                                                onClicked: root.agentUpdateTask(modelData.id, "cancelled")
+                                                onClicked: root.agentTaskAction(modelData.id, "cancel")
                                             }
                                         }
                                     }
@@ -5788,6 +5845,25 @@ Kirigami.ApplicationWindow {
             }
         }
         xhr.send(JSON.stringify({ id: id, status: status }))
+    }
+
+    function agentTaskAction(id, action) {
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/task/action")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) {
+                root.agentError = ""
+                root.agentLoadTasks()
+            } else {
+                try { root.agentError = JSON.parse(xhr.responseText).error }
+                catch (e) { root.agentError = root.local("تعذّر التحكم بالمهمة",
+                                                         "Could not control task") }
+            }
+        }
+        xhr.send(JSON.stringify({ id: id, action: action }))
     }
 
     function agentLoadTerminals() {
