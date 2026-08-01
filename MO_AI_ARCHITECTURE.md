@@ -128,8 +128,13 @@ cleanup lands. No decorative perpetual animation is allowed.
   multimodal shape and the capability-verified vision route. Other binary
   formats remain metadata-only rather than pretending their content was read.
 - [x] Desktop push-to-talk capture uses PipeWire and the existing local speech
-  service. Live capture reached transcription; the silent three-second proof
-  correctly returned "no speech", so spoken-language verification remains open.
+  service. Live capture reached transcription; an English synthesized speech
+  proof traversed the shipped `moai-transcribe`/Speaches path, auto-detected
+  `en` at 0.93 and returned `Hello, I am the MOAI assistant.`. The wrapper now
+  defaults to bilingual auto-detection while retaining validated `ar`/`en`
+  overrides. Intentional Speaches idle shutdown accepts the container's normal
+  forced-worker exit 137 instead of leaving a failed user unit. A real human
+  Arabic microphone sample remains desirable visual/release evidence.
 - [x] Vision requests route only to a model that explicitly advertises image
   input. Ollama rows use the real `/api/show` `vision` capability; provider
   rows preserve advertised `input`/`modalities`; uncertainty is conservatively

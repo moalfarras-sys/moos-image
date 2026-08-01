@@ -322,6 +322,14 @@ def main() -> None:
     assert '[str(PW_RECORD), "--rate", "16000", "--channels", "1", str(path)]' in source
     assert '[str(TRANSCRIBE), str(path)]' in source
     assert "X-Moai-Agent" in source
+    transcribe = (ROOT / "system_files/usr/bin/moai-transcribe").read_text(
+        encoding="utf-8")
+    assert 'LANG_="${MOAI_STT_LANG:-auto}"' in transcribe
+    assert 'LANG_FORM=(-F "language=${LANG_}")' in transcribe
+    speech_quadlet = (ROOT / "system_files/usr/share/moos/containers/speaches.container").read_text(
+        encoding="utf-8")
+    assert "SuccessExitStatus=137" in speech_quadlet
+    assert "TimeoutStopSec=30" in speech_quadlet
     qml = (ROOT / "system_files/usr/share/moos/apps/moai/main.qml").read_text(
         encoding="utf-8")
     assert '(model.input || []).indexOf("image") >= 0' in qml

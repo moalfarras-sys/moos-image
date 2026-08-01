@@ -22,9 +22,13 @@ Vision routing now reads explicit model input metadata: Ollama's real
 guesses from a model name, and uncertain routes remain text-only. A live PNG
 request through the source Mo AI gateway and unified OpenClaw runtime reached
 `qwen3-vl:4b` and returned `blue` in 17.6 seconds. Push-to-talk uses `pw-record`
-→ the existing `moai-transcribe` path;
-live silence correctly reached the transcriber and returned no-speech rather
-than fake text, but a spoken phrase is still not verified. `moai-gateway` gains
+→ the existing `moai-transcribe` path. A synthesized English speech proof was
+auto-detected as `en` with 0.93 probability and returned `Hello, I am the MOAI
+assistant.`; transcription now defaults to bilingual auto detection rather
+than forcing every clip through Arabic. A real human Arabic microphone sample
+is still not verified. The Speaches Quadlet now treats its known exit 137 after
+clean ASGI shutdown as a successful idle stop, avoiding a false failed service.
+`moai-gateway` gains
 an explainable Hybrid route: sensitive data and attachments remain local by
 default, complex work may use configured/reachable cloud, and routing/fallback
 reasons are returned to the UI. OpenClaw permissions are split into the four

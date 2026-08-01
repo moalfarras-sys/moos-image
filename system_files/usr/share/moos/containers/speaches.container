@@ -45,6 +45,14 @@ Restart=always
 RestartSec=5
 # Model downloads are ~1.4GB; the default 90s start timeout would kill it.
 TimeoutStartSec=900
+# Speaches finishes the ASGI shutdown cleanly, but CTranslate2 can keep a worker
+# inside the container past Podman's stop deadline. Podman then returns the
+# conventional forced-container exit 137 even though this was an intentional
+# idle stop. Treat that one code as a successful stop; a real OOM is still
+# tracked by the kernel/systemd OOM result and Restart=always starts the service.
+TimeoutStopSec=30
+TimeoutStopFailureMode=kill
+SuccessExitStatus=137
 
 # Deliberately no [Install]: OpenClaw preflight and moai-transcribe start this
 # service on demand, so a machine with no voice traffic carries no idle model.
