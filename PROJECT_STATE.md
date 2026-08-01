@@ -276,6 +276,23 @@ warnings; 61 core behavior tests, PWA tests/typecheck, npm audit (zero findings)
 deterministic PWA v26 build, shipped-assets gate and the complete repository
 check pass. Touch/visual confirmation on a physical phone remains open evidence.
 
+Remote transfer resource-bound audit (`21008908`): authenticated clipboard-image
+upload copied the complete HTTP body into a `MemoryStream` before checking the
+25 MB limit. Kestrel permits the file-transfer ceiling of 1 GiB, so one trusted
+client could make the agent retain close to a gigabyte and be killed by memory
+pressure. It now rejects declared oversize bodies before reading and uses a
+shared streaming reader that asks for only one byte beyond the remaining cap;
+the rejected byte is never followed by buffering the rest. Directory browsing
+also stopped materializing and sorting an unbounded folder: enumeration is
+materialized inside its exception boundary, capped at 500 entries, and reports
+`truncated` visibly in the phone UI instead of pretending the response is
+complete. Exact-limit, one-byte-over, 520-entry truncation and partial-upload
+cleanup are behavior tested. Linux and Windows .NET builds have zero warnings,
+65 core tests pass, PWA tests/typecheck and npm audit pass with zero findings,
+the PWA v27 production build is deterministic, and the shipped-assets and full
+repository gates pass. A real large transfer interrupted over a phone tailnet
+remains open live evidence; automatic background folder sync is not claimed.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds
