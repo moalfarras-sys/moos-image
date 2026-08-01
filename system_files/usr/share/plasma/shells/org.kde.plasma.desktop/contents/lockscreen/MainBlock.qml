@@ -46,6 +46,7 @@ SessionManagementScreen {
     readonly property alias mainPasswordBox: passwordBox
     property bool lockScreenUiVisible: false
     property alias showPassword: passwordBox.showPassword
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
 
     // ── Two-tone MoOS accent (visual only) ──────────────────────────────────
     // A second hue derived from the live theme highlight, so the unlock button
@@ -159,8 +160,8 @@ SessionManagementScreen {
                       Kirigami.Theme.textColor.g,
                       Kirigami.Theme.textColor.b, 0.20)
 
-        Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
-        Behavior on color { ColorAnimation { duration: Kirigami.Units.longDuration } }
+        Behavior on opacity { NumberAnimation { duration: sessionManager.motionEnabled ? Kirigami.Units.longDuration : 0; easing.type: Easing.OutCubic } }
+        Behavior on color { ColorAnimation { duration: sessionManager.motionEnabled ? Kirigami.Units.longDuration : 0 } }
 
         PlasmaComponents3.Label {
             id: noticeLabel
@@ -194,13 +195,13 @@ SessionManagementScreen {
             NumberAnimation {
                 target: noticePill; property: "scale"
                 from: 1.0; to: 1.06
-                duration: Kirigami.Units.longDuration
+                duration: sessionManager.motionEnabled ? Kirigami.Units.longDuration : 0
                 easing.type: Easing.OutQuad
             }
             NumberAnimation {
                 target: noticePill; property: "scale"
                 from: 1.06; to: 1.0
-                duration: Kirigami.Units.longDuration
+                duration: sessionManager.motionEnabled ? Kirigami.Units.longDuration : 0
                 easing.type: Easing.InQuad
             }
         }
@@ -244,7 +245,7 @@ SessionManagementScreen {
                     : Qt.rgba(Kirigami.Theme.textColor.r,
                               Kirigami.Theme.textColor.g,
                               Kirigami.Theme.textColor.b, 0.18)
-                Behavior on border.color { ColorAnimation { duration: Kirigami.Units.longDuration } }
+                Behavior on border.color { ColorAnimation { duration: sessionManager.motionEnabled ? Kirigami.Units.longDuration : 0 } }
                 // soft accent glow when focused
                 Rectangle {
                     anchors.centerIn: parent
@@ -257,7 +258,7 @@ SessionManagementScreen {
                     border.color: Qt.rgba(Kirigami.Theme.highlightColor.r,
                                           Kirigami.Theme.highlightColor.g,
                                           Kirigami.Theme.highlightColor.b, passwordBox.activeFocus ? 0.14 : 0.0)
-                    Behavior on border.color { ColorAnimation { duration: Kirigami.Units.longDuration } }
+                    Behavior on border.color { ColorAnimation { duration: sessionManager.motionEnabled ? Kirigami.Units.longDuration : 0 } }
                 }
             }
 
@@ -294,7 +295,9 @@ SessionManagementScreen {
                     passwordBox.text = Qt.binding(() => PasswordSync.password);
                 }
                 function onNotificationRepeated() {
-                    noticeBounce.restart();
+                    if (sessionManager.motionEnabled) {
+                        noticeBounce.restart();
+                    }
                 }
             }
         }
@@ -320,7 +323,7 @@ SessionManagementScreen {
             scale: loginButton.down ? 0.94 : 1.0
             Behavior on scale {
                 NumberAnimation {
-                    duration: Kirigami.Units.shortDuration
+                    duration: sessionManager.motionEnabled ? Kirigami.Units.shortDuration : 0
                     easing.type: Easing.OutCubic
                 }
             }
@@ -342,7 +345,7 @@ SessionManagementScreen {
                                       sessionManager.accentB.g,
                                       sessionManager.accentB.b,
                                       loginButton.activeFocus ? 0.90 : 0.48)
-                Behavior on border.color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
+                Behavior on border.color { ColorAnimation { duration: sessionManager.motionEnabled ? Kirigami.Units.shortDuration : 0 } }
 
                 // Crest cut + quiet lower horizon: the same two marks used by
                 // Login, Logout and every session action key.

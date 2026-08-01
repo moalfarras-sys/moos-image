@@ -64,6 +64,8 @@ GATED_SURFACES = (
     SHARE / "plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/main.qml",
     ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/ActionButton.qml",
     ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml",
+    SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml",
+    SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml",
 )
 
 PROBE = """

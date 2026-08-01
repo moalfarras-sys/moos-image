@@ -767,6 +767,30 @@ class TestMoOSUI2(unittest.TestCase):
                     self.assertIn(f"{owner}.motionEnabled ?", duration)
                     self.assertRegex(duration, r":\s*0\s*$")
 
+    def test_lock_authentication_reduced_motion_is_a_true_static_state(self) -> None:
+        lock_root = (
+            SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen"
+        )
+        for filename, owner, expected_durations in (
+            ("MainBlock.qml", "sessionManager", 8),
+            ("LockScreenUi.qml", "lockScreenUi", 6),
+        ):
+            with self.subTest(filename=filename):
+                source = qml_code((lock_root / filename).read_text(encoding="utf-8"))
+                self.assertIn(
+                    "readonly property bool motionEnabled: Kirigami.Units.longDuration > 1",
+                    source,
+                )
+                durations = re.findall(r"duration:\s*([^\n;}]+)", source)
+                self.assertEqual(len(durations), expected_durations)
+                for duration in durations:
+                    self.assertIn(f"{owner}.motionEnabled ?", duration)
+                    self.assertRegex(duration, r":\s*0\s*$")
+        main_block = qml_code((lock_root / "MainBlock.qml").read_text(encoding="utf-8"))
+        repeated = main_block[main_block.index("function onNotificationRepeated"):
+                              main_block.index("}", main_block.index("function onNotificationRepeated")) + 1]
+        self.assertIn("if (sessionManager.motionEnabled)", repeated)
+
     def test_session_controls_use_only_wcag_paired_foregrounds(self) -> None:
         """Security/session glyphs must sit on a scheme-paired flat colour.
 

@@ -265,7 +265,7 @@ Item {
             property: "opacity"
             from: 0
             to: 1
-            duration: Kirigami.Units.veryLongDuration * 2
+            duration: lockScreenUi.motionEnabled ? Kirigami.Units.veryLongDuration * 2 : 0
         }
         NumberAnimation {
             id: riseAnimation
@@ -273,7 +273,7 @@ Item {
             property: "y"
             from: -Kirigami.Units.gridUnit * 1.2
             to: 0
-            duration: Kirigami.Units.veryLongDuration * 2
+            duration: lockScreenUi.motionEnabled ? Kirigami.Units.veryLongDuration * 2 : 0
             easing.type: Easing.OutCubic
         }
 
@@ -336,9 +336,7 @@ Item {
 
             Behavior on intensity {
                 NumberAnimation {
-                    duration: lockScreenUi.motionEnabled
-                        ? Kirigami.Units.longDuration
-                        : 0
+                    duration: lockScreenUi.motionEnabled ? Kirigami.Units.longDuration : 0
                     easing.type: Easing.OutCubic
                 }
             }
@@ -442,17 +440,13 @@ Item {
             scale: lockScreenRoot.uiVisible ? 1 : 0.96
             Behavior on opacity {
                 NumberAnimation {
-                    duration: lockScreenUi.motionEnabled
-                        ? Kirigami.Units.longDuration
-                        : 0
+                    duration: lockScreenUi.motionEnabled ? Kirigami.Units.longDuration : 0
                     easing.type: Easing.OutCubic
                 }
             }
             Behavior on scale {
                 NumberAnimation {
-                    duration: lockScreenUi.motionEnabled
-                        ? Kirigami.Units.longDuration
-                        : 0
+                    duration: lockScreenUi.motionEnabled ? Kirigami.Units.longDuration : 0
                     easing.type: Easing.OutCubic
                 }
             }
@@ -540,7 +534,7 @@ Item {
             opacity: lockScreenRoot.uiVisible ? 0 : 1
             Behavior on opacity {
                 OpacityAnimator {
-                    duration: Kirigami.Units.veryLongDuration * 2
+                    duration: lockScreenUi.motionEnabled ? Kirigami.Units.veryLongDuration * 2 : 0
                     easing.type: Easing.InOutQuad
                 }
             }
