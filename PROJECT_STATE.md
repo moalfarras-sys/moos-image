@@ -123,6 +123,16 @@ first-use hint timers are also cleared on unmount. The new
 controller is PWA v18, TypeScript/controller tests pass, and the complete repo
 check recipe is green.
 
+Phone sign-out audit (`dcdb9c0c`): the UI's Sign out path only cleared
+`localStorage`; it never called the already-existing `/api/logout`, so a copied
+bearer remained valid server-side for up to the 60-minute session TTL after the
+user saw the login screen. `App.exitToLogin` now awaits server revocation before
+returning to authentication while retaining offline-safe local clearing. The
+new relationship gate is wired into local checks and CI, PWA v19 is committed,
+and the complete repo check recipe passes. The server revocation endpoint itself
+was already proven in the isolated HTTP login/logout sequence earlier in this
+audit; this change connects the real phone action to it.
+
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through
