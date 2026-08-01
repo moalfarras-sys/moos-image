@@ -46,7 +46,7 @@ try:
     from gi.repository import Rsvg
 
     HAVE_RASTER_RUNTIME = True
-except (ImportError, ValueError):
+except (ImportError, ValueError, AttributeError):
     HAVE_RASTER_RUNTIME = False
 
 try:
@@ -56,7 +56,7 @@ try:
     from gi.repository import Gtk
 
     HAVE_GTK_RUNTIME = True
-except (ImportError, ValueError):
+except (ImportError, ValueError, AttributeError):
     HAVE_GTK_RUNTIME = False
 
 
