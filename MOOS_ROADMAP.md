@@ -68,6 +68,12 @@
 > أثناء الطلب أو lockout بدل أزرار تتحرك ثم تُتجاهل. نجحت TypeScript والبوابة
 > وnpm audit والبناء المتطابق و`just check`، وشُحنت PWA v21.
 
+> **Reduced Motion كامل للهاتف (`d78ac6cc`):** كان التفضيل يوقف حركتين فقط
+> ويترك 18 حركة أخرى، بينها spinner دائم وsheets وtoast وtoolbar وkeypad. سياسة
+> واحدة توقف الآن كل animation وtransition وعناصر pseudo بلا حيلة 0.01ms، مع
+> بقاء تغييرات الحالة فورية. نجحت البوابة وTypeScript وnpm audit والبناء
+> المتطابق و`just check`، وشُحنت PWA v22. يلزم إثبات مرئي من هاتف حقيقي.
+
 > **حدود خدمات Mo AI (`1cf194b3`, `017df8a6`):** أُغلق restart loop غير محدود
 > في OpenClaw (~386MB + preflight ثقيل)، وعقل Ollama وSpeaches (~1.5GB). صار
 > OpenClaw يسمح 8 محاولات/5 دقائق، والـQuadlets خمساً/5 دقائق، ثم يظهر failed

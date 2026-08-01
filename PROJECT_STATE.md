@@ -187,6 +187,16 @@ TypeScript, zero-vulnerability audit, deterministic production rebuild, shipped
 asset gate and complete repository check pass. The committed controller is PWA
 v21; real mobile keyboard and screen-reader proof remains open.
 
+Remote Reduced Motion follow-up (`d78ac6cc`): the PWA previously honoured the
+system preference for only the settings switch and disclosure chevron while 18
+other animations/transitions—including the perpetual connecting spinner,
+sheets, toast, toolbar and keypad feedback—continued. One global policy now
+stops animations and transitions for every element and pseudo-element and keeps
+scroll state changes immediate; it does not use a near-zero-duration workaround.
+The source gate, TypeScript, npm audit, deterministic production rebuild,
+shipped-asset gate and complete repository check pass. The committed controller
+is PWA v22; a real phone setting toggle remains open visual evidence.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds
