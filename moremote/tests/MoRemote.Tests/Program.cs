@@ -39,6 +39,14 @@ Eq("suspend", PowerActions.Resolve("sleep")?.Arguments[1], "sleep maps to system
 Eq("reboot", PowerActions.Resolve("restart")?.Arguments[1], "restart maps to reboot");
 Eq("poweroff", PowerActions.Resolve("shutdown")?.Arguments[1], "shutdown maps to poweroff");
 Eq(null, PowerActions.Resolve("hibernate"), "unknown power actions fail closed");
+var editionDir = Path.Combine(Path.GetTempPath(), "moremote-edition-" + Guid.NewGuid());
+Directory.CreateDirectory(editionDir);
+var editionFile = Path.Combine(editionDir, "edition");
+File.WriteAllText(editionFile, "moos-cloud\n");
+Eq(false, PowerActions.HostPowerAllowedAt(editionFile), "cloud users cannot power off the shared host");
+File.WriteAllText(editionFile, "moos\n");
+Eq(true, PowerActions.HostPowerAllowedAt(editionFile), "desktop owners retain host power controls");
+Directory.Delete(editionDir, true);
 Eq(true, PowerActions.Execute(new("/usr/bin/true", []), "test"), "accepted command succeeds");
 Eq(false, PowerActions.Execute(new("/usr/bin/false", []), "test"), "rejected command is not fake success");
 Eq(false, PowerActions.Execute(new("/usr/bin/sleep", ["1"]), "test", 5), "hung command times out");

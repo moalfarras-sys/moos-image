@@ -10,8 +10,14 @@ namespace MoRemote;
 /// </summary>
 public static class PowerActions
 {
+    public static bool HostPowerAllowed => true;
+
+    public static bool CanRun(string action) => action.ToLowerInvariant() is
+        "lock" or "sleep" or "signout" or "logoff" or "restart" or "shutdown";
+
     public static bool Run(string action)
     {
+        if (!CanRun(action)) return false;
         try
         {
             switch (action.ToLowerInvariant())

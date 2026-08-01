@@ -165,7 +165,11 @@ function Switch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   );
 }
 
-export function RemoteScreen({ token, onExit }: { token: string; onExit: () => void }) {
+export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
+  token: string;
+  hostPowerAllowed: boolean;
+  onExit: () => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1937,14 +1941,14 @@ export function RemoteScreen({ token, onExit }: { token: string; onExit: () => v
           <div className="sec-label">Power</div>
           <div className="card">
             <details className="fold">
-              <summary><span>Lock, sleep, restart, shut down</span><IconChevronDown /></summary>
+              <summary><span>{hostPowerAllowed ? "Lock, sleep, restart, shut down" : "Lock or sign out"}</span><IconChevronDown /></summary>
               <div className="card-pad">
                 <div className="grid">
                   <button className="cell" onClick={() => doPower("lock", "Lock")}><IconLock /> Lock</button>
-                  <button className="cell" onClick={() => doPower("sleep", "Sleep")}><IconPower /> Sleep</button>
+                  {hostPowerAllowed && <button className="cell" onClick={() => doPower("sleep", "Sleep")}><IconPower /> Sleep</button>}
                   <button className="cell" onClick={() => doPower("signout", "Sign out", true)}><IconLock /> Sign out</button>
-                  <button className="cell" onClick={() => doPower("restart", "Restart", true)}><IconRefresh /> Restart</button>
-                  <button className="cell danger" onClick={() => doPower("shutdown", "Shut down", true)}><IconPower /> Shut down</button>
+                  {hostPowerAllowed && <button className="cell" onClick={() => doPower("restart", "Restart", true)}><IconRefresh /> Restart</button>}
+                  {hostPowerAllowed && <button className="cell danger" onClick={() => doPower("shutdown", "Shut down", true)}><IconPower /> Shut down</button>}
                 </div>
               </div>
             </details>

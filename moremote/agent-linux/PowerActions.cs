@@ -8,7 +8,32 @@ namespace MoRemote;
 /// </summary>
 public static class PowerActions
 {
+    private const string EditionFile = "/usr/lib/moos/edition";
     public readonly record struct Command(string FileName, string[] Arguments);
+
+    public static bool HostPowerAllowed => HostPowerAllowedAt(EditionFile);
+
+    internal static bool HostPowerAllowedAt(string editionFile)
+    {
+        try
+        {
+            return !File.Exists(editionFile)
+                || File.ReadAllText(editionFile).Trim() != "moos-cloud";
+        }
+        catch
+        {
+            // A marker that exists but cannot be verified is not permission to power off a
+            // potentially multi-user host. Desktop images install a readable marker at build time.
+            return !File.Exists(editionFile);
+        }
+    }
+
+    public static bool CanRun(string action)
+    {
+        var normalized = action.ToLowerInvariant();
+        return Resolve(normalized) is not null
+            && (HostPowerAllowed || normalized is "lock" or "signout" or "logoff");
+    }
 
     public static Command? Resolve(string action) => action.ToLowerInvariant() switch
     {
@@ -30,6 +55,11 @@ public static class PowerActions
 
     public static bool Run(string action)
     {
+        if (!CanRun(action))
+        {
+            Log.Warn($"Power action '{action}' is unavailable on this MoOS edition.");
+            return false;
+        }
         var command = Resolve(action);
         if (command is null)
         {

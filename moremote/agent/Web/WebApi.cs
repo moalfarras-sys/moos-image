@@ -44,6 +44,7 @@ public static class WebApi
             firstRun = svc.Sessions.FirstRun,
             locked = svc.Sessions.LockoutRemainingSeconds() > 0,
             lockoutSeconds = svc.Sessions.LockoutRemainingSeconds(),
+            hostPowerAllowed = PowerActions.HostPowerAllowed,
         }));
         app.MapGet("/api/local-diagnostic-token",(HttpContext ctx)=>
         {
@@ -136,6 +137,8 @@ public static class WebApi
             var req = await ReadJson<PowerReq>(ctx);
             var action = req?.action ?? "";
             Log.Warn($"Power action '{action}' requested from {ctx.Connection.RemoteIpAddress}.");
+            if (!PowerActions.CanRun(action))
+                return Results.Json(new { error = "unavailable_on_edition" }, statusCode: 403);
             var ok = PowerActions.Run(action);
             return ok ? Results.Json(new { ok = true }) : Results.Json(new { error = "failed" }, statusCode: 400);
         });

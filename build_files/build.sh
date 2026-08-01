@@ -564,6 +564,7 @@ mkdir -p /var/lib/rpm-state   # Anaconda Web UI needs this to exist
 # moos-nvidia ISO installs moos-nvidia and the user never has to `bootc switch`).
 mkdir -p /usr/lib/moos
 printf '%s\n' "${MOOS_IMAGEREF}:${MOOS_IMAGETAG}" > /usr/lib/moos/install-imageref
+printf '%s\n' "${MOOS_EDITION}" > /usr/lib/moos/edition
 
 # interactive-defaults.ks: the Anaconda ADVANCED / dual-boot path (the PRIMARY
 # install path is now the MoOS QML installer, moos-installer → moos-install-to-disk,

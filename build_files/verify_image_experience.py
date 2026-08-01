@@ -1043,6 +1043,7 @@ for _p, _msg in [
     ("/usr/share/moos/apps/installer/main.qml", "the installer QML front-end is missing"),
     ("/usr/share/polkit-1/rules.d/49-moos-installer.rules", "the installer polkit rule is missing — the install step could not elevate"),
     ("/usr/lib/moos/install-imageref", "the edition-aware install image ref is missing"),
+    ("/usr/lib/moos/edition", "the runtime edition marker is missing"),
 ]:
     require(Path(_p).is_file(), _msg)
 

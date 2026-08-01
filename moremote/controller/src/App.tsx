@@ -7,7 +7,7 @@ type View =
   | { name: "loading" }
   | { name: "setup" }
   | { name: "login"; lockout: number }
-  | { name: "remote"; token: string }
+  | { name: "remote"; token: string; hostPowerAllowed: boolean }
   | { name: "error"; message: string };
 
 export default function App() {
@@ -18,7 +18,7 @@ export default function App() {
       const s = await getStatus();
       if (s.firstRun) return setView({ name: "setup" });
       const tok = tokenStore.get();
-      if (tok) return setView({ name: "remote", token: tok });
+      if (tok) return setView({ name: "remote", token: tok, hostPowerAllowed: s.hostPowerAllowed !== false });
       return setView({ name: "login", lockout: s.locked ? s.lockoutSeconds : 0 });
     } catch {
       setView({ name: "error", message: "Cannot reach the PC. Is the agent running and Tailscale connected?" });
@@ -29,9 +29,10 @@ export default function App() {
     decide();
   }, []);
 
-  const enterRemote = (token: string) => {
+  const enterRemote = async (token: string) => {
     tokenStore.set(token);
-    setView({ name: "remote", token });
+    const status = await getStatus();
+    setView({ name: "remote", token, hostPowerAllowed: status.hostPowerAllowed !== false });
   };
 
   const exitToLogin = async () => {
@@ -61,6 +62,6 @@ export default function App() {
     case "login":
       return <LoginScreen onDone={enterRemote} lockoutSeconds={view.lockout} />;
     case "remote":
-      return <RemoteScreen token={view.token} onExit={exitToLogin} />;
+      return <RemoteScreen token={view.token} hostPowerAllowed={view.hostPowerAllowed} onExit={exitToLogin} />;
   }
 }
