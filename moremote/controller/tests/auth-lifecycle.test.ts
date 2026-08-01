@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {dirname, resolve} from "node:path";
 import {fileURLToPath} from "node:url";
-import {getStatus} from "../src/lib/api.ts";
+import {fetchWithTimeout, getStatus} from "../src/lib/api.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const app = readFileSync(resolve(here, "../src/App.tsx"), "utf8");
@@ -16,6 +16,18 @@ try {
   });
   await assert.rejects(getStatus(), /status failed: 503/,
     "a non-success status response must not be mistaken for a usable ServerStatus");
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+try {
+  globalThis.fetch = async (_input, init) => new Promise<Response>((_resolve, reject) => {
+    init?.signal?.addEventListener("abort", () => {
+      reject(init.signal?.reason ?? new DOMException("aborted", "AbortError"));
+    }, {once: true});
+  });
+  await assert.rejects(fetchWithTimeout("/api/status", {}, 5), /timed out/,
+    "a black-holed control request must abort instead of pinning the UI forever");
 } finally {
   globalThis.fetch = originalFetch;
 }

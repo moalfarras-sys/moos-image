@@ -1,6 +1,7 @@
 import type { ServerStatus } from "../types";
 
 const TOKEN_KEY = "mo_remote_token";
+const CONTROL_REQUEST_TIMEOUT_MS = 15_000;
 
 export const tokenStore = {
   get: () => localStorage.getItem(TOKEN_KEY) || "",
@@ -8,8 +9,30 @@ export const tokenStore = {
   clear: () => localStorage.removeItem(TOKEN_KEY),
 };
 
+/** Bound short control-plane requests without imposing a deadline on file upload or media. */
+export async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs = CONTROL_REQUEST_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const upstream = init.signal;
+  const relayAbort = () => controller.abort(upstream?.reason);
+  if (upstream?.aborted) relayAbort();
+  else upstream?.addEventListener("abort", relayAbort, { once: true });
+  const timeout = globalThis.setTimeout(() => {
+    controller.abort(new DOMException("control request timed out", "TimeoutError"));
+  }, timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    globalThis.clearTimeout(timeout);
+    upstream?.removeEventListener("abort", relayAbort);
+  }
+}
+
 async function post<T>(path: string, body: unknown, token?: string): Promise<{ status: number; data: T }> {
-  const res = await fetch(path, {
+  const res = await fetchWithTimeout(path, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -22,7 +45,7 @@ async function post<T>(path: string, body: unknown, token?: string): Promise<{ s
 }
 
 export async function getStatus(): Promise<ServerStatus> {
-  const res = await fetch("/api/status", { cache: "no-store" });
+  const res = await fetchWithTimeout("/api/status", { cache: "no-store" });
   if (!res.ok) throw new Error(`status failed: ${res.status}`);
   return (await res.json()) as ServerStatus;
 }
