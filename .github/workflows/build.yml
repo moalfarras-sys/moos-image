@@ -152,6 +152,8 @@ jobs:
         run: |
           cd moremote/controller
           npm ci --no-audit --no-fund
+          npm run typecheck
+          npm audit --audit-level=high
           npm run build
           cd "${GITHUB_WORKSPACE}"
           if ! git diff --quiet -- moremote/agent/wwwroot; then
