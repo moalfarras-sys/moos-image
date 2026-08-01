@@ -71,7 +71,11 @@ using var capture=new ScreenCapture(portal); using var input=new InputInjector(p
 var svc=new AgentServices{Config=config,Sessions=new SessionManager(config),State=new SessionState(),Capture=capture,Input=input,HttpsHost=tls?.Host};
 var builder=WebApplication.CreateBuilder(new WebApplicationOptions{ContentRootPath=AppContext.BaseDirectory,Args=args});
 builder.Logging.ClearProviders(); builder.Services.AddSingleton(svc);
-builder.WebHost.ConfigureKestrel(o=>{o.Limits.MaxRequestBodySize=FileService.MaxUploadBytes;o.ListenAnyIP(config.Port,lo=>{if(tls!=null)lo.UseHttps(tls.Certificate);});});
+// Linux is published through `tailscale serve`, which terminates HTTPS on the MagicDNS name and
+// proxies to this loopback socket. Do not also leave a cleartext wildcard listener behind: the
+// firewall is defence in depth, not authority to publish the agent on Wi-Fi/public interfaces.
+// Windows has a separate entry point and retains its direct Tailscale/LAN modes.
+builder.WebHost.ConfigureKestrel(o=>{o.Limits.MaxRequestBodySize=FileService.MaxUploadBytes;o.ListenLocalhost(config.Port,lo=>{if(tls!=null)lo.UseHttps(tls.Certificate);});});
 var app=builder.Build(); WebApi.UseNetworkGuard(app,svc); // Both values, because the interval alone is another gate that never fires. KeepAliveTimeout defaults
 // to InfiniteTimeSpan, so ASP.NET sent a keep-alive ping every two minutes and then waited forever for
 // a reply that a wedged peer was never going to send — the connection stayed "open" indefinitely, which
@@ -80,7 +84,7 @@ app.UseWebSockets(new WebSocketOptions {
     KeepAliveInterval = TimeSpan.FromSeconds(15),
     KeepAliveTimeout  = TimeSpan.FromSeconds(20),
 }); app.UseDefaultFiles(); app.UseStaticFiles(); WebApi.Map(app,svc); app.MapFallbackToFile("index.html");
-Log.Info($"Linux server listening: {svc.AccessUrl}");
+Log.Info($"Linux server listening on loopback: http://127.0.0.1:{config.Port} (publish with Tailscale Serve)");
 await app.RunAsync();
 // The entry point returns int now (--set-pin above needs a distinct exit code for "that PIN is too
 // short" so a script can tell it from success), so every path has to produce one.

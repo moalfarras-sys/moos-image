@@ -75,6 +75,9 @@ check:
     # Desktop sound must be enabled everywhere AND bind loopback (the service has no auth).
     python3 tests/test_desktop_sound_reachable.py
     python3 tests/test_remote_audio_is_authenticated.py
+    # Linux exposes Remote through the authenticated Tailscale HTTPS proxy only; no raw Wi-Fi or
+    # public-interface listener may survive beside it.
+    python3 tests/test_remote_linux_network_boundary.py
     python3 tests/test_moos_store_index.py
     python3 tests/test_moos_storectl.py
     python3 tests/test_moos_ui2.py

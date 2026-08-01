@@ -39,6 +39,7 @@ PANEL = ROOT / "system_files/usr/bin/mo-pc-remote"
 AGENT = ROOT / "moremote/agent/Web/WebApi.cs"
 SCREEN = ROOT / "moremote/controller/src/ui/RemoteScreen.tsx"
 BUILD = ROOT / "build_files/build.sh"
+CLOUD = ROOT / "system_files/usr/bin/moos-cloud-desktop"
 
 errors = []
 
@@ -66,6 +67,7 @@ panel = code(read(PANEL), "#")
 agent = code(read(AGENT), "//")
 screen = code(read(SCREEN), "//")
 build = code(read(BUILD), "#")
+cloud = code(read(CLOUD), "#")
 
 if "tailscale serve /audio" in build:
     errors.append("build.sh still claims the retired unauthenticated /audio mount is active")
@@ -81,6 +83,14 @@ if re.search(r"\bmount_audio\s*\(", panel):
     errors.append(
         "mo-pc-remote still defines or calls mount_audio() — the function that created the "
         "unauthenticated tailnet mount. The sound goes through the agent now")
+if any("--set-path=/audio" in line and not re.search(r"\boff\b", line)
+       for line in cloud.splitlines()):
+    errors.append(
+        "moos-cloud-desktop still publishes the raw audio helper as /audio — cloud accounts "
+        "must use the authenticated agent ticket route too")
+if "retract_audio_mount" not in cloud or "--set-path=/audio off" not in cloud:
+    errors.append(
+        "moos-cloud-desktop does not retract legacy /audio routes when configuring accounts")
 
 # 2. It must actively take a legacy mount DOWN, or machines already exposed stay exposed.
 if not re.search(r"def unmount_audio\s*\(", panel):

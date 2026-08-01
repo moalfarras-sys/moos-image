@@ -34,6 +34,15 @@ die()   { red "$*"; exit 1; }
 
 need_root() { [ "$(id -u)" = 0 ] || die "run this with sudo — it changes how the machine logs in."; }
 
+# Older MoOS images published the unauthenticated audio helper as a sibling /audio route. The
+# controller now obtains a one-use ticket from the authenticated agent, which proxies that helper
+# internally. Retract the legacy route whenever we configure an account: exposure does not stop
+# merely because new code no longer creates it.
+retract_audio_mount() {
+    local https_port="$1"
+    tailscale serve "--https=${https_port}" --set-path=/audio off >/dev/null 2>&1 || true
+}
+
 # The address to hand a human, for the account with this uid.
 #
 # THIS FUNCTION USED TO RETURN http://<ip>:8765 AND THAT ONE STRING CAUSED EVERY SYMPTOM BELOW
@@ -398,28 +407,9 @@ UNIT
         note "  retry later: tailscale serve --bg --https=${hport} http://127.0.0.1:${port}"
     fi
 
-    # ── and the SOUND on that same origin ────────────────────────────────────
-    #
-    # moos-cloud-audio has always worked — verified end to end: valid EBML, an OpusHead, bytes
-    # flowing. What made it read as broken is that it was somewhere ELSE: a second tab, on a plain
-    # http port, while the desktop sat on https. That costs more than tidiness:
-    #
-    #   * an https page cannot even fetch it — a browser blocks the mixed content, so the sound
-    #     could never be moved into the desktop tab while it lived on http;
-    #   * "the sound does not work" and "the sound is a different URL you were never told" look
-    #     identical from the user's side, and the second one is what was actually happening.
-    #
-    # Mounting it as a PATH on the desktop's own HTTPS listener fixes both at once: same origin, same
-    # real Tailscale certificate, one URL to remember, and the controller can offer a speaker button
-    # instead of asking anyone to keep a second tab open. The old port keeps answering, so an
-    # already-open tab does not break.
-    local aport=$(( 8775 + uid - 1000 ))
-    if tailscale serve --bg --https="${hport}" --set-path=/audio "http://127.0.0.1:${aport}" >/dev/null 2>&1; then
-        ok "sound on the same origin at /audio — one tab, no mixed content"
-    else
-        note "could not mount /audio (older tailscale without --set-path?)"
-        note "  the separate port still works: http://<tailscale-ip>:${aport}"
-    fi
+    # Sound uses the agent's authenticated /api/audio route. Remove the legacy sibling route in
+    # case this machine ran an older image that exposed the raw helper to the whole tailnet.
+    retract_audio_mount "${hport}"
 
     # The streamer must start INTO a session that exists, not before it. The
     # desktop is up when plasmashell is; the socket alone only proves a compositor.
@@ -526,7 +516,7 @@ CONF
         note "could not start Mo PC Remote yet — it will come up with the session"
     fi
 
-    # ── the seat owner's HTTPS, and their sound on it ────────────────────────
+    # ── the seat owner's HTTPS ───────────────────────────────────────────────
     #
     # `own` (the private-desktop path) has always published its own HTTPS. THIS path never did: the
     # seat owner's :443 came from the mo-pc-remote GTK panel, which is a desktop app and therefore
@@ -535,16 +525,13 @@ CONF
     # nothing said so — the desktop worked over plain http, silently on JPEG, with no sound
     # possible, while the SECOND user got https and H.264. The asymmetry ran the wrong way round.
     #
-    # Both halves are published here, idempotently, so `on` and `own` leave an account in the same
-    # shape whichever one made it.
-    local dport=8765 aport=8775
+    # The desktop is published here idempotently. Sound travels through the authenticated agent,
+    # never through a sibling Tailscale mount.
+    local dport=8765
     if tailscale serve --bg --https=443 "http://127.0.0.1:${dport}" >/dev/null 2>&1; then
         ok "HTTPS on :443 — WebCodecs H.264, clipboard and PWA enabled"
-        if tailscale serve --bg --https=443 --set-path=/audio "http://127.0.0.1:${aport}" >/dev/null 2>&1; then
-            ok "sound on the same origin at /audio — one tab, no mixed content"
-        else
-            note "could not mount /audio (older tailscale without --set-path?)"
-        fi
+        retract_audio_mount 443
+        ok "sound protected by the agent's authenticated one-use ticket route"
     else
         note "could not publish HTTPS (is this machine on Tailscale yet?)"
         note "  retry later: tailscale serve --bg --https=443 http://127.0.0.1:${dport}"
@@ -674,11 +661,9 @@ doctor_user() {
 
     # --- 3. sound -------------------------------------------------------------
     #
-    # Two separate things can be wrong and they need separate lines, because the fix differs:
-    # the SERVICE not listening is a systemd problem, and the service listening while the /audio
-    # MOUNT is missing is a `tailscale serve` problem — and the second one is what "the sound does
-    # not work" actually was. The stream itself was always fine (valid EBML, an OpusHead, bytes
-    # flowing); it was simply on a plain-http port that the https page was forbidden to fetch.
+    # Two separate things can be wrong and need separate lines: the helper may be down, or the
+    # authenticated agent may be down. The helper stays loopback-only and must never appear as a
+    # sibling Tailscale route.
     local sport=$(( 8775 + uid - 1000 )) served_a
     if ss -tnl 2>/dev/null | grep -q ":${sport} "; then
         ok "sound service listening on ${sport}"
@@ -689,12 +674,12 @@ doctor_user() {
     fi
     served_a="$(tailscale serve status 2>/dev/null || true)"
     if printf '%s' "$served_a" | grep -q "127.0.0.1:${sport}"; then
-        ok "sound mounted at /audio on this account's HTTPS origin (speaker button works)"
-    else
-        red "no /audio mount — the speaker button in the desktop page cannot reach the sound"
+        red "legacy unauthenticated /audio route is still published"
         local ahport=$(( 8443 + uid - 1001 ))
         [ "$uid" = 1000 ] && ahport=443
-        note "fix: tailscale serve --bg --https=${ahport} --set-path=/audio http://127.0.0.1:${sport}"
+        note "fix: tailscale serve --https=${ahport} --set-path=/audio off"
+    else
+        ok "no raw audio route published; the agent requires a session and one-use ticket"
     fi
 
     # --- 4. a SECURE address, which is not a nicety -------------------------
