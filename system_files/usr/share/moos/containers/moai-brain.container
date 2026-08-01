@@ -4,6 +4,11 @@ Documentation=https://github.com/ollama/ollama
 After=network-online.target
 Wants=network-online.target
 
+# Bound immediate container/image failures. Successful on-demand starts are unaffected, and an
+# explicit systemctl restart for updates still works normally.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
 [Container]
 ContainerName=moai-brain
 Image=docker.io/ollama/ollama:latest
@@ -68,6 +73,8 @@ RestartSec=5
 # The first model pull is several GB. systemd's default 90s start timeout
 # would kill it mid-pull and leave a confusing failed state.
 TimeoutStartSec=900
+# Do not let a wedged llama.cpp/container teardown hold logout or reboot behind the default 90s.
+TimeoutStopSec=30
 
 # Deliberately no [Install]: OpenClaw preflight/moai-gateway start this engine
 # only when a request actually selects the local primary.

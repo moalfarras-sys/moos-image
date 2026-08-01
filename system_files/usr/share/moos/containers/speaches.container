@@ -4,6 +4,10 @@ Documentation=https://github.com/speaches-ai/speaches
 After=network-online.target
 Wants=network-online.target
 
+# A missing/corrupt image must not make rootless Podman and the 1.5 GB speech stack spin forever.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
 [Container]
 # Pinned, not :latest-cpu — although both currently resolve to the same digest
 # (sha256:21e3df06d842…), an unpinned tag turns a silent upstream bump into a

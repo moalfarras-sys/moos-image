@@ -4,6 +4,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 unit = (ROOT / "system_files/usr/lib/systemd/user/openclaw-gateway.service").read_text(encoding="utf-8")
+speech = (ROOT / "system_files/usr/share/moos/containers/speaches.container").read_text(encoding="utf-8")
+brain = (ROOT / "system_files/usr/share/moos/containers/moai-brain.container").read_text(encoding="utf-8")
 
 def section(name: str) -> str:
     marker = f"[{name}]"
@@ -22,6 +24,12 @@ checks = {
         "StartLimit" not in service_section,
     "a wedged sandbox can hold logout/reboot for the default 90 seconds":
         "TimeoutStopSec=30s" in service_section,
+    "the speech container can restart its 1.5 GB stack forever":
+        "StartLimitIntervalSec=300" in speech and "StartLimitBurst=5" in speech,
+    "the local brain container can restart/pull forever":
+        "StartLimitIntervalSec=300" in brain and "StartLimitBurst=5" in brain,
+    "the local brain can hold session shutdown for 90 seconds":
+        "TimeoutStopSec=30" in brain,
 }
 failed = [message for message, ok in checks.items() if not ok]
 if failed:
