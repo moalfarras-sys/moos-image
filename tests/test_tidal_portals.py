@@ -89,11 +89,13 @@ class TidalPortalContractTests(unittest.TestCase):
         ):
             self.assertIn(role, portal)
         for signature in (
-            "DropShadow {",
-            "radius: Math.min(width, height) * 0.25",
-            "samples: 65",
-            "color: Qt.rgba(0, 0, 0, 0.45 * portal.intensity)",
-            "transparentBorder: true",
+            "width * (compact ? 0.04 : 0.11)",
+            "height * (compact ? 0.78 : 0.82)",
+            "height * (compact ? 0.19 : 0.12)",
+            "width * (compact ? 0.18 : 0.22)",
+            "width * 0.013",
+            "PathCubic",
+            "PathMove",
         ):
             self.assertIn(signature, portal)
         for forbidden in (
