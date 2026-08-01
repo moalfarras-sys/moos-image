@@ -189,6 +189,7 @@ jobs:
           # already built. Keep heavyweight SBOM generation off the release-critical workflow;
           # it may return only in a separate workflow with its own runner budget.
           python3 tests/test_release_workflow_safety.py
+          python3 tests/test_docs_privacy.py
           # These three were in the Justfile only, so they could not fail a build. The cloud edition
           # is one of the three images this matrix publishes; its two gates belong here.
           python3 tests/test_moos_cloud_audio.py

@@ -38,7 +38,7 @@ pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through
 `connected`/`linked` rather than Telegram's `probe.ok`, so Mo AI rendered a
 false disconnected state. The source API now consumes both contracts; a real
 isolated source run returned both channels `connected:true`, WhatsApp account
-`+4917623419358`, mode `linked`. The bootstrap also pins the exact seven trusted
+with the owner's account redacted, mode `linked`. The bootstrap also pins the exact seven trusted
 runtime plugins once WhatsApp exists, removing unrestricted extension discovery
 without overwriting an owner-managed allowlist. `just check` passes with
 regression tests. This post-pairing correction still needs its own signed

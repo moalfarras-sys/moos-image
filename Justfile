@@ -46,6 +46,9 @@ check:
     # pointing at an asset that never made it into git — which serves a blank page with a 200.
     python3 tests/test_shipped_bundle_is_tracked.py
     python3 tests/test_release_workflow_safety.py
+    # Troubleshooting reports must not commit an owner's phone number or an
+    # allow-all phone-channel policy as though it were a safe product default.
+    python3 tests/test_docs_privacy.py
     # The kernel half of "the remote feels slow": BBR must be both asked for and loadable, and
     # every key must exist on the kernel that will read it. Both failures are silent otherwise.
     python3 tests/test_kernel_network_tuning.py
