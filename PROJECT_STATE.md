@@ -96,6 +96,10 @@ AT-SPI tree exposed the source app, every interactive node had a name or named
 `labelledBy` relation after fixing six anonymous secret/switch controls, and
 real Tab traversal reached named chat, composer and Settings actions. Reduced
 motion remains enforced by the existing real-QML runtime gate.
+The bilingual speech proof now covers Arabic too: an 11.96-second synthesized
+Arabic WAV traversed the shipped `moai-transcribe` and live Speaches service
+with `MOAI_STT_LANG=ar`, returned recognisable Arabic text and exit 0, after
+which Speaches was stopped and reset to clean inactive state.
 Visual review direction can now be selected per source run with the validated
 `--layout-direction ltr|rtl` argument, avoiding global locale changes. Live
 captures added Light/LTR compact Providers, Dark/LTR 1440×900 Chat and Dark/RTL

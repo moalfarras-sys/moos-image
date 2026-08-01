@@ -137,8 +137,13 @@ cleanup lands. No decorative perpetual animation is allowed.
   `en` at 0.93 and returned `Hello, I am the MOAI assistant.`. The wrapper now
   defaults to bilingual auto-detection while retaining validated `ar`/`en`
   overrides. Intentional Speaches idle shutdown accepts the container's normal
-  forced-worker exit 137 instead of leaving a failed user unit. A real human
-  Arabic microphone sample remains desirable visual/release evidence.
+  forced-worker exit 137 instead of leaving a failed user unit. A second live
+  proof synthesized an 11.96-second Arabic sentence and sent the WAV through
+  the shipped `moai-transcribe` with `MOAI_STT_LANG=ar`; Speaches returned the
+  recognisable Arabic text `مرحبا يا موس ... اختبار حقيقي ... الصوت العربي ...`
+  and exited zero. The service was then stopped and reset to clean inactive
+  state. A human microphone sample is useful hardware evidence, but is no
+  longer required to prove the bilingual software path.
 - [x] Vision requests route only to a model that explicitly advertises image
   input. Ollama rows use the real `/api/show` `vision` capability; provider
   rows preserve advertised `input`/`modalities`; uncertainty is conservatively
