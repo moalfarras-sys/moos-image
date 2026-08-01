@@ -118,6 +118,10 @@ def main() -> None:
     assert 'root.launch("moos://settings/themes", "MoOS themes")' in qml
     assert 'argv.indexOf("--window-size")' in qml
     assert 'value >= minimum && value <= 7680' in qml
+    assert 'function regenerateLast()' in qml
+    assert 'root.lastSubmissionContent' in qml
+    assert 'root.retryPending = true' in qml
+    assert 'Regenerate last reply' in qml
     assert 'xhr.getResponseHeader("X-MoAI-Agent")' in qml
     assert 'argv.indexOf("--prompt")' in qml
     preflight = (ROOT / "system_files/usr/libexec/moai-openclaw-preflight").read_text(

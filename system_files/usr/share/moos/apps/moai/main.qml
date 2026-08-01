@@ -186,6 +186,9 @@ Kirigami.ApplicationWindow {
     property var history: []            // [{role, content}] — last 12 turns
     property var pendingRuns: []        // moai-do actions the model just named
     property var pendingAttachments: [] // private imported image/text/file payloads
+    property string lastSubmissionDisplay: ""
+    property var lastSubmissionContent: null
+    property bool retryPending: false
     property bool voiceRecording: false
     property string chatSessionId: "moai-desktop-" + Date.now().toString(36)
                                    + "-" + Math.floor(Math.random() * 0x1000000).toString(36)
@@ -850,6 +853,9 @@ Kirigami.ApplicationWindow {
                         + "-" + Math.floor(Math.random() * 0x1000000).toString(36)
         chatOpenClawSessionKey = ""
         agentDecision = ""
+        lastSubmissionDisplay = ""
+        lastSubmissionContent = null
+        retryPending = false
         stopGenerating()
         chatModel.append({ role: "assistant", text: greetingText })
     }
@@ -867,6 +873,22 @@ Kirigami.ApplicationWindow {
         busy = false
     }
 
+    function regenerateLast() {
+        if (root.busy || root.lastSubmissionContent === null
+                || root.lastSubmissionDisplay === "") return
+        while (root.history.length > 0) {
+            const removed = root.history.pop()
+            if (removed.role === "user") break
+        }
+        while (chatModel.count > 0) {
+            const role = chatModel.get(chatModel.count - 1).role
+            chatModel.remove(chatModel.count - 1)
+            if (role === "user") break
+        }
+        root.retryPending = true
+        root.send()
+    }
+
     function sendPrompt(msg) {
         root.panel = "chat"
         input.text = msg
@@ -874,14 +896,17 @@ Kirigami.ApplicationWindow {
     }
 
     function send() {
-        const msg = input.text.trim()
+        const replay = root.retryPending
+        const msg = replay ? root.lastSubmissionDisplay : input.text.trim()
         if (msg === "" || busy)
             return
         root.panel = "chat"
-        const attachments = root.pendingAttachments.slice(0)
-        const hasImage = attachments.some(function (item) {
-            return item.content_type === "image"
-        })
+        const attachments = replay ? [] : root.pendingAttachments.slice(0)
+        const replayParts = replay && Array.isArray(root.lastSubmissionContent)
+            ? root.lastSubmissionContent : []
+        const hasImage = replay
+            ? replayParts.some(function (part) { return part.type === "image_url" })
+            : attachments.some(function (item) { return item.content_type === "image" })
         let selectedRoute = root.route !== "" ? root.route : "default"
         if (hasImage) {
             const vision = root.localModels.filter(function (model) {
@@ -909,12 +934,13 @@ Kirigami.ApplicationWindow {
             }
         }
         root.agentError = ""
-        input.text = ""
+        if (!replay) input.text = ""
         const attachmentNames = attachments.map(function (item) { return item.name }).join(", ")
-        chatModel.append({ role: "user", text: msg
-            + (attachmentNames === "" ? "" : "\n📎 " + attachmentNames) })
-        let userContent = msg
-        if (attachments.length > 0) {
+        const displayText = replay ? msg : msg
+            + (attachmentNames === "" ? "" : "\n📎 " + attachmentNames)
+        chatModel.append({ role: "user", text: displayText })
+        let userContent = replay ? root.lastSubmissionContent : msg
+        if (!replay && attachments.length > 0) {
             const parts = [{ type: "text", text: msg }]
             for (let attachmentIndex = 0; attachmentIndex < attachments.length; ++attachmentIndex) {
                 const attachment = attachments[attachmentIndex]
@@ -930,6 +956,9 @@ Kirigami.ApplicationWindow {
             }
             userContent = parts
         }
+        root.retryPending = false
+        root.lastSubmissionDisplay = displayText
+        root.lastSubmissionContent = userContent
         history.push({ role: "user", content: userContent })
         root.pendingAttachments = []
         trimHistory()
@@ -2546,6 +2575,20 @@ Kirigami.ApplicationWindow {
                                     primary: true
                                     onClicked: root.launch("moos://do/" + modelData, "moai-do " + modelData)
                                 }
+                            }
+                        }
+
+                        Flow {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 16
+                            Layout.rightMargin: 16
+                            Layout.bottomMargin: root.lastSubmissionContent !== null
+                                && !root.busy ? 8 : 0
+                            visible: root.lastSubmissionContent !== null && !root.busy
+                            MoButton {
+                                label: root.local("إعادة توليد آخر رد", "Regenerate last reply")
+                                iconName: "view-refresh"
+                                onClicked: root.regenerateLast()
                             }
                         }
 
@@ -6374,6 +6417,9 @@ Kirigami.ApplicationWindow {
                 const messages = JSON.parse(xhr.responseText)
                 chatModel.clear()
                 root.history = []
+                root.lastSubmissionDisplay = ""
+                root.lastSubmissionContent = null
+                root.retryPending = false
                 const start = Math.max(0, messages.length - 200)
                 for (let i = start; i < messages.length; ++i) {
                     const role = messages[i].role === "user" ? "user"

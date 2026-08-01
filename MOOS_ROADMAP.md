@@ -27,6 +27,8 @@
 > الرمز `MOAI-LOCAL-UNIFIED-READY` من مسار `X-MoAI-Agent: openclaw`. أصبحت ردود
 > Markdown قابلة للتحديد والنسخ بزر واحد، وتظهر استدعاءات ونتائج أدوات OpenClaw
 > كبطاقات حالة حقيقية محدودة الحجم؛ أثبت فحص 4K RTL أمر `exec` ونتيجته الفعلية.
+> أضيف إيقاف streaming الحقيقي وإعادة توليد آخر رد مع إعادة payload الأصلي نفسه
+> (بما فيه الصور والوثائق) من دون مضاعفة الرسالة في الذاكرة.
 > أُعيد تنظيم الإعدادات إلى 12 صفحة فعلية منفصلة: Models وProviders وOpenClaw
 > وTelegram وWhatsApp وVoice وPermissions وMemory وProjects وTerminal وPrivacy
 > وAppearance. صار Hybrid خيار خصوصية مباشر، وبقيت الأسرار write-only، وحُذفت

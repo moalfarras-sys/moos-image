@@ -139,7 +139,11 @@ cleanup lands. No decorative perpetual animation is allowed.
   fixed local availability check. A clean live source request sent a PNG through
   Mo AI → unified OpenClaw → `qwen3-vl:4b` and received `blue` in 17.6 seconds
   with `X-MoAI-Agent: openclaw`.
-- [ ] Streaming responses with stop/regenerate and explicit fallback messages.
+- [x] Streaming responses expose real XHR cancellation and regeneration. Retry
+  removes the previous user/assistant turn and resends the exact stored content
+  payload, so image/document parts are preserved without duplicating history;
+  it does not reconstruct attachments from display text. Direct-agent fallback
+  and stream truncation remain explicit in the response/header UI and tests.
 
 ### Phase 3 — agent workbench
 

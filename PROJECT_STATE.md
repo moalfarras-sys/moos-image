@@ -54,6 +54,9 @@ token with `X-MoAI-Agent: openclaw`. Replies retain Markdown/fenced-code
 rendering, are selectable and have a one-click Qt clipboard action. Real
 OpenClaw tool calls/results now render as bounded semantic status cards; a live
 4K RTL run displayed the actual `exec` call and `opened (setsid): code` result.
+Streaming can be stopped through the real active XHR, and Regenerate now removes
+the prior turn then replays its exact stored payload—including image/document
+parts—without duplicating conversation history.
 Settings are now twelve distinct functional pages (Models, Providers, OpenClaw,
 Telegram, WhatsApp, Voice, Permissions, Memory, Projects, Terminal, Privacy and
 Appearance) rather than seven mixed buckets. Hybrid is a first-class privacy
