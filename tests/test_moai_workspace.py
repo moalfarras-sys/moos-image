@@ -351,7 +351,14 @@ def main() -> None:
                 <w:document xmlns:w="urn:test"><w:body><w:p>
                 <w:r><w:t>Mo AI document proof</w:t></w:r>
                 </w:p></w:body></w:document>""")
-        extracted = module["import_attachment"]({"path": document.as_uri()})
+        # Cloud/minimal Python images may have no host MIME registration for
+        # DOCX/ODT. Document support must remain deterministic there.
+        real_guess_type = globals_["mimetypes"].guess_type
+        globals_["mimetypes"].guess_type = lambda _name: (None, None)
+        try:
+            extracted = module["import_attachment"]({"path": document.as_uri()})
+        finally:
+            globals_["mimetypes"].guess_type = real_guess_type
         assert extracted["content_type"] == "text" and extracted["extracted"]
         assert "Mo AI document proof" in extracted["content"]
         try:

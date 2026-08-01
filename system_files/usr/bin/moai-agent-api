@@ -2034,7 +2034,18 @@ def import_attachment(body: dict) -> dict:
     size = source.stat().st_size
     if size < 0 or size > MAX_ATTACHMENT_BYTES:
         raise ValueError("attachment exceeds the 20 MB limit")
-    mime = mimetypes.guess_type(source.name)[0] or "application/octet-stream"
+    # Minimal/cloud Python installations may not ship the host MIME database;
+    # on those systems mimetypes.guess_type() returns None for DOCX and ODT.
+    # These are formats we parse ourselves, so identify their exact extensions
+    # deterministically instead of making document support host-dependent.
+    document_mime_by_suffix = {
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".odt": "application/vnd.oasis.opendocument.text",
+        ".pdf": "application/pdf",
+    }
+    mime = document_mime_by_suffix.get(source.suffix.lower())
+    if mime is None:
+        mime = mimetypes.guess_type(source.name)[0] or "application/octet-stream"
     attachment_id = str(uuid.uuid4())
     suffix = source.suffix.lower()[:16] if re.fullmatch(r"\.[a-zA-Z0-9._+-]{1,16}", source.suffix) else ""
     stored = attachment_id + suffix
