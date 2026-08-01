@@ -49,6 +49,11 @@ def main() -> None:
     }
     assert gateway["openclaw_model"](client, "cloud", "hard", {}) == "cloud/hard"
     assert gateway["openclaw_model"](client, "local", "", {}) == "ollama/local-default"
+    client["providers"]["ollama"]["baseUrl"] = "http://127.0.0.1:11434/v1"
+    assert gateway["openclaw_model"](
+        client, "local", "qwen3-vl:4b", {}) == "ollama/qwen3-vl:4b"
+    assert gateway["openclaw_model"](
+        client, "local", "bad\nheader", {}) == ""
 
     # Desktop agent mode must forward only to the fixed loopback OpenClaw API,
     # preserve the multimodal latest turn, and keep its bearer token out of QML.

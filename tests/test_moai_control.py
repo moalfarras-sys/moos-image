@@ -118,15 +118,41 @@ class OllamaAdapterTests(unittest.TestCase):
             control = load_control(home, "ollama.service")
             scope = control["local_models"].__globals__
             scope["ollama_models"] = lambda: [
-                {"name": "default:latest", "size": 4_700_000_000},
-                {"name": "qwen3:4b", "size": 2_500_000_000},
+                {"name": "default:latest", "size": 4_700_000_000,
+                 "input": ["text", "image"]},
+                {"name": "qwen3:4b", "size": 2_500_000_000,
+                 "input": ["text"]},
             ]
             rows = control["local_models"]()
             by_name = {row["label"]: row for row in rows}
             self.assertTrue(by_name["default:latest"]["pulled"])
             self.assertTrue(by_name["default:latest"]["serving"])
             self.assertTrue(by_name["qwen3:4b"]["pulled"])
+            self.assertEqual(by_name["default:latest"]["input"],
+                             ["text", "image"])
+            self.assertEqual(by_name["qwen3:4b"]["input"], ["text"])
             self.assertNotIn("qwen3:4b-instruct", by_name)
+
+    def test_ollama_vision_is_taken_from_show_not_the_model_name(self):
+        with tempfile.TemporaryDirectory() as home:
+            control = load_control(home, "ollama.service")
+            scope = control["ollama_models"].__globals__
+            scope["ensure_local_api"] = lambda: True
+            def request(path, **kwargs):
+                if path == "/api/tags":
+                    return {"models": [
+                        {"name": "plain-name:latest", "size": 10},
+                        {"name": "vision-in-name:latest", "size": 20},
+                    ]}
+                model = kwargs["payload"]["model"]
+                return {"capabilities": ["completion", "vision"]} \
+                    if model.startswith("plain-name") \
+                    else {"capabilities": ["completion"]}
+            scope["ollama_request"] = request
+            rows = {row["name"]: row for row in control["ollama_models"]()}
+            self.assertEqual(rows["plain-name:latest"]["input"],
+                             ["text", "image"])
+            self.assertEqual(rows["vision-in-name:latest"]["input"], ["text"])
 
     def test_missing_ollama_default_never_becomes_a_fake_download_button(self):
         with tempfile.TemporaryDirectory() as home:

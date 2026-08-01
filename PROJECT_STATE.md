@@ -14,8 +14,12 @@ projects and persistent task state. It also provides bounded user-owned PTYs:
 the source UI was run on the live 4K RTL session and showed real shell output
 from `printf 'Mo-AI-terminal-live\n'`, with tabs and process stop. Image/text
 attachments now enter through a private non-executable store via picker or
-drag/drop; multimodal requests select a locally installed VL model when
-available. Push-to-talk uses `pw-record` → the existing `moai-transcribe` path;
+drag/drop. Vision routing now reads explicit model input metadata: Ollama's real
+`/api/show` capability or provider-advertised `input`/`modalities`; it no longer
+guesses from a model name, and uncertain routes remain text-only. A live PNG
+request through the source Mo AI gateway and unified OpenClaw runtime reached
+`qwen3-vl:4b` and returned `blue` in 17.6 seconds. Push-to-talk uses `pw-record`
+→ the existing `moai-transcribe` path;
 live silence correctly reached the transcriber and returned no-speech rather
 than fake text, but a spoken phrase is still not verified. `moai-gateway` gains
 an explainable Hybrid route: sensitive data and attachments remain local by

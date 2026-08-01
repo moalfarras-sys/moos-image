@@ -199,9 +199,19 @@ def openclaw_model(client, brain, model, cfg):
     catalog = [str(item.get("id") or "") for item in node.get("models", [])
                if isinstance(item, dict) and item.get("id")]
     requested = str(model or "").strip()
+    if requested and not re.fullmatch(r"[A-Za-z0-9._:+/-]{1,200}", requested):
+        return ""
     if brain == "cloud" and not requested:
         requested = str(cfg.get("cloud_model") or "").strip()
     if requested and requested in catalog:
+        return provider + "/" + requested
+    # Ollama is discovered dynamically by OpenClaw (`/api/show` supplies the
+    # real input/tool/thinking capabilities). Mo AI's picker may therefore name
+    # a pulled model that isn't in the small persisted bootstrap catalog. The
+    # following ensure_local() call proves the tag exists before any request is
+    # forwarded; cloud ids stay catalog-only because their inventory/auth is a
+    # different trust boundary.
+    if brain == "local" and requested and node.get("baseUrl"):
         return provider + "/" + requested
     primary = str(client.get("primary") or "")
     if primary.startswith(provider + "/"):

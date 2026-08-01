@@ -878,8 +878,38 @@ Kirigami.ApplicationWindow {
         if (msg === "" || busy)
             return
         root.panel = "chat"
-        input.text = ""
         const attachments = root.pendingAttachments.slice(0)
+        const hasImage = attachments.some(function (item) {
+            return item.content_type === "image"
+        })
+        let selectedRoute = root.route !== "" ? root.route : "default"
+        if (hasImage) {
+            const vision = root.localModels.filter(function (model) {
+                return (model.input || []).indexOf("image") >= 0
+            })
+            if (root.routeIsLocal || root.routeIsHybrid) {
+                if (vision.length === 0) {
+                    root.agentError = root.local(
+                        "الصورة محفوظة ولم تُرسل: لا يوجد نموذج محلي يعلن دعم الصور.",
+                        "Image kept unsent: no local model advertises image input.")
+                    return
+                }
+                selectedRoute = vision[0].id
+            } else {
+                const selectedCloud = root.cloudModels.filter(function (model) {
+                    return model.id === selectedRoute
+                           && (model.input || []).indexOf("image") >= 0
+                })
+                if (selectedCloud.length === 0) {
+                    root.agentError = root.local(
+                        "الصورة محفوظة ولم تُرسل: النموذج السحابي لا يعلن دعم الصور.",
+                        "Image kept unsent: the cloud model does not advertise image input.")
+                    return
+                }
+            }
+        }
+        root.agentError = ""
+        input.text = ""
         const attachmentNames = attachments.map(function (item) { return item.name }).join(", ")
         chatModel.append({ role: "user", text: msg
             + (attachmentNames === "" ? "" : "\n📎 " + attachmentNames) })
@@ -1027,15 +1057,6 @@ Kirigami.ApplicationWindow {
                 chatModel.set(idx, { role: "assistant", text: help })
                 root.flashMood(root.serverUp ? "warning" : "error")
             }
-        }
-        let selectedRoute = root.route !== "" ? root.route : "default"
-        if (attachments.some(function (item) { return item.content_type === "image"; })) {
-            const vision = root.localModels.filter(function (model) {
-                return String(model.id).toLowerCase().indexOf("vl") !== -1
-                    || String(model.label).toLowerCase().indexOf("vision") !== -1
-            })
-            if (vision.length > 0 && (root.routeIsLocal || root.routeIsHybrid))
-                selectedRoute = vision[0].id
         }
         const request = {
             // THE ROUTE. moai-gateway reads this and sends the request to the

@@ -126,7 +126,15 @@ cleanup lands. No decorative perpetual animation is allowed.
 - [x] Desktop push-to-talk capture uses PipeWire and the existing local speech
   service. Live capture reached transcription; the silent three-second proof
   correctly returned "no speech", so spoken-language verification remains open.
-- [ ] Vision requests routed only to a model that advertises image capability.
+- [x] Vision requests route only to a model that explicitly advertises image
+  input. Ollama rows use the real `/api/show` `vision` capability; provider
+  rows preserve advertised `input`/`modalities`; uncertainty is conservatively
+  text-only. QML no longer guesses from `vl` in a name and keeps an image unsent
+  with a clear error when no eligible route exists. Dynamically discovered,
+  already-pulled Ollama models may cross the OpenClaw model override after the
+  fixed local availability check. A clean live source request sent a PNG through
+  Mo AI → unified OpenClaw → `qwen3-vl:4b` and received `blue` in 17.6 seconds
+  with `X-MoAI-Agent: openclaw`.
 - [ ] Streaming responses with stop/regenerate and explicit fallback messages.
 
 ### Phase 3 — agent workbench

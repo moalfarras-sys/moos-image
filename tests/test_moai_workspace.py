@@ -308,6 +308,11 @@ def main() -> None:
     assert '[str(PW_RECORD), "--rate", "16000", "--channels", "1", str(path)]' in source
     assert '[str(TRANSCRIBE), str(path)]' in source
     assert "X-Moai-Agent" in source
+    qml = (ROOT / "system_files/usr/share/moos/apps/moai/main.qml").read_text(
+        encoding="utf-8")
+    assert '(model.input || []).indexOf("image") >= 0' in qml
+    assert 'indexOf("vl")' not in qml
+    assert "no local model advertises image input" in qml
     print("Mo AI workspace metadata tests passed")
 
 
