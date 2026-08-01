@@ -80,9 +80,12 @@ timeout plus exit status. The .NET suite now has 32 tests including accepted,
 rejected and hung-process execution; Linux publish succeeded. The next audit
 found a multi-user Cloud boundary: an authenticated developer PIN could expose
 sleep/reboot/poweroff for the shared server. Commit `c489d10c` bakes an
-authoritative edition marker, rejects those three operations at the API with
-403 on `moos-cloud`, and removes their controls from the phone while preserving
-Lock/Sign out for that Plasma session and all five controls on desktop MoOS.
+authoritative edition marker and initially rejected the three host operations.
+A follow-up lifecycle audit found that Cloud accounts are passwordless by design
+(Lock is therefore unrecoverable) and that clean Sign out stops their private
+desktop because its supervisor correctly uses `Restart=on-failure`. The Cloud
+API and phone now withhold all five session/power operations and explain that
+the server console owns them; desktop MoOS retains all five controls.
 The committed PWA is v16; Linux and Windows agents build with zero warnings,
 controller tests/typecheck/build pass, and the complete repo check recipe is
 green. No destructive power command was run on the audit host. Image compose,

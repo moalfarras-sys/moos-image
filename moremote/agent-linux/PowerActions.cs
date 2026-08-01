@@ -29,10 +29,16 @@ public static class PowerActions
     }
 
     public static bool CanRun(string action)
+        => CanRunAt(action, EditionFile);
+
+    internal static bool CanRunAt(string action, string editionFile)
     {
         var normalized = action.ToLowerInvariant();
-        return Resolve(normalized) is not null
-            && (HostPowerAllowed || normalized is "lock" or "signout" or "logoff");
+        // Cloud accounts are SSH-key-only and intentionally have no password. Lock would
+        // strand the user behind an unlock prompt they cannot satisfy; logout would cleanly
+        // stop their private startplasma service (Restart=on-failure) and its remote agent.
+        // The server administrator owns the lifecycle of those sessions.
+        return HostPowerAllowedAt(editionFile) && Resolve(normalized) is not null;
     }
 
     public static Command? Resolve(string action) => action.ToLowerInvariant() switch

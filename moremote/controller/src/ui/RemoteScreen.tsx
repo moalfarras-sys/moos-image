@@ -1941,15 +1941,17 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
           <div className="sec-label">Power</div>
           <div className="card">
             <details className="fold">
-              <summary><span>{hostPowerAllowed ? "Lock, sleep, restart, shut down" : "Lock or sign out"}</span><IconChevronDown /></summary>
+              <summary><span>{hostPowerAllowed ? "Lock, sleep, restart, shut down" : "Managed by the Cloud administrator"}</span><IconChevronDown /></summary>
               <div className="card-pad">
-                <div className="grid">
+                {hostPowerAllowed ? <div className="grid">
                   <button className="cell" onClick={() => doPower("lock", "Lock")}><IconLock /> Lock</button>
-                  {hostPowerAllowed && <button className="cell" onClick={() => doPower("sleep", "Sleep")}><IconPower /> Sleep</button>}
+                  <button className="cell" onClick={() => doPower("sleep", "Sleep")}><IconPower /> Sleep</button>
                   <button className="cell" onClick={() => doPower("signout", "Sign out", true)}><IconLock /> Sign out</button>
-                  {hostPowerAllowed && <button className="cell" onClick={() => doPower("restart", "Restart", true)}><IconRefresh /> Restart</button>}
-                  {hostPowerAllowed && <button className="cell danger" onClick={() => doPower("shutdown", "Shut down", true)}><IconPower /> Shut down</button>}
-                </div>
+                  <button className="cell" onClick={() => doPower("restart", "Restart", true)}><IconRefresh /> Restart</button>
+                  <button className="cell danger" onClick={() => doPower("shutdown", "Shut down", true)}><IconPower /> Shut down</button>
+                </div> : <p className="muted" style={{ margin: 0 }}>
+                  This is a shared, passwordless Cloud session. Use the server console to restart or end it safely.
+                </p>}
               </div>
             </details>
           </div>

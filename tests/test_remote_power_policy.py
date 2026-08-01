@@ -17,8 +17,9 @@ checks = {
         "PowerActions.CanRun(action)" in api and 'error = "unavailable_on_edition"' in api,
     "the status response does not advertise the power capability":
         "hostPowerAllowed = PowerActions.HostPowerAllowed" in api,
-    "the phone still renders shared-host power buttons in Cloud":
-        ui.count("hostPowerAllowed && <button") == 3,
+    "the phone does not gate the complete session/power surface in Cloud":
+        'hostPowerAllowed ? <div className="grid">' in ui
+        and "shared, passwordless Cloud session" in ui,
 }
 failed = [message for message, passed in checks.items() if not passed]
 if failed:
