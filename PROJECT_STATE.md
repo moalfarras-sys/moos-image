@@ -37,7 +37,11 @@ shows `qwen3-vl:4b · وكيل موحّد`. The central Chat now includes a sear
 conversation drawer and can load/continue the exact OpenClaw thread shared with
 phone channels. A 4K RTL source run rendered all four messages from the proof
 session; a subsequent request using its guarded session key returned the same
-token with `X-MoAI-Agent: openclaw`. OpenClaw also gains a `moai/hybrid` loopback
+token with `X-MoAI-Agent: openclaw`. Replies retain Markdown/fenced-code
+rendering, are selectable and have a one-click Qt clipboard action. Real
+OpenClaw tool calls/results now render as bounded semantic status cards; a live
+4K RTL run displayed the actual `exec` call and `opened (setsid): code` result.
+OpenClaw also gains a `moai/hybrid` loopback
 provider so phone turns use the same smart routing policy. The installed OpenClaw
 advertises WhatsApp Web support and Mo AI now exposes its fixed login route;
 account pairing remains open. All of this is unreleased working-branch state

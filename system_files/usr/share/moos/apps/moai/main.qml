@@ -178,6 +178,7 @@ Kirigami.ApplicationWindow {
     property string chatSessionId: "moai-desktop-" + Date.now().toString(36)
                                    + "-" + Math.floor(Math.random() * 0x1000000).toString(36)
     property string chatOpenClawSessionKey: ""
+    property bool chatSessionStart: false
     property bool chatSidebarOpen: false
     property string agentDecision: ""
     property string panel: "chat"       // chat|device|apps|compat|remote|dev|agent
@@ -603,6 +604,7 @@ Kirigami.ApplicationWindow {
             root.chatSidebarOpen = true
             Qt.callLater(function () { root.agentLoadStatus() })
         }
+        root.chatSessionStart = argv.indexOf("--session-start") !== -1
         const promptIndex = argv.indexOf("--prompt")
         if (promptIndex !== -1 && promptIndex + 1 < argv.length) {
             const startupPrompt = String(argv[promptIndex + 1]).trim()
@@ -2067,6 +2069,12 @@ Kirigami.ApplicationWindow {
                             model: chatModel
                             onCountChanged: Qt.callLater(listView.positionViewAtEnd)
                             QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+                            Timer {
+                                id: sessionStartDelay
+                                interval: 180
+                                repeat: false
+                                onTriggered: listView.positionViewAtBeginning()
+                            }
 
                             delegate: Item {
                                 id: msg
@@ -2087,24 +2095,38 @@ Kirigami.ApplicationWindow {
                                 Rectangle {
                                     id: bubble
                                     readonly property bool mine: msg.role === "user"
+                                    readonly property bool toolish:
+                                        msg.role.indexOf("tool-") === 0
+                                    readonly property color toolColor:
+                                        msg.role === "tool-error" ? root.badColor
+                                        : msg.role === "tool-success" ? root.okColor
+                                        : root.novaViolet
                                     anchors.right: mine ? parent.right : undefined
                                     anchors.left: mine ? undefined : parent.left
                                     anchors.leftMargin: mine ? 0 : 36
                                     y: 3
                                     radius: design.radiusControl
-                                    color: mine
+                                    color: toolish
+                                         ? Qt.rgba(toolColor.r, toolColor.g,
+                                                   toolColor.b, 0.12)
+                                         : mine
                                          ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
                                                    root.novaBlue.b, 0.16)
                                          : root.surface1
                                     border.width: 1
-                                    border.color: mine
+                                    border.color: toolish
+                                        ? Qt.rgba(toolColor.r, toolColor.g,
+                                                  toolColor.b, 0.45)
+                                        : mine
                                         ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
                                                   root.novaBlue.b, 0.38)
                                         : root.hairline
                                     width: body.width + 28
                                     height: body.implicitHeight + 22
+                                            + ((msg.role === "assistant" || bubble.toolish)
+                                               ? root.fs(26) : 0)
 
-                                    Text {
+                                    TextEdit {
                                         id: body
                                         x: 14
                                         y: 11
@@ -2117,9 +2139,12 @@ Kirigami.ApplicationWindow {
                                                     ? Text.MarkdownText : Text.PlainText
                                         wrapMode: Text.Wrap
                                         color: root.textHi
-                                        linkColor: root.novaCyan
                                         font.family: root.uiFont
                                         font.pixelSize: root.typePx(14)
+                                        readOnly: true
+                                        selectByMouse: true
+                                        persistentSelection: true
+                                        activeFocusOnPress: true
                                         onLinkActivated: function (link) { Qt.openUrlExternally(link) }
 
                                         SequentialAnimation on opacity {
@@ -2131,6 +2156,34 @@ Kirigami.ApplicationWindow {
                                             onRunningChanged: if (!running) body.opacity = 1
                                             NumberAnimation { from: 1.0; to: 0.30; duration: root.motionEnabled ? 460 : 0 }
                                             NumberAnimation { from: 0.30; to: 1.0; duration: root.motionEnabled ? 460 : 0 }
+                                        }
+                                    }
+
+                                    Item {
+                                        visible: msg.role === "assistant" || bubble.toolish
+                                        anchors.right: parent.right
+                                        anchors.bottom: parent.bottom
+                                        anchors.margins: root.fs(4)
+                                        width: root.fs(28)
+                                        height: root.fs(24)
+                                        Kirigami.Icon {
+                                            anchors.centerIn: parent
+                                            width: root.fs(14)
+                                            height: root.fs(14)
+                                            source: "edit-copy"
+                                            color: copyMessageArea.containsMouse
+                                                ? root.novaCyan : root.textMute
+                                        }
+                                        ActionArea {
+                                            id: copyMessageArea
+                                            anchors.fill: parent
+                                            actionName: root.local("نسخ الرد", "Copy response")
+                                            focusRadius: root.fs(6)
+                                            onTriggered: {
+                                                body.selectAll()
+                                                body.copy()
+                                                body.deselect()
+                                            }
                                         }
                                     }
                                 }
@@ -6111,11 +6164,15 @@ Kirigami.ApplicationWindow {
                 root.history = []
                 const start = Math.max(0, messages.length - 200)
                 for (let i = start; i < messages.length; ++i) {
-                    const role = messages[i].role === "user" ? "user" : "assistant"
+                    const role = messages[i].role === "user" ? "user"
+                               : messages[i].role === "tool"
+                                   ? "tool-" + String(messages[i].status || "success")
+                                   : "assistant"
                     const messageText = String(messages[i].text || "").trim()
                     if (messageText === "") continue
                     chatModel.append({ role: role, text: messageText })
-                    root.history.push({ role: role, content: messageText })
+                    if (role.indexOf("tool-") !== 0)
+                        root.history.push({ role: role, content: messageText })
                 }
                 root.trimHistory()
                 if (chatModel.count === 0)
@@ -6124,6 +6181,8 @@ Kirigami.ApplicationWindow {
                 root.chatSessionId = "moai-desktop-" + String(id)
                 root.chatSidebarOpen = false
                 root.agentError = ""
+                if (root.chatSessionStart)
+                    sessionStartDelay.restart()
             } catch (e) {
                 root.agentError = root.local("رد المحادثة غير مفهوم",
                                              "Bad conversation response")

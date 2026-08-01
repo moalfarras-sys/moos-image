@@ -52,11 +52,32 @@ def main() -> None:
         globals_["STATE"] = home / ".config/moai-agent/state.json"
         globals_["LEGACY_STATE"] = home / ".config/moapp/state.json"
 
+        (sessions / f"{sid_new}.jsonl").write_text("\n".join([
+            json.dumps({"type": "message", "timestamp": "t1", "message": {
+                "role": "user", "content": "inspect it"}}),
+            json.dumps({"type": "message", "timestamp": "t2", "message": {
+                "role": "assistant", "content": [{
+                    "type": "toolCall", "name": "read",
+                    "arguments": {"path": "README.md"}}]}}),
+            json.dumps({"type": "message", "timestamp": "t3", "message": {
+                "role": "toolResult", "toolName": "read", "isError": False,
+                "content": [{"type": "text", "text": "project notes"}]}}),
+            json.dumps({"type": "message", "timestamp": "t4", "message": {
+                "role": "assistant", "content": [{"type": "text",
+                                                     "text": "Finished"}]}}),
+        ]) + "\n", encoding="utf-8")
+
         caps = module["capabilities"]()
         assert caps["schema"] == 1
         assert caps["workspace"]["tasks"] is True
         assert caps["terminal"] == {"pty": True, "tabs": True, "model_access": False}
         assert caps["workspace"]["attachments"]["binary_extract"] is False
+
+        thread = module["read_session"](sid_new)
+        assert [message["role"] for message in thread] == [
+            "user", "tool", "tool", "assistant"]
+        assert thread[1]["status"] == "running" and "README.md" in thread[1]["text"]
+        assert thread[2]["status"] == "success" and "project notes" in thread[2]["text"]
 
         initial = module["list_sessions"]()
         assert [s["id"] for s in initial] == [sid_new, sid_old]

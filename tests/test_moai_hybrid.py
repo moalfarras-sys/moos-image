@@ -101,6 +101,9 @@ def main() -> None:
     assert 'function agentOpenPrimary(id, key, label)' in qml
     assert 'chatModel.clear()' in qml and 'root.chatModel.clear()' not in qml
     assert 'argv.indexOf("--open-history")' in qml
+    assert 'Text.MarkdownText' in qml and 'body.copy()' in qml
+    assert 'msg.role.indexOf("tool-") === 0' in qml
+    assert 'msg.role === "tool-error" ? root.badColor' in qml
     assert 'xhr.getResponseHeader("X-MoAI-Agent")' in qml
     assert 'argv.indexOf("--prompt")' in qml
     preflight = (ROOT / "system_files/usr/libexec/moai-openclaw-preflight").read_text(

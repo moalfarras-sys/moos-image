@@ -1877,8 +1877,19 @@ def read_session(sid: str) -> list[dict]:
     f = SESSIONS / f"{sid}.jsonl"
     if not f.exists():
         return []
+    # Session transcripts can grow for months and tool results can be huge.
+    # The UI needs recent context, not an unbounded read that freezes its small
+    # loopback service. Start at a line boundary within the last 8 MiB and cap
+    # each rendered card independently.
+    with f.open("rb") as stream:
+        size = f.stat().st_size
+        offset = max(0, size - 8 * 1024 * 1024)
+        stream.seek(offset)
+        if offset:
+            stream.readline()
+        transcript = stream.read().decode("utf-8", errors="replace")
     msgs = []
-    for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
+    for line in transcript.splitlines():
         if not line.strip():
             continue
         try:
@@ -1889,13 +1900,44 @@ def read_session(sid: str) -> list[dict]:
             continue
         m = d.get("message") or {}
         role = m.get("role")
-        if role not in ("user", "assistant"):
-            continue
-        text = _text_of(m.get("content"))
-        if not text:
-            continue
-        msgs.append({"role": role, "text": text, "ts": d.get("timestamp", "")})
-    return msgs
+        content = m.get("content")
+        timestamp = d.get("timestamp", "")
+        if role in ("user", "assistant"):
+            text_parts = []
+            tool_parts = []
+            if isinstance(content, list):
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get("type") == "text" and block.get("text"):
+                        text_parts.append(str(block["text"]))
+                    elif block.get("type") == "toolCall":
+                        name = str(block.get("name") or "tool")[:80]
+                        arguments = block.get("arguments")
+                        try:
+                            detail = json.dumps(arguments, ensure_ascii=False, indent=2)
+                        except (TypeError, ValueError):
+                            detail = str(arguments or "")
+                        tool_parts.append(f"⚙ {name}\n{detail[:8000]}")
+            else:
+                plain = _text_of(content)
+                if plain:
+                    text_parts.append(plain)
+            text = "\n".join(text_parts).strip()[:12000]
+            if text:
+                msgs.append({"role": role, "text": text, "ts": timestamp})
+            for tool_text in tool_parts:
+                msgs.append({"role": "tool", "text": tool_text,
+                             "ts": timestamp, "status": "running"})
+        elif role == "toolResult":
+            name = str(m.get("toolName") or "tool")[:80]
+            text = _text_of(content)[:12000]
+            if text:
+                state = "error" if bool(m.get("isError")) else "success"
+                mark = "✕" if state == "error" else "✓"
+                msgs.append({"role": "tool", "text": f"{mark} {name}\n{text}",
+                             "ts": timestamp, "status": state})
+    return msgs[-400:]
 
 
 def send(key: str, text: str) -> dict:

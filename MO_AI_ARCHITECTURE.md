@@ -113,7 +113,13 @@ cleanup lands. No decorative perpetual animation is allowed.
 
 ### Phase 2 — composer and content
 
-- [ ] Markdown, fenced code, copy actions and structured tool-result cards.
+- [x] Markdown/fenced code rendering, selectable replies with a one-click Qt
+  clipboard action, and structured OpenClaw tool-call/result cards. Tool cards
+  preserve running/success/error state with semantic theme colours. Transcript
+  reads are bounded to the newest 8 MiB, 400 cards and 12,000 characters per
+  card so a long-lived phone session cannot freeze the desktop. A real 4K RTL
+  source run rendered `exec` arguments and its actual `opened (setsid): code`
+  result from OpenClaw session `b8c34309-36c9-4dcd-9280-239be24e4ab6`.
 - [x] Private attachment ingest for images and text files, drag/drop and picker;
   image payloads use the OpenAI multimodal shape and select an installed VL
   route. Arbitrary binary document extraction remains open.
