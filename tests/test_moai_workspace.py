@@ -47,6 +47,15 @@ def main() -> None:
         globals_["SESSIONS"] = sessions
         globals_["WORKSPACE"] = workspace
         globals_["ATTACHMENTS"] = home / ".local/share/moai-agent/attachments"
+        globals_["OC_CFG"] = home / ".openclaw/openclaw.json"
+        globals_["STATE"] = home / ".config/moai-agent/state.json"
+        globals_["LEGACY_STATE"] = home / ".config/moapp/state.json"
+
+        caps = module["capabilities"]()
+        assert caps["schema"] == 1
+        assert caps["workspace"]["tasks"] is True
+        assert caps["terminal"] == {"pty": True, "tabs": True, "model_access": False}
+        assert caps["workspace"]["attachments"]["binary_extract"] is False
 
         initial = module["list_sessions"]()
         assert [s["id"] for s in initial] == [sid_new, sid_old]
@@ -184,6 +193,7 @@ def main() -> None:
 
     source = API.read_text(encoding="utf-8")
     assert 'u.path == "/api/session/update"' in source
+    assert 'u.path == "/api/capabilities"' in source
     assert 'u.path == "/api/project/upsert"' in source
     assert 'u.path == "/api/task/create"' in source
     assert 'u.path == "/api/task/action"' in source

@@ -447,6 +447,32 @@ def status() -> dict:
     }
 
 
+def capabilities() -> dict:
+    """Machine-readable product contract; read-only and does not wake services."""
+    cfg = load_cfg()
+    st = load_state()
+    tier = _actual_tier(cfg) or st.get("tier", "read")
+    return {
+        "schema": 1,
+        "workspace": {
+            "sessions": True, "projects": True, "tasks": True,
+            "attachments": {"images": True, "text": True, "binary_extract": False},
+        },
+        "agent": {
+            "installed": Path(BIN).is_file() and os.access(BIN, os.X_OK),
+            "task_execution": True,
+            "permission_tiers": list(TIERS),
+            "active_tier": tier if tier in TIERS else "read",
+        },
+        "terminal": {"pty": True, "tabs": True, "model_access": False},
+        "voice": {"push_to_talk": PW_RECORD.is_file(),
+                  "transcription": TRANSCRIBE.is_file()},
+        "channels": {"telegram": True, "whatsapp": True,
+                     "shared_openclaw_sessions": True},
+        "brains": {"local": True, "cloud": True, "hybrid": True},
+    }
+
+
 # ── config ──────────────────────────────────────────────────────────────
 
 def _primary(cfg: dict) -> str:
@@ -1793,6 +1819,8 @@ class H(BaseHTTPRequestHandler):
                 return self._send(UI.read_bytes(), ctype="text/html")
             if u.path == "/api/status":
                 return self._send(status())
+            if u.path == "/api/capabilities":
+                return self._send(capabilities())
             if u.path == "/api/config":
                 return self._send(read_config())
             if u.path == "/api/sessions":

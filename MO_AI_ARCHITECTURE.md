@@ -87,7 +87,8 @@ cleanup lands. No decorative perpetual animation is allowed.
   user units, permission tiers and existing gates on current `main`.
 - [x] Preserve Qt/QML + Python; reject a risky language rewrite.
 - [x] Record the target architecture and honest phase ledger in this file.
-- [ ] Add a machine-readable capability endpoint and contract tests.
+- [x] Add a machine-readable `/api/capabilities` endpoint and contract tests;
+  unavailable work (binary extraction and model terminal access) reports false.
 
 ### Phase 1 — workspace foundation
 
@@ -121,6 +122,10 @@ cleanup lands. No decorative perpetual animation is allowed.
 - [ ] Approval queue tied to task steps. The four actual enforcement levels
   (read, project, system-with-approval, full) are implemented and tested.
 - [ ] Append-only audit events for every executed tool and policy decision.
+- [x] Tracked task execution launches only the fixed OpenClaw binary/arguments,
+  persists real exit output, extracts actual JSONL tool-call names, and controls
+  its process group for pause, resume and cancel. The 4K RTL/Light task surface
+  was inspected in `/var/tmp/moai-task-runner.png`.
 
 ### Phase 4 — brains and channels
 
