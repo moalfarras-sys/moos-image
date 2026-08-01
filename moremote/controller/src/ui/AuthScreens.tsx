@@ -98,7 +98,7 @@ function Keypad({
   );
 }
 
-export function SetupScreen({ onDone }: { onDone: (token: string) => void }) {
+export function SetupScreen({ onDone }: { onDone: (token: string) => Promise<void> }) {
   const [step, setStep] = useState<"create" | "confirm">("create");
   const [first, setFirst] = useState("");
   const [pin, setPin] = useState("");
@@ -133,20 +133,29 @@ export function SetupScreen({ onDone }: { onDone: (token: string) => void }) {
       return;
     }
     setBusy(true);
-    const r = await setupPin(pin);
-    setBusy(false);
-    if (r.ok && r.token) onDone(r.token);
-    else {
+    let handedOff = false;
+    try {
+      const r = await setupPin(pin);
+      if (r.ok && r.token) {
+        handedOff = true;
+        await onDone(r.token);
+        return;
+      }
       setError(true);
       setHint("Could not save PIN. Please retry.");
+    } catch {
+      setError(true);
+      setHint("Connection dropped. Reconnect to the PC and retry.");
+    } finally {
+      if (!handedOff) setBusy(false);
     }
   };
 
   return (
-    <div className="auth">
+    <div className="auth" aria-busy={busy}>
       <Brand subtitle={step === "create" ? "Set up your private access PIN" : "Confirm your PIN"} />
       <PinDots count={pin.length} error={error} />
-      <div className={"hint" + (error ? " error" : "")}>{hint}</div>
+      <div className={"hint" + (error ? " error" : "")} role={error ? "alert" : "status"}>{hint}</div>
       <Keypad onDigit={add} onBackspace={back} onSubmit={submit}
               canSubmit={pin.length >= 6 && !busy} disabled={busy} />
       <Signature />
@@ -154,7 +163,7 @@ export function SetupScreen({ onDone }: { onDone: (token: string) => void }) {
   );
 }
 
-export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (token: string) => void; lockoutSeconds: number }) {
+export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (token: string) => Promise<void>; lockoutSeconds: number }) {
   const [pin, setPin] = useState("");
   const [hint, setHint] = useState("Enter your PIN to connect.");
   const [error, setError] = useState(false);
@@ -194,24 +203,33 @@ export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (token: string
   const submit = async () => {
     if (pin.length < 6 || busy || locked > 0) return;
     setBusy(true);
-    const r = await login(pin);
-    setBusy(false);
-    setPin("");
-    if (r.ok && r.token) {
-      onDone(r.token);
-    } else if (r.error === "locked") {
-      setLocked(r.lockoutSeconds || 300);
-    } else {
+    let handedOff = false;
+    try {
+      const r = await login(pin);
+      setPin("");
+      if (r.ok && r.token) {
+        handedOff = true;
+        await onDone(r.token);
+      } else if (r.error === "locked") {
+        setLocked(r.lockoutSeconds || 300);
+      } else {
+        setError(true);
+        setHint("Wrong PIN. Try again.");
+      }
+    } catch {
       setError(true);
-      setHint("Wrong PIN. Try again.");
+      setHint("Connection dropped. Reconnect to the PC and retry.");
+    } finally {
+      if (!handedOff) setBusy(false);
     }
   };
 
   return (
-    <div className="auth">
+    <div className="auth" aria-busy={busy}>
       <Brand subtitle="Private remote control" />
       <PinDots count={pin.length} error={error} />
-      <div className={"hint" + (error ? " error" : locked > 0 ? " error" : "")}>
+      <div className={"hint" + (error ? " error" : locked > 0 ? " error" : "")}
+           role={error ? "alert" : "status"} aria-live={locked > 0 ? "off" : "polite"}>
         {locked > 0 && <IconLock className="" />} {hint}
       </div>
       <Keypad onDigit={add} onBackspace={back} onSubmit={submit}

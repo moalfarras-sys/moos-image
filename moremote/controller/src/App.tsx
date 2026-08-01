@@ -26,13 +26,25 @@ export default function App() {
   };
 
   useEffect(() => {
-    decide();
+    void decide();
   }, []);
 
   const enterRemote = async (token: string) => {
     tokenStore.set(token);
-    const status = await getStatus();
-    setView({ name: "remote", token, hostPowerAllowed: status.hostPowerAllowed !== false });
+    setView({ name: "loading" });
+    try {
+      const status = await getStatus();
+      setView({ name: "remote", token, hostPowerAllowed: status.hostPowerAllowed !== false });
+    } catch {
+      // Keep the freshly issued token. Retry runs decide(), and as soon as status is reachable it
+      // enters the remote without asking the user to type the PIN a second time.
+      setView({ name: "error", message: "Access was approved, but the PC connection dropped. Reconnect and retry." });
+    }
+  };
+
+  const retry = () => {
+    setView({ name: "loading" });
+    void decide();
   };
 
   const exitToLogin = async () => {
@@ -48,17 +60,17 @@ export default function App() {
   switch (view.name) {
     case "loading":
       return (
-        <div className="center-msg" style={{ position: "fixed", inset: 0 }}>
-          <div className="spinner" />
+        <div className="center-msg" style={{ position: "fixed", inset: 0 }} role="status" aria-live="polite">
+          <div className="spinner" aria-hidden="true" />
           <div>Connecting…</div>
         </div>
       );
     case "error":
       return (
-        <div className="center-msg" style={{ position: "fixed", inset: 0 }}>
-          <div style={{ fontSize: 40 }}>🔌</div>
+        <div className="center-msg" style={{ position: "fixed", inset: 0 }} role="alert">
+          <div style={{ fontSize: 40 }} aria-hidden="true">🔌</div>
           <div style={{ maxWidth: 300 }}>{view.message}</div>
-          <button className="btn" onClick={decide}>Retry</button>
+          <button className="btn" onClick={retry}>Retry</button>
         </div>
       );
     case "setup":

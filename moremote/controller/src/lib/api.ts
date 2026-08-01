@@ -23,6 +23,7 @@ async function post<T>(path: string, body: unknown, token?: string): Promise<{ s
 
 export async function getStatus(): Promise<ServerStatus> {
   const res = await fetch("/api/status", { cache: "no-store" });
+  if (!res.ok) throw new Error(`status failed: ${res.status}`);
   return (await res.json()) as ServerStatus;
 }
 
