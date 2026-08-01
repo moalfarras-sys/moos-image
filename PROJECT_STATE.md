@@ -114,8 +114,13 @@ The first release image proof is now real: `just build` completed from commit
 MoOS Plymouth assets; all shipped QML apps, Launcher, desktop scene, Store,
 image-experience, identity and foreign-identity firewall gates passed, followed
 by `bootc container lint` (9 checks passed, four pre-existing warning classes).
-This proves the generic local compose only—not Cloud/NVIDIA, signed publication,
-the booted deployment or post-update behavior.
+The same committed source subsequently produced Cloud image
+`localhost/moos-cloud:latest` (`89d3aab0f08a…`) and NVIDIA image
+`localhost/moos-nvidia:latest` (`f4b27ae37189…`); both passed edition-specific
+gates and bootc lint. NVIDIA used kernel `7.1.5-201.fc44.x86_64`, matched
+`kmod-nvidia` and `nvidia-driver` at `610.43.03`, and proved seven NVIDIA modules
+inside its final 217 MB initramfs. This proves all three local composes—not
+signed publication, the booted deployment or post-update behavior.
 Telegram is now end-to-end proven: the live config restricts DMs to owner
 `1142563280`, the real shared session records owner inbound turns plus explicit
 `telegram-final` delivery mirrors to that same chat, and a new cold-start source
