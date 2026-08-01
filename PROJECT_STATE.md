@@ -254,6 +254,28 @@ with zero warnings, all 48 behavior tests passed, and the complete repository
 check passed. A real phone connection through Tailscale Serve remains open live
 proof.
 
+Remote trusted-device lifecycle (`d4364fe7`): “trusted device” previously meant
+only an access bearer in browser `localStorage`; the server kept it in memory,
+had no device identity or inventory, and every agent restart forced a PIN while
+leaving the UI to try a dead token. Trust is now explicit on Setup/Login and
+separate from the short-lived access session. The phone receives a 256-bit
+device secret once; Linux stores only its SHA-256 hash in the mode-0600 config
+and Windows keeps the same hash inside its existing DPAPI-protected config.
+Credentials expire after 30 days, are capped at 16, carry a sanitized device
+name and last-used time, and changing/resetting the PIN removes all of them.
+The PWA validates an access token before entering Remote, resumes through the
+device credential after an agent restart, and exposes an owner-visible Settings
+inventory with individual removal. Sign out removes both the access session and
+the current trusted credential. The server also closes the first-run setup race
+inside the same authentication lock, rather than relying on the earlier HTTP
+check. A new gate covers Linux/Windows persistence, hashing, bounds, API, PWA
+handoff, consent, inventory and revocation. Live HTTP proof showed the old bearer
+return 401 after restart, device resume/list/revoke return 200, and replay after
+revocation return 401. Linux and Windows .NET builds completed with zero
+warnings; 61 core behavior tests, PWA tests/typecheck, npm audit (zero findings),
+deterministic PWA v26 build, shipped-assets gate and the complete repository
+check pass. Touch/visual confirmation on a physical phone remains open evidence.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds
