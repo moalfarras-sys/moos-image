@@ -163,6 +163,20 @@ and the complete repo check recipe passes. The server revocation endpoint itself
 was already proven in the isolated HTTP login/logout sequence earlier in this
 audit; this change connects the real phone action to it.
 
+Mo PC Remote phone interaction/accessibility audit (`aad4a25c`): Display,
+Settings, Files and Clipboard were visual bottom sheets only. Focus stayed on
+the desktop behind them, Tab could escape into hidden controls, Escape did not
+close them and no dialog semantics reached a screen reader. All four now share
+one modal SheetPanel that moves focus in, traps Tab/Shift+Tab, closes on Escape,
+restores the invoking control and exposes a labelled close target. The clickable
+connection pill is a real disclosure button with an accurate expanded state;
+connection changes and transient confirmations are polite live announcements.
+The content-editable image paste target remains inside the focus loop. A source
+regression test is part of `npm test`; TypeScript, production build, two
+byte-identical builds, zero-vulnerability npm audits, shipped-asset tracking and
+the complete repository check recipe pass. The committed controller is PWA v20.
+Touch/VoiceOver/TalkBack proof on a real phone remains open release evidence.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds

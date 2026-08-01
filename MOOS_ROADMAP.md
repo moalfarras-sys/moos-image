@@ -54,6 +54,14 @@
 > الإبطال server-side مع بقاء الخروج المحلي آمناً عند انقطاع الشبكة. أضيف gate
 > إلى CI، وبُنيت PWA v19 ونجح `just check` كامل.
 
+> **وصولية واجهة الهاتف (`aad4a25c`):** لوحات Display/Settings/Files/Clipboard
+> أصبحت حوارات modal حقيقية: التركيز يدخلها ويظل داخلها، Tab/Shift+Tab يلتفان،
+> Escape وزر إغلاق مسمّى يغلقانها، ثم يعود التركيز إلى الزر الذي فتحها. شريط
+> الاتصال صار disclosure button بدلالة expanded صحيحة، والتنبيهات وحالة الاتصال
+> تُعلن عبر live region. نجحت اختبارات المصدر وTypeScript والبناء الإنتاجي
+> وإعادة بناء متطابقة وnpm audit بلا ثغرات وبوابة الأصول و`just check`. شُحنت
+> PWA v20؛ اختبار VoiceOver/TalkBack ولمس فعلي على هاتف ما يزال دليلاً مطلوباً.
+
 > **حدود خدمات Mo AI (`1cf194b3`, `017df8a6`):** أُغلق restart loop غير محدود
 > في OpenClaw (~386MB + preflight ثقيل)، وعقل Ollama وSpeaches (~1.5GB). صار
 > OpenClaw يسمح 8 محاولات/5 دقائق، والـQuadlets خمساً/5 دقائق، ثم يظهر failed
