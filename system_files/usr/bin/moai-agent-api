@@ -1567,8 +1567,8 @@ def _task_prompt(task: dict, project: dict | None) -> str:
     return "\n".join(lines)
 
 
-def _task_session_tools(task_id: str) -> list[str]:
-    """Read actual tool-call names from the task's OpenClaw JSONL session."""
+def _task_session_tool_events(task_id: str) -> list[dict]:
+    """Read bounded tool outcomes from the task's OpenClaw JSONL session."""
     try:
         index = json.loads((SESSIONS / "sessions.json").read_text(encoding="utf-8"))
     except Exception:
@@ -1581,16 +1581,38 @@ def _task_session_tools(task_id: str) -> list[str]:
             break
     if not re.fullmatch(r"[0-9a-fA-F-]{36}", session_id):
         return []
-    names = []
+    calls: dict[str, str] = {}
+    events: list[dict] = []
+    resolved: set[str] = set()
     try:
-        lines = (SESSIONS / f"{session_id}.jsonl").read_text(
-            encoding="utf-8", errors="replace").splitlines()
+        path = SESSIONS / f"{session_id}.jsonl"
+        with path.open("rb") as handle:
+            size = path.stat().st_size
+            handle.seek(max(0, size - 8 * 1024 * 1024))
+            raw = handle.read(8 * 1024 * 1024)
+        if size > len(raw):
+            raw = raw.split(b"\n", 1)[-1]
+        lines = raw.decode("utf-8", errors="replace").splitlines()
     except OSError:
         return []
     for line in lines:
         try:
             message = (json.loads(line).get("message") or {})
         except Exception:
+            continue
+        role = str(message.get("role") or "")
+        if role == "toolResult":
+            call_id = str(message.get("toolCallId") or "")[:200]
+            name = str(message.get("toolName") or calls.get(call_id) or "").strip()
+            if name and len(name) <= 120:
+                events.append({
+                    "name": name,
+                    "outcome": "error" if message.get("isError") is True else "success",
+                    "call": hashlib.sha256(call_id.encode()).hexdigest()[:16]
+                            if call_id else "",
+                })
+                if call_id:
+                    resolved.add(call_id)
             continue
         content = message.get("content") or []
         if not isinstance(content, list):
@@ -1602,8 +1624,24 @@ def _task_session_tools(task_id: str) -> list[str]:
             if kind not in {"toolcall", "tooluse"}:
                 continue
             name = str(block.get("name") or block.get("toolName") or "").strip()
-            if name and len(name) <= 120 and name not in names:
-                names.append(name)
+            call_id = str(block.get("id") or block.get("toolCallId") or "")[:200]
+            if name and len(name) <= 120 and call_id:
+                calls[call_id] = name
+    for call_id, name in calls.items():
+        if call_id not in resolved:
+            events.append({
+                "name": name, "outcome": "missing-result",
+                "call": hashlib.sha256(call_id.encode()).hexdigest()[:16],
+            })
+    return events[-200:]
+
+
+def _task_session_tools(task_id: str) -> list[str]:
+    """Unique tool names for the compact task card presentation."""
+    names = []
+    for event in _task_session_tool_events(task_id):
+        if event["name"] not in names:
+            names.append(event["name"])
     return names[:100]
 
 
@@ -1617,7 +1655,13 @@ def _finish_task(task_id: str, process: subprocess.Popen) -> None:
             append_audit("task", "finish", task_id, "cancelled",
                          {"exit_code": process.returncode, "tools": []})
             return
-        tools = _task_session_tools(task_id)
+        tool_events = _task_session_tool_events(task_id)
+        tools = []
+        for event in tool_events:
+            if event["name"] not in tools:
+                tools.append(event["name"])
+            append_audit("tool", event["name"], task_id, event["outcome"],
+                         {"call": event["call"]})
         for tool in tools:
             update_task({"id": task_id, "tool": tool})
         if process.returncode == 0:

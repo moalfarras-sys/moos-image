@@ -108,6 +108,16 @@ def main() -> None:
         assert "must-not-leak" not in json.dumps(channels)
 
         thread = module["read_session"](sid_new)
+        tool_task_id = "00000000-0000-0000-0000-000000000000"
+        session_index = json.loads((sessions / "sessions.json").read_text())
+        session_index[f"agent:main:moai-task-{tool_task_id}"] = {
+            "sessionId": sid_new, "updatedAt": 3000}
+        (sessions / "sessions.json").write_text(json.dumps(session_index))
+        tool_events = module["_task_session_tool_events"](tool_task_id)
+        assert tool_events == [{"name": "read", "outcome": "success", "call": ""}]
+        assert module["_task_session_tools"](tool_task_id) == ["read"]
+        session_index.pop(f"agent:main:moai-task-{tool_task_id}")
+        (sessions / "sessions.json").write_text(json.dumps(session_index))
         assert [message["role"] for message in thread] == [
             "user", "tool", "tool", "assistant"]
         assert thread[1]["status"] == "running" and "README.md" in thread[1]["text"]

@@ -47,7 +47,11 @@ bounded persistent audit ledger records task actions, project reads/diffs and
 permission-policy changes. Agent process completion now adds a separate bounded
 `task/finish` event for completed, failed, cancelled, timed-out or internal-error
 outcomes with only exit status and observed tool names; model prompts and process
-output are deliberately excluded from the audit record. Tracked task cards now consume OpenClaw's real
+output are deliberately excluded from the audit record. OpenClaw tool outcomes
+are now audited individually too: success/error and explicit
+`missing-result`, bounded to the newest 8 MiB and 200 events, with only tool name
+and a short call-id hash. Arguments and tool output never enter the ledger.
+Tracked task cards consume OpenClaw's real
 Gateway exec-approval queue and expose only its allowed decisions; a live
 source-API proof listed an exact pending command, denied it through
 `exec.approval.resolve`, verified removal from the queue and recorded the
