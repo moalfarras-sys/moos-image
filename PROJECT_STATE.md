@@ -177,6 +177,16 @@ byte-identical builds, zero-vulnerability npm audits, shipped-asset tracking and
 the complete repository check recipe pass. The committed controller is PWA v20.
 Touch/VoiceOver/TalkBack proof on a real phone remains open release evidence.
 
+Remote PIN interaction follow-up (`32de7625`): the connect/setup screen was
+touch-only despite using native buttons—physical number keys, Backspace/Delete
+and Enter did nothing. It now gives hardware keyboards the exact keypad path,
+announces only the entered digit count (never the secret), and disables the
+entire keypad atomically during a login/setup request or server lockout instead
+of leaving controls that visibly press but are ignored. The regression test,
+TypeScript, zero-vulnerability audit, deterministic production rebuild, shipped
+asset gate and complete repository check pass. The committed controller is PWA
+v21; real mobile keyboard and screen-reader proof remains open.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds
