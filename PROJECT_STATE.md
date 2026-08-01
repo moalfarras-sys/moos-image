@@ -225,6 +225,18 @@ handoffs. TypeScript, npm audit, deterministic production build, shipped assets
 and the complete repository check pass. The committed controller is PWA v24;
 an actual mid-handoff network interruption on a phone remains open live proof.
 
+Remote control-plane timeout audit (`99c66235`): rejection handling still did
+not cover a black-holed mobile network, where `fetch()` could remain pending for
+minutes and pin Login, Setup or a power action in its busy state. Short JSON
+control requests now share a 15-second `AbortController` boundary, relay a
+caller's own abort signal, and always remove the relay listener and timer. File
+uploads and media streams intentionally remain outside this boundary because
+they are valid long-running transfers. A Node behavior test proves that a
+never-resolving request is aborted; TypeScript, npm audit, deterministic
+production build, shipped-assets gate and the complete repository check pass.
+The committed controller is PWA v25. A real tailnet black-hole test from a phone
+remains open live proof.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds
