@@ -144,6 +144,48 @@ def load_cfg():
         return {}
 
 
+def load_product_cfg():
+    """Merge the shared OpenClaw settings over the legacy gateway fallback.
+
+    Mo AI Settings and phone channels own one OpenClaw configuration. Older
+    installations may still have ~/.config/moai/config.json and the credential
+    helper, so those remain fallback-only instead of becoming a second truth.
+    """
+    merged = dict(load_cfg())
+    try:
+        with open(OPENCLAW_CONFIG, encoding="utf-8") as handle:
+            oc = json.load(handle)
+        providers = ((oc.get("models") or {}).get("providers") or {})
+        cloud = providers.get("cloud") or {}
+        defaults = (oc.get("agents") or {}).get("defaults") or {}
+        primary = str(((defaults.get("model") or {}).get("primary") or ""))
+        base = str(cloud.get("baseUrl") or "").rstrip("/")
+        key = str(cloud.get("apiKey") or "")
+        model = primary.removeprefix("cloud/") if primary.startswith("cloud/") else ""
+        if not model:
+            catalog = cloud.get("models") or []
+            if isinstance(catalog, list) and catalog and isinstance(catalog[0], dict):
+                model = str(catalog[0].get("id") or "")
+        api = str(cloud.get("api") or "").lower()
+        if base:
+            merged["cloud_base"] = base
+        if key:
+            merged["cloud_key"] = key
+        if model:
+            merged["cloud_model"] = model
+        if api:
+            merged["cloud_wire"] = "anthropic" if api.startswith("anthropic") else "openai"
+        if primary == "moai/hybrid":
+            merged["mode"] = "hybrid"
+        elif primary.startswith("cloud/"):
+            merged["mode"] = "cloud"
+        elif primary.startswith("ollama/"):
+            merged["mode"] = "local"
+    except Exception:
+        pass
+    return merged
+
+
 def load_secret():
     try:
         result = subprocess.run(
@@ -832,7 +874,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _cloud_cfg(self, cfg):
         return ((cfg.get("cloud_base") or "").rstrip("/"),
-                load_secret(),
+                cfg.get("cloud_key") or load_secret(),
                 (cfg.get("cloud_wire") or "openai").lower())
 
     def _foreign_origin(self):
@@ -861,7 +903,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self._foreign_origin():
             return self._err(403, "foreign origin")
-        cfg = load_cfg()
+        cfg = load_product_cfg()
 
         # The liveness probe. Cheap on purpose — moai-control polls it every few
         # seconds and must never make it reach out to a provider to answer.
@@ -930,7 +972,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(413, "request body too large")
         raw = self.rfile.read(length) if length else b""
 
-        cfg = load_cfg()
+        cfg = load_product_cfg()
         try:
             req = json.loads(raw)
         except Exception:

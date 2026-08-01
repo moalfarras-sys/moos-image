@@ -343,6 +343,7 @@ class GatewaySecurityTests(unittest.TestCase):
         self.calls = []
         scope = self.handler.do_POST.__globals__
         scope["load_cfg"] = lambda: {"mode": "local"}
+        scope["load_product_cfg"] = lambda: {"mode": "local"}
 
         calls = self.calls
 

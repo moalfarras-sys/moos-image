@@ -187,6 +187,12 @@ cleanup lands. No decorative perpetual animation is allowed.
 
 - [x] Add `hybrid` routing with a documented privacy/availability/complexity
   policy and deterministic fallback; never silently send private files to cloud.
+  The gateway now merges the shared OpenClaw `cloud` provider over its legacy
+  config fallback, eliminating the split where Settings said Cloud was linked
+  while `/health` returned “not configured”. Live source requests proved Cloud
+  (`MOAI-CLOUD-UNIFIED-READY`), Local (`MOAI-LOCAL-ROUTE-READY`), Hybrid private
+  (`X-MoAI-Route: local`, reason `privacy`) and Hybrid complex/preferred
+  (`X-MoAI-Route: cloud`, reason `complex-task`), all HTTP 200 through OpenClaw.
 - [x] One session/memory/tool backend for desktop and OpenClaw. A real local
   two-turn desktop request returned `MOAI-LOCAL-UNIFIED-READY` from memory, and
   the shared OpenClaw index recorded session

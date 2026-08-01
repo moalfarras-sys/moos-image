@@ -31,7 +31,13 @@ clean ASGI shutdown as a successful idle stop, avoiding a false failed service.
 `moai-gateway` gains
 an explainable Hybrid route: sensitive data and attachments remain local by
 default, complex work may use configured/reachable cloud, and routing/fallback
-reasons are returned to the UI. OpenClaw permissions are split into the four
+reasons are returned to the UI. The gateway now reads the same OpenClaw cloud provider/key written
+by Settings, with the old Mo AI config retained only as an upgrade fallback;
+this fixes a live contradiction where Settings reported Cloud linked but the
+gateway returned `cloud brain not configured`. Source runtime proofs returned
+the exact Cloud and Local markers, then routed Hybrid private to `local/privacy`
+and Hybrid complex to `cloud/complex-task`, all HTTP 200 with
+`X-MoAI-Agent: openclaw`. OpenClaw permissions are split into the four
 real levels (read/project/system-with-approval/full). Tracked tasks now launch
 the fixed OpenClaw agent command, persist real outcomes, expose pause/resume/
 cancel, and ingest tool-call names from the OpenClaw session JSONL. The project

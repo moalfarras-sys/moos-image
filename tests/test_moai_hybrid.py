@@ -14,6 +14,24 @@ GATEWAY = ROOT / "system_files/usr/bin/moai-gateway"
 
 def main() -> None:
     gateway = runpy.run_path(str(GATEWAY), run_name="moai_gateway_hybrid_test")
+    globals_ = gateway["load_product_cfg"].__globals__
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        globals_["CONFIG"] = str(td / "legacy.json")
+        globals_["OPENCLAW_CONFIG"] = str(td / "openclaw.json")
+        Path(globals_["CONFIG"]).write_text(json.dumps({"mode": "local"}))
+        Path(globals_["OPENCLAW_CONFIG"]).write_text(json.dumps({
+            "agents": {"defaults": {"model": {"primary": "cloud/live"}}},
+            "models": {"providers": {"cloud": {
+                "baseUrl": "https://cloud.example/v1", "apiKey": "shared-key",
+                "api": "openai-responses", "models": [{"id": "live"}],
+            }}},
+        }))
+        product = gateway["load_product_cfg"]()
+        assert product["mode"] == "cloud"
+        assert product["cloud_base"] == "https://cloud.example/v1"
+        assert product["cloud_model"] == "live"
+        assert product["cloud_key"] == "shared-key"
     parse = gateway["parse_model"]
     resolve = gateway["resolve"]
     choose = gateway["choose_hybrid"]
