@@ -56,6 +56,7 @@ check:
     python3 tests/test_cloud_set_pin.py
     python3 tests/test_cloud_subid_range.py
     python3 tests/test_moai_ports_fail_closed.py
+    python3 tests/test_moai_service_lifecycle.py
     python3 tests/test_openclaw_bootstrap_noop.py
     # A connect burst must coalesce into ONE pipeline build, and idle teardown must stay immediate.
     python3 tests/test_remote_rebuild_debounce.py

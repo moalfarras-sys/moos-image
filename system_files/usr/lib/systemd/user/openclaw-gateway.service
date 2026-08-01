@@ -5,6 +5,12 @@ After=network-online.target
 Wants=network-online.target
 ConditionFileIsExecutable=%h/.local/bin/openclaw
 
+# A clean OpenClaw reload exits intentionally and Restart=always must bring it back. A broken
+# config/binary is different: ExecStartPre + Node + sandbox startup every 10 seconds is a permanent
+# CPU/RAM fire. Eight attempts in five minutes leave an actionable failed unit instead of spinning.
+StartLimitIntervalSec=300
+StartLimitBurst=8
+
 [Service]
 Type=simple
 Environment=PATH=%h/.local/node/bin:%h/.local/bin:/usr/bin:/bin
@@ -23,6 +29,9 @@ ExecStart=%h/.local/bin/openclaw gateway
 # restart by systemd design.
 Restart=always
 RestartSec=10
+# Bound session shutdown. Rootless sandbox teardown normally takes seconds; a wedged child must not
+# hold logout/reboot behind systemd's 90-second default.
+TimeoutStopSec=30s
 UMask=0077
 
 # These are the directives verified compatible with OpenClaw's rootless Podman
