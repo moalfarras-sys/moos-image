@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getStatus, tokenStore } from "./lib/api";
+import { getStatus, logout, tokenStore } from "./lib/api";
 import { SetupScreen, LoginScreen } from "./ui/AuthScreens";
 import { RemoteScreen } from "./ui/RemoteScreen";
 
@@ -36,8 +36,12 @@ export default function App() {
   };
 
   const exitToLogin = async () => {
-    tokenStore.clear();
+    const token = view.name === "remote" ? view.token : tokenStore.get();
     setView({ name: "loading" });
+    // Sign out means server-side revocation, not merely forgetting the bearer in this tab. Keep
+    // the local clear inside logout() even when the request fails, so offline exit remains instant.
+    if (token) await logout(token);
+    else tokenStore.clear();
     await decide();
   };
 
