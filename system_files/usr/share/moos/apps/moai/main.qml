@@ -177,6 +177,8 @@ Kirigami.ApplicationWindow {
     property bool voiceRecording: false
     property string chatSessionId: "moai-desktop-" + Date.now().toString(36)
                                    + "-" + Math.floor(Math.random() * 0x1000000).toString(36)
+    property string chatOpenClawSessionKey: ""
+    property bool chatSidebarOpen: false
     property string agentDecision: ""
     property string panel: "chat"       // chat|device|apps|compat|remote|dev|agent
 
@@ -581,6 +583,26 @@ Kirigami.ApplicationWindow {
                     || requestedRoute.indexOf("cloud") === 0)
                 root.route = requestedRoute
         }
+        const sessionIdIndex = argv.indexOf("--session-id")
+        const sessionKeyIndex = argv.indexOf("--session-key")
+        if (sessionIdIndex !== -1 && sessionIdIndex + 1 < argv.length
+                && sessionKeyIndex !== -1 && sessionKeyIndex + 1 < argv.length) {
+            const startupSessionId = String(argv[sessionIdIndex + 1])
+            const startupSessionKey = String(argv[sessionKeyIndex + 1])
+            if (/^[0-9a-fA-F-]{36}$/.test(startupSessionId)
+                    && /^[A-Za-z0-9_.:-]{1,180}$/.test(startupSessionKey)) {
+                root.panel = "chat"
+                Qt.callLater(function () {
+                    root.agentOpenPrimary(startupSessionId, startupSessionKey,
+                                          root.local("محادثة موحّدة", "Unified conversation"))
+                })
+            }
+        }
+        if (argv.indexOf("--open-history") !== -1) {
+            root.panel = "chat"
+            root.chatSidebarOpen = true
+            Qt.callLater(function () { root.agentLoadStatus() })
+        }
         const promptIndex = argv.indexOf("--prompt")
         if (promptIndex !== -1 && promptIndex + 1 < argv.length) {
             const startupPrompt = String(argv[promptIndex + 1]).trim()
@@ -802,6 +824,7 @@ Kirigami.ApplicationWindow {
         pendingRuns = []
         chatSessionId = "moai-desktop-" + Date.now().toString(36)
                         + "-" + Math.floor(Math.random() * 0x1000000).toString(36)
+        chatOpenClawSessionKey = ""
         agentDecision = ""
         stopGenerating()
         chatModel.append({ role: "assistant", text: greetingText })
@@ -1005,6 +1028,8 @@ Kirigami.ApplicationWindow {
             agent: true,
             session: root.chatSessionId
         }
+        if (root.chatOpenClawSessionKey !== "")
+            request.moai.session_key = root.chatOpenClawSessionKey
         xhr.send(JSON.stringify(request))
     }
 
@@ -1809,6 +1834,16 @@ Kirigami.ApplicationWindow {
 
                         MoButton {
                             visible: root.panel === "chat"
+                            label: root.local("المحادثات", "Conversations")
+                            iconName: "moos-ai-symbolic"
+                            primary: root.chatSidebarOpen
+                            onClicked: {
+                                root.chatSidebarOpen = !root.chatSidebarOpen
+                                if (root.chatSidebarOpen) root.agentLoadStatus()
+                            }
+                        }
+                        MoButton {
+                            visible: root.panel === "chat"
                             label: root.local("محادثة جديدة", "New chat")
                             onClicked: root.newChat()
                         }
@@ -1852,6 +1887,141 @@ Kirigami.ApplicationWindow {
                         ChatDoodle {
                             anchors.fill: parent
                             z: -1
+                        }
+
+                        Rectangle {
+                            id: chatHistorySidebar
+                            z: 40
+                            visible: root.chatSidebarOpen
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            anchors.left: parent.left
+                            width: Math.min(root.fs(280), parent.width * 0.42)
+                            color: root.chrome
+                            border.width: 1
+                            border.color: root.hairline
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: design.space2
+                                spacing: design.space1
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: root.local("سجل المحادثات", "Conversation history")
+                                        color: root.textHi
+                                        font.family: root.uiFont
+                                        font.pixelSize: root.typePx(12)
+                                        font.weight: Font.DemiBold
+                                    }
+                                    MoButton {
+                                        label: "×"
+                                        onClicked: root.chatSidebarOpen = false
+                                    }
+                                }
+                                QQC2.TextField {
+                                    Layout.fillWidth: true
+                                    placeholderText: root.local("بحث…", "Search…")
+                                    text: root.agentSearch
+                                    font.family: root.uiFont
+                                    font.pixelSize: root.typePx(10)
+                                    onTextChanged: {
+                                        root.agentSearch = text
+                                        primarySearchDelay.restart()
+                                    }
+                                    Timer {
+                                        id: primarySearchDelay
+                                        interval: 180
+                                        repeat: false
+                                        onTriggered: root.agentLoadSessions()
+                                    }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    QQC2.CheckBox {
+                                        text: root.local("المؤرشفة", "Archived")
+                                        checked: root.agentShowArchived
+                                        font.family: root.uiFont
+                                        font.pixelSize: root.typePx(9)
+                                        onToggled: {
+                                            root.agentShowArchived = checked
+                                            root.agentLoadSessions()
+                                        }
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    MoButton {
+                                        label: root.local("جديدة", "New")
+                                        onClicked: root.newChat()
+                                    }
+                                }
+                                ListView {
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    model: root.agentSessions
+                                    clip: true
+                                    spacing: 2
+                                    QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        width: ListView.view.width
+                                        height: root.fs(48)
+                                        radius: root.fs(7)
+                                        color: root.chatOpenClawSessionKey === modelData.key
+                                               ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
+                                                         root.novaBlue.b, 0.16)
+                                               : "transparent"
+                                        ColumnLayout {
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 8
+                                            anchors.rightMargin: 8
+                                            spacing: 1
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                Text {
+                                                    Layout.fillWidth: true
+                                                    text: modelData.label
+                                                    color: root.textHi
+                                                    elide: Text.ElideRight
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: root.typePx(10)
+                                                    font.weight: Font.DemiBold
+                                                }
+                                                Text {
+                                                    text: modelData.pinned ? "●" : ""
+                                                    color: root.novaCyan
+                                                    font.pixelSize: root.typePx(8)
+                                                }
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: root.local("جلسة OpenClaw موحّدة",
+                                                                 "Unified OpenClaw session")
+                                                color: root.textMute
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(8)
+                                            }
+                                        }
+                                        ActionArea {
+                                            anchors.fill: parent
+                                            actionName: modelData.label
+                                            focusRadius: root.fs(7)
+                                            onTriggered: root.agentOpenPrimary(
+                                                modelData.id, modelData.key, modelData.label)
+                                        }
+                                    }
+                                }
+                                Text {
+                                    visible: root.agentSessions.length === 0
+                                    Layout.fillWidth: true
+                                    text: root.agentStatusLoaded
+                                        ? root.local("لا توجد محادثات", "No conversations")
+                                        : root.local("جارٍ تحميل السجل…", "Loading history…")
+                                    horizontalAlignment: Text.AlignHCenter
+                                    color: root.textMute
+                                    font.family: root.uiFont
+                                    font.pixelSize: root.typePx(9)
+                                }
+                            }
                         }
 
                         DropArea {
@@ -5908,6 +6078,55 @@ Kirigami.ApplicationWindow {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             if (xhr.status === 200) {
                 try { root.agentThread = JSON.parse(xhr.responseText) } catch (e) { root.agentThread = [] }
+            }
+        }
+        xhr.send()
+    }
+
+    function agentOpenPrimary(id, key, label) {
+        if (!/^[0-9a-fA-F-]{36}$/.test(String(id))
+                || !/^[A-Za-z0-9_.:-]{1,180}$/.test(String(key))) {
+            root.agentError = root.local("معرّف المحادثة غير صالح",
+                                         "Invalid conversation identifier")
+            return
+        }
+        root.stopGenerating()
+        root.panel = "chat"
+        root.agentCurrent = String(id)
+        root.agentCurrentKey = String(key).split(":").pop()
+        root.agentCurrentLabel = String(label || "")
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", root.agentApi + "/api/session?id=" + encodeURIComponent(id))
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status !== 200) {
+                root.agentError = root.local("تعذّر فتح المحادثة",
+                                             "Could not open conversation")
+                return
+            }
+            try {
+                const messages = JSON.parse(xhr.responseText)
+                chatModel.clear()
+                root.history = []
+                const start = Math.max(0, messages.length - 200)
+                for (let i = start; i < messages.length; ++i) {
+                    const role = messages[i].role === "user" ? "user" : "assistant"
+                    const messageText = String(messages[i].text || "").trim()
+                    if (messageText === "") continue
+                    chatModel.append({ role: role, text: messageText })
+                    root.history.push({ role: role, content: messageText })
+                }
+                root.trimHistory()
+                if (chatModel.count === 0)
+                    chatModel.append({ role: "assistant", text: root.greetingText })
+                root.chatOpenClawSessionKey = String(key)
+                root.chatSessionId = "moai-desktop-" + String(id)
+                root.chatSidebarOpen = false
+                root.agentError = ""
+            } catch (e) {
+                root.agentError = root.local("رد المحادثة غير مفهوم",
+                                             "Bad conversation response")
             }
         }
         xhr.send()

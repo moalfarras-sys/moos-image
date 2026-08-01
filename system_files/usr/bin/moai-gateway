@@ -1000,6 +1000,13 @@ class Handler(BaseHTTPRequestHandler):
         if not re.fullmatch(r"[A-Za-z0-9_.:-]{8,120}", session):
             self._err(400, "invalid Mo AI conversation id")
             return True
+        session_key = str(meta.get("session_key") or "").strip()
+        if session_key and (
+            not re.fullmatch(r"[A-Za-z0-9_.:-]{1,180}", session_key)
+            or session_key.startswith(("subagent:", "cron:", "acp:"))
+        ):
+            self._err(400, "invalid OpenClaw session key")
+            return True
         latest_user = None
         for message in reversed(req.get("messages", [])):
             if isinstance(message, dict) and message.get("role") == "user":
@@ -1010,16 +1017,19 @@ class Handler(BaseHTTPRequestHandler):
             return True
         out = {
             "model": "openclaw/default",
-            "user": session,
             "messages": [latest_user],
             "stream": bool(req.get("stream")),
         }
+        if not session_key:
+            out["user"] = session
         headers = {
             "Authorization": "Bearer " + client["token"],
             "x-openclaw-message-channel": "webchat",
         }
         if selected != client.get("primary"):
             headers["x-openclaw-model"] = selected
+        if session_key:
+            headers["x-openclaw-session-key"] = session_key
         self.moai_agent = "openclaw"
         self._proxy("POST", OPENCLAW_BASE + "/v1/chat/completions", headers,
                     json.dumps(out).encode("utf-8"), "openai", out["stream"])

@@ -99,13 +99,17 @@ cleanup lands. No decorative perpetual animation is allowed.
 - [x] Persistent task records: plan, steps, status, errors, result, stop/retry.
 - [ ] Replace the icon-only rail with a responsive workspace sidebar while
   preserving direct `moai --panel …` compatibility shims.
-- [ ] Merge the workspace conversation/history sidebar visually into the
-  primary conversation canvas. The backend half is complete: the primary
+- [x] Merge the workspace conversation/history sidebar visually into the
+  primary conversation canvas. The searchable/archived session drawer now
+  opens a real OpenClaw JSONL thread in the central chat and continues with its
+  exact guarded OpenClaw session key. The primary
   streaming/multimodal canvas now routes through the
   same token-authenticated, loopback OpenClaw runtime used by phone channels.
   Stable per-chat session ids preserve memory; direct-model fallback is explicit
-  when OpenClaw is unavailable. Projects/tasks/terminal remain a workbench, but
-  conversation history is still reached through its Agent workspace tab.
+  when OpenClaw is unavailable. Live 4K RTL evidence loaded session
+  `3630741b-c82d-40a8-95ba-2b333031eafc` and its four real messages; a following
+  gateway request with that same session key returned the remembered token
+  `MOAI-LOCAL-UNIFIED-READY` and `X-MoAI-Agent: openclaw`.
 
 ### Phase 2 — composer and content
 

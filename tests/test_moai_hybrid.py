@@ -90,8 +90,17 @@ def main() -> None:
         captured.clear()
         assert handler._to_agent(request, "cloud", "cloud-default", {}) is True
         assert "x-openclaw-model" not in captured["headers"]
+        request["moai"]["session_key"] = "agent:main:main"
+        captured.clear()
+        assert handler._to_agent(request, "cloud", "cloud-default", {}) is True
+        assert captured["headers"]["x-openclaw-session-key"] == "agent:main:main"
+        assert "user" not in captured["body"]
     qml = (ROOT / "system_files/usr/share/moos/apps/moai/main.qml").read_text(encoding="utf-8")
     assert 'agent: true' in qml and 'session: root.chatSessionId' in qml
+    assert 'session_key = root.chatOpenClawSessionKey' in qml
+    assert 'function agentOpenPrimary(id, key, label)' in qml
+    assert 'chatModel.clear()' in qml and 'root.chatModel.clear()' not in qml
+    assert 'argv.indexOf("--open-history")' in qml
     assert 'xhr.getResponseHeader("X-MoAI-Agent")' in qml
     assert 'argv.indexOf("--prompt")' in qml
     preflight = (ROOT / "system_files/usr/libexec/moai-openclaw-preflight").read_text(

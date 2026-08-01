@@ -33,7 +33,11 @@ loopback Chat Completions endpoint, so desktop, Telegram and WhatsApp share the
 same agent runtime, sessions, memory, tools and policy while the existing QML
 keeps streaming and multimodal payloads. A real local two-turn test preserved
 the token `MOAI-LOCAL-UNIFIED-READY` in one OpenClaw session; the live UI proof
-shows `qwen3-vl:4b · وكيل موحّد`. OpenClaw also gains a `moai/hybrid` loopback
+shows `qwen3-vl:4b · وكيل موحّد`. The central Chat now includes a searchable
+conversation drawer and can load/continue the exact OpenClaw thread shared with
+phone channels. A 4K RTL source run rendered all four messages from the proof
+session; a subsequent request using its guarded session key returned the same
+token with `X-MoAI-Agent: openclaw`. OpenClaw also gains a `moai/hybrid` loopback
 provider so phone turns use the same smart routing policy. The installed OpenClaw
 advertises WhatsApp Web support and Mo AI now exposes its fixed login route;
 account pairing remains open. All of this is unreleased working-branch state
