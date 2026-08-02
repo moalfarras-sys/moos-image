@@ -475,6 +475,16 @@ full theme-to-lock relationship. This is migration/configuration evidence only;
 an installed Plasma lock in Light and Dark still needs live screenshots before
 the visual result is claimed.
 
+Mo PC Remote audio recovery audit: the authenticated audio
+path itself was complete, but one dead media response can emit a burst of
+`stalled`, `error`, and `ended`. Each event previously scheduled a separate
+one-use ticket request, so a single drop could start several Opus encoders; only
+the last timer id was retained, allowing an older callback to cross Stop and
+restore audio. Recovery is now single-flight, keeps its slot occupied while a
+fresh ticket is in flight, reopens it only for the new source, and checks both
+generation and `src` before and after the await.
+The controller test and repository security gate hold that lifecycle.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds

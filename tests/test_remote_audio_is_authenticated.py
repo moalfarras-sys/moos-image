@@ -128,6 +128,19 @@ if "audioStreamUrl(token)" not in screen:
     errors.append("RemoteScreen never requests an authenticated audio ticket")
 if "stream.webm?token=" in screen or "AUDIO_URL" in screen:
     errors.append("RemoteScreen still puts its reusable session bearer in a media URL")
+if "if (audioRetryRef.current !== null) return" not in screen:
+    errors.append("RemoteScreen does not coalesce the stalled/error/ended burst — one dead stream "
+                  "can mint several tickets and start several Opus encoders")
+retry = screen[screen.index("audioRetryRef.current = window.setTimeout"):]
+ticket_pos = retry.find("await audioStreamUrl(token)")
+reopen_pos = retry.find("audioRetryRef.current = null")
+source_pos = retry.find('a.src = `${url}&t=${Date.now()}`')
+if not (0 <= ticket_pos < reopen_pos < source_pos):
+    errors.append("the audio retry slot must stay occupied through ticket fetch and reopen only "
+                  "for the new source — otherwise a broken-event burst can overlap requests")
+if "generation !== audioGenerationRef.current" not in retry[:source_pos]:
+    errors.append("audio retry does not generation-check the asynchronous ticket before setting "
+                  "a new source — Stop can be crossed by stale recovery")
 
 if errors:
     print("GATE FAIL: the desktop's sound is reachable without a session.\n")

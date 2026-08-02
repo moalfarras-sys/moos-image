@@ -1679,7 +1679,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
 
   const stopSound = useCallback(() => {
     audioGenerationRef.current++;
-    if (audioRetryRef.current) { window.clearTimeout(audioRetryRef.current); audioRetryRef.current = null; }
+    if (audioRetryRef.current !== null) {
+      window.clearTimeout(audioRetryRef.current);
+      audioRetryRef.current = null;
+    }
     const a = audioRef.current;
     if (a) { a.pause(); a.removeAttribute("src"); a.load(); }
     setSound("off");
@@ -1730,6 +1733,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
     };
     const onBroken = () => {
       if (!a.src) return;
+      // One dead media response commonly raises `stalled`, `error` and `ended` as a burst.
+      // Treat that burst as ONE failure. Without this guard every event scheduled its own
+      // ticket request; the timers then raced, opened several Opus encoders and could resurrect
+      // sound after Stop because only the most recently stored timer id was cancellable.
+      if (audioRetryRef.current !== null) return;
       // Bounded, and the bound is the point. Retrying for ever is right for the case this was
       // written for — the encoder is respawned per listener, so a reconnect genuinely does fix it —
       // and wrong for the case that actually happens first: no /audio mount at all, because the
@@ -1739,6 +1747,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       // and never saying what is wrong.
       if (++audioFailsRef.current > 3) {
         audioFailsRef.current = 0;
+        audioGenerationRef.current++;
         a.pause(); a.removeAttribute("src"); a.load();
         setSound("unavailable");
         showToast("No sound endpoint — run: moos-cloud-desktop doctor");
@@ -1746,14 +1755,23 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       }
       const generation = audioGenerationRef.current;
       audioRetryRef.current = window.setTimeout(async () => {
-        if (a.src) {
-          try {
-            const url = await audioStreamUrl(token);
-            if (generation !== audioGenerationRef.current || audioRef.current !== a) return;
-            a.src = `${url}&t=${Date.now()}`;
-            await a.play();
+        // Keep the slot occupied while the ticket request is in flight: the OLD source can emit
+        // more broken events during a slow fetch, and none of them may create a second request.
+        if (!a.src || generation !== audioGenerationRef.current) return;
+        try {
+          const url = await audioStreamUrl(token);
+          if (generation !== audioGenerationRef.current || audioRef.current !== a || !a.src) return;
+          // Reopen immediately before activating the NEW source. Any failure after this point
+          // belongs to the new attempt and may schedule exactly one successor.
+          audioRetryRef.current = null;
+          a.src = `${url}&t=${Date.now()}`;
+          await a.play();
+        }
+        catch {
+          if (generation === audioGenerationRef.current && a.src) {
+            audioRetryRef.current = null;
+            setSound("unavailable");
           }
-          catch { setSound("unavailable"); }
         }
       }, 1200);
     };
@@ -1763,7 +1781,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       audioGenerationRef.current++;
       a.removeEventListener("playing", onPlaying);
       for (const ev of ["error", "ended", "stalled"] as const) a.removeEventListener(ev, onBroken);
-      if (audioRetryRef.current) window.clearTimeout(audioRetryRef.current);
+      if (audioRetryRef.current !== null) window.clearTimeout(audioRetryRef.current);
       audioRetryRef.current = null;
       a.pause();
       a.removeAttribute("src");
