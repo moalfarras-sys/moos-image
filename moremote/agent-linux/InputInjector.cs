@@ -399,7 +399,15 @@ public sealed class InputInjector : IDisposable
             // we just pasted and hand the user that instead of what they had.
             _borrowedClip ??= ClipboardBridge.GetContent();
         }
-        ClipboardBridge.SetText(text);
+        if (!ClipboardBridge.SetText(text))
+        {
+            Log.Warn("Clipboard typing aborted: wl-copy did not accept the text.");
+            // This generation invalidated the preceding return timer. Keep ownership of the
+            // original snapshot and schedule its return anyway; clearing it here would strand
+            // the last injected value if a previous chunk had already borrowed the clipboard.
+            ScheduleClipboardReturn(gen);
+            return;
+        }
         Combo(["Shift", "Insert"]);
         ScheduleClipboardReturn(gen);
     }

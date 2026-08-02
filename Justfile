@@ -69,6 +69,7 @@ check:
     python3 tests/test_remote_data_dir.py
     python3 tests/test_remote_power_policy.py
     python3 tests/test_remote_transfer_security.py
+    python3 tests/test_remote_clipboard_runtime.py
     # Phone alerts are explicit, generic and event-driven: never mirror desktop content or poll idle.
     python3 tests/test_remote_background_alerts.py
     # Input must not block the socket that carries the pings the quality ladder measures.

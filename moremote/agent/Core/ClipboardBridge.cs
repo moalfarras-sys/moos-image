@@ -44,22 +44,27 @@ public static class ClipboardBridge
 
     public static string GetText() => GetContent() is { Kind: "text", Text: { } t } ? t : "";
 
-    public static void SetText(string text)
+    public static bool SetText(string text)
     {
-        RunSta(() =>
+        return RunSta(() =>
         {
             try
             {
                 if (string.IsNullOrEmpty(text)) Clipboard.Clear();
                 else Clipboard.SetText(text);
+                return true;
             }
-            catch (Exception ex) { Log.Warn("Clipboard write failed: " + ex.Message); }
+            catch (Exception ex)
+            {
+                Log.Warn("Clipboard write failed: " + ex.Message);
+                return false;
+            }
         });
     }
 
-    public static void SetImagePng(byte[] data)
+    public static bool SetImagePng(byte[] data)
     {
-        RunSta(() =>
+        return RunSta(() =>
         {
             try
             {
@@ -67,9 +72,23 @@ public static class ClipboardBridge
                 using var img = Image.FromStream(ms);
                 // SetImage serialises a copy onto the clipboard, so disposing after is safe.
                 Clipboard.SetImage(img);
+                return true;
             }
-            catch (Exception ex) { Log.Warn("Clipboard image write failed: " + ex.Message); }
+            catch (Exception ex)
+            {
+                Log.Warn("Clipboard image write failed: " + ex.Message);
+                return false;
+            }
         });
+    }
+
+    private static bool RunSta(Func<bool> action)
+    {
+        var result = false;
+        var t = new Thread(() => result = action()) { IsBackground = true };
+        t.SetApartmentState(ApartmentState.STA);
+        t.Start();
+        return t.Join(5000) && result;
     }
 
     private static void RunSta(Action action)

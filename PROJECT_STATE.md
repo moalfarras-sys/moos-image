@@ -421,6 +421,19 @@ they describe the exact key sent. The icon regression suite rejects a return of
 these visible dingbats. Live phone screenshots remain required before claiming
 pixel-level validation.
 
+Remote clipboard runtime audit: the Linux bridge's apparent three-second timeout
+was dead code for a hung `wl-paste`, because it synchronously drained stdout
+before calling `WaitForExit`. A stuck compositor helper could therefore hold an
+authenticated clipboard request forever, and output had no memory bound. Reads
+and writes now run with cancellable async I/O, a 25 MB ceiling, fixed
+`ArgumentList` argv, and process-tree termination at the deadline. Helper exit
+status now reaches both platform bridges; the API returns 503 rather than fake
+`ok:true`, and Unicode input does not inject Shift+Insert when `wl-copy` rejected
+the payload. A real subprocess test proves a `sleep 20` helper is cut off, exact
+limits succeed, oversized output is discarded, and failed/successful writes are
+distinguished. Linux and Windows cross-builds complete with zero warnings. This
+does not substitute for a live Wayland clipboard round-trip on the built image.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds

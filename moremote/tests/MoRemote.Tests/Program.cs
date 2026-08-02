@@ -25,6 +25,24 @@ Eq((0,785),CoordinateMapper.NormalizedToDesktop(-5,9,normal),"out-of-range clamp
 var guard=new InputSequenceGuard();Eq(true,guard.Accept(1,1000,1000,out _),"sequence first");Eq(false,guard.Accept(1,1001,1001,out _),"sequence duplicate");Eq(false,guard.Accept(0,1002,1002,out _),"sequence reordered");Eq(true,new InputSequenceGuard().Accept(1,0,40000,out _),"a large now-vs-timestamp gap is deliberately ACCEPTED: freshness is sequence-only, not wall-clock (see InputSequenceGuard)");
 
 var unicode="مرحباً Grüße English";Eq(unicode,System.Text.Encoding.UTF8.GetString(System.Text.Encoding.UTF8.GetBytes(unicode)),"clipboard unicode");
+var clipboardClock = System.Diagnostics.Stopwatch.StartNew();
+var timedOutClipboard = ClipboardBridge.RunReadCommand(
+    "/bin/sh", ["-c", "sleep 20"], TimeSpan.FromMilliseconds(120), 1024);
+clipboardClock.Stop();
+Eq(0, timedOutClipboard.Length, "hung clipboard helper returns an empty result");
+Eq(true, clipboardClock.Elapsed < TimeSpan.FromSeconds(2), "clipboard timeout is real and bounded");
+var oversizedClipboard = ClipboardBridge.RunReadCommand(
+    "/bin/sh", ["-c", "printf 123456"], TimeSpan.FromSeconds(1), 5);
+Eq(0, oversizedClipboard.Length, "oversized clipboard output is rejected before retention");
+var exactClipboard = ClipboardBridge.RunReadCommand(
+    "/bin/sh", ["-c", "printf 12345"], TimeSpan.FromSeconds(1), 5);
+Eq("12345", System.Text.Encoding.UTF8.GetString(exactClipboard), "clipboard accepts its exact size limit");
+Eq(false, ClipboardBridge.WriteCommand(
+    "/bin/sh", ["-c", "exit 7"], "payload"u8.ToArray(), TimeSpan.FromSeconds(1)),
+    "clipboard write reports a rejected helper instead of fake success");
+Eq(true, ClipboardBridge.WriteCommand(
+    "/bin/sh", ["-c", "cat >/dev/null"], "مرحباً"u8.ToArray(), TimeSpan.FromSeconds(1)),
+    "clipboard write reports a completed Unicode payload");
 // ASCII is the only thing the keysym path is allowed to carry: KWin resolves a keysym against the
 // ACTIVE keymap group only, so on a `de,ara` keymap in the German group an Arabic keysym — legacy
 // 0x05xx or 0x01000000+Unicode alike — resolves to no real key. Measured on a live KWin 6.7
