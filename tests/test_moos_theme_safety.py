@@ -615,6 +615,11 @@ target_lnf "$1" "$2"
             "WallpaperPlugin",
         ):
             self.assertIn(token, supplements)
+        self.assertIn(
+            '[ "$lock_image" = "$wallpaper_package" ] || return 1',
+            function(switch, "automatic_supplements_complete"),
+            "NovaLight must not satisfy Nova lockscreen readback by prefix",
+        )
         self.assertNotIn("plasma-apply-wallpaperimage", supplements)
         self.assertNotIn("kdeglobals", supplements)
 

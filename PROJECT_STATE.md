@@ -463,6 +463,18 @@ holds those constraints. This deliberately does **not** close the real open work
 a first-party rollback-menu design needs a tested bootupd-supported integration
 and boot photographs on an installed image.
 
+Lock wallpaper migration audit: both theme paths already wrote the selected
+wallpaper package to `kscreenlockerrc`, but existing v27 users never reached
+that write: the per-user marker exited on `theme_intact()` before the stricter
+`theme_complete()` lock check. Revision 28 now performs the one-time migration.
+The completion checks also changed from substring to exact equality; previously
+`MoOSUI2NovaLight` satisfied an expected `MoOSUI2Nova`, allowing a dark theme to
+retain its light lock wallpaper while every marker stayed green. Regression
+tests hold the revision, both exact readbacks, the image-plugin write, and the
+full theme-to-lock relationship. This is migration/configuration evidence only;
+an installed Plasma lock in Light and Dark still needs live screenshots before
+the visual result is claimed.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds

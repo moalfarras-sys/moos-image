@@ -543,7 +543,7 @@ automatic_supplements_complete() {
     lock_image="$(kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
         --group org.kde.image --group General --key Image 2>/dev/null)"
     [ "$lock_plugin" = org.kde.image ] || return 1
-    case "$lock_image" in *"$wallpaper_package"*) ;; *) return 1 ;; esac
+    [ "$lock_image" = "$wallpaper_package" ] || return 1
 
     konsole_actual="$(kreadconfig6 --file konsolerc --group "Desktop Entry" \
         --key DefaultProfile 2>/dev/null)"

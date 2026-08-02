@@ -39,7 +39,12 @@ set -uo pipefail
 #     (and of MoOSUI2*/hicolor moos-* trees left by live previews) — otherwise
 #     XDG_DATA_HOME keeps showing the retired Breeze-blue geometry forever while
 #     every gate on /usr stays green.
-THEME_REV=27
+# 28: lock-screen wallpaper becomes part of the theme contract for EXISTING users.
+#     The v27 marker short-circuited on theme_intact() before checking the lock
+#     wallpaper, so only fresh users received it. Re-apply once, then require an
+#     exact package match: NovaLight is not Nova merely because one name prefixes
+#     the other.
+THEME_REV=28
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -440,7 +445,7 @@ theme_complete() {
     theme_intact "$lnf" "$deco" || return 1
     desktop_wallpapers_complete "$wallpaper_package" || return 1
     lockscreen="$(current_lockscreen_wallpaper)" || return 1
-    case "$lockscreen" in *"$wallpaper_package"*) ;; *) return 1 ;; esac
+    [ "$lockscreen" = "$wallpaper_package" ]
 }
 
 # Which one should a repair restore? Whichever the user last chose. Only when the

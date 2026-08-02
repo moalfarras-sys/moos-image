@@ -794,6 +794,22 @@ class TestMoOSUI2(unittest.TestCase):
                               main_block.index("}", main_block.index("function onNotificationRepeated")) + 1]
         self.assertIn("if (sessionManager.motionEnabled)", repeated)
 
+    def test_lock_wallpaper_migrates_existing_users_and_matches_exactly(self) -> None:
+        apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
+        switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
+        self.assertIn(
+            "THEME_REV=28", apply,
+            "existing v27 users would exit before lock wallpaper reconciliation",
+        )
+        self.assertIn('[ "$lockscreen" = "$wallpaper_package" ]', apply)
+        self.assertNotIn('case "$lockscreen" in *"$wallpaper_package"*', apply)
+        self.assertIn('[ "$lock_image" = "$wallpaper_package" ] || return 1', switch)
+        for source, package_var in ((apply, "want_wallpaper_package"),
+                                    (switch, "wallpaper_package")):
+            self.assertIn("--file kscreenlockerrc --group Greeter", source)
+            self.assertIn("--key WallpaperPlugin org.kde.image", source)
+            self.assertIn(f'--key Image "${package_var}"', source)
+
     def test_session_controls_use_only_wcag_paired_foregrounds(self) -> None:
         """Security/session glyphs must sit on a scheme-paired flat colour.
 

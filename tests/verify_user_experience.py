@@ -2406,7 +2406,12 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=27" in apply_theme_code, "MoOS visual schema must be revision 27")
+require("THEME_REV=28" in apply_theme_code,
+        "MoOS visual schema must migrate existing users to the themed lock screen")
+require('[ "$lockscreen" = "$wallpaper_package" ]' in apply_theme_code,
+        "THEME_REV 28 must read back the exact lock wallpaper package, not a prefix")
+require('[ "$lock_image" = "$wallpaper_package" ] || return 1' in code(read("system_files/usr/bin/moos-theme")),
+        "manual/automatic theme switching must reject a light/dark lock wallpaper mismatch")
 require(
     "local_icons=" in apply_theme_code
     and "moos-*" in apply_theme_code
