@@ -556,6 +556,16 @@ directive placement as well as the Ollama/Speaches containers. No model was
 loaded on this off-image audit host; installed restart timing remains live-image
 evidence.
 
+Theme-sync failure lifecycle audit: `moos-theme-sync.path` correctly disables
+systemd's start-rate limiter because Plasma emits a burst of successful
+`kdeglobals` rewrites at ordinary login; restoring a start limit would fail the
+path for the session. But the paired service also used `Restart=on-failure`
+every five seconds, so a persistent Plasma/config write error could reconcile
+forever. Retry now lives in the service-only command and ends after three
+attempts with 2/4-second backoff. The path remains active for the next genuine
+theme change, while a persistent fault is visible and idle. Theme safety gates
+hold the unlimited successful path activations and the bounded failure budget.
+
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through

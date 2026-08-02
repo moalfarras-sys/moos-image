@@ -798,6 +798,24 @@ reconcile() {
     return 1
 }
 
+# Service-only retry boundary. Plasma can rewrite kdeglobals in the middle of a read, and
+# sync_auto deliberately reports that unstable snapshot as failure so a later pass sees the
+# final look. The old systemd Restart=on-failure supplied that retry forever: a persistent
+# kwriteconfig/Plasma failure therefore woke every five seconds for the rest of the session.
+# Three attempts cover the observed transition burst; after that the unit stays visibly failed.
+# The path remains active, so the next real Global Theme change starts a fresh bounded run.
+reconcile_service() {
+    local attempt delay
+    for attempt in 1 2 3; do
+        reconcile && return 0
+        [ "$attempt" -eq 3 ] && break
+        delay=$(( attempt * 2 ))
+        sleep "$delay"
+    done
+    echo "moos-theme: reconcile failed after 3 attempts" >&2
+    return 1
+}
+
 # Both automatic targets are the complete UI2 themes. That is the entire safety
 # property: Plasma resolves these by name when the switch fires, and a name it
 # cannot resolve sends it to Breeze — permanently, in the user's own kdeglobals.
@@ -997,7 +1015,7 @@ acquire_theme_lock() {
 command_name="${1:-status}"
 needs_theme_lock=0
 case "$command_name" in
-    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|toggle|auto|sync-auto|reconcile|undo|apply-lnf)
+    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|toggle|auto|sync-auto|reconcile|reconcile-service|undo|apply-lnf)
         needs_theme_lock=1
         ;;
     motion)
@@ -1169,6 +1187,11 @@ EOF
         # to sync_auto in automatic mode, otherwise carries the supplements a
         # manual GUI pick leaves behind (wallpaper scene, Konsole, GTK, lock).
         reconcile
+        ;;
+    reconcile-service)
+        # Private entry point for moos-theme-sync.service. Unlike a systemd restart loop,
+        # this retry budget ends even when the underlying desktop write remains broken.
+        reconcile_service
         ;;
     status)
         active="$(current)"

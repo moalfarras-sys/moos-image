@@ -536,23 +536,28 @@ target_lnf "$1" "$2"
         # the lock screen, so a GUI pick of e.g. "MoOS Nova" stranded Nova's colours on
         # the OLD wallpaper (measured live). `reconcile` delegates to sync_auto in
         # automatic mode and otherwise applies those missing supplements.
-        self.assertIn("ExecStart=/usr/bin/moos-theme reconcile", service)
+        self.assertIn("ExecStart=/usr/bin/moos-theme reconcile-service", service)
         self.assertIn("reconcile()", switch)
         # It must carry the MANUAL family, not only the two auto halves, or a GUI pick
         # of Nova/Amethyst/Midnight/Aurora still strands the wallpaper.
         reconcile_body = switch.split("reconcile() {", 1)[1].split("\n}\n", 1)[0]
         for fam in ("NOVA_LNF", "AMETHYST_LNF", "MIDNIGHT_LNF", "AURORA_LNF"):
             self.assertIn(fam, reconcile_body)
-        self.assertIn("Restart=on-failure", service)
+        self.assertNotRegex(service, r"(?m)^Restart=")
+        bounded = function(switch, "reconcile_service")
+        self.assertIn("for attempt in 1 2 3", bounded)
+        self.assertIn("reconcile && return 0", bounded)
+        self.assertIn('[ "$attempt" -eq 3 ] && break', bounded)
+        self.assertIn('sleep "$delay"', bounded)
         # The bound that matters is on the RUN (TimeoutStartSec), never on the RATE.
         # A path-triggered unit must not be rate-limited: Plasma rewrites kdeglobals
         # several times in the first seconds of a session, so the old 5-per-60s limit
         # turned an ordinary login into failed(start-limit-hit) — and systemd fails the
         # .path unit along with it, so the watch was dead for the rest of the session
         # and the sunrise/sunset supplements stopped following the theme. Reproduced on
-        # the maintainer's machine with eight touches of kdeglobals. Recursion is what
-        # the limit was really guarding against, and that is guaranteed structurally
-        # below — sync_auto never writes kdeglobals — not by counting starts.
+        # the maintainer's machine with eight touches of kdeglobals. Failure retries are
+        # bounded INSIDE one service run: rate limiting counts successful path activations
+        # too, while Restart=on-failure with the limiter disabled would loop forever.
         self.assertIn("StartLimitIntervalSec=0", service)
         self.assertNotIn("StartLimitBurst", service)
         self.assertIn("TimeoutStartSec=45s", service)
@@ -645,6 +650,51 @@ target_lnf "$1" "$2"
             "an 8s plasmashell timeout is not a failed apply",
         )
         self.assertIn('[ "$scene_status" -eq 2 ]', supplements)
+
+    @unittest.skipIf(os.name == "nt", "theme service retry harness requires POSIX shims")
+    def test_theme_service_failure_stops_after_three_attempts(self) -> None:
+        """A persistent desktop failure must become failed, not a five-second forever loop."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory(prefix="moos-theme-retry-") as temporary:
+            root = Path(temporary)
+            bindir = root / "bin"
+            bindir.mkdir()
+            log = root / "reads"
+            kread = bindir / "kreadconfig6"
+            kread.write_text(
+                """#!/bin/sh
+case "$*" in
+  *AutomaticLookAndFeel*) printf 'attempt\\n' >>"$MOOS_THEME_RETRY_LOG"; echo true ;;
+  *LookAndFeelPackage*) echo org.moos.ui2 ;;
+esac
+""",
+                encoding="utf-8",
+            )
+            kread.chmod(0o755)
+            sleep = bindir / "sleep"
+            sleep.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            sleep.chmod(0o755)
+            env = {
+                **os.environ,
+                "HOME": str(root / "home"),
+                "XDG_RUNTIME_DIR": str(root / "run"),
+                "MOOS_THEME_RETRY_LOG": str(log),
+                "PATH": f"{bindir}:{os.environ.get('PATH', '')}",
+            }
+            result = subprocess.run(
+                [BASH, str(SWITCH), "reconcile-service"],
+                env=env,
+                text=True,
+                capture_output=True,
+                timeout=10,
+                check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            # reconcile + sync_auto's before/after stability read = three reads per
+            # attempt. Nine proves exactly three attempts, neither one nor forever.
+            self.assertEqual(log.read_text(encoding="utf-8").splitlines(), ["attempt"] * 9)
+            self.assertIn("reconcile failed after 3 attempts", result.stderr)
 
     def test_wallpaper_motion_policy_is_atomic_and_picker_verifies_live_state(self) -> None:
         switch = SWITCH.read_text(encoding="utf-8")

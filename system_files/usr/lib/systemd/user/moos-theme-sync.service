@@ -2,7 +2,7 @@
 Description=Reconcile the complete MoOS theme after any Global Theme change
 After=plasma-workspace.target
 PartOf=plasma-workspace.target
-# No start rate limit, and that is the whole point. This unit is triggered by
+# No START rate limit, and that is the whole point. This unit is triggered by
 # moos-theme-sync.path watching ~/.config/kdeglobals, and Plasma rewrites that file
 # several times within the first seconds of a session (colours, fonts, theme init).
 # With the old 5-starts-per-60s limit that burst was enough to trip it on an ORDINARY
@@ -10,9 +10,10 @@ PartOf=plasma-workspace.target
 # in ~16 ms — and systemd then failed the .path unit with it. The watch was dead for the
 # rest of the session, so the theme supplements silently stopped following the
 # theme. Rate-limiting a 16 ms oneshot bought nothing and cost exactly the thing it was
-# attached to. (A self-trigger loop is not the risk it was guarding against: `reconcile`
-# and the `sync-auto` it delegates to never write kdeglobals — verified by hashing the
-# file across a run.)
+# attached to. Failure retry is bounded inside `reconcile-service`; it must never be
+# expressed as Restart=on-failure here, because a persistent write error plus a disabled
+# start limiter is an infinite five-second loop. (A self-trigger loop is not the risk:
+# reconcile never writes kdeglobals — verified by hashing the file across a run.)
 StartLimitIntervalSec=0
 
 [Service]
@@ -23,7 +24,5 @@ Type=oneshot
 # a GUI pick of e.g. "MoOS Nova" left Nova's colours on the OLD wallpaper. `reconcile`
 # delegates to `sync-auto` in automatic mode and otherwise applies the missing
 # supplements for whatever MoOS look is now current. Idempotent and kdeglobals-safe.
-ExecStart=/usr/bin/moos-theme reconcile
-Restart=on-failure
-RestartSec=5s
+ExecStart=/usr/bin/moos-theme reconcile-service
 TimeoutStartSec=45s
