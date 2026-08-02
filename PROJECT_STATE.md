@@ -448,6 +448,21 @@ test creates stale and live Unix listeners and proves preference, fallback and
 no-session failure. A real post-restart/private-desktop capture remains live-image
 evidence, not something this off-image test claims.
 
+Boot identity repair audit: the installed-system helper contradicted the known
+bootupd contract by invoking `grub2-mkconfig` against a static Atomic
+`grub.cfg`, then could print Done after that forbidden step failed. The image
+also carried an unreachable retired Nova GRUB theme and inert timeout/theme
+defaults, making dead assets look like implemented polish. The helper is now a
+read-only audit unless explicitly run as root with `--apply`; mutation is limited
+to a verified create-before-delete firmware label replacement and a conditional
+Plymouth repair. It never rewrites bootupd configuration, leaves the old entry
+when replacement verification fails, and no longer exposes raw foreign labels in
+its report. The dead Nova theme and inert knobs were removed from the shipped
+image, retaining only `GRUB_DISTRIBUTOR=MoOS` as compatibility identity. A gate
+holds those constraints. This deliberately does **not** close the real open work:
+a first-party rollback-menu design needs a tested bootupd-supported integration
+and boot photographs on an installed image.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds
