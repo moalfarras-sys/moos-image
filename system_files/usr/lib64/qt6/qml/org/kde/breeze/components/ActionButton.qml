@@ -155,8 +155,8 @@ PlasmaComponents3.AbstractButton {
     background: Rectangle {
         // The Tidal Portal key: a wide, calm threshold instead of a generic
         // circular icon button.
-        implicitWidth: Kirigami.Units.gridUnit * 5.4
-        implicitHeight: Kirigami.Units.gridUnit * 3.9
+        implicitWidth: Kirigami.Units.gridUnit * 6.6
+        implicitHeight: Kirigami.Units.gridUnit * 4.8
         // explicitly set size to keep it from expanding or shrinking
         width: implicitWidth
         height: implicitHeight
@@ -255,7 +255,7 @@ PlasmaComponents3.AbstractButton {
         }
         PlasmaComponents3.Label {
             anchors.horizontalCenter: parent.horizontalCenter
-            width: Math.min(implicitWidth, parent.width)
+            width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 6.2)
             text: root.Kirigami.MnemonicData.richTextLabel
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: Kirigami.Theme.backgroundColor // Unused without outline
@@ -264,9 +264,10 @@ PlasmaComponents3.AbstractButton {
             color: root.destructive ? Kirigami.Theme.negativeTextColor
                                     : Kirigami.Theme.textColor
             horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignTop
+            verticalAlignment: Text.AlignVCenter
             textFormat: Text.StyledText
-            wrapMode: Text.WordWrap
+            elide: Text.ElideRight
+            maximumLineCount: 1
         }
     }
 

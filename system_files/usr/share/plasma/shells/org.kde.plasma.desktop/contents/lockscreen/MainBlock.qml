@@ -43,6 +43,13 @@ import org.kde.breeze.components
 SessionManagementScreen {
     id: sessionManager
 
+    // The auth cluster lives ON the lock's Glass Island, which wears the
+    // Complementary surface set (see LockScreenUi's authCard). Inherit the
+    // same set here so every label, field and hint keeps its measured
+    // contrast against the island — visual only, never the auth path.
+    Kirigami.Theme.inherit: false
+    Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
+
     readonly property alias mainPasswordBox: passwordBox
     property bool lockScreenUiVisible: false
     property alias showPassword: passwordBox.showPassword

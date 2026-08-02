@@ -101,8 +101,25 @@ session (llvmpipe, real qml-qt6 + spectacle, per-palette schemes via the new
 `artwork/moos-ui2/preview-harness/make-preview.sh`):
 `artwork/moos-ui2/live-tests/redesign-2026-08-02/` holds before/after pairs —
 dark restart/halt/picker, Scholar-Light restart (Complementary island), and a
-full Arabic RTL picker with correct mirror flow. Lock, Login greeter and
-Splash remain the campaign's next slices and are NOT yet redesigned.
+full Arabic RTL picker with correct mirror flow. Slices 2+3, same session: the LOCK island and the LOGIN components now wear
+the identical language. The lock's authCard adopts the Complementary set (a
+deliberate dark glass slab on light palettes too, exactly like the power
+island), fill 0.58, unified 2-unit radius, sheen, and the same still
+three-step depth halo; the redundant accent pool was retired and the Tidal
+arc calms to 0.55 while the card is up so it frames from behind instead of
+cutting through (its previous 0.88 visibly crossed the translucent card).
+MainBlock inherits Complementary at its root — visual only, the auth path is
+untouched and its 8 gated durations are unchanged (LockScreenUi stays at
+exactly 6, breeze ActionButton at exactly 4). The shared breeze ActionButton
+becomes a real tile (6.6×4.8 grid units) whose caption sits INSIDE the key
+surface (elide, single line) — this reskins the lock's Sleep/Switch User row
+AND the compiled login greeter's power row at once. The greeter scene's
+package resolver finally honours the *Light families (an existing
+ScholarLight lock previously faced a Graphite-dark login background from the
+same package). The complete 70-command recipe passes after these slices.
+Splash remains deliberately unchanged this round (one reveal + progress,
+already on-language). Live lock/login captures on a booted image remain the
+required visual evidence and are the next step after CI.
 
 Previous update: 2026-08-01 — the Mo AI Workspace rebuild is merged on `main`,
 published and booted. GitHub Actions run `30704582346` built, pushed, cosign-

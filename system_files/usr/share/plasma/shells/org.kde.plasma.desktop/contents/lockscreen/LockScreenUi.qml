@@ -332,7 +332,7 @@ Item {
             surface: Kirigami.Theme.alternateBackgroundColor
             compact: parent.width < Kirigami.Units.gridUnit * 64
             reveal: 1
-            intensity: lockScreenRoot.uiVisible ? 0.88 : 0.52
+            intensity: lockScreenRoot.uiVisible ? 0.55 : 0.52
 
             Behavior on intensity {
                 NumberAnimation {
@@ -425,12 +425,18 @@ Item {
             y: mainStack.y + mainStack.height * 0.5 - height * 0.5
             width: Math.min(parent.width - Kirigami.Units.gridUnit * 4,
                             Kirigami.Units.gridUnit * 25)
-            height: Math.min(parent.height - Kirigami.Units.gridUnit * 8,
-                             Kirigami.Units.gridUnit * 32)
-            radius: Kirigami.Units.gridUnit * 2.5
+            height: Math.min(parent.height - Kirigami.Units.gridUnit * 6,
+                             Kirigami.Units.gridUnit * 35)
+            radius: Kirigami.Units.gridUnit * 2
+            // The lock island wears the SAME material as the power doorway's
+            // Glass Island: the Complementary surface set, so the card is a
+            // deliberate dark glass slab on light palettes too — one session
+            // language across lock and power.
+            Kirigami.Theme.inherit: false
+            Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
             color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                            Kirigami.Theme.backgroundColor.g,
-                           Kirigami.Theme.backgroundColor.b, 0.38)
+                           Kirigami.Theme.backgroundColor.b, 0.58)
             border.width: 1
             border.color: Qt.rgba(Kirigami.Theme.textColor.r,
                                   Kirigami.Theme.textColor.g,
@@ -451,6 +457,20 @@ Item {
                 }
             }
 
+            // Sheen — the glass catch-light across the island's upper field,
+            // painted from the (Complementary) foreground at whisper opacity.
+            Rectangle {
+                anchors { top: parent.top; left: parent.left; right: parent.right }
+                anchors.margins: 1
+                height: parent.height * 0.38
+                radius: parent.radius - 1
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.textColor.r,
+                        Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.05) }
+                    GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.textColor.r,
+                        Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.0) }
+                }
+            }
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
@@ -466,22 +486,37 @@ Item {
             }
         }
 
-        // A quiet accent pool gives the island depth without animated blur.
-        RadialGradient {
-            anchors.horizontalCenter: authCard.horizontalCenter
-            y: authCard.y - Kirigami.Units.gridUnit
-            width: authCard.width
-            height: authCard.height + Kirigami.Units.gridUnit * 10
-            visible: authCard.opacity > 0 && !lockScreenUi.softwareRendering
-            opacity: authCard.opacity * 0.68
+        // Depth halo — the same still three-step falloff as the power island,
+        // drawn as siblings BEHIND the card (z below), no offscreen effects.
+        Rectangle {
+            z: -1
+            anchors.fill: authCard
+            anchors.margins: -Kirigami.Units.gridUnit * 1.1
+            radius: authCard.radius + Kirigami.Units.gridUnit * 1.1
+            color: Qt.rgba(0, 0, 0, 0.04)
+            visible: authCard.visible
+            opacity: authCard.opacity
             scale: authCard.scale
-            horizontalRadius: width * 0.46
-            verticalRadius: height * 0.5
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(lockScreenUi.accentA.r, lockScreenUi.accentA.g, lockScreenUi.accentA.b, 0.17) }
-                GradientStop { position: 0.45; color: Qt.rgba(lockScreenUi.accentA.r, lockScreenUi.accentA.g, lockScreenUi.accentA.b, 0.06) }
-                GradientStop { position: 1.0; color: "transparent" }
-            }
+        }
+        Rectangle {
+            z: -1
+            anchors.fill: authCard
+            anchors.margins: -Kirigami.Units.gridUnit * 0.7
+            radius: authCard.radius + Kirigami.Units.gridUnit * 0.7
+            color: Qt.rgba(0, 0, 0, 0.06)
+            visible: authCard.visible
+            opacity: authCard.opacity
+            scale: authCard.scale
+        }
+        Rectangle {
+            z: -1
+            anchors.fill: authCard
+            anchors.margins: -Kirigami.Units.gridUnit * 0.35
+            radius: authCard.radius + Kirigami.Units.gridUnit * 0.35
+            color: Qt.rgba(0, 0, 0, 0.08)
+            visible: authCard.visible
+            opacity: authCard.opacity
+            scale: authCard.scale
         }
 
         // Jewel bloom behind the user avatar — a soft two-tone circle so the

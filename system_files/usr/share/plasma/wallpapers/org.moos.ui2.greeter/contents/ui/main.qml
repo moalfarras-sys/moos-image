@@ -43,12 +43,19 @@ WallpaperItem {
         if (/\.(jpg|jpeg|png|webp|avif)$/i.test(path)) {
             return path
         }
-        // A wallpaper package directory: prefer a dark 4K frame, else a light one.
-        if (path.indexOf("MoOSUI2Tide") >= 0) {
-            return path + "/contents/images/3840x2160.jpg"
-        }
+        // A wallpaper package directory. EVERY MoOS package ships both a
+        // light master under images/ and a dark one under images_dark/; the
+        // desktop scene plugin already picks by family name, and the greeter
+        // must agree with it — the login wallpaper is contractually the SAME
+        // image the lock shows, and an existing ScholarLight lock beside a
+        // Graphite-dark login was exactly the mismatch this used to produce.
         if (path.indexOf("MoOSUI2") >= 0) {
-            return path + "/contents/images_dark/3840x2160.jpg"
+            var base = path.replace(/\/+$/, "")
+            var isLight = /Light$/.test(base)
+                || /MoOSUI2Tide$/.test(base)
+                || /MoOSUI2Daylight$/.test(base)
+            return base + (isLight ? "/contents/images/3840x2160.jpg"
+                                   : "/contents/images_dark/3840x2160.jpg")
         }
         return path + "/contents/images/3840x2160.jpg"
     }
