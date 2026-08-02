@@ -34,6 +34,8 @@ checks = {
         "StartLimit" not in service_section,
     "a wedged sandbox can hold logout/reboot for the default 90 seconds":
         "TimeoutStopSec=30s" in service_section,
+    "a wedged OpenClaw preflight can pin the Telegram wake receiver":
+        "TimeoutStartSec=100s" in service_section,
     "the speech container can restart its 1.5 GB stack forever":
         "StartLimitIntervalSec=300" in speech and "StartLimitBurst=5" in speech,
     "the local brain container can restart/pull forever":

@@ -608,6 +608,20 @@ Tab stops. A focused source gate holds the composite boundary, both directions,
 activation and visible current state; live assistive traversal remains installed
 image evidence rather than a claim from this Qt-less host.
 
+Telegram wake lifecycle audit: `moai-wake` is intentionally the only lightweight
+resident receiver while the OpenClaw/AI stack sleeps, but every `systemctl --user`
+call was unbounded. A wedged user bus or gateway preflight therefore left the
+receiver process nominally active while it stopped polling Telegram forever;
+systemd's restart policy could not help a process that never exited. Fast status
+and reset calls now time out after five seconds, the gateway unit has an explicit
+100-second start boundary, and the client waits at most 110 seconds. A timed-out
+client performs one final active-state proof because killing `systemctl` does not
+cancel a unit that completed concurrently. Only then does it report and consume
+the failed wake update. Behavioural tests inject a hung systemctl client and prove
+bounded recovery; lifecycle and experience gates hold both timeout budgets and
+the existing no-fake-success ordering. No real Telegram message was sent during
+this source-host test.
+
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through

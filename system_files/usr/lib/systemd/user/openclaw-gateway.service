@@ -29,6 +29,10 @@ ExecStart=%h/.local/bin/openclaw gateway
 # restart by systemd design.
 Restart=always
 RestartSec=10
+# The wake receiver waits at most 110 seconds for `systemctl start`; keep the unit's own
+# preflight boundary inside that client budget so a wedged speech/brain start cannot leave the
+# only Telegram receiver blocked forever while systemd still calls it active.
+TimeoutStartSec=100s
 # Bound session shutdown. Rootless sandbox teardown normally takes seconds; a wedged child must not
 # hold logout/reboot behind systemd's 90-second default.
 TimeoutStopSec=30s

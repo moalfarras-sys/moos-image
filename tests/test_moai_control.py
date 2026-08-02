@@ -404,13 +404,71 @@ class RuntimeRelationshipTests(unittest.TestCase):
 
             with mock.patch.object(
                 scope["subprocess"], "run",
-                side_effect=lambda argv, check=False: calls.append(tuple(argv)) or Result(),
+                side_effect=lambda argv, **_kwargs: calls.append(tuple(argv)) or Result(),
             ):
                 self.assertFalse(wake["start_gateway"]())
             self.assertIn(
                 ("systemctl", "--user", "start", "openclaw-gateway.service"),
                 calls,
             )
+
+    def test_phone_wake_systemctl_calls_are_bounded(self):
+        with tempfile.TemporaryDirectory() as home:
+            wake = load_script(WAKE, home)
+            scope = wake["gateway_active"].__globals__
+
+            class Result:
+                returncode = 0
+
+            calls = []
+            with mock.patch.object(
+                scope["subprocess"], "run",
+                side_effect=lambda argv, **kwargs: calls.append((argv, kwargs)) or Result(),
+            ):
+                self.assertTrue(wake["gateway_active"]())
+            self.assertEqual(calls[0][1]["timeout"], 5)
+            self.assertIs(calls[0][1]["stdout"], subprocess.DEVNULL)
+            self.assertIs(calls[0][1]["stderr"], subprocess.DEVNULL)
+
+    def test_phone_wake_recovers_from_a_wedged_systemctl_client(self):
+        with tempfile.TemporaryDirectory() as home:
+            wake = load_script(WAKE, home)
+            scope = wake["start_gateway"].__globals__
+            calls = []
+
+            class Result:
+                returncode = 0
+
+            def run(argv, **kwargs):
+                calls.append((tuple(argv), kwargs.get("timeout")))
+                if "start" in argv:
+                    raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+                return Result()
+
+            scope["gateway_active"] = lambda: False
+            with mock.patch.object(scope["subprocess"], "run", side_effect=run):
+                self.assertFalse(wake["start_gateway"]())
+            self.assertIn(
+                (("systemctl", "--user", "start", "openclaw-gateway.service"), 110),
+                calls,
+            )
+
+    def test_phone_wake_accepts_a_gateway_that_won_the_timeout_race(self):
+        with tempfile.TemporaryDirectory() as home:
+            wake = load_script(WAKE, home)
+            scope = wake["start_gateway"].__globals__
+
+            class Result:
+                returncode = 0
+
+            def run(argv, **kwargs):
+                if "start" in argv:
+                    raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+                return Result()
+
+            scope["gateway_active"] = lambda: True
+            with mock.patch.object(scope["subprocess"], "run", side_effect=run):
+                self.assertTrue(wake["start_gateway"]())
 
     def test_phone_wake_acks_only_after_gateway_is_active(self):
         with tempfile.TemporaryDirectory() as home:

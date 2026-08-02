@@ -38,6 +38,8 @@ API = "https://api.telegram.org/bot{token}/{method}"
 LONG_POLL = 25          # getUpdates long-poll seconds
 IDLE_RECHECK = 8        # while OpenClaw owns the connection, re-check this often
 BACKOFF_MAX = 60
+SYSTEMCTL_PROBE_TIMEOUT = 5
+SYSTEMCTL_START_TIMEOUT = 110
 
 
 def log(msg):
@@ -60,23 +62,53 @@ def load_telegram():
 
 
 def gateway_active():
-    return subprocess.run(
-        ["systemctl", "--user", "is-active", "--quiet", GATEWAY_UNIT]
-    ).returncode == 0
+    try:
+        result = subprocess.run(
+            ["systemctl", "--user", "is-active", "--quiet", GATEWAY_UNIT],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=SYSTEMCTL_PROBE_TIMEOUT,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        # A wedged user bus must not wedge the only lightweight Telegram receiver.
+        # Returning false lets the Telegram conflict/backoff path remain live.
+        return False
+    return result.returncode == 0
 
 
 def start_gateway():
     log(f"waking {GATEWAY_UNIT}")
     # Clear any lingering "failed" from the previous sleep so this is a clean start
     # (openclaw's sandbox teardown can leave the unit failed-but-stopped).
-    subprocess.run(
-        ["systemctl", "--user", "reset-failed", GATEWAY_UNIT],
-        check=False,
-    )
-    started = subprocess.run(
-        ["systemctl", "--user", "start", GATEWAY_UNIT],
-        check=False,
-    )
+    try:
+        subprocess.run(
+            ["systemctl", "--user", "reset-failed", GATEWAY_UNIT],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=SYSTEMCTL_PROBE_TIMEOUT,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    try:
+        started = subprocess.run(
+            ["systemctl", "--user", "start", GATEWAY_UNIT],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=SYSTEMCTL_START_TIMEOUT,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        # Killing the systemctl client does not cancel a unit that completed in the
+        # meantime. Prove the final state once before consuming/reporting the update.
+        if gateway_active():
+            return True
+        log(f"start of {GATEWAY_UNIT} timed out")
+        return False
+    except OSError as exc:
+        log(f"could not invoke systemctl for {GATEWAY_UNIT}: {exc}")
+        return False
     if started.returncode != 0:
         log(f"could not start {GATEWAY_UNIT} (systemctl exit {started.returncode})")
         return False
