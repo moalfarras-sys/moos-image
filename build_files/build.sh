@@ -903,6 +903,14 @@ test ! -e /usr/share/applications/org.fcitx.Fcitx5.desktop \
 _convert_dict=/usr/lib64/qt6/libexec/qwebengine_convert_dict
 if [ -x "$_convert_dict" ]; then
     mkdir -p /usr/share/qt6/qtwebengine_dictionaries /tmp/dicts
+    # The SIGTRAPs above are expected and their cores carry zero signal, but the
+    # HOST's systemd-coredump still collects ~26 of them from every rootless
+    # local build — a 3-second crash burst that reads like a real incident in
+    # `coredumpctl list` (it derailed one live audit already). A zero core
+    # limit here keeps the build container's known crashes out of the host
+    # journal; the gate below still asserts the converted output, which is the
+    # only truth that matters.
+    ulimit -c 0 2>/dev/null || true
     _bdic=0
     for _dic in /usr/share/hunspell/*.dic; do
         [ -e "$_dic" ] || continue
