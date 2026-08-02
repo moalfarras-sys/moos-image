@@ -25,7 +25,20 @@ a space is ON the fast keysym path, so while Arabic letters waited in the new
 early — `"لسى في"` arriving as `"لس ىف"`. Whatever is gathering now owns the
 order: text arriving while a paste is pending joins the buffer even when it
 could take the instant path. Both contracts are gated in
-`tests/test_remote_clipboard_runtime.py` and in the C# suite. BUILD v34.
+`tests/test_remote_clipboard_runtime.py` and in the C# suite.
+
+The fix was then STRESS-PROVEN on the same live session: eight Arabic chunks
+injected back-to-back at full speed with the confirmed write arrived
+character-for-character identical to the source
+(`لسى في مشكلة بالكتابة و الشاشة تعلق كثير`), where the unconfirmed path had
+lost a whole word from three. Two other injection routes were tested and
+rejected on evidence, so nobody re-chases them: `wtype` is not installed, and
+`ydotool type` delivers only the spaces of an Arabic string — the clipboard
+is the only path that carries Arabic on this compositor. Finally the client's
+non-Latin coalescing rose 45 ms → 220 ms: 45 ms was SHORTER than the gap
+between two letters of ordinary typing, so every letter still paid for its
+own clipboard borrow; 220 ms is longer than that gap and shorter than a pause
+between words, so a word becomes one borrow. BUILD v35.
 
 Last updated: 2026-08-03 — **Mo PC Remote round 2, from the owner's own
 evidence.** The owner tried to type this session's report THROUGH the remote

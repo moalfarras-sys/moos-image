@@ -5,7 +5,7 @@ import { canDecodeH264 } from "./decode.ts";
 /** One 60 Hz frame: text the agent types by keysym must not wait longer than this. */
 const FAST_FLUSH_MS = 12;
 /** Text that needs a clipboard borrow batches into words instead of one round trip per letter. */
-const CLIPBOARD_FLUSH_MS = 45;
+const CLIPBOARD_FLUSH_MS = 220;
 /** Exactly what the agent can type by keysym — see InputInjector.TryDirectStrokes. */
 const FAST_TEXT = /^[a-zA-Z0-9 ]*$/;
 
@@ -315,9 +315,13 @@ export class RemoteConnection {
     //
     // Text it can inject by keysym goes out within one 60 Hz frame, exactly as before — English
     // typing must not get slower to serve Arabic. Anything else (Arabic, punctuation needing a
-    // shift level) is typed by briefly borrowing the clipboard, which costs a round trip per
-    // flush; at one frame that was one clipboard borrow PER LETTER. Batching those into words
-    // costs three frames nobody can feel and turns five round trips into one.
+    // shift level) is typed by briefly borrowing the clipboard, and that borrow is expensive: the
+    // agent must set the selection AND read it back before pasting, because wl-copy returns before
+    // the compositor will serve the new content (live-proven on 2026-08-03 — an unconfirmed paste
+    // dropped whole words). 45 ms was shorter than the gap between two letters of ordinary typing,
+    // so every letter still paid for its own borrow. 220 ms is longer than that gap and shorter
+    // than a pause between words, so a WORD becomes one borrow — which is the difference between
+    // Arabic that arrives and Arabic that arrives in pieces.
     //
     // The test mirrors the agent's own fast-path rule (InputInjector.TryDirectStrokes).
     const fast = FAST_TEXT.test(this.pendingText);
