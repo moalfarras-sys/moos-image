@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# moos-auto-update — advance a digest-pinned MoOS install to the latest signed image.
+#
+# WHY THIS EXISTS
+#
+# `moai-do update` deliberately stages an EXACT digest: the tag resolve happens
+# unprivileged, and Polkit escalates only an immutable object — never a mutable
+# tag. The cost of that (correct) boundary is that every install it has ever
+# touched carries a digest-pinned origin, and uupd's nightly `bootc upgrade`
+# cannot advance such an origin: the origin deliberately names the old object,
+# so background OS updates silently stopped on every machine that ever ran a
+# manual update, while Flatpaks kept flowing and the timer stayed green.
+#
+# This is the missing train. Same contract as the manual path — resolve the
+# official `:latest`, refuse anything but the three official editions, validate
+# the digest shape, rebase to the EXACT signed object — run nightly as root by
+# systemd (no Polkit: the service already is the privilege boundary, and the
+# rebase target is constructed here from an allowlist, never taken as input).
+# The signature policy in /etc/containers/policy.json still verifies every
+# pulled layer; staging keeps the previous deployment for rollback; nothing
+# reboots the machine — the update applies whenever the user next reboots.
+set -euo pipefail
+
+log() { echo "moos-auto-update: $*"; }
+
+command -v rpm-ostree >/dev/null 2>&1 || { log "no rpm-ostree here; nothing to do"; exit 0; }
+command -v skopeo >/dev/null 2>&1 || { log "skopeo missing; cannot resolve the registry"; exit 0; }
+command -v python3 >/dev/null 2>&1 || { log "python3 missing; cannot read deployment state"; exit 0; }
+
+status="$(rpm-ostree status --json)" || { log "rpm-ostree status failed"; exit 0; }
+
+# Never race another writer. A transaction in progress means an update, a
+# rollback or a manual stage is happening right now; the next nightly run
+# advances instead of corrupting this one.
+busy="$(python3 -c 'import json,sys
+d = json.load(sys.stdin)
+t = d.get("transaction")
+print(t if isinstance(t, str) else (" ".join(t) if t else ""))' <<<"$status")"
+if [ -n "$busy" ]; then
+    log "rpm-ostree is busy (${busy}); skipping this run"
+    exit 0
+fi
+
+ref="$(python3 -c '
+import json, sys
+for deployment in json.load(sys.stdin).get("deployments", []):
+    if deployment.get("booted"):
+        print(deployment.get("container-image-reference", ""))
+        break
+' <<<"$status")"
+
+registry="ghcr.io/moalfarras-sys"
+case "$ref" in
+    *"/moos-nvidia@"*|*"/moos-nvidia:"*) edition="moos-nvidia" ;;
+    *"/moos-cloud@"*|*"/moos-cloud:"*)   edition="moos-cloud" ;;
+    *"/moos@"*|*"/moos:"*)               edition="moos" ;;
+    *)
+        # A foreign or unrecognized origin is not ours to rewrite. Verified
+        # origins are moos-verify-origin's job; this unit only rides the train.
+        log "unrecognized origin '${ref}' — leaving it alone"
+        exit 0
+        ;;
+esac
+
+latest="$(skopeo inspect --format '{{.Digest}}' "docker://${registry}/${edition}:latest")" \
+    || { log "registry unreachable; will try again next run"; exit 0; }
+if ! printf '%s' "$latest" | grep -Eq '^sha256:[0-9a-f]{64}$'; then
+    log "refused invalid registry digest '${latest}'"
+    exit 1
+fi
+
+current="$(printf '%s' "$ref" | grep -Eo 'sha256:[0-9a-f]{64}' | tail -n 1 || true)"
+if [ "$latest" = "$current" ]; then
+    log "already on the latest signed image (${current})"
+    exit 0
+fi
+
+target="ostree-image-signed:docker://${registry}/${edition}@${latest}"
+log "staging ${edition} ${latest} (booted: ${current:-unknown})"
+if rpm-ostree rebase "$target"; then
+    log "staged — applies on the next reboot; the previous deployment remains available"
+else
+    log "rebase did not complete; will try again next run"
+    exit 1
+fi

@@ -1,0 +1,19 @@
+[Unit]
+Description=MoOS nightly signed-image update (the digest-pinned train)
+Documentation=file:///usr/libexec/moos-auto-update
+# uupd keeps owning Flatpak/distrobox refreshes. This unit owns the OS image on
+# digest-pinned installs, where `bootc upgrade` is a permanent no-op — see the
+# script header for the full story.
+Wants=network-online.target
+After=network-online.target uupd.service rpm-ostreed-automatic.service
+ConditionPathIsDirectory=/ostree/deploy
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/moos-auto-update
+# Same background manners as uupd's MoOS drop-in: a staged update is never
+# worth a stuttering session. An idle machine finishes at full speed anyway.
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+TimeoutStartSec=1800

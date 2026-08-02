@@ -2077,6 +2077,14 @@ getent group plugdev >/dev/null || groupadd -r plugdev
 # image so every deployment gets background updates by default.
 systemctl enable uupd.timer
 
+# uupd's `bootc upgrade` is a permanent no-op on a digest-pinned origin, and
+# `moai-do update` deliberately pins (exact-object privilege escalation) — so
+# every machine that ever updated manually fell OFF the background train while
+# the uupd timer stayed green. moos-auto-update is the missing OS leg: nightly
+# resolve of the official :latest to an exact digest, staged through the same
+# signature-enforcing transport. See /usr/libexec/moos-auto-update.
+systemctl enable moos-auto-update.timer
+
 # ONE UPDATER, NOT TWO.
 #
 # rpm-ostreed-automatic.timer is enabled in the base image and was left running

@@ -64,6 +64,24 @@ affected suites all pass; untouched suites are covered by the 70/70 run on
 memory/owner-work-discipline). The session identity is now purely the dark
 Glass Island: material, two-tone rim, crest tick.
 
+The same session's live audit found that **background OS updates were silently
+dead on every digest-pinned install**: `moai-do update` deliberately stages an
+exact digest (the Polkit boundary escalates only an immutable object), but
+uupd's nightly `bootc upgrade` cannot advance a digest-pinned origin — the
+maintainer desktop's bootc spec tracks `moos-nvidia@sha256:…`, so the enabled,
+green uupd timer updated Flatpaks and never the OS. The cloud host only
+advanced because its origin still tracks `:latest`. New
+`/usr/libexec/moos-auto-update` (+ service and 04:30 Persistent timer, enabled
+by build.sh for every edition) is the missing train: nightly unprivileged-shape
+resolve of the official `:latest`, official-editions allowlist (including
+moos-cloud), digest-shape validation, then an exact-digest
+`rpm-ostree rebase ostree-image-signed:docker://…@sha256:…` as root, skipping
+cleanly when rpm-ostreed has a transaction in flight.
+`tests/test_moos_auto_update.py` proves the argv boundary with command doubles
+(exact digest, no foreign origins, no invalid digests, no racing) and is wired
+into `just check` and the CI Repo-gates list. Live verification of the timer on
+a booted image is pending the next release boot.
+
 Previous update: 2026-08-02, evening — **the Complementary correction: the fix
 that makes the session islands actually read.** After the design image
 `44.20260802.512` booted, the live lock still rendered a pale ghost card on

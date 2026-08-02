@@ -31,6 +31,7 @@ check:
     python3 tests/verify_user_experience.py
     python3 tests/test_device_plan.py
     python3 tests/test_moai_do.py
+    python3 tests/test_moos_auto_update.py
     python3 tests/test_moai_waydroid.py
     python3 tests/test_moai_app_launch.py
     python3 tests/test_moai_control.py
