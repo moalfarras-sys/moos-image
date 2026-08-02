@@ -71,15 +71,23 @@ require(launchers == ["org.moos.remote.desktop"],
 # The server must only join a real Plasma workspace. default.target caused
 # root, SDDM, and the desktop user to race for port 8765 on real hardware.
 unit = read("system_files/usr/lib/systemd/user/mo-remote-personal.service")
+remote_start = read("system_files/usr/libexec/mo-remote-start")
 require("ConditionUser=!@system" in unit, "Mo Remote must reject system users")
 require("WantedBy=plasma-workspace.target" in unit,
         "Mo Remote must start with the Plasma workspace")
 require("WantedBy=default.target" not in unit,
         "Mo Remote must not be globally attached to default.target")
-require("WAYLAND_DISPLAY=wayland-0" not in unit,
+require("WAYLAND_DISPLAY=wayland-0" not in unit + remote_start,
         "Mo Remote must not guess the Wayland socket name")
-require("/usr/libexec/moos-wayland-display" in unit,
+require("ExecStart=/usr/libexec/mo-remote-start" in code(unit)
+        and "/usr/libexec/moos-wayland-display" in code(remote_start),
         "Mo Remote must resolve and probe a live Wayland socket")
+require("MO_REMOTE_ACQUIRE_ATTEMPTS" in code(remote_start)
+        and "/proc/${inhibit_pid}/task/${inhibit_pid}/children" in code(remote_start)
+        and 'kill -TERM -- "-${inhibit_pid}"' in code(remote_start)
+        and 'exec "$agent"' in code(remote_start),
+        "Mo Remote's optional sleep inhibitor must be observed and bounded; a wedged "
+        "logind/polkit call must fall through to the agent")
 
 remote_desktop = read("system_files/usr/share/applications/org.moos.remote.desktop")
 require("Exec=/usr/bin/mo-pc-remote" in remote_desktop,

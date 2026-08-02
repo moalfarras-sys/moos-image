@@ -485,6 +485,24 @@ fresh ticket is in flight, reopens it only for the new source, and checks both
 generation and `src` before and after the await.
 The controller test and repository security gate hold that lifecycle.
 
+Mo PC Remote startup-inhibitor audit: the user unit synchronously called
+`systemd-inhibit` once as a probe and then again around the agent. Either D-Bus/
+polkit acquisition could hang while Type=simple still presented an active unit;
+the second call also reopened a probe/execute race, so the documented fallback
+did not cover the call that actually mattered. `/usr/libexec/mo-remote-start`
+now resolves a connectable Wayland socket with a five-second bound, launches one
+real inhibit attempt in an isolated process group, and observes `/proc` for the
+agent child. A granted lock is retained for the agent's lifetime. Refusal, early
+exit or five seconds without a child terminates the complete attempt and `exec`s
+the same agent directly. After a successful acquisition only a tiny shell waiter
+remains to propagate the agent's real exit status to `Restart=on-failure`; no
+Python launcher stays resident. Behavioural tests prove a deliberately hung
+inhibitor falls back promptly, a granted inhibitor runs the agent exactly once,
+and the selected private Wayland display reaches it; a failing acquired agent also
+returns its exact status to systemd. The experience and Wayland gates
+now follow the indirection through the launcher; live logind inhibition remains
+built-session evidence.
+
 MoOS Cloud dashboard lifecycle audit: `ShowDashboard=false` previously changed
 only `bentoFrame.visible`; `DashboardBento` was still constructed, immediately
 started geolocation, kept its clock/weather/retry timers, and retained every card

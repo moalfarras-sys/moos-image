@@ -9,6 +9,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "system_files/usr/libexec/moos-wayland-display"
 UNIT = (ROOT / "system_files/usr/lib/systemd/user/mo-remote-personal.service").read_text()
+REMOTE_START = (ROOT / "system_files/usr/libexec/mo-remote-start").read_text()
 OPEN = (ROOT / "system_files/usr/bin/moai-open").read_text()
 SHOT = (ROOT / "system_files/usr/bin/moai-screenshot").read_text()
 
@@ -43,7 +44,8 @@ with tempfile.TemporaryDirectory(prefix="moos-wayland-empty-") as runtime:
     missing = run(runtime, "wayland-gone")
     assert missing.returncode != 0 and "no live Wayland compositor" in missing.stderr
 
-for surface, source in (("Remote", UNIT), ("Mo AI open", OPEN), ("Mo AI screenshot", SHOT)):
+assert "/usr/libexec/mo-remote-start" in UNIT, "Remote bypasses its bounded launcher"
+for surface, source in (("Remote", REMOTE_START), ("Mo AI open", OPEN), ("Mo AI screenshot", SHOT)):
     assert "/usr/libexec/moos-wayland-display" in source, f"{surface} bypasses the shared resolver"
     assert "WAYLAND_DISPLAY:-wayland-0" not in source, f"{surface} still guesses wayland-0"
 

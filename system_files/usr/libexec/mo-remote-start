@@ -1,0 +1,77 @@
+#!/usr/bin/bash
+# Start Mo PC Remote with one observed, bounded, optional logind sleep inhibitor.
+set -u
+
+resolver="${MO_REMOTE_WAYLAND_RESOLVER:-/usr/libexec/moos-wayland-display}"
+inhibitor="${MO_REMOTE_INHIBIT:-/usr/bin/systemd-inhibit}"
+agent="${MO_REMOTE_AGENT:-/usr/lib/mo-remote/MoRemotePersonal}"
+resolve_timeout="${MO_REMOTE_RESOLVE_TIMEOUT:-5}"
+acquire_attempts="${MO_REMOTE_ACQUIRE_ATTEMPTS:-100}"
+
+case "$resolve_timeout" in
+    ''|*[!0-9]*) resolve_timeout=5 ;;
+esac
+[ "$resolve_timeout" -ge 1 ] && [ "$resolve_timeout" -le 10 ] || resolve_timeout=5
+case "$acquire_attempts" in
+    ''|*[!0-9]*) acquire_attempts=100 ;;
+esac
+[ "$acquire_attempts" -ge 1 ] && [ "$acquire_attempts" -le 200 ] \
+    || acquire_attempts=100
+
+log() {
+    echo "mo-remote: $*" >&2
+}
+
+WAYLAND_DISPLAY="$(timeout --foreground --signal=TERM "${resolve_timeout}s" "$resolver")" \
+    || { log "Wayland resolver failed"; exit 1; }
+case "$WAYLAND_DISPLAY" in
+    ''|*$'\n'*) log "Wayland resolver returned an invalid display"; exit 1 ;;
+esac
+export WAYLAND_DISPLAY
+
+run_direct() {
+    log "no sleep inhibitor; starting agent directly"
+    exec "$agent"
+}
+
+# `setsid` gives the acquisition attempt its own process group, so a hung
+# systemd-inhibit and anything it started can be retired without touching this
+# launcher or another user process.
+setsid "$inhibitor" \
+    --what=sleep:idle \
+    --who=MoRemotePersonal \
+    --why=Remote-access-availability \
+    --mode=block \
+    "$agent" &
+inhibit_pid=$!
+
+attempt=0
+while [ "$attempt" -lt "$acquire_attempts" ]; do
+    children="$(cat "/proc/${inhibit_pid}/task/${inhibit_pid}/children" 2>/dev/null || true)"
+    if [ -n "$children" ]; then
+        # systemd-inhibit has acquired the lock and spawned the real agent. This
+        # tiny shell stays as the main process only to preserve the child's exit
+        # status for Restart=on-failure; no Python runtime remains resident.
+        log "sleep inhibitor acquired"
+        wait "$inhibit_pid"
+        exit $?
+    fi
+    if ! kill -0 "$inhibit_pid" 2>/dev/null; then
+        wait "$inhibit_pid" 2>/dev/null || true
+        run_direct
+    fi
+    sleep 0.05
+    attempt=$((attempt + 1))
+done
+
+log "sleep inhibitor acquisition timed out"
+kill -TERM -- "-${inhibit_pid}" 2>/dev/null || true
+for _stop_attempt in 1 2 3 4 5 6 7 8 9 10; do
+    kill -0 "$inhibit_pid" 2>/dev/null || break
+    sleep 0.05
+done
+if kill -0 "$inhibit_pid" 2>/dev/null; then
+    kill -KILL -- "-${inhibit_pid}" 2>/dev/null || true
+fi
+wait "$inhibit_pid" 2>/dev/null || true
+run_direct

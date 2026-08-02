@@ -63,6 +63,7 @@ check:
     # A connect burst must coalesce into ONE pipeline build, and idle teardown must stay immediate.
     python3 tests/test_remote_rebuild_debounce.py
     python3 tests/test_remote_connection_lifecycle.py
+    python3 tests/test_remote_start_lifecycle.py
     python3 tests/test_remote_async_lifecycle.py
     python3 tests/test_remote_logout_revocation.py
     python3 tests/test_remote_dotnet_dependencies.py
