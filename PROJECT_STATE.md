@@ -4,6 +4,29 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
+Last updated: 2026-08-03, round 3 — **the Arabic typing race, found by
+testing it live instead of reasoning about it.** The owner rejected the
+previous round's claim and demanded the fix be proven on the machine first.
+Injecting three Arabic words on the live Cloud session through the real
+compositor, exactly as the agent does it — `wl-copy` then Shift+Insert —
+produced `" في مشكلة "`: **the first word was gone entirely**. The same three
+words with a read-back between the copy and the paste produced
+`"لسى في مشكلة "`, intact. Root cause: `wl-copy` returns as soon as it has
+forked the process that will SERVE the selection, not when the compositor is
+handing that content to readers, so the paste raced the copy and delivered
+the previous clipboard (or nothing). `ClipboardBridge.SetTextConfirmed`
+now reads the clipboard back until it serves what was set (12 × 25 ms, then
+pastes anyway so a clipboard manager can never hang typing) and the typing
+path uses it; the unconfirmed `SetText` remains only for RESTORING the user's
+own clipboard after a borrow, where nothing races it.
+The same live evidence exposed a second reorder that round 2 had introduced:
+a space is ON the fast keysym path, so while Arabic letters waited in the new
+140 ms paste buffer the space was injected immediately and landed a letter
+early — `"لسى في"` arriving as `"لس ىف"`. Whatever is gathering now owns the
+order: text arriving while a paste is pending joins the buffer even when it
+could take the instant path. Both contracts are gated in
+`tests/test_remote_clipboard_runtime.py` and in the C# suite. BUILD v34.
+
 Last updated: 2026-08-03 — **Mo PC Remote round 2, from the owner's own
 evidence.** The owner tried to type this session's report THROUGH the remote
 and the message arrived scrambled with letters missing — that garbled text is

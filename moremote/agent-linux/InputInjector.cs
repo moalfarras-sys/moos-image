@@ -348,6 +348,23 @@ public sealed class InputInjector : IDisposable
 
         // Keysyms are typed one at a time, so a long run would crawl. Above a paragraph or so one
         // clipboard paste is far quicker, and the user is pasting anyway.
+        // ORDER BEFORE SPEED. If a paste is still gathering, this text belongs
+        // BEHIND it — even when it could take the instant keysym path. A space
+        // IS on the fast path, so "لسى في" split into an Arabic chunk (buffered)
+        // and a space chunk (injected immediately) arrived with its spaces one
+        // letter early: "لس ىف". Whatever is gathering owns the order until it
+        // is delivered.
+        lock (_pasteBuf)
+        {
+            if (_pending.Length > 0)
+            {
+                _pending.Append(text);
+                if (_pending.Length >= PasteCoalesceMax) { FlushPasteLocked(); }
+                else { _pasteTimer?.Change(PasteCoalesceMs, Timeout.Infinite); }
+                return;
+            }
+        }
+
         if (_portal.IsReady && text.Length <= BulkPasteThreshold && TryDirectStrokes(text, out var events)
             && _portal.Send(new { type = "keysyms", events })) return;
 
@@ -458,7 +475,10 @@ public sealed class InputInjector : IDisposable
             // we just pasted and hand the user that instead of what they had.
             _borrowedClip ??= ClipboardBridge.GetContent();
         }
-        if (!ClipboardBridge.SetText(text))
+        // SetTextConfirmed, never SetText: wl-copy returns before the selection is
+        // servable, and the Shift+Insert below used to race it — live-proven to
+        // drop whole words (see ClipboardBridge.SetTextConfirmed).
+        if (!ClipboardBridge.SetTextConfirmed(text))
         {
             Log.Warn("Clipboard typing aborted: wl-copy did not accept the text.");
             // This generation invalidated the preceding return timer. Keep ownership of the

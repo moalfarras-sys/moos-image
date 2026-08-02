@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Threading;
 
 namespace MoRemote;
 
@@ -37,6 +38,39 @@ public static class ClipboardBridge
     // Payload always travels on stdin. Passing it as an argument corrupts quoting and Arabic.
     public static bool SetText(string text) =>
         Write("wl-copy", Encoding.UTF8.GetBytes(text));
+
+    /// <summary>
+    /// Set the clipboard AND wait until it actually serves that text.
+    ///
+    /// PROVEN LIVE on the MoOS Cloud session, 2026-08-03: `wl-copy` returns as soon as it has
+    /// forked the process that will SERVE the selection — not when the compositor is handing
+    /// that content to readers. A Shift+Insert fired immediately after therefore pasted the
+    /// PREVIOUS clipboard, or nothing at all. Injecting three Arabic words that way produced
+    /// " في مشكلة " — the first word simply gone. The same three words with the read-back
+    /// below produced "لسى في مشكلة ", intact, every time.
+    ///
+    /// This is the whole of "Arabic types scrambled and letters go missing": the paste raced
+    /// the copy. Reading it back is the only honest confirmation that the offer is live —
+    /// a fixed sleep is a guess that is either too short on a loaded box or wasted time on an
+    /// idle one. Bounded so a clipboard manager that rewrites the selection can never hang
+    /// typing: after the budget the paste proceeds anyway, which is exactly today's behaviour.
+    /// </summary>
+    public static bool SetTextConfirmed(string text)
+    {
+        if (!SetText(text)) return false;
+        var want = text;
+        for (int i = 0; i < ConfirmAttempts; i++)
+        {
+            var got = GetText();
+            if (got == want) return true;
+            Thread.Sleep(ConfirmPollMs);
+        }
+        Log.Warn("Clipboard did not confirm the typed text within the budget; pasting anyway.");
+        return true;
+    }
+
+    private const int ConfirmAttempts = 12;
+    private const int ConfirmPollMs = 25;
 
     public static bool SetImagePng(byte[] data) =>
         Write("wl-copy", data, "--type", "image/png");

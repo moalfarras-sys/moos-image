@@ -192,6 +192,52 @@ Eq(true, devices[0].Current, "inventory marks the current device");
 Eq(true, restartedAuth.RevokeTrustedDevice(resumed, grant.DeviceId), "device can revoke itself");
 Eq(false, restartedAuth.ResumeTrustedDevice(grant.DeviceId, grant.DeviceToken, out _), "revoked device cannot resume");
 Directory.Delete(trustDir, true);
+// ── Clipboard typing: the copy must be CONFIRMED before the paste ───────────
+// Live-proven on the Cloud session (2026-08-03): wl-copy returns before the
+// selection is servable, so an immediate Shift+Insert pasted the previous
+// clipboard. Three Arabic words injected that way lost the first one entirely
+// (" في مشكلة "); with the read-back they arrived intact ("لسى في مشكلة ").
+// This asserts the SOURCE contract so the racy call can never come back.
+{
+    var injector = File.ReadAllText(Path.Combine(RepoRoot(), "agent-linux/InputInjector.cs"));
+    var bridge = File.ReadAllText(Path.Combine(RepoRoot(), "agent-linux/ClipboardBridge.cs"));
+    if (!injector.Contains("ClipboardBridge.SetTextConfirmed(text)"))
+        throw new Exception("clipboard typing must use the confirmed write");
+    if (injector.Contains("if (!ClipboardBridge.SetText(text))"))
+        throw new Exception("the unconfirmed SetText must not be used to type");
+    if (!bridge.Contains("GetText()") || !bridge.Contains("ConfirmAttempts"))
+        throw new Exception("SetTextConfirmed must read the clipboard back, bounded");
+    passed++;
+
+    // Ordering: nothing may overtake text already gathering for a paste — a
+    // space IS on the fast keysym path, which is how spaces landed one letter
+    // early inside Arabic ("لسى في" -> "لس ىف").
+    var typeText = injector[injector.IndexOf("public void TypeText")..];
+    typeText = typeText[..typeText.IndexOf("private const int BulkPasteThreshold")];
+    var guardAt = typeText.IndexOf("_pending.Length > 0");
+    var fastAt = typeText.IndexOf("TryDirectStrokes");
+    if (guardAt < 0 || fastAt < 0 || guardAt > fastAt)
+        throw new Exception("the pending-paste guard must precede the fast keysym path");
+    passed++;
+
+    foreach (var m in new[] { "public void KeyTap", "public void KeyDown", "public void Combo" })
+    {
+        var body = injector[injector.IndexOf(m)..];
+        body = body[..Math.Min(body.Length, 420)];
+        if (!body.Contains("FlushPendingText"))
+            throw new Exception(m + " must flush pending text so keys cannot reorder an edit");
+        passed++;
+    }
+}
+
+static string RepoRoot()
+{
+    var dir = AppContext.BaseDirectory;
+    while (dir is not null && !Directory.Exists(Path.Combine(dir, "agent-linux")))
+        dir = Path.GetDirectoryName(dir);
+    return dir ?? throw new Exception("could not locate the moremote tree");
+}
+
 Console.WriteLine($"PASS: {passed} mapping/validation/Unicode tests");
 
 sealed class FailingReadStream : Stream

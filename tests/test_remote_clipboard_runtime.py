@@ -29,8 +29,24 @@ checks = {
         api.count('error = "clipboard_unavailable"') == 2
         and "ClipboardBridge.SetText" in api and "ClipboardBridge.SetImagePng" in api,
     "remote Unicode typing pastes even when wl-copy rejected its payload":
-        "if (!ClipboardBridge.SetText(text))" in injector
+        "if (!ClipboardBridge.SetTextConfirmed(text))" in injector
         and "Clipboard typing aborted" in injector and "ScheduleClipboardReturn(gen);" in injector,
+    # LIVE-PROVEN on the Cloud session, 2026-08-03: wl-copy returns as soon as it has forked the
+    # process that will SERVE the selection, not when the compositor hands that content to readers.
+    # Three Arabic words injected with an immediate Shift+Insert produced " في مشكلة " — the first
+    # word gone. The same three with the read-back below produced "لسى في مشكلة ", intact. That
+    # race IS "Arabic types scrambled and letters go missing".
+    "the paste still races the copy — wl-copy returns before the selection is servable":
+        "SetTextConfirmed" in linux and "ConfirmAttempts" in linux
+        and "GetText()" in linux
+        and "if (!ClipboardBridge.SetText(text))" not in injector,
+    # A space is ON the fast keysym path, so while Arabic waited in the paste buffer the space was
+    # injected immediately and landed a letter early ("لسى في" -> "لس ىف"). Whatever is gathering
+    # owns the order until it is delivered.
+    "a fast-path character can still overtake text already gathering for a paste":
+        injector.index("_pending.Length > 0") < injector.index("TryDirectStrokes(text, out var events)")
+        and all("FlushPendingText" in injector.split(member, 1)[1][:420]
+                for member in ("public void KeyTap", "public void KeyDown", "public void Combo")),
     "no behavioural proof exercises a genuinely hung helper and an oversized result":
         '"sleep 20"' in tests and "clipboard timeout is real and bounded" in tests
         and "oversized clipboard output is rejected" in tests,
