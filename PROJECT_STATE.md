@@ -161,6 +161,14 @@ The committed PWA is v16; Linux and Windows agents build with zero warnings,
 controller tests/typecheck/build pass, and the complete repo check recipe is
 green. No destructive power command was run on the audit host. Image compose,
 installed Cloud service behavior and a real tailnet/phone session remain open.
+A later Windows audit found that Sign out, Restart and Shut down still returned
+`true` immediately after `Process.Start`, including a null process or a command
+that exited nonzero. They now invoke the absolute System32 `shutdown.exe` with a
+fixed argument list, wait at most five seconds for acceptance, and return false
+on start failure, timeout or nonzero exit. A cross-platform execution harness
+proves accepted, rejected, hung and missing-command cases; the Windows agent
+builds with zero warnings and the repository power-policy gate covers the new
+boundary. No destructive action was invoked—the harness uses inert test commands.
 
 Mo PC Remote transfer/authentication audit, later on 2026-08-01 (`67e58e6a`):
 native downloads and the HTML audio element embedded the reusable session bearer

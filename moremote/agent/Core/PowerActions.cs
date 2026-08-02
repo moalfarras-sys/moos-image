@@ -10,6 +10,8 @@ namespace MoRemote;
 /// </summary>
 public static class PowerActions
 {
+    internal readonly record struct Command(string FileName, string[] Arguments);
+
     public static bool HostPowerAllowed => true;
 
     public static bool CanRun(string action) => action.ToLowerInvariant() is
@@ -25,9 +27,9 @@ public static class PowerActions
                 case "lock": return LockWorkStation();
                 case "sleep": return SetSuspendState(false, false, false);
                 case "signout":
-                case "logoff": Shell("shutdown", "/l"); return true;
-                case "restart": Shell("shutdown", "/r /t 0"); return true;
-                case "shutdown": Shell("shutdown", "/s /t 0"); return true;
+                case "logoff": return Execute(ShutdownCommand("/l"), action);
+                case "restart": return Execute(ShutdownCommand("/r", "/t", "0"), action);
+                case "shutdown": return Execute(ShutdownCommand("/s", "/t", "0"), action);
                 default:
                     Log.Warn($"Unknown power action '{action}'.");
                     return false;
@@ -36,8 +38,47 @@ public static class PowerActions
         catch (Exception ex) { Log.Error($"Power action '{action}' failed.", ex); return false; }
     }
 
-    private static void Shell(string file, string args) =>
-        Process.Start(new ProcessStartInfo(file, args) { UseShellExecute = false, CreateNoWindow = true });
+    private static Command ShutdownCommand(params string[] arguments) =>
+        new(Path.Combine(Environment.SystemDirectory, "shutdown.exe"), arguments);
+
+    internal static bool Execute(Command command, string action, int timeoutMs = 5_000)
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = command.FileName,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            foreach (var argument in command.Arguments)
+                startInfo.ArgumentList.Add(argument);
+
+            using var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                Log.Warn($"Power action '{action}' could not start.");
+                return false;
+            }
+            if (!process.WaitForExit(timeoutMs))
+            {
+                try { process.Kill(entireProcessTree: true); } catch { }
+                Log.Warn($"Power action '{action}' timed out before it was accepted.");
+                return false;
+            }
+            if (process.ExitCode != 0)
+            {
+                Log.Warn($"Power action '{action}' was rejected (exit {process.ExitCode}).");
+                return false;
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Power action '{action}' failed.", ex);
+            return false;
+        }
+    }
 
     [DllImport("user32.dll", SetLastError = true)] private static extern bool LockWorkStation();
     [DllImport("powrprof.dll", SetLastError = true)]

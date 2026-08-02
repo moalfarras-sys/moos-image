@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 build = (ROOT / "build_files/build.sh").read_text(encoding="utf-8")
 linux = (ROOT / "moremote/agent-linux/PowerActions.cs").read_text(encoding="utf-8")
+windows = (ROOT / "moremote/agent/Core/PowerActions.cs").read_text(encoding="utf-8")
 api = (ROOT / "moremote/agent/Web/WebApi.cs").read_text(encoding="utf-8")
 ui = (ROOT / "moremote/controller/src/ui/RemoteScreen.tsx").read_text(encoding="utf-8")
 
@@ -20,6 +21,13 @@ checks = {
     "the phone does not gate the complete session/power surface in Cloud":
         'hostPowerAllowed ? <div className="grid">' in ui
         and "shared, passwordless Cloud session" in ui,
+    "Windows reports power success before shutdown.exe accepts the command":
+        "return Execute(ShutdownCommand" in windows
+        and "process.WaitForExit(timeoutMs)" in windows
+        and "process.ExitCode != 0" in windows
+        and 'Path.Combine(Environment.SystemDirectory, "shutdown.exe")' in windows,
+    "Windows power execution can invoke a shell or concatenate arguments":
+        "UseShellExecute = false" in windows and "startInfo.ArgumentList.Add(argument)" in windows,
 }
 failed = [message for message, passed in checks.items() if not passed]
 if failed:
