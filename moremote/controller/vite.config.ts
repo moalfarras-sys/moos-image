@@ -55,6 +55,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Generated Workbox owns caching; this tiny reviewed script owns only the
+        // notification-click route back to the already-open controller.
+        importScripts: ["/notification-sw.js"],
         // Cache only the app shell; the live stream is never cached.
         globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
         navigateFallback: null,

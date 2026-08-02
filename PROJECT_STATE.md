@@ -374,6 +374,20 @@ A service restart intentionally invalidates in-memory upload sessions, and a rea
 interrupted large transfer on a physical phone remains open evidence; automatic
 background folder sync is not claimed.
 
+Remote private-background-alert audit (PWA v29): the controller can now opt in,
+from its Settings sheet and a direct user gesture, to two generic phone alerts:
+an interrupted desktop connection and a completed upload. The boundary requires
+a secure installed/service-worker context, stays silent while the controller is
+visible, and exposes an event union rather than arbitrary title/body text, so a
+later caller cannot accidentally mirror desktop notifications, filenames,
+clipboard data or credentials. Tapping the alert focuses the existing controller
+window or opens it. The worker adds no polling and the feature remains disabled
+by default. Seven controller suites, TypeScript, the production PWA build, npm
+audit (zero findings), Linux and Windows .NET builds (zero warnings), the shipped
+bundle gate and the complete repository check pass. This is not Web Push: a fully
+closed or OS-suspended phone app receives nothing, and live iOS/Android evidence
+over Tailscale HTTPS remains open.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds

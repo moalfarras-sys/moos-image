@@ -10,6 +10,7 @@ import {
   type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
 import { pickStartPreset, readDeviceHints, describeHints } from "../lib/quality";
+import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
   IconAltTab, IconActual, IconChevronDown, IconClipboard, IconCopy, IconEnter, IconEsc, IconFit,
@@ -326,6 +327,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   // right for a 3D view and wrong for everything else. Opt in per taste, remembered per browser.
   const [pointerLock,setPointerLock]=usePref("pointerLock",false);
   const [haptics,setHaptics]=usePref("haptics",true);
+  const [backgroundAlerts,setBackgroundAlerts]=usePref("backgroundAlerts",false);
   /**
    * Which way up the desktop is drawn — AND WHETHER THAT IS THE APP'S DECISION OR THE USER'S.
    *
@@ -350,6 +352,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   const naturalScrollRef=useRef(naturalScroll);naturalScrollRef.current=naturalScroll;
   const pointerLockRef=useRef(pointerLock);pointerLockRef.current=pointerLock;
   const hapticsRef=useRef(haptics);hapticsRef.current=haptics;
+  const backgroundAlertsRef=useRef(backgroundAlerts);backgroundAlertsRef.current=backgroundAlerts;
   /**
    * Magnify around the caret while the keyboard is up.
    *
@@ -410,6 +413,26 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       toastTimer.current = null;
       setToast((t) => (t === m ? null : t));
     }, 1900);
+  };
+
+  const toggleBackgroundAlerts = async () => {
+    if (backgroundAlerts && remoteAlertPermission() === "granted") {
+      setBackgroundAlerts(false);
+      showToast("Background alerts off");
+      return;
+    }
+    if (remoteAlertPermission() === "unsupported") {
+      setBackgroundAlerts(false);
+      showToast("Background alerts need the installed HTTPS app");
+      return;
+    }
+    if (await requestRemoteAlertPermission()) {
+      setBackgroundAlerts(true);
+      showToast("Background alerts on");
+    } else {
+      setBackgroundAlerts(false);
+      showToast("Notification permission was not granted");
+    }
   };
 
   useEffect(() => {
@@ -733,7 +756,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       },
       onStopped: () => setStatus("stopped"),
       onAuthFail: () => onExit(),
-      onClose: () => { lastVal.current = ""; setMods(new Set()); setStatus((s) => (s === "stopped" || s === "idle" ? s : "reconnecting")); },
+      onClose: () => {
+        lastVal.current = ""; setMods(new Set());
+        setStatus((s) => (s === "stopped" || s === "idle" ? s : "reconnecting"));
+        if (!disposed && backgroundAlertsRef.current) {
+          void showRemoteAlert("connection-interrupted");
+        }
+      },
       onPong: (rtt) => { const v = Math.round(rtt); setLatency(v); latRef.current = v; },
       onIdle: () => setStatus("idle"),
       onScreen: (avail) => setScreenOk(avail),
@@ -1600,6 +1629,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
         await uploadFile(token, dir, f, (sent, total) =>
           setUploadProgress(`${f.name} · ${Math.floor(sent * 100 / total)}%`));
       }
+      if (backgroundAlertsRef.current) {
+        void showRemoteAlert("upload-complete");
+      }
       showToast(`Uploaded ${files.length} to PC`); await navFiles(dir);
     }
     catch { showToast("Upload paused — select the same file to resume"); }
@@ -2145,6 +2177,15 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
             <Row title="Magnify while typing"
                  sub="When the keyboard opens, the desktop lifts clear of it and zooms to the cursor so you can read the line you are writing.">
               <Switch on={typingZoom} onToggle={() => setTypingZoom(v => !v)} />
+            </Row>
+          </div>
+
+          <div className="sec-label">Alerts</div>
+          <div className="card">
+            <Row title="Background alerts"
+                 sub="Generic connection and transfer alerts only. Desktop notifications, filenames and clipboard content never leave the PC.">
+              <Switch on={backgroundAlerts && remoteAlertPermission() === "granted"}
+                      onToggle={() => void toggleBackgroundAlerts()} />
             </Row>
           </div>
 
