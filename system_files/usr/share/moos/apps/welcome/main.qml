@@ -33,6 +33,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "../ui" as MoOSUi
 import "../ui/SymbolCatalog.js" as MoOSSymbols
+import "../ui/KeyboardViewport.js" as KeyboardViewport
 
 ApplicationWindow {
     id: win
@@ -86,6 +87,13 @@ ApplicationWindow {
     component FocusRing: MoOSUi.FocusRing {
         accentColor: win.accent
     }
+
+    // Keyboard focus is useful only while it remains visible. Optional-app cards and the
+    // install queue live in clipped Flickables; before this window-level hook, Tab could move
+    // onto a perfectly focused card below the fold while the viewport stayed still. Walk every
+    // Flickable ancestor because a future control may be nested in both a horizontal and a
+    // vertical pane. This is the same contract as Mo Store, not a wizard-only approximation.
+    onActiveFocusItemChanged: KeyboardViewport.revealFocus(win.activeFocusItem)
 
     // TYPE SCALES WITH THE USER'S FONT SIZE, and until now it did not.
     //
@@ -1510,6 +1518,7 @@ ApplicationWindow {
                     Item { Layout.preferredHeight: win.fs(20) }
 
                     Flickable {
+                        id: appsFlick
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         contentWidth: width
@@ -1517,6 +1526,7 @@ ApplicationWindow {
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                        Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(appsFlick, event)
 
                         GridLayout {
                             id: appsGrid
@@ -1708,6 +1718,7 @@ ApplicationWindow {
                     Item { Layout.preferredHeight: win.fs(18) }
 
                     Flickable {
+                        id: installFlick
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         contentWidth: width
@@ -1715,6 +1726,7 @@ ApplicationWindow {
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                        Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(installFlick, event)
 
                         ColumnLayout {
                             id: installCol

@@ -35,6 +35,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "../ui" as MoOSUi
 import "../ui/SymbolCatalog.js" as MoOSSymbols
+import "../ui/KeyboardViewport.js" as KeyboardViewport
 
 ApplicationWindow {
     id: win
@@ -60,6 +61,12 @@ ApplicationWindow {
     component FocusRing: MoOSUi.FocusRing {
         accentColor: win.accent
     }
+
+    // Keep the keyboard cursor and the viewport together. The disk, account and timezone
+    // pages all clip overflowing content; previously Tab could focus an off-screen control and
+    // Page Up/Down did nothing. Resolve every Flickable/ListView ancestor so this also covers
+    // delegates instantiated below the fold and remains correct when the layout is nested.
+    onActiveFocusItemChanged: KeyboardViewport.revealFocus(win.activeFocusItem)
 
     // TYPE SCALES WITH THE USER'S FONT SIZE, and until now it did not.
     //
@@ -1001,6 +1008,7 @@ ApplicationWindow {
 
                     // disk list
                     Flickable {
+                        id: diskFlick
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         visible: !win.probing && win.eligibleDisks().length > 0
@@ -1009,6 +1017,7 @@ ApplicationWindow {
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                        Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(diskFlick, event)
 
                         ColumnLayout {
                             id: diskCol
@@ -1349,12 +1358,14 @@ ApplicationWindow {
             Item {
                 id: acctPage
                 Flickable {
+                    id: accountFlick
                     anchors.fill: parent
                     contentWidth: width
                     contentHeight: acctCol.implicitHeight + 28
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                    Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(accountFlick, event)
 
                     ColumnLayout {
                         id: acctCol
@@ -1634,6 +1645,7 @@ ApplicationWindow {
                             model: win.zonesFiltered()
                             currentIndex: -1
                             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                            Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(zoneList, event)
 
                             // Scroll the pick into view, or the promise above is a lie: sorted
                             // alphabetically this list parks on "Africa › Abidjan", so the page

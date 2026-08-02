@@ -19,6 +19,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "../ui" as MoOSUi
 import "../ui/SymbolCatalog.js" as MoOSSymbols
+import "../ui/KeyboardViewport.js" as KeyboardViewport
 
 ApplicationWindow {
     id: win
@@ -1029,44 +1030,7 @@ ApplicationWindow {
     //      Flickable ancestors clip it (the app grid, the chip row, the detail sheet);
     //   2. PageDown/PageUp move each content pane via pageScrollKeys(), reached by key
     //      bubbling from any focused item inside the pane.
-    onActiveFocusItemChanged: win.revealFocus(win.activeFocusItem)
-
-    function revealFocus(item) {
-        if (!item) return
-        var pad = 12
-        for (var flick = item.parent; flick; flick = flick.parent) {
-            // Only Flickables (and their subclasses, e.g. GridView) carry all three.
-            if (flick.contentItem === undefined || flick.contentY === undefined
-                    || flick.flicking === undefined) continue
-            var pos = item.mapToItem(flick.contentItem, 0, 0)
-            if (flick.contentHeight > flick.height) {
-                var yMin = flick.originY || 0
-                var yMax = yMin + flick.contentHeight - flick.height
-                if (pos.y < flick.contentY + pad)
-                    flick.contentY = Math.max(yMin, pos.y - pad)
-                else if (pos.y + item.height > flick.contentY + flick.height - pad)
-                    flick.contentY = Math.min(yMax, pos.y + item.height + pad - flick.height)
-            }
-            if (flick.contentWidth > flick.width) {
-                var xMin = flick.originX || 0
-                var xMax = xMin + flick.contentWidth - flick.width
-                if (pos.x < flick.contentX + pad)
-                    flick.contentX = Math.max(xMin, pos.x - pad)
-                else if (pos.x + item.width > flick.contentX + flick.width - pad)
-                    flick.contentX = Math.min(xMax, pos.x + item.width + pad - flick.width)
-            }
-        }
-    }
-
-    // One viewport minus a 10% overlap, clamped to the ends.
-    function pageScrollKeys(flick, event) {
-        if (event.key !== Qt.Key_PageDown && event.key !== Qt.Key_PageUp) return
-        var yMin = flick.originY || 0
-        var yMax = Math.max(yMin, yMin + flick.contentHeight - flick.height)
-        var step = flick.height * 0.9 * (event.key === Qt.Key_PageDown ? 1 : -1)
-        flick.contentY = Math.max(yMin, Math.min(yMax, flick.contentY + step))
-        event.accepted = true
-    }
+    onActiveFocusItemChanged: KeyboardViewport.revealFocus(win.activeFocusItem)
 
     component ActionButton: MoOSUi.Button {
         id: action
@@ -1631,7 +1595,7 @@ ApplicationWindow {
                     contentHeight: discoverBody.implicitHeight + 48
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
-                    Keys.onPressed: (event) => win.pageScrollKeys(discoverFlick, event)
+                    Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(discoverFlick, event)
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     ColumnLayout {
                         id: discoverBody
@@ -2100,7 +2064,7 @@ ApplicationWindow {
                         cellWidth: width / columnCount
                         cellHeight: 192
                         boundsBehavior: Flickable.StopAtBounds
-                        Keys.onPressed: (event) => win.pageScrollKeys(appGrid, event)
+                        Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(appGrid, event)
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                         delegate: Item {
                             id: gridCell
@@ -2162,7 +2126,7 @@ ApplicationWindow {
                     contentWidth: width
                     contentHeight: categoryBody.implicitHeight + 44
                     clip: true
-                    Keys.onPressed: (event) => win.pageScrollKeys(categoriesFlick, event)
+                    Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(categoriesFlick, event)
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     ColumnLayout {
                         id: categoryBody
@@ -2282,7 +2246,7 @@ ApplicationWindow {
                     contentWidth: width
                     contentHeight: updateBody.implicitHeight + 50
                     clip: true
-                    Keys.onPressed: (event) => win.pageScrollKeys(updatesFlick, event)
+                    Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(updatesFlick, event)
                     ColumnLayout {
                         id: updateBody
                         x: 26
@@ -2552,7 +2516,7 @@ ApplicationWindow {
                     contentWidth: width
                     contentHeight: sourceBody.implicitHeight + 50
                     clip: true
-                    Keys.onPressed: (event) => win.pageScrollKeys(sourcesFlick, event)
+                    Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(sourcesFlick, event)
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     ColumnLayout {
                         id: sourceBody
@@ -2950,7 +2914,7 @@ ApplicationWindow {
             contentWidth: width
             contentHeight: detailBody.implicitHeight
             clip: true
-            Keys.onPressed: (event) => win.pageScrollKeys(detailFlick, event)
+            Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(detailFlick, event)
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
             ColumnLayout {
                 id: detailBody

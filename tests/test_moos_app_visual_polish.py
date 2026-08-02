@@ -256,6 +256,56 @@ class FirstPartyAppMotionTests(unittest.TestCase):
         )
 
 
+class FirstPartyKeyboardViewportTests(unittest.TestCase):
+    def test_shared_helper_keeps_focus_visible_and_page_scroll_bounded(self) -> None:
+        helper = (UI / "KeyboardViewport.js").read_text(encoding="utf-8")
+        for token in (
+            "function revealFocus(item)",
+            "item.mapToItem(flick.contentItem, 0, 0)",
+            "flick.contentHeight > flick.height",
+            "flick.contentWidth > flick.width",
+            "Math.max(yMin",
+            "Math.min(yMax",
+            "function pageScrollKeys(flick, event)",
+            "Qt.Key_PageDown",
+            "Qt.Key_PageUp",
+            "flick.height * 0.9",
+            "event.accepted = true",
+        ):
+            self.assertIn(token, helper)
+
+    def test_store_welcome_and_installer_share_one_focus_reveal_contract(self) -> None:
+        expected_panes = {
+            "store": (
+                "discoverFlick", "appGrid", "categoriesFlick", "updatesFlick",
+                "sourcesFlick", "detailFlick",
+            ),
+            "welcome": ("appsFlick", "installFlick"),
+            "installer": ("diskFlick", "accountFlick", "zoneList"),
+        }
+        for app, panes in expected_panes.items():
+            source = (APPS / app / "main.qml").read_text(encoding="utf-8")
+            with self.subTest(app=app):
+                self.assertIn(
+                    'import "../ui/KeyboardViewport.js" as KeyboardViewport',
+                    source,
+                )
+                self.assertIn(
+                    "onActiveFocusItemChanged: KeyboardViewport.revealFocus(win.activeFocusItem)",
+                    source,
+                )
+                # The algorithm belongs to the shared design-system helper; no application
+                # keeps a private copy or compatibility wrapper.
+                self.assertNotIn("mapToItem(flick.contentItem", source)
+                self.assertNotIn("function pageScrollKeys(", source)
+                for pane in panes:
+                    self.assertIn(f"id: {pane}", source)
+                    self.assertIn(
+                        f"Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys({pane}, event)",
+                        source,
+                    )
+
+
 class SharedQmlDesignSystemTests(unittest.TestCase):
     def test_tokens_are_the_reviewed_app_contract_and_are_adopted(self) -> None:
         tokens = (UI / "Tokens.qml").read_text(encoding="utf-8")

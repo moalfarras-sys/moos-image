@@ -566,6 +566,17 @@ attempts with 2/4-second backoff. The path remains active for the next genuine
 theme change, while a persistent fault is visible and idle. Theme safety gates
 hold the unlimited successful path activations and the bounded failure budget.
 
+First-run keyboard viewport audit: Welcome's optional-app and install-queue
+panes, plus the installer's disk, account and timezone panes, allowed Tab to
+move focus below a clipped viewport without scrolling it; Page Up/Down had no
+page action there. The previously proven Mo Store algorithm now lives once in
+`apps/ui/KeyboardViewport.js`: every first-party wizard reveals the focused
+control through all nested Flickable/ListView ancestors and moves page keys by
+90% of the viewport with hard origin/end clamps. A focused visual regression
+gate holds the shared algorithm and every pane binding. This host has no Qt/KDE
+runtime, so source construction and the gate are evidence here; a live Tab walk
+on the built image remains part of the next installed visual pass.
+
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through
