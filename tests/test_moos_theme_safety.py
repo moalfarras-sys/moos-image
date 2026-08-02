@@ -987,3 +987,70 @@ fi
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class SteadyStateWallpaperReconcileTests(unittest.TestCase):
+    """The steady-state guard: a green marker must not keep a drifted wallpaper.
+
+    Plasma flushes its in-memory config on shutdown, so a lost race can put
+    ANOTHER MoOS package back on a themed desktop (seen live 2026-08-02: a
+    Scholar-Light session rebooted into a Graphite desktop wallpaper with every
+    marker green). moos-apply-theme now reconciles package-level drift on every
+    login while never touching a custom image file the user picked on purpose.
+    """
+
+    APPLY = ROOT / "system_files/usr/bin/moos-apply-theme"
+
+    def test_marker_exit_reconciles_first(self) -> None:
+        text = self.APPLY.read_text(encoding="utf-8")
+        self.assertIn('reconcile_wallpaper_drift "$lnf"\n        exit 0', text,
+                      "the theme_intact early exit must reconcile wallpaper "
+                      "drift before trusting the marker")
+
+    def test_only_moos_packages_are_healed(self) -> None:
+        text = self.APPLY.read_text(encoding="utf-8")
+        body = text.split("reconcile_wallpaper_drift() {", 1)[1].split("\n}", 1)[0]
+        self.assertEqual(body.count("/usr/share/wallpapers/MoOSUI2*)"), 2,
+                         "desktop AND lock heal must key on the MoOSUI2 package "
+                         "prefix — a custom image path must never match")
+        self.assertIn('"$pkg"|"") ;;', body,
+                      "a matching package and an unreadable value must both be "
+                      "left alone")
+
+    def test_family_mapping_matches_the_shipped_packages(self) -> None:
+        """Run the real lnf_wallpaper_package for all 16 looks."""
+        text = self.APPLY.read_text(encoding="utf-8")
+        fn = "lnf_wallpaper_package() {" + text.split(
+            "lnf_wallpaper_package() {", 1)[1].split("\n}\n", 1)[0] + "\n}"
+        expected = {
+            "org.moos.ui2": "MoOSUI2Graphite",
+            "org.moos.ui2.light": "MoOSUI2Tide",
+            "org.moos.ui2.nova": "MoOSUI2Nova",
+            "org.moos.ui2.nova.light": "MoOSUI2NovaLight",
+            "org.moos.ui2.amethyst": "MoOSUI2Amethyst",
+            "org.moos.ui2.amethyst.light": "MoOSUI2AmethystLight",
+            "org.moos.ui2.midnight": "MoOSUI2Midnight",
+            "org.moos.ui2.midnight.light": "MoOSUI2MidnightLight",
+            "org.moos.ui2.aurora": "MoOSUI2Aurora",
+            "org.moos.ui2.aurora.light": "MoOSUI2AuroraLight",
+            "org.moos.ui2.daylight": "MoOSUI2Daylight",
+            "org.moos.ui2.gaming": "MoOSUI2Arena",
+            "org.moos.ui2.gaming.light": "MoOSUI2ArenaLight",
+            "org.moos.ui2.dev": "MoOSUI2Forge",
+            "org.moos.ui2.dev.light": "MoOSUI2ForgeLight",
+            "org.moos.ui2.study": "MoOSUI2Scholar",
+            "org.moos.ui2.study.light": "MoOSUI2ScholarLight",
+        }
+        for lnf, package in expected.items():
+            with self.subTest(lnf=lnf):
+                out = subprocess.run(
+                    ["bash", "-c", fn + f'\nlnf_wallpaper_package "{lnf}"'],
+                    capture_output=True, text=True)
+                self.assertEqual(out.returncode, 0, out.stderr)
+                self.assertEqual(out.stdout.strip(),
+                                 f"/usr/share/wallpapers/{package}")
+        out = subprocess.run(
+            ["bash", "-c", fn + '\nlnf_wallpaper_package "org.kde.breeze"'],
+            capture_output=True, text=True)
+        self.assertNotEqual(out.returncode, 0,
+                            "a non-MoOS look must never map to a package")

@@ -575,12 +575,96 @@ pin_sound_theme() {
 }
 pin_sound_theme
 
+# Read the value the desktop scene is actually configured with (first desktop):
+# prefer the running shell, fall back to the persisted file. Empty = cannot tell.
+current_desktop_wallpaper_value() {
+    local result config
+    if command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
+        result="$(timeout 4s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+            -m org.kde.PlasmaShell.evaluateScript '
+                var ds = desktops();
+                if (ds.length > 0) {
+                    ds[0].currentConfigGroup = ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
+                    print("WPV:" + ds[0].readConfig("Image", ""));
+                }
+            ' 2>/dev/null)" || result=""
+        result="$(printf '%s\n' "$result" | grep -oE 'WPV:[^"]*' | head -n1)"
+        if [ -n "$result" ]; then
+            printf '%s\n' "${result#WPV:}"
+            return 0
+        fi
+    fi
+    config="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
+    [ -r "$config" ] || return 1
+    awk -F= '
+        /^\[Containments\]\[[^]]+\]\[Wallpaper\]\[org\.moos\.ui2\.wallpaper\]\[General\]$/ { hit = 1; next }
+        /^\[/ { hit = 0 }
+        hit && $1 == "Image" { print $2; exit }
+    ' "$config"
+}
+
+# Which wallpaper package belongs to a MoOS look. Mirrors the main apply table;
+# returns 1 for a non-MoOS look (never guess).
+lnf_wallpaper_package() {
+    local rest="${1#org.moos.ui2}" fam light=""
+    rest="${rest#.}"
+    case "$rest" in *.light) light="Light"; rest="${rest%.light}" ;; esac
+    case "$rest" in
+        "")        [ -n "$light" ] || { echo /usr/share/wallpapers/MoOSUI2Graphite; return 0; } ;;
+        light)     echo /usr/share/wallpapers/MoOSUI2Tide; return 0 ;;
+        nova)      fam=Nova ;;
+        amethyst)  fam=Amethyst ;;
+        midnight)  fam=Midnight ;;
+        aurora)    fam=Aurora ;;
+        daylight)  echo /usr/share/wallpapers/MoOSUI2Daylight; return 0 ;;
+        gaming)    fam=Arena ;;
+        dev)       fam=Forge ;;
+        study)     fam=Scholar ;;
+        *)         return 1 ;;
+    esac
+    [ -n "$fam" ] || return 1
+    echo "/usr/share/wallpapers/MoOSUI2${fam}${light}"
+}
+
+# STEADY-STATE wallpaper reconcile — runs on EVERY login, even when the marker
+# says this revision already applied. Plasma flushes its in-memory config on
+# shutdown, and one lost race (or a second compositor for the same account) can
+# quietly put ANOTHER MoOS package back on a themed desktop; seen live on the
+# Cloud host, where a Scholar-Light session woke up wearing Graphite again after
+# a reboot despite a green marker. The rule: a MoOSUI2 *package* that is not the
+# active theme's package is drift and heals; anything else (a custom image file
+# the user picked on purpose) is a durable choice and is never touched.
+reconcile_wallpaper_drift() {
+    local pkg current lock
+    pkg="$(lnf_wallpaper_package "$1")" || return 0
+    current="$(current_desktop_wallpaper_value)" || current=""
+    case "${current%/}" in
+        "$pkg"|"") ;;
+        /usr/share/wallpapers/MoOSUI2*)
+            echo "steady-state: desktop wallpaper '${current}' != '${pkg}' — healing" >>"$log" 2>/dev/null || true
+            apply_desktop_scene "$pkg" || true
+            ;;
+    esac
+    lock="$(current_lockscreen_wallpaper)" || lock=""
+    case "${lock%/}" in
+        "$pkg"|"") ;;
+        /usr/share/wallpapers/MoOSUI2*)
+            echo "steady-state: lock wallpaper '${lock}' != '${pkg}' — healing" >>"$log" 2>/dev/null || true
+            command -v kwriteconfig6 >/dev/null 2>&1 && kwriteconfig6 --file kscreenlockerrc \
+                --group Greeter --group Wallpaper --group org.kde.image --group General \
+                --key Image "$pkg" 2>/dev/null || true
+            ;;
+    esac
+    return 0
+}
+
 migration_completed=false
 if [ -e "$marker" ]; then
     migration_completed=true
     lnf="$(current_lookandfeel)" || exit 0   # cannot tell → trust the marker, as before
     deco="$(current_decoration)" || exit 0
     if theme_intact "$lnf" "$deco"; then
+        reconcile_wallpaper_drift "$lnf"
         exit 0
     fi
     echo "=== moos-apply-theme $(date -u '+%FT%TZ') === SELF-HEAL: look-and-feel='${lnf:-unset}' decoration='${deco:-unset}'" >>"$log" 2>/dev/null || true
