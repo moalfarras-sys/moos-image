@@ -64,7 +64,6 @@ class MoOSSettingsTests(unittest.TestCase):
             "Accessible.role: Accessible.Button",
             "MoOSUi.FocusRing",
             "MoOSUi.Button",
-            "MoOSUi.TidalHorizon",
             'property string searchQuery: ""',
             "visibleCommands",
             "status.deployment.signed",
@@ -75,17 +74,9 @@ class MoOSSettingsTests(unittest.TestCase):
             self.assertIn(contract, qml)
         self.assertGreaterEqual(qml.count("Accessible.role: Accessible.Button"), 3)
         self.assertGreaterEqual(qml.count("MoOSSymbols.resolve("), 12)
-        self.assertEqual(qml.count("MoOSUi.TidalHorizon {"), 1)
-        tidal = qml[qml.index("MoOSUi.TidalHorizon {"):]
-        tidal = tidal[:tidal.index("\n                        }")]
-        for palette_binding in (
-            "surfaceColor: hero.color",
-            "primaryColor: win.accent",
-            "secondaryColor: win.linkColor",
-            "luminousColor: win.accentText",
-            "motionEnabled: win.motionEnabled",
-        ):
-            self.assertIn(palette_binding, tidal)
+        # The Tidal arc is retired (owner verdict 2026-08-02): the hero field
+        # must stay a calm themed surface with no full-screen curve.
+        self.assertNotIn("TidalHorizon", qml)
         self.assertNotIn("font.family:", qml)
         self.assertNotIn("Animation.Infinite", qml)
         self.assertNotIn("Qt.openUrlExternally(command", qml)
