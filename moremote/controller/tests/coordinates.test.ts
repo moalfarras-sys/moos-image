@@ -48,6 +48,43 @@ assert.ok(Number(clipMs[1]) >= 150 && Number(clipMs[1]) <= 320,
 // The client's fast-path test must match the agent's, or text routes down the wrong path.
 assert.match(ws, /FAST_TEXT = \/\^\[a-zA-Z0-9 \]\*\$\//);
 
+// A coalescing window is a window in which the text does not exist yet on the far side, so
+// ANYTHING that moves the caret has to close it first. Key events always did; pointer events did
+// not, and widening the window to 220 ms turned that into a routine way to lose a word: type an
+// Arabic word, tap Send inside the window, and the tap is delivered first — so the word pastes
+// into whatever the tap just focused. down/click/dblclick are the caret-moving senders; `move`
+// and `scroll` deliberately are not (a pointer that only travels moves no caret, and flushing on
+// motion would defeat the gather).
+for (const sender of ["down", "click", "dblclick"]) {
+  const body = ws.match(new RegExp(`\\n  ${sender}\\(([^)]*)\\)\\s*\\{([^}]*)\\}`));
+  assert.ok(body, `ws.ts must define a ${sender}() sender`);
+  assert.match(body[2], /this\.flushText\(\)/,
+    `${sender}() must flush pending text before it is sent, or a tap inside the coalescing ` +
+    `window lands before the word and the word is pasted into the newly focused control`);
+}
+// The debounce re-arms on every keystroke, so continuous input (dictation, swipe typing) would
+// never reach a quiet gap. Both bounds must exist, and the size one must not exceed the agent's
+// own gather cap (InputInjector.PasteCoalesceMax).
+const coalesceMax = ws.match(/TEXT_COALESCE_MAX = (\d+)/);
+const coalesceMaxMs = ws.match(/TEXT_COALESCE_MAX_MS = (\d+)/);
+assert.ok(coalesceMax && coalesceMaxMs,
+  "ws.ts must bound the coalescing buffer by both size and age — a re-arming debounce alone " +
+  "can hold a growing buffer for as long as the user keeps typing, and a dropped socket loses it");
+assert.ok(Number(coalesceMax[1]) <= 240,
+  `the client cap must not exceed the agent's PasteCoalesceMax, got ${coalesceMax[1]}`);
+assert.ok(Number(coalesceMaxMs[1]) >= Number(clipMs[1]) && Number(coalesceMaxMs[1]) <= 1000,
+  `the age cap must be at least one window and still imperceptible, got ${coalesceMaxMs[1]}ms`);
+
+// Arrow keys move the caret VISUALLY in Qt's default LogicalMoveStyle, so inside an RTL run
+// ArrowLeft walks forward. The autocorrect middle-diff may only walk the caret when the text is
+// not bidirectional; otherwise it must rewrite the whole tail, which needs no arrows at all.
+const screen = readFileSync(new URL("../src/ui/RemoteScreen.tsx", import.meta.url), "utf8");
+assert.match(screen, /const walk = sf > 0 && !bidi/,
+  "the autocorrect caret walk must be disabled for bidirectional text — ArrowLeft moves FORWARD " +
+  "through Arabic, so walking would delete the shared suffix and scramble the word");
+assert.match(screen, /if \(walk\) for \(let i = 0; i < sf; i\+\+\) c\.keyTap\("ArrowLeft"\)/,
+  "both arrow walks must be gated on the same flag as the shortened delete/retype");
+
 // ---------------------------------------------------------------------------------------------
 // The TURNED view: a desktop drawn a quarter turn round so a phone held upright is not 74% black.
 //

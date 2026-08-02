@@ -187,12 +187,18 @@ public sealed class InputInjector : IDisposable
         }
     }
 
-    public void Click(string button, double x, double y) { MouseMove(x, y); ClickCode(Button(button)); }
-    public void ClickCurrent(string button) => ClickCode(Button(button));
-    public void DoubleClick(double x, double y) { MouseMove(x, y); DoubleClickCurrent(); }
+    // A button press moves the caret, so it must land AFTER any text still waiting in
+    // the paste gather — exactly like KeyTap/KeyDown/Combo already do. Without this,
+    // a tap that arrives inside the gather window executes first and the gathered word
+    // is pasted into whatever that tap just focused. MouseMove is deliberately NOT
+    // flushed: moving the pointer alone changes no caret, and flushing on every motion
+    // event would defeat the gather entirely.
+    public void Click(string button, double x, double y) { FlushPendingText(); MouseMove(x, y); ClickCode(Button(button)); }
+    public void ClickCurrent(string button) { FlushPendingText(); ClickCode(Button(button)); }
+    public void DoubleClick(double x, double y) { FlushPendingText(); MouseMove(x, y); DoubleClickCurrent(); }
     public void DoubleClickCurrent() { ClickCode(BtnLeft); Thread.Sleep(40); ClickCode(BtnLeft); }
-    public void MouseButton(string button, bool down, double x, double y) { MouseMove(x, y); Set(Button(button), down); }
-    public void MouseButtonCurrent(string button, bool down) => Set(Button(button), down);
+    public void MouseButton(string button, bool down, double x, double y) { FlushPendingText(); MouseMove(x, y); Set(Button(button), down); }
+    public void MouseButtonCurrent(string button, bool down) { FlushPendingText(); Set(Button(button), down); }
 
     private void ClickCode(ushort code) { Set(code, true); Thread.Sleep(25); Set(code, false); }
     private static ushort Button(string b) =>

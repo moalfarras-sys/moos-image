@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# moos-cloud-console-order — take /dev/console off the serial port on cloud
+# installs that still boot with the unsafe console ordering.
+#
+# WHY THIS EXISTS
+#
+# MoOS Cloud used to pass `console=tty0 console=ttyS0,115200n8`. The kernel
+# gives /dev/console to the LAST console= argument, so every userspace write to
+# the console went out the emulated UART. When the provider's serial console is
+# not being drained, that UART's ring fills and the write blocks in the kernel
+# — with no timeout, and with no way for the writer to know.
+#
+# On the owner's netcup VPS on 2026-08-02 the writer that blocked was PID 1:
+#
+#   /proc/1/stack:  wait_woken -> n_tty_write -> iterate_tty_write
+#                   -> redirected_tty_write -> vfs_writev
+#
+# A systemd that is stuck inside write(2) answers no D-Bus calls and reaps no
+# children. `systemctl` hung, dbus-activated services hung, nothing could be
+# launched, and a zombie rpm-ostree from the owner's own update sat unreaped.
+# Load average was 0.02 — the machine was not overloaded, it was blocked. From
+# the outside it looked exactly like "the update made MoOS Cloud slow and it
+# stopped opening applications".
+#
+# The image now ships `console=ttyS0,115200n8 console=tty0` so the kernel log
+# still reaches the serial console (the kernel writes to every console= device)
+# while /dev/console lands on a virtual terminal, which writes into a screen
+# buffer and cannot block on an absent consumer.
+#
+# bootc's kargs.d cannot deliver that to a machine that is already installed:
+# the argument SET did not change, only the order, so the diff is empty. This
+# unit therefore repairs the live kargs once, through rpm-ostree. It stages the
+# change like any other update — the next reboot the owner performs applies it.
+# It never reboots the machine itself.
+#
+# HOW TO REMOVE THIS: when no MoOS Cloud install predating 2026-08-02 is left,
+# delete this file, its unit, its `systemctl enable` in build.sh and the gate in
+# tests/test_cloud_console_order.py.
+set -euo pipefail
+
+log() { echo "moos-cloud-console-order: $*"; }
+
+state_dir=/var/lib/moos
+marker="${state_dir}/console-order-repaired.v1"
+[ -e "$marker" ] && { log "already repaired once; nothing to do"; exit 0; }
+
+command -v rpm-ostree >/dev/null 2>&1 || { log "no rpm-ostree; not an image install"; exit 0; }
+
+cmdline="$(tr '\0' ' ' < /proc/cmdline 2>/dev/null || true)"
+
+# Which console= comes LAST is the whole question: that is the one the kernel
+# hands /dev/console to. Read the live command line rather than any file we
+# ship, because a hand-edited karg outranks everything in the image.
+last_console=""
+for arg in $cmdline; do
+    case "$arg" in
+        console=*) last_console="$arg" ;;
+    esac
+done
+
+case "$last_console" in
+    "")
+        log "no console= karg on this machine; nothing to repair"
+        exit 0
+        ;;
+    console=ttyS*)
+        log "unsafe ordering: /dev/console is ${last_console#console=} — a stalled"
+        log "provider console can block PID 1 and freeze the whole machine"
+        ;;
+    *)
+        log "safe ordering already: /dev/console is ${last_console#console=}"
+        mkdir -p "$state_dir" 2>/dev/null || true
+        : > "$marker" 2>/dev/null || true
+        exit 0
+        ;;
+esac
+
+# Do not race another writer: a staged deployment plus a concurrent rpm-ostree
+# transaction is how a sysroot gets confused. Try again on the next boot.
+if ! busy="$(rpm-ostree status --json 2>/dev/null)"; then
+    log "rpm-ostree is not answering; will retry next boot"
+    exit 0
+fi
+if printf '%s' "$busy" | python3 -c '
+import json, sys
+transaction = json.load(sys.stdin).get("transaction")
+sys.exit(0 if transaction else 1)
+' 2>/dev/null; then
+    log "an rpm-ostree transaction is in flight; will retry next boot"
+    exit 0
+fi
+
+# --append-if-missing/--delete-if-present are not universally available, so
+# delete exactly what we saw and append the safe order explicitly. Every value
+# here is a literal from this script — nothing is taken from the environment.
+serial_console="$last_console"
+if rpm-ostree kargs \
+        --delete="$serial_console" \
+        --delete=console=tty0 \
+        --append=console=ttyS0,115200n8 \
+        --append=console=tty0; then
+    mkdir -p "$state_dir" 2>/dev/null || true
+    : > "$marker" 2>/dev/null || true
+    log "repaired: /dev/console will be tty0 after the next reboot; the kernel log"
+    log "still reaches ${serial_console#console=}"
+else
+    log "could not rewrite the kargs; leaving the machine exactly as it was"
+    exit 1
+fi

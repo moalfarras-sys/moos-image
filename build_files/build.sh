@@ -3375,9 +3375,35 @@ SSHD
 # web console prints nothing and SSH never comes up, so the only remaining move
 # is to reinstall and lose the machine's state.
 #
-# ttyS0 is listed LAST on purpose — the kernel sends /dev/console output to the
-# last console= given, which is where the serial log has to land on a headless
-# host.
+# tty0 is listed LAST, and that ordering is now load-bearing SAFETY, not taste.
+#
+# WHAT HAPPENED (live, 2026-08-02, the owner's netcup VPS): ttyS0 used to be
+# last, so /dev/console resolved to the serial port. Nothing on the host side
+# was draining that port, the emulated UART's ring filled, and the next
+# userspace write to /dev/console blocked in the kernel — forever:
+#
+#   /proc/1/stack:  wait_woken -> n_tty_write -> iterate_tty_write
+#                   -> redirected_tty_write -> vfs_writev
+#
+# PID 1 IS the one that blocked. With systemd stuck mid-write it stopped
+# answering D-Bus and stopped reaping children (a zombie rpm-ostree from the
+# owner's own update sat there unreaped), so `systemctl` hung, every
+# dbus-activated service hung, and no application could start. Load average was
+# 0.02 the whole time: the box was not busy, it was blocked. The owner
+# experienced it as "after the update MoOS Cloud went slow and stopped opening
+# apps", and could not even reboot it from the shell.
+#
+# The kernel prints to EVERY console= device, so listing ttyS0 first keeps the
+# whole serial boot log — the reason the karg exists. Only /dev/console (systemd
+# status lines, the emergency shell, console logins) follows the LAST device,
+# and tty0 is a virtual terminal: it writes into a screen buffer and cannot
+# block on a consumer that is not there. serial-getty@ttyS0 still offers an
+# interactive serial login, independent of /dev/console.
+#
+# Existing cloud installs keep the dangerous order until their kargs are
+# rewritten — bootc's kargs.d diff sees the same SET of arguments and will not
+# reorder them. moos-cloud-console-order (a one-shot unit, below) detects the
+# unsafe live order and repairs it through rpm-ostree.
 #
 # video=Virtual-1:1920x1080@60 is what stops the desktop being 1280x800.
 #
@@ -3395,9 +3421,10 @@ SSHD
 # It is affordable only because the bento dashboard is off on this edition — with
 # it on, 2.25x the pixels would have multiplied a 158% repaint. Measured after the
 # change: plasmashell render 5% at 1920x1080 versus 4% at 1280x800.
-kargs = ["console=tty0", "console=ttyS0,115200n8", "video=Virtual-1:1920x1080@60"]
+kargs = ["console=ttyS0,115200n8", "console=tty0", "video=Virtual-1:1920x1080@60"]
 KARGS
     systemctl enable serial-getty@ttyS0.service
+    systemctl enable moos-cloud-console-order.service
     echo "=== cloud edition: serial console on ttyS0, splash kargs withdrawn ==="
 
     # --- 3. No GPU means no free effects ------------------------------------

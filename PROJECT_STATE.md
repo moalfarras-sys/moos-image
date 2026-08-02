@@ -4,7 +4,58 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-03, round 3 — **the Arabic typing race, found by
+Last updated: 2026-08-03, round 4 — **the serial console froze a live MoOS
+Cloud, and the karg order was ours.** The owner reported the VPS "went slow and
+stopped opening apps after the update". It was not the update and it was not
+load: load average was **0.02** while PID 1 sat blocked inside `write(2)` —
+`/proc/1/stack` read `wait_woken → n_tty_write → iterate_tty_write →
+redirected_tty_write → vfs_writev`. MoOS Cloud passed
+`console=tty0 console=ttyS0,115200n8`, and the kernel gives `/dev/console` to
+the LAST `console=`, so every console write went out the emulated UART. With
+nothing draining that port on the provider side its ring filled and the write
+blocked forever. A systemd stuck in `write()` answers no D-Bus and reaps no
+children: `systemctl` hung, dbus-activated services hung, nothing could launch,
+and a zombie `rpm-ostree` from the owner's own update sat unreaped — the exact
+reported symptom, from a machine that was 99.98% idle.
+
+The order is now `console=ttyS0,115200n8 console=tty0`. The kernel writes to
+EVERY `console=` device, so the serial boot log — the reason the karg exists —
+is untouched; only `/dev/console` moves, onto a virtual terminal, which writes
+into a screen buffer and cannot block on a consumer that is not there.
+`serial-getty@ttyS0` still serves an interactive serial login. Because bootc's
+kargs.d diff sees an unchanged argument SET, installed machines would never get
+the reorder, so `moos-cloud-console-order` (one-shot, marker-guarded,
+transaction-aware) rewrites the live kargs through rpm-ostree exactly once and
+never reboots by itself. `tests/test_cloud_console_order.py` holds both halves
+and was broken-once to prove it bites; it runs the repair script against a fake
+`/proc/cmdline` and a recording `rpm-ostree`.
+
+The same round fixed three Mo PC Remote defects found by adversarial review of
+the six commits the owner had just pushed, each confirmed by an independent
+refutation pass: **(1)** pointer events never flushed the text coalescing
+buffer while key events always did, so a tap inside the window — five times
+wider since `CLIPBOARD_FLUSH_MS` went 45 → 220 ms — was delivered before the
+queued word and pasted it into whatever the tap had just focused;
+`down`/`click`/`dblclick` now flush on both the client and the agent
+(`move`/`scroll` deliberately do not). **(2)** the coalescing debounce re-armed
+on every keystroke with no size or age bound, so continuous input (dictation,
+swipe typing) could hold a growing buffer indefinitely and lose it on a dropped
+socket; it is now capped at the agent's own 240-char gather and 700 ms.
+**(3)** the autocorrect middle-diff walked the caret with `ArrowLeft`/`Right`,
+but Qt's default LogicalMoveStyle makes ArrowLeft move *forward* inside an RTL
+run — on Arabic that deleted the shared suffix and dropped the replacement at
+the end, re-scrambling the text this very series set out to fix; bidirectional
+text now rewrites the whole tail, which needs no arrows. Two new contracts in
+`coordinates.test.ts` hold the flush parity and the bidi guard, both
+broken-once. The shipped `wwwroot` bundle was rebuilt and its new assets
+force-added (the tracked-bundle gate caught the omission).
+
+Release state: `just check` green end to end; local image build, signed CI
+matrix and the cloud's recovery are the open steps. **The owner's server needs
+one power-cycle from the netcup panel** — its own shell cannot reboot it while
+PID 1 is blocked inside that write.
+
+Previous update: 2026-08-03, round 3 — **the Arabic typing race, found by
 testing it live instead of reasoning about it.** The owner rejected the
 previous round's claim and demanded the fix be proven on the machine first.
 Injecting three Arabic words on the live Cloud session through the real

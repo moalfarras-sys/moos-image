@@ -1539,14 +1539,24 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       while (p < max && last[p] === v[p]) p++;
       let sf = 0;
       while (sf < max - p && last[last.length - 1 - sf] === v[v.length - 1 - sf]) sf++;
-      const removed = last.length - p - sf;
+      // Arrow keys move the caret VISUALLY, not logically: Qt's default
+      // LogicalMoveStyle reverses the mapping inside an RTL run, so ArrowLeft
+      // walks FORWARD through Arabic. Using it to step back over a shared suffix
+      // would delete that suffix instead of the differing middle and drop the
+      // replacement at the end — re-scrambling the very text this path exists to
+      // repair. Only sf === 0 needs no walk at all, so when the rewrite carries a
+      // shared suffix in bidirectional text, rewrite the whole tail instead: more
+      // keystrokes, but every one of them is direction-independent.
+      const bidi = /[֐-ࣿיִ-﷿ﹰ-﻿]/.test(last + v);
+      const walk = sf > 0 && !bidi;
+      const removed = walk ? last.length - p - sf : last.length - p;
+      const middle = walk ? v.slice(p, v.length - sf) : v.slice(p);
       // The remote caret sits at the end of what we sent; step over the shared
       // suffix, delete the middle, type the replacement, then walk back.
-      for (let i = 0; i < sf; i++) c.keyTap("ArrowLeft");
+      if (walk) for (let i = 0; i < sf; i++) c.keyTap("ArrowLeft");
       for (let i = 0; i < removed; i++) c.keyTap("Backspace");
-      const middle = v.slice(p, v.length - sf);
       if (middle) c.text(middle);
-      for (let i = 0; i < sf; i++) c.keyTap("ArrowRight");
+      if (walk) for (let i = 0; i < sf; i++) c.keyTap("ArrowRight");
     }
     lastVal.current = v;
     // Resync while the line is still short: the worst replace burst above is

@@ -8,6 +8,10 @@ const FAST_FLUSH_MS = 12;
 const CLIPBOARD_FLUSH_MS = 220;
 /** Exactly what the agent can type by keysym — see InputInjector.TryDirectStrokes. */
 const FAST_TEXT = /^[a-zA-Z0-9 ]*$/;
+/** Mirrors InputInjector.PasteCoalesceMax: never hold more than one gather's worth. */
+const TEXT_COALESCE_MAX = 240;
+/** A re-arming debounce never fires under continuous input; nothing waits past this. */
+const TEXT_COALESCE_MAX_MS = 700;
 
 interface Handlers {
   onOpen?: () => void;
@@ -49,6 +53,8 @@ export class RemoteConnection {
   private generation = 0;
   private pendingText="";
   private textTimer:number|null=null;
+  /** When the oldest still-unflushed chunk was queued; 0 when the buffer is empty. */
+  private textQueuedAt=0;
 
   constructor(token: string, handlers: Handlers, inputMeta?: () => any) {
     this.token = token;
@@ -270,16 +276,24 @@ export class RemoteConnection {
   moveRelative(dx: number, dy: number) {
     this.input({ type: "moveRelative", dx, dy });
   }
+  // Anything that can MOVE THE CARET has to flush the coalescing buffer first, for
+  // the same reason every key event does. A tap is a caret move: type an Arabic word,
+  // tap the Send button within the coalescing window, and the click arrives while the
+  // word is still queued here — so the word pastes into whatever the tap just focused.
+  // Widening the window to 220 ms made that five times easier to hit than it was.
   down(button: MouseButton, x: number, y: number) {
+    this.flushText();
     this.input({ type: "down", button, x, y });
   }
   up(button: MouseButton, x: number, y: number) {
     this.input({ type: "up", button, x, y });
   }
   click(button: MouseButton, x: number, y: number) {
+    this.flushText();
     this.input({ type: "click", button, x, y });
   }
   dblclick(x: number, y: number) {
+    this.flushText();
     this.input({ type: "dblclick", x, y });
   }
   scroll(dx: number, dy: number) {
@@ -325,9 +339,17 @@ export class RemoteConnection {
     //
     // The test mirrors the agent's own fast-path rule (InputInjector.TryDirectStrokes).
     const fast = FAST_TEXT.test(this.pendingText);
+    // The debounce re-arms on every keystroke, so input whose gaps never reach the
+    // window — dictation, swipe typing, a fast typist — would defer the flush for as
+    // long as it continues, holding a growing buffer that a dropped socket loses
+    // entirely. Two bounds close that: the agent's own gather cap (240 chars), and an
+    // age cap so a queued word is never held for more than about three windows.
+    if (this.pendingText.length >= TEXT_COALESCE_MAX) { this.flushText(); return; }
+    if (!this.textQueuedAt) this.textQueuedAt = Date.now();
+    if (Date.now() - this.textQueuedAt >= TEXT_COALESCE_MAX_MS) { this.flushText(); return; }
     this.textTimer=window.setTimeout(()=>this.flushText(),fast?FAST_FLUSH_MS:CLIPBOARD_FLUSH_MS);
   }
-  private flushText(){if(this.textTimer)window.clearTimeout(this.textTimer);this.textTimer=null;if(!this.pendingText)return;const value=this.pendingText;this.pendingText="";this.input({type:"text",value});}
+  private flushText(){if(this.textTimer)window.clearTimeout(this.textTimer);this.textTimer=null;this.textQueuedAt=0;if(!this.pendingText)return;const value=this.pendingText;this.pendingText="";this.input({type:"text",value});}
   /**
    * `width` is the real request — an absolute encode width in pixels. `scale` rides along because
    * an agent older than this build only understands the fraction, and being served a sensible

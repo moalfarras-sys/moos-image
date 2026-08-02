@@ -1,0 +1,24 @@
+[Unit]
+Description=Take /dev/console off the serial port (one-shot repair for existing MoOS Cloud installs)
+Documentation=file:///usr/libexec/moos-cloud-console-order
+ConditionPathExists=/usr/bin/rpm-ostree
+ConditionPathIsDirectory=/ostree/deploy
+ConditionPathExists=!/var/lib/moos/console-order-repaired.v1
+
+# Staging a karg change writes a deployment; do not do that while the updater is
+# mid-transaction. The script checks again at runtime, this is just ordering.
+After=rpm-ostreed.service uupd.service moos-auto-update.service
+After=moos-verify-origin.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/moos-cloud-console-order
+RemainAfterExit=no
+# rpm-ostree writes a new deployment: give it room, but never hold the boot
+# transaction open indefinitely.
+TimeoutStartSec=900
+Nice=19
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target
