@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 helper = (ROOT / "moremote/controller/src/lib/notifications.ts").read_text(encoding="utf-8")
 screen = (ROOT / "moremote/controller/src/ui/RemoteScreen.tsx").read_text(encoding="utf-8")
+socket = (ROOT / "moremote/controller/src/lib/ws.ts").read_text(encoding="utf-8")
 worker = (ROOT / "moremote/controller/public/notification-sw.js").read_text(encoding="utf-8")
 
 checks = {
@@ -19,6 +20,15 @@ checks = {
         "!document.hidden" in helper,
     "alerts introduce a polling loop while idle":
         "setInterval(" not in helper and "setInterval(" not in worker,
+    "an intentional close is reported as an interrupted connection":
+        "onClose?: (willReconnect: boolean)" in socket
+        and "const willReconnect = !this.closedByUs" in socket
+        and "if (willReconnect)" in socket and "onClose: (willReconnect)" in screen,
+    "one outage can notify again on every reconnect attempt":
+        "connectionAlertedRef.current = true" in screen
+        and "connectionAlertedRef.current = false" in screen
+        and "connectionEstablishedRef.current = true" in screen
+        and "willReconnect && connectionEstablishedRef.current" in screen,
     "notification taps do not return to the controller":
         "notificationclick" in worker and "existing.focus()" in worker
         and 'clients.openWindow("/")' in worker and "event.notification.data" not in worker,

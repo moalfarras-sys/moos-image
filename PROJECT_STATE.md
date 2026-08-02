@@ -382,7 +382,11 @@ visible, and exposes an event union rather than arbitrary title/body text, so a
 later caller cannot accidentally mirror desktop notifications, filenames,
 clipboard data or credentials. Tapping the alert focuses the existing controller
 window or opens it. The worker adds no polling and the feature remains disabled
-by default. Seven controller suites, TypeScript, the production PWA build, npm
+by default. A follow-up lifecycle audit found that every failed reconnect would
+have emitted the same alert and an intentional server stop could be labelled an
+interruption. The socket now reports whether a close will actually recover, and
+the UI emits once per outage only after a prior authenticated `hello`; another
+successful `hello` re-arms it. Eight controller suites, TypeScript, the production PWA build, npm
 audit (zero findings), Linux and Windows .NET builds (zero warnings), the shipped
 bundle gate and the complete repository check pass. This is not Web Push: a fully
 closed or OS-suspended phone app receives nothing, and live iOS/Android evidence

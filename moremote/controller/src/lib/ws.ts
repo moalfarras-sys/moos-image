@@ -1,6 +1,6 @@
 import type { Hello, MouseButton } from "../types";
 
-import { canDecodeH264 } from "./decode";
+import { canDecodeH264 } from "./decode.ts";
 
 /** One 60 Hz frame: text the agent types by keysym must not wait longer than this. */
 const FAST_FLUSH_MS = 12;
@@ -18,7 +18,8 @@ interface Handlers {
   onIdle?: () => void;
   onScreen?: (available: boolean) => void;
   onAuthFail?: () => void;
-  onClose?: () => void;
+  /** Whether this close is an outage the connection will automatically recover from. */
+  onClose?: (willReconnect: boolean) => void;
   onPong?: (rttMs: number) => void;
   onInputState?: (ready: boolean, error?: string) => void;
   /** Which codec the agent is producing right now. It can change mid-session: the helper drops to
@@ -31,6 +32,9 @@ interface Handlers {
  * Auto-reconnects with backoff unless the token was rejected or we disconnect on purpose.
  */
 export class RemoteConnection {
+  private token: string;
+  private h: Handlers;
+  private inputMeta?: () => any;
   private ws: WebSocket | null = null;
   private closedByUs = false;
   private backoff = 500;
@@ -46,7 +50,11 @@ export class RemoteConnection {
   private pendingText="";
   private textTimer:number|null=null;
 
-  constructor(private token: string, private h: Handlers, private inputMeta?: () => any) {}
+  constructor(token: string, handlers: Handlers, inputMeta?: () => any) {
+    this.token = token;
+    this.h = handlers;
+    this.inputMeta = inputMeta;
+  }
 
   connect() {
     this.stopReconnect();
@@ -122,8 +130,9 @@ export class RemoteConnection {
     ws.onclose = () => {
       if(generation!==this.generation)return;
       this.stopPing();
-      this.h.onClose?.();
-      if (!this.closedByUs) {
+      const willReconnect = !this.closedByUs;
+      this.h.onClose?.(willReconnect);
+      if (willReconnect) {
         const delay = this.backoff;
         this.reconnectTimer = window.setTimeout(() => {
           this.reconnectTimer = null;

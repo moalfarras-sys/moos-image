@@ -353,6 +353,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   const pointerLockRef=useRef(pointerLock);pointerLockRef.current=pointerLock;
   const hapticsRef=useRef(haptics);hapticsRef.current=haptics;
   const backgroundAlertsRef=useRef(backgroundAlerts);backgroundAlertsRef.current=backgroundAlerts;
+  // One alert describes one outage. Reconnect attempts may fail every five seconds for hours;
+  // only a successfully authenticated hello is allowed to arm the next alert.
+  const connectionAlertedRef=useRef(false);
+  const connectionEstablishedRef=useRef(false);
   /**
    * Magnify around the caret while the keyboard is up.
    *
@@ -733,6 +737,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
 
     const conn = new RemoteConnection(token, {
       onHello: (h) => {
+        connectionEstablishedRef.current = true;
+        connectionAlertedRef.current = false;
         setStatus(h.paused ? "paused" : "live");
         if (h.screen?.w && h.screen?.h) screenSizeRef.current = { w: h.screen.w, h: h.screen.h };
         setMonitors(h.monitors ?? []);
@@ -756,10 +762,12 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       },
       onStopped: () => setStatus("stopped"),
       onAuthFail: () => onExit(),
-      onClose: () => {
+      onClose: (willReconnect) => {
         lastVal.current = ""; setMods(new Set());
         setStatus((s) => (s === "stopped" || s === "idle" ? s : "reconnecting"));
-        if (!disposed && backgroundAlertsRef.current) {
+        if (willReconnect && connectionEstablishedRef.current && !disposed &&
+            backgroundAlertsRef.current && !connectionAlertedRef.current) {
+          connectionAlertedRef.current = true;
           void showRemoteAlert("connection-interrupted");
         }
       },
