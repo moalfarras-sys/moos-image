@@ -2055,6 +2055,17 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
             placeholder="اكتب هنا ← يصل للكمبيوتر · type here"
             onInput={onInput} onKeyDown={onInputKeyDown}
             onCompositionStart={onCompositionStart} onCompositionEnd={onCompositionEnd}
+            onBlur={() => {
+              // The bar used to outlive the keyboard that justified it. Every
+              // control inside it defends focus (keepFocus preventDefaults the
+              // pointerdown), so a real blur means the PHONE dismissed its own
+              // keyboard — swipe-down, its Done key, an app switch. Leaving the
+              // bar behind then covered the screen with something the user had
+              // no obvious way to remove. It leaves when the keyboard leaves.
+              window.setTimeout(() => {
+                if (document.activeElement !== inputRef.current) closeKeyboard();
+              }, 120);
+            }}
           />
           <button {...keepFocus} className="kbicon" onClick={() => sendKey("Backspace")} aria-label="Backspace"><IconBackspace /></button>
           <button {...keepFocus} className="kbicon" onClick={() => sendKey("Enter")} aria-label="Enter"><IconEnter /></button>

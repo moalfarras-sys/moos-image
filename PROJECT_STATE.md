@@ -4,6 +4,33 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
+Last updated: 2026-08-03 — **Mo PC Remote round 2, from the owner's own
+evidence.** The owner tried to type this session's report THROUGH the remote
+and the message arrived scrambled with letters missing — that garbled text is
+the bug report. Root cause: Arabic (and anything with no level-1 Latin
+keysym) types by borrowing the clipboard, and the phone sends text as it is
+typed, so one Arabic word was one wl-copy + wl-paste + Shift+Insert cycle PER
+LETTER. Those cycles overlap at real typing speed on a single shared
+clipboard slot, so letter N+1 replaced the clipboard before letter N had been
+pasted — scrambling and dropping characters while the subprocess load
+stuttered the session. Fixed by coalescing: chunks gather for 140 ms (or 240
+chars) and ONE paste delivers the run, with KeyTap/KeyDown/Combo flushing the
+buffer first so Enter/Backspace/arrows can never overtake pending text (the
+Shift+Insert combo is exempt — it IS the delivery). A word is now one
+clipboard cycle instead of six.
+Second: the two-finger recogniser is retired, not tuned. It picked ONE mode
+per gesture from whichever accumulator was larger after 10 px and lived it
+out, so a pinch that also drifted latched to "scroll" and never zoomed —
+"hard to control with two fingers". Now spreading always zooms (past an 8 px
+engage threshold that keeps scroll jitter from creeping the picture) and
+translating always moves, panning overflowing axes and scrolling the remote
+on fitted ones, both in the same frame. Third: the typing bar outlived the
+keyboard that justified it — every control inside defends focus, so a real
+blur means the phone dismissed its own keyboard; the bar now leaves with it
+instead of covering the screen with something the user could not remove.
+BUILD v33; bundle rebuilt and tracked; typecheck, controller tests and the
+five affected gates pass.
+
 Last updated: 2026-08-02, late night — **Mo PC Remote usability overhaul**
 (owner report: typing freezes the picture, zoom/pan feel dead, always blurry,
 worst on MoOS Cloud). Root causes found by tracing, each fixed at source:

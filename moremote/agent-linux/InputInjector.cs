@@ -225,6 +225,9 @@ public sealed class InputInjector : IDisposable
 
     public void KeyTap(string k)
     {
+        // Deliver anything still gathering first: Enter/Backspace/arrows act ON the
+        // text, so letting a key overtake a pending paste would reorder the edit.
+        FlushPendingText();
         // A lone printable character must type layout-independently via keysym. The single-letter
         // entries in Keys (a/c/v/x/z) exist only for Ctrl-combos and are German-QWERTZ-dependent:
         // tapping them as characters swaps y/z and mangles symbols on the owner's German keymap
@@ -237,7 +240,7 @@ public sealed class InputInjector : IDisposable
         if (Keys.TryGetValue(k, out var c)) { Set(c, true); Thread.Sleep(k == "Backspace" || k == "Delete" ? 4 : 12); Set(c, false); }
         else if (k.Length >= 1) TypeText(k);
     }
-    public void KeyDown(string k) { if (Keys.TryGetValue(k, out var c)) Set(c, true); }
+    public void KeyDown(string k) { FlushPendingText(); if (Keys.TryGetValue(k, out var c)) Set(c, true); }
     public void KeyUp(string k) { if (Keys.TryGetValue(k, out var c)) Set(c, false); }
 
     /// <summary>
@@ -273,6 +276,9 @@ public sealed class InputInjector : IDisposable
     /// </summary>
     public void Combo(IReadOnlyList<string> keys)
     {
+        // Same ordering rule as KeyTap — except for the paste combo itself, which IS
+        // the delivery mechanism and would recurse into its own flush.
+        if (!(keys.Count == 2 && keys[0] == "Shift" && keys[1] == "Insert")) FlushPendingText();
         var mods = new List<ushort>();
         var rest = new List<Stroke>();
         foreach (var k in keys)
@@ -345,10 +351,60 @@ public sealed class InputInjector : IDisposable
         if (_portal.IsReady && text.Length <= BulkPasteThreshold && TryDirectStrokes(text, out var events)
             && _portal.Send(new { type = "keysyms", events })) return;
 
-        PasteText(text);
+        QueuePaste(text);
     }
 
     private const int BulkPasteThreshold = 64;
+
+    // ---------------------------------------------------------------- paste coalescing
+    //
+    // Arabic (and every character with no level-1 Latin keysym) types by borrowing the clipboard,
+    // and the phone sends text as it is typed — so one Arabic word used to be one wl-copy +
+    // wl-paste + Shift+Insert cycle PER LETTER. Those cycles overlap at real typing speed: the
+    // clipboard is a single shared slot, so letter N+1 could replace the clipboard before letter N
+    // had been pasted. The visible result was exactly what the owner reported — Arabic arriving
+    // scrambled and with letters missing, while the session stuttered under the subprocess load.
+    //
+    // So chunks are gathered instead: the first chunk starts a short window, everything typed
+    // inside it is appended, and ONE paste delivers the whole run. A word becomes one clipboard
+    // cycle instead of six, ordering is guaranteed because there is only ever one paste in flight,
+    // and the cost is a bounded delay before the letters appear — far better than losing them.
+    private readonly object _pasteBuf = new();
+    private readonly System.Text.StringBuilder _pending = new();
+    private Timer? _pasteTimer;
+
+    /// <summary>Milliseconds of quiet before a gathered run is pasted.</summary>
+    private const int PasteCoalesceMs = 140;
+    /// <summary>Never gather more than this: a paste must stay responsive.</summary>
+    private const int PasteCoalesceMax = 240;
+
+    private void QueuePaste(string text)
+    {
+        lock (_pasteBuf)
+        {
+            _pending.Append(text);
+            if (_pending.Length >= PasteCoalesceMax) { FlushPasteLocked(); return; }
+            _pasteTimer ??= new Timer(_ => FlushPaste(), null, Timeout.Infinite, Timeout.Infinite);
+            _pasteTimer.Change(PasteCoalesceMs, Timeout.Infinite);
+        }
+    }
+
+    private void FlushPaste()
+    {
+        lock (_pasteBuf) { FlushPasteLocked(); }
+    }
+
+    private void FlushPasteLocked()
+    {
+        if (_pending.Length == 0) return;
+        var run = _pending.ToString();
+        _pending.Clear();
+        _pasteTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+        PasteText(run);
+    }
+
+    /// <summary>Deliver anything still gathered — called before a key that acts on the text.</summary>
+    public void FlushPendingText() => FlushPaste();
 
     /// <summary>
     /// Builds an ordered press/release batch, or fails if any character cannot be typed correctly

@@ -43,10 +43,8 @@ const MOVE_THRESHOLD = 12;
 /** A gesture shorter than this and smaller than TAP_RESCUE_PX was a tap, whatever it looked like. */
 const TAP_RESCUE_MS = 300;
 const TAP_RESCUE_PX = 24;
-/** How much two fingers must spread or travel before we decide which gesture they are. */
-const TWO_DECIDE_PX = 10;
-/** A scroll-latched gesture whose spread later clearly dominates upgrades to a pinch. */
-const TWO_UPGRADE_PX = 28;
+/** Accumulated spread before zooming engages — keeps scroll jitter from creeping the picture. */
+const PINCH_ENGAGE_PX = 8;
 const LONGPRESS_MS = 500; // matches Android's own long-press feel, so a slow tap stays a tap
 /** Two taps closer than this in time AND space are one double-click. */
 const DOUBLE_TAP_MS = 300;
@@ -127,13 +125,12 @@ export class GestureController {
   private lastTapNx = 0.5;
   private lastTapNy = 0.5;
 
-  // two-finger. twoMode latches the winning recogniser; twoSpread/twoTravel are the evidence it is
+  // two-finger. twoMode says whether the view has moved yet (a two-finger TAP is
   // decided on — see moveTwo.
   private two = false;
-  private twoMode: "undecided" | "pinch" | "scroll" = "undecided";
+  private twoMode: "undecided" | "moved" = "undecided";
   private twoStart = 0;
   private twoSpread = 0;
-  private twoTravel = 0;
   private lastCx = 0;
   private lastCy = 0;
   private lastDist = 0;
@@ -451,7 +448,6 @@ export class GestureController {
     // makes two pinches in a row each get their own decision.
     this.twoMode = "undecided";
     this.twoSpread = 0;
-    this.twoTravel = 0;
     this.twoStart = now();
     const [a, b] = [...this.pointers.values()];
     this.lastCx = (a.x + b.x) / 2; this.lastCy = (a.y + b.y) / 2;
@@ -478,55 +474,48 @@ export class GestureController {
     const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
     const d = dist(a.x, a.y, b.x, b.y);
 
-    if (this.twoMode === "undecided") {
-      // Compare like with like: both are distances in CSS px since the gesture began.
-      this.twoSpread += Math.abs(d - this.lastDist);
-      this.twoTravel += dist(cx, cy, this.lastCx, this.lastCy);
-      this.lastCx = cx; this.lastCy = cy; this.lastDist = d;
-      if (Math.max(this.twoSpread, this.twoTravel) < TWO_DECIDE_PX) return;
-      this.twoMode = this.twoSpread > this.twoTravel ? "pinch" : "scroll";
+    // ── Two fingers do BOTH, the way a photo viewer does ────────────────────
+    //
+    // This used to pick ONE mode per gesture from whichever accumulator was
+    // larger after 10 px, and live it out to the end. Every real pinch also
+    // drifts, so a pinch could latch to "scroll" and never zoom again — the
+    // "two-finger control is hard" report. And a pan that started as a pinch
+    // could never scroll. Guessing the user's intent from 10 px of noise was
+    // the mistake; there is no need to guess.
+    //
+    // Now: spreading always zooms (past a small engage threshold, so ordinary
+    // scroll jitter does not creep the picture), and translating always moves —
+    // panning the axes the picture OVERFLOWS on and scrolling the remote on the
+    // axes that fit. Both can happen in the same frame, which is what a pinch
+    // actually is.
+    this.twoSpread += Math.abs(d - this.lastDist);
+    if (this.twoSpread > PINCH_ENGAGE_PX
+        || Math.abs(cx - this.lastCx) + Math.abs(cy - this.lastCy) > 1) this.twoMode = "moved";
+
+    if (this.twoSpread > PINCH_ENGAGE_PX && this.lastDist > 0 && d > 0) {
+      const factor = d / this.lastDist;
+      if (Math.abs(factor - 1) > 0.004) this.cb.zoomAt(factor, cx, cy);
     }
 
-    if (this.twoMode === "scroll") {
-      // The one-shot latch was the top "zoom feels dead" cause: a pinch whose
-      // fingers also drifted 10 px latched to scroll FOR THE WHOLE GESTURE and
-      // never zoomed. Keep accumulating; when spread clearly dominates travel,
-      // upgrade mid-gesture — scrolling stops, zooming starts, no lift needed.
-      this.twoSpread += Math.abs(d - this.lastDist);
-      this.twoTravel += dist(cx, cy, this.lastCx, this.lastCy);
-      if (this.twoSpread > TWO_UPGRADE_PX && this.twoSpread > this.twoTravel * 1.4) {
-        this.twoMode = "pinch";
-      }
-    }
-
-    if (this.twoMode === "pinch") {
-      if (this.lastDist > 0 && d > 0) {
-        const factor = d / this.lastDist;
-        if (Math.abs(factor - 1) > 0.002) this.cb.zoomAt(factor, cx, cy);
-      }
-    } else {
+    {
       const dcx = cx - this.lastCx, dcy = cy - this.lastCy;
       // Pan the axis the picture OVERFLOWS on; scroll the axis that fits.
       //
-      // This used to ask `getZoom() > 1.01`, which is not the same question. In "100%" view the
-      // base is 1/dpr, so a phone can be showing half the desktop with the zoom multiplier sitting
-      // at exactly 1.00 — the gate stayed false, two fingers scrolled the remote document instead
-      // of moving the view, and the other half of the screen was simply unreachable.
-      //
-      // Splitting per axis is what keeps remote scrolling alive on a picture that overflows in
-      // only one direction, which is the normal case for a wide desktop on a tall phone.
+      // The test is overflow, not `zoom > 1.01`: in "100%" view the base is
+      // 1/dpr, so a phone can be showing half the desktop at zoom exactly 1.00 —
+      // the old gate stayed false and the other half was simply unreachable.
       const pan = this.canPan();
       let scrolled = false;
       if (pan.x || pan.y) {
         const px = pan.x ? dcx : 0, py = pan.y ? dcy : 0;
         this.cb.panBy(px, py);
-        // Track the velocity of the PAN only. A two-finger scroll must not fling: the remote
-        // desktop's own scroll view already has whatever inertia it has, and adding a second one on
-        // top would send phantom wheel notches after the fingers were gone.
+        // Track the velocity of the PAN only. A two-finger scroll must not fling:
+        // the remote's own scroll view has whatever inertia it has, and a second
+        // one on top would send phantom notches after the fingers were gone.
         this.sample(px, py);
       }
-      // Scrolling means "move the content on the DESKTOP", so it turns with the picture; panning
-      // above means "move the drawn box on this screen" and deliberately does not.
+      // Scrolling means "move the content on the DESKTOP", so it turns with the
+      // picture; panning above moves the drawn box on THIS screen and does not.
       const sd = rotateDelta(dcx, dcy, this.isRotated());
       if (!pan.x) { this.qScrollX += sd.dx; scrolled = true; }
       if (!pan.y) { this.qScrollY += sd.dy; scrolled = true; }
