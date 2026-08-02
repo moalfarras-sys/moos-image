@@ -132,33 +132,12 @@ class MoAIVisualPolishTests(unittest.TestCase):
             self.source.index("id: ambient"):
             self.source.index("// ── Health")
         ]
-        self.assertIn("MoOSUi.TidalHorizon {", ambient)
-        for binding in (
-            "surfaceColor: root.surface0",
-            "primaryColor: root.novaBlue",
-            "secondaryColor: root.novaViolet",
-            "luminousColor: root.novaCyan",
-            "motionEnabled: root.motionEnabled",
-        ):
-            self.assertIn(binding, ambient)
-        horizon = (UI / "TidalHorizon.qml").read_text(encoding="utf-8")
-        self.assertIn("fillGradient: LinearGradient", horizon)
-        self.assertIn("PathMove {", horizon)
-        self.assertIn("animateIn && motionEnabled", horizon)
-        for forbidden in (
-            "XAnimator on x",
-            "SequentialAnimation on opacity",
-            "SequentialAnimation on scale",
-            "RotationAnimator on rotation",
-            "Animation.Infinite",
-        ):
-            self.assertNotIn(
-                forbidden,
-                ambient,
-                "the decorative Mo AI backdrop must stay static; state and "
-                "interaction surfaces own motion",
-            )
-
+        self.assertNotIn("TidalHorizon", ambient)
+        # The retired arc's palette bindings left with it; the ambient field is
+        # now the still three-stop surface gradient and nothing else animates.
+        self.assertIn("gradient: Gradient", ambient)
+        self.assertIn("GradientStop { position: 0.55; color: root.surface0 }", ambient)
+        self.assertNotIn("Animation.Infinite", ambient)
     def test_fixed_animation_durations_all_obey_reduced_motion(self) -> None:
         literal = re.findall(r"duration\s*:\s*\d+", self.code)
         self.assertFalse(

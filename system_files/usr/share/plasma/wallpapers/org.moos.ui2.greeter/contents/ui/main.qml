@@ -132,24 +132,6 @@ WallpaperItem {
         }
     }
 
-    // ── Tidal Horizon Portal ────────────────────────────────────────────────
-    // Login is a security boundary and remains fully static. The exact shared
-    // geometry appears again in Splash, Lock and Logout, making the transition
-    // between processes read as one MoOS threshold instead of four themes.
-    TidalHorizon {
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: parent.height * 0.055
-        width: Math.min(parent.width * 0.76, parent.height * 1.28)
-        height: Math.min(parent.height * 0.86, width * 0.69)
-        accentA: root.accent
-        accentB: root.lightScene ? "#1D6278" : "#78AFFF"
-        ink: root.ink
-        surface: root.canvas
-        compact: root.width < 900
-        reveal: 1
-        intensity: 0.76
-    }
-
     // ── MoOS signature — quiet, top-left (gate: brand stays in its corner) ──
     Row {
         anchors.left: parent.left

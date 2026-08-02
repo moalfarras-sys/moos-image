@@ -776,7 +776,7 @@ class TestMoOSUI2(unittest.TestCase):
         )
         for filename, owner, expected_durations in (
             ("MainBlock.qml", "sessionManager", 8),
-            ("LockScreenUi.qml", "lockScreenUi", 6),
+            ("LockScreenUi.qml", "lockScreenUi", 5),
         ):
             with self.subTest(filename=filename):
                 source = qml_code((lock_root / filename).read_text(encoding="utf-8"))
@@ -949,7 +949,6 @@ class TestMoOSUI2(unittest.TestCase):
             "revealAnimation.stop()",
             "content.opacity = 1",
             "contentShift.y = 0",
-            "portal.reveal = 1",
         ):
             self.assertIn(
                 resting_value,
@@ -1001,9 +1000,7 @@ class TestMoOSUI2(unittest.TestCase):
                 splash,
                 f"the over-animated splash primitive {retired_motion} returned",
             )
-        self.assertIn("TidalHorizon {", splash)
-        self.assertIn("accentA: root.accentA", splash)
-        self.assertIn("accentB: root.accentB", splash)
+        self.assertNotIn("TidalHorizon", splash)
 
         family = sorted(
             path for path in
@@ -1018,16 +1015,8 @@ class TestMoOSUI2(unittest.TestCase):
             (path / "contents/logout/Logout.qml").read_bytes()
             for path in family
         }
-        splash_portal_bytes = {
-            (path / "contents/splash/TidalHorizon.qml").read_bytes()
-            for path in family
-        }
         logout_button_bytes = {
             (path / "contents/logout/MoOSUI2ActionButton.qml").read_bytes()
-            for path in family
-        }
-        logout_portal_bytes = {
-            (path / "contents/logout/TidalHorizon.qml").read_bytes()
             for path in family
         }
         self.assertEqual(len(family), 16)
@@ -1040,16 +1029,8 @@ class TestMoOSUI2(unittest.TestCase):
             "all 16 palettes must use the same reviewed session-language policy",
         )
         self.assertEqual(
-            len(splash_portal_bytes), 1,
-            "all 16 splash packages must use one reviewed portal geometry",
-        )
-        self.assertEqual(
             len(logout_button_bytes), 1,
             "all 16 palettes must use one reviewed session-action geometry",
-        )
-        self.assertEqual(
-            len(logout_portal_bytes), 1,
-            "all 16 logout packages must use one reviewed portal geometry",
         )
 
     def test_shell_rtl_uses_inherited_logical_edges_once(self) -> None:

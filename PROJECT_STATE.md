@@ -4,7 +4,27 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-02, evening — **the Complementary correction: the fix
+Last updated: 2026-08-02, night — **the Tidal arc is retired everywhere**
+(owner verdict on the live system: the full-screen curve reads cheap and
+appears in every surface — it is gone, not tuned). Removed from: Logout (16
+packages), Splash (master + 16), Lock, the Login greeter scene, and the
+first-party apps (Store, Mo AI ×2, Settings) — 36 TidalHorizon.qml files
+deleted including the canonical master and the apps' MoOSUi variant;
+`generate_login_scene.py` no longer syncs a portal. The splash was
+re-composed around a centred brand + progress line (same finite reveal
+contracts, 460/260 durations kept). The lock lost the arc's one gated fade —
+its duration count contract is now 5 (was 6). Five gate files migrated to an
+explicit anti-regression: no `TidalHorizon` may ship or be referenced from
+any session surface or app (`test_tidal_portals` now bans instead of syncing;
+`test_tidal_horizon` bans in apps; `verify_user_experience` splash/logout/
+lock/login requires inverted; `test_moos_ui2` byte-sets and splash static
+frame pruned; Mo AI ambient contract is the still gradient field). The
+affected suites all pass; untouched suites are covered by the 70/70 run on
+`b260174b` per the owner's no-redundant-verification rule (see
+memory/owner-work-discipline). The session identity is now purely the dark
+Glass Island: material, two-tone rim, crest tick.
+
+Previous update: 2026-08-02, evening — **the Complementary correction: the fix
 that makes the session islands actually read.** After the design image
 `44.20260802.512` booted, the live lock still rendered a pale ghost card on
 Scholar Light and the owner rightly reported "nothing changed". Root cause:

@@ -3462,7 +3462,6 @@ require(_unlock_start >= 0 and _unlock_end > _unlock_start
 #    the user waits at a security/session surface.
 _splash = code(read("system_files/usr/share/plasma/look-and-feel/org.moos.ui2/"
                     "contents/splash/Splash.qml"), style="slash")
-_portal = code(read("artwork/tidal-portal/TidalHorizon.qml"), style="slash")
 require("Kirigami.Theme.linkColor" in _splash,
         "the splash portal lost the family secondary role — it must use "
         "Kirigami.Theme.linkColor so every family member tracks its own secondary")
@@ -3482,7 +3481,7 @@ require(re.search(r"if\s*\(stage\s*===\s*2\)\s*\{.*?"
                       _splash_stage, re.DOTALL) is not None
         and all(token in _splash_static for token in (
             "revealAnimation.stop()", "content.opacity = 1",
-            "contentShift.y = 0", "portal.reveal = 1",
+            "contentShift.y = 0",
         ))
         and _splash.count("loops: Animation.Infinite") == 0
         and _splash.count("id: revealAnimation") == 1
@@ -3491,9 +3490,7 @@ require(re.search(r"if\s*\(stage\s*===\s*2\)\s*\{.*?"
                       r"duration:\s*root\.motionEnabled\s*\?\s*260\s*:\s*0",
                       _splash) is not None
         and "opacity: root.stage >= 5 ? 0 : 1" in _splash
-        and "TidalHorizon {" in _splash
-        and "accentA: root.accentA" in _splash
-        and "accentB: root.accentB" in _splash
+        and "TidalHorizon" not in _splash
         and all(retired not in _splash for retired in (
             "ringReveal", "shineSweep", "bloomFlash", "particleBurst",
             "typewriterTimer", "logoBreathe", "outroAnimation",
@@ -3501,39 +3498,25 @@ require(re.search(r"if\s*\(stage\s*===\s*2\)\s*\{.*?"
         "the splash must own exactly one gated finite reveal; "
         "animations-off must land directly on the complete static branded frame")
 _logout_code = code(logout_qml, style="slash")
-require("TidalHorizon {" in _logout_code
-        and "accentA: root.accent" in _logout_code
-        and "accentB: root.accentB" in _logout_code
-        and "parent.width * 0.96" in _logout_code
-        and "parent.height * 1.80" in _logout_code
+require("TidalHorizon" not in _logout_code
         and "Kirigami.Units.gridUnit * 26" in _logout_code
         and "column.implicitWidth + Kirigami.Units.gridUnit * 4" in _logout_code
         and "id: island" in _logout_code
         and "Animation.Infinite" not in _logout_code
         and re.search(r"#[0-9A-Fa-f]{3,8}\b", _logout_code) is None,
-        "Logout must frame its compact command island with the live-accent Tidal "
-        "Horizon, carry no hard-coded palette, and settle after finite entry motion")
+        "Logout must centre on the Glass Island, never draw the retired arc, "
+        "carry no hard-coded palette, and settle after finite entry motion")
 
 # An Animator is a QObject, not an Item, so `target: parent` resolves to NULL.
 # Every doorway animator pins a concrete Item and the portal reveal itself is a
 # finite NumberAnimation.
 require("target: wallpaper" in _logout_code
-        and "target: portal" in _logout_code
-        and 'property: "reveal"' in _logout_code
         and "target: parent" not in _logout_code,
         "logout entry motion must target concrete ids; target: parent inside an "
         "Animator is null and silently leaves a doorway invisible")
-require(all(token in _portal for token in (
-            "property color accentA", "property color accentB",
-            "property color ink", "property color surface",
-            "readonly property real horizonY",
-            "readonly property real crestY", "PathCubic", "PathMove",
-        ))
-        and all(token not in _portal for token in (
-            "Timer {", "Animation.Infinite", "MouseArea {", "ShaderEffect",
-        )),
-        "the canonical Tidal Horizon must stay pure, theme-fed geometry with no "
-        "input, shader, timer or self-running animation")
+require(not (ROOT / "artwork/tidal-portal/TidalHorizon.qml").exists()
+        and not list((ROOT / "system_files").rglob("TidalHorizon.qml")),
+        "the retired Tidal arc must not ship anywhere (owner verdict 2026-08-02)")
 
 # Dismissing the power screen must stay deliberate. The scene-wide MouseArea
 # used to call cancelRequested(), and the sheet's "blocker" was declared
@@ -4126,7 +4109,7 @@ require("THE IDENTITY CONTRACT" in read("AGENTS.md"),
 # MainBlock/PasswordSync beside it — this gate makes sure the override stays MoOS
 # AND keeps the auth wiring, so it can neither look un-MoOS nor lock a user out.
 shell_lock = "system_files/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen"
-for lock_file in ("LockScreenUi.qml", "MoOSClock.qml", "TidalHorizon.qml"):
+for lock_file in ("LockScreenUi.qml", "MoOSClock.qml"):
     require((ROOT / shell_lock / lock_file).is_file(),
             f"the shell lockscreen override is missing {lock_file} — the lock "
             "screen would be Plasma's default, not MoOS's")
@@ -4140,12 +4123,8 @@ require("MainBlock" in lock_ui and "onPasswordResult" in lock_ui,
 # It must be MoOS, not the stock shell UI: the MoOS clock has to be there.
 require("MoOSClock" in lock_ui,
         "the lock screen override dropped the MoOS clock — it would read as the Breeze default")
-require("TidalHorizon {" in lock_ui
-        and "accentA: lockScreenUi.accentA" in lock_ui
-        and "accentB: lockScreenUi.accentB" in lock_ui
-        and "Animation.Infinite" not in lock_ui,
-        "the lock screen must share the finite, live-theme Tidal Horizon and must "
-        "not run decorative loops while the machine is locked")
+require("TidalHorizon" not in qml_strip(lock_ui) if "qml_strip" in dir() else "TidalHorizon {" not in lock_ui,
+        "the lock must not draw the retired arc")
 require("MoOSClock" in read(f"{shell_lock}/MoOSClock.qml") or "MoOS" in read(f"{shell_lock}/MoOSClock.qml"),
         "MoOSClock.qml is not the MoOS clock")
 # Qt.formatTime has no (date, locale, format-string) overload. With a locale
@@ -4281,12 +4260,8 @@ login_action = read(
 login_clock = read(
     "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/Clock.qml"
 )
-require("TidalHorizon {" in login_wallpaper
-        and "Animation.Infinite" not in login_wallpaper
-        and "Timer {" not in login_wallpaper
-        and "ShaderEffect" not in login_wallpaper,
-        "the plasma-login wallpaper must identify MoOS with a static Tidal Horizon "
-        "without layering a second animated UI over the compiled greeter")
+require("TidalHorizon {" not in login_wallpaper,
+        "the login scene must not draw the retired arc")
 require("The Tidal Portal key" in login_action
         and "radius: height * 0.30" in login_action
         and "IBM Plex Sans Arabic" in login_action,
@@ -4313,10 +4288,8 @@ require(len(lnf_packages) >= 2,
         "MoOS must ship at least the matched dark/light UI2 pair")
 for doorway in (
     "contents/splash/Splash.qml",
-    "contents/splash/TidalHorizon.qml",
     "contents/logout/Logout.qml",
     "contents/logout/MoOSUI2ActionButton.qml",
-    "contents/logout/TidalHorizon.qml",
 ):
     variants = {
         (package / doorway).read_bytes()

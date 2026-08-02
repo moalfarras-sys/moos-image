@@ -317,31 +317,6 @@ Item {
             }
         }
 
-        // ── Tidal Horizon Portal ─────────────────────────────────────────────
-        // The same code-native horizon frames Splash, Login and Logout. Lock
-        // keeps it visible while idle and raises its intensity only when the
-        // user returns; this is a finite state transition, never ambient motion.
-        TidalHorizon {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: parent.height * 0.055
-            width: Math.min(parent.width * 0.78, parent.height * 1.30)
-            height: Math.min(parent.height * 0.86, width * 0.69)
-            accentA: lockScreenUi.accentA
-            accentB: lockScreenUi.accentB
-            ink: Kirigami.Theme.textColor
-            surface: Kirigami.Theme.alternateBackgroundColor
-            compact: parent.width < Kirigami.Units.gridUnit * 64
-            reveal: 1
-            intensity: lockScreenRoot.uiVisible ? 0.55 : 0.52
-
-            Behavior on intensity {
-                NumberAnimation {
-                    duration: lockScreenUi.motionEnabled ? Kirigami.Units.longDuration : 0
-                    easing.type: Easing.OutCubic
-                }
-            }
-        }
-
         // The MoOS mark, quiet, upper-centre — brand identity without shouting.
         ColumnLayout {
             id: brand

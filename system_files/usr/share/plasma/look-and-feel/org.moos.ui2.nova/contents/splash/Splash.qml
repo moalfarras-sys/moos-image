@@ -1,9 +1,11 @@
 /*
-    MoOS Tidal Horizon session splash.
+    MoOS session splash — the calm branded threshold.
 
-    ksplashqml increments `stage`; stage 2 reveals the portal and stage 5 hands
-    off to the desktop. Motion is finite: one 460 ms entrance and short stage
-    interpolation. There are no decorative loops.
+    ksplashqml increments `stage`; stage 2 reveals the content and stage 5
+    hands off to the desktop. Motion is finite: one 460 ms entrance and short
+    stage interpolation. There are no decorative loops, and no full-screen
+    curve: the composition is the mineral depth field, the brand, and one
+    progress line — the same quiet language as the session islands.
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */
@@ -37,7 +39,6 @@ Rectangle {
         revealAnimation.stop();
         content.opacity = 1;
         contentShift.y = 0;
-        portal.reveal = 1;
     }
 
     onMotionEnabledChanged: {
@@ -49,7 +50,6 @@ Rectangle {
     onStageChanged: {
         if (stage === 2) {
             content.opacity = root.motionEnabled ? 0 : 1;
-            portal.reveal = root.motionEnabled ? 0 : 1;
             if (root.motionEnabled) {
                 revealAnimation.restart();
             } else {
@@ -93,27 +93,12 @@ Rectangle {
             y: root.motionEnabled ? Kirigami.Units.gridUnit * 0.8 : 0
         }
 
-        TidalHorizon {
-            id: portal
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: parent.height * 0.17
-            width: Math.min(parent.width * 0.82, parent.height * 1.28)
-            height: Math.min(parent.height * 0.68, width * 0.62)
-            accentA: root.accentA
-            accentB: root.accentB
-            ink: root.ink
-            surface: root.surface
-            compact: root.width < 900
-            reveal: root.motionEnabled ? 0 : 1
-            intensity: 0.92
-        }
-
         Item {
             id: brandStage
             width: root.logoSize
             height: width
-            anchors.horizontalCenter: portal.horizontalCenter
-            y: portal.y + portal.crestY - height * 0.54
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: parent.height * 0.34 - height / 2
 
             Rectangle {
                 anchors.centerIn: parent
@@ -143,7 +128,7 @@ Rectangle {
         }
 
         Column {
-            anchors.horizontalCenter: portal.horizontalCenter
+            anchors.horizontalCenter: parent.horizontalCenter
             y: brandStage.y + brandStage.height + Kirigami.Units.gridUnit * 1.25
             spacing: Kirigami.Units.smallSpacing
 
@@ -179,9 +164,9 @@ Rectangle {
 
         Rectangle {
             id: progressTrack
-            anchors.horizontalCenter: portal.horizontalCenter
-            y: portal.y + portal.horizonY - height / 2
-            width: Math.max(220, Math.min(360, portal.width * 0.29))
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: parent.height * 0.72 - height / 2
+            width: Math.max(220, Math.min(360, parent.width * 0.24))
             height: 4
             radius: height / 2
             color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.15)
@@ -231,14 +216,6 @@ Rectangle {
             property: "y"
             from: Kirigami.Units.gridUnit * 0.8
             to: 0
-            duration: 460
-            easing.type: Easing.OutCubic
-        }
-        NumberAnimation {
-            target: portal
-            property: "reveal"
-            from: 0
-            to: 1
             duration: 460
             easing.type: Easing.OutCubic
         }

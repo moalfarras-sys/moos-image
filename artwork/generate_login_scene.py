@@ -9,11 +9,9 @@ them. Doorway QML itself is loop-free and does not reference those rasters.
 
 Deterministic: same inputs -> same bytes (PIL, no randomness, no timestamps).
 
-The Tidal Horizon Portal is code-native QML, not a rendered bitmap. Its reviewed
-master lives at artwork/tidal-portal/TidalHorizon.qml and is copied byte-for-byte
-into Splash, Login, Lock and Logout. That relationship matters more than four
-similar-looking implementations: when the horizon geometry changes, every
-doorway changes together.
+The session QML (Splash, Logout and its tiles) is synchronised byte-for-byte
+from the org.moos.ui2 base into every family package. The retired Tidal arc is
+deliberately gone: no session surface or app draws a full-screen curve.
 
 Usage:
     python3 artwork/generate_login_scene.py
@@ -24,15 +22,9 @@ from PIL import Image
 
 REPO = Path(__file__).resolve().parent.parent
 SHARE = REPO / "system_files/usr/share"
-PORTAL_MASTER = REPO / "artwork/tidal-portal/TidalHorizon.qml"
-PORTAL_OUTS = (
-    SHARE / "plasma/wallpapers/org.moos.ui2.greeter/contents/ui/TidalHorizon.qml",
-    SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen/TidalHorizon.qml",
-    SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/TidalHorizon.qml",
-    SHARE / "plasma/look-and-feel/org.moos.ui2.light/contents/splash/TidalHorizon.qml",
-    SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/TidalHorizon.qml",
-    SHARE / "plasma/look-and-feel/org.moos.ui2.light/contents/logout/TidalHorizon.qml",
-)
+# The Tidal arc is RETIRED (owner verdict, 2026-08-02): no session surface or
+# app draws the full-screen curve any more. The session identity is the Glass
+# Island material; this generator now syncs only the splash and logout QML.
 SPLASH_MASTER = REPO / "artwork/tidal-portal/Splash.qml"
 SPLASH_OUTS = (
     SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/Splash.qml",
@@ -54,20 +46,12 @@ FAMILY_QML = (
         SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/Splash.qml",
     ),
     (
-        "splash/TidalHorizon.qml",
-        SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/TidalHorizon.qml",
-    ),
-    (
         "logout/Logout.qml",
         SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/Logout.qml",
     ),
     (
         "logout/MoOSUI2ActionButton.qml",
         SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/MoOSUI2ActionButton.qml",
-    ),
-    (
-        "logout/TidalHorizon.qml",
-        SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/TidalHorizon.qml",
     ),
 )
 OUTS = (
@@ -140,12 +124,6 @@ def comet_ring(size: int, head: tuple[int, int, int], tail: tuple[int, int, int]
 
 
 def main() -> None:
-    portal = PORTAL_MASTER.read_bytes()
-    for out in PORTAL_OUTS:
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_bytes(portal)
-        print(f"wrote {out}")
-
     splash = SPLASH_MASTER.read_bytes()
     for out in SPLASH_OUTS:
         out.write_bytes(splash)

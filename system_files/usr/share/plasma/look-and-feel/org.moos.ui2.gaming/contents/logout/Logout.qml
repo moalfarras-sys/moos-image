@@ -274,42 +274,6 @@ Item {
         }
     }
 
-    // ── Tidal Horizon — the doorway's depth signature ────────────────────────
-    // One shared curve identifies every doorway. It now frames the island from
-    // BEHIND: the crest passes above the card, the horizon line lands beneath
-    // it, and the intensity is tuned down so the island owns the foreground.
-    // There are no drifting curtains, breathing rings, or decorative loops: the
-    // portal performs one short depth reveal, then becomes completely still.
-    TidalHorizon {
-        id: portal
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: parent.height * 0.06
-        width: Math.min(parent.width * 0.96, parent.height * 1.80)
-        height: Math.min(parent.height * 0.90, width * 0.56)
-        accentA: root.accent
-        accentB: root.accentB
-        ink: Kirigami.Theme.textColor
-        surface: Kirigami.Theme.alternateBackgroundColor
-        compact: root.width < Kirigami.Units.gridUnit * 64
-        reveal: root.motionEnabled ? 0 : 1
-        intensity: 0.55
-
-        Component.onCompleted: {
-            if (root.motionEnabled) {
-                portalReveal.start();
-            }
-        }
-    }
-    NumberAnimation {
-        id: portalReveal
-        target: portal
-        property: "reveal"
-        from: 0
-        to: 1
-        duration: 480
-        easing.type: Easing.OutCubic
-    }
-
     // The scene ABSORBS clicks; it does not cancel on one. Dismissing the
     // doorway is exactly two gestures, both deliberate: the Cancel key and
     // Escape — a stray click on the wallpaper or in a gap must never silently

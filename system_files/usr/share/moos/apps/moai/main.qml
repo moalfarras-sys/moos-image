@@ -295,23 +295,6 @@ Kirigami.ApplicationWindow {
             }
         }
 
-        // The same concave horizon that owns the desktop, Launcher and session
-        // portals now sits behind Mo AI. It replaces four unrelated
-        // aurora/glow layers with one palette-driven vector signature.
-        MoOSUi.TidalHorizon {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            height: Math.round(parent.height * 0.58)
-            surfaceColor: root.surface0
-            primaryColor: root.novaBlue
-            secondaryColor: root.novaViolet
-            luminousColor: root.novaCyan
-            strength: root.isLight ? 0.70 : 0.90
-            motionEnabled: root.motionEnabled
-            animateIn: true
-        }
-
         // The watermark stays static at whisper opacity: presence without
         // decoration competing with content or background battery cost.
         Image {
@@ -2342,19 +2325,6 @@ Kirigami.ApplicationWindow {
                                 Item {
                                     width: 130; height: 130
                                     anchors.horizontalCenter: parent.horizontalCenter
-                                    MoOSUi.TidalHorizon {
-                                        width: 360
-                                        height: 116
-                                        anchors.centerIn: parent
-                                        anchors.verticalCenterOffset: 22
-                                        surfaceColor: root.surface0
-                                        primaryColor: root.novaBlue
-                                        secondaryColor: root.novaViolet
-                                        luminousColor: root.novaCyan
-                                        strength: root.isLight ? 0.92 : 1.0
-                                        motionEnabled: root.motionEnabled
-                                        animateIn: true
-                                    }
                                     Rectangle {
                                         anchors.centerIn: parent; width: 130; height: 130; radius: 65
                                         color: Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.06)

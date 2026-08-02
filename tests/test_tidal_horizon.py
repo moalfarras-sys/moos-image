@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+import re
 import unittest
 
 from PIL import Image, ImageChops
@@ -86,29 +87,13 @@ class TidalHorizonContractTests(unittest.TestCase):
             metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
             self.assertIn("Horizon", metadata["KPlugin"]["Name"])
 
-    def test_first_party_apps_share_the_portal_geometry_and_motion_gate(self) -> None:
-        component_path = SHARE / "moos/apps/ui/TidalHorizon.qml"
-        component = component_path.read_text(encoding="utf-8")
-        for contract in (
-            "width * (compact ? 0.04 : 0.11)",
-            "height * (compact ? 0.78 : 0.82)",
-            "height * (compact ? 0.19 : 0.12)",
-            "Math.max(11, width * 0.013)",
-            "control2X: root.width * 0.31",
-            "control1X: root.width * 0.69",
-            "duration: 320",
-            "animateIn && motionEnabled",
-        ):
-            self.assertIn(contract, component)
-        self.assertNotIn("Animation.Infinite", component)
-        self.assertNotIn("Timer {", component)
-        self.assertNotIn("ShaderEffect", component)
-
-        for relative in ("store/main.qml", "moai/main.qml"):
-            qml = (
-                SHARE / "moos/apps" / relative
-            ).read_text(encoding="utf-8")
-            self.assertIn("MoOSUi.TidalHorizon {", qml, relative)
+    def test_first_party_apps_never_draw_the_retired_arc(self) -> None:
+        """Owner verdict (2026-08-02): the curve is retired inside apps too."""
+        ui_dir = SHARE / "moos/apps"
+        for qml in sorted(ui_dir.rglob("*.qml")):
+            text = re.sub(r"//[^\n]*", "", qml.read_text(encoding="utf-8"))
+            self.assertNotIn("TidalHorizon", text,
+                             f"{qml} still references the retired arc")
 
 
 if __name__ == "__main__":

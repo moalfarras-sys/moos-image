@@ -52,60 +52,22 @@ def assert_portal_sync(paths: list[Path]) -> None:
 
 
 class TidalPortalContractTests(unittest.TestCase):
-    def test_all_four_doorways_ship_the_exact_reviewed_geometry(self) -> None:
-        family = ui2_packages()
-        self.assertEqual(len(family), 16)
-        copies = [
-            LOCK_ROOT / "TidalHorizon.qml",
-            LOGIN_ROOT / "TidalHorizon.qml",
-        ]
-        for package in family:
-            copies.extend(
-                (
-                    package / "contents/splash/TidalHorizon.qml",
-                    package / "contents/logout/TidalHorizon.qml",
-                )
-            )
-        assert_portal_sync(copies)
-
-    def test_byte_identity_gate_rejects_a_mutated_copy(self) -> None:
-        """Prove the sync gate bites instead of passing every input."""
-        with tempfile.TemporaryDirectory() as directory:
-            altered = Path(directory) / "TidalHorizon.qml"
-            altered.write_bytes(PORTAL_MASTER.read_bytes() + b"\n// drift\n")
-            with self.assertRaisesRegex(AssertionError, "geometry drifted"):
-                assert_portal_sync([altered])
-
-    def test_portal_is_pure_theme_fed_scalable_geometry(self) -> None:
-        portal = PORTAL_MASTER.read_text(encoding="utf-8")
-        for role in (
-            "property color accentA",
-            "property color accentB",
-            "property color ink",
-            "property color surface",
-            "property real reveal",
-            "property real intensity",
-            "property bool compact",
+    def test_the_retired_arc_never_returns(self) -> None:
+        """Owner verdict (2026-08-02): the full-screen Tidal curve is retired.
+        No session surface, package, or first-party app may ship or draw it."""
+        shipped = sorted((ROOT / "system_files").rglob("TidalHorizon.qml"))
+        self.assertEqual(shipped, [], f"retired arc component shipped: {shipped}")
+        self.assertFalse(PORTAL_MASTER.exists(),
+                         "the retired arc master must not return")
+        for surface in (
+            LOCK_ROOT / "LockScreenUi.qml",
+            LOGIN_ROOT / "main.qml",
+            LNF_ROOT / "org.moos.ui2/contents/logout/Logout.qml",
+            LNF_ROOT / "org.moos.ui2/contents/splash/Splash.qml",
         ):
-            self.assertIn(role, portal)
-        for signature in (
-            "width * (compact ? 0.04 : 0.11)",
-            "height * (compact ? 0.78 : 0.82)",
-            "height * (compact ? 0.19 : 0.12)",
-            "width * (compact ? 0.18 : 0.22)",
-            "width * 0.013",
-            "PathCubic",
-            "PathMove",
-        ):
-            self.assertIn(signature, portal)
-        for forbidden in (
-            "Timer {",
-            "Animation.Infinite",
-            "MouseArea {",
-            "ShaderEffect",
-            "layer.effect",
-        ):
-            self.assertNotIn(forbidden, portal)
+            text = re.sub(r"//[^\n]*", "", surface.read_text(encoding="utf-8"))
+            self.assertNotIn("TidalHorizon", text,
+                             f"{surface} still references the retired arc")
 
     def test_splash_has_one_finite_reveal_and_stage_progress(self) -> None:
         splash = (
@@ -117,7 +79,6 @@ class TidalPortalContractTests(unittest.TestCase):
         self.assertNotIn("progressMotion", splash)
         self.assertIn("duration: 460", splash)
         self.assertIn("duration: root.motionEnabled ? 260 : 0", splash)
-        self.assertIn("portal.reveal = 1", splash)
         self.assertIn("contentShift.y = 0", splash)
 
     def test_logout_is_a_framed_compact_command_island(self) -> None:
@@ -130,10 +91,6 @@ class TidalPortalContractTests(unittest.TestCase):
             / "org.moos.ui2/contents/logout/MoOSUI2ActionButton.qml"
         ).read_text(encoding="utf-8")
         self.assertNotIn("Animation.Infinite", logout + action)
-        # The Tidal frame keeps its reviewed geometry; it now sits BEHIND the
-        # island (depth signature), never through the content.
-        self.assertIn("parent.width * 0.96", logout)
-        self.assertIn("parent.height * 1.80", logout)
         # The Glass Island: adaptive width between a 26-unit floor and the
         # content's own implicit width, a 2-unit radius, and the layered
         # material (fill, sheen, rim) with a soft three-step depth halo.
@@ -169,7 +126,6 @@ class TidalPortalContractTests(unittest.TestCase):
         lock_clock = (LOCK_ROOT / "MoOSClock.qml").read_text(encoding="utf-8")
         main_block = (LOCK_ROOT / "MainBlock.qml").read_text(encoding="utf-8")
 
-        self.assertIn("TidalHorizon {", login)
         for forbidden in ("Timer {", "Animation.Infinite", "ShaderEffect"):
             self.assertNotIn(forbidden, login)
         self.assertIn("radius: height * 0.30", action)
@@ -182,7 +138,6 @@ class TidalPortalContractTests(unittest.TestCase):
         self.assertIn("LayoutMirroring.enabled: false", clock)
         self.assertIn("layoutDirection: Qt.LeftToRight", clock)
 
-        self.assertIn("TidalHorizon {", lock)
         self.assertNotIn("Animation.Infinite", lock)
         self.assertIn(
             "anchors.left: lockScreenUi.rtl ? undefined : parent.left", lock

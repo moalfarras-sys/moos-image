@@ -1088,20 +1088,6 @@ QQC2.ApplicationWindow {
                         border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.28)
                         clip: true
 
-                        MoOSUi.TidalHorizon {
-                            x: win.rtl ? 0 : hero.width - width
-                            width: Math.min(hero.width * 0.44, 560)
-                            height: hero.height
-                            surfaceColor: hero.color
-                            primaryColor: win.accent
-                            secondaryColor: win.linkColor
-                            luminousColor: win.accentText
-                            strength: 0.64
-                            motionEnabled: win.motionEnabled
-                            animateIn: true
-                            Accessible.ignored: true
-                        }
-
                         RowLayout {
                             anchors.fill: parent
                             anchors.margins: design.space6
