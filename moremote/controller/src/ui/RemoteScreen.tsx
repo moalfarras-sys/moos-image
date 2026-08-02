@@ -13,9 +13,9 @@ import { pickStartPreset, readDeviceHints, describeHints } from "../lib/quality"
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
-  IconAltTab, IconActual, IconArrowUp, IconChevronDown, IconClipboard, IconCopy, IconEnter,
-  IconEsc, IconFile, IconFit, IconFolder, IconFullscreen, IconKeyboard, IconLock, IconMore,
-  IconMouse, IconPaste, IconPower, IconRefresh, IconRotate, IconSend, IconSettings, IconShield,
+  IconAltTab, IconActual, IconArrowUp, IconBackspace, IconChevronDown, IconClipboard, IconClose,
+  IconCopy, IconEnter, IconEsc, IconFile, IconFit, IconFolder, IconFullscreen, IconKeyboard,
+  IconLock, IconMore, IconMouse, IconPaste, IconPause, IconPower, IconRefresh, IconRotate, IconSend, IconSettings, IconShield,
   IconSpeaker, IconSpeakerOff, IconTrackpad, IconUpload,
   IconWindows, IconZoomIn, IconZoomOut,
 } from "./icons";
@@ -229,7 +229,7 @@ function SheetPanel({ label, onClose, children, role = "dialog", descriptionId,
     <div ref={panelRef} className="sheet" role={role} aria-modal="true" aria-label={label}
          aria-describedby={descriptionId} tabIndex={-1}>
       <button type="button" className="sheet-close" onClick={onClose} disabled={!dismissible}
-              aria-label={`Close ${label}`}>×</button>
+              aria-label={`Close ${label}`}><IconClose /></button>
       {children}
     </div>
   );
@@ -1952,7 +1952,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
 
       {status === "paused" && (
         <div className="center-msg" style={{ background: "rgba(5,7,13,0.5)" }}>
-          <b style={{ color: "var(--text)", fontSize: 16 }}>⏸ Paused on the PC</b>
+          <IconPause className="" />
+          <b style={{ color: "var(--text)", fontSize: 16 }}>Paused on the PC</b>
           <div>Resume from the PC tray or banner.</div>
         </div>
       )}
@@ -2004,8 +2005,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
             onInput={onInput} onKeyDown={onInputKeyDown}
             onCompositionStart={onCompositionStart} onCompositionEnd={onCompositionEnd}
           />
-          <button {...keepFocus} className="kbicon" onClick={() => sendKey("Backspace")} aria-label="Backspace">⌫</button>
-          <button {...keepFocus} className="kbicon" onClick={() => sendKey("Enter")} aria-label="Enter">↵</button>
+          <button {...keepFocus} className="kbicon" onClick={() => sendKey("Backspace")} aria-label="Backspace"><IconBackspace /></button>
+          <button {...keepFocus} className="kbicon" onClick={() => sendKey("Enter")} aria-label="Enter"><IconEnter /></button>
           <button {...keepFocus} className="kbdone" onClick={closeKeyboard}>Done</button>
         </div>
       </div>

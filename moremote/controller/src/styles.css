@@ -500,9 +500,11 @@ button {
   border-radius: 50%;
   background: var(--surface-2);
   color: var(--text);
-  font-size: 25px;
-  line-height: 1;
   z-index: 1;
+}
+.sheet-close svg {
+  width: 19px;
+  height: 19px;
 }
 .sheet-close:focus-visible {
   outline: 2px solid var(--accent-2);
@@ -697,7 +699,10 @@ button {
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
   color: var(--text);
-  font-size: 17px;
+}
+.kbicon svg {
+  width: 19px;
+  height: 19px;
 }
 .kbicon:active {
   background: var(--accent);
@@ -1221,8 +1226,14 @@ button {
   letter-spacing: 0.3px;
 }
 .credit::before {
-  content: "✦ ";
-  color: var(--accent);
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-inline-end: 7px;
+  border-radius: 2px;
+  background: var(--accent-grad);
+  transform: rotate(45deg);
 }
 
 /* ---- keyboard row separators ---- */

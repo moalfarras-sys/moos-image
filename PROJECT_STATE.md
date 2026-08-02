@@ -411,6 +411,16 @@ button/status names are announced once. Nine controller suites, TypeScript, the
 production bundle and npm audit (zero findings) pass. This is source/render-pipeline
 evidence; phone screenshots at light/dark and multiple pixel densities remain open.
 
+Remote control glyph completion (PWA v31): the sheet close control, paused-state
+mark and keyboard Backspace/Enter controls no longer depend on font-specific
+dingbats. They now use the same accessible, `currentColor` Tidal Cut SVG root as
+the rest of the controller, with deterministic 19 px control sizing. The credit
+accent is a CSS material lozenge rather than another font glyph. Conventional
+keycap legends (arrows and modifier shortcuts) intentionally remain text because
+they describe the exact key sent. The icon regression suite rejects a return of
+these visible dingbats. Live phone screenshots remain required before claiming
+pixel-level validation.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds

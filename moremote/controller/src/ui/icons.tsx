@@ -131,6 +131,11 @@ export const IconBackspace = (p: P) => (
     <path d="M14 9l-4 6M10 9l4 6" />
   </S>
 );
+export const IconClose = (p: P) => (
+  <S {...p}>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </S>
+);
 export const IconPause = (p: P) => (
   <S {...p}>
     <rect x="7" y="4" width="3.5" height="16" rx="1" />

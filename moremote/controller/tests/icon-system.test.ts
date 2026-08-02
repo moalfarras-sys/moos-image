@@ -12,17 +12,18 @@ const styles = readFileSync(resolve(here, "../src/styles.css"), "utf8");
 assert.ok(icons.includes('aria-hidden="true" focusable="false"'),
   "decorative glyphs must not duplicate the adjacent accessible button/status text");
 
-for (const name of ["IconFile", "IconFolder", "IconArrowUp", "IconRotate", "IconLock", "IconPlug"]) {
+for (const name of ["IconFile", "IconFolder", "IconArrowUp", "IconRotate", "IconLock", "IconPlug", "IconClose", "IconPause", "IconBackspace", "IconEnter"]) {
   assert.ok(icons.includes(`export const ${name}`), `Tidal Cut set misses ${name}`);
 }
-for (const cheap of ['>🔌<', '"📁"', '"📄"', '>⬆ Up<', '>↻ Sideways<', '>🔒 Upright<']) {
+for (const cheap of ['>🔌<', '"📁"', '"📄"', '>⬆ Up<', '>↻ Sideways<', '>🔒 Upright<', '>×</button>', '>⏸ ', '>⌫</button>', '>↵</button>']) {
   assert.ok(!remote.includes(cheap) && !app.includes(cheap), `visible UI retains text glyph ${cheap}`);
 }
-for (const contract of ["<IconFolder />", "<IconFile />", "<IconArrowUp />", "<IconRotate />", "<IconLock />"]) {
+for (const contract of ["<IconFolder />", "<IconFile />", "<IconArrowUp />", "<IconRotate />", "<IconLock />", "<IconClose />", "<IconPause className=\"\" />", "<IconBackspace />", "<IconEnter />"]) {
   assert.ok(remote.includes(contract), `Remote surface does not use ${contract}`);
 }
 assert.ok(app.includes('<IconPlug className="error-glyph" />'));
 assert.match(styles, /\.file-ic svg\s*\{[\s\S]*?width:\s*20px;[\s\S]*?height:\s*20px;/,
   "file glyphs need a deterministic small-size ladder");
+assert.ok(!styles.includes('content: "✦ ";'), "credits must not depend on a font-specific dingbat");
 
 console.log("PASS: Remote error, orientation and file surfaces use one scalable Tidal Cut icon set");
