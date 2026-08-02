@@ -102,10 +102,10 @@ Item {
         }
     }
 
-    function visibleActions() {
+    function visibleDockActions() {
         const candidates = [suspendButton, hibernateButton, rebootButton,
             rebootWithoutUpdatesButton, shutdownButton, shutdownWithoutUpdatesButton,
-            logoutButton, lockButton, cancelButton];
+            logoutButton, lockButton];
         const result = [];
         for (let i = 0; i < candidates.length; ++i) {
             if (candidates[i].visible && candidates[i].enabled) { result.push(candidates[i]); }
@@ -113,12 +113,33 @@ Item {
         return result;
     }
 
-    function moveFocus(button, step) {
-        const actions = visibleActions();
+    function visibleActions() {
+        const result = visibleDockActions();
+        if (cancelButton.visible && cancelButton.enabled) { result.push(cancelButton); }
+        return result;
+    }
+
+    function moveFocus(button, horizontalStep, verticalStep) {
+        const actions = visibleDockActions();
         if (actions.length === 0) { return; }
-        let logicalStep = step;
-        if (Qt.application.layoutDirection === Qt.RightToLeft) { logicalStep *= -1; }
+        if (button === cancelButton) {
+            const edge = verticalStep < 0 || horizontalStep < 0
+                ? actions.length - 1 : 0;
+            actions[edge].forceActiveFocus(Qt.TabFocusReason);
+            return;
+        }
         const idx = Math.max(0, actions.indexOf(button));
+        if (verticalStep !== 0) {
+            const next = idx + verticalStep * dock.columns;
+            if (next < 0 || next >= actions.length) {
+                cancelButton.forceActiveFocus(Qt.TabFocusReason);
+            } else {
+                actions[next].forceActiveFocus(Qt.TabFocusReason);
+            }
+            return;
+        }
+        let logicalStep = horizontalStep;
+        if (Qt.application.layoutDirection === Qt.RightToLeft) { logicalStep *= -1; }
         const next = (idx + logicalStep + actions.length) % actions.length;
         actions[next].forceActiveFocus(Qt.TabFocusReason);
     }
@@ -515,12 +536,23 @@ Item {
                 font.weight: Font.DemiBold; font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
 
-            // ── The power dock: a centred row of action ORBS ──
-            RowLayout {
+            // ── The power dock: a responsive grid of portal keys ──
+            // A single RowLayout could expose eight actions when an update and both
+            // suspend methods were available: 8 × 7 grid units plus spacing exceeded
+            // this 50-unit island and clipped at fractional scaling. Keep at most five
+            // columns and form balanced 3+3 / 4+3 / 4+4 rows for six to eight actions.
+            GridLayout {
                 id: dock
                 Layout.alignment: Qt.AlignHCenter
                 Layout.topMargin: Kirigami.Units.smallSpacing
-                spacing: Kirigami.Units.largeSpacing
+                rowSpacing: Kirigami.Units.largeSpacing
+                columnSpacing: Kirigami.Units.largeSpacing
+                readonly property int actionCount: root.visibleDockActions().length
+                readonly property int widthLimit: Math.max(1, Math.floor(
+                    (sheet.width + columnSpacing)
+                    / (Kirigami.Units.gridUnit * 7 + columnSpacing)))
+                columns: Math.max(1, Math.min(5, widthLimit,
+                    actionCount <= 5 ? actionCount : Math.ceil(actionCount / 2)))
 
                 MoOSUI2ActionButton {
                     id: suspendButton
@@ -529,7 +561,7 @@ Item {
                     description: root.bilingual("إبقاء الجلسة", "Keep session")
                     visible: root.showAllOptions && spdMethods.SuspendState
                     onClicked: root.fireNow(() => root.suspendRequested(2))
-                    onNavigate: (step) => root.moveFocus(suspendButton, step)
+                    onNavigate: (horizontalStep, verticalStep) => root.moveFocus(suspendButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
                     id: hibernateButton
@@ -538,7 +570,7 @@ Item {
                     description: root.bilingual("حفظ الجلسة", "Save session")
                     visible: root.showAllOptions && spdMethods.HibernateState
                     onClicked: root.fireNow(() => root.suspendRequested(4))
-                    onNavigate: (step) => root.moveFocus(hibernateButton, step)
+                    onNavigate: (horizontalStep, verticalStep) => root.moveFocus(hibernateButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
                     id: rebootButton
@@ -549,7 +581,7 @@ Item {
                     emphasized: sdtype === ShutdownType.ShutdownTypeReboot
                     visible: maysd && (sdtype === ShutdownType.ShutdownTypeReboot || root.showAllOptions)
                     onClicked: root.armOrFire(rebootButton, () => { if (softwareUpdatePending) { root.rebootUpdateRequested(); } else { root.rebootRequested(); } })
-                    onNavigate: (step) => root.moveFocus(rebootButton, step)
+                    onNavigate: (horizontalStep, verticalStep) => root.moveFocus(rebootButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
                     id: rebootWithoutUpdatesButton
@@ -558,7 +590,7 @@ Item {
                     description: armed ? root.bilingual("اضغط مجددًا لإعادة التشغيل", "Tap again to restart") : root.bilingual("بدون تحديث", "Without updating")
                     visible: maysd && softwareUpdatePending && (sdtype === ShutdownType.ShutdownTypeReboot || root.showAllOptions)
                     onClicked: root.armOrFire(rebootWithoutUpdatesButton, () => root.rebootRequested())
-                    onNavigate: (step) => root.moveFocus(rebootWithoutUpdatesButton, step)
+                    onNavigate: (horizontalStep, verticalStep) => root.moveFocus(rebootWithoutUpdatesButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
                     id: shutdownButton
@@ -570,7 +602,7 @@ Item {
                     destructive: true
                     visible: maysd && (sdtype === ShutdownType.ShutdownTypeHalt || root.showAllOptions)
                     onClicked: root.armOrFire(shutdownButton, () => { if (softwareUpdatePending) { root.haltUpdateRequested(); } else { root.haltRequested(); } })
-                    onNavigate: (step) => root.moveFocus(shutdownButton, step)
+                    onNavigate: (horizontalStep, verticalStep) => root.moveFocus(shutdownButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
                     id: shutdownWithoutUpdatesButton
@@ -580,7 +612,7 @@ Item {
                     destructive: true
                     visible: maysd && softwareUpdatePending && (sdtype === ShutdownType.ShutdownTypeHalt || root.showAllOptions)
                     onClicked: root.armOrFire(shutdownWithoutUpdatesButton, () => root.haltRequested())
-                    onNavigate: (step) => root.moveFocus(shutdownWithoutUpdatesButton, step)
+                    onNavigate: (horizontalStep, verticalStep) => root.moveFocus(shutdownWithoutUpdatesButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
                     id: logoutButton
@@ -589,7 +621,7 @@ Item {
                     description: root.bilingual("إنهاء الجلسة", "End session")
                     visible: canLogout && (sdtype === ShutdownType.ShutdownTypeNone || root.showAllOptions)
                     onClicked: root.fireNow(() => root.logoutRequested())
-                    onNavigate: (step) => root.moveFocus(logoutButton, step)
+                    onNavigate: (horizontalStep, verticalStep) => root.moveFocus(logoutButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
                     id: lockButton
@@ -598,7 +630,7 @@ Item {
                     description: root.bilingual("العودة لاحقًا", "Return later")
                     visible: root.showAllOptions
                     onClicked: root.fireNow(() => root.lockScreenRequested())
-                    onNavigate: (step) => root.moveFocus(lockButton, step)
+                    onNavigate: (horizontalStep, verticalStep) => root.moveFocus(lockButton, horizontalStep, verticalStep)
                 }
             }
 
@@ -616,7 +648,7 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.topMargin: Kirigami.Units.largeSpacing
                 onClicked: { root.disarm(); root.cancelRequested(); }
-                onNavigate: (step) => root.moveFocus(cancelButton, step)
+                onNavigate: (horizontalStep, verticalStep) => root.moveFocus(cancelButton, horizontalStep, verticalStep)
             }
         }
     }

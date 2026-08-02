@@ -26,7 +26,24 @@ defects: DOCX/ODT MIME detection depended on a host MIME database (`a7dc930b`
 now recognises the three supported document suffixes deterministically), and two
 runtime gates crashed on a partial non-PyGObject `gi` namespace (`41c40bf4`,
 `b2ddb444` now retain their pure contracts and skip only unavailable GTK/KDE
-runtime checks). Mo PC Remote's available source gates pass for capture rebuild
+runtime checks).
+
+Logout/Power responsive-layout follow-up: the command island is capped at 50
+grid units, but its action dock was one unwrapped row that could contain eight
+seven-unit cells when update, suspend and hibernate actions were all available.
+That geometry overflowed before accounting for spacing and was especially bad
+under fractional scaling. All 16 look-and-feel packages now share a responsive
+`GridLayout`: at most five columns, with balanced 3+3, 4+3 or 4+4 rows for six
+to eight actions and a width-derived lower cap. Arrow navigation now moves by
+one column horizontally, by the actual column count vertically, and mirrors
+only horizontal movement in RTL. Vertical movement leaves an incomplete edge
+for the real Cancel control rather than wrapping to an unrelated top-row action;
+Cancel returns to a deterministic dock edge. A regression test exercises every 1–8 action
+shape and guards the directional accessibility contract. The 28 UI2 tests,
+user-experience gate and complete repository check pass. This is source/gate
+evidence only; live Qt rendering at fractional scales remains required.
+
+Mo PC Remote's available source gates pass for capture rebuild
 coalescing, non-blocking input, resolution negotiation, H.264 fallback/restart,
 authenticated sound, private Cloud desktop, PIN ownership, subids and per-user
 ports. This Cloud environment has no Node/npm, .NET, systemd, Qt/KDE runtime or

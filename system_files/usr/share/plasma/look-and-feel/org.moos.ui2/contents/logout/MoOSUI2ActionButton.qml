@@ -58,7 +58,7 @@ QQC2.AbstractButton {
         ? Kirigami.Theme.backgroundColor
         : Kirigami.Theme.highlightedTextColor
 
-    signal navigate(int step)
+    signal navigate(int horizontalStep, int verticalStep)
 
     // Do not rely on AbstractButton's platform-specific implicit accessibility
     // mapping on the logout greeter.  This component is also loaded by
@@ -84,10 +84,10 @@ QQC2.AbstractButton {
         }
     }
 
-    Keys.onUpPressed: navigate(-1)
-    Keys.onDownPressed: navigate(1)
-    Keys.onLeftPressed: navigate(-1)
-    Keys.onRightPressed: navigate(1)
+    Keys.onUpPressed: navigate(0, -1)
+    Keys.onDownPressed: navigate(0, 1)
+    Keys.onLeftPressed: navigate(-1, 0)
+    Keys.onRightPressed: navigate(1, 0)
 
     background: null
 

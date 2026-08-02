@@ -887,6 +887,36 @@ class TestMoOSUI2(unittest.TestCase):
                     f"{destructive_ratio:.2f}:1",
                 )
 
+    def test_power_dock_wraps_and_keyboard_navigation_tracks_the_grid(self) -> None:
+        logout_root = SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout"
+        logout = qml_code((logout_root / "Logout.qml").read_text(encoding="utf-8"))
+        button = qml_code((logout_root / "MoOSUI2ActionButton.qml").read_text(encoding="utf-8"))
+        dock = logout[logout.index("id: dock"):logout.index("id: cancelButton")]
+
+        self.assertIn("GridLayout {", logout[:logout.index("id: dock")])
+        self.assertIn("actionCount: root.visibleDockActions().length", dock)
+        self.assertIn("Math.min(5, widthLimit", dock)
+        self.assertIn("Math.ceil(actionCount / 2)", dock)
+        self.assertIn("verticalStep * dock.columns", logout)
+        self.assertIn("if (button === cancelButton)", logout)
+        self.assertIn("cancelButton.forceActiveFocus(Qt.TabFocusReason)", logout)
+        self.assertIn("if (Qt.application.layoutDirection === Qt.RightToLeft) { logicalStep *= -1; }", logout)
+        self.assertIn("signal navigate(int horizontalStep, int verticalStep)", button)
+        for key, vector in (("Up", "0, -1"), ("Down", "0, 1"),
+                            ("Left", "-1, 0"), ("Right", "1, 0")):
+            self.assertIn(f"Keys.on{key}Pressed: navigate({vector})", button)
+
+        # With room for five columns, every possible capability/update shape is
+        # either one row or two rows differing by at most one item. The old
+        # eight-wide row exceeded the 50-grid-unit command island.
+        for count in range(1, 9):
+            columns = min(5, count if count <= 5 else (count + 1) // 2)
+            rows = (count + columns - 1) // columns
+            self.assertLessEqual(columns, 5)
+            self.assertLessEqual(rows, 2)
+            if rows == 2:
+                self.assertLessEqual(columns - (count - columns), 1)
+
     def test_session_splash_reduced_motion_reaches_static_resting_frame(self) -> None:
         """The splash owns one finite reveal and a truly static off state."""
         splash = qml_code((
