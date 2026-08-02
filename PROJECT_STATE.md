@@ -64,6 +64,26 @@ logged `safe ordering already: /dev/console is tty0`, i.e. the repair unit
 works and correctly no-ops. Memory 11 GiB available of 15, load 0.46. The
 desktop has `.524` staged.
 
+The post-update check on that recovered host then found the round's second real
+defect: **root was running Mo AI on the desktop user's ports.** `60-moai-ports`
+only prints an offset for uid >= 1000 and `exit 0`ed silently below it — the
+identical fail-OPEN shape it was written to close for uid >= 1010, because a
+service with no override falls back to its built-in 8080/8079/8077, which ARE
+uid 1000's ports. On the Cloud host root has a real login session, so its user
+manager started `moai-agent-api`, which sat in a restart loop on
+`[Errno 98] Address already in use` (that is the *benign* outcome; the harmful
+one is root winning the race and owning uid 1000's front door as root — a
+loopback API that shells out to `openclaw` and `systemctl --user`, reachable by
+every local account, since the `X-Moai-*` headers guard against web pages and
+not against another user on the same machine). Fixed in two layers:
+`ConditionUser=!@system` on all eight Mo AI/OpenClaw user units so they never
+start for a system account, and the generator now hands uid < 1000 a private
+`19077-19080` band instead of nothing. Verified by running the new generator as
+uid 0 on the live server (`MOAI_AGENT_PORT=19077`) and by clearing root's
+failed unit there. `tests/test_moai_ports_fail_closed.py` had encoded the
+fail-open assumption (`uid 999 must emit no ports`); that contract is migrated
+to the stronger one and broken-once against the old behaviour.
+
 One process lesson from this round: **`gh run watch --exit-status` returned 0
 for a run whose three jobs all failed.** The failure was real — the previous
 commit shipped a `wwwroot` bundle built against stale `node_modules`, and the

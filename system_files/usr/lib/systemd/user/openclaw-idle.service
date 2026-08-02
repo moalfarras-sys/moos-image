@@ -2,6 +2,21 @@
 Description=Sleep the on-demand Mo AI runtime when no persistent phone channel needs it
 Documentation=file:///usr/bin/openclaw-idle
 
+# Mo AI belongs to a HUMAN, and root is not one. The port generator
+# (60-moai-ports) only prints an offset for uid >= 1000, so a system account —
+# root above all — falls back to the built-in 8080/8079/8077, which ARE uid
+# 1000's ports. On the Cloud host root has a real login session, so its user
+# manager started these: measured there as moai-agent-api failing "[Errno 98]
+# Address already in use" in a restart loop. The failure is the benign outcome.
+# The other outcome is the dangerous one: whoever binds first wins, so a root
+# session that starts before the desktop user's would own uid 1000's front door
+# — a root-privileged loopback API that shells out to `openclaw` and
+# `systemctl --user`, reachable by every local account, since X-Moai-* are
+# guards against web pages and not against another user on the same machine.
+# ConditionUser closes it at the only place that is airtight: the unit never
+# starts for a system user at all.
+ConditionUser=!@system
+
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/openclaw-idle

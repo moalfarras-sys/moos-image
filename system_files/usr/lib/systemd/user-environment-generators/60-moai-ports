@@ -63,8 +63,25 @@
 uid="$(id -u 2>/dev/null)" || exit 0
 case "$uid" in ''|*[!0-9]*) exit 0 ;; esac
 
-# System and dynamic users have no Mo AI session; leave their environment alone.
-[ "$uid" -ge 1000 ] || exit 0
+# System and dynamic users have no Mo AI session — but "leave their environment
+# alone" was the SAME fail-open shape this file exists to close. Printing nothing
+# means the services fall back to their built-in 8080/8079/8077, which are uid
+# 1000's ports; on the Cloud host root has a real login session and its user
+# manager duly started moai-agent-api, which sat in a restart loop on
+# "[Errno 98] Address already in use". That is the harmless outcome. The harmful
+# one is winning the race: a root session that starts before the desktop user's
+# would OWN uid 1000's front door as root.
+#
+# The units now refuse to start for a system user at all (ConditionUser=!@system),
+# and this generator no longer hands one uid 1000's numbers either. Anything a
+# system account runs by hand — the `moai` CLI, a curl — talks to a private band
+# that no human account can ever be assigned.
+if [ "$uid" -lt 1000 ]; then
+    printf 'MOAI_GATEWAY_PORT=%d\n' $(( 19080 + uid % 100 ))
+    printf 'MOAI_CONTROL_PORT=%d\n' $(( 19079 + uid % 100 ))
+    printf 'MOAI_AGENT_PORT=%d\n'   $(( 19077 + uid % 100 ))
+    exit 0
+fi
 
 offset=$(( (uid - 1000) * 100 ))
 

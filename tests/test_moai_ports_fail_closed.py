@@ -78,9 +78,41 @@ def main() -> int:
         if len(set(ports.values())) != 3:
             errors.append(f"uid {uid} ports collide with each other: {ports}")
 
-    # A system/dynamic user (uid < 1000) has no Mo AI session — emit nothing.
-    if run_generator(999):
-        errors.append("uid 999 (system user) must emit no Mo AI ports")
+    # A system account (uid < 1000) has no Mo AI session — but "emit nothing" was the
+    # SAME fail-open shape as the old uid>=1010 arm: with no override the services fall
+    # back to their built-in 8080/8079/8077, which ARE uid 1000's ports. Measured on the
+    # Cloud host, root has a real login session and its user manager started
+    # moai-agent-api, which sat in a restart loop on "[Errno 98] Address already in use"
+    # against uid 1000's port. The benign outcome. The other one is root WINNING the
+    # race and owning the desktop user's front door as root.
+    for uid in (0, 999):
+        ports = run_generator(uid)
+        if set(ports) != set(BASE):
+            errors.append(f"uid {uid} (system) did not emit all three MOAI_*_PORT vars "
+                          f"(got {ports}) — with no override it falls back to uid 1000's "
+                          f"base ports, which is exactly the collision this file prevents")
+            continue
+        for name, value in ports.items():
+            if value == BASE[name]:
+                errors.append(f"uid {uid} (system) resolves {name}={value} — uid 1000's port")
+            if not (1024 < value < 65536):
+                errors.append(f"uid {uid} {name}={value} is outside the usable port range")
+
+    # Ports are the second line. The first is that these units must not start for a
+    # system user at all — a root-owned loopback API that shells out to `openclaw` and
+    # `systemctl --user` is reachable by every local account, and X-Moai-* headers are
+    # guards against web pages, not against another user on the same machine.
+    user_units = ROOT / "system_files/usr/lib/systemd/user"
+    for unit in ("moai-agent-api", "moai-control", "moai-gateway", "moai",
+                 "moai-wake", "openclaw-gateway"):
+        path = user_units / f"{unit}.service"
+        if not path.is_file():
+            errors.append(f"{unit}.service is missing")
+            continue
+        if "ConditionUser=!@system" not in path.read_text(encoding="utf-8"):
+            errors.append(f"{unit}.service must carry ConditionUser=!@system — root has a "
+                          f"login session on MoOS Cloud and its user manager will start "
+                          f"this otherwise")
 
     if errors:
         print("GATE FAIL: 60-moai-ports does not fail closed.\n")
