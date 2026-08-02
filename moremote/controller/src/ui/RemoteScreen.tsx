@@ -13,10 +13,10 @@ import { pickStartPreset, readDeviceHints, describeHints } from "../lib/quality"
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
-  IconAltTab, IconActual, IconChevronDown, IconClipboard, IconCopy, IconEnter, IconEsc, IconFit,
-  IconFolder, IconFullscreen, IconKeyboard, IconLock, IconMore, IconMouse, IconPaste, IconPower,
-  IconRefresh, IconSend, IconSettings, IconShield, IconSpeaker, IconSpeakerOff, IconTrackpad,
-  IconUpload,
+  IconAltTab, IconActual, IconArrowUp, IconChevronDown, IconClipboard, IconCopy, IconEnter,
+  IconEsc, IconFile, IconFit, IconFolder, IconFullscreen, IconKeyboard, IconLock, IconMore,
+  IconMouse, IconPaste, IconPower, IconRefresh, IconRotate, IconSend, IconSettings, IconShield,
+  IconSpeaker, IconSpeakerOff, IconTrackpad, IconUpload,
   IconWindows, IconZoomIn, IconZoomOut,
 } from "./icons";
 
@@ -2086,8 +2086,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
           <div className="row-label">Rotation</div>
           <div className="seg">
             <button className={orient === "auto" ? "on" : ""} onClick={() => chooseOrient("auto")}>Fit phone</button>
-            <button className={orient === "on" ? "on" : ""} onClick={() => chooseOrient("on")}>↻ Sideways</button>
-            <button className={orient === "off" ? "on" : ""} onClick={() => chooseOrient("off")}>🔒 Upright</button>
+            <button className={orient === "on" ? "on" : ""} onClick={() => chooseOrient("on")}><IconRotate /> Sideways</button>
+            <button className={orient === "off" ? "on" : ""} onClick={() => chooseOrient("off")}><IconLock /> Upright</button>
           </div>
           <p className="hint">
             Fit phone follows your phone: the desktop stays upright and fits however you hold it.
@@ -2285,7 +2285,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
           <div className="grip" />
           <h3>Files · {fileList?.title ?? "…"}</h3>
           <div className="file-actions">
-            {fileList?.path && <button className="cell" onClick={() => navFiles(fileList.parent)}>⬆ Up</button>}
+            {fileList?.path && <button className="cell" onClick={() => navFiles(fileList.parent)}><IconArrowUp /> Up</button>}
             {fileList?.path && <button className="cell" onClick={() => fileUpRef.current?.click()}><IconUpload /> Upload here</button>}
             <button className="cell" onClick={() => navFiles(fileList?.path ?? null)}><IconRefresh /> Refresh</button>
           </div>
@@ -2297,7 +2297,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
             {!fileBusy && fileList && fileList.entries.length === 0 && <div className="hintline">Empty folder</div>}
             {!fileBusy && fileList?.entries.map((en) => (
               <button key={en.path} className="file-row" onClick={() => (en.isDir ? navFiles(en.path) : downloadFile(en))}>
-                <span className="file-ic">{en.isDir ? "📁" : "📄"}</span>
+                <span className="file-ic">{en.isDir ? <IconFolder /> : <IconFile />}</span>
                 <span className="file-name">{en.name}</span>
                 <span className="file-meta">{en.isDir ? "›" : fmtSize(en.size)}</span>
               </button>

@@ -1191,8 +1191,14 @@ button {
   background: var(--raised);
 }
 .file-ic {
-  font-size: 18px;
   flex: 0 0 auto;
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+}
+.file-ic svg {
+  width: 20px;
+  height: 20px;
 }
 .file-name {
   flex: 1;
@@ -1256,12 +1262,10 @@ button {
    The card edge is what tells you where a group starts and ends, so you can find
    the row you want without reading every line.
 
-   NOTE ON ICON SIZE, which is why this file needs the rule below at all: the shared
-   <S> icon component sets no width/height — every USE site sizes it (.tbtn svg,
-   .cell svg, .seg button svg, …). An icon dropped somewhere without such a rule
-   therefore inherits nothing and expands to the container's full width. That shipped
-   once: the gear in the sheet header rendered at ~600px, filling the phone. Any new
-   icon position needs its size here, so the header and section rows have theirs. */
+   NOTE ON ICON SIZE: the shared <S> component owns a safe 24px fallback, while every
+   deliberate use site can override it (.tbtn svg, .cell svg, .seg button svg, …).
+   That fallback prevents an unsized glyph from becoming the browser's old ~300px
+   replaced-element default; the rules below still establish optical size by context. */
 
 .sheet h3 {
   display: flex;

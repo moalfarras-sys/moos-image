@@ -16,7 +16,7 @@ type P = { className?: string };
 // resizes. What changes is only the case nobody wrote a rule for: it lands at 24px — the size of
 // the viewBox — instead of at the browser's fallback.
 const S = (props: { children: ReactNode } & P) => (
-  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" className={props.className}>
     {props.children}
   </svg>
 );
@@ -205,5 +205,28 @@ export const IconUpload = (p: P) => (
   <S {...p}>
     <path d="M12 16V4M7 9l5-5 5 5" />
     <path d="M4 17.5v2.5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2.5" />
+  </S>
+);
+export const IconFile = (p: P) => (
+  <S {...p}>
+    <path d="M6 2.75h7l5 5V21.25H6z" />
+    <path d="M13 2.75v5h5M9 12h6M9 16h6" />
+  </S>
+);
+export const IconArrowUp = (p: P) => (
+  <S {...p}>
+    <path d="M12 20V4M6.5 9.5 12 4l5.5 5.5" />
+  </S>
+);
+export const IconRotate = (p: P) => (
+  <S {...p}>
+    <path d="M20 8V3.5L16.5 7" />
+    <path d="M20 4a9 9 0 1 0 1 12" />
+  </S>
+);
+export const IconPlug = (p: P) => (
+  <S {...p}>
+    <path d="M8 3v5M16 3v5M6 8h12v2a6 6 0 0 1-6 6v0a6 6 0 0 1-6-6z" />
+    <path d="M12 16v5M8.5 21h7" />
   </S>
 );

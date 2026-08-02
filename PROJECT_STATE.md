@@ -400,6 +400,17 @@ bundle gate and the complete repository check pass. This is not Web Push: a full
 closed or OS-suspended phone app receives nothing, and live iOS/Android evidence
 over Tailscale HTTPS remains open.
 
+Remote Tidal Cut icon audit (PWA v30): the largest fallback/error state still
+used a platform-dependent plug Emoji, orientation mixed text arrows with a lock
+Emoji, and the file browser mixed coloured folder/document Emoji beside the
+existing stroke system. Those surfaces now share four new 24×24 viewBox marks
+(plug, rotate, file and up) plus the existing folder/lock marks, all driven by
+`currentColor`; file rows pin them to a sharp 20 px optical size. The shared SVG
+root now explicitly hides decorative marks from assistive technology so adjacent
+button/status names are announced once. Nine controller suites, TypeScript, the
+production bundle and npm audit (zero findings) pass. This is source/render-pipeline
+evidence; phone screenshots at light/dark and multiple pixel densities remain open.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds

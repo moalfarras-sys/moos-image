@@ -5,6 +5,7 @@ import {
 } from "./lib/api";
 import { SetupScreen, LoginScreen } from "./ui/AuthScreens";
 import { RemoteScreen } from "./ui/RemoteScreen";
+import { IconPlug } from "./ui/icons";
 
 type View =
   | { name: "loading" }
@@ -87,7 +88,7 @@ export default function App() {
     case "error":
       return (
         <div className="center-msg" style={{ position: "fixed", inset: 0 }} role="alert">
-          <div style={{ fontSize: 40 }} aria-hidden="true">🔌</div>
+          <IconPlug className="error-glyph" />
           <div style={{ maxWidth: 300 }}>{view.message}</div>
           <button className="btn" onClick={retry}>Retry</button>
         </div>
