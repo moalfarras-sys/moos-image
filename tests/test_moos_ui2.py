@@ -695,6 +695,7 @@ class TestMoOSUI2(unittest.TestCase):
             "Accessible.name: text",
             "Accessible.description: description",
             "Accessible.pressed: down",
+            "Accessible.onPressAction: control.animateClick()",
             "focusPolicy: Qt.StrongFocus",
         ):
             self.assertIn(contract, button)
@@ -717,6 +718,7 @@ class TestMoOSUI2(unittest.TestCase):
             "Accessible.role: Accessible.Button",
             "Accessible.name:",
             "Accessible.pressed: down",
+            "Accessible.onPressAction: loginButton.clicked()",
             "Keys.onEnterPressed: clicked()",
             "Keys.onReturnPressed: clicked()",
         ):

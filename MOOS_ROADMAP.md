@@ -19,6 +19,11 @@
 > ActionButton الحقيقي المشترك بين Login/Lock؛ الاسم الآن يأتي من
 > `MnemonicData.plainTextLabel` فيما تبقى underline واختصارات Alt كما هي. بوابة
 > UI2 تمنع الرجوع إلى `root.text`. هذا دليل مصدر؛ قارئ شاشة حي ما زال مطلوباً.
+> وأُغلق مسار تفعيل مفقود: Portal keys في Logout/Power وزر Unlock كانوا يعلنون
+> الاسم والدور بلا `Accessible.onPressAction`. المفاتيح تستدعي الآن
+> `animateClick()` فتصل إلى `clicked` و`armOrFire` نفسه (لا تجاوز لتأكيد الطاقة)،
+> وUnlock يصل إلى `clicked` نفسه. النسخ الـ16 متطابقة والفحص الكامل ناجح؛ يبقى
+> اختبار assistive activation حي مطلوباً.
 > أُصلح أيضاً UserDelegate الفعلي في Plasma Login Manager: الصيغة الميتة
 > `function accessiblePressAction()` استُبدلت بـ`Accessible.onPressAction`، وصار
 > اختيار المستخدم يعمل من قارئ الشاشة ومن Enter/Return/Space عبر نفس إشارة

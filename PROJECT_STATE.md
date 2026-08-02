@@ -55,6 +55,18 @@ tests, the user-experience gate and the complete repository check pass. This is
 source evidence only; a live screen-reader pass on the composed image remains
 required.
 
+Session assistive-activation follow-up: the custom Logout/Power portal key and
+the lock screen's Unlock button declared accessible roles, names and pressed
+state but no `Accessible.onPressAction`. An assistive client could discover the
+control yet have no explicit activation route. Logout keys now call Qt 6.11's
+`animateClick()`, emitting the normal `clicked` signal; therefore Restart and
+Shutdown still enter the existing `armOrFire` two-step confirmation and cannot
+be invoked through an accessibility bypass. Unlock calls the same `clicked`
+signal as Enter/Return. All 16 generated logout copies are byte-identical, the
+UI2 gate requires both handlers, and the 28 UI2 tests plus the complete repository
+check pass. Live assistive-technology activation on the composed image remains
+required evidence.
+
 Mo PC Remote's available source gates pass for capture rebuild
 coalescing, non-blocking input, resolution negotiation, H.264 fallback/restart,
 authenticated sound, private Cloud desktop, PIN ownership, subids and per-user

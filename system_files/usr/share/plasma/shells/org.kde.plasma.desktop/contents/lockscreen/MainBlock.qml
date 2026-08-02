@@ -312,6 +312,7 @@ SessionManagementScreen {
             Accessible.role: Accessible.Button
             Accessible.name: i18ndc("plasma_shell_org.kde.plasma.desktop", "@action:button accessible only", "Unlock")
             Accessible.pressed: down
+            Accessible.onPressAction: loginButton.clicked()
             Layout.preferredHeight: passwordBox.implicitHeight
             Layout.preferredWidth: loginButton.Layout.preferredHeight * 1.28
 

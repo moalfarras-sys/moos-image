@@ -68,6 +68,10 @@ QQC2.AbstractButton {
     Accessible.name: text
     Accessible.description: description
     Accessible.pressed: down
+    // Assistive activation must emit the same clicked signal as touch/mouse.
+    // Sensitive actions then still pass through Logout.qml's armOrFire gate;
+    // accessibility is never a side door around confirmation.
+    Accessible.onPressAction: control.animateClick()
     focusPolicy: Qt.StrongFocus
     hoverEnabled: true
 
