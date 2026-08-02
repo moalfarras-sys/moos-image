@@ -4,7 +4,35 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-02 — the complete `push-temp` line (86 commits: the
+Last updated: 2026-08-02, evening — **the Complementary correction: the fix
+that makes the session islands actually read.** After the design image
+`44.20260802.512` booted, the live lock still rendered a pale ghost card on
+Scholar Light and the owner rightly reported "nothing changed". Root cause:
+MoOS light schemes declared `[Colors:Complementary]` as their OWN light
+canvas, while KDE's semantic (and Breeze's practice) makes Complementary the
+DARK session surface — lock, logout, OSD — on every palette. All the
+Glass-Island work keyed off Complementary, so on light themes it dissolved.
+`generate_moos_ui2.color_scheme()` now renders Complementary from the
+family's dark sibling wholesale (backgrounds AND foregrounds, via
+`session_sibling()`: `<fam>-light`→`<fam>`, `light`/`daylight`→`dark`), and
+`generate_moos_themes.color_scheme_for()` registers the sibling palette
+before rendering. Only the light members' schemes/desktoptheme colors
+changed on regeneration. That flip exposed a latent conflation in
+`moos_ui2.py::palette_from_color_scheme`: `on_negative` (the ink ON a
+destructive fill in NORMAL windows) was read from Complementary's
+background — historically identical to the light canvas, now dark — pairing
+2.69:1 on AmethystLight; it now reads the scheme's own View canvas, which is
+what the hand-written palettes always meant. A caveat for future previews:
+`qml-qt6 + QT_QPA_PLATFORMTHEME=kde` does NOT apply KDE color schemes, so
+every harness render wore the Fusion fallback (dark grey + stock blue) —
+which is WHY the harness showed handsome dark islands while the real
+session showed ghosts. Harness renders prove geometry/material only; colour
+truth needs a real KDE process on a booted image. Prepending the repo share
+to XDG_DATA_DIRS for `kscreenlocker_greet` does not work either (partial
+shell package → fallback greeter). 70/70 gates pass with the corrected
+schemes.
+
+Previous update: 2026-08-02 — the complete `push-temp` line (86 commits: the
 remote security/lifecycle/accessibility audits, the Tidal portal restoration
 after the rejected glassmorphic pass, theme rev 28, bounded Mo AI service
 lifecycles and the CI gate sync) is fast-forwarded onto `main` as

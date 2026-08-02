@@ -273,6 +273,11 @@ def _register_palette(key: str) -> None:
 
 def color_scheme_for(key: str, meta: dict) -> str:
     _register_palette(key)
+    # Complementary borrows the DARK sibling's roles (see gen.session_sibling);
+    # make sure that sibling's palette is registered before the scheme renders.
+    sibling = gen.session_sibling(key)
+    if sibling not in gen.PALETTES and sibling in THEMES:
+        _register_palette(sibling)
     # color_scheme() names light members "MoOS UI Light"/"MoOSUI2Light" and dark
     # ones "…Dark"; rename either to this member's own style/display name.
     text = gen.color_scheme(key)

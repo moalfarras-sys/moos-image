@@ -176,10 +176,15 @@ def palette_from_color_scheme(path):
     text = colour(window, "ForegroundNormal")
     muted = colour(window, "ForegroundInactive")
     on_accent = colour(selection, "ForegroundNormal")
-    # ForegroundNegative is paired with the Complementary canvas in the MoOS
-    # scheme generator.  Reusing Selection foreground here produced 2.78:1 in
-    # Daylight; this relationship remains >=4.5 across the complete family.
-    on_negative = colour(complementary, "BackgroundNormal")
+    # on_negative is the ink drawn ON a negative fill inside NORMAL windows, so
+    # it pairs with this scheme's own light/dark side — the View canvas.  It
+    # used to read Complementary's background, which only worked while light
+    # schemes (wrongly) declared a light Complementary; since 2026-08-02 the
+    # Complementary set is the family's DARK session surface on every palette
+    # (KDE's actual semantic), and reading it here paired a dark ink with the
+    # light scheme's dark negative at 2.69:1.  The session surfaces get their
+    # own internally-consistent pairing from the Complementary set directly.
+    on_negative = canvas
     outline = _accessible_outline(canvas, surface, card, raised, muted)
     is_dark = _luminance(canvas) < 0.45
     shadow_alpha = 0.42 if is_dark else 0.16

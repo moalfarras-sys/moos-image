@@ -329,26 +329,49 @@ enabled=false
 """
 
 
+def session_sibling(variant: str) -> str:
+    """KDE's Complementary set is the DARK session surface — lock, logout and
+    OSD chrome — and Breeze keeps it dark even inside light themes. MoOS light
+    members used to hand it their own light canvas, which turned every session
+    island into a pale ghost on light palettes (seen live on Scholar Light,
+    2026-08-02). Light members now borrow their dark sibling's roles wholesale;
+    Daylight, the one light-only family, uses the base dark."""
+    if variant.endswith("-light"):
+        return variant[: -len("-light")]
+    if variant in ("light", "daylight"):
+        return "dark"
+    return variant
+
+
 def color_scheme(variant: str) -> str:
     p = variant_roles(variant)
     selected = p["selected_text"]
 
-    def group(name: str, normal: str, alternate: str, inactive: str | None = None) -> str:
-        muted = inactive or p["muted"]
+    def group_from(pp: dict, name: str, normal: str, alternate: str,
+                   inactive: str | None = None) -> str:
+        muted = inactive or pp["muted"]
         return f"""[{name}]
 BackgroundAlternate={rgb(alternate)}
 BackgroundNormal={rgb(normal)}
-DecorationFocus={rgb(p['primary'])}
-DecorationHover={rgb(p['luminous'])}
-ForegroundActive={rgb(p['primary'])}
+DecorationFocus={rgb(pp['primary'])}
+DecorationHover={rgb(pp['luminous'])}
+ForegroundActive={rgb(pp['primary'])}
 ForegroundInactive={rgb(muted)}
-ForegroundLink={rgb(p['secondary'])}
-ForegroundNegative={rgb(p['negative'])}
-ForegroundNeutral={rgb(p['warning'])}
-ForegroundNormal={rgb(p['text'])}
-ForegroundPositive={rgb(p['positive'])}
-ForegroundVisited={rgb(p['luminous'])}
+ForegroundLink={rgb(pp['secondary'])}
+ForegroundNegative={rgb(pp['negative'])}
+ForegroundNeutral={rgb(pp['warning'])}
+ForegroundNormal={rgb(pp['text'])}
+ForegroundPositive={rgb(pp['positive'])}
+ForegroundVisited={rgb(pp['luminous'])}
 """
+
+    def group(name: str, normal: str, alternate: str, inactive: str | None = None) -> str:
+        return group_from(p, name, normal, alternate, inactive)
+
+    # The session surface: every palette's Complementary is its family's DARK
+    # side — backgrounds AND foregrounds — so the lock, logout and OSD islands
+    # are real dark glass on all 16 looks, exactly like Breeze's semantics.
+    sp = variant_roles(session_sibling(variant))
 
     selection = f"""[Colors:Selection]
 BackgroundAlternate={rgb(p['secondary'])}
@@ -388,7 +411,7 @@ IntensityAmount=0
 IntensityEffect=0
 
 {group('Colors:Button', p['raised'], p['card'])}
-{group('Colors:Complementary', p['canvas'], p['surface'])}
+{group_from(sp, 'Colors:Complementary', sp['canvas'], sp['surface'])}
 {group('Colors:Header', p['surface'], p['card'])}
 {group('Colors:Header][Inactive', p['surface'], p['surface'], p['muted'])}
 {selection}
