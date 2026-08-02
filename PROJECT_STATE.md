@@ -434,6 +434,20 @@ limits succeed, oversized output is discarded, and failed/successful writes are
 distinguished. Linux and Windows cross-builds complete with zero warnings. This
 does not substitute for a live Wayland clipboard round-trip on the built image.
 
+Wayland session resolution audit: the Remote unit used the first `wayland-*`
+filename in the runtime directory without proving a compositor still listened
+there, while `moai-open` and `moai-screenshot` independently guessed
+`wayland-0`. That fails after a Plasma restart and on private Cloud desktops
+whose display names are not fixed. The shared `moos-wayland-display` resolver
+now honours the inherited display only if its current-user Unix socket accepts a
+connection, otherwise probes newest-first and rejects stale/non-socket/foreign
+entries. Remote fails into its bounded restart policy instead of advertising an
+uncapturable session; Mo AI open/screenshot can use the actual compositor or
+fall through without poisoning X11 with a fabricated Wayland name. A behavioural
+test creates stale and live Unix listeners and proves preference, fallback and
+no-session failure. A real post-restart/private-desktop capture remains live-image
+evidence, not something this off-image test claims.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds

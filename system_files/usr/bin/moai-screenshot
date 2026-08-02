@@ -16,8 +16,12 @@ fail() { echo "moai-screenshot: $*" >&2; exit 1; }
 
 uid="$(id -u)"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/${uid}}"
-export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
-export DISPLAY="${DISPLAY:-:0}"
+if resolved_wayland="$(/usr/libexec/moos-wayland-display 2>/dev/null)"; then
+    export WAYLAND_DISPLAY="$resolved_wayland"
+else
+    unset WAYLAND_DISPLAY
+fi
+export DISPLAY="${DISPLAY:-}"
 
 [ -f "$CONFIG" ] || fail "no openclaw config"
 read -r TOKEN CHAT < <(python3 - "$CONFIG" <<'PY'

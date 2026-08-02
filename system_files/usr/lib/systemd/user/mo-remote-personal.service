@@ -31,7 +31,7 @@ Type=simple
 # all — and on a laptop, where it IS worth something, the session is local and
 # active and the lock is granted. So: try it, and if it is refused, run without
 # it. The remote access is the point; the sleep lock is an optimisation for it.
-ExecStart=/bin/sh -c 'export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-$(basename "$(find "%t" -maxdepth 1 -type s -name "wayland-*" -print -quit)")}"; if /usr/bin/systemd-inhibit --what=sleep:idle --who=MoRemotePersonal --why=Remote-access-availability --mode=block /bin/true 2>/dev/null; then exec /usr/bin/systemd-inhibit --what=sleep:idle --who=MoRemotePersonal --why=Remote-access-availability --mode=block /usr/lib/mo-remote/MoRemotePersonal; else echo "mo-remote: no sleep inhibitor (session is not local+active) — starting without it" >&2; exec /usr/lib/mo-remote/MoRemotePersonal; fi'
+ExecStart=/bin/sh -c 'WAYLAND_DISPLAY="$(/usr/libexec/moos-wayland-display)" || exit 1; export WAYLAND_DISPLAY; if /usr/bin/systemd-inhibit --what=sleep:idle --who=MoRemotePersonal --why=Remote-access-availability --mode=block /bin/true 2>/dev/null; then exec /usr/bin/systemd-inhibit --what=sleep:idle --who=MoRemotePersonal --why=Remote-access-availability --mode=block /usr/lib/mo-remote/MoRemotePersonal; else echo "mo-remote: no sleep inhibitor (session is not local+active) — starting without it" >&2; exec /usr/lib/mo-remote/MoRemotePersonal; fi'
 Restart=on-failure
 RestartSec=3
 TimeoutStopSec=15s

@@ -78,8 +78,8 @@ require("WantedBy=default.target" not in unit,
         "Mo Remote must not be globally attached to default.target")
 require("WAYLAND_DISPLAY=wayland-0" not in unit,
         "Mo Remote must not guess the Wayland socket name")
-require('find "%t" -maxdepth 1 -type s -name "wayland-*"' in unit,
-        "Mo Remote must discover the active Wayland socket")
+require("/usr/libexec/moos-wayland-display" in unit,
+        "Mo Remote must resolve and probe a live Wayland socket")
 
 remote_desktop = read("system_files/usr/share/applications/org.moos.remote.desktop")
 require("Exec=/usr/bin/mo-pc-remote" in remote_desktop,

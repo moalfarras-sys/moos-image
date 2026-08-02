@@ -1,0 +1,68 @@
+#!/usr/bin/python3
+"""Print a connectable Wayland display for the current user's session.
+
+The user manager can outlive Plasma, so both its environment and socket files may
+be stale. A filename is not proof of a compositor: connect before returning it.
+"""
+import os
+import socket
+import stat
+import sys
+
+
+def socket_path(display: str, runtime: str) -> str:
+    return display if os.path.isabs(display) else os.path.join(runtime, display)
+
+
+def connectable(display: str, runtime: str) -> bool:
+    path = socket_path(display, runtime)
+    try:
+        info = os.stat(path, follow_symlinks=False)
+        if not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid():
+            return False
+        probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        probe.settimeout(0.2)
+        try:
+            probe.connect(path)
+            return True
+        finally:
+            probe.close()
+    except (OSError, ValueError):
+        return False
+
+
+def main() -> int:
+    runtime = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
+    preferred = os.environ.get("WAYLAND_DISPLAY", "")
+    if preferred and connectable(preferred, runtime):
+        print(preferred)
+        return 0
+
+    try:
+        candidates = []
+        with os.scandir(runtime) as entries:
+            for entry in entries:
+                if not entry.name.startswith("wayland-") or entry.name.endswith(".lock"):
+                    continue
+                try:
+                    modified = entry.stat(follow_symlinks=False).st_mtime_ns
+                except OSError:
+                    continue
+                candidates.append((modified, entry.name))
+    except OSError as error:
+        print(f"moos-wayland-display: cannot inspect {runtime}: {error}", file=sys.stderr)
+        return 1
+
+    # A newly started compositor owns the newest socket. Still probe every candidate: a stale
+    # socket inode can survive its server and must never win merely because its name sorts first.
+    for _, name in sorted(candidates, reverse=True):
+        if connectable(name, runtime):
+            print(name)
+            return 0
+
+    print(f"moos-wayland-display: no live Wayland compositor in {runtime}", file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

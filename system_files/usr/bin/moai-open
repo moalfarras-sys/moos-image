@@ -20,9 +20,14 @@ set -uo pipefail
 
 uid="$(id -u)"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/${uid}}"
-# GUI apps need the session bus + display. Fall back to the usual MoOS values.
-export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
-export DISPLAY="${DISPLAY:-:0}"
+# The user manager can retain a dead socket from the preceding Plasma session.
+# Resolve a compositor that accepts connections; never guess wayland-0.
+if resolved_wayland="$(/usr/libexec/moos-wayland-display 2>/dev/null)"; then
+    export WAYLAND_DISPLAY="$resolved_wayland"
+else
+    unset WAYLAND_DISPLAY
+fi
+export DISPLAY="${DISPLAY:-}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
 
 unit="moai-open-$$-${RANDOM}"
