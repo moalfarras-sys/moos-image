@@ -87,10 +87,24 @@ human() {
     fi
 }
 
-# launch_app <id> — open an installed app, detached, as the user. Best-effort:
-# a Flatpak is run by its id, a native app by its desktop file. It NEVER fails the
-# caller (set -e is on) and takes no arguments beyond the id, so it can do no more
-# than start an app the user already has. This is what makes `install` also RUN:
+# launch_detached <argv…> — accept either a process that stays alive or a launcher that exits 0.
+# A bare `cmd &` reports only that Bash created a child; even a missing/broken Flatpak then looks
+# successful. Give it a short rejection window while preserving D-Bus launchers that exit cleanly.
+launch_detached() {
+    setsid "$@" >/dev/null 2>&1 &
+    local pid=$!
+    sleep 0.25
+    if kill -0 "$pid" >/dev/null 2>&1; then
+        return 0
+    fi
+    wait "$pid"
+}
+
+# launch_app <id> — open an installed app, detached, as the user.
+# A Flatpak is run by its id, a native app by its desktop file. The optional
+# GPU-headroom step never fails the caller, but a rejected launcher DOES. It takes
+# no arguments beyond the id, so it can do no more than start an
+# app the user already has. This is what makes `install` also RUN:
 # the whole point of "install a camera" is to end up looking through the camera.
 #
 # It also asks for GPU headroom first, and that is not an optimisation. This machine's
@@ -104,14 +118,15 @@ human() {
 # silent and non-fatal — see moos-gpu-headroom.
 launch_app() {
     local id="${1:-}"
-    [ -n "$id" ] || return 0
+    [ -n "$id" ] || return 1
     command -v moos-gpu-headroom >/dev/null 2>&1 && moos-gpu-headroom 2>/dev/null || true
     if flatpak info "$id" >/dev/null 2>&1; then
-        setsid flatpak run "$id" >/dev/null 2>&1 &
+        launch_detached flatpak run "$id"
     elif command -v gtk-launch >/dev/null 2>&1; then
-        setsid gtk-launch "$id" >/dev/null 2>&1 &
+        launch_detached gtk-launch "$id"
+    else
+        return 1
     fi
-    return 0
 }
 
 # -----------------------------------------------------------------------------
@@ -204,7 +219,11 @@ do_install() {
     if flatpak install -y flathub "$id"; then
         echo "${G}✓ تم التثبيت | installed:${N} ${id}"
         echo "${C}يفتح التطبيق الآن… | opening it now…${N}"
-        launch_app "$id"
+        if ! launch_app "$id"; then
+            echo "${Y}تم التثبيت، لكن تعذّر فتح التطبيق الآن.${N}" >&2
+            echo "${Y}Installed successfully, but the app could not be opened now.${N}" >&2
+            return 1
+        fi
     else
         echo "${Y}لم يكتمل التثبيت (تحقّق من المعرّف على flathub.org).${N}"
         echo "${Y}Install did not complete (check the id on flathub.org).${N}"
@@ -414,7 +433,11 @@ do_setup_windows() {
         fi
         echo "${G}✓ تم تثبيت Bottles | Bottles installed${N}"
     fi
-    launch_app com.usebottles.bottles
+    if ! launch_app com.usebottles.bottles; then
+        echo "${Y}Bottles مثبّت، لكن تعذّر فتح نافذته الآن.${N}" >&2
+        echo "${Y}Bottles is installed, but its window could not be opened now.${N}" >&2
+        return 1
+    fi
     echo "${D}في Bottles: أنشئ «Application» ثم شغّل ملف ‎.exe.${N}"
     echo "${D}In Bottles: create an 'Application' bottle, then Run your .exe.${N}"
 }

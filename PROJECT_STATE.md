@@ -426,6 +426,17 @@ is nonzero and never launches the UI, and the healthy path reaches every stage.
 No Android image or privileged service was started on this audit host; a real
 Waydroid/Wayland launch on the composed image remains open live evidence.
 
+Mo AI application-launch acceptance audit: `setup-windows` promised to open
+Bottles, but the shared `launch_app` helper returned success immediately after a
+background fork—even when `flatpak run` exited nonzero—and then printed usage
+instructions for a window that did not exist. Detached launches now get a short
+acceptance window: a process still alive or a D-Bus launcher exiting zero is
+accepted; an immediate nonzero exit is surfaced. Both generic post-install launch
+and Bottles report the honest partial state (“installed, could not open”) and fail
+the audit instead of implying completion. A behavior test proves accepted and
+rejected Flatpak launches; the complete repository check passes. A real Bottles
+launch on the composed image remains the stronger live proof.
+
 Mo AI small-service lifecycle follow-up: the original gate covered only the
 heavy OpenClaw/AI containers. `moai-control` could still restart every five
 seconds forever, `moai-wake` had the same crash-loop shape, and the gateway's

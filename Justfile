@@ -32,6 +32,7 @@ check:
     python3 tests/test_device_plan.py
     python3 tests/test_moai_do.py
     python3 tests/test_moai_waydroid.py
+    python3 tests/test_moai_app_launch.py
     python3 tests/test_moai_control.py
     python3 tests/test_moai_workspace.py
     python3 tests/test_moai_hybrid.py
