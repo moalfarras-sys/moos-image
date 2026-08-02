@@ -33,7 +33,12 @@ function revealFocus(item) {
 }
 
 function pageScrollKeys(flick, event) {
-    if (event.key !== Qt.Key_PageDown && event.key !== Qt.Key_PageUp) return
+    if (event.key !== Qt.Key_PageDown && event.key !== Qt.Key_PageUp) {
+        // Keys.onPressed sits before an item's own key handler. Explicitly pass arrows and
+        // activation onward so GridView/ListView navigation is never swallowed by this helper.
+        event.accepted = false
+        return
+    }
     var yMin = flick.originY || 0
     var yMax = Math.max(yMin, yMin + flick.contentHeight - flick.height)
     var step = flick.height * 0.9 * (event.key === Qt.Key_PageDown ? 1 : -1)

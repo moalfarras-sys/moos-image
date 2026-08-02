@@ -591,6 +591,23 @@ summary plus Arabic/English long descriptions, list structure, locale isolation,
 the hard size cap and the no-description fallback; the QML gate holds scrolling,
 plain-text rendering and absence of line elision.
 
+Mo Store virtual-grid keyboard audit: catalogue cards were individually tabbable
+delegates inside a `GridView`. Because the view creates only its visible cache
+window, the apparent Tab chain could never cover the whole model; the last-model
+link to the bulk action often did not exist, and reverse traversal depended on
+whatever delegates happened to be alive. The catalogue is now one accessible
+composite Tab stop. GridView's arrow navigation owns `currentIndex` and reveals
+virtualized rows, Enter/Space and the accessible press action open the current
+app, and the shared focus ring follows the current delegate. The shared page-key
+handler now explicitly passes every non-Page key onward, so it cannot swallow
+GridView's arrows before the view handles them. Tab moves to the
+bulk action (or the rail where that action is absent), Backtab returns through
+the final category chip, and the bulk action has explicit traversal in both
+directions. Discover's small non-virtual card set retains ordinary independent
+Tab stops. A focused source gate holds the composite boundary, both directions,
+activation and visible current state; live assistive traversal remains installed
+image evidence rather than a claim from this Qt-less host.
+
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through

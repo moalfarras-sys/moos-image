@@ -269,6 +269,7 @@ class FirstPartyKeyboardViewportTests(unittest.TestCase):
             "function pageScrollKeys(flick, event)",
             "Qt.Key_PageDown",
             "Qt.Key_PageUp",
+            "event.accepted = false",
             "flick.height * 0.9",
             "event.accepted = true",
         ):
@@ -318,6 +319,41 @@ class FirstPartyKeyboardViewportTests(unittest.TestCase):
         self.assertIn("lineHeight: 1.35", description)
         self.assertNotIn("maximumLineCount", description)
         self.assertNotIn("elide: Text.Elide", description)
+
+    def test_virtual_store_grid_is_one_arrow_navigated_tab_stop(self) -> None:
+        source = (APPS / "store/main.qml").read_text(encoding="utf-8")
+        card = source[source.index("component AppCard:"):source.index("// Layered background")]
+        grid_start = source.index("id: appGrid")
+        grid = source[grid_start:source.index("// Category overview", grid_start)]
+        for token in (
+            "property bool compositeFocus: false",
+            "property bool compositeCurrent: false",
+            "activeFocusOnTab: !card.compositeFocus",
+            "visible: card.activeFocus || card.compositeCurrent",
+        ):
+            self.assertIn(token, card)
+        for token in (
+            "activeFocusOnTab: visible && count > 0",
+            "keyNavigationEnabled: true",
+            "Accessible.role: Accessible.List",
+            "Accessible.focusable: true",
+            "Accessible.focused: activeFocus",
+            "Accessible.onPressAction:",
+            "positionViewAtIndex(currentIndex, GridView.Contain)",
+            "onCountChanged:",
+            "Keys.onReturnPressed:",
+            "Keys.onSpacePressed:",
+            "bulkAdd.forceActiveFocus(Qt.TabFocusReason)",
+            "categoryRepeater.itemAt(categoryRepeater.count - 1)",
+            "compositeFocus: true",
+            "gridCell.index === appGrid.currentIndex",
+        ):
+            self.assertIn(token, grid)
+        self.assertNotIn("KeyNavigation.tab:", grid)
+        self.assertIn(
+            "Keys.onBacktabPressed: appGrid.forceActiveFocus(Qt.BacktabFocusReason)",
+            source,
+        )
 
 
 class SharedQmlDesignSystemTests(unittest.TestCase):

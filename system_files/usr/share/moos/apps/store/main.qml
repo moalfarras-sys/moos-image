@@ -1117,6 +1117,11 @@ ApplicationWindow {
     component AppCard: Rectangle {
         id: card
         required property var app
+        // A virtual GridView is one keyboard composite: making each instantiated delegate a
+        // Tab stop strands keyboard users on only the visible cache window. Discover cards keep
+        // their normal independent stops; the catalogue grid opts into arrow-key navigation.
+        property bool compositeFocus: false
+        property bool compositeCurrent: false
         property bool selected: win.isPicked(app.id)
         property bool installed: win.isInstalled(app)
         radius: design.radiusCard
@@ -1128,9 +1133,9 @@ ApplicationWindow {
                      : cardHover.hovered ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.56)
                                          : win.outline
         scale: cardHover.hovered ? 1.012 : 1
-        activeFocusOnTab: true
+        activeFocusOnTab: !card.compositeFocus
         Accessible.role: Accessible.ListItem
-        FocusRing { }
+        FocusRing { visible: card.activeFocus || card.compositeCurrent }
         Accessible.name: win.localName(app) + ", " + win.sourceLabel(app)
         HoverHandler { id: cardHover }
         TapHandler { onTapped: win.openDetails(card.app) }
@@ -1195,6 +1200,7 @@ ApplicationWindow {
                 SourceBadge { app: card.app }
                 Item { Layout.fillWidth: true }
                 ActionButton {
+                    activeFocusOnTab: !card.compositeFocus
                     enabled: !card.installed || win.hasFlatpakLifecycle(card.app)
                     label: card.installed
                         ? win.hasFlatpakLifecycle(card.app)
@@ -1981,6 +1987,7 @@ ApplicationWindow {
                                 height: parent.height
                                 spacing: 7
                                 Repeater {
+                                    id: categoryRepeater
                                     model: [{ id: "all", ar: "الكل", en: "All", glyph: "grid" }].concat(win.categoryDefs)
                                     delegate: Rectangle {
                                         id: categoryPill
@@ -2034,15 +2041,15 @@ ApplicationWindow {
                             visible: win.page === "apps" && win.visibleApps.length > 0
                             // Demoted from the default Tab chain: document order made this
                             // bulk action the pane's FIRST stop, so a keyboard user's first
-                            // Return queued a whole section. It now sits AFTER the grid —
-                            // the last card links here (KeyNavigation below), and Tab out
-                            // continues at the rail, the wrap point the default chain
-                            // reaches after the grid.
+                            // Return queued a whole section. The virtual grid now hands focus
+                            // here explicitly after its arrow-navigated composite; Tab out
+                            // continues at the rail and Backtab returns to the grid.
                             activeFocusOnTab: false
                             Keys.onTabPressed: {
                                 var first = navRepeater.itemAt(0)
                                 if (first) first.forceActiveFocus(Qt.TabFocusReason)
                             }
+                            Keys.onBacktabPressed: appGrid.forceActiveFocus(Qt.BacktabFocusReason)
                             label: win.rtl ? "أضف كل القسم" : "Add this section"
                             glyphName: "download"
                             triggered: function() {
@@ -2064,6 +2071,52 @@ ApplicationWindow {
                         cellWidth: width / columnCount
                         cellHeight: 192
                         boundsBehavior: Flickable.StopAtBounds
+                        activeFocusOnTab: visible && count > 0
+                        keyNavigationEnabled: true
+                        Accessible.role: Accessible.List
+                        Accessible.name: win.rtl ? "شبكة التطبيقات" : "Application grid"
+                        Accessible.focusable: true
+                        Accessible.focused: activeFocus
+                        Accessible.description: currentItem
+                            ? win.localName(currentItem.modelData) + ", "
+                              + (currentIndex + 1) + " / " + count
+                            : ""
+                        Accessible.onPressAction: {
+                            if (currentIndex >= 0 && currentIndex < win.visibleApps.length)
+                                win.openDetails(win.visibleApps[currentIndex])
+                        }
+                        onActiveFocusChanged: {
+                            if (activeFocus && count > 0) {
+                                if (currentIndex < 0 || currentIndex >= count) currentIndex = 0
+                                positionViewAtIndex(currentIndex, GridView.Contain)
+                            }
+                        }
+                        onCountChanged: {
+                            if (count === 0) currentIndex = -1
+                            else if (currentIndex < 0 || currentIndex >= count)
+                                currentIndex = 0
+                        }
+                        Keys.onReturnPressed: {
+                            if (currentIndex >= 0 && currentIndex < win.visibleApps.length)
+                                win.openDetails(win.visibleApps[currentIndex])
+                        }
+                        Keys.onSpacePressed: {
+                            if (currentIndex >= 0 && currentIndex < win.visibleApps.length)
+                                win.openDetails(win.visibleApps[currentIndex])
+                        }
+                        Keys.onTabPressed: (event) => {
+                            if (bulkAdd.visible) {
+                                bulkAdd.forceActiveFocus(Qt.TabFocusReason)
+                            } else {
+                                var first = navRepeater.itemAt(0)
+                                if (first) first.forceActiveFocus(Qt.TabFocusReason)
+                            }
+                            event.accepted = true
+                        }
+                        Keys.onBacktabPressed: {
+                            var last = categoryRepeater.itemAt(categoryRepeater.count - 1)
+                            if (last) last.forceActiveFocus(Qt.BacktabFocusReason)
+                        }
                         Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(appGrid, event)
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                         delegate: Item {
@@ -2076,10 +2129,9 @@ ApplicationWindow {
                                 anchors.fill: parent
                                 anchors.margins: 6
                                 app: gridCell.modelData
-                                // The bulk "add this section" button sits after the grid in
-                                // the Tab order; the last card hands focus across to it.
-                                KeyNavigation.tab: gridCell.index === appGrid.count - 1
-                                                   && bulkAdd.visible ? bulkAdd : null
+                                compositeFocus: true
+                                compositeCurrent: appGrid.activeFocus
+                                                  && gridCell.index === appGrid.currentIndex
                             }
                         }
                     }
