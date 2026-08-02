@@ -43,6 +43,18 @@ shape and guards the directional accessibility contract. The 28 UI2 tests,
 user-experience gate and complete repository check pass. This is source/gate
 evidence only; live Qt rendering at fractional scales remains required.
 
+Login/lock assistive-name follow-up: Plasma's real shared `ActionButton.qml`
+received labels containing KDE mnemonic markers such as `Slee&p` and
+`&Hibernate`, but its explicit `Accessible.name` exposed the raw string. The
+visual caption already used Kirigami's parsed mnemonic data, so screen readers
+and sighted users were given different labels. Accessibility now consumes
+`MnemonicData.plainTextLabel`, the official plain-text property that removes
+markup and `&` markers, while the visible underline and Alt shortcut remain
+unchanged. The UI2 regression gate rejects returning to `root.text`; all 28 UI2
+tests, the user-experience gate and the complete repository check pass. This is
+source evidence only; a live screen-reader pass on the composed image remains
+required.
+
 Mo PC Remote's available source gates pass for capture rebuild
 coalescing, non-blocking input, resolution negotiation, H.264 fallback/restart,
 authenticated sound, private Cloud desktop, PIN ownership, subids and per-user

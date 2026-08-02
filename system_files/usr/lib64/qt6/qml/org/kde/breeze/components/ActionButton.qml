@@ -103,7 +103,11 @@ PlasmaComponents3.AbstractButton {
     // greeter. Keep the assistive contract local and explicit: a screen-reader
     // press must follow the exact same animated click path as the mnemonic.
     Accessible.role: Accessible.Button
-    Accessible.name: root.text
+    // Callers use KDE mnemonic markers ("Slee&p", "&Hibernate"). Exposing the
+    // raw string makes assistive clients announce the implementation marker;
+    // MnemonicData is already the source of the visible label and provides the
+    // same label as plain text with markup and ampersands removed.
+    Accessible.name: root.Kirigami.MnemonicData.plainTextLabel
     Accessible.pressed: root.down
     Accessible.onPressAction: root.animateClick()
 

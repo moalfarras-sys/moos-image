@@ -15,6 +15,10 @@
 > ثم يصل إلى Cancel بدل الالتفاف إلى زر علوي غير مرتبط، بينما ينعكس الأفقي فقط
 > في RTL. بوابة جديدة تختبر حالات 1–8، ونجحت اختبارات
 > UI2 الـ28 والفحص الكامل؛ يبقى render حي مع fractional scaling مطلوباً.
+> كذلك لم يعد قارئ الشاشة يستقبل mnemonic خاماً مثل `Slee&p` و`&Hibernate` من
+> ActionButton الحقيقي المشترك بين Login/Lock؛ الاسم الآن يأتي من
+> `MnemonicData.plainTextLabel` فيما تبقى underline واختصارات Alt كما هي. بوابة
+> UI2 تمنع الرجوع إلى `root.text`. هذا دليل مصدر؛ قارئ شاشة حي ما زال مطلوباً.
 > أُصلح أيضاً UserDelegate الفعلي في Plasma Login Manager: الصيغة الميتة
 > `function accessiblePressAction()` استُبدلت بـ`Accessible.onPressAction`، وصار
 > اختيار المستخدم يعمل من قارئ الشاشة ومن Enter/Return/Space عبر نفس إشارة

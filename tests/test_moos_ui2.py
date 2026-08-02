@@ -727,13 +727,14 @@ class TestMoOSUI2(unittest.TestCase):
         action = qml_code((components / "ActionButton.qml").read_text(encoding="utf-8"))
         for contract in (
             "Accessible.role: Accessible.Button",
-            "Accessible.name: root.text",
+            "Accessible.name: root.Kirigami.MnemonicData.plainTextLabel",
             "Accessible.pressed: root.down",
             "Accessible.onPressAction: root.animateClick()",
             "Keys.onEnterPressed: clicked()",
             "Keys.onReturnPressed: clicked()",
         ):
             self.assertIn(contract, action)
+        self.assertNotIn("Accessible.name: root.text", action)
 
         user = qml_code((components / "UserDelegate.qml").read_text(encoding="utf-8"))
         for contract in (
