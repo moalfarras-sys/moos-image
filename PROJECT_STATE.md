@@ -84,6 +84,26 @@ failed unit there. `tests/test_moai_ports_fail_closed.py` had encoded the
 fail-open assumption (`uid 999 must emit no ports`); that contract is migrated
 to the stronger one and broken-once against the old behaviour.
 
+The third defect the same check surfaced was **a reconcile that could never
+converge**. `moos-apply-theme`'s steady-state wallpaper readback parses `gdbus`
+output with `grep -oE 'WPV:[^"]*'`, but gdbus quotes strings with SINGLE quotes
+and wraps them in a tuple — `('WPV:/usr/share/wallpapers/MoOSUI2Arena',)` — so
+the extracted value kept a trailing `',)` and could never equal the package it
+had just written. Every login on the Cloud host logged
+`steady-state: desktop wallpaper '…/MoOSUI2Arena',)' != '…/MoOSUI2Arena' —
+healing` and re-applied a scene that had never drifted. The character class now
+excludes `'` as well, and `tests/test_theme_wallpaper_readback.py` drives the
+SHIPPED function against a stub gdbus (real reply, double-quoted reply, empty
+reply) rather than asserting on the shape of a regex; broken-once against the
+old extractor. The same Cloud session was also wearing the generic dark
+components under an Arena look-and-feel (scheme `MoOSUI2Dark`, icons
+`MoOSUI2`, decoration `__aurorae__svg__MoOSUI2`, and `moos-warning-symbolic`
+resolving to *missing*) — the reconciler's Arena branch was correct, it had
+simply not run in that virtual session. Running the fixed script there brought
+all four onto `MoOSUI2Arena`, and `post-update-check.sh` went from **43/6 to
+47/2** (the two remaining are a `kiconfinder6` display race and the tool-name
+probe, both artefacts of a headless virtual session, not defects).
+
 One process lesson from this round: **`gh run watch --exit-status` returned 0
 for a run whose three jobs all failed.** The failure was real — the previous
 commit shipped a `wwwroot` bundle built against stale `node_modules`, and the

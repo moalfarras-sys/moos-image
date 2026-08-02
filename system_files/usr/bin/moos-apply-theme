@@ -594,7 +594,15 @@ current_desktop_wallpaper_value() {
                     print("WPV:" + ds[0].readConfig("Image", ""));
                 }
             ' 2>/dev/null)" || result=""
-        result="$(printf '%s\n' "$result" | grep -oE 'WPV:[^"]*' | head -n1)"
+        # gdbus prints a D-Bus tuple and quotes strings with SINGLE quotes:
+        #     ('WPV:/usr/share/wallpapers/MoOSUI2Arena',)
+        # Excluding only `"` therefore captured the trailing `',)` as part of the
+        # path, so the readback could never equal the package it had just written.
+        # Measured on the Cloud host: every login logged
+        #   steady-state: desktop wallpaper '…/MoOSUI2Arena',)' != '…/MoOSUI2Arena' — healing
+        # and re-applied a scene that was already correct — a reconcile that can
+        # never converge, forever, on a value that was never drifted.
+        result="$(printf '%s\n' "$result" | grep -oE "WPV:[^'\"]*" | head -n1)"
         if [ -n "$result" ]; then
             printf '%s\n' "${result#WPV:}"
             return 0
