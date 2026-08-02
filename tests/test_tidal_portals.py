@@ -130,12 +130,31 @@ class TidalPortalContractTests(unittest.TestCase):
             / "org.moos.ui2/contents/logout/MoOSUI2ActionButton.qml"
         ).read_text(encoding="utf-8")
         self.assertNotIn("Animation.Infinite", logout + action)
+        # The Tidal frame keeps its reviewed geometry; it now sits BEHIND the
+        # island (depth signature), never through the content.
         self.assertIn("parent.width * 0.96", logout)
         self.assertIn("parent.height * 1.80", logout)
-        self.assertIn("Kirigami.Units.gridUnit * 50", logout)
-        self.assertIn("Kirigami.Units.gridUnit * 1.6", logout)
+        # The Glass Island: adaptive width between a 26-unit floor and the
+        # content's own implicit width, a 2-unit radius, and the layered
+        # material (fill, sheen, rim) with a soft three-step depth halo.
+        self.assertIn("Kirigami.Units.gridUnit * 26", logout)
+        self.assertIn("column.implicitWidth + Kirigami.Units.gridUnit * 4", logout)
+        self.assertIn("id: island", logout)
+        self.assertIn("radius: Kirigami.Units.gridUnit * 2", logout)
+        self.assertIn("Qt.rgba(0, 0, 0, 0.04)", logout)
+        # The countdown is a still Shape ring driven by remainingTime — the
+        # naked hairline track must not return.
+        self.assertIn("PathAngleArc", logout)
+        self.assertIn(
+            "sweepAngle: 360 * Math.max(0, Math.min(1, root.remainingTime / 30))",
+            logout,
+        )
+        # Second-generation tiles: caption INSIDE the key surface, sized as a
+        # real tile, with the crest/horizon cuts intact on dock tiles.
         self.assertIn("property real keyWidth", action)
         self.assertIn("property real keyHeight", action)
+        self.assertIn("control.subtle ? 3.1 : 6.2", action)
+        self.assertIn("control.subtle ? 10.4 : 8.6", action)
         self.assertIn("width: parent.width * 0.30", action)
         self.assertIn("width: parent.width * 0.42", action)
         self.assertNotIn("radius: width / 2", action)

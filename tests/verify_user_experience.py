@@ -3430,8 +3430,10 @@ require(re.search(r"filledInk:\s*control\.destructive\s*"
                   r"\?\s*Kirigami\.Theme\.backgroundColor\s*"
                   r":\s*Kirigami\.Theme\.highlightedTextColor",
                   _action_btn, re.DOTALL) is not None
-        and "color: control.filled\n                    ? control.accentA" in _action_btn
-        and "border.color: control.filled\n                    ? control.accentB" in _action_btn
+        and re.search(r"color:\s*control\.filled\s*\?\s*control\.accentA",
+                      _action_btn) is not None
+        and re.search(r"border\.color:\s*control\.filled\s*\?\s*control\.accentB",
+                      _action_btn) is not None
         and "? control.filledInk" in _action_btn
         and "filledGrad" not in _action_btn,
         "filled logout orbs must put their glyph on one scheme-paired flat fill: "
@@ -3504,7 +3506,9 @@ require("TidalHorizon {" in _logout_code
         and "accentB: root.accentB" in _logout_code
         and "parent.width * 0.96" in _logout_code
         and "parent.height * 1.80" in _logout_code
-        and "Kirigami.Units.gridUnit * 50" in _logout_code
+        and "Kirigami.Units.gridUnit * 26" in _logout_code
+        and "column.implicitWidth + Kirigami.Units.gridUnit * 4" in _logout_code
+        and "id: island" in _logout_code
         and "Animation.Infinite" not in _logout_code
         and re.search(r"#[0-9A-Fa-f]{3,8}\b", _logout_code) is None,
         "Logout must frame its compact command island with the live-accent Tidal "

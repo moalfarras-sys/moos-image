@@ -914,7 +914,7 @@ class TestMoOSUI2(unittest.TestCase):
 
         self.assertIn("GridLayout {", logout[:logout.index("id: dock")])
         self.assertIn("actionCount: root.visibleDockActions().length", dock)
-        self.assertIn("Math.min(5, widthLimit", dock)
+        self.assertIn("Math.min(4, widthLimit", dock)
         self.assertIn("Math.ceil(actionCount / 2)", dock)
         self.assertIn("verticalStep * dock.columns", logout)
         self.assertIn("if (button === cancelButton)", logout)
@@ -925,13 +925,14 @@ class TestMoOSUI2(unittest.TestCase):
                             ("Left", "-1, 0"), ("Right", "1, 0")):
             self.assertIn(f"Keys.on{key}Pressed: navigate({vector})", button)
 
-        # With room for five columns, every possible capability/update shape is
-        # either one row or two rows differing by at most one item. The old
-        # eight-wide row exceeded the 50-grid-unit command island.
+        # With room for four tile columns, every possible capability/update
+        # shape is either one row or two rows differing by at most one item.
+        # The second-generation tiles are wider (8.6 grid units), so the cap
+        # dropped from five to four; 6→3+3, 7→4+3, 8→4+4 stay balanced.
         for count in range(1, 9):
-            columns = min(5, count if count <= 5 else (count + 1) // 2)
+            columns = min(4, count if count <= 4 else (count + 1) // 2)
             rows = (count + columns - 1) // columns
-            self.assertLessEqual(columns, 5)
+            self.assertLessEqual(columns, 4)
             self.assertLessEqual(rows, 2)
             if rows == 2:
                 self.assertLessEqual(columns - (count - columns), 1)

@@ -79,6 +79,31 @@ Live Cloud-host repairs on 2026-08-02, before the release landed:
   revert live fixes (main's preflight lacks `is-active --wait`); they must be
   moved to a recoverable backup only after the new deployment boots.
 
+Session-surface redesign, slice 1 — later on 2026-08-02, working tree: the
+Logout/Restart/Shutdown doorway is rebuilt around a **Glass Island** — one
+layered-material card (fill 0.58 + sheen + neutral border + two-tone accent
+rim + three-step depth halo, all scheme roles, zero hex) that carries emblem,
+clock, date, question, identity chip, a Shape-arc countdown ring (the naked
+hairline is retired) and a dock of second-generation tiles whose captions live
+INSIDE the key surface (8.6×6.2 grid units, max four columns, 3+3/4+3/4+4
+balanced wraps). The Tidal Horizon keeps its exact reviewed geometry but now
+frames from BEHIND the island at intensity 0.55 — never through the content.
+Cancel is a full-width quiet text pill under a hairline. All contracts kept:
+signals, armOrFire two-step, moveFocus grid arrows + RTL inversion, Escape,
+exactly three `cancelRequested()` sites, Accessible role/name/description/
+pressed/onPressAction, `longDuration > 1` motion gating. The three constraint
+gates were MIGRATED to pin the new contract at equal strictness
+(`test_tidal_portals` island/ring/tile tokens, `test_moos_ui2` four-column
+wrap table, `verify_user_experience` island tokens + indentation-robust
+fill/rim regexes). All 16 packages resynced via `generate_login_scene.py`;
+the complete 70-command check recipe passes. Live 1080p evidence on the Cloud
+session (llvmpipe, real qml-qt6 + spectacle, per-palette schemes via the new
+`artwork/moos-ui2/preview-harness/make-preview.sh`):
+`artwork/moos-ui2/live-tests/redesign-2026-08-02/` holds before/after pairs —
+dark restart/halt/picker, Scholar-Light restart (Complementary island), and a
+full Arabic RTL picker with correct mirror flow. Lock, Login greeter and
+Splash remain the campaign's next slices and are NOT yet redesigned.
+
 Previous update: 2026-08-01 — the Mo AI Workspace rebuild is merged on `main`,
 published and booted. GitHub Actions run `30704582346` built, pushed, cosign-
 signed and verified `moos`, `moos-cloud` and `moos-nvidia` from merge

@@ -6,17 +6,19 @@
     The host contract (signals, ShutdownType, spdMethods, maysd, canLogout,
     softwareUpdatePending, remainingTime) is KDE Plasma 6.7's org.kde.breeze
     Logout.qml — untouched, so every action stays wired to the system. The
-    visual design is an original MoOS UI2 ground-up rework: the Tidal Horizon
-    portal, a centred live-clock + emblem header, and a compact command island
-    whose actions use the same portal-key geometry as Login and Lock.
-    Shut Down / Restart are gated behind a confirm tap (armOrFire); the signal
-    each portal key emits stays byte-identical to the stock contract.
+    visual design is the second-generation MoOS UI2 rework: the Tidal Horizon
+    stays as the doorway's depth signature BEHIND a real Glass Island — one
+    substantial layered-material card that carries the clock, the question,
+    the signed-in identity, the countdown ring and a dock of large action
+    tiles. Shut Down / Restart are gated behind a confirm tap (armOrFire);
+    the signal each tile emits stays byte-identical to the stock contract.
 */
 pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
+import QtQuick.Shapes
 import Qt5Compat.GraphicalEffects
 
 import org.kde.coreaddons as KCoreAddons
@@ -58,9 +60,11 @@ Item {
     //   accentA = Kirigami.Theme.highlightColor       · live theme accent
     //   accentB = accentA HSL hue +0.09               · two-tone signature
     //   ink     = Kirigami.Theme.textColor            · neutral glyph / text
-    //   key     = gridUnit*5.8 × 4.8 · icon 0.42 of height · radius 0.28h
-    //             idle fill ink 0.08 · lit fill ink 0.16 · crest cut + horizon
-    //   pill    = radius height/2 (password field)
+    //   island  = bg 0.58 fill · sheen ink 0.05→0 · border ink 0.14
+    //             accent top-rim gradient · radius gridUnit*2 · depth halo
+    //   tile    = gridUnit*8.6 × 6.2 · icon 0.30 of height · radius gu*1.4
+    //             idle fill ink 0.09 · lit fill ink 0.16 · crest cut + horizon
+    //   ring    = countdown: Shape arc, stroke 3, accentA on accentA 0.18
     //   scrim   = backgroundColor  0.52 / 0.30 / 0.60  (top / mid / foot)
     //   blur    = 54 wallpaper (lock's breeze WallpaperFader = 50)
     //   fonts   = IBM Plex Sans Arabic across both scripts and all numerals
@@ -82,9 +86,13 @@ Item {
     }
 
     property string nowTime: Qt.formatTime(new Date(), "HH:mm")
+    property string nowDate: new Date().toLocaleDateString(Qt.locale(), Locale.LongFormat)
     Timer {
         interval: 15000; repeat: true; running: root.visible
-        onTriggered: root.nowTime = Qt.formatTime(new Date(), "HH:mm")
+        onTriggered: {
+            root.nowTime = Qt.formatTime(new Date(), "HH:mm");
+            root.nowDate = new Date().toLocaleDateString(Qt.locale(), Locale.LongFormat);
+        }
     }
 
     function stopCountdown() { countdownTimer.stop(); }
@@ -158,10 +166,10 @@ Item {
 
     // ── Confirm-on-sensitive ────────────────────────────────────────────────
     // Shut Down / Restart are gated behind a second tap: the first tap ARMS the
-    // key (it fills + shows a "press again" hint), the second FIRES the real
-    // system signal. Everything else (Sleep, Log Out, Lock) fires immediately.
-    // This only gates the click — the signal each key emits is byte-identical to
-    // the stock contract, so the system path is untouched.
+    // tile (it fills + the island's hint line explains), the second FIRES the
+    // real system signal. Everything else (Sleep, Log Out, Lock) fires
+    // immediately. This only gates the click — the signal each tile emits is
+    // byte-identical to the stock contract, so the system path is untouched.
     property var armedButton: null
     Timer { id: armTimer; interval: 4000; onTriggered: root.disarm() }
     function disarm() {
@@ -199,7 +207,7 @@ Item {
         return "\u2066" + english + "\u2069";
     }
 
-    // Orb captions follow the same single-language rule without isolation
+    // Tile captions follow the same single-language rule without isolation
     // characters so compact label measurement remains predictable.
     function shortLabel(arabic, english) {
         return Qt.application.layoutDirection === Qt.RightToLeft ? arabic : english;
@@ -249,8 +257,8 @@ Item {
             duration: 420; easing.type: Easing.OutCubic }
     }
     // Legibility scrim — the theme's own canvas, heavier at the top and foot so
-    // the clock and the dock stay readable over any wallpaper. Calculated
-    // transparency, never an opaque wash.
+    // the island stays readable over any wallpaper. Calculated transparency,
+    // never an opaque wash.
     Rectangle {
         anchors.fill: parent
         opacity: wallpaper.opacity
@@ -266,18 +274,16 @@ Item {
         }
     }
 
-    // ── Tidal Horizon Portal ─────────────────────────────────────────────────
-    // One shared curve now identifies every doorway. There are no drifting
-    // curtains, breathing rings, or decorative loops: the portal performs one
-    // short depth reveal, then becomes completely still.
+    // ── Tidal Horizon — the doorway's depth signature ────────────────────────
+    // One shared curve identifies every doorway. It now frames the island from
+    // BEHIND: the crest passes above the card, the horizon line lands beneath
+    // it, and the intensity is tuned down so the island owns the foreground.
+    // There are no drifting curtains, breathing rings, or decorative loops: the
+    // portal performs one short depth reveal, then becomes completely still.
     TidalHorizon {
         id: portal
         anchors.horizontalCenter: parent.horizontalCenter
-        // The arc is a FRAME, never a line through the controls.  Its crest
-        // stays behind the brand while its horizon lands below the Cancel key.
-        // A wide 1.8:1 field also keeps both shoulders outside the five-action
-        // dock on 16:9, 16:10 and ultrawide displays.
-        y: parent.height * 0.10
+        y: parent.height * 0.06
         width: Math.min(parent.width * 0.96, parent.height * 1.80)
         height: Math.min(parent.height * 0.90, width * 0.56)
         accentA: root.accent
@@ -286,7 +292,7 @@ Item {
         surface: Kirigami.Theme.alternateBackgroundColor
         compact: root.width < Kirigami.Units.gridUnit * 64
         reveal: root.motionEnabled ? 0 : 1
-        intensity: 0.88
+        intensity: 0.55
 
         Component.onCompleted: {
             if (root.motionEnabled) {
@@ -304,24 +310,26 @@ Item {
         easing.type: Easing.OutCubic
     }
 
-    // The scene ABSORBS clicks; it does not cancel on one. This MouseArea used
-    // to call cancelRequested(), and the sheet carried a "blocker" MouseArea to
-    // shield its own background from it — declared `acceptedButtons:
-    // Qt.NoButton`, which makes a MouseArea decline every button and let the
-    // press fall straight through to this one. So a click on the giant clock, on
-    // the heading, or in the gaps between the keys silently cancelled a pending
-    // shutdown. Dismissing the doorway is now exactly two gestures, both
-    // deliberate: the Cancel key and Escape.
+    // The scene ABSORBS clicks; it does not cancel on one. Dismissing the
+    // doorway is exactly two gestures, both deliberate: the Cancel key and
+    // Escape — a stray click on the wallpaper or in a gap must never silently
+    // cancel (or worse, race) a pending shutdown.
     MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
 
-    // ── The command sheet: a live-clock header over a column of action rows ──
+    // ── The Glass Island ─────────────────────────────────────────────────────
+    // One substantial layered-material card carries the whole doorway: header
+    // (emblem · clock · date), the question, the signed-in identity, the
+    // countdown ring, the action dock and the way out. Material is painted
+    // from scheme roles only — fill, sheen, border, rim — so all 16 palettes
+    // wear it natively, and there is no offscreen effect layer behind it.
     Item {
         id: sheet
         anchors.centerIn: parent
-        // 50 grid units comfortably hold five 7-unit action cells while
-        // avoiding the full-window "settings sheet" silhouette at HiDPI.
-        width: Math.min(root.width - Kirigami.Units.gridUnit * 3, Kirigami.Units.gridUnit * 50)
-        height: Math.min(root.height - Kirigami.Units.gridUnit * 3, column.implicitHeight)
+        width: Math.min(root.width - Kirigami.Units.gridUnit * 3,
+                        Math.max(Kirigami.Units.gridUnit * 26,
+                                 column.implicitWidth + Kirigami.Units.gridUnit * 4))
+        height: Math.min(root.height - Kirigami.Units.gridUnit * 3,
+                         column.implicitHeight + Kirigami.Units.gridUnit * 3.6)
 
         opacity: root.motionEnabled ? 0 : 1
         transform: Translate { id: sheetRise; y: Kirigami.Units.gridUnit * 2 }
@@ -340,27 +348,65 @@ Item {
                 duration: 420; easing.type: Easing.OutCubic }
         }
 
-        // The command island is deliberately compact: a still translucent plate
-        // inside the large portal, with one Tidal Cut on its upper rim.
+        // Depth halo — a still, cheap stand-in for a drop shadow: two nested
+        // translucent plates grow past the card so it visibly floats off the
+        // scene. No offscreen layer, no effect, nothing animates.
         Rectangle {
+            anchors.fill: island
+            anchors.margins: -Kirigami.Units.gridUnit * 1.1
+            radius: island.radius + Kirigami.Units.gridUnit * 1.1
+            color: Qt.rgba(0, 0, 0, 0.04)
+        }
+        Rectangle {
+            anchors.fill: island
+            anchors.margins: -Kirigami.Units.gridUnit * 0.7
+            radius: island.radius + Kirigami.Units.gridUnit * 0.7
+            color: Qt.rgba(0, 0, 0, 0.06)
+        }
+        Rectangle {
+            anchors.fill: island
+            anchors.margins: -Kirigami.Units.gridUnit * 0.35
+            radius: island.radius + Kirigami.Units.gridUnit * 0.35
+            color: Qt.rgba(0, 0, 0, 0.08)
+        }
+
+        Rectangle {
+            id: island
             anchors.fill: parent
-            anchors.margins: -Kirigami.Units.gridUnit * 1.3
-            radius: Math.min(Kirigami.Units.gridUnit * 1.6, height * 0.075)
+            radius: Kirigami.Units.gridUnit * 2
             color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                            Kirigami.Theme.backgroundColor.g,
-                           Kirigami.Theme.backgroundColor.b, 0.42)
+                           Kirigami.Theme.backgroundColor.b, 0.58)
             border.width: 1
             border.color: Qt.rgba(Kirigami.Theme.textColor.r,
                                   Kirigami.Theme.textColor.g,
-                                  Kirigami.Theme.textColor.b, 0.16)
+                                  Kirigami.Theme.textColor.b, 0.14)
 
+            // Sheen — the glass catch-light across the island's upper field.
+            Rectangle {
+                anchors { top: parent.top; left: parent.left; right: parent.right }
+                anchors.margins: 1
+                height: parent.height * 0.38
+                radius: parent.radius - 1
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.textColor.r,
+                        Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.05) }
+                    GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.textColor.r,
+                        Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.0) }
+                }
+            }
+
+            // The accent rim — the island's Tidal signature: a two-tone light
+            // along the top edge, wider and brighter than a hairline, sitting
+            // exactly on the border so it reads as the card catching the crest.
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
                 anchors.topMargin: -height / 2
-                width: Kirigami.Units.gridUnit * 4.2
+                width: parent.width * 0.34
                 height: 3
                 radius: height / 2
+                opacity: 0.92
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
                     GradientStop { position: 0; color: root.accent }
@@ -371,70 +417,68 @@ Item {
 
         ColumnLayout {
             id: column
-            width: parent.width
+            anchors.centerIn: parent
+            width: sheet.width - Kirigami.Units.gridUnit * 4
             spacing: Kirigami.Units.largeSpacing
 
-            // ── Header: emblem, live clock, context — centred over the dock ──
-            Item {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 5.2
-                Layout.preferredHeight: Kirigami.Units.gridUnit * 5.2
-                // The emblem's halo, drawn from the live accent. It used to be a
-                // shipped raster, images/glow-cyan.png — a fixed #22D3EE cyan
-                // that the family generator can never retint, because it
-                // recolours .svg and copies every other file byte-for-byte. So
-                // all 16 themes wore the same cyan ring: on Arena's magenta the
-                // halo measured hue ~270 against an accent of hue ~330. Built
-                // from Kirigami.Theme.highlightColor it tracks every palette,
-                // and the PNG no longer ships. Same RadialGradient idiom as the
-                // portal-key bloom in MoOSUI2ActionButton, explicit radii for a clean
-                // circle.
-                RadialGradient {
-                    anchors.centerIn: parent
-                    width: parent.width * 2.1; height: width
-                    horizontalRadius: width * 0.5
-                    verticalRadius: height * 0.5
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.34) }
-                        GradientStop { position: 0.34; color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.16) }
-                        GradientStop { position: 1.0; color: "transparent" }
-                    }
-                }
-                Image {
-                    anchors.fill: parent
-                    source: "../splash/images/moos-logo.png"
-                    fillMode: Image.PreserveAspectFit; smooth: true; asynchronous: true
-                }
-            }
-            // ── Editorial clock — the ONE MoOS clock face, unified with the lock's
-            //    MoOSClock: oversized, ultra-thin, an accent colon, a hairline.
-            //    Forced LTR so HH:mm never mirrors under RTL.
+            // ── Header: emblem beside the live clock, date beneath ──
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                LayoutMirroring.enabled: false
-                layoutDirection: Qt.LeftToRight
-                spacing: 0
-                QQC2.Label {
-                    text: root.nowTime.split(":")[0]
-                    color: Kirigami.Theme.textColor
-                    font.family: "IBM Plex Sans Arabic"; font.weight: Font.ExtraLight
-                    font.pointSize: Kirigami.Theme.defaultFont.pointSize + 34
-                    font.letterSpacing: -2
+                Layout.topMargin: Kirigami.Units.smallSpacing
+                spacing: Kirigami.Units.largeSpacing
+
+                Item {
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 3.4
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 3.4
+                    // Crisp emblem — no halo: the island's accent rim already
+                    // carries the two-tone signature, and a radial bloom at this
+                    // size only smears the mark into the clock.
+                    Image {
+                        anchors.fill: parent
+                        source: "../splash/images/moos-logo.png"
+                        fillMode: Image.PreserveAspectFit; smooth: true; asynchronous: true
+                    }
                 }
-                QQC2.Label {
-                    text: ":"
-                    color: root.accent
-                    font.family: "IBM Plex Sans Arabic"; font.weight: Font.ExtraLight
-                    font.pointSize: Kirigami.Theme.defaultFont.pointSize + 34
-                }
-                QQC2.Label {
-                    text: root.nowTime.split(":")[1]
-                    color: Kirigami.Theme.textColor
-                    font.family: "IBM Plex Sans Arabic"; font.weight: Font.ExtraLight
-                    font.pointSize: Kirigami.Theme.defaultFont.pointSize + 34
-                    font.letterSpacing: -2
+
+                // Editorial clock — the ONE MoOS clock face, unified with the
+                // lock's MoOSClock: ultra-thin, an accent colon. Forced LTR so
+                // HH:mm never mirrors under RTL.
+                RowLayout {
+                    LayoutMirroring.enabled: false
+                    layoutDirection: Qt.LeftToRight
+                    spacing: 0
+                    QQC2.Label {
+                        text: root.nowTime.split(":")[0]
+                        color: Kirigami.Theme.textColor
+                        font.family: "IBM Plex Sans Arabic"; font.weight: Font.ExtraLight
+                        font.pointSize: Kirigami.Theme.defaultFont.pointSize + 26
+                        font.letterSpacing: -2
+                    }
+                    QQC2.Label {
+                        text: ":"
+                        color: root.accent
+                        font.family: "IBM Plex Sans Arabic"; font.weight: Font.ExtraLight
+                        font.pointSize: Kirigami.Theme.defaultFont.pointSize + 26
+                    }
+                    QQC2.Label {
+                        text: root.nowTime.split(":")[1]
+                        color: Kirigami.Theme.textColor
+                        font.family: "IBM Plex Sans Arabic"; font.weight: Font.ExtraLight
+                        font.pointSize: Kirigami.Theme.defaultFont.pointSize + 26
+                        font.letterSpacing: -2
+                    }
                 }
             }
+            QQC2.Label {
+                Layout.alignment: Qt.AlignHCenter
+                text: root.nowDate
+                color: Kirigami.Theme.textColor
+                opacity: 0.62
+                font.family: "IBM Plex Sans Arabic"
+                font.pointSize: Kirigami.Theme.smallFont.pointSize + 1
+            }
+
+            // ── The question — display weight, with the accent hairline ──
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.topMargin: Kirigami.Units.smallSpacing
@@ -445,71 +489,116 @@ Item {
             }
             QQC2.Label {
                 Layout.alignment: Qt.AlignHCenter
-                Layout.topMargin: Kirigami.Units.smallSpacing
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 36
                 horizontalAlignment: Text.AlignHCenter
                 text: root.headingText()
-                // The question is the point of this screen, so it is drawn in the
-                // foreground role, softened by opacity rather than swapped for a
-                // weaker colour. It used to be disabledTextColor — semantically
-                // "this control is switched off", and on the live 4K render it
-                // measured 4.41:1 against the blurred wallpaper, a hair under
-                // WCAG AA. This lands near 7.5:1 and still reads as a subtitle,
-                // because the clock above it is 34pt.
+                // The question is the point of this screen: foreground role at
+                // display size, softened only by the clock's larger presence.
                 color: Kirigami.Theme.textColor
-                opacity: 0.85
                 elide: Text.ElideRight
                 font.family: "IBM Plex Sans Arabic"
-                font.pointSize: Kirigami.Theme.defaultFont.pointSize + 1
-            }
-            // The signed-in name. It was drawn in the accent and measured 3.58:1
-            // against the blurred wallpaper on the live 4K render — under WCAG
-            // AA's 4.5:1, and this is small text. The accent still marks the
-            // clock's colon and the hairline right above, so the identity line
-            // gives it up for the scheme's full-strength foreground role; every
-            // one of the 16 palettes then carries this name at its own maximum
-            // contrast, with no hex anywhere.
-            QQC2.Label {
-                Layout.alignment: Qt.AlignHCenter
-                text: currentUser.fullName
-                visible: text.length > 0
-                color: Kirigami.Theme.textColor
-                font.family: "IBM Plex Sans Arabic"; font.weight: Font.DemiBold
-                font.pointSize: Kirigami.Theme.smallFont.pointSize
+                font.weight: Font.DemiBold
+                font.pointSize: Kirigami.Theme.defaultFont.pointSize + 7
             }
 
-            // ── Countdown (only when an action is pending) ──
-            // fillWidth must be pinned OFF. QtQuick.Layouts propagates size
-            // policy upwards: the progress track inside this row sets
-            // fillWidth: true, which silently makes the row itself expanding and
-            // overrides the 22-unit preferredWidth below — the countdown hairline
-            // then ran the full width of the sheet with its seconds counter
-            // stranded at the far end. Declaring it false keeps the bar the
-            // compact object it was drawn as.
+            // The signed-in identity — a quiet chip: initial-in-ring + name.
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                Layout.fillWidth: false
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 22
-                visible: countdownTimer.running
                 spacing: Kirigami.Units.smallSpacing
+                visible: currentUser.fullName.length > 0
                 Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 3; radius: 2
-                    color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.22)
-                    Rectangle {
-                        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                        radius: parent.radius; color: root.accent
-                        width: parent.width * Math.max(0, Math.min(1, root.remainingTime / 30))
-                        // 0 when animations are off: this Behavior re-fires every second of the
-                        // countdown, so an ungated 950ms here animated continuously through the
-                        // whole 30s even with AnimationDurationFactor=0.
-                        Behavior on width { NumberAnimation { duration: Kirigami.Units.longDuration > 1 ? 950 : 0; easing.type: Easing.Linear } }
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 1.6
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 1.6
+                    radius: width / 2
+                    color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.16)
+                    border.width: 1
+                    border.color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.55)
+                    QQC2.Label {
+                        anchors.centerIn: parent
+                        text: currentUser.fullName.length > 0 ? currentUser.fullName.charAt(0).toUpperCase() : ""
+                        color: Kirigami.Theme.textColor
+                        font.family: "IBM Plex Sans Arabic"; font.weight: Font.DemiBold
+                        font.pointSize: Kirigami.Theme.smallFont.pointSize
                     }
                 }
                 QQC2.Label {
-                    text: root.remainingTime
-                    color: root.accent; font.family: "IBM Plex Sans Arabic"; font.weight: Font.Bold
-                    font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    text: currentUser.fullName
+                    color: Kirigami.Theme.textColor
+                    font.family: "IBM Plex Sans Arabic"; font.weight: Font.DemiBold
+                    font.pointSize: Kirigami.Theme.smallFont.pointSize + 1
+                }
+            }
+
+            // ── Countdown ring (only while an action is pending) ──
+            // The naked hairline is retired: remaining time is now a still arc
+            // that empties clockwise around the seconds numeral. One Shape,
+            // stroke-only, painted from accentA over its own 0.18 track — no
+            // effect layer, and the per-second sweep is a gated Behavior.
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                visible: countdownTimer.running
+                spacing: Kirigami.Units.largeSpacing
+
+                Item {
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 3.2
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 3.2
+
+                    Shape {
+                        anchors.fill: parent
+                        preferredRendererType: Shape.CurveRenderer
+                        ShapePath {
+                            strokeWidth: 3
+                            strokeColor: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.18)
+                            fillColor: "transparent"
+                            capStyle: ShapePath.RoundCap
+                            PathAngleArc {
+                                centerX: Kirigami.Units.gridUnit * 1.6
+                                centerY: Kirigami.Units.gridUnit * 1.6
+                                radiusX: Kirigami.Units.gridUnit * 1.45
+                                radiusY: Kirigami.Units.gridUnit * 1.45
+                                startAngle: -90
+                                sweepAngle: 360
+                            }
+                        }
+                        ShapePath {
+                            strokeWidth: 3
+                            strokeColor: root.accent
+                            fillColor: "transparent"
+                            capStyle: ShapePath.RoundCap
+                            PathAngleArc {
+                                id: countdownArc
+                                centerX: Kirigami.Units.gridUnit * 1.6
+                                centerY: Kirigami.Units.gridUnit * 1.6
+                                radiusX: Kirigami.Units.gridUnit * 1.45
+                                radiusY: Kirigami.Units.gridUnit * 1.45
+                                startAngle: -90
+                                sweepAngle: 360 * Math.max(0, Math.min(1, root.remainingTime / 30))
+                                // 0 when animations are off: this Behavior re-fires every
+                                // second of the countdown, so an ungated sweep here would
+                                // animate continuously through the whole 30s even with
+                                // AnimationDurationFactor=0.
+                                Behavior on sweepAngle { NumberAnimation {
+                                    duration: Kirigami.Units.longDuration > 1 ? 850 : 0
+                                    easing.type: Easing.Linear } }
+                            }
+                        }
+                    }
+                    QQC2.Label {
+                        anchors.centerIn: parent
+                        text: root.remainingTime
+                        color: Kirigami.Theme.textColor
+                        font.family: "IBM Plex Sans Arabic"; font.weight: Font.DemiBold
+                        font.pointSize: Kirigami.Theme.defaultFont.pointSize + 3
+                    }
+                }
+                QQC2.Label {
+                    Layout.maximumWidth: Kirigami.Units.gridUnit * 18
+                    text: root.bilingual("سيُنفَّذ الإجراء تلقائيًا", "The action will run automatically")
+                    wrapMode: Text.WordWrap
+                    color: Kirigami.Theme.textColor
+                    opacity: 0.75
+                    font.family: "IBM Plex Sans Arabic"
+                    font.pointSize: Kirigami.Theme.smallFont.pointSize + 1
                 }
             }
 
@@ -536,11 +625,9 @@ Item {
                 font.weight: Font.DemiBold; font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
 
-            // ── The power dock: a responsive grid of portal keys ──
-            // A single RowLayout could expose eight actions when an update and both
-            // suspend methods were available: 8 × 7 grid units plus spacing exceeded
-            // this 50-unit island and clipped at fractional scaling. Keep at most five
-            // columns and form balanced 3+3 / 4+3 / 4+4 rows for six to eight actions.
+            // ── The power dock: a responsive grid of large tiles ──
+            // At most four tile columns; six to eight actions form balanced
+            // 3+3 / 4+3 / 4+4 rows, and a narrow island lowers the cap further.
             GridLayout {
                 id: dock
                 Layout.alignment: Qt.AlignHCenter
@@ -549,10 +636,10 @@ Item {
                 columnSpacing: Kirigami.Units.largeSpacing
                 readonly property int actionCount: root.visibleDockActions().length
                 readonly property int widthLimit: Math.max(1, Math.floor(
-                    (sheet.width + columnSpacing)
-                    / (Kirigami.Units.gridUnit * 7 + columnSpacing)))
-                columns: Math.max(1, Math.min(5, widthLimit,
-                    actionCount <= 5 ? actionCount : Math.ceil(actionCount / 2)))
+                    ((root.width - Kirigami.Units.gridUnit * 7) + columnSpacing)
+                    / (Kirigami.Units.gridUnit * 8.6 + columnSpacing)))
+                columns: Math.max(1, Math.min(4, widthLimit,
+                    actionCount <= 4 ? actionCount : Math.ceil(actionCount / 2)))
 
                 MoOSUI2ActionButton {
                     id: suspendButton
@@ -634,19 +721,37 @@ Item {
                 }
             }
 
-            // ── Cancel — subtle, centred below the dock ──
-            // The comment said "subtle" from the first rewrite; the button was
-            // drawn at full action weight, the same disc and the same DemiBold
-            // caption as Shut Down, so the way OUT competed with the actions.
-            // `subtle` is what makes it read one step down the hierarchy.
+            // ── The hint line — one stable place for state guidance ──
+            // Descriptions no longer pop in under individual tiles (which made
+            // the dock jump); the island explains the armed confirm tap here,
+            // in a reserved line that never reflows the layout.
+            QQC2.Label {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 1.2
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                text: root.armedButton ? root.armedButton.description : ""
+                color: root.armedButton ? root.armedButton.accentA : Kirigami.Theme.textColor
+                opacity: root.armedButton ? 1.0 : 0
+                font.family: "IBM Plex Sans Arabic"; font.weight: Font.DemiBold
+                font.pointSize: Kirigami.Theme.smallFont.pointSize + 1
+            }
+
+            // ── The way out — a full-width quiet pill under its hairline ──
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                               Kirigami.Theme.textColor.b, 0.10)
+            }
             MoOSUI2ActionButton {
                 id: cancelButton
                 iconName: "cancel-operation-symbolic"
-                text: root.shortLabel("إلغاء", "Cancel")
+                text: root.shortLabel("إلغاء — العودة إلى سطح المكتب", "Cancel — back to desktop")
                 description: root.bilingual("العودة إلى سطح المكتب", "Back to desktop")
                 subtle: true
                 Layout.alignment: Qt.AlignHCenter
-                Layout.topMargin: Kirigami.Units.largeSpacing
+                Layout.bottomMargin: Kirigami.Units.smallSpacing
                 onClicked: { root.disarm(); root.cancelRequested(); }
                 onNavigate: (horizontalStep, verticalStep) => root.moveFocus(cancelButton, horizontalStep, verticalStep)
             }
