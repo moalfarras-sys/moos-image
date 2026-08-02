@@ -305,6 +305,20 @@ class FirstPartyKeyboardViewportTests(unittest.TestCase):
                         source,
                     )
 
+    def test_store_details_render_full_description_as_plain_scrolling_text(self) -> None:
+        source = (APPS / "store/main.qml").read_text(encoding="utf-8")
+        start = source.index("id: detailFlick")
+        details = source[start:source.index("GridLayout {", start)]
+        description = details[
+            details.index("text: win.localDescription(win.selectedApp)"):
+        ]
+        self.assertIn("contentHeight: detailBody.implicitHeight", details)
+        self.assertIn("text: win.localDescription(win.selectedApp)", details)
+        self.assertGreaterEqual(details.count("textFormat: Text.PlainText"), 2)
+        self.assertIn("lineHeight: 1.35", description)
+        self.assertNotIn("maximumLineCount", description)
+        self.assertNotIn("elide: Text.Elide", description)
+
 
 class SharedQmlDesignSystemTests(unittest.TestCase):
     def test_tokens_are_the_reviewed_app_contract_and_are_adopted(self) -> None:

@@ -577,6 +577,20 @@ gate holds the shared algorithm and every pane binding. This host has no Qt/KDE
 runtime, so source construction and the gate are evidence here; a live Tab walk
 on the built image remains part of the next installed visual pass.
 
+Mo Store long-description audit: the details sheet already named an AppStream
+`description`, but curated catalogue overlay replaced that field with the short
+card summary, so curated applications repeated one sentence and never exposed
+their real details. The indexer now preserves distinct AppStream copy, handles
+both container-localized and per-paragraph/list `xml:lang`, renders paragraphs
+and lists as bounded plain text, and caps each chosen locale at 2048 characters.
+The scrolling details sheet no longer truncates at eight lines and forces both
+summary and description to `Text.PlainText`. The generator's own SHA-256 is part
+of its metadata token, so existing caches rebuild once after this code change
+rather than retaining the broken projection. Black-box tests prove curated
+summary plus Arabic/English long descriptions, list structure, locale isolation,
+the hard size cap and the no-description fallback; the QML gate holds scrolling,
+plain-text rendering and absence of line elision.
+
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through

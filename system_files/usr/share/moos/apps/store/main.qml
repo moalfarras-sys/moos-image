@@ -2996,6 +2996,7 @@ ApplicationWindow {
                 Text {
                     Layout.fillWidth: true
                     text: win.localSummary(win.selectedApp)
+                    textFormat: Text.PlainText
                     color: win.txt
                     font.family: win.uiFont
                     font.pixelSize: win.typePx(15)
@@ -3009,12 +3010,12 @@ ApplicationWindow {
                     // twice. Only a description that ADDS something earns the row.
                     visible: win.localDescription(win.selectedApp) !== win.localSummary(win.selectedApp)
                     text: win.localDescription(win.selectedApp)
+                    textFormat: Text.PlainText
                     color: win.txt2
                     font.family: win.uiFont
                     font.pixelSize: win.typePx(11)
                     wrapMode: Text.WordWrap
-                    maximumLineCount: 8
-                    elide: Text.ElideRight
+                    lineHeight: 1.35
                 }
 
                 GridLayout {

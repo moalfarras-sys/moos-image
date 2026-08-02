@@ -372,6 +372,74 @@ def localized_values(
     return values
 
 
+def appstream_description_values(
+    component: ET.Element, limit: int = 2048
+) -> dict[str, str]:
+    """Render localized AppStream paragraphs/lists as bounded plain text.
+
+    Real AppStream metadata commonly keeps every language inside one
+    ``<description>`` by putting ``xml:lang`` on each ``<p>``/``<ul>``; some
+    producers instead emit one localized description container per language.
+    Treating the container like an ordinary text field mixed those languages
+    and flattened lists. Keep only text, preserve useful block structure, and
+    cap the final value before it enters the Store index.
+    """
+
+    blocks: dict[str, list[str]] = {}
+
+    def append(language: str, value: str) -> None:
+        if value:
+            blocks.setdefault(language, []).append(value)
+
+    for description in direct_children(component, "description"):
+        raw_container_lang = description.attrib.get(XML_LANG)
+        container_lang = normalized_locale(raw_container_lang)
+        if raw_container_lang and not container_lang:
+            continue
+        children = list(description)
+        if not children:
+            append(container_lang, element_text(description, limit))
+            continue
+        for child in children:
+            raw_child_lang = child.attrib.get(XML_LANG)
+            child_lang = normalized_locale(raw_child_lang)
+            if raw_child_lang and not child_lang:
+                continue
+            language = child_lang or container_lang
+            kind = local_name(child.tag)
+            if kind in {"ul", "ol"}:
+                per_language: dict[str, list[str]] = {}
+                for item in direct_children(child, "li"):
+                    raw_item_lang = item.attrib.get(XML_LANG)
+                    item_lang = normalized_locale(raw_item_lang)
+                    if raw_item_lang and not item_lang:
+                        continue
+                    item_language = item_lang or language
+                    value = element_text(item, limit)
+                    if value:
+                        per_language.setdefault(item_language, []).append(value)
+                for item_language, lines in per_language.items():
+                    if kind == "ol":
+                        rendered = "\n".join(
+                            f"{index}. {line}"
+                            for index, line in enumerate(lines, start=1)
+                        )
+                    else:
+                        rendered = "\n".join(f"• {line}" for line in lines)
+                    append(item_language, rendered)
+            else:
+                append(language, element_text(child, limit))
+
+    result: dict[str, str] = {}
+    for language, language_blocks in blocks.items():
+        value = "\n\n".join(language_blocks).strip()
+        if len(value) > limit:
+            value = value[: max(1, limit - 1)].rstrip() + "…"
+        if value:
+            result[language] = value
+    return result
+
+
 def pick_localized(values: dict[str, str], preferences: list[str]) -> str:
     for wanted in preferences:
         if wanted in values:
@@ -633,7 +701,7 @@ def parse_component(
         localized_values(component, "summary", 240), preferences
     )
     description = pick_localized(
-        localized_values(component, "description", 420), preferences
+        appstream_description_values(component), preferences
     )
     categories = component_categories(component)
     license_value = element_text(first_child(component, "project_license"), 160)
@@ -1624,8 +1692,14 @@ def overlay_catalog(app: dict, entry: dict, preferences: list[str]) -> None:
     if curated_name:
         app["name"] = curated_name
     if curated_description:
+        previous_summary = app.get("summary", "")
+        previous_description = app.get("description", "")
         app["summary"] = curated_description
-        app["description"] = curated_description
+        # The curated catalogue copy is a reviewed CARD summary, not a replacement for the
+        # richer local AppStream details. Preserve a real long description; only move the new
+        # summary into `description` when metadata had no distinct description of its own.
+        if not previous_description or previous_description == previous_summary:
+            app["description"] = curated_description
     for key in (
         "cat",
         "glyph",

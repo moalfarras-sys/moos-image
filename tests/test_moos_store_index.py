@@ -30,8 +30,8 @@ PRIMARY_XML = """<?xml version="1.0" encoding="UTF-8"?>
     <description>
       <p>A focused writing tool with a deliberately long description.</p>
       <ul><li>One</li><li>Two</li></ul>
+      <p xml:lang="ar">أداة كتابة عربية جميلة وسريعة.</p>
     </description>
-    <description xml:lang="ar"><p>أداة كتابة عربية جميلة وسريعة.</p></description>
     <project_license>MPL-2.0</project_license>
     <developer>
       <name>Example Studio</name>
@@ -256,6 +256,9 @@ class StoreIndexTests(unittest.TestCase):
             )
             self.assertEqual(writer["name"], "الكاتب المختار")
             self.assertEqual(writer["summary"], "وصف عربي منسّق.")
+            self.assertEqual(
+                writer["description"], "أداة كتابة عربية جميلة وسريعة."
+            )
             self.assertEqual(writer["developer"], "استوديو المثال")
             self.assertEqual(writer["license"], "MPL-2.0")
             self.assertEqual(writer["category"], "office")
@@ -282,6 +285,7 @@ class StoreIndexTests(unittest.TestCase):
             self.assertTrue(fallback["installed"])
             self.assertEqual(fallback["installed_scope"], "user")
             self.assertEqual(fallback["installed_scopes"], ["user"])
+            self.assertEqual(fallback["description"], fallback["summary"])
 
             codex = apps["codex"]
             self.assertEqual(codex["source"], "moos")
@@ -292,6 +296,7 @@ class StoreIndexTests(unittest.TestCase):
             self.assertEqual(codex["install"]["risk"], "external-download")
             self.assertTrue(codex["install"]["requires_review"])
             self.assertTrue(codex["install"]["external"])
+            self.assertEqual(codex["description"], codex["summary"])
 
             self.assertEqual(data["schema_version"], 1)
             self.assertTrue(data["generation"]["offline"])
@@ -374,6 +379,32 @@ class StoreIndexTests(unittest.TestCase):
             self.assertNotIn("installed_scope", removed_apps["org.example.Writer"])
             self.assertNotIn("installed_scopes", removed_apps["org.example.Writer"])
 
+    def test_long_description_is_plain_localized_and_bounded(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            appstream = base / "flatpak/appstream"
+            installation = base / "flatpak"
+            long_text = " ".join(f"word{index}" for index in range(600))
+            xml = f"""<components><component type="desktop-application">
+  <id>org.example.Long</id><name>Long</name><summary>Short</summary>
+  <description><p>{long_text}</p><p xml:lang="ar">نص عربي منفصل</p></description>
+  <bundle type="flatpak">app/org.example.Long/x86_64/stable</bundle>
+</component></components>"""
+            write_source(appstream, "flathub", xml, compressed=False)
+            catalog = base / "catalog.json"
+            catalog.write_text(
+                '{"categories":[],"bundles":[],"apps":[]}', encoding="utf-8"
+            )
+            output = base / "index.json"
+            result = self.run_indexer(
+                output, catalog, appstream, installation, locale="en"
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            app = json.loads(output.read_text(encoding="utf-8"))["apps"][0]
+            self.assertEqual(len(app["description"]), 2048)
+            self.assertTrue(app["description"].endswith("…"))
+            self.assertNotIn("نص عربي", app["description"])
+
     def test_cached_icon_uri_survives_active_revision_rotation(self) -> None:
         """Cached indexes must not pin an AppStream revision Flatpak deletes."""
 
@@ -398,6 +429,11 @@ class StoreIndexTests(unittest.TestCase):
             data = json.loads(output.read_text(encoding="utf-8"))
             writer = next(
                 app for app in data["apps"] if app["id"] == "org.example.Writer"
+            )
+            self.assertEqual(
+                writer["description"],
+                "A focused writing tool with a deliberately long description.\n\n"
+                "• One\n• Two",
             )
             icon_path = Path(unquote(urlsplit(writer["icon"]).path))
             self.assertIn("active", icon_path.parts)
