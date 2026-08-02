@@ -45,6 +45,8 @@ const TAP_RESCUE_MS = 300;
 const TAP_RESCUE_PX = 24;
 /** How much two fingers must spread or travel before we decide which gesture they are. */
 const TWO_DECIDE_PX = 10;
+/** A scroll-latched gesture whose spread later clearly dominates upgrades to a pinch. */
+const TWO_UPGRADE_PX = 28;
 const LONGPRESS_MS = 500; // matches Android's own long-press feel, so a slow tap stays a tap
 /** Two taps closer than this in time AND space are one double-click. */
 const DOUBLE_TAP_MS = 300;
@@ -483,6 +485,18 @@ export class GestureController {
       this.lastCx = cx; this.lastCy = cy; this.lastDist = d;
       if (Math.max(this.twoSpread, this.twoTravel) < TWO_DECIDE_PX) return;
       this.twoMode = this.twoSpread > this.twoTravel ? "pinch" : "scroll";
+    }
+
+    if (this.twoMode === "scroll") {
+      // The one-shot latch was the top "zoom feels dead" cause: a pinch whose
+      // fingers also drifted 10 px latched to scroll FOR THE WHOLE GESTURE and
+      // never zoomed. Keep accumulating; when spread clearly dominates travel,
+      // upgrade mid-gesture — scrolling stops, zooming starts, no lift needed.
+      this.twoSpread += Math.abs(d - this.lastDist);
+      this.twoTravel += dist(cx, cy, this.lastCx, this.lastCy);
+      if (this.twoSpread > TWO_UPGRADE_PX && this.twoSpread > this.twoTravel * 1.4) {
+        this.twoMode = "pinch";
+      }
     }
 
     if (this.twoMode === "pinch") {

@@ -231,7 +231,10 @@ public sealed class InputInjector : IDisposable
         // (the reported "types wrong" bug). Named keys (Enter, Tab, arrows, F-keys) and modifiers
         // keep the keycode path; combos still resolve letters through Keys via Combo().
         if (k.Length == 1 && k[0] is >= ' ' and <= '~') { TypeText(k); return; }
-        if (Keys.TryGetValue(k, out var c)) { Set(c, true); Thread.Sleep(12); Set(c, false); }
+        // Backspace arrives in bursts when the phone diffs an autocorrect rewrite;
+        // 12 ms of hold per repeat serialized a 30-key burst into ~0.7 s of injection.
+        // Apps register a 4 ms hold fine for repeats of the same edit key.
+        if (Keys.TryGetValue(k, out var c)) { Set(c, true); Thread.Sleep(k == "Backspace" || k == "Delete" ? 4 : 12); Set(c, false); }
         else if (k.Length >= 1) TypeText(k);
     }
     public void KeyDown(string k) { if (Keys.TryGetValue(k, out var c)) Set(c, true); }

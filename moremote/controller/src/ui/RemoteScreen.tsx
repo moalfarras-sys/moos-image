@@ -282,19 +282,21 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
 
   const [status, setStatus] = useState<Conn>("connecting");
   const [mode, setMode] = usePref<GestureMode>("mode", defaultMode());
-  const [viewMode, setViewMode] = useState<ViewMode>("fit");
+  const [viewMode, setViewMode] = usePref<ViewMode>("viewMode", "fit");
   // What this device says about itself, read once. Used for the OPENING rung only — the RTT
   // ladder below owns every step after that and can undo an optimistic guess within ~4s.
   const deviceHints = useRef(readDeviceHints(
     Math.round(Math.max(screen.width, screen.height) * (window.devicePixelRatio || 1)))).current;
-  const [presetIdx, setPresetIdx] = useState(() => pickStartPreset(deviceHints));
+  // A quality the owner picked by hand is a durable choice: reopening at the
+  // device-hint guess every session was half of "it is always blurry".
+  const [presetIdx, setPresetIdx] = usePref("presetIdx", pickStartPreset(deviceHints));
   // Auto quality ON by default. The complaint that keeps coming back is "the remote is slow",
   // and the usual cause is a fixed preset that is too heavy for the link the phone is actually
   // on — a DERP relay or mobile data, not the home LAN it was tuned for. Starting in auto lets
   // the stream drop to a lighter preset within a couple of seconds of high latency and climb
   // back up on a fast link, without the user ever opening the quality menu. They can still turn
   // it off and pin a preset by hand. This is the client half of Fast Remote (host half).
-  const [auto, setAuto] = useState(true);
+  const [auto, setAuto] = usePref("autoQuality", true);
   const latRef = useRef(0);
   const [kbOpen, setKbOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
@@ -1303,11 +1305,17 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
     const p = QUALITY_PRESETS[presetIdxRef.current] ?? QUALITY_PRESETS[1];
     // "100%" means the viewer wants real device pixels rather than a fitted picture, so the preset's
     // width stops being a ceiling; everywhere else it still is.
-    const ceiling = viewModeRef.current === "actual" ? 2560 : Math.min(p.width, 2560);
+    // Zooming in is an explicit request to inspect detail: the preset ceiling
+    // (tuned for the fitted view) must not pin a 2x zoom to upscaled mush, so a
+    // zoomed viewer may ask up to the hard 2560 cap just like "100%".
+    const zoomed = view.current.zoom > 1.05;
+    const ceiling = viewModeRef.current === "actual" || zoomed ? 2560 : Math.min(p.width, 2560);
     const shown = displayWidthPx();
     // A zero means we could not measure yet (no canvas, no size): fall back to the preset rather
     // than to a floor, or the first seconds of every session would be a deliberately small picture.
-    const width = shown > 0 ? Math.max(480, Math.min(ceiling, shown)) : ceiling;
+    // The floor is 720: below that, text on a 1080p desktop is unreadable on ANY
+    // phone, and the encode cost of 720 vs 480 is noise even on llvmpipe.
+    const width = shown > 0 ? Math.max(720, Math.min(ceiling, shown)) : ceiling;
     lastPushedWidth.current = width;
     connRef.current?.settings(p.quality, p.fps, width, Math.min(1, width / 2560));
   };
@@ -1357,6 +1365,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   //   * a COOLDOWN after acting, so the loop observes the consequence of its last move before making
   //     another. Climbing needs a longer one than dropping: being slow to give someone more quality
   //     costs them nothing, being slow to relieve a struggling link costs them the session.
+  const inputBurstAtRef = useRef(0);
   const autoStateRef = useRef({ up: 0, down: 0, last: 0 });
   useEffect(() => {
     if (!auto) return;
@@ -1369,13 +1378,20 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
     const id = window.setInterval(() => {
       const lat = latRef.current;
       if (!lat) return;                        // no measurement yet — never act on a zero
+      // Injection bursts (typing, drags) load the compositor and briefly inflate
+      // RTT. That is the session working, not the network failing — stepping the
+      // picture down on it is why quality cratered exactly while typing.
+      if (Date.now() - inputBurstAtRef.current < 1500) return;
       const st = autoStateRef.current;
       const since = Date.now() - st.last;
       if (lat > 400) { st.down++; st.up = 0; }
       else if (lat < 90) { st.up++; st.down = 0; }
       else { st.up = 0; st.down = 0; }         // inside the dead band: forget, do not drift
       if (st.down >= AGREE_DOWN && since > COOLDOWN_DOWN) {
-        setPresetIdx((idx) => { if (idx <= 0) return idx; st.last = Date.now(); st.down = 0; return idx - 1; });
+        // Auto backs off to Balanced at worst. Data saver's 540p exists for an
+        // explicit human choice (metered data); a latency spike must never park
+        // the session on an unreadable picture ("always blurry, can't see").
+        setPresetIdx((idx) => { if (idx <= 1) return idx; st.last = Date.now(); st.down = 0; return idx - 1; });
       } else if (st.up >= AGREE_UP && since > COOLDOWN_UP) {
         const cap = autoMaxPreset();
         setPresetIdx((idx) => { if (idx >= cap) return idx; st.last = Date.now(); st.up = 0; return idx + 1; });
@@ -1494,6 +1510,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
 
   const sendKey = (key: string) => {
     const c = connRef.current; if (!c) return;
+    inputBurstAtRef.current = Date.now();
     if (mods.size > 0) { c.combo([...mods, key]); setMods(new Set()); } else c.keyTap(key);
   };
   const toggleMod = (m: string) => setMods((s) => { const n = new Set(s); n.has(m) ? n.delete(m) : n.add(m); return n; });
@@ -1502,6 +1519,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
   const onInput = () => {
     const el = inputRef.current!, v = el.value, last = lastVal.current, c = connRef.current;
     if (!c) { lastVal.current = v; return; }
+    inputBurstAtRef.current = Date.now();
     // Arabic keyboards and other IMEs revise a word while it is being composed. Streaming those
     // intermediate values duplicates letters and Backspaces remotely; send only the commit.
     if (composingRef.current) return;
@@ -1512,13 +1530,28 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
     } else if (v.length < last.length && last.startsWith(v)) {
       for (let i = 0; i < last.length - v.length; i++) c.keyTap("Backspace");
     } else {
-      // replaced (autocorrect): delete the old, type the new
-      for (let i = 0; i < last.length; i++) c.keyTap("Backspace");
-      if (v) c.text(v);
+      // Replaced (autocorrect/IME rewrite). Deleting the WHOLE line and retyping
+      // it turned one autocorrect into a Backspace storm — up to 300 taps — that
+      // visibly stalled the session. Autocorrect rewrites one word: keep the
+      // common prefix AND suffix, delete only the differing middle, retype it.
+      let p = 0;
+      const max = Math.min(last.length, v.length);
+      while (p < max && last[p] === v[p]) p++;
+      let sf = 0;
+      while (sf < max - p && last[last.length - 1 - sf] === v[v.length - 1 - sf]) sf++;
+      const removed = last.length - p - sf;
+      // The remote caret sits at the end of what we sent; step over the shared
+      // suffix, delete the middle, type the replacement, then walk back.
+      for (let i = 0; i < sf; i++) c.keyTap("ArrowLeft");
+      for (let i = 0; i < removed; i++) c.keyTap("Backspace");
+      const middle = v.slice(p, v.length - sf);
+      if (middle) c.text(middle);
+      for (let i = 0; i < sf; i++) c.keyTap("ArrowRight");
     }
     lastVal.current = v;
-    // resync only if the line gets very long (Backspace-on-empty is handled in onKeyDown)
-    if (v.length > 300) { el.value = ""; lastVal.current = ""; }
+    // Resync while the line is still short: the worst replace burst above is
+    // bounded by this cap, and Backspace-on-empty is handled in onKeyDown.
+    if (v.length > 48) { el.value = ""; lastVal.current = ""; }
   };
   const onCompositionStart = () => {
     composingRef.current = true;
@@ -2041,6 +2074,19 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
           </button>
           <button className="tbtn" onClick={() => setSheet("view")}>
             {viewMode === "fit" ? <IconFit /> : <IconActual />}<span>View</span>
+          </button>
+          <button
+            className="tbtn"
+            onClick={() => {
+              const c = canvasRef.current;
+              if (!c) return;
+              const r = c.getBoundingClientRect();
+              zoomToggleAt(r.left + r.width / 2, r.top + r.height / 2);
+              bumpToolbar();
+            }}
+            aria-label="Zoom in on the centre, or back to fit"
+          >
+            <IconActual /><span>Zoom</span>
           </button>
           <button className={"tbtn" + (sound === "on" ? " on" : "")} onClick={toggleSound}>
             {sound === "on" ? <IconSpeaker /> : <IconSpeakerOff />}

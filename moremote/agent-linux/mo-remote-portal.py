@@ -189,18 +189,29 @@ bus.signal_subscribe(BUS, "org.freedesktop.portal.Session", "Closed", session, N
 _notify_failures = 0
 
 
-def notify(method, sig, args):
-    """Input injection. A dead session raises on every call — bail out rather than swallow it."""
+def _notify_done(_bus, res):
+    """Failure accounting for fire-and-forget injection. A transient compositor
+    hiccup must not kill the helper (that used to force a full pipeline rebuild
+    back onto JPEG); only a sustained failure streak means the session is dead."""
     global _notify_failures
     try:
-        bus.call_sync(BUS, PATH, REMOTE, method, GLib.Variant(sig, args), None,
-                      Gio.DBusCallFlags.NO_AUTO_START, 1000, None)
+        bus.call_finish(res)
         _notify_failures = 0
     except GLib.GError as e:
         _notify_failures += 1
-        if _notify_failures >= 5:
+        if _notify_failures >= 20:
             die(EXIT_LOST, f"input injection failing: {e.message}")
-        raise
+
+
+def notify(method, sig, args):
+    """Input injection, asynchronous on purpose. call_sync made every keystroke
+    wait a full compositor round-trip on the input thread, so a burst (an
+    autocorrect rewrite, fast Arabic typing) serialized at compositor pace while
+    KWin was also being hammered — which is exactly when the picture froze.
+    Ordering is safe: async calls on one GDBus connection are sent in call
+    order, so down always precedes up."""
+    bus.call(BUS, PATH, REMOTE, method, GLib.Variant(sig, args), None,
+             Gio.DBusCallFlags.NO_AUTO_START, 1000, None, _notify_done)
 
 
 # ---------------------------------------------------------------- frame transport

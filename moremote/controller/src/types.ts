@@ -5,7 +5,7 @@
 // tell at a glance which one you are looking at. v14 also described behaviour that no longer
 // exists ("fill-screen portrait" was the automatic quarter-turn, now removed), so it was
 // actively misleading while debugging exactly that.
-export const BUILD = "v31 · Unified Tidal Cut controls";
+export const BUILD = "v32 · Fluid zoom, steady typing, sharp floor";
 
 export interface ServerStatus {
   name: string;
@@ -113,8 +113,8 @@ export interface QualityPreset {
  * still desktop: it is spent only when there is motion, which is exactly when it is wanted.
  */
 export const QUALITY_PRESETS: QualityPreset[] = [
-  { label: "Data saver", detail: "540p · 30", quality: 45, fps: 30, width: 960 },
-  { label: "Balanced",   detail: "768p · 30", quality: 62, fps: 30, width: 1366 },
+  { label: "Data saver", detail: "576p · 30", quality: 52, fps: 30, width: 1024 },
+  { label: "Balanced",   detail: "768p · 30", quality: 68, fps: 30, width: 1366 },
   { label: "Sharp",      detail: "1080p · 30", quality: 80, fps: 30, width: 1920 },
   { label: "Ultra",      detail: "1440p · 60", quality: 85, fps: 60, width: 2560 },
 ];

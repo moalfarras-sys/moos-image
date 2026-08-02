@@ -4,7 +4,35 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-02, night — **launcher polish round on branch
+Last updated: 2026-08-02, late night — **Mo PC Remote usability overhaul**
+(owner report: typing freezes the picture, zoom/pan feel dead, always blurry,
+worst on MoOS Cloud). Root causes found by tracing, each fixed at source:
+(1) the portal helper injected EVERY key via synchronous D-Bus on the input
+thread — a burst serialized at compositor pace while KWin was also being
+hammered; injection is now fire-and-forget async (ordering preserved by GDBus)
+with the failure threshold 5→20 so a transient compositor hiccup no longer
+kills the helper into a JPEG rebuild. (2) The phone's autocorrect diff deleted
+the WHOLE line and retyped it (up to 300 Backspaces); it now keeps the common
+prefix AND suffix and rewrites only the middle (ArrowLeft/Backspace/text/
+ArrowRight), with the resync cap 300→48 and Backspace/Delete hold 12→4 ms.
+(3) The RTT auto-ladder read its own injection load as a bad network and
+dropped quality exactly while typing — it now ignores samples within 1.5 s of
+input bursts, and its floor is Balanced: auto can never park the session on
+Data saver. (4) The pinch recogniser's one-shot latch (10 px) is upgradeable
+mid-gesture (spread > 28 px and 1.4× travel), so a drifting pinch zooms
+instead of latching to scroll forever; a one-tap Zoom toggle joined the
+toolbar. (5) Zooming now lifts the preset width ceiling to the hard 2560 cap
+(inspecting detail is an explicit request), the request floor rose 480→720,
+quality/auto/view choices persist across sessions, and the two lowest presets
+became readable (Data saver 960/q45→1024/q52, Balanced q62→68). x264enc and
+openh264enc are confirmed present on the Cloud image, so H.264 (not JPEG) is
+the software path. BUILD v32; bundle rebuilt, force-added and gate-verified;
+controller typecheck+tests pass; the seven targeted remote gates pass. Agent
+C# tests run in CI's image build (no local dotnet).
+
+Last updated: 2026-08-02, night — **the Tidal arc is retired everywhere**
+
+Previous update: 2026-08-02, night — **launcher polish round on branch
 `product/launcher-polish-2026-08-02`** (this entry; rebased onto the Tidal-arc
 retirement below, whose release `71d1b466` is already signed). The owner
 could not name the launcher's icon-only session buttons by hovering: all nine
