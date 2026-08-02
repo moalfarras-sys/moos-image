@@ -14,6 +14,7 @@ wake = (user_units / "moai-wake.service").read_text(encoding="utf-8")
 agent_api = (user_units / "moai-agent-api.service").read_text(encoding="utf-8")
 remote = (user_units / "mo-remote-personal.service").read_text(encoding="utf-8")
 cloud_audio = (user_units / "moos-cloud-audio.service").read_text(encoding="utf-8")
+ramalama = (user_units / "moai.service").read_text(encoding="utf-8")
 
 def section(name: str, source: str = unit) -> str:
     match = re.search(rf"(?m)^\[{re.escape(name)}\]\s*$", source)
@@ -37,6 +38,11 @@ checks = {
         "StartLimitIntervalSec=300" in speech and "StartLimitBurst=5" in speech,
     "the local brain container can restart/pull forever":
         "StartLimitIntervalSec=300" in brain and "StartLimitBurst=5" in brain,
+    "the RamaLama local brain can restart/reload its multi-gigabyte model forever":
+        "StartLimitIntervalSec=300" in section("Unit", ramalama)
+        and "StartLimitBurst=5" in section("Unit", ramalama),
+    "RamaLama StartLimit directives are incorrectly placed in [Service]":
+        "StartLimit" not in section("Service", ramalama),
     "the local brain can hold session shutdown for 90 seconds":
         "TimeoutStopSec=30" in brain,
     "the always-on control API can restart forever":

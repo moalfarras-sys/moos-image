@@ -4,6 +4,15 @@ Documentation=https://github.com/moalfarras-sys/moos-image
 After=network-online.target
 Wants=network-online.target
 
+# A malformed model, failed pull or GPU/runtime fault must not rebuild a multi-gigabyte
+# process every five seconds forever. RestartSec=5 is slow enough to sit below systemd's
+# distribution-default burst, so relying on that default does not stop the loop. Five attempts
+# in five minutes absorb transient driver/network recovery, then leave an actionable failed unit.
+# After the window expires, the next explicit local request may start it normally; an immediate
+# operator repair uses `systemctl --user reset-failed moai.service` before starting it.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
 [Service]
 Type=simple
 # 8081, NOT 8080. 8080 belongs to moai-gateway — the single always-on front door,

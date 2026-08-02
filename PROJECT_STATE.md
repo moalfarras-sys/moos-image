@@ -546,6 +546,16 @@ tests and the complete repository check pass. This off-image Cloud host lacks
 `systemd-analyze`, so unit loading and shutdown latency still require the image
 build/live system and are not claimed here.
 
+Mo AI RamaLama lifecycle follow-up: the primary on-demand `moai.service` still
+had `Restart=on-failure` at a five-second cadence with no explicit rate limit.
+That cadence can stay below systemd's distribution-default burst indefinitely,
+recreating a multi-gigabyte model process after a persistent model, GPU or
+runtime failure. The unit now allows five attempts per five minutes in `[Unit]`
+and then remains visibly failed. The lifecycle gate now covers this unit and
+directive placement as well as the Ollama/Speaches containers. No model was
+loaded on this off-image audit host; installed restart timing remains live-image
+evidence.
+
 OpenClaw deep health now proves Telegram `OK` and the owner's newly paired
 WhatsApp account `LINKED`, both on the same gateway/session store. That live
 pairing exposed a status bug: OpenClaw 2026.7 reports WhatsApp through
